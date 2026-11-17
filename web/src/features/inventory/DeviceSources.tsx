@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils'
 import { AddDialog } from './AddDialog'
 import { TurnOnModule } from './Inline'
 import { useDeviceAction, useDeviceSources, useSettings } from './api'
+import { useScanningHistory } from '@/features/scanning/api'
 import { inRanges } from './AddToScopeDialog'
 import { nameOf } from './nameOf'
 import { kindLabel } from '@/lib/deviceTypes'
@@ -40,6 +41,30 @@ function feedsOf(d: DeviceDetail): Map<Feed, string | null> {
 }
 
 const IPV4 = /^\d{1,3}(\.\d{1,3}){3}$/
+
+/** A scan observation this much after a device check ended came from a later run: the LAN sweep (it records what answered). */
+const AFTER_CHECK_MS = 120_000
+
+/** The times of the network scan, each named for what it is: the last device check (the run the Last checks section lists, from
+ *  the same History rows) and, when the LAN sweep heard the device after it, that sweep; with no check yet, only the sweep. */
+function ScanTimes({ id, seen }: { id: string; seen: string | null }) {
+  const { t } = useTranslation('inventory')
+  const history = useScanningHistory(id)
+  const check = history.data?.items.find((r) => r.kind === 'device') ?? null
+  if (!history.data) return seen ? <When at={seen} text={t('sources.lastSeen', { when: fmtRelative(seen) })} /> : null
+  const end = check ? Date.parse(check.ended_at ?? check.started_at) : null
+  const sweep = seen && (end === null || Date.parse(seen) > end + AFTER_CHECK_MS) ? seen : null
+  return (
+    <>
+      {check ? <When at={check.started_at} text={t('sources.lastCheck', { when: fmtRelative(check.started_at) })} /> : null}
+      {sweep ? <When at={sweep} text={t('sources.lastSweep', { when: fmtRelative(sweep) })} /> : null}
+    </>
+  )
+}
+
+function When({ at, text }: { at: string; text: string }) {
+  return <time className="text-caption text-muted" dateTime={at} title={fmtDateTime(at)}>{text}</time>
+}
 
 /** The person's switch of one active source of the box for this device (network scan, SNMP), with what on and off mean in one
  *  line. Admin only; others see it locked with the reason. An agent has no switch: it is installed or uninstalled on the machine. */
@@ -122,7 +147,8 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
                 <div className="flex min-w-0 flex-wrap items-center gap-2">
                   <span className="text-sm font-medium">{t(`sources.name.${f}`)}</span>
                   {on ? <Chip tone="ok">{t('sources.feeds')}</Chip> : <Chip tone="off">{t('sources.notYet')}</Chip>}
-                  {at ? <time className="text-caption text-muted" dateTime={at} title={fmtDateTime(at)}>{t('sources.lastSeen', { when: fmtRelative(at) })}</time> : null}
+                  {f === 'scan' ? <ScanTimes id={a.id} seen={at} />
+                    : at ? <When at={at} text={t('sources.lastSeen', { when: fmtRelative(at) })} /> : null}
                 </div>
                 {action(f)}
               </div>

@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
-import { modulesStore, sessionStore } from '@/mocks/stores'
+import { assetsStore, modulesStore, sessionStore } from '@/mocks/stores'
+import { historyStore, markReached } from '@/features/scanning/mocks'
 import { ensureBox } from './mocks'
 
 // issue #829 ("the device came from a scan, I added it, then I could not add SNMP to it; can I add osquery later, or both?").
@@ -34,6 +35,34 @@ describe('Device page: Sources', () => {
     await expectNoA11yViolations(container)
     await user.click(within(agent).getByRole('button', { name: 'Install osquery' }))
     expect(await screen.findByRole('dialog', undefined, T)).toBeInTheDocument()
+  })
+
+  // The network scan's time and the Last checks section read the same run: each time is named for what it is, the device check (the
+  // run Last checks lists) and the LAN sweep that heard the device after it; never one unlabelled "last report".
+  it('the network scan names its times: the last device check, as Last checks says, and a later sweep', async () => {
+    const ago = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString()
+    historyStore.set([{ id: 'saj-old', kind: 'device', engine: 'nmap-versions', trigger: 'automatic', label: '192.168.10.21', target_id: null, started_at: ago(72), ended_at: ago(71.9), outcome: 'ok', text: 'Scanned 192.168.10.21: no open port' }])
+    markReached('saj-old', ['192.168.10.21'])
+    assetsStore.update((l) => l.map((a) => (a.id === 'a-nas02' ? { ...a, os: { value: 'Linux 5.4 - 5.15', source: 'nmap', confidence: 0.9, seen_at: ago(22) } } : a)))
+    renderApp('/devices/a-nas02', { role: 'admin' })
+    const list = await sources()
+    const scan = item(list, 'Network scan')
+    expect(await within(scan).findByText('last device check 3 days ago', {}, T)).toBeInTheDocument()
+    expect(within(scan).getByText('answered the LAN sweep 22 hours ago')).toBeInTheDocument()
+    expect(within(scan).queryByText(/last report/)).toBeNull()
+    const ident = await screen.findByRole('group', { name: 'Device check: ports, services, software' }, T)
+    expect(within(ident).getByText(/\(3 days ago\)/)).toBeInTheDocument()
+  })
+
+  it('a scan heard only by the device check itself shows one time, the check', async () => {
+    const ago = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString()
+    historyStore.set([{ id: 'saj-new', kind: 'device', engine: 'nmap-versions', trigger: 'person', label: '192.168.10.21', target_id: null, started_at: ago(2), ended_at: ago(1.99), outcome: 'ok', text: 'Scanned 192.168.10.21: no open port' }])
+    markReached('saj-new', ['192.168.10.21'])
+    assetsStore.update((l) => l.map((a) => (a.id === 'a-nas02' ? { ...a, os: { value: 'Linux 5.4 - 5.15', source: 'nmap', confidence: 0.9, seen_at: ago(1.99) } } : a)))
+    renderApp('/devices/a-nas02', { role: 'admin' })
+    const scan = item(await sources(), 'Network scan')
+    expect(await within(scan).findByText('last device check 2 hours ago', {}, T)).toBeInTheDocument()
+    expect(within(scan).queryByText(/LAN sweep/)).toBeNull()
   })
 
   it('says why SNMP or osquery cannot be added: modules off, not an administrator', async () => {

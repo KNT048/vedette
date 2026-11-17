@@ -324,9 +324,14 @@ func (s *Service) blocked(ctx context.Context, assetID, reason string) {
 // ---- jobs ----
 
 func (s *Service) startJob(ctx context.Context, kind, reason string, targets int) (string, error) {
+	return s.startJobOf(ctx, kind, reason, targets, "")
+}
+
+// startJobOf is startJob naming the device the job is for (sa_job.asset_id; "" for none).
+func (s *Service) startJobOf(ctx context.Context, kind, reason string, targets int, assetID string) (string, error) {
 	id := store.NewID("saj")
 	err := s.db.Write(ctx, func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(ctx, `INSERT INTO sa_job (id, kind, reason, started_at, status, targets) VALUES (?, ?, ?, ?, 'running', ?)`, id, kind, nullable(reason), s.now(), targets)
+		_, err := tx.ExecContext(ctx, `INSERT INTO sa_job (id, kind, reason, started_at, status, targets, asset_id) VALUES (?, ?, ?, ?, 'running', ?, ?)`, id, kind, nullable(reason), s.now(), targets, nullable(assetID))
 		return err
 	})
 	if err != nil {
@@ -1118,7 +1123,7 @@ func (s *Service) scanDevice(ctx context.Context, assetID, reason string, all bo
 	}
 	s.setKind(kind)
 
-	id, err := s.startJob(ctx, KindDevice, reason, 1)
+	id, err := s.startDeviceJob(ctx, reason, assetID)
 	if err != nil {
 		return err
 	}
@@ -1139,7 +1144,7 @@ func (s *Service) scanDevice(ctx context.Context, assetID, reason string, all bo
 		if dec.FirstGentle {
 			markErr = s.inv.MarkFirstScan(context.WithoutCancel(ctx), assetID)
 		}
-		err = errors.Join(markErr, s.recordDevice(ctx, assetID, asset.IP, hosts, recKind))
+		err = errors.Join(markErr, s.recordDevice(ctx, id, assetID, asset.IP, hosts, recKind))
 	}
 	switch {
 	case err == nil:
@@ -1158,7 +1163,7 @@ func (s *Service) scanDevice(ctx context.Context, assetID, reason string, all bo
 // run only adds the ports it saw and leaves the software alone, so it never wipes what a normal scan found: a
 // gentle one (top 100, no -sV), an Extra run that alone saw the device, and the weekly scan of every port with its
 // -sV follow-up (no -O, so replacing the software would drop the OS guess).
-func (s *Service) recordDevice(ctx context.Context, assetID string, ip netip.Addr, hosts []host, kind nmapargv.Kind) error {
+func (s *Service) recordDevice(ctx context.Context, jobID, assetID string, ip netip.Addr, hosts []host, kind nmapargv.Kind) error {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), finishTimeout)
 	defer cancel()
 	i := slices.IndexFunc(hosts, func(h host) bool { return h.addr == ip })
@@ -1166,6 +1171,17 @@ func (s *Service) recordDevice(ctx context.Context, assetID string, ip netip.Add
 		return nil
 	}
 	h := hosts[i]
+	// what this check found, in words for History and the device page, compared with what was known before it records
+	prev, normal := s.beforeRecord(ctx, assetID, jobID, ip)
+	if err := s.recordHost(ctx, assetID, ip, h, kind); err != nil {
+		return err
+	}
+	s.saveFound(ctx, jobID, foundOf(h, kind, prev, normal))
+	return nil
+}
+
+// recordHost stores the result of h on the device (recordDevice).
+func (s *Service) recordHost(ctx context.Context, assetID string, ip netip.Addr, h host, kind nmapargv.Kind) error {
 	if obs := deviceObservations(h, kind); len(obs) > 0 {
 		if err := s.obs.Record(ctx, obs); err != nil {
 			return fmt.Errorf("sensoractive: recording observations: %w", err)
@@ -1464,7 +1480,7 @@ func (s *Service) IdentifyDevice(ctx context.Context, assetID string) (Identific
 		return refuse(reasonBox)
 	}
 	s.setKind(kind)
-	id, err := s.startJob(ctx, KindDevice, "scan_now", 1)
+	id, err := s.startDeviceJob(ctx, "scan_now", assetID)
 	if err != nil {
 		return Identification{}, err
 	}
@@ -1475,7 +1491,7 @@ func (s *Service) IdentifyDevice(ctx context.Context, assetID string) (Identific
 		if dec.FirstGentle && kind.IsGentle() {
 			markErr = s.inv.MarkFirstScan(context.WithoutCancel(ctx), assetID)
 		}
-		err = errors.Join(markErr, s.recordDevice(ctx, assetID, asset.IP, hosts, recKind))
+		err = errors.Join(markErr, s.recordDevice(ctx, id, assetID, asset.IP, hosts, recKind))
 	}
 	switch {
 	case err == nil:

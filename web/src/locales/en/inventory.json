@@ -24,6 +24,8 @@
     "feeds": "Reporting",
     "notYet": "Not set up",
     "lastSeen": "last report {{when}}",
+    "lastCheck": "last device check {{when}}",
+    "lastSweep": "answered the LAN sweep {{when}}",
     "name": {
       "scan": "Network scan",
       "passive": "Passive listening",

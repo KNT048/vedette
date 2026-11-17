@@ -26,7 +26,7 @@ func TestJobHistory_OutcomeInWords(t *testing.T) {
 		{"sweep, batches", job("sweep", "done", "", "", 128, 1, p("192.168.18.0/26", "ok: 3 hosts up"), p("192.168.18.64/26", "ok: 2 hosts up")), "sweep", "LAN sweep in 2 batches", "ok", "Swept 128 addresses in 2 batches: 5 hosts answered, 1 new device"},
 		{"sweep stopped", job("sweep", "stopped", "", "outside the window", 64, 0, p("192.168.18.0/26", "ok: 3 hosts up")), "sweep", "LAN sweep of 192.168.18.0/26", "stopped", "Stopped: outside the window. Swept 64 addresses: 3 hosts answered, 0 new devices before it ended"},
 		{"sweep stopped at once", job("sweep", "stopped", "", "outside the window", 0, 0), "sweep", "LAN sweep", "stopped", "Stopped: outside the window. Nothing was sent"},
-		{"check now", job("device", "done", "check_now", "", 1, 0, p("192.168.18.20", "ok: 1 hosts up")), "person", "192.168.18.20", "ok", "Scanned 192.168.18.20: it answered; what it runs is on its device page"},
+		{"check now", job("device", "done", "check_now", "", 1, 0, p("192.168.18.20", "ok: 1 hosts up")), "person", "192.168.18.20", "ok", "Scanned 192.168.18.20: it answered (a check from before checks kept what they found)"},
 		{"no answer", job("device", "done", "discovered", "", 1, 0, p("192.168.18.21", "ok: 0 hosts up")), "automatic", "192.168.18.21", "ok", "Scanned 192.168.18.21: it did not answer"},
 		{"scan now failed", job("device", "failed", "scan_now", "nmap exited 1", 1, 0), "scan_now", "A device", "failed", "Failed: nmap exited 1. Nothing was sent"},
 		// #940 review r2: only what is stored; a running sweep has not swept its planned size, a failed probe found nothing
@@ -36,7 +36,11 @@ func TestJobHistory_OutcomeInWords(t *testing.T) {
 		{"device probe failed", job("device", "done", "check_now", "", 1, 0, p("10.0.0.5", "failed: nmap gave up")), "person", "10.0.0.5", "failed", "Failed: nmap gave up."},
 		{"done, nothing sent", job("sweep", "done", "", "", 0, 0), "sweep", "LAN sweep", "partial", "Nothing was sent"},
 		// #940 review r1 H1: an SNMP read says how many answered, from its probes, never only how many it asked
-		{"snmp, none answered", job("snmp", "done", "window", "", 3, 0, p("192.168.18.1,192.168.18.2,192.168.18.3", "ok: 0 of 3 answered")), "automatic", "SNMP read", "partial", "0 of 3 devices answered over SNMP"},
+		{"snmp, none answered", job("snmp", "done", "window", "", 3, 0, p("192.168.18.1,192.168.18.2,192.168.18.3", "ok: 0 of 3 answered")), "automatic", "SNMP read", "failed", "Failed: no device answered over SNMP."},
+		// a test of one device that got no answer read nothing: failed, never "partly done"
+		{"snmp test, no answer", job("snmp", "done", "snmp_test", "", 1, 0, p("192.168.18.1", "ok: 0 of 1 answered")), "test", "SNMP test", "failed", "Failed: the device did not answer over SNMP."},
+		{"snmp check, answered", job("snmp", "done", "snmp_test", "", 1, 0, p("192.168.18.1", "ok: 1 of 1 answered")), "test", "SNMP test", "ok", "The device answered over SNMP"},
+		{"snmp, some answered", job("snmp", "done", "window", "", 3, 0, p("192.168.18.1-192.168.18.3", "ok: 2 of 3 answered")), "automatic", "SNMP read", "partial", "2 of 3 devices answered over SNMP"},
 		{"snmp, all answered", job("snmp", "done", "snmp_read", "", 2, 0, p("192.168.18.1", "ok: 1 of 1 answered"), p("192.168.18.2", "ok: 1 of 1 answered")), "person", "SNMP read", "ok", "2 of 2 devices answered over SNMP"},
 		{"snmp test, read failed", job("snmp", "done", "snmp_test", "", 1, 0, p("192.168.18.30", "failed: the read did not finish")), "test", "SNMP test", "failed", "Failed: the read did not finish."},
 		{"snmp, one batch failed", job("snmp", "done", "window", "", 4, 0, p("a", "ok: 2 of 2 answered"), p("b", "failed: the read did not finish")), "automatic", "SNMP read", "partial", "2 of 2 devices answered over SNMP; 1 part failed"},
@@ -60,5 +64,50 @@ func TestExposureHistory_CountsInWords(t *testing.T) {
 	r, _ = exposureHistory(exposure.ScanRecord{TargetID: "xt-1", Target: "203.0.113.10", ScannedAt: "2026-11-16T06:00:00.000Z", NotChecked: 2, Greenbone: "failed"})
 	if r.Outcome != "partial" || r.Text != "Scanned 203.0.113.10: 0 open ports; OpenVAS failed; 2 steps not checked (see the target)" {
 		t.Errorf("exposure partial: %+v", r)
+	}
+}
+
+// A device check says what it found and what changed, from what it stored (sa_job.found), for every reach of a check: open ports
+// with nmap's names, the OS guess (and the one before when it changed), the ports opened and closed since the previous check of the
+// same reach, "nothing changed" when the ports and the guess are the same; a check that timed out says the ports were not listed.
+func TestJobHistory_DeviceCheckSaysWhatItFound(t *testing.T) {
+	end := "2026-11-17T03:19:00.000Z"
+	job := func(f sensoractive.DeviceFound, result string) sensoractive.JobRow {
+		return sensoractive.JobRow{JobHead: sensoractive.JobHead{ID: "j", Kind: "device", Status: "done", Reason: "check_now", StartedAt: "2026-11-17T03:18:00.000Z", FinishedAt: &end, Targets: 1},
+			Probes: []sensoractive.JobProbe{{Targets: "192.168.10.47", Result: result}}, Found: &f}
+	}
+	ports := []sensoractive.FoundPort{{Port: 22, Proto: "tcp", Name: "ssh"}, {Port: 80, Proto: "tcp", Name: "http"}, {Port: 161, Proto: "udp", Name: "snmp"}}
+	many := make([]sensoractive.FoundPort, 0, 12)
+	for i := range 12 {
+		many = append(many, sensoractive.FoundPort{Port: 8000 + i, Proto: "tcp"})
+	}
+	for _, c := range []struct {
+		name    string
+		f       sensoractive.DeviceFound
+		result  string
+		outcome string
+		text    string
+	}{
+		{"first check", sensoractive.DeviceFound{Reach: "top1000", Open: 3, Ports: ports, OS: "Cisco Catalyst switch (IOS 15)"}, "ok: 1 hosts up", "ok",
+			"Scanned 192.168.10.47: 3 open ports (22 ssh, 80 http, 161/udp snmp); OS guess Cisco Catalyst switch (IOS 15)"},
+		{"nothing changed", sensoractive.DeviceFound{Reach: "top1000", Open: 3, Ports: ports, OS: "Cisco Catalyst switch (IOS 15)", Compared: true}, "ok: 1 hosts up", "ok",
+			"Scanned 192.168.10.47: 3 open ports (22 ssh, 80 http, 161/udp snmp); OS guess Cisco Catalyst switch (IOS 15); nothing changed since the previous check"},
+		{"OS changed", sensoractive.DeviceFound{Reach: "top1000", Open: 3, Ports: ports, OS: "Cisco Catalyst switch (IOS 15)", OSWas: "Cisco ISR router", Compared: true}, "ok: 1 hosts up", "ok",
+			"Scanned 192.168.10.47: 3 open ports (22 ssh, 80 http, 161/udp snmp); OS guess now Cisco Catalyst switch (IOS 15) (was Cisco ISR router)"},
+		{"ports changed", sensoractive.DeviceFound{Reach: "top1000", Open: 3, Ports: ports, Compared: true, New: []int{80}, Gone: []int{23, 443}}, "ok: 1 hosts up", "ok",
+			"Scanned 192.168.10.47: 3 open ports (22 ssh, 80 http, 161/udp snmp); since the previous check: port 80 newly open, ports 23, 443 no longer open"},
+		{"no open port", sensoractive.DeviceFound{Reach: "top1000"}, "ok: 1 hosts up", "ok", "Scanned 192.168.10.47: no open port"},
+		{"many ports", sensoractive.DeviceFound{Reach: "all", Open: 70, Ports: many}, "ok: 1 hosts up", "ok",
+			"Scanned every port of 192.168.10.47: 70 open ports (8000, 8001, 8002, 8003, 8004, 8005, 8006, 8007, and 62 more)"},
+		{"gentle", sensoractive.DeviceFound{Reach: "top100", Open: 1, Ports: ports[:1]}, "ok: 1 hosts up", "ok", "Gentle scan of 192.168.10.47 (its 100 most used ports): 1 open port (22 ssh)"},
+		{"only the extra ports", sensoractive.DeviceFound{Reach: "extra", Open: 1, Ports: []sensoractive.FoundPort{{Port: 22222, Proto: "tcp", Name: "ssh"}}}, "ok: 0 hosts up", "ok",
+			"Scanned 192.168.10.47: only the scan of the extra ports saw it; 1 open port (22222 ssh)"},
+		{"timed out", sensoractive.DeviceFound{Reach: "top1000", TimedOut: true, Compared: true}, "ok: 1 hosts up", "ok",
+			"Scanned 192.168.10.47: it answered, but nmap reached its time limit before it listed the ports; the ports known before are kept"},
+	} {
+		r, ok := jobHistory(job(c.f, c.result))
+		if !ok || r.Outcome != c.outcome || r.Text != c.text || r.Label != "192.168.10.47" {
+			t.Errorf("%s:\n got %q (%s)\nwant %q", c.name, r.Text, r.Outcome, c.text)
+		}
 	}
 }

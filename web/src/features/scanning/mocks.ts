@@ -8,7 +8,7 @@ import { collection, newId, nowIso } from '@/mocks/db'
 import { assetsStore, installStore, isOn, modulesStore } from '@/mocks/stores'
 import type { ModuleId } from '@/lib/modules'
 import { mockDeviceProgress } from '@/lib/progress'
-import { BOX_ID, inventorySettingsStore, SAFETY_CHANGED, safetyVersion } from '@/features/inventory/mocks'
+import { BOX_ID, inventorySettingsStore, SAFETY_CHANGED, safetyVersion, snmpStore } from '@/features/inventory/mocks'
 import { cidrRange, isPrivateCidr, LOCAL_RANGE_NAMES, normalizeRange, overlapping } from '@/features/inventory/validate'
 import { exposureMockRun, greenboneMock } from '@/features/exposure/mocks'
 import { lastScanRun, liveScanRuns } from '@/features/scan/mocks'
@@ -25,10 +25,17 @@ type HistoryRow = z.infer<typeof HistoryRun>
 const ago = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString()
 /** GET /scanning/history, as cmd/vedette scanninghistory.go builds it: the LAN jobs and the public scans, newest first. */
 export const historyStore = collection<HistoryRow[]>('scanning_history', () => [
-  { id: 'saj-h1', kind: 'device', engine: 'nmap-versions', trigger: 'person', label: '192.168.10.21', target_id: null, started_at: ago(3), ended_at: ago(2.98), outcome: 'ok', text: 'Scanned 192.168.10.21: it answered; what it runs is on its device page' },
+  { id: 'saj-h1', kind: 'device', engine: 'nmap-versions', trigger: 'person', label: '192.168.10.21', target_id: null, started_at: ago(3), ended_at: ago(2.98), outcome: 'ok', text: 'Scanned 192.168.10.21: 3 open ports (22 ssh, 80 http, 445 microsoft-ds); OS guess Linux 5.4 - 5.15; nothing changed since the previous check' },
   { id: 'saj-h2', kind: 'sweep', engine: 'nmap-discovery', trigger: 'sweep', label: 'LAN 192.168.10.0/24', target_id: null, started_at: ago(20), ended_at: ago(19.9), outcome: 'ok', text: 'Swept 254 addresses: 12 hosts answered, 2 new devices' },
   { id: 'saj-h3', kind: 'snmp', engine: 'snmp', trigger: 'automatic', label: 'SNMP read', target_id: null, started_at: ago(21), ended_at: ago(20.95), outcome: 'partial', text: '2 of 3 devices answered over SNMP' },
 ], () => [])
+/** What a device check found, in the words cmd/vedette foundText writes: the device's open ports (the mock's check finds what it has). */
+const checkText = (ip: string, services: ReadonlyArray<{ port: number; proto: string; name: string }>) => {
+  if (services.length === 0) return `Scanned ${ip}: no open port; nothing changed since the previous check`
+  const shown = services.slice(0, 8).map((s) => `${s.port}${s.proto === 'udp' ? '/udp' : ''}${s.name ? ` ${s.name}` : ''}`)
+  if (services.length > 8) shown.push(`and ${services.length - 8} more`)
+  return `Scanned ${ip}: ${services.length} open ${services.length === 1 ? 'port' : 'ports'} (${shown.join(', ')}); nothing changed since the previous check`
+}
 /** The addresses each mock LAN job reached, as the box keeps them in its probes (History shows only the label or a count): a device
  *  check its address, an SNMP read every address it asked. ?asset= matches on them, for every kind. */
 const reached = collection<Record<string, string[]>>('scanning_history_reached', () => ({ 'saj-h1': ['192.168.10.21'], 'saj-h3': ['192.168.10.1', '192.168.10.21', '192.168.10.30'] }), () => ({}))
@@ -152,10 +159,14 @@ export const handlers = [
   http.get(`${API}/scanning/history`, ({ request }) => {
     const denied = guard('viewer')
     if (denied) return denied
-    // ?asset= keeps the runs that reached the device's address now: its checks and the SNMP reads that asked it
+    // ?asset= keeps the device's own runs: its checks (at its address now) and, only while SNMP is set up on it, the SNMP reads of
+    // its read address
     const asset = new URL(request.url).searchParams.get('asset')
     const ip = asset === null ? null : assetsStore.get().find((a) => a.id === asset)?.ip ?? '—'
-    const rows = ip === null ? historyStore.get() : historyStore.get().filter((r) => ip !== '—' && (r.kind === 'device' || r.kind === 'snmp') && (reached.get()[r.id] ?? []).includes(ip))
+    const readFrom = asset === null ? null : snmpStore.get().find((x) => x.device_id === asset)?.read_from ?? null
+    const ofDevice = (r: HistoryRow) => r.kind === 'device' ? ip !== '—' && (reached.get()[r.id] ?? []).includes(ip!)
+      : r.kind === 'snmp' && readFrom !== null && (reached.get()[r.id] ?? []).includes(readFrom)
+    const rows = ip === null ? historyStore.get() : historyStore.get().filter(ofDevice)
     return HttpResponse.json({ items: [...rows].sort((a, b) => b.started_at.localeCompare(a.started_at)) })
   }),
 
@@ -299,7 +310,7 @@ export const handlers = [
     runs.set([...runs.get(), run])
     // its jobs as History lists them: one per device checked, or the sweep (the mock ends them at once)
     const rows: HistoryRow[] = picked.length
-      ? picked.map((a) => ({ id: newId('saj'), kind: 'device' as const, engine: 'nmap-versions' as const, trigger: 'person' as const, label: a.ip, target_id: null, started_at: started, ended_at: started, outcome: 'ok' as const, text: `Scanned ${a.ip}: it answered; what it runs is on its device page` }))
+      ? picked.map((a) => ({ id: newId('saj'), kind: 'device' as const, engine: 'nmap-versions' as const, trigger: 'person' as const, label: a.ip, target_id: null, started_at: started, ended_at: started, outcome: 'ok' as const, text: checkText(a.ip, a.services) }))
       : [{ id: newId('saj'), kind: 'sweep', engine: 'nmap-discovery', trigger: 'sweep', label: `LAN sweep of ${st.lan_ranges.join(', ')}`, target_id: null, started_at: started, ended_at: started, outcome: 'ok', text: `Swept ${st.lan_ranges.length * 254} addresses: 0 hosts answered, 0 new devices` }]
     historyStore.set([...rows, ...historyStore.get()])
     rows.forEach((r) => { if (r.kind === 'device') markReached(r.id, [r.label]) })

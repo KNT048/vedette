@@ -2,6 +2,7 @@
 
 
 ## Modifying: `Jobs`, `JobRow`, `JobProbe` (read only)
+- **What a device check found** (`DeviceFound`, `sa_job.found` and `sa_job.asset_id`, migration 0012, INV-23): `cmd/vedette/scanninghistory.go` `foundText` turns it into the words of a device check (History and the device page's Last checks). Renaming a reach (`top100`, `top1000`, `extra`, `all`) or a JSON key changes those words; old rows keep their JSON, so a rename needs both spellings read. `JobsOf` matches a device's checks by `asset_id` (older rows by address) and its SNMP reads by its SNMP read address only while SNMP is set up on it: the device page's Last checks and History filtered to a device read it (`?asset=`). `modules/core/export_policy.go` lists both columns.
 - **core** `GET /scanning/history` reads them through `cmd/vedette/scanninghistory.go` (`jobHistory`): the words of a History row come from `sa_job` (status, error, targets, new_devices, reason) and the results of the job's probes. Changing a probe's result text (`"ok: %d hosts up"` in `service.go`, `"ok: %d of %d answered"` / `"failed: …"` in `snmp.go`) or a `sa_queue`/`sa_job` reason (`check_now`, `scan_now`, `window`, `snmp_test`, `snmp_read`) changes what History says: update `jobHistory` and `TestJobHistory_OutcomeInWords`.
 - **Cost**: one read per kind on `sa_job (kind, started_at)` and one on `sa_probe (job_id)` for the listed jobs, every 30 s while the tab is open.
 

@@ -108,7 +108,7 @@ func TestBrief_FixFollowsThePageAndRulesFollowThePath(t *testing.T) {
 	fix := []string{`The "Fixed version" line of the device block is what the finding page tells the person about the fix`,
 		`never call that release (or "that release or later") the fix`, "Never work out a fixed release from an affected range"}
 	path := []string{"never for one it says is not on the path to this device", `put "(assumed)" in the block's "title"`,
-		`in "no_config_reason" name each firewall you assumed is in front of the device`}
+		`in "no_config_reason" name each firewall you assumed is in front of the device`, "write no firewall block and no Linux gateway example"}
 	for _, c := range []struct {
 		job    ai.Job
 		answer string

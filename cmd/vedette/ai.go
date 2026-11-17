@@ -212,6 +212,7 @@ func (m aiMitigation) Run(ctx context.Context, req mitigation.AIRequest) (mitiga
 		}
 		out.Configs = append(out.Configs, findings.CodeStep{Title: c.Title, Code: c.Code, Note: note, SideEffect: c.SideEffect, Check: c.Check})
 	}
+	aiMarkAssumed(out.Configs, walls, aiDeviceNames(row, dev))
 	if k := row.Kev; k != nil {
 		for _, l := range k.Links { // the box builds the sources from the feed entry; a model never supplies a link
 			if u, err := url.Parse(l); err == nil && (u.Scheme == "https" || u.Scheme == "http") && u.Host != "" && len(out.Citations) < 2 {
@@ -251,13 +252,16 @@ func (m aiMitigation) facts(ctx context.Context, req mitigation.AIRequest) (dev 
 	if m.net != nil {
 		n = m.net(ctx)
 	}
-	devIP := ""
+	target := aiTarget{ID: req.Finding.AssetID}
 	if dev != nil {
-		devIP = dev.IP
+		target.IP = dev.IP
+		if dev.MAC != nil {
+			target.MAC = *dev.MAC
+		}
 	} else if req.Finding.Asset != nil {
-		devIP = req.Finding.Asset.IP
+		target.IP = req.Finding.Asset.IP
 	}
-	ids, sel := aiPickWalls(n, req.Finding.AssetID, devIP, kd)
+	ids, sel := aiPickWalls(n, target, kd)
 	paths := sel.Paths
 	sel.Paths = nil
 	for i, id := range ids {
@@ -272,6 +276,21 @@ func (m aiMitigation) facts(ctx context.Context, req mitigation.AIRequest) (dev 
 
 // aiMaxPorts caps the open ports one finding sends.
 const aiMaxPorts = 30
+
+// aiDeviceNames are the names the finding's device goes by in a config block's title.
+func aiDeviceNames(row findings.Row, dev *inventory.Device) []string {
+	var out []string
+	if row.Asset != nil {
+		out = append(out, row.Asset.Name, row.Asset.IP)
+	}
+	if dev != nil {
+		out = append(out, aiName(*dev), aiObserved(dev.Model), aiObserved(dev.Vendor), dev.IP)
+		if dev.Hostname != nil {
+			out = append(out, *dev.Hostname)
+		}
+	}
+	return out
+}
 
 // aiTrusted are the addresses the box knows for the finding from structured fields: the device's IP, the IPs of the firewalls a rule
 // may be written for and the device's gateway, never a banner, a name or the Evidence text. A config naming any other address (a
@@ -490,7 +509,12 @@ func aiFixedIn(f *findings.FixedIn, links bool) string {
 	}
 	var b strings.Builder
 	b.WriteString("Fixed version (" + aiVal(f.Source, 80) + "): ")
-	if f.Version != "" {
+	switch {
+	case f.Kind == "branches" && f.Version != "": // the page: "Vedette cannot read the version ... Correct the version"
+		b.WriteString("installed version \"" + aiVal(f.Version, 60) + "\" cannot be read by Vedette, so which release line applies to this device is not known; ")
+	case f.Kind == "branches":
+		b.WriteString("the device has no version in Vedette, so which release line applies to this device is not known; ")
+	case f.Version != "":
 		b.WriteString("installed " + aiVal(f.Version, 60) + "; ")
 	}
 	switch f.Kind {
@@ -509,8 +533,9 @@ func aiFixedIn(f *findings.FixedIn, links bool) string {
 		if f.DistroPro {
 			b.WriteString(", only in Ubuntu Pro (ESM)")
 		}
-		if f.Fixed != "" {
-			b.WriteString(", upstream fixed release " + aiVal(f.Fixed, 60))
+		if f.Fixed != "" { // the page: the package's number may stay below the upstream release
+			b.WriteString(", upstream fixed release " + aiVal(f.Fixed, 60) + " (the package's own version number may stay below " + aiVal(f.Fixed, 60) +
+				" once fixed: install the distribution's updates, not " + aiVal(f.Fixed, 60) + " by hand)")
 		}
 	case "feature_update":
 		b.WriteString("no update of this release fixes it; move to a later release from build " + aiVal(f.Fixed, 60))

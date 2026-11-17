@@ -1,9 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { ApplyItem, BulkAction, FindingDetail, FindingRow, Plan, PlanFilter, StatusAction, UncheckedItem, VersionNeeded } from './types'
+import type { ApplyItem, BulkAction, FindingDetail, FindingRow, Plan, PlanFilter, StatusAction, ToFix, UncheckedItem, VersionNeeded } from './types'
 
 export const useFindings = (asset?: string, enabled = true) =>
   useQuery({ queryKey: ['findings', 'list', asset ?? null], enabled, queryFn: () => api.get<{ items: FindingRow[]; version_needed: VersionNeeded[]; unchecked: UncheckedItem[] }>(asset ? `/findings?asset=${encodeURIComponent(asset)}` : '/findings') })
+
+/** GET /findings/to-fix (kien G8): what each device needs, the most urgent first; one device with `asset` (its Software tab). */
+export const useToFix = (asset?: string, enabled = true) =>
+  useQuery({ queryKey: ['findings', 'to-fix', asset ?? null], enabled, queryFn: () => api.get<ToFix>(asset ? `/findings/to-fix?asset=${encodeURIComponent(asset)}` : '/findings/to-fix') })
 
 /** Updates to plan (D-613): tier 2 and 3 CVEs grouped by update; all devices or one. */
 export const usePlan = (tier: PlanFilter = 'all', asset?: string, enabled = true) => {
@@ -26,6 +30,7 @@ function useWrite<V>(id: string, fn: (v: V) => Promise<FindingDetail>) {
       qc.setQueryData(['findings', 'detail', id], d)
       void qc.invalidateQueries({ queryKey: ['findings', 'list'] })
       void qc.invalidateQueries({ queryKey: ['findings', 'summary'] })
+      void qc.invalidateQueries({ queryKey: ['findings', 'to-fix'] })
     },
   })
 }

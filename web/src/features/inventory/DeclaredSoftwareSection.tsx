@@ -72,7 +72,7 @@ function Body() {
     } },
     { id: 'version', header: t('software.version'), accessorFn: (r) => r.sw?.version ?? '', cell: ({ row }) => row.original.sw?.version || <span className="text-muted">{t('software.noVersion')}</span> },
     ...(findingsOn ? [{ id: 'findings', header: t('declaredPage.col.findings'), accessorFn: (r: Row) => openOf(r), cell: ({ row }: { row: { original: Row } }) => (openOf(row.original) > 0
-      ? <Link to={`/findings?device=${encodeURIComponent(row.original.d.id)}`} className="tabular-nums text-accent underline-offset-4 hover:underline">{t('declaredPage.findings', { count: openOf(row.original) })}</Link>
+      ? <Link to={`/findings?tab=open&device=${encodeURIComponent(row.original.d.id)}`} className="tabular-nums text-accent underline-offset-4 hover:underline">{t('declaredPage.findings', { count: openOf(row.original) })}</Link>
       : <span className="text-muted">{t('declaredPage.noFindings')}</span>) } satisfies ColumnDef<Row>] : []),
     { id: 'added', header: t('declaredPage.col.added'), accessorFn: (r) => new Date(r.d.first_seen).getTime(), cell: ({ row }) => <time className="whitespace-nowrap text-meta text-muted" dateTime={row.original.d.first_seen} title={fmtDateTime(row.original.d.first_seen)}>{fmtRelative(row.original.d.first_seen)}</time> },
     { id: 'actions', header: () => <span className="sr-only">{t('declaredPage.col.actions')}</span>, enableSorting: false, cell: ({ row }) => {

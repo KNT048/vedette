@@ -95,7 +95,7 @@ function UncheckedLine({ s }: { s: HomeSummary }) {
   if (!s.unchecked?.cves) return null
   return (
     <p className="-mt-4 mb-6 text-sm">
-      <Link to="/findings?tab=open#unchecked" className="font-medium text-accent underline-offset-4 hover:underline">
+      <Link to="/findings?tab=input#unchecked" className="font-medium text-accent underline-offset-4 hover:underline">
         {t('dash.unchecked', { count: s.unchecked.cves, devices: s.unchecked.devices })}
       </Link>
     </p>

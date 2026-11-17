@@ -30,7 +30,7 @@ describe('box notice: a fix is offered only when there is one (kien G5)', () => 
     renderApp(`/devices/${BOX_ID}`)
     expect(await screen.findByText('No update fixes these yet: see each finding.', undefined, T)).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /operating system update/ })).toBeNull()
-    expect(screen.getByRole('link', { name: '2 open findings on this box' })).toHaveAttribute('href', `/findings?device=${BOX_ID}`)
+    expect(screen.getByRole('link', { name: '2 open findings on this box' })).toHaveAttribute('href', `/findings?tab=open&device=${BOX_ID}`)
     await expectNoA11yViolations()
   })
 

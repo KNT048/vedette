@@ -172,6 +172,7 @@ const (
 	FindingsGetFindingsIDOperation                          OperationName = "FindingsGetFindingsID"
 	FindingsGetFindingsPlanOperation                        OperationName = "FindingsGetFindingsPlan"
 	FindingsGetFindingsSummaryOperation                     OperationName = "FindingsGetFindingsSummary"
+	FindingsGetFindingsToFixOperation                       OperationName = "FindingsGetFindingsToFix"
 	FindingsPostFindingsIDAiOperation                       OperationName = "FindingsPostFindingsIDAi"
 	FindingsPostFindingsIDAppliedOperation                  OperationName = "FindingsPostFindingsIDApplied"
 	FindingsPostFindingsIDStatusOperation                   OperationName = "FindingsPostFindingsIDStatus"

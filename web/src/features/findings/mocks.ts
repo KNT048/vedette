@@ -10,7 +10,7 @@ import type { Asset, Finding } from '@/lib/types'
 import { untilOk } from './accept'
 import { compromise, packs } from './packs'
 import { mockHardening } from './hardeningMock'
-import type { AiResult, ApplyItem, Cvss, FindingAsset, FindingDetail, FindingRow, FirewallGuide, HomeSummary, KevInfo, KnownVersion, MitigationPack, Plan, PlanCve, PlanItem, RowFix, StatusAction, UncheckedItem } from './types'
+import type { AiResult, ApplyItem, Cvss, FindingAsset, FindingDetail, FindingRow, FirewallGuide, HomeSummary, KevInfo, KnownVersion, MitigationPack, Plan, PlanCve, PlanItem, RowFix, StatusAction, ToFix, ToFixAction, ToFixDevice, UncheckedItem } from './types'
 import { fmtDate } from '@/lib/format'
 import { displayName } from '@/features/inventory/nameOf'
 import { openIncidents, sentSince } from '@/features/notify/mocks'
@@ -364,6 +364,79 @@ const uncheckedCounts = () => {
   return { cves: new Set(l.flatMap((i) => i.cves.map((c) => c.cve))).size, devices: new Set(l.map((i) => i.asset_id)).size }
 }
 
+const SEV = ['info', 'low', 'medium', 'high', 'critical']
+const sevRank = (s: string) => SEV.indexOf(s.toLowerCase())
+const buildOf = (v: string) => v.replace(/^10\.0\./, '')
+/** As findings updateSentence (updates.go): what to install, in the words the box writes. */
+function sentence(u: Pick<ToFixAction, 'kind' | 'software' | 'version' | 'fixed' | 'windows' | 'distro' | 'pro'>): string {
+  const sw = u.software || 'the software'
+  const fixed = u.windows ? buildOf(u.fixed) : u.fixed
+  switch (u.kind) {
+    case 'none': return `No update is named that fixes these: follow the vendor's advice for ${sw}`
+    case 'distro':
+      if (fixed) return `Upgrade the ${sw} package from ${u.version} to ${fixed} or later${u.pro ? ' (Ubuntu Pro)' : ''}`
+      return u.distro ? `Install ${u.distro}'s security updates for ${sw}` : `Install the distribution's security updates for ${sw}`
+    case 'feature_update': return `Upgrade ${sw} to ${fixed}: some of these get no update for this release`
+    case 'esu': return `Install the Extended Security Update for ${sw} (build ${fixed} or later; it needs an ESU subscription)`
+    case 'windows': return `Install the latest cumulative update for ${sw} (build ${fixed} or later)`
+  }
+  return u.windows ? `Install the latest cumulative update for ${sw} (build ${fixed} or later)` : `Upgrade ${sw} from ${u.version} to ${fixed} or later`
+}
+
+/** GET /findings/to-fix (kien G8), as findings.ToFix builds it: per device, the open findings grouped by their fix (or by product when
+ *  no update is named), then the device's plan items; the most urgent device first. */
+function toFix(asset: string | null): ToFix {
+  const rows = findingsStore.get().filter((f) => !asset || f.asset_id === asset).map(row).filter((r) => r.status === 'confirmed' || r.status === 'suspected')
+  const assets = assetsStore.get()
+  const feedsOn = isOn('feeds')
+  const planItems = feedsOn ? tierPlan('all', asset).items : []
+  const ids = [...new Set([...rows.map((r) => r.asset_id), ...planItems.map((i) => i.asset.id)])]
+  const devices: ToFixDevice[] = []
+  for (const id of ids) {
+    const a = assets.find((x) => x.id === id)
+    const view = assetView(a)
+    if (!a || !view) continue
+    const groups = new Map<string, ToFixAction>()
+    for (const r of rows.filter((x) => x.asset_id === id).sort((x, y) => sevRank(y.severity) - sevRank(x.severity) || x.cve.localeCompare(y.cve))) {
+      const f = r.basis === 'product' ? null : r.fix
+      const kevKey = r.kev ? `${r.kev.vendor}|${r.kev.product}`.toLowerCase() : ''
+      const swRow = a.software.find((x) => x.kev.includes(kevKey))
+      const sw = f?.software ?? swRow?.display ?? r.kev?.display ?? ''
+      const key = f ? `fix:${f.group}` : `row:${swRow?.id ?? sw}`
+      let g = groups.get(key)
+      if (!g) {
+        g = f
+          ? { group: f.group, software_id: '', software: f.software, version: f.version, product: kevKey, fixed: f.fixed, kind: f.kind, windows: f.windows, distro: f.distro, pro: f.pro, action: '', cves: [], finding_ids: [], worst: '', ransomware: 0, likely: 0, confirmed: 0, detected: 0, reported: 0, suspected: 0 }
+          : { group: `${id}/${swRow?.id ?? ''}`, software_id: swRow?.id ?? '', software: sw, version: swRow?.version ?? '', product: swRow ? `${swRow.vendor}|${swRow.product}`.toLowerCase() : '', fixed: '', kind: 'none', windows: false, distro: '', pro: false, action: '', cves: [], finding_ids: [], worst: '', ransomware: 0, likely: 0, confirmed: 0, detected: 0, reported: 0, suspected: 0 }
+        if (f) g.software_id = a.software.find((s) => `${id}/${s.id}` === f.group)?.id ?? ''
+        groups.set(key, g)
+      }
+      g.cves.push(r.cve); g.finding_ids.push(r.id)
+      if (!g.worst) g.worst = r.severity
+      if (r.kev?.ransomware) g.ransomware++
+      if (r.basis === 'scan') g.confirmed++
+      else if (r.basis === 'version') g.detected++
+      else g.reported++
+    }
+    const acts = [...groups.values()].map((g) => ({ ...g, action: sentence(g) }))
+    const order = (x: ToFixAction, y: ToFixAction) => sevRank(y.worst) - sevRank(x.worst) || y.cves.length - x.cves.length || y.ransomware - x.ransomware || x.software.localeCompare(y.software)
+    const planned: ToFixAction[] = planItems.filter((i) => i.asset.id === id).map((i) => {
+      const worst = i.cves.reduce((w, c) => (c.severity && sevRank(c.severity) > sevRank(w) ? c.severity : w), '')
+      const row = a.software.find((x) => x.id === (i.group.split('/')[1] ?? ''))
+      const u = { group: i.group, software_id: i.group.split('/')[1] ?? '', software: i.software, version: i.version, product: row ? `${row.vendor}|${row.product}`.toLowerCase() : '', fixed: i.fixed, kind: i.kind, windows: i.kind === 'windows' || i.kind === 'esu', distro: '', pro: i.pro, action: '', cves: i.cves.map((c) => c.cve), finding_ids: [], worst, ransomware: 0, likely: i.likely, confirmed: 0, detected: 0, reported: 0, suspected: 0 }
+      return { ...u, action: sentence(u) }
+    })
+    devices.push({ asset: view, open: rows.filter((x) => x.asset_id === id).length, exploited: acts.filter((x) => x.kind !== 'none').sort(order), no_update: acts.filter((x) => x.kind === 'none').sort(order), planned, plan_compared: true })
+  }
+  const urgency = (d: ToFixDevice) => {
+    const act = [...d.exploited, ...d.no_update.filter((x) => x.confirmed + x.detected > 0)]
+    return [act.length ? 1 : 0, Math.max(-1, ...act.map((x) => sevRank(x.worst))), act.reduce((n, x) => n + x.ransomware, 0), act.reduce((n, x) => n + x.confirmed + x.detected, 0), act.reduce((n, x) => n + x.cves.length, 0),
+      Math.max(-1, ...d.planned.map((x) => sevRank(x.worst))), d.planned.reduce((n, x) => n + x.likely, 0), d.planned.reduce((n, x) => n + x.cves.length, 0)]
+  }
+  devices.sort((x, y) => { const a = urgency(x); const b = urgency(y); for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return b[i]! - a[i]!; return x.asset.id.localeCompare(y.asset.id) })
+  return { devices, truncated: false, plan_ran: feedsOn, plan_off: !feedsOn }
+}
+
 export const handlers = [
   http.get(`${API}/findings`, ({ request }) => {
     const denied = guard('viewer'); if (denied) return denied
@@ -381,6 +454,13 @@ export const handlers = [
     const denied = guard('viewer'); if (denied) return denied
     expireAccepted()
     return HttpResponse.json(summary())
+  }),
+
+  // Before /findings/:id: "to-fix" is not a finding id.
+  http.get(`${API}/findings/to-fix`, ({ request }) => {
+    const denied = guard('viewer'); if (denied) return denied
+    expireAccepted()
+    return HttpResponse.json(toFix(new URL(request.url).searchParams.get('asset')))
   }),
 
   // Before /findings/:id: "plan" is not a finding id.

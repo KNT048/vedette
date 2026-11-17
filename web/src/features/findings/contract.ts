@@ -254,9 +254,42 @@ export const HomeSummary = z.object({
 
 const idParams = z.object({ id: findingId })
 
+/** kien G8: one update or action on one device, from findings.DeviceUpdates (the same groupings as FindingRow.fix and the plan). */
+export const ToFixAction = z.object({
+  group: z.string().describe('The key of the action on its device: FindingRow.fix.group of an exploited update ("<device>/<software>", the ?fix= filter of the list), PlanItem.group of a planned one, "<device>/<software>" for findings no update is named for. Per device: "By fix" groups by product and release instead'),
+  product: z.string().describe('The software row\'s identity across devices, "vendor|product" in lower case ("" when no row matches): "By fix" groups the same update on several devices by it, whatever each device calls the row'),
+  software_id: z.string().describe('The device\'s software row it is about; "" when none matches'),
+  software: z.string(), version: z.string().describe('The installed version; "" when none'),
+  fixed: z.string().describe('The release or build to install; "" for a distribution\'s updates and when no update is named'),
+  kind: z.enum(['fixed', 'esu', 'feature_update', 'distro', 'windows', 'none']).describe('none: no update is named that fixes these findings (follow the vendor\'s advice)'),
+  windows: z.boolean().describe('The monthly cumulative update of a Windows release'), distro: z.string(), pro: z.boolean(),
+  action: z.string().describe('The sentence the page shows: "Upgrade RARLAB WinRAR from 7.01 to 7.13 or later"'),
+  cves: z.array(z.string()).describe('Worst first'),
+  finding_ids: z.array(z.string()).describe('The open findings of the CVEs, same order (exploited only; empty for planned)'),
+  worst: z.string().describe('The finding\'s severity (critical, high, medium, low) for exploited ones; NVD\'s for planned ones; "" when none'),
+  ransomware: z.number().int(), likely: z.number().int().describe('Planned: CVEs EPSS says are likely to be exploited soon'),
+  confirmed: z.number().int(), detected: z.number().int(), reported: z.number().int(), suspected: z.number().int().describe('How each exploited finding is known (G9 proof): confirmed by a scan, detected from a version the device reported, reported but not compared, suspected from the network'),
+})
+export const ToFixDevice = z.object({
+  asset: FindingAsset,
+  open: z.number().int().describe('Open findings of the device'),
+  exploited: z.array(ToFixAction).describe('Open exploited findings one named update fixes, one action per update, worst first'),
+  no_update: z.array(ToFixAction).describe('Open findings no update is named for, one per software row; one with confirmed + detected = 0 is the person\'s to check (Needs your input), not to fix'),
+  planned: z.array(ToFixAction).describe('Recommended updates (D-613): CVEs on no exploited list, as GET /findings/plan lists them'),
+  plan_compared: z.boolean().describe('The last plan pass compared this device'),
+})
+export const ToFix = z.object({
+  devices: z.array(ToFixDevice).describe('Every device with something to fix or plan, the most urgent first: something exploited to fix (a named update, or proved), then the worst severity, ransomware, proved findings and CVEs; then the plan\'s worst severity, likely and CVEs'),
+  truncated: z.boolean().describe('More devices had something than the 500 listed'),
+  plan_ran: z.boolean().describe('The plan job compared the devices since the box started; false: recommended updates are not known yet'),
+  plan_off: z.boolean().describe('The feeds module is off: no recommended update is listed'),
+})
+
 export const endpoints = defineEndpoints([
   { method: 'get', path: '/findings', summary: 'List findings (CVE x device), optionally for one device', stories: ['S-MIT-1', 'S-SCAN-3'], role: 'viewer',
     query: z.object({ asset: z.string().optional() }), response: FindingList },
+  { method: 'get', path: '/findings/to-fix', summary: 'To fix (kien G8): every device that needs an update or an action, the most urgent first, each with its actions in plain sentences (findings.DeviceUpdates), at most 500 devices', stories: ['S-MIT-1', 'S-TIER-1'], role: 'viewer',
+    query: z.object({ asset: z.string().optional().describe('One device only (its Software tab)') }), response: ToFix },
   { method: 'get', path: '/findings/{id}', summary: 'One finding: evidence, recommendation, compromise indicators, AI results', stories: ['S-MIT-1', 'S-MIT-3', 'S-SCAN-3', 'S-AI-2'], role: 'viewer',
     params: idParams, response: FindingDetail, example: { params: { id: 'f-1' } } },
   { method: 'post', path: '/findings/{id}/status', summary: 'Change status (patched, mitigated, false positive, not relevant, accept risk until a day, reopen) with a note', stories: ['S-MIT-1'], role: 'operator',

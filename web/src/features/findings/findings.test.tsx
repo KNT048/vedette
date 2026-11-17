@@ -22,7 +22,7 @@ const MIKROTIK_RULE = '/ip firewall filter add chain=forward action=drop in-inte
 
 describe('findings: danh sách (S-MIT-1)', () => {
   it('câu đầu trả lời, bảng đủ cột, không lỗi a11y', async () => {
-    renderApp('/findings')
+    renderApp('/findings?tab=open')
     expect(await screen.findByRole('heading', { level: 1, name: '3 unresolved findings, 1 confirmed' })).toBeInTheDocument()
     const table = await screen.findByRole('table', { name: 'Findings list' })
     expect(within(table).getAllByRole('row')).toHaveLength(4)
@@ -33,7 +33,7 @@ describe('findings: danh sách (S-MIT-1)', () => {
   })
 
   it('lọc theo trạng thái và theo ?cve= từ trang CVE', async () => {
-    renderApp('/findings?cve=CVE-2022-27593')
+    renderApp('/findings?cve=CVE-2022-27593') // review r1 of #943: the CVE page's link has no tab: it must open the findings table
     const table = await screen.findByRole('table', { name: 'Findings list' })
     expect(within(table).getAllByRole('row')).toHaveLength(2)
     expect(within(table).getByText('NAS-PHOTOS')).toBeInTheDocument()
@@ -46,7 +46,7 @@ describe('findings: danh sách (S-MIT-1)', () => {
   it('D-543: KPI cells link to the lists; Open / Accepted risk / Handled are tabs; narrower filters survive a tab change; "?status=" narrows Open', async () => {
     findingsStore.update((l) => l.map((f) => (f.id === 'f-2' ? { ...f, status: 'not_relevant' as const } : f.id === 'f-3' ? { ...f, status: 'patched' as const } : f)))
     accepted.update((m) => ({ ...m, 'f-2': dayAfter(new Date(), 3) }))
-    renderApp('/findings?device=a-nas02&status=confirmed')
+    renderApp('/findings?tab=open&device=a-nas02&status=confirmed')
     const strip = await screen.findByRole('list', { name: 'Findings at a glance' })
     expect(within(strip).getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(['/findings?tab=open', '/findings?tab=open&status=confirmed', '/findings?tab=open&severity=critical', '/findings?tab=accepted'])
     expect(within(within(strip).getByRole('link', { name: /Accepted risks ending/ })).getByText('1')).toBeInTheDocument()
@@ -66,7 +66,7 @@ describe('findings: danh sách (S-MIT-1)', () => {
 
   it('không còn phát hiện chưa xử lý thì nói rõ và chỉ việc làm tiếp', async () => {
     findingsStore.update((l) => l.map((f) => ({ ...f, status: 'patched' as const })))
-    renderApp('/findings')
+    renderApp('/findings?tab=open')
     expect(await screen.findByRole('heading', { level: 1, name: 'No unresolved findings' })).toBeInTheDocument()
     expect(screen.getAllByRole('link', { name: 'Open Settings, Scanning' })[0]).toHaveAttribute('href', '/settings/scanning') // #850
     expect(screen.getAllByRole('link', { name: 'Open Devices' })[0]).toHaveAttribute('href', '/devices')
@@ -78,7 +78,7 @@ describe('findings: danh sách (S-MIT-1)', () => {
       { asset: { id: 'a-man', name: 'Microsoft Office (no device)', hostname: null, ip: '—', kind: 'unknown', display: 'Microsoft Office' }, asset_id: 'a-man', software_id: 's-3', software: 'Microsoft Office', version: null, cves: 30 },
       { asset: null, asset_id: 'a-fw', software_id: 's-2', software: 'FortiGate', version: 'latest', cves: 21 },
     ] })))
-    renderApp('/findings')
+    renderApp('/findings?tab=input')
     const box = await screen.findByRole('region', { name: 'Add the version of 3 software to check them' })
     const lines = within(box).getAllByRole('listitem')
     expect(lines[0]).toHaveTextContent(/^PC-KE-TOAN: Microsoft Office has no version: adding it checks 32 exploited CVEs\.$/)
@@ -92,14 +92,14 @@ describe('findings: danh sách (S-MIT-1)', () => {
 
   it('lỗi API hiện thông báo và nút thử lại', async () => {
     server.use(http.get('*/api/v1/findings', () => HttpResponse.json({ error: { code: 'x', message: 'The findings store is busy.' } }, { status: 503 })))
-    renderApp('/findings')
+    renderApp('/findings?tab=open')
     expect(await screen.findByText('The findings store is busy.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
   })
 
   it('module findings tắt thì hiện ModuleOff', async () => {
     modulesStore.update((l) => l.map((m) => (m.id === 'findings' ? { ...m, enabled: false } : m)))
-    renderApp('/findings')
+    renderApp('/findings?tab=open')
     expect(await screen.findByText('Findings module is off')).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 1, name: 'Findings' })).toBeInTheDocument() // #892: the page keeps its h1
     expect(screen.getByRole('link', { name: 'Open module settings' })).toHaveAttribute('href', '/settings/modules#module-findings')
@@ -402,7 +402,7 @@ describe('findings: đổi trạng thái và quyền', () => {
     // the note leads the page (closed notice) and stays in History
     expect(screen.getAllByText('Đã lên Photo Station 6.1.2')).toHaveLength(2)
     view.unmount()
-    renderApp('/findings')
+    renderApp('/findings?tab=open')
     expect(await screen.findByRole('heading', { level: 1, name: '2 unresolved findings, 0 confirmed' })).toBeInTheDocument()
   })
 
@@ -437,7 +437,7 @@ describe('findings: đổi trạng thái và quyền', () => {
   })
 
   it('API kiểm tra ở biên: hành động lạ, ghi chú quá dài, mở lại phát hiện đang mở', async () => {
-    renderApp('/findings')
+    renderApp('/findings?tab=open')
     await screen.findByRole('table')
     const post = (path: string, b: unknown) => fetch(`${location.origin}/api/v1/findings/${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) })
     const bad = await post('f-1/status', { action: 'xoa' })
@@ -512,17 +512,14 @@ describe('findings: CVSS score (#825)', () => {
     expect(tip).toHaveTextContent('AV:N/AC:M/Au:N/C:C/I:C/A:C')
   })
 
-  it('the list shows "CVSS 9.8 Critical" under the exploited risk in the Severity column (no extra column), "No CVSS score" never 0; "Sort by CVSS" puts the highest first and no score last', async () => {
-    renderApp('/findings')
+  it('kien G8: the list shows one severity (the exploited risk), not a CVSS band next to it; "Sort by CVSS" still puts the highest first and no score last', async () => {
+    renderApp('/findings?tab=open')
     const table = await screen.findByRole('table', { name: 'Findings list' })
-    // the default order stays the exploited risk (KEV signal first): CVSS is next to it, not instead of it
     expect(cves(table)).toEqual(['CVE-2022-27593', 'CVE-2026-96951', 'CVE-2026-119977'])
     expect(within(table).getAllByRole('columnheader').map((h) => h.textContent?.trim())).not.toContain('CVSS')
     const first = within(table).getAllByRole('row')[1]!
-    expect(within(first).getAllByText('Critical')).toHaveLength(2) // the risk chip and the CVSS band, one cell
-    expect(within(first).getByRole('button', { name: 'About CVSS 9.8 Critical' })).toBeInTheDocument()
-    expect(within(table).getByRole('button', { name: 'About CVSS 8.5 High' })).toBeInTheDocument()
-    expect(within(table).getByText('No CVSS score')).toBeInTheDocument()
+    expect(within(first).getAllByText('Critical')).toHaveLength(1) // one severity; CVSS is on the finding's page
+    expect(within(table).queryByRole('button', { name: /^About CVSS/ })).toBeNull()
     expect(within(table).queryByText('0.0')).toBeNull()
     await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Sort by' }), 'Sort by CVSS')
     await waitFor(() => expect(cves(screen.getByRole('table'))).toEqual(['CVE-2022-27593', 'CVE-2026-119977', 'CVE-2026-96951']))
@@ -533,20 +530,16 @@ describe('findings: CVSS score (#825)', () => {
     // the header still sorts by the exploited risk, and the box follows it
     await userEvent.click(within(screen.getByRole('table')).getByRole('button', { name: 'Severity' }))
     expect(screen.getByRole('combobox', { name: 'Sort by' })).toHaveValue('severity')
-    // version and source behind the ⓘ (#824: one short line visible); axe passes with it open
-    await userEvent.click(within(screen.getByRole('table')).getByRole('button', { name: 'About CVSS 8.5 High' }))
-    expect(await screen.findByRole('dialog', { name: 'About CVSS 8.5 High' })).toHaveTextContent('CVSS 4.0 base score. Source: Another scorer (CNA or CISA ADP).')
     await expectNoA11yViolations()
   })
 
   it('phone: the list sorts by CVSS from the "Sort by" box (no column headers to click)', async () => {
     vi.stubGlobal('matchMedia', (q: string) => ({ matches: q.includes('max-width'), media: q, addEventListener: () => {}, removeEventListener: () => {} }))
     try {
-      renderApp('/findings')
+      renderApp('/findings?tab=open')
       const list = await screen.findByRole('list', { name: 'Findings list' })
       const order = () => within(screen.getByRole('list', { name: 'Findings list' })).getAllByRole('link', { name: /^CVE-/ }).map((a) => a.textContent)
-      expect(within(list).getByRole('button', { name: 'About CVSS 9.8 Critical' })).toBeInTheDocument()
-      expect(within(list).getByText('No CVSS score')).toBeInTheDocument()
+      expect(within(list).queryByRole('button', { name: /^About CVSS/ })).toBeNull() // kien G8: one severity in the list
       await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Sort by' }), 'Sort by CVSS')
       await waitFor(() => expect(order()).toEqual(['CVE-2022-27593', 'CVE-2026-119977', 'CVE-2026-96951']))
     } finally {
@@ -574,7 +567,7 @@ describe('findings: CVSS score (#825)', () => {
 
 describe('findings: customer walk 1 (D-484)', () => {
   it('W1-4: real risk first; a product-only guess shows its severity muted as unverified; certainty filter', async () => {
-    renderApp('/findings')
+    renderApp('/findings?tab=open')
     const table = await screen.findByRole('table', { name: 'Findings list' })
     const rows = within(table).getAllByRole('row').slice(1)
     expect(rows.map((r) => within(r).getByRole('link', { name: /^CVE-/ }).textContent)).toEqual(['CVE-2022-27593', 'CVE-2026-96951', 'CVE-2026-119977'])
@@ -586,7 +579,7 @@ describe('findings: customer walk 1 (D-484)', () => {
   it('N52-2: a product-only match on a row the agent reported with its version does not say the version is missing', async () => {
     const id = findingsStore.get().find((f) => f.cve === 'CVE-2026-119977')!.id
     findingsStore.update((l) => l.map((f) => (f.id === id ? { ...f, evidence: { summary: 's', checked_at: f.first_seen, agent_row: true } } : f)))
-    renderApp('/findings')
+    renderApp('/findings?tab=open')
     const table = await screen.findByRole('table', { name: 'Findings list' })
     const row = within(within(table).getByRole('row', { name: /CVE-2026-119977/ }))
     expect(row.getByText('High, unverified')).toBeVisible()
@@ -601,7 +594,7 @@ describe('findings: customer walk 1 (D-484)', () => {
   })
 
   it('W1-12: select all shown, one action and one note, one history and audit row per finding', async () => {
-    renderApp('/findings')
+    renderApp('/findings?tab=open')
     await screen.findByRole('table', { name: 'Findings list' })
     await userEvent.click(screen.getByRole('checkbox', { name: 'Select all 3 findings shown' }))
     const bar = screen.getByRole('region', { name: 'Selected findings' })
@@ -617,7 +610,7 @@ describe('findings: customer walk 1 (D-484)', () => {
   })
 
   it('W1-12: a closed finding in the selection keeps its status and reason; the toast says so', async () => {
-    renderApp('/findings')
+    renderApp('/findings?tab=open')
     await screen.findByRole('table', { name: 'Findings list' })
     await userEvent.click(screen.getByRole('checkbox', { name: 'Select all 3 findings shown' }))
     // Someone else closes one of the three while they are selected.
@@ -791,33 +784,28 @@ describe('findings: one update, one item; the agent\'s build is a detection (D-5
     fixes.set({ 'f-3': fix, 'f-9': fix })
   }
 
-  it('the list shows one item for the update with the CVEs inside, and lists them as rows on request', async () => {
+  it('kien G8: To fix shows the device and the one update with its CVEs inside; "Handle these" lists them as rows of All open', async () => {
     agentWindows()
     renderApp('/findings')
-    const group = await screen.findByRole('list', { name: 'Updates that fix several findings' })
-    expect(within(group).getByText('Install the latest cumulative update for Windows Server 2025 (build 26100.2314 or later)')).toBeInTheDocument()
-    expect(within(group).getByText(/fixes 2 exploited vulnerabilities/)).toBeInTheDocument()
-    expect(within(group).getByRole('link', { name: 'SRV-AD' })).toHaveAttribute('href', '/devices/a-srvad')
-    expect(within(group).getByRole('link', { name: 'CVE-2024-43451' })).toHaveAttribute('href', '/findings/f-9')
-    expect(within(group).getAllByText('Detected by the agent')).toHaveLength(2)
-    const table = screen.getByRole('table', { name: 'Findings list' })
-    expect(within(table).queryByText('CVE-2026-96951')).toBeNull() // inside the item, not a row of its own
+    const card = await screen.findByRole('listitem', { name: 'SRV-AD' })
+    const acts = within(card).getByRole('list', { name: 'What to do on SRV-AD' })
+    expect(within(acts).getByText('Install the latest cumulative update for Windows Server 2025 (build 26100.2314 or later)')).toBeInTheDocument()
+    expect(within(acts).getByText(/fixes 2 exploited CVEs/)).toBeInTheDocument()
+    expect(within(card).getByRole('link', { name: 'SRV-AD' })).toHaveAttribute('href', '/devices/a-srvad')
+    await userEvent.click(within(acts).getByText('Show the 2 CVEs'))
+    expect(within(acts).getByRole('link', { name: 'CVE-2024-43451' })).toHaveAttribute('href', '/findings/f-9')
     await expectNoA11yViolations()
-    await userEvent.click(within(group).getByText('Show the 2 CVEs'))
-    await userEvent.click(within(group).getByRole('link', { name: 'Handle these 2 findings in the list' }))
+    await userEvent.click(within(acts).getByRole('link', { name: 'Handle these 2 findings in the list' }))
     await waitFor(() => expect(within(screen.getByRole('table', { name: 'Findings list' })).getAllByRole('row')).toHaveLength(3))
     expect(screen.getByText('Showing the findings one update fixes: Install the latest cumulative update for Windows Server 2025 (build 26100.2314 or later).')).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Show all findings' }))
-    expect(await screen.findByRole('list', { name: 'Updates that fix several findings' })).toBeInTheDocument()
   })
 
-  it('when every unresolved finding is in an update, the table says so instead of "No unresolved findings" (review r1 #2)', async () => {
+  it('All open lists every unresolved finding as a row, the ones one update fixes too (the grouping is To fix)', async () => {
     agentWindows()
-    renderApp('/findings?device=a-srvad')
-    expect(await screen.findByRole('list', { name: 'Updates that fix several findings' })).toBeInTheDocument()
-    expect(screen.getByText('Every unresolved finding in this list is in an update above.')).toBeInTheDocument()
-    expect(screen.queryByText('No unresolved findings.')).toBeNull()
-    expect(screen.queryByRole('table', { name: 'Findings list' })).toBeNull()
+    renderApp('/findings?tab=open&device=a-srvad')
+    const table = await screen.findByRole('table', { name: 'Findings list' })
+    expect(within(table).getByText('CVE-2024-43451')).toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: 'Updates that fix several findings' })).toBeNull()
   })
 
   it('the finding says the agent detected it and asks nothing to look up; the device page groups the same way', async () => {
@@ -828,8 +816,10 @@ describe('findings: one update, one item; the agent\'s build is a detection (D-5
     expect(screen.queryByText(/About screen/)).toBeNull()
     cleanup()
     renderApp('/devices/a-srvad')
-    const group = await screen.findByRole('list', { name: 'Updates that fix several findings' })
-    expect(within(group).getByText(/fixes 2 exploited vulnerabilities/)).toBeInTheDocument()
-    expect(within(group).queryByRole('link', { name: 'SRV-AD' })).toBeNull()
+    // kien G8 (review r1 of #943): the device page shows the same To fix card as Findings (one grouping), no warning box
+    const todo = await screen.findByRole('list', { name: 'What to do on this device' })
+    expect(within(todo).getByText(/fixes 2 exploited CVEs/)).toBeInTheDocument()
+    expect(within(todo).queryByRole('link', { name: 'SRV-AD' })).toBeNull()
+    expect(screen.queryByRole('list', { name: 'Updates that fix several findings' })).toBeNull()
   })
 })

@@ -33,7 +33,14 @@ const cvesFor = (keys: string[]) => kevVulns.filter((v) => keys.includes(`${v.ve
 // ---- bảng riêng ----
 interface Meta { suspicious?: boolean; fragile_manual?: boolean; regular_scan?: RegularScan; approved_at?: string; scan_source?: 'on' | 'off'; snmp_source?: 'on' | 'off' }
 /** D-601: a device's network scan and SNMP reads, the default resolved (on for a device a sensor found, off for one added by hand). */
-const sourceOf = (a: Asset, which: 'scan_source' | 'snmp_source'): 'on' | 'off' => metaStore.get()[a.id]?.[which] ?? (a.origin === 'manual' ? 'off' : 'on')
+const sourceOf = (a: Asset, which: 'scan_source' | 'snmp_source'): 'on' | 'off' => {
+  const stored = metaStore.get()[a.id]?.[which]
+  if (stored) return stored
+  if (a.origin === 'manual') return 'off'
+  // review r2 M1: outside the LAN ranges a discovered device's default SNMP does not reach it; it shows off until a person turns it on
+  if (which === 'snmp_source' && IPV4_RE.test(a.ip) && !inList(a.ip, loadSettings().lan_ranges)) return 'off'
+  return 'on'
+}
 export type StoredObs = Omit<Observation, 'current'>
 const metaStore = collection<Record<string, Meta>>('inv_meta', () => ({}))
 const obsStore = collection<Record<string, StoredObs[]>>('inv_obs', () => ({}))

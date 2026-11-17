@@ -437,10 +437,10 @@ func (s *Service) SetSources(ctx context.Context, actor, id string, scan, snmp *
 	}
 	var out Sources
 	err := s.write(ctx, func(tx *sql.Tx, o *outbox) error {
-		var origin, curScan, curSNMP string
+		var origin, curScan, curSNMP, ip string
 		var box bool
-		err := tx.QueryRowContext(ctx, `SELECT origin, is_box, coalesce(scan_source, ''), coalesce(snmp_source, '') FROM inv_asset WHERE id = ?`, id).
-			Scan(&origin, &box, &curScan, &curSNMP)
+		err := tx.QueryRowContext(ctx, `SELECT origin, is_box, coalesce(scan_source, ''), coalesce(snmp_source, ''), coalesce(ip, '') FROM inv_asset WHERE id = ?`, id).
+			Scan(&origin, &box, &curScan, &curSNMP, &ip)
 		if errors.Is(err, sql.ErrNoRows) {
 			return notFoundDevice()
 		} else if err != nil {
@@ -459,7 +459,9 @@ func (s *Service) SetSources(ctx context.Context, actor, id string, scan, snmp *
 			if c.next == nil {
 				continue
 			}
-			before := sourceState(*c.cur, origin)
+			// The stored value is the consent the policies read (a stored "on" lets SNMP past lan_ranges; review r2 M1): any change of it is
+			// a change, audited and announced, even when the resolved default looked the same.
+			before := *c.cur
 			// only the two column names above are concatenated; the value is bound
 			if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET `+c.col+` = ? WHERE id = ?`, *c.next, id); err != nil { //nolint:gosec // G202: see above
 				return fmt.Errorf("inventory: set %s: %w", c.label, err)
@@ -474,7 +476,11 @@ func (s *Service) SetSources(ctx context.Context, actor, id string, scan, snmp *
 			changed = true
 			scanOn = scanOn || (c.col == "scan_source" && *c.next == SourceOn)
 		}
-		out = Sources{Scan: sourceState(curScan, origin), SNMP: sourceState(curSNMP, origin)}
+		st, err := loadSettings(ctx, tx)
+		if err != nil {
+			return err
+		}
+		out = Sources{Scan: sourceState(curScan, origin), SNMP: snmpState(st, curSNMP, origin, ip)}
 		if changed { // a PUT that changes nothing stops nothing (review r1 L3)
 			o.add(EventAssetUpdated, AssetEvent{AssetID: id, ScanOn: scanOn})
 		}

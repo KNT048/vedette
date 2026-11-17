@@ -129,6 +129,35 @@ func TestContract_D601_SourcesPerDevice(t *testing.T) {
 		t.Fatal("the audit row names the person, the source and the state")
 	}
 
+	// Review r2 M1: a discovered device outside lan_ranges shows SNMP off (its default does not reach it); turning it on is the stored
+	// consent SNMPPolicy reads, so it is a change: audited and announced.
+	e.record(obs(netip.MustParseAddr("10.9.0.20"), macB, observe.Kind, "switch", observe.Agent, 0.9))
+	far := e.idByMAC(macB)
+	if d := e.detail(far); d.Asset.SNMPSource != off {
+		t.Fatalf("a discovered device outside lan_ranges shows SNMP %q, want off", d.Asset.SNMPSource)
+	}
+	if d, _ := e.svc.SNMPPolicy(e.ctx(), far); d.Allowed {
+		t.Fatalf("outside lan_ranges, default: %+v", d)
+	}
+	audits := e.count(`SELECT COUNT(*) FROM core_audit WHERE action = 'inventory.set_source'`)
+	e.ev.reset()
+	got, err = e.svc.SetSources(e.ctx(), who, far, nil, &on)
+	if err != nil || got.SNMP != on {
+		t.Fatalf("SNMP on outside lan_ranges: %+v, %v", got, err)
+	}
+	if d, _ := e.svc.SNMPPolicy(e.ctx(), far); !d.Allowed {
+		t.Fatalf("outside lan_ranges, turned on: %+v", d)
+	}
+	if n := e.count(`SELECT COUNT(*) FROM core_audit WHERE action = 'inventory.set_source'`) - audits; n != 1 {
+		t.Fatalf("%d audit rows for the outside-LAN consent, want 1", n)
+	}
+	if ev := e.ev.named(inventory.EventAssetUpdated); len(ev) != 1 {
+		t.Fatalf("%d events for the outside-LAN consent, want 1", len(ev))
+	}
+	if d := e.detail(far); d.Asset.SNMPSource != on {
+		t.Fatalf("after turning it on the device shows SNMP %q", d.Asset.SNMPSource)
+	}
+
 	// Refusals.
 	_, err = e.svc.SetSources(e.ctx(), who, hand, nil, nil)
 	wantAPIError(t, err, 400, "bad_source")

@@ -78,12 +78,13 @@
       },
       "snmp": {
         "on": "On: read with the SNMP credentials that list its address; outside the LAN ranges only because you turned it on here; never if excluded. Turning it off stops all SNMP to it.",
-        "off": "Off: no SNMP read goes to this device. What it read stays; values you entered still win."
+        "off": "Off: no SNMP read goes to this device. What it read stays; values you entered still win.",
+        "offOutside": "Off: this device is outside the LAN ranges, so SNMP reads it only once you turn it on here. Nothing is sent to it now."
       }
     },
     "saved": {
       "scan": {
-        "on": "Network scan on for {{name}}: it is scanned in the next scan window.",
+        "on": "Network scan on for {{name}}: it is scanned in the next scan window if it is inside the scan scope.",
         "off": "Network scan off for {{name}}: nothing more is sent to it."
       },
       "snmp": {

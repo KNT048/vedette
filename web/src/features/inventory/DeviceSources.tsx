@@ -15,7 +15,8 @@ import { TurnOnModule } from './Inline'
 import { CreatableSelect } from '@/components/common/CreatableSelect'
 import { SnmpNext } from './SnmpNext'
 import { SNMP_MAX } from './validate'
-import { useDeviceAction, useDeviceSources, useSnmp, useSnmpActions } from './api'
+import { useDeviceAction, useDeviceSources, useSettings, useSnmp, useSnmpActions } from './api'
+import { inRanges } from './AddToScopeDialog'
 import { nameOf } from './nameOf'
 import { kindLabel } from '@/lib/deviceTypes'
 import { toast } from 'sonner'
@@ -109,6 +110,9 @@ function SourceSwitch({ d, which }: { d: DeviceDetail; which: 'scan' | 'snmp' })
   const admin = useCan('admin')
   const set = useDeviceSources(d.asset.id)
   const on = (which === 'scan' ? d.asset.scan_source : d.asset.snmp_source) === 'on'
+  // review r2 M1: a discovered device outside the LAN ranges is read with SNMP only once a person turns it on here (the list is admin-only)
+  const lan = useSettings(admin && which === 'snmp' && !on && d.asset.origin !== 'manual').data?.lan_ranges
+  const outside = !!lan && IPV4.test(d.asset.ip) && !inRanges(d.asset.ip, lan)
   const id = `device-source-${which}`
   const name = nameOf(d.asset, kindLabel(d.asset.kind))
   const toggle = (v: boolean) => set.mutate({ [which]: v ? 'on' : 'off' }, {
@@ -118,7 +122,7 @@ function SourceSwitch({ d, which }: { d: DeviceDetail; which: 'scan' | 'snmp' })
     <div className="flex min-w-0 items-start gap-2">
       <Switch id={id} aria-label={t(`sources.toggle.${which}`)} checked={on} disabled={!admin || set.isPending}
         title={admin ? undefined : t('common:needRole', { role: t('common:role.admin') })} onCheckedChange={toggle} />
-      <p className="text-meta text-muted">{t(`sources.meaning.${which}.${on ? 'on' : 'off'}`)}</p>
+      <p className="text-meta text-muted">{t(on ? `sources.meaning.${which}.on` : outside ? 'sources.meaning.snmp.offOutside' : `sources.meaning.${which}.off`)}</p>
     </div>
   )
 }

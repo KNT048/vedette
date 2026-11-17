@@ -42,6 +42,10 @@ func (c obsCols) observed() *Observed {
 // loadDevices reads devices (with software and services) for a WHERE clause on inv_asset a; the rows
 // are ordered box first, then newest first. limit 0 = no limit.
 func (s *Service) loadDevices(ctx context.Context, q querier, where string, limit int, args ...any) ([]Device, error) {
+	st, err := loadSettings(ctx, q) // the LAN ranges say whether a default SNMP switch reaches the device (D-601, review r2 M1)
+	if err != nil {
+		return nil, err
+	}
 	query := `SELECT ` + assetColumns + assetFrom + ` ` + where + ` ORDER BY a.is_box DESC, a.first_seen DESC, a.id`
 	if limit > 0 {
 		query += fmt.Sprintf(" LIMIT %d", limit)
@@ -71,7 +75,7 @@ func (s *Service) loadDevices(ctx context.Context, q querier, where string, limi
 		d.Vendor, d.Model, d.OS = v.observed(), m.observed(), o.observed()
 		d.ident = []*Observed{h.observed(), x.observed()}
 		d.Approved, d.Fragile, d.Suspicious, d.IsBox = approved, fragile, suspicious, box
-		d.ScanSource, d.SNMPSource = sourceState(d.ScanSource, d.Origin), sourceState(d.SNMPSource, d.Origin)
+		d.ScanSource, d.SNMPSource = sourceState(d.ScanSource, d.Origin), snmpState(st, d.SNMPSource, d.Origin, ip.String)
 		d.Software, d.Services = []Software{}, []ServiceRow{}
 		out = append(out, d)
 	}
@@ -515,6 +519,22 @@ func (s *Service) addGuesses(ctx context.Context, items []*AssetCore) {
 			d.Guess = &g
 		}
 	}
+}
+
+// snmpState is the SNMP switch as the device page shows it: what SNMPPolicy does with it (D-601, review r2 M1). Outside lan_ranges the
+// default of a discovered device does not reach it (only a stored "on" does), so it shows off until a person turns it on.
+func snmpState(st Settings, stored, origin, ip string) string {
+	if stored == "" && origin != "manual" {
+		if a, err := netip.ParseAddr(ip); err == nil && !inRanges(st, a) {
+			return SourceOff
+		}
+	}
+	return sourceState(stored, origin)
+}
+
+// inRanges reports whether ip is inside lan_ranges, exclusions aside.
+func inRanges(st Settings, ip netip.Addr) bool {
+	return st.InScope(ip) || st.Excluded(ip)
 }
 
 // sourceState resolves a device's stored setting of one active source (D-601): "" is the default, off for a device added by hand and on

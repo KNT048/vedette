@@ -42,6 +42,11 @@
 #    `gvmd --create-user=$USER --password=$PASSWORD` before it starts the daemon, so the login is right from the first start however
 #    long gvmd then loads its feed. A missing or empty file ends the container before start-gvmd: gvmd never makes its default
 #    admin/admin login. Nothing is printed. ($$ is compose's escape of $.)
+# 5. Every service that runs logs to its own file, at most 10 MB (D-600): podman's json-file driver (an alias of its k8s-file; conmon
+#    truncates the file when it reaches max-size), read with `podman logs <container>`, instead of podman's default journald. A service
+#    that crash-loops (gvmd aborted ~470 times a minute for four days on the N100, 3.9 GB of journal) then fills 10 MB of its own and
+#    never the box's journal, which journald bounds only at 10% of the file system up to 4 GB for everything on the box together
+#    (journald.conf(5), SystemMaxUse=), pushing out the host's and core's own history. Nothing of the box's own configuration changes.
 services:
   gvmd:
     command:
@@ -70,6 +75,7 @@ services:
       dfn-cert-data: !reset null
     labels:
       io.vedette.started-by: vedette-host
+    logging: {driver: json-file, options: {max-size: 10m}}
 
   gsa:
     profiles: [disabled]
@@ -93,36 +99,47 @@ services:
   vulnerability-tests:
     labels:
       io.vedette.started-by: vedette-host
+    logging: {driver: json-file, options: {max-size: 10m}}
   notus-data:
     labels:
       io.vedette.started-by: vedette-host
+    logging: {driver: json-file, options: {max-size: 10m}}
   data-objects:
     labels:
       io.vedette.started-by: vedette-host
+    logging: {driver: json-file, options: {max-size: 10m}}
   report-formats:
     labels:
       io.vedette.started-by: vedette-host
+    logging: {driver: json-file, options: {max-size: 10m}}
   gpg-data:
     labels:
       io.vedette.started-by: vedette-host
+    logging: {driver: json-file, options: {max-size: 10m}}
   redis-server:
     labels:
       io.vedette.started-by: vedette-host
+    logging: {driver: json-file, options: {max-size: 10m}}
   pg-gvm:
     labels:
       io.vedette.started-by: vedette-host
+    logging: {driver: json-file, options: {max-size: 10m}}
   pg-gvm-migrator:
     labels:
       io.vedette.started-by: vedette-host
+    logging: {driver: json-file, options: {max-size: 10m}}
   configure-openvas:
     labels:
       io.vedette.started-by: vedette-host
+    logging: {driver: json-file, options: {max-size: 10m}}
   openvasd:
     labels:
       io.vedette.started-by: vedette-host
+    logging: {driver: json-file, options: {max-size: 10m}}
   ospd-openvas:
     labels:
       io.vedette.started-by: vedette-host
+    logging: {driver: json-file, options: {max-size: 10m}}
 
 secrets:
   vedette-gmp-password:

@@ -167,6 +167,8 @@ func validateSystemctl(coreUnit string) func([]string) error {
 			return nil
 		case isPodmanSocketArgv(args): // OpenVAS's compose provider talks to it (D-529)
 			return nil
+		case isOrphanKillArgv(args): // the libpod scopes of containers podman lost, by their 64-hex id (D-600, orphans.go)
+			return nil
 		}
 		return errors.New("not one of the fixed systemctl command lines")
 	}

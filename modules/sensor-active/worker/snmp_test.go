@@ -3,6 +3,7 @@ package worker_test
 import (
 	"net/netip"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -37,8 +38,8 @@ func startSNMP(t *testing.T, agents map[string]*snmptest.Agent) *rig {
 	closed := (&snmptest.Agent{}).Start(t) // an agent that serves nothing: no v2c, no v3
 	return start(t, writeNmap(t, printXML), func(c *worker.Config) {
 		c.SNMPTimeout = 50 * time.Millisecond
-		c.SNMPDial = func(ip netip.Addr) (string, uint16) {
-			if p, ok := ports[ip]; ok {
+		c.SNMPDial = func(ip netip.Addr, port uint16) (string, uint16) {
+			if p, ok := ports[ip]; ok && port == sensorlink.SNMPPort {
 				return "127.0.0.1", p
 			}
 			return "127.0.0.1", closed
@@ -84,6 +85,45 @@ func TestSNMPReadsTheAgentWithTheCredentialThatAnswers(t *testing.T) {
 	}
 	if sw.Requests() != 3 { // public twice (the retry), then the right one once
 		t.Errorf("the switch got %d requests, want 3", sw.Requests())
+	}
+}
+
+// kien 2026-11-17: a device that serves SNMP on another UDP port is read on the port its credential names; a credential without a
+// port goes to 161 as before (here no agent listens there: no answer).
+func TestSNMPReadsTheCredentialsPort(t *testing.T) {
+	t.Parallel()
+	agent := (&snmptest.Agent{Community: "s3cret-community", Values: juniper()}).Start(t)
+	closed := (&snmptest.Agent{}).Start(t)
+	var mu sync.Mutex
+	var asked []uint16
+	r := start(t, writeNmap(t, printXML), func(c *worker.Config) {
+		c.SNMPTimeout = 50 * time.Millisecond
+		c.SNMPDial = func(_ netip.Addr, port uint16) (string, uint16) {
+			mu.Lock()
+			asked = append(asked, port)
+			mu.Unlock()
+			if port == 1161 {
+				return "127.0.0.1", agent
+			}
+			return "127.0.0.1", closed
+		}
+	})
+	custom, plain := v2c("s3cret-community"), v2c("s3cret-community")
+	custom.Port = 1161
+	id := strings.Repeat("7", 32)
+	r.core.push(snmpJob(id, []sensorlink.SNMPCredential{plain, custom},
+		sensorlink.SNMPTarget{IP: "192.168.10.30", Credentials: []int{0, 1}}))
+	got := r.core.next(t)
+	if len(got.res.SNMP) != 1 {
+		t.Fatalf("result %+v", got.res)
+	}
+	if a := got.res.SNMP[0]; a.Status != sensorlink.SNMPStatusOK || a.Credential != 1 || a.Values.SysName != "SW-CORE-01" {
+		t.Errorf("answer %+v", a)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if len(asked) != 2 || asked[0] != 161 || asked[1] != 1161 {
+		t.Errorf("ports asked %v, want [161 1161]", asked)
 	}
 }
 

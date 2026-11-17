@@ -40,6 +40,25 @@ func TestSNMPJobRoundTrip(t *testing.T) {
 	}
 }
 
+// kien 2026-11-17: a credential carries the UDP port of a device that serves SNMP elsewhere; one of the default port leaves it out,
+// so the job of a credential without a port is the bytes a worker built before the field knows.
+func TestSNMPCredentialPort(t *testing.T) {
+	t.Parallel()
+	j := SNMPJob{Rate: 1, Credentials: []SNMPCredential{{Version: SNMPv2c, Community: "public", Port: 1161}, {Version: SNMPv2c, Community: "public"}},
+		Targets: []SNMPTarget{{IP: "192.168.1.1", Credentials: []int{0, 1}}}}
+	if err := CheckSNMPJob(&j); err != nil {
+		t.Fatal(err)
+	}
+	b, err := json.Marshal(Job{ID: strings.Repeat("a", 32), Kind: KindSNMP, TimeoutS: 60, SNMP: &j})
+	if err != nil || !strings.Contains(string(b), `[{"version":"v2c","port":1161,"community":"public"},{"version":"v2c","community":"public"}]`) {
+		t.Fatalf("%v %s", err, b)
+	}
+	var back Job
+	if err := json.Unmarshal(b, &back); err != nil || back.SNMP.Credentials[0].Port != 1161 || back.SNMP.Credentials[1].Port != 0 {
+		t.Fatalf("%v %+v", err, back.SNMP)
+	}
+}
+
 // A credential never reaches a log line or a formatted error through fmt or slog.
 func TestSNMPCredentialIsRedacted(t *testing.T) {
 	t.Parallel()
@@ -76,6 +95,8 @@ func TestCheckSNMPJob(t *testing.T) {
 		"a privacy password, no priv": func(j *SNMPJob) { j.Credentials[1].PrivPass = "12345678" },
 		"aes, no password":            func(j *SNMPJob) { j.Credentials[1].Priv = SNMPPrivAES128 },
 		"a v3 with a community":       func(j *SNMPJob) { j.Credentials[1].Community = "x" },
+		"port 65536":                  func(j *SNMPJob) { j.Credentials[0].Port = 65536 },
+		"port -1":                     func(j *SNMPJob) { j.Credentials[1].Port = -1 },
 		"no target":                   func(j *SNMPJob) { j.Targets = nil },
 		"a name":                      func(j *SNMPJob) { j.Targets[0].IP = "printer.local" },
 		"IPv6":                        func(j *SNMPJob) { j.Targets[0].IP = "fe80::1" },

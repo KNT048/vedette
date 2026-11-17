@@ -85,7 +85,8 @@ type Config struct {
 	NucleiHome   string
 	TemplatesDir string
 
-	// SNMPDial points the SNMP requests elsewhere than the target's port 161 (tests: a fake agent on loopback). nil in production.
+	// SNMPDial points the SNMP requests elsewhere than the target on the credential's port (tests: a fake agent on loopback). nil in
+	// production.
 	SNMPDial SNMPDialer
 	// SNMPTimeout is how long one SNMP request waits for its answer (default SNMPTimeout; tests make it short).
 	SNMPTimeout time.Duration

@@ -499,7 +499,7 @@ function injectSample(feed: 'osquery' | 'wazuh'): { devices: number; software: n
 type StoredSnmp = SnmpCredential & { community?: string; auth_password?: string; priv_password?: string }
 export const snmpStore = collection<StoredSnmp[]>('sa_snmp', () => [{
   id: 'snmp-1', name: 'Core switches (v3)', version: 'v3', username: 'vedette-ro', auth: 'sha256', priv: 'aes128',
-  auth_password: 'ro-auth-2fe8', priv_password: 'ro-priv-91c4', secret_last4: '2fe8', priv_last4: '91c4',
+  auth_password: 'ro-auth-2fe8', priv_password: 'ro-priv-91c4', secret_last4: '2fe8', priv_last4: '91c4', port: 161,
   scope: ['192.168.10.0/24'], created_at: daysAgo(30), last_answer_at: daysAgo(1), answered: 3, secret_lost: false, moved_out: [],
 }], () => [])
 const SNMP_MAX = 8
@@ -521,6 +521,9 @@ function checkSnmp(b: Partial<SnmpCredentialInput>, prev: StoredSnmp | null): { 
   if (!LABEL_RE.test(name)) return { err: bad(400, 'bad_name', 'Name the credential, up to 64 characters, without < or >. Example "Core switches".') }
   if (snmpStore.get().some((x) => x.id !== prev?.id && x.name.toLowerCase() === name.toLowerCase())) return { err: bad(409, 'name_taken', `A credential named "${name}" already exists. Choose another name.`) }
   if (b.version !== 'v2c' && b.version !== 'v3') return { err: bad(400, 'bad_version', 'The SNMP version is v2c or v3. SNMPv1 is not offered: it is not secure.') }
+  // The UDP port (kien 2026-11-17): left out = 161; the contract takes an integer of 1..65535 (the API answers 400 otherwise).
+  const port = b.port ?? 161
+  if (!Number.isInteger(port) || port < 1 || port > 65535) return { err: bad(400, 'bad_port', 'The port is a number from 1 to 65535. Leave it empty for 161, the SNMP port.') }
   const scope = Array.isArray(b.scope) ? [...new Set(b.scope.map((x) => String(x).trim()).filter(Boolean))] : []
   if (scope.length > 16) return { err: bad(400, 'bad_scope', 'At most 16 addresses or ranges.') }
   for (const x of scope) {
@@ -554,7 +557,7 @@ function checkSnmp(b: Partial<SnmpCredentialInput>, prev: StoredSnmp | null): { 
     if (c.err) return { err: c.err }
     const w = widened()
     if (w) return w
-    return { value: { name, version: 'v2c', username: null, auth: null, priv: null, community: c.v, secret_last4: last4(c.v), priv_last4: '', scope } }
+    return { value: { name, version: 'v2c', username: null, auth: null, priv: null, community: c.v, secret_last4: last4(c.v), priv_last4: '', port, scope } }
   }
   const username = typeof b.username === 'string' ? b.username.trim() : ''
   if (!SNMP_USER_RE.test(username)) return { err: bad(400, 'bad_user', 'The v3 user name is 1 to 64 letters, digits and . _ @ -.') }
@@ -568,12 +571,12 @@ function checkSnmp(b: Partial<SnmpCredentialInput>, prev: StoredSnmp | null): { 
   if (p.err) return { err: p.err }
   const w = widened()
   if (w) return w
-  return { value: { name, version: 'v3', username, auth: b.auth, priv, auth_password: a.v, priv_password: p.v, secret_last4: last4(a.v), priv_last4: last4(p.v), scope } }
+  return { value: { name, version: 'v3', username, auth: b.auth, priv, auth_password: a.v, priv_password: p.v, secret_last4: last4(a.v), priv_last4: last4(p.v), port, scope } }
 }
 
 /** The plain words the backend uses for each Test result (D-512). `unavailable` carries the readiness message instead. */
-const SNMP_MSG: Record<Exclude<SnmpTestReason, 'ok' | 'unavailable'>, (ip: string) => string> = {
-  no_answer: (ip) => `No answer from ${ip} on UDP 161 within 2 s (sent twice). The device may not run SNMP, a firewall may drop UDP 161, or the community is wrong: a device ignores a wrong community instead of saying so.`,
+const SNMP_MSG: Record<Exclude<SnmpTestReason, 'ok' | 'unavailable'>, (ip: string, port?: number) => string> = {
+  no_answer: (ip, port = 161) => `No answer from ${ip} on UDP port ${port} within 2 s (sent twice). The device may not run SNMP or may answer on another port (set it in the credential), a firewall may drop UDP port ${port}, or the community is wrong: a device ignores a wrong community instead of saying so.`,
   auth_failed: () => 'The device did not accept the v3 user name or password (or the authentication or privacy algorithm differs).',
   unknown_user: () => 'The device does not know this v3 user name.',
   error: () => 'The device answered with an error, or with a message Vedette could not read.',
@@ -1194,8 +1197,8 @@ export const handlers = [
       const ans = snmpAnswer(a)
       recordSnmp(a, ans)
       snmpStore.update((l) => l.map((x) => (x.id === c.id ? { ...x, last_answer_at: nowIso(), answered: Math.max(x.answered, 1) } : x)))
-      Object.assign(res, { ok: true, message: `${ip} answered. What it said is recorded in the inventory.`, answer: ans })
-    } else res.message = SNMP_MSG[reason as keyof typeof SNMP_MSG](ip)
+      Object.assign(res, { ok: true, message: `${ip} answered on UDP port ${c.port}. What it said is now in the inventory, with source SNMP.`, answer: ans })
+    } else res.message = SNMP_MSG[reason as keyof typeof SNMP_MSG](ip, c.port)
     audit('inventory.snmp_test', c.name, `${ip}: ${reason}`)
     return HttpResponse.json(res)
   }),
@@ -1221,7 +1224,7 @@ export const handlers = [
       const ok = c.version === 'v3' || c.community === 'public'
       const answer = ok ? snmpAnswer(a) : null
       if (answer) recordSnmp(a, answer)
-      return { ip: a.ip, ok, reason: ok ? 'ok' : 'no_answer', message: ok ? `${a.ip} answered. What it said is now in the inventory, with source SNMP.` : SNMP_MSG.no_answer(a.ip), device_id: a.id, answer }
+      return { ip: a.ip, ok, reason: ok ? 'ok' : 'no_answer', message: ok ? `${a.ip} answered on UDP port ${c.port}. What it said is now in the inventory, with source SNMP.` : SNMP_MSG.no_answer(a.ip, c.port), device_id: a.id, answer }
     })
     const answered = results.filter((r) => r.ok).length
     if (answered) snmpStore.update((l) => l.map((x) => (x.id === c.id ? { ...x, last_answer_at: nowIso(), answered: Math.max(x.answered, answered) } : x)))

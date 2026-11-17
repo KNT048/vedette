@@ -133,3 +133,26 @@ func TestBrief_FixFollowsThePageAndRulesFollowThePath(t *testing.T) {
 		}
 	}
 }
+
+// An answer blocked only port 80 of a switch whose web interface also served 443 ("ssl/https"), and applied its change with a plain
+// commit on a platform with an automatic rollback. The config job covers every port of the vulnerable service, plain and TLS, and
+// applies the change the safe way the data names for the target, never inventing one.
+func TestBriefConfig_EveryPortOfTheServiceAndSafeApply(t *testing.T) {
+	a := newAPI(t)
+	a.withProfile()
+	a.fake.setAnswer(`{"paragraphs":["The device runs an affected release."],"steps":["Patch."],"configs":[],"no_config_reason":"No open port serves the vulnerable part."}`)
+	if _, err := a.svc.Brief(a.ctx(), ai.BriefRequest{Job: ai.JobMitigationConfig, Actor: "it@acme.example", Target: "CVE-2023-0001", Question: "Write the config."}); err != nil {
+		t.Fatal(err)
+	}
+	req := a.fake.lastRequest(t)
+	all := req.System + req.Messages[0].Text
+	for _, w := range []string{
+		`every port the "Ports of each service" line lists for that service, plain and TLS alike`, "never only one of them",
+		"that target's block applies the change that way", "never end such a block with a plain commit alone",
+		"When the data gives a target none, never name an automatic rollback for it",
+	} {
+		if !strings.Contains(all, w) {
+			t.Errorf("the instructions lack %q", w)
+		}
+	}
+}

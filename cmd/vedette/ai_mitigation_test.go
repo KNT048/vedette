@@ -194,3 +194,120 @@ func TestAIPortsAreTheScansOnly(t *testing.T) {
 		t.Fatalf("agent-only ports %q", got)
 	}
 }
+
+// Every scan name of a web port, plain or TLS, on a usual or an alternate port, is one web service, and each TLS mail, directory or
+// file service is its plain one: a rule for the vulnerable service then covers all of its ports. Names the scan could not read are
+// no service.
+func TestAIServiceFamily_TLSAndAlternatePortsAreOneService(t *testing.T) {
+	t.Parallel()
+	web := []string{"http", "https", "ssl/http", "ssl/https", "http-alt", "https-alt", "ssl/http-alt", "ssl/https-alt", "http-proxy",
+		"ssl/http-proxy", "http-mgmt", "HTTP", "http?", "ssl/http?", "www"}
+	for _, n := range web {
+		if got := aiServiceFamily(n); got != aiWebFamily {
+			t.Errorf("%q is %q, want the web service", n, got)
+		}
+	}
+	for n, want := range map[string]string{"imaps": "imap", "ssl/imap": "imap", "imap": "imap", "pop3s": "pop3", "ssl/pop3": "pop3",
+		"smtps": "smtp", "submission": "smtp", "ssl/smtp": "smtp", "ldaps": "ldap", "ssl/ldap": "ldap", "ftps": "ftp", "sip-tls": "sip",
+		"ssl/sip": "sip", "telnets": "telnet", "ssh": "ssh", "snmp": "snmp", "http-rpc-epmap": "http-rpc-epmap"} {
+		if got := aiServiceFamily(n); got != want {
+			t.Errorf("%q is %q, want %q", n, got, want)
+		}
+	}
+	for _, n := range []string{"", "ssl", "unknown", "ssl/unknown", "tcpwrapped"} {
+		if got := aiServiceFamily(n); got != "" {
+			t.Errorf("%q is %q, want no service", n, got)
+		}
+	}
+}
+
+// A switch's web interface on 80 ("http") and 443 ("ssl/https"): the AI gets both as the ports of one web service, and, on a platform
+// with an automatic rollback, the safe way to apply the change. The explain job gets the ports but no apply advice.
+func TestAIFindingData_WebPortsTogetherAndSafeApply(t *testing.T) {
+	t.Parallel()
+	jweb := "J-Web"
+	dev := inventory.Device{AssetCore: inventory.AssetCore{IP: "192.168.18.47", Kind: "switch", Vendor: obs("Juniper Networks"), Model: obs("EX4200-48T"),
+		Services: []inventory.ServiceRow{
+			{Port: 22, Proto: "tcp", Name: "ssh", Source: "nmap"},
+			{Port: 80, Proto: "tcp", Name: "http", Product: &jweb, Source: "nmap"},
+			{Port: 443, Proto: "tcp", Name: "ssl/https", Source: "nmap"},
+			{Port: 443, Proto: "tcp", Name: "https", Source: "surface"},
+			{Port: 8443, Proto: "tcp", Name: "https-alt", Source: "nmap"},
+			{Port: 161, Proto: "udp", Name: "snmp", Source: "nmap"},
+			{Port: 9999, Proto: "tcp", Name: "tcpwrapped", Source: "nmap"},
+			{Port: 3000, Proto: "tcp", Name: "http", Source: "agent"},
+		}}}
+	want := "ssh 22/tcp; web (HTTP and HTTPS) 80/tcp, 443/tcp, 8443/tcp; snmp 161/udp"
+	if got := aiServicePorts(dev); got != want {
+		t.Fatalf("ports of each service = %q, want %q", got, want)
+	}
+	req := mitigation.AIRequest{Skill: mitigation.SkillConfig, Finding: findings.Row{CVE: "CVE-2023-36844",
+		CVSS: &findings.CVSS{Score: 5.3, Version: "3.1", Vector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:N"}}}
+	text := aiFindingData(req, &dev, aiFirewalls{})[1].Text
+	for _, w := range []string{"Ports of each service (a service's plain and TLS ports together; a rule for a service covers every port listed for it): " + want,
+		"Safe apply on this device: Junos: apply with `commit confirmed 5`"} {
+		if !strings.Contains(text, w) {
+			t.Errorf("the device block lacks %q:\n%s", w, text)
+		}
+	}
+	req.Skill = mitigation.SkillExplain
+	if text := aiFindingData(req, &dev, aiFirewalls{})[1].Text; strings.Contains(text, "Safe apply") || !strings.Contains(text, want) {
+		t.Errorf("explain device block:\n%s", text)
+	}
+	dev.Services = []inventory.ServiceRow{{Port: 1, Proto: "tcp", Name: "tcpwrapped", Source: "nmap"}}
+	if got := aiServicePorts(dev); got != "" {
+		t.Errorf("no named service: %q", got)
+	}
+}
+
+// The safe apply is named only for the platforms whose command line has one, read from the inventory's vendor, model and OS; FortiOS,
+// NX-OS, ASA, a Linux gateway and an unknown device get none, so the model is never handed a rollback that does not exist.
+func TestAISafeApply_OnlyPlatformsThatHaveOne(t *testing.T) {
+	t.Parallel()
+	dev := func(vendor, model, os string) inventory.Device {
+		var d inventory.Device
+		for _, f := range []struct {
+			v string
+			p **inventory.Observed
+		}{{vendor, &d.Vendor}, {model, &d.Model}, {os, &d.OS}} {
+			if f.v != "" {
+				*f.p = obs(f.v)
+			}
+		}
+		return d
+	}
+	for _, c := range []struct {
+		d    inventory.Device
+		want string
+	}{
+		{dev("Juniper Networks", "EX4200-48T", ""), "`commit confirmed 5`"},
+		{dev("Juniper Networks", "SRX300", "Junos OS 21.4R3"), "`commit confirmed 5`"},
+		{dev("", "", "JUNOS 15.1R7.9"), "`commit confirmed 5`"},
+		{dev("Cisco", "ASR 9001", "Cisco IOS XR 7.3.2"), "`commit confirmed 300`"},
+		{dev("Cisco Systems", "Catalyst 9300", "Cisco IOS XE 17.9"), "`reload in 10`"},
+		{dev("Cisco", "Catalyst 2960", "Cisco IOS 15.2(7)E"), "`reload in 10`"},
+		{dev("VyOS", "", "VyOS 1.4"), "`commit-confirm 5`"},
+		{dev("MikroTik", "RB4011", "RouterOS 7.12"), "Safe Mode"},
+		{dev("Juniper Networks", "Mist AP43", ""), ""},
+		{dev("Cisco", "Nexus 9300", "Cisco NX-OS 10.2"), ""},
+		{dev("Cisco", "ASA 5506-X", "Cisco Adaptive Security Appliance 9.16"), ""},
+		{dev("Apple", "iPhone", "iOS 17.2"), ""},
+		{dev("Fortinet", "FortiGate 60F", "FortiOS 7.2.5"), ""},
+		{dev("", "", "Alpine Linux 3.20"), ""},
+		{dev("", "", ""), ""},
+	} {
+		got := aiSafeApply(c.d)
+		if c.want == "" && got != "" || c.want != "" && !strings.Contains(got, c.want) {
+			t.Errorf("%s / %s / %s: safe apply %q, want %q", aiObserved(c.d.Vendor), aiObserved(c.d.Model), aiObserved(c.d.OS), got, c.want)
+		}
+	}
+	// the network block names it for a firewall that has one, and nothing for one that has none
+	b := aiNetworkBlock(aiFirewalls{OnPath: true, Paths: []aiPath{pathGateway, pathSameSubnet}, Walls: []inventory.Device{
+		{AssetCore: inventory.AssetCore{IP: "192.168.18.1", Kind: "firewall", Vendor: obs("Juniper Networks"), Model: obs("SRX300")}},
+		{AssetCore: inventory.AssetCore{IP: "192.168.18.2", Kind: "firewall", Vendor: obs("Fortinet"), Model: obs("FortiGate 60F"), OS: obs("FortiOS 7.2.5")}},
+	}})
+	lines := strings.Split(strings.TrimSpace(b), "\n")
+	if len(lines) != 3 || !strings.Contains(lines[1], "; safe apply: Junos: apply with `commit confirmed 5`") || strings.Contains(lines[2], "safe apply") {
+		t.Errorf("network block:\n%s", b)
+	}
+}

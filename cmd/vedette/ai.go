@@ -396,6 +396,12 @@ func aiFindingData(req mitigation.AIRequest, dev *inventory.Device, walls aiFire
 			fmt.Fprintf(&d, "Software of the finding: %s\n", sw)
 		}
 		fmt.Fprintf(&d, "Open ports: %s\n", aiPorts(*dev))
+		if g := aiServicePorts(*dev); g != "" {
+			fmt.Fprintf(&d, "Ports of each service (a service's plain and TLS ports together; a rule for a service covers every port listed for it): %s\n", g)
+		}
+		if s := aiSafeApply(*dev); s != "" && req.Skill == mitigation.SkillConfig {
+			fmt.Fprintf(&d, "Safe apply on this device: %s\n", s)
+		}
 	}
 	if e := row.Evidence; e != nil && e.Summary != "" {
 		fmt.Fprintf(&d, "Evidence (installed version and affected range): %s\n", aiVal(e.Summary, 600))
@@ -496,6 +502,90 @@ func aiPorts(d inventory.Device) string {
 		ps = append(ps, p)
 	}
 	return strings.Join(ps, "; ")
+}
+
+// aiWebNames are the names a scan gives a web server's port, plain or TLS, on its usual and alternate ports. An HTTP proxy port
+// (8080) is most often a device's web interface too. MS RPC over HTTP (http-rpc-epmap) is not a web interface.
+var aiWebNames = []string{"http", "https", "http-alt", "https-alt", "http-proxy", "http-mgmt", "www", "www-http"}
+
+// aiTLSNames maps the name of a service's TLS port to its plain service ("imaps" is IMAP over TLS).
+var aiTLSNames = map[string]string{
+	"imaps": "imap", "pop3s": "pop3", "smtps": "smtp", "submission": "smtp", "submissions": "smtp", "ldaps": "ldap", "ftps": "ftp",
+	"telnets": "telnet", "nntps": "nntp", "ircs": "irc", "ircs-u": "irc", "sip-tls": "sip", "sips": "sip", "domain-s": "domain",
+}
+
+// aiWebFamily is the family name of every web port.
+const aiWebFamily = "web (HTTP and HTTPS)"
+
+// aiServiceFamily is the service a scan's port name stands for, with the TLS layer and the alternate-port names folded in: "http",
+// "https", "ssl/https", "ssl/http", "http-alt" and "https-alt" are all one web service; "imaps" is "imap". A firewall rule for a
+// web flaw that names port 80 and leaves 443 open leaves the flaw reachable. "" for a port the scan named nothing on.
+func aiServiceFamily(name string) string {
+	n := strings.TrimSuffix(strings.ToLower(strings.TrimSpace(name)), "?") // nmap's "http?" is a guess of the same service
+	n = strings.TrimPrefix(strings.TrimPrefix(n, "ssl/"), "tls/")
+	switch {
+	case n == "" || n == "ssl" || n == "tls" || n == "unknown" || n == "tcpwrapped":
+		return ""
+	case slices.Contains(aiWebNames, n):
+		return aiWebFamily
+	case aiTLSNames[n] != "":
+		return aiTLSNames[n]
+	}
+	return aiVal(n, 40)
+}
+
+// aiServicePorts groups the open ports a scan read by service, plain and TLS ports together ("web (HTTP and HTTPS) 80/tcp,
+// 443/tcp; ssh 22/tcp"), "" when the scan named no service. The model then never has to guess that 443 "ssl/https" serves the
+// same web interface as 80 "http".
+func aiServicePorts(d inventory.Device) string {
+	svcs := aiScanned(d.Services)
+	var order []string
+	ports := map[string][]string{}
+	for _, sv := range svcs[:min(len(svcs), aiMaxPorts)] {
+		f := aiServiceFamily(sv.Name)
+		if f == "" {
+			continue
+		}
+		p := fmt.Sprintf("%d/%s", sv.Port, aiVal(sv.Proto, 8))
+		if _, ok := ports[f]; !ok {
+			order = append(order, f)
+		}
+		if !slices.Contains(ports[f], p) {
+			ports[f] = append(ports[f], p)
+		}
+	}
+	out := make([]string, 0, len(order))
+	for _, f := range order {
+		out = append(out, f+" "+strings.Join(ports[f], ", "))
+	}
+	return strings.Join(out, "; ")
+}
+
+// aiJunosModel is a Juniper model line that runs Junos.
+var aiJunosModel = regexp.MustCompile(`^(ex|srx|mx|qfx|acx|ptx|nfx)[0-9]`)
+
+// aiCiscoIOS is Cisco IOS or IOS XE in an operating system name (not NX-OS, ASA or Apple's iOS, whose vendor is not Cisco).
+var aiCiscoIOS = regexp.MustCompile(`(^|[^a-z-])ios([ -]?xe)?([^a-z]|$)`)
+
+// aiSafeApply is how a change is applied on a platform so that it undoes itself when it locks the person out, for the platforms
+// whose command line has such a mode; "" for every other one, and the model is told not to name one then. The platform is read from
+// the inventory's vendor, model and operating system.
+func aiSafeApply(d inventory.Device) string {
+	vendor, model, osName := strings.ToLower(aiObserved(d.Vendor)), strings.ToLower(aiObserved(d.Model)), strings.ToLower(aiObserved(d.OS))
+	all := vendor + " " + model + " " + osName
+	switch {
+	case strings.Contains(all, "junos") || (strings.Contains(vendor, "juniper") && aiJunosModel.MatchString(model)):
+		return "Junos: apply with `commit confirmed 5`, check that access still works, then `commit` within those 5 minutes; when it is not confirmed, Junos rolls the change back by itself."
+	case strings.Contains(vendor, "cisco") && (strings.Contains(osName, "ios xr") || strings.Contains(osName, "ios-xr") || strings.Contains(osName, "iosxr")):
+		return "Cisco IOS XR: apply with `commit confirmed 300` (seconds), check that access still works, then `commit`; when it is not confirmed, IOS XR rolls the change back by itself."
+	case strings.Contains(vendor, "cisco") && aiCiscoIOS.MatchString(osName):
+		return "Cisco IOS: run `reload in 10` before the change, check that access still works, then `reload cancel` and only then `write memory`; when it is not cancelled, the device restarts with the saved configuration, without the change."
+	case strings.Contains(all, "vyos"):
+		return "VyOS: apply with `commit-confirm 5`, check that access still works, then `confirm`; when it is not confirmed, VyOS goes back to the saved configuration by itself."
+	case strings.Contains(vendor, "mikrotik") || strings.Contains(osName, "routeros"): //nolint:misspell // RouterOS is the product name
+		return "MikroTik RouterOS: turn on Safe Mode (Ctrl+X in the terminal) before pasting, check that access still works, then press Ctrl+X again to keep the change; when the session drops in Safe Mode, RouterOS undoes the change by itself."
+	}
+	return ""
 }
 
 // aiFixedIn is the page's "Fixed version" fact in one line, with what the page says about it (Ubuntu Pro, the distribution's own

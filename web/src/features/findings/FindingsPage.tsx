@@ -328,7 +328,6 @@ function PlanLine() {
   return (
     <p className="mb-4 text-sm">
       <Link to="/plan?tier=likely" className={link}>{t('plan.lineLikely', { count: likely })}</Link>
-      {/* empty-guard: PlanLine returns null when the plan has no item, so all is at least 1 */}
       {likely < all ? <>{' ('}<Link to="/plan?tier=all" className={link}>{t('plan.lineAll', { count: all })}</Link>{')'}</> : null}
     </p>
   )

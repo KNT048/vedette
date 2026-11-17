@@ -63,9 +63,10 @@ function Preview() {
           <Button onClick={() => ai.mutate(undefined, { onSuccess: () => toast.success(t('weekly.ai.done')) })} disabled={!operator || !weekly.data.ai_available} busy={ai.isPending} busyLabel={t('weekly.ai.working')} title={needRole ?? (weekly.data.ai_available ? undefined : t('weekly.ai.unavailable'))} aria-describedby="weekly-ai-wait"><Sparkles aria-hidden />{t('weekly.ai.button')}</Button>
           <Link to="/reports/print/weekly" className={buttonVariants({ variant: 'secondary' })}><Printer aria-hidden />{t('print.button')}</Link>
           {/* kien G5: no Send with nobody to send to; one line says what is missing instead */}
-          {recipients.length > 0
-            ? <Button variant="primary" onClick={() => setConfirm(true)} disabled={!operator} title={needRole}><Send aria-hidden />{t('weekly.send.button')}</Button>
-            : <span className="self-center text-meta text-muted">{t('weekly.send.noRecipients')}</span>}
+          {/* #936 review r1: the line only once the schedule says there is no recipient (no flash while it loads; Send stays on an error) */}
+          {sched.data && recipients.length === 0
+            ? <span className="self-center text-meta text-muted">{t('weekly.send.noRecipients')}</span>
+            : sched.isPending ? null : <Button variant="primary" onClick={() => setConfirm(true)} disabled={!operator} title={needRole}><Send aria-hidden />{t('weekly.send.button')}</Button>}
         </>
       ) : null}>
       {/* docs/UI.md §0: a disabled AI button says why and links to the exact place (its title alone reaches no keyboard or touch).

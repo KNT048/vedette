@@ -9,7 +9,8 @@ package api
 // ListenPort is one port the box listens on at an address other than loopback (every address, 0.0.0.0 or ::, counts). Proto is
 // "tcp" (a socket in LISTEN) or "udp" (a bound socket with no peer). Process names what holds it: the Vedette service
 // ("vedette-core") when the process runs in a vedette-*.service unit or is a container monitor (conmon) of a unit, else the
-// process name of /proc/<pid>/comm reduced to printable ASCII ("sshd"); "" when no process could be found.
+// process name of /proc/<pid>/comm reduced to printable ASCII ("sshd"); "" when no process could be found. Proto is ProtoTCP or
+// ProtoUDP (decoy.go): the same protocol names, a word of the answer, never a network the host listens on or dials.
 type ListenPort struct {
 	Port    int    `json:"port"`
 	Proto   string `json:"proto"`

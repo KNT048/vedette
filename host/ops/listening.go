@@ -40,9 +40,9 @@ func (o *Ops) readPorts(ctx context.Context) (any, error) {
 	owners := o.socketOwners(want, "")
 	out := api.PortsState{Ports: make([]api.ListenPort, 0, len(inodes))}
 	for k, list := range inodes {
-		p := api.ListenPort{Port: int(k.port), Proto: "tcp"}
+		p := api.ListenPort{Port: int(k.port), Proto: api.ProtoTCP}
 		if k.udp {
-			p.Proto = "udp"
+			p.Proto = api.ProtoUDP
 		}
 		p.Process = o.portOwner(list, owners)
 		out.Ports = append(out.Ports, p)

@@ -2071,8 +2071,8 @@ describe('response: Respond from an incident (S-RESP-3)', () => {
   })
 })
 
-describe('a box that had AI response on before v1', () => {
-  const NOTE = 'Not part of v1: you can turn it off; once off it is hidden.'
+describe('a box that had AI response on before this release left it out', () => {
+  const NOTE = 'This feature is not part of this release. Its settings are kept and shown read-only.'
   const enabled = (b: HTMLElement) => !b.matches(':disabled') // inside a disabled fieldset only :disabled tells
 
   it('no new action, every way back stays: Approve is off, Reject and Roll back work, rules can be deleted not added or edited', async () => {
@@ -2120,7 +2120,7 @@ describe('a box that had AI response on before v1', () => {
       expect(within(dlg).getByRole('link', { name: 'Roll back first: Requests, History' })).toHaveAttribute('href', '/response?tab=requests&view=history')
       await u.click(within(dlg).getByRole('button', { name: 'Turn off AI response' }))
       await waitFor(() => expect(modulesStore.get().find((m) => m.id === 'response')!.enabled).toBe(false))
-      expect(await screen.findByText('AI response is not part of v1')).toBeInTheDocument()
+      expect(await screen.findByText('AI response is not available in this release')).toBeInTheDocument()
     } finally { postV1.POST_V1_IN_UI = true }
   })
 

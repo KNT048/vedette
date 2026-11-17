@@ -18,6 +18,7 @@ import { resetMockDb } from '@/mocks/db'
 const isPreview = () => import.meta.env.VITE_API_MOCK !== 'off'
 import { useAccount, useBoxBackups, useDownloadKey, usePurge, useRestore, useRestoreRun } from './api'
 import { useInstallKind, useModuleAvailable } from '@/lib/modules'
+import { useScope } from '@/lib/v1'
 import { ContainerBackup, InstallPending } from './ContainerOnly'
 import type { BoxBackup } from './types'
 import { fmtDateTime } from '@/lib/format'
@@ -47,9 +48,12 @@ export default function DataSection() {
   const [day] = useState(() => new Date().toISOString().slice(0, 10))
 
   const [picked, setCats] = useState<LogCategory[]>(LOG_CATEGORIES.map((c) => c.id))
+  // No AI response log to offer while this build does not offer that module and this box never turned it on
+  const noResponse = useScope('response') === 'hidden'
+  const shownCats = noResponse ? LOG_CATEGORIES.filter((c) => c.id !== 'response') : LOG_CATEGORIES
   // S-CORE-6: an install that cannot run traps (container-only) has no honeypot hits: the box greys it and leaves it out.
   const noTraps = useModuleAvailable('honeypot') === false
-  const cats = noTraps ? picked.filter((c) => c !== 'honeypot') : picked
+  const cats = picked.filter((c) => !(noTraps && c === 'honeypot') && !(noResponse && c === 'response'))
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [fmt, setFmt] = useState<'json' | 'csv'>('json')
@@ -94,7 +98,7 @@ export default function DataSection() {
           <fieldset className="grid gap-2">
             <legend className="mb-1 text-sm font-medium">{t('data.logs.categories')}</legend>
             <div className="grid gap-2 sm:grid-cols-2">
-              {LOG_CATEGORIES.map((c) => (
+              {shownCats.map((c) => (
                 <div key={c.id} className="flex items-center gap-2">
                   <Checkbox id={`log-${c.id}`} checked={cats.includes(c.id)} disabled={gate.disabled || (noTraps && c.id === 'honeypot')} onCheckedChange={(on) => setCats((l) => (on ? [...l, c.id] : l.filter((x) => x !== c.id)))} />
                   <Label htmlFor={`log-${c.id}`}>{t(`data.logs.cat.${c.id}`)}{noTraps && c.id === 'honeypot' ? <span className="text-muted"> {t('data.logs.noTraps')}</span> : null}</Label>

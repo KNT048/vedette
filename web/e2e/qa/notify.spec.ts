@@ -55,7 +55,9 @@ test.describe('notify: incidents (S-ALERT-3)', () => {
   test('detail: what happened, who responded, the text sent per channel, the delivery log, Respond and source links', async ({ page }) => {
     await startWithSample(page)
     await page.goto('/incidents/al-4')
-    await expect(page.getByRole('link', { name: 'Respond' })).toHaveAttribute('href', '/response?incident=al-4')
+    // Respond opens AI response, which this build does not offer: no link, also on a box that has it on
+    if (POST_V1_IN_UI) await expect(page.getByRole('link', { name: 'Respond' })).toHaveAttribute('href', '/response?incident=al-4')
+    else await expect(page.getByRole('link', { name: 'Respond' })).toHaveCount(0)
     await expect(page.getByRole('link', { name: 'Open trap touch' })).toHaveAttribute('href', '/honeypot/hits/hit-seed-1')
     const tg = page.getByRole('figure', { name: 'Telegram' })
     await expect(tg).toContainText('Critical: PC-HR-01 touched the SMB trap on FILESRV-OLD')

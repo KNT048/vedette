@@ -12,6 +12,7 @@
     "meta": "Approve or reject the actions your AI and rules propose.",
     "metaInfo": "This is your inbox of actions the AI and your rules propose. Nothing changes another device without an approval and the safety envelope.",
     "onTitle": "High-risk mode is on",
+    "onBody_zero": "No request is waiting. Use Emergency stop if something looks wrong.",
     "onBody_one": "{{count}} request is waiting. Use Emergency stop if something looks wrong.",
     "onBody_other": "{{count}} requests are waiting. Use Emergency stop if something looks wrong.",
     "breakerTitle": "Circuit breaker is open: all response is paused",

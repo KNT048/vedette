@@ -139,9 +139,13 @@ function Weekly() {
   return (
     <Section id="weekly" title={t('weekly.title')} description={t('weekly.description')} info={t('weekly.descriptionInfo')} stories={['S-FEED-2']}>
       <QueryState query={weekly}>
-        {(d) => (
+        {(d) => {
+          const items = d.items.filter((i) => i.answer !== 'not_relevant')
+          // kien G5: no empty bordered list; one line says there is nothing this week
+          if (items.length === 0) return <p className="text-sm text-muted">{t('weekly.none')}</p>
+          return (
           <ol className="grid divide-y divide-rule rounded-md border border-rule bg-surface">
-            {d.items.filter((i) => i.answer !== 'not_relevant').map((i) => (
+            {items.map((i) => (
               <li key={i.id} className="grid gap-3 px-4 py-3 md:grid-cols-[1fr_auto] md:items-center">
                 <p className="max-w-[72ch] text-sm leading-relaxed">{i.text} <Link to={`/cve/${i.cve}`} className="text-meta text-accent underline-offset-4 hover:underline">{i.cve}</Link></p>
                 <div className="flex gap-2">
@@ -155,7 +159,8 @@ function Weekly() {
               </li>
             ))}
           </ol>
-        )}
+          )
+        }}
       </QueryState>
     </Section>
   )

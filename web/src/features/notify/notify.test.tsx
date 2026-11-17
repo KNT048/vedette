@@ -62,7 +62,9 @@ describe('notify: incidents (S-ALERT-3, D-52)', () => {
   it('D-543: Open holds new and acknowledged, Resolved the closed ones (?tab=); the kind filter narrows; the KPI cells link to the lists', async () => {
     renderApp('/incidents')
     const strip = await screen.findByRole('list', { name: 'Incidents at a glance' })
-    expect(within(strip).getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(['/incidents?tab=open', '/incidents?tab=open&severity=urgent', '/incidents?tab=open&sent=no'])
+    // kien G5: a 0 opens nothing, so "0 Open, not sent" is plain text, not a link to an empty list
+    expect(within(strip).getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(['/incidents?tab=open', '/incidents?tab=open&severity=urgent'])
+    expect(strip).toHaveTextContent(/0\s*Open, not sent/)
     expect(within(within(strip).getByRole('link', { name: /High and critical open/ })).getByText('2')).toBeInTheDocument()
     await screen.findByRole('table', { name: 'Incidents' })
     expect(screen.getByText('A new unknown device appeared: 192.168.10.157')).toBeInTheDocument() // acknowledged stays in Open

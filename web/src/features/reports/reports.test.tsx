@@ -128,16 +128,12 @@ describe('reports: weekly report (S-REP-1)', () => {
     expect((await screen.findAllByText('Weekly report sent')).length).toBeGreaterThan(0)
   })
 
-  it('no recipients: cannot send and the server says how to fix it', async () => {
+  it('no recipients: no Send now (kien G5: nothing to send to), one line says what to add, and the server says how to fix it', async () => {
     sessionStore.set({ userId: 'u-admin' })
     expect((await api('/reports/schedule', { method: 'PUT', body: JSON.stringify({ enabled: false, day: 1, hour: 8, recipients: [] }) })).status).toBe(200)
     renderApp('/reports')
-    const btn = await screen.findByRole('button', { name: 'Send now' })
-    await enabled(btn)
-    await userEvent.click(btn)
-    const dlg = await screen.findByRole('dialog')
-    await waitFor(() => expect(within(dlg).getByText(/No recipients yet/)).toBeInTheDocument())
-    expect(within(dlg).getByRole('button', { name: 'Send' })).toBeDisabled()
+    expect(await screen.findByText('No recipients yet. Add emails under Schedule and recipients.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Send now' })).toBeNull()
     const res = await api('/reports/weekly/send', { method: 'POST', body: '{}' })
     expect(res.status).toBe(400)
     expect(((await res.json()) as { error: { message: string } }).error.message).toMatch(/Add an email/)

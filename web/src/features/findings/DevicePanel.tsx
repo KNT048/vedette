@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { Section } from '@/components/common/PageHeader'
@@ -16,6 +17,7 @@ import { useDeviceSoftware } from './rematch'
 import { FixGroupList } from './FixGroups'
 import { fixGroups } from './fix'
 import { PlanDataState, PlanItems } from './Plan'
+import { NotRelevantToggle, withoutNotRelevant } from './notRelevant'
 
 /** Slot device.panels (trang chi tiết thiết bị của module inventory): phát hiện của đúng thiết bị này. */
 export function DevicePanel(props: Record<string, unknown>) {
@@ -24,6 +26,7 @@ export function DevicePanel(props: Record<string, unknown>) {
   const on = useModuleEnabled('findings')
   const q = useFindings(assetId)
   const sw = useDeviceSoftware(assetId)
+  const [showNotRelevant, setShowNotRelevant] = useState(false)
   if (on === false) return <Section title={t('device.title')}><ModuleOff module="findings" /></Section>
   return (
     <>
@@ -32,8 +35,11 @@ export function DevicePanel(props: Record<string, unknown>) {
         {(d) => d.items.length === 0 ? (
           <p className="text-sm text-muted">{t('device.none')}</p>
         ) : (() => {
-          // D-545: the findings one update fixes are one item; the rest are listed one by one.
-          const { groups, rest } = fixGroups(d.items)
+          // kien G5: not relevant is hidden until asked for; D-545: the findings one update fixes are one item, the rest one by one.
+          const listed = withoutNotRelevant(d.items, showNotRelevant)
+          const { groups, rest } = fixGroups(listed.rows)
+          const toggle = <NotRelevantToggle count={listed.total} shown={showNotRelevant} onChange={setShowNotRelevant} />
+          if (listed.rows.length === 0) return <div className="grid gap-1"><p className="text-sm text-muted">{t('device.onlyNotRelevant', { count: listed.total })}</p>{toggle}</div>
           return (
           <div className="grid gap-2">
           {d.items.some((f) => isOpen(f.status)) ? (
@@ -52,6 +58,7 @@ export function DevicePanel(props: Record<string, unknown>) {
               </li>
             ))}
           </ul></Card> : null}
+          {toggle}
           </div>
           )
         })()}
@@ -75,7 +82,8 @@ function DevicePlan({ assetId }: { assetId: string }) {
             <PlanDataState plan={d} compact />
             {d.compared && d.items.length > 0 ? <PlanItems items={d.items} showDevice={false} /> : null}
             {d.compared && d.items.length === 0 && (d.data.epss === 'ready' || d.data.recent === 'ready') ? <p className="text-sm text-muted">{t('plan.device.none')}</p> : null}
-            <Link to="/plan" className="w-fit text-meta text-accent underline underline-offset-4">{t('plan.device.all')}</Link>
+            {/* kien G5: the way to every update to plan only when this device has some (no link to an empty list) */}
+            {d.items.length > 0 ? <Link to="/plan" className="w-fit text-meta text-accent underline underline-offset-4">{t('plan.device.all')}</Link> : null}
           </div>
         )}
       </QueryState>
@@ -86,8 +94,9 @@ function DevicePlan({ assetId }: { assetId: string }) {
 /** D-499: "I updated <software>" for each hand-added software with findings; a scanned one is checked by a scan. */
 function Updated({ items, software }: { items: FindingRow[]; software: SoftwareView[] | undefined }) {
   const asset = items.find((f) => f.asset)?.asset
-  // Any finding, not only open ones: the button stays while its dialog says what the re-match closed.
+  // Any finding keeps it mounted (its dialog says what the re-match closed); it is shown only while one of them is open (kien G5)
   const manual = (software ?? []).filter((s) => s.source === 'manual' && items.some((f) => s.kev_cves.includes(f.cve)))
   if (!asset || manual.length === 0) return null
-  return <div className="flex flex-wrap gap-2">{manual.map((s) => <IUpdated key={s.id} size="sm" asset={asset} software={s} />)}</div>
+  const active = (s: SoftwareView) => items.some((f) => isOpen(f.status) && s.kev_cves.includes(f.cve))
+  return <div className="flex flex-wrap gap-2 empty:hidden">{manual.map((s) => <IUpdated key={s.id} size="sm" asset={asset} software={s} active={active(s)} />)}</div>
 }

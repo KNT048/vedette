@@ -161,7 +161,7 @@ export const VersionNeeded = z.object({
 export const UncheckedReason = z.enum([
   'no_nvd_data',     // NVD has no CPE configuration for the CVE yet
   'no_nvd_versions', // NVD names the product but gives no affected versions
-  'not_named',       // the device has the product, but Vedette cannot name it the way NVD does yet (phase 2)
+  'not_named',       // NVD's data for the CVE names other products, not this row (#920 rule 2)
   'not_comparable',  // the device's version exists but cannot be compared with NVD's ranges (version scheme)
 ])
 export const UncheckedCve = z.object({ cve: z.string(), name: z.string(), date_added: z.iso.date(), ransomware: z.boolean(), advisory: z.string().url().nullable() })
@@ -171,7 +171,7 @@ export const UncheckedItem = z.object({
   version: z.string().nullable(),
   reason: UncheckedReason,
   cves: z.array(UncheckedCve).min(1),
-  action: z.enum(['add_version', 'none']).describe('add_version: typing the version as the vendor writes it lets Vedette check these CVEs (not_comparable, and not_named once phase 2 lands); none: only the advisory decides'),
+  action: z.enum(['add_version', 'none']).describe('add_version: only not_comparable on a software row a person declared (#920): typing the version as the vendor writes it lets Vedette check these CVEs; none: only the advisory decides'),
 }).describe('#910 phase 1: exploited CVEs of software the box has that it could not check; one item per device x software x reason. No finding is created from it')
 export const FindingList = z.object({ items: z.array(FindingRow), version_needed: z.array(VersionNeeded), unchecked: z.array(UncheckedItem) })
 

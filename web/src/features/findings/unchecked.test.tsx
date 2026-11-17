@@ -11,7 +11,7 @@ describe('#910 phase 1: exploited CVEs that could not be checked', () => {
     expect(b.getByText(/created no finding/)).toBeInTheDocument()
     expect(b.getByText(/NVD has not published which products this CVE affects yet/)).toBeInTheDocument()
     expect(b.getByText(/NVD names WordPress website but not which versions are affected/)).toBeInTheDocument()
-    expect(b.getByText(/Vedette cannot yet name MikroTik router the way NVD does/)).toBeInTheDocument()
+    expect(b.getByText(/NVD's data for this CVE names other products, not MikroTik router/)).toBeInTheDocument()
     expect(b.getByText(/Vedette cannot compare version .* with NVD's ranges/)).toBeInTheDocument()
     expect(b.getByRole('link', { name: 'CVE-2026-20001: open the advisory' })).toHaveAttribute('href', expect.stringContaining('msrc.microsoft.com'))
     expect(b.getByRole('link', { name: 'CVE-2026-20002: open the NVD page' })).toHaveAttribute('href', 'https://nvd.nist.gov/vuln/detail/CVE-2026-20002')

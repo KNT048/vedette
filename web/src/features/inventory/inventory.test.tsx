@@ -2249,7 +2249,7 @@ describe('inventory: the box is the first device (S-INV-5, D-53)', () => {
   })
 })
 
-describe('inventory: form matrix (docs/QA.md §2)', () => {
+describe('inventory: form matrix', () => {
   it('Add a device: the list and the hand-typed maker each show only their own fields; going back to the list drops what was typed', async () => {
     const user = userEvent.setup()
     asAdmin()

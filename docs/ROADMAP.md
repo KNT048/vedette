@@ -1,12 +1,12 @@
 # Lộ trình — xác minh concept → GUI → module
 
-> **Từ 2026-11-15 (D-624, D-625):** việc đang làm là ship v1 theo `SHIP.md`; việc cần làm nằm trong GitHub issue nhãn `v1`/`post-v1`. File này chỉ còn giá trị lịch sử.
+> Việc cần làm nằm trong GitHub issue của repo. File này chỉ còn giá trị lịch sử.
 
 Ràng buộc (kien, 2026-11-06): ship nhanh nhưng đúng concept; SMB/Mid/Enterprise dùng được sớm; **GUI tốt rồi mới làm backend** để không chệch hướng; không tưởng tượng tính năng. Thời lượng là ước lượng cho 1–2 người + AI; đo lại sau mỗi mốc.
 
 | Mốc | Thời lượng | Giao gì | "Xong" khi | Không làm |
 |---|---|---|---|---|
-| ~~M0 Xác minh concept~~ (bỏ, D-23) | — | Prototype bấm được (dữ liệu KEV thật, tồn kho giả), 8–10 phỏng vấn P1/P2/P3, bảng kết quả theo story, quyết định go/no-go từng module | Mỗi story trong M0 có `[đạt]`/`[rớt]` kèm bằng chứng; `DECISIONS.md` ghi module nào vào M1 | Backend, DB, auth |
+| ~~M0 Xác minh concept~~ (bỏ, D-23) | — | Prototype bấm được (dữ liệu KEV thật, tồn kho giả), 8–10 phỏng vấn P1/P2/P3, bảng kết quả theo story, quyết định go/no-go từng module | Mỗi story trong M0 có `[đạt]`/`[rớt]` kèm bằng chứng; ghi rõ module nào vào M1 | Backend, DB, auth |
 | **M1 GUI** | 4–6 tuần | SPA hoàn chỉnh cho mọi module `[đạt]`, chạy trên **mock API** (MSW + fixture từ KEV/Nuclei thật); bật/tắt module trong Cài đặt; i18n vi/en; dark/light; a11y; usability test 5 người; design review theo `FRONTEND.md` | `pnpm test` + `pnpm build` xanh; mọi màn hình truy về story; không màn hình nào không có story; 5/5 người test hoàn thành 3 việc chính không cần hướng dẫn | Backend thật |
 | **M2 Lõi + Feed + Thông báo** | 4 tuần | Binary Go: core (auth local, cấu hình, module registry, job, audit, update client), `feeds` (kéo index.json ký), `inventory` khai tay, `notify` Zalo/Telegram/email; **builder** + repo dữ liệu + Pages; service tín hiệu ẩn danh **không ghi IP nguồn** (cam kết vào `PRIVACY.md` cùng commit, D-20) | Máy mới: `install.sh` → 10 phút sau nhận alert thật cho sản phẩm khai tay; cập nhật dữ liệu ký chạy 24h không lỗi | Sensor, scan, AI |
 | **M3 Kiểm kê + Giảm thiểu** | 6 tuần | `sensor-passive`, `sensor-active` (nmap từ repo OS, Recog), hợp nhất observation, cột "Anh có?" thật; `mitigation` với pack cho ≥5 vendor firewall; `vedette-author` + xác nhận qua PR (S-MIT-4, D-21); sensor/server tách được | Cắm hộp vào LAN thử: ≥80% thiết bị có vendor đúng, ≥50% có product/version; KEV mới khớp → alert + gói giảm thiểu ≤60 phút | AI, scan |
@@ -19,7 +19,7 @@ Sau M2 đã **dùng được** cho P1/P2 (alert theo khai tay). Sau M3 là sản
 
 ## Trạng thái 2026-11-10
 
-Bảng mốc ở trên không ghi trạng thái; đây là tình hình theo gói việc (WP, `docs/TEAM_PLAN.md` §3), đo từ `origin/main` bfc6ec3 và các PR đã merge (làm mới tối 2026-11-10). Chi tiết từng PR: `docs/project-map/completion-log.md`; việc kế tiếp: `.ai/tasks/kien.md`, `.ai/tasks/emily.md`.
+Bảng mốc ở trên không ghi trạng thái; đây là tình hình theo gói việc (WP), đo từ `origin/main` bfc6ec3 và các PR đã merge (làm mới tối 2026-11-10).
 
 | Mốc | Trạng thái | Theo WP |
 |---|---|---|
@@ -35,7 +35,7 @@ Bảng mốc ở trên không ghi trạng thái; đây là tình hình theo gói
 Phía response (WP-13): 13a xong (#74), 13b đường găng xong (#105: đẩy cấu hình lên thiết bị chạy được khi AI tắt), 13b-8 (duyệt qua chat) xong (#143, D-135), 13b-11 xong (D-181). Giai đoạn 3: WP-08, WP-30, WP-31, WP-32 chưa làm; WP-08 chờ khoá phát hành offline và VM lab của kien.
 
 ## Nguyên tắc chuyển mốc
-- Mỗi mốc kết thúc bằng: completion-log entry, decisions, deferred file dọn sạch, demo ghi hình.
+- Mỗi mốc kết thúc bằng: ghi nhận việc đã xong và demo ghi hình.
 - Không kéo việc mốc sau vào mốc trước "tiện tay". Ponytail.
 - Mốc M1 có thể chạy song song với builder (M2) vì builder không có GUI.
 

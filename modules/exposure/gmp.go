@@ -21,7 +21,7 @@ import (
 // (readiness), create/modify_config, create_port_list, create_target, create_task, start_task, get_tasks, get_reports, stop_task and
 // the deletes that clean up after a scan (get_port_lists only to find Vedette's leftover port lists). gvmd is a separate program in Greenbone's own containers; nothing of it is linked here.
 //
-// Every answer is untrusted input (rules/security.md): one answer is at most a few MiB (gmpMaxAnswer, gmpMaxReport), it is parsed
+// Every answer is untrusted input: one answer is at most a few MiB (gmpMaxAnswer, gmpMaxReport), it is parsed
 // strictly into the fields the scan reads (encoding/xml expands no external entity and reads only UTF-8), a status that is not 2xx
 // is an error, and an id that is not a UUID is refused before it is put into the next command.
 

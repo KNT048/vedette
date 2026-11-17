@@ -158852,8 +158852,8 @@ func (s *ResponseGetResponseAllowlistOKItemsItem) SetValue(val string) {
 }
 
 type ResponseGetResponseApproveTokenOK struct {
-	// True when an AI proposed the request: the page shows the AI-generated label (rules/legal.md). false
-	// unless state is ready.
+	// True when an AI proposed the request: the page shows the AI-generated label. false unless state is
+	// ready.
 	AiGenerated       bool                                         `json:"ai_generated"`
 	ApprovedSoFar     NilInt                                       `json:"approved_so_far"`
 	Approver          NilString                                    `json:"approver"`
@@ -195927,7 +195927,7 @@ type ScanningGetScanningOKEnginesItem struct {
 	// sync; null for engines that listen all the time (passive, osquery, honeypot) or run only when a
 	// person asks (zap, openvas).
 	NextRunAt NilDateTime `json:"next_run_at"`
-	// Its module ships as Preview in v1 (SHIP.md: scan, honeypot).
+	// Its module ships as Preview in v1 (scan, honeypot).
 	Preview bool `json:"preview"`
 	// Plain sentence for needs_setup, starting, error and unavailable, or a warning while ready (e.g. "A
 	// sweep of these ranges needs 3 windows"); null otherwise.
@@ -197857,7 +197857,7 @@ type ScanningPatchScanningEnginesIDOKEnginesItem struct {
 	// sync; null for engines that listen all the time (passive, osquery, honeypot) or run only when a
 	// person asks (zap, openvas).
 	NextRunAt NilDateTime `json:"next_run_at"`
-	// Its module ships as Preview in v1 (SHIP.md: scan, honeypot).
+	// Its module ships as Preview in v1 (scan, honeypot).
 	Preview bool `json:"preview"`
 	// Plain sentence for needs_setup, starting, error and unavailable, or a warning while ready (e.g. "A
 	// sweep of these ranges needs 3 windows"); null otherwise.

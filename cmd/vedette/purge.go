@@ -82,7 +82,7 @@ func purgeFreezes(d *deps) []*store.DB {
 // and core cannot write it (N2). To keep the fresh box from reading its old events as new, the row that holds the honeypot's read position
 // in that log survives the wipe (hp_config "tail", the key modules/honeypot stores it under); the answer lists "honeypot_log" as kept.
 // Without a honeypot directory there is no log and nothing to keep. The host is to empty the log at a purge once it runs the container
-// (deferred: .ai/deferred/feat-core-data-purge.md).
+// (not built yet).
 func purgeKeptRows(d *deps) []core.KeepRow {
 	if d.HoneypotDir == "" {
 		return nil

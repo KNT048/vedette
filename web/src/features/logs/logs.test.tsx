@@ -700,7 +700,7 @@ describe('logs: SIEM forwarding (S-LOG-3)', () => {
   })
 })
 
-describe('logs: Add log source form matrix (docs/QA.md §2)', () => {
+describe('logs: Add log source form matrix', () => {
   it('for every one of the device types: only its own protocols are offered, and the port follows the protocol', async () => {
     renderApp('/logs?tab=sources')
     await userEvent.click(await screen.findByRole('button', { name: 'Add log source' }))
@@ -736,7 +736,7 @@ describe('logs: Add log source form matrix (docs/QA.md §2)', () => {
   })
 })
 
-describe('logs: Add log source form matrix (docs/QA.md §2, QA walk 2026-11-12)', () => {
+describe('logs: Add log source form matrix (QA walk 2026-11-12)', () => {
   it('a refused value is told under its own field, which takes focus; fixing the field clears it', async () => {
     renderApp('/logs?tab=sources')
     const form = await openAdd(/^FortiGate/)

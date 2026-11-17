@@ -13,7 +13,7 @@ import (
 // to the internal major version a computer reports (16.0.17928.20114 is Office 2016, 2019, 2021, 2024 or
 // Microsoft 365: they all report 16). The Mac editions 2004, 2008 and 2011 reported 11, 12 and 14; Office 2016
 // for Mac reported 15 and later 16. Sources: Microsoft Learn, "Update history for Office 2016/2019/2021/2024"
-// and "Office for Mac release history"; the list is in docs/decisions/D-500.md.
+// and "Office for Mac release history".
 var officeMajors = map[string][]uint64{
 	"2000": {9}, "xp": {10}, "2002": {10}, "2003": {11}, "2004": {11}, "2007": {12}, "2008": {12},
 	"2010": {14}, "2011": {14}, "2013": {15}, "2016": {15, 16}, "2019": {16}, "2021": {16}, "2024": {16},

@@ -1,5 +1,5 @@
 // Settings → Connections (D-93, D-94; S-AI-7, S-RESP-4): list, add, edit, delete, test, the errors, the pin, roles, and privacy flow 12.
-// The form matrix (docs/QA.md §2): every kind of connection x every sign-in it can use.
+// The form matrix: every kind of connection x every sign-in it can use.
 import { describe, expect, it } from 'vitest'
 import { http } from 'msw'
 import { screen, waitFor, within } from '@testing-library/react'
@@ -262,7 +262,7 @@ describe('Settings → Connections: roles', () => {
   })
 })
 
-describe('Settings → Connections: form matrix (docs/QA.md §2): every kind x every sign-in it can use', () => {
+describe('Settings → Connections: form matrix: every kind x every sign-in it can use', () => {
   const TARGET: Record<string, string> = { http: 'Base address (URL)', ssh: 'SSH server (host or host:port)', 'netconf-restconf': 'Device address (URL)', automation: 'Platform address (URL)', 'mcp-http': 'MCP server address (URL)' }
   const KIND_LABEL: Record<string, string> = { http: 'HTTP API', ssh: 'SSH / CLI', 'netconf-restconf': 'NETCONF / RESTCONF', automation: 'Automation platform', 'mcp-http': 'MCP server (URL)' }
   const AUTH_LABEL: Record<string, string> = { none: 'No sign-in', token: 'API token', basic: 'User and password', 'ssh-key': 'SSH key' }

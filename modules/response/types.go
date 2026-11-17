@@ -230,7 +230,7 @@ type ApprovalView struct {
 	Status            *Status        `json:"status"`
 	RequiresApprovals *int           `json:"requires_approvals"`
 	ApprovedSoFar     *int           `json:"approved_so_far"`
-	AIGenerated       bool           `json:"ai_generated"` // an AI proposed the request: the page shows the label (rules/legal.md)
+	AIGenerated       bool           `json:"ai_generated"` // an AI proposed the request: the page shows the label
 }
 
 // ApprovalItem is one action as the page of a link shows it.

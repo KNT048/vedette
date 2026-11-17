@@ -2169,7 +2169,7 @@ describe('core: operating system of the box (S-CORE-7, D-53)', () => {
   })
 })
 
-describe('core: two-step setup form matrix (docs/QA.md §2)', () => {
+describe('core: two-step setup form matrix', () => {
   it('app and email each show only their own setup steps, and Cancel returns to the choice from either', async () => {
     const u = user()
     renderApp('/settings/account?tab=sign-in')

@@ -36,7 +36,7 @@ export interface Feature {
   publicRoutes?: RouteObject[] // ngoài layout, không cần đăng nhập (đăng nhập, cài đặt ban đầu)
   nav?: NavItem[]
   settings?: SettingsSection[]
-  /** Điểm cắm UI vào trang của module khác (ví dụ AI gắn khung vào trang CVE). Tên slot: xem docs/plans/…-fe-spec.md §Slot. */
+  /** Điểm cắm UI vào trang của module khác (ví dụ AI gắn khung vào trang CVE). */
   slots?: Record<string, ComponentType<Record<string, unknown>>>
 }
 

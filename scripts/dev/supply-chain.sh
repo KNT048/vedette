@@ -5,7 +5,7 @@
 #   supply-chain.sh scan   prints every finding (all severities), then fails when an image or the source has a HIGH or CRITICAL vulnerability
 #                          with a fix that .trivyignore.yaml does not except (the file is checked by scripts/trivyignore before this runs)
 # Env (set by the Makefile): CONTAINER (podman|docker), IMAGE_TAG, PLATFORMS, TRIVY_IMAGE, TRIVY_CACHE_DIR (the vulnerability database, 1.7 GB, lives there: on disk, never /tmp, which is RAM),
-# RELEASE=1 keeps dist/sbom and dist/vuln for the release job. The image archives made for trivy are always removed (rules/build-artifacts.md).
+# RELEASE=1 keeps dist/sbom and dist/vuln for the release job. The image archives made for trivy are always removed.
 # Needs: podman or docker, jq (to pick one platform out of a manifest list), git; checked first. macOS: podman runs in a podman machine,
 # whose server cannot write an OCI layout on the Mac: podman-oci.sh runs that one export inside the machine (the checkout under $HOME).
 # The database download is this machine's own egress (ghcr.io); no image, source or SBOM leaves the machine. Linux or macOS.

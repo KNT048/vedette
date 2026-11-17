@@ -11,7 +11,7 @@ import (
 )
 
 // The outputs of the real Podman 4.9.3 of Ubuntu 24.04 (lab VM ubuntu2404, 2026-11-12, after vedette-host -bootstrap of the
-// test channel; docs/lab/2026-11-12-podman-nuclei.md). The parsers must read them as they are.
+// test channel). The parsers must read them as they are.
 
 const labCoreDigest = "sha256:cf8437b22c7a261e19dbae726c72f00acd3e712ac305808f2be782a546d94d12"
 

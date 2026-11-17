@@ -26,7 +26,7 @@ import (
 )
 
 // Module bundles of the first-run setup (spec A6 step 3). Keep them equal to web/src/features/core/bundles.ts:
-// TestBundlesMatchTheWebList fails when they drift. A bundle turns on v1 modules only (supervisor 2026-11-16, SHIP.md, D-624):
+// TestBundlesMatchTheWebList fails when they drift. A bundle turns on v1 modules only (supervisor 2026-11-16, D-624):
 // the preview modules (scan, honeypot, logs, ai, reports) are turned on one by one by the customer, and the post-v1 ones are
 // never offered.
 var (

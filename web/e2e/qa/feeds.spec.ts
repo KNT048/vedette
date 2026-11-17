@@ -243,7 +243,7 @@ test.describe('feeds: Settings -> Feeds (S-FEED-4, S-FEED-5)', () => {
     }
   })
 
-  // The form matrix of QA.md section 2: every kind x format, then every authentication type; each created, read back, edited, deleted.
+  // The form matrix: every kind x format, then every authentication type; each created, read back, edited, deleted.
   const MATRIX: { kind: 'IOC' | 'Vulnerabilities'; format: string; shape: string }[] = [
     { kind: 'IOC', format: 'JSON', shape: 'JSON' }, { kind: 'IOC', format: 'CSV', shape: 'CSV' }, { kind: 'IOC', format: 'RSS / Atom', shape: 'RSS' },
     { kind: 'IOC', format: 'STIX 2.1 / TAXII 2.1', shape: 'STIX' }, { kind: 'IOC', format: 'Plain list (one per line)', shape: 'list' },

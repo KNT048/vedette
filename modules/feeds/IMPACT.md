@@ -138,7 +138,7 @@
 
 ## Modifying: `Fetcher.BoxAddrs`, `destGuard`, `ErrBoxAddrsUnknown` (INV-17, D-208)
 - **cmd/vedette** `feeds.go` sets `fd.Fetcher.BoxAddrs = notifyBoxAddrs(d.HostNet)`: the same source of the box's own addresses as notify's webhook guard (`hostNetCache.SnapshotKnown`); a change to what that returns (known/unknown, /32 entries only) changes which pulls are refused. A `Fetcher` built without it still refuses loopback and the container's own interface addresses.
-- **e2e-real / `cmd/vedette/e2ebox_test.go`**: a custom feed pointed at a loopback fake server is now refused at connect; the harness needs a test seam (deferred, see `.ai/deferred/fix-feeds-own-ports-ssrf.md`). In-package tests set the unexported `Fetcher.allowLoopback`.
+- **e2e-real / `cmd/vedette/e2ebox_test.go`**: a custom feed pointed at a loopback fake server is now refused at connect; the harness needs a test seam (deferred). In-package tests set the unexported `Fetcher.allowLoopback`.
 - D-420 (1): the save check now refuses literal loopback/link-local/metadata/box addresses and `localhost` names (`blocked_host`), so what the GUI text says and what is saved agree; names are still judged only at pull.
 - Pooled keep-alive connections are not re-checked on reuse: harmless, because a peer that was allowed cannot become the box. While the box addresses are unknown only global unicast addresses are dialled, and a pull refused for that reason (`ErrBoxAddrsUnknown`) is not recorded as a failure: no back-off, the feed stays due.
 - `Fetcher.Gateway` (wired to `procGateway` in `cmd/vedette/feeds.go`) adds the container default gateway to the box set, as core/conn does.

@@ -429,7 +429,7 @@ Rủi ro còn lại:
 
 ## 13. Lát
 
-Mỗi lát một PR, sau SP-0 (tài liệu này): SP-1 `core/pki` + `core/sensorlink` (máy chủ, client, chưa nối module); SP-2 seam `Prober` và gói `nmapargv` (refactor thuần, song song SP-1); SP-3 bộ điều phối + `vedette-sensor active` (cần SP-1, SP-2); SP-4 tách sensor-passive + `vedette-sensor passive` (cần SP-1); SP-5 đóng gói, profile compose `dev`, nguồn địa chỉ của hộp (cần SP-3, SP-4); SP-6 unit `sensor`/`scan` và dựng `scan` tại chỗ trong `vedette-host` (cần lát host 3-6, 3-7). Bản đồ lát, rủi ro lab và việc để sau: `.ai/deferred/feat-sensor-protocol.md`.
+Mỗi lát một PR, sau SP-0 (tài liệu này): SP-1 `core/pki` + `core/sensorlink` (máy chủ, client, chưa nối module); SP-2 seam `Prober` và gói `nmapargv` (refactor thuần, song song SP-1); SP-3 bộ điều phối + `vedette-sensor active` (cần SP-1, SP-2); SP-4 tách sensor-passive + `vedette-sensor passive` (cần SP-1); SP-5 đóng gói, profile compose `dev`, nguồn địa chỉ của hộp (cần SP-3, SP-4); SP-6 unit `sensor`/`scan` và dựng `scan` tại chỗ trong `vedette-host` (cần lát host 3-6, 3-7).
 
 ## Phụ lục A. Để sau: sensor đặt ở máy khác (D-115)
 

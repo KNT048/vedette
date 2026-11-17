@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# A Windows Server 2025 lab VM (WIN-LAB, docs/LAB-VM.md "Windows"): Microsoft's 180-day Evaluation ISO, installed unattended under
+# A Windows Server 2025 lab VM (WIN-LAB): Microsoft's 180-day Evaluation ISO, installed unattended under
 # plain QEMU/KVM like scripts/dev/lab-vm.sh (no libvirt), so osquery on Windows can be enrolled into a test box and walked (TUNE-5/5b,
 # agent-intake INV-2: Windows Server x64). Only inbox drivers: SATA (AHCI) disk and CD-ROMs, e1000e NIC; network passt (user mode, no
 # host network change), SSH (Windows' own OpenSSH Server, turned on by the first-logon script) on 127.0.0.1:22050 with the lab key.

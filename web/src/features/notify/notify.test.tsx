@@ -838,7 +838,7 @@ describe('notify: forbidden webhook hosts match the box (forbiddenAddr after Unm
   })
 })
 
-describe('notify: channel form matrix (docs/QA.md §2)', () => {
+describe('notify: channel form matrix', () => {
   const ALL = ['Chat ID', 'Bot token', 'OA ID', 'Access token (optional)', 'App ID', 'Secret key', 'Refresh token', 'Recipient ID (user_id)', 'Provider', 'SMTP server', 'Port', 'Encryption', 'Username', 'Tenant ID', 'Client ID', 'Send from', 'Send to', 'SMTP password', 'Webhook URL', 'Signing key', 'Channel label (optional)', 'Incoming Webhook URL', 'Channel ID', 'App-level token (xapp-…)', 'Bot token (xoxb-…)', 'Recipient (user or group ID)']
   const only = (...keep: string[]) => ALL.filter((x) => !keep.includes(x))
   const APPROVE = 'Approve actions from this channel'

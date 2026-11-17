@@ -141,7 +141,7 @@ describe('SNMP credentials (S-INV-1, D-512)', () => {
     expect(within(li).getByRole('button', { name: 'Run test' })).not.toHaveAttribute('aria-busy')
   })
 
-  // kien 2026-11-17: a device that answers SNMP on another UDP port. Form matrix of the Port field (docs/QA.md 2), under v2c and v3:
+  // kien 2026-11-17: a device that answers SNMP on another UDP port. Form matrix of the Port field (2), under v2c and v3:
   // empty and 161 send the default (no port shown on the row), 1161 is saved and shown, 0, 65536 and letters are refused in the browser.
   it('the Port field: empty or 161 is the default, 1161 is saved and shown on the row, 0, 65536 and letters are refused', async () => {
     const sent: Record<string, unknown>[] = []

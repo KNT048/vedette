@@ -22,7 +22,7 @@ import (
 	"github.com/knt048/vedette/internal/release"
 )
 
-// host.self_update (docs/specs/host-api.md section 6.14, D-316, plan docs/plans/2026-11-12-host-self-update.md
+// host.self_update (docs/specs/host-api.md section 6.14, D-316,
 // slice 2). Check decides every refusal; Run copies core's file into the root-only staged/ while it hashes it,
 // asks dpkg-deb what the copy is, simulates the apt install, copies the running binary to selfupdate/applier,
 // writes the journal (staged, attempt 0) and returns server.Parked: park first, dispatch after. The settle

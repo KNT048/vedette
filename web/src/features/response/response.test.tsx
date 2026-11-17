@@ -1563,7 +1563,7 @@ describe('response: screens', () => {
   })
 })
 
-// ---- Form matrix (docs/QA.md §2): the custom action form per connection kind ----
+// ---- Form matrix: the custom action form per connection kind ----
 describe('response: custom action form follows the connection kind', () => {
   const extra: Connector[] = [
     SSH_W,
@@ -1711,7 +1711,7 @@ describe('response: custom action form follows the connection kind', () => {
   })
 })
 
-describe('response: rule editor form matrix (docs/QA.md §2)', () => {
+describe('response: rule editor form matrix', () => {
   const pickIn = async (label: string, name: string | RegExp, root: HTMLElement) => { const s = within(root).getByLabelText(label); await userEvent.selectOptions(s, within(s).getByRole('option', { name })) }
 
   it('the trigger decides the fields: only "On a schedule" has a run interval, and a change of trigger drops conditions and trigger data', async () => {

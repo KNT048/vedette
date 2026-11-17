@@ -144,7 +144,7 @@ var winOldNames = map[string]string{
 // winRevised are the CVEs whose fix Microsoft later extended to Windows 10 and later releases, after NVD's list named only older ones:
 // no "only older releases are listed" proof ever closes them, whatever NVD's list says at the time (review r1 #2 of #801). CVE-2013-3900
 // (WinVerifyTrust padding, an opt-in fix, EnableCertPaddingCheck): Microsoft's revised advisory and the CVE.org record name Windows 10,
-// 11, Server 2016 to 2025 (https://msrc.microsoft.com/update-guide/vulnerability/CVE-2013-3900). Upkeep: .ai/deferred/fix-windows-noise.md.
+// 11, Server 2016 to 2025 (https://msrc.microsoft.com/update-guide/vulnerability/CVE-2013-3900).
 var winRevised = map[string]bool{"CVE-2013-3900": true}
 
 // winGoneProducts are Microsoft products of an old Windows that no Windows 10 or later release ships or can install: a row of one at a

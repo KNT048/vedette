@@ -35,7 +35,7 @@ export async function expectAccessible(page: Page, label: string) {
   expect(violations, `${label}\n${violations.join('\n')}`).toEqual([])
 }
 
-/** GET /core/updates (the software part of Settings -> Updates) answers 501 on the real box: unbuilt backend (.ai/deferred/feat-core-os-updates.md:3).
+/** GET /core/updates (the software part of Settings -> Updates) answers 501 on the real box: unbuilt backend.
  *  The whole page waits for that answer before it draws the operating system part, which IS built, so the specs of the OS part put an empty
  *  software state in its place and leave every other call real, `/core/updates/os*` included. While the real route still answers 501 the stub
  *  answers; once it answers 200 the real answer is passed through and this helper does nothing. Delete it with the 501 (KNOWN_501 in gaps.spec.ts). */

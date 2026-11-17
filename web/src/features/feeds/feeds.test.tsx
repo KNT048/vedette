@@ -328,7 +328,7 @@ describe('feeds: the missing VulnCheck key is added where the row says so (docs/
   })
 })
 
-describe('feeds: custom feed form matrix (docs/QA.md §2)', () => {
+describe('feeds: custom feed form matrix', () => {
   async function openAdd() {
     renderApp('/settings/feeds')
     await userEvent.click((await screen.findAllByRole('button', { name: 'Add a feed' }))[0]!)
@@ -657,7 +657,7 @@ describe('feeds: Settings -> Feeds lists every host the box pulls from (INV-13, 
   })
 })
 
-describe('feeds: parser preview form matrix (docs/QA.md §2, QA walk 2026-11-12)', () => {
+describe('feeds: parser preview form matrix (QA walk 2026-11-12)', () => {
   it('a preview belongs to the type and format it ran with: changing either hides it', async () => {
     renderApp('/settings/feeds')
     await userEvent.click((await screen.findAllByRole('button', { name: 'Add a feed' }))[0]!)

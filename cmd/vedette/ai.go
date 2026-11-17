@@ -300,7 +300,7 @@ func aiVal(s string, n int) string {
 	return s
 }
 
-// aiHostRE is the host name rule of the box's own texts (rules/security.md, mitigation INV-4).
+// aiHostRE is the host name rule of the box's own texts (mitigation INV-4).
 var aiHostRE = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$`)
 
 // aiIP is an address as the AI gets it: one that parses, else "no IP address".

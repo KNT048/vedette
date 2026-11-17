@@ -102,7 +102,7 @@ func (notAnAppliance) StartContainer(context.Context, bool) error      { return 
 func (notAnAppliance) StopContainer(context.Context) error             { return errNoHost }
 
 // honeypotInventory implements honeypot.Inventory over inventory.Service, converting to the module's types so the
-// honeypot never imports the inventory (rules/modules.md).
+// honeypot never imports the inventory.
 type honeypotInventory struct {
 	inv *inventory.Service
 	// hostNet is deps.HostNet: the appliance's own addresses from vedette-host (nil without a host).

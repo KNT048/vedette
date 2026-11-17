@@ -33,7 +33,7 @@ const (
 	// template and target that matched nothing) and its JSONL writer (one line per matcher name, and per request of a template with
 	// several, that matched): a template prints one line when nothing matched and one per match otherwise; tech-detect prints one per
 	// product it recognised (tens), a payload template at most 64. 200 templates x 40 is 8000; the 4 MiB output cap (about 500 bytes
-	// the shortest line with -or -ot) would stop a run near there anyway. Lab check deferred (.ai/deferred/feat-full-4-nuclei.md).
+	// the shortest line with -or -ot) would stop a run near there anyway. Lab check deferred.
 	LinesPerTemplate = 40
 	MaxRequest       = 2048 // bytes of request kept as evidence (S-SCAN-3)
 	MaxResponse      = 4096 // bytes of response kept as evidence

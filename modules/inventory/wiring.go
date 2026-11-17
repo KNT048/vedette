@@ -15,7 +15,7 @@ import (
 
 // This file is what other modules read and ask through their own ports (feeds.Inventory, findings.Inventory,
 // mitigation.Vendors). The adapters live in cmd/vedette; they convert these neutral types to the port types,
-// so no module imports another (rules/modules.md).
+// so no module imports another.
 
 // DeviceRef is a device as other modules name it.
 type DeviceRef struct {

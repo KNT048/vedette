@@ -27,6 +27,7 @@ var rules = []rule{
 	{"docs/specs/host-api.md", Result{Go: true}},                           // modules/host contract tests
 	{"docs/DEPLOYMENT.md", Result{Go: true}},                               // deploy/systemd/unit_test.go compares section 6.1 with the unit file (D-150)
 	{"docs/RUNBOOK.md", Result{Go: true}},                                  // deploy/deb/apparmor_test.go keeps the AppArmor repair command equal to the postinst one (D-412)
+	{"docs/brand/", Result{Web: true}},                                     // web/src/components/brand/Logo.test.tsx holds Logo.tsx to the brand SVGs
 	{"docs/INSTALL-CONTAINER.md", Result{Go: true}},                        // deploy/compose/compose_test.go keeps its backup image equal to pins.env (D-168)
 	{"modules/response/data/triggers.json", Result{true, true}},            // web/src/features/response/triggers.test.ts holds data.ts to it (D-390)
 	{"modules/core/testdata/", Result{true, true}},                         // chain_vectors.json is a vector for Go and web
@@ -48,8 +49,6 @@ var rules = []rule{
 	{"web/package.json", Result{true, true}},                               // the same check reads the web production dependencies
 
 	// No test reads these.
-	{".ai/", Result{}},
-	{".claude/", Result{}},
 	{"docs/", Result{}},
 	{"skills/", Result{}},
 	{".github/ISSUE_TEMPLATE/", Result{}},
@@ -57,13 +56,11 @@ var rules = []rule{
 	{".github/pull_request_template.md", Result{}},
 	{"README.md", Result{}},
 	{"CHANGELOG.md", Result{}},
-	{"CLAUDE.md", Result{}},
 	{"CONTRIBUTING.md", Result{}},
 	{"SECURITY.md", Result{}},
 	{"PRIVACY.md", Result{Web: true}}, // web/src/features/core/privacyFlows.test.ts holds the Privacy page to its flow table (#472)
 	{"NOTICE", Result{}},
 	{"LICENSE", Result{}},
-	{".mcp.json.example", Result{}},
 
 	// Both sides read these (openapi drift, shared data, the CI definition itself).
 	{"api/", Result{true, true}},

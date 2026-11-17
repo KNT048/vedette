@@ -258,8 +258,8 @@ func TestRead_SkipsLinesThatCannotBeAResult(t *testing.T) {
 	}
 }
 
-// Every line shape the pinned nuclei v3.11.1 printed in the lab (kf-scan item 4, 2026-11-14: the release binary, sha256 as in
-// docs/lab/2026-11-12-podman-nuclei.md, in a podman container with no network against servers on 127.0.0.1, rewritten to
+// Every line shape the pinned nuclei v3.11.1 printed in the lab (kf-scan item 4, 2026-11-14: the release binary,
+// in a podman container with no network against servers on 127.0.0.1, rewritten to
 // 192.168.10.21; the argv of a full job, -or -ot): tcp, ssl and http templates on an https port, a plain TCP port and 443; a page
 // that redirects to another port and to another host (-dr: not followed, the line is about the job's target); a template with
 // two named matchers (two lines); an http template whose path names another port (nuclei refuses the URL, the line is about the

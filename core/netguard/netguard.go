@@ -4,7 +4,7 @@
 // ports); this package says only what those addresses are (D-411).
 //
 // ponytail: response uses it; notify, feeds, logs and ai still keep their own copy of the same code until they move here (one follow-up
-// PR: .ai/deferred/fix-v1-intake-sensor-response.md).
+// PR).
 package netguard
 
 import (

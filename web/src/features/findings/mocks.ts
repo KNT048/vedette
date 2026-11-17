@@ -455,7 +455,8 @@ function toFix(asset: string | null): ToFix {
       Math.max(-1, ...d.planned.map((x) => sevRank(x.worst))), d.planned.reduce((n, x) => n + x.likely, 0), d.planned.reduce((n, x) => n + x.cves.length, 0)]
   }
   devices.sort((x, y) => { const a = urgency(x); const b = urgency(y); for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return b[i]! - a[i]!; return x.asset.id.localeCompare(y.asset.id) })
-  return { devices, truncated: false, plan_ran: feedsOn, plan_off: !feedsOn }
+  const risks = asset ? {} : Object.fromEntries(devices.flatMap((d) => (d.risk ? [[d.asset.id, d.risk]] : [])))
+  return { devices, truncated: false, plan_ran: feedsOn, plan_off: !feedsOn, risks }
 }
 
 export const handlers = [

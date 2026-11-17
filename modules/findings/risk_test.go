@@ -131,8 +131,8 @@ func TestRiskMap_G4_OnlyOpenFindingsToFix(t *testing.T) {
 	}
 }
 
-// Review r1 of #949 (N+1): many devices with findings and recommended updates cost one batch, with no read per device, and a
-// second read is the cached answer until something changes.
+// Review r1 of #949 (N+1), r2: many devices cost one classification, cached: the first read reads each device once (To fix's own
+// per-device work), every later read until something changes reads none, and the answer is the same map.
 func TestRiskMap_G4_OneBatchForManyDevices(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -158,14 +158,71 @@ func TestRiskMap_G4_OneBatchForManyDevices(t *testing.T) {
 	if err != nil || len(got) != n {
 		t.Fatalf("%d devices marked, %v", len(got), err)
 	}
-	if reads.Load() != 0 {
-		t.Errorf("RiskMap read %d devices one by one", reads.Load())
+	if r := reads.Load(); r != n {
+		t.Errorf("the classification read %d devices, want each once (%d)", r, n)
 	}
+	t.Logf("%d devices, first read: %v", n, time.Since(start))
 	again, _ := e.svc.RiskMap(t.Context(), true)
-	if reflect.ValueOf(again).Pointer() != reflect.ValueOf(got).Pointer() {
-		t.Error("the second read was not the cached answer")
+	if reflect.ValueOf(again).Pointer() != reflect.ValueOf(got).Pointer() || reads.Load() != n {
+		t.Errorf("the second read was not the cached answer (%d device reads)", reads.Load())
 	}
-	t.Logf("%d devices: %v", n, time.Since(start))
+	// To fix's page reads the same cached classification, capped for display only.
+	if tf, err := e.svc.toFix(t.Context(), true, "", 10); err != nil || len(tf.Devices) != 10 || !tf.Truncated || reads.Load() != n {
+		t.Errorf("To fix page: %d devices, truncated %v, %d reads, %v", len(tf.Devices), tf.Truncated, reads.Load(), err)
+	}
+}
+
+// Review r2 of #949 (High), scenario A: a CVE whose range names no fixed release (up to and including 6.1.1) on a version a network
+// scan read: no update is named and nothing is proved, so To fix shows it only under Needs your input, and the device is not red.
+func TestRiskMap_G4_NeedsYourInputIsNotRed(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.feeds.vulns = []Vuln{{CVE: "CVE-2099-0101", Vendor: "QNAP", Product: "Photo Station",
+		Affected: []Affected{{CPE: "cpe:2.3:a:qnap:photo_station:*:*:*:*:*:*:*:*", Range: VersionRange{EndIncl: "6.1.1"}}}}}
+	a := nas("6.1.1")
+	a.Software[0].Source = "scan"
+	e.inv.mu.Lock()
+	e.inv.match["a-1"] = a
+	e.inv.mu.Unlock()
+	if res, err := e.svc.OnMatchChanged(t.Context(), "a-1"); err != nil || len(res.Created) != 1 {
+		t.Fatalf("match: %+v %v", res, err)
+	}
+	tf, err := e.svc.ToFix(t.Context(), true, "a-1")
+	if err != nil || len(tf.Devices) != 1 || len(tf.Devices[0].actionable()) != 0 || len(tf.Devices[0].NoUpdate) != 1 {
+		t.Fatalf("To fix: %+v %v", tf, err)
+	}
+	if got, err := e.svc.RiskMap(t.Context(), true); err != nil || len(got) != 0 {
+		t.Fatalf("a finding only in Needs your input made the device red: %+v %v", got, err)
+	}
+}
+
+// Review r2 of #949 (High), scenario B: one row with a scan-confirmed CVE (no named update) and a product-only guess: To fix's proved
+// row group holds both, its card says 2 exploited CVEs to fix, and the marker says 2 too.
+func TestRiskMap_G4_TheMarkerCountsWhatTheCardCounts(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	noFix := Vuln{CVE: "CVE-2099-0102", Vendor: "QNAP", Product: "Photo Station", HasTemplate: true,
+		Affected: []Affected{{CPE: "cpe:2.3:a:qnap:photo_station:*:*:*:*:*:*:*:*", Range: VersionRange{EndIncl: "6.1.1"}}}}
+	e.feeds.vulns = append(e.feeds.vulns, noFix)
+	// the product-only guess CVE-2022-27593 and CVE-2099-0102 on the same row
+	if res, err := e.svc.OnMatchChanged(t.Context(), "a-1"); err != nil || len(res.Created) != 2 {
+		t.Fatalf("match: %+v %v", res, err)
+	}
+	if _, err := e.svc.ConfirmFromScan(t.Context(), "a-1", "CVE-2099-0102", scanEv("t1")); err != nil {
+		t.Fatal(err)
+	}
+	tf, err := e.svc.ToFix(t.Context(), true, "a-1")
+	if err != nil || len(tf.Devices) != 1 {
+		t.Fatalf("To fix: %+v %v", tf, err)
+	}
+	card := 0
+	for _, a := range tf.Devices[0].actionable() {
+		card += len(a.CVEs)
+	}
+	got, err := e.svc.RiskMap(t.Context(), true)
+	if err != nil || card != 2 || got["a-1"].Exploited != card {
+		t.Fatalf("card %d exploited CVEs to fix, marker %+v (%v)", card, got["a-1"], err)
+	}
 }
 
 // The pages read the marker from their own answer (no device list): GET /findings/to-fix and GET /findings/plan carry each device's

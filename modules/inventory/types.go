@@ -3,6 +3,7 @@ package inventory
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/knt048/vedette/content/devicetypes"
 )
@@ -169,6 +170,17 @@ func riskOf(c RiskCounts) *Risk {
 		return &Risk{Level: RiskUpdate, Updates: c.Updates}
 	}
 	return nil
+}
+
+// riskWords is the marker's text, as the pages show it (G4: the CSV's risk column): "2 exploited", "Update recommended", "" when clean.
+func riskWords(r *Risk) string {
+	switch {
+	case r == nil:
+		return ""
+	case r.Level == RiskExploited:
+		return fmt.Sprintf("%d exploited", r.Exploited)
+	}
+	return "Update recommended"
 }
 
 // riskLevel is the filter word of a device's marker.

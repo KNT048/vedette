@@ -3,7 +3,9 @@ package inventory_test
 import (
 	"context"
 	"errors"
+	"io"
 	"net/netip"
+	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -174,9 +176,6 @@ func TestContract_G4_RiskIsOptInAndNeverFailsTheList(t *testing.T) {
 	if _, err := e.svc.Detail(e.ctx(), x); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := e.svc.ExportCSV(e.ctx(), "it@acme.example", inventory.DeviceFilter{}); err != nil {
-		t.Fatal(err)
-	}
 	if n := src.calls.Load(); n != 0 {
 		t.Fatalf("internal device reads called the risk port %d times", n)
 	}
@@ -185,13 +184,12 @@ func TestContract_G4_RiskIsOptInAndNeverFailsTheList(t *testing.T) {
 	}
 
 	src.err = errors.New("findings: database is locked")
-	f, _ := inventory.ParseDeviceSearch("", "", "", "", "", "", "exploited", "")
-	l, err := e.svc.DevicesPage(e.ctx(), f)
+	l, err := e.svc.DevicesPage(e.ctx(), inventory.DeviceFilter{})
 	if err != nil {
 		t.Fatalf("a failing risk source failed the list: %v", err)
 	}
 	if !l.RiskUnavailable || len(l.Items) < 3 {
-		t.Errorf("unavailable = %v, %d rows: want the list, unfiltered by risk, saying so", l.RiskUnavailable, len(l.Items))
+		t.Errorf("unavailable = %v, %d rows: want the list, saying so", l.RiskUnavailable, len(l.Items))
 	}
 	for _, d := range l.Items {
 		if d.Risk != nil {
@@ -202,9 +200,47 @@ func TestContract_G4_RiskIsOptInAndNeverFailsTheList(t *testing.T) {
 	if err != nil || !d.RiskUnavailable || d.Risk != nil {
 		t.Errorf("detail: %+v, %v", d.Risk, err)
 	}
-	if _, err := e.svc.ExportCSV(e.ctx(), "it@acme.example", f); err != nil {
-		t.Errorf("export with a risk filter: %v", err)
+	if _, err := e.svc.ExportCSV(e.ctx(), "it@acme.example", inventory.DeviceFilter{}); err != nil {
+		t.Errorf("an unfiltered export while the source fails: %v", err)
 	}
+	// review r2 of #949 L1: a risk filter that cannot be applied is 503 risk_unavailable, never every device
+	f, _ := inventory.ParseDeviceSearch("", "", "", "", "", "", "exploited", "")
+	for name, call := range map[string]func() error{
+		"list":   func() error { _, err := e.svc.DevicesPage(e.ctx(), f); return err },
+		"export": func() error { _, err := e.svc.ExportCSV(e.ctx(), "it@acme.example", f); return err },
+	} {
+		var ae *apierr.Error
+		if err := call(); !errors.As(err, &ae) || ae.Status != 503 || ae.Code != "risk_unavailable" {
+			t.Errorf("%s with a risk filter while the source fails: %v, want 503 risk_unavailable", name, err)
+		}
+	}
+}
+
+// Review r2 of #949 (Medium): the CSV says what the marker says, in its words: "2 exploited", "Update recommended", empty when clean.
+func TestContract_G4_TheCSVHasTheRisk(t *testing.T) {
+	t.Parallel()
+	src := fakeRisk{}
+	e := newEnv(t, withRisk(src))
+	x, u, c := riskDevices(e)
+	src[x], src[u] = inventory.RiskCounts{Exploited: 2, Updates: 1}, inventory.RiskCounts{Updates: 3}
+	rd, err := e.svc.ExportCSV(e.ctx(), "it@acme.example", inventory.DeviceFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := io.ReadAll(rd)
+	lines := strings.Split(strings.TrimPrefix(string(raw), "\ufeff"), "\r\n")
+	if !strings.HasSuffix(lines[0], ",risk") {
+		t.Fatalf("header = %q", lines[0])
+	}
+	want := map[string]string{"192.168.18.10": ",2 exploited", "192.168.18.11": ",Update recommended", "192.168.18.12": ","}
+	for _, l := range lines[1:] {
+		for ip, end := range want {
+			if strings.Contains(l, ","+ip+",") && !strings.HasSuffix(l, end) {
+				t.Errorf("%s: %q, want it to end %q", ip, l, end)
+			}
+		}
+	}
+	_ = c
 }
 
 // The Vedette box itself is never marked (the owner's done check: boxkien shows nothing); its updates stay in To fix.

@@ -287,9 +287,8 @@ function List() {
   )
 
   const toFix = useToFix()
-  // G4: each device's risk marker, as To fix shows it (the server's findings.RiskOf; the same value as the device list)
-  const riskById = new Map((toFix.data?.devices ?? []).map((x) => [x.asset.id, x.risk]))
-  const risk = (id: string) => riskById.get(id) ?? null
+  // G4: each device's risk marker, from To fix's own classification (findings.RiskMap; the same value as the device list)
+  const risk = (id: string) => toFix.data?.risks[id] ?? null // every marked device, not only the 500 To fix lists (review r2 of #949)
   // kien G8, review r1 of #943: a link that carries a finding filter (?cve=, ?fix=, the old shapes of the CVE page, Home and the device
   // page) opens the findings table with it, never To fix, which would drop it
   const filterTab = !params.get('tab') && (params.get('cve') || params.get('fix')) ? 'open' : null

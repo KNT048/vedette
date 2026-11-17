@@ -73442,6 +73442,9 @@ type FindingsGetFindingsToFixOK struct {
 	// The plan job compared the devices since the box started; false: recommended updates are not known
 	// yet.
 	PlanRan bool `json:"plan_ran"`
+	// G4: the risk marker of every marked device by id, not capped like devices (empty for ?asset=): the
+	// Findings table and filter read it.
+	Risks FindingsGetFindingsToFixOKRisks `json:"risks"`
 	// More devices had something than the 500 listed.
 	Truncated bool `json:"truncated"`
 }
@@ -73459,6 +73462,11 @@ func (s *FindingsGetFindingsToFixOK) GetPlanOff() bool {
 // GetPlanRan returns the value of PlanRan.
 func (s *FindingsGetFindingsToFixOK) GetPlanRan() bool {
 	return s.PlanRan
+}
+
+// GetRisks returns the value of Risks.
+func (s *FindingsGetFindingsToFixOK) GetRisks() FindingsGetFindingsToFixOKRisks {
+	return s.Risks
 }
 
 // GetTruncated returns the value of Truncated.
@@ -73479,6 +73487,11 @@ func (s *FindingsGetFindingsToFixOK) SetPlanOff(val bool) {
 // SetPlanRan sets the value of PlanRan.
 func (s *FindingsGetFindingsToFixOK) SetPlanRan(val bool) {
 	s.PlanRan = val
+}
+
+// SetRisks sets the value of Risks.
+func (s *FindingsGetFindingsToFixOK) SetRisks(val FindingsGetFindingsToFixOKRisks) {
+	s.Risks = val
 }
 
 // SetTruncated sets the value of Truncated.
@@ -75340,6 +75353,96 @@ func (s *FindingsGetFindingsToFixOKDevicesItemRiskLevel) UnmarshalText(data []by
 		return nil
 	case FindingsGetFindingsToFixOKDevicesItemRiskLevelUpdate:
 		*s = FindingsGetFindingsToFixOKDevicesItemRiskLevelUpdate
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// G4: the risk marker of every marked device by id, not capped like devices (empty for ?asset=): the
+// Findings table and filter read it.
+type FindingsGetFindingsToFixOKRisks map[string]FindingsGetFindingsToFixOKRisksItem
+
+func (s *FindingsGetFindingsToFixOKRisks) init() FindingsGetFindingsToFixOKRisks {
+	m := *s
+	if m == nil {
+		m = map[string]FindingsGetFindingsToFixOKRisksItem{}
+		*s = m
+	}
+	return m
+}
+
+type FindingsGetFindingsToFixOKRisksItem struct {
+	Exploited int                                      `json:"exploited"`
+	Level     FindingsGetFindingsToFixOKRisksItemLevel `json:"level"`
+	Updates   int                                      `json:"updates"`
+}
+
+// GetExploited returns the value of Exploited.
+func (s *FindingsGetFindingsToFixOKRisksItem) GetExploited() int {
+	return s.Exploited
+}
+
+// GetLevel returns the value of Level.
+func (s *FindingsGetFindingsToFixOKRisksItem) GetLevel() FindingsGetFindingsToFixOKRisksItemLevel {
+	return s.Level
+}
+
+// GetUpdates returns the value of Updates.
+func (s *FindingsGetFindingsToFixOKRisksItem) GetUpdates() int {
+	return s.Updates
+}
+
+// SetExploited sets the value of Exploited.
+func (s *FindingsGetFindingsToFixOKRisksItem) SetExploited(val int) {
+	s.Exploited = val
+}
+
+// SetLevel sets the value of Level.
+func (s *FindingsGetFindingsToFixOKRisksItem) SetLevel(val FindingsGetFindingsToFixOKRisksItemLevel) {
+	s.Level = val
+}
+
+// SetUpdates sets the value of Updates.
+func (s *FindingsGetFindingsToFixOKRisksItem) SetUpdates(val int) {
+	s.Updates = val
+}
+
+type FindingsGetFindingsToFixOKRisksItemLevel string
+
+const (
+	FindingsGetFindingsToFixOKRisksItemLevelExploited FindingsGetFindingsToFixOKRisksItemLevel = "exploited"
+	FindingsGetFindingsToFixOKRisksItemLevelUpdate    FindingsGetFindingsToFixOKRisksItemLevel = "update"
+)
+
+// AllValues returns all FindingsGetFindingsToFixOKRisksItemLevel values.
+func (FindingsGetFindingsToFixOKRisksItemLevel) AllValues() []FindingsGetFindingsToFixOKRisksItemLevel {
+	return []FindingsGetFindingsToFixOKRisksItemLevel{
+		FindingsGetFindingsToFixOKRisksItemLevelExploited,
+		FindingsGetFindingsToFixOKRisksItemLevelUpdate,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsToFixOKRisksItemLevel) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsToFixOKRisksItemLevelExploited:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKRisksItemLevelUpdate:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsToFixOKRisksItemLevel) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsToFixOKRisksItemLevel(data) {
+	case FindingsGetFindingsToFixOKRisksItemLevelExploited:
+		*s = FindingsGetFindingsToFixOKRisksItemLevelExploited
+		return nil
+	case FindingsGetFindingsToFixOKRisksItemLevelUpdate:
+		*s = FindingsGetFindingsToFixOKRisksItemLevelUpdate
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

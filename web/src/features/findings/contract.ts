@@ -282,6 +282,7 @@ export const ToFix = z.object({
   truncated: z.boolean().describe('More devices had something than the 500 listed'),
   plan_ran: z.boolean().describe('The plan job compared the devices since the box started; false: recommended updates are not known yet'),
   plan_off: z.boolean().describe('The feeds module is off: no recommended update is listed'),
+  risks: z.record(z.string(), DeviceRiskView.unwrap()).describe('G4: the risk marker of every marked device by id, not capped like devices (empty for ?asset=): the Findings table and filter read it'),
 })
 
 export const endpoints = defineEndpoints([

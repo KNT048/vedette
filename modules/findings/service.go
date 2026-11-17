@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"slices"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -48,11 +47,11 @@ type Have struct {
 // Service owns fnd_finding and fnd_finding_history. Every mutation runs in one transaction with its
 // history rows and its core_audit row (SYS-3); events go out after the commit.
 type Service struct {
-	cfg  ServiceConfig
-	now  func() time.Time
-	plan planState     // "Updates to plan" (D-617): in memory, see planpass.go
-	gen  atomic.Uint64 // counts committed writes: GET /findings/summary drops its cached answer when it moves (summary.go)
-	risk riskCache     // RiskMap's last answer (G4)
+	cfg        ServiceConfig
+	now        func() time.Time
+	plan       planState       // "Updates to plan" (D-617): in memory, see planpass.go
+	gen        atomic.Uint64   // counts committed writes: GET /findings/summary drops its cached answer when it moves (summary.go)
+	toFixCache classifiedCache // the classification of every device (To fix, RiskMap; G4)
 }
 
 // NewService returns the service. DB, Audit, Inventory, Feeds and Log are required.
@@ -116,13 +115,11 @@ func (s *Service) Get(ctx context.Context, id string) (Record, error) {
 	return loadByID(ctx, s.cfg.DB.Reader(), id)
 }
 
-// AssetRisk is what a device's risk marker reads (G4, inventory.RiskCounts), with the tests To fix uses (one rule): Exploited = the
-// device's open findings To fix counts as something to fix (somethingToFix: a product-only guess is in Needs your input, not here);
-// Updates = its recommended updates (the plan, INV-20, as listedPlanItems lists them) with a CVE likely to be exploited (EPSS ≥ 10%) or
-// of High or Critical severity (riskyUpdate).
+// AssetRisk is what a device's risk marker reads (G4, inventory.RiskCounts), from To fix's own classification of the device (RiskOf;
+// review r2 of #949: one rule, never a cheaper test of its own).
 type AssetRisk struct{ Exploited, Updates int }
 
-// Level is the risk marker's level (G4, inventory's Risk.level): "exploited" when the device has open exploited findings to fix,
+// Level is the risk marker's level (G4, inventory's Risk.level): "exploited" when the device has exploited findings To fix lists,
 // else "update" when it has such recommended updates, else "" (clean).
 func (r AssetRisk) Level() string {
 	switch {
@@ -134,71 +131,40 @@ func (r AssetRisk) Level() string {
 	return ""
 }
 
+// RiskOf is the marker of device d as To fix shows it: Exploited = the CVEs of the actions To fix lists to fix (actionable: an
+// update is named for them, or the row's group is proved; the card's "N exploited CVEs to fix"), Updates = its recommended updates
+// with a likely CVE or of High or Critical severity (riskyUpdate). Findings only in Needs your input count for neither.
+func RiskOf(d DeviceUpdates) AssetRisk {
+	var r AssetRisk
+	for _, a := range d.actionable() {
+		r.Exploited += len(a.CVEs)
+	}
+	for _, u := range d.Planned {
+		if riskyUpdate(u) {
+			r.Updates++
+		}
+	}
+	return r
+}
+
 // riskyUpdate says whether a recommended update puts a device on amber: a likely CVE, or the worst severity High or Critical.
 func riskyUpdate(u UpdateAction) bool {
 	return u.Likely > 0 || sevRank(Severity(u.Worst)) >= sevRank(SeverityHigh)
 }
 
-// riskTTL bounds how long RiskMap keeps an answer when nothing it counts changed (the feeds switch is part of the key).
+// riskTTL bounds how long the classification of every device (classified) is kept when nothing it reads changed: a backstop for the
+// 12-month line of the plan's CVEs, which moves with time alone.
 const riskTTL = time.Minute
 
-// riskCache is RiskMap's last answer and what it was computed under.
-type riskCache struct {
-	mu      sync.Mutex
-	gen     uint64
-	planVer uint64
-	feedsOn bool
-	at      time.Time
-	val     map[string]AssetRisk
-}
-
-// RiskMap is the risk of every device that has some (G4), in one pass over the open findings and one over the plan, never per
-// device: the Devices list, the device page, To fix and Recommended updates read it. The answer is cached until a finding is written
-// (gen), the plan changes (plan.ver), the feeds switch moves or riskTTL passes. A device with none is absent. feedsOn false: no
-// recommended update counts (as GET /findings/plan lists none). The map is shared: read it, never change it.
+// RiskMap is the risk of every device To fix classifies (G4; no display cap), read from the cached classification (classified), so the
+// marker on Devices, the device page, Findings and Recommended updates is what To fix shows. A device with none is absent. feedsOn
+// false: no recommended update counts. The map is shared: read it, never change it.
 func (s *Service) RiskMap(ctx context.Context, feedsOn bool) (map[string]AssetRisk, error) {
-	gen := s.gen.Load()
-	s.plan.mu.RLock()
-	planVer := s.plan.ver
-	s.plan.mu.RUnlock()
-	now := s.now()
-	s.risk.mu.Lock()
-	defer s.risk.mu.Unlock()
-	c := &s.risk
-	if c.val != nil && c.gen == gen && c.planVer == planVer && c.feedsOn == feedsOn && now.Sub(c.at) < riskTTL && now.Sub(c.at) >= 0 {
-		return c.val, nil
-	}
-	recs, err := s.List(ctx, "")
+	c, err := s.classified(ctx, feedsOn)
 	if err != nil {
 		return nil, fmt.Errorf("findings: risk: %w", err)
 	}
-	out := map[string]AssetRisk{}
-	for _, r := range recs {
-		if r.Status.Open() && somethingToFix(r) {
-			v := out[r.AssetID]
-			v.Exploited++
-			out[r.AssetID] = v
-		}
-	}
-	if feedsOn {
-		s.plan.mu.RLock()
-		items := map[string][]PlanItem{}
-		for id, d := range s.plan.devices {
-			items[id] = d.items
-		}
-		s.plan.mu.RUnlock()
-		for id, list := range items {
-			for _, it := range listedPlanItems(list, now) {
-				if riskyUpdate(planAction(it)) {
-					v := out[id]
-					v.Updates++
-					out[id] = v
-				}
-			}
-		}
-	}
-	c.gen, c.planVer, c.feedsOn, c.at, c.val = gen, planVer, feedsOn, now, out
-	return out, nil
+	return c.risk, nil
 }
 
 // CountByAsset returns how many findings each asset has, every status included: the number inventory shows as findings_count, which

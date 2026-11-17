@@ -19,7 +19,7 @@ const winrar = (devId: string, name = 'RARLAB WinRAR') => act({ group: `${devId}
 const firefox = act({ group: 'a-desk/s-ff', software_id: 's-ff', software: 'Mozilla Firefox', version: '152.0', fixed: '157.0.1', action: 'Upgrade Mozilla Firefox from 152.0 to 157.0.1 or later', cves: Array.from({ length: 228 }, (_, i) => `CVE-2026-${20000 + i}`), worst: 'critical', likely: 3, detected: 0 })
 const unprovedWin = act({ group: 'a-desk/s-w', software_id: 's-w', software: 'Windows 11 Pro', version: '10.0.26300.9974', kind: 'none', action: "No update is named that fixes these: follow the vendor's advice for Windows 11 Pro",
   cves: ['CVE-2002-0367', 'CVE-2016-3427'], finding_ids: ['f-u1', 'f-u2'], worst: 'medium', detected: 0, reported: 2 })
-const sample: ToFix = { truncated: false, plan_ran: true, plan_off: false, devices: [
+const sample: ToFix = { truncated: false, plan_ran: true, plan_off: false, risks: {}, devices: [
   dev('a-pc', 'PC-A', { open: 3, exploited: [winUpdate] }),
   dev('a-desk', 'DESKTOP-55UKKFV', { open: 4, exploited: [winrar('a-desk')], no_update: [unprovedWin], planned: [firefox] }),
   dev('a-lap', 'LAPTOP-B', { open: 2, exploited: [winrar('a-lap', 'WinRAR 7.01 (64-bit)')] }), // the same product under another name: one By fix row

@@ -40383,13 +40383,49 @@
                     "plan_off": {
                       "type": "boolean",
                       "description": "The feeds module is off: no recommended update is listed"
+                    },
+                    "risks": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "level": {
+                            "type": "string",
+                            "enum": [
+                              "exploited",
+                              "update"
+                            ]
+                          },
+                          "exploited": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "updates": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "level",
+                          "exploited",
+                          "updates"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "G4: the risk marker of every marked device by id, not capped like devices (empty for ?asset=): the Findings table and filter read it"
                     }
                   },
                   "required": [
                     "devices",
                     "truncated",
                     "plan_ran",
-                    "plan_off"
+                    "plan_off",
+                    "risks"
                   ],
                   "additionalProperties": false
                 }

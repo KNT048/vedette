@@ -140207,16 +140207,21 @@ func (s *FindingsGetFindingsToFixOK) encodeFields(e *jx.Encoder) {
 		e.Bool(s.PlanRan)
 	}
 	{
+		e.FieldStart("risks")
+		s.Risks.Encode(e)
+	}
+	{
 		e.FieldStart("truncated")
 		e.Bool(s.Truncated)
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsToFixOK = [4]string{
+var jsonFieldsNameOfFindingsGetFindingsToFixOK = [5]string{
 	0: "devices",
 	1: "plan_off",
 	2: "plan_ran",
-	3: "truncated",
+	3: "risks",
+	4: "truncated",
 }
 
 // Decode decodes FindingsGetFindingsToFixOK from json.
@@ -140270,8 +140275,18 @@ func (s *FindingsGetFindingsToFixOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"plan_ran\"")
 			}
-		case "truncated":
+		case "risks":
 			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.Risks.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"risks\"")
+			}
+		case "truncated":
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Bool()
 				s.Truncated = bool(v)
@@ -140292,7 +140307,7 @@ func (s *FindingsGetFindingsToFixOK) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001111,
+		0b00011111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -142641,6 +142656,228 @@ func (s FindingsGetFindingsToFixOKDevicesItemRiskLevel) MarshalJSON() ([]byte, e
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *FindingsGetFindingsToFixOKDevicesItemRiskLevel) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s FindingsGetFindingsToFixOKRisks) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields implements json.Marshaler.
+func (s FindingsGetFindingsToFixOKRisks) encodeFields(e *jx.Encoder) {
+	for k, elem := range s {
+		e.FieldStart(k)
+
+		elem.Encode(e)
+	}
+}
+
+// Decode decodes FindingsGetFindingsToFixOKRisks from json.
+func (s *FindingsGetFindingsToFixOKRisks) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsGetFindingsToFixOKRisks to nil")
+	}
+	m := s.init()
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		var elem FindingsGetFindingsToFixOKRisksItem
+		if err := func() error {
+			if err := elem.Decode(d); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrapf(err, "decode field %q", k)
+		}
+		m[string(k)] = elem
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode FindingsGetFindingsToFixOKRisks")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s FindingsGetFindingsToFixOKRisks) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsGetFindingsToFixOKRisks) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *FindingsGetFindingsToFixOKRisksItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *FindingsGetFindingsToFixOKRisksItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("exploited")
+		e.Int(s.Exploited)
+	}
+	{
+		e.FieldStart("level")
+		s.Level.Encode(e)
+	}
+	{
+		e.FieldStart("updates")
+		e.Int(s.Updates)
+	}
+}
+
+var jsonFieldsNameOfFindingsGetFindingsToFixOKRisksItem = [3]string{
+	0: "exploited",
+	1: "level",
+	2: "updates",
+}
+
+// Decode decodes FindingsGetFindingsToFixOKRisksItem from json.
+func (s *FindingsGetFindingsToFixOKRisksItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsGetFindingsToFixOKRisksItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "exploited":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int()
+				s.Exploited = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"exploited\"")
+			}
+		case "level":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Level.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"level\"")
+			}
+		case "updates":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Int()
+				s.Updates = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"updates\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode FindingsGetFindingsToFixOKRisksItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfFindingsGetFindingsToFixOKRisksItem) {
+					name = jsonFieldsNameOfFindingsGetFindingsToFixOKRisksItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *FindingsGetFindingsToFixOKRisksItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsGetFindingsToFixOKRisksItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes FindingsGetFindingsToFixOKRisksItemLevel as json.
+func (s FindingsGetFindingsToFixOKRisksItemLevel) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes FindingsGetFindingsToFixOKRisksItemLevel from json.
+func (s *FindingsGetFindingsToFixOKRisksItemLevel) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsGetFindingsToFixOKRisksItemLevel to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch FindingsGetFindingsToFixOKRisksItemLevel(v) {
+	case FindingsGetFindingsToFixOKRisksItemLevelExploited:
+		*s = FindingsGetFindingsToFixOKRisksItemLevelExploited
+	case FindingsGetFindingsToFixOKRisksItemLevelUpdate:
+		*s = FindingsGetFindingsToFixOKRisksItemLevelUpdate
+	default:
+		*s = FindingsGetFindingsToFixOKRisksItemLevel(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s FindingsGetFindingsToFixOKRisksItemLevel) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsGetFindingsToFixOKRisksItemLevel) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

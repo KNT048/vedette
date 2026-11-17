@@ -1,9 +1,10 @@
 # Findings — Change Impact Map
 
-## Modifying: `RiskMap`, `AssetRisk`, `somethingToFix`, `listedPlanItems`, `planAction`, `riskyUpdate`, `risk` of to-fix and plan (G4, INV-26)
-- **inventory** shows it as the risk marker of the Devices list and the device page (inventory INV-40, through cmd/vedette `findingCounts.RiskByAsset`) and filters on it (`?risk=`). The tests are To fix's own (`somethingToFix` is also `preRank`'s; `listedPlanItems`/`planAction` also build `plannedUpdates`): changing them changes To fix and the marker together, by design.
-- **Cost**: `RiskMap` must stay one batch (no per-device read) and cached by `gen` and `plan.ver`; every Devices page load reads it. A new input to the rule must also move the cache key.
-- **web**: `features/inventory/RiskMarker.tsx`; the Findings page (device column, filter options, To fix cards) and Recommended updates read `risk` from their own answers; the mocks' `deviceRisk`/`riskOfCard` mirror the rule.
+## Modifying: `classify`, `classified`, `RiskOf`, `RiskMap`, `AssetRisk`, `riskyUpdate`, `risk` and `risks` of to-fix and plan (G4, INV-26)
+- **One rule**: the marker is `RiskOf` of To fix's own classification (`actionable`, `Planned`), never a cheaper test of its own (review r2 of #949: a ranking shortcut showed red for findings only in Needs your input, and a different count from the card). Change To fix and the marker changes with it, by design.
+- **Cost and freshness**: `classified` does To fix's per-device work for every device once per change (`gen`, `plan.ver`, the feeds switch, `riskTTL`) and serves both the To fix page (display cap `ToFixLimit`) and every marker; a new input to To fix's classification must also move that key. `ToFix(…, id)` stays uncached (the device's own page).
+- **inventory** shows it on the Devices list, the device page and the CSV (inventory INV-40, through cmd/vedette `findingCounts.RiskByAsset`) and filters on it (`?risk=`).
+- **web**: `features/inventory/RiskMarker.tsx`; the Findings page (device column and filter from `risks`, To fix cards from each card's `risk`) and Recommended updates (`risk` of each item); the mocks' `deviceRisk`/`riskOfCard` mirror `RiskOf`.
 
 ## Modifying: thư viện thuần `modules/findings` (không DB; service WP-21 bọc ngoài)
 - `MatchAsset(Asset, []Vuln, have, now) MatchResult{New, Existing}` — bộ khớp. Gọi từ service khi nhận `inventory.match.changed`/`feeds.vuln.updated`. Đổi quy tắc ⇒ đổi số finding và tin `notify`; test `Contract_INV4/5/6`.

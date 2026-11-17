@@ -88,6 +88,13 @@ describe('inventory: G4 risk marker', () => {
     expect(await within(card).findByRole('link', { name: /open exploited finding/ }, T)).toBeInTheDocument()
   })
 
+  it('the CSV export has a risk column in the marker\'s words', async () => {
+    const red = (await rows()).find((d) => d.risk?.level === 'exploited')!
+    const csv = await (await fetch(`${location.origin}/api/v1/inventory/export.csv`)).text()
+    expect(csv).toContain('name_in_vedette,risk\r\n')
+    expect(csv).toContain(`,${red.risk!.exploited} exploited\r\n`)
+  })
+
   it('the Vedette box itself is never marked, and is in risk=none', async () => {
     const box = (await rows()).find((d) => d.id === BOX_ID)!
     expect(box.risk).toBeNull()

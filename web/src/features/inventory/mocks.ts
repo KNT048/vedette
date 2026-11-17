@@ -285,6 +285,8 @@ function sourcesOf(a: Asset): DeviceSource[] {
   }
   return DEVICE_SOURCES.filter((x) => has.has(x))
 }
+/** G4: the CSV's risk column, in the marker's words (inventory riskWords). */
+const csvRisk = (r: DeviceRow['risk']) => (!r ? '' : r.level === 'exploited' ? `${r.exploited} exploited` : 'Update recommended')
 const toRow = (a: Asset): DeviceRow => ({ ...live(a), ...scanInfo(a), sources: sourcesOf(a), suspicious: !!metaStore.get()[a.id]?.suspicious, findings_count: findingsOf(a.id), risk: deviceRisk(a.id), summary: summaryOf(a) })
 
 /** #849: the Devices search, as the backend reads it (ParseDeviceFilter): ANDed filters, each list ORed, unknown words 400 bad_filter,
@@ -931,10 +933,10 @@ export const handlers = [
     const keep = deviceFilter(request.url)
     if (keep instanceof Response) return keep
     // name is the host name; name_in_vedette the name a person gave the device (G2, review r1 of #929): import reads both back
-    const head = ['name', 'ip', 'mac', 'kind', 'vendor', 'model', 'os', 'software', 'approved', 'fragile', 'origin', 'source', 'confidence', 'last_seen', 'name_in_vedette']
+    const head = ['name', 'ip', 'mac', 'kind', 'vendor', 'model', 'os', 'software', 'approved', 'fragile', 'origin', 'source', 'confidence', 'last_seen', 'name_in_vedette', 'risk']
     const lines = allAssets().filter((a) => keep(toRow(a))).map((a) => {
       const s = summaryOf(a)
-      return [a.hostname ?? '', hasIp(a) ? a.ip : '', a.mac ?? '', a.kind, a.vendor?.value, a.model?.value, a.os?.value, a.software.map((x) => `${x.display}${x.version ? ` ${x.version}` : ''}`).join('; '), a.approved ? 'yes' : 'no', a.fragile ? 'yes' : 'no', a.origin, s?.source, s ? s.confidence.toFixed(2) : '', a.last_seen, a.name ?? ''].map(csvCell).join(',')
+      return [a.hostname ?? '', hasIp(a) ? a.ip : '', a.mac ?? '', a.kind, a.vendor?.value, a.model?.value, a.os?.value, a.software.map((x) => `${x.display}${x.version ? ` ${x.version}` : ''}`).join('; '), a.approved ? 'yes' : 'no', a.fragile ? 'yes' : 'no', a.origin, s?.source, s ? s.confidence.toFixed(2) : '', a.last_seen, a.name ?? '', csvRisk(toRow(a).risk)].map(csvCell).join(',')
     })
     audit('inventory.export', 'devices.csv', `${lines.length} rows`)
     return new HttpResponse(`﻿${[head.join(','), ...lines].join('\r\n')}\r\n`, { headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename=vedette-devices.csv' } })

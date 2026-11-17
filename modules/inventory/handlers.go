@@ -243,7 +243,7 @@ func (h *Handlers) InventoryPostInventoryDevicesIDSoftware(ctx context.Context, 
 	return &oas.InventoryPostInventoryDevicesIDSoftwareCreated{KevCves: n}, nil
 }
 
-// InventoryPatchInventoryDevicesIDSoftwareSid implements PATCH /inventory/devices/{id}/software/{sid} (operator, D-471, INV-38).
+// InventoryPatchInventoryDevicesIDSoftwareSid implements PATCH /inventory/devices/{id}/software/{sid} (operator, D-471, INV-39).
 func (h *Handlers) InventoryPatchInventoryDevicesIDSoftwareSid(ctx context.Context, req *oas.InventoryPatchInventoryDevicesIDSoftwareSidReq, params oas.InventoryPatchInventoryDevicesIDSoftwareSidParams) (*oas.InventoryPatchInventoryDevicesIDSoftwareSidOK, error) {
 	who, err := actor(ctx)
 	if err != nil {

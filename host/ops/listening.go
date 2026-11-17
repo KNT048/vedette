@@ -118,6 +118,10 @@ func parseSocketUnit(paths []string) ([]socketKey, string) {
 	var stream, dgram []uint16
 	service := ""
 	for _, p := range paths {
+		// A regular file only (review r1 L4 of #950): a FIFO would block the ports read; a unit masked to /dev/null says nothing.
+		if fi, err := os.Stat(p); err != nil || !fi.Mode().IsRegular() {
+			continue
+		}
 		b, err := readBounded(p, maxUnitBytes)
 		if err != nil {
 			continue

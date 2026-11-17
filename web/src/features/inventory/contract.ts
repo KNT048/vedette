@@ -83,9 +83,10 @@ export const DevicesResponse = z.object({
 /** INV-39 (BN340): a person's correction of a row a sensor or agent reported. */
 export const SoftwareCorrection = z.object({
   set_at: dt.describe('When the person set it (or last changed it)'),
+  set_by: z.string().describe('Who set it (email); "" for a correction stored without one'),
   detected: z.object({
     id: z.string(), display: z.string(), version: z.string().nullable(), pkg_version: z.string().nullable(), source: ObsSource, seen_at: dt,
-  }).nullable().describe('The newest row the sensors or agents report for the corrected product (it no longer matches); null when none reports it now'),
+  }).nullable().describe('The corrected row when its source still reports it (it does not match while the correction stands), else that source\'s newest row of the product at another version (that one matches on its own: a second install or an update); null when the source reports the product no more: say "no scan or agent reports it now"'),
   disagrees: z.boolean().describe('The sources read another product, version or package release than the person: show "You set X on <date>; the last scan reads Y"'),
 })
 export const SoftwareView = Software.omit({ kev: true }).extend({
@@ -314,7 +315,7 @@ export const endpoints = defineEndpoints([
   { method: 'post', path: '/inventory/devices/{id}/suspicious', summary: 'Mark or unmark a device as suspicious', stories: ['S-INV-3'], role: 'operator', params: id, body: z.object({ suspicious: z.boolean() }), response: ok },
   { method: 'post', path: '/inventory/devices/{id}/software', status: 201, summary: 'Declare additional software running on a device', stories: ['S-INV-2'], role: 'operator', params: id,
     body: AddDeviceInput.omit({ name: true, ip: true }), response: z.object({ kev_cves: z.number().int() }) },
-  { method: 'patch', path: '/inventory/devices/{id}/software/{sid}', summary: 'Change a software row (D-471, INV-39). A row a person declared changes in place. A row a sensor or agent reported is corrected: the values go in a manual correction row (source manual, correction set) that replaces the reported row for matching until it is deleted; later scans keep reporting their own row (corrected_by), shown next to it. Fields left out keep their value. The device is matched again. 400 bad_edit (nothing to change), bad_version, bad_pkg_version, unknown_product, incomplete_product, bad_product. 409 duplicate_software', stories: ['S-INV-2'], role: 'operator', params: id.extend({ sid: z.string() }),
+  { method: 'patch', path: '/inventory/devices/{id}/software/{sid}', summary: 'Change a software row (D-471, INV-39). A row a person declared changes in place. A row a sensor or agent reported is corrected: the values go in a manual correction row (source manual, correction set) that replaces exactly that row (its source, product and version, and its re-reports) for matching until it is deleted; another install of the product (another version or source) keeps matching. Fields left out keep their value (the CPE, the packaged flag, the source package; the package release while the version stays); another product starts clean. The device is matched again. 400 bad_edit (nothing to change), bad_version, bad_pkg_version, unknown_product, incomplete_product, bad_product. 409 duplicate_software', stories: ['S-INV-2'], role: 'operator', params: id.extend({ sid: z.string() }),
     body: z.object({
       version: z.string().max(40).optional().describe('Letters, digits, . - + ( ) and spaces; empty removes the version'),
       pkg_version: z.string().max(100).optional().describe('The package release the device\'s package manager shows ("10.2_p1-r1", "1:9.6p1-3ubuntu13.14"); empty removes it'),

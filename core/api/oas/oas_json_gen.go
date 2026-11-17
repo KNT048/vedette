@@ -180204,12 +180204,17 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) encodeFiel
 		e.FieldStart("set_at")
 		json.EncodeDateTime(e, s.SetAt)
 	}
+	{
+		e.FieldStart("set_by")
+		e.Str(s.SetBy)
+	}
 }
 
-var jsonFieldsNameOfInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection = [3]string{
+var jsonFieldsNameOfInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection = [4]string{
 	0: "detected",
 	1: "disagrees",
 	2: "set_at",
+	3: "set_by",
 }
 
 // Decode decodes InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection from json.
@@ -180255,6 +180260,18 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) Decode(d *
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"set_at\"")
 			}
+		case "set_by":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.SetBy = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"set_by\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -180265,7 +180282,7 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) Decode(d *
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

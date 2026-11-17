@@ -240,6 +240,7 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, whole *Matc
 			reopened := false
 			if f, h, ok := r.ReopenOnMatch(now); ok { // D-530: Vedette closed it by itself; it applies again
 				r.Finding, reopened = f, true
+				h.Note = withCorrection(h.Note, correctionWhy(a, em.SoftwareID))
 				if err := insertHistory(ctx, tx, r.ID, h); err != nil {
 					return err
 				}
@@ -282,6 +283,11 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, whole *Matc
 			}
 			res.Touched++
 		}
+		for _, list := range [][]Match{m.NotAffected, m.Retired, m.Aged, m.NameOnly} { // the close note names a person's correction (review r1 M3)
+			for i := range list {
+				list[i].Evidence.Summary = withCorrection(list[i].Evidence.Summary, correctionWhy(a, list[i].SoftwareID))
+			}
+		}
 		if res.Closed, err = s.autoResolve(ctx, tx, a.ID, m.NotAffected, false, now, emit); err != nil {
 			return err
 		}
@@ -294,7 +300,7 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, whole *Matc
 		if res.NameOnly, err = s.closeNameOnly(ctx, tx, a.ID, m.NameOnly, now, emit); err != nil {
 			return err
 		}
-		n, err := s.noteNoLongerMatching(ctx, tx, a.ID, vulns, m, now)
+		n, err := s.noteNoLongerMatching(ctx, tx, a.ID, vulns, m, correctionWhy(a, ""), now)
 		if err != nil {
 			return err
 		}
@@ -584,7 +590,7 @@ func personKept(hist []HistoryEntry) bool {
 // in vulns says nothing (a partial list never judges a pair), and a finding the scan confirmed (basis scan) is not judged by
 // the version matcher. Such a finding matched by product only and graded above medium before D-500 takes the product
 // severity, once (W3-3 reaches it too: a pair the matcher no longer produces is never in Existing); it returns how many.
-func (s *Service) noteNoLongerMatching(ctx context.Context, tx *sql.Tx, assetID string, vulns []Vuln, m MatchResult, now time.Time) (regraded int, err error) {
+func (s *Service) noteNoLongerMatching(ctx context.Context, tx *sql.Tx, assetID string, vulns []Vuln, m MatchResult, corrected string, now time.Time) (regraded int, err error) {
 	rows, err := tx.QueryContext(ctx, `SELECT cve FROM fnd_finding WHERE asset_id = ? AND status = 'suspected'`, assetID)
 	if err != nil {
 		return 0, fmt.Errorf("findings: reading suspected findings: %w", err)
@@ -658,6 +664,7 @@ func (s *Service) noteNoLongerMatching(ctx context.Context, tx *sql.Tx, assetID 
 		} else if note, ok := unlisted[cve]; ok {
 			h.Note = clipNote(note)
 		}
+		h.Note = withCorrection(h.Note, corrected)
 		if n := len(r.History); n > 0 && r.History[n-1].Action == "no_longer_matches" && r.History[n-1].Note == h.Note {
 			continue // said already (a new reason, such as NVD's product list for a "Multiple Products" entry, is said once more)
 		}

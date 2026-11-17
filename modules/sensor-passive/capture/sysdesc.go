@@ -79,8 +79,9 @@ var unameDistros = []struct {
 	re   *regexp.Regexp // matched against release + " " + version
 	name string         // "%s" is the first group
 }{
-	// Alpine: "6.18.63-0-lts #1-Alpine SMP …"; the release's "-<pkgrel>-<flavour>" is Alpine's own naming (lts, virt, rpi, edge).
-	{regexp.MustCompile(`#[0-9]{1,6}-Alpine(?: |$)|^[0-9]+\.[0-9]+\.[0-9]+-[0-9]{1,4}-(?:lts|virt|rpi|edge) `), "Alpine Linux"},
+	// Alpine: "6.18.63-0-lts #1-Alpine SMP …": only the build mark every Alpine kernel carries. The release's "-0-lts" shape is not
+	// Alpine's alone (Arch's linux-lts is "6.6.63-1-lts #1 SMP …", review r1 M2 of #950).
+	{regexp.MustCompile(`#[0-9]{1,6}-Alpine(?: |$)`), "Alpine Linux"},
 	// Ubuntu: "5.15.0-91-generic #101-Ubuntu SMP …"; the kernel's ABI does not say which Ubuntu release, so no number.
 	{regexp.MustCompile(`#[0-9]{1,6}(?:~[0-9.]{1,10})?-Ubuntu(?: |$)`), "Ubuntu"},
 	// A Debian backport kernel names the release it was built for: "6.1.0-0.deb11.17-amd64".

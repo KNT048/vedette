@@ -3,6 +3,7 @@ package inventory_test
 import (
 	"net/netip"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -63,7 +64,8 @@ func TestINV39_CorrectedOSWinsDrivesMatchingAndClears(t *testing.T) {
 		t.Fatalf("correction %+v (SNMP's Alpine Linux does not contradict Alpine Linux 3.23)", c)
 	}
 	m, ok, err := e.svc.MatchInput(e.ctx(), dev)
-	if err != nil || !ok || m.OS != "Alpine Linux 3.23" || m.SNMPOS != "Alpine Linux 3.23" || m.StatedOS != "Alpine Linux 3.23" || m.AgentOS != "" {
+	if err != nil || !ok || m.OS != "Alpine Linux 3.23" || m.SNMPOS != "Alpine Linux 3.23" || m.StatedOS != "Alpine Linux 3.23" || m.AgentOS != "" ||
+		!strings.HasPrefix(m.OSCorrection, "op@example.com set the OS to Alpine Linux 3.23 on ") {
 		t.Fatalf("matching must read the person's OS: %+v %v %v", m, ok, err)
 	}
 
@@ -100,9 +102,10 @@ func TestINV39_CorrectedOSWinsDrivesMatchingAndClears(t *testing.T) {
 	}
 }
 
-// INV-39: a person corrects the OpenSSH row a scan reported (BN340: package release 10.2_p1-r1). The correction replaces the scanned row
-// for matching, survives the next scan, says when the scan disagrees, can change the product (the wrong row's CVEs stop matching), and
-// clearing it brings the scanned row back.
+// INV-39: a person corrects the OpenSSH row a scan reported (BN340: package release 10.2_p1-r1). The correction replaces exactly that
+// row for matching, and its re-reports; a later scan that reads another version is another row, which matches and makes the device
+// say the scan disagrees. The correction can change the product (the wrong row's CVEs stop matching); clearing it brings the scanned
+// row back.
 func TestINV39_CorrectedSoftwareReplacesTheScannedRow(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, withKEV(fakeKEV{cves: map[string][]string{"openbsd|openssh": {"CVE-2026-123158"}, "matt johnston|dropbear ssh": {"CVE-2026-0002"}}}))
@@ -111,41 +114,14 @@ func TestINV39_CorrectedSoftwareReplacesTheScannedRow(t *testing.T) {
 		t.Helper()
 		e.tick(time.Minute)
 		if err := e.svc.ReplaceSoftware(e.ctx(), hint, observe.Nmap, []observe.Software{
-			{Display: "OpenSSH", Vendor: "OpenBSD", Product: "OpenSSH", Version: version, KevKeys: []string{"openbsd|openssh"}, Confidence: 0.9},
+			{Display: "OpenSSH", Vendor: "OpenBSD", Product: "OpenSSH", Version: version, CPE: "cpe:/a:openbsd:openssh:" + version, KevKeys: []string{"openbsd|openssh"}, Confidence: 0.9},
 		}); err != nil {
 			t.Fatal(err)
 		}
 	}
 	scan("10.2")
-	addrs, err := e.svc.AddressMap(e.ctx())
-	if err != nil {
-		t.Fatal(err)
-	}
-	dev := addrs[hint.IP.String()]
-	views := func() (scanned, mine inventory.SoftwareView) {
-		t.Helper()
-		d, err := e.svc.Detail(e.ctx(), dev)
-		if err != nil {
-			t.Fatal(err)
-		}
-		for _, s := range d.Asset.Software {
-			if s.Source == "manual" {
-				mine = s
-			} else {
-				scanned = s
-			}
-		}
-		return scanned, mine
-	}
-	match := func() []inventory.MatchSoftware {
-		t.Helper()
-		m, ok, err := e.svc.MatchInput(e.ctx(), dev)
-		if err != nil || !ok {
-			t.Fatal(ok, err)
-		}
-		return m.Software
-	}
-	scanned, _ := views()
+	dev := deviceAt(t, e, hint.IP)
+	scanned, _ := swViews(t, e, dev)
 
 	wantAPIError(t, e.svc.EditSoftware(e.ctx(), "op@example.com", dev, scanned.ID, inventory.SoftwareEdit{}), 400, "bad_edit")
 	wantAPIError(t, e.svc.EditSoftware(e.ctx(), "op@example.com", dev, scanned.ID, inventory.SoftwareEdit{PkgVersion: ptr("10.2 <x>")}), 400, "bad_pkg_version")
@@ -156,55 +132,62 @@ func TestINV39_CorrectedSoftwareReplacesTheScannedRow(t *testing.T) {
 	if len(e.ev.named(inventory.EventSoftwareChanged)) != 1 {
 		t.Fatal("a correction must match the device again (inventory.software.changed)")
 	}
-	sw := match()
-	if len(sw) != 1 || sw[0].Source != "manual" || sw[0].Version != "10.2p1" || sw[0].PkgVersion != "10.2_p1-r1" || !slices.Equal(sw[0].KevKeys, []string{"openbsd|openssh"}) {
-		t.Fatalf("matching must read only the correction: %+v", sw)
+	sw := matchRows(t, e, dev)
+	if len(sw) != 1 || sw[0].Source != "manual" || sw[0].ReportedSource != "nmap" || sw[0].Version != "10.2p1" || sw[0].PkgVersion != "10.2_p1-r1" ||
+		sw[0].CPE != "cpe:/a:openbsd:openssh:10.2" || !slices.Equal(sw[0].KevKeys, []string{"openbsd|openssh"}) {
+		t.Fatalf("matching must read only the correction, with what the person kept: %+v", sw)
 	}
-	scanned, mine := views()
-	if mine.Correction == nil || mine.Correction.Detected == nil || mine.Correction.Detected.ID != scanned.ID || !mine.Correction.Disagrees ||
+	if !strings.HasPrefix(sw[0].Correction, "op@example.com corrected OpenSSH 10.2 (nmap) to OpenSSH 10.2p1 (package 10.2_p1-r1) on ") {
+		t.Fatalf("the correction names the person for the findings history: %q", sw[0].Correction)
+	}
+	scanned, mine := swViews(t, e, dev)
+	if mine.Correction == nil || mine.Correction.Detected == nil || mine.Correction.Detected.ID != scanned.ID || !mine.Correction.Disagrees || mine.Correction.SetBy != "op@example.com" ||
 		mine.PkgVersion == nil || *mine.PkgVersion != "10.2_p1-r1" || scanned.CorrectedBy == nil || *scanned.CorrectedBy != mine.ID {
 		t.Fatalf("detail: scanned %+v, correction %+v", scanned, mine)
 	}
 
-	// The next scan writes its own row (a new one); the correction still replaces it, and says what it reads now.
-	scan("10.3")
-	if sw := match(); len(sw) != 1 || sw[0].Source != "manual" {
+	// A re-report of the same row is replaced too; a scan that reads another version is another row: it matches, and the device says so.
+	scan("10.2")
+	if sw := matchRows(t, e, dev); len(sw) != 1 || sw[0].Source != "manual" {
 		t.Fatalf("the correction must survive the next scan: %+v", sw)
 	}
-	if _, mine := views(); mine.Correction == nil || mine.Correction.Detected == nil || *mine.Correction.Detected.Version != "10.3" || !mine.Correction.Disagrees {
+	scan("10.3")
+	if sw := matchRows(t, e, dev); len(sw) != 2 {
+		t.Fatalf("a version the scan never reported before is not hidden: %+v", sw)
+	}
+	if _, mine := swViews(t, e, dev); mine.Correction == nil || mine.Correction.Detected == nil || *mine.Correction.Detected.Version != "10.3" || !mine.Correction.Disagrees {
 		t.Fatalf("the last scan reads 10.3: %+v", mine.Correction)
 	}
-	// Editing the correction from the scanned row changes the one correction; a version-only edit of it is the D-471 edit.
-	scanned, mine = views()
-	if err := e.svc.EditSoftware(e.ctx(), "op@example.com", dev, scanned.ID, inventory.SoftwareEdit{Version: ptr("10.3")}); err != nil {
+	// A version change without a package release drops the old release (review r1 L3).
+	_, mine = swViews(t, e, dev)
+	if err := e.svc.EditSoftware(e.ctx(), "op@example.com", dev, mine.ID, inventory.SoftwareEdit{Version: ptr("10.3")}); err != nil {
 		t.Fatal(err)
 	}
-	if _, again := views(); again.ID != mine.ID || *again.Version != "10.3" || *again.PkgVersion != "10.2_p1-r1" || again.Correction.Disagrees {
-		t.Fatalf("one correction per product: %+v", again)
+	if _, again := swViews(t, e, dev); again.ID != mine.ID || *again.Version != "10.3" || again.PkgVersion != nil || again.Correction.Disagrees {
+		t.Fatalf("edit of the correction: %+v", again)
 	}
 
-	// Another product: the wrong row's CVEs stop matching.
+	// Another product: the wrong row's CVEs stop matching on this row (the 10.3 row the scan reads now still matches OpenSSH).
 	if err := e.svc.EditSoftware(e.ctx(), "op@example.com", dev, mine.ID, inventory.SoftwareEdit{Vendor: "Matt Johnston", Product: "Dropbear SSH", Version: ptr("2024.86")}); err != nil {
 		t.Fatal(err)
 	}
-	if sw := match(); len(sw) != 1 || !slices.Equal(sw[0].KevKeys, []string{"matt johnston|dropbear ssh"}) {
-		t.Fatalf("matching must read the corrected product: %+v", sw)
+	var mineNow inventory.MatchSoftware
+	for _, r := range matchRows(t, e, dev) {
+		if r.Source == "manual" {
+			mineNow = r
+		}
 	}
-	run, err := e.svc.DevicesRunning(e.ctx(), []inventory.ProductQuery{{Vendor: "OpenBSD", Product: "OpenSSH"}})
-	if err != nil || len(run["openbsd|openssh"]) != 0 {
-		t.Fatalf("the corrected row must not run OpenSSH any more: %+v %v", run, err)
+	if !slices.Equal(mineNow.KevKeys, []string{"matt johnston|dropbear ssh"}) || mineNow.ReportedSource != "" || mineNow.CPE != "" {
+		t.Fatalf("matching must read the corrected product, with nothing of the old one: %+v", mineNow)
 	}
 
 	// Clearing: the scanned row matches again.
-	_, mine = views()
+	_, mine = swViews(t, e, dev)
 	if err := e.svc.RemoveSoftware(e.ctx(), "op@example.com", dev, mine.ID); err != nil {
 		t.Fatal(err)
 	}
-	if sw := match(); len(sw) != 1 || sw[0].Source != "nmap" || sw[0].Version != "10.3" {
+	if sw := matchRows(t, e, dev); len(sw) != 1 || sw[0].Source != "nmap" || sw[0].Version != "10.3" {
 		t.Fatalf("cleared: the scanned row is back: %+v", sw)
-	}
-	if scanned, _ := views(); scanned.CorrectedBy != nil {
-		t.Fatalf("cleared: %+v", scanned)
 	}
 	a := e.auditActions()
 	if countOf(a, "inventory.correct_software") != 3 || countOf(a, "inventory.clear_software_correction") != 1 {
@@ -213,6 +196,126 @@ func TestINV39_CorrectedSoftwareReplacesTheScannedRow(t *testing.T) {
 	if e.count(`SELECT count(*) FROM core_audit WHERE action = 'inventory.correct_software' AND user = 'op@example.com' AND detail = 'OpenSSH 10.2 (nmap) → OpenSSH 10.2p1 (package 10.2_p1-r1)'`) != 1 {
 		t.Fatal("the first audit row must say what the scan read and what the person set")
 	}
+}
+
+// Review r1 H1 of #950: a correction replaces exactly the row the person corrected. Another source's row of the product (.181: the
+// nmap row corrected while the agent's packaged row stands), another version from the same agent (a Debian box with two kernels) and
+// another version from the same scan (OpenSSH on two ports) keep matching.
+func TestINV39_ACorrectionReplacesOnlyItsRow(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	at := netip.MustParseAddr("192.168.18.181")
+	hint := observe.AssetHint{IP: at}
+	if err := e.svc.ReplaceSoftware(e.ctx(), hint, observe.Nmap, []observe.Software{
+		{Display: "OpenSSH", Vendor: "OpenBSD", Product: "OpenSSH", Version: "10.2p1 Ubuntu 2ubuntu3.8", KevKeys: []string{"openbsd|openssh"}, Confidence: 0.9},
+		{Display: "OpenSSH", Vendor: "OpenBSD", Product: "OpenSSH", Version: "8.9p1", KevKeys: []string{"openbsd|openssh"}, Confidence: 0.9}, // a container on 2222/tcp
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.ReplaceSoftware(e.ctx(), hint, observe.Agent, []observe.Software{
+		{Display: "OpenSSH", Vendor: "OpenBSD", Product: "OpenSSH", Version: "10.2p1", KevKeys: []string{"openbsd|openssh"}, Confidence: 0.95,
+			Packaged: true, PkgVersion: "1:10.2p1-2ubuntu3.8", PkgSource: "openssh"},
+		{Display: "Linux kernel", Vendor: "Linux", Product: "Linux kernel", Version: "6.12.116", KevKeys: []string{"linux|kernel"}, Confidence: 0.95,
+			Packaged: true, PkgVersion: "6.12.116-1", PkgSource: "linux"},
+		{Display: "Linux kernel", Vendor: "Linux", Product: "Linux kernel", Version: "6.12.117", KevKeys: []string{"linux|kernel"}, Confidence: 0.95,
+			Packaged: true, PkgVersion: "6.12.117-1", PkgSource: "linux"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	dev := deviceAt(t, e, at)
+	idOf := func(source, version string) string {
+		t.Helper()
+		for _, r := range matchRows(t, e, dev) {
+			if r.Source == source && r.Version == version {
+				return r.ID
+			}
+		}
+		t.Fatalf("no %s row %s", source, version)
+		return ""
+	}
+	for _, c := range []struct{ source, version, to string }{
+		{"nmap", "10.2p1 Ubuntu 2ubuntu3.8", "10.2p1"},
+		{"agent", "6.12.116", "6.12.116"},
+	} {
+		if err := e.svc.EditSoftware(e.ctx(), "op@example.com", dev, idOf(c.source, c.version), inventory.SoftwareEdit{Version: ptr(c.to), PkgVersion: ptr("9.9-1")}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var got []string
+	for _, r := range matchRows(t, e, dev) {
+		got = append(got, r.Source+" "+r.Version)
+	}
+	slices.Sort(got)
+	want := []string{"agent 10.2p1", "agent 6.12.117", "manual 10.2p1", "manual 6.12.116", "nmap 8.9p1"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("rows matched %v, want %v (only the two corrected rows go)", got, want)
+	}
+}
+
+// Review r1 M1 of #950: a version-only correction of an agent's packaged row keeps the row's distribution semantics: matching reads it
+// as built by the agent's packages (ReportedSource agent, Packaged, the source package, the CPE); the package release of the old
+// version is dropped, so no distribution fix is read against it; a package-only correction keeps the version.
+func TestINV39_ACorrectionKeepsWhatThePersonDidNotChange(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	at := netip.MustParseAddr("192.168.18.50")
+	if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: at}, observe.Agent, []observe.Software{
+		{Display: "OpenSSL", Vendor: "OpenSSL", Product: "OpenSSL", Version: "3.0.13", CPE: "cpe:2.3:a:openssl:openssl:3.0.13:*:*:*:*:*:*:*", KevKeys: []string{"openssl|openssl"},
+			Confidence: 0.95, Packaged: true, PkgVersion: "3.0.13-0ubuntu3.5", PkgSource: "openssl"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	dev := deviceAt(t, e, at)
+	row := matchRows(t, e, dev)[0]
+	if err := e.svc.EditSoftware(e.ctx(), "op@example.com", dev, row.ID, inventory.SoftwareEdit{Version: ptr("3.0.14")}); err != nil {
+		t.Fatal(err)
+	}
+	sw := matchRows(t, e, dev)
+	if len(sw) != 1 || sw[0].Source != "manual" || sw[0].ReportedSource != "agent" || !sw[0].Packaged || sw[0].PkgSource != "openssl" ||
+		sw[0].PkgVersion != "" || sw[0].CPE != row.CPE || sw[0].Version != "3.0.14" {
+		t.Fatalf("version-only correction: %+v", sw)
+	}
+	if err := e.svc.EditSoftware(e.ctx(), "op@example.com", dev, sw[0].ID, inventory.SoftwareEdit{PkgVersion: ptr("3.0.14-0ubuntu1")}); err != nil {
+		t.Fatal(err)
+	}
+	if sw := matchRows(t, e, dev); sw[0].Version != "3.0.14" || sw[0].PkgVersion != "3.0.14-0ubuntu1" || sw[0].PkgSource != "openssl" || !sw[0].Packaged {
+		t.Fatalf("package-only correction: %+v", sw)
+	}
+}
+
+func deviceAt(t *testing.T, e *env, ip netip.Addr) string {
+	t.Helper()
+	addrs, err := e.svc.AddressMap(e.ctx())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return addrs[ip.String()]
+}
+
+func matchRows(t *testing.T, e *env, dev string) []inventory.MatchSoftware {
+	t.Helper()
+	m, ok, err := e.svc.MatchInput(e.ctx(), dev)
+	if err != nil || !ok {
+		t.Fatal(ok, err)
+	}
+	return m.Software
+}
+
+// swViews is the device detail's reported row and the person's correction (the last of each).
+func swViews(t *testing.T, e *env, dev string) (scanned, mine inventory.SoftwareView) {
+	t.Helper()
+	d, err := e.svc.Detail(e.ctx(), dev)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, s := range d.Asset.Software {
+		if s.Source == "manual" {
+			mine = s
+		} else {
+			scanned = s
+		}
+	}
+	return scanned, mine
 }
 
 func countOf(list []string, v string) int {

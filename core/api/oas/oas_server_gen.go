@@ -1413,10 +1413,12 @@ type Handler interface {
 	//
 	// Change a software row (D-471, INV-39). A row a person declared changes in place. A row a sensor or
 	// agent reported is corrected: the values go in a manual correction row (source manual, correction
-	// set) that replaces the reported row for matching until it is deleted; later scans keep reporting
-	// their own row (corrected_by), shown next to it. Fields left out keep their value. The device is
-	// matched again. 400 bad_edit (nothing to change), bad_version, bad_pkg_version, unknown_product,
-	// incomplete_product, bad_product. 409 duplicate_software.
+	// set) that replaces exactly that row (its source, product and version, and its re-reports) for
+	// matching until it is deleted; another install of the product (another version or source) keeps
+	// matching. Fields left out keep their value (the CPE, the packaged flag, the source package; the
+	// package release while the version stays); another product starts clean. The device is matched again.
+	// 400 bad_edit (nothing to change), bad_version, bad_pkg_version, unknown_product, incomplete_product,
+	// bad_product. 409 duplicate_software.
 	//
 	// PATCH /inventory/devices/{id}/software/{sid}
 	InventoryPatchInventoryDevicesIDSoftwareSid(ctx context.Context, req *InventoryPatchInventoryDevicesIDSoftwareSidReq, params InventoryPatchInventoryDevicesIDSoftwareSidParams) (*InventoryPatchInventoryDevicesIDSoftwareSidOK, error)

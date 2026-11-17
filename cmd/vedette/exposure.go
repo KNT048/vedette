@@ -118,6 +118,7 @@ func exposureAtStart(ctx context.Context, d deps) {
 	if d.Reg == nil || d.Reg.Enabled(exposure.ModuleID) {
 		svc := exposureService(d)
 		svc.CutOffAtStart(ctx) // An OpenVAS step a restart left "running" is stored as stopped
+		svc.StopsAtStart(ctx)  // An OpenVAS step an older version stored as stopped gets its stop time and the reason the audit log proves
 		svc.GreenboneAtStart(ctx)
 	}
 }

@@ -76,8 +76,8 @@ describe('exposure: an OpenVAS step that was stopped says why and when, and runs
   })
 
   it.each([
-    [{ ended_at: stoppedAt }, 'Stopped at 17 Nov 2026, 22:43. This scan is older than the version of Vedette that records why: someone pressed Stop, Vedette shut down, the External exposure module was switched off, or the testing terms were withdrawn.'],
-    [{}, 'Stopped before it finished. This scan is older than the version of Vedette that records why and when: someone pressed Stop, Vedette shut down or restarted, the External exposure module was switched off, or the testing terms were withdrawn.'],
+    [{ ended_at: stoppedAt }, 'Stopped at 17 Nov 2026, 22:43: someone pressed Stop or Vedette shut down (an update or a restart). This scan is older than the version of Vedette that records which of the two.'],
+    [{}, 'Stopped before it finished; the time was not recorded for this older scan. The reason is one of: someone pressed Stop, Vedette shut down (an update or a restart), the External exposure module was switched off, or the testing terms were withdrawn or lowered.'],
   ])('a step stopped before the reason was recorded says so, with its stop time when known: %o', async (end, line) => {
     serve(snapshotOf({ state: 'stopped', ...end }, { not_checked: [{ kind: 'greenbone', text: 'OpenVAS was stopped before it finished, so its results are not shown. The results of the other checks above are kept.' }] }))
     renderApp('/exposure/xt-2')

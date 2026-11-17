@@ -757,8 +757,8 @@
         "shutdown": "Stopped at {{time}}: Vedette shut down while OpenVAS ran (an update, a restart or a stop of the service).",
         "restart": "Stopped: Vedette restarted while OpenVAS ran. It noticed when it started again at {{time}}.",
         "restartNoTime": "Stopped: Vedette restarted while OpenVAS ran.",
-        "unknown": "Stopped at {{time}}. This scan is older than the version of Vedette that records why: someone pressed Stop, Vedette shut down, the External exposure module was switched off, or the testing terms were withdrawn.",
-        "unknownNoTime": "Stopped before it finished. This scan is older than the version of Vedette that records why and when: someone pressed Stop, Vedette shut down or restarted, the External exposure module was switched off, or the testing terms were withdrawn.",
+        "unknown": "Stopped at {{time}}: someone pressed Stop or Vedette shut down (an update or a restart). This scan is older than the version of Vedette that records which of the two.",
+        "unknownNoTime": "Stopped before it finished; the time was not recorded for this older scan. The reason is one of: someone pressed Stop, Vedette shut down (an update or a restart), the External exposure module was switched off, or the testing terms were withdrawn or lowered.",
         "module_off": "Stopped at {{time}}: the External exposure module was switched off.",
         "terms": "Stopped at {{time}}: {{by}} withdrew or lowered the testing terms of this target.",
         "someone": "someone"

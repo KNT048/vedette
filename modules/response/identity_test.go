@@ -2,6 +2,7 @@ package response_test
 
 import (
 	"context"
+	"database/sql"
 	"regexp"
 	"strings"
 	"sync"
@@ -176,25 +177,45 @@ func TestContract_TelegramWrongAndExpiredLinks(t *testing.T) {
 }
 
 // Links asked for at the same moment (an administrator's save and the person's Send again) give one token: the others wait their
-// minute, and the one token handed out is the one that works.
+// minute, and the one token handed out is the one that works. The writer is held until every caller has read the person's channels,
+// so the callers reach the one-a-minute check together.
 func TestContract_LinksAskedAtOnceGiveOneToken(t *testing.T) {
 	t.Parallel()
 	c := unlinkedChat(t)
-	const n = 4
+	const n = 6
+	var (
+		listed  sync.WaitGroup // each caller lists the Zalo approvers last, just before it makes its token
+		held    = make(chan struct{})
+		release = make(chan struct{})
+		holder  = make(chan error, 1)
+	)
+	listed.Add(n)
+	c.note.mu.Lock()
+	c.note.onList = func(ch string) {
+		if ch == "zalo-personal" {
+			listed.Done()
+		}
+	}
+	c.note.mu.Unlock()
+	go func() {
+		holder <- c.db.Write(c.ctx(), func(*sql.Tx) error { close(held); <-release; return nil })
+	}()
+	<-held
 	var (
 		wg     sync.WaitGroup
-		start  = make(chan struct{})
 		tokens = make([]string, n)
 		errs   = make([]error, n)
 	)
 	for i := range n {
-		wg.Go(func() {
-			<-start
-			tokens[i], _, errs[i] = c.svc.ChatLinkToken(c.ctx(), "u-op", "telegram", tgOp)
-		})
+		wg.Go(func() { tokens[i], _, errs[i] = c.svc.ChatLinkToken(c.ctx(), "u-op", "telegram", tgOp) })
 	}
-	close(start)
+	listed.Wait()
+	c.note.mu.Lock()
+	c.note.onList = nil
+	c.note.mu.Unlock()
+	close(release)
 	wg.Wait()
+	c.must(<-holder)
 	var token string
 	for i, err := range errs {
 		switch {
@@ -211,6 +232,34 @@ func TestContract_LinksAskedAtOnceGiveOneToken(t *testing.T) {
 	}
 	if _, err := c.svc.ConfirmLink(c.ctx(), op, "telegram", token); err != nil {
 		t.Fatalf("the token handed out does not work: %v", err)
+	}
+}
+
+// A link that could not be delivered drops its own token and nothing else: a newer token for the same person and address still works,
+// and a proof already made stays.
+func TestContract_UndeliveredLinkDropsOnlyItsToken(t *testing.T) {
+	t.Parallel()
+	c := unlinkedChat(t)
+	old, _, err := c.svc.ChatLinkToken(c.ctx(), "u-op", "telegram", tgOp)
+	c.must(err)
+	c.must(c.svc.DropLinkToken(c.ctx(), "u-op", "telegram", tgOp, old))
+	if c.count(`SELECT COUNT(*) FROM resp_link_codes`) != 0 {
+		t.Fatal("the undelivered token is still waiting")
+	}
+	c.clock.Advance(61 * time.Second)
+	old, _, err = c.svc.ChatLinkToken(c.ctx(), "u-op", "telegram", tgOp)
+	c.must(err)
+	c.clock.Advance(61 * time.Second)
+	token, _, err := c.svc.ChatLinkToken(c.ctx(), "u-op", "telegram", tgOp)
+	c.must(err)
+	c.must(c.svc.DropLinkToken(c.ctx(), "u-op", "telegram", tgOp, old)) // the older send failed after the newer token was made
+	c.must(c.svc.DropLinkToken(c.ctx(), "u-op", "telegram", tgOp2, token))
+	if _, err := c.svc.ConfirmLink(c.ctx(), op, "telegram", token); err != nil {
+		t.Fatalf("a failed older send dropped the newer token: %v", err)
+	}
+	c.must(c.svc.DropLinkToken(c.ctx(), "u-op", "telegram", tgOp, token))
+	if c.count(`SELECT COUNT(*) FROM resp_identity WHERE user_id = 'u-op' AND channel = 'telegram'`) != 1 {
+		t.Fatal("dropping a token ended the proof")
 	}
 }
 

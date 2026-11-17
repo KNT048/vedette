@@ -90,8 +90,8 @@ func TestContract_TelegramApproverConfirmLink(t *testing.T) {
 	if st, _ := e.svc.TelegramApprovers(e.ctx(), "admin@acme.example"); st[0].State != "not_sent" || !strings.Contains(st[0].Error, "press Start") {
 		t.Errorf("after the note: %+v", st)
 	}
-	if len(codes.dropped) != 1 || codes.dropped[0] != "admin@acme.example|u-op|"+tgOp {
-		t.Errorf("the undelivered link was not dropped: %v", codes.dropped)
+	if len(codes.unsent) != 1 || codes.unsent[0] != "u-op|"+tgOp+"|0a1b2c3d-tokenTOKENtoken0123456" || len(codes.dropped) != 0 {
+		t.Errorf("the undelivered token was not dropped, or more was: %v %v", codes.unsent, codes.dropped)
 	}
 	if e.count(`SELECT COUNT(*) FROM core_audit WHERE action = 'notify.telegram_link_code' AND detail LIKE '%press Start was posted%' AND detail NOT LIKE '%tokenTOKEN%'`) != 1 {
 		t.Error("the note is not audited")
@@ -117,7 +117,7 @@ func TestContract_TelegramApproverConfirmLink(t *testing.T) {
 	if e.count(`SELECT COUNT(*) FROM core_audit WHERE action = 'notify.telegram_unlink' AND detail LIKE 'it@acme.example: Telegram `+tgOp+`%'`) != 1 {
 		t.Error("removing a linked approver is not audited")
 	}
-	if len(codes.dropped) != 2 || codes.dropped[1] != "admin@acme.example|u-op|"+tgOp {
+	if len(codes.dropped) != 1 || codes.dropped[0] != "admin@acme.example|u-op|"+tgOp {
 		t.Errorf("the old proof was not dropped: %v", codes.dropped)
 	}
 }

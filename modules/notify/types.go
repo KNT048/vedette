@@ -266,10 +266,12 @@ type ApproverLinks interface {
 // keeps the token and the proof): only the person, signed in to Vedette as themself, confirms it, so no administrator links anyone.
 // name is the Vedette user's name for the message. A refusal is an *apierr.Error (not listed, already linked, a new link too soon,
 // Response off): it goes to the administrator as it is. DropChatLink ends the proof of one address when an administrator removes that
-// approver or gives them another address, so the old address never counts again without a new proof.
+// approver or gives them another address, so the old address never counts again without a new proof. DropLinkToken removes one token
+// that could not be delivered, and only that token: a newer one, or a proof, stays.
 type LinkCodes interface {
 	ChatLinkToken(ctx context.Context, userID string, ch channel.Type, address string) (token, name string, err error)
 	DropChatLink(ctx context.Context, actor, userID string, ch channel.Type, address string) error
+	DropLinkToken(ctx context.Context, userID string, ch channel.Type, address, token string) error
 }
 
 // HitRef names a trap hit an incident links to: its id and the time it was seen (the incident's first_seen).

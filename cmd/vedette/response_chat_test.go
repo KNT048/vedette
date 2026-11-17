@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/api/routes"
-	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/modules/notify"
 	"github.com/knt048/vedette/modules/notify/channel"
 	"github.com/knt048/vedette/modules/response"
@@ -19,7 +18,7 @@ import (
 
 func TestWiringChatDecisionsPort(t *testing.T) {
 	t.Parallel()
-	s, clock, a, _ := linkSetup(t)
+	s, _, a, _ := linkSetup(t)
 	ctx := t.Context()
 	svc := s.d.Response
 
@@ -38,7 +37,7 @@ func TestWiringChatDecisionsPort(t *testing.T) {
 	}
 	// The save sends Bao a confirm link in the background, with its own token, and drops that token when the link cannot be delivered
 	// (the bot token here is made up). Wait until that send is over, so the token made below is the only one waiting: a send still
-	// running could replace it or drop it.
+	// running could replace it or drop it. "sending" ends last, after the token was dropped.
 	for deadline := time.Now().Add(45 * time.Second); ; { // the send gives up after 30 s
 		list, err := n.TelegramApprovers(ctx, "admin@acme.example")
 		if err != nil {
@@ -84,11 +83,7 @@ func TestWiringChatDecisionsPort(t *testing.T) {
 	if err != nil || r.Status != "approver_not_linked" || regexp.MustCompile(`\d{6}`).MatchString(r.Message) {
 		t.Fatalf("unlinked: %+v %v", r, err)
 	}
-	token, _, err := svc.ChatLinkToken(ctx, bao.ID, "telegram", "100200")
-	if ae, ok := apierr.As(err); ok && ae.Code == "resend_too_soon" { // the save's own send came first: a minute later a new one replaces it
-		clock.advance(61 * time.Second)
-		token, _, err = svc.ChatLinkToken(ctx, bao.ID, "telegram", "100200")
-	}
+	token, _, err := svc.ChatLinkToken(ctx, bao.ID, "telegram", "100200") // the save's undelivered link left no token waiting
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -78,7 +78,7 @@ func (s *Service) SendApproverLink(ctx context.Context, actor string, t channel.
 
 // sendTelegramLink asks response for a new token and sends the link privately: "<name>: open this link to link your Telegram account to
 // Vedette". The link needs the address people open Vedette at (Config.BaseURL). The token goes only to the listed user ID, never into a
-// shared chat: only that account can open it. A link that could not be delivered is dropped (response DropChatLink: no
+// shared chat: only that account can open it. A link that could not be delivered is dropped (response DropLinkToken, that token only: no
 // token waits that nobody received) and answered as 502 send_failed; the approver's state keeps why. The token is never logged nor audited.
 func (s *Service) sendTelegramLink(ctx context.Context, actor string, c channelRow, a Approver) error {
 	if s.cfg.LinkCodes == nil {
@@ -96,23 +96,24 @@ func (s *Service) sendTelegramLink(ctx context.Context, actor string, c channelR
 		return err
 	}
 	sent, note := s.deliverTelegramLink(ctx, c, a, s.link(telegramLinkPath(token)), name)
-	s.markCode(channel.Telegram, a, sent)
 	detail := "a confirm link was sent privately to Telegram " + a.Address
 	if sent.errText != "" {
 		detail = "a confirm link could not be sent to Telegram " + a.Address + ": " + sent.errText
 		if note {
 			detail = "a confirm link could not be sent to Telegram " + a.Address + " (the bot may not write to it first); a note asking them to press Start was posted in the approval chat"
 		}
-		if derr := s.cfg.LinkCodes.DropChatLink(ctx, actor, a.UserID, channel.Telegram, a.Address); derr != nil {
+		if derr := s.cfg.LinkCodes.DropLinkToken(ctx, a.UserID, channel.Telegram, a.Address, token); derr != nil {
 			s.cfg.Log.WarnContext(ctx, "notify: telegram: an undelivered confirm link could not be dropped", "user", a.UserID, "error", derr.Error())
 		}
 	}
 	if u, ok, uerr := s.cfg.Users.Lookup(ctx, a.UserID); uerr == nil && ok {
 		detail += " (approver " + u.Email + ")"
 	}
-	if err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+	err = s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		return s.record(ctx, tx, actor, "notify.telegram_link_code", string(channel.Telegram), clip(detail, 400))
-	}); err != nil {
+	})
+	s.markCode(channel.Telegram, a, sent) // last: once the dialog stops showing "sending", the send has finished everything it does
+	if err != nil {
 		return err
 	}
 	if sent.errText != "" {

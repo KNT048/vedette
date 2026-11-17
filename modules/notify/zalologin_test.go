@@ -204,7 +204,15 @@ type fakeLinkCodes struct {
 	mu      sync.Mutex
 	asked   []string
 	dropped []string
+	unsent  []string // tokens of links that could not be delivered
 	err     error
+}
+
+func (f *fakeLinkCodes) DropLinkToken(_ context.Context, userID string, _ channel.Type, address, token string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.unsent = append(f.unsent, userID+"|"+address+"|"+token)
+	return nil
 }
 
 func (f *fakeLinkCodes) DropChatLink(_ context.Context, actor, userID string, _ channel.Type, address string) error {

@@ -597,6 +597,19 @@ func (s *Service) ChatLinkToken(ctx context.Context, userID, channel, address st
 	return token, name, nil
 }
 
+// DropLinkToken removes the waiting confirm-link token of the person on the channel when it is exactly this token for this address: notify
+// calls it when the link could not be delivered, so no token waits that nobody received (Config.LinkCodes). A newer token, or a proof
+// already made, is left as it is. Nothing waiting is no error.
+func (s *Service) DropLinkToken(ctx context.Context, userID, channel, address, token string) error {
+	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM resp_link_codes WHERE user_id = ? AND channel = ? AND address = ? AND code_hash = ?`,
+			userID, channel, address, linkCodeHash(userID, channel, address, strings.TrimSpace(token))); err != nil {
+			return fmt.Errorf("response: delete link code: %w", err)
+		}
+		return nil
+	})
+}
+
 // DropChatLink ends the person's proof of exactly this address on the channel, and any code waiting for it, when an administrator removes
 // them as an approver or gives them another address (notify Config.LinkCodes): a proof held to an old address must not count again
 // if the list later names that address once more. Nothing linked is no error. The audit row is response.identity_unlink by the actor.

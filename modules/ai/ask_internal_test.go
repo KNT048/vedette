@@ -211,3 +211,17 @@ func TestDocNamesAreQuoted(t *testing.T) {
 		t.Fatalf("docNames = %s", got)
 	}
 }
+
+// A finding's times reach the model named for what they are: when Vedette matched it, not when the device was seen.
+func TestFindingMap_TimesAreMatchTimes(t *testing.T) {
+	t.Parallel()
+	m := findingMap(FindingRow{ID: "f-1", CVE: "CVE-2024-0001", FirstSeen: "2026-11-10T08:00:00Z", LastSeen: "2026-11-17T08:00:00Z"})
+	if m["first_matched"] != "2026-11-10T08:00:00Z" || m["last_matched"] != "2026-11-17T08:00:00Z" {
+		t.Fatalf("times: %v", m)
+	}
+	for _, k := range []string{"first_seen", "last_seen"} {
+		if _, ok := m[k]; ok {
+			t.Errorf("%s is read as when the device was seen: %v", k, m)
+		}
+	}
+}

@@ -195,3 +195,26 @@ func TestFindingDetail_KnownVersionSaysWhenTheVersionWasReported(t *testing.T) {
 		t.Errorf("no time on the row: seen_at must be null, got %v (present %v)", v, ok)
 	}
 }
+
+// The network OS row a device states itself has the time of that statement: its SNMP answer's for source snmp, its LLDP
+// statement's for source stated.
+func TestFindingDetail_StatedOSVersionHasTheTimeOfTheStatement(t *testing.T) {
+	t.Parallel()
+	vulns := loadGolden(t, "testdata/kev-nvd-junos-n23.json")
+	i := slices.IndexFunc(vulns, func(v Vuln) bool { return v.CVE == "CVE-2023-36845" })
+	lldpAt, snmpAt := time.Date(2026, 11, 15, 8, 0, 0, 0, time.UTC), time.Date(2026, 11, 16, 9, 0, 0, 0, time.UTC)
+	for _, tc := range []struct{ name, snmp, source, want string }{
+		{"snmp", "JUNOS 15.1R7.9", "snmp", "2026-11-16T09:00:00Z"},
+		{"lldp", "", "stated", "2026-11-15T08:00:00Z"},
+	} {
+		ex := labEX4200()
+		ex.ID, ex.SNMPOS, ex.StatedOSAt = "a-1", tc.snmp, lldpAt
+		if tc.snmp != "" {
+			ex.SNMPOSAt = snmpAt
+		}
+		b := detailKnown(t, ex, vulns[i])
+		if k, _ := b["known_version"].(map[string]any); k["source"] != tc.source || k["seen_at"] != tc.want {
+			t.Errorf("%s: %v", tc.name, b["known_version"])
+		}
+	}
+}

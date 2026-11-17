@@ -51,7 +51,7 @@
   "emptyDevices": "Open Devices",
   "emptyScan": "Open Settings, Scanning",
   "matched": "Last matched {{time}}",
-  "matchedInfo": "When Vedette last matched the software of the device to this vulnerability. It matches again every hour and after every change to the software of the device. It is not when the device or its software was last seen.",
+  "matchedInfo": "When Vedette last matched the software of the device to this vulnerability. It matches again every hour, after every change to the software of the device, and when a scan confirms the finding. It is not when the device or its software was last seen.",
   "col": {
     "device": "Device",
     "cve": "CVE",
@@ -87,7 +87,7 @@
       "agentLast": "{{software}} {{version}}: from the last list an agent sent, on {{date}}.",
       "snmp": "{{software}} {{version}}: read over SNMP on {{date}}.",
       "stated": "{{software}} {{version}}: announced by the device over LLDP on {{date}}.",
-      "scan": "{{software}} {{version}}: read by a network scan on {{date}}.",
+      "scan": "{{software}} {{version}}: listed by the latest network scan, on {{date}}.",
       "manual": "{{software}} {{version}}: entered on the Devices page on {{date}}."
     },
     "due": "CISA requires action by {{date}}.",

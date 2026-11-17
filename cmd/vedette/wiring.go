@@ -257,6 +257,12 @@ func findingsAsset(d inventory.MatchDevice) findings.Asset {
 	for i, s := range d.Software {
 		out.Software[i] = findingsSoftware(s)
 	}
+	if t, err := time.Parse(time.RFC3339Nano, d.StatedOSAt); err == nil {
+		out.StatedOSAt = t
+	}
+	if t, err := time.Parse(time.RFC3339Nano, d.SNMPOSAt); err == nil {
+		out.SNMPOSAt = t
+	}
 	for _, s := range d.NotInstalled { // INV-41 (6): rows a person said are not installed; findings closes what only they produce
 		out.NotInstalled = append(out.NotInstalled, findingsSoftware(s))
 	}

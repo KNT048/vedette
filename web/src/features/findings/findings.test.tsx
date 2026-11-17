@@ -484,7 +484,7 @@ describe('findings: slot device.panels', () => {
     sessionStore.set({ userId: 'u-admin' })
     renderApp('/findings/f-1')
     expect(await screen.findByText(/^Found .+, last matched .+\.$/)).toBeInTheDocument()
-    expect(screen.getByText(/^QNAP Photo Station 6\.0\.20: read by a network scan on \d{1,2} \w{3} \d{4}, \d{2}:\d{2}\.$/)).toBeInTheDocument()
+    expect(screen.getByText(/^QNAP Photo Station 6\.0\.20: listed by the latest network scan, on \d{1,2} \w{3} \d{4}, \d{2}:\d{2}\.$/)).toBeInTheDocument()
     expect(screen.queryByText(/^First seen|, last seen /)).not.toBeInTheDocument()
   })
 

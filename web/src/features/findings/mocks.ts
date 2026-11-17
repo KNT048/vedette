@@ -183,8 +183,11 @@ function knownFor(f: Finding, k: KevInfo | null): KnownVersion | null {
   const source = s ? VERSION_SOURCE[s.source] : undefined
   if (!a || !s || !s.version || !source) return null
   const name = source === 'manual' ? s.display : s.display.endsWith(` ${s.version}`) ? s.display.slice(0, -s.version.length - 1) : s.display
-  // the sample software rows keep no time of their own: the device's last sighting stands in for when the source gave the version
-  return { software: name, version: s.version, source, seen_at: a.last_seen }
+  // As the box: a row a scan, an agent or a person gave has its own time (the sample rows keep none, so the device's last sighting stands
+  // in); the OS a device states over SNMP or LLDP has the time of that statement, null when the device's OS reading is not one.
+  const stated = source === 'snmp' || source === 'stated'
+  const statement = a.os && (a.os.source === 'snmp' || a.os.source === 'passive') ? a.os.seen_at : null
+  return { software: name, version: s.version, source, seen_at: stated ? statement : a.last_seen }
 }
 
 /** mitigation knownRecheck: the version and who gave it, how a newer one reaches Vedette, what a scan template adds. */

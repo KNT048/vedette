@@ -102,6 +102,9 @@ type Asset struct {
 	// LLDP frame, which any host on the wire can send with another device's MAC, it is the device answering at its own address
 	// (only it may make a Junos statement count for scan-seen rows).
 	SNMPOS string
+	// StatedOSAt and SNMPOSAt are when the device last stated StatedOS and SNMPOS (zero when unknown): the time of the version of its
+	// network OS row (deviceOS, known_version.seen_at).
+	StatedOSAt, SNMPOSAt time.Time
 	// MAC is the device's MAC at its own address (inventory's current MAC of a device with an IP), "" when none: with an OUI of Juniper
 	// Networks it lets an LLDP statement of Junos count for the device's scan-seen rows (networkStated).
 	MAC string

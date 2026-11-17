@@ -32,6 +32,8 @@ type PossibleSame struct {
 	Name     string `json:"name"`
 	Why      string `json:"why"`
 	Approved bool   `json:"approved"`
+	// Ignored: a person ignored the other device (D-630); the Merge dialog says which watch state the kept device ends with.
+	Ignored  bool   `json:"ignored"`
 	LastSeen string `json:"last_seen"`
 }
 
@@ -474,12 +476,18 @@ func (s *Service) PossibleSameAs(ctx context.Context, id string) ([]PossibleSame
 		return nil, err
 	}
 	out := make([]PossibleSame, 0, len(pairs))
+	var ignored map[string]bool
+	if len(pairs) > 0 {
+		if ignored, err = s.ignoredIDs(ctx); err != nil {
+			return nil, err
+		}
+	}
 	for _, p := range pairs {
 		other := p.b
 		if other.ID == id {
 			other = p.a
 		}
-		out = append(out, PossibleSame{ID: other.ID, Name: other.Name, Why: p.why, Approved: other.Approved, LastSeen: other.LastSeen})
+		out = append(out, PossibleSame{ID: other.ID, Name: other.Name, Why: p.why, Approved: other.Approved, Ignored: ignored[other.ID], LastSeen: other.LastSeen})
 	}
 	slices.SortFunc(out, func(a, b PossibleSame) int {
 		if c := strings.Compare(b.LastSeen, a.LastSeen); c != 0 {

@@ -251,19 +251,27 @@ func TestContract_D630_AJoinKeepsTheWatchStateOfTheKeptDevice(t *testing.T) {
 	t.Parallel()
 	const admin = "admin@acme.example"
 	for _, c := range []struct {
-		name                    string
-		ignoreInto, ignoreFrom  bool
-		wantEvent, wantInDetail string
+		name                                string
+		ignoreInto, ignoreFrom, approveFrom bool
+		wantIgnored                         bool
+		wantEvent, wantInDetail             string
 	}{
-		{"an ignored row into a watched device", false, true, inventory.EventAssetUnignored, "was ignored and"},
-		{"a watched row into an ignored device", true, false, inventory.EventAssetIgnored, "is ignored, so it stays ignored"},
-		{"both watched", false, false, "", ""},
+		{"an ignored row into a watched device", false, true, false, false, inventory.EventAssetUnignored, "was ignored and"},
+		{"a watched row into an ignored device", true, false, false, true, inventory.EventAssetIgnored, "is ignored, so it stays ignored"},
+		// review r2 N2: an approved device a person watches is never hidden, even merged into an ignored row
+		{"a watched approved row into an ignored device", true, false, true, false, inventory.EventAssetUnignored, "is watched again"},
+		{"both watched", false, false, false, false, "", ""},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			e := newEnv(t)
 			e.record(obs(netip.MustParseAddr("192.168.18.50"), macA, observe.Hostname, "srv-a", observe.Passive, 0.7))
 			e.record(obs(netip.MustParseAddr("192.168.18.51"), macB, observe.Hostname, "srv-b", observe.Passive, 0.7))
 			into, from := e.idByMAC(macA), e.idByMAC(macB)
+			if c.approveFrom {
+				if err := e.svc.Approve(e.ctx(), "it@acme.example", from); err != nil {
+					t.Fatal(err)
+				}
+			}
 			for id, ig := range map[string]bool{into: c.ignoreInto, from: c.ignoreFrom} {
 				if ig {
 					if err := e.svc.SetIgnored(e.ctx(), "it@acme.example", id, true); err != nil {
@@ -275,8 +283,8 @@ func TestContract_D630_AJoinKeepsTheWatchStateOfTheKeptDevice(t *testing.T) {
 			if err := e.svc.Merge(e.ctx(), admin, into, from); err != nil {
 				t.Fatal(err)
 			}
-			if d := e.detail(into); (d.Asset.IgnoredAt != nil) != c.ignoreInto {
-				t.Fatalf("into ignored = %v, want %v", d.Asset.IgnoredAt != nil, c.ignoreInto)
+			if d := e.detail(into); (d.Asset.IgnoredAt != nil) != c.wantIgnored {
+				t.Fatalf("into ignored = %v, want %v", d.Asset.IgnoredAt != nil, c.wantIgnored)
 			}
 			var got []string
 			for _, name := range []string{inventory.EventAssetIgnored, inventory.EventAssetUnignored} {

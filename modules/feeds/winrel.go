@@ -112,7 +112,8 @@ func parseWinRelPage(body []byte, server bool) ([]winRelHistory, error) {
 // information pages, of the kind of the page (server or client), each by the build its row names. The previews (C, D), out-of-band
 // and first builds are left out: the target of a Windows release's update is the month's security update everyone is offered. It reads
 // the hotpatches of the page's hotpatch calendars too (Type "Hotpatch"; the calendars' baselines are the history's B rows): a device on
-// one is current to its month (core/winrel.Baseline). A row whose values are not of the expected shape is skipped, and so is one dated
+// one is current to its month (core/winrel.Baseline). A hotpatch at a build the page's update history lists (a first build, a B, a
+// preview, an out-of-band update) is a pasted regular build, not a hotpatch, and is left out. A row whose values are not of the expected shape is skipped, and so is one dated
 // after now or outside the month its label names (a mistyped date would stay "newest" for a year); a page with none gives none.
 func parseWinRelUpdates(body []byte, server bool, now time.Time) []winrel.Update {
 	var out []winrel.Update
@@ -130,12 +131,14 @@ func parseWinRelUpdates(body []byte, server bool, now time.Time) []winrel.Update
 		}
 		out = append(out, winrel.Update{Build: b, Server: server, Rev: rev, KB: kb, Day: d, Hotpatch: hotpatch})
 	}
+	regular := map[string]bool{} // every build of the update histories ("26100.33674")
 	for _, m := range winRelAnyTableRE.FindAllSubmatch(body, 64) {
 		for _, row := range winRelRowRE.FindAllSubmatch(m[1], 2000) {
 			cells := winRelCellRE.FindAllSubmatch(row[1], 8)
 			if len(cells) != 5 {
 				continue
 			}
+			regular[winRelText(cells[3][1])] = true
 			if upd := winRelText(cells[1][1]); winRelMonthlyRE.MatchString(upd) {
 				read(upd, winRelText(cells[2][1]), winRelText(cells[3][1]), winRelText(cells[4][1]), false)
 			}
@@ -147,7 +150,7 @@ func parseWinRelUpdates(body []byte, server bool, now time.Time) []winrel.Update
 			if len(cells) != 6 {
 				continue
 			}
-			if upd := winRelText(cells[1][1]); winRelHotpatchRE.MatchString(upd) && winRelText(cells[2][1]) == "Hotpatch" {
+			if upd := winRelText(cells[1][1]); winRelHotpatchRE.MatchString(upd) && winRelText(cells[2][1]) == "Hotpatch" && !regular[winRelText(cells[4][1])] {
 				read(upd, winRelText(cells[3][1]), winRelText(cells[4][1]), winRelText(cells[5][1]), true)
 			}
 		}

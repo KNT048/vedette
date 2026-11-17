@@ -41,10 +41,12 @@ type winDev struct {
 	ubr string // update revision, "4460", as the device reports it
 	// rev is the revision the device is compared at: ubr as a number, or, for a hotpatch Microsoft lists for the release, the
 	// revision of the same month's monthly update (core/winrel.Baseline): the hotpatch has that month's security fixes, below its build
-	rev    int
-	target string // "x64", "x86", "arm64"; "" when not known
-	ltsc   bool   // the device's OS name says LTSC or LTSB
-	cpe    CPE    // the row's own CPE: an NVD row's NA covers only what it leaves unstated (winUnpinned, #901)
+	rev int
+	// hot is the hotpatch the device runs and base the month's update it is compared at (Baseline); hot.Rev == 0 when none
+	hot, base winrel.Update
+	target    string // "x64", "x86", "arm64"; "" when not known
+	ltsc      bool   // the device's OS name says LTSC or LTSB
+	cpe       CPE    // the row's own CPE: an NVD row's NA covers only what it leaves unstated (winUnpinned, #901)
 }
 
 // ended says Microsoft no longer services the device's release (core/winrel Ended), unless an LTSC/LTSB edition of it still is and
@@ -73,10 +75,11 @@ func winDevice(in swInfo) (winDev, bool) {
 	}
 	n, _ := strconv.Atoi(m[2])
 	os := strings.ToLower(in.osName)
-	if b, ok := winrel.Baseline(rel.Build, rel.Server, n); ok {
-		n = b.Rev
+	base, hot, isHot := winrel.Baseline(rel.Build, rel.Server, n)
+	if isHot {
+		n = base.Rev
 	}
-	d := winDev{rel: rel, ubr: m[2], rev: n, ltsc: strings.Contains(os, "ltsc") || strings.Contains(os, "ltsb"), cpe: in.cpe}
+	d := winDev{rel: rel, ubr: m[2], rev: n, hot: hot, base: base, ltsc: strings.Contains(os, "ltsc") || strings.Contains(os, "ltsb"), cpe: in.cpe}
 	if t, ok := in.cpe.TargetHW.Literal(); ok && in.cpe.TargetHW.Kind == Value {
 		d.target = t
 	}
@@ -1061,4 +1064,22 @@ func appendOnce(l []string, s string) []string {
 		return l
 	}
 	return append(l, s)
+}
+
+// winHotpatchNote is the evidence of a close of a Windows entry on a device that runs a hotpatch (winDevice compares it at its month's
+// update): the device's own build is below the fixed build NVD names, so "outside every range" alone would read as a contradiction. It
+// names the hotpatch and the update it matches. false when the device runs no hotpatch.
+func winHotpatchNote(in swInfo, cve string) (string, bool) {
+	d, ok := winDevice(in)
+	if !ok || d.hot.Rev == 0 {
+		return "", false
+	}
+	kb := func(u winrel.Update) string {
+		if u.KB == "" {
+			return ""
+		}
+		return ", " + u.KB
+	}
+	return fmt.Sprintf("Not affected: build %d.%s of %s is Microsoft's hotpatch of %s (%d.%d%s), which carries the security fixes of that month's update %d.%d%s, and NVD lists %s as fixed at or below that update. Vedette closed this by itself and reopens it if a later match says the device is affected.",
+		d.rel.Build, d.ubr, d.rel.Display, d.hot.Day.Format("January 2006"), d.rel.Build, d.hot.Rev, kb(d.hot), d.rel.Build, d.base.Rev, kb(d.base), cve), true
 }

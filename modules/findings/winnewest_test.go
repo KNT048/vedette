@@ -184,13 +184,19 @@ func TestPlan_WindowsNewestUpdateNotWhenExploited(t *testing.T) {
 	if f := RowFixes(host, []Vuln{zeroDay})[zeroDay.CVE]; f == nil || f.Fixed != "10.0.26100.33822" || f.KB != kbOf(33822) {
 		t.Fatalf("the exploited row: %+v", f)
 	}
-	x := newTierIndex(nil).withKEV([]Vuln{zeroDay})
+	open := map[string]map[string]bool{host.ID: {zeroDay.CVE: true}}
+	x := newTierIndex(nil).withKEV([]Vuln{zeroDay}, open)
 	if items, _ := matchTiers(host, x, map[string]bool{zeroDay.CVE: true}, now); len(items) != 0 {
 		t.Fatalf("a second row for the exploited update: %+v", items)
 	}
+	// the finding is closed (mitigated, risk accepted): To fix names no update, so the plan names the newest one
+	closed := newTierIndex(nil).withKEV([]Vuln{zeroDay}, map[string]map[string]bool{host.ID: {}})
+	if items, _ := matchTiers(host, closed, map[string]bool{zeroDay.CVE: true}, now); len(items) != 1 || len(items[0].CVEs) != 0 {
+		t.Fatalf("closed exploited finding: want the newest update, got %+v", items)
+	}
 	// an exploited entry the device is not inside (fixed in October) does not stand for the newest update
 	old := nvdWindows("CVE-2026-74002", "2026-10-13", nvdRow{"windows_server_2025", "*", "*", "10.0.26100.33650"})
-	if items, _ := matchTiers(host, newTierIndex(nil).withKEV([]Vuln{old}), map[string]bool{old.CVE: true}, now); len(items) != 1 || len(items[0].CVEs) != 0 {
+	if items, _ := matchTiers(host, newTierIndex(nil).withKEV([]Vuln{old}, map[string]map[string]bool{host.ID: {old.CVE: true}}), map[string]bool{old.CVE: true}, now); len(items) != 1 || len(items[0].CVEs) != 0 {
 		t.Fatalf("no exploited row: want the newest update, got %+v", items)
 	}
 }
@@ -218,8 +224,9 @@ func TestPlan_WindowsHotpatchIsCurrentForItsMonth(t *testing.T) {
 	if fixes := RowFixes(hot, []Vuln{zeroDay}); len(fixes) != 0 {
 		t.Fatalf("exploited: %+v", fixes)
 	}
-	if w, m := oneMatch(t, hot, zeroDay, true); w != "notaffected" {
-		t.Fatalf("exploited match: %s %+v", w, m)
+	// the close names the hotpatch and the update it matches: the device's own build is below NVD's fixed build
+	if w, m := oneMatch(t, hot, zeroDay, true); w != "notaffected" || m.Evidence.Summary != "Not affected: build 26100.33730 of Windows Server 2025 is Microsoft's hotpatch of November 2026 (26100.33730, "+kbOf(33730)+"), which carries the security fixes of that month's update 26100.33822, "+kbOf(33822)+", and NVD lists CVE-2026-75002 as fixed at or below that update. Vedette closed this by itself and reopens it if a later match says the device is affected." {
+		t.Fatalf("exploited match: %s %q", w, m.Evidence.Summary)
 	}
 	// the same build on a device not on hotpatch would be below November's update: only a revision Microsoft lists as a hotpatch counts
 	if items, _ := matchTiers(winHost(26100, true, 33731, ""), newTierIndex([]TierVuln{nov}), nil, now); len(items) != 1 || len(items[0].CVEs) != 1 {

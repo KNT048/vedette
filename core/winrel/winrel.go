@@ -230,24 +230,28 @@ var kbShape = regexp.MustCompile(`^KB[0-9]{6,8}$`)
 
 // LearnUpdates sets the monthly updates and hotpatches Microsoft's release information lists and returns how many it kept: a valid one
 // (build of a Windows 10 or later release, revision 1..999999, a KB of the right shape or none, a day), once per release and revision.
-// Each call replaces what the last one set; nil or empty forgets them all.
+// Each call replaces what the last one set; nil or empty forgets them all. The monthly updates are read first, whatever the order
+// given: a hotpatch at the revision of a monthly update is not a hotpatch (a regular build is never one) and is dropped.
 func LearnUpdates(us []Update) int {
 	l := learnedUpdates{monthly: map[updateKey][]Update{}, hotpatch: map[updateKey][]Update{}}
 	seen := map[[3]int]bool{}
 	n := 0
-	for _, u := range us {
-		k := updateKey{u.Build, u.Server}
-		r := [3]int{u.Build, boolInt(u.Server), u.Rev}
-		if u.Build < 10240 || u.Build > 99999 || u.Rev < 1 || u.Rev > 999999 || u.KB != "" && !kbShape.MatchString(u.KB) || u.Day.IsZero() || seen[r] {
-			continue
+	for _, hot := range []bool{false, true} {
+		for _, u := range us {
+			k := updateKey{u.Build, u.Server}
+			r := [3]int{u.Build, boolInt(u.Server), u.Rev}
+			if u.Hotpatch != hot || u.Build < 10240 || u.Build > 99999 || u.Rev < 1 || u.Rev > 999999 || u.KB != "" && !kbShape.MatchString(u.KB) ||
+				u.Day.IsZero() || seen[r] {
+				continue
+			}
+			seen[r] = true
+			if hot {
+				l.hotpatch[k] = append(l.hotpatch[k], u)
+			} else {
+				l.monthly[k] = append(l.monthly[k], u)
+			}
+			n++
 		}
-		seen[r] = true
-		if u.Hotpatch {
-			l.hotpatch[k] = append(l.hotpatch[k], u)
-		} else {
-			l.monthly[k] = append(l.monthly[k], u)
-		}
-		n++
 	}
 	for _, m := range []map[updateKey][]Update{l.monthly, l.hotpatch} {
 		for _, us := range m {
@@ -280,23 +284,34 @@ func Updates(build int, server bool) []Update {
 }
 
 // Baseline is, for a device of the release on build at revision rev, the monthly update it is current to: when rev is a hotpatch
-// Microsoft lists for the release, the monthly update of the same month (its B build, above the hotpatch's revision, with the same
-// security fixes). false when rev is no hotpatch, or the month's update is not known.
-func Baseline(build int, server bool, rev int) (Update, bool) {
+// Microsoft lists for the release (hot), the monthly update of the same month (base: its B build, with the same security fixes). A
+// hotpatch sits between the previous month's update and its own month's (every real row, November 2024 to November 2026); a row
+// outside that (a mistyped build, last month's out-of-band build pasted in) would close an exploited finding of a device that does not
+// have the fix, so it maps nothing, nor does one whose month's update or previous update is not known. false then, and when rev is no
+// hotpatch: the device is compared at its own revision.
+func Baseline(build int, server bool, rev int) (base, hot Update, ok bool) {
 	p := updates.Load()
 	if p == nil {
-		return Update{}, false
+		return Update{}, Update{}, false
 	}
 	k := updateKey{build, server}
 	i := slices.IndexFunc(p.hotpatch[k], func(u Update) bool { return u.Rev == rev })
 	if i < 0 {
-		return Update{}, false
+		return Update{}, Update{}, false
 	}
 	h := p.hotpatch[k][i]
-	for _, u := range p.monthly[k] {
-		if u.Day.Year() == h.Day.Year() && u.Day.Month() == h.Day.Month() && u.Rev > h.Rev {
-			return u, true
+	month := func(u Update) int { return u.Day.Year()*12 + int(u.Day.Month()) }
+	prev, cur := 0, -1 // the revision of the newest update before the hotpatch's month; its own month's update
+	for j, u := range p.monthly[k] {
+		switch {
+		case month(u) < month(h):
+			prev = max(prev, u.Rev)
+		case month(u) == month(h) && cur < 0:
+			cur = j
 		}
 	}
-	return Update{}, false
+	if prev == 0 || cur < 0 || h.Rev <= prev || h.Rev >= p.monthly[k][cur].Rev {
+		return Update{}, Update{}, false
+	}
+	return p.monthly[k][cur], h, true
 }

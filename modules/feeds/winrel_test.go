@@ -217,7 +217,11 @@ func TestParseWinRelUpdates(t *testing.T) {
 	}
 	page += `<table id="HotpatchCalendar_WindowsServer2025_2026"><tbody>` + hp("2026.11 B", "Baseline (Restart)", "2026-11-10", "26100.10", "KB5000005") +
 		hp("2026.11 B", "Hotpatch", "2026-12-10", "26100.11", "KB5000006") + hp("2026.12 B", "Hotpatch", "2026-12-08", "26100.12", "KB5000007") +
-		hp("2026.11 B", "Hotpatch", "", "", "") + `</tbody></table>`
+		hp("2026.11 B", "Hotpatch", "", "", "") +
+		// a pasted regular build: the history's B (26100.7), and builds of its out-of-band and preview rows (26100.6, 26100.13)
+		hp("2026.11 B", "Hotpatch", "2026-11-10", "26100.7", "KB5000008") + hp("2026.11 B", "Hotpatch", "2026-11-10", "26100.6", "KB5000009") +
+		hp("2026.11 B", "Hotpatch", "2026-11-10", "26100.13", "KB5000010") + `</tbody></table>`
+	page += `<table id="historyTable_1"><tbody>` + row("2026-10 D", "2026-10-28", "26100.13", "KB5000011") + `</tbody></table>`
 	if us := parseWinRelUpdates([]byte(page), true, day(t, "2026-11-17")); len(us) != 1 || us[0].Rev != 7 || us[0].KB != "" || !us[0].Server {
 		t.Errorf("hostile rows: %+v", us)
 	}
@@ -258,7 +262,7 @@ func TestWinRelPull_MonthlyUpdates(t *testing.T) {
 		t.Fatal("no update stored")
 	}
 	// a hotpatch is stored and learned as one: a device on it is current to its month's update
-	if b, ok := winrel.Baseline(26100, true, 33730); !ok || b.Rev != 33822 || newest(26100, true) != 33822 {
+	if b, _, ok := winrel.Baseline(26100, true, 33730); !ok || b.Rev != 33822 || newest(26100, true) != 33822 {
 		t.Errorf("Server 2025 hotpatch of November: %+v %v", b, ok)
 	}
 	// the server and Windows 10 pages fail: their releases keep their stored updates

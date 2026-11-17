@@ -210,25 +210,32 @@ type tierIndex struct {
 	dtier   []TierVuln
 	dby     map[string][]int
 	covered map[string]bool
-	// kevWin are the exploited-list entries with a Windows release row (withKEV): a Windows row inside one of them with a fix has an
-	// exploited update To fix names (the same target), so the plan names no newest update for it (newestUpdateItem).
+	// kevWin are the exploited-list entries with a Windows release row, and open the CVEs of each device's open findings (withKEV): a
+	// Windows row inside one of them with a fix and an open finding has an exploited update To fix names (the same target), so the plan
+	// names no newest update for it (newestUpdateItem).
 	kevWin []Vuln
+	open   map[string]map[string]bool
 }
 
-// withKEV adds the exploited-list entries that name a Windows release to the index.
-func (x *tierIndex) withKEV(kevs []Vuln) *tierIndex {
+// withKEV adds the exploited-list entries that name a Windows release, and each device's open findings (device -> CVEs), to the index.
+func (x *tierIndex) withKEV(kevs []Vuln, open map[string]map[string]bool) *tierIndex {
 	for _, v := range kevs {
 		if slices.ContainsFunc(v.Affected, func(af Affected) bool { return isWindowsKey(tierKey(af.CPE)) }) {
 			x.kevWin = append(x.kevWin, v)
 		}
 	}
+	x.open = open
 	return x
 }
 
-// exploitedFix says whether the Windows row is inside an exploited-list entry through a range with an end: To fix lists that update
-// for the device (exploitedUpdates, the same target, winLatest).
-func (x *tierIndex) exploitedFix(in swInfo, now time.Time) bool {
+// exploitedFix says whether the device has an open finding of an exploited-list entry the Windows row is inside through a range with
+// an end: To fix lists that update for the device (exploitedUpdates: open findings only, the same target, winLatest). A finding a
+// person closed (mitigated, risk accepted) names no update, so the newest one is planned.
+func (x *tierIndex) exploitedFix(assetID string, in swInfo, now time.Time) bool {
 	return slices.ContainsFunc(x.kevWin, func(v Vuln) bool {
+		if !x.open[assetID][v.CVE] {
+			return false
+		}
 		w, ok := windowsDecide(in, v, true, now)
 		return ok && w.t == Yes && w.within.EndExcl != ""
 	})
@@ -417,7 +424,7 @@ func matchTiers(a Asset, x *tierIndex, kev map[string]bool, now time.Time) (item
 				listed[c.CVE+"|"+clean(in.ver)] = true
 			}
 		}
-		if win && len(its) == 0 && !winItem[clean(in.ver)] && !x.exploitedFix(in, now) {
+		if win && len(its) == 0 && !winItem[clean(in.ver)] && !x.exploitedFix(a.ID, in, now) {
 			if it, ok := newestUpdateItem(a, s, in, d, now); ok {
 				its = []PlanItem{it}
 			}

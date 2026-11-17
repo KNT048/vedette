@@ -129,15 +129,40 @@ func TestBaseline(t *testing.T) {
 	if us := Updates(26100, true); len(us) != 2 || us[1].Rev != 33822 {
 		t.Errorf("monthly: %+v", us)
 	}
-	if b, ok := Baseline(26100, true, 33730); !ok || b.Rev != 33822 || b.KB != "KB5131080" {
-		t.Errorf("November hotpatch: %+v %v", b, ok)
+	if b, h, ok := Baseline(26100, true, 33730); !ok || b.Rev != 33822 || b.KB != "KB5131080" || h.KB != "KB5131077" {
+		t.Errorf("November hotpatch: %+v %+v %v", b, h, ok)
 	}
 	for _, c := range []struct {
 		rev    int
 		server bool
 	}{{33650, true}, {33900, true}, {33730, false}, {12345, true}} {
-		if b, ok := Baseline(26100, c.server, c.rev); ok {
+		if b, _, ok := Baseline(26100, c.server, c.rev); ok {
 			t.Errorf("%+v: %+v", c, b)
+		}
+	}
+}
+
+// A hotpatch row whose build is wrong in value maps nothing: below or at the previous month's update, at or above its own month's,
+// in a month with no update before it, or at a monthly update's revision (dropped whatever the order the rows come in).
+func TestBaseline_HostileRows(t *testing.T) {
+	t.Cleanup(func() { LearnUpdates(nil) })
+	hot := func(rev int, d string) Update {
+		return Update{Build: 26100, Server: true, Rev: rev, Day: day(d), Hotpatch: true}
+	}
+	LearnUpdates([]Update{
+		hot(33650, "2026-11-10"), // October's update pasted as November's hotpatch, given before the monthly rows
+		{Build: 26100, Server: true, Rev: 33650, Day: day("2026-10-13")},
+		{Build: 26100, Server: true, Rev: 33822, Day: day("2026-11-10")},
+		hot(33600, "2026-11-10"), // below October's update
+		hot(33830, "2026-11-10"), // above November's
+		hot(33500, "2026-10-13"), // October: no update before it is known
+	})
+	if us := Updates(26100, true); len(us) != 2 || us[0].Rev != 33650 {
+		t.Fatalf("monthly: %+v", us)
+	}
+	for _, rev := range []int{33650, 33600, 33830, 33500} {
+		if b, h, ok := Baseline(26100, true, rev); ok {
+			t.Errorf("%d mapped to %+v (hotpatch %+v)", rev, b, h)
 		}
 	}
 }

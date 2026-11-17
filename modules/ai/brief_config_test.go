@@ -133,3 +133,31 @@ func TestBrief_FixFollowsThePageAndRulesFollowThePath(t *testing.T) {
 		}
 	}
 }
+
+// An answer blocked only port 80 of a switch whose web interface also served 443 ("ssl/https"), and applied its change with a plain
+// commit on a platform with an automatic rollback. The config job covers the ports of the vulnerable product, plain and TLS, never a
+// port of another product, and applies the change the safe way the data names for the target, never inventing one.
+func TestBriefConfig_EveryPortOfTheServiceAndSafeApply(t *testing.T) {
+	a := newAPI(t)
+	a.withProfile()
+	a.fake.setAnswer(`{"paragraphs":["The device runs an affected release."],"steps":["Patch."],"configs":[],"no_config_reason":"No open port serves the vulnerable part."}`)
+	if _, err := a.svc.Brief(a.ctx(), ai.BriefRequest{Job: ai.JobMitigationConfig, Actor: "it@acme.example", Target: "CVE-2023-0001", Question: "Write the config."}); err != nil {
+		t.Fatal(err)
+	}
+	req := a.fake.lastRequest(t)
+	all := req.System + req.Messages[0].Text
+	for _, w := range []string{
+		`as the "Ports of the vulnerable product" line gives them`, "plain and TLS alike", "never only one of them",
+		"never a port it calls another product", "may be a reverse proxy in front of the vulnerable product",
+		"Of the ports it calls not known which product, cover the ones of the same service as a port that runs it",
+		`say in "no_config_reason" which of them you covered and why`, "never every web port of the device",
+		"When it says the vulnerability is in the device's own platform, choose the interface the vulnerability names",
+		"that target's change is applied that way", `a command it calls a separate step goes in "steps", never in "lines"`,
+		"never end such a block with a plain commit alone",
+		"For a remote change to a network device or firewall the data gives no safe apply, never name an automatic rollback",
+	} {
+		if !strings.Contains(all, w) {
+			t.Errorf("the instructions lack %q", w)
+		}
+	}
+}

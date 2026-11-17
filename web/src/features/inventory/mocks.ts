@@ -540,7 +540,7 @@ function injectSample(feed: 'osquery' | 'wazuh'): { devices: number; software: n
   return { devices: targets.length, software: added }
 }
 
-// ---- SNMP per device (S-INV-1, D-512, D-607; module sensor-active, table prefix sa_) ----
+// ---- SNMP per device (S-INV-1; module sensor-active, table prefix sa_) ----
 // Secrets live only in this store (the box encrypts them with core/secrets); every response goes through publicSnmp.
 interface StoredSnmp {
   device_id: string; read_from: string; read_from_default: boolean; version: SnmpVersion; username: string | null; auth: SnmpAuth | null; priv: SnmpPriv | null
@@ -552,7 +552,7 @@ export const snmpStore = collection<StoredSnmp[]>('sa_snmp_device', () => [{
   auth_password: 'ro-auth-2fe8', priv_password: 'ro-priv-91c4', port: 161, secret_lost: false,
   last_checked_at: daysAgo(1), last_answer_at: daysAgo(1), last_reason: 'ok', answer: null, updated_at: daysAgo(30),
 }], () => [])
-/** D-607: what the move of the credentials of before did, until a person dismisses it. */
+/** what the move of the old credentials did, until a person dismisses it. */
 const snmpNotices = collection<SnmpNotice[]>('sa_snmp_notice', () => [{
   id: 1, at: daysAgo(0), text: 'SNMP credential "Printers" (v2c, scope 192.168.10.40/29) was removed: it covered no device that had answered SNMP or had SNMP turned on. SNMP is now set up on each device\'s page (Devices › the device › SNMP).',
 }], () => [])
@@ -568,7 +568,7 @@ const ipInt = (ip: string) => cidrRange(`${ip}/32`).base
 const inList = (ip: string, list: string[]) => list.some((x) => { const r = cidrRange(x.includes('/') ? x : `${x}/32`); const n = ipInt(ip); const base = Math.floor(r.base / r.size) * r.size; return n >= base && n < base + r.size })
 const deviceName = (a: Asset) => a.name ?? a.hostname ?? a.model?.value ?? a.vendor?.value ?? ''
 
-/** The plain words the backend uses for each reason (D-607). `unavailable` carries the readiness message instead. */
+/** The plain words the backend uses for each reason. `unavailable` carries the readiness message instead. */
 const SNMP_MSG: Partial<Record<SnmpReason, (s: StoredSnmp, a: Asset) => string>> = {
   no_answer: (s) => `No answer from ${s.read_from} on UDP port ${s.port} within 2 s (sent twice). The device may not run SNMP there, may answer on another port or another address (set Read from to its management address), a firewall may drop UDP port ${s.port}, or the community is wrong: a device ignores a wrong community instead of saying so.`,
   auth_failed: () => 'The device did not accept the v3 user name or password (or the authentication or privacy algorithm differs).',
@@ -632,9 +632,16 @@ function checkSnmp(a: Asset, b: Partial<DeviceSnmpInput>, prev: StoredSnmp | nul
     if (!isPrivateCidr(`${readFrom}/32`)) return { err: bad(400, 'read_from_not_local', `${readFrom} is not a local network address (${LOCAL_RANGE_NAMES}): SNMP reads stay on your own networks.`) }
   }
   if (allAssets().some((x) => x.id === BOX_ID && x.ip === readFrom)) return { err: bad(409, 'read_from_box', `${readFrom} is the Vedette box itself or one of its trap addresses: it is never read.`) }
+  const taken = snmpStore.get().find((x) => x.device_id !== a.id && x.read_from === readFrom)
+  if (taken) {
+    const other = allAssets().find((x) => x.id === taken.device_id)
+    return { err: bad(409, 'read_from_taken', `${readFrom} is already the SNMP read address of ${(other && deviceName(other)) || taken.device_id}. One address is read for one device: change it there first, or choose another address.`) }
+  }
   const deflt = readFrom === a.ip
   if (b.copy_from) {
     if (b.copy_from === a.id) return { err: bad(400, 'copy_from_self', 'Choose another device to copy from.') }
+    // a copied secret goes only to the device's own address; another read address needs the secret typed
+    if (!deflt) return { err: bad(400, 'secret_required', `Copy from sends the saved community or passwords only to this device's own address (${a.ip}). To read it at ${readFrom}, type them instead of copying.`) }
     const src = snmpStore.get().find((x) => x.device_id === b.copy_from)
     if (!src) return { err: bad(404, 'copy_from_not_found', 'The device to copy from has no SNMP set up.') }
     if (src.secret_lost) return { err: bad(409, 'secret_lost', `${SNMP_LOST} Nothing was sent.`) }
@@ -1326,7 +1333,7 @@ export const handlers = [
     audit('inventory.wazuh_sample_data', w.url, `${r.devices} devices, ${r.software} software`)
     return HttpResponse.json({ devices: r.devices, software: r.software })
   }),
-  // ---- SNMP per device (S-INV-1, D-607): routes of sensor-active, 404 while it is off ----
+  // ---- SNMP per device (S-INV-1): routes of sensor-active, 404 while it is off ----
   http.get(`${API}/inventory/snmp`, () => {
     const denied = guard('admin'); if (denied) return denied
     if (!isOn('sensor-active')) return snmpOff()
@@ -1371,7 +1378,7 @@ export const handlers = [
     const s: StoredSnmp = { ...v.value, updated_at: nowIso(), last_checked_at: reset ? null : prev.last_checked_at, last_answer_at: reset ? null : prev.last_answer_at,
       last_reason: reset ? null : prev.last_reason, answer: reset ? null : prev.answer }
     snmpStore.update((l) => [...l.filter((x) => x.device_id !== a.id), s])
-    // D-607: saving is the person's consent: the device's SNMP source is turned on (D-601)
+    // saving is the person's consent: the device's SNMP source is turned on
     if (metaStore.get()[a.id]?.snmp_source !== 'on') {
       metaStore.update((m) => ({ ...m, [a.id]: { ...m[a.id], snmp_source: 'on' } }))
       audit('inventory.set_source', deviceName(a) || a.ip, 'SNMP: on')

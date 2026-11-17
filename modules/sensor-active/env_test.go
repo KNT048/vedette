@@ -123,7 +123,7 @@ type fakeInv struct {
 	onAddresses func()
 	// onInScope runs once, at the next InScope (outside the lock): a test changes something between a check and the run.
 	onInScope func()
-	// snmpRead and snmpOn are what SNMPKnown answers (D-607's move); turnedOn are the devices TurnSNMPOn was called for, and
+	// snmpRead and snmpOn are what SNMPKnown answers (move); turnedOn are the devices TurnSNMPOn was called for, and
 	// turnOnErr what it answers.
 	snmpRead, snmpOn []string
 	turnedOn         []string

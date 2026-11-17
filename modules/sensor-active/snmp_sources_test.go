@@ -10,7 +10,7 @@ import (
 	sa "github.com/knt048/vedette/modules/sensor-active"
 )
 
-// D-601, D-607 (kien, FortiGate): a device whose SNMP a person set up is read outside the LAN ranges (those bind discovery and nmap
+// A device whose SNMP a person set up is read outside the LAN ranges (those bind discovery and nmap
 // only); the exclusions still win, at the device's address and at its read address; SNMP turned off for a device, or a device added
 // by hand whose SNMP is not on, gets nothing and the check says why.
 func TestSNMPSourcesAndScope(t *testing.T) {
@@ -30,7 +30,7 @@ func TestSNMPSourcesAndScope(t *testing.T) {
 		"a-excl":  {Reason: "excluded"},
 		"a-off":   {Reason: "snmp_off"},
 		"a-hand":  {Reason: "declared_by_hand"},
-		// a-late: the policy is read before the exclusion is saved; the batch's own check against the settings stops it (review r1 L5)
+		// a-late: the policy is read before the exclusion is saved; the batch's own check against the settings stops it
 		"a-late": {Allowed: true, Rate: 1, Reason: "first_gentle_scan", FirstGentle: true},
 	}
 	w.inv.mu.Unlock()

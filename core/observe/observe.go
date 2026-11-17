@@ -76,7 +76,7 @@ func ValidField(f Field) bool {
 }
 
 // AssetHint identifies the device an observation is about: the agent first, then the MAC, then the IP. A MAC, an IP or an
-// Agent must be set, or a Device alone (D-607). A hint that matches no device creates one (unapproved, DATA_MODEL 5.1), except a hint with only an Agent:
+// Agent must be set, or a Device alone. A hint that matches no device creates one (unapproved, DATA_MODEL 5.1), except a hint with only an Agent:
 // it reaches the device that agent is bound to, or nothing.
 type AssetHint struct {
 	IP  netip.Addr // IPv4 only; the zero value means unknown
@@ -90,7 +90,7 @@ type AssetHint struct {
 	// behind NAT). Only with Agent and no IP (#829). It never finds, creates or moves a device; the inventory only compares it with
 	// where a sensor last saw the bound device, to tell a moved machine from a spoofed binding.
 	From netip.Addr
-	// Device is the id of a device the source already holds the settings of (D-607: an SNMP read sent to a device's own read address,
+	// Device is the id of a device the source already holds the settings of (an SNMP read sent to a device's own read address,
 	// which may be its management address, not its IP). Only an SNMP source may set it, and alone: no IP, MAC, Agent or From. The
 	// observation goes to that device and nowhere else: it never finds a device by address, never creates or joins one, never moves
 	// an address; an unknown id (a device deleted meanwhile) or the box drops it.

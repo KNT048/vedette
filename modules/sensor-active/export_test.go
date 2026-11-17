@@ -11,7 +11,7 @@ import (
 // SetBeforeSNMPBatch makes fn run as every SNMP batch starts, before it registers (a test acting in that window; review #855 r2 L1).
 func SetBeforeSNMPBatch(s *Service, fn func()) { s.beforeSNMPBatch = fn }
 
-// SNMPJobAt builds the wire job for device asset's saved SNMP settings with its target at ip (D-607: snmpJob refuses any address
+// SNMPJobAt builds the wire job for device asset's saved SNMP settings with its target at ip (snmpJob refuses any address
 // but the device's stored read address; a test points it elsewhere).
 func SNMPJobAt(ctx context.Context, s *Service, asset string, ip netip.Addr) (sensorlink.SNMPJob, error) {
 	r, err := s.snmpRow(ctx, s.db.Reader(), asset)

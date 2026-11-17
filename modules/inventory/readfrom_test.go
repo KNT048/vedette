@@ -8,10 +8,10 @@ import (
 	"github.com/knt048/vedette/core/observe"
 )
 
-// D-607 (kien's FortiGate): SNMP is read at a device's management address, 100.65.253.1, while the device is 100.65.254.1. What
+// A firewall on a VDOM interface: SNMP is read at a device's management address, 100.65.253.1, while the device is 100.65.254.1. What
 // answers there is that device and nothing else: the observation names the device (AssetHint.Device), so it never finds the device
 // another sensor saw at 100.65.253.1, never makes a new one, never moves an address and never joins two rows.
-func TestContract_D607_AnSNMPAnswerFromTheReadAddressIsThisDeviceOnly(t *testing.T) {
+func TestContract_AnSNMPAnswerFromTheReadAddressIsThisDeviceOnly(t *testing.T) {
 	e := newEnv(t)
 	e.record(dhcp(burnt1, "100.65.254.1", "")...)
 	fw := e.idOf("100.65.254.1")
@@ -53,5 +53,29 @@ func TestContract_D607_AnSNMPAnswerFromTheReadAddressIsThisDeviceOnly(t *testing
 		if err := e.svc.Record(e.ctx(), []observe.Observation{o}); !errors.As(err, &rej) {
 			t.Errorf("%s: %v, want a rejection", name, err)
 		}
+	}
+}
+
+// A device hint is only for SNMP observations (Record): the software and service lists and the enrolment refuse it, so none of them
+// ever makes a blank device from it.
+func TestContract_ADeviceHintIsRefusedOutsideRecord(t *testing.T) {
+	e := newEnv(t)
+	e.record(dhcp(burnt1, "100.65.254.1", "")...)
+	fw := e.idOf("100.65.254.1")
+	h := observe.AssetHint{Device: fw}
+	sw := []observe.Software{{Display: "FortiOS 7.2.8", Vendor: "fortinet", Product: "fortios", Version: "7.2.8", Confidence: 0.9}}
+	svc := []observe.Service{{Port: 161, Proto: "udp", Name: "snmp", Confidence: 0.9}}
+	for name, err := range map[string]error{
+		"ReplaceSoftware": e.svc.ReplaceSoftware(e.ctx(), h, observe.SNMP, sw),
+		"AddServices":     e.svc.AddServices(e.ctx(), h, observe.SNMP, svc),
+		"ReplaceServices": e.svc.ReplaceServices(e.ctx(), h, observe.Nmap, svc),
+		"ApproveEnrolled": func() error { _, err := e.svc.ApproveEnrolled(e.ctx(), h, "", "test", false); return err }(),
+	} {
+		if err == nil {
+			t.Errorf("%s took a device hint", name)
+		}
+	}
+	if n := e.devices(); n != 1 {
+		t.Fatalf("%d devices, want the one", n)
 	}
 }

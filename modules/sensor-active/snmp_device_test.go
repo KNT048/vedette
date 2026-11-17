@@ -15,9 +15,9 @@ import (
 	sa "github.com/knt048/vedette/modules/sensor-active"
 )
 
-// D-607: SNMP set up per device. A secret goes only to its device's read address; Copy from copies on the box; a device that moves
+// SNMP set up per device. A secret goes only to its device's read address; Copy from copies on the box; a device that moves
 // away from a read address left to its IP is not followed; the settings go with a deleted device and move with a merged one; the
-// credentials of before are moved to the devices they covered, once.
+// old credentials are moved to the devices they covered, once.
 
 // secretOf opens the saved secret of a device (column secret_id or priv_secret_id).
 func (w *snmpWorld) secretOf(asset, column string) (id, plain string) {
@@ -58,7 +58,7 @@ func (w *snmpWorld) loseSecret(asset, column string) {
 	}
 }
 
-// D-607: a secret is only ever sent to its device's read address. The job builder refuses a target at any other address, before a
+// a secret is only ever sent to its device's read address. The job builder refuses a target at any other address, before a
 // secret is opened, even when every other check passed; the target at the read address is built.
 func TestSNMPTheJobRefusesAnyAddressButTheDevicesReadAddress(t *testing.T) {
 	t.Parallel()
@@ -78,7 +78,7 @@ func TestSNMPTheJobRefusesAnyAddressButTheDevicesReadAddress(t *testing.T) {
 	}
 }
 
-// D-607: Copy from copies another device's settings and secrets on the box. Nothing returned holds the secret; the copy is the
+// Copy from copies another device's settings and secrets on the box. Nothing returned holds the secret; the copy is the
 // device's own (another secret row: editing one never changes the other); the audit row says where it was copied from, never the
 // secret; a source whose secret this box cannot open is refused.
 func TestSNMPCopyFromNeverReturnsTheSecret(t *testing.T) {
@@ -127,7 +127,7 @@ func TestSNMPCopyFromNeverReturnsTheSecret(t *testing.T) {
 	}
 }
 
-// #868, D-607: a device whose saved secret is sealed under another master key is sent nothing: Check now answers 409 secret_lost,
+// #868, a device whose saved secret is sealed under another master key is sent nothing: Check now answers 409 secret_lost,
 // the round skips it and reads the others, the device says so; an edit that types it again fixes it.
 func TestSNMPADeviceWhoseSecretWasNotRestoredSendsNothing(t *testing.T) {
 	t.Parallel()
@@ -159,7 +159,7 @@ func TestSNMPADeviceWhoseSecretWasNotRestoredSendsNothing(t *testing.T) {
 	}
 }
 
-// #829 C4, D-607: a device whose read address was left to its IP and that then moves is not followed (a copied network card looks
+// #829 C4, a device whose read address was left to its IP and that then moves is not followed (a copied network card looks
 // the same): nothing is sent, the device and the check say where it is and what to do. A read address the person typed stays as it
 // is when the device's IP changes.
 func TestSNMPADeviceThatMovedIsNotFollowed(t *testing.T) {
@@ -194,7 +194,7 @@ func TestSNMPADeviceThatMovedIsNotFollowed(t *testing.T) {
 	}
 }
 
-// D-607: a device's SNMP goes with the device (inventory.asset.deleted) and moves with a merge (inventory.asset.merged) when the
+// a device's SNMP goes with the device (inventory.asset.deleted) and moves with a merge (inventory.asset.merged) when the
 // device kept has none; otherwise the kept device's own stays and the other's goes, secrets included.
 func TestSNMPSettingsFollowDeletedAndMergedDevices(t *testing.T) {
 	t.Parallel()
@@ -223,7 +223,7 @@ func TestSNMPSettingsFollowDeletedAndMergedDevices(t *testing.T) {
 	}
 }
 
-// legacy writes a credential of before D-607 (sa_snmp, its secret sealed as it was) and returns its id.
+// legacy writes a credential of the old kind (sa_snmp, its secret sealed as it was) and returns its id.
 func (w *snmpWorld) legacy(id, name, community, scope, lastAnswer string) {
 	w.t.Helper()
 	ctx := w.t.Context()
@@ -256,7 +256,7 @@ func (w *snmpWorld) legacyAnswer(cred, asset, ip, at string) {
 	}
 }
 
-// D-607 migration: each device covered by a credential's scope that has SNMP readings (an answer kept, or an SNMP observation) or its
+// The migration: each device covered by a credential's scope that has SNMP readings (an answer kept, or an SNMP observation) or its
 // SNMP switch stored on gets its own copy, read at its IP; several credentials: the one it answered last, else the one that answered
 // last, else the first tried. A credential that covers no such device is deleted. Every credential is then gone with its secrets
 // and answers; a notice and an audit row per credential say what happened; it runs once.
@@ -337,7 +337,7 @@ func TestSNMPCredentialsMoveToTheDevicesTheyCovered(t *testing.T) {
 	}
 }
 
-// D-607 migration: a credential whose secret this box cannot open gives no copy; its devices are named in the notice, and it is
+// The migration: a credential whose secret this box cannot open gives no copy; its devices are named in the notice, and it is
 // deleted like the others.
 func TestSNMPACredentialWithALostSecretIsNotCopied(t *testing.T) {
 	t.Parallel()
@@ -368,5 +368,107 @@ func TestSNMPACredentialWithALostSecretIsNotCopied(t *testing.T) {
 	}
 	if w.count(`SELECT count(*) FROM sa_snmp`)+w.count(`SELECT count(*) FROM core_secret`) != 0 {
 		t.Fatal("the credential or its secret stayed")
+	}
+}
+
+// Copy from sends a saved secret only to the device's own address: with a Read from a person types, the secret must be typed
+// (400 secret_required), as for an edit that changes the read address. Copied to the device's own IP, it is saved.
+func TestSNMPCopyFromToAnotherAddressNeedsTheSecretTyped(t *testing.T) {
+	t.Parallel()
+	w := newSNMPWorld(t, &fakeReader{})
+	ctx := t.Context()
+	w.set("a-sw", v2c("s3cret-community"))
+	if _, err := w.svc.SetSNMP(ctx, "a", "a-printer", sa.SNMPInput{CopyFrom: "a-sw", ReadFrom: "192.168.10.41"}); apiCode(err) != "secret_required" {
+		t.Fatalf("copy to a typed address: %v, want secret_required", err)
+	}
+	if w.count(`SELECT count(*) FROM sa_snmp_device WHERE asset_id = 'a-printer'`) != 0 {
+		t.Fatal("the refused copy was saved")
+	}
+	if d, err := w.svc.SetSNMP(ctx, "a", "a-printer", sa.SNMPInput{CopyFrom: "a-sw", ReadFrom: "192.168.10.24"}); err != nil || d.ReadFrom != netip.MustParseAddr("192.168.10.24") {
+		t.Fatalf("copy to the device's own address: %v %+v", err, d)
+	}
+}
+
+// One read address is one device's: a second device given it is refused with 409 read_from_taken, naming the first.
+func TestSNMPAReadAddressBelongsToOneDevice(t *testing.T) {
+	t.Parallel()
+	w := newSNMPWorld(t, &fakeReader{})
+	in := v2c("community-1")
+	in.ReadFrom = "192.168.10.40"
+	w.set("a-sw", in)
+	_, err := w.svc.SetSNMP(t.Context(), "a", "a-printer", in)
+	var e *apierr.Error
+	if !errors.As(err, &e) || e.Status != 409 || e.Code != "read_from_taken" || !strings.Contains(e.Message, "device a-sw") {
+		t.Fatalf("a second device on one read address: %v", err)
+	}
+	if _, err := w.svc.SetSNMP(t.Context(), "a", "a-printer", v2c("community-2")); err != nil {
+		t.Fatalf("its own address: %v", err)
+	}
+}
+
+// A save that is refused changes nothing: the device's SNMP switch is turned on only for a form that passes.
+func TestSNMPARefusedSaveLeavesTheSwitchAlone(t *testing.T) {
+	t.Parallel()
+	w := newSNMPWorld(t, &fakeReader{})
+	for _, in := range []sa.SNMPInput{v2c(""), {Version: "v2c", Community: secrets.NewValue("pub\nlic")}, {Version: "v1"}} {
+		if _, err := w.svc.SetSNMP(t.Context(), "a", "a-sw", in); err == nil {
+			t.Fatalf("%+v saved", in)
+		}
+	}
+	w.inv.mu.Lock()
+	on := slices.Clone(w.inv.turnedOn)
+	w.inv.mu.Unlock()
+	if len(on) != 0 {
+		t.Fatalf("the switch was turned on for %v by refused saves", on)
+	}
+}
+
+// The move never stops on one damaged credential: a secret row that is missing, one that cannot be opened for another reason, or a
+// scope that cannot be read gives no copy and a notice; the move ends, and the SNMP calls answer after it.
+func TestSNMPTheMoveFinishesWithDamagedCredentials(t *testing.T) {
+	t.Parallel()
+	w := newSNMPWorld(t, &fakeReader{})
+	ctx := t.Context()
+	w.legacy("snmp-1", "missing", "community-1", `["192.168.10.20"]`, "")
+	w.legacy("snmp-2", "other purpose", "community-2", `["192.168.10.24"]`, "")
+	w.legacy("snmp-3", "bad scope", "community-3", `[1, 2]`, "")
+	w.legacy("snmp-4", "good", "community-4", `["192.168.10.23"]`, "")
+	w.inv.mu.Lock()
+	w.inv.snmpOn = []string{"a-sw", "a-printer", "a-never"}
+	w.inv.mu.Unlock()
+	if err := w.db.Write(ctx, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM core_secret WHERE id = (SELECT secret_id FROM sa_snmp WHERE id = 'snmp-1')`); err != nil {
+			return err
+		}
+		_, err := tx.ExecContext(ctx, `UPDATE core_secret SET purpose = 'something.else' WHERE id = (SELECT secret_id FROM sa_snmp WHERE id = 'snmp-2')`)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	list, err := w.svc.SNMPDevices(ctx)
+	if err != nil || len(list) != 1 || list[0].DeviceID != "a-never" {
+		t.Fatalf("after the move: %v %+v", err, list)
+	}
+	if w.count(`SELECT count(*) FROM sa_snmp`) != 0 {
+		t.Fatal("old credentials stayed")
+	}
+	notices, _ := w.svc.SNMPNotices(ctx)
+	text := ""
+	for _, n := range notices {
+		text += n.Text + "\n"
+	}
+	for _, want := range []string{`"missing"`, `"other purpose"`, `"bad scope" (v2c, scope none readable) was removed`} {
+		if !strings.Contains(text, want) {
+			t.Errorf("no notice for %s:\n%s", want, text)
+		}
+	}
+	if strings.Count(text, "could not be opened") != 2 {
+		t.Errorf("want two could-not-be-opened notices:\n%s", text)
+	}
+	if _, err := w.svc.SNMPDeviceOf(ctx, "a-sw"); err != nil {
+		t.Fatalf("a device's SNMP after the move: %v", err)
+	}
+	if err := w.svc.Tick(ctx); err != nil {
+		t.Fatalf("a tick after the move: %v", err)
 	}
 }

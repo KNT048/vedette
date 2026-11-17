@@ -13,7 +13,7 @@ import (
 	"github.com/knt048/vedette/core/server"
 )
 
-// SNMPHandlers implement the SNMP operations (CONTRACT "Endpoints owned", D-512, D-607): the list and notices, and one device's SNMP:
+// SNMPHandlers implement the SNMP operations (CONTRACT "Endpoints owned"): the list and notices, and one device's SNMP:
 // read, set up or edit, remove, Check now. The route table requires the admin role; the server answers 404 for all of them while the module is off (SYS-5).
 type SNMPHandlers struct{ s *Service }
 

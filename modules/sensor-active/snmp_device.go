@@ -16,7 +16,7 @@ import (
 	"github.com/knt048/vedette/core/sensorlink"
 )
 
-// What a person reads of a device's SNMP (D-607): its settings without the secrets, the state of its last read, what answered at
+// What a person reads of a device's SNMP: its settings without the secrets, the state of its last read, what answered at
 // its read address, and why nothing is sent to it now.
 
 // SNMPDeviceOf is the SNMP of device id (GET /inventory/snmp/devices/{id}); a device without SNMP is State not_set_up. 404 when the

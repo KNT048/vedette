@@ -243,7 +243,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     const methods = within(dlg).getByRole('radiogroup', { name: 'How to add it' })
     expect(within(methods).getAllByRole('radio').map((r) => r.closest('label')?.querySelector('.font-medium')?.textContent)).toEqual(['Manual', 'SNMP', 'osquery', 'Wazuh', 'CSV import'])
     expect(within(dlg).queryByText(/by hand|SSH|API key/)).not.toBeInTheDocument()
-    // D-607: SNMP is set up on each device's page, so its method only says where (no form of its own)
+    // SNMP is set up on each device's page, so its method only says where (no form of its own)
     const own: Record<string, RegExp> = { Manual: /^IP address$/, SNMP: /^IP address or range$/, osquery: /^Token name|^Name/, Wazuh: /Wazuh API address|Server API|^Address/, 'CSV import': /^Choose a CSV file$/ }
     const noForm = ['osquery', 'Wazuh', 'SNMP']
     for (const [m, field] of Object.entries(own)) {
@@ -331,7 +331,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     const { unmount } = renderApp('/devices/setup#agents')
     expect(await screen.findByRole('tab', { name: 'Agents', selected: true }, T)).toBeInTheDocument()
     unmount()
-    renderApp('/devices/setup#snmp') // #850: the SNMP engine card of Settings › Scanning (D-607: SNMP itself is set up per device)
+    renderApp('/devices/setup#snmp') // #850: the SNMP engine card of Settings › Scanning (SNMP itself is set up per device)
     expect(await screen.findByRole('tab', { name: 'Engines', selected: true }, T)).toBeInTheDocument()
   })
 

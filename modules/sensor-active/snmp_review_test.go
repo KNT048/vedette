@@ -73,7 +73,7 @@ func TestSNMPEachBatchReadsTheDevicesAgain(t *testing.T) {
 			inv.decision["a-79"] = sa.Decision{Allowed: true, Rate: 1, Reason: "first_gentle_scan", FirstGentle: true, Never: true}
 			inv.approved["a-78"] = false
 			inv.mu.Unlock()
-			// a device of batch 2: removing its SNMP does not stop batch 1, which does not carry it (r2 M1 stops a batch that does)
+			// a device of batch 2: removing its SNMP does not stop batch 1, which does not carry it (a batch that carries it is stopped)
 			if err := svc.DeleteSNMP(ctx, "a", "a-75"); err != nil {
 				t.Error(err)
 			}
@@ -156,7 +156,7 @@ func TestMigration0004KeepsTheProbeCounter(t *testing.T) {
 
 // Review #715 round 2.
 
-// r2 M1 (A, B), D-607: a device's SNMP edited after the batch read it and before its secrets are opened stops the batch: a v3
+// A device's SNMP edited after the batch read it and before its secrets are opened stops the batch: a v3
 // password never leaves as a v2c community, a rotated community never goes to the old read address.
 func TestSNMPAnEditBetweenTheCheckAndTheJobStopsIt(t *testing.T) {
 	t.Parallel()
@@ -183,7 +183,7 @@ func TestSNMPAnEditBetweenTheCheckAndTheJobStopsIt(t *testing.T) {
 	}
 }
 
-// r2 M1 (C), D-607: removing a device's SNMP, or editing it, stops a job the worker already has.
+// Removing a device's SNMP, or editing it, stops a job the worker already has.
 func TestSNMPARemovalOrAnEditStopsAJobWithTheWorker(t *testing.T) {
 	t.Parallel()
 	started := make(chan struct{}, 1)

@@ -430,8 +430,8 @@ func (e scanningEngines) active(ctx context.Context, id string) (core.EngineStat
 			at, _ := parseTS(h.StartedAt)
 			s.Running = append(s.Running, core.RunningJob{Engine: id, ID: h.ID, Label: "SNMP reads", StartedAt: at})
 		}
-		// A device whose saved secret this box cannot open is skipped by every read until it is typed again (#868); one that moved
-		// away from the read address it had is not read until a person sets it again (D-607, #829 C4).
+		// A device whose saved secret this box cannot open is skipped by every read until it is typed again; one that moved
+		// away from the read address it had is not read until a person sets it again.
 		var lost, moved []string
 		for _, d := range devs {
 			switch {

@@ -15,7 +15,7 @@ const snmpJobJSON = `{"id":"c0ffee00c0ffee00c0ffee00c0ffee00","kind":"snmp","tim
 	`"targets":[{"ip":"192.168.10.20","credential":{"version":"v3","user":"vedette","auth":"sha","auth_pass":"authpass1","priv":"aes128","priv_pass":"privpass1"}},` +
 	`{"ip":"10.0.0.7","credential":{"version":"v2c","community":"s3cret-community"}}]}`
 
-// D-512, D-607 (protocol 5): an snmp job travels with its targets, each with its own credential, and decodes back to the same job.
+// Protocol 5: an snmp job travels with its targets, each with its own credential, and decodes back to the same job.
 func TestSNMPJobRoundTrip(t *testing.T) {
 	t.Parallel()
 	var rep JobsReply
@@ -38,7 +38,7 @@ func TestSNMPJobRoundTrip(t *testing.T) {
 	if err := json.Unmarshal([]byte(strings.Replace(snmpJobJSON, `"rate":10,`, `"rate":10,"oids":["1.3.6.1"],`, 1)), &unknown); err == nil {
 		t.Fatal("an snmp job with a field it does not have decoded")
 	}
-	// The protocol-5 shape of before D-607 (credentials beside the targets, indexes on each target) is not a job any more: a
+	// The protocol-5 shape of before (credentials beside the targets, indexes on each target) is not a job any more: a
 	// credential cannot be named for an address other than its own target's.
 	var old Job
 	if err := json.Unmarshal([]byte(`{"id":"c0ffee00c0ffee00c0ffee00c0ffee00","kind":"snmp","timeout_s":60,"rate":1,"credentials":[{"version":"v2c","community":"x"}],"targets":[{"ip":"10.0.0.7","credentials":[0]}]}`), &old); err == nil {
@@ -46,7 +46,7 @@ func TestSNMPJobRoundTrip(t *testing.T) {
 	}
 }
 
-// kien 2026-11-17: a credential carries the UDP port of a device that serves SNMP elsewhere; one of the default port leaves it out.
+// a credential carries the UDP port of a device that serves SNMP elsewhere; one of the default port leaves it out.
 func TestSNMPCredentialPort(t *testing.T) {
 	t.Parallel()
 	j := SNMPJob{Rate: 1, Targets: []SNMPTarget{{IP: "192.168.1.1", Credential: SNMPCredential{Version: SNMPv2c, Community: "public", Port: 1161}},

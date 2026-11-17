@@ -62,10 +62,10 @@ type Inventory interface {
 	// of a fragile device (D-512).
 	BoxIPs(ctx context.Context) ([]netip.Addr, error)
 	// SNMPKnown lists the devices an SNMP read described (an snmp observation) and those whose SNMP switch a person stored on: the
-	// devices the credentials of before D-607 are moved to (snmp_move.go).
+	// devices the old SNMP credentials are moved to (snmp_move.go).
 	SNMPKnown(ctx context.Context) (read, on []string, err error)
-	// TurnSNMPOn stores a device's SNMP switch on as the person (D-601, audited by the inventory): saving SNMP settings on a device is
-	// the person's consent to read it (D-607). The inventory's refusals (box_device, device_ignored) are API errors, passed on as they are.
+	// TurnSNMPOn stores a device's SNMP switch on as the person (audited by the inventory): saving SNMP settings on a device is
+	// the person's consent to read it. The inventory's refusals (box_device, device_ignored) are API errors, passed on as they are.
 	TurnSNMPOn(ctx context.Context, actor, assetID string) error
 }
 

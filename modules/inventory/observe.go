@@ -71,9 +71,9 @@ type cleanObs struct {
 	mac   string     // hint, normalised, may be ""
 	agent string     // hint: the agent that reports (agent source only, D-598), may be ""
 	from  netip.Addr // hint: where an agent-only report came from (AssetHint.From, #829); judges keyHit's binding, nothing else
-	// device: the id of the device an SNMP read of its own read address is about (AssetHint.Device, D-607): it goes there or nowhere.
+	// device: the id of the device an SNMP read of its own read address is about (AssetHint.Device): it goes there or nowhere.
 	device string
-	list   bool // a list (software, services: deviceFor), not an observation: at a stale address it makes no device (review r1 L1 of #872)
+	list   bool // a list (software, services: deviceFor), not an observation: at a stale address it makes no device
 	// agentMACs are the MACs the agent reports in this batch (its mac observations); bindAgent checks the device against them.
 	agentMACs []string
 	// own: an agent's report by address only at a hand-added address another MAC was seen at (handClaims): a device of its own, never
@@ -91,8 +91,13 @@ func invalid(format string, a ...any) error {
 	return fmt.Errorf("%w: %s", ErrInvalid, fmt.Sprintf(format, a...))
 }
 
-// checkHint validates the device hint: a MAC, an IPv4 address or an agent, at least one (the agent is checked by checkAgent).
+// checkHint validates the device hint: a MAC, an IPv4 address or an agent, at least one (the agent is checked by checkAgent). A
+// device hint (AssetHint.Device) is refused here: only Record takes one (checkDevice), so a list sink or an enrolment never makes a
+// device from it.
 func checkHint(h observe.AssetHint) (ip netip.Addr, mac string, err error) {
+	if h.Device != "" {
+		return ip, "", invalid("hint: a device hint is only for SNMP observations")
+	}
 	if h.MAC != "" {
 		m, ok := normMAC(h.MAC)
 		if !ok {
@@ -106,13 +111,13 @@ func checkHint(h observe.AssetHint) (ip netip.Addr, mac string, err error) {
 			return ip, "", invalid("hint: only IPv4 addresses are supported")
 		}
 	}
-	if mac == "" && !ip.IsValid() && h.Agent == "" && h.Device == "" {
+	if mac == "" && !ip.IsValid() && h.Agent == "" {
 		return ip, "", invalid("hint: a MAC or an IP is required")
 	}
 	return ip, mac, nil
 }
 
-// checkDevice validates AssetHint.Device (D-607): only an SNMP observation names a device, and then nothing else.
+// checkDevice validates AssetHint.Device: only an SNMP observation names a device, and then nothing else.
 func checkDevice(h observe.AssetHint, source observe.Source) (string, error) {
 	if h.Device == "" {
 		return "", nil
@@ -173,9 +178,13 @@ func (s *Service) check(batch []observe.Observation) ([]cleanObs, error) {
 
 // checkOne validates observation i of a batch.
 func (s *Service) checkOne(i int, o observe.Observation) (cleanObs, error) {
-	ip, mac, err := checkHint(o.AssetHint)
-	if err != nil {
-		return cleanObs{}, fmt.Errorf("observation %d: %w", i, err)
+	var ip netip.Addr
+	var mac string
+	var err error
+	if o.AssetHint.Device == "" { // a device hint stands alone: checkDevice below
+		if ip, mac, err = checkHint(o.AssetHint); err != nil {
+			return cleanObs{}, fmt.Errorf("observation %d: %w", i, err)
+		}
 	}
 	if !observe.ValidSource(o.Source) || o.Source == observe.Manual {
 		return cleanObs{}, invalid("observation %d: source %q is not allowed", i, o.Source)
@@ -286,7 +295,7 @@ func (s *Service) Record(ctx context.Context, batch []observe.Observation) error
 		created := map[string]string{}   // device → the source whose observation created it
 		ownAt := map[netip.Addr]string{} // address → the device of its own an agent's report there resolved to (handClaims)
 		touched := []string{}
-		evidence := map[string]bool{}  // devices an observation found by its MAC, address or agent: only those run the join rules (D-607)
+		evidence := map[string]bool{}  // devices an observation found by its MAC, address or agent: only those run the join rules
 		before := map[string]string{}  // what the findings matcher reads of each device (matchView), before the batch
 		binds := map[string]cleanObs{} // device → an observation of the agent that reported on it (D-598)
 		for _, c := range clean {
@@ -347,7 +356,7 @@ func (s *Service) Record(ctx context.Context, batch []observe.Observation) error
 				return err
 			}
 		}
-		// A read of a device's own read address (AssetHint.Device) says nothing about which row is which machine: it never joins (D-607).
+		// A read of a device's own read address (AssetHint.Device) says nothing about which row is which machine: it never joins.
 		gone, joined, err := s.joinSame(ctx, tx, o, slices.DeleteFunc(slices.Clone(touched), func(id string) bool { return !evidence[id] }), created, before)
 		if err != nil {
 			return err
@@ -557,7 +566,7 @@ const ipTrust = 72 * time.Hour
 // M1: the duplicate an earlier batch made). A hint with only a MAC that a join left as a chassis MAC (D-515) is about the device it
 // joined.
 func (s *Service) resolve(ctx context.Context, tx *sql.Tx, o *outbox, c cleanObs) (id string, created bool, err error) {
-	if c.device != "" { // D-607: that device or nothing; never by address, never a new one, never the box
+	if c.device != "" { // that device or nothing; never by address, never a new one, never the box
 		err := tx.QueryRowContext(ctx, `SELECT id FROM inv_asset WHERE id = ? AND is_box = 0`, c.device).Scan(&id)
 		if errors.Is(err, sql.ErrNoRows) {
 			return "", false, nil

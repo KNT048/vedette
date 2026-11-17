@@ -76,7 +76,7 @@ var midRun = map[string]func(s *stack, t *testing.T, ip, mac string){
 	"the device moves":                 func(s *stack, t *testing.T, _, mac string) { s.seen(t, "192.168.10.77", mac, "") },
 }
 
-// #874 (D-512 (3), D-607), through the real inventory, bus and sensor-active: while a Check now of the approved switch at .205 waits
+// #874, through the real inventory, bus and sensor-active: while a Check now of the approved switch at .205 waits
 // for the worker, a new machine (another MAC, nobody approved it) takes .205, or the switch moves away from it. The inventory
 // announces the change, the batch is cancelled before the worker sends (the bus is synchronous: Record returns after the reactions
 // ran), and the community never reaches .205. A new check is refused too: the switch's read address was its IP, which it no longer

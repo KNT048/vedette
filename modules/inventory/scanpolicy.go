@@ -413,8 +413,8 @@ func (s *Service) PendingGentleScans(ctx context.Context) ([]string, error) {
 	return out, rows.Err()
 }
 
-// SNMPKnown lists, for the move of SNMP credentials to devices (sensor-active D-607), the devices (not the box) an SNMP read has
-// described (an snmp observation) and those whose SNMP switch a person stored on (D-601).
+// SNMPKnown lists, for the move of SNMP credentials to devices (sensor-active), the devices (not the box) an SNMP read has
+// described (an snmp observation) and those whose SNMP switch a person stored on.
 func (s *Service) SNMPKnown(ctx context.Context) (read, on []string, err error) {
 	for _, q := range []struct {
 		sql string

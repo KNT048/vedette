@@ -220,9 +220,9 @@ type Job struct {
 	SNMP   *SNMPJob   // snmp, nil for the others
 }
 
-// SNMPJob is a round of SNMP reads (protocol 5, D-512, D-607): for each target, in order, the worker sends the target's own
+// SNMPJob is a round of SNMP reads (protocol 5): for each target, in order, the worker sends the target's own
 // credential to the target's address and nowhere else, with read-only GETs of a fixed list of objects it owns (no object identifier
-// is on the wire, as no argv is: D-111 (3)). Rate is packets a second. A credential travels inside its target (D-607): SNMP is set up
+// is on the wire, as no argv is). Rate is packets a second. A credential travels inside its target: SNMP is set up
 // per device, and the secret of a device goes only to that device's read address, so the wire has no way to name another one.
 type SNMPJob struct {
 	Rate    int          `json:"rate"`
@@ -249,7 +249,7 @@ type SNMPCredential struct {
 // Format implements fmt.Formatter for every verb: the credential never reaches a log line through fmt.
 func (SNMPCredential) Format(f fmt.State, _ rune) { _, _ = f.Write([]byte("[redacted]")) }
 
-// SNMPTarget is one device of an snmp job: the address its reads go to (the device's read address, D-607) and its credential.
+// SNMPTarget is one device of an snmp job: the address its reads go to (the device's read address) and its credential.
 type SNMPTarget struct {
 	IP         string         `json:"ip"`
 	Credential SNMPCredential `json:"credential"`

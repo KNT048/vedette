@@ -96,7 +96,7 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
         )
       }
       if (!admin) return <span className="text-meta text-muted">{t('sources.adminOnly')}</span>
-      // D-607: SNMP is set up on the device's own SNMP card (version, community or v3 user, Read from, Check now).
+      // SNMP is set up on the device's own SNMP card (version, community or v3 user, Read from, Check now).
       return null
     }
     if (f === 'agent') {

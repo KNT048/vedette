@@ -6,10 +6,10 @@ import (
 	"testing"
 )
 
-// D-607: SNMP is set up per device, by administrators only, through the real router and the OpenAPI validator. An operator or a viewer
+// SNMP is set up per device, by administrators only, through the real router and the OpenAPI validator. An operator or a viewer
 // gets 403 before anything runs. The answer never holds the community, only its last 4 characters; Read from is the device's IP by
 // default. A wrong read address is refused with its own code and words, not the schema's generic "invalid". Copy from copies the
-// settings and the secret on the box: the secret is in no answer.
+// settings and the secret on the box, to the device's own address only: the secret is in no answer.
 func TestSNMPPerDeviceIsForAdministratorsAndNeverShowsTheSecret(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
@@ -51,8 +51,11 @@ func TestSNMPPerDeviceIsForAdministratorsAndNeverShowsTheSecret(t *testing.T) {
 	if msg, _ := at(v, "error", "message").(string); !strings.Contains(msg, "224.0.0.1") {
 		t.Errorf("no plain message: %v", v)
 	}
-	code, v = s.do("PUT", "/inventory/snmp/devices/"+other, "admin", `{"copy_from":"`+sw+`","read_from":"192.168.10.31"}`)
-	if code != 200 || v["secret_last4"] != "nity" || v["read_from"] != "192.168.10.31" || v["read_from_default"] != false {
+	if code, v := s.do("PUT", "/inventory/snmp/devices/"+other, "admin", `{"copy_from":"`+sw+`","read_from":"192.168.10.31"}`); code != 400 || at(v, "error", "code") != "secret_required" {
+		t.Fatalf("copy from to another address: %d %v, want 400 secret_required", code, v)
+	}
+	code, v = s.do("PUT", "/inventory/snmp/devices/"+other, "admin", `{"copy_from":"`+sw+`"}`)
+	if code != 200 || v["secret_last4"] != "nity" || v["read_from"] != "192.168.10.21" || v["read_from_default"] != true {
 		t.Fatalf("copy from: %d %v", code, v)
 	}
 	noSecret("copy", v)

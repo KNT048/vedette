@@ -16067,7 +16067,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								switch method {
 								case "GET":
 									r.name = InventoryGetInventorySnmpOperation
-									r.summary = "Whether the scan container can read SNMP now, every device with SNMP set up, and the notices of what the box changed by itself (D-607)"
+									r.summary = "Whether the scan container can read SNMP now, every device with SNMP set up, and the notices of what the box changed by itself"
 									r.operationID = "inventory_get_inventory_snmp"
 									r.operationGroup = ""
 									r.pathPattern = "/inventory/snmp"
@@ -16112,7 +16112,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										switch method {
 										case "DELETE":
 											r.name = InventoryDeleteInventorySnmpDevicesIDOperation
-											r.summary = "Remove the SNMP settings of one device and its secrets (D-607); what it said stays in the inventory; its SNMP source switch is left as it is. 404 not_found when the device has none"
+											r.summary = "Remove the SNMP settings of one device and its secrets; what it said stays in the inventory; its SNMP source switch is left as it is. 404 not_found when the device has none"
 											r.operationID = "inventory_delete_inventory_snmp_devices_id"
 											r.operationGroup = ""
 											r.pathPattern = "/inventory/snmp/devices/{id}"
@@ -16121,7 +16121,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 											return r, true
 										case "GET":
 											r.name = InventoryGetInventorySnmpDevicesIDOperation
-											r.summary = "The SNMP settings and state of one device (D-607): working, not answering, waiting or not set up; read from, last answer and what answered; never a secret, only its last 4 characters. 404 not_found: no such device"
+											r.summary = "The SNMP settings and state of one device: working, not answering, waiting or not set up; read from, last answer and what answered; never a secret, only its last 4 characters. 404 not_found: no such device"
 											r.operationID = "inventory_get_inventory_snmp_devices_id"
 											r.operationGroup = ""
 											r.pathPattern = "/inventory/snmp/devices/{id}"
@@ -16130,7 +16130,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 											return r, true
 										case "PUT":
 											r.name = InventoryPutInventorySnmpDevicesIDOperation
-											r.summary = "Set up or edit the SNMP of one device (D-607): version, community or v3 user, port, Read from; or copy_from another device (the secret is copied on the box). Saving is the person's consent: it turns the device's SNMP source on (D-601) when it was not. A blank secret keeps the saved one, unless Read from changes. One audit row. 400 bad_version, bad_secret, secret_required, bad_user, bad_auth, bad_priv, bad_port, bad_read_from, read_from_not_local, copy_from_self. 404 not_found, copy_from_not_found (no such device with SNMP set up). 409 no_ip (the device has no address yet), box_device, read_from_box (the box or a trap address), secret_lost (a kept or copied secret this box cannot open), device_ignored"
+											r.summary = "Set up or edit the SNMP of one device: version, community or v3 user, port, Read from; or copy_from another device (the secret is copied on the box). Saving is the person's consent: it turns the device's SNMP source on when it was not. A blank secret keeps the saved one, unless Read from changes. One audit row. 400 bad_version, bad_secret, secret_required (also copy_from with a read_from other than the device's IP), bad_user, bad_auth, bad_priv, bad_port, bad_read_from, read_from_not_local, copy_from_self. 404 not_found, copy_from_not_found (no such device with SNMP set up). 409 no_ip (the device has no address yet), read_from_taken (another device reads from that address; the message names it), box_device, read_from_box (the box or a trap address), secret_lost (a kept or copied secret this box cannot open), device_ignored"
 											r.operationID = "inventory_put_inventory_snmp_devices_id"
 											r.operationGroup = ""
 											r.pathPattern = "/inventory/snmp/devices/{id}"
@@ -16155,7 +16155,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 											switch method {
 											case "POST":
 												r.name = InventoryPostInventorySnmpDevicesIDCheckOperation
-												r.summary = "Check now (D-607): read this device at once at its Read from address (read-only GETs from the scan container, logged in the probe log, every rule but the window) and say what it answered, or why not; an answer is recorded on this device. 404 not_found. 409 not_set_up, secret_lost, stopped (the module or scanning was turned off), changed (the settings changed while it started)"
+												r.summary = "Check now: read this device at once at its Read from address (read-only GETs from the scan container, logged in the probe log, every rule but the window) and say what it answered, or why not; an answer is recorded on this device. 404 not_found. 409 not_set_up, secret_lost, stopped (the module or scanning was turned off), changed (the settings changed while it started)"
 												r.operationID = "inventory_post_inventory_snmp_devices_id_check"
 												r.operationGroup = ""
 												r.pathPattern = "/inventory/snmp/devices/{id}/check"
@@ -16182,7 +16182,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										switch method {
 										case "POST":
 											r.name = InventoryPostInventorySnmpNoticesDismissOperation
-											r.summary = "Dismiss every SNMP notice (D-607)"
+											r.summary = "Dismiss every SNMP notice"
 											r.operationID = "inventory_post_inventory_snmp_notices_dismiss"
 											r.operationGroup = ""
 											r.pathPattern = "/inventory/snmp/notices/dismiss"

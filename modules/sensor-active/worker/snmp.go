@@ -17,8 +17,8 @@ import (
 	"github.com/knt048/vedette/core/sensorlink"
 )
 
-// The SNMP reads of D-512 and D-607: for each target of an snmp job, in order and one at a time, the worker sends the target's own
-// credential to the target's address, and to no other (D-607: a device's secret goes only to its read address; the wire carries the
+// The SNMP reads: for each target of an snmp job, in order and one at a time, the worker sends the target's own
+// credential to the target's address, and to no other (a device's secret goes only to its read address; the wire carries the
 // credential inside its target), with one read-only GET of a fixed list of objects (snmpObjects). Nothing is ever set, walked or
 // bulk-read, and no object identifier comes from core. A request waits 2 s for its answer and is sent once more (SNMPTimeout,
 // SNMPRetries); the next request leaves at most rate packets a second behind it (a v3 read is two exchanges: the engine discovery

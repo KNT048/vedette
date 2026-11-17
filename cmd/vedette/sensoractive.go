@@ -327,12 +327,12 @@ func (a sensorInventory) BoxIPs(ctx context.Context) ([]netip.Addr, error) {
 	return a.withBoxCards(ctx, out)
 }
 
-// SNMPKnown implements sensoractive.Inventory (D-607: the devices the credentials of before are moved to).
+// SNMPKnown implements sensoractive.Inventory (the devices the old credentials are moved to).
 func (a sensorInventory) SNMPKnown(ctx context.Context) (read, on []string, err error) {
 	return a.inv.SNMPKnown(ctx)
 }
 
-// TurnSNMPOn implements sensoractive.Inventory (D-607): saving SNMP on a device stores its SNMP switch on, audited as the person.
+// TurnSNMPOn implements sensoractive.Inventory: saving SNMP on a device stores its SNMP switch on, audited as the person.
 func (a sensorInventory) TurnSNMPOn(ctx context.Context, actor, assetID string) error {
 	on := inventory.SourceOn
 	_, err := a.inv.SetSources(ctx, actor, assetID, nil, &on)

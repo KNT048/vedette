@@ -51,7 +51,7 @@ const ScanInfo = z.object({
   first_scan_at: dt.nullable().describe('When the one gentle first scan happened; null = no gentle scan (declared by hand, the box itself, or a known kind that is not fragile and not set to never)'),
   regular_scan: RegularScan,
   scan_source: SourceState.describe('D-601: the box\'s network scan of this device (discovery\'s nmap and the vulnerability scans). on: the box\'s own scan settings decide; off: no scan packet goes to it. Default: on for a device a sensor found, off for one added by hand. Off is answered as regular_scan_never by the scan refusals'),
-  snmp_source: SourceState.describe('D-601: the box\'s SNMP reads of this device, as scan_source (default on for a device a sensor found, off for one added by hand). Off: no SNMP read goes to it (Test answers snmp_off)'),
+  snmp_source: SourceState.describe('The box\'s SNMP reads of this device, as scan_source (default on for a device a sensor found, off for one added by hand); saving the device\'s SNMP settings turns it on. Off: no SNMP read goes to it (Check now answers snmp_off, and the device\'s SNMP says so in blocked)'),
   approved_at: dt.nullable().describe('When a person approved the device, or osquery enrolment did (D-471: "Approved in the last 24 h"); approving again does not move it; null = not approved, added by hand, or approved before this field existed'),
   ignored_at: dt.nullable().describe('D-630: when a person ignored the device (a staff phone: known, not watched); null = watched. An ignored device is out of To review, the counts and the Devices list (ignored=true lists them), sends no new-device alert, is not scanned or read over SNMP, its open findings are closed (what a person settled keeps its status) and none are made; a trap hit or an intrusion-detection incident from it still alerts'),
 })
@@ -255,11 +255,11 @@ export const AgentReport = z.object({
   wazuh_interval_minutes: z.number().int().nullable().describe('agent wazuh: how often Vedette pulls from the Wazuh server (5, 15, 60, 360 or 1440); null otherwise'),
 })
 
-/** D-607 (S-INV-1): SNMP is set up per device, like a Zabbix host's SNMP interface. Each device has its own version, community or
+/** S-INV-1: SNMP is set up per device, like a Zabbix host's SNMP interface. Each device has its own version, community or
  * v3 user, port and "read from" address (its management address, by default its own IP); its secrets are stored encrypted, the API
  * never returns them (only their last 4 characters), and they are sent to that one address only. There are no credential profiles
  * and no scopes. Reads are read-only GETs from the scan container, in the scan window or by Check now. */
-export const SnmpVersion = z.enum(['v2c', 'v3']).describe('No SNMPv1 (D-512)')
+export const SnmpVersion = z.enum(['v2c', 'v3']).describe('No SNMPv1: it is not secure')
 export const SnmpAuth = z.enum(['sha', 'sha256']).describe('v3 authentication: HMAC-SHA-1 or HMAC-SHA-256 (no MD5)')
 export const SnmpPriv = z.enum(['aes128', 'none']).describe('v3 privacy: AES-128 (authPriv) or none (authNoPriv); no DES')
 export const SnmpState = z.enum(['working', 'not_answering', 'waiting', 'not_set_up']).describe(
@@ -295,7 +295,7 @@ export const DeviceSnmp = z.object({
   updated_at: dt.nullable(),
 })
 export const DeviceSnmpInput = z.object({
-  copy_from: z.string().optional().describe('A device id: copy that device\'s SNMP settings (version, user, algorithms, port and the saved community or passwords) on the box; the secret never goes to the browser. With copy_from only read_from is read from this body'),
+  copy_from: z.string().optional().describe('A device id: copy that device\'s SNMP settings (version, user, algorithms, port and the saved community or passwords) on the box; the secret never goes to the browser. With copy_from only read_from is read from this body, and it must be the device\'s own IP (left out or equal): a copied secret goes only there; any other read_from is 400 secret_required (type the secret instead)'),
   read_from: z.string().max(15).optional().describe('The IPv4 address SNMP answers on; left out or empty = the device\'s IP. Any local address (inside or outside the LAN ranges), not the box or a trap address, not multicast or broadcast'),
   version: SnmpVersion.optional().describe('Required unless copy_from'),
   community: z.string().max(64).optional().describe('v2c: 1 to 64 printable ASCII characters; blank on an edit keeps the saved one (not when Read from changes)'),
@@ -320,7 +320,7 @@ export const SnmpNotice = z.object({ id: z.number().int(), at: dt, text: z.strin
 export const SnmpResponse = z.object({
   ready: z.boolean().describe('false while the scan container cannot read SNMP (not reporting, or older than this version)'), message: z.string().nullable().describe('Why not ready'),
   devices: z.array(SnmpDeviceRow).describe('Every device with SNMP set up, by name: the Copy from list and the Scanning card'),
-  notices: z.array(SnmpNotice).describe('What the box did to SNMP settings by itself (the move from credentials to devices, D-607), until a person dismisses them'),
+  notices: z.array(SnmpNotice).describe('What the box did to SNMP settings by itself (the move from credentials to devices), until a person dismisses them'),
 })
 
 const id = z.object({ id: z.string() })
@@ -381,10 +381,10 @@ export const endpoints = defineEndpoints([
   { method: 'post', path: '/inventory/agents/wazuh/test', summary: 'Test the connection to the Wazuh API with the form values, without saving', stories: ['S-INV-4'], role: 'admin', body: WazuhInput, response: WazuhTestResult },
   { method: 'delete', path: '/inventory/agents/wazuh', summary: 'Disconnect Wazuh and delete the saved password', stories: ['S-INV-4'], role: 'admin', response: null },
   { method: 'post', path: '/inventory/agents/wazuh/sample-data', summary: 'PREVIEW ONLY (mock): sync sample data as if just pulled from Wazuh', stories: ['S-INV-4'], role: 'admin', response: SampleResult },
-  { method: 'get', path: '/inventory/snmp', summary: 'Whether the scan container can read SNMP now, every device with SNMP set up, and the notices of what the box changed by itself (D-607)', stories: ['S-INV-1'], role: 'admin', response: SnmpResponse },
-  { method: 'post', path: '/inventory/snmp/notices/dismiss', summary: 'Dismiss every SNMP notice (D-607)', stories: ['S-INV-1'], role: 'admin', response: ok },
-  { method: 'get', path: '/inventory/snmp/devices/{id}', summary: 'The SNMP settings and state of one device (D-607): working, not answering, waiting or not set up; read from, last answer and what answered; never a secret, only its last 4 characters. 404 not_found: no such device', stories: ['S-INV-1'], role: 'admin', params: id, response: DeviceSnmp },
-  { method: 'put', path: '/inventory/snmp/devices/{id}', summary: 'Set up or edit the SNMP of one device (D-607): version, community or v3 user, port, Read from; or copy_from another device (the secret is copied on the box). Saving is the person\'s consent: it turns the device\'s SNMP source on (D-601) when it was not. A blank secret keeps the saved one, unless Read from changes. One audit row. 400 bad_version, bad_secret, secret_required, bad_user, bad_auth, bad_priv, bad_port, bad_read_from, read_from_not_local, copy_from_self. 404 not_found, copy_from_not_found (no such device with SNMP set up). 409 no_ip (the device has no address yet), box_device, read_from_box (the box or a trap address), secret_lost (a kept or copied secret this box cannot open), device_ignored', stories: ['S-INV-1'], role: 'admin', params: id, body: DeviceSnmpInput, response: DeviceSnmp },
-  { method: 'delete', path: '/inventory/snmp/devices/{id}', summary: 'Remove the SNMP settings of one device and its secrets (D-607); what it said stays in the inventory; its SNMP source switch is left as it is. 404 not_found when the device has none', stories: ['S-INV-1'], role: 'admin', params: id, response: null },
-  { method: 'post', path: '/inventory/snmp/devices/{id}/check', summary: 'Check now (D-607): read this device at once at its Read from address (read-only GETs from the scan container, logged in the probe log, every rule but the window) and say what it answered, or why not; an answer is recorded on this device. 404 not_found. 409 not_set_up, secret_lost, stopped (the module or scanning was turned off), changed (the settings changed while it started)', stories: ['S-INV-1'], role: 'admin', params: id, response: SnmpCheckResult },
+  { method: 'get', path: '/inventory/snmp', summary: 'Whether the scan container can read SNMP now, every device with SNMP set up, and the notices of what the box changed by itself', stories: ['S-INV-1'], role: 'admin', response: SnmpResponse },
+  { method: 'post', path: '/inventory/snmp/notices/dismiss', summary: 'Dismiss every SNMP notice', stories: ['S-INV-1'], role: 'admin', response: ok },
+  { method: 'get', path: '/inventory/snmp/devices/{id}', summary: 'The SNMP settings and state of one device: working, not answering, waiting or not set up; read from, last answer and what answered; never a secret, only its last 4 characters. 404 not_found: no such device', stories: ['S-INV-1'], role: 'admin', params: id, response: DeviceSnmp },
+  { method: 'put', path: '/inventory/snmp/devices/{id}', summary: 'Set up or edit the SNMP of one device: version, community or v3 user, port, Read from; or copy_from another device (the secret is copied on the box). Saving is the person\'s consent: it turns the device\'s SNMP source on when it was not. A blank secret keeps the saved one, unless Read from changes. One audit row. 400 bad_version, bad_secret, secret_required (also copy_from with a read_from other than the device\'s IP), bad_user, bad_auth, bad_priv, bad_port, bad_read_from, read_from_not_local, copy_from_self. 404 not_found, copy_from_not_found (no such device with SNMP set up). 409 no_ip (the device has no address yet), read_from_taken (another device reads from that address; the message names it), box_device, read_from_box (the box or a trap address), secret_lost (a kept or copied secret this box cannot open), device_ignored', stories: ['S-INV-1'], role: 'admin', params: id, body: DeviceSnmpInput, response: DeviceSnmp },
+  { method: 'delete', path: '/inventory/snmp/devices/{id}', summary: 'Remove the SNMP settings of one device and its secrets; what it said stays in the inventory; its SNMP source switch is left as it is. 404 not_found when the device has none', stories: ['S-INV-1'], role: 'admin', params: id, response: null },
+  { method: 'post', path: '/inventory/snmp/devices/{id}/check', summary: 'Check now: read this device at once at its Read from address (read-only GETs from the scan container, logged in the probe log, every rule but the window) and say what it answered, or why not; an answer is recorded on this device. 404 not_found. 409 not_set_up, secret_lost, stopped (the module or scanning was turned off), changed (the settings changed while it started)', stories: ['S-INV-1'], role: 'admin', params: id, response: SnmpCheckResult },
 ])

@@ -41,7 +41,7 @@ function useNeeds(): Record<Method, Need> {
   }
 }
 
-/** SNMP (D-607): set up per device, on the device's own page, so this method only says where (Mlee's device-page SNMP card replaces
+/** SNMP: set up per device, on the device's own page, so this method only says where (the device-page SNMP card replaces
  *  the credential form that was here). */
 function SnmpMethod() {
   const { t } = useTranslation('inventory')

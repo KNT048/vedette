@@ -97476,8 +97476,9 @@ type InventoryGetInventoryDevicesIDOKAsset struct {
 	ScanSource InventoryGetInventoryDevicesIDOKAssetScanSource     `json:"scan_source"`
 	Services   []InventoryGetInventoryDevicesIDOKAssetServicesItem `json:"services"`
 	Site       string                                              `json:"site"`
-	// D-601: the box's SNMP reads of this device, as scan_source (default on for a device a sensor found,
-	// off for one added by hand). Off: no SNMP read goes to it (Test answers snmp_off).
+	// The box's SNMP reads of this device, as scan_source (default on for a device a sensor found, off for
+	// one added by hand); saving the device's SNMP settings turns it on. Off: no SNMP read goes to it
+	// (Check now answers snmp_off, and the device's SNMP says so in blocked).
 	SnmpSource InventoryGetInventoryDevicesIDOKAssetSnmpSource     `json:"snmp_source"`
 	Software   []InventoryGetInventoryDevicesIDOKAssetSoftwareItem `json:"software"`
 	Vendor     NilInventoryGetInventoryDevicesIDOKAssetVendor      `json:"vendor"`
@@ -100585,8 +100586,9 @@ func (s *InventoryGetInventoryDevicesIDOKAssetServicesItemSource) UnmarshalText(
 	}
 }
 
-// D-601: the box's SNMP reads of this device, as scan_source (default on for a device a sensor found,
-// off for one added by hand). Off: no SNMP read goes to it (Test answers snmp_off).
+// The box's SNMP reads of this device, as scan_source (default on for a device a sensor found, off for
+// one added by hand); saving the device's SNMP settings turns it on. Off: no SNMP read goes to it
+// (Check now answers snmp_off, and the device's SNMP says so in blocked).
 type InventoryGetInventoryDevicesIDOKAssetSnmpSource string
 
 const (
@@ -102395,8 +102397,9 @@ type InventoryGetInventoryDevicesOKItemsItem struct {
 	ScanSource InventoryGetInventoryDevicesOKItemsItemScanSource     `json:"scan_source"`
 	Services   []InventoryGetInventoryDevicesOKItemsItemServicesItem `json:"services"`
 	Site       string                                                `json:"site"`
-	// D-601: the box's SNMP reads of this device, as scan_source (default on for a device a sensor found,
-	// off for one added by hand). Off: no SNMP read goes to it (Test answers snmp_off).
+	// The box's SNMP reads of this device, as scan_source (default on for a device a sensor found, off for
+	// one added by hand); saving the device's SNMP settings turns it on. Off: no SNMP read goes to it
+	// (Check now answers snmp_off, and the device's SNMP says so in blocked).
 	SnmpSource InventoryGetInventoryDevicesOKItemsItemSnmpSource     `json:"snmp_source"`
 	Software   []InventoryGetInventoryDevicesOKItemsItemSoftwareItem `json:"software"`
 	// Every source that told Vedette something about the device and is still kept (its details, software
@@ -105468,8 +105471,9 @@ func (s *InventoryGetInventoryDevicesOKItemsItemServicesItemSource) UnmarshalTex
 	}
 }
 
-// D-601: the box's SNMP reads of this device, as scan_source (default on for a device a sensor found,
-// off for one added by hand). Off: no SNMP read goes to it (Test answers snmp_off).
+// The box's SNMP reads of this device, as scan_source (default on for a device a sensor found, off for
+// one added by hand); saving the device's SNMP settings turns it on. Off: no SNMP read goes to it
+// (Check now answers snmp_off, and the device's SNMP says so in blocked).
 type InventoryGetInventoryDevicesOKItemsItemSnmpSource string
 
 const (
@@ -107951,7 +107955,7 @@ func (s *InventoryGetInventorySnmpDevicesIDOKState) UnmarshalText(data []byte) e
 	}
 }
 
-// No SNMPv1 (D-512).
+// No SNMPv1: it is not secure.
 type InventoryGetInventorySnmpDevicesIDOKVersion string
 
 const (
@@ -107998,8 +108002,8 @@ type InventoryGetInventorySnmpOK struct {
 	Devices []InventoryGetInventorySnmpOKDevicesItem `json:"devices"`
 	// Why not ready.
 	Message NilString `json:"message"`
-	// What the box did to SNMP settings by itself (the move from credentials to devices, D-607), until a
-	// person dismisses them.
+	// What the box did to SNMP settings by itself (the move from credentials to devices), until a person
+	// dismisses them.
 	Notices []InventoryGetInventorySnmpOKNoticesItem `json:"notices"`
 	// False while the scan container cannot read SNMP (not reporting, or older than this version).
 	Ready bool `json:"ready"`
@@ -108058,7 +108062,7 @@ type InventoryGetInventorySnmpOKDevicesItem struct {
 	ReadFrom string                                      `json:"read_from"`
 	State    InventoryGetInventorySnmpOKDevicesItemState `json:"state"`
 	Username NilString                                   `json:"username"`
-	// No SNMPv1 (D-512).
+	// No SNMPv1: it is not secure.
 	Version InventoryGetInventorySnmpOKDevicesItemVersion `json:"version"`
 }
 
@@ -108407,7 +108411,7 @@ func (s *InventoryGetInventorySnmpOKDevicesItemState) UnmarshalText(data []byte)
 	}
 }
 
-// No SNMPv1 (D-512).
+// No SNMPv1: it is not secure.
 type InventoryGetInventorySnmpOKDevicesItemVersion string
 
 const (
@@ -112321,7 +112325,7 @@ func (s *InventoryPostInventorySnmpDevicesIDCheckOKSnmpState) UnmarshalText(data
 	}
 }
 
-// No SNMPv1 (D-512).
+// No SNMPv1: it is not secure.
 type InventoryPostInventorySnmpDevicesIDCheckOKSnmpVersion string
 
 const (
@@ -114539,7 +114543,7 @@ func (s *InventoryPutInventorySnmpDevicesIDOKState) UnmarshalText(data []byte) e
 	}
 }
 
-// No SNMPv1 (D-512).
+// No SNMPv1: it is not secure.
 type InventoryPutInventorySnmpDevicesIDOKVersion string
 
 const (
@@ -114592,7 +114596,8 @@ type InventoryPutInventorySnmpDevicesIDReq struct {
 	Community OptString `json:"community"`
 	// A device id: copy that device's SNMP settings (version, user, algorithms, port and the saved
 	// community or passwords) on the box; the secret never goes to the browser. With copy_from only
-	// read_from is read from this body.
+	// read_from is read from this body, and it must be the device's own IP (left out or equal): a copied
+	// secret goes only there; any other read_from is 400 secret_required (type the secret instead).
 	CopyFrom OptString `json:"copy_from"`
 	// The UDP port the device answers SNMP on; left out = 161.
 	Port OptInt `json:"port"`

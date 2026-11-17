@@ -13,7 +13,7 @@ import { Navigate, useLocation } from 'react-router'
 // "Add devices" links to #agents (D-471) and SNMP to #snmp (D-512); those and the other section ids open their tab (D-519).
 const OLD_HASH: Record<string, string> = { ranges: 'scope', active: 'scope', fragile: 'scope', scope: 'scope', sensors: 'sensor', agents: 'agents' }
 
-/** #850: old SNMP links (?tab=snmp, #snmp) land on the SNMP card of Settings › Scanning (D-607: SNMP itself is set up per device). */
+/** #850: old SNMP links (?tab=snmp, #snmp) land on the SNMP card of Settings › Scanning (SNMP itself is set up per device). */
 function snmpMoved(search: string, hash: string): string | null {
   const p = new URLSearchParams(search)
   if (p.get('tab') !== 'snmp' && hash !== '#snmp') return null

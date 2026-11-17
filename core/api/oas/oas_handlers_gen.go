@@ -25731,8 +25731,8 @@ func (s *Server) handleInventoryDeleteInventoryDevicesIDSoftwareSidRequest(args 
 
 // handleInventoryDeleteInventorySnmpDevicesIDRequest handles inventory_delete_inventory_snmp_devices_id operation.
 //
-// Remove the SNMP settings of one device and its secrets (D-607); what it said stays in the inventory;
-// its SNMP source switch is left as it is. 404 not_found when the device has none.
+// Remove the SNMP settings of one device and its secrets; what it said stays in the inventory; its
+// SNMP source switch is left as it is. 404 not_found when the device has none.
 //
 // DELETE /inventory/snmp/devices/{id}
 func (s *Server) handleInventoryDeleteInventorySnmpDevicesIDRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -25811,7 +25811,7 @@ func (s *Server) handleInventoryDeleteInventorySnmpDevicesIDRequest(args [1]stri
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    InventoryDeleteInventorySnmpDevicesIDOperation,
-			OperationSummary: "Remove the SNMP settings of one device and its secrets (D-607); what it said stays in the inventory; its SNMP source switch is left as it is. 404 not_found when the device has none",
+			OperationSummary: "Remove the SNMP settings of one device and its secrets; what it said stays in the inventory; its SNMP source switch is left as it is. 404 not_found when the device has none",
 			OperationID:      "inventory_delete_inventory_snmp_devices_id",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -27597,7 +27597,7 @@ func (s *Server) handleInventoryGetInventorySettingsRequest(args [0]string, args
 // handleInventoryGetInventorySnmpRequest handles inventory_get_inventory_snmp operation.
 //
 // Whether the scan container can read SNMP now, every device with SNMP set up, and the notices of what
-// the box changed by itself (D-607).
+// the box changed by itself.
 //
 // GET /inventory/snmp
 func (s *Server) handleInventoryGetInventorySnmpRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -27666,7 +27666,7 @@ func (s *Server) handleInventoryGetInventorySnmpRequest(args [0]string, argsEsca
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    InventoryGetInventorySnmpOperation,
-			OperationSummary: "Whether the scan container can read SNMP now, every device with SNMP set up, and the notices of what the box changed by itself (D-607)",
+			OperationSummary: "Whether the scan container can read SNMP now, every device with SNMP set up, and the notices of what the box changed by itself",
 			OperationID:      "inventory_get_inventory_snmp",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -27723,9 +27723,9 @@ func (s *Server) handleInventoryGetInventorySnmpRequest(args [0]string, argsEsca
 
 // handleInventoryGetInventorySnmpDevicesIDRequest handles inventory_get_inventory_snmp_devices_id operation.
 //
-// The SNMP settings and state of one device (D-607): working, not answering, waiting or not set up;
-// read from, last answer and what answered; never a secret, only its last 4 characters. 404 not_found:
-// no such device.
+// The SNMP settings and state of one device: working, not answering, waiting or not set up; read from,
+// last answer and what answered; never a secret, only its last 4 characters. 404 not_found: no such
+// device.
 //
 // GET /inventory/snmp/devices/{id}
 func (s *Server) handleInventoryGetInventorySnmpDevicesIDRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -27804,7 +27804,7 @@ func (s *Server) handleInventoryGetInventorySnmpDevicesIDRequest(args [1]string,
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    InventoryGetInventorySnmpDevicesIDOperation,
-			OperationSummary: "The SNMP settings and state of one device (D-607): working, not answering, waiting or not set up; read from, last answer and what answered; never a secret, only its last 4 characters. 404 not_found: no such device",
+			OperationSummary: "The SNMP settings and state of one device: working, not answering, waiting or not set up; read from, last answer and what answered; never a secret, only its last 4 characters. 404 not_found: no such device",
 			OperationID:      "inventory_get_inventory_snmp_devices_id",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -30645,7 +30645,7 @@ func (s *Server) handleInventoryPostInventoryImportRequest(args [0]string, argsE
 
 // handleInventoryPostInventorySnmpDevicesIDCheckRequest handles inventory_post_inventory_snmp_devices_id_check operation.
 //
-// Check now (D-607): read this device at once at its Read from address (read-only GETs from the scan
+// Check now: read this device at once at its Read from address (read-only GETs from the scan
 // container, logged in the probe log, every rule but the window) and say what it answered, or why not;
 // an answer is recorded on this device. 404 not_found. 409 not_set_up, secret_lost, stopped (the
 // module or scanning was turned off), changed (the settings changed while it started).
@@ -30727,7 +30727,7 @@ func (s *Server) handleInventoryPostInventorySnmpDevicesIDCheckRequest(args [1]s
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    InventoryPostInventorySnmpDevicesIDCheckOperation,
-			OperationSummary: "Check now (D-607): read this device at once at its Read from address (read-only GETs from the scan container, logged in the probe log, every rule but the window) and say what it answered, or why not; an answer is recorded on this device. 404 not_found. 409 not_set_up, secret_lost, stopped (the module or scanning was turned off), changed (the settings changed while it started)",
+			OperationSummary: "Check now: read this device at once at its Read from address (read-only GETs from the scan container, logged in the probe log, every rule but the window) and say what it answered, or why not; an answer is recorded on this device. 404 not_found. 409 not_set_up, secret_lost, stopped (the module or scanning was turned off), changed (the settings changed while it started)",
 			OperationID:      "inventory_post_inventory_snmp_devices_id_check",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -30789,7 +30789,7 @@ func (s *Server) handleInventoryPostInventorySnmpDevicesIDCheckRequest(args [1]s
 
 // handleInventoryPostInventorySnmpNoticesDismissRequest handles inventory_post_inventory_snmp_notices_dismiss operation.
 //
-// Dismiss every SNMP notice (D-607).
+// Dismiss every SNMP notice.
 //
 // POST /inventory/snmp/notices/dismiss
 func (s *Server) handleInventoryPostInventorySnmpNoticesDismissRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -30858,7 +30858,7 @@ func (s *Server) handleInventoryPostInventorySnmpNoticesDismissRequest(args [0]s
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    InventoryPostInventorySnmpNoticesDismissOperation,
-			OperationSummary: "Dismiss every SNMP notice (D-607)",
+			OperationSummary: "Dismiss every SNMP notice",
 			OperationID:      "inventory_post_inventory_snmp_notices_dismiss",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -31501,14 +31501,15 @@ func (s *Server) handleInventoryPutInventorySettingsRequest(args [0]string, args
 
 // handleInventoryPutInventorySnmpDevicesIDRequest handles inventory_put_inventory_snmp_devices_id operation.
 //
-// Set up or edit the SNMP of one device (D-607): version, community or v3 user, port, Read from; or
-// copy_from another device (the secret is copied on the box). Saving is the person's consent: it turns
-// the device's SNMP source on (D-601) when it was not. A blank secret keeps the saved one, unless Read
-// from changes. One audit row. 400 bad_version, bad_secret, secret_required, bad_user, bad_auth,
-// bad_priv, bad_port, bad_read_from, read_from_not_local, copy_from_self. 404 not_found,
-// copy_from_not_found (no such device with SNMP set up). 409 no_ip (the device has no address yet),
-// box_device, read_from_box (the box or a trap address), secret_lost (a kept or copied secret this box
-// cannot open), device_ignored.
+// Set up or edit the SNMP of one device: version, community or v3 user, port, Read from; or copy_from
+// another device (the secret is copied on the box). Saving is the person's consent: it turns the
+// device's SNMP source on when it was not. A blank secret keeps the saved one, unless Read from
+// changes. One audit row. 400 bad_version, bad_secret, secret_required (also copy_from with a
+// read_from other than the device's IP), bad_user, bad_auth, bad_priv, bad_port, bad_read_from,
+// read_from_not_local, copy_from_self. 404 not_found, copy_from_not_found (no such device with SNMP
+// set up). 409 no_ip (the device has no address yet), read_from_taken (another device reads from that
+// address; the message names it), box_device, read_from_box (the box or a trap address), secret_lost
+// (a kept or copied secret this box cannot open), device_ignored.
 //
 // PUT /inventory/snmp/devices/{id}
 func (s *Server) handleInventoryPutInventorySnmpDevicesIDRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -31602,7 +31603,7 @@ func (s *Server) handleInventoryPutInventorySnmpDevicesIDRequest(args [1]string,
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    InventoryPutInventorySnmpDevicesIDOperation,
-			OperationSummary: "Set up or edit the SNMP of one device (D-607): version, community or v3 user, port, Read from; or copy_from another device (the secret is copied on the box). Saving is the person's consent: it turns the device's SNMP source on (D-601) when it was not. A blank secret keeps the saved one, unless Read from changes. One audit row. 400 bad_version, bad_secret, secret_required, bad_user, bad_auth, bad_priv, bad_port, bad_read_from, read_from_not_local, copy_from_self. 404 not_found, copy_from_not_found (no such device with SNMP set up). 409 no_ip (the device has no address yet), box_device, read_from_box (the box or a trap address), secret_lost (a kept or copied secret this box cannot open), device_ignored",
+			OperationSummary: "Set up or edit the SNMP of one device: version, community or v3 user, port, Read from; or copy_from another device (the secret is copied on the box). Saving is the person's consent: it turns the device's SNMP source on when it was not. A blank secret keeps the saved one, unless Read from changes. One audit row. 400 bad_version, bad_secret, secret_required (also copy_from with a read_from other than the device's IP), bad_user, bad_auth, bad_priv, bad_port, bad_read_from, read_from_not_local, copy_from_self. 404 not_found, copy_from_not_found (no such device with SNMP set up). 409 no_ip (the device has no address yet), read_from_taken (another device reads from that address; the message names it), box_device, read_from_box (the box or a trap address), secret_lost (a kept or copied secret this box cannot open), device_ignored",
 			OperationID:      "inventory_put_inventory_snmp_devices_id",
 			Body:             request,
 			RawBody:          rawBody,

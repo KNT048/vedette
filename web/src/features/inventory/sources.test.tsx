@@ -108,9 +108,9 @@ describe('Device page: Sources switches (D-601)', () => {
   })
 })
 
-// D-607: the mock of the per-device SNMP API answers as the box does: never a secret, only its last 4 characters; Copy from copies on
+// the mock of the per-device SNMP API answers as the box does: never a secret, only its last 4 characters; Copy from copies on
 // the box; saving turns the device's SNMP source on.
-describe('SNMP per device (D-607), the mock API', () => {
+describe('SNMP per device, the mock API', () => {
   it('sets up, copies and checks a device without ever answering a secret', async () => {
     const empty = (await (await api('GET', '/snmp/devices/a-nas02')).json()) as { state: string; ip: string }
     expect(empty).toMatchObject({ state: 'not_set_up', ip: '192.168.10.21' })
@@ -123,6 +123,15 @@ describe('SNMP per device (D-607), the mock API', () => {
     expect(bad.status).toBe(400)
     const list = await (await api('GET', '/snmp')).text()
     expect(list).not.toContain('s3cret')
+    const copyElsewhere = await api('PUT', '/snmp/devices/a-nas01', { copy_from: 'a-nas02', read_from: '192.168.10.99' })
+    expect(copyElsewhere.status).toBe(400) // a copied secret goes only to the device's own address
+    const copy = await api('PUT', '/snmp/devices/a-nas01', { copy_from: 'a-nas02' })
+    const copyBody = await copy.text()
+    expect(copy.status).toBe(200)
+    expect(copyBody).not.toContain('s3cret')
+    expect(JSON.parse(copyBody)).toMatchObject({ read_from: '192.168.10.20', secret_last4: 'nity' })
+    const taken = await api('PUT', '/snmp/devices/a-sw01', { version: 'v2c', community: 'public', read_from: '192.168.10.20' })
+    expect(taken.status).toBe(409)
     const d = (await (await api('GET', '/devices/a-nas02')).json()) as { asset: { snmp_source: string } }
     expect(d.asset.snmp_source).toBe('on')
     const check = (await (await api('POST', '/snmp/devices/a-nas02/check')).json()) as { ok: boolean; reason: string; snmp: { state: string } }

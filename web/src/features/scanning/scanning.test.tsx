@@ -83,7 +83,7 @@ describe('Settings › Scanning: every engine on one page (#850, D-627)', () => 
     await waitFor(() => expect(within(row).queryByText('Needs setup')).toBeNull())
   })
 
-  it('a deep link lands on the engine\'s card; SNMP keeps no credentials here (D-607: set up per device)', async () => {
+  it('a deep link lands on the engine\'s card; SNMP keeps no credentials here (set up per device)', async () => {
     renderApp('/settings/scanning#snmp')
     const row = await card(/SNMP reading/)
     expect(within(row).queryByRole('heading', { name: 'SNMP credentials' })).toBeNull()

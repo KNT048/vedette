@@ -27,7 +27,7 @@ import (
 	"github.com/knt048/vedette/modules/sensor-active/worker"
 )
 
-// SNMP reads (D-512, D-607: SNMP set up per device). No test here sends a packet off the machine: the reads go to a fake SNMPReader,
+// SNMP reads (SNMP set up per device). No test here sends a packet off the machine: the reads go to a fake SNMPReader,
 // or, end to end, through the real Dispatcher, link and worker to fake agents on loopback (snmptest).
 
 const junos = "Juniper Networks, Inc. ex4200-48t Ethernet Switch, kernel JUNOS 15.1R7.9, Build date: 2019-08-30 12:00:00 UTC Copyright (c) 1996-2019 Juniper Networks, Inc."
@@ -193,9 +193,9 @@ func ipsOf(j sensorlink.SNMPJob) []string {
 	return out
 }
 
-// D-607: a device's secrets are sealed in core/secrets; the device shows their last 4 characters only (none for a secret of under
+// a device's secrets are sealed in core/secrets; the device shows their last 4 characters only (none for a secret of under
 // 8); a blank secret on an edit keeps it; removing deletes the secrets too; every change is audited without the secret; saving
-// turns the device's SNMP switch on (the person's consent, D-601).
+// turns the device's SNMP switch on (the person's consent).
 func TestSNMPSettingsAreSealedAndShownByTheirLastFour(t *testing.T) {
 	t.Parallel()
 	w := newSNMPWorld(t, &fakeReader{})
@@ -252,7 +252,7 @@ func TestSNMPSettingsAreSealedAndShownByTheirLastFour(t *testing.T) {
 	}
 }
 
-// D-607: the form is checked as the contract says, the read address at the boundary (an IPv4 address of a local network, not
+// the form is checked as the contract says, the read address at the boundary (an IPv4 address of a local network, not
 // multicast, broadcast or a LAN range's network or broadcast address, not the box or a trap address); a saved secret is never sent
 // to a new read address unless it is typed again.
 func TestSNMPFormIsChecked(t *testing.T) {
@@ -308,7 +308,7 @@ func TestSNMPFormIsChecked(t *testing.T) {
 	w.inv.mu.Lock()
 	w.inv.turnOnErr = nil
 	w.inv.mu.Unlock()
-	// Outside the LAN ranges is allowed (the person set it on this device): kien's FortiGate case.
+	// Outside the LAN ranges is allowed (the person set it on this device): a firewall read at its management interface.
 	d := w.set("a-sw", withRead(v2c("c0mmunity"), "100.65.253.1"))
 	if d.ReadFrom != netip.MustParseAddr("100.65.253.1") || d.ReadFromDefault {
 		t.Fatalf("read from outside the LAN: %+v", d)
@@ -328,7 +328,7 @@ func TestSNMPFormIsChecked(t *testing.T) {
 	}
 }
 
-// D-607: a Check now sends nothing to a device it may not read, and says why in plain words.
+// a Check now sends nothing to a device it may not read, and says why in plain words.
 func TestSNMPCheckRefusesBeforeSendingAnything(t *testing.T) {
 	t.Parallel()
 	r := &fakeReader{}
@@ -372,7 +372,7 @@ func TestSNMPCheckRefusesBeforeSendingAnything(t *testing.T) {
 	}
 }
 
-// D-607, kien's FortiGate: Check now reads the device at its read address (its management address, not its IP), logs the probe
+// Check now reads the device at its read address (its management address, not its IP), logs the probe
 // before the job leaves (versions and ports, never a secret), and records what answered on that device, by its id: never by the
 // read address, so no device is found, made or joined there. The device then says working, with what answered.
 func TestSNMPCheckReadsTheReadAddressAndRecordsOnTheDevice(t *testing.T) {
@@ -432,7 +432,7 @@ func TestSNMPCheckReadsTheReadAddressAndRecordsOnTheDevice(t *testing.T) {
 	}
 }
 
-// D-607: once per window, after the sweep and the queue, every device with SNMP set up that the policy lets be read is read (a
+// once per window, after the sweep and the queue, every device with SNMP set up that the policy lets be read is read (a
 // fragile printer too), each at its read address with its own settings; a device not approved, or set to never, is not.
 func TestSNMPRoundOncePerWindow(t *testing.T) {
 	t.Parallel()
@@ -508,7 +508,7 @@ func startWorker(t *testing.T, dial func(netip.Addr, uint16) (string, uint16)) *
 	return d
 }
 
-// D-512, D-607 end to end: the Dispatcher, the mutual-TLS link and the real worker read a fake agent (v2c, then v3 authPriv) at the
+// End to end: the Dispatcher, the mutual-TLS link and the real worker read a fake agent (v2c, then v3 authPriv) at the
 // device's read address, and only there; a wrong community is "no answer" with the plain reason; a custom port is the port read.
 func TestSNMPThroughTheWorker(t *testing.T) {
 	t.Parallel()

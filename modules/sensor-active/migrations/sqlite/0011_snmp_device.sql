@@ -1,5 +1,5 @@
 -- +goose Up
--- D-607 (kien 2026-11-17, J2): SNMP is set up per device. sa_snmp_device holds one device's SNMP settings: its read address (the one
+-- SNMP is set up per device. sa_snmp_device holds one device's SNMP settings: its read address (the one
 -- address its reads and its secret go to: the device's IP by default, or its management address, such as a FortiGate's global VDOM
 -- interface), the version, the v3 user and algorithms, the UDP port (NULL = 161) and the ids of its secrets in core_secret (never
 -- the secrets), with the state of its last read: when it was sent, what came back, and what the device said (answer: the JSON of
@@ -7,7 +7,7 @@
 -- asset_id is the inventory's device id (no reference across modules: the rows go with inventory.asset.deleted and move with
 -- inventory.asset.merged). read_from_default is 1 when the read address was the device's own IP when saved: if the device then moves,
 -- nothing is sent until a person sets the address again.
--- sa_snmp_notice keeps what the box changed by itself (the move of the credentials of before D-607 to the devices they covered) until a
+-- sa_snmp_notice keeps what the box changed by itself (the move of the old SNMP credentials to the devices they covered) until a
 -- person dismisses it. sa_snmp and sa_snmp_answer stay until a later release drops them: sensor-active empties them once, in Go,
 -- because the secrets are opened and sealed again through core/secrets (snmp_move.go). Forward-only (DATA_MODEL 6, rule 1).
 CREATE TABLE sa_snmp_device (

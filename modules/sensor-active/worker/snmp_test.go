@@ -59,7 +59,7 @@ func v2c(c string) sensorlink.SNMPCredential {
 	return sensorlink.SNMPCredential{Version: sensorlink.SNMPv2c, Community: c}
 }
 
-// D-512, D-607: the worker sends each target its own credential, to the target's address and to no other, reads the fixed objects
+// the worker sends each target its own credential, to the target's address and to no other, reads the fixed objects
 // with one GET and reports what the agent said; a target whose community is wrong is "no answer", since an agent drops it without a
 // word. Every request goes to a target's own address: the switch's community never reaches the firewall, nor the reverse.
 func TestSNMPSendsEachTargetItsOwnCredentialOnly(t *testing.T) {

@@ -162,11 +162,11 @@ export function useWazuhActions() {
     sample: useMutation({ mutationFn: () => api.post<SampleResult>('/inventory/agents/wazuh/sample-data'), onSuccess: inv }),
   }
 }
-/** D-607: one device's SNMP (set up per device; admin). `enabled` false while sensor-active is off (its routes answer 404 then). */
+/** one device's SNMP (set up per device; admin). `enabled` false while sensor-active is off (its routes answer 404 then). */
 export const useDeviceSnmp = (id: string, enabled = true) =>
   useQuery({ queryKey: ['inventory', 'snmp', 'device', id], queryFn: () => api.get<DeviceSnmp>(`/inventory/snmp/devices/${encodeURIComponent(id)}`), retry: false, enabled })
 
-/** D-607: set up or edit, copy from another device, remove, Check now. A check that gets an answer records it on the device, so it
+/** set up or edit, copy from another device, remove, Check now. A check that gets an answer records it on the device, so it
  *  refreshes devices too. */
 export function useDeviceSnmpActions(id: string) {
   const qc = useQueryClient()

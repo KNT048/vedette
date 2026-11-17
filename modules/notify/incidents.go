@@ -278,10 +278,12 @@ func (s *Service) IncidentsSince(ctx context.Context, since time.Time, top int) 
 	return w, nil
 }
 
-// Incidents lists every incident, most recently seen first (GET /notify/incidents).
+// Incidents lists the incidents for GET /notify/incidents: every open one (new or acknowledged) first, then the resolved ones, each
+// most recently seen first, at most incidentsLimit. An open incident is never cut by the limit (G6: the page counted its "open" from
+// the 500 seen last, while Home and the nav badge count every open one with OpenIncidents).
 func (s *Service) Incidents(ctx context.Context) ([]Incident, error) {
 	db := s.cfg.DB.Reader()
-	rows, err := db.QueryContext(ctx, `SELECT `+incidentCols+` FROM notify_incident ORDER BY last_seen DESC, rowid DESC LIMIT ?`, incidentsLimit)
+	rows, err := db.QueryContext(ctx, `SELECT `+incidentCols+` FROM notify_incident ORDER BY `+incidentsOrder+` LIMIT ?`, incidentsLimit)
 	if err != nil {
 		return nil, fmt.Errorf("notify: list incidents: %w", err)
 	}
@@ -303,7 +305,7 @@ func (s *Service) Incidents(ctx context.Context) ([]Incident, error) {
 		return out, nil
 	}
 	// Two queries for all the incidents of the page, not two per incident.
-	const page = `(SELECT id FROM notify_incident ORDER BY last_seen DESC, rowid DESC LIMIT ?)`
+	const page = `(SELECT id FROM notify_incident ORDER BY ` + incidentsOrder + ` LIMIT ?)` // the same rows as the list (#931 r1 H)
 	drows, err := db.QueryContext(ctx, `SELECT incident_id, asset_id, name FROM notify_incident_device WHERE incident_id IN `+page+` ORDER BY rowid`, incidentsLimit)
 	if err != nil {
 		return nil, fmt.Errorf("notify: read incident devices: %w", err)
@@ -384,9 +386,12 @@ func (s *Service) withConnections(ctx context.Context, list []Incident) {
 	}
 }
 
-// incidentsLimit is the most incidents GET /notify/incidents returns, newest seen first (the page of an
+// incidentsLimit is the most incidents GET /notify/incidents returns, open ones first, then newest seen first (the page of an
 // unbounded list would grow with every trap hit).
 const incidentsLimit = 500
+
+// incidentsOrder is the order of GET /notify/incidents and of the page its devices and sends are read for: open first (G6).
+const incidentsOrder = `status = 'resolved', last_seen DESC, rowid DESC`
 
 // IncidentDetail returns one incident with what each channel received (GET /notify/incidents/{id}).
 func (s *Service) IncidentDetail(ctx context.Context, id string) (IncidentDetail, error) {

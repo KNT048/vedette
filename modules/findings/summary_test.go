@@ -219,7 +219,8 @@ func TestContract_INV23_SummaryCacheAndInvalidation(t *testing.T) {
 	}
 	// Notifications off: alerts and incidents null at once, not after the TTL; notify's counts are not read.
 	gate.Set(NotifyModule, false)
-	if s := mustSummary(t, h); s.Alerts != nil || s.Incidents != nil || calls.alerts.Load() != 3 || calls.incidents.Load() != 3 {
+	read := calls.incidents.Load()
+	if s := mustSummary(t, h); s.Alerts != nil || s.Incidents != nil || calls.alerts.Load() != 3 || calls.incidents.Load() != read {
 		t.Fatalf("notify off: alerts %+v, incidents %+v, reads %d/%d", s.Alerts, s.Incidents, calls.alerts.Load(), calls.incidents.Load())
 	}
 	gate.Set(NotifyModule, true)
@@ -232,6 +233,34 @@ func TestContract_INV23_SummaryCacheAndInvalidation(t *testing.T) {
 	mustSummary(t, h)
 	if calls.devices.Load() != before+1 {
 		t.Fatal("clock set back: the cached answer was served")
+	}
+}
+
+// G6 (kien, N100): every incident resolved, yet the nav badge said 9 urgent: the cached answer kept notify's counts until a finding
+// changed or the TTL ran out. The open and urgent incidents are read at every call, from the cached answer too, without
+// computing the rest again; the cached answer itself is not changed.
+func TestSummaryIncidentsAreNeverCached(t *testing.T) {
+	t.Parallel()
+	_, h, _ := sumEnv(t)
+	var calls homeCalls
+	var open, urgent atomic.Int32
+	open.Store(9)
+	urgent.Store(9)
+	src := calls.sources(1, 0, 0, 0)
+	src.Incidents = func(context.Context) (int, int, error) { return int(open.Load()), int(urgent.Load()), nil }
+	h.SetHome(src)
+	if s := mustSummary(t, h); s.Incidents == nil || s.Incidents.Open != 9 || s.Incidents.Urgent != 9 {
+		t.Fatalf("before: %+v", s.Incidents)
+	}
+	open.Store(0) // every incident resolved on the Incidents page
+	urgent.Store(0)
+	s := mustSummary(t, h)
+	if s.Incidents == nil || s.Incidents.Open != 0 || s.Incidents.Urgent != 0 || calls.devices.Load() != 1 {
+		t.Fatalf("after resolving: incidents %+v, computed %d times", s.Incidents, calls.devices.Load())
+	}
+	open.Store(2)
+	if s2 := mustSummary(t, h); s2.Incidents.Open != 2 || s.Incidents.Open != 0 {
+		t.Fatalf("a new incident: %+v; the earlier answer changed to %+v", s2.Incidents, s.Incidents)
 	}
 }
 

@@ -70,7 +70,14 @@ func TestApprovedDeviceClosesItsIncidentWithTheApprover(t *testing.T) {
 	publish(inventory.EventAssetDiscovered, inventory.AssetEvent{AssetID: "a9", Notify: true})
 	publish(notify.EventAssetApproved, map[string]string{"asset_id": "a9", "actor": "an@acme.example\n\u202e"})
 	l, _ = e.svc.Incidents(e.ctx())
-	own := l[0]
+	var own, summary notify.Incident // by title: the list puts open incidents first (G6), so the order is not the time order
+	for _, i := range l {
+		if i.Title == "A new unknown device appeared: LAPTOP-NEW" {
+			own = i
+		} else {
+			summary = i
+		}
+	}
 	if own.Title != "A new unknown device appeared: LAPTOP-NEW" || own.Status != notify.StatusResolved || own.HandledBy == nil || *own.HandledBy != "system" ||
 		own.ResolvedReason == nil || *own.ResolvedReason != "Closed by Vedette: the device was approved by an@acme.example." {
 		t.Fatalf("own incident = %+v", own)
@@ -83,7 +90,7 @@ func TestApprovedDeviceClosesItsIncidentWithTheApprover(t *testing.T) {
 		t.Fatalf("reopened = %+v, %v", d.Incident, err)
 	}
 	publish(inventory.EventAssetDeleted, map[string]string{"asset_id": "a2"})
-	if i := e.detail(l[1].ID); i.Status != notify.StatusResolved || i.ResolvedReason == nil || *i.ResolvedReason != "Closed by Vedette: every device on it was approved or deleted in Devices." {
+	if i := e.detail(summary.ID); i.Status != notify.StatusResolved || i.ResolvedReason == nil || *i.ResolvedReason != "Closed by Vedette: every device on it was approved or deleted in Devices." {
 		t.Fatalf("summary = %+v", i)
 	}
 }

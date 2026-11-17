@@ -69,9 +69,11 @@ function LanButton({ targets, label, variant = 'primary', size, className, showP
   const [mine, setMine] = useState<string | null>(null)
   const disc = q.data?.engines.find((e) => e.id === 'nmap-discovery')
   const running = q.data?.running ?? []
-  const ours = running.find((j) => j.id === mine) ?? null
+  // review r1 of #944: one check per device at a time: a run of this one device started anywhere (another row, the device page) is
+  // ours too, so every button for that device shows it running
+  const ours = running.find((j) => j.id === mine) ?? (targets !== 'lan' && targets.length === 1 ? running.find((j) => j.engine === 'nmap-discovery' && j.target_id === targets[0]) ?? null : null)
   // nmap is busy with any sensor-active job (a sweep, a version scan, an SNMP round), not only a person's run (review r2 L-h)
-  const other = running.find((j) => (j.engine === 'nmap-discovery' || j.engine === 'nmap-versions' || j.engine === 'snmp') && j.id !== mine) ?? null
+  const other = running.find((j) => (j.engine === 'nmap-discovery' || j.engine === 'nmap-versions' || j.engine === 'snmp') && j.id !== mine && j.id !== ours?.id) ?? null
   const finished = !!mine && !ours && !!q.data && !run.isPending
   const ids = targets === 'lan' ? [] : targets
   const text = label ?? (targets === 'lan' ? t('scanNow.lan') : ids.length === 1 ? t('scanNow.device') : t('scanNow.selected', { count: ids.length }))

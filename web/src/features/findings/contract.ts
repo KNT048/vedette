@@ -257,6 +257,7 @@ const idParams = z.object({ id: findingId })
 /** kien G8: one update or action on one device, from findings.DeviceUpdates (the same groupings as FindingRow.fix and the plan). */
 export const ToFixAction = z.object({
   group: z.string().describe('The key of the action on its device: FindingRow.fix.group of an exploited update ("<device>/<software>", the ?fix= filter of the list), PlanItem.group of a planned one, "<device>/<software>" for findings no update is named for. Per device: "By fix" groups by product and release instead'),
+  source: z.string().describe('Who reported the software row (agent, manual, scan, a sensor; "" when none): "I updated it" follows it (kien G12)'),
   product: z.string().describe('The software row\'s identity across devices, "vendor|product" in lower case ("" when no row matches): "By fix" groups the same update on several devices by it, whatever each device calls the row'),
   software_id: z.string().describe('The device\'s software row it is about; "" when none matches'),
   software: z.string(), version: z.string().describe('The installed version; "" when none'),

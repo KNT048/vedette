@@ -381,7 +381,8 @@ describe('#877 review r1', () => {
 
   it('L6: the box\'s own page says why it is not checked instead of a button that always fails', async () => {
     renderApp('/devices/a-box')
-    expect(await screen.findByText('The Vedette box itself is never part of a network scan.', {}, { timeout: 4000 })).toBeInTheDocument()
+    // kien G12: the device page's fragile line reads the same rule and says the same (review r1 of #944)
+    expect((await screen.findAllByText('The Vedette box itself is never part of a network scan.', {}, { timeout: 4000 })).length).toBeGreaterThan(0)
     expect(screen.queryByRole('button', { name: 'Check this device now' })).toBeNull()
   })
 

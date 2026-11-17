@@ -328,7 +328,9 @@
       "no_ip": "No IP address yet, so network discovery cannot check it. Add its IP on this page.",
       "manual": "Added by hand: network discovery checks it only once you turn its network scan on under Sources on this page.",
       "never": "Set to never scan, or its network scan is off under Sources: network discovery does not check it.",
-      "out_of_scope": "Outside the network ranges or excluded: network discovery does not check it. Settings, Scanning, Safety holds the ranges."
+      "out_of_scope": "Outside the network ranges or excluded: network discovery does not check it. Settings, Scanning, Safety holds the ranges.",
+      "scope": "The network ranges are not confirmed yet, so network discovery checks no device. Settings, Scanning, Safety confirms them.",
+      "discovery_off": "Network discovery is off, so it checks no device. Settings, Scanning, Engines turns it on."
     }
   },
   "history": {

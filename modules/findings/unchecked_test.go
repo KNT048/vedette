@@ -319,14 +319,21 @@ func TestUncheckedItems_D604_Question(t *testing.T) {
 	if q == nil || !strings.HasPrefix(q.Text, "Is the OpenSSH on BN340 Alpine Linux's openssh-server package") || q.Command != nil {
 		t.Fatalf("question %+v", q)
 	}
-	if len(q.Answers) != 6 || q.Answers[2].Label != "Alpine Linux 3.23" || q.Answers[2].OS == nil || *q.Answers[2].OS != "Alpine Linux 3.23" ||
-		q.Answers[5].Ask != "os" || q.Answers[5].OS != nil {
+	last := q.Answers[len(q.Answers)-1]
+	if len(q.Answers) != 11 || q.Answers[2].Label != "Alpine Linux 3.23" || q.Answers[2].OS == nil || *q.Answers[2].OS != "Alpine Linux 3.23" ||
+		q.Answers[9].Label != "Alpine Linux 3.16" || !slices.Equal(last.Ask, []string{"os", "pkg_version"}) || last.OS != nil {
 		t.Fatalf("answers %+v", q.Answers)
 	}
 	items = UncheckedItems([]UncheckedRow{row("CVE-2026-123158", UncheckedPackageUnknown)}, kev, assets)
 	q = items[0].Question
-	if q == nil || q.Command == nil || *q.Command != "apk info -v openssh-server" || len(q.Answers) != 1 || q.Answers[0].Ask != "pkg_version" ||
+	if q == nil || q.Command == nil || *q.Command != "apk info -v openssh-server" || len(q.Answers) != 1 || !slices.Equal(q.Answers[0].Ask, []string{"pkg_version"}) || q.Error != nil ||
 		!strings.Contains(q.Text, "Which openssh-server package release does BN340 have?") || !strings.Contains(q.Text, "10.2_p1-r1 (3.23)") {
 		t.Fatalf("package question %+v", q)
+	}
+	bad := row("CVE-2026-123158", UncheckedPackageUnknown)
+	bad.Answer = "10.2p1" // review r1 M2 of #961: a release Vedette could not read is said
+	q = UncheckedItems([]UncheckedRow{bad}, kev, assets)[0].Question
+	if q == nil || q.Error == nil || !strings.Contains(*q.Error, `could not read the release you entered ("10.2p1")`) || !strings.Contains(*q.Error, "openssh-server-10.6_p2-r0") {
+		t.Fatalf("unreadable answer %+v", q)
 	}
 }

@@ -86,6 +86,7 @@ var exportPolicy = map[string]tablePolicy{
 	"feeds_recent_cursor":    {skipAll: true, skip: "id url mode win_from win_to until next_index total"},                                                // D-614: where an unfinished pull goes on
 	"feeds_recent_cve":       {skipAll: true, skip: "cve published last_modified status severity score cvss_score cvss_version cvss_source cvss_vector"}, // D-614: public NVD data, pulled again
 	"feeds_cvss":             {export: "cve score version source vector"},                                                                                // #825: the CVSS score of each KEV CVE, public NVD data
+	"feeds_winrel":           {export: "build server product display line ga ga_rev"},                                                                    // D-603: the Windows releases Microsoft lists; kept so a restore reads the same builds
 	"feeds_published":        {export: "cve published source"},                                                                                           // D-615: the day each KEV CVE was published; kept so a restore does not reopen age-closed findings
 	"feeds_fetch_log":        {export: "id source_id started_at finished_at status records_accepted records_rejected error bytes etag last_modified", json: "reject_reasons"},
 	"feeds_ioc":              {export: "id type value first_seen last_seen"},
@@ -96,10 +97,10 @@ var exportPolicy = map[string]tablePolicy{
 	"feeds_weekly_answer":    {export: "key answer user_id answered_at device_added device_id have_since"},
 	"fnd_finding":            {export: "id asset_id cve status severity confidence basis first_seen last_seen resolved_by resolved_at resolution_note resolution_reason accepted_until", json: "evidence"}, // accepted_until: D-498
 	"fnd_finding_history":    {export: "id finding_id ts user action note"},
-	"fnd_version_needed":     {export: "asset_id software_id software version cves updated_at"},                          // D-500
-	"fnd_unchecked":          {export: "asset_id software_id software version source reason cve updated_at nvd_pending"}, // INV-4d, #910
-	"fnd_unchecked_seen":     {export: "asset_id cve first_seen"},                                                        // D-602: the (device, CVE) pairs the could-not-check list announced
-	"fnd_reach_run":          {export: "id ran_at stamp total", json: "counts unreachable added"},                        // INV-4e, #910: the KEV reachability audit, public feed data only
+	"fnd_version_needed":     {export: "asset_id software_id software version cves updated_at"},                                 // D-500
+	"fnd_unchecked":          {export: "asset_id software_id software version source reason cve updated_at nvd_pending answer"}, // INV-4d, #910
+	"fnd_unchecked_seen":     {export: "asset_id cve first_seen"},                                                               // D-602: the (device, CVE) pairs the could-not-check list announced
+	"fnd_reach_run":          {export: "id ran_at stamp total", json: "counts unreachable added"},                               // INV-4e, #910: the KEV reachability audit, public feed data only
 	"hp_config":              {export: "key updated_at updated_by", json: "value"},
 	"hp_hits":                {export: "id ts kind service label port src_ip is_test excerpt trap_ip trap_hostname token_id conn_key conn_count handshake", json: "events"},
 	"hp_ignored_day":         {export: "day count"},
@@ -129,12 +130,12 @@ var exportPolicy = map[string]tablePolicy{
 	"notify_notice_finding":  {export: "notice_id finding_id"},
 	"notify_pending":         {export: "id channel notice_id reason due_at state claimed_at created_at attempts", json: "notice"},
 	"notify_send":            {export: "id kind ref_id channel at ok error what link recipient delayed", json: "message", url: "to"},
-	"intake_agent_tokens":    {export: "id name kind last4 created_at expires_at last_received created_by", skip: "token_hash"},                                                                                                                    // the hash never leaves (agent-intake INV-3)
-	"intake_wazuh":           {export: "id username password_last4 interval_minutes tls_pin tls_pin_first_seen generation status last_sync next_pull agents packages error resume_after pass_packages updated_at", url: "url", skip: "secret_id"},  // the password stays in core_secret (agent-intake INV-6)
-	"intake_osquery_nodes":   {export: "id token_id host_identifier hostname platform osquery_version enrolled_at last_seen last_result_at bound_ip bound_mac reported approved_at kernel win_name win_version win_target", skip: "node_key_hash"}, // the key hash never leaves
-	"intake_prune_clock":     {export: "id last_run"},                                                                                                                                                                                              // when node-prune last ran (agent-intake POST-4)
-	"intake_wazuh_agent":     {export: "agent_id generation ip mac seen_at"},                                                                                                                                                                       // where each Wazuh agent's data went (agent-intake, #849)
-	"mcp_tokens":             {export: "id name last4 created_at last_used", json: "scopes", skip: "token_hash"},                                                                                                                                   // the hash never leaves (mcp-server INV-3)
+	"intake_agent_tokens":    {export: "id name kind last4 created_at expires_at last_received created_by", skip: "token_hash"},                                                                                                                                                                  // the hash never leaves (agent-intake INV-3)
+	"intake_wazuh":           {export: "id username password_last4 interval_minutes tls_pin tls_pin_first_seen generation status last_sync next_pull agents packages error resume_after pass_packages updated_at", url: "url", skip: "secret_id"},                                                // the password stays in core_secret (agent-intake INV-6)
+	"intake_osquery_nodes":   {export: "id token_id host_identifier hostname platform osquery_version enrolled_at last_seen last_result_at bound_ip bound_mac reported approved_at kernel win_name win_version win_target report_asked_at software_taken_at os_taken_at", skip: "node_key_hash"}, // the key hash never leaves
+	"intake_prune_clock":     {export: "id last_run"},                                                                                                                                                                                                                                            // when node-prune last ran (agent-intake POST-4)
+	"intake_wazuh_agent":     {export: "agent_id generation ip mac seen_at"},                                                                                                                                                                                                                     // where each Wazuh agent's data went (agent-intake, #849)
+	"mcp_tokens":             {export: "id name last4 created_at last_used", json: "scopes", skip: "token_hash"},                                                                                                                                                                                 // the hash never leaves (mcp-server INV-3)
 	"notify_send_notice":     {export: "send_id notice_id"},
 	"notify_box":             {export: "id first_run_at discovery_told_at discovery_told_count"}, // when notify first ran (D-483 first-discovery window)
 	"notify_setting":         {export: "key updated_at updated_by", json: "value"},

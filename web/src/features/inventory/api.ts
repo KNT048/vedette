@@ -4,7 +4,7 @@ import { toast } from 'sonner'
 import { api, ApiError } from '@/lib/api'
 import type { AssetKind } from '@/lib/types'
 import type {
-  AddDeviceInput, AddDeviceResult, AgentKind, AgentsResponse, CatalogResponse, CreateTokenResult, DeviceDetail, DevicesResponse,
+  AddDeviceInput, AddDeviceResult, AgentKind, AgentReport, AgentsResponse, CatalogResponse, CreateTokenResult, DeviceDetail, DevicesResponse,
   ImportResult, InventorySettings, KeepSeparateInput, MergeInput, RegularScan, SamePairs, SampleResult, Sensor, SensorPatch, SensorsResponse, SettingsInput, SettingsSaved, SnmpCredential, SourcesInput, SourcesState, SnmpCredentialInput, SnmpResponse, SnmpTestResult,
   WazuhConnection, WazuhInput, WazuhTestResult,
 } from './types'
@@ -29,6 +29,17 @@ export function useSensorCard(id: string) {
 }
 /** `enabled` false while the agent-intake module is off: a module that is off answers 404 (rules/modules.md), so the GUI does not ask. */
 export const useAgents = (enabled = true) => useQuery({ queryKey: ['inventory', 'agents'], queryFn: () => api.get<AgentsResponse>('/inventory/agents'), retry: false, enabled })
+
+/** "I updated it" for agent-read software (S-MIT-1, agent-intake INV-23): which agent of this box reads the device and the open ask.
+ *  `enabled` false while agent-intake is off (its routes answer 404). */
+const reportPath = (id: string) => `/inventory/agents/devices/${encodeURIComponent(id)}/report`
+export const useAgentReport = (id: string, enabled = true) =>
+  useQuery({ queryKey: ['inventory', 'agent-report', id], queryFn: () => api.get<AgentReport>(reportPath(id)), retry: false, enabled, staleTime: 30_000 })
+/** Ask the device's osquery agent to send its software now; the answer is the device's new state (every row of it shows the open ask). */
+export function useAskReport(id: string) {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: () => api.post<AgentReport>(reportPath(id)), onSuccess: (r) => qc.setQueryData(['inventory', 'agent-report', id], r) })
+}
 
 /** D-512: `enabled` false while sensor-active is off (its SNMP routes answer 404 then, rules/modules.md), so the GUI does not ask. */
 export const useSnmp = (enabled = true) => useQuery({ queryKey: ['inventory', 'snmp'], queryFn: () => api.get<SnmpResponse>('/inventory/snmp'), retry: false, enabled })

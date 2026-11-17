@@ -1,7 +1,7 @@
 -- +goose Up
 -- D-604: a platform-limited CVE that only a person's answer decides is "could not be checked" with a question: reasons
 -- platform_unknown (which system or build the device runs) and package_unknown (the distribution's package release). SQLite cannot
--- change a CHECK, so the table is rebuilt with its rows (the next match of each device rewrites them anyway). Forward-only.
+-- change a CHECK, so the table is rebuilt (with `answer`: a release a person gave that Vedette could not read, for the question) with its rows (the next match of each device rewrites them anyway). Forward-only.
 CREATE TABLE fnd_unchecked_new (
     asset_id    TEXT NOT NULL CHECK (length(asset_id) BETWEEN 1 AND 96),
     software_id TEXT NOT NULL CHECK (length(software_id) BETWEEN 1 AND 128),
@@ -12,6 +12,7 @@ CREATE TABLE fnd_unchecked_new (
     cve         TEXT NOT NULL CHECK (cve GLOB 'CVE-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]*' AND length(cve) <= 32),
     updated_at  TEXT NOT NULL CHECK (updated_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
     nvd_pending INTEGER NOT NULL DEFAULT 0 CHECK (nvd_pending IN (0, 1)),
+    answer      TEXT NOT NULL DEFAULT '' CHECK (length(answer) <= 200), -- package_unknown: the release a person gave that is not one
     PRIMARY KEY (asset_id, software_id, cve)
 );
 INSERT INTO fnd_unchecked_new (asset_id, software_id, software, version, source, reason, cve, updated_at, nvd_pending)

@@ -136277,15 +136277,22 @@ func (s *FindingsGetFindingsOKUncheckedItemQuestion) encodeFields(e *jx.Encoder)
 		s.Command.Encode(e)
 	}
 	{
+		if s.Error.Set {
+			e.FieldStart("error")
+			s.Error.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("text")
 		e.Str(s.Text)
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsOKUncheckedItemQuestion = [3]string{
+var jsonFieldsNameOfFindingsGetFindingsOKUncheckedItemQuestion = [4]string{
 	0: "answers",
 	1: "command",
-	2: "text",
+	2: "error",
+	3: "text",
 }
 
 // Decode decodes FindingsGetFindingsOKUncheckedItemQuestion from json.
@@ -136325,8 +136332,18 @@ func (s *FindingsGetFindingsOKUncheckedItemQuestion) Decode(d *jx.Decoder) error
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"command\"")
 			}
+		case "error":
+			if err := func() error {
+				s.Error.Reset()
+				if err := s.Error.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"error\"")
+			}
 		case "text":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Text = string(v)
@@ -136347,7 +136364,7 @@ func (s *FindingsGetFindingsOKUncheckedItemQuestion) Decode(d *jx.Decoder) error
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -136403,9 +136420,13 @@ func (s *FindingsGetFindingsOKUncheckedItemQuestionAnswersItem) Encode(e *jx.Enc
 // encodeFields encodes fields.
 func (s *FindingsGetFindingsOKUncheckedItemQuestionAnswersItem) encodeFields(e *jx.Encoder) {
 	{
-		if s.Ask.Set {
+		if s.Ask != nil {
 			e.FieldStart("ask")
-			s.Ask.Encode(e)
+			e.ArrStart()
+			for _, elem := range s.Ask {
+				elem.Encode(e)
+			}
+			e.ArrEnd()
 		}
 	}
 	{
@@ -136437,8 +136458,15 @@ func (s *FindingsGetFindingsOKUncheckedItemQuestionAnswersItem) Decode(d *jx.Dec
 		switch string(k) {
 		case "ask":
 			if err := func() error {
-				s.Ask.Reset()
-				if err := s.Ask.Decode(d); err != nil {
+				s.Ask = make([]FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Ask = append(s.Ask, elem)
+					return nil
+				}); err != nil {
 					return err
 				}
 				return nil
@@ -136523,42 +136551,42 @@ func (s *FindingsGetFindingsOKUncheckedItemQuestionAnswersItem) UnmarshalJSON(da
 	return s.Decode(d)
 }
 
-// Encode encodes FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk as json.
-func (s FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk) Encode(e *jx.Encoder) {
+// Encode encodes FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItem as json.
+func (s FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItem) Encode(e *jx.Encoder) {
 	e.Str(string(s))
 }
 
-// Decode decodes FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk from json.
-func (s *FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk) Decode(d *jx.Decoder) error {
+// Decode decodes FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItem from json.
+func (s *FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItem) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk to nil")
+		return errors.New("invalid: unable to decode FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItem to nil")
 	}
 	v, err := d.StrBytes()
 	if err != nil {
 		return err
 	}
 	// Try to use constant string.
-	switch FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk(v) {
-	case FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskOs:
-		*s = FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskOs
-	case FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskPkgVersion:
-		*s = FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskPkgVersion
+	switch FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItem(v) {
+	case FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItemOs:
+		*s = FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItemOs
+	case FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItemPkgVersion:
+		*s = FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItemPkgVersion
 	default:
-		*s = FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk(v)
+		*s = FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItem(v)
 	}
 
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk) MarshalJSON() ([]byte, error) {
+func (s FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItem) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk) UnmarshalJSON(data []byte) error {
+func (s *FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItem) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -175731,6 +175759,221 @@ func (s *HoneypotPutHoneypotTrapIpsIDReqVendor) UnmarshalJSON(data []byte) error
 }
 
 // Encode implements json.Marshaler.
+func (s *InventoryGetInventoryAgentsDevicesIDReportOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *InventoryGetInventoryAgentsDevicesIDReportOK) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("agent")
+		s.Agent.Encode(e)
+	}
+	{
+		e.FieldStart("ask_again_at")
+		s.AskAgainAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("asked_at")
+		s.AskedAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("last_seen")
+		s.LastSeen.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("stale")
+		e.Bool(s.Stale)
+	}
+	{
+		e.FieldStart("wazuh_interval_minutes")
+		s.WazuhIntervalMinutes.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfInventoryGetInventoryAgentsDevicesIDReportOK = [6]string{
+	0: "agent",
+	1: "ask_again_at",
+	2: "asked_at",
+	3: "last_seen",
+	4: "stale",
+	5: "wazuh_interval_minutes",
+}
+
+// Decode decodes InventoryGetInventoryAgentsDevicesIDReportOK from json.
+func (s *InventoryGetInventoryAgentsDevicesIDReportOK) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode InventoryGetInventoryAgentsDevicesIDReportOK to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "agent":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Agent.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"agent\"")
+			}
+		case "ask_again_at":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.AskAgainAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ask_again_at\"")
+			}
+		case "asked_at":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.AskedAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"asked_at\"")
+			}
+		case "last_seen":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.LastSeen.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"last_seen\"")
+			}
+		case "stale":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.Stale = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"stale\"")
+			}
+		case "wazuh_interval_minutes":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				if err := s.WazuhIntervalMinutes.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"wazuh_interval_minutes\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode InventoryGetInventoryAgentsDevicesIDReportOK")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00111111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfInventoryGetInventoryAgentsDevicesIDReportOK) {
+					name = jsonFieldsNameOfInventoryGetInventoryAgentsDevicesIDReportOK[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *InventoryGetInventoryAgentsDevicesIDReportOK) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *InventoryGetInventoryAgentsDevicesIDReportOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes InventoryGetInventoryAgentsDevicesIDReportOKAgent as json.
+func (s InventoryGetInventoryAgentsDevicesIDReportOKAgent) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes InventoryGetInventoryAgentsDevicesIDReportOKAgent from json.
+func (s *InventoryGetInventoryAgentsDevicesIDReportOKAgent) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode InventoryGetInventoryAgentsDevicesIDReportOKAgent to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch InventoryGetInventoryAgentsDevicesIDReportOKAgent(v) {
+	case InventoryGetInventoryAgentsDevicesIDReportOKAgentOsquery:
+		*s = InventoryGetInventoryAgentsDevicesIDReportOKAgentOsquery
+	case InventoryGetInventoryAgentsDevicesIDReportOKAgentWazuh:
+		*s = InventoryGetInventoryAgentsDevicesIDReportOKAgentWazuh
+	case InventoryGetInventoryAgentsDevicesIDReportOKAgentNone:
+		*s = InventoryGetInventoryAgentsDevicesIDReportOKAgentNone
+	case InventoryGetInventoryAgentsDevicesIDReportOKAgentBox:
+		*s = InventoryGetInventoryAgentsDevicesIDReportOKAgentBox
+	default:
+		*s = InventoryGetInventoryAgentsDevicesIDReportOKAgent(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s InventoryGetInventoryAgentsDevicesIDReportOKAgent) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *InventoryGetInventoryAgentsDevicesIDReportOKAgent) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *InventoryGetInventoryAgentsOK) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -191480,6 +191723,221 @@ func (s *InventoryPostIntakeOsqueryStatusReq) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *InventoryPostIntakeOsqueryStatusReq) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *InventoryPostInventoryAgentsDevicesIDReportOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *InventoryPostInventoryAgentsDevicesIDReportOK) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("agent")
+		s.Agent.Encode(e)
+	}
+	{
+		e.FieldStart("ask_again_at")
+		s.AskAgainAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("asked_at")
+		s.AskedAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("last_seen")
+		s.LastSeen.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("stale")
+		e.Bool(s.Stale)
+	}
+	{
+		e.FieldStart("wazuh_interval_minutes")
+		s.WazuhIntervalMinutes.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfInventoryPostInventoryAgentsDevicesIDReportOK = [6]string{
+	0: "agent",
+	1: "ask_again_at",
+	2: "asked_at",
+	3: "last_seen",
+	4: "stale",
+	5: "wazuh_interval_minutes",
+}
+
+// Decode decodes InventoryPostInventoryAgentsDevicesIDReportOK from json.
+func (s *InventoryPostInventoryAgentsDevicesIDReportOK) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode InventoryPostInventoryAgentsDevicesIDReportOK to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "agent":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Agent.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"agent\"")
+			}
+		case "ask_again_at":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.AskAgainAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ask_again_at\"")
+			}
+		case "asked_at":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.AskedAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"asked_at\"")
+			}
+		case "last_seen":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.LastSeen.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"last_seen\"")
+			}
+		case "stale":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.Stale = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"stale\"")
+			}
+		case "wazuh_interval_minutes":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				if err := s.WazuhIntervalMinutes.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"wazuh_interval_minutes\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode InventoryPostInventoryAgentsDevicesIDReportOK")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00111111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfInventoryPostInventoryAgentsDevicesIDReportOK) {
+					name = jsonFieldsNameOfInventoryPostInventoryAgentsDevicesIDReportOK[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *InventoryPostInventoryAgentsDevicesIDReportOK) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *InventoryPostInventoryAgentsDevicesIDReportOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes InventoryPostInventoryAgentsDevicesIDReportOKAgent as json.
+func (s InventoryPostInventoryAgentsDevicesIDReportOKAgent) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes InventoryPostInventoryAgentsDevicesIDReportOKAgent from json.
+func (s *InventoryPostInventoryAgentsDevicesIDReportOKAgent) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode InventoryPostInventoryAgentsDevicesIDReportOKAgent to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch InventoryPostInventoryAgentsDevicesIDReportOKAgent(v) {
+	case InventoryPostInventoryAgentsDevicesIDReportOKAgentOsquery:
+		*s = InventoryPostInventoryAgentsDevicesIDReportOKAgentOsquery
+	case InventoryPostInventoryAgentsDevicesIDReportOKAgentWazuh:
+		*s = InventoryPostInventoryAgentsDevicesIDReportOKAgentWazuh
+	case InventoryPostInventoryAgentsDevicesIDReportOKAgentNone:
+		*s = InventoryPostInventoryAgentsDevicesIDReportOKAgentNone
+	case InventoryPostInventoryAgentsDevicesIDReportOKAgentBox:
+		*s = InventoryPostInventoryAgentsDevicesIDReportOKAgentBox
+	default:
+		*s = InventoryPostInventoryAgentsDevicesIDReportOKAgent(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s InventoryPostInventoryAgentsDevicesIDReportOKAgent) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *InventoryPostInventoryAgentsDevicesIDReportOKAgent) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -237501,39 +237959,6 @@ func (s OptFindingsGetFindingsOKUncheckedItemQuestion) MarshalJSON() ([]byte, er
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OptFindingsGetFindingsOKUncheckedItemQuestion) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk as json.
-func (o OptFindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk) Encode(e *jx.Encoder) {
-	if !o.Set {
-		return
-	}
-	e.Str(string(o.Value))
-}
-
-// Decode decodes FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk from json.
-func (o *OptFindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk) Decode(d *jx.Decoder) error {
-	if o == nil {
-		return errors.New("invalid: unable to decode OptFindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk to nil")
-	}
-	o.Set = true
-	if err := o.Value.Decode(d); err != nil {
-		return err
-	}
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s OptFindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *OptFindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

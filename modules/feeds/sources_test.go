@@ -16,6 +16,7 @@ func TestContract_INV1_BuiltinSourcesAreDeclaredHTTPS(t *testing.T) {
 		"security-tracker.debian.org":                true, // D-516
 		"api.vulncheck.com":                          true, // D-557 (BYOK, off until the customer saves a key)
 		"epss.empiricalsecurity.com":                 true, // D-614: FIRST's daily file of every EPSS score
+		"learn.microsoft.com":                        true, // D-603: Microsoft's Windows release information pages
 		"osv-vulnerabilities.storage.googleapis.com": true, // D-605: OSV.dev's Alpine all.zip, only while a device states Alpine
 	}
 	seenID, seenName := map[string]bool{}, map[string]bool{}
@@ -52,8 +53,8 @@ func TestContract_INV1_BuiltinSourcesAreDeclaredHTTPS(t *testing.T) {
 			t.Errorf("%s: dedicated decoder must not carry a parser", s.ID)
 		}
 	}
-	if len(seenID) != 17 {
-		t.Fatalf("expected the 17 built-ins of sourcesMock.ts, got %d", len(seenID))
+	if len(seenID) != 18 {
+		t.Fatalf("expected the 18 built-ins of sourcesMock.ts, got %d", len(seenID))
 	}
 }
 

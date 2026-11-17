@@ -232,6 +232,8 @@ type Match struct {
 	listed    bool // NameOnly: the CVE is on the device's could-not-check list (the audit line says so only then, review r1 L2 of #939)
 	// ask: a platform-limited CVE that needs a person's answer on the row (D-604, outQuestion): no finding, a could-not-check row.
 	ask askKind
+	// answer: with ask, the package release a person gave that is no release of the distribution (the question says so, D-604).
+	answer string
 	// pkgFixed: a proof from the distribution's fixed package release (D-604), not from another platform.
 	pkgFixed bool
 	// bounded: a version match inside a range with an end (a fix to install) or below the distribution's fixed package; not an
@@ -352,9 +354,11 @@ func nameOnlyWhy(s Software, in swInfo, v Vuln, r UncheckedReason, listed bool) 
 		return fmt.Sprintf("NVD has not published which products %s affects yet", v.CVE)
 	}
 	if b, ok := winUnknownBuild(s, in); ok && r == UncheckedNotComparable {
-		where := "is not in Vedette's table of Windows releases (an Insider or preview build)"
+		// D-603: Vedette knows its own table and the releases Microsoft's release information lists (feed Windows releases), so a
+		// build neither has is an Insider Preview build, for which Microsoft publishes no fixed builds, or newer than the list on the box
+		where := "is not a Windows release Vedette knows (an Insider or other pre-release build)"
 		if b > winrelNewest() {
-			where = "is newer than Vedette's table of Windows releases (an Insider or preview build)"
+			where = "is newer than every Windows release Vedette knows (an Insider build, or a release not yet in its list)"
 		}
 		return fmt.Sprintf("Windows build %d %s, so Vedette cannot compare %s with the builds NVD lists for %s", b, where, clean(in.ver), v.CVE)
 	}
@@ -553,7 +557,9 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 				if asked == nil {
 					asked = &m
 				}
-				unchecked = append(unchecked, uncheckedOf(s, v, m.ask.reason()))
+				u := uncheckedOf(s, v, m.ask.reason())
+				u.Answer = m.answer
+				unchecked = append(unchecked, u)
 			case outNeedVersion:
 				unproved, needs = true, true
 				i, ok := need[s.ID]
@@ -1035,8 +1041,8 @@ func judge(a Asset, s Software, in swInfo, v Vuln, key []identity, now time.Time
 	case ps.ask != askNone: // D-604: only a person's answer decides; the CVE goes to "Could not be checked" with the question
 		l := platformLimits[v.CVE]
 		note := fmt.Sprintf("%s Vedette cannot check %s on %s yet: it affects only %s, and %s. It is under \"Could not be checked\" with the question; Vedette reopens this if your answer says the device is affected.",
-			AskedNote, v.CVE, name, l.Affects, askGap(ps.ask, l))
-		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}, ask: ps.ask, bounded: m.bounded}, outQuestion
+			AskedNote, v.CVE, name, l.Affects, askGap(ps.ask, v.CVE))
+		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}, ask: ps.ask, answer: ps.bad, bounded: m.bounded}, outQuestion
 	case ps.below: // D-604: below the distribution's fix for the device's branch (or older than every fix): a version finding
 		m.Basis, m.Confidence, m.Severity, m.bounded, m.backed = BasisVersion, ConfVersion, SeverityHigh, true, true
 		if v.Ransomware || v.EPSS >= 0.5 {
@@ -1044,6 +1050,8 @@ func judge(a Asset, s Software, in swInfo, v Vuln, key []identity, now time.Time
 		}
 		m.Evidence.Summary = ps.note
 		m.Evidence.Agent = s.Source == "agent" // the agent's release (or version) compared with the distribution's fix: a detection
+	case ps.note != "": // D-604: the distribution lists no fix for the device's branch: NVD's range decided, and the finding says why
+		m.Evidence.Summary += ps.note
 	}
 	m.Evidence.AgentRow = m.Basis == BasisProduct && s.Source == "agent" && in.given
 	m.Evidence.CheckedAt = now

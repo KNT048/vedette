@@ -22,6 +22,8 @@ const (
 	// The data of CVE tiers 2 and 3 (D-613, D-614).
 	DecoderEPSSAll   Decoder = "epss-all"   // ParseEPSSCSV: FIRST's daily file of every EPSS score
 	DecoderNVDRecent Decoder = "nvd-recent" // RecentPageURL and ParseNVDRecent: NVD records of the last 12 months
+	// D-603: Microsoft's Windows release information pages (parseWinRelPage): the releases core/winrel learns.
+	DecoderWinRel Decoder = "windows-releases"
 )
 
 // Source is a built-in feed (D-36). Built-ins cannot be deleted (INV-4): the
@@ -93,6 +95,11 @@ const (
 	alpineNotice = "CC BY-SA 4.0, Alpine Linux security database, converted by OSV.dev."
 )
 
+// winRelNotice is the licence line of the Windows releases feed (D-603): the box reads Microsoft's public release information pages
+// for facts (release names, build numbers, dates, KB numbers), as a browser would, under Microsoft's Terms of Use
+// (https://www.microsoft.com/legal/terms-of-use); Vedette ships none of their text.
+const winRelNotice = "Facts from Microsoft's public Windows release information pages, Microsoft Terms of Use. Not endorsed by Microsoft."
+
 // builtinSources is the default list of sourcesMock.ts. Hosts must match the
 // list in PRIVACY.md (INV-13) except where the report says otherwise.
 var builtinSources = []Source{
@@ -107,6 +114,7 @@ var builtinSources = []Source{
 	{ID: ubuntuVEXFeedID, Name: "Ubuntu not affected", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://security-metadata.canonical.com/vex/vex-all.tar.xz", License: canonicalNotice, IntervalHours: 24, Decoder: DecoderUbuntuVEX},
 	{ID: debianTrackerFeedID, Name: "Debian security tracker", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://security-tracker.debian.org/tracker/data/json", License: debianNotice, IntervalHours: 24, Decoder: DecoderDebianTracker},
 	{ID: alpineOSVFeedID, Name: "Alpine fixed versions", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://osv-vulnerabilities.storage.googleapis.com/Alpine/all.zip", License: alpineNotice, IntervalHours: 24, Decoder: DecoderAlpineOSV},
+	{ID: winRelFeedID, Name: "Windows releases", Kind: KindVulnerabilities, Format: FormatLines, URL: "https://learn.microsoft.com/en-us/windows/release-health/windows11-release-information", License: winRelNotice, IntervalHours: 24, Decoder: DecoderWinRel},
 	{ID: "nuclei-templates", Name: "nuclei-templates", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://raw.githubusercontent.com/projectdiscovery/nuclei-templates/main/cves.json", License: "MIT", IntervalHours: 24, Decoder: DecoderNuclei},
 	{ID: "ipsum", Name: "IPsum", Kind: KindIOC, Format: FormatLines, URL: "https://raw.githubusercontent.com/stamparm/ipsum/master/levels/3.txt", License: "Unlicense", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser(), Aggregate: true, Upstreams: []string{"et-open", "abusech-feodo"}},
 	{ID: "et-open", Name: "ET Open compromised IPs", Kind: KindIOC, Format: FormatLines, URL: "https://rules.emergingthreats.net/blockrules/compromised-ips.txt", License: "BSD", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser()},

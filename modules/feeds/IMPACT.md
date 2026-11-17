@@ -37,6 +37,12 @@
 - **cmd/vedette**: `Store.MatchStamp` thêm `cve-org`; export policy (`feeds_affected_cve.source`, `feeds_cveorg_checked`) trong `modules/core/export_policy.go`.
 - **PRIVACY.md** luồng 1, Settings → Privacy (`locales/en/core.json` `privacy.flow.1`), `THIRD_PARTY_NOTICES.md` (điều khoản CVE Program), `sourcesMock.ts` và `conformance.test.ts` (danh sách có sẵn: 13 sau D-516).
 
+## Modifying: feed `windows-releases`, `parseWinRelPage`, `winRelReleases`, `feeds_winrel` (D-603)
+- **core/winrel** (`Learn`): mọi bản `winRelReleases` suy ra đi vào `ByBuild`/`ByProduct`/`Releases` sau bảng tay. Đổi cách đặt tên NVD, line hay GA ⇒ đổi dòng hệ điều hành mà agent-intake `windowsRow` ghi (CPE `windows_11_26h2`) và cách findings `windowsDecide` đọc hàng NVD (anh em cùng line, luật tháng D-618, bằng chứng "ra sau khi CISA liệt kê" theo GA). Line sai = so revision với line khác: chỉ gán line khi cùng KB **và** cùng revision.
+- **agent-intake**: dòng hệ điều hành của máy có build mới đổi ở lần báo kế (programs, 3600 s) từ "Windows (build 26300)" sang "Windows 11 26H2" có CPE; inventory đánh dấu, findings khớp lại máy đó.
+- **findings**: `feeds.ranges.updated` sau lượt đổi bảng; câu "could not be checked" của build không biết (D-602) nói "not a Windows release Vedette knows (an Insider …)".
+- **Pháp lý/quyền riêng tư**: host `learn.microsoft.com` trong PRIVACY.md luồng 1 + Settings → Privacy (`core.json`), THIRD_PARTY_NOTICES (điều khoản Microsoft, chỉ dữ kiện).
+
 ## Modifying: feeds `ubuntu-osv`, `ubuntu-vex`, `debian-tracker`, `ParseUbuntuOSV`/`ParseUbuntuVEX`/`ParseDebianTracker`, `Store.DistroFixes`, `Request.Stream` (D-516)
 
 - **findings** (qua `cmd/vedette` `findingsFeeds.readVulns` → `Vuln.Distro`): một dòng gói deb của agent trên Ubuntu/Debian được đóng hay giữ theo các hàng này (`modules/findings` `TestDistroDecidesForAPackagedRow`, `cmd/vedette` `TestDistroFixReachesFindings`). Đổi nghĩa `status`, `release` (số, không phải tên mã) hay `package` (gói **nguồn**) ⇒ finding đổi.
@@ -46,7 +52,7 @@
 - **D-570 (INV-22)**: `DistroLister` (tuỳ chọn trên `Inventory`) do `cmd/vedette` `feedsInventory.Distros` hiện thực bằng `inventory.AssetIDs` + `MatchInput` và `findings.DeviceDistro`; đổi luật "dòng gói deb của agent" của findings là đổi cả lúc feeds kéo. Câu "Not updated: no … device now…" có trong `distroNote`, mock `features/feeds/sourcesMock.ts` (Debian tracker) và test `feeds.test.tsx`. PRIVACY luồng 1 + `privacy.flow.1` nói Canonical/Debian biết họ bản phân phối.
 - Thêm tên mã Ubuntu/Debian mới: `ubuntuCodenames`, `debianReleases` trong `distro.go` (ponytail; thiếu ⇒ lý do "release … is not known" ở Settings → Feeds).
 
-## Modifying: feed `alpine-osv`, `ParseAlpineOSV`/`eachZipEntry`, `DistroLister.Distros` key `alpine` (D-605, INV-30)
+## Modifying: feed `alpine-osv`, `ParseAlpineOSV`/`eachZipEntry`, `DistroLister.Distros` key `alpine` (D-605, INV-31)
 
 - **findings** (qua `cmd/vedette` `findingsFeeds.readVulns` → `Vuln.Distro` hàng `Distro: "alpine"`): bản vá theo nhánh của CVE trong danh sách nền tảng (`content/catalog/platform-limits.json`, D-604) đọc từ đây; đổi `release` (nhánh "3.23", không phải "v3.23"), `package` (gói **nguồn** "openssh", không phải "openssh-server") hay luật giữ bản cao hơn ⇒ finding của thiết bị Alpine đổi. `distroVerdict` của Ubuntu/Debian bỏ qua hàng `alpine` (lọc theo `distroOf`).
 - **cmd/vedette** `feedsInventory.Distros` thêm khoá `alpine` (không gói) theo `findings.StatesAlpine`; đổi luật đó ở findings ⇒ đổi lúc feeds liên lạc OSV.dev (PRIVACY luồng 1).

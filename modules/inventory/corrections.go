@@ -38,10 +38,18 @@ func productKey(s string) string {
 // rules, and the device shows the correction as not in use until the person sets it again on what the source reads now.
 var correctionLive = `EXISTS (SELECT 1 FROM inv_software r WHERE r.asset_id = s.asset_id AND r.source <> 'manual' AND ` + rowKey("r") + ` = s.corrects)`
 
+// shadowedOSGuess is the SQL condition on a software row (alias s) that it is nmap's OS fingerprint guess (D-501: source nmap, an OS
+// CPE, no version) on a device whose OS a stronger source states (INV-1: manual > agent > snmp > nmap; the observation the device's
+// OS comes from). Such a row is left out of the device's software and of matching (W86-1: BN340 said Alpine over SNMP and still
+// listed nmap's "Android 9 - 10 (Linux 4.9 - 4.14)"); nmap's OS observation stays, outranked. With nmap alone the row is as before.
+var shadowedOSGuess = `(s.source = 'nmap' AND s.version IS NULL AND s.cpe LIKE 'cpe:/o:%' AND EXISTS (SELECT 1 FROM inv_asset ga JOIN inv_observation gob
+	ON gob.id = ga.os_obs_id WHERE ga.id = s.asset_id AND gob.source IN ('manual', 'agent', 'snmp')))`
+
 // liveSW is the SQL condition on a software row (alias s) that counts for matching and the "Do you have it?" lists (INV-41): a row a
-// person declared; a correction in use (correctionLive); a reported row no correction in use replaces.
-var liveSW = `(CASE WHEN s.corrects IS NOT NULL THEN ` + correctionLive + ` WHEN s.source = 'manual' THEN 1
-	ELSE NOT EXISTS (SELECT 1 FROM inv_software c WHERE c.asset_id = s.asset_id AND c.corrects = ` + rowKey("s") + `) END)`
+// person declared; a correction in use (correctionLive); a reported row no correction in use replaces; never an OS guess a stronger
+// source outranks (shadowedOSGuess).
+var liveSW = `(NOT ` + shadowedOSGuess + ` AND (CASE WHEN s.corrects IS NOT NULL THEN ` + correctionLive + ` WHEN s.source = 'manual' THEN 1
+	ELSE NOT EXISTS (SELECT 1 FROM inv_software c WHERE c.asset_id = s.asset_id AND c.corrects = ` + rowKey("s") + `) END))`
 
 // pkgVersionRE is a distribution's full package version as a person copies it from the device: Debian's "1:9.6p1-3ubuntu13.14",
 // Alpine's "10.2_p1-r1", RPM's "8.7p1-38.el9_4.4".

@@ -73,7 +73,7 @@ type cleanObs struct {
 	from  netip.Addr // hint: where an agent-only report came from (AssetHint.From, #829); judges keyHit's binding, nothing else
 	// device: the id of the device an SNMP read of its own read address is about (AssetHint.Device, D-607): it goes there or nowhere.
 	device string
-	list  bool       // a list (software, services: deviceFor), not an observation: at a stale address it makes no device (review r1 L1 of #872)
+	list   bool // a list (software, services: deviceFor), not an observation: at a stale address it makes no device (review r1 L1 of #872)
 	// agentMACs are the MACs the agent reports in this batch (its mac observations); bindAgent checks the device against them.
 	agentMACs []string
 	// own: an agent's report by address only at a hand-added address another MAC was seen at (handClaims): a device of its own, never
@@ -286,7 +286,7 @@ func (s *Service) Record(ctx context.Context, batch []observe.Observation) error
 		created := map[string]string{}   // device → the source whose observation created it
 		ownAt := map[netip.Addr]string{} // address → the device of its own an agent's report there resolved to (handClaims)
 		touched := []string{}
-		evidence := map[string]bool{} // devices an observation found by its MAC, address or agent: only those run the join rules (D-607)
+		evidence := map[string]bool{}  // devices an observation found by its MAC, address or agent: only those run the join rules (D-607)
 		before := map[string]string{}  // what the findings matcher reads of each device (matchView), before the batch
 		binds := map[string]cleanObs{} // device → an observation of the agent that reported on it (D-598)
 		for _, c := range clean {

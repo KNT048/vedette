@@ -38829,6 +38829,42 @@
                             ],
                             "additionalProperties": false
                           },
+                          "risk": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "level": {
+                                    "type": "string",
+                                    "enum": [
+                                      "exploited",
+                                      "update"
+                                    ]
+                                  },
+                                  "exploited": {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "updates": {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  }
+                                },
+                                "required": [
+                                  "level",
+                                  "exploited",
+                                  "updates"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "The device's risk marker (G4): exploited = open exploited findings To fix lists; update = none, but a recommended update fixes a CVE likely to be exploited or of High or Critical severity; null when clean, for the Vedette box itself, or when it could not be read"
+                          },
                           "software": {
                             "type": "string",
                             "description": "Display name of the software row"
@@ -38973,6 +39009,7 @@
                         "required": [
                           "group",
                           "asset",
+                          "risk",
                           "software",
                           "version",
                           "fixed",
@@ -39867,6 +39904,42 @@
                             ],
                             "additionalProperties": false
                           },
+                          "risk": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "level": {
+                                    "type": "string",
+                                    "enum": [
+                                      "exploited",
+                                      "update"
+                                    ]
+                                  },
+                                  "exploited": {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "updates": {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  }
+                                },
+                                "required": [
+                                  "level",
+                                  "exploited",
+                                  "updates"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "The device's risk marker (G4): exploited = open exploited findings To fix lists; update = none, but a recommended update fixes a CVE likely to be exploited or of High or Critical severity; null when clean, for the Vedette box itself, or when it could not be read"
+                          },
                           "open": {
                             "type": "integer",
                             "minimum": -9007199254740991,
@@ -40288,6 +40361,7 @@
                         },
                         "required": [
                           "asset",
+                          "risk",
                           "open",
                           "exploited",
                           "no_update",
@@ -40309,13 +40383,49 @@
                     "plan_off": {
                       "type": "boolean",
                       "description": "The feeds module is off: no recommended update is listed"
+                    },
+                    "risks": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "level": {
+                            "type": "string",
+                            "enum": [
+                              "exploited",
+                              "update"
+                            ]
+                          },
+                          "exploited": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "updates": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "level",
+                          "exploited",
+                          "updates"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "G4: the risk marker of every marked device by id, not capped like devices (empty for ?asset=): the Findings table and filter read it"
                     }
                   },
                   "required": [
                     "devices",
                     "truncated",
                     "plan_ran",
-                    "plan_off"
+                    "plan_off",
+                    "risks"
                   ],
                   "additionalProperties": false
                 }
@@ -45047,6 +45157,16 @@
             }
           },
           {
+            "name": "risk",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Comma-separated: exploited, update, none (no risk marker). Unknown value: 400 bad_filter (G4)",
+              "type": "string",
+              "maxLength": 60
+            }
+          },
+          {
             "name": "q",
             "in": "query",
             "required": false,
@@ -45805,6 +45925,44 @@
                             "maximum": 9007199254740991,
                             "description": "Number of findings attached to the device; deleting the device also deletes these findings"
                           },
+                          "risk": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "level": {
+                                    "type": "string",
+                                    "enum": [
+                                      "exploited",
+                                      "update"
+                                    ]
+                                  },
+                                  "exploited": {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991,
+                                    "description": "Open exploited findings of the device that Findings › To fix lists: an update is named for them, or the box proved them (a product-only guess is in Needs your input, not here)"
+                                  },
+                                  "updates": {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991,
+                                    "description": "Recommended updates of the device that fix a CVE likely to be exploited (EPSS ≥ 10%) or of High or Critical severity"
+                                  }
+                                },
+                                "required": [
+                                  "level",
+                                  "exploited",
+                                  "updates"
+                                ],
+                                "additionalProperties": false,
+                                "description": "The device's risk marker (G4, findings.RiskMap): null when it has no open exploited finding To fix lists and no such update, for the Vedette box itself, and while the findings module is off"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
                           "summary": {
                             "anyOf": [
                               {
@@ -45870,6 +46028,7 @@
                           "sources",
                           "suspicious",
                           "findings_count",
+                          "risk",
                           "summary"
                         ],
                         "additionalProperties": false
@@ -45920,13 +46079,18 @@
                     "notify_available": {
                       "type": "boolean",
                       "description": "false when the notify module is off"
+                    },
+                    "risk_unavailable": {
+                      "type": "boolean",
+                      "description": "G4: the risk markers could not be read (the findings module failed): no row has one and a risk filter was not applied"
                     }
                   },
                   "required": [
                     "items",
                     "counts",
                     "notify_new",
-                    "notify_available"
+                    "notify_available",
+                    "risk_unavailable"
                   ],
                   "additionalProperties": false
                 }
@@ -46856,6 +47020,48 @@
                       "maximum": 9007199254740991,
                       "description": "Number of findings attached to the device; deleting the device also deletes these findings"
                     },
+                    "risk": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "level": {
+                              "type": "string",
+                              "enum": [
+                                "exploited",
+                                "update"
+                              ]
+                            },
+                            "exploited": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991,
+                              "description": "Open exploited findings of the device that Findings › To fix lists: an update is named for them, or the box proved them (a product-only guess is in Needs your input, not here)"
+                            },
+                            "updates": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991,
+                              "description": "Recommended updates of the device that fix a CVE likely to be exploited (EPSS ≥ 10%) or of High or Critical severity"
+                            }
+                          },
+                          "required": [
+                            "level",
+                            "exploited",
+                            "updates"
+                          ],
+                          "additionalProperties": false,
+                          "description": "The device's risk marker (G4, findings.RiskMap): null when it has no open exploited finding To fix lists and no such update, for the Vedette box itself, and while the findings module is off"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "risk_unavailable": {
+                      "type": "boolean",
+                      "description": "G4: the risk marker could not be read (the findings module failed)"
+                    },
                     "observations": {
                       "type": "array",
                       "items": {
@@ -47059,6 +47265,8 @@
                     "asset",
                     "suspicious",
                     "findings_count",
+                    "risk",
+                    "risk_unavailable",
                     "observations",
                     "kinds",
                     "possible_same"
@@ -48010,6 +48218,16 @@
                 "true",
                 "false"
               ]
+            }
+          },
+          {
+            "name": "risk",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Comma-separated: exploited, update, none (no risk marker). Unknown value: 400 bad_filter (G4)",
+              "type": "string",
+              "maxLength": 60
             }
           },
           {

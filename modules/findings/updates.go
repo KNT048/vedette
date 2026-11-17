@@ -273,7 +273,21 @@ func (s *Service) plannedUpdates(assetID string) (out []UpdateAction, ran, compa
 	ran, compared = s.plan.ran, d.compared
 	items := slices.Clone(d.items)
 	s.plan.mu.RUnlock()
-	cut := s.now().Add(-AgeLimit).UTC().Format(time.DateOnly)
+	kept := listedPlanItems(items, s.now())
+	sortPlanItems(kept)
+	for _, it := range kept {
+		u := planAction(it)
+		u.Action = updateSentence(u)
+		out = append(out, u)
+	}
+	return out, ran, compared
+}
+
+// listedPlanItems are the items with the CVEs GET /findings/plan still lists at now: a CVE that crossed the 12-month line since the
+// pass is left out (review r1 #2 of #804), and an item left with none is dropped. To fix, the device's updates and the risk marker
+// (RiskMap) read the plan through it.
+func listedPlanItems(items []PlanItem, now time.Time) []PlanItem {
+	cut := now.Add(-AgeLimit).UTC().Format(time.DateOnly)
 	var kept []PlanItem
 	for _, it := range items {
 		var cves []PlanCVE
@@ -287,24 +301,24 @@ func (s *Service) plannedUpdates(assetID string) (out []UpdateAction, ran, compa
 			kept = append(kept, it)
 		}
 	}
-	sortPlanItems(kept)
-	for _, it := range kept {
-		u := UpdateAction{Group: it.Group, SoftwareID: it.SoftwareID, Software: it.Software, Version: it.Version, Fixed: it.Fixed, Kind: it.Kind,
-			Windows: it.Kind == "windows" || it.Kind == "esu", Pro: it.Pro}
-		worst := -1
-		for _, c := range it.CVEs {
-			u.CVEs = append(u.CVEs, c.CVE)
-			if c.Tier == "likely" {
-				u.Likely++
-			}
-			if c.Severity != nil && sevRank(Severity(*c.Severity)) > worst {
-				worst, u.Worst = sevRank(Severity(*c.Severity)), *c.Severity
-			}
+	return kept
+}
+
+// planAction is the action of one plan item (without its sentence): its CVEs, how many are likely, and the worst severity.
+func planAction(it PlanItem) UpdateAction {
+	u := UpdateAction{Group: it.Group, SoftwareID: it.SoftwareID, Software: it.Software, Version: it.Version, Fixed: it.Fixed, Kind: it.Kind,
+		Windows: it.Kind == "windows" || it.Kind == "esu", Pro: it.Pro}
+	worst := -1
+	for _, c := range it.CVEs {
+		u.CVEs = append(u.CVEs, c.CVE)
+		if c.Tier == "likely" {
+			u.Likely++
 		}
-		u.Action = updateSentence(u)
-		out = append(out, u)
+		if c.Severity != nil && sevRank(Severity(*c.Severity)) > worst {
+			worst, u.Worst = sevRank(Severity(*c.Severity)), *c.Severity
+		}
 	}
-	return out, ran, compared
+	return u
 }
 
 // sortUpdates orders actions worst first, then by how many CVEs they clear, then ransomware, then the software's name.

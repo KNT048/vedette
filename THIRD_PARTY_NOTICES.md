@@ -200,6 +200,12 @@ Each box downloads these files itself, keeps on its own disk only the rows of th
 | Ubuntu OSV and VEX security data (`security-metadata.canonical.com/osv/osv-all.tar.xz`, `/vex/vex-all.tar.xz`) | CC BY-SA 4.0, Canonical Ltd. (https://security-metadata.canonical.com/osv/LICENSE, https://security-metadata.canonical.com/vex/LICENSE) | data: OSV gives the first Ubuntu package version that fixes a CVE per release and source package (`ubuntu-osv`); VEX gives the packages Ubuntu says are not affected (`ubuntu-vex`). Attribution on the feed row ("CC BY-SA 4.0, Canonical Ltd.") and on each finding the data decides ("Ubuntu security data"). Share-alike would apply to adapted data the project shared; it shares none |
 | Debian Security Tracker JSON (`security-tracker.debian.org/tracker/data/json`) | **no licence stated** for the JSON or for the tracker's data (salsa.debian.org/security-tracker-team/security-tracker has no licence file at its root, checked 2026-11-14) | data: the fixed version or "not affected" per Debian release and source package (`debian-tracker`). Used as Trivy and Grype use it: fetched by each box from Debian, attributed ("Debian Security Tracker" on the feed row and on each finding it decides), never redistributed |
 
+## Facts copied by hand into the catalog (D-604)
+
+| Source | Terms | How it is used |
+|---|---|---|
+| Alpine Linux security database (secdb, `secdb.alpinelinux.org/<branch>/main.json`) and Alpine's advisory | CC BY-SA 4.0, Alpine Linux (https://secdb.alpinelinux.org/license.txt) | facts only, with attribution: the first fixed `openssh` release per Alpine branch for CVE-2026-123158 (five release numbers) in `content/catalog/platform-limits.json` (`fixed`, its `source` names the file), read against the package release a person gives (D-604). The box does not download secdb; no file of it is in the repository (post-v1 #957 would read it on the box like D-516's trackers). |
+
 ## Public pages each box reads for CVE news (only when a person presses the button; S-AI-3, D-280, D-281)
 
 Read on the box, never stored or redistributed as they are: the box keeps only the AI's summary and the links. No library added; `golang.org/x/net/html` (already linked, row above) reads the advisory pages.

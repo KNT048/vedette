@@ -37967,6 +37967,24 @@ func (s *FindingsGetFindingsOKUncheckedItem) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.Question.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "question",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.Reason.Validate(); err != nil {
 			return err
 		}
@@ -37986,6 +38004,8 @@ func (s *FindingsGetFindingsOKUncheckedItem) Validate() error {
 func (s FindingsGetFindingsOKUncheckedItemAction) Validate() error {
 	switch s {
 	case "add_version":
+		return nil
+	case "answer_platform":
 		return nil
 	case "none":
 		return nil
@@ -38202,6 +38222,95 @@ func (s FindingsGetFindingsOKUncheckedItemAssetKind) Validate() error {
 	}
 }
 
+func (s *FindingsGetFindingsOKUncheckedItemQuestion) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.Answers == nil {
+			return errors.New("nil is invalid value")
+		}
+		if err := (validate.Array{
+			MinLength:    1,
+			MinLengthSet: true,
+			MaxLength:    0,
+			MaxLengthSet: false,
+		}).ValidateLength(len(s.Answers)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Answers {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "answers",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *FindingsGetFindingsOKUncheckedItemQuestionAnswersItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.Ask.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "ask",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk) Validate() error {
+	switch s {
+	case "os":
+		return nil
+	case "pkg_version":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s FindingsGetFindingsOKUncheckedItemReason) Validate() error {
 	switch s {
 	case "no_nvd_data":
@@ -38211,6 +38320,10 @@ func (s FindingsGetFindingsOKUncheckedItemReason) Validate() error {
 	case "not_named":
 		return nil
 	case "not_comparable":
+		return nil
+	case "platform_unknown":
+		return nil
+	case "package_unknown":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

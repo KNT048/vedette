@@ -32364,7 +32364,9 @@
                               "no_nvd_data",
                               "no_nvd_versions",
                               "not_named",
-                              "not_comparable"
+                              "not_comparable",
+                              "platform_unknown",
+                              "package_unknown"
                             ]
                           },
                           "cves": {
@@ -32417,9 +32419,62 @@
                             "type": "string",
                             "enum": [
                               "add_version",
+                              "answer_platform",
                               "none"
                             ],
-                            "description": "add_version: only not_comparable on a software row a person declared (#920): typing the version as the vendor writes it lets Vedette check these CVEs; none: only the advisory decides"
+                            "description": "add_version: only not_comparable on a software row a person declared (#920): typing the version as the vendor writes it lets Vedette check these CVEs; answer_platform (D-604): reasons platform_unknown and package_unknown, answer `question`; none: only the advisory decides"
+                          },
+                          "question": {
+                            "description": "D-604: with action answer_platform; one item per CVE then",
+                            "type": "object",
+                            "properties": {
+                              "text": {
+                                "type": "string",
+                                "description": "\"Is the OpenSSH on BN340 Alpine Linux's openssh-server package, or another build …? CVE-… affects only …\""
+                              },
+                              "command": {
+                                "description": "What shows the answer on the device (\"apk info -v openssh-server\"), null when none",
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "answers": {
+                                "minItems": 1,
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "label": {
+                                      "type": "string",
+                                      "description": "The button: \"Alpine Linux 3.23\", \"Another system\", \"Enter the package release\""
+                                    },
+                                    "os": {
+                                      "description": "One click: PATCH /inventory/devices/{asset_id} {os} with this value (INV-39)",
+                                      "type": "string"
+                                    },
+                                    "ask": {
+                                      "description": "The person types it: os → PATCH /inventory/devices/{asset_id} {os}; pkg_version → PATCH /inventory/devices/{asset_id}/software/{software_id} {pkg_version}",
+                                      "type": "string",
+                                      "enum": [
+                                        "os",
+                                        "pkg_version"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "label"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "text",
+                              "command",
+                              "answers"
+                            ],
+                            "additionalProperties": false
                           }
                         },
                         "required": [

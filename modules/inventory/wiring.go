@@ -111,7 +111,9 @@ type MatchDevice struct {
 	SNMPOS string
 	// MAC is the device's MAC when it has an IP (the MAC it answers with at that address), "" otherwise: findings reads its OUI before an
 	// LLDP statement of Junos counts for the device's scan-seen rows (D-620).
-	MAC      string
+	MAC string
+	// ManualOS is the OS a person set on the device (INV-39), "" when none: findings reads it as the platform of every row (D-604).
+	ManualOS string
 	Software []MatchSoftware
 }
 
@@ -145,6 +147,7 @@ func (s *Service) MatchInput(ctx context.Context, id string) (d MatchDevice, ok 
 	if v, _, ok, err := manualOS(ctx, q, id); err != nil {
 		return MatchDevice{}, false, err
 	} else if ok {
+		d.ManualOS = v
 		for _, r := range []*string{&d.StatedOS, &d.AgentOS, &d.SNMPOS} {
 			if *r != "" {
 				*r = v

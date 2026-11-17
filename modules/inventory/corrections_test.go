@@ -63,7 +63,7 @@ func TestINV39_CorrectedOSWinsDrivesMatchingAndClears(t *testing.T) {
 		t.Fatalf("correction %+v (SNMP's Alpine Linux does not contradict Alpine Linux 3.23)", c)
 	}
 	m, ok, err := e.svc.MatchInput(e.ctx(), dev)
-	if err != nil || !ok || m.OS != "Alpine Linux 3.23" || m.SNMPOS != "Alpine Linux 3.23" || m.StatedOS != "Alpine Linux 3.23" || m.AgentOS != "" {
+	if err != nil || !ok || m.OS != "Alpine Linux 3.23" || m.SNMPOS != "Alpine Linux 3.23" || m.StatedOS != "Alpine Linux 3.23" || m.AgentOS != "" || m.ManualOS != "Alpine Linux 3.23" {
 		t.Fatalf("matching must read the person's OS: %+v %v %v", m, ok, err)
 	}
 
@@ -88,7 +88,7 @@ func TestINV39_CorrectedOSWinsDrivesMatchingAndClears(t *testing.T) {
 	if d := detail(); d.Asset.OS.Value != "Ubuntu" || d.Asset.OS.Source != "snmp" || d.Asset.OSCorrection != nil {
 		t.Fatalf("cleared: %+v %+v", d.Asset.OS, d.Asset.OSCorrection)
 	}
-	if m, _, _ := e.svc.MatchInput(e.ctx(), dev); m.SNMPOS != "Ubuntu" {
+	if m, _, _ := e.svc.MatchInput(e.ctx(), dev); m.SNMPOS != "Ubuntu" || m.ManualOS != "" {
 		t.Fatalf("cleared: matching reads the sources again: %+v", m)
 	}
 	a := e.auditActions()

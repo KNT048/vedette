@@ -122,11 +122,11 @@ func TestRowFixes_D545_NoRangeKeepsItsRow(t *testing.T) {
 // Review r1 #5, #6, #7: no "Detected by the agent" while the platform condition is open or when NVD names no end; an ESU-only or a
 // feature-update fix says so instead of "that monthly update".
 func TestMatchAsset_D548_AgentWordsOnlyWhenTheyHold(t *testing.T) {
-	m := MatchAsset(Asset{ID: "a", Name: "fw1", Software: []Software{sshRow("10.2", "", "agent")}}, []Vuln{sshhole()}, nil, t0).New
-	if len(m) != 1 || m[0].Evidence.Agent || !strings.Contains(m[0].Evidence.Summary, "It affects only") {
-		t.Fatalf("platform open: %+v", m)
+	r := MatchAsset(Asset{ID: "a", Name: "fw1", Software: []Software{sshRow("10.2", "", "agent")}}, []Vuln{sshhole()}, nil, t0)
+	if len(r.New) != 0 || len(r.Asked) != 1 { // D-604: no finding while the platform condition is open
+		t.Fatalf("platform open: %+v", r)
 	}
-	m = MatchAsset(Asset{ID: "a", Name: "alp1", AgentOS: "Alpine Linux v3.23", Software: []Software{sshRow("10.2", "", "agent")}}, []Vuln{sshhole()}, nil, t0).New
+	m := MatchAsset(Asset{ID: "a", Name: "alp1", AgentOS: "Alpine Linux v3.23", Software: []Software{sshRow("10.2_p1-r0", "", "agent")}}, []Vuln{sshhole()}, nil, t0).New
 	if len(m) != 1 || !m[0].Evidence.Agent {
 		t.Fatalf("agent says Alpine: %+v", m)
 	}

@@ -228,7 +228,7 @@ func (a findingsInventory) MatchInput(ctx context.Context, assetID string) (find
 	if err != nil || !ok {
 		return findings.Asset{}, false, err
 	}
-	out := findings.Asset{ID: d.ID, Name: d.Name, OS: d.OS, Model: d.Model, StatedOS: d.StatedOS, AgentOS: d.AgentOS, SNMPOS: d.SNMPOS, MAC: d.MAC,
+	out := findings.Asset{ID: d.ID, Name: d.Name, OS: d.OS, Model: d.Model, StatedOS: d.StatedOS, AgentOS: d.AgentOS, SNMPOS: d.SNMPOS, MAC: d.MAC, ManualOS: d.ManualOS,
 		Software: make([]findings.Software, len(d.Software))}
 	if d.Name == d.ID { // no hostname and no IP (hand-added, LLDP only): the evidence names it as the Devices page does, never by its id (D-484)
 		names, err := a.inv.Names(ctx)

@@ -35,7 +35,9 @@ type DeviceRef struct {
 	ApprovedAt *time.Time
 }
 
-// DeviceRefs returns the devices with these ids; unknown ids are absent.
+// DeviceRefs returns the devices with these ids; unknown ids are absent. An ignored device is present (INV-38): findings' reconcile
+// (its orphan pass, through cmd/vedette findingsInventory.Assets) relies on it to keep an ignored device's findings and the decisions
+// on them when the ignored list cannot be read. Never filter ignored rows out here.
 func (s *Service) DeviceRefs(ctx context.Context, ids []string) (map[string]DeviceRef, error) {
 	out := make(map[string]DeviceRef, len(ids))
 	for chunk := range slices.Chunk(ids, 400) {

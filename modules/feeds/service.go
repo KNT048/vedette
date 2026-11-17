@@ -239,6 +239,9 @@ func (s *Service) ready(ctx context.Context) error {
 	if err := s.Seed(ctx); err != nil {
 		return err
 	}
+	if err := s.LearnWindowsReleases(ctx); err != nil { // D-603: the last good list; a helper table never stops the feeds (review r1 L2)
+		s.Log.ErrorContext(ctx, "reading the Windows releases failed", "error", err)
+	}
 	s.seeded = true
 	return nil
 }

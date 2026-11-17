@@ -98,7 +98,9 @@ func (a *AssetView) HasIP() bool { return a != nil && a.IP != "" && a.IP != NoIP
 
 // Inventory is what findings reads from the inventory module (Kien's; not built yet).
 type Inventory interface {
-	// Assets returns the devices with these ids. Unknown ids are absent from the map.
+	// Assets returns the devices with these ids. Unknown ids are absent from the map. An ignored device (inventory INV-38) is
+	// present: reconcile's orphan pass relies on it, so a pass whose IgnoredIDs read failed never deletes an ignored device's
+	// findings and the decisions on them (inventory's DeviceRefs, TestDeviceRefsKeepsAnIgnoredDevice).
 	Assets(ctx context.Context, ids []string) (map[string]AssetView, error)
 	// MatchInput returns the device with its software for the matcher; ok is false when it does not exist.
 	MatchInput(ctx context.Context, assetID string) (a Asset, ok bool, err error)

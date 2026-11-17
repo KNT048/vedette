@@ -1,11 +1,13 @@
 // "I updated <software>" (D-499, S-MIT-1, item 14): tell Vedette the new version once; the re-match closes what it fixes.
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { ScanNowButton } from '@/features/scanning/ScanNow'
 import { useScanning } from '@/features/scanning/api'
 import { scanRefusal } from '@/features/scanning/canScan'
-import { useDevices } from '@/features/inventory/api'
+import { useAgentReport, useAskReport, useDevices } from '@/features/inventory/api'
+import { fmtDateTime, fmtTime } from '@/lib/format'
+import { useModuleEnabled } from '@/lib/modules'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Input } from '@/components/ui/input'
 import { ApiError } from '@/lib/api'
@@ -24,7 +26,11 @@ export type UpdatedSoftware = Pick<SoftwareView, 'id' | 'display' | 'version' | 
 /**
  * "I updated it" for one software of one device, the one control the finding page and each To fix action use (kien G12): it does
  * what the update needs, never a control with nothing behind it.
- * - Agent-read software: no button; a line says the agent reports the new version by itself and the findings close on their own.
+ * - Agent-read software (S-MIT-1, agent-intake INV-23): on a device an osquery agent of this box reports, "I updated it: ask the agent
+ *   now" (POST /inventory/agents/devices/{id}/report, operator), with its busy state and then the open ask in words; a device only
+ *   Wazuh reads gets a line with Vedette's pull interval (Vedette cannot ask Wazuh); otherwise a line that the agent reports by itself.
+ *   `os`: the row is the operating system (a Windows cumulative update, a Linux kernel), whose new build shows only after a restart;
+ *   an app's new version needs none.
  * - Scan-read software (nmap, scan, SNMP, passive): the button is "Check this device now" itself (POST
  *   /scanning/engines/nmap-discovery/run, admin, the same ScanNowButton as the device page), with its busy state and its result,
  *   where Vedette may scan the device now; elsewhere the reason. Any other source gets nothing.
@@ -32,14 +38,71 @@ export type UpdatedSoftware = Pick<SoftwareView, 'id' | 'display' | 'version' | 
  * `active`: an open finding is behind it (kien G5: nothing on what is already closed); the manual button stays while its own dialog is
  * open, so the dialog can say what the re-match closed. `progress`: show the check's progress under the button (the finding page).
  */
-export function IUpdated({ asset, software, fixed, size, active = true, progress = true }: { asset: FindingAsset; software: UpdatedSoftware; fixed?: string; size?: 'sm'; active?: boolean; progress?: boolean }) {
-  const { t } = useTranslation('findings')
-  if (software.source === 'agent') {
-    return active ? <p className="text-meta text-muted">{t('updated.agentLine', { device: deviceName(asset, t('removedDevice')) })}</p> : null
-  }
+export function IUpdated({ asset, software, fixed, size, active = true, progress = true, os = false, box = false }: { asset: FindingAsset; software: UpdatedSoftware; fixed?: string; size?: 'sm'; active?: boolean; progress?: boolean; os?: boolean; box?: boolean }) {
+  if (software.source === 'agent') return active ? <AgentAsk asset={asset} size={size} os={os} box={box} /> : null
   if (SCAN_READ.has(software.source)) return active ? <CheckNow asset={asset} size={size} progress={progress} /> : null
   if (software.source !== 'manual') return null // review r1 of #944: an unknown source is not scan-read: no control with nothing behind it
   return <TypedVersion asset={asset} software={software} fixed={fixed} size={size} active={active} />
+}
+
+/** A software row that is the operating system itself, by its inventory vendor and product (agent-intake mapper.go): Windows' own row
+ *  ("Windows Server 2025", "Windows 11 23H2", "Windows (build 28000)") or the Linux kernel. Its update shows only after a restart. */
+export function isOsSoftware(vendor: string, product: string): boolean {
+  const v = vendor.toLowerCase(), p = product.toLowerCase()
+  return (v === 'linux' && p === 'kernel') || (v === 'microsoft' && /^windows( server\b| \d|\s*\(build)/.test(p))
+}
+
+/** Pull intervals of the Wazuh connection (agent-intake INV-6) in words. */
+const WAZUH_EVERY = new Set([5, 15, 60, 360, 1440])
+
+/** Agent-read software (agent-intake INV-23): ask the device's osquery agent now, or say how the new version arrives. */
+function AgentAsk({ asset, size, os, box }: { asset: FindingAsset; size?: 'sm'; os: boolean; box: boolean }) {
+  const { t } = useTranslation('findings')
+  const on = useModuleEnabled('agent-intake')
+  const q = useAgentReport(asset.id, on === true)
+  const ask = useAskReport(asset.id)
+  const can = useCan('operator')
+  const device = deviceName(asset, t('removedDevice'))
+  // review r1 L3 of #953: read the state again when a new ask becomes possible, so the button comes back by itself
+  const againAt = q.data?.ask_again_at ? Date.parse(q.data.ask_again_at) : NaN
+  const { refetch } = q
+  useEffect(() => {
+    if (!Number.isFinite(againAt)) return undefined
+    const id = setTimeout(() => { void refetch() }, Math.max(0, againAt - Date.now()) + 1000)
+    return () => clearTimeout(id)
+  }, [againAt, refetch])
+  if (on === undefined || (on && q.isPending)) return null
+  const r = q.data
+  const line = (key: string, opts: Record<string, string> = {}) => <p className="text-meta text-muted">{t(key, { device, ...opts })}</p>
+  // review r1 L2 of #953: nothing reads the device now (module off, node revoked or pruned, Wazuh disconnected): no promise
+  // the box reads its own packages, whether agent-intake is on or not
+  if (box || r?.agent === 'box') return line(os ? 'updated.boxLineOs' : 'updated.boxLine')
+  if (!on || !r || r.agent === 'none') return line('updated.noAgentLine')
+  if (r.agent === 'wazuh') {
+    const m = r.wazuh_interval_minutes ?? 0
+    return line(os ? 'updated.wazuhLineOs' : 'updated.wazuhLine', { every: WAZUH_EVERY.has(m) ? t(`updated.every.${m}`) : t('updated.every.other') })
+  }
+  const seen = fmtDateTime(r.last_seen)
+  const again = r.ask_again_at && Date.parse(r.ask_again_at) > Date.now() ? fmtTime(r.ask_again_at) : ''
+  if (r.asked_at) {
+    // review r1 L1 of #953: an agent that has not called for a while gets the ask only when it is back
+    const key = r.stale ? 'updated.askedStale' : os ? 'updated.askedOs' : 'updated.asked'
+    return <p role="status" className="text-meta">{t(key, { device, time: fmtTime(r.asked_at), seen, again: again || fmtTime(r.ask_again_at) })}</p>
+  }
+  return (
+    <div className="flex flex-col gap-1">
+      {r.stale ? line('updated.staleLine', { seen }) : null}
+      {os ? line('updated.restartFirst') : null}
+      <div>
+        <Button size={size} variant="secondary" busy={ask.isPending} busyLabel={t('updated.asking')} disabled={!can || !!again}
+          title={!can ? t('common:needRole', { role: t('common:role.operator') }) : again ? t('updated.againAt', { time: again }) : undefined} onClick={() => ask.mutate()}>
+          {t('updated.ask')}
+        </Button>
+      </div>
+      {again ? line('updated.againAt', { time: again }) : null}
+      {ask.error ? <p role="alert" className="text-meta text-danger">{errMsg(ask.error)}</p> : null}
+    </div>
+  )
 }
 
 /** The sources a network check re-reads (review r1 of #944: anything else is not scan-read). */
@@ -132,5 +195,5 @@ export function IUpdatedFinding({ f }: { f: FindingDetail }) {
   const q = useDeviceSoftware(f.asset?.id)
   if (!f.asset) return null
   const fixed = f.fixed_in?.kind === 'fixed' ? f.fixed_in.fixed : undefined
-  return softwareFor(q.data?.asset.software, f.cve).map((s) => <IUpdated key={s.id} asset={f.asset!} software={s} fixed={fixed} active={isOpen(f.status)} />)
+  return softwareFor(q.data?.asset.software, f.cve).map((s) => <IUpdated key={s.id} asset={f.asset!} software={s} fixed={fixed} active={isOpen(f.status)} os={isOsSoftware(s.vendor, s.product)} box={!!q.data?.asset.is_box} />)
 }

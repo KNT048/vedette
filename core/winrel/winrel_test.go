@@ -45,3 +45,44 @@ func TestReleasesTable(t *testing.T) {
 		t.Error("20348 is a server build only")
 	}
 }
+
+// D-603: a release Microsoft's release information lists and the table does not is answered after the table's; the table's facts win,
+// and a release with a bad name, line or kind is dropped.
+func TestLearn(t *testing.T) {
+	t.Cleanup(func() { Learn(nil) })
+	h2 := Release{Build: 26300, Product: "windows_11_26h2", Display: "Windows 11 26H2", Line: 26100, GA: day("2026-09-29"), GARev: 9457, Ended: true, LastFreeRev: 5}
+	h1 := Release{Build: 28000, Product: "windows_11_26h1", Display: "Windows 11 26H1", Line: 28000, GA: day("2026-02-10"), GARev: 1}
+	n := Learn([]Release{
+		h2, h1,
+		{Build: 26200, Product: "windows_11_25h2", Display: "x", Line: 26200, GA: day("2025-09-30")},                       // the table's: kept as the table says
+		{Build: 26400, Product: "windows_11_25h2", Display: "x", Line: 26400, GA: day("2027-09-30")},                       // the table's name
+		{Build: 26500, Product: "windows_11_27h2", Display: "x", Line: 22621, GA: day("2027-09-30")},                       // the first build of a line of the table: kept
+		{Build: 26600, Product: "windows_11_28h2", Display: "x", Line: 26200, GA: day("2028-09-30")},                       // 26200 is not a line's first build
+		{Build: 26700, Product: "windows_server_2028", Display: "Windows Server 2028", Line: 26100, GA: day("2028-01-01")}, // a server on a client line
+		{Build: 26800, Product: "windows_xp", Display: "x", Line: 26800, GA: day("2028-01-01")},
+		{Build: 26900, Product: "windows_11_29h2", Display: "x", Line: 26900},                        // no GA
+		{Build: 26300, Product: "windows_11_30h2", Display: "x", Line: 26300, GA: day("2030-01-01")}, // the build again
+	})
+	if n != 3 { // 26H2, 26H1 and 27H2
+		t.Fatalf("kept %d: %+v", n, learnedReleases())
+	}
+	if r, ok := ByBuild(26300, false); !ok || r.Product != "windows_11_26h2" || r.Line != 26100 || r.Ended || r.LastFreeRev != 0 {
+		t.Errorf("26H2: %+v %v", r, ok)
+	}
+	if r, ok := ByProduct("windows_11_26h1"); !ok || r.Build != 28000 || r.Line != 28000 {
+		t.Errorf("26H1: %+v %v", r, ok)
+	}
+	if r, _ := ByBuild(26200, false); r.Display != "Windows 11 25H2" || r.Line != 26100 {
+		t.Errorf("25H2 changed: %+v", r)
+	}
+	if _, ok := ByBuild(26300, true); ok {
+		t.Error("26300 is a client build only")
+	}
+	if got := len(Releases()); got != len(releases)+3 {
+		t.Errorf("Releases: %d", got)
+	}
+	Learn(nil)
+	if _, ok := ByBuild(26300, false); ok {
+		t.Error("Learn(nil) keeps 26H2")
+	}
+}

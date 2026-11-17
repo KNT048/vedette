@@ -1929,6 +1929,16 @@ func (UnimplementedHandler) InventoryGetInventoryAgents(ctx context.Context) (r 
 	return r, ht.ErrNotImplemented
 }
 
+// InventoryGetInventoryAgentsDevicesIDReport implements inventory_get_inventory_agents_devices_id_report operation.
+//
+// Which agent of this box reads the device and whether an ask to send its software now is open ("I
+// updated it", S-MIT-1). 404 not_found: no such device; 404 too while agent-intake is off.
+//
+// GET /inventory/agents/devices/{id}/report
+func (UnimplementedHandler) InventoryGetInventoryAgentsDevicesIDReport(ctx context.Context, params InventoryGetInventoryAgentsDevicesIDReportParams) (r *InventoryGetInventoryAgentsDevicesIDReportOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // InventoryGetInventoryCatalog implements inventory_get_inventory_catalog operation.
 //
 // Suggest products by vendor or commercial name.
@@ -2097,6 +2107,19 @@ func (UnimplementedHandler) InventoryPostIntakeOsqueryLog(ctx context.Context, r
 //
 // POST /intake/osquery/status
 func (UnimplementedHandler) InventoryPostIntakeOsqueryStatus(ctx context.Context, req OptInventoryPostIntakeOsqueryStatusReq) (r *InventoryPostIntakeOsqueryStatusOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// InventoryPostInventoryAgentsDevicesIDReport implements inventory_post_inventory_agents_devices_id_report operation.
+//
+// I updated it: ask the device's osquery agent to send its software now. For 15 minutes, or until its
+// list arrives, the box's config gives the agent's software queries (the same read-only queries,
+// nothing else) a 60 s interval; osquery reads its config every 5 minutes. An open ask is answered as
+// it is; a new ask within 10 minutes of the last: 429 rate_limited (retry_after). 409 cannot_ask: no
+// osquery agent of this box reports on the device (Wazuh only, or none). 404 not_found. Audited.
+//
+// POST /inventory/agents/devices/{id}/report
+func (UnimplementedHandler) InventoryPostInventoryAgentsDevicesIDReport(ctx context.Context, params InventoryPostInventoryAgentsDevicesIDReportParams) (r *InventoryPostInventoryAgentsDevicesIDReportOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

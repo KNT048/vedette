@@ -36,8 +36,8 @@ func seedNameOnly(t testing.TB, e *env, a Asset, vulns []Vuln) []string {
 	return cves
 }
 
-// desktop55 is the N100's DESKTOP-55UKKFV (2026-11-17): Windows 11 Pro on Insider build 26300, which core/winrel does not list, as
-// agent-intake's windowsRow writes it (no release CPE, the product names the build), with a Photo Station row whose version compares.
+// desktop55 is the N100's DESKTOP-55UKKFV (2026-11-17): Windows 11 Pro 26H2 (build 26300, out 2026-09-29) on a box that has not
+// learned it from Microsoft's list (D-603: core/winrel's table alone does not list it), as agent-intake's windowsRow writes it (no release CPE, the product names the build), with a Photo Station row whose version compares.
 func desktop55() Asset {
 	return Asset{ID: "a-desk", Name: "DESKTOP-55UKKFV", OS: "Microsoft Windows 11 Pro 10.0.26300.9974", Software: []Software{
 		{ID: "s-win", Display: "Windows 11 Pro", Vendor: "microsoft", Product: "Windows (build 26300)", Version: "10.0.26300.9974", Source: "agent",
@@ -63,7 +63,7 @@ func TestMatchAsset_D602_UnknownWindowsBuildIsUnchecked(t *testing.T) {
 	for _, m := range res.NameOnly {
 		dropped = append(dropped, m.CVE)
 		if !strings.HasPrefix(m.Evidence.Summary, NameOnlyNote) ||
-			!strings.Contains(m.Evidence.Summary, "Windows build 26300 is newer than Vedette's table of Windows releases (an Insider or preview build), so Vedette cannot compare 10.0.26300.9974 with the builds NVD lists for "+m.CVE) ||
+			!strings.Contains(m.Evidence.Summary, "Windows build 26300 is newer than every Windows release Vedette knows (an Insider build, or a release not yet in its list), so Vedette cannot compare 10.0.26300.9974 with the builds NVD lists for "+m.CVE) ||
 			!strings.Contains(m.Evidence.Summary, `now listed under "Could not be checked"`) || jsLen(m.Evidence.Summary) > MaxNote {
 			t.Errorf("%s: %q", m.CVE, m.Evidence.Summary)
 		}
@@ -180,7 +180,7 @@ func TestContract_D602_ReconcileClosesNameOnlyFindings(t *testing.T) {
 	}
 	r := load(cve0367.CVE)
 	if r.Status != StatusNotRelevant || r.ResolvedBy != SystemUser || r.ResolutionReason != ReasonNotAffectedVersion ||
-		!strings.HasPrefix(r.ResolutionNote, NameOnlyNote+": Windows build 26300 is newer than Vedette's table of Windows releases") {
+		!strings.HasPrefix(r.ResolutionNote, NameOnlyNote+": Windows build 26300 is newer than every Windows release Vedette knows") {
 		t.Fatalf("not closed: %+v", r.Finding)
 	}
 	if last := r.History[len(r.History)-1]; last.User != SystemUser || last.Action != string(StatusNotRelevant) || last.Note != r.ResolutionNote {

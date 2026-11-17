@@ -123,3 +123,60 @@ func (h *AdminHandlers) InventoryDeleteInventoryAgentsTokensID(ctx context.Conte
 	}
 	return h.s.RevokeToken(ctx, who, params.ID)
 }
+
+// reportWire is the wire form of a ReportState (GET and POST answer the same shape): a zero time and a zero interval are null.
+type reportWire struct {
+	asked, again, seen oas.NilDateTime
+	minutes            oas.NilInt
+}
+
+func toWire(st ReportState) reportWire {
+	w := reportWire{asked: nilTime(st.AskedAt), again: nilTime(st.AskAgainAt), seen: nilTime(st.LastSeen), minutes: oas.NilInt{Null: true}}
+	if st.WazuhMinutes > 0 {
+		w.minutes = oas.NewNilInt(st.WazuhMinutes)
+	}
+	return w
+}
+
+// validDeviceID is the shape of an inventory id at the boundary (inv_asset.id is 1..96 characters); anything else is no device.
+func validDeviceID(id string) bool { return id != "" && len(id) <= 96 }
+
+// InventoryGetInventoryAgentsDevicesIDReport implements GET /inventory/agents/devices/{id}/report (viewer): which agent of this box
+// reads the device and the open ask of "I updated it" (report.go).
+func (h *AdminHandlers) InventoryGetInventoryAgentsDevicesIDReport(ctx context.Context, params oas.InventoryGetInventoryAgentsDevicesIDReportParams) (*oas.InventoryGetInventoryAgentsDevicesIDReportOK, error) {
+	if h.s == nil {
+		return nil, apierr.NotImplemented()
+	}
+	if !validDeviceID(params.ID) {
+		return nil, apierr.NotFound()
+	}
+	st, err := h.s.ReportState(ctx, params.ID)
+	if err != nil {
+		return nil, err
+	}
+	w := toWire(st)
+	return &oas.InventoryGetInventoryAgentsDevicesIDReportOK{Agent: oas.InventoryGetInventoryAgentsDevicesIDReportOKAgent(st.Agent), AskedAt: w.asked, AskAgainAt: w.again,
+		LastSeen: w.seen, Stale: st.Stale, WazuhIntervalMinutes: w.minutes}, nil
+}
+
+// InventoryPostInventoryAgentsDevicesIDReport implements POST /inventory/agents/devices/{id}/report (operator, audited): "I updated it:
+// ask the agent now" (report.go AskReport).
+func (h *AdminHandlers) InventoryPostInventoryAgentsDevicesIDReport(ctx context.Context, params oas.InventoryPostInventoryAgentsDevicesIDReportParams) (*oas.InventoryPostInventoryAgentsDevicesIDReportOK, error) {
+	if h.s == nil {
+		return nil, apierr.NotImplemented()
+	}
+	who, err := adminActor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !validDeviceID(params.ID) {
+		return nil, apierr.NotFound()
+	}
+	st, err := h.s.AskReport(ctx, who, params.ID)
+	if err != nil {
+		return nil, err
+	}
+	w := toWire(st)
+	return &oas.InventoryPostInventoryAgentsDevicesIDReportOK{Agent: oas.InventoryPostInventoryAgentsDevicesIDReportOKAgent(st.Agent), AskedAt: w.asked, AskAgainAt: w.again,
+		LastSeen: w.seen, Stale: st.Stale, WazuhIntervalMinutes: w.minutes}, nil
+}

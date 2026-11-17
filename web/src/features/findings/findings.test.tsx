@@ -950,7 +950,7 @@ describe('findings: one update, one item; the agent\'s build is a detection (TUN
     renderApp('/findings')
     const card = await screen.findByRole('listitem', { name: 'SRV-AD' })
     const acts = within(card).getByRole('list', { name: 'What to do on SRV-AD' })
-    expect(within(acts).getByText('Install the latest cumulative update for Windows Server 2025 (build 26100.2314 or later)')).toBeInTheDocument()
+    expect(within(acts).getByText('Install the latest cumulative update for Windows Server 2025 (from build 26100.1742 to 26100.2314 or later)')).toBeInTheDocument()
     expect(within(acts).getByText(/fixes 2 exploited CVEs/)).toBeInTheDocument()
     expect(within(card).getByRole('link', { name: 'SRV-AD' })).toHaveAttribute('href', '/devices/a-srvad')
     await userEvent.click(within(acts).getByText('Show the 2 CVEs'))
@@ -958,7 +958,7 @@ describe('findings: one update, one item; the agent\'s build is a detection (TUN
     await expectNoA11yViolations()
     await userEvent.click(within(acts).getByRole('link', { name: 'Handle these 2 findings in the list' }))
     await waitFor(() => expect(within(screen.getByRole('table', { name: 'Findings list' })).getAllByRole('row')).toHaveLength(3))
-    expect(screen.getByText('Showing the findings one update fixes: Install the latest cumulative update for Windows Server 2025 (build 26100.2314 or later).')).toBeInTheDocument()
+    expect(screen.getByText('Showing the findings one update fixes: Install the latest cumulative update for Windows Server 2025 (from build 26100.1742 to 26100.2314 or later).')).toBeInTheDocument()
   })
 
   it('All open lists every unresolved finding as a row, the ones one update fixes too (the grouping is To fix)', async () => {

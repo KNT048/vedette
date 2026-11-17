@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { useModuleEnabled } from '@/lib/modules'
+import { useAgentReport } from '@/features/inventory/api'
 import type { ApplyItem, BulkAction, FindingDetail, FindingRow, Plan, PlanFilter, StatusAction, ToFix, UncheckedItem, VersionNeeded } from './types'
 
 export const useFindings = (asset?: string, enabled = true) =>
@@ -51,4 +53,13 @@ export function useBulkStatus() {
     mutationFn: (v: { ids: string[]; action: BulkAction; note: string; until?: string }) => api.post<{ updated: number; skipped: number }>('/findings/status', v),
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['findings'] }) },
   })
+}
+
+/** Whether no agent of this box reads the device now (agent-intake's report state, the same answer "I updated it" reads): a build an
+ *  agent reported is then the last list it sent, not what Vedette knows of the device today. Asked only when `agent` (some CVE of an
+ *  update to plan rests on an agent's row); false while the answer is not in or agent-intake is off. */
+export function useAgentGone(assetId: string, agent: boolean): boolean {
+  const on = useModuleEnabled('agent-intake')
+  const q = useAgentReport(assetId, agent && on === true)
+  return agent && on === true && q.data?.agent === 'none'
 }

@@ -19,6 +19,7 @@ import { usePatchFeed } from '@/features/feeds/api'
 import { fmtDay } from '@/features/feeds/dates'
 import { usePlanAction } from './fix'
 import type { Plan, PlanCve, PlanItem } from './types'
+import { useAgentGone } from './api'
 import { InfoTip } from '@/components/common/InfoTip'
 import { RiskMarker } from '@/features/inventory/RiskMarker'
 
@@ -28,11 +29,15 @@ function Severity({ c }: { c: PlanCve }) {
   return <span className="whitespace-nowrap text-meta">{t(`plan.sev.${c.severity}`)}{c.score !== null ? ` ${c.score.toFixed(1)}` : ''}</span>
 }
 
+/** The evidence key of a CVE: an agent's row reads "Last reported by an agent" once no agent reports the device (`gone`). */
+const evidenceKey = (basis: PlanCve['basis'], gone: boolean) => (basis === 'agent' && gone ? 'agentLast' : basis)
+
 /** The evidence chip: how Vedette knows the device has the flaw. */
-export function EvidenceChip({ basis }: { basis: PlanCve['basis'] }) {
+export function EvidenceChip({ basis, gone = false }: { basis: PlanCve['basis']; gone?: boolean }) {
   const { t } = useTranslation('findings')
+  const k = evidenceKey(basis, gone)
   // #824: the explanation is behind an ⓘ, not a hover-only title.
-  return <span className="inline-flex items-center gap-1"><Chip tone={basis === 'version' ? 'off' : 'accent'}>{t(`plan.evidence.${basis}`)}</Chip><InfoTip topic={t(`plan.evidence.${basis}`)}>{t(`plan.evidence.${basis}Hint`)}</InfoTip></span>
+  return <span className="inline-flex items-center gap-1"><Chip tone={basis === 'version' || k === 'agentLast' ? 'off' : 'accent'}>{t(`plan.evidence.${k}`)}</Chip><InfoTip topic={t(`plan.evidence.${k}`)}>{t(`plan.evidence.${k}Hint`)}</InfoTip></span>
 }
 
 export function TierChip({ tier }: { tier: PlanCve['tier'] }) {
@@ -48,7 +53,7 @@ function yearAgo() {
  *  update fixed 2,786 on a test box), and the server already sorts them likely first, then by severity. */
 export const PLAN_FIRST = 50
 
-function CveList({ item }: { item: PlanItem }) {
+function CveList({ item, gone }: { item: PlanItem; gone: boolean }) {
   const { t } = useTranslation('findings')
   const old = yearAgo()
   const [all, setAll] = useState(false)
@@ -83,7 +88,7 @@ function CveList({ item }: { item: PlanItem }) {
                 {c.published < old ? <span className="block text-caption text-muted">{t('plan.cve.old')}</span> : null}
               </td>
               <td className="whitespace-nowrap px-3 py-2 text-right text-meta tabular-nums">{c.epss === null ? '–' : fmtPercent(c.epss)}</td>
-              <td className="px-3 py-2"><EvidenceChip basis={c.basis} /></td>
+              <td className="px-3 py-2"><EvidenceChip basis={c.basis} gone={gone} /></td>
             </tr>
           ))}
         </tbody>
@@ -94,16 +99,16 @@ function CveList({ item }: { item: PlanItem }) {
           <Button variant="secondary" size="sm" onClick={() => setAll(true)}>{t('plan.showAllCves', { count: item.cves.length })}</Button>
         </div>
       ) : null}
-      <Legend item={item} />
+      <Legend item={item} gone={gone} />
     </div>
   )
 }
 
 /** What the chips of this list mean, as text (#803: a `title` alone is out of reach of keyboard and touch). */
-function Legend({ item }: { item: PlanItem }) {
+function Legend({ item, gone }: { item: PlanItem; gone: boolean }) {
   const { t } = useTranslation('findings')
   const tiers = [...new Set(item.cves.map((c) => c.tier))]
-  const bases = [...new Set(item.cves.map((c) => c.basis))]
+  const bases = [...new Set(item.cves.map((c) => evidenceKey(c.basis, gone)))]
   const row = (key: string, term: string, hint: string) => (
     <div key={key}><dt className="inline font-medium">{term}</dt><dd className="inline">{': '}{hint}</dd></div>
   )
@@ -112,6 +117,30 @@ function Legend({ item }: { item: PlanItem }) {
       {tiers.map((x) => row(`tier-${x}`, t(`plan.tier.${x}`), t(`plan.tier.${x}Hint`)))}
       {bases.map((x) => row(`basis-${x}`, t(`plan.evidence.${x}`), t(`plan.evidence.${x}Hint`)))}
     </dl>
+  )
+}
+
+/** One item: the device, the action, the count, the CVEs inside a disclosure. */
+function PlanRow({ i, action, showDevice, likelyOnly }: { i: PlanItem; action: string; showDevice: boolean; likelyOnly: boolean }) {
+  const { t } = useTranslation('findings')
+  const gone = useAgentGone(i.asset.id, i.cves.some((c) => c.basis === 'agent'))
+  return (
+    <li className="grid min-w-0 gap-1 px-4 py-3">
+      <p className="text-sm">
+        {showDevice ? <><Link to={`/devices/${i.asset.id}`} className="font-medium text-accent underline-offset-4 hover:underline">{i.asset.name}</Link>{' '}<RiskMarker id={i.asset.id} risk={i.risk} className="align-middle" />{': '}</> : null}
+        <span className="font-medium">{action}</span>{': '}
+        {likelyOnly ? <span className="text-warn">{t('plan.fixesOnlyLikely', { count: i.cves.length })}</span> : (
+          <>
+            {t('plan.fixes', { count: i.cves.length })}
+            {i.likely > 0 ? <> <span className="text-warn">{t('plan.fixesLikely', { count: i.likely })}</span></> : null}
+          </>
+        )}
+      </p>
+      <details className="min-w-0">
+        <summary className="w-fit cursor-pointer text-meta text-accent underline-offset-4 hover:underline">{t('plan.show', { count: i.cves.length })}</summary>
+        <CveList item={i} gone={gone} />
+      </details>
+    </li>
   )
 }
 
@@ -127,24 +156,7 @@ export function PlanItems({ items, showDevice, likelyOnly = false }: { items: Pl
     <>
     <Card flush>
     <ul ref={list} aria-label={t('plan.listLabel')} className="grid min-w-0 divide-y divide-rule">
-      {shown.map((i) => (
-        <li key={i.group} className="grid min-w-0 gap-1 px-4 py-3">
-          <p className="text-sm">
-            {showDevice ? <><Link to={`/devices/${i.asset.id}`} className="font-medium text-accent underline-offset-4 hover:underline">{i.asset.name}</Link>{' '}<RiskMarker id={i.asset.id} risk={i.risk} className="align-middle" />{': '}</> : null}
-            <span className="font-medium">{action(i)}</span>{': '}
-            {likelyOnly ? <span className="text-warn">{t('plan.fixesOnlyLikely', { count: i.cves.length })}</span> : (
-              <>
-                {t('plan.fixes', { count: i.cves.length })}
-                {i.likely > 0 ? <> <span className="text-warn">{t('plan.fixesLikely', { count: i.likely })}</span></> : null}
-              </>
-            )}
-          </p>
-          <details className="min-w-0">
-            <summary className="w-fit cursor-pointer text-meta text-accent underline-offset-4 hover:underline">{t('plan.show', { count: i.cves.length })}</summary>
-            <CveList item={i} />
-          </details>
-        </li>
-      ))}
+      {shown.map((i) => <PlanRow key={i.group} i={i} action={action(i)} showDevice={showDevice} likelyOnly={likelyOnly} />)}
     </ul>
     </Card>
     {shown.length < items.length ? (

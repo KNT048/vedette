@@ -438,16 +438,17 @@ const buildOf = (v: string) => v.replace(/^10\.0\./, '')
 function sentence(u: Pick<ToFixAction, 'kind' | 'software' | 'version' | 'fixed' | 'windows' | 'distro' | 'pro'>): string {
   const sw = u.software || 'the software'
   const fixed = u.windows ? buildOf(u.fixed) : u.fixed
+  const build = u.windows && u.version ? `from build ${buildOf(u.version)} to ${fixed}` : `build ${fixed}`
   switch (u.kind) {
     case 'none': return `No update is named that fixes these: follow the vendor's advice for ${sw}`
     case 'distro':
       if (fixed) return `Upgrade the ${sw} package from ${u.version} to ${fixed} or later${u.pro ? ' (Ubuntu Pro)' : ''}`
       return u.distro ? `Install ${u.distro}'s security updates for ${sw}` : `Install the distribution's security updates for ${sw}`
     case 'feature_update': return `Upgrade ${sw} to ${fixed}: some of these get no update for this release`
-    case 'esu': return `Install the Extended Security Update for ${sw} (build ${fixed} or later; it needs an ESU subscription)`
-    case 'windows': return `Install the latest cumulative update for ${sw} (build ${fixed} or later)`
+    case 'esu': return `Install the Extended Security Update for ${sw} (${build} or later; it needs an ESU subscription)`
+    case 'windows': return `Install the latest cumulative update for ${sw} (${build} or later)`
   }
-  return u.windows ? `Install the latest cumulative update for ${sw} (build ${fixed} or later)` : `Upgrade ${sw} from ${u.version} to ${fixed} or later`
+  return u.windows ? `Install the latest cumulative update for ${sw} (${build} or later)` : `Upgrade ${sw} from ${u.version} to ${fixed} or later`
 }
 
 /** GET /findings/to-fix, as findings.ToFix builds it: per device, the open findings grouped by their fix (or by product when

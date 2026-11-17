@@ -541,8 +541,8 @@
     "title_other": "{{count}} updates each fix several findings",
     "help": "Install it once: Vedette closes every finding it fixes.",
     "helpInfo": "One missing update often leaves many exploited vulnerabilities open. Vedette closes the findings when the device reports the new version (its agent or the next scan), or when you enter it.",
-    "windowsFixed": "Install the latest cumulative update for {{software}} (build {{fixed}} or later)",
-    "windowsEsu": "Install the Extended Security Update for {{software}} (build {{fixed}} or later; it needs an ESU subscription)",
+    "windowsFixed": "Install the latest cumulative update for {{software}} (from build {{version}} to {{fixed}} or later)",
+    "windowsEsu": "Install the Extended Security Update for {{software}} (from build {{version}} to {{fixed}} or later; it needs an ESU subscription)",
     "featureUpdate": "Upgrade {{software}} to {{fixed}}: some of these get no update for this release",
     "fixed": "Upgrade {{software}} from {{version}} to {{fixed}} or later",
     "distro": "Install {{distro}}'s security updates for {{software}}",
@@ -592,7 +592,7 @@
       "distro": "Install the distribution's security updates for {{software}} ({{version}})",
       "distroFixed": "Upgrade the {{software}} package from {{version}} to {{fixed}} or later",
       "distroPro": "Upgrade the {{software}} package from {{version}} to {{fixed}} or later (Ubuntu Pro)",
-      "windows": "Install the latest cumulative update for {{software}} (build {{fixed}} or later)"
+      "windows": "Install the latest cumulative update for {{software}} (from build {{version}} to {{fixed}} or later)"
     },
     "fixes_one": "fixes {{count}} CVE",
     "fixes_other": "fixes {{count}} CVEs",
@@ -634,6 +634,8 @@
       "scanHint": "A scan engine (nuclei, OpenVAS or ZAP) found it on the device",
       "agent": "Reported by the agent",
       "agentHint": "The device's agent reports a build or package inside the affected versions",
+      "agentLast": "Last reported by an agent",
+      "agentLastHint": "No agent reports this device now: the build or package is from the last list an agent sent, and the device may run a newer one. Check the device or install its agent again to confirm it",
       "distro": "Distribution says affected",
       "distroHint": "Ubuntu's or Debian's own security data says the installed package is affected",
       "version": "Version matches",

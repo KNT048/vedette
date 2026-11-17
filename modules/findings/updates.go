@@ -351,8 +351,13 @@ func updateSentence(u UpdateAction) string {
 	if sw == "" {
 		sw = "the software"
 	}
+	build := "" // a Windows update names the device's build and the fixed one, as every other upgrade does ("from v7.2.13 to 7.6.7")
 	if u.Windows {
 		fixed = strings.TrimPrefix(fixed, "10.0.")
+		build = "build " + fixed
+		if v := strings.TrimPrefix(u.Version, "10.0."); v != "" {
+			build = "from build " + v + " to " + fixed
+		}
 	}
 	switch u.Kind {
 	case "none":
@@ -370,12 +375,12 @@ func updateSentence(u UpdateAction) string {
 	case "feature_update":
 		return fmt.Sprintf("Upgrade %s to %s: some of these get no update for this release", sw, fixed)
 	case "esu":
-		return fmt.Sprintf("Install the Extended Security Update for %s (build %s or later; it needs an ESU subscription)", sw, fixed)
+		return fmt.Sprintf("Install the Extended Security Update for %s (%s or later; it needs an ESU subscription)", sw, build)
 	case "windows":
-		return fmt.Sprintf("Install the latest cumulative update for %s (build %s or later)", sw, fixed)
+		return fmt.Sprintf("Install the latest cumulative update for %s (%s or later)", sw, build)
 	}
 	if u.Windows {
-		return fmt.Sprintf("Install the latest cumulative update for %s (build %s or later)", sw, fixed)
+		return fmt.Sprintf("Install the latest cumulative update for %s (%s or later)", sw, build)
 	}
 	return fmt.Sprintf("Upgrade %s from %s to %s or later", sw, u.Version, fixed)
 }

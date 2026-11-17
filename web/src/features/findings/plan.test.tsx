@@ -1,10 +1,12 @@
 // Updates to plan (S-TIER-1, S-TIER-2) and the CVE page of a CVE on no exploited list.
 import { describe, expect, it } from 'vitest'
-import { screen, waitFor, within } from '@testing-library/react'
+import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { tierState } from '@/mocks/tiers'
 import { modulesStore } from '@/mocks/stores'
+import { http, HttpResponse } from 'msw'
+import { server } from '@/test/server'
 
 describe('Updates to plan (S-TIER-1, S-TIER-2)', () => {
   it('one item per update on one device, the CVEs with tier, published day and evidence; the filter narrows; no a11y violation', async () => {
@@ -19,7 +21,7 @@ describe('Updates to plan (S-TIER-1, S-TIER-2)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'All (4)' }))
     expect(await screen.findByRole('heading', { level: 1, name: '4 recommended updates' })).toBeInTheDocument()
     const list = screen.getByRole('list', { name: 'Recommended updates' })
-    expect(within(list).getByText(/Install the latest cumulative update for Windows Server 2022 \(build 20348\.4405 or later\)/)).toBeInTheDocument()
+    expect(within(list).getByText(/Install the latest cumulative update for Windows Server 2022 \(from build 20348\.2700 to 20348\.4405 or later\)/)).toBeInTheDocument()
     expect(within(list).getByText('(2 likely to be exploited)')).toBeInTheDocument()
     expect(screen.getByText('1 CVE published more than 12 months ago is listed because a scan found it on the device.')).toBeInTheDocument()
     const nas = within(list).getAllByRole('listitem').find((li) => li.textContent?.includes('NAS-BACKUP'))!
@@ -168,6 +170,33 @@ describe('Updates to plan (S-TIER-1, S-TIER-2)', () => {
   it('the Recent tab heading names its tier', async () => {
     renderApp('/plan?tier=recent')
     expect(await screen.findByRole('heading', { level: 1, name: /^\d+ recommended updates? for recent CVEs$/ })).toBeInTheDocument()
+  })
+
+  // The evidence follows how the version is known now: a build an agent reported reads "Last reported by an agent" once no agent of
+  // the box reports the device (agent-intake's report state, the answer "I updated it" reads), on the list and on the CVE page.
+  it('an agent row\'s evidence says when no agent reports the device now', async () => {
+    modulesStore.update((l) => l.map((m) => (m.id === 'agent-intake' ? { ...m, enabled: true } : m)))
+    let agent = 'none'
+    server.use(http.get('*/api/v1/inventory/agents/devices/:id/report', () =>
+      HttpResponse.json({ agent, asked_at: null, ask_again_at: null, last_seen: null, stale: false, wazuh_interval_minutes: null })))
+    renderApp('/plan?tier=all')
+    const list = await screen.findByRole('list', { name: 'Recommended updates' })
+    const win = within(list).getAllByRole('listitem').find((li) => li.textContent?.includes('Windows Server 2022'))!
+    await userEvent.click(within(win).getByText('Show the 65 CVEs'))
+    const table = within(win).getByRole('table')
+    expect((await within(table).findAllByText('Last reported by an agent')).length).toBe(50)
+    expect(within(table).queryByText('Reported by the agent')).toBeNull()
+    expect(within(win).getAllByText(/No agent reports this device now: the build or package is from the last list an agent sent/).find((el) => el.closest('dl'))).toBeVisible()
+    await expectNoA11yViolations()
+    cleanup()
+
+    agent = 'osquery'
+    renderApp('/plan?tier=all')
+    const again = await screen.findByRole('list', { name: 'Recommended updates' })
+    const item = within(again).getAllByRole('listitem').find((li) => li.textContent?.includes('Windows Server 2022'))!
+    await userEvent.click(within(item).getByText('Show the 65 CVEs'))
+    expect(within(within(item).getByRole('table')).getAllByText('Reported by the agent').length).toBe(50)
+    expect(within(item).queryByText('Last reported by an agent')).toBeNull()
   })
 
   it('the CVE page answers for a CVE on no exploited list, with its devices from Updates to plan', async () => {

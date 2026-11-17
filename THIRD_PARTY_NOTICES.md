@@ -206,6 +206,12 @@ Each box downloads these files itself, keeps on its own disk only the rows of th
 |---|---|---|
 | Windows release information pages (`learn.microsoft.com/en-us/windows/release-health/windows11-release-information`, `/windows-server-release-info`) | Microsoft Terms of Use (https://www.microsoft.com/legal/terms-of-use): the pages are public; no API key, no account | data: facts only (release version, OS build, date of availability, build with revision and KB number of each update), read on the box once a day to know Windows releases newer than `core/winrel`'s table (Windows 11 26H2, build 26300). The box keeps one row per release (name, build, line, date, first build) and shows none of the pages' text; the feed row says "Facts from Microsoft's public Windows release information pages … Not endorsed by Microsoft." The test fixtures (`modules/feeds/testdata/winrel/`) are the pages' build tables trimmed to a few rows (facts: versions, dates, builds, KB numbers; no prose). Microsoft names its products and builds; Vedette uses the names only to say which release a device runs |
 
+## Facts copied by hand into the catalog (D-604)
+
+| Source | Terms | How it is used |
+|---|---|---|
+| Alpine Linux security database (secdb, `secdb.alpinelinux.org/<branch>/main.json`) and Alpine's advisory | CC BY-SA 4.0, Alpine Linux (https://secdb.alpinelinux.org/license.txt) | facts only, with attribution: the first fixed `openssh` release per Alpine branch for CVE-2026-123158 (ten release numbers: edge and 3.24 to 3.16) in `content/catalog/platform-limits.json` (`fixed`, its `source` names the file), read against the package release a person gives (D-604). The box does not download secdb; no file of it is in the repository (post-v1 #957 would read it on the box like D-516's trackers). |
+
 ## Public pages each box reads for CVE news (only when a person presses the button; S-AI-3, D-280, D-281)
 
 Read on the box, never stored or redistributed as they are: the box keeps only the AI's summary and the links. No library added; `golang.org/x/net/html` (already linked, row above) reads the advisory pages.

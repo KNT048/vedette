@@ -3,6 +3,7 @@ package findings
 import (
 	"maps"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 )
@@ -298,5 +299,41 @@ func TestUnchecked_910_DistroPackageTheTrackerDoesNotCover(t *testing.T) {
 	if len(res.New) != 1 || res.New[0].Basis != BasisVersion || len(res.NameOnly) != 1 || res.NameOnly[0].CVE != "CVE-2026-0031" ||
 		len(res.Unchecked) != 1 || res.Unchecked[0].CVE != "CVE-2026-0031" || res.Unchecked[0].Reason != UncheckedNoNVDVersions || len(res.NeedVersion) != 0 {
 		t.Fatalf("findings = %+v, unchecked = %+v", res.New, res.Unchecked)
+	}
+}
+
+// D-604: a platform-limited CVE only a person's answer decides is its own item with the question and the answers that settle it:
+// one click sets the device's OS (per Alpine branch), or the person types the OS or the package release.
+func TestUncheckedItems_D604_Question(t *testing.T) {
+	t.Parallel()
+	kev := map[string]KevInfo{"CVE-2026-123158": {Name: "OpenBSD OpenSSH", DateAdded: "2026-11-06"}, "CVE-2099-0001": {Name: "x", DateAdded: "2026-01-01"}}
+	assets := map[string]AssetView{"a-1": {ID: "a-1", Name: "BN340"}}
+	row := func(cve string, r UncheckedReason) UncheckedRow {
+		return UncheckedRow{AssetID: "a-1", Unchecked: Unchecked{CVE: cve, SoftwareID: "s-1", Software: "OpenSSH", Version: "10.2", Source: "nmap", Reason: r}}
+	}
+	items := UncheckedItems([]UncheckedRow{row("CVE-2026-123158", UncheckedPlatformUnknown), row("CVE-2099-0001", UncheckedNoNVDVersions)}, kev, assets)
+	if len(items) != 2 || items[0].Reason != UncheckedPlatformUnknown || items[0].Action != "answer_platform" || items[1].Question != nil || items[1].Action != "none" {
+		t.Fatalf("items %+v", items)
+	}
+	q := items[0].Question
+	if q == nil || !strings.HasPrefix(q.Text, "Is the OpenSSH on BN340 Alpine Linux's openssh-server package") || q.Command == nil || *q.Command != "cat /etc/alpine-release" {
+		t.Fatalf("question %+v", q)
+	}
+	last := q.Answers[len(q.Answers)-1]
+	if len(q.Answers) != 11 || q.Answers[2].Label != "Alpine Linux 3.23" || q.Answers[2].OS == nil || *q.Answers[2].OS != "Alpine Linux 3.23" ||
+		q.Answers[9].Label != "Alpine Linux 3.16" || !slices.Equal(last.Ask, []string{"os", "pkg_version"}) || last.OS != nil {
+		t.Fatalf("answers %+v", q.Answers)
+	}
+	items = UncheckedItems([]UncheckedRow{row("CVE-2026-123158", UncheckedPackageUnknown)}, kev, assets)
+	q = items[0].Question
+	if q == nil || q.Command == nil || *q.Command != "apk info -e -v openssh-server" || len(q.Answers) != 1 || !slices.Equal(q.Answers[0].Ask, []string{"pkg_version"}) || q.Error != nil ||
+		!strings.Contains(q.Text, "Which openssh-server package release does BN340 have?") || !strings.Contains(q.Text, "10.2_p1-r1 (3.23)") {
+		t.Fatalf("package question %+v", q)
+	}
+	bad := row("CVE-2026-123158", UncheckedPackageUnknown)
+	bad.Answer = "10.2p1" // review r1 M2 of #961: a release Vedette could not read is said
+	q = UncheckedItems([]UncheckedRow{bad}, kev, assets)[0].Question
+	if q == nil || q.Error == nil || !strings.Contains(*q.Error, `could not read the release you entered ("10.2p1")`) || !strings.Contains(*q.Error, "openssh-server-10.6_p2-r0") {
+		t.Fatalf("unreadable answer %+v", q)
 	}
 }

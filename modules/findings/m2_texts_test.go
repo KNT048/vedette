@@ -142,7 +142,7 @@ func detailKnown(t *testing.T, a Asset, v Vuln) map[string]any {
 // is the row the finding was matched on, the one the evidence names, not the first keyed one.
 func TestFindingDetail_M23_KnownVersionIsTheMatchedRow(t *testing.T) {
 	t.Parallel()
-	ssh := Vuln{CVE: "CVE-2026-123158", Vendor: "OpenBSD", Product: "OpenSSH", Name: "OpenBSD OpenSSH", Affected: []Affected{{CPE: "cpe:2.3:a:openbsd:openssh:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: "10.6"}}}}
+	ssh := Vuln{CVE: "CVE-2099-12315", Vendor: "OpenBSD", Product: "OpenSSH", Name: "OpenBSD OpenSSH", Affected: []Affected{{CPE: "cpe:2.3:a:openbsd:openssh:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: "10.6"}}}}
 	gw := Asset{ID: "a-1", Name: "192.168.18.1", Software: []Software{{ID: "s-1", Display: "OpenSSH 10.2", Vendor: "openbsd", Product: "openssh", Version: "10.2", KevKeys: []string{"openbsd|openssh"}, Source: "nmap"}}}
 	b := detailKnown(t, gw, ssh)
 	if k, _ := b["known_version"].(map[string]any); k["software"] != "OpenSSH" || k["version"] != "10.2" || k["source"] != "scan" {

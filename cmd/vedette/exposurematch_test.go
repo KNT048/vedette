@@ -147,8 +147,8 @@ func TestExposureMatcher_NmapServicesAgainstKEV(t *testing.T) {
 }
 
 // KF-4 / N45-3 (D-547): the n45 public IP's port 10022 sends "OpenSSH 9.6p1 Ubuntu 3ubuntu13.20": the Alpine-only CVE-2026-123158 is
-// not listed and comes back as ruled out with its reason; the office firewall's "OpenSSH 10.2" (no platform) keeps it, with the
-// condition (KF-5).
+// not listed and comes back as ruled out with its reason. D-604: the office firewall's "OpenSSH 10.2" (no platform) is not listed
+// either: no Yes while the platform condition is open; it is ruled out with what is not known.
 func TestExposureMatcher_PlatformLimitedCVE(t *testing.T) {
 	t.Parallel()
 	vulns := exposureGolden(t)
@@ -160,27 +160,22 @@ func TestExposureMatcher_PlatformLimitedCVE(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var on10022, on22222 bool
 	for _, v := range got.Vulns {
-		if v.CVE != "CVE-2026-123158" {
-			continue
-		}
-		on10022 = on10022 || v.Port == 10022
-		if v.Port == 22222 {
-			on22222 = true
-			if v.Basis != "version" || !strings.Contains(v.Summary, "It affects only OpenSSH built with musl libc and without PAM") || strings.Contains(v.Summary, "run a scan") {
-				t.Errorf("22222: %+v", v)
-			}
+		if v.CVE == "CVE-2026-123158" {
+			t.Fatalf("listed: %+v", v)
 		}
 	}
-	if on10022 || !on22222 {
-		t.Fatalf("CVE-2026-123158 on 10022 %v (want not listed), on 22222 %v (want listed): %+v", on10022, on22222, got.Vulns)
+	reasons := map[int]string{}
+	for _, r := range got.RuledOut {
+		if r.CVE == "CVE-2026-123158" {
+			reasons[r.Port] = r.Reason
+		}
 	}
-	if len(got.RuledOut) != 1 || got.RuledOut[0].Port != 10022 || got.RuledOut[0].CVE != "CVE-2026-123158" || !strings.Contains(got.RuledOut[0].Reason, "Ubuntu") {
+	if len(reasons) != 2 || !strings.Contains(reasons[10022], "Ubuntu") || !strings.Contains(reasons[22222], "affects only OpenSSH built with musl libc and without PAM") ||
+		!strings.Contains(reasons[22222], "nothing Vedette reads says which system or build") {
 		t.Fatalf("ruled out = %+v", got.RuledOut)
 	}
-	// Review r1 #11: two OpenSSH ports on one IP, one Ubuntu's build and one with no platform: one match per CVE and address, on the
-	// port that keeps it; nothing is called ruled out while it is listed.
+	// Review r1 #11: two OpenSSH ports on one IP, one Ubuntu's build and one with no platform: one row per CVE and address.
 	got, err = m.Match(t.Context(), []exposure.ServiceRow{
 		{IP: "203.0.113.10", Port: 10022, Name: "ssh", Product: "OpenSSH", Version: "9.6p1 Ubuntu 3ubuntu13.20", Extra: "Ubuntu Linux; protocol 2.0", CPE: "cpe:/a:openbsd:openssh:9.6p1"},
 		{IP: "203.0.113.10", Port: 2222, Name: "ssh", Product: "OpenSSH", Version: "10.2", Extra: "protocol 2.0", CPE: "cpe:/a:openbsd:openssh:10.2"},
@@ -194,7 +189,8 @@ func TestExposureMatcher_PlatformLimitedCVE(t *testing.T) {
 			ports = append(ports, v.Port)
 		}
 	}
-	if !slices.Equal(ports, []int{2222}) || len(got.RuledOut) != 0 {
+	// D-604: the port with no platform is asked, not listed; one ruled-out row per CVE and address, on that port
+	if len(ports) != 0 || len(got.RuledOut) != 1 || got.RuledOut[0].Port != 2222 {
 		t.Fatalf("one IP, two ports: CVE on %v, ruled out %+v", ports, got.RuledOut)
 	}
 }

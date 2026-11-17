@@ -287,7 +287,7 @@ func readConmon(dir string, pid int, btime int64) (conmonProc, bool) {
 	for i := 1; i+1 < len(argv); i++ {
 		var key string
 		switch argv[i] {
-		case "-c", "--cid":
+		case "--cid": // the short form is not matched here: its value is the same id as -u's (podman passes the container id to both)
 			key = "c"
 		case "-u", "--cuuid":
 			key = "u"
@@ -309,8 +309,12 @@ func readConmon(dir string, pid int, btime int64) (conmonProc, bool) {
 		flags[key] = argv[i+1]
 		i++
 	}
-	id := flags["c"]
-	if !imageIDRE.MatchString(id) || flags["u"] != id || flags["b"] != orphanBundleDir+id+"/userdata" || !rootOwned(dir) {
+	// the id is conmon's -u (podman sets it to the container id, as -c); the bundle path must name the same id, and a --cid, if any, too
+	id := flags["u"]
+	if c, ok := flags["c"]; ok && c != id {
+		return conmonProc{}, false
+	}
+	if !imageIDRE.MatchString(id) || flags["b"] != orphanBundleDir+id+"/userdata" || !rootOwned(dir) {
 		return conmonProc{}, false
 	}
 	start, ok := procStart(dir)

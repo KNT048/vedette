@@ -353,7 +353,11 @@ func (s *Service) saveScan(ctx context.Context, user string, t Target, content C
 	if t.Kind == KindIP {
 		extra = t.Value
 	}
-	date := at.In(s.loc()).Format(dayFormat)
+	day := at // the scan's day is the day it started (INV-34), like its name on every page
+	if st, err := parseTS(started); err == nil {
+		day = st
+	}
+	date := day.In(s.loc()).Format(dayFormat)
 	snap := Snapshot{ID: id, Date: date, ScannedAt: store.FormatTS(at), StartedAt: cmp.Or(started, store.FormatTS(at)), GreenboneRun: gbRun,
 		Vulns: []VulnRow{}, VersionGaps: []GapRow{}} // computed when read (INV-20); never null in an answer
 	if gbRun.State != GBRunRunning { // the scan ends here; one whose OpenVAS step starts now ends when that step does (addGreenbone)

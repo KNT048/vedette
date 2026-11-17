@@ -1679,7 +1679,7 @@ describe('exposure: the OpenVAS heading follows its one state, its start in the 
   const ip = '203.0.113.10'
   const started = '2026-11-14T18:16:00.000Z'
   const high = { ip, port: '443/tcp', severity: 7.5, name: 'Weak TLS', qod: 98, cves: [], solution: 'Fix TLS.', oid: '1.3.6.1.4.1.25623.1.0.1' }
-  type Run = { state: string; started_at: string | null; addresses?: { ip: string; state: string }[] }
+  type Run = { state: string; started_at: string | null; addresses?: { ip: string; state: string }[]; stop?: { reason: string; by: string | null } }
   const showing = async (run: Run, greenbone: unknown[], not_checked: { kind: string; text: string }[]) => {
     const greenbone_run = { addresses: [], ...run }
     const at = new Date(Date.now() - 864e5).toISOString()
@@ -1811,12 +1811,13 @@ describe('exposure: the OpenVAS heading follows its one state, its start in the 
     ['done', 'OpenVAS reported no high or medium result with QoD 70 or more', 'Not proof that the services are not affected: the exploited CVEs above still stand.'],
     ['not_run', 'OpenVAS did not scan this time', 'OpenVAS did not scan: this scan found no open port to check.'],
     ['failed', 'OpenVAS did not finish this scan', 'OpenVAS failed, so its results are not shown. The box log has the error.'],
-    ['stopped', 'OpenVAS was stopped before it finished', 'OpenVAS was stopped before it finished (the box restarted or the scan was stopped), so its results are not shown. The results of the other checks above are kept.'],
-  ])('%s: its own heading and why', async (state, title, body) => {
+    ['stopped', 'OpenVAS was stopped before it finished', 'OpenVAS was stopped before it finished (Vedette restarted), so its results are not shown. The results of the other checks above are kept.',
+      'Stopped: Vedette restarted while OpenVAS ran. Its results are not shown. The results of the other checks above are kept.'],
+  ])('%s: its own heading and why', async (state, title, body, shown = body) => {
     const line = state === 'done' ? [] : [{ kind: 'greenbone', text: body }]
-    const s = await showing({ state, started_at: state === 'not_run' ? null : started }, [], line)
+    const s = await showing({ state, started_at: state === 'not_run' ? null : started, ...(state === 'stopped' ? { stop: { reason: 'restart', by: null } } : {}) }, [], line)
     expect(await within(s).findByText(title)).toBeInTheDocument()
-    expect(within(s).getByText(new RegExp(body.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))).toBeInTheDocument()
+    expect(within(s).getByText(new RegExp(shown.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))).toBeInTheDocument()
     for (const other of ['OpenVAS is scanning', 'OpenVAS did not scan this time', 'OpenVAS did not finish this scan', 'OpenVAS was stopped before it finished', 'OpenVAS ended the scan before it finished'].filter((x) => x !== title)) {
       expect(within(s).queryByText(other)).toBeNull()
     }

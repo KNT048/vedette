@@ -75,6 +75,17 @@ describe('exposure: an OpenVAS step that was stopped says why and when, and runs
     expect(within(s).getByText('OpenVAS started at 17 Nov 2026, 21:29.')).toBeInTheDocument()
   })
 
+  it.each([
+    [{ ended_at: stoppedAt }, 'Stopped at 17 Nov 2026, 22:43: someone pressed Stop or Vedette shut down (an update or a restart). This scan is older than the version of Vedette that records which of the two.'],
+    [{}, 'Stopped before it finished; the time was not recorded for this older scan. The reason is one of: someone pressed Stop, Vedette shut down (an update or a restart), the External exposure module was switched off, or the testing terms were withdrawn or lowered.'],
+  ])('a step stopped before the reason was recorded says so, with its stop time when known: %o', async (end, line) => {
+    serve(snapshotOf({ state: 'stopped', ...end }, { not_checked: [{ kind: 'greenbone', text: 'OpenVAS was stopped before it finished, so its results are not shown. The results of the other checks above are kept.' }] }))
+    renderApp('/exposure/xt-2')
+    const s = await section()
+    expect(await within(s).findByText(`${line} Its results are not shown. The results of the other checks above are kept.`)).toBeInTheDocument()
+    expect(within(s).getByText('OpenVAS started at 17 Nov 2026, 21:29.')).toBeInTheDocument()
+  })
+
   it('an operator runs only OpenVAS again for the newest scan, on the ports it found; axe clean', async () => {
     const posted = serve(snapshotOf({ state: 'stopped', ended_at: stoppedAt, stop: { reason: 'shutdown', by: null } }))
     renderApp('/exposure/xt-2', { role: 'operator' })

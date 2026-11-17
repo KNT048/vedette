@@ -210,10 +210,13 @@ export function GreenboneSection({ s, again }: { s: Snapshot; again?: Target }) 
   )
 }
 
-/** Why and when a stopped OpenVAS step was stopped, in the viewer's time zone; null when the box did not say (an older scan). */
+/** Why and when a stopped OpenVAS step was stopped, in the viewer's time zone. A scan stored before the box kept the reason, for which
+ *  the audit log proves none (the box reads it at start-up), was stopped by a Stop or a shutdown, which leave no record; without a
+ *  stop time on record the box could not check, and every cause is named. */
 function stopText(t: (k: string, o?: Record<string, unknown>) => string, run: GreenboneRun): string | null {
-  if (run.state !== 'stopped' || !run.stop) return null
+  if (run.state !== 'stopped') return null
   const time = run.ended_at ? dateTimeText(run.ended_at) : null
+  if (!run.stop) return t(time ? 'greenbone.results.stop.unknown' : 'greenbone.results.stop.unknownNoTime', { time })
   const key = run.stop.reason === 'restart' && !time ? 'restartNoTime' : run.stop.reason
   return t(`greenbone.results.stop.${key}`, { time, by: run.stop.by ?? t('greenbone.results.stop.someone') })
 }

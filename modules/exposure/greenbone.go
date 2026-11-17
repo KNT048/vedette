@@ -199,7 +199,8 @@ const (
 	notGBSlowAnswer   = "OpenVAS did not answer within 2 minutes, so its results are not shown."
 	notGBStopped      = "OpenVAS was stopped before it finished, so its results are not shown. The results of the other checks above are kept."
 	notGBStoppedSome  = "OpenVAS was stopped before it had scanned every address; the results of the addresses it finished are shown. The results of the other checks above are kept."
-	// notGBCutOff replaces the waiting line of a step nothing runs any more (a restart of the box in the middle of it).
+	// notGBCutOff is the line older versions stored in place of the waiting line of a step nothing ran any more (Vedette stopped in the
+	// middle of it); read as StopRestart (oldStop) and replaced by that reason's line when read.
 	notGBCutOff = "OpenVAS was stopped before it finished (the box restarted or the scan was stopped), so its results are not shown. The results of the other checks above are kept."
 	// notGBTerms: Greenbone runs only on a target whose testing terms are accepted.
 	notGBTerms      = "OpenVAS did not scan: accept the testing terms for this target to run OpenVAS (Ownership tab)."

@@ -242,6 +242,11 @@ type MatchResult struct {
 	// Vedette can compare (scheme none, classic Cisco IOS "15.2(4)M3"; #910 phase 1): no finding and no "add the version" item,
 	// for the "could not be checked" list (reason not_comparable).
 	NotComparable []NotComparable
+	// Unchecked lists, per software row, the exploited CVEs of software the device has that gave no finding, no NeedVersion
+	// item and no proof (#910 phase 1, uncheckedRow): a row CISA's key or NVD's list names that Vedette could not compare, a
+	// product match the age rule drops (D-615), and NotComparable. Independent of have: the list leaves out at read time the CVEs
+	// the device has a finding for (ListUnchecked).
+	Unchecked []Unchecked
 }
 
 // AgeLimit is the age from which a KEV CVE becomes a finding only on confirmed evidence (D-615): published before now minus
@@ -356,8 +361,9 @@ func ValidCVE(s string) bool {
 func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) MatchResult {
 	var res MatchResult
 	seen := make(map[string]bool, len(vulns))
-	need := map[string]int{} // software id -> index in res.NeedVersion
-	sws := deviceSoftware(a) // its rows, and the network OS it states with its version (D-510)
+	need := map[string]int{}     // software id -> index in res.NeedVersion
+	decided := map[string]bool{} // CVE -> a finding or an "add the version" item has it (#910: NotComparable then does not list it)
+	sws := deviceSoftware(a)     // its rows, and the network OS it states with its version (D-510)
 	winList := a.winList
 	if winList == nil {
 		winList = vulns
@@ -382,11 +388,18 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 		}
 		seen[v.CVE] = true
 		var best, proved, unlisted, platform *Match
-		unproved := false    // a software of this product with a No that proves nothing, or one that needs a version
-		othersOnly := true   // every software keyed to the entry is one NVD's list leaves out (D-506)
-		var unnamed []string // their names, for the D-506 sentence
+		unproved := false         // a software of this product with a No that proves nothing, or one that needs a version
+		othersOnly := true        // every software keyed to the entry is one NVD's list leaves out (D-506)
+		var unnamed []string      // their names, for the D-506 sentence
+		var unchecked []Unchecked // #910: rows of the product that could not be checked
+		needs, bestRow := false, -1
 		for i, s := range sws {
 			m, out := matchOne(a, s, infos[i], v, named[i][vi], now)
+			if out == outRuledOut || out == outNone && named[i][vi] {
+				if r, ok := uncheckedRow(a, s, infos[i], v, named[i][vi], m, out); ok {
+					unchecked = append(unchecked, uncheckedOf(s, v, r))
+				}
+			}
 			if out != outNone && (out != outRuledOut || m.Evidence.Summary == "") {
 				othersOnly = false
 			}
@@ -415,10 +428,10 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 				// the order (review r1 M2 of #909)
 				if best == nil || rank(m.Basis) > rank(best.Basis) || rank(m.Basis) == rank(best.Basis) && !confirmedMatch(*best) &&
 					(confirmedMatch(m) || m.Evidence.AgentRow && !best.Evidence.AgentRow) {
-					best = &m
+					best, bestRow = &m, i
 				}
 			case outNeedVersion:
-				unproved = true
+				unproved, needs = true, true
 				i, ok := need[s.ID]
 				if !ok {
 					i = len(res.NeedVersion)
@@ -435,7 +448,11 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 			r.Evidence.Summary, r.why = r.why, ""
 			res.OtherPlatform = append(res.OtherPlatform, r)
 		}
+		if best == nil && !needs {
+			res.Unchecked = append(res.Unchecked, unchecked...)
+		}
 		if best == nil {
+			decided[v.CVE] = needs
 			switch {
 			case !have[v.CVE]:
 			case proved != nil && !unproved: // D-530: only a proof for every software of the product
@@ -458,8 +475,13 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 				r.Evidence.Summary = agedOthersSummary(v, r)
 			}
 			res.Aged = append(res.Aged, r)
+			if !needs { // the product match nothing else decided: it was not checked either (#910)
+				res.Unchecked = append(res.Unchecked, uncheckedOf(sws[bestRow], v, uncheckedReason(sws[bestRow], infos[bestRow], v)))
+			}
+			decided[v.CVE] = needs
 			continue
 		}
+		decided[v.CVE] = true
 		if have[v.CVE] {
 			res.Existing = append(res.Existing, *best)
 		} else {
@@ -468,6 +490,18 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 	}
 	if os, orderable, ok := deviceOS(a); ok && !orderable {
 		res.NotComparable = notComparable(os, vulns)
+		in := newSWInfo(os, "")
+		byCVE := make(map[string]Vuln, len(res.NotComparable))
+		for _, v := range vulns {
+			if _, ok := byCVE[v.CVE]; !ok { // the first, as the loop above reads it
+				byCVE[v.CVE] = v
+			}
+		}
+		for _, n := range res.NotComparable {
+			if !decided[n.CVE] { // a finding or an "add the version" item of another row decides it (#910 rule 1)
+				res.Unchecked = append(res.Unchecked, uncheckedOf(os, byCVE[n.CVE], uncheckedReason(os, in, byCVE[n.CVE])))
+			}
+		}
 	}
 	return res
 }

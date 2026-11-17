@@ -182,10 +182,11 @@ func (s *Service) UpsertFromMatch(ctx context.Context, a Asset, vulns []Vuln) (U
 	return s.upsert(ctx, a, vulns, nil)
 }
 
-// upsert is UpsertFromMatch. need, when not nil, is what the device's "add the version" items become instead of the
-// ones this vulns list gives: Reconcile writes the backlog and the recent entries in two writes, each of which replaces
-// the items, so it passes the items of the whole list (W6-1: the recent write left "checks 1 exploited CVE" of 30).
-func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, need []VersionNeeded) (UpsertResult, error) {
+// upsert is UpsertFromMatch. whole, when not nil, is the match of the whole exploited list, whose "add the version" items and
+// unchecked rows (#910) the device's become instead of the ones this vulns list gives: Reconcile writes the backlog and the
+// recent entries in two writes, each of which replaces them, so it passes those of the whole list (W6-1: the recent write
+// left "checks 1 exploited CVE" of 30).
+func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, whole *MatchResult) (UpsertResult, error) {
 	var since map[string]Have
 	if s.cfg.HaveSince != nil {
 		var err error
@@ -286,8 +287,12 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, need []Vers
 			return err
 		}
 		res.Regraded += n
-		if need == nil {
-			need = m.NeedVersion
+		need, unchecked := m.NeedVersion, m.Unchecked
+		if whole != nil {
+			need, unchecked = whole.NeedVersion, whole.Unchecked
+		}
+		if err := replaceUnchecked(ctx, tx, a.ID, unchecked, now); err != nil {
+			return err
 		}
 		return replaceVersionNeeded(ctx, tx, a.ID, need, now)
 	})
@@ -356,7 +361,8 @@ func haveScope(a Asset, vulns []Vuln, m MatchResult, since map[string]Have, have
 		}
 		return out
 	}
-	out := MatchResult{New: keep(m.New), Existing: keep(m.Existing), NeedVersion: m.NeedVersion, NotAffected: m.NotAffected, Unlisted: m.Unlisted, Retired: m.Retired, Aged: m.Aged}
+	out := MatchResult{New: keep(m.New), Existing: keep(m.Existing), NeedVersion: m.NeedVersion, NotAffected: m.NotAffected, Unlisted: m.Unlisted, Retired: m.Retired, Aged: m.Aged,
+		Unchecked: m.Unchecked}
 	taken := map[string]bool{}
 	for _, x := range append(append([]Match{}, out.New...), out.Existing...) {
 		taken[x.CVE] = true
@@ -862,6 +868,8 @@ func (s *Service) OnAssetMerged(ctx context.Context, from, into string) (int, er
 		for _, q := range []string{
 			`UPDATE OR IGNORE fnd_version_needed SET asset_id = ?2 WHERE asset_id = ?1`,
 			`DELETE FROM fnd_version_needed WHERE asset_id = ?1`,
+			`UPDATE OR IGNORE fnd_unchecked SET asset_id = ?2 WHERE asset_id = ?1`,
+			`DELETE FROM fnd_unchecked WHERE asset_id = ?1`,
 		} {
 			if _, err := tx.ExecContext(ctx, q, from, into); err != nil {
 				return fmt.Errorf("findings: moving the findings of a merged device: %w", err)
@@ -923,6 +931,9 @@ func (s *Service) deleteAsset(ctx context.Context, assetID string) (int, error) 
 		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM fnd_version_needed WHERE asset_id = ?`, assetID); err != nil {
 			return fmt.Errorf("findings: deleting version-needed items of device: %w", err)
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM fnd_unchecked WHERE asset_id = ?`, assetID); err != nil {
+			return fmt.Errorf("findings: deleting unchecked rows of device: %w", err)
 		}
 		if n == 0 {
 			return nil

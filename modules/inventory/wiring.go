@@ -139,6 +139,9 @@ type MatchDevice struct {
 	// SNMPOS is the newest OS the device stated to Vedette's own SNMP read of its address (source snmp), "" when none (unlike
 	// LLDP, which any host can send with another device's MAC).
 	SNMPOS string
+	// StatedOSAt and SNMPOSAt are when the device last stated StatedOS and SNMPOS (the observation's seen_at, RFC 3339), "" when none:
+	// findings says when the device gave the version of its network OS.
+	StatedOSAt, SNMPOSAt string
 	// MAC is the device's MAC when it has an IP (the MAC it answers with at that address), "" otherwise: findings reads its OUI before an
 	// LLDP statement of Junos counts for the device's scan-seen rows.
 	MAC string
@@ -174,13 +177,13 @@ func (s *Service) MatchInput(ctx context.Context, id string) (d MatchDevice, ok 
 		return MatchDevice{}, false, fmt.Errorf("inventory: read device OS: %w", err)
 	}
 	d.OS, d.Model, d.MAC = osName.String, model.String, mac.String
-	if d.StatedOS, err = statedOS(ctx, q, id); err != nil {
+	if d.StatedOS, d.StatedOSAt, err = statedOSAt(ctx, q, id); err != nil {
 		return MatchDevice{}, false, err
 	}
 	if d.AgentOS, err = osFrom(ctx, q, id, "agent"); err != nil {
 		return MatchDevice{}, false, err
 	}
-	if d.SNMPOS, err = osFrom(ctx, q, id, "snmp"); err != nil {
+	if d.SNMPOS, d.SNMPOSAt, err = osFromAt(ctx, q, id, "snmp"); err != nil {
 		return MatchDevice{}, false, err
 	}
 	// A person's OS (INV-41) is what the device runs for every reading the matcher takes: the agent's, SNMP's and LLDP's statements it
@@ -289,24 +292,34 @@ const (
 
 // statedOS is the newest OS observation of the device from its own statement (LLDP, SNMP: sources passive and snmp).
 func statedOS(ctx context.Context, q querier, id string) (string, error) {
-	var v string
-	err := q.QueryRowContext(ctx, `SELECT value FROM inv_observation WHERE asset_id = ? AND field = 'os' AND source IN ('passive', 'snmp')
-		ORDER BY seen_at DESC, id DESC LIMIT 1`, id).Scan(&v)
+	v, _, err := statedOSAt(ctx, q, id)
+	return v, err
+}
+
+// statedOSAt is statedOS with the time of that observation ("" when none).
+func statedOSAt(ctx context.Context, q querier, id string) (v, at string, err error) {
+	err = q.QueryRowContext(ctx, `SELECT value, seen_at FROM inv_observation WHERE asset_id = ? AND field = 'os' AND source IN ('passive', 'snmp')
+		ORDER BY seen_at DESC, id DESC LIMIT 1`, id).Scan(&v, &at)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return "", fmt.Errorf("inventory: read the stated OS: %w", err)
+		return "", "", fmt.Errorf("inventory: read the stated OS: %w", err)
 	}
-	return v, nil
+	return v, at, nil
 }
 
 // osFrom is the newest OS observation of the device from one source (agent: its own agent; snmp: Vedette's SNMP read of its address).
 func osFrom(ctx context.Context, q querier, id, source string) (string, error) {
-	var v string
-	err := q.QueryRowContext(ctx, `SELECT value FROM inv_observation WHERE asset_id = ? AND field = 'os' AND source = ?
-		ORDER BY seen_at DESC, id DESC LIMIT 1`, id, source).Scan(&v)
+	v, _, err := osFromAt(ctx, q, id, source)
+	return v, err
+}
+
+// osFromAt is osFrom with the time of that observation ("" when none).
+func osFromAt(ctx context.Context, q querier, id, source string) (v, at string, err error) {
+	err = q.QueryRowContext(ctx, `SELECT value, seen_at FROM inv_observation WHERE asset_id = ? AND field = 'os' AND source = ?
+		ORDER BY seen_at DESC, id DESC LIMIT 1`, id, source).Scan(&v, &at)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return "", fmt.Errorf("inventory: read the %s OS: %w", source, err)
+		return "", "", fmt.Errorf("inventory: read the %s OS: %w", source, err)
 	}
-	return v, nil
+	return v, at, nil
 }
 
 // matchView is what the findings matcher reads of a device besides its software: folded OS, model, stated OS, the agent's and

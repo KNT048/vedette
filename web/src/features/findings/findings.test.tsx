@@ -27,7 +27,7 @@ describe('findings: danh sách (S-MIT-1)', () => {
     expect(await screen.findByRole('heading', { level: 1, name: '3 unresolved findings, 1 confirmed' })).toBeInTheDocument()
     const table = await screen.findByRole('table', { name: 'Findings list' })
     expect(within(table).getAllByRole('row')).toHaveLength(4)
-    for (const h of ['Device', 'CVE', 'Product', 'Status', 'Severity', 'Basis', 'Last seen']) expect(within(table).getByRole('columnheader', { name: new RegExp(h) })).toBeInTheDocument()
+    for (const h of ['Device', 'CVE', 'Product', 'Status', 'Severity', 'Basis', 'Last matched']) expect(within(table).getByRole('columnheader', { name: new RegExp(h) })).toBeInTheDocument()
     expect(within(table).getByText('Confirmed by scan')).toBeInTheDocument()
     expect(within(table).getByText('Product match only')).toBeInTheDocument()
     await expectNoA11yViolations()
@@ -473,7 +473,19 @@ describe('findings: slot device.panels', () => {
     expect(await screen.findByRole('heading', { name: 'Findings on this device' })).toBeInTheDocument()
     expect(await screen.findByRole('link', { name: 'CVE-2022-27593' })).toHaveAttribute('href', '/findings/f-1')
     expect(screen.queryByText('CVE-2026-119977')).not.toBeInTheDocument()
+    // the time on each row is when Vedette last matched it, said as such (never "Seen", read as when the device was seen)
+    const rows = within(screen.getByRole('list', { name: 'Every finding of this device' })).getAllByRole('listitem')
+    for (const r of rows) expect(r).toHaveTextContent(/Last matched .+/)
+    expect(screen.queryByText(/^Seen /)).not.toBeInTheDocument()
     await expectNoA11yViolations()
+  })
+
+  it('the finding page says when Vedette last matched it and, apart, when its source last gave the version', async () => {
+    sessionStore.set({ userId: 'u-admin' })
+    renderApp('/findings/f-1')
+    expect(await screen.findByText(/^Found .+, last matched .+\.$/)).toBeInTheDocument()
+    expect(screen.getByText(/^QNAP Photo Station 6\.0\.20: listed by the latest network scan, on \d{1,2} \w{3} \d{4}, \d{2}:\d{2}\.$/)).toBeInTheDocument()
+    expect(screen.queryByText(/^First seen|, last seen /)).not.toBeInTheDocument()
   })
 
   it('thiết bị không có phát hiện thì nói rõ', async () => {
@@ -528,10 +540,10 @@ describe('findings: CVSS score (#825)', () => {
     expect(within(table).queryByText('0.0')).toBeNull()
     await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Sort by' }), 'Sort by CVSS')
     await waitFor(() => expect(cves(screen.getByRole('table'))).toEqual(['CVE-2022-27593', 'CVE-2026-119977', 'CVE-2026-96951']))
-    // "Sort by Last seen" puts the newest first
-    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Sort by' }), 'Sort by Last seen')
+    // "Sort by Last matched" puts the newest first
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Sort by' }), 'Sort by Last matched')
     await waitFor(() => expect(cves(screen.getByRole('table'))[0]).toBe('CVE-2022-27593'))
-    expect(within(screen.getByRole('table')).getByRole('columnheader', { name: /Last seen/ })).toHaveAttribute('aria-sort', 'descending')
+    expect(within(screen.getByRole('table')).getByRole('columnheader', { name: /Last matched/ })).toHaveAttribute('aria-sort', 'descending')
     // the header still sorts by the exploited risk, and the box follows it
     await userEvent.click(within(screen.getByRole('table')).getByRole('button', { name: 'Severity' }))
     expect(screen.getByRole('combobox', { name: 'Sort by' })).toHaveValue('severity')

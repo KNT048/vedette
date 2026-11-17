@@ -235,6 +235,36 @@ func TestSNMPStatedOSAndApproval(t *testing.T) {
 	}
 }
 
+// StatedOSAt and SNMPOSAt are when the device last stated its OS: a repeat of the same SNMP answer moves the time forward; an LLDP
+// statement gives StatedOSAt only.
+func TestMatchInputStatedOSTimes(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	at := time.Date(2026, 11, 9, 6, 0, 0, 0, time.UTC) // before the env clock (a later time is clamped to it)
+	snmp, lldp := netip.MustParseAddr("192.168.30.60"), netip.MustParseAddr("192.168.30.61")
+	for _, o := range []observe.Observation{
+		{AssetHint: observe.AssetHint{IP: snmp}, Field: observe.OS, Value: "JUNOS 15.1R7.9", Source: observe.SNMP, Confidence: 0.9, SeenAt: at},
+		{AssetHint: observe.AssetHint{IP: snmp}, Field: observe.OS, Value: "JUNOS 15.1R7.9", Source: observe.SNMP, Confidence: 0.9, SeenAt: at.Add(time.Hour)},
+		{AssetHint: observe.AssetHint{IP: lldp}, Field: observe.OS, Value: "JUNOS 15.1R7.9", Source: observe.Passive, Confidence: 0.8, SeenAt: at.Add(2 * time.Hour)},
+	} {
+		if err := e.svc.Record(e.ctx(), []observe.Observation{o}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	addrs, err := e.svc.AddressMap(e.ctx())
+	if err != nil {
+		t.Fatal(err)
+	}
+	d, ok, err := e.svc.MatchInput(e.ctx(), addrs[snmp.String()])
+	if err != nil || !ok || d.SNMPOSAt != "2026-11-09T07:00:00.000Z" || d.StatedOSAt != d.SNMPOSAt {
+		t.Fatalf("SNMP device: StatedOSAt %q SNMPOSAt %q %v %v", d.StatedOSAt, d.SNMPOSAt, ok, err)
+	}
+	d, ok, err = e.svc.MatchInput(e.ctx(), addrs[lldp.String()])
+	if err != nil || !ok || d.StatedOSAt != "2026-11-09T08:00:00.000Z" || d.SNMPOSAt != "" {
+		t.Fatalf("LLDP device: StatedOSAt %q SNMPOSAt %q %v %v", d.StatedOSAt, d.SNMPOSAt, ok, err)
+	}
+}
+
 // AgentOS is the OS the agent itself reported, empty on a device only nmap guessed, and still the agent's
 // when another source's value wins the OS field.
 func TestMatchInputAgentOS(t *testing.T) {

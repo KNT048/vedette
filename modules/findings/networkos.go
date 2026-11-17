@@ -143,8 +143,10 @@ func deviceOS(a Asset) (os Software, orderable, ok bool) {
 		}
 		os = Software{ID: osSoftwareID(a.ID), Display: d.Display, Vendor: d.Vendor, Product: d.Product, Version: m[1],
 			KevKeys: slices.Clone(d.KevKeys), CPE: d.cpe23()}
+		os.SeenAt = a.StatedOSAt
 		if a.SNMPOS != "" && text == a.SNMPOS {
 			os.Source = "snmp" // the device's own SNMP answer (platformOS, knownVersion); an LLDP-stated Junos keeps no source
+			os.SeenAt = a.SNMPOSAt
 		}
 		return os, orderable, true
 	}

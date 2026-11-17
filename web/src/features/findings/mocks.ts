@@ -178,11 +178,16 @@ const VERSION_SOURCE: Record<string, KnownVersion['source']> = { agent: 'agent',
 function knownFor(f: Finding, k: KevInfo | null): KnownVersion | null {
   if (!k) return null
   const key = `${k.vendor}|${k.product}`.toLowerCase()
-  const s = assetsStore.get().find((a) => a.id === f.asset_id)?.software.find((x) => x.kev.includes(key) && !!x.version)
+  const a = assetsStore.get().find((x) => x.id === f.asset_id)
+  const s = a?.software.find((x) => x.kev.includes(key) && !!x.version)
   const source = s ? VERSION_SOURCE[s.source] : undefined
-  if (!s || !s.version || !source) return null
+  if (!a || !s || !s.version || !source) return null
   const name = source === 'manual' ? s.display : s.display.endsWith(` ${s.version}`) ? s.display.slice(0, -s.version.length - 1) : s.display
-  return { software: name, version: s.version, source }
+  // As the box: a row a scan, an agent or a person gave has its own time (the sample rows keep none, so the device's last sighting stands
+  // in); the OS a device states over SNMP or LLDP has the time of that statement, null when the device's OS reading is not one.
+  const stated = source === 'snmp' || source === 'stated'
+  const statement = a.os && (a.os.source === 'snmp' || a.os.source === 'passive') ? a.os.seen_at : null
+  return { software: name, version: s.version, source, seen_at: stated ? statement : a.last_seen }
 }
 
 /** mitigation knownRecheck: the version and who gave it, how a newer one reaches Vedette, what a scan template adds. */

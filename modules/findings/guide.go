@@ -263,6 +263,10 @@ type KnownVersion struct {
 	Software string `json:"software"` // display name of the row
 	Version  string `json:"version"`
 	Source   string `json:"source"` // one of the VersionBy constants
+	// SeenAt is when that source last gave the version (the software row's seen_at: an agent's last list, the last scan that read
+	// it, when a person entered it); nil when not known. The page shows it beside the finding's last_seen, which is when Vedette
+	// last matched the version to the CVE, not when the device or the version was seen.
+	SeenAt *time.Time `json:"seen_at"`
 }
 
 // knownVersion is the KnownVersion of row s of device a; nil when the row has no version or its source is not known.
@@ -290,7 +294,12 @@ func knownVersion(a Asset, s Software) *KnownVersion {
 	if src == VersionByManual {
 		name = clean(s.Display) // the "I updated <software>" button names the row as inventory does (review r1 L4)
 	}
-	return &KnownVersion{Software: name, Version: clean(s.Version), Source: src}
+	k := &KnownVersion{Software: name, Version: clean(s.Version), Source: src}
+	if !s.SeenAt.IsZero() {
+		at := s.SeenAt.UTC()
+		k.SeenAt = &at
+	}
+	return k
 }
 
 type historyDoc struct {

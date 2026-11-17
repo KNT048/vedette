@@ -187,7 +187,7 @@ function List() {
     // hidden, sorted from "Sort by": highest first, no score last both ways
     { id: 'cvss', header: t('col.cvss'), accessorFn: (r) => r.cvss?.score, sortUndefined: 'last', sortDescFirst: true },
     { id: 'basis', header: t('col.basis'), accessorFn: (r) => r.basis, cell: ({ row: { original: r } }) => <span className={unverified(r) ? 'text-meta text-muted' : 'text-meta'}>{t(basisKey(r.basis))}</span> },
-    { id: 'seen', header: t('col.lastSeen'), accessorFn: (r) => r.last_seen, sortDescFirst: true, cell: ({ row: { original: r } }) => <span className="whitespace-nowrap text-meta text-muted" title={fmtDateTime(r.last_seen)}>{fmtRelative(r.last_seen)}</span> },
+    { id: 'seen', header: t('col.lastSeen'), accessorFn: (r) => r.last_seen, sortDescFirst: true, cell: ({ row: { original: r } }) => <span className="whitespace-nowrap text-meta text-muted" title={`${fmtDateTime(r.last_seen)}. ${t('matchedInfo')}`}>{fmtRelative(r.last_seen)}</span> },
   ]
 
   const panel = (tab: Tab) => (
@@ -264,7 +264,7 @@ function List() {
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-meta">
                     <RiskChip f={r} />
                     <span>{t(basisKey(r.basis))}</span>
-                    <span className="text-muted">{fmtRelative(r.last_seen)}</span>
+                    <span className="text-muted" title={`${fmtDateTime(r.last_seen)}. ${t('matchedInfo')}`}>{t('matched', { time: fmtRelative(r.last_seen) })}</span>
                   </div>
                 </div>
               </div>

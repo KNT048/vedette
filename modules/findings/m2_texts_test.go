@@ -4,6 +4,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 )
 
 // The EX4200 on JUNOS 15.1R7.9 is inside CVE-2023-36845's "before 20.4", but NVD lists 20.4:r1 … one by one
@@ -168,5 +169,52 @@ func TestFindingDetail_M23_KnownVersionIsTheMatchedRow(t *testing.T) {
 	b = detailKnown(t, win, vulns[i])
 	if k, _ := b["known_version"].(map[string]any); k["source"] != "agent" || !strings.HasPrefix(k["version"].(string), "10.0.26100.1742") {
 		t.Errorf("WINLAB01: %v", b["known_version"])
+	}
+}
+
+// known_version.seen_at is when the matched row's source last gave the version (a scan, an agent's list, a person), so the page can
+// say it beside last_seen, which is only when Vedette last matched the pair; null when the row carries no time.
+func TestFindingDetail_KnownVersionSaysWhenTheVersionWasReported(t *testing.T) {
+	t.Parallel()
+	ssh := Vuln{CVE: "CVE-2099-12315", Vendor: "OpenBSD", Product: "OpenSSH", Name: "OpenBSD OpenSSH", Affected: []Affected{{CPE: "cpe:2.3:a:openbsd:openssh:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: "10.6"}}}}
+	at := time.Date(2026, 11, 15, 9, 30, 0, 0, time.FixedZone("UTC+7", 7*3600))
+	gw := Asset{ID: "a-1", Name: "edge firewall", Software: []Software{{ID: "s-1", Display: "OpenSSH", Vendor: "openbsd", Product: "openssh", Version: "10.2", KevKeys: []string{"openbsd|openssh"}, Source: "manual", SeenAt: at}}}
+	b := detailKnown(t, gw, ssh)
+	k, _ := b["known_version"].(map[string]any)
+	if k["source"] != "manual" || k["seen_at"] != "2026-11-15T02:30:00Z" {
+		t.Errorf("manual row: %v", b["known_version"])
+	}
+	if f, _ := b["last_seen"].(string); f == "" || f == k["seen_at"] {
+		t.Errorf("last_seen is the match time, not the row's: %v", b["last_seen"])
+	}
+
+	gw.Software[0].SeenAt = time.Time{}
+	b = detailKnown(t, gw, ssh)
+	k, _ = b["known_version"].(map[string]any)
+	if v, ok := k["seen_at"]; !ok || v != nil {
+		t.Errorf("no time on the row: seen_at must be null, got %v (present %v)", v, ok)
+	}
+}
+
+// The network OS row a device states itself has the time of that statement: its SNMP answer's for source snmp, its LLDP
+// statement's for source stated.
+func TestFindingDetail_StatedOSVersionHasTheTimeOfTheStatement(t *testing.T) {
+	t.Parallel()
+	vulns := loadGolden(t, "testdata/kev-nvd-junos-n23.json")
+	i := slices.IndexFunc(vulns, func(v Vuln) bool { return v.CVE == "CVE-2023-36845" })
+	lldpAt, snmpAt := time.Date(2026, 11, 15, 8, 0, 0, 0, time.UTC), time.Date(2026, 11, 16, 9, 0, 0, 0, time.UTC)
+	for _, tc := range []struct{ name, snmp, source, want string }{
+		{"snmp", "JUNOS 15.1R7.9", "snmp", "2026-11-16T09:00:00Z"},
+		{"lldp", "", "stated", "2026-11-15T08:00:00Z"},
+	} {
+		ex := labEX4200()
+		ex.ID, ex.SNMPOS, ex.StatedOSAt = "a-1", tc.snmp, lldpAt
+		if tc.snmp != "" {
+			ex.SNMPOSAt = snmpAt
+		}
+		b := detailKnown(t, ex, vulns[i])
+		if k, _ := b["known_version"].(map[string]any); k["source"] != tc.source || k["seen_at"] != tc.want {
+			t.Errorf("%s: %v", tc.name, b["known_version"])
+		}
 	}
 }

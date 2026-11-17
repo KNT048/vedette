@@ -235,7 +235,8 @@ function Detail({ f, crumbs }: { f: FindingDetail; crumbs: { label: string; to: 
             <FindingStatusChip f={f} /><RiskChip f={f} /><CvssScore cvss={f.cvss} prefix />
             {unverified(f) ? <span className="inline-flex items-center gap-1 text-muted">{t('risk.unverifiedLine')}<InfoTip topic={t('risk.unverifiedLine')}>{t('risk.unverifiedLineInfo')}</InfoTip></span> : null}
             {f.kev?.ransomware ? <Chip tone="danger">{t('meta.ransomware')}</Chip> : null}
-            <span>{t('meta.seen', { first: fmtDate(f.first_seen), last: fmtDateTime(f.last_seen) })}</span>
+            <span className="inline-flex items-center gap-1">{t('meta.seen', { first: fmtDate(f.first_seen), last: fmtDateTime(f.last_seen) })}<InfoTip topic={t('col.lastSeen')}>{t('matchedInfo')}</InfoTip></span>
+            {f.known_version?.seen_at ? <span>{t(`meta.version.${f.known_version.source === 'agent' && agentGone ? 'agentLast' : f.known_version.source}`, { software: f.known_version.software, version: f.known_version.version, date: fmtDateTime(f.known_version.seen_at) })}</span> : null}
             {f.kev?.due_date && isOpen(f.status) ? <span>{t(overdue(f.kev.due_date) ? 'meta.duePassed' : 'meta.due', { date: fmtDate(f.kev.due_date) })}</span> : null}
             {f.status === 'risk_accepted' ? (
               <span className="basis-full [overflow-wrap:anywhere]">{t('accept.line', { date: fmtDate(f.accepted_until), who: f.resolved_by ?? '' })}{f.resolution_note ? ` ${f.resolution_note}` : ''}</span>

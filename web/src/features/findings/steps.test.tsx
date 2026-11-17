@@ -10,8 +10,8 @@ import type { FindingDetail, KevInfo } from './types'
 // What "Steps you can take now" and "Fixed version" say on a finding without a confirmed pack.
 const today = new Date(2026, 10, 16)
 const kev = (due: string | null) => ({ display: 'Juniper Junos OS', due_date: due }) as KevInfo
-const finding = (known: FindingDetail['known_version'], name = 'Juniper Networks EX4200-48T', status = 'suspected') =>
-  ({ asset: { id: 'a-ex', name }, known_version: known, status }) as FindingDetail
+const finding = (known: Omit<NonNullable<FindingDetail['known_version']>, 'seen_at'> | null, name = 'Juniper Networks EX4200-48T', status = 'suspected') =>
+  ({ asset: { id: 'a-ex', name }, known_version: known && { ...known, seen_at: null }, status }) as FindingDetail
 const steps = (f: FindingDetail, opts: { due?: string | null; updatable?: boolean; manual?: string } = {}) => {
   render(<MemoryRouter><NowSteps finding={f} kev={kev(opts.due ?? null)} updatable={opts.updatable ?? false} manual={opts.manual} today={today} /></MemoryRouter>)
   return screen.getAllByRole('listitem').map((li) => li.textContent)

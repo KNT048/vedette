@@ -3,32 +3,35 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderApp } from '@/test/render'
 
-describe('#910 phase 1: exploited CVEs that could not be checked', () => {
-  it('Findings lists each reason in plain words, with advisory or NVD links, and says no finding is made', async () => {
-    renderApp('/findings?tab=input')
-    const box = (await screen.findByText(/exploited CVEs could not be checked automatically/)).closest('section')!
-    const b = within(box)
-    expect(b.getByText(/created no finding/)).toBeInTheDocument()
-    expect(b.getByText(/NVD has not published which products this CVE affects yet/)).toBeInTheDocument()
-    expect(b.getByText(/NVD names WordPress website but not which versions are affected/)).toBeInTheDocument()
-    expect(b.getByText(/NVD's data for this CVE names other products, not MikroTik router/)).toBeInTheDocument()
-    expect(b.getByText(/Vedette cannot compare version .* with NVD's ranges/)).toBeInTheDocument()
-    expect(b.getByRole('link', { name: 'CVE-2026-20001: open the advisory' })).toHaveAttribute('href', expect.stringContaining('msrc.microsoft.com'))
-    expect(b.getByRole('link', { name: 'CVE-2026-20002: open the NVD page' })).toHaveAttribute('href', 'https://nvd.nist.gov/vuln/detail/CVE-2026-20002')
-    expect(b.getAllByText('Ransomware').length).toBeGreaterThan(0)
-    // more than three CVEs: collapsed
-    expect(b.queryByText('CVE-2026-20007')).toBeNull()
-    await userEvent.click(b.getByRole('button', { name: 'Show 1 more' }))
-    expect(b.getByText('CVE-2026-20007')).toBeInTheDocument()
-  })
+const T = { timeout: 5000 }
+const blocks = () => screen.findByRole('list', { name: 'Devices that need your input, the most urgent first' }, T)
+const open = async (device: string) => {
+  await userEvent.click(within(await blocks()).getByRole('button', { name: new RegExp(`^${device}`) }))
+  return screen.findByRole('list', { name: `What Vedette could not check on ${device}` }, T)
+}
 
-  it('"Add the version" opens the version dialog in place, only where it can help', async () => {
+describe('#910 phase 1: exploited CVEs that could not be checked, in their device block (kien G15)', () => {
+  it('each device block counts them; open, each reason is in plain words with advisory or NVD links, and no finding is made', async () => {
     renderApp('/findings?tab=input')
-    const box = (await screen.findByText(/exploited CVEs could not be checked automatically/)).closest('section')!
-    const add = within(box).getAllByRole('button', { name: 'Add the version' })
-    expect(add).toHaveLength(1)
-    await userEvent.click(add[0]!)
-    expect(await screen.findByRole('dialog')).toBeInTheDocument()
+    const list = await blocks()
+    // the count is in the block's toggle, collapsed: nothing of the list is drawn yet
+    expect(within(list).getByRole('button', { name: /^SRV-ACCOUNTS.*2 CVEs could not be checked/ })).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByText(/NVD has not published/)).toBeNull()
+
+    const srv = await open('SRV-ACCOUNTS')
+    expect(within(srv).getByText(/NVD has not published which products this CVE affects yet/)).toBeInTheDocument()
+    expect(within(srv).getByRole('link', { name: 'CVE-2026-20001: open the advisory' })).toHaveAttribute('href', expect.stringContaining('msrc.microsoft.com'))
+    expect(within(srv).getByRole('link', { name: 'CVE-2026-20002: open the NVD page' })).toHaveAttribute('href', 'https://nvd.nist.gov/vuln/detail/CVE-2026-20002')
+    expect(within(srv).getAllByText('Ransomware').length).toBeGreaterThan(0)
+    expect(screen.getByText(/created no finding/)).toBeInTheDocument()
+    expect(within(await open('WEB01')).getByText(/NVD names WordPress website but not which versions are affected/)).toBeInTheDocument()
+    expect(within(await open('RT-BACKUP')).getByText(/NVD's data for this CVE names other products, not MikroTik router/)).toBeInTheDocument()
+    const nas = await open('NAS-BACKUP')
+    expect(within(nas).getByText(/Vedette cannot compare version .* with NVD's ranges/)).toBeInTheDocument()
+    // more than three CVEs: collapsed
+    expect(within(nas).queryByText('CVE-2026-20007')).toBeNull()
+    await userEvent.click(within(nas).getByRole('button', { name: 'Show 1 more' }))
+    expect(within(nas).getByText('CVE-2026-20007')).toBeInTheDocument()
   })
 
   it('Home links the count to the Findings block', async () => {

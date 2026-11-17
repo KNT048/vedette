@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
-import { Trans, useTranslation } from 'react-i18next'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { X } from 'lucide-react'
-import { Notice, PageHeader } from '@/components/common/PageHeader'
+import { PageHeader } from '@/components/common/PageHeader'
 import { KpiStrip, PageTabs } from '@/components/common/PageFrame'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { EmptyState, QueryState, RequireModule, SampleDataNote } from '@/components/common/States'
@@ -21,10 +21,10 @@ import { basisKey, deviceName, hasIp, isOpen, riskRank, unverified } from './bas
 import { MAX_BULK } from './contract'
 import { errMsg } from './errors'
 import { RiskChip } from './Risk'
-import { UncheckedList } from './UncheckedList'
-import { ToFixTab, UnprovedList, unproved } from './ToFix'
+import { NeedsInput } from './NeedsInput'
+import { ToFixTab, unproved } from './ToFix'
 import { useFixAction } from './fix'
-import type { BulkAction, FindingRow, VersionNeeded } from './types'
+import type { BulkAction, FindingRow } from './types'
 import { NotRelevantToggle, isNotRelevant } from './notRelevant'
 import { RiskMarker, riskWord } from '@/features/inventory/RiskMarker'
 
@@ -307,11 +307,11 @@ function List() {
       {inputCount === 0 && toFix.data ? (
         <EmptyState title={t('input.empty')}>{t('input.emptyBody')}</EmptyState>
       ) : (
-        <div className="grid gap-6">
-          {need.length ? <VersionNeededList items={need} /> : null}
-          {unc.length ? <UncheckedList items={unc} /> : null}
+        <div className="grid gap-3">
+          {/* kien G15: one block per device, the most urgent first (To fix's order), each item with its next step there */}
+          <NeedsInput need={need} unc={unc} devices={toFixDevices} order={(toFix.data?.devices ?? []).map((x) => x.asset.id)} risks={toFix.data?.risks ?? {}} device={device} />
           {toFix.isError ? <p role="alert" className="text-sm text-danger">{t('input.toFixError', { reason: errMsg(toFix.error) })}</p>
-            : toFix.isPending ? <p className="text-sm text-muted">{t('input.toFixPending')}</p> : <UnprovedList devices={toFixDevices} />}
+            : toFix.isPending ? <p className="text-sm text-muted">{t('input.toFixPending')}</p> : null}
           {toFix.data?.truncated ? <p className="text-meta text-muted">{t('input.truncated')}</p> : null}
         </div>
       )}
@@ -359,34 +359,6 @@ function PlanLine() {
       <Link to="/plan?tier=likely" className={link}>{t('plan.lineLikely', { count: likely })}</Link>
       {likely < all ? <>{' ('}<Link to="/plan?tier=all" className={link}>{t('plan.lineAll', { count: all })}</Link>{')'}</> : null}
     </p>
-  )
-}
-
-/** D-500 (S-INV-2): a software on the exploited list without a usable version is ONE line here, not one finding per CVE. */
-function VersionNeededList({ items }: { items: VersionNeeded[] }) {
-  const { t } = useTranslation('findings')
-  return (
-    <section aria-labelledby="version-needed-title">
-    <Notice tone="warn" title={<span id="version-needed-title">{t('versionNeeded.title', { count: items.length })}</span>} info={t('versionNeeded.helpInfo')}>
-      <p>{t('versionNeeded.help')}</p>
-      <ul className="mt-1 grid gap-0.5">
-        {items.map((n) => {
-          // One naming rule (D-471, W5-1): the API's `asset.name`. A hand-added product IS the device ("Microsoft Office (no device)"):
-          // the line names it once instead of "<device>: <product> …".
-          const name = deviceName(n.asset, t('removedDevice'))
-          const self = name === n.software || name === t('inventory:noDevice', { product: n.software })
-          const link = <Link to={`/devices/${n.asset_id}`} className="font-medium text-accent underline-offset-4 hover:underline" />
-          return (
-            <li key={`${n.asset_id}/${n.software_id}`}>
-              {self ? null : <><Link to={`/devices/${n.asset_id}`} className="font-medium text-accent underline-offset-4 hover:underline">{name}</Link>{': '}</>}
-              <Trans t={t} i18nKey={n.version === null ? 'versionNeeded.missing' : 'versionNeeded.unreadable'} count={n.cves}
-                values={{ software: self ? name : n.software, version: n.version ?? '' }} components={{ sw: self ? link : <span /> }} />
-            </li>
-          )
-        })}
-      </ul>
-    </Notice>
-    </section>
   )
 }
 

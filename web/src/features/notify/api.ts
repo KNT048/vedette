@@ -11,7 +11,8 @@ export const useChannels = (opts: { retry?: boolean; enabled?: boolean } = {}) =
 
 function useInvalidating<V, R>(fn: (v: V) => Promise<R>) {
   const qc = useQueryClient()
-  return useMutation({ mutationFn: fn, onSuccess: () => { void qc.invalidateQueries({ queryKey: ['notify'] }) } })
+  // G6: the nav badge and Home count open incidents from GET /findings/summary: read it again too, or the badge keeps the old count
+  return useMutation({ mutationFn: fn, onSuccess: () => { void qc.invalidateQueries({ queryKey: ['notify'] }); void qc.invalidateQueries({ queryKey: ['findings', 'summary'] }) } })
 }
 
 /** Acknowledge or resolve many incidents with one note (INV-25, D-551). */

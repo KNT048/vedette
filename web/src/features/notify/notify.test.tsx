@@ -6,7 +6,7 @@ import { http, HttpResponse } from 'msw'
 import { MemoryRouter } from 'react-router'
 import { Toaster } from 'sonner'
 import { makeQueryClient } from '@/app/App'
-import { renderApp, expectNoA11yViolations } from '@/test/render'
+import { renderApp, expectNoA11yViolations, mainNavLink } from '@/test/render'
 import { server } from '@/test/server'
 import { eachOption } from '@/test/formMatrix'
 import { auditStore, installStore, modulesStore, orgStore, sessionStore, usersStore } from '@/mocks/stores'
@@ -360,6 +360,8 @@ describe('notify: why not sent, bulk acknowledge and resolve (S-ALERT-3, D-551)'
   it('select all shown, Resolve with one note: one audit row per incident, the list empties', async () => {
     renderApp('/incidents')
     await screen.findByRole('table', { name: 'Incidents' })
+    // G6: the nav badge counts the open high and critical incidents (GET /findings/summary)
+    expect(await mainNavLink(/^Incidents \d+ high or critical open$/)).toBeInTheDocument()
     await userEvent.click(screen.getByRole('checkbox', { name: 'Select all 4 incidents on this page' }))
     const bar = screen.getByRole('region', { name: 'Selected incidents' })
     expect(within(bar).getByText('4 incidents selected')).toBeInTheDocument()
@@ -369,6 +371,8 @@ describe('notify: why not sent, bulk acknowledge and resolve (S-ALERT-3, D-551)'
     await userEvent.click(within(dlg).getByRole('button', { name: 'Resolve 4 incidents' }))
     expect(await screen.findByText('4 incidents resolved')).toBeInTheDocument()
     expect(await screen.findByRole('heading', { level: 1, name: 'No new incidents' })).toBeInTheDocument()
+    // G6 (kien, N100): every incident resolved, the badge goes at once, not after the summary's next minute
+    await waitFor(() => expect(within(screen.getByRole('navigation', { name: 'Main navigation' })).getByRole('link', { name: /^Incidents/ })).toHaveAccessibleName('Incidents'))
     expect(auditStore.get().filter((a) => a.action === 'notify.incident_status')).toHaveLength(4)
     const { incidents } = await getJson('/notify/incidents') as { incidents: { id: string; status: string; note: string | null }[] }
     expect(incidents.find((i) => i.id === 'al-5')?.note).toBe("A visitor's phone joined the internal network by mistake. Guest Wi-Fi password changed.")

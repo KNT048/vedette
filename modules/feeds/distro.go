@@ -59,14 +59,16 @@ const (
 	// distroMaxRowsPerCVE fails a hostile CVE entry closed (the Linux kernel CVEs have a few hundred source packages).
 	distroMaxRowsPerCVE = 20_000
 
-	// alpineMaxBytes bounds OSV.dev's Alpine all.zip, which is read whole into memory (a zip's directory is at its end): 9,244,018
-	// bytes on 2026-11-17 (10,859 records).
-	alpineMaxBytes = 64 << 20
-	// alpineMaxUnpacked bounds what the archive's files unpack to together (44,265,744 bytes on 2026-11-17), alpineMaxEntry one
-	// record (the largest was 44,917 bytes), alpineMaxFiles the number of files (10,859).
-	alpineMaxUnpacked = 1 << 30
-	alpineMaxEntry    = 4 << 20
-	alpineMaxFiles    = 200_000
+	// The bounds of OSV.dev's Alpine all.zip (D-605), a few times what it held on 2026-11-17 (review r1 L2, L3 of #968). The archive is
+	// read whole into memory (a zip's directory is at its end): 9,244,018 bytes, 10,859 files, a central directory of 0.9 MB. Only the
+	// records of KEV CVEs are unpacked: the largest 26,945 bytes, all of them 582,845 bytes (any record: 44,917 bytes).
+	alpineMaxBytes    = 32 << 20
+	alpineMaxFiles    = 50_000
+	alpineMaxDir      = 8 << 20 // the central directory, read from the end record before the zip reader parses it
+	alpineMaxEntry    = 1 << 20
+	alpineMaxUnpacked = 64 << 20
+	// alpineMaxRelease is the longest fixed release kept (feeds_distro_fix.fixed_version CHECK; review r1 L11 of #968).
+	alpineMaxRelease = 100
 )
 
 // DistroFix is what one distribution says about one CVE in one source package of one release.
@@ -296,10 +298,12 @@ func eachTarEntry(r io.Reader, re *regexp.Regexp, want func(string) bool, tl *ta
 	}
 }
 
-// eachZipEntry reads a zip archive whole (at most alpineMaxBytes; its directory is at its end) and calls fn for the files whose name
-// matches re with a CVE want accepts (submatch 1), each once, with the CVE and the file (at most alpineMaxEntry bytes; a bigger
-// one, or a second file of the same CVE, is rejected with its CVE). A cut or damaged archive, a file whose checksum fails, or
-// files that unpack past alpineMaxUnpacked together fail the whole pull, never a smaller list.
+// eachZipEntry reads a zip archive whole (at most alpineMaxBytes; its directory is at its end) and calls fn once for each CVE that has
+// exactly one file whose name matches re and that want accepts (submatch 1), with the CVE and the file (at most alpineMaxEntry bytes;
+// a bigger one is rejected with its CVE). Two files of one CVE reject that CVE (review r1 L1 of #968). The end record is read first, so
+// a directory of more than alpineMaxFiles files or alpineMaxDir bytes is refused before the zip reader parses it (L2). An archive
+// where no file name matches re fails (L10: a format change never stores nothing), as do a cut or damaged archive, a file whose
+// checksum fails, or files that unpack past alpineMaxUnpacked together: the whole pull fails, never a smaller list.
 func eachZipEntry(r io.Reader, re *regexp.Regexp, want func(string) bool, tl *tally, fn func(cve string, body io.Reader) error) error {
 	body := &bodyErr{r: r}
 	data, err := io.ReadAll(io.LimitReader(body, alpineMaxBytes+1))
@@ -309,27 +313,43 @@ func eachZipEntry(r io.Reader, re *regexp.Regexp, want func(string) bool, tl *ta
 	case len(data) > alpineMaxBytes:
 		return fail(ErrTooLarge, "The archive is larger than %d MiB; Vedette would skip it.", alpineMaxBytes>>20)
 	}
+	files, dir, ok := zipEnd(data)
+	switch {
+	case !ok:
+		return body.or(errNotDistroFile("a zip archive"))
+	case files > alpineMaxFiles || dir > alpineMaxDir:
+		return fail(ErrBadSample, "The archive lists %d files in %d bytes; Vedette reads at most %d files in %d MiB.", files, dir, alpineMaxFiles, alpineMaxDir>>20)
+	}
 	zr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {
 		return body.or(errNotDistroFile("a zip archive"))
 	}
-	if len(zr.File) > alpineMaxFiles {
-		return fail(ErrBadSample, "The archive has more than %d files.", alpineMaxFiles)
+	named, count := 0, map[string]int{}
+	for _, f := range zr.File {
+		if m := re.FindStringSubmatch(f.Name); m != nil && !f.FileInfo().IsDir() {
+			named++
+			count[m[1]]++
+		}
+	}
+	if named == 0 {
+		return fail(ErrBadSample, "No file of the archive is an OSV record of a CVE (ALPINE-CVE-….json); OSV.dev may have changed its format.")
 	}
 	var unpacked int64
-	seen := map[string]bool{}
 	for row, f := range zr.File {
 		m := re.FindStringSubmatch(f.Name)
 		if f.FileInfo().IsDir() || m == nil || !want(m[1]) {
 			continue
 		}
-		if seen[m[1]] {
-			tl.reject(row+1, "%s: a second file of the same CVE", m[1])
+		switch n := count[m[1]]; {
+		case n == 0: // the CVE's second file, already rejected with the first
+			continue
+		case n > 1:
+			tl.reject(row+1, "%s: more than one file of the same CVE", m[1])
+			count[m[1]] = 0
 			continue
 		}
-		seen[m[1]] = true
 		if f.UncompressedSize64 > alpineMaxEntry {
-			tl.reject(row+1, "%s: larger than 4 MiB", m[1])
+			tl.reject(row+1, "%s: larger than 1 MiB", m[1])
 			continue
 		}
 		rc, err := f.Open()
@@ -342,7 +362,7 @@ func eachZipEntry(r io.Reader, re *regexp.Regexp, want func(string) bool, tl *ta
 			return errNotDistroFile("a complete zip archive")
 		}
 		if unpacked += int64(len(b)); unpacked > alpineMaxUnpacked {
-			return fail(errUnpackedTooLarge, "The archive unpacks to more than %d GiB; Vedette would skip it.", alpineMaxUnpacked>>30)
+			return fail(errUnpackedTooLarge, "The archive's records unpack to more than %d MiB; Vedette would skip it.", alpineMaxUnpacked>>20)
 		}
 		if err := fn(m[1], bytes.NewReader(b)); err != nil {
 			return err
@@ -351,9 +371,29 @@ func eachZipEntry(r io.Reader, re *regexp.Regexp, want func(string) bool, tl *ta
 	return nil
 }
 
+// zipEnd reads a zip archive's end of central directory record (APPNOTE 4.3.16): the number of files and the size of the central
+// directory. ok is false when there is none, or the archive is zip64 (OSV.dev's is not; a zip64 count would need the zip64 record).
+func zipEnd(data []byte) (files, dir int, ok bool) {
+	const endLen, maxComment = 22, 0xFFFF
+	for i := len(data) - endLen; i >= 0 && i >= len(data)-endLen-maxComment; i-- {
+		if data[i] != 'P' || string(data[i:i+4]) != "PK\x05\x06" {
+			continue
+		}
+		e := data[i:]
+		files = int(e[10]) | int(e[11])<<8
+		dir = int(e[12]) | int(e[13])<<8 | int(e[14])<<16 | int(e[15])<<24
+		if files == 0xFFFF || dir == 0xFFFFFFFF {
+			return 0, 0, false
+		}
+		return files, dir, true
+	}
+	return 0, 0, false
+}
+
 type osvRecord struct {
-	ID       string `json:"id"`
-	Affected []struct {
+	ID        string `json:"id"`
+	Withdrawn string `json:"withdrawn"` // a withdrawn record decides nothing (review r1 L5 of #968)
+	Affected  []struct {
 		Package struct {
 			Ecosystem string `json:"ecosystem"`
 			Name      string `json:"name"`
@@ -433,9 +473,10 @@ func ParseUbuntuOSV(r io.Reader, want DistroWant) (DistroResult, error) {
 // ParseAlpineOSV reads OSV.dev's Alpine all.zip (D-605) and keeps, for the CVEs of want's KEV list, the first fixed release of each
 // source package of each Alpine branch ("Alpine:v3.23" → release "3.23"): a "fixed" event, the highest of several; "0" is Alpine's
 // "not affected" (secdb's convention). Every branch the record lists is kept. Tier CVEs are not kept: findings reads Alpine's rows only
-// for the KEV CVEs of the platform list. The record must be about its file's CVE; a record with a bad package name or too many rows
-// is rejected whole. A release apkver cannot read ("1.9.5p2-r0", in old branches of two KEV CVEs on 2026-11-17) drops that branch's
-// row only, counted with its value: a branch without a row never proves "not affected" in findings, so the other branches stay usable.
+// for the KEV CVEs of the platform list. The record must be about its file's CVE; a record with a bad package name, no affected package
+// of an Alpine branch or too many rows is rejected whole, and a withdrawn record keeps nothing. A release apkver cannot read ("1.9.5p2-r0", in old branches of two KEV CVEs on 2026-11-17) drops that branch's
+// row only, counted with its value (also one longer than 100 characters or with spaces): a branch without a row never proves "not
+// affected" in findings, so the other branches stay usable.
 func ParseAlpineOSV(r io.Reader, want DistroWant) (DistroResult, error) {
 	tl := newTally()
 	var out []DistroFix
@@ -448,13 +489,19 @@ func ParseAlpineOSV(r io.Reader, want DistroWant) (DistroResult, error) {
 			tl.reject(row, "%s: not an OSV record of this CVE", cve)
 			return nil
 		}
+		if rec.Withdrawn != "" { // OSV.dev withdrew it: no claim about any branch
+			tl.Accepted++
+			return nil
+		}
 		type key struct{ release, pkg string }
 		got := map[key]DistroFix{}
+		branches := 0
 		for _, a := range rec.Affected {
 			m := alpineEcosystemRE.FindStringSubmatch(a.Package.Ecosystem)
 			if m == nil {
 				continue
 			}
+			branches++
 			if !apkPackageRE.MatchString(a.Package.Name) {
 				tl.reject(row, "%s: package %s is not an Alpine package name", cve, quoteVal(a.Package.Name))
 				return nil
@@ -467,7 +514,7 @@ func ParseAlpineOSV(r io.Reader, want DistroWant) (DistroResult, error) {
 						continue
 					case e.Fixed == "0":
 						f.Status, f.Fixed = DistroNotAffected, ""
-					case !apkver.Valid(e.Fixed):
+					case len(e.Fixed) > alpineMaxRelease || strings.TrimSpace(e.Fixed) != e.Fixed || !apkver.Valid(e.Fixed):
 						tl.reject(row, "%s: release %s is not an Alpine package release", cve, quoteVal(e.Fixed))
 						continue
 					}
@@ -479,7 +526,11 @@ func ParseAlpineOSV(r io.Reader, want DistroWant) (DistroResult, error) {
 				}
 			}
 		}
-		if len(got) > distroMaxRowsPerCVE {
+		switch {
+		case branches == 0 && len(rec.Affected) > 0: // review r1 L10 of #968: a renamed ecosystem fails loudly (all rejected), never stores nothing
+			tl.reject(row, "%s: no affected package of an Alpine branch (ecosystem %s)", cve, quoteVal(rec.Affected[0].Package.Ecosystem))
+			return nil
+		case len(got) > distroMaxRowsPerCVE:
 			tl.reject(row, "%s: more than 20,000 packages", cve)
 			return nil
 		}

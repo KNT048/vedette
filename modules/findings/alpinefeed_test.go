@@ -27,8 +27,8 @@ func TestStatesAlpine(t *testing.T) {
 }
 
 // D-605: BN340's package release is read against the feed's rows, and only them. With Alpine's rows (alpine-osv) 10.2_p1-r1 on 3.23 is
-// not affected; without them (the feed off or not pulled yet) nothing proves it: NVD's range decides (a finding), never a made-up list;
-// a branch the feed has no row for (edge: OSV.dev lists none) is never closed either.
+// not affected; with the feed on but not loaded the question stays; with the feed off NVD's range decides (a finding), never a made-up
+// list; a branch the feed has no row for (edge: OSV.dev lists none) is never closed either.
 func TestPlatform_D605_FeedRowsDecide(t *testing.T) {
 	t.Parallel()
 	bn340 := func(os, rel string) Asset {
@@ -41,10 +41,24 @@ func TestPlatform_D605_FeedRowsDecide(t *testing.T) {
 		!strings.Contains(res.NotAffected[0].Evidence.Summary, "Alpine Linux 3.23 fixed it in openssh-server 10.2_p1-r1") {
 		t.Fatalf("with the feed's rows: %+v", res)
 	}
-	noRows := sshhole()
-	noRows.Distro = nil
-	if res := MatchAsset(bn340("Alpine Linux 3.23", "10.2_p1-r1"), []Vuln{noRows}, have, t0); len(res.NotAffected) != 0 || len(res.New)+len(res.Existing) != 1 {
-		t.Fatalf("without the feed's rows: %+v", res)
+	// review r1 M1 of #968: alpine-osv on but not loaded (never filled, or every pull failed: feeds' DistroLoading) keeps the question,
+	// even with the release a person gave; only with the feed off does NVD decide (a finding)
+	loading := sshhole()
+	loading.Distro, loading.DistroLoading = nil, map[string]bool{DistroAlpine: true}
+	for _, rel := range []string{"10.2_p1-r1", ""} {
+		res := MatchAsset(bn340("Alpine Linux 3.23", rel), []Vuln{loading}, have, t0)
+		if len(res.New)+len(res.Existing)+len(res.NotAffected) != 0 || len(res.Asked) != 1 || len(res.Unchecked) != 1 || res.Unchecked[0].Reason != UncheckedPackageUnknown ||
+			!strings.Contains(res.Asked[0].AskedWhy(), "Alpine Linux's fixed releases are not loaded yet") {
+			t.Fatalf("feed on, not loaded, release %q: %+v", rel, res)
+		}
+	}
+	off := sshhole()
+	off.Distro = nil
+	if res := MatchAsset(bn340("Alpine Linux 3.23", "10.2_p1-r1"), []Vuln{off}, have, t0); len(res.NotAffected) != 0 || len(res.New)+len(res.Existing) != 1 {
+		t.Fatalf("feed off: %+v", res)
+	}
+	if res := MatchAsset(Asset{ID: "u", Name: "web", AgentOS: "Ubuntu 24.04", Software: []Software{sshRow("9.6p1", "", "agent")}}, []Vuln{loading}, have, t0); len(res.Asked) != 0 || len(res.NotAffected) != 1 {
+		t.Fatalf("an Ubuntu device is not asked while Alpine's data loads: %+v", res)
 	}
 	below := MatchAsset(bn340("Alpine Linux 3.23", "10.2_p1-r0"), []Vuln{sshhole()}, nil, t0)
 	if len(below.New) != 1 || !strings.Contains(below.New[0].Evidence.Summary, "Update openssh-server to 10.2_p1-r1 or later") {

@@ -4,6 +4,8 @@ import (
 	"archive/zip"
 	"bytes"
 	"errors"
+	"fmt"
+	"net/http"
 	"slices"
 	"strings"
 	"testing"
@@ -96,36 +98,61 @@ func mapsEqual(a, b map[string]string) bool {
 	return true
 }
 
-// D-605: the zip is read fail-closed: a cut or foreign archive fails the pull; a record of another CVE, a second file of the same CVE,
-// a bad package name or a file over the cap is rejected alone; secdb's "0" is "not affected".
+// D-605 and review r1 of #968: the zip is read fail-closed. A cut or foreign archive, one where no name is an Alpine record (L10: a format
+// change) or one whose end record lists too many files (L2) fails the pull; a record of another CVE, two files of one CVE (L1: the CVE
+// is rejected, neither file kept), a bad package name, a record that names no Alpine branch (L10) or a file over 1 MiB is rejected
+// alone; a withdrawn record keeps nothing (L5); secdb's "0" is "not affected"; a release longer than 100 characters drops its row.
 func TestParseAlpineOSVFailsClosed(t *testing.T) {
 	t.Parallel()
 	whole := alpineRecords(t)
-	for name, body := range map[string][]byte{"cut short": whole[:len(whole)-40], "not a zip": []byte("<html>"), "xz": xzTar(t, [2]string{"a", "b"})} {
+	for name, body := range map[string][]byte{
+		"cut short": whole[:len(whole)-40], "not a zip": []byte("<html>"), "xz": xzTar(t, [2]string{"a", "b"}),
+		"no Alpine record": alpineZip(t, [2]string{"osv/ALPINE-CVE-2026-123158.json", "{}"}, [2]string{"UBUNTU-CVE-2026-123158.json", "{}"}),
+	} {
 		if _, err := ParseAlpineOSV(bytes.NewReader(body), alpineKEV); !errors.Is(err, ErrBadSample) {
 			t.Errorf("%s: %v, want ErrBadSample", name, err)
 		}
 	}
-	rec := func(id, pkg, fixed string) string {
-		return `{"id":"ALPINE-` + id + `","affected":[{"package":{"name":"` + pkg + `","ecosystem":"Alpine:v3.23"},"ranges":[{"type":"ECOSYSTEM","events":[{"introduced":"0"},{"fixed":"` + fixed + `"}]}]},` +
+	rec := func(id, pkg, eco, fixed string) string {
+		return `{"id":"ALPINE-` + id + `","affected":[{"package":{"name":"` + pkg + `","ecosystem":"` + eco + `"},"ranges":[{"type":"ECOSYSTEM","events":[{"introduced":"0"},{"fixed":"` + fixed + `"}]}]},` +
 			`{"package":{"name":"` + pkg + `","ecosystem":"Alpine:edge"},"ranges":[{"type":"ECOSYSTEM","events":[{"fixed":"1-r0"}]}]}]}`
 	}
 	res, err := ParseAlpineOSV(bytes.NewReader(alpineZip(t,
-		[2]string{"ALPINE-CVE-2026-123158.json", rec("CVE-2026-31431", "openssh", "10.2_p1-r1")}, // the record of another CVE
-		[2]string{"ALPINE-CVE-2026-31431.json", rec("CVE-2026-31431", "Docker Engine", "29.4.3-r0")},
-		[2]string{"ALPINE-CVE-2021-3156.json", rec("CVE-2021-3156", "sudo", "0")},
-		[2]string{"ALPINE-CVE-2021-3156.json", rec("CVE-2021-3156", "sudo", "1.9.5_p2-r0")}, // a second file of the same CVE
+		[2]string{"ALPINE-CVE-2026-123158.json", rec("CVE-2026-31431", "openssh", "Alpine:v3.23", "10.2_p1-r1")}, // the record of another CVE
+		[2]string{"ALPINE-CVE-2026-31431.json", rec("CVE-2026-31431", "Docker Engine", "Alpine:v3.23", "29.4.3-r0")},
+		[2]string{"ALPINE-CVE-2021-3156.json", rec("CVE-2021-3156", "sudo", "Alpine:v3.23", "1.9.5_p2-r0")},
+		[2]string{"ALPINE-CVE-2021-3156.json", rec("CVE-2021-3156", "sudo", "Alpine:v3.23", "1.9.5_p2-r0")}, // a second file of the same CVE
 	)), alpineKEV)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(res.Rows) != 1 || res.Rows[0] != (DistroFix{Distro: DistroAlpine, Release: "3.23", Package: "sudo", CVE: "CVE-2021-3156", Status: DistroNotAffected}) ||
-		res.Accepted != 1 || res.Rejected != 3 {
+	if len(res.Rows) != 0 || res.Accepted != 0 || res.Rejected != 3 {
 		t.Errorf("rows %+v, accepted %d, rejected %d %+v", res.Rows, res.Accepted, res.Rejected, res.Reasons)
+	}
+	res, err = ParseAlpineOSV(bytes.NewReader(alpineZip(t,
+		[2]string{"ALPINE-CVE-2021-3156.json", rec("CVE-2021-3156", "sudo", "Alpine:v3.23", "0")},
+		[2]string{"ALPINE-CVE-2026-31431.json", rec("CVE-2026-31431", "docker", "Alpine:3.23", "29.4.3-r0")}, // a renamed ecosystem
+		[2]string{"ALPINE-CVE-2026-123158.json", `{"id":"ALPINE-CVE-2026-123158","withdrawn":"2026-11-10T00:00:00Z","affected":[{"package":{"name":"openssh","ecosystem":"Alpine:v3.23"},"ranges":[{"events":[{"fixed":"10.2_p1-r1"}]}]}]}`},
+	)), alpineKEV)
+	if err != nil || len(res.Rows) != 1 || res.Rows[0] != (DistroFix{Distro: DistroAlpine, Release: "3.23", Package: "sudo", CVE: "CVE-2021-3156", Status: DistroNotAffected}) ||
+		res.Accepted != 2 || res.Rejected != 1 || !strings.Contains(res.Reasons[0].Example, "Alpine:3.23") {
+		t.Errorf("not affected, renamed ecosystem, withdrawn: %+v %v", res, err)
+	}
+	long := alpineZip(t, [2]string{"ALPINE-CVE-2026-123158.json", rec("CVE-2026-123158", "openssh", "Alpine:v3.23", strings.Repeat("1.", 60)+"1-r1")})
+	if res, err := ParseAlpineOSV(bytes.NewReader(long), alpineKEV); err != nil || res.Rejected != 1 || len(res.Rows) != 0 || res.Accepted != 1 {
+		t.Errorf("a release over 100 characters: %+v %v", res, err)
 	}
 	big := alpineZip(t, [2]string{"ALPINE-CVE-2026-123158.json", strings.Repeat(" ", alpineMaxEntry+1) + "{}"})
 	if res, err := ParseAlpineOSV(bytes.NewReader(big), alpineKEV); err != nil || res.Rejected != 1 || len(res.Rows) != 0 {
-		t.Errorf("a file over 4 MiB: %+v %v", res, err)
+		t.Errorf("a file over 1 MiB: %+v %v", res, err)
+	}
+	// L2: the end record's count is read before the directory is parsed
+	var many [][2]string
+	for i := range alpineMaxFiles + 1 {
+		many = append(many, [2]string{fmt.Sprintf("f%d", i), ""})
+	}
+	if _, err := ParseAlpineOSV(bytes.NewReader(alpineZip(t, many...)), alpineKEV); !errors.Is(err, ErrBadSample) || !strings.Contains(err.Error(), "files") {
+		t.Errorf("%d files: %v", alpineMaxFiles+1, err)
 	}
 }
 
@@ -153,12 +180,43 @@ func TestAlpinePullOnlyWhileADeviceStatesAlpine(t *testing.T) {
 	if o.count("/Alpine/all.zip") != 0 || inv.asked != 2 || f.Status != "never" || f.Error == nil || *f.Error != note {
 		t.Fatalf("no Alpine device: %d requests, asked %d, feed %+v", o.count("/Alpine/all.zip"), inv.asked, f)
 	}
+	// review r1 L6 of #968: an inventory that cannot be read, or none, never opens the gate (PRIVACY flow 1: "never")
+	inv.err = errors.New("database is locked")
+	if err := e.svc.Fetch(t.Context(), alpineOSVFeedID); err != nil || o.count("/Alpine/all.zip") != 0 {
+		t.Fatalf("inventory read error: %v, %d requests", err, o.count("/Alpine/all.zip"))
+	}
+	inv.err = nil
+	e.svc.Inventory = e.inv // no DistroLister
+	if err := e.svc.Fetch(t.Context(), alpineOSVFeedID); err != nil || o.count("/Alpine/all.zip") != 0 {
+		t.Fatalf("no lister: %v, %d requests", err, o.count("/Alpine/all.zip"))
+	}
+	e.svc.Inventory = inv
+	loading := func() bool {
+		t.Helper()
+		l, err := e.svc.st.DistroLoading(t.Context())
+		if err != nil {
+			t.Fatal(err)
+		}
+		return l[DistroAlpine]
+	}
+	// review r1 M1 of #968: on and never filled is loading (findings keeps the question); a failed pull with no rows still is
+	if !loading() {
+		t.Fatal("alpine-osv on and never filled is not loading")
+	}
 	inv.got = map[string]map[string]bool{DistroAlpine: {}} // BN340's SNMP answer says Alpine Linux
-	if err := e.svc.RunPull(t.Context()); err != nil {
+	o.serve("/Alpine/all.zip", func(w http.ResponseWriter, _ *http.Request) { http.Error(w, "busy", http.StatusServiceUnavailable) })
+	if err := e.svc.Fetch(t.Context(), alpineOSVFeedID); err != nil || o.count("/Alpine/all.zip") != 1 || e.feed(alpineOSVFeedID).Status != "error" || !loading() {
+		t.Fatalf("a failed first pull: %v, %d requests, feed %+v, loading %v", err, o.count("/Alpine/all.zip"), e.feed(alpineOSVFeedID), loading())
+	}
+	o.body("/Alpine/all.zip", `"z1"`, string(alpineRecords(t)))
+	if err := e.svc.Fetch(t.Context(), alpineOSVFeedID); err != nil {
 		t.Fatal(err)
 	}
+	if loading() {
+		t.Fatal("a filled alpine-osv is still loading")
+	}
 	fixes, err := e.svc.st.DistroFixes(t.Context())
-	if f := e.svc.live(t.Context(), e.feed(alpineOSVFeedID)); err != nil || o.count("/Alpine/all.zip") != 1 || f.Status != "ok" || f.Error != nil || f.Records == nil || *f.Records != 9 {
+	if f := e.svc.live(t.Context(), e.feed(alpineOSVFeedID)); err != nil || o.count("/Alpine/all.zip") != 2 || f.Status != "ok" || f.Error != nil || f.Records == nil || *f.Records != 9 {
 		t.Fatalf("an Alpine device: %d requests, feed %+v, %v", o.count("/Alpine/all.zip"), f, err)
 	}
 	var branches []string
@@ -172,8 +230,12 @@ func TestAlpinePullOnlyWhileADeviceStatesAlpine(t *testing.T) {
 	if err := e.svc.RunPull(t.Context()); err != nil {
 		t.Fatal(err)
 	}
-	if o.count("/Alpine/all.zip") != 2 || rowsOf(t, e.db, "feeds_distro_fix") != 9 || e.feed(alpineOSVFeedID).Status != "ok" {
+	if o.count("/Alpine/all.zip") != 3 || rowsOf(t, e.db, "feeds_distro_fix") != 9 || e.feed(alpineOSVFeedID).Status != "ok" {
 		t.Fatalf("after 304: %d requests, %d rows", o.count("/Alpine/all.zip"), rowsOf(t, e.db, "feeds_distro_fix"))
+	}
+	// turned off: not loading (findings falls back to NVD), its rows kept but not used
+	if c, b := e.put(alpineOSVFeedID, `{"enabled":false}`); c != 200 || loading() {
+		t.Fatalf("turned off: %d %v, loading %v", c, b, loading())
 	}
 }
 

@@ -35,16 +35,18 @@ func Parse(s string) (Version, bool) {
 		return Version{}, false
 	}
 	var v Version
-	for _, p := range strings.Split(m[1], ".") {
+	for i, p := range strings.Split(m[1], ".") {
 		n, err := strconv.Atoi(p)
-		if err != nil {
+		// apk-tools compares a later component with a leading zero as a string ("1.05" < "1.4"); Vedette refuses it rather than
+		// order it otherwise (review r1 L4 of #968: no fixed KEV release has one, 2026-11-17)
+		if err != nil || i > 0 && len(p) > 1 && p[0] == '0' {
 			return Version{}, false
 		}
 		v.nums = append(v.nums, n)
 	}
 	v.letter = m[2]
 	for _, sm := range apkSuffixRE.FindAllStringSubmatch(m[3], -1) {
-		n := 0
+		n := -1 // a suffix without a number comes before the same suffix with 0, as in apk-tools ("1.0_p" < "1.0_p0")
 		if sm[2] != "" {
 			n, _ = strconv.Atoi(sm[2])
 		}

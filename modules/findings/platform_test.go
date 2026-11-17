@@ -22,7 +22,7 @@ func TestPlatformLimits_DataIsValid(t *testing.T) {
 	want := map[string]string{"3.24": "10.3_p1-r2", "3.23": "10.2_p1-r1", "3.22": "10.0_p1-r11", "3.21": "9.9_p2-r1",
 		"3.20": "9.7_p1-r6", "3.19": "9.6_p1-r3", "3.18": "9.3_p2-r4", "3.17": "9.1_p1-r7", "3.16": "9.0_p1-r6"}
 	if f := distroFixes("CVE-2026-123158", alpineSSH()); f == nil || !maps.Equal(f.Releases, want) || !strings.HasPrefix(f.fixList(), "10.3_p1-r2 (3.24), 10.2_p1-r1 (3.23), ") ||
-		!strings.HasSuffix(f.fixList(), "9.1_p1-r7 (3.17), 9.0_p1-r6 (3.16)") || f.sourceFor("3.20") != "https://secdb.alpinelinux.org/v3.20/main.json" || f.Package != "openssh-server" {
+		!strings.HasSuffix(f.fixList(), "9.1_p1-r7 (3.17), 9.0_p1-r6 (3.16)") || f.sourceFor("3.20") != "Alpine Linux's security database, https://secdb.alpinelinux.org/v3.20/main.json (CC BY-SA 4.0), through OSV.dev" || f.Package != "openssh-server" {
 		t.Fatalf("fixed list %+v", f)
 	}
 	// only the catalog's distribution and source package, fixed rows with an apk release; none at all is no list, never a guess
@@ -183,7 +183,7 @@ func TestPlatform_D604_PackageReleaseDecides(t *testing.T) {
 		words string
 	}{
 		{"BN340: SNMP says Alpine Linux, release 10.2_p1-r1 given", Asset{SNMPOS: "Alpine Linux", Software: []Software{mine("10.2_p1-r1")}}, fixed, "Alpine Linux 3.23 fixed it in openssh-server 10.2_p1-r1 (the branch whose fixed release has the same upstream version"},
-		{"BN340: the person says Alpine Linux 3.23", Asset{ManualOS: "Alpine Linux 3.23", SNMPOS: "Alpine Linux 3.23", Software: []Software{mine("10.2_p1-r1")}}, fixed, "BN340 has openssh-server 10.2_p1-r1 (the package release a person gave). Source: https://secdb.alpinelinux.org/v3.23/main.json"},
+		{"BN340: the person says Alpine Linux 3.23", Asset{ManualOS: "Alpine Linux 3.23", SNMPOS: "Alpine Linux 3.23", Software: []Software{mine("10.2_p1-r1")}}, fixed, "BN340 has openssh-server 10.2_p1-r1 (the package release a person gave). Source: Alpine Linux's security database, https://secdb.alpinelinux.org/v3.23/main.json"},
 		{"BN340: the line apk info -e -v prints", Asset{SNMPOS: "Alpine Linux", Software: []Software{mine("openssh-server-10.2_p1-r1")}}, fixed, "BN340 has openssh-server 10.2_p1-r1"},
 		{"a release Vedette cannot read is said, not ignored", Asset{SNMPOS: "Alpine Linux", Software: []Software{mine("10.2p1")}}, askedPackage, "package_unknown 10.2p1"},
 		{"one revision before the fix", Asset{ManualOS: "Alpine Linux 3.23", Software: []Software{mine("10.2_p1-r0")}}, affected, "Update openssh-server to 10.2_p1-r1 or later"},

@@ -154,6 +154,9 @@ type Vuln struct {
 	// a CVE of the platform list, distroFixes): per release and source package, fixed in a version or not affected. Empty when the
 	// distribution feeds are off or have no word on it.
 	Distro []DistroFix
+	// DistroLoading: the distributions one of whose feeds is on but holds no row yet (feeds' DistroLoading, D-605): a platform-limited
+	// CVE whose fixed list that distribution's data gives stays a question then, instead of NVD deciding (review r1 M1 of #968).
+	DistroLoading map[string]bool
 }
 
 // RangesCVEOrg and RangesCVEOrgPartial mark a Vuln whose affected versions come from the CNA's CVE.org record because
@@ -952,7 +955,7 @@ func judge(a Asset, s Software, in swInfo, v Vuln, key []identity, now time.Time
 		note := "Not affected: " + why + " Vedette closed this by itself and reopens it if a later match says the device is affected."
 		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}, why: why}, outNotAffected
 	}
-	ps := platformCheck(a, s, in, v.CVE, v.Distro) // D-604: what a platform-limited CVE still needs on this row
+	ps := platformCheck(a, s, in, v.CVE, v.Distro, v.DistroLoading) // D-604: what a platform-limited CVE still needs on this row
 	if ps.fixed {
 		note := "Not affected: " + ps.note + " Vedette closed this by itself and reopens it if a later match says the device is affected."
 		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}, why: ps.note, pkgFixed: true}, outNotAffected
@@ -1050,7 +1053,7 @@ func judge(a Asset, s Software, in swInfo, v Vuln, key []identity, now time.Time
 	case ps.ask != askNone: // D-604: only a person's answer decides; the CVE goes to "Could not be checked" with the question
 		l, fix := platformLimits[v.CVE], distroFixes(v.CVE, v.Distro)
 		note := fmt.Sprintf("%s Vedette cannot check %s on %s yet: it affects only %s, and %s. It is under \"Could not be checked\" with the question; Vedette reopens this if your answer says the device is affected.",
-			AskedNote, v.CVE, name, l.Affects, askGap(ps.ask, fix))
+			AskedNote, v.CVE, name, l.Affects, askGap(ps.ask, v.CVE, fix))
 		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}, ask: ps.ask, answer: ps.bad, bounded: m.bounded, fix: fix}, outQuestion
 	case ps.below: // D-604: below the distribution's fix for the device's branch (or older than every fix): a version finding
 		m.Basis, m.Confidence, m.Severity, m.bounded, m.backed = BasisVersion, ConfVersion, SeverityHigh, true, true

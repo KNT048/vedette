@@ -292,9 +292,10 @@ func (h *FindingHandlers) unchecked(ctx context.Context, assetID string) ([]Unch
 	if slices.ContainsFunc(rows, func(r UncheckedRow) bool {
 		return r.Reason == UncheckedPlatformUnknown || r.Reason == UncheckedPackageUnknown
 	}) {
-		vulns, err := h.feed.Vulns(ctx) // the list the matcher reads (cached per feeds stamp in cmd/vedette)
+		// the list the matcher reads (cached per feeds stamp in cmd/vedette); unreadable, the questions go without releases (r1 L9 of #968)
+		vulns, err := h.feed.Vulns(ctx)
 		if err != nil {
-			return nil, fmt.Errorf("findings: reading the exploited list: %w", err)
+			h.svc.cfg.Log.WarnContext(ctx, "reading the exploited list for the questions failed; they name no fixed release", "error", err)
 		}
 		distro = map[string][]DistroFix{}
 		for _, v := range vulns {

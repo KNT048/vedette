@@ -279,3 +279,68 @@ func TestAlpineFixReachesFindings(t *testing.T) {
 		t.Fatalf("at the 3.23 fix: %+v", recs)
 	}
 }
+
+// Review r1 M1 of #968: while alpine-osv is on but not loaded, BN340's Alpine-only CVE stays a question (never an NVD finding), and the
+// person's "Alpine Linux 3.23" wakes the feeds pull at once; with the feed off NVD decides (a finding).
+func TestAlpineNotLoadedKeepsTheQuestionAndWakesThePull(t *testing.T) {
+	t.Parallel()
+	var woke []string
+	s := newStackWith(t, func(d *deps) { d.Wake = func(module, job string) { woke = append(woke, module+"/"+job) } })
+	ctx := t.Context()
+	const cve = "CVE-2026-123158"
+	s.kevAdded(cve, "OpenBSD", "OpenSSH", time.Now().AddDate(0, 0, -11))
+	now := store.FormatTS(time.Now().UTC())
+	err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_affected_cve (cve, updated_at) VALUES (?, ?)`, cve, now); err != nil {
+			return err
+		}
+		_, err := tx.ExecContext(ctx, `INSERT INTO feeds_affected (cve, cpe, start_incl, start_excl, end_incl, end_excl) VALUES (?, 'cpe:2.3:a:openbsd:openssh:*:*:*:*:*:*:*:*', '', '', '', '10.6')`, cve)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ip := netip.MustParseAddr("192.168.18.1")
+	if err := s.d.Inventory.Record(ctx, []observe.Observation{{AssetHint: observe.AssetHint{IP: ip}, Field: observe.Hostname, Value: "BN340", Source: observe.Passive, Confidence: 0.6, SeenAt: time.Now().UTC()}}); err != nil {
+		t.Fatal(err)
+	}
+	addrs, err := s.d.Inventory.AddressMap(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := addrs[ip.String()]
+	if err := s.d.Inventory.UpsertSoftware(ctx, id, []inventory.SoftwareItem{{Display: "OpenSSH 10.2", Vendor: "OpenBSD", Product: "OpenSSH", Version: "10.2",
+		KevKeys: []string{"openbsd|openssh"}, Confidence: 0.8}}, "scan"); err != nil {
+		t.Fatal(err)
+	}
+	if len(woke) != 0 {
+		t.Fatalf("woke the pull for a device that states no Alpine: %v", woke)
+	}
+	alpine := "Alpine Linux 3.23"
+	if err := s.d.Inventory.PatchDevice(ctx, "it@acme.example", id, inventory.Patch{OS: &alpine}); err != nil {
+		t.Fatal(err)
+	}
+	if len(woke) != 1 || woke[0] != "feeds/pull" {
+		t.Fatalf("a person's Alpine Linux woke %v", woke)
+	}
+	run := func() []findings.Record {
+		t.Helper()
+		if err := findingsJobs(*s.d)[0].Run(ctx); err != nil {
+			t.Fatal(err)
+		}
+		recs, err := s.d.Findings.List(ctx, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return recs
+	}
+	if recs := run(); len(recs) != 0 {
+		t.Fatalf("alpine-osv on, not loaded: %+v", recs)
+	}
+	if c, b := s.do("PUT", "/feeds/sources/alpine-osv", "admin", `{"enabled":false}`); c != 200 {
+		t.Fatalf("turning alpine-osv off: %d %v", c, b)
+	}
+	if recs := run(); len(recs) != 1 || recs[0].Status != findings.StatusSuspected {
+		t.Fatalf("alpine-osv off: NVD decides, %+v", recs)
+	}
+}

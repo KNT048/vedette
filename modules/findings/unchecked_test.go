@@ -337,9 +337,10 @@ func TestUncheckedItems_D604_Question(t *testing.T) {
 	if q == nil || q.Error == nil || !strings.Contains(*q.Error, `could not read the release you entered ("10.2p1")`) || !strings.Contains(*q.Error, "openssh-server-10.3_p1-r2") {
 		t.Fatalf("unreadable answer %+v", q)
 	}
-	// D-605: without the feed's rows there is no fixed list to ask against: no package question, and the platform question offers only
-	// Alpine Linux and another system, never releases made up
-	if q := UncheckedItems([]UncheckedRow{row("CVE-2026-123158", UncheckedPackageUnknown)}, kev, assets, nil)[0].Question; q != nil {
+	// D-605: without the feed's rows (a package question stays only while alpine-osv is on and not loaded, review r1 M1 of #968) the
+	// question says so and lists no release; the platform question offers only Alpine Linux and another system, never releases made up
+	if q := UncheckedItems([]UncheckedRow{row("CVE-2026-123158", UncheckedPackageUnknown)}, kev, assets, nil)[0].Question; q == nil ||
+		!strings.HasPrefix(q.Text, "Alpine Linux's fixed releases of CVE-2026-123158 are not loaded yet") || strings.Contains(q.Text, "_p") || q.Command == nil {
 		t.Fatalf("package question without rows %+v", q)
 	}
 	q = UncheckedItems([]UncheckedRow{row("CVE-2026-123158", UncheckedPlatformUnknown)}, kev, assets, nil)[0].Question

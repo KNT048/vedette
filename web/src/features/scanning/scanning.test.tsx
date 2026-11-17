@@ -83,11 +83,10 @@ describe('Settings › Scanning: every engine on one page (#850, D-627)', () => 
     await waitFor(() => expect(within(row).queryByText('Needs setup')).toBeNull())
   })
 
-  it('a deep link opens the engine\'s own settings: SNMP credentials on the SNMP card', async () => {
+  it('a deep link lands on the engine\'s card; SNMP keeps no credentials here (D-607: set up per device)', async () => {
     renderApp('/settings/scanning#snmp')
     const row = await card(/SNMP reading/)
-    expect(within(row).getByRole('button', { name: 'Settings of SNMP reading' })).toHaveAttribute('aria-expanded', 'true') // r1 L11: named
-    expect(await within(row).findByRole('heading', { name: 'SNMP credentials' })).toBeInTheDocument()
+    expect(within(row).queryByRole('heading', { name: 'SNMP credentials' })).toBeNull()
   })
 
   it('Safety: one block for the LAN engines through PUT /scanning/safety; it says what it covers and what not', async () => {
@@ -237,14 +236,9 @@ describe('#850 review r2: dead ends and the buttons of the Devices pages', () =>
     expect(await screen.findByRole('button', { name: 'Scan selected (2)' })).toBeEnabled()
   })
 
-  it('SNMP credentials moved here: /devices/setup?tab=snmp and ?snmp_ip= land on the SNMP card, the address kept for the add form', async () => {
-    const v = renderApp('/devices/setup?tab=snmp')
-    const row = await card(/SNMP reading/)
-    expect(await within(row).findByRole('heading', { name: 'SNMP credentials' })).toBeInTheDocument()
-    v.unmount()
-    renderApp('/devices/setup?snmp_ip=192.168.10.21')
-    expect(await screen.findByRole('dialog', {}, { timeout: 4000 })).toBeInTheDocument()
-    expect(screen.queryByRole('tab', { name: 'SNMP credentials' })).toBeNull()
+  it('the old SNMP links /devices/setup?tab=snmp land on the SNMP card', async () => {
+    renderApp('/devices/setup?tab=snmp')
+    expect(await card(/SNMP reading/)).toBeInTheDocument()
   })
 
   it('osquery needs a token: it is made right on the card (§0)', async () => {

@@ -1,29 +1,23 @@
-import { useState, type FormEvent } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
-import { Notice, Section } from '@/components/common/PageHeader'
+import { Section } from '@/components/common/PageHeader'
 import { Chip } from '@/components/common/StatusChip'
-import { BusyNote } from '@/components/common/BusyNote'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
-import { Field } from '@/components/ui/input'
 import { fmtDateTime, fmtRelative } from '@/lib/format'
 import { useModuleEnabled } from '@/lib/modules'
 import { useCan, useMe } from '@/lib/session'
 import { cn } from '@/lib/utils'
 import { AddDialog } from './AddDialog'
 import { TurnOnModule } from './Inline'
-import { CreatableSelect } from '@/components/common/CreatableSelect'
-import { SnmpNext } from './SnmpNext'
-import { CIDR_RE_UI, IPV4_RE_UI, SNMP_MAX } from './validate'
-import { useDeviceAction, useDeviceSources, useSettings, useSnmp, useSnmpActions } from './api'
+import { useDeviceAction, useDeviceSources, useSettings } from './api'
 import { inRanges } from './AddToScopeDialog'
 import { nameOf } from './nameOf'
 import { kindLabel } from '@/lib/deviceTypes'
 import { toast } from 'sonner'
-import { credentialLabel, errMsg } from './kinds'
-import { CredentialDialog, SnmpAnswer } from './SnmpSection'
-import type { DeviceDetail, SnmpCredential, SnmpTestResult } from './types'
+import { errMsg } from './kinds'
+import type { DeviceDetail } from './types'
 
 /** The five ways a device is fed (D-598, issue #829): scan, passive sensor, SNMP, agent (osquery or Wazuh), the person. */
 const FEEDS = ['scan', 'passive', 'snmp', 'agent', 'manual'] as const
@@ -46,72 +40,6 @@ function feedsOf(d: DeviceDetail): Map<Feed, string | null> {
 }
 
 const IPV4 = /^\d{1,3}(\.\d{1,3}){3}$/
-
-/** Whether a credential's scope holds the address, as the box decides it (sensor-active snmpRow.covers: each IPv4 address or CIDR range
- *  of the scope; anything else holds nothing), so the read is not sent first with a credential the box refuses for this address. */
-const credCovers = (scope: string[], ip: string) => scope.some((s) => (IPV4_RE_UI.test(s) || CIDR_RE_UI.test(s)) && inRanges(ip, [s]))
-
-/** Read this device now with one saved SNMP credential (the same Test as Scope and sensors → SNMP, with this device's address); add a
- *  credential for this address, or add the address to a credential whose scope does not hold it, without leaving the page. */
-function SnmpRead({ ip }: { ip: string }) {
-  const { t } = useTranslation('inventory')
-  const q = useSnmp(true)
-  const { test } = useSnmpActions()
-  const [cred, setCred] = useState('')
-  const [result, setResult] = useState<SnmpTestResult | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [form, setForm] = useState<{ current: SnmpCredential | null; scope: string; widen: boolean } | null>(null)
-  const creds = q.data?.credentials ?? []
-  const read = (id: string) => { setResult(null); setError(null); test.mutate({ id, ip }, { onSuccess: setResult, onError: (er) => setError(errMsg(er)) }) }
-  // #842 "do it where you are": a credential made or fixed here is selected and this device is read with it at once.
-  const saved = (c: SnmpCredential) => { setCred(c.id); read(c.id) }
-  if (q.isPending) return <p className="text-meta text-muted">{t('sources.snmp.loading')}</p>
-  const dialog = form ? <CredentialDialog key={form.current?.id ?? 'new'} current={form.current} scope={form.scope} widen={form.widen} onClose={() => setForm(null)} onSaved={saved} /> : null
-  const addNew = creds.length < SNMP_MAX ? () => setForm({ current: null, scope: ip, widen: false }) : undefined
-  if (!creds.length) {
-    return (
-      <div className="flex flex-wrap items-center gap-2 text-meta text-muted">
-        {t('sources.snmp.none')} <Button size="sm" variant="primary" onClick={addNew}>{t('sources.snmp.addFor', { ip })}</Button>{dialog}
-      </div>
-    )
-  }
-  // n82: the first credential (in the order they are tried) whose scope holds this address, never one the box refuses for it.
-  const covering = creds.find((c) => credCovers(c.scope, ip))
-  const chosen = cred || (covering?.id ?? '')
-  const chosenCred = creds.find((c) => c.id === chosen)
-  function submit(e: FormEvent) { e.preventDefault(); read(chosen) }
-  return (
-    <div className="grid min-w-0 gap-2">
-      <form onSubmit={submit} noValidate className="flex flex-wrap items-end gap-2">
-        <Field label={t('sources.snmp.credential')} htmlFor="device-snmp-cred">
-          <CreatableSelect id="device-snmp-cred" className="w-auto" value={chosen} placeholder={covering ? undefined : t('sources.snmp.choose')} onChange={(id) => { setCred(id); setResult(null) }}
-            options={creds.map((c) => ({ value: c.id, label: credentialLabel(c.name, c.version, t(`snmp.version.${c.version}`)) }))}
-            newLabel={t('addDialog.snmp.newCredential')} canCreate={creds.length < SNMP_MAX} createDisabledReason={t('addDialog.snmp.capReason', { count: SNMP_MAX })}
-            renderCreate={(p) => (p.open ? <CredentialDialog current={null} scope={ip} onClose={() => p.onOpenChange(false)}
-              onSaved={(c) => { p.onCreated({ value: c.id, label: credentialLabel(c.name, c.version, t(`snmp.version.${c.version}`)) }); saved(c) }} /> : null)} />
-        </Field>
-        <Button type="submit" size="sm" variant="primary" disabled={!chosen} busy={test.isPending} busyLabel={t('snmp.run.running')}>{t('sources.snmp.read')}</Button>
-        {chosenCred ? <Button size="sm" variant="link" onClick={() => setForm({ current: chosenCred, scope: chosenCred.scope.join('\n'), widen: false })}>{t('addDialog.snmp.editCredential', { name: chosenCred.name })}</Button> : null}
-      </form>
-      {covering ? null : <p className="text-meta text-muted">{t('sources.snmp.noneCovers', { ip })}</p>}
-      {chosenCred && !result && !credCovers(chosenCred.scope, ip) && chosenCred.scope.length < 16 ? (
-        <div><Button size="sm" onClick={() => setForm({ current: chosenCred, scope: [...chosenCred.scope, ip].join('\n'), widen: true })}>{t('sources.snmp.addToScope', { ip, name: chosenCred.name })}</Button></div>
-      ) : null}
-      {q.data && !q.data.ready ? <p className="text-meta text-warn">{q.data.message ?? t('snmp.notReady')}</p> : null}
-      <BusyNote busy={test.isPending}>{t('snmp.run.pending', { ip })}</BusyNote>
-      {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
-      {result && !test.isPending ? <SnmpAnswer r={result} ip={ip} /> : null}
-      {result && !test.isPending && !result.ok ? (
-        <SnmpNext r={result} ip={ip} cred={chosenCred} onRetry={() => read(chosen)}
-          onWiden={() => chosenCred && setForm({ current: chosenCred, scope: [...chosenCred.scope, ip].join('\n'), widen: true })}
-          onEdit={() => chosenCred && setForm({ current: chosenCred, scope: chosenCred.scope.join('\n'), widen: false })} />
-      ) : null}
-      {result?.reason === 'not_for_this_credential' ? <p className="text-caption text-muted">{t('sources.snmp.addToScopeHint')}</p> : null}
-      <p className="text-caption text-muted">{t('sources.snmp.scopeHint')}</p>
-      {dialog}
-    </div>
-  )
-}
 
 /** D-601: the person's switch of one active source of the box for this device (network scan, SNMP), with what on and off mean in one
  *  line. Admin only; others see it locked with the reason. An agent has no switch: it is installed or uninstalled on the machine. */
@@ -145,15 +73,10 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
   const admin = me.data?.role === 'admin'
   const snmpOn = useModuleEnabled('sensor-active') === true
   const agentsOn = useModuleEnabled('agent-intake') === true
-  const [reading, setReading] = useState(false)
   const [enrol, setEnrol] = useState(false)
   const canOp = useCan('operator')
   const approve = useDeviceAction(d.asset.id).approve
-  const sources = useDeviceSources(d.asset.id)
   const a = d.asset
-  // #829 C4: credentials this device answered before it moved out of their scope (the list is admin-only).
-  const snmpList = useSnmp(snmpOn && admin)
-  const movedOut = (snmpList.data?.credentials ?? []).flatMap((c) => c.moved_out.filter((m) => m.device_id === a.id).map((m) => ({ cred: c.name, ...m })))
   const feeds = feedsOf(d)
   const ip = a.ip && IPV4.test(a.ip) ? a.ip : ''
   const declared = a.origin === 'manual'
@@ -173,15 +96,8 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
         )
       }
       if (!admin) return <span className="text-meta text-muted">{t('sources.adminOnly')}</span>
-      if (reading) return null
-      // D-601: with SNMP off for this device, the button says it turns SNMP on (the person's consent, audited) and opens the read here.
-      if (a.snmp_source === 'off') {
-        return (
-          <Button busy={sources.isPending} busyLabel={t('common:busy.saving')} size="sm" disabled={sources.isPending}
-            onClick={() => sources.mutate({ snmp: 'on' }, { onSuccess: () => setReading(true), onError: (e) => toast.error(errMsg(e)) })}>{t('sources.snmp.turnOnAdd')}</Button>
-        )
-      }
-      return <Button size="sm" onClick={() => setReading(true)}>{feeds.has('snmp') ? t('sources.snmp.readAgain') : t('sources.snmp.add')}</Button>
+      // D-607: SNMP is set up on the device's own SNMP card (version, community or v3 user, Read from, Check now).
+      return null
     }
     if (f === 'agent') {
       if (!agentsOn) return <TurnOnModule id="agent-intake" reason={t('sources.agent.off')} />
@@ -213,8 +129,6 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
               <p className="text-meta text-muted">{t(`sources.what.${f}`)}</p>
               {f === 'scan' || (f === 'snmp' && snmpOn) ? <SourceSwitch d={d} which={f} /> : null}
               {f === 'agent' && agentsOn ? <p className="text-caption text-muted">{t('sources.agent.how')}</p> : null}
-              {f === 'snmp' ? movedOut.map((m) => <p key={m.cred} role="status" className="text-meta text-warn">{t('sources.snmp.movedOut', { ip: m.ip, name: m.cred })}</p>) : null}
-              {f === 'snmp' && reading && ip ? <SnmpRead ip={ip} /> : null}
             </li>
           )
         })}

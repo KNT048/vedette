@@ -151,7 +151,7 @@
     "stopConfirm": "Stop the scan"
   },
   "fix": {
-    "newSnmp": "Add an SNMP credential",
+    "newSnmp": "Set SNMP up on a device's page",
     "target": "Add and verify a public target: External exposure, Targets",
     "trapIp": "Add a Trap IP: Internal traps, Trap IPs",
     "osqueryTitle": "Install osquery on a server",

@@ -974,6 +974,7 @@
       "csv": "Columns name, ip, product, version and kind; up to 500 rows. Wrong rows are reported by line, correct rows are still added."
     },
     "snmp": {
+      "perDevice": "SNMP is set up on each device's own page, with the address it answers on. Add the device first (Manual), or open it in Devices, then use its SNMP card: Set up SNMP.",
       "target": "IP address or range",
       "targetHint": "One address is read now. A range is read at every scan.",
       "targetBad": "Enter one IP address, such as 192.168.10.3, or a range, such as 192.168.10.0/24.",

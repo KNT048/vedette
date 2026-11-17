@@ -259,12 +259,10 @@ function detail(f: Finding): FindingDetail {
   }
 }
 
-/** M2-1, mitigation INV-8: the general block fills what the confirmed pack leaves out (its firewall guides, its compromise signs). */
-function hardeningFor(f: Finding, r: FindingRow, pack: MitigationPack | undefined, check: unknown) {
-  if (pack?.firewall.length && check) return null
-  const has = (name: string) => assetsStore.get().some((a) => (a.kind === 'firewall' || a.kind === 'router') && (a.vendor?.value ?? '').toLowerCase() === name)
-  const h = mockHardening(f.cve, r.kev, r.asset, assetsStore.get().find((a) => a.id === f.asset_id), has)
-  return { ...h, firewall: pack?.firewall.length ? [] : h.firewall, checks: check ? null : h.checks }
+/** Mitigation INV-8: the general checks fill in when the confirmed pack has no compromise signs of its own (D-631: no firewall config). */
+function hardeningFor(f: Finding, r: FindingRow, _pack: MitigationPack | undefined, check: unknown) {
+  if (check) return null
+  return mockHardening(f.cve, r.kev, r.asset)
 }
 
 const who = () => currentUser()?.email ?? 'system'
@@ -308,13 +306,14 @@ function aiResult(f: Finding, skill: AiResult['skill']): AiResult {
     ? ['Patch: follow the vendor advisory in the sources below.', 'If you cannot patch yet: cut the path in from the Internet and turn off the affected component if unused.', 'Signs of exploitation: check access logs and unfamiliar processes around the time the flaw was published.']
     : harden ? harden : ['Update to the fixed version per the vendor advisory.', 'If you cannot patch yet, restrict Internet access to this device (firewall, VPN).', 'Watch the device logs for a few days after applying.']
   const citations = (k?.links ?? []).slice(0, 3).map((u) => ({ title: new URL(u).hostname.replace(/^www\./, ''), url: u }))
-  // M2-2: the config skill answers with config blocks to paste; with no firewall vendor known, a generic nftables rule for the gateway
+  // M2-2: the config skill answers with config blocks to paste: a rule that keeps other networks off the vulnerable service's port of
+  // this device (nftables when no firewall vendor is known). No admin-network rule: Vedette writes none (D-631).
   const ip = r.asset?.ip && r.asset.ip !== '—' ? r.asset.ip : '<DEVICE_IP>'
   const configs = skill === 'explain' ? undefined : [{
-    title: `Linux gateway (nftables): only the admin network reaches ${dev}`,
-    code: `nft add rule inet filter forward ip saddr != <ADMIN_NETWORK> ip daddr ${ip} tcp dport { 80, 443 } drop`,
-    note: 'Based on: general hardening',
-    side_effect: `People outside <ADMIN_NETWORK> can no longer open the web interface of ${dev}.`,
+    title: `Linux gateway (nftables): block other networks from the vulnerable web service of ${dev}`,
+    code: `nft add rule inet filter forward ip daddr ${ip} tcp dport 443 drop`,
+    note: 'Based on: general practice, no source in the data names it',
+    side_effect: `Devices on other networks can no longer open port 443 of ${dev} until you delete the rule; its own network is not routed through the gateway and still can.`,
   }]
   const len = paragraphs.join('').length + steps.join('').length + (configs?.[0]?.code.length ?? 0)
   const prof = aiCandidates(jobOf(skill))[0]

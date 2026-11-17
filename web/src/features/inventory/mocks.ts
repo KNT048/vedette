@@ -340,7 +340,10 @@ function samePairs(): { a: Asset; b: Asset; why: string }[] {
 }
 const sameRef = (a: Asset) => ({ id: a.id, name: nameOf(a, a.kind), approved: a.approved, last_seen: a.last_seen })
 function possibleSameAs(id: string): PossibleSame[] {
-  return samePairs().filter((p) => p.a.id === id || p.b.id === id).map((p) => ({ ...sameRef(p.a.id === id ? p.b : p.a), why: p.why }))
+  return samePairs().filter((p) => p.a.id === id || p.b.id === id).map((p) => {
+    const other = p.a.id === id ? p.b : p.a
+    return { ...sameRef(other), why: p.why, ignored: !!metaStore.get()[other.id]?.ignored_at }
+  })
     .sort((p, q) => q.last_seen.localeCompare(p.last_seen)).slice(0, 5)
 }
 function pairRefusal(x: Asset | undefined, y: Asset | undefined, request: Request, what: string) {

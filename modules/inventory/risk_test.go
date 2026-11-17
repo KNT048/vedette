@@ -3,8 +3,8 @@ package inventory_test
 import (
 	"context"
 	"errors"
-	"sync/atomic"
 	"net/netip"
+	"sync/atomic"
 	"testing"
 
 	"github.com/knt048/vedette/core/apierr"
@@ -18,7 +18,9 @@ import (
 
 type fakeRisk map[string]inventory.RiskCounts
 
-func (f fakeRisk) RiskByAsset(context.Context) (map[string]inventory.RiskCounts, error) { return f, nil }
+func (f fakeRisk) RiskByAsset(context.Context) (map[string]inventory.RiskCounts, error) {
+	return f, nil
+}
 
 // countingRisk counts the calls and fails when err is set.
 type countingRisk struct {

@@ -32,7 +32,7 @@ func roundOf(t *testing.T, answer func(ctx context.Context, n int, j sensorlink.
 		return answer(ctx, k, j)
 	}
 	svc, inv := newBigWorld(t, r, 2, 0)
-	setUpAll(t, svc, inv, "community-1")
+	setUpAll(t, svc, inv)
 	return svc, inv, r
 }
 

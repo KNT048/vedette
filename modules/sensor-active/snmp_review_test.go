@@ -83,7 +83,7 @@ func TestSNMPEachBatchReadsTheDevicesAgain(t *testing.T) {
 		return nil, nil
 	}
 	svc, inv = newBigWorld(t, r, 2, 0)
-	setUpAll(t, svc, inv, "community-1")
+	setUpAll(t, svc, inv)
 	if err := svc.Tick(t.Context()); err != nil {
 		t.Fatal(err)
 	}
@@ -105,7 +105,7 @@ func TestSNMPRoundEndsWithTheWindow(t *testing.T) {
 		return nil, nil
 	}}
 	svc, inv := newBigWorld(t, r, 4, 59) // the window closes at 05:00
-	setUpAll(t, svc, inv, "community-1")
+	setUpAll(t, svc, inv)
 	if err := svc.Tick(t.Context()); err != nil {
 		t.Fatal(err)
 	}
@@ -237,7 +237,7 @@ func TestSNMPAShorterWindowStopsTheBatch(t *testing.T) {
 		return nil, ctx.Err()
 	}
 	svc, inv = newBigWorld(t, r, 2, 0)
-	setUpAll(t, svc, inv, "community-1")
+	setUpAll(t, svc, inv)
 	if err := svc.Tick(t.Context()); err != nil {
 		t.Fatal(err)
 	}

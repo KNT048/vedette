@@ -134,10 +134,10 @@ func newSNMPWorld(t *testing.T, reader sa.SNMPReader) *snmpWorld {
 	return w
 }
 
-func (w *snmpWorld) count(q string, args ...any) int {
+func (w *snmpWorld) count(q string) int {
 	w.t.Helper()
 	var n int
-	if err := w.db.Reader().QueryRowContext(w.t.Context(), q, args...).Scan(&n); err != nil {
+	if err := w.db.Reader().QueryRowContext(w.t.Context(), q).Scan(&n); err != nil {
 		w.t.Fatalf("%s: %v", q, err)
 	}
 	return n
@@ -159,7 +159,8 @@ func (w *snmpWorld) set(id string, in sa.SNMPInput) sa.SNMPDevice {
 
 // setUpAll sets up every device of inv with an address that is not the box, with one community (the "many switches share one
 // community" case).
-func setUpAll(t *testing.T, svc *sa.Service, inv *fakeInv, community string) {
+func setUpAll(t *testing.T, svc *sa.Service, inv *fakeInv) {
+	const community = "community-1"
 	t.Helper()
 	inv.mu.Lock()
 	var ids []string

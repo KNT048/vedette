@@ -186,7 +186,7 @@ func (h *SNMPHandlers) InventoryGetInventorySnmp(ctx context.Context) (*oas.Inve
 		out.Devices = append(out.Devices, r)
 	}
 	for _, n := range notices {
-		out.Notices = append(out.Notices, notice{ID: n.ID, At: n.At, Text: n.Text})
+		out.Notices = append(out.Notices, notice(n))
 	}
 	return shapeAs[oas.InventoryGetInventorySnmpOK](out)
 }

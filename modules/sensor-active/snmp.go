@@ -433,12 +433,15 @@ func (s *Service) checkReadFrom(ctx context.Context, text string) (netip.Addr, e
 	return a, nil
 }
 
-// lastAddr is the broadcast address of an IPv4 prefix.
+// lastAddr is the broadcast address of an IPv4 prefix: every host bit set.
 func lastAddr(p netip.Prefix) netip.Addr {
 	b := p.Masked().Addr().As4()
-	host := uint32(1)<<(32-p.Bits()) - 1
-	v := uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3]) | host
-	return netip.AddrFrom4([4]byte{byte(v >> 24), byte(v >> 16), byte(v >> 8), byte(v)})
+	for i := range b {
+		if keep := p.Bits() - 8*i; keep < 8 {
+			b[i] |= 0xff >> max(keep, 0)
+		}
+	}
+	return netip.AddrFrom4(b)
 }
 
 // deviceName is how a person knows the device in audit rows and notices.
@@ -780,22 +783,22 @@ func (s *Service) snmpPolicy(ctx context.Context, assetID string, box []netip.Ad
 // snmpAllowed is snmpPolicy for the device of r plus the rules of its read address (D-607): a read address left to the device's IP
 // that the device has since left is not followed (moved: a copied network card looks the same, #829 C4); the read address is never the
 // box or a decoy, never outside the local networks, never excluded. sc is the scope of the settings read for this decision.
-func (s *Service) snmpAllowed(ctx context.Context, r snmpRow, box []netip.Addr, sc scope) (Asset, string, error) {
+func (s *Service) snmpAllowed(ctx context.Context, r snmpRow, box []netip.Addr, sc scope) (string, error) {
 	a, why, err := s.snmpPolicy(ctx, r.AssetID, box)
 	if err != nil || why != "" {
-		return a, why, err
+		return why, err
 	}
 	switch {
 	case r.ReadFromDefault && a.IP != r.ReadFrom:
-		return a, SNMPMoved, nil
+		return SNMPMoved, nil
 	case slices.Contains(box, r.ReadFrom):
-		return a, reasonBox, nil
+		return reasonBox, nil
 	case !localnet.Addr(r.ReadFrom):
-		return a, "out_of_scope", nil
+		return "out_of_scope", nil
 	case sc.excluded(r.ReadFrom):
-		return a, reasonExcluded, nil
+		return reasonExcluded, nil
 	}
-	return a, "", nil
+	return "", nil
 }
 
 // snmpRefusals are the refusals a Check now answers with as they are (SnmpReason in contract.ts).
@@ -864,7 +867,7 @@ func (s *Service) checkSNMP(ctx context.Context, row snmpRow) (SNMPCheckResult, 
 		return SNMPCheckResult{}, err
 	}
 	var res SNMPCheckResult
-	_, why, err := s.snmpAllowed(ctx, row, box, newScope(st))
+	why, err := s.snmpAllowed(ctx, row, box, newScope(st))
 	switch {
 	case errors.Is(err, ErrNotFound):
 		return SNMPCheckResult{}, apierr.New(404, "not_found", "There is no device with this id.")
@@ -1132,7 +1135,7 @@ func (s *Service) recheckSNMP(ctx context.Context, targets []snmpTarget, sc scop
 		if j < 0 || rows[j].ReadFrom != t.ip {
 			continue
 		}
-		_, why, err := s.snmpAllowed(ctx, rows[j], box, sc)
+		why, err := s.snmpAllowed(ctx, rows[j], box, sc)
 		if errors.Is(err, ErrNotFound) || err == nil && why != "" {
 			continue
 		}
@@ -1450,7 +1453,7 @@ func (s *Service) snmpTargets(ctx context.Context, rows []snmpRow) ([]snmpTarget
 	var out []snmpTarget
 	seen := map[netip.Addr]bool{} // one read of an address per job (two devices given one management address: the first one)
 	for _, r := range rows {
-		_, why, err := s.snmpAllowed(ctx, r, box, sc)
+		why, err := s.snmpAllowed(ctx, r, box, sc)
 		if errors.Is(err, ErrNotFound) {
 			continue
 		}

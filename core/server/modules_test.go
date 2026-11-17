@@ -394,13 +394,12 @@ var contractRoutes = map[string][]string{
 		"PATCH /inventory/sensors/{id}",
 	},
 	"sensor-active": {
-		"DELETE /inventory/snmp/{id}",
+		"DELETE /inventory/snmp/devices/{id}",
 		"GET /inventory/snmp",
-		"GET /inventory/snmp/{id}/read",
-		"POST /inventory/snmp",
-		"POST /inventory/snmp/{id}/read",
-		"POST /inventory/snmp/{id}/test",
-		"PUT /inventory/snmp/{id}",
+		"GET /inventory/snmp/devices/{id}",
+		"POST /inventory/snmp/devices/{id}/check",
+		"POST /inventory/snmp/notices/dismiss",
+		"PUT /inventory/snmp/devices/{id}",
 	},
 }
 

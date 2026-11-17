@@ -98,10 +98,10 @@ func (s *Service) snmpView(ctx context.Context, a Asset, r snmpRow, box []netip.
 	d := SNMPDevice{DeviceID: r.AssetID, Name: a.Name, IP: a.IP, ReadFrom: r.ReadFrom, ReadFromDefault: r.ReadFromDefault, Version: r.Version,
 		Username: r.Username, Auth: r.Auth, Priv: r.Priv, Port: r.Port, SecretLast4: r.SecretLast4, PrivLast4: r.PrivLast4,
 		LastCheckedAt: r.LastCheckedAt, LastAnswerAt: r.LastAnswerAt, UpdatedAt: r.UpdatedAt, LastReason: r.LastStatus}
-	switch {
-	case r.LastStatus == "":
+	switch r.LastStatus {
+	case "":
 		d.State = SNMPWaiting
-	case r.LastStatus == sensorlink.SNMPStatusOK:
+	case sensorlink.SNMPStatusOK:
 		d.State = SNMPWorking
 	default:
 		d.State = SNMPNotAnswering
@@ -126,7 +126,7 @@ func (s *Service) snmpView(ctx context.Context, a Asset, r snmpRow, box []netip.
 		why = SNMPSecretLost
 	} else {
 		var err error
-		if _, why, err = s.snmpAllowed(ctx, r, box, sc); err != nil {
+		if why, err = s.snmpAllowed(ctx, r, box, sc); err != nil {
 			if !errors.Is(err, ErrNotFound) {
 				s.log.WarnContext(ctx, "sensoractive: reading a device's snmp policy failed", "device", r.AssetID, "error", err)
 			}

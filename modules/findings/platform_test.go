@@ -40,7 +40,7 @@ func TestPlatformLimits_DataIsValid(t *testing.T) {
 		`{"CVE-2099-0001": {"only": ["alpine"], "affects": "x", "check": "y", "ask": "Does {device} run it?", "source": "https://e", "fixed": {"distro": "alpine", "package": "p", "command": "c", "source": "https://e/{branch}", "releases": {"3.23": "10.2p1"}}}}`,
 		`{"CVE-2099-0001": {"only": ["alpine"], "affects": "x", "check": "y", "ask": "Does {device} run it?", "source": "https://e", "fixed": {"distro": "alpine", "package": "p", "command": "c", "source": "https://e", "releases": {"3.23": "10.2_p1-r1"}}}}`,
 		`{"CVE-2099-0001": {"only": ["alpine"], "affects": "x", "check": "y", "ask": "Does {device} run it?", "source": "https://e", "fixed": {"distro": "alpine", "package": "p", "source_package": "p", "command": "c", "branch_command": "b", "source": "https://e/{branch}", "releases": {"3.23": "10.2_p1-r1"}}}}`, // a hand copy (D-605)
-		`{"CVE-2099-0001": {"only": ["alpine"], "affects": "x", "check": "y", "ask": "Does {device} run it?", "source": "https://e", "fixed": {"distro": "alpine", "package": "p", "command": "c", "branch_command": "b", "source": "https://e/{branch}"}}}`, // no source_package
+		`{"CVE-2099-0001": {"only": ["alpine"], "affects": "x", "check": "y", "ask": "Does {device} run it?", "source": "https://e", "fixed": {"distro": "alpine", "package": "p", "command": "c", "branch_command": "b", "source": "https://e/{branch}"}}}`,                                                            // no source_package
 	} {
 		if _, err := loadPlatformLimits([]byte(bad)); err == nil {
 			t.Errorf("accepted %s", bad)

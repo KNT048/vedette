@@ -12,7 +12,27 @@ const (
 	// EventSeverityRaised: a repeated match raised the severity of an open finding (review H2, M-a of #663): a
 	// product finding whose NVD ranges arrived and put its version inside (basis version), so it may now be critical.
 	EventSeverityRaised = "findings.finding.severity_raised"
+	// EventUncheckedAdded: exploited CVEs entered a device's "could not be checked" list for the first time (D-602, review r1 H2 of
+	// #939): one event per device and match write, listing them; never again for the same device and CVE, never for a CVE the device
+	// has or had a finding for. Published under the Backlog mark from Reconcile's backlog write, like findings.finding.created.
+	EventUncheckedAdded = "findings.unchecked.added"
 )
+
+// UncheckedAddedEvent is the payload of findings.unchecked.added.
+type UncheckedAddedEvent struct {
+	AssetID   string              `json:"asset_id"`
+	AssetName string              `json:"asset_name"` // the name the matcher gives the device (Asset.Name)
+	CVEs      []UncheckedAddedCVE `json:"cves"`       // in list order, each once
+}
+
+// UncheckedAddedCVE is one CVE of an UncheckedAddedEvent: the row it is listed on and why it could not be checked.
+type UncheckedAddedCVE struct {
+	CVE        string          `json:"cve"`
+	SoftwareID string          `json:"software_id"` // "os:<asset>" for the network OS a device states without a software row
+	Software   string          `json:"software"`
+	Version    string          `json:"version"`
+	Reason     UncheckedReason `json:"reason"`
+}
 
 // CreatedEvent is the payload of findings.finding.created.
 type CreatedEvent struct {

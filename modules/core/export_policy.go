@@ -98,6 +98,7 @@ var exportPolicy = map[string]tablePolicy{
 	"fnd_finding_history":    {export: "id finding_id ts user action note"},
 	"fnd_version_needed":     {export: "asset_id software_id software version cves updated_at"},              // D-500
 	"fnd_unchecked":          {export: "asset_id software_id software version source reason cve updated_at"}, // INV-4d, #910
+	"fnd_unchecked_seen":     {export: "asset_id cve first_seen"},                                            // D-602: the (device, CVE) pairs the could-not-check list announced
 	"fnd_reach_run":          {export: "id ran_at stamp total", json: "counts unreachable added"},            // INV-4e, #910: the KEV reachability audit, public feed data only
 	"hp_config":              {export: "key updated_at updated_by", json: "value"},
 	"hp_hits":                {export: "id ts kind service label port src_ip is_test excerpt trap_ip trap_hostname token_id conn_key conn_count handshake", json: "events"},

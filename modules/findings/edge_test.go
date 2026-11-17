@@ -115,7 +115,7 @@ func TestMatchAsset_D619_EdgeLegacyBesideAnOldWindows10(t *testing.T) {
 			got = "notaffected"
 		case slices.ContainsFunc(res.Existing, func(m Match) bool { return m.CVE == e7200.CVE }):
 			got = "existing"
-		case slices.ContainsFunc(res.NameOnly, func(m Match) bool { return m.CVE == e7200.CVE }):
+		case slices.ContainsFunc(slices.Concat(res.NameOnly, res.Aged), func(m Match) bool { return m.CVE == e7200.CVE }):
 			got = "nameonly"
 		}
 		if got != c.want {

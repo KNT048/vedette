@@ -54,7 +54,8 @@ func TestUnchecked_910_OneReasonEach(t *testing.T) {
 		uncVuln("CVE-2026-0004", "Acme", "Gadget Core", uncNew, Affected{CPE: "cpe:2.3:a:acme:gadget:9.0:*:*:*:*:*:*:*"}),
 		uncVuln("CVE-2026-0005", "Acme", "Hub Firmware", uncNew, Affected{CPE: "cpe:2.3:a:acme:hub:-:*:*:*:*:*:*:*"}, uncAff("cpe:2.3:a:other:thing:*:*:*:*:*:*:*:*", "2.0")),
 		uncVuln("CVE-2020-0006", "Acme", "Router", uncOld, uncAff("cpe:2.3:a:acme:router:*:*:*:*:*:*:*:*", "15.9")),
-		// NVD has not answered for this one yet (before the pull, the feed off): no "no NVD data" claim (review r1 M2 of #920)
+		// NVD has not answered for this one yet (before the pull, the feed off): listed at once as no NVD data (D-602, review r1 H2 of
+		// #939, which replaces #920 r1 M2's "no row")
 		func() Vuln { v := uncVuln("CVE-2020-0007", "Acme", "Widget", uncOld); v.NVDAnswered = false; return v }(),
 	}
 	res := MatchAsset(a, vulns, nil, uncNow)
@@ -68,6 +69,7 @@ func TestUnchecked_910_OneReasonEach(t *testing.T) {
 		"g CVE-2026-0004": UncheckedNoNVDVersions, // NVD lists one exact version only (#913): its version orders, NVD gives no range (r1 M1)
 		"h CVE-2026-0005": UncheckedNoNVDVersions, // NVD names the row with no version
 		"r CVE-2020-0006": UncheckedNotComparable, // a range with an end, a version that does not compare with it
+		"w CVE-2020-0007": UncheckedNoNVDData,
 	}
 	got := uncByCVE(res.Unchecked)
 	if len(got) != len(want) {

@@ -84,10 +84,10 @@ func oneMatch(t *testing.T, a Asset, v Vuln, have bool, list ...Vuln) (where str
 	for _, x := range []struct {
 		name string
 		ms   []Match
-	}{{"new", res.New}, {"existing", res.Existing}, {"notaffected", res.NotAffected}, {"unlisted", res.Unlisted}, {"nameonly", res.NameOnly}} {
+	}{{"new", res.New}, {"existing", res.Existing}, {"notaffected", res.NotAffected}, {"unlisted", res.Unlisted}, {"nameonly", res.NameOnly}, {"nameonly", res.Aged}} {
 		for _, m := range x.ms {
 			if m.CVE == v.CVE {
-				if x.name == "nameonly" { // D-602: no finding; the rules' own sentence is what the tests read
+				if x.name == "nameonly" { // D-602: no finding (name only, or aged); the rules' own sentence is what the tests read
 					m.Evidence.Summary = m.said
 				}
 				return x.name, m

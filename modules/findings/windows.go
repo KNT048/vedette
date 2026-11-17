@@ -99,6 +99,15 @@ func winUnknownBuild(s Software, in swInfo) (int, bool) {
 	return b, true
 }
 
+// winrelNewest is the highest build core/winrel lists.
+func winrelNewest() int {
+	n := 0
+	for _, r := range winrel.Releases() {
+		n = max(n, r.Build)
+	}
+	return n
+}
+
 // windowsProduct is the product of an operating-system CPE of Microsoft Windows as NVD writes it ("windows_11_23h2"); false
 // otherwise.
 func windowsProduct(c CPE) (string, bool) {

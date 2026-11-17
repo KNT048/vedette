@@ -17,7 +17,7 @@ func seedNameOnly(t testing.TB, e *env, a Asset, vulns []Vuln) []string {
 	res := MatchAsset(a, vulns, nil, *e.clock)
 	var cves []string
 	if err := e.db.Write(t.Context(), func(tx *sql.Tx) error {
-		for _, m := range res.NameOnly {
+		for _, m := range slices.Concat(res.NameOnly, res.Aged) {
 			m.Evidence.Summary = m.said
 			f, h := NewFinding(m, *e.clock)
 			r := Record{ID: store.NewID("f"), AssetID: a.ID, CVE: m.CVE, Finding: f, FirstSeen: *e.clock, LastSeen: *e.clock}
@@ -63,7 +63,7 @@ func TestMatchAsset_D602_UnknownWindowsBuildIsUnchecked(t *testing.T) {
 	for _, m := range res.NameOnly {
 		dropped = append(dropped, m.CVE)
 		if !strings.HasPrefix(m.Evidence.Summary, NameOnlyNote) ||
-			!strings.Contains(m.Evidence.Summary, "Windows build 26300 is newer than Vedette's table of Windows releases, so Vedette cannot compare 10.0.26300.9974 with the builds NVD lists for "+m.CVE) ||
+			!strings.Contains(m.Evidence.Summary, "Windows build 26300 is newer than Vedette's table of Windows releases (an Insider or preview build), so Vedette cannot compare 10.0.26300.9974 with the builds NVD lists for "+m.CVE) ||
 			!strings.Contains(m.Evidence.Summary, `now listed under "Could not be checked"`) || jsLen(m.Evidence.Summary) > MaxNote {
 			t.Errorf("%s: %q", m.CVE, m.Evidence.Summary)
 		}
@@ -90,8 +90,8 @@ func TestMatchAsset_D602_UnknownWindowsBuildIsUnchecked(t *testing.T) {
 }
 
 // D-602 on CISA's key: whatever made the product-only match (no NVD data, a version NVD's ranges cannot order, NVD naming other
-// products), there is no finding; the CVE goes to the could-not-check list with #920's reason. A scannable CVE on a row the agent
-// did not report stays a finding (the scan's target); on the agent's row it does not.
+// products), there is no finding; the CVE goes to the could-not-check list with #920's reason. A scannable CVE stays a finding on any
+// row, the agent's too (the scan's target, review r1 H1 of #939).
 func TestMatchAsset_D602_CISAKeyUnknownIsUnchecked(t *testing.T) {
 	t.Parallel()
 	noData := qnapVuln()
@@ -123,7 +123,7 @@ func TestMatchAsset_D602_CISAKeyUnknownIsUnchecked(t *testing.T) {
 	}
 	agent := nas("6.1.1")
 	agent.Software[0].Source = "agent"
-	if r := MatchAsset(agent, []Vuln{scan}, nil, t0); len(r.New) != 0 || len(r.NameOnly) != 1 {
+	if r := MatchAsset(agent, []Vuln{scan}, nil, t0); len(r.New) != 1 || len(r.NameOnly) != 0 { // review r1 H1 of #939: on any row
 		t.Fatalf("scannable on the agent's row: %+v", r)
 	}
 	// "every version" (NVD) without a version and a version inside a range stay findings
@@ -234,5 +234,101 @@ func TestContract_D602_ReconcileClosesNameOnlyFindings(t *testing.T) {
 	if r := load(cve0367.CVE); r.Status != StatusSuspected || r.Basis != BasisVersion ||
 		!strings.Contains(r.History[len(r.History)-1].Note, "it had closed it because only the product name matched") {
 		t.Fatalf("not reopened: %+v %+v", r.Finding, r.History[len(r.History)-1])
+	}
+}
+
+// Review r1 of #939, M1 and M2: NVD's "every version" is version evidence for a row whose version Vedette cannot read too, and which
+// row wins never decides whether the CVE is a finding (both orders).
+func TestMatchAsset_D602_EveryVersionAndRowOrder(t *testing.T) {
+	t.Parallel()
+	every := qnapVuln(Affected{CPE: qnapCPE})
+	for _, ver := range []string{"", "15.2(4)M3", "R7000-V1.0.11.100_10.2.100"} {
+		if r := MatchAsset(nas(ver), []Vuln{every}, nil, t0); len(r.New) != 1 || len(r.NameOnly) != 0 || !r.New[0].every {
+			t.Errorf("every version, version %q: %+v", ver, r)
+		}
+	}
+	agent := Software{ID: "s-a", Display: "Photo Station", Vendor: "QNAP", Product: "Photo Station", Version: "R7000-V1.0.11.100_10.2.100", Source: "agent", KevKeys: []string{"qnap|photo station"}}
+	bare := Software{ID: "s-b", Display: "Photo Station", Vendor: "QNAP", Product: "Photo Station", KevKeys: []string{"qnap|photo station"}}
+	unordered := qnapVuln(Affected{CPE: qnapCPE, Range: VersionRange{EndExcl: "next"}})
+	for name, rows := range map[string][]Software{"agent first": {agent, bare}, "bare first": {bare, agent}} {
+		a := Asset{ID: "a", Name: "nas", Software: rows}
+		if r := MatchAsset(a, []Vuln{every}, nil, t0); len(r.New) != 1 || len(r.NameOnly) != 0 {
+			t.Errorf("%s, every version: %+v", name, r)
+		}
+		// neither row has version evidence: no finding whatever the order, and the agent's row is the one listed
+		if r := MatchAsset(a, []Vuln{unordered}, nil, t0); len(r.New) != 0 || len(r.NameOnly) != 1 || r.NameOnly[0].SoftwareID != "s-a" {
+			t.Errorf("%s, unordered range: %+v", name, r)
+		}
+	}
+}
+
+// Review r1 of #939, M3 and H2 (a): "add the version" only where a version would decide; otherwise, and before NVD has answered at
+// all, the CVE is under "could not be checked" at once with the reason (no_nvd_data, no_nvd_versions).
+func TestMatchAsset_D602_AddTheVersionOnlyWhereItDecides(t *testing.T) {
+	t.Parallel()
+	pending := qnapVuln() // NVD has not answered yet (NVDAnswered false)
+	dash := qnapVuln(Affected{CPE: "cpe:2.3:a:qnap:photo_station:-:*:*:*:*:*:*:*"})
+	dash.CVE = "CVE-2023-0004"
+	ranged := qnapVuln(Affected{CPE: qnapCPE, Range: VersionRange{EndExcl: "6.1.2"}})
+	ranged.CVE = "CVE-2023-0005"
+	for _, ver := range []string{"", "6.1.1"} {
+		r := MatchAsset(nas(ver), []Vuln{pending, dash, ranged}, nil, t0)
+		got := uncByCVE(r.Unchecked)
+		if got["s-1 "+pending.CVE].Reason != UncheckedNoNVDData || got["s-1 "+dash.CVE].Reason != UncheckedNoNVDVersions {
+			t.Errorf("version %q: unchecked %+v", ver, r.Unchecked)
+		}
+		if ver == "" && (len(r.NeedVersion) != 1 || !slices.Equal(r.NeedVersion[0].CVEs, []string{ranged.CVE})) {
+			t.Errorf("no version: need %+v", r.NeedVersion)
+		}
+	}
+}
+
+// Review r1 of #939, H2 (b): a device × exploited CVE that enters "could not be checked" for the first time is announced once, in one
+// findings.unchecked.added event per device and write listing the CVEs; never again for that pair, and never for a CVE the device has
+// a finding for (the old product findings closing into the list at the upgrade stay silent).
+func TestContract_D602_NewUncheckedIsAnnouncedOnce(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	dev := desktop55()
+	e.inv.match = map[string]Asset{dev.ID: dev}
+	old := []Vuln{cve0367}
+	seedNameOnly(t, e, dev, old) // the upgrade: a product finding an earlier rule made
+	e.pub.take()
+	if _, err := e.svc.UpsertFromMatch(t.Context(), dev, old); err != nil {
+		t.Fatal(err)
+	}
+	for _, ev := range e.pub.take() {
+		if ev.Name == EventUncheckedAdded {
+			t.Fatalf("the upgrade announced %+v", ev)
+		}
+	}
+	added := []Vuln{cve0367, cve0210, cve4250}
+	if _, err := e.svc.UpsertFromMatch(t.Context(), dev, added); err != nil {
+		t.Fatal(err)
+	}
+	var got []UncheckedAddedEvent
+	for _, ev := range e.pub.take() {
+		if ev.Name == EventUncheckedAdded {
+			got = append(got, ev.Payload.(UncheckedAddedEvent))
+		}
+	}
+	if len(got) != 1 || got[0].AssetID != dev.ID || got[0].AssetName != dev.Name || len(got[0].CVEs) != 2 ||
+		got[0].CVEs[0].CVE != cve0210.CVE || got[0].CVEs[1].CVE != cve4250.CVE || got[0].CVEs[0].Reason != UncheckedNotComparable || got[0].CVEs[0].Software != "Windows 11 Pro" {
+		t.Fatalf("events %+v", got)
+	}
+	e.advance(time.Hour)
+	if _, err := e.svc.Reconcile(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	for _, ev := range e.pub.take() {
+		if ev.Name == EventUncheckedAdded {
+			t.Fatalf("announced twice: %+v", ev)
+		}
+	}
+	if _, err := e.svc.OnAssetDeleted(t.Context(), dev.ID); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.count(`SELECT count(*) FROM fnd_unchecked_seen`); n != 0 {
+		t.Fatalf("seen rows left after the delete: %d", n)
 	}
 }

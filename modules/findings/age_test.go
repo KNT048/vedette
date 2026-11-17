@@ -362,8 +362,9 @@ func TestContract_D615_AgentRowNeverAges(t *testing.T) {
 			CPE: "cpe:2.3:o:microsoft:windows_server_2025:10.0.26100.1742:*:*:*:*:*:x64:*", KevKeys: []string{"microsoft|windows"}, Source: "agent"}}}
 	v := Vuln{CVE: "CVE-2024-43573", Vendor: "Microsoft", Product: "Windows", Published: t0.AddDate(-2, 0, 0), DateAdded: t0.AddDate(-2, 0, 0)} // no version Vedette can compare
 	m := MatchAsset(srv, []Vuln{v}, nil, t0)
-	if len(m.Aged) != 0 || len(m.New) != 0 || len(m.NameOnly) != 1 || m.NameOnly[0].Basis != BasisProduct || !m.NameOnly[0].Evidence.AgentRow {
-		t.Fatalf("an agent row aged out, or a name-only finding (D-602): %+v", m)
+	// D-602 (review r1 M1 of #939): the agent row is no version evidence, so the old entry ages out like any product-only match
+	if len(m.Aged) != 1 || len(m.New)+len(m.NameOnly) != 0 || m.Aged[0].Basis != BasisProduct || !m.Aged[0].Evidence.AgentRow {
+		t.Fatalf("an agent row kept, or a name-only finding (D-602): %+v", m)
 	}
 	seedNameOnly(t, e, srv, []Vuln{v})
 	r, err := loadByPair(t.Context(), e.db.Reader(), "a-1", v.CVE)
@@ -398,7 +399,7 @@ func TestContract_D615_AgentRowNeverAges(t *testing.T) {
 	if _, err := o.svc.UpsertFromMatch(t.Context(), srv, []Vuln{v}); err != nil {
 		t.Fatal(err)
 	}
-	if r, _ := loadByPair(t.Context(), o.db.Reader(), "a-1", v.CVE); r.Status != StatusNotRelevant || !strings.HasPrefix(r.ResolutionNote, NameOnlyNote) {
+	if r, _ := loadByPair(t.Context(), o.db.Reader(), "a-1", v.CVE); r.Status != StatusNotRelevant || !strings.HasPrefix(r.ResolutionNote, AgedNote) {
 		t.Fatalf("an agent row's name-only finding stays: %+v", r.Finding)
 	}
 }
@@ -408,28 +409,31 @@ func TestContract_D615_AgentRowNeverAges(t *testing.T) {
 // row's evidence is never closed for its age when only the banner row matches later (the closeAged guard).
 func TestContract_D615_AgentRowWinsTheTieInBothOrders(t *testing.T) {
 	t.Parallel()
-	agent := Software{ID: "s-agent", Display: "Microsoft Exchange Server 2019", Vendor: "Microsoft", Product: "Exchange Server", Version: "15.2.1118.7",
+	agent := Software{ID: "s-agent", Display: "Microsoft Exchange Server 2019", Vendor: "Microsoft", Product: "Exchange Server", Version: "15.2.792.3",
 		KevKeys: []string{"microsoft|exchange server"}, Source: "agent"}
 	banner := Software{ID: "s-nmap", Display: "Exchange", Vendor: "Microsoft", Product: "Exchange Server", Version: "15.2", KevKeys: []string{"microsoft|exchange server"}, Source: "nmap"}
-	v := Vuln{CVE: "CVE-2021-26855", Vendor: "Microsoft", Product: "Exchange Server", Published: t0.AddDate(-5, 0, 0), DateAdded: t0.AddDate(-5, 0, 0)} // no comparable range
+	// ProxyLogon as the N100 holds it: a safe scan template checks it, and NVD's cumulative-update rows do not compare with the build
+	v := Vuln{CVE: "CVE-2021-26855", Vendor: "Microsoft", Product: "Exchange Server", Published: t0.AddDate(-5, 0, 0), DateAdded: t0.AddDate(-5, 0, 0), Ransomware: true, HasTemplate: true,
+		Affected: []Affected{{CPE: "cpe:2.3:a:microsoft:exchange_server:2019:cumulative_update_8:*:*:*:*:*:*"}}}
 	for name, rows := range map[string][]Software{"agent first": {agent, banner}, "banner first": {banner, agent}} {
 		m := MatchAsset(Asset{ID: "a-1", Name: "mail01", AgentOS: "Microsoft Windows Server 2019", Software: rows}, []Vuln{v}, nil, t0)
-		if len(m.Aged) != 0 || len(m.New) != 0 || len(m.NameOnly) != 1 || !m.NameOnly[0].Evidence.AgentRow || m.NameOnly[0].SoftwareID != "s-agent" {
+		if len(m.Aged)+len(m.NameOnly) != 0 || len(m.New) != 1 || !m.New[0].Evidence.AgentRow || m.New[0].SoftwareID != "s-agent" { // review r1 H1 of #939
 			t.Errorf("%s: %+v", name, m)
 		}
 	}
-	// D-602: a product finding stored with the agent row's evidence is no version evidence: when only the banner matches later, the
-	// age rule closes it (D-617's guard is gone)
+	// the scan's target stays whichever row matches later: only the banner, product-only, matches now
 	e := newEnv(t)
 	dev := Asset{ID: "a-1", Name: "mail01", AgentOS: "Microsoft Windows Server 2019", Software: []Software{banner, agent}}
-	seedNameOnly(t, e, dev, []Vuln{v})
-	dev.Software = []Software{banner} // the agent stops reporting the row; only the banner, product-only, matches now
+	if _, err := e.svc.UpsertFromMatch(t.Context(), dev, []Vuln{v}); err != nil {
+		t.Fatal(err)
+	}
+	dev.Software = []Software{banner}
 	e.advance(time.Minute)
 	if _, err := e.svc.UpsertFromMatch(t.Context(), dev, []Vuln{v}); err != nil {
 		t.Fatal(err)
 	}
-	if r, _ := loadByPair(t.Context(), e.db.Reader(), "a-1", v.CVE); r.Status != StatusNotRelevant || !strings.HasPrefix(r.ResolutionNote, AgedNote) {
-		t.Fatalf("a name-only agent-row finding stays open: %+v", r.Finding)
+	if r, _ := loadByPair(t.Context(), e.db.Reader(), "a-1", v.CVE); r.Status != StatusSuspected {
+		t.Fatalf("a scannable finding closed: %+v", r.Finding)
 	}
 }
 
@@ -471,8 +475,9 @@ func TestMatchAsset_904_OwnOSIsNotAnotherProduct(t *testing.T) {
 		return Asset{ID: "a-1", Name: "host", OS: os, AgentOS: os, Software: []Software{{ID: "s-k", Display: "Linux Kernel", Vendor: "Linux", Product: "Kernel",
 			Version: ver, KevKeys: []string{"linux|kernel"}, Source: "agent"}}}
 	}
+	// D-602 (review r1 M1 of #939): the agent's kernel row is no version evidence either way, so the old entry ages out on every host
 	r := MatchAsset(host("Ubuntu 20.04.6 LTS", "5.4.0"), []Vuln{v}, nil, t0)
-	if len(r.Aged) != 0 || len(r.NameOnly) != 1 || !confirmedMatch(r.NameOnly[0]) { // not aged; D-602: no finding on the name alone
+	if len(r.Aged) != 1 || len(r.New)+len(r.NameOnly) != 0 || confirmedMatch(r.Aged[0]) {
 		t.Errorf("Ubuntu 20.04: %+v", r)
 	}
 	if r := MatchAsset(host("Debian GNU/Linux 13 (trixie)", "6.12.57"), []Vuln{v}, nil, t0); len(r.Aged) != 1 || len(r.New) != 0 {
@@ -480,7 +485,7 @@ func TestMatchAsset_904_OwnOSIsNotAnotherProduct(t *testing.T) {
 	}
 	// review r2 M1: a distribution the OS check does not read may be the one NVD names (Mint 20 runs Ubuntu 20.04's kernel): never aged
 	for _, os := range []string{"Linux Mint 20.3", "Pop!_OS 20.04 LTS", "Ubuntu", ""} {
-		if r := MatchAsset(host(os, "5.4.0-42-generic"), []Vuln{v}, nil, t0); len(r.Aged) != 0 || len(r.NameOnly) != 1 {
+		if r := MatchAsset(host(os, "5.4.0-42-generic"), []Vuln{v}, nil, t0); len(r.Aged) != 1 || len(r.New)+len(r.NameOnly) != 0 {
 			t.Errorf("%q: %+v", os, r)
 		}
 	}

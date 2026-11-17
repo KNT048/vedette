@@ -209,6 +209,7 @@ type Match struct {
 	// gap: for a match MatchResult.NameOnly drops, why no version could be compared (nameOnlyWhy), for the history sentences; said:
 	// the evidence sentence the product match had (what the finding said before D-602), kept for the tests of the rules behind it.
 	gap, said string
+	listed    bool // NameOnly: the CVE is on the device's could-not-check list (the audit line says so only then, review r1 L2 of #939)
 	// bounded: a version match inside a range with an end (a fix to install) or below the distribution's fixed package; not an
 	// exact version NVD lists, a range with only a start, or every version (#910: the only match a row NVD alone ties to the entry
 	// may give, viaNVD; review r1 H1 of #913).
@@ -292,8 +293,11 @@ func aged(v Vuln, now time.Time) bool {
 // CVE-2024-43572 and CVE-2024-43573 closed for their age). Not when NVD's list names only other products than the row (#904,
 // Match.others: CVE-2015-1671 lists .NET Framework, Lync, Silverlight and Live Meeting, CISA "Microsoft Windows"): the agent's
 // version is then compared with nothing NVD names, so the age rule drops it like any product-only guess.
+//
+// D-602 (review r1 M1 of #939): a product match on an agent row is no longer confirmed: the agent gave a version Vedette could not
+// compare, which is no version evidence. confirmedMatch is versionBacked.
 func confirmedMatch(m Match) bool {
-	return m.Basis != BasisProduct || m.every || m.Evidence.AgentRow && m.others == ""
+	return versionBacked(m)
 }
 
 // versionBacked says whether a match rests on version evidence (D-602): a version or scan match, NVD's list of every version of the
@@ -317,11 +321,18 @@ func nameOnlyWhy(s Software, in swInfo, v Vuln, r UncheckedReason, listed bool) 
 		return fmt.Sprintf("NVD has not published which products %s affects yet", v.CVE)
 	}
 	if b, ok := winUnknownBuild(s, in); ok && r == UncheckedNotComparable {
-		return fmt.Sprintf("Windows build %d is newer than Vedette's table of Windows releases, so Vedette cannot compare %s with the builds NVD lists for %s", b, clean(in.ver), v.CVE)
+		where := "is not in Vedette's table of Windows releases (an Insider or preview build)"
+		if b > winrelNewest() {
+			where = "is newer than Vedette's table of Windows releases (an Insider or preview build)"
+		}
+		return fmt.Sprintf("Windows build %d %s, so Vedette cannot compare %s with the builds NVD lists for %s", b, where, clean(in.ver), v.CVE)
 	}
 	switch r {
 	case UncheckedNoNVDVersions:
-		return fmt.Sprintf("NVD names %s for %s but not which versions are affected", sw, v.CVE)
+		if versionGiven(in.ver) { // review r1 L3 of #939: NVD may name releases or updates, just nothing Vedette can order
+			return fmt.Sprintf("NVD lists %s for %s without versions Vedette can compare with %s", sw, v.CVE, clean(in.ver))
+		}
+		return fmt.Sprintf("NVD lists %s for %s without versions", sw, v.CVE)
 	case UncheckedNotNamed:
 		return fmt.Sprintf("NVD's data for %s names other products, not %s", v.CVE, sw)
 	}
@@ -341,6 +352,12 @@ func nameOnlySummary(v Vuln, why string, listed bool) string {
 func agedSummary(v Vuln) string {
 	return fmt.Sprintf("%s: %s was published on %s and added to %s's list on %s, both more than 12 months ago, and Vedette could not compare a version (it matched the product name only). Vedette reopens this finding when it can compare the version (from the agent, the device or one you enter) or a scan that reads the version finds it.",
 		AgedNote, v.CVE, FmtDay(v.Published), v.listName(), FmtDay(v.DateAdded))
+}
+
+// agedGapSummary is agedSummary with why no version was compared (nameOnlyWhy) and where the CVE is now (D-602).
+func agedGapSummary(v Vuln, why string) string {
+	return fmt.Sprintf("%s: %s was published on %s and added to %s's list on %s, both more than 12 months ago, and %s. It is listed under \"Could not be checked\" for this device; Vedette reopens this finding when it can compare the version.",
+		AgedNote, v.CVE, FmtDay(v.Published), v.listName(), FmtDay(v.DateAdded), why)
 }
 
 // agedOthersSummary is the note of a finding the age rule closes because NVD's list names only other products than its row (#904).
@@ -491,12 +508,10 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 					}
 				}
 			case outMatch:
-				// on a tie, a confirmed match wins (NVD says every version, or the agent's row, D-612): it keeps an old CVE whatever
-				// the order of the rows (review r2 #5 of #803; review r2 #1 of #804: an nmap row sorted before the agent's); when neither is
-				// confirmed (#904: NVD lists only other products), the agent's row still wins, so its note and agent_row do not depend on
-				// the order (review r1 M2 of #909)
-				if best == nil || rank(m.Basis) > rank(best.Basis) || rank(m.Basis) == rank(best.Basis) && !confirmedMatch(*best) &&
-					(confirmedMatch(m) || m.Evidence.AgentRow && !best.Evidence.AgentRow) {
+				// on a tie, a match with version evidence wins (versionBacked, D-602; review r1 M1 of #939): whether the CVE is a
+				// finding never depends on the order of the rows; between two without it, the agent's row wins, so its note and
+				// agent_row do not depend on the order either (review r1 M2 of #909)
+				if best == nil || betterMatch(m, *best) {
 					best, bestRow = &m, i
 				}
 			case outNeedVersion:
@@ -543,13 +558,19 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 		}
 		if aged(v, now) && !confirmedMatch(*best) && !v.HasTemplate { // D-615, D-616: an old KEV CVE only with a version compared or a scan hit; a scannable one stays for the scan
 			r := *best
+			r.said = best.Evidence.Summary
+			reason, listed := uncheckedReason(sws[bestRow], infos[bestRow], v, false)
+			r.gap, r.listed = nameOnlyWhy(sws[bestRow], infos[bestRow], v, reason, listed), listed
 			r.Evidence.Summary = agedSummary(v)
-			if r.others != "" { // #904: why the agent's version was compared with nothing
+			switch {
+			case r.others != "": // #904: why the agent's version was compared with nothing
 				r.Evidence.Summary = agedOthersSummary(v, r)
+			case listed: // D-602: why, plainly ("Windows build 26300 is newer than …"), and where the CVE is now
+				r.Evidence.Summary = agedGapSummary(v, r.gap)
 			}
 			res.Aged = append(res.Aged, r)
 			if !needs { // the product match nothing else decided: it was not checked either (#910), nor the product's other rows (r1 L3)
-				if r, ok := uncheckedReason(sws[bestRow], infos[bestRow], v, false); ok &&
+				if r, ok := reason, listed; ok &&
 					!slices.ContainsFunc(unchecked, func(u Unchecked) bool { return u.SoftwareID == sws[bestRow].ID }) {
 					unchecked = append(unchecked, uncheckedOf(sws[bestRow], v, r))
 				}
@@ -558,13 +579,13 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 			decided[v.CVE] = needs
 			continue
 		}
-		if !versionBacked(*best) && (!v.HasTemplate || sws[bestRow].Source == "agent") { // D-602: no finding on the product name alone (a scannable CVE off the agent stays: the scan checks it)
+		if !versionBacked(*best) && !v.HasTemplate { // D-602: no finding on the product name alone; a scannable CVE stays, on any row (the scan checks it, review r1 H1 of #939)
 			r := *best
 			reason, listed := uncheckedReason(sws[bestRow], infos[bestRow], v, false)
 			if listed && isMultiProduct(v.Product) && len(rowEntries(sws[bestRow], infos[bestRow], v)) == 0 {
 				listed = false // a vendor's "Multiple Products" reaches every row of the vendor: only one NVD's list names is listed (#920 r1 L4)
 			}
-			r.gap, r.said = nameOnlyWhy(sws[bestRow], infos[bestRow], v, reason, listed), r.Evidence.Summary
+			r.gap, r.said, r.listed = nameOnlyWhy(sws[bestRow], infos[bestRow], v, reason, listed), r.Evidence.Summary, listed
 			r.Evidence.Summary = nameOnlySummary(v, r.gap, listed)
 			res.NameOnly = append(res.NameOnly, r)
 			if !needs { // like the age rule's: the CVE was not checked, nor the product's other rows
@@ -661,6 +682,18 @@ func rank(b Basis) int {
 		return 3
 	}
 	return 0
+}
+
+// betterMatch says whether m beats best for one CVE across the device's rows: the stronger basis, then version evidence
+// (versionBacked), then the agent's row; otherwise the first row stays.
+func betterMatch(m, best Match) bool {
+	switch {
+	case rank(m.Basis) != rank(best.Basis):
+		return rank(m.Basis) > rank(best.Basis)
+	case versionBacked(m) != versionBacked(best):
+		return versionBacked(m)
+	}
+	return m.Evidence.AgentRow && !best.Evidence.AgentRow
 }
 
 // keyedTo reports whether the software's KEV keys match the entry: its key, or for "Multiple Products" its vendor.
@@ -891,8 +924,10 @@ func judge(a Asset, s Software, in swInfo, v Vuln, key []identity, now time.Time
 			note = fmt.Sprintf("Not affected: version %s of %s is outside every version range NVD lists for %s (read with the ranges of %s, which takes the same monthly update). Vedette closed this by itself and reopens it if a later match says the device is affected.", clean(in.ver), clean(s.Display), v.CVE, w.via)
 		}
 		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}}, outNotAffected
-	case tri == Unknown && !in.given && !every:
+	case tri == Unknown && !in.given && !every && versionDecides(in, v, key):
 		return Match{}, outNeedVersion // D-500: one "add the version" item per software, not one finding per CVE
+		// review r1 M3 of #939: no NVD entry for the row gives a version, so adding one would decide nothing: a product match, which
+		// D-602 turns into a could-not-check row (no_nvd_data, no_nvd_versions)
 	}
 	sw := withVersion(s.Display, s.Version) // M2-6: a scan row's display already ends with its version ("OpenSSH 10.2")
 	name := clean(a.Name)
@@ -921,7 +956,7 @@ func judge(a Asset, s Software, in swInfo, v Vuln, key []identity, now time.Time
 			m.Evidence.Agent = true
 			m.Evidence.Summary = agentSummary(name, s, in, v, within, w, isWin)
 		}
-	case every && !in.given:
+	case every && (!in.given || !versionKnown(in.ver)): // the version does not matter (review r1 M2 of #939: also one Vedette cannot read)
 		m.every = true
 		m.Evidence.Summary = fmt.Sprintf("%s runs %s. %s lists every version of it as affected by %s; no scan has confirmed it yet, so this is only suspected.", name, sw, v.rangesBy(true), v.CVE)
 	case multi:
@@ -1107,6 +1142,19 @@ func listsOthersOnly(in swInfo, v Vuln) bool {
 		}
 	}
 	return len(v.Affected) > 0
+}
+
+// versionDecides says whether a version of the row could decide v (review r1 M3 of #939): an entry decide reads for it (its own, or
+// CISA's key) gives a version (versionEvidence). Otherwise "add the version" would lead nowhere.
+func versionDecides(in swInfo, v Vuln, key []identity) bool {
+	return slices.ContainsFunc(v.Affected, func(af Affected) bool {
+		c, err := af.cpe()
+		if err != nil || c.Part.Kind == NA || !versionEvidence(af) {
+			return false
+		}
+		own, byKey, _ := entryFor(c, in, key)
+		return own || byKey
+	})
 }
 
 // entryFor says whether NVD entry c is about the row for decide: it names the row itself (own: its CPE, name or alias, appliesTo) or

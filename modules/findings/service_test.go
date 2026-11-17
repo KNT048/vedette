@@ -758,7 +758,8 @@ func TestUpsert_NoLongerMatchesThenMatchesAgain(t *testing.T) {
 func TestUpsert_NoVersionIsOneItemAndOldFindingsGetANote(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	if _, err := e.svc.UpsertFromMatch(t.Context(), nas("6.1.1"), e.feeds.vulns); err != nil { // the old flood: a product finding
+	e.feeds.vulns[0].Affected = []Affected{{CPE: qnapCPE, Range: VersionRange{EndExcl: "next"}}} // a version decides it (M3 of #939), 6.1.1 does not compare
+	if _, err := e.svc.UpsertFromMatch(t.Context(), nas("6.1.1"), e.feeds.vulns); err != nil {   // the old flood: a product finding
 		t.Fatal(err)
 	}
 	res, err := e.svc.UpsertFromMatch(t.Context(), nas(""), e.feeds.vulns)

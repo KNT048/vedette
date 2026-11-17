@@ -115,14 +115,14 @@ func TestMatchAsset_904_WindowsEntryNVDListsOthersOnly(t *testing.T) {
 		own := old
 		own.Affected = []Affected{{CPE: cpe}}
 		res := MatchAsset(winlab01(), []Vuln{own}, nil, now)
-		if len(res.Aged) != 0 || len(res.NameOnly) == 1 && (!res.NameOnly[0].Evidence.AgentRow || res.NameOnly[0].others != "") {
+		if len(res.Aged) != 1 || len(res.New)+len(res.NameOnly) != 0 || !res.Aged[0].Evidence.AgentRow || res.Aged[0].others != "" { // D-602: no agent-row exception
 			t.Errorf("%s: %+v", cpe, res)
 		}
 	}
 	// no NVD data yet: CISA's own naming of the product is all there is, and the agent row keeps it (TestContract_D615_AgentRowNeverAges)
 	none := old
 	none.Affected = nil
-	if res := MatchAsset(winlab01(), []Vuln{none}, nil, now); len(res.Aged) != 0 || len(res.New) != 0 || len(res.NameOnly) != 1 || !confirmedMatch(res.NameOnly[0]) {
+	if res := MatchAsset(winlab01(), []Vuln{none}, nil, now); len(res.Aged) != 1 || len(res.New)+len(res.NameOnly) != 0 || confirmedMatch(res.Aged[0]) {
 		t.Errorf("no NVD data: %+v", res)
 	}
 }

@@ -299,6 +299,13 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, whole *Matc
 		if err := replaceUnchecked(ctx, tx, a.ID, unchecked, now); err != nil {
 			return err
 		}
+		added, err := announceUnchecked(ctx, tx, a.ID, unchecked, vulns, now)
+		if err != nil {
+			return err
+		}
+		if len(added) > 0 {
+			emit(EventUncheckedAdded, UncheckedAddedEvent{AssetID: a.ID, AssetName: clean(a.Name), CVEs: added})
+		}
 		return replaceVersionNeeded(ctx, tx, a.ID, need, now)
 	})
 	if err != nil {
@@ -370,16 +377,26 @@ func haveScope(a Asset, vulns []Vuln, m MatchResult, since map[string]Have, have
 		return out
 	}
 	out := MatchResult{New: keep(m.New), Existing: keep(m.Existing), NeedVersion: m.NeedVersion, NotAffected: m.NotAffected, Unlisted: m.Unlisted, Retired: m.Retired, Aged: m.Aged,
-		NameOnly: m.NameOnly, Unchecked: m.Unchecked}
+		Unchecked: m.Unchecked}
 	taken := map[string]bool{}
 	for _, x := range append(append([]Match{}, out.New...), out.Existing...) {
 		taken[x.CVE] = true
 	}
-	for _, x := range slices.Concat(m.Aged, m.NameOnly) { // D-615, D-602: dropped on another row of the same product; not re-added here (review r1 #5 of #803)
+	// D-602, review r1 M3 of #939: a scoped version-less row whose CVE no version could decide is name-only; the customer asked to be
+	// told about it, so it is listed like the "add the version" ones below, and not closed
+	var asked []VersionNeeded
+	for _, x := range m.NameOnly {
+		if _, ok := scoped[x.SoftwareID]; ok && inScope(x.SoftwareID, x.CVE) && !taken[x.CVE] {
+			asked = append(asked, VersionNeeded{SoftwareID: x.SoftwareID, CVEs: []string{x.CVE}})
+			continue
+		}
+		out.NameOnly = append(out.NameOnly, x)
+	}
+	for _, x := range slices.Concat(m.Aged, out.NameOnly) { // D-615, D-602: dropped on another row of the same product; not re-added here (review r1 #5 of #803)
 		taken[x.CVE] = true
 	}
 	name := clean(a.Name)
-	for _, n := range m.NeedVersion {
+	for _, n := range slices.Concat(m.NeedVersion, asked) {
 		for _, cve := range n.CVEs {
 			if taken[cve] || !inScope(n.SoftwareID, cve) {
 				continue
@@ -533,8 +550,11 @@ func (s *Service) closeNameOnly(ctx context.Context, tx *sql.Tx, assetID string,
 		if err := insertHistory(ctx, tx, r.ID, h); err != nil {
 			return closed, err
 		}
-		if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.auto_resolved", Target: r.ID,
-			Detail: r.CVE + ": " + ReasonNotAffectedVersion + " (D-602: product name only, no version evidence; listed under could not be checked)"}); err != nil {
+		detail := r.CVE + ": " + ReasonNotAffectedVersion + " (D-602: product name only, no version evidence"
+		if p.listed { // review r1 L2 of #939
+			detail += "; listed under could not be checked"
+		}
+		if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.auto_resolved", Target: r.ID, Detail: detail + ")"}); err != nil {
 			return closed, err
 		}
 		emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: was, To: r.Status, Reason: ReasonNotAffectedVersion})
@@ -923,7 +943,9 @@ func (s *Service) OnAssetMerged(ctx context.Context, from, into string) (int, er
 		for _, q := range []string{
 			`UPDATE OR IGNORE fnd_version_needed SET asset_id = ?2 WHERE asset_id = ?1`,
 			`DELETE FROM fnd_version_needed WHERE asset_id = ?1`,
-			`DELETE FROM fnd_unchecked WHERE asset_id IN (?1, ?2)`, // not moved: recomputed when "into" is matched (r1 L2: one place per CVE)
+			`DELETE FROM fnd_unchecked WHERE asset_id IN (?1, ?2)`,                                                                                        // not moved: recomputed when "into" is matched (r1 L2: one place per CVE)
+			`INSERT OR IGNORE INTO fnd_unchecked_seen (asset_id, cve, first_seen) SELECT ?2, cve, first_seen FROM fnd_unchecked_seen WHERE asset_id = ?1`, // D-602: announced once per device
+			`DELETE FROM fnd_unchecked_seen WHERE asset_id = ?1`,
 		} {
 			if _, err := tx.ExecContext(ctx, q, from, into); err != nil {
 				return fmt.Errorf("findings: moving the findings of a merged device: %w", err)
@@ -987,6 +1009,9 @@ func (s *Service) deleteAsset(ctx context.Context, assetID string) (int, error) 
 			return fmt.Errorf("findings: deleting version-needed items of device: %w", err)
 		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM fnd_unchecked WHERE asset_id = ?`, assetID); err != nil {
+			return fmt.Errorf("findings: deleting unchecked rows of device: %w", err)
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM fnd_unchecked_seen WHERE asset_id = ?`, assetID); err != nil {
 			return fmt.Errorf("findings: deleting unchecked rows of device: %w", err)
 		}
 		if n == 0 {

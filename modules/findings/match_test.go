@@ -48,7 +48,8 @@ func TestMatchAsset_ProductBasisTextsMatchMock(t *testing.T) {
 
 func TestMatchAsset_NoVersionIsOneItemNotAFinding(t *testing.T) {
 	t.Parallel()
-	res := MatchAsset(nas(""), []Vuln{qnapVuln(), {CVE: "CVE-2023-0001", Vendor: "QNAP", Product: "Photo Station"}}, nil, t0)
+	ranged := []Affected{{CPE: qnapCPE, Range: VersionRange{EndExcl: "6.1.2"}}} // a version decides them (review r1 M3 of #939)
+	res := MatchAsset(nas(""), []Vuln{qnapVuln(ranged...), {CVE: "CVE-2023-0001", Vendor: "QNAP", Product: "Photo Station", Affected: ranged}}, nil, t0)
 	if len(res.New)+len(res.Existing) != 0 || len(res.NeedVersion) != 1 {
 		t.Fatalf("result = %+v", res)
 	}
@@ -272,8 +273,8 @@ func TestMatchAsset_EvidenceTextIsCleaned(t *testing.T) {
 			t.Fatalf("control character in summary %q", m.Evidence.Summary)
 		}
 	}
-	a.Software[0].Version = "n/a\x00\n" // no number: the add-the-version item (a version with a number is a product finding, H1)
-	n := MatchAsset(a, []Vuln{qnapVuln()}, nil, t0).NeedVersion[0]
+	a.Software[0].Version = "n/a\x00\n"                                                                                     // no number: the add-the-version item (a version with a number is a product finding, H1)
+	n := MatchAsset(a, []Vuln{qnapVuln(Affected{CPE: qnapCPE, Range: VersionRange{EndExcl: "2"}})}, nil, t0).NeedVersion[0] // a version would decide (M3 of #939)
 	for _, r := range n.Software + n.Version {
 		if unicode.IsControl(r) {
 			t.Fatalf("control character in item %+v", n)
@@ -311,7 +312,7 @@ func FuzzMatchAsset(f *testing.F) {
 		if eff == "" && scErr == nil {
 			eff, _ = sc.Version.Literal()
 		}
-		if ValidCVE(cve) && !strings.Contains(vendor+product, "|") && (!versionKnown(eff) || scErr != nil) && len(all)+len(res.NeedVersion) != 1 {
+		if ValidCVE(cve) && !strings.Contains(vendor+product, "|") && (!versionKnown(eff) || scErr != nil) && len(all)+len(res.NeedVersion)+len(res.NameOnly)+len(res.Aged) != 1 { // D-602: or name-only
 			t.Fatalf("undecidable input dropped a KEV match: version=%q cpe=%q -> %+v", version, cpe, res)
 		}
 		for _, m := range all {

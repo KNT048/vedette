@@ -73,8 +73,8 @@ func uncheckedRow(a Asset, s Software, in swInfo, v Vuln, named bool, m Match, o
 }
 
 // uncheckedReason is the reason of an unchecked row, first that applies:
-//   - no_nvd_data: NVD answered with no entry (Vuln.NVDAnswered); before it answered there is no row at all (ok false: the list
-//     says nothing it cannot back, review r1 M2 of #920);
+//   - no_nvd_data: Vedette has no NVD entry for it: NVD answered with none, or has not answered yet (D-602, review r1 H2 of #939:
+//     a new exploited CVE matched by name is listed at once; this replaces #920 r1 M2's "no row before NVD answered");
 //   - no_nvd_versions: no entry gives a version (audit class 2);
 //   - not_comparable: a Windows row of a build core/winrel does not know, when NVD lists Windows rows (D-602, winUnknownBuild);
 //   - not_named: none names the row (audit class 5 and "3k", and #919's nvd_other_product);
@@ -83,8 +83,8 @@ func uncheckedRow(a Asset, s Software, in swInfo, v Vuln, named bool, m Match, o
 //   - not_comparable: an entry naming it has a range with an end and the row's version did not compare with it, or the row is a
 //     network OS whose version has no order (scheme): only then can typing the version as the vendor writes it help.
 func uncheckedReason(s Software, in swInfo, v Vuln, scheme bool) (UncheckedReason, bool) {
-	if len(v.Affected) == 0 {
-		return UncheckedNoNVDData, v.NVDAnswered
+	if len(v.Affected) == 0 { // before NVD answered too: Vedette has no NVD data for it yet, and says so at once (review r1 H2 of #939)
+		return UncheckedNoNVDData, true
 	}
 	if !slices.ContainsFunc(v.Affected, versionEvidence) {
 		return UncheckedNoNVDVersions, true
@@ -166,6 +166,47 @@ func replaceUnchecked(ctx context.Context, tx *sql.Tx, assetID string, items []U
 		}
 	}
 	return nil
+}
+
+// announceUnchecked records, in the match's transaction, the (device, CVE) pairs of items whose CVE is in vulns (this write's part
+// of the list: Reconcile's backlog and recent writes each announce their own) and returns those new to the device: never listed
+// before (fnd_unchecked_seen) and with no finding of any status (a finding was announced as one, and an old product finding closing
+// into the list at the upgrade is not news). Each CVE once, in item order (D-602, review r1 H2 of #939).
+func announceUnchecked(ctx context.Context, tx *sql.Tx, assetID string, items []Unchecked, vulns []Vuln, now time.Time) ([]UncheckedAddedCVE, error) {
+	if len(items) == 0 {
+		return nil, nil
+	}
+	in := make(map[string]bool, len(vulns))
+	for _, v := range vulns {
+		in[v.CVE] = true
+	}
+	var out []UncheckedAddedCVE
+	done := map[string]bool{}
+	for _, u := range items {
+		if !in[u.CVE] || done[u.CVE] {
+			continue
+		}
+		done[u.CVE] = true
+		res, err := tx.ExecContext(ctx, `INSERT INTO fnd_unchecked_seen (asset_id, cve, first_seen) VALUES (?, ?, ?) ON CONFLICT (asset_id, cve) DO NOTHING`,
+			assetID, u.CVE, store.FormatTS(now))
+		if err != nil {
+			return nil, fmt.Errorf("findings: recording an unchecked CVE: %w", err)
+		}
+		if n, err := res.RowsAffected(); err != nil || n == 0 {
+			if err != nil {
+				return nil, fmt.Errorf("findings: recording an unchecked CVE: %w", err)
+			}
+			continue
+		}
+		var has bool
+		if err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM fnd_finding WHERE asset_id = ? AND cve = ?)`, assetID, u.CVE).Scan(&has); err != nil {
+			return nil, fmt.Errorf("findings: recording an unchecked CVE: %w", err)
+		}
+		if !has {
+			out = append(out, UncheckedAddedCVE{CVE: u.CVE, SoftwareID: u.SoftwareID, Software: u.Software, Version: u.Version, Reason: u.Reason})
+		}
+	}
+	return out, nil
 }
 
 // uncheckedLive is the stored unchecked rows of CVEs the device has no finding for (any status but one): the list and Home count the

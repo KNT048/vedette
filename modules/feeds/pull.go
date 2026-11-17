@@ -581,6 +581,12 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 		rangesFirst    bool
 	)
 	finish := func(tx *sql.Tx, out outcome) error { // the outcome row and the audit entry, in the pull's last transaction
+		if out.OK { // after the data is written: what the feed holds now (heldNotes), on every good pull
+			var err error
+			if out.Note, err = withHeld(ctx, tx, src.ID, out.Note); err != nil {
+				return err
+			}
+		}
 		if err := recordOutcome(ctx, tx, src.ID, out); err != nil {
 			return err
 		}

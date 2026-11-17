@@ -193,7 +193,7 @@ function lines(c: Content, at: string, ip: boolean, m: ReturnType<typeof matchSe
     }
   }
   const not_checked: NotCheckedRow[] = [{ kind: 'udp', text: NOT_UDP }, { kind: 'ports', text: 'TCP ports outside the fixed list of commonly exposed ports.' }, { kind: 'non_exploited', text: NOT_EXPLOITED }]
-  let cve = `${plural(m.compared, 'identified service')} of ${services.length} compared with today's CISA list of exploited vulnerabilities (1484 entries) and its NVD version ranges: ${plural(m.vulns.length, 'exploited CVE')} matched.`
+  let cve = `${m.compared} of ${plural(services.length, 'service')} compared with today's CISA list of exploited vulnerabilities (1484 entries) and its NVD version ranges: ${plural(m.vulns.length, 'exploited CVE')} matched.`
   if (m.version_gaps.length > 0) cve += ` ${plural(m.version_gaps.length, 'service')} could not be checked: no version was read.`
   if (services.length > m.compared) cve += ` ${plural(services.length - m.compared, 'service')} gave no product to look up, so not compared.`
   return {

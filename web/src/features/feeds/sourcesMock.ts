@@ -16,7 +16,7 @@ interface Def { id: string; name: string; kind: FeedKind; format: FeedFormat; ur
 // Only sources already listed in THIRD_PARTY_NOTICES.md / PRIVACY.md (no new third parties).
 const DEFS: Def[] = [
   { id: 'cisa-kev', name: 'CISA KEV', kind: 'vulnerabilities', format: 'json', url: 'https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json', license: 'CC0', records: (kev as { vulns: unknown[] }).vulns.length },
-  { id: 'first-epss', name: 'FIRST EPSS', kind: 'vulnerabilities', format: 'json', url: 'https://api.first.org/data/v1/epss', license: 'Attribution: EPSS by FIRST', records: 262140 },
+  { id: 'first-epss', name: 'FIRST EPSS', kind: 'vulnerabilities', format: 'json', url: 'https://api.first.org/data/v1/epss', license: 'Attribution: EPSS by FIRST', records: (kev as { vulns: unknown[] }).vulns.length },
   // The data of CVE tiers 2 and 3: every CVE's EPSS score, and NVD's records of the CVEs of the last 12 months
   { id: 'epss-all', name: 'EPSS, every CVE', kind: 'vulnerabilities', format: 'csv', url: 'https://epss.empiricalsecurity.com/epss_scores-current.csv.gz', license: 'Attribution: EPSS by FIRST', records: 406543 },
   { id: 'nvd-kev', name: 'NVD affected versions', kind: 'vulnerabilities', format: 'json', url: 'https://services.nvd.nist.gov/rest/json/cves/2.0', license: 'Public domain. This product uses the NVD API but is not endorsed or certified by the NVD.', records: 1779 },
@@ -49,11 +49,22 @@ const ago = (h: number) => new Date(Date.now() - h * 36e5).toISOString()
  * updated and says why. A clean box has never filled it, so it is fetched like any other feed. */
 const IDLE = 'debian-tracker'
 const NO_DEBIAN = 'Not updated: no Debian device now. Vedette updates it on the next check after an agent reports the packages of a Debian device.'
+/** As modules/feeds heldNotes: the feeds whose count can be 0 on a healthy box, or counts something else than the name says, say
+ * what they hold on every good pull. */
+const HELD: Record<string, string> = {
+  'first-epss': `Scores of ${(kev as { vulns: unknown[] }).vulns.length} of the ${(kev as { vulns: unknown[] }).vulns.length} exploited CVEs on the CISA list, today's and a week ago's.`,
+  'nvd-kev': "NVD records of 1,779 exploited CVEs; 1,702 of them name affected versions.",
+  'cve-org': '77 exploited CVEs have no affected versions from NVD; CVE.org gives versions Vedette can compare for 41 of them, none for 36.',
+  'ubuntu-osv': 'Counts one record per package, release and CVE: 312 exploited CVEs and 1,204 other CVEs of the packages your devices run.',
+  'ubuntu-vex': 'Counts one record per package, release and CVE: 401 exploited CVEs.',
+  'alpine-osv': 'Counts one record per package, release and CVE: 288 exploited CVEs.',
+  'windows-releases': "6 Windows releases on Microsoft's release information pages, with 412 monthly updates, the newest of 11 Nov 2026.",
+}
 const seedBuiltin = (clean: boolean): Record<string, BuiltinState> => Object.fromEntries(DEFS.map((d, i) => [d.id, {
   enabled: d.id !== BYOK, interval_hours: d.kind === 'ioc' || d.id === BYOK ? 6 : d.id === 'cisa-kev' || d.id === 'cve-org' ? 1 : 24, url: d.url,
   ...(clean || d.id === BYOK
     ? { last_fetch: null, records: null, status: 'never' as const, error: null }
-    : { last_fetch: ago(d.id === IDLE ? 9 * 24 : 1 + i * 0.7), records: d.records, status: 'ok' as const, error: d.id === IDLE ? NO_DEBIAN : null }),
+    : { last_fetch: ago(d.id === IDLE ? 9 * 24 : 1 + i * 0.7), records: d.records, status: 'ok' as const, error: d.id === IDLE ? NO_DEBIAN : HELD[d.id] ?? null }),
 }]))
 
 function seedCustom(): Feed[] {
@@ -184,6 +195,7 @@ export const sourceHandlers = [
         else if (out.rejected) error = `${fmtNumber(out.rejected)} of ${fmtNumber(out.accepted + out.rejected)} rows were rejected.${out.reasons[0] ? ` Most often: ${mostOften(out)}.` : ''} A few bad lines in a public list are normal; they are skipped.`
       } catch (e) { status = 'error'; error = e instanceof Error ? e.message : String(e) }
     } else records = f.records
+    if (status === 'ok' && f.builtin && records !== null && HELD[id]) error = HELD[id] // every good pull says what the feed holds
     const now = nowIso()
     const patch = { last_fetch: now, records, status, error, ...(status === 'ok' && { last_success: now }) }
     if (f.builtin) config.update((x) => ({ ...x, builtin: { ...x.builtin, [id]: { ...x.builtin[id]!, ...patch } } }))

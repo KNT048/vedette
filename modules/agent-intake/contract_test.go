@@ -856,7 +856,7 @@ func TestContract_FiftyNodesOnOneAddressReplaceSoftwareOncePerWindow(t *testing.
 	if r := send(12); r.code != 429 {
 		t.Fatalf("a 13th log from one address in a minute: %d", r.code)
 	}
-	if n := strings.Count(w.logs.String(), "second software list from one source address"); n != 1 {
+	if n := strings.Count(w.logs.String(), "list=\"software list\""); n != 1 {
 		t.Fatalf("%d warnings in one window, want 1", n)
 	}
 	w.clock.Advance(90 * time.Second) // the log bucket is free again, the replace window is not

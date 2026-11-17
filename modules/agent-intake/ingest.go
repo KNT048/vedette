@@ -395,7 +395,7 @@ func (s *Service) allowReplace(ctx context.Context, src netip.Addr, node, kind s
 	st.warned = true
 	s.warnMu.Unlock()
 	if warn {
-		s.cfg.Log.WarnContext(ctx, "agent-intake: a second "+kind+" from one source address within 5 minutes was dropped", "src", srcKey(src), "node", node)
+		s.cfg.Log.WarnContext(ctx, "agent-intake: a second list from one source address within 5 minutes was dropped", "list", kind, "src", srcKey(src), "node", node)
 	}
 	return false
 }

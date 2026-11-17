@@ -213,7 +213,7 @@ func (t Target) blocked(now time.Time) BlockedReason {
 	return ""
 }
 
-func (s *Service) view(t Target, latest map[string]latestResult, c checks, now time.Time) TargetView {
+func (s *Service) view(t Target, all []Target, latest map[string]latestResult, c checks, now time.Time) TargetView {
 	v := TargetView{
 		ID: t.ID, Kind: t.Kind, Value: t.Value, Status: t.status(now), Token: t.Token,
 		LastCheck: t.LastCheck, Commitment: t.Commitment, CreatedAt: store.FormatTS(t.CreatedAt),
@@ -238,6 +238,7 @@ func (s *Service) view(t Target, latest map[string]latestResult, c checks, now t
 		v.CommitmentNotice = &n
 	}
 	v.Terms, v.TermsNotice, v.FullScan = t.Terms, termsFor(t.Kind, t.Value), t.mode().Full
+	v.Proof = proofHint(t, all)
 	b := t.blocked(now)
 	if b == "" && t.Kind == KindIP && c.paused(t) {
 		b = BlockedNotCurrent // the latest full check did not see this IP (INV-13): the same answer the scan gate gives
@@ -278,7 +279,7 @@ func (s *Service) Targets(ctx context.Context) ([]TargetView, error) {
 	}
 	out := make([]TargetView, 0, len(ts))
 	for _, t := range ts {
-		out = append(out, s.view(t, latest, c, c.now))
+		out = append(out, s.view(t, ts, latest, c, c.now))
 	}
 	return out, nil
 }
@@ -312,7 +313,11 @@ func (s *Service) targetView(ctx context.Context, q querier, id string) (TargetV
 	if err != nil {
 		return TargetView{}, fmt.Errorf("exposure: reading target: %w", err)
 	}
-	return s.view(t, latest, c, c.now), nil
+	all, err := listTargets(ctx, q)
+	if err != nil {
+		return TargetView{}, fmt.Errorf("exposure: reading target: %w", err)
+	}
+	return s.view(t, all, latest, c, c.now), nil
 }
 
 // ---- adding, deleting, committing ----

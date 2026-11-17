@@ -741,7 +741,7 @@ func subscribe(d deps) {
 		_, err := d.Inventory.RematchCVE(ctx, ev.CVE, ev.Vendor, ev.Product)
 		return err
 	}))
-	d.Bus.Subscribe(feeds.EventNewKEV, on("scan", onNewKEVForScan(d)))          // after inventory's: the findings of the new entry exist when the job looks
+	d.Bus.Subscribe(feeds.EventNewKEV, on("scan", onNewKEVForScan(d))) // after inventory's: the findings of the new entry exist when the job looks
 	// D-601 (review r1 M2): a device whose network scan was turned off (or that may no longer be scanned) stops being scanned now.
 	d.Bus.Subscribe(inventory.EventAssetUpdated, on("scan", func(ctx context.Context, data any) error {
 		ev, ok := data.(inventory.AssetEvent)

@@ -116,3 +116,28 @@ func TestLearnUpdates(t *testing.T) {
 		t.Errorf("after forgetting: %+v", us)
 	}
 }
+
+// A hotpatch revision is current to the monthly update of its month (Baseline); it is never one of Updates.
+func TestBaseline(t *testing.T) {
+	t.Cleanup(func() { LearnUpdates(nil) })
+	LearnUpdates([]Update{
+		{Build: 26100, Server: true, Rev: 33650, Day: day("2026-10-13")},
+		{Build: 26100, Server: true, Rev: 33822, KB: "KB5131080", Day: day("2026-11-10")},
+		{Build: 26100, Server: true, Rev: 33730, KB: "KB5131077", Day: day("2026-11-10"), Hotpatch: true},
+		{Build: 26100, Server: true, Rev: 33900, Day: day("2026-12-08"), Hotpatch: true}, // its month's update is not known yet
+	})
+	if us := Updates(26100, true); len(us) != 2 || us[1].Rev != 33822 {
+		t.Errorf("monthly: %+v", us)
+	}
+	if b, ok := Baseline(26100, true, 33730); !ok || b.Rev != 33822 || b.KB != "KB5131080" {
+		t.Errorf("November hotpatch: %+v %v", b, ok)
+	}
+	for _, c := range []struct {
+		rev    int
+		server bool
+	}{{33650, true}, {33900, true}, {33730, false}, {12345, true}} {
+		if b, ok := Baseline(26100, c.server, c.rev); ok {
+			t.Errorf("%+v: %+v", c, b)
+		}
+	}
+}

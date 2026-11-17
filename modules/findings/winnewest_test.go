@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"testing"
 	"time"
+
+	"github.com/knt048/vedette/core/winrel"
 )
 
 // srv25 is a tier CVE of Windows Server 2025 fixed in build 26100.rev, published on day.
@@ -169,5 +171,82 @@ func TestPlan_WindowsNewestUpdateThroughTheEndpoints(t *testing.T) {
 	if len(planned) != 1 || planned[0].(map[string]any)["action"] != "Install the latest cumulative update for Windows Server 2025 (from build 26100.33650 to 26100.33822 or later; "+kbOf(33822)+")" ||
 		planned[0].(map[string]any)["nvd_lag"] != true || len(planned[0].(map[string]any)["cves"].([]any)) != 0 {
 		t.Fatalf("planned: %v", planned)
+	}
+}
+
+// When an exploited-list entry of the newest month already has the row (NVD analyses those first), To fix names the same update with
+// the same target: the plan names no second row saying its CVEs are not analysed.
+func TestPlan_WindowsNewestUpdateNotWhenExploited(t *testing.T) {
+	now := winDay("2026-11-17")
+	learnUpdates(t, map[[2]int][]monthly{{26100, 1}: {{"2026-10-13", 33650}, {"2026-11-10", 33822}}})
+	host := winHost(26100, true, 33650, "")
+	zeroDay := nvdWindows("CVE-2026-74001", "2026-11-10", nvdRow{"windows_server_2025", "*", "*", "10.0.26100.33822"})
+	if f := RowFixes(host, []Vuln{zeroDay})[zeroDay.CVE]; f == nil || f.Fixed != "10.0.26100.33822" || f.KB != kbOf(33822) {
+		t.Fatalf("the exploited row: %+v", f)
+	}
+	x := newTierIndex(nil).withKEV([]Vuln{zeroDay})
+	if items, _ := matchTiers(host, x, map[string]bool{zeroDay.CVE: true}, now); len(items) != 0 {
+		t.Fatalf("a second row for the exploited update: %+v", items)
+	}
+	// an exploited entry the device is not inside (fixed in October) does not stand for the newest update
+	old := nvdWindows("CVE-2026-74002", "2026-10-13", nvdRow{"windows_server_2025", "*", "*", "10.0.26100.33650"})
+	if items, _ := matchTiers(host, newTierIndex(nil).withKEV([]Vuln{old}), map[string]bool{old.CVE: true}, now); len(items) != 1 || len(items[0].CVEs) != 0 {
+		t.Fatalf("no exploited row: want the newest update, got %+v", items)
+	}
+}
+
+// A device enrolled in hotpatching runs the month's hotpatch, below that month's B build but with its security fixes: it is current to
+// the month, for the newest-update row and for the rows with counts (an NVD range that ends at the month's B build does not hold it),
+// and for exploited findings; the month after, it is one update behind like any other device, named from its own build.
+func TestPlan_WindowsHotpatchIsCurrentForItsMonth(t *testing.T) {
+	now := winDay("2026-11-17")
+	t.Cleanup(func() { winrel.LearnUpdates(nil) })
+	learn := func(extra ...winrel.Update) {
+		winrel.LearnUpdates(append([]winrel.Update{
+			{Build: 26100, Server: true, Rev: 33650, KB: kbOf(33650), Day: winDay("2026-10-13")},
+			{Build: 26100, Server: true, Rev: 33822, KB: kbOf(33822), Day: winDay("2026-11-10")},
+			{Build: 26100, Server: true, Rev: 33730, KB: kbOf(33730), Day: winDay("2026-11-10"), Hotpatch: true},
+		}, extra...))
+	}
+	learn()
+	hot := winHost(26100, true, 33730, "")
+	nov := srv25("CVE-2026-75001", 33822, "2026-11-12")
+	if items, _ := matchTiers(hot, newTierIndex([]TierVuln{nov}), nil, now); len(items) != 0 {
+		t.Fatalf("hotpatch of the newest month: %+v", items)
+	}
+	zeroDay := nvdWindows("CVE-2026-75002", "2026-11-10", nvdRow{"windows_server_2025", "*", "*", "10.0.26100.33822"})
+	if fixes := RowFixes(hot, []Vuln{zeroDay}); len(fixes) != 0 {
+		t.Fatalf("exploited: %+v", fixes)
+	}
+	if w, m := oneMatch(t, hot, zeroDay, true); w != "notaffected" {
+		t.Fatalf("exploited match: %s %+v", w, m)
+	}
+	// the same build on a device not on hotpatch would be below November's update: only a revision Microsoft lists as a hotpatch counts
+	if items, _ := matchTiers(winHost(26100, true, 33731, ""), newTierIndex([]TierVuln{nov}), nil, now); len(items) != 1 || len(items[0].CVEs) != 1 {
+		t.Fatalf("not a hotpatch: %+v", items)
+	}
+	// December's update is out: the hotpatch device is one update behind, named from the build it runs
+	learn(winrel.Update{Build: 26100, Server: true, Rev: 33950, KB: kbOf(33950), Day: winDay("2026-12-08")})
+	items, _ := matchTiers(hot, newTierIndex([]TierVuln{nov}), nil, winDay("2026-12-10"))
+	if len(items) != 1 || len(items[0].CVEs) != 0 || items[0].Fixed != "10.0.26100.33950" || items[0].Version != "10.0.26100.33730" {
+		t.Fatalf("a month later: %+v", items)
+	}
+}
+
+// "Its CVEs are not yet analysed by NVD" holds while the update is young (winNVDLagWindow); after it the row stays, the device is still
+// behind, but nvd_lag is false: the pages say NVD lists no CVE of it for the release yet. Past AgeLimit (the feed has not been read for a
+// year) no update is named.
+func TestPlan_WindowsNewestUpdateAge(t *testing.T) {
+	learnUpdates(t, map[[2]int][]monthly{{26100, 1}: {{"2026-10-13", 33650}, {"2026-11-10", 33822}}})
+	host := winHost(26100, true, 33650, "")
+	for _, c := range []struct {
+		now   string
+		items int
+		lag   bool
+	}{{"2026-11-17", 1, true}, {"2026-12-21", 1, true}, {"2026-12-23", 1, false}, {"2027-11-12", 0, false}} {
+		items, _ := matchTiers(host, newTierIndex(nil), nil, winDay(c.now))
+		if len(items) != c.items || c.items == 1 && items[0].NVDLag != c.lag {
+			t.Errorf("%s: want %d item (lag %v), got %+v", c.now, c.items, c.lag, items)
+		}
 	}
 }

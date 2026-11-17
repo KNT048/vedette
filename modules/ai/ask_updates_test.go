@@ -76,6 +76,11 @@ func TestAskDeviceUpdates_OneCallByIP(t *testing.T) {
 	if rows := list(got["table"].(map[string]any)["rows"]); len(rows) != 5 || !strings.Contains(fmt.Sprint(rows[0]), "Mozilla Firefox") || !strings.Contains(fmt.Sprint(rows[2]), "recommended") {
 		t.Fatalf("table %v", got["table"])
 	}
+	// the table's CVE cell says what the line says: a floor while NVD lags, never "0 CVEs" for an update NVD has not analysed
+	if cells := fmt.Sprint(list(got["table"].(map[string]any)["rows"])); regexp.MustCompile(`\b0 CVEs`).MatchString(cells) ||
+		!strings.Contains(cells, "its CVEs are not yet analysed by NVD") || !strings.Contains(cells, "at least 5 CVEs") {
+		t.Fatalf("table cells %s", cells)
+	}
 }
 
 // The device is found by its name too; two names that both match ask for the asset_id; an unknown IP says so.

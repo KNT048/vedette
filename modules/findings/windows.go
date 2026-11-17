@@ -37,9 +37,11 @@ import (
 
 // winDev is a device's Windows release row.
 type winDev struct {
-	rel    winrel.Release
-	ubr    string // update revision, "4460"
-	rev    int    // the same as a number
+	rel winrel.Release
+	ubr string // update revision, "4460", as the device reports it
+	// rev is the revision the device is compared at: ubr as a number, or, for a hotpatch Microsoft lists for the release, the
+	// revision of the same month's monthly update (core/winrel.Baseline): the hotpatch has that month's security fixes, below its build
+	rev    int
 	target string // "x64", "x86", "arm64"; "" when not known
 	ltsc   bool   // the device's OS name says LTSC or LTSB
 	cpe    CPE    // the row's own CPE: an NVD row's NA covers only what it leaves unstated (winUnpinned, #901)
@@ -71,6 +73,9 @@ func winDevice(in swInfo) (winDev, bool) {
 	}
 	n, _ := strconv.Atoi(m[2])
 	os := strings.ToLower(in.osName)
+	if b, ok := winrel.Baseline(rel.Build, rel.Server, n); ok {
+		n = b.Rev
+	}
 	d := winDev{rel: rel, ubr: m[2], rev: n, ltsc: strings.Contains(os, "ltsc") || strings.Contains(os, "ltsb"), cpe: in.cpe}
 	if t, ok := in.cpe.TargetHW.Literal(); ok && in.cpe.TargetHW.Kind == Value {
 		d.target = t
@@ -540,7 +545,7 @@ func winEval(c CPE, r VersionRange, d winDev) (Tri, VersionRange, int) {
 		}
 		build = n
 	}
-	t := r.Contains(fmt.Sprintf("10.0.%d.%s", build, d.ubr))
+	t := r.Contains(fmt.Sprintf("10.0.%d.%d", build, d.rev))
 	at := func(b string) string {
 		if b == "" {
 			return ""

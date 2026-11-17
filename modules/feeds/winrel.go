@@ -55,6 +55,10 @@ var (
 	// updates"): its rows name their own build, so the monthly updates need no heading
 	winRelAnyTableRE = regexp.MustCompile(`(?s)<table[^>]*\bid="historyTable_[0-9]{1,3}"[^>]*>(.*?)</table>`)
 	winRelMonthlyRE  = regexp.MustCompile(`^20[0-9]{2}-[01][0-9] B$`)
+	// a hotpatch calendar ("Calendar year 2026" of Windows Server 2025, Windows 11 24H2): Month, Update type ("2026.11 B"), Type
+	// ("Hotpatch", "Baseline (Restart)"), Availability date, Build, KB
+	winRelHotpatchTableRE = regexp.MustCompile(`(?s)<table[^>]*\bid="HotpatchCalendar_[A-Za-z0-9_]{1,60}"[^>]*>(.*?)</table>`)
+	winRelHotpatchRE      = regexp.MustCompile(`^20[0-9]{2}\.[01][0-9] B$`)
 )
 
 // winRelUpdate is one row of a release's history.
@@ -106,30 +110,46 @@ func parseWinRelPage(body []byte, server bool) ([]winRelHistory, error) {
 
 // parseWinRelUpdates reads the monthly security updates ("2026-11 B") of every history table of one of Microsoft's release
 // information pages, of the kind of the page (server or client), each by the build its row names. The previews (C, D), out-of-band
-// and first builds are left out: the target of a Windows release's update is the month's security update everyone is offered. A row
-// whose values are not of the expected shape is skipped, and so is one dated after now or outside the month its label names (a
-// mistyped date would stay "newest" for a year); a page with none gives none.
+// and first builds are left out: the target of a Windows release's update is the month's security update everyone is offered. It reads
+// the hotpatches of the page's hotpatch calendars too (Type "Hotpatch"; the calendars' baselines are the history's B rows): a device on
+// one is current to its month (core/winrel.Baseline). A row whose values are not of the expected shape is skipped, and so is one dated
+// after now or outside the month its label names (a mistyped date would stay "newest" for a year); a page with none gives none.
 func parseWinRelUpdates(body []byte, server bool, now time.Time) []winrel.Update {
 	var out []winrel.Update
+	read := func(label, day, build, kb string, hotpatch bool) {
+		bm := winRelBuildRE.FindStringSubmatch(build)
+		d, err := time.Parse(time.DateOnly, day)
+		if bm == nil || err != nil || d.Year() < 2015 || kb != "" && !winRelKBRE.MatchString(kb) || d.After(now) ||
+			d.Format("2006-01") != strings.Replace(label[:7], ".", "-", 1) {
+			return
+		}
+		b, _ := strconv.Atoi(bm[1])
+		rev, _ := strconv.Atoi(bm[2])
+		if b < 10240 || rev < 1 {
+			return
+		}
+		out = append(out, winrel.Update{Build: b, Server: server, Rev: rev, KB: kb, Day: d, Hotpatch: hotpatch})
+	}
 	for _, m := range winRelAnyTableRE.FindAllSubmatch(body, 64) {
 		for _, row := range winRelRowRE.FindAllSubmatch(m[1], 2000) {
 			cells := winRelCellRE.FindAllSubmatch(row[1], 8)
 			if len(cells) != 5 {
 				continue
 			}
-			upd, day, build, kb := winRelText(cells[1][1]), winRelText(cells[2][1]), winRelText(cells[3][1]), winRelText(cells[4][1])
-			bm := winRelBuildRE.FindStringSubmatch(build)
-			d, err := time.Parse(time.DateOnly, day)
-			if bm == nil || err != nil || d.Year() < 2015 || !winRelMonthlyRE.MatchString(upd) || kb != "" && !winRelKBRE.MatchString(kb) ||
-				d.After(now) || d.Format("2006-01") != upd[:7] {
+			if upd := winRelText(cells[1][1]); winRelMonthlyRE.MatchString(upd) {
+				read(upd, winRelText(cells[2][1]), winRelText(cells[3][1]), winRelText(cells[4][1]), false)
+			}
+		}
+	}
+	for _, m := range winRelHotpatchTableRE.FindAllSubmatch(body, 64) {
+		for _, row := range winRelRowRE.FindAllSubmatch(m[1], 100) {
+			cells := winRelCellRE.FindAllSubmatch(row[1], 8)
+			if len(cells) != 6 {
 				continue
 			}
-			b, _ := strconv.Atoi(bm[1])
-			rev, _ := strconv.Atoi(bm[2])
-			if b < 10240 || rev < 1 {
-				continue
+			if upd := winRelText(cells[1][1]); winRelHotpatchRE.MatchString(upd) && winRelText(cells[2][1]) == "Hotpatch" {
+				read(upd, winRelText(cells[3][1]), winRelText(cells[4][1]), winRelText(cells[5][1]), true)
 			}
-			out = append(out, winrel.Update{Build: b, Server: server, Rev: rev, KB: kb, Day: d})
 		}
 	}
 	return out
@@ -259,8 +279,8 @@ func applyWinRel(ctx context.Context, tx *sql.Tx, rels []winrel.Release, ups []w
 				return nil, fmt.Errorf("feeds: clear windows updates: %w", err)
 			}
 		}
-		if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_winrel_update (build, server, rev, kb, day) VALUES (?, ?, ?, ?, ?) ON CONFLICT DO NOTHING`,
-			u.Build, k[1], u.Rev, u.KB, u.Day.Format(time.DateOnly)); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_winrel_update (build, server, rev, kb, day, hotpatch) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING`,
+			u.Build, k[1], u.Rev, u.KB, u.Day.Format(time.DateOnly), boolInt(u.Hotpatch)); err != nil {
 			return nil, fmt.Errorf("feeds: store windows update: %w", err)
 		}
 	}
@@ -329,7 +349,7 @@ func winRelRows(ctx context.Context, q winRelQuerier) ([]winrel.Release, error) 
 
 // winRelUpdateRows reads the stored monthly updates.
 func winRelUpdateRows(ctx context.Context, q winRelQuerier) ([]winrel.Update, error) {
-	rows, err := q.QueryContext(ctx, `SELECT build, server, rev, kb, day FROM feeds_winrel_update ORDER BY build, server, rev`)
+	rows, err := q.QueryContext(ctx, `SELECT build, server, rev, kb, day, hotpatch FROM feeds_winrel_update ORDER BY build, server, rev`)
 	if err != nil {
 		return nil, fmt.Errorf("feeds: read windows updates: %w", err)
 	}
@@ -337,12 +357,12 @@ func winRelUpdateRows(ctx context.Context, q winRelQuerier) ([]winrel.Update, er
 	var out []winrel.Update
 	for rows.Next() {
 		var u winrel.Update
-		var server int
+		var server, hotpatch int
 		var d string
-		if err := rows.Scan(&u.Build, &server, &u.Rev, &u.KB, &d); err != nil {
+		if err := rows.Scan(&u.Build, &server, &u.Rev, &u.KB, &d, &hotpatch); err != nil {
 			return nil, fmt.Errorf("feeds: read windows updates: %w", err)
 		}
-		u.Server = server == 1
+		u.Server, u.Hotpatch = server == 1, hotpatch == 1
 		if u.Day, err = time.Parse(time.DateOnly, d); err != nil {
 			continue
 		}

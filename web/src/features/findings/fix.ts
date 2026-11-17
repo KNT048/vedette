@@ -6,6 +6,9 @@ import type { PlanItem, RowFix } from './types'
 const build = (v: string) => v.replace(/^10\.0\./, '')
 /** The KB number next to a Windows build ("; KB5131080"), as the box's sentence names it; "" when Microsoft's list has none. */
 export const kbNote = (kb: string) => (kb ? `; ${kb}` : '')
+/** What a recommended Windows update with no CVE says instead of a count: its CVEs are not analysed yet while it is young (nvd_lag),
+ *  then that NVD lists none for the release yet. */
+export const noCvesKey = (nvdLag: boolean) => (nvdLag ? 'plan.notAnalysed' : 'plan.noCves')
 
 /** What to install, in one sentence ("Install the latest cumulative update for Windows Server 2025 (from build 26100.1742 to 26100.7092 or
  *  later)"): a Windows build names the device's build, as every other upgrade names its version. */

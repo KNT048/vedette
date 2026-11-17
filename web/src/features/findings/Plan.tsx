@@ -17,7 +17,7 @@ import { useModules } from '@/lib/modules'
 import { useToggleModule } from '@/features/core/api'
 import { usePatchFeed } from '@/features/feeds/api'
 import { fmtDay } from '@/features/feeds/dates'
-import { usePlanAction } from './fix'
+import { noCvesKey, usePlanAction } from './fix'
 import type { Plan, PlanCve, PlanItem } from './types'
 import { InfoTip } from '@/components/common/InfoTip'
 import { RiskMarker } from '@/features/inventory/RiskMarker'
@@ -129,7 +129,7 @@ function PlanRow({ i, action, showDevice, likelyOnly }: { i: PlanItem; action: s
         {showDevice ? <><Link to={`/devices/${i.asset.id}`} className="font-medium text-accent underline-offset-4 hover:underline">{i.asset.name}</Link>{' '}<RiskMarker id={i.asset.id} risk={i.risk} className="align-middle" />{': '}</> : null}
         <span className="font-medium">{action}</span>{': '}
         {/* Microsoft's newest Windows update with none of its CVEs analysed by NVD yet: no count, no list */}
-        {i.cves.length === 0 ? t('plan.notAnalysed') : likelyOnly ? <span className="text-warn">{t('plan.fixesOnlyLikely', { count: i.cves.length })}</span> : (
+        {i.cves.length === 0 ? t(noCvesKey(i.nvd_lag)) : likelyOnly ? <span className="text-warn">{t('plan.fixesOnlyLikely', { count: i.cves.length })}</span> : (
           <>
             {t(i.nvd_lag ? 'plan.fixesAtLeast' : 'plan.fixes', { count: i.cves.length })}
             {i.likely > 0 ? <> <span className="text-warn">{t('plan.fixesLikely', { count: i.likely })}</span></> : null}

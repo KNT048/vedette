@@ -202,12 +202,17 @@ func tableByProduct(product string) (Release, bool) {
 // cumulative update Windows Update offers that month, at the release's build ("26100.33822", KB5131080 of 2026-11-10 for Windows
 // Server 2025). The feeds module reads them on the box once a day and hands them to LearnUpdates. NVD analyses a month's CVEs days
 // to weeks after Microsoft publishes them, so the newest update named here may be newer than every fixed build NVD lists.
+//
+// Hotpatch marks a hotpatch of the month instead (the pages' hotpatch calendars: Windows Server 2022/2025 Azure Edition and Arc,
+// Windows 11 Enterprise): a device enrolled in hotpatching gets it without a restart, at a revision below the month's B build
+// ("26100.33730", KB5131077), with the month's security fixes. It is never a target; a device on it is current to its month (Baseline).
 type Update struct {
-	Build  int // 26100
-	Server bool
-	Rev    int    // 33822
-	KB     string // "KB5131080"; "" when the page names none
-	Day    time.Time
+	Build    int // 26100
+	Server   bool
+	Rev      int    // 33822
+	KB       string // "KB5131080"; "" when the page names none
+	Day      time.Time
+	Hotpatch bool
 }
 
 type updateKey struct {
@@ -215,43 +220,83 @@ type updateKey struct {
 	server bool
 }
 
-// updates are the updates LearnUpdates was last given, by release, oldest first; nil before the first call.
-var updates atomic.Pointer[map[updateKey][]Update]
+// learnedUpdates are the updates LearnUpdates was last given, by release, oldest first (monthly and hotpatch apart).
+type learnedUpdates struct{ monthly, hotpatch map[updateKey][]Update }
+
+// updates is what LearnUpdates was last given; nil before the first call.
+var updates atomic.Pointer[learnedUpdates]
 
 var kbShape = regexp.MustCompile(`^KB[0-9]{6,8}$`)
 
-// LearnUpdates sets the monthly updates Microsoft's release information lists and returns how many it kept: a valid one (build of a
-// Windows 10 or later release, revision 1..999999, a KB of the right shape or none, a day), once per release and revision. Each call
-// replaces what the last one set; nil or empty forgets them all.
+// LearnUpdates sets the monthly updates and hotpatches Microsoft's release information lists and returns how many it kept: a valid one
+// (build of a Windows 10 or later release, revision 1..999999, a KB of the right shape or none, a day), once per release and revision.
+// Each call replaces what the last one set; nil or empty forgets them all.
 func LearnUpdates(us []Update) int {
-	byRel := map[updateKey][]Update{}
+	l := learnedUpdates{monthly: map[updateKey][]Update{}, hotpatch: map[updateKey][]Update{}}
+	seen := map[[3]int]bool{}
 	n := 0
 	for _, u := range us {
 		k := updateKey{u.Build, u.Server}
-		if u.Build < 10240 || u.Build > 99999 || u.Rev < 1 || u.Rev > 999999 || u.KB != "" && !kbShape.MatchString(u.KB) || u.Day.IsZero() ||
-			slices.ContainsFunc(byRel[k], func(o Update) bool { return o.Rev == u.Rev }) {
+		r := [3]int{u.Build, boolInt(u.Server), u.Rev}
+		if u.Build < 10240 || u.Build > 99999 || u.Rev < 1 || u.Rev > 999999 || u.KB != "" && !kbShape.MatchString(u.KB) || u.Day.IsZero() || seen[r] {
 			continue
 		}
-		byRel[k] = append(byRel[k], u)
+		seen[r] = true
+		if u.Hotpatch {
+			l.hotpatch[k] = append(l.hotpatch[k], u)
+		} else {
+			l.monthly[k] = append(l.monthly[k], u)
+		}
 		n++
 	}
-	for _, l := range byRel {
-		slices.SortFunc(l, func(a, b Update) int {
-			if c := a.Day.Compare(b.Day); c != 0 {
-				return c
-			}
-			return a.Rev - b.Rev
-		})
+	for _, m := range []map[updateKey][]Update{l.monthly, l.hotpatch} {
+		for _, us := range m {
+			slices.SortFunc(us, func(a, b Update) int {
+				if c := a.Day.Compare(b.Day); c != 0 {
+					return c
+				}
+				return a.Rev - b.Rev
+			})
+		}
 	}
-	updates.Store(&byRel)
+	updates.Store(&l)
 	return n
 }
 
-// Updates are the monthly updates of the client (server false) or server release on build, oldest first (by day, then revision); nil
-// when none was learned. The caller must not change the slice.
+func boolInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
+
+// Updates are the monthly updates (never a hotpatch) of the client (server false) or server release on build, oldest first (by day,
+// then revision); nil when none was learned. The caller must not change the slice.
 func Updates(build int, server bool) []Update {
 	if p := updates.Load(); p != nil {
-		return (*p)[updateKey{build, server}]
+		return p.monthly[updateKey{build, server}]
 	}
 	return nil
+}
+
+// Baseline is, for a device of the release on build at revision rev, the monthly update it is current to: when rev is a hotpatch
+// Microsoft lists for the release, the monthly update of the same month (its B build, above the hotpatch's revision, with the same
+// security fixes). false when rev is no hotpatch, or the month's update is not known.
+func Baseline(build int, server bool, rev int) (Update, bool) {
+	p := updates.Load()
+	if p == nil {
+		return Update{}, false
+	}
+	k := updateKey{build, server}
+	i := slices.IndexFunc(p.hotpatch[k], func(u Update) bool { return u.Rev == rev })
+	if i < 0 {
+		return Update{}, false
+	}
+	h := p.hotpatch[k][i]
+	for _, u := range p.monthly[k] {
+		if u.Day.Year() == h.Day.Year() && u.Day.Month() == h.Day.Month() && u.Rev > h.Rev {
+			return u, true
+		}
+	}
+	return Update{}, false
 }

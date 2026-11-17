@@ -173,7 +173,7 @@ func (s *Service) RefreshPlan(ctx context.Context) error {
 			return fmt.Errorf("findings: plan: reading the distributions' tier data: %w", err)
 		}
 	}
-	x := newTierIndex(tv).withDistro(dv, covered)
+	x := newTierIndex(tv).withDistro(dv, covered).withKEV(kevs)
 	now := s.now()
 	got := make(map[string]planDevice, len(assets))
 	items := 0

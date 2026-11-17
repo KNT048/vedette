@@ -111,6 +111,16 @@ describe('Findings › To fix', () => {
     await expectNoA11yViolations()
   })
 
+  it('past six weeks the same row says NVD lists no CVE of it yet, not that NVD has not analysed them', async () => {
+    const win = act({ group: 'a-srv/s-w', software_id: 's-w', software: 'Windows Server 2025', product: 'microsoft|windows_server_2025', version: '10.0.26100.33650', fixed: '10.0.26100.33822', kind: 'windows', windows: true,
+      action: 'Install the latest cumulative update for Windows Server 2025 (from build 26100.33650 to 26100.33822 or later; KB5131080)', worst: '', detected: 0, nvd_lag: false, kb: 'KB5131080' })
+    serve({ ...sample, devices: [dev('a-srv', 'Windows Server 2025 host', { planned: [win] })] })
+    renderApp('/findings')
+    const rec = await screen.findByRole('list', { name: 'Recommended updates for Windows Server 2025 host' }, T)
+    expect(rec).toHaveTextContent('KB5131080): NVD lists no CVE of it for this release yet')
+    expect(rec).not.toHaveTextContent('not yet analysed')
+  })
+
   it('a device filter shows as a chip that clears it, and the empty state names the device', async () => {
     serve()
     renderApp('/findings?device=a-none')

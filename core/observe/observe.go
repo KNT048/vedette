@@ -166,11 +166,12 @@ type AgentReleaser interface {
 }
 
 // AgentDevice is what the inventory knows of one device for the agents that report on it: the agent bound to it (AssetHint.Agent,
-// "" when none), its IPv4 (zero when none) and its MAC ("" when none).
+// "" when none), its IPv4 (zero when none), its MAC ("" when none) and whether it is the box.
 type AgentDevice struct {
 	Agent string
 	IP    netip.Addr
 	MAC   string
+	IsBox bool // the Vedette box itself, whose packages the box reads (no agent)
 }
 
 // AgentDevices finds a device by its inventory id; found is false when there is none. agent-intake reads it to ask the osquery node

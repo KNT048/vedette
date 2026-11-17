@@ -986,14 +986,15 @@ func (s *Service) ReleaseAgents(ctx context.Context, agents []string) error {
 // no device has that id. Read only.
 func (s *Service) AgentDevice(ctx context.Context, id string) (observe.AgentDevice, bool, error) {
 	var agent, ip, mac string
-	err := s.db.Reader().QueryRowContext(ctx, `SELECT coalesce(agent_key, ''), coalesce(ip, ''), coalesce(mac, '') FROM inv_asset WHERE id = ?`, id).Scan(&agent, &ip, &mac)
+	var box bool
+	err := s.db.Reader().QueryRowContext(ctx, `SELECT coalesce(agent_key, ''), coalesce(ip, ''), coalesce(mac, ''), is_box = 1 FROM inv_asset WHERE id = ?`, id).Scan(&agent, &ip, &mac, &box)
 	if errors.Is(err, sql.ErrNoRows) {
 		return observe.AgentDevice{}, false, nil
 	}
 	if err != nil {
 		return observe.AgentDevice{}, false, fmt.Errorf("inventory: read device agent: %w", err)
 	}
-	d := observe.AgentDevice{Agent: agent, MAC: mac}
+	d := observe.AgentDevice{Agent: agent, MAC: mac, IsBox: box}
 	if a, perr := netip.ParseAddr(ip); perr == nil {
 		d.IP = a
 	}

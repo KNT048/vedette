@@ -74,7 +74,7 @@ func (s *Service) Log(ctx context.Context, src netip.Addr, in logIn) error {
 	if err != nil || !ip.IsValid() { // the enrolment's name, the first report and the approval need the address the node declared
 		return err
 	}
-	if err := s.answeredAsk(ctx, n, taken); err != nil {
+	if err := s.answeredAsk(ctx, n, in, taken); err != nil {
 		return err
 	}
 	named, err := s.enrolHostname(ctx, n, hint, in)

@@ -291,12 +291,18 @@ const REPORT_COOLDOWN_MS = 10 * 60_000
 function agentReport(id: string): AgentReport | null {
   const a = allAssets().find((x) => x.id === id)
   if (!a) return null
+  const none = { asked_at: null, ask_again_at: null, last_seen: null, stale: false, wazuh_interval_minutes: null }
+  if (a.id === BOX_ID) return { ...none, agent: 'box' }
   const src = sourcesOf(a)
   const asked = reportAsks.get(id)
-  if (src.includes('osquery')) return { agent: 'osquery', asked_at: asked !== undefined && Date.now() - asked < REPORT_WINDOW_MS ? new Date(asked).toISOString() : null, wazuh_interval_minutes: null }
+  if (src.includes('osquery')) {
+    return { ...none, agent: 'osquery', last_seen: a.last_seen, stale: false,
+      asked_at: asked !== undefined && Date.now() - asked < REPORT_WINDOW_MS ? new Date(asked).toISOString() : null,
+      ask_again_at: asked !== undefined && Date.now() - asked < REPORT_COOLDOWN_MS ? new Date(asked + REPORT_COOLDOWN_MS).toISOString() : null }
+  }
   const w = wazuhStore.get()
-  if (src.includes('wazuh') && w) return { agent: 'wazuh', asked_at: null, wazuh_interval_minutes: w.interval_minutes }
-  return { agent: 'none', asked_at: null, wazuh_interval_minutes: null }
+  if (src.includes('wazuh') && w) return { ...none, agent: 'wazuh', wazuh_interval_minutes: w.interval_minutes }
+  return { ...none, agent: 'none' }
 }
 const toRow = (a: Asset): DeviceRow => ({ ...live(a), ...scanInfo(a), sources: sourcesOf(a), suspicious: !!metaStore.get()[a.id]?.suspicious, findings_count: findingsOf(a.id), summary: summaryOf(a) })
 

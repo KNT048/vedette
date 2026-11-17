@@ -43939,9 +43939,10 @@
                       "enum": [
                         "osquery",
                         "wazuh",
-                        "none"
+                        "none",
+                        "box"
                       ],
-                      "description": "osquery = an osquery agent enrolled with this box reports on the device: Vedette can ask it to send its software now; wazuh = only the Wazuh pull reads it: Vedette cannot ask, the next pull brings the list; none = no agent of this box reads it now"
+                      "description": "osquery = an osquery agent enrolled with this box reports on the device: Vedette can ask it to send its software now; wazuh = only the Wazuh pull reads it: Vedette cannot ask, the next pull brings the list; none = no agent of this box reads it now; box = the Vedette box itself, which reads its own packages every hour"
                     },
                     "asked_at": {
                       "anyOf": [
@@ -43954,7 +43955,37 @@
                           "type": "null"
                         }
                       ],
-                      "description": "The open ask: when a person asked the osquery agent to send its software now, until its list arrives or 15 minutes pass; null when none is open"
+                      "description": "The open ask: when a person asked the osquery agent to send its software now, until its list (built with its OS answer: kernel_info, os_revision) arrives or 15 minutes pass; null when none is open"
+                    },
+                    "ask_again_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "agent osquery: when a new ask is possible (10 minutes after the last one) while that is still ahead; null otherwise"
+                    },
+                    "last_seen": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "agent osquery: when the agent last called the box (config or results); null otherwise"
+                    },
+                    "stale": {
+                      "type": "boolean",
+                      "description": "agent osquery: the agent has not called for more than 10 minutes (twice its config refresh): an ask reaches it only when it is back; false otherwise"
                     },
                     "wazuh_interval_minutes": {
                       "anyOf": [
@@ -43973,6 +44004,9 @@
                   "required": [
                     "agent",
                     "asked_at",
+                    "ask_again_at",
+                    "last_seen",
+                    "stale",
                     "wazuh_interval_minutes"
                   ],
                   "additionalProperties": false
@@ -44026,9 +44060,10 @@
                       "enum": [
                         "osquery",
                         "wazuh",
-                        "none"
+                        "none",
+                        "box"
                       ],
-                      "description": "osquery = an osquery agent enrolled with this box reports on the device: Vedette can ask it to send its software now; wazuh = only the Wazuh pull reads it: Vedette cannot ask, the next pull brings the list; none = no agent of this box reads it now"
+                      "description": "osquery = an osquery agent enrolled with this box reports on the device: Vedette can ask it to send its software now; wazuh = only the Wazuh pull reads it: Vedette cannot ask, the next pull brings the list; none = no agent of this box reads it now; box = the Vedette box itself, which reads its own packages every hour"
                     },
                     "asked_at": {
                       "anyOf": [
@@ -44041,7 +44076,37 @@
                           "type": "null"
                         }
                       ],
-                      "description": "The open ask: when a person asked the osquery agent to send its software now, until its list arrives or 15 minutes pass; null when none is open"
+                      "description": "The open ask: when a person asked the osquery agent to send its software now, until its list (built with its OS answer: kernel_info, os_revision) arrives or 15 minutes pass; null when none is open"
+                    },
+                    "ask_again_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "agent osquery: when a new ask is possible (10 minutes after the last one) while that is still ahead; null otherwise"
+                    },
+                    "last_seen": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "agent osquery: when the agent last called the box (config or results); null otherwise"
+                    },
+                    "stale": {
+                      "type": "boolean",
+                      "description": "agent osquery: the agent has not called for more than 10 minutes (twice its config refresh): an ask reaches it only when it is back; false otherwise"
                     },
                     "wazuh_interval_minutes": {
                       "anyOf": [
@@ -44060,6 +44125,9 @@
                   "required": [
                     "agent",
                     "asked_at",
+                    "ask_again_at",
+                    "last_seen",
+                    "stale",
                     "wazuh_interval_minutes"
                   ],
                   "additionalProperties": false

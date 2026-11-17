@@ -175172,8 +175172,20 @@ func (s *InventoryGetInventoryAgentsDevicesIDReportOK) encodeFields(e *jx.Encode
 		s.Agent.Encode(e)
 	}
 	{
+		e.FieldStart("ask_again_at")
+		s.AskAgainAt.Encode(e, json.EncodeDateTime)
+	}
+	{
 		e.FieldStart("asked_at")
 		s.AskedAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("last_seen")
+		s.LastSeen.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("stale")
+		e.Bool(s.Stale)
 	}
 	{
 		e.FieldStart("wazuh_interval_minutes")
@@ -175181,10 +175193,13 @@ func (s *InventoryGetInventoryAgentsDevicesIDReportOK) encodeFields(e *jx.Encode
 	}
 }
 
-var jsonFieldsNameOfInventoryGetInventoryAgentsDevicesIDReportOK = [3]string{
+var jsonFieldsNameOfInventoryGetInventoryAgentsDevicesIDReportOK = [6]string{
 	0: "agent",
-	1: "asked_at",
-	2: "wazuh_interval_minutes",
+	1: "ask_again_at",
+	2: "asked_at",
+	3: "last_seen",
+	4: "stale",
+	5: "wazuh_interval_minutes",
 }
 
 // Decode decodes InventoryGetInventoryAgentsDevicesIDReportOK from json.
@@ -175206,8 +175221,18 @@ func (s *InventoryGetInventoryAgentsDevicesIDReportOK) Decode(d *jx.Decoder) err
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"agent\"")
 			}
-		case "asked_at":
+		case "ask_again_at":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.AskAgainAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ask_again_at\"")
+			}
+		case "asked_at":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.AskedAt.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -175216,8 +175241,30 @@ func (s *InventoryGetInventoryAgentsDevicesIDReportOK) Decode(d *jx.Decoder) err
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"asked_at\"")
 			}
+		case "last_seen":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.LastSeen.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"last_seen\"")
+			}
+		case "stale":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.Stale = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"stale\"")
+			}
 		case "wazuh_interval_minutes":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.WazuhIntervalMinutes.Decode(d); err != nil {
 					return err
@@ -175236,7 +175283,7 @@ func (s *InventoryGetInventoryAgentsDevicesIDReportOK) Decode(d *jx.Decoder) err
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -175304,6 +175351,8 @@ func (s *InventoryGetInventoryAgentsDevicesIDReportOKAgent) Decode(d *jx.Decoder
 		*s = InventoryGetInventoryAgentsDevicesIDReportOKAgentWazuh
 	case InventoryGetInventoryAgentsDevicesIDReportOKAgentNone:
 		*s = InventoryGetInventoryAgentsDevicesIDReportOKAgentNone
+	case InventoryGetInventoryAgentsDevicesIDReportOKAgentBox:
+		*s = InventoryGetInventoryAgentsDevicesIDReportOKAgentBox
 	default:
 		*s = InventoryGetInventoryAgentsDevicesIDReportOKAgent(v)
 	}
@@ -190265,8 +190314,20 @@ func (s *InventoryPostInventoryAgentsDevicesIDReportOK) encodeFields(e *jx.Encod
 		s.Agent.Encode(e)
 	}
 	{
+		e.FieldStart("ask_again_at")
+		s.AskAgainAt.Encode(e, json.EncodeDateTime)
+	}
+	{
 		e.FieldStart("asked_at")
 		s.AskedAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("last_seen")
+		s.LastSeen.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("stale")
+		e.Bool(s.Stale)
 	}
 	{
 		e.FieldStart("wazuh_interval_minutes")
@@ -190274,10 +190335,13 @@ func (s *InventoryPostInventoryAgentsDevicesIDReportOK) encodeFields(e *jx.Encod
 	}
 }
 
-var jsonFieldsNameOfInventoryPostInventoryAgentsDevicesIDReportOK = [3]string{
+var jsonFieldsNameOfInventoryPostInventoryAgentsDevicesIDReportOK = [6]string{
 	0: "agent",
-	1: "asked_at",
-	2: "wazuh_interval_minutes",
+	1: "ask_again_at",
+	2: "asked_at",
+	3: "last_seen",
+	4: "stale",
+	5: "wazuh_interval_minutes",
 }
 
 // Decode decodes InventoryPostInventoryAgentsDevicesIDReportOK from json.
@@ -190299,8 +190363,18 @@ func (s *InventoryPostInventoryAgentsDevicesIDReportOK) Decode(d *jx.Decoder) er
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"agent\"")
 			}
-		case "asked_at":
+		case "ask_again_at":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.AskAgainAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ask_again_at\"")
+			}
+		case "asked_at":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.AskedAt.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -190309,8 +190383,30 @@ func (s *InventoryPostInventoryAgentsDevicesIDReportOK) Decode(d *jx.Decoder) er
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"asked_at\"")
 			}
+		case "last_seen":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.LastSeen.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"last_seen\"")
+			}
+		case "stale":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.Stale = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"stale\"")
+			}
 		case "wazuh_interval_minutes":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.WazuhIntervalMinutes.Decode(d); err != nil {
 					return err
@@ -190329,7 +190425,7 @@ func (s *InventoryPostInventoryAgentsDevicesIDReportOK) Decode(d *jx.Decoder) er
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -190397,6 +190493,8 @@ func (s *InventoryPostInventoryAgentsDevicesIDReportOKAgent) Decode(d *jx.Decode
 		*s = InventoryPostInventoryAgentsDevicesIDReportOKAgentWazuh
 	case InventoryPostInventoryAgentsDevicesIDReportOKAgentNone:
 		*s = InventoryPostInventoryAgentsDevicesIDReportOKAgentNone
+	case InventoryPostInventoryAgentsDevicesIDReportOKAgentBox:
+		*s = InventoryPostInventoryAgentsDevicesIDReportOKAgentBox
 	default:
 		*s = InventoryPostInventoryAgentsDevicesIDReportOKAgent(v)
 	}

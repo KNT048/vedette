@@ -49196,6 +49196,8 @@ func (s InventoryGetInventoryAgentsDevicesIDReportOKAgent) Validate() error {
 		return nil
 	case "none":
 		return nil
+	case "box":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -55117,6 +55119,8 @@ func (s InventoryPostInventoryAgentsDevicesIDReportOKAgent) Validate() error {
 	case "wazuh":
 		return nil
 	case "none":
+		return nil
+	case "box":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

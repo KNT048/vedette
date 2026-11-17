@@ -208,8 +208,11 @@ export const CreateTokenResult = z.object({ token: AgentToken, secret: z.string(
 export const SampleResult = z.object({ devices: z.number().int(), software: z.number().int() })
 /** "I updated it" for software an agent reads (S-MIT-1, kien G12 follow-up): which agent of this box reads the device, and the open ask. */
 export const AgentReport = z.object({
-  agent: z.enum(['osquery', 'wazuh', 'none']).describe('osquery = an osquery agent enrolled with this box reports on the device: Vedette can ask it to send its software now; wazuh = only the Wazuh pull reads it: Vedette cannot ask, the next pull brings the list; none = no agent of this box reads it now'),
-  asked_at: dt.nullable().describe('The open ask: when a person asked the osquery agent to send its software now, until its list arrives or 15 minutes pass; null when none is open'),
+  agent: z.enum(['osquery', 'wazuh', 'none', 'box']).describe('osquery = an osquery agent enrolled with this box reports on the device: Vedette can ask it to send its software now; wazuh = only the Wazuh pull reads it: Vedette cannot ask, the next pull brings the list; none = no agent of this box reads it now; box = the Vedette box itself, which reads its own packages every hour'),
+  asked_at: dt.nullable().describe('The open ask: when a person asked the osquery agent to send its software now, until its list (built with its OS answer: kernel_info, os_revision) arrives or 15 minutes pass; null when none is open'),
+  ask_again_at: dt.nullable().describe('agent osquery: when a new ask is possible (10 minutes after the last one) while that is still ahead; null otherwise'),
+  last_seen: dt.nullable().describe('agent osquery: when the agent last called the box (config or results); null otherwise'),
+  stale: z.boolean().describe('agent osquery: the agent has not called for more than 10 minutes (twice its config refresh): an ask reaches it only when it is back; false otherwise'),
   wazuh_interval_minutes: z.number().int().nullable().describe('agent wazuh: how often Vedette pulls from the Wazuh server (5, 15, 60, 360 or 1440); null otherwise'),
 })
 

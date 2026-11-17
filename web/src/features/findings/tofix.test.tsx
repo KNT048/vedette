@@ -128,8 +128,8 @@ describe('Findings › To fix (kien G8)', () => {
     expect(within(row('Upgrade RARLAB WinRAR from 7.01 to 7.13 or later')).getByRole('button', { name: 'I updated RARLAB WinRAR' })).toBeInTheDocument()
     expect(within(acts).queryByText(/agent/)).toBeNull() // never under every row
     expect(within(acts).queryByRole('button', { name: 'Check this device now' })).toBeNull()
-    // agent-intake off: one line for the device; one of its rows is the OS, so it words the restart
-    expect(within(card).getAllByText(/^Restart PC-A if the update asks for it: the new build shows only after the restart\. Its agent then reports it/)).toHaveLength(1)
+    // agent-intake off: one line for the device, no promise that an agent reports (review r1 L2 of #953)
+    expect(within(card).getAllByText(/^No agent reports the software of PC-A to Vedette now/)).toHaveLength(1)
     expect(within(card).getAllByRole('button', { name: 'Check this device now' })).toHaveLength(1)
   })
 
@@ -138,8 +138,8 @@ describe('Findings › To fix (kien G8)', () => {
     let release!: () => void
     const held = new Promise<void>((r) => { release = r })
     server.use(
-      http.get('*/api/v1/inventory/agents/devices/:id/report', () => HttpResponse.json({ agent: 'osquery', asked_at: null, wazuh_interval_minutes: null })),
-      http.post('*/api/v1/inventory/agents/devices/:id/report', async () => { await held; return HttpResponse.json({ agent: 'osquery', asked_at: '2026-11-17T09:05:00Z', wazuh_interval_minutes: null }) }),
+      http.get('*/api/v1/inventory/agents/devices/:id/report', () => HttpResponse.json({ agent: 'osquery', asked_at: null, ask_again_at: null, last_seen: new Date().toISOString(), stale: false, wazuh_interval_minutes: null })),
+      http.post('*/api/v1/inventory/agents/devices/:id/report', async () => { await held; return HttpResponse.json({ agent: 'osquery', asked_at: '2026-11-17T09:05:00Z', ask_again_at: '2026-11-17T09:15:00Z', last_seen: new Date().toISOString(), stale: false, wazuh_interval_minutes: null }) }),
     )
     serve({ ...sample, devices: [dev('a-pc', 'PC-A', { open: 3, exploited: [{ ...winrar('a-pc'), source: 'agent' }], planned: [{ ...firefox, group: 'a-pc/s-ff', source: 'agent' }] })] })
     renderApp('/findings')

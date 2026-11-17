@@ -83,7 +83,8 @@
 ## Modifying: `enrolHostname` (D-548, D-611, INV-21)
 - **inventory**: một quan sát `hostname` nguồn agent, một lần cho mỗi node (ở mọi tuổi, D-611) tới khi `system_info` được nhận; tên thiết bị (`DisplayName`) đổi từ hãng/IP sang tên máy ở mọi trang, tin và báo cáo.
 
-## Modifying: "ask the agent now" (`report.go`: `AskReport`, `ReportState`, `askOpen`, `answeredAsk`; INV-23; migration 0008)
+## Modifying: "ask the agent now" (`report.go`: `AskReport`, `ReportState`, `askOpen`, `answeredAsk`, `osAnswer`; INV-23; migrations 0008, 0009)
+- **The close rule** (review r1 M1 of #953): the ask ends on a list taken after the node's own OS answer (`os_taken_at` >= `report_asked_at`). A change of how `nodeKernel`/`nodeWindows` read `kernel_info`/`os_revision`, or of which answer builds the Kernel or Windows row, must keep `osAnswer` in step, or an OS update's ask closes on a list with the old build.
 - **web/features/findings** (`Updated.tsx` `AgentAsk`, `ToFix.tsx` `DeviceUpdated`, hooks `useAgentReport`/`useAskReport` in `web/src/features/inventory/api.ts`): the button, its busy state and the "Asked at …" line read `agent`, `asked_at` and `wazuh_interval_minutes`; renaming a value or the 409 `cannot_ask` / 429 `rate_limited` codes changes what the person sees. The To fix card shows one control per device, so the answer must be per device, not per software row.
 - **Schedule** (`nodeSchedule`, `reportQueries`): adding a software query to the schedule (a new package table) must decide whether an ask speeds it up; `TestScheduleIsReadOnly` still pins every query, an ask only changes `interval`.
 - **inventory** (`observe.AgentDevices`, `inventory.Service.AgentDevice`): the device → node link is `inv_asset.agent_key` (D-598). A device whose binding the inventory released (re-enrolment, revoke) is answered `none`/`wazuh` until its node reports again.

@@ -124,13 +124,18 @@ func (h *AdminHandlers) InventoryDeleteInventoryAgentsTokensID(ctx context.Conte
 	return h.s.RevokeToken(ctx, who, params.ID)
 }
 
-// reportNull is the wire form of a ReportState's optional fields: a zero time and a zero interval are null.
-func reportNull(st ReportState) (oas.NilDateTime, oas.NilInt) {
-	minutes := oas.NilInt{Null: true}
+// reportWire is the wire form of a ReportState (GET and POST answer the same shape): a zero time and a zero interval are null.
+type reportWire struct {
+	asked, again, seen oas.NilDateTime
+	minutes            oas.NilInt
+}
+
+func toWire(st ReportState) reportWire {
+	w := reportWire{asked: nilTime(st.AskedAt), again: nilTime(st.AskAgainAt), seen: nilTime(st.LastSeen), minutes: oas.NilInt{Null: true}}
 	if st.WazuhMinutes > 0 {
-		minutes = oas.NewNilInt(st.WazuhMinutes)
+		w.minutes = oas.NewNilInt(st.WazuhMinutes)
 	}
-	return nilTime(st.AskedAt), minutes
+	return w
 }
 
 // validDeviceID is the shape of an inventory id at the boundary (inv_asset.id is 1..96 characters); anything else is no device.
@@ -149,8 +154,9 @@ func (h *AdminHandlers) InventoryGetInventoryAgentsDevicesIDReport(ctx context.C
 	if err != nil {
 		return nil, err
 	}
-	asked, minutes := reportNull(st)
-	return &oas.InventoryGetInventoryAgentsDevicesIDReportOK{Agent: oas.InventoryGetInventoryAgentsDevicesIDReportOKAgent(st.Agent), AskedAt: asked, WazuhIntervalMinutes: minutes}, nil
+	w := toWire(st)
+	return &oas.InventoryGetInventoryAgentsDevicesIDReportOK{Agent: oas.InventoryGetInventoryAgentsDevicesIDReportOKAgent(st.Agent), AskedAt: w.asked, AskAgainAt: w.again,
+		LastSeen: w.seen, Stale: st.Stale, WazuhIntervalMinutes: w.minutes}, nil
 }
 
 // InventoryPostInventoryAgentsDevicesIDReport implements POST /inventory/agents/devices/{id}/report (operator, audited): "I updated it:
@@ -170,6 +176,7 @@ func (h *AdminHandlers) InventoryPostInventoryAgentsDevicesIDReport(ctx context.
 	if err != nil {
 		return nil, err
 	}
-	asked, minutes := reportNull(st)
-	return &oas.InventoryPostInventoryAgentsDevicesIDReportOK{Agent: oas.InventoryPostInventoryAgentsDevicesIDReportOKAgent(st.Agent), AskedAt: asked, WazuhIntervalMinutes: minutes}, nil
+	w := toWire(st)
+	return &oas.InventoryPostInventoryAgentsDevicesIDReportOK{Agent: oas.InventoryPostInventoryAgentsDevicesIDReportOKAgent(st.Agent), AskedAt: w.asked, AskAgainAt: w.again,
+		LastSeen: w.seen, Stale: st.Stale, WazuhIntervalMinutes: w.minutes}, nil
 }

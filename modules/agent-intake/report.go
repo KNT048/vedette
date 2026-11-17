@@ -39,14 +39,44 @@ func askOpen(n nodeRow, now time.Time) bool {
 	return n.softwareAt.Before(n.askedAt)
 }
 
-// answeredAsk records that the inventory took a software list from the node while its ask was open, which closes the ask (config
-// puts the node back on the hourly schedule at its next fetch). Nothing is written when no ask is open.
-func (s *Service) answeredAsk(ctx context.Context, n nodeRow, taken []string) error {
-	if !slices.Contains(taken, "packages") || !askOpen(n, s.now()) {
+// osAnswer says whether an ask of this node waits for its own operating-system answer, and whether this request carries it: a usable
+// os_revision on Windows (the update revision the Windows row of the list is built from, D-546), a usable kernel_info elsewhere (the
+// running kernel the Kernel row is built from, D-516). A node that never gave one (an osquery older than 5.12 on Windows) is not waited
+// for: the list alone answers its ask.
+func osAnswer(n nodeRow, in logIn) (needed, got bool) {
+	if n.platform == "windows" || n.win.version != "" {
+		_, got = parseWinOS(in.snaps["os_revision"])
+		return n.win.version != "", got
+	}
+	if rows := in.snaps["kernel_info"]; len(rows) > 0 {
+		got = kernelReleaseRE.MatchString(strings.ToLower(rows[0]["version"]))
+	}
+	return n.kernel != "", got
+}
+
+// answeredAsk closes an open ask once the inventory took the node's software list AFTER the node's own OS answer came since the ask
+// (review r1 M1 of #953): osquery runs the package list and kernel_info (or os_revision) on separately splayed intervals, so a list
+// taken first carries the old kernel or update revision and must not end the ask; the ask stays open and the next list the inventory
+// takes, built with the new one, ends it. A request with both counts (its OS answer is stored before its list is built). Config puts
+// the node back on the hourly schedule at its next fetch. Nothing is written when no ask is open.
+func (s *Service) answeredAsk(ctx context.Context, n nodeRow, in logIn, taken []string) error {
+	now := s.now()
+	if !askOpen(n, now) {
 		return nil
 	}
+	needed, got := osAnswer(n, in)
+	osAt := n.osAt
+	if got {
+		osAt = now
+	}
+	done := slices.Contains(taken, "packages") && (!needed || !osAt.IsZero() && !osAt.Before(n.askedAt))
+	if !got && !done {
+		return nil
+	}
+	ts := store.FormatTS(now)
 	return s.db.Write(ctx, func(tx *sql.Tx) error {
-		if _, err := tx.ExecContext(ctx, `UPDATE intake_osquery_nodes SET software_taken_at = ? WHERE id = ?`, store.FormatTS(s.now()), n.id); err != nil {
+		if _, err := tx.ExecContext(ctx, `UPDATE intake_osquery_nodes SET os_taken_at = CASE WHEN ? THEN ? ELSE os_taken_at END,
+			software_taken_at = CASE WHEN ? THEN ? ELSE software_taken_at END WHERE id = ?`, got, ts, done, ts, n.id); err != nil {
 			return fmt.Errorf("agentintake: mark the ask answered: %w", err)
 		}
 		return nil
@@ -58,13 +88,23 @@ const (
 	ReportOsquery = "osquery" // an osquery node of this box is bound to the device: Vedette can ask it
 	ReportWazuh   = "wazuh"   // only the Wazuh pull reads the device: Vedette cannot ask; the next pull brings the list
 	ReportNone    = "none"    // no agent of this box reads the device now
+	ReportBox     = "box"     // the Vedette box itself: it reads its own packages (inventory job box, hourly), no agent
 )
+
+// reportStale is how long a node may go without calling before an ask is said not to reach it now (review r1 L1 of #953): twice its
+// config refresh (300 s, the install scripts), so a node that is on fetches its config at least once within it.
+const reportStale = 10 * time.Minute
 
 // ReportState is what "I updated it" needs to know of a device's agent.
 type ReportState struct {
 	Agent string
 	// AskedAt is the open ask (askOpen), zero when none.
 	AskedAt time.Time
+	// AskAgainAt is when a new ask is possible (the last ask + reportCooldown) while that is in the future, zero otherwise.
+	AskAgainAt time.Time
+	// LastSeen is when the osquery node last called (config or log), zero when not osquery; Stale says it is older than reportStale.
+	LastSeen time.Time
+	Stale    bool
 	// WazuhMinutes is the Wazuh pull's interval when Agent is ReportWazuh, else 0.
 	WazuhMinutes int
 }
@@ -93,17 +133,26 @@ func (s *Service) reportState(ctx context.Context, device string) (ReportState, 
 	if !found {
 		return ReportState{}, askNode{}, apierr.NotFound()
 	}
+	if d.IsBox {
+		return ReportState{Agent: ReportBox}, askNode{}, nil
+	}
 	if id, ok := strings.CutPrefix(d.Agent, "osquery:"); ok {
-		var asked, taken string
-		err := s.db.Reader().QueryRowContext(ctx, `SELECT ifnull(report_asked_at, ''), ifnull(software_taken_at, '') FROM intake_osquery_nodes WHERE id = ?`, id).Scan(&asked, &taken)
+		var asked, taken, seen string
+		err := s.db.Reader().QueryRowContext(ctx, `SELECT ifnull(report_asked_at, ''), ifnull(software_taken_at, ''), last_seen FROM intake_osquery_nodes WHERE id = ?`, id).Scan(&asked, &taken, &seen)
 		switch {
 		case err == nil:
+			now := s.now()
 			n := askNode{id: id}
 			n.askedAt, _ = time.Parse(time.RFC3339Nano, asked)
 			n.softwareAt, _ = time.Parse(time.RFC3339Nano, taken)
 			st := ReportState{Agent: ReportOsquery}
-			if askOpen(nodeRow{askedAt: n.askedAt, softwareAt: n.softwareAt}, s.now()) {
+			st.LastSeen, _ = time.Parse(time.RFC3339Nano, seen)
+			st.Stale = now.Sub(st.LastSeen) > reportStale
+			if askOpen(nodeRow{askedAt: n.askedAt, softwareAt: n.softwareAt}, now) {
 				st.AskedAt = n.askedAt
+			}
+			if again := n.askedAt.Add(reportCooldown); !n.askedAt.IsZero() && again.After(now) {
+				st.AskAgainAt = again
 			}
 			return st, n, nil
 		case !errors.Is(err, sql.ErrNoRows): // a binding whose node is gone (the inventory releases it) is no osquery agent
@@ -185,6 +234,6 @@ func (s *Service) AskReport(ctx context.Context, actor, device string) (ReportSt
 	if err != nil {
 		return ReportState{}, err
 	}
-	st.AskedAt = now
+	st.AskedAt, st.AskAgainAt = now, now.Add(reportCooldown)
 	return st, nil
 }

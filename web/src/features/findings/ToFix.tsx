@@ -92,14 +92,14 @@ const updatedOf = (a: ToFixAction) => ({ id: a.software_id, display: a.software,
 
 /** "I updated it" for what reads the whole device (n83: once per device, not under every row): its agent ("ask the agent now", or how
  *  the new version arrives), and the network check for rows a scan read. An OS update among the agent's rows words it for the restart. */
-function DeviceUpdated({ d }: { d: ToFixDevice }) {
+function DeviceUpdated({ d, box }: { d: ToFixDevice; box: boolean }) {
   const rows = [...actionable(d), ...d.planned].filter((a) => a.software_id)
   const agent = rows.filter((a) => a.source === 'agent')
   const scan = rows.find((a) => a.source !== 'agent' && a.source !== 'manual')
   if (!agent.length && !scan) return null
   return (
     <div className="mt-1 grid gap-1">
-      {agent.length ? <IUpdated asset={d.asset} software={updatedOf(agent[0]!)} size="sm" progress={false} os={agent.some(osAction)} /> : null}
+      {agent.length ? <IUpdated asset={d.asset} software={updatedOf(agent[0]!)} size="sm" progress={false} os={agent.some(osAction)} box={box} /> : null}
       {scan ? <IUpdated asset={d.asset} software={updatedOf(scan)} size="sm" progress={false} /> : null}
     </div>
   )
@@ -126,7 +126,7 @@ export function DeviceCard({ d, box, showName = true }: { d: ToFixDevice; box: b
           <ul aria-label={t('toFix.recommendedOf', { device: name })} className="divide-y divide-rule">{d.planned.map((a) => <Action key={`plan:${a.group}`} a={a} planned box={box} asset={d.asset} />)}</ul>
         </>
       ) : null}
-      <DeviceUpdated d={d} />
+      <DeviceUpdated d={d} box={box} />
       {check ? <Link to={`/findings?tab=input&device=${encodeURIComponent(d.asset.id)}`} className="mt-1 inline-block text-meta text-accent underline underline-offset-4">{t('toFix.toCheck', { count: check })}</Link> : null}
     </li>
   )

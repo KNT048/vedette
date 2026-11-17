@@ -23,7 +23,8 @@ func TestScheduleEqualsTheGUIText(t *testing.T) {
 	for i, g := range m {
 		interval, _ := strconv.Atoi(g[5])
 		q := schedule[i]
-		if g[1] != q.name || g[3] != q.query || interval != q.interval || g[6] != q.platform {
+		text := strings.ReplaceAll(g[3], `\\`, `\`) // a backslash is written \\ in the TypeScript string (D-606's registry key)
+		if g[1] != q.name || text != q.query || interval != q.interval || g[6] != q.platform {
 			t.Errorf("query %d differs:\nGUI    %s %q %d %q\nmodule %s %q %d %q", i, g[1], g[3], interval, g[6], q.name, q.query, q.interval, q.platform)
 		}
 		if _, ok := columns[q.name]; !ok {

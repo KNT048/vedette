@@ -17,6 +17,12 @@ type scheduleQuery struct {
 	interval              int
 }
 
+// programsQuery is the Windows package list with each SQL Server instance's PatchLevel (D-606). The registry arm is first: a compound
+// SELECT takes its column names from it, and its rows come before the list's.
+const programsQuery = `SELECT '' AS name, r.data AS version, '' AS publisher, '' AS install_date, r.key AS sql_setup FROM registry r ` +
+	`WHERE r.key LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL%\Setup' AND r.name = 'PatchLevel' ` +
+	`UNION ALL SELECT name, version, publisher, install_date, '' FROM programs;`
+
 var schedule = []scheduleQuery{
 	{name: "os_version", query: "SELECT name, version, major, minor, patch, build, platform, arch FROM os_version;", interval: 3600},
 	// Hourly, not daily (N52 W-2): osquery runs a query when the Unix time is a multiple of its splayed interval, so a daily one first runs up
@@ -25,14 +31,19 @@ var schedule = []scheduleQuery{
 	{name: "interfaces", query: "SELECT d.mac, a.address FROM interface_details d JOIN interface_addresses a USING (interface) WHERE a.address NOT LIKE '%:%' AND a.address NOT LIKE '127.%' AND a.address NOT LIKE '169.254.%' AND d.mac != '00:00:00:00:00:00';", interval: 3600},
 	{name: "deb_packages", query: "SELECT name, version, arch, source FROM deb_packages;", interval: 3600, platform: "linux"},
 	{name: "rpm_packages", query: "SELECT name, version, release, arch, epoch FROM rpm_packages;", interval: 3600, platform: "linux"},
-	{name: "programs", query: "SELECT name, version, publisher, install_date FROM programs;", interval: 3600, platform: "windows"},
+	// D-606: with the installed programs, one registry value: the build of each SQL Server instance (Setup\PatchLevel, cumulative updates
+	// included), whose release's own Uninstall entry has no version. In the same query so the value and the list come in one snapshot
+	// (the mapper sets the release's row from it; a query of its own would arrive in another request). First, so a list cut at maxRows
+	// keeps it; marked by sql_setup, '' on every program row. The key pattern is exact: osquery lists the subkeys of
+	// "Microsoft SQL Server" and reads their Setup key, and only MSSQL<n>.<instance>\Setup PatchLevel is returned.
+	{name: "programs", query: programsQuery, interval: 3600, platform: "windows"},
 	// D-516: the running kernel release ("7.0.0-43-generic"), its own one-row query (a column on every package row would make a
 	// big host's package list longer than osquery's logger_tls_max_linesize, and osquery drops such a line whole).
 	{name: "kernel_info", query: "SELECT version FROM kernel_info;", interval: 3600, platform: "linux"},
 	// D-524: Windows's monthly update revision (UBR, the 4460 of 10.0.22631.4460), without which no Windows range of NVD can be
 	// read. osquery (5.12 and later) reads it from the registry itself (HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion, value
 	// UBR) into os_version.revision, a Windows-only column: a query of its own, so the os_version query above stays valid on Linux
-	// and an older osquery without the column fails this query alone. No registry table in the schedule (D-169 (1)).
+	// and an older osquery without the column fails this query alone. The registry table is read for one value only (programs, D-606).
 	{name: "os_revision", query: "SELECT name, version, revision, arch FROM os_version;", interval: 3600, platform: "windows"},
 	// INV-22 (kien 2026-11-17): the ports the machine listens on and the program behind each, so a machine known only through its agent
 	// has Open services. Loopback is left out on the machine; on Linux only the host's own network namespace (pid 1's) counts, not the

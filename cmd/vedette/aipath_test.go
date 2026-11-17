@@ -1,0 +1,265 @@
+package main
+
+import (
+	"net/netip"
+	"os"
+	"regexp"
+	"slices"
+	"strings"
+	"testing"
+
+	"github.com/knt048/vedette/host/api"
+	"github.com/knt048/vedette/modules/findings"
+	"github.com/knt048/vedette/modules/inventory"
+	"github.com/knt048/vedette/modules/mitigation"
+)
+
+// A config answer put a deny policy on a firewall that traffic to the device never crosses (a hand-added firewall on another network),
+// while the device's real gateway was a different firewall. Every case of the box's network: the AI is given only the firewalls on the
+// device's path, or the network block says the choice is an assumption and why; a firewall that is not offered never has its address
+// in the block.
+func TestAIPickWalls_OnlyFirewallsOnTheDevicePath(t *testing.T) {
+	t.Parallel()
+	lan := aiNetOf(api.NetState{
+		Interfaces: []api.NetInterface{
+			{Name: "eth0", Role: "management", Addresses: []string{"192.168.50.9/24", "fd00:50::9/64", "fe80::9/64"}},
+			{Name: "eth1", Addresses: []string{"10.77.0.9/24"}},
+			{Name: "docker0", Addresses: []string{"172.17.0.1/16"}},
+		},
+		DefaultRoute:   &api.NetRoute{Iface: "eth0", Gateway: "192.168.50.1", MAC: "00:11:22:33:44:01"},
+		DefaultRoutes6: []api.NetRoute{{Iface: "eth0", Gateway: "fe80::1", MAC: "00:11:22:33:44:01"}},
+	})
+	mac := func(s string) *string { return &s }
+	kd := func(id, ip string) inventory.KindDevice {
+		return inventory.KindDevice{ID: id, IP: ip, Kind: "firewall"}
+	}
+	edge, far, inner, other := kd("edge", "192.168.50.1"), kd("far", "100.64.10.1"), kd("inner", "192.168.50.254"), kd("lab", "10.77.0.1")
+	edgeMgmt := inventory.KindDevice{ID: "edge-mgmt", IP: "10.99.0.1", Kind: "firewall", MAC: mac("00:11:22:33:44:01")} // the gateway under another address
+	branch := kd("branch", "172.20.4.1")
+	cases := []struct {
+		name    string
+		net     aiNet
+		dev     aiTarget
+		all     []inventory.KindDevice
+		want    []string
+		paths   []aiPath
+		onPath  bool
+		edge    bool
+		others  int
+		gateway string
+		text    []string // in the network block
+	}{
+		{name: "gateway of the device's subnet in the inventory, another firewall off the path", net: lan, dev: aiTarget{IP: "192.168.50.47"}, all: []inventory.KindDevice{far, edge},
+			want: []string{"edge"}, paths: []aiPath{pathGateway}, onPath: true, others: 1,
+			text: []string{"on this device's path (write a firewall rule only for these)", "the default gateway of this device's network", "1 other firewall or router in the inventory is not on a path"}},
+		{name: "the gateway is known: a firewall elsewhere on the subnet is not offered", net: lan, dev: aiTarget{IP: "192.168.50.47"}, all: []inventory.KindDevice{edge, inner, far},
+			want: []string{"edge"}, paths: []aiPath{pathGateway}, onPath: true, others: 2},
+		{name: "gateway known but not a firewall of the inventory: a firewall on the subnet is not offered, the gateway is named", net: lan, dev: aiTarget{IP: "192.168.50.47"}, all: []inventory.KindDevice{inner, far},
+			others: 2, gateway: "192.168.50.1",
+			text: []string{"No firewall or router in the inventory is on a path Vedette knows", "The gateway of this device's network is 192.168.50.1", "write no rule for them"}},
+		{name: "the gateway in the inventory under another address, matched by its MAC", net: lan, dev: aiTarget{IP: "192.168.50.47"}, all: []inventory.KindDevice{far, edgeMgmt},
+			want: []string{"edge-mgmt"}, paths: []aiPath{pathGateway}, onPath: true, others: 1},
+		{name: "IPv6 device behind a link-local next hop: the gateway by its MAC", net: lan, dev: aiTarget{IP: "fd00:50::47"}, all: []inventory.KindDevice{edgeMgmt, far},
+			want: []string{"edge-mgmt"}, paths: []aiPath{pathGateway}, onPath: true, others: 1},
+		{name: "the device is the gateway itself (the edge): no firewall, whatever is on the subnet", net: lan, dev: aiTarget{ID: "edge", IP: "192.168.50.1"}, all: []inventory.KindDevice{edge, inner, far},
+			edge: true, others: 2, text: []string{"This device is the default gateway of its network (the network edge)", "write no rule for another firewall"}},
+		{name: "the device is the gateway, by its MAC on the box's link", net: lan, dev: aiTarget{IP: "192.168.50.3", MAC: "00:11:22:33:44:01"}, all: []inventory.KindDevice{inner},
+			edge: true, others: 1},
+		{name: "device on another network: a firewall on its /24, then the box's gateway, both assumed", net: lan, dev: aiTarget{IP: "172.20.4.40"}, all: []inventory.KindDevice{edge, far, branch},
+			want: []string{"branch", "edge"}, paths: []aiPath{pathNearby, pathBoxGateway}, others: 1,
+			text: []string{"this device is on another network than the box", "likely its own gateway; an assumption", "covers only traffic from the box's network"}},
+		{name: "device on another network, matching the router's MAC there says nothing", net: lan, dev: aiTarget{IP: "172.20.4.40", MAC: "00:11:22:33:44:01"}, all: []inventory.KindDevice{edge},
+			want: []string{"edge"}, paths: []aiPath{pathBoxGateway}},
+		{name: "device on a box subnet without a gateway: the firewalls on that subnet, assumed", net: lan, dev: aiTarget{IP: "10.77.0.40"}, all: []inventory.KindDevice{edge, other},
+			want: []string{"lab"}, paths: []aiPath{pathSameSubnet}, others: 1, text: []string{"the box knows no gateway for this device's subnet"}},
+		{name: "device on a box subnet without a gateway and no firewall there", net: lan, dev: aiTarget{IP: "10.77.0.40"}, all: []inventory.KindDevice{edge, far},
+			others: 2, text: []string{"No firewall or router in the inventory is on a path"}},
+		{name: "a container bridge's range is not the box's network", net: lan, dev: aiTarget{IP: "172.17.5.5"}, all: []inventory.KindDevice{edge},
+			want: []string{"edge"}, paths: []aiPath{pathBoxGateway}},
+		{name: "the box's network is not known: every firewall, as an assumption", net: aiNet{}, dev: aiTarget{IP: "192.168.50.47"}, all: []inventory.KindDevice{far, edge},
+			want: []string{"far", "edge"}, paths: []aiPath{pathUnknown, pathUnknown}, text: []string{"cannot read the box's own network", "a rule for one of them is an assumption", "path to this device: not known"}},
+		{name: "the device has no IP: every firewall, as an assumption", net: lan, dev: aiTarget{IP: "—"}, all: []inventory.KindDevice{far, edge},
+			want: []string{"far", "edge"}, paths: []aiPath{pathUnknown, pathUnknown}, text: []string{"knows no IP address of this device"}},
+		{name: "no firewall in the inventory", net: lan, dev: aiTarget{IP: "192.168.50.47"}, gateway: "192.168.50.1", text: []string{"No firewall or router is in the inventory.", "The gateway of this device's network is 192.168.50.1"}},
+	}
+	count := map[string]int{}
+	for _, c := range cases {
+		ids, sel := aiPickWalls(c.net, c.dev, c.all)
+		if !slices.Equal(ids, c.want) || !slices.Equal(sel.Paths, c.paths) || sel.OnPath != c.onPath || sel.Edge != c.edge || sel.Others != c.others {
+			t.Errorf("%s: ids %v (want %v), paths %v (want %v), on path %t, edge %t, others %d (want %d)", c.name, ids, c.want, sel.Paths, c.paths, sel.OnPath, sel.Edge, sel.Others, c.others)
+			continue
+		}
+		got := ""
+		if sel.Gateway.IsValid() {
+			got = sel.Gateway.String()
+		}
+		if got != c.gateway {
+			t.Errorf("%s: gateway %q, want %q", c.name, got, c.gateway)
+		}
+		if len(ids) > 0 && sel.OnPath == (sel.Why != "") {
+			t.Errorf("%s: an offer is either on the path or an assumption with a reason: %+v", c.name, sel)
+		}
+		for _, id := range ids {
+			for _, k := range c.all {
+				if k.ID == id {
+					sel.Walls = append(sel.Walls, inventory.Device{AssetCore: inventory.AssetCore{ID: k.ID, IP: k.IP, Kind: k.Kind}})
+				}
+			}
+		}
+		block := aiNetworkBlock(sel)
+		for _, w := range c.text {
+			if !strings.Contains(block, w) {
+				t.Errorf("%s: the network block lacks %q:\n%s", c.name, w, block)
+			}
+		}
+		for _, k := range c.all {
+			if !slices.Contains(ids, k.ID) && strings.Contains(block, k.IP) {
+				t.Errorf("%s: a firewall that is not offered is in the block:\n%s", c.name, block)
+			}
+		}
+		switch {
+		case sel.Edge:
+			count["edge, none offered"]++
+		case sel.OnPath:
+			count["on path"]++
+		case len(ids) > 0:
+			count["assumed, with a reason"]++
+		default:
+			count["none offered"]++
+		}
+	}
+	t.Logf("firewall offers by case: %v", count)
+}
+
+// More firewalls than an answer has room for: the first ones, and the block says how many more there are.
+func TestAIPickWalls_CountsTheOnesOverTheCap(t *testing.T) {
+	t.Parallel()
+	var all []inventory.KindDevice
+	for i := range aiMaxFirewalls + 3 {
+		all = append(all, inventory.KindDevice{ID: string(rune('a' + i)), IP: "192.168.50.47"})
+	}
+	ids, sel := aiPickWalls(aiNet{}, aiTarget{IP: "192.168.50.47"}, all)
+	if len(ids) != aiMaxFirewalls || sel.Others != 0 || sel.More != 3 {
+		t.Fatalf("ids %v, others %d, more %d", ids, sel.Others, sel.More)
+	}
+	sel.Walls = make([]inventory.Device, len(ids))
+	if b := aiNetworkBlock(sel); !strings.Contains(b, "3 more firewalls or routers like these are in the inventory and not listed here") {
+		t.Fatalf("block = %s", b)
+	}
+}
+
+func TestAINetOf_SubnetsAndGateways(t *testing.T) {
+	t.Parallel()
+	n := aiNetOf(api.NetState{
+		Interfaces: []api.NetInterface{{Name: "eth0", Addresses: []string{"192.168.50.9/24", "192.168.60.5/32", "fe80::9/64", "127.0.0.1/8", "bad"}},
+			{Name: "br-1a2b", Addresses: []string{"172.18.0.1/16"}}, {Name: "wg0", Addresses: []string{"10.8.0.1/24"}}},
+		DefaultRoute: &api.NetRoute{Iface: "eth0", Gateway: "192.168.50.1", MAC: "AA:BB:CC:00:00:01"},
+	})
+	if !n.known || len(n.subnets) != 1 || n.subnets[0].prefix != netip.MustParsePrefix("192.168.50.0/24") || len(n.gateways) != 1 || n.gateways[0].mac != "aa:bb:cc:00:00:01" {
+		t.Fatalf("net %+v", n)
+	}
+	if aiNetReader(nil) != nil {
+		t.Fatal("no host: no reader")
+	}
+}
+
+// The box itself marks the rule blocks of an assumed offer: a model that leaves "(assumed)" out does not make a guess read as fact.
+// The device's own block, and every block of an offer on the path, stay as written.
+func TestAIMarkAssumed_TheBoxMarksAGuess(t *testing.T) {
+	t.Parallel()
+	fw := inventory.Device{AssetCore: inventory.AssetCore{IP: "100.64.10.1", Model: obs("FortiGate 60F"), Vendor: obs("Fortinet")}}
+	dev := []string{"Juniper Networks EX4200-48T", "EX4200-48T", "Juniper Networks"}
+	cfgs := func() []findings.CodeStep {
+		return []findings.CodeStep{{Title: "Juniper EX4200-48T (Junos)"}, {Title: "FortiGate 60F"}, {Title: "Linux gateway (nftables) (assumed)"}}
+	}
+	got := cfgs()
+	aiMarkAssumed(got, aiFirewalls{Walls: []inventory.Device{fw}, Why: "not known"}, dev)
+	if got[0].Title != "Juniper EX4200-48T (Junos)" || got[1].Title != "FortiGate 60F (assumed)" || got[2].Title != "Linux gateway (nftables) (assumed)" {
+		t.Fatalf("assumed offer: %+v", got)
+	}
+	got = []findings.CodeStep{{Title: "FortiGate 60F policy"}}
+	aiMarkAssumed(got, aiFirewalls{Walls: []inventory.Device{fw}, Why: "not known"}, dev)
+	if got[0].Title != "FortiGate 60F policy (assumed)" {
+		t.Fatalf("a firewall block first: %+v", got)
+	}
+	for _, sel := range []aiFirewalls{{Walls: []inventory.Device{fw}, OnPath: true}, {Edge: true}} {
+		got = cfgs()
+		if aiMarkAssumed(got, sel, dev); got[1].Title != "FortiGate 60F" {
+			t.Fatalf("on path or edge: %+v", got)
+		}
+	}
+}
+
+// The trusted addresses follow the offer: a config naming a firewall that was not offered is flagged on the page for checking.
+func TestAITrusted_OnlyTheOfferedFirewallsAndTheGateway(t *testing.T) {
+	t.Parallel()
+	row := findings.Row{Asset: &findings.AssetView{IP: "192.168.50.47"}}
+	got := aiTrusted(row, nil, aiFirewalls{Walls: []inventory.Device{{AssetCore: inventory.AssetCore{IP: "192.168.50.2"}}}, Gateway: netip.MustParseAddr("192.168.50.1")})
+	if !slices.Equal(got, []netip.Addr{netip.MustParseAddr("192.168.50.47"), netip.MustParseAddr("192.168.50.2"), netip.MustParseAddr("192.168.50.1")}) {
+		t.Fatalf("trusted = %v", got)
+	}
+}
+
+// The page states the fix from findings.FixedIn; the AI gets the same object. For every kind the page shows, the fact line names a
+// fixed release exactly when the page does, and for the kinds where the page says no release is named (or the range end is not a
+// fix) the line says so and never reads "fixed in" that release. Counted per kind.
+func TestAIFixedIn_AgreesWithThePageForEveryKind(t *testing.T) {
+	t.Parallel()
+	type tc struct {
+		f       *findings.FixedIn
+		fixedIn string // the release the page names as the fix, "" when it names none
+		says    string // what the line must say
+	}
+	cases := map[string]tc{
+		"fixed":                        {&findings.FixedIn{Kind: "fixed", Version: "2.4.49", Fixed: "2.4.51"}, "2.4.51", "fixed in 2.4.51"},
+		"up_to":                        {&findings.FixedIn{Kind: "up_to", Version: "9.1", Fixed: "9.3"}, "", "no fixed release named"},
+		"end_listed":                   {&findings.FixedIn{Kind: "end_listed", Version: "15.1R7.9", Fixed: "20.4"}, "", "20.4 is not a fix"},
+		"distro":                       {&findings.FixedIn{Kind: "distro", Version: "1:9.6p1-3ubuntu13.4", Distro: "Ubuntu", DistroFixed: "1:9.6p1-3ubuntu13.5", DistroRelease: "24.04"}, "1:9.6p1-3ubuntu13.5", "fixed package 1:9.6p1-3ubuntu13.5"},
+		"feature_update":               {&findings.FixedIn{Kind: "feature_update", Version: "10.0.19044.1", Fixed: "10.0.19045.5000", Branches: []findings.FixedBranch{{Branch: "22H2", Fixed: "10.0.19045.5000"}}}, "10.0.19045.5000", "move to a later release from build 10.0.19045.5000"},
+		"esu":                          {&findings.FixedIn{Kind: "esu", Version: "10.0.19045.1", Fixed: "10.0.19045.6000"}, "10.0.19045.6000", "Extended Security Updates"},
+		"branches":                     {&findings.FixedIn{Kind: "branches", Branches: []findings.FixedBranch{{Branch: "21.2", Fixed: "21.2R3-S7"}}, NoFix: 1}, "", "the device has no version in Vedette, so which release line applies to this device is not known"},
+		"branches, unreadable version": {&findings.FixedIn{Kind: "branches", Version: "15.1X49", Branches: []findings.FixedBranch{{Branch: "21.2", Fixed: "21.2R3-S7"}}}, "", `installed version "15.1X49" cannot be read by Vedette, so which release line applies`},
+		"distro, upstream only":        {&findings.FixedIn{Kind: "distro", Version: "2.4.52-1ubuntu4", Distro: "Ubuntu", Fixed: "2.4.58"}, "", "may stay below 2.4.58 once fixed: install the distribution's updates, not 2.4.58 by hand"},
+		"branches, none":               {&findings.FixedIn{Kind: "branches", NoFix: 2}, "", "2 release lines have no fixed release"},
+		"not known":                    {nil, "", "Fixed version: not known on this box"},
+	}
+	noFix := 0
+	for name, c := range cases {
+		got := aiFixedIn(c.f, true)
+		if !strings.Contains(got, c.says) {
+			t.Errorf("%s: %q lacks %q", name, got, c.says)
+		}
+		if c.fixedIn == "" {
+			noFix++
+			if c.f != nil && c.f.Fixed != "" && strings.Contains(got, "fixed in "+c.f.Fixed) {
+				t.Errorf("%s: the line calls %s the fix while the page does not: %q", name, c.f.Fixed, got)
+			}
+		} else if !strings.Contains(got, c.fixedIn) {
+			t.Errorf("%s: the page's fix %s is not in %q", name, c.fixedIn, got)
+		}
+	}
+	t.Logf("%d cases, %d of them name no fixed release for the device", len(cases), noFix)
+
+	// every kind the page words on its own is a case here, so a new kind cannot be missed on one side
+	src, err := os.ReadFile("../../web/src/features/findings/Recommendation.tsx")
+	if err != nil {
+		t.Fatal(err)
+	}
+	covered := map[string]bool{}
+	for _, c := range cases {
+		if c.f != nil {
+			covered[c.f.Kind] = true
+		}
+	}
+	for _, m := range regexp.MustCompile(`f\.kind === '([a-z_]+)'`).FindAllStringSubmatch(string(src), -1) {
+		if !covered[m[1]] {
+			t.Errorf("the page words kind %q on its own and this test has no case for it", m[1])
+		}
+	}
+
+	// the AI reads the verdict in the device block, after the Evidence that holds the "before" end of the range
+	req := mitigation.AIRequest{Skill: mitigation.SkillConfig, Finding: findings.Row{CVE: "CVE-2023-0001"}, FixedIn: cases["end_listed"].f}
+	if b := aiFindingData(req, nil, aiFirewalls{}); !strings.Contains(b[1].Text, "20.4 is not a fix") {
+		t.Fatalf("device block = %q", b[1].Text)
+	}
+}

@@ -14,6 +14,7 @@ import (
 
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/jobs"
+	"github.com/knt048/vedette/core/orgtime"
 )
 
 // The monthly AI budget. There is no daily cap and no per-job quota: the box spends up to the budget the
@@ -32,8 +33,8 @@ const (
 	fuseSpan          = time.Minute
 )
 
-// renewDay is the day the budget starts again, as people read it ("1 December 2026").
-func (s *Service) renewDay() string { return s.meter.Renews().Format("2 January 2006") }
+// renewDay is the day the budget starts again, as people read it ("1 Dec 2026"): the first of next month in the zone of the meter.
+func (s *Service) renewDay() string { return orgtime.Day(s.meter.Renews(), s.loc) }
 
 // budgetStop is the sentence for the shared budget being used up; it starts with a lower-case letter so it can follow a clause.
 func (s *Service) budgetStop() string {

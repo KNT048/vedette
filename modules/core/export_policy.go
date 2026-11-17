@@ -81,7 +81,7 @@ var exportPolicy = map[string]tablePolicy{
 	"feeds_cveorg_checked":   {export: "cve checked_at"},                                                                                                 // When each CVE.org record was read
 	"feeds_distro_fix":       {export: "source_id distro release package cve status fixed_version pro"},                                                  // Public Ubuntu/Debian data
 	"feeds_epss":             {skipAll: true, skip: "cve epss percentile gen"},                                                                           // FIRST's public scores of every CVE (400,000 rows), pulled again daily
-	"feeds_epss_baseline":    {skipAll: true, skip: "id url count"},                                                                                      // The yardstick of the next EPSS file
+	"feeds_epss_baseline":    {skipAll: true, skip: "id url count score_date"},                                                                           // The yardstick of the next EPSS file and FIRST's day of the scores
 	"feeds_recent_affected":  {skipAll: true, skip: "cve cpe start_incl start_excl end_incl end_excl platforms"},                                         // Public NVD data of 100,000 CVEs, pulled again
 	"feeds_recent_cursor":    {skipAll: true, skip: "id url mode win_from win_to until next_index total"},                                                // Where an unfinished pull goes on
 	"feeds_recent_cve":       {skipAll: true, skip: "cve published last_modified status severity score cvss_score cvss_version cvss_source cvss_vector"}, // Public NVD data, pulled again

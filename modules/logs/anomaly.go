@@ -15,6 +15,7 @@ import (
 
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/jobs"
+	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -652,7 +653,7 @@ func (p *sourcePass) mined(ctx context.Context, waiting []anomaly) error {
 
 // summary announces the flood summary of the hour and covers what it carries.
 func (p *sourcePass) summary(ctx context.Context, all []anomaly, det map[string]detail) error {
-	ev, target := summaryEvent(p.src, p.hour, all, det, p.base())
+	ev, target := summaryEvent(p.src, p.hour, all, det, p.base(), orgtime.At(ctx, p.s.cfg.Zone))
 	if err := p.s.cfg.Events.Publish(ctx, events.Event{Name: EventAnomalyDetected, Data: ev}); err != nil {
 		return fmt.Errorf("logs: announcing a flood: %w", err)
 	}
@@ -754,7 +755,7 @@ func (s *Service) announce(ctx context.Context, src sourceRow, now time.Time, re
 // hour, so notify opens a new incident for each (the same target would be counted up in an old one, silently). Title and target say
 // what it carries (new kinds of message, spikes, or both) and the real span: "since <time of the first new kind>" and "in the last 24
 // hours" for a spike (the estimate is over 24 hours). items is in the order of rank (the rarest first).
-func summaryEvent(src sourceRow, hour string, items []anomaly, det map[string]detail, base []DeviceInfo) (AnomalyEvent, string) {
+func summaryEvent(src sourceRow, hour string, items []anomaly, det map[string]detail, base []DeviceInfo, loc *time.Location) (AnomalyEvent, string) {
 	news, spikes := 0, 0
 	var since time.Time
 	for _, a := range items {
@@ -768,7 +769,7 @@ func summaryEvent(src sourceRow, hour string, items []anomaly, det map[string]de
 		}
 	}
 	const why = "(possible brute force or scan)"
-	from := since.UTC().Format("2006-01-02 15:04") + " UTC"
+	from := orgtime.Stamp(since, loc) // in the organization's zone, like every time in an alert
 	var title, target string
 	switch {
 	case spikes == 0:

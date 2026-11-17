@@ -1242,7 +1242,7 @@ func TestContract_Events_MinedFloodIsOneSummaryAnHour(t *testing.T) {
 	for _, ev := range summaries(p) {
 		targets[ev.Source+"\x00"+ev.Target] = true
 		notifyAccepts(t, ev)
-		if !strings.Contains(ev.Title, "possible brute force or scan") || !strings.Contains(ev.Title, " 30 new kinds of message since 2026-") || strings.Contains(ev.Title, "last hour") {
+		if !strings.Contains(ev.Title, "possible brute force or scan") || !strings.Contains(ev.Title, " 30 new kinds of message since ") || strings.Contains(ev.Title, "last hour") {
 			t.Fatalf("%+v", ev)
 		}
 	}
@@ -1297,12 +1297,12 @@ func TestContract_Events_SummaryTargetFitsWhatItCarries(t *testing.T) {
 	t.Parallel()
 	src := sourceRow{ID: "ls-x", Name: "FW-HQ"}
 	spikes := []anomaly{{Kind: "spike", SourceID: "ls-x", Signature: "s1", Count: 99}, {Kind: "spike", SourceID: "ls-x", Signature: "s2", Count: 50}}
-	ev, target := summaryEvent(src, "2026-11-12T14", spikes, nil, nil)
+	ev, target := summaryEvent(src, "2026-11-12T14", spikes, nil, nil, time.UTC)
 	if strings.Contains(ev.Title, "new kinds") || strings.Contains(target, "new") || !strings.Contains(ev.Title, "in the last 24 hours") || ev.Target != target {
 		t.Fatalf("%+v %q", ev, target)
 	}
 	both := append(spikes, anomaly{Kind: "new", SourceID: "ls-x", Signature: "n1", Count: 1, First: t0})
-	ev, target = summaryEvent(src, "2026-11-12T14", both, nil, nil)
+	ev, target = summaryEvent(src, "2026-11-12T14", both, nil, nil, time.UTC)
 	if !strings.Contains(ev.Title, "1 new kinds of message since") || !strings.Contains(ev.Title, "2 spikes") || !strings.HasSuffix(target, " 2026-11-12T14") {
 		t.Fatalf("%+v %q", ev, target)
 	}

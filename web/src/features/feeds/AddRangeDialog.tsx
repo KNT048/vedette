@@ -8,10 +8,10 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Field, Input, Label } from '@/components/ui/input'
 import { Loading, ErrorState } from '@/components/common/States'
 import { api, ApiError } from '@/lib/api'
-import { fmtStamp } from './dates'
 import { SCANNING_KEY, useScanning } from './homeSummary'
 import type { z } from 'zod'
 import type { Safety, SafetySaved } from '@/features/scanning/contract'
+import { fmtDateTime } from '@/lib/format'
 
 type Scope = z.infer<typeof Safety>['scope']
 type Saved = z.infer<typeof SafetySaved>
@@ -77,7 +77,7 @@ export function AddRangeDialog({ open, onOpenChange }: { open: boolean; onOpenCh
             {others.length ? (
               <p className="text-meta text-muted">
                 {t('range.current', { count: others.length, ranges: others.join(', ') })}{' '}
-                {scope?.confirmed_at ? t('range.confirmedAt', { who: scope.confirmed_by ?? '', when: fmtStamp(scope.confirmed_at) }) : t('range.notConfirmed')}
+                {scope?.confirmed_at ? t('range.confirmedAt', { who: scope.confirmed_by ?? '', when: fmtDateTime(scope.confirmed_at) }) : t('range.notConfirmed')}
               </p>
             ) : null}
             <div className="grid gap-1.5">

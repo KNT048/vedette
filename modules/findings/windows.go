@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/core/winrel"
 )
 
@@ -440,7 +441,7 @@ func windowsDecide(in swInfo, v Vuln, named bool, now time.Time) (winVerdict, bo
 	// (CVE-2010 with windows_server_2022) was written or grown after the CVE's year, so its age is not the CVE's.
 	old := cveYear(v.CVE) > 0 && listedLongAgo && cveYear(v.CVE)+2 <= now.Year() && cveYear(v.CVE) < d.rel.GA.Year() && listedYear > 0 && listedYear <= cveYear(v.CVE)
 	if shipped || settled(v, now) || old {
-		why := fmt.Sprintf("%s came out on %s, after %s listed the flaw (%s), so it carries the fix", d.rel.Display, d.rel.GA.Format("2 Jan 2006"), v.listName(), v.DateAdded.Format("2 Jan 2006"))
+		why := fmt.Sprintf("%s came out on %s, after %s listed the flaw (%s), so it carries the fix", d.rel.Display, orgtime.CalendarDay(d.rel.GA), v.listName(), orgtime.CalendarDay(v.DateAdded))
 		switch {
 		case shipped:
 		case settled(v, now):
@@ -978,7 +979,7 @@ func winMonthRule(d winDev, b winBuild, v Vuln, now time.Time) (winVerdict, bool
 		return winVerdict{}, false
 	}
 	return winVerdict{t: No, proof: proofRelease, note: fmt.Sprintf("Not affected: build %d.%s of %s carries Microsoft's monthly update of %s (the newest month whose fixes NVD lists at or below this build), and Microsoft published %s on %s, in or before that month. Windows updates are cumulative, so this build has the fix. Vedette closed this by itself and reopens it if a later match says the device is affected.",
-		d.rel.Build, d.ubr, d.rel.Display, b.month, v.CVE, FmtDay(v.Published))}, true
+		d.rel.Build, d.ubr, d.rel.Display, b.month, v.CVE, orgtime.CalendarDay(v.Published))}, true
 }
 
 // winEndsAbove says whether a range's end is at the device's build or line and not below its revision, or there without a revision
@@ -1081,5 +1082,5 @@ func winHotpatchNote(in swInfo, cve string) (string, bool) {
 		return ", " + u.KB
 	}
 	return fmt.Sprintf("Not affected: build %d.%s of %s is Microsoft's hotpatch of %s (%d.%d%s), which carries the security fixes of that month's update %d.%d%s, and NVD lists %s as fixed at or below that update. Vedette closed this by itself and reopens it if a later match says the device is affected.",
-		d.rel.Build, d.ubr, d.rel.Display, d.hot.Day.Format("January 2006"), d.rel.Build, d.hot.Rev, kb(d.hot), d.rel.Build, d.base.Rev, kb(d.base), cve), true
+		d.rel.Build, d.ubr, d.rel.Display, orgtime.CalendarMonth(d.hot.Day), d.rel.Build, d.hot.Rev, kb(d.hot), d.rel.Build, d.base.Rev, kb(d.base), cve), true
 }

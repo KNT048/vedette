@@ -481,7 +481,7 @@ func (r responseIncidents) Incident(ctx context.Context, id string) (response.In
 // responseConfig is the configuration of the response service: every port wired to the module that provides it.
 func responseConfig(d *deps) (response.Config, error) {
 	n := newNotify(d)
-	cfg := response.Config{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Users: responseUsers{d}, TwoStep: responseTwoStep{d}, Log: d.Log, Clock: d.Clock,
+	cfg := response.Config{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Users: responseUsers{d}, TwoStep: responseTwoStep{d}, Log: d.Log, Clock: d.Clock, Zone: orgTimeZone(d),
 		Notifier: responseNotifier{n: n, now: d.Clock, reg: d.Reg}, Links: responseLinks{n}, Webhooks: responseWebhooks{n}, Directory: responseDirectory{inv: d.Inventory, fnd: d.Findings},
 		Mailer: responseMailer{n.CodeMailer()}, LinkSender: responseLinkSender{n: n, reg: d.Reg}, Incidents: responseIncidents{n: n, d: d, reg: d.Reg}, BaseURL: d.BaseURL} // the block list address a firewall pulls (empty on loopback: a relative path)
 	cfg.BoxAddrs = responseBoxAddrs(notifyBoxAddrs(d.HostNet), lateDecoys{d})        // the decoys and the host's addresses are the box too, so an action aimed at one is never_touch

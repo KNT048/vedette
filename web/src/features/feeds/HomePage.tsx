@@ -9,8 +9,7 @@ import { EmptyState, QueryState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Segmented } from '@/components/ui/segmented'
-import { fmtPercent, rawProductLine } from '@/lib/format'
-import { fmtDay, fmtStamp, fmtWhen } from './dates'
+import { fmtDate, fmtDateTime, fmtPercent, fmtWhen, rawProductLine } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { useSetup } from '@/app/RequireSession'
 import { ApiError } from '@/lib/api'
@@ -53,7 +52,7 @@ function KevFreshness({ latest }: { latest: { date_added: string; display: strin
   // off, or never loaded with a reason: the board's notice says it, with the last try and the link (useKevNotice)
   if (!kev || kev.state === 'off' || (kev.state === 'never_loaded' && kev.error)) return null
   const every = t('fresh.every', { count: kev.interval_hours })
-  const added = latest ? ` ${t('fresh.latest', { date: fmtDay(latest.date_added), product: latest.display })}` : ''
+  const added = latest ? ` ${t('fresh.latest', { date: fmtDate(latest.date_added), product: latest.display })}` : ''
   const link = <Link to="/settings/feeds#feed-cisa-kev" className="text-accent underline-offset-4 hover:underline">{t('fresh.openFeeds')}</Link>
   if (kev.error) {
     // #938 review r1: the failed state keeps the cadence (Vedette keeps trying, backing off after failures) and CISA's last addition
@@ -164,7 +163,7 @@ function HotBoard({ noDevices }: { noDevices: boolean }) {
             <div className="rounded-md border border-dashed border-rule bg-surface px-6 py-8"><p className="font-medium">{notice}</p></div>
           ) : (
             <EmptyState title={t('hot.empty', { window: win === '24h' ? t('hot.24h') : t('hot.7d') })}>
-              {d.latest ? t('hot.emptyLatest', { date: fmtDay(d.latest.date_added), product: d.latest.display }) : null}
+              {d.latest ? t('hot.emptyLatest', { date: fmtDate(d.latest.date_added), product: d.latest.display }) : null}
             </EmptyState>
           )
         )}
@@ -235,7 +234,7 @@ export default function HomePage() {
       <PageHeader
         title={title}
         stories={['S-FEED-1', 'S-FEED-3', 'S-UI-1']}
-        meta={never ? t('home.metaNone') : status.data ? <>{t('home.meta', { time: fmtStamp(status.data.generated_at), sources: status.data.sources.map((s) => s.name).join(', ') })}{setup.data?.data_mode === 'sample' ? ` ${t('home.sampleInventory')}` : ''}</> : null}
+        meta={never ? t('home.metaNone') : status.data ? <>{t('home.meta', { time: fmtDateTime(status.data.generated_at), sources: status.data.sources.map((s) => s.name).join(', ') })}{setup.data?.data_mode === 'sample' ? ` ${t('home.sampleInventory')}` : ''}</> : null}
         actions={<SearchBox />}
       />
       <AiBudgetPrompt />

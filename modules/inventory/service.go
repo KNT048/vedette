@@ -14,6 +14,7 @@ import (
 
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/observe"
+	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -24,6 +25,8 @@ const systemActor = "system"
 // no Events means nothing is announced, no KEV means the catalog has only curated products and no CVE
 // matching, no Findings means findings_count is 0.
 type Config struct {
+	// Zone is the organization's time zone the days in notes people read are written in (orgtime); nil: UTC.
+	Zone     orgtime.Source
 	DB       *store.DB
 	Audit    *audit.Log
 	Events   Publisher
@@ -74,6 +77,7 @@ type Config struct {
 
 // Service is the only writer of the inv_* tables (INV-2). Create it with New.
 type Service struct {
+	zone        orgtime.Source
 	db          *store.DB
 	audit       *audit.Log
 	events      Publisher
@@ -110,7 +114,7 @@ func New(cfg Config) (*Service, error) {
 	if cfg.DB == nil || cfg.Audit == nil {
 		return nil, errors.New("inventory: New needs DB and Audit")
 	}
-	s := &Service{db: cfg.DB, audit: cfg.Audit, events: cfg.Events, kev: cfg.KEV, box: cfg.Box, boxPorts: cfg.BoxPorts, findings: cfg.Findings, risk: cfg.Risk, modules: cfg.Modules, boxOwned: cfg.BoxOwnedIPs, boxMACs: cfg.BoxOwnedMACs, decoyMAC: cfg.BoxDecoyMACs, gateway: cfg.Gateway, wazuh: cfg.WazuhAgents, declared: cfg.DeclaredOS, readVersion: cfg.OSVersion, clock: cfg.Clock, log: cfg.Log}
+	s := &Service{db: cfg.DB, audit: cfg.Audit, events: cfg.Events, kev: cfg.KEV, box: cfg.Box, boxPorts: cfg.BoxPorts, findings: cfg.Findings, risk: cfg.Risk, modules: cfg.Modules, boxOwned: cfg.BoxOwnedIPs, boxMACs: cfg.BoxOwnedMACs, decoyMAC: cfg.BoxDecoyMACs, gateway: cfg.Gateway, wazuh: cfg.WazuhAgents, declared: cfg.DeclaredOS, readVersion: cfg.OSVersion, clock: cfg.Clock, zone: cfg.Zone, log: cfg.Log}
 	if s.clock == nil {
 		s.clock = time.Now
 	}

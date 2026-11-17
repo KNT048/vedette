@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -124,7 +125,7 @@ func (s *Service) watchKEV(ctx context.Context, pulled *sourceRow) error {
 		if err := s.st.setKEVWatch(ctx, w); err != nil {
 			return err
 		}
-		title, text := kevFreshNotice(r)
+		title, text := s.kevFreshNotice(ctx, r)
 		if err := s.Alert(ctx, id, title, text, false); err != nil {
 			w.Alerted = alerted
 			if rerr := s.st.setKEVWatch(ctx, w); rerr != nil {
@@ -154,8 +155,10 @@ func quietOff(err error) error {
 	return fmt.Errorf("feeds: send the alert about the CISA list: %w", err)
 }
 
-// stamp is a time in an alert: UTC, said so (an alert is read away from the box's own screen).
-func stamp(t time.Time) string { return t.UTC().Format("2 Jan 2006, 15:04") + " UTC" }
+// stamp is a time in an alert, in the organization's time zone like every time Vedette writes (orgtime).
+func (s *Service) stamp(ctx context.Context, t time.Time) string {
+	return orgtime.Stamp(t, orgtime.At(ctx, s.Zone))
+}
 
 // kevStaleTitle is the title of the alert.
 const kevStaleTitle = "Vedette cannot update the list of exploited vulnerabilities"
@@ -165,13 +168,13 @@ const kevStaleTitle = "Vedette cannot update the list of exploited vulnerabiliti
 func (s *Service) kevStaleNotice(ctx context.Context, r sourceRow, since time.Time) (text string) {
 	if r.Status == "error" && r.Error != nil && r.LastFetch != nil {
 		if e := oneLine(*r.Error, 300); e != nil {
-			text = fmt.Sprintf("The check at %s failed: %s. ", stamp(*r.LastFetch), *e)
+			text = fmt.Sprintf("The check at %s failed: %s. ", s.stamp(ctx, *r.LastFetch), *e)
 		}
 	}
 	if r.LastSuccess != nil {
-		text += "The list on the box is from the last good pull, at " + stamp(*r.LastSuccess) + "."
+		text += "The list on the box is from the last good pull, at " + s.stamp(ctx, *r.LastSuccess) + "."
 	} else {
-		text += fmt.Sprintf("No pull has worked since %s, so the box has no list yet.", stamp(since))
+		text += fmt.Sprintf("No pull has worked since %s, so the box has no list yet.", s.stamp(ctx, since))
 	}
 	reach := "www.cisa.gov or raw.githubusercontent.com"
 	if r.URL == s.kevPrimary() { // a clock far from the servers' is the cause to name, not the network (#946 r2)
@@ -194,8 +197,8 @@ func (s *Service) kevStaleNotice(ctx context.Context, r sourceRow, since time.Ti
 }
 
 // kevFreshNotice is the title and text of the "up to date again" message.
-func kevFreshNotice(r sourceRow) (title, text string) {
-	text = "CISA's list of exploited vulnerabilities was checked again at " + stamp(*r.LastSuccess)
+func (s *Service) kevFreshNotice(ctx context.Context, r sourceRow) (title, text string) {
+	text = "CISA's list of exploited vulnerabilities was checked again at " + s.stamp(ctx, *r.LastSuccess)
 	if r.AnsweredBy != nil {
 		text += "; the newest list on the box came from " + copyLabel(*r.AnsweredBy)
 	}

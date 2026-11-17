@@ -145,11 +145,17 @@ func TestUpdateSentence_WindowsNamesTheDevicesBuild(t *testing.T) {
 
 // GET /findings/plan says when the version of an agent's row is only the last list an agent sent: no agent of this box reports the
 // device now (the binary's AgentReports, agent-intake's report state). The item then carries agent_gone and the day the row was
-// last reported; a device an agent reports, a row a person typed, and a box with no agent check (nil) say nothing.
+// last reported, in the organization's time zone (the finding page writes the same moment in it); a device an agent reports, a row a
+// person typed, and a box with no agent check (nil) say nothing.
 func TestPlan_AgentGoneSaysTheLastReport(t *testing.T) {
 	t.Parallel()
 	e := newHTTPEnv(t)
-	seen := time.Date(2026, 10, 2, 8, 0, 0, 0, time.UTC)
+	hcm, err := time.LoadLocation("Asia/Ho_Chi_Minh")
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.svc.cfg.Zone = func(context.Context) *time.Location { return hcm }
+	seen := time.Date(2026, 10, 2, 21, 11, 0, 0, time.UTC) // 3 Oct, 04:11 in the organization's zone (UTC+7)
 	agentRow := nginxRow("1.18.0", "agent")
 	agentRow.SeenAt = seen
 	e.inv.assets["a-gone"] = AssetView{ID: "a-gone", Hostname: ptr("old-web"), IP: "192.168.10.31", Kind: "server", Name: "old-web"}
@@ -179,7 +185,7 @@ func TestPlan_AgentGoneSaysTheLastReport(t *testing.T) {
 	asked := map[string]int{}
 	e.fh.SetAgents(func(_ context.Context, id string) bool { asked[id]++; return id != "a-gone" })
 	got := byDevice()
-	if g := got["a-gone"]; g["agent_gone"] != true || g["agent_reported"] != "2026-10-02" {
+	if g := got["a-gone"]; g["agent_gone"] != true || g["agent_reported"] != "2026-10-03" {
 		t.Fatalf("no agent reports old-web: %v", g)
 	}
 	if l := got["a-live"]; l["agent_gone"] != false || l["agent_reported"] != nil {

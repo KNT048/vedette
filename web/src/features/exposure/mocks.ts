@@ -20,9 +20,9 @@ import { collection, newId, nowIso, type Collection } from '@/mocks/db'
 import { BOX_EGRESS_IP, BOX_EGRESS_IP_2, boxGreenbone, DEFAULT_INTERVAL, outsideAnswer, seedOutside, EXPIRING_DAYS, makeSnapshot, MAX_INTERVAL, MIN_INTERVAL, randomToken, scanContent, seedBoxIp, seedIgnored, seedSnapshots, seedTargets, VERIFY_DAYS, withDeep, type Content, type StoredTarget } from './data'
 import { serviceLabel } from './services'
 import { NOTICE_TEMPLATE, NOTICE_VERSION, PORT_NOT_SEEN, TERMS_DISRUPTIVE, TERMS_TEMPLATE, TERMS_TEMPLATE_DOMAIN, TERMS_VERSION, VERSION_NOT_READ } from './contract'
-import { dateText, dateTimeText } from './dates'
 import { mockDeviceProgress } from '@/lib/progress'
 import type { BoxIpSettings, Commitment, Terms, Diff, DiffChange, DiffItem, Greenbone, IgnoredIp, OutsideView, ScanRun, Snapshot, Target } from './types'
+import { fmtDate, fmtDateTime } from '@/lib/format'
 
 const targets = collection<StoredTarget[]>('exp_targets', seedTargets, () => [])
 const snapshots = collection<Record<string, Snapshot[]>>('exp_snapshots', seedSnapshots, () => ({}))
@@ -236,7 +236,7 @@ const CLIP_NOTE = ' … (cut here; the whole text is stored with the acceptance 
 const auditClip = (d: string) => ([...d].length <= 2000 ? d : [...d].slice(0, 2000 - [...CLIP_NOTE].length).join('') + CLIP_NOTE)
 const notFound = () => fail(404, 'not_found', 'No such target. It may have been deleted.')
 const plus = (iso: string, d: number) => new Date(Date.parse(iso) + d * 864e5).toISOString()
-const fmt = dateText
+const fmt = fmtDate
 
 // ---------- diff ----------
 type Entry = DiffItem & { exp?: string; product?: string; version?: string; lastSeen?: string; missed?: boolean }
@@ -407,7 +407,7 @@ function ipNotSeenNow(t: StoredTarget): boolean {
 export function ipPaused(t: { id: string; value: string }) {
   if (exposureIpCurrent(t.id)) return null
   const seenAt = find(t.id)?.verified_at
-  return fail(409, 'ip_not_current', `This box no longer reaches the Internet through ${t.value}; it was last seen ${seenAt ? dateTimeText(seenAt) : 'never'}. Scans of it are paused until the box uses it again.`)
+  return fail(409, 'ip_not_current', `This box no longer reaches the Internet through ${t.value}; it was last seen ${seenAt ? fmtDateTime(seenAt) : 'never'}. Scans of it are paused until the box uses it again.`)
 }
 
 /** The check the box runs by itself: due when auto-detect is on and the last check is older than the interval (or there was none: first start). */
@@ -683,7 +683,7 @@ export const handlers = [
     const v = view(t)
     if (v.status === 'unverified') return fail(409, 'not_verified', `${t.value} has no ownership proof, so it cannot be checked with Shodan. Finish verification first.`)
     if (v.status === 'expired') return fail(409, 'expired', `Verification of ${t.value} expired on ${fmt(t.expires_at!)}, so it cannot be checked with Shodan. Verify it again first.`)
-    if (ipPaused(t)) return fail(409, 'ip_not_current', `This box no longer reaches the Internet through ${t.value}; it was last seen ${t.verified_at ? dateTimeText(t.verified_at) : 'never'}. It is not sent to Shodan until the box uses it again.`)
+    if (ipPaused(t)) return fail(409, 'ip_not_current', `This box no longer reaches the Internet through ${t.value}; it was last seen ${t.verified_at ? fmtDateTime(t.verified_at) : 'never'}. It is not sent to Shodan until the box uses it again.`)
     if (Date.now() - outsideAskedMs < 60_000) return fail(429, 'rate_limited', 'The box asked Shodan less than a minute ago. Try again in a minute: it asks at most once a minute.')
     outsideAskedMs = Date.now()
     const a = outsideAnswer(t.value)

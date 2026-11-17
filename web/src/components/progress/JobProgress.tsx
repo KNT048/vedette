@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { sayDuration } from './duration'
 import './JobProgress.css'
+import { fmtTime } from '@/lib/format'
 
 /** A report older than this reads "Last report N s ago": the box reports every 5 s at most, and some checks are silent until they end. */
 export const QUIET_AFTER_MS = 30_000
@@ -69,7 +70,7 @@ export function JobProgress({ progress, className }: { progress: Progress | null
   const endsMs = progress?.ends_by ? Date.parse(progress.ends_by) : null
   const finishing = openvas && ((progress?.percent ?? 0) >= OPENVAS_TAIL_PERCENT || (etaMs !== null && etaMs <= 0))
   const overdue = finishing && endsMs !== null && now > endsMs
-  const stopBy = finishing && endsMs !== null && !overdue ? new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' }).format(new Date(endsMs)) : null
+  const stopBy = finishing && endsMs !== null && !overdue ? fmtTime(new Date(endsMs).toISOString()) : null
   const left = finishing || steady.slipped || etaMs === null || etaMs <= 0 ? null : etaMs < 60_000 ? t('leftSoon') : t('left', { time: sayDuration(t, Math.ceil(etaMs / 60_000) * 60_000) })
   // Past its estimate (a minute of grace: reports come every few seconds) or re-estimated later: say so instead of a time.
   const longer = !finishing && (steady.slipped || (etaMs !== null && etaMs <= -SLIP_MS))

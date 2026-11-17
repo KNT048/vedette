@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/knt048/vedette/core/orgtime"
 )
 
 // accept_risk needs a note like false positive and a day from tomorrow to a year ahead (one day of slack each side
@@ -40,7 +42,7 @@ func TestFinding_AcceptRisk_NoteAndUntilBounds(t *testing.T) {
 		if err != nil || got.Status != StatusRiskAccepted || !got.AcceptedUntil.Equal(c.until) || got.ResolvedBy != "ann" || got.Validate() != nil {
 			t.Errorf("%s: %+v %v", c.name, got, err)
 		}
-		if h.Action != "risk_accepted" || !strings.HasSuffix(h.Note, "(until "+FmtDay(c.until)+")") {
+		if h.Action != "risk_accepted" || !strings.HasSuffix(h.Note, "(until "+orgtime.CalendarDay(c.until)+")") {
 			t.Errorf("%s: history %+v", c.name, h)
 		}
 	}
@@ -68,7 +70,7 @@ func TestFinding_ExpireAcceptance(t *testing.T) {
 	if !ok || re.Status != StatusSuspected || !re.AcceptedUntil.IsZero() || re.ResolvedBy != "" || re.Validate() != nil {
 		t.Fatalf("reopened = %+v %v", re, ok)
 	}
-	if h.User != SystemUser || h.Action != "reopened" || h.Note != "Risk acceptance expired (accepted by ann@example.com until "+FmtDay(until)+")." {
+	if h.User != SystemUser || h.Action != "reopened" || h.Note != "Risk acceptance expired (accepted by ann@example.com until "+orgtime.CalendarDay(until)+")." {
 		t.Fatalf("history = %+v", h)
 	}
 	scan := acc

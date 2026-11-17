@@ -15,6 +15,7 @@ import (
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/auth"
+	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/store"
 )
@@ -27,6 +28,7 @@ type Deps struct {
 	Audit   *audit.Log
 	Log     *slog.Logger
 	Clock   func() time.Time  // nil: time.Now
+	Zone    orgtime.Source    // the organization's time zone of the dates in messages (orgtime); nil: UTC
 	IDPBase http.RoundTripper // nil: the default transport; tests pass the httptest TLS server's
 }
 
@@ -38,6 +40,7 @@ type Service struct {
 	audit   *audit.Log
 	log     *slog.Logger
 	now     func() time.Time
+	zone    orgtime.Source
 	client  *http.Client      // every call to the identity provider; clientFor adds the saved CA
 	base    http.RoundTripper // the transport client wraps
 	limit   *limiter
@@ -57,7 +60,7 @@ func New(d Deps) (*Service, error) {
 	if d.IDPBase == nil {
 		d.IDPBase = http.DefaultTransport.(*http.Transport).Clone()
 	}
-	return &Service{db: d.DB, secrets: d.Secrets, auth: d.Auth, audit: d.Audit, log: d.Log, now: d.Clock, client: newClient(d.IDPBase), base: d.IDPBase, limit: newLimiter(d.Clock)}, nil
+	return &Service{db: d.DB, secrets: d.Secrets, auth: d.Auth, audit: d.Audit, log: d.Log, now: d.Clock, zone: d.Zone, client: newClient(d.IDPBase), base: d.IDPBase, limit: newLimiter(d.Clock)}, nil
 }
 
 // Endpoints is the result of Test (POST /core/oidc/test).

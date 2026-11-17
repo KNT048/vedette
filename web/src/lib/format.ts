@@ -1,21 +1,74 @@
-// One date format in the whole app: "12 Nov 2026" and "12 Nov 2026, 20:51", as Home and the feeds screens already wrote it;
-// 12/11/2026 reads as 11 December to half the readers. English only, so the format is fixed.
+// One date format in the whole app: "12 Nov 2026" and "12 Nov 2026, 20:51"; 12/11/2026 reads as 11 December to half the readers.
+// English only, so the format is fixed.
+// One time zone too: every moment is written in the organization's time zone (Settings › General), the zone the box writes its own
+// sentences, alerts and emails in, so one moment reads as the same day on every page and in every message. A calendar day sent as
+// YYYY-MM-DD (a CVE's published day, a deadline, a day the box already put in that zone) is written as it is, never moved by a zone.
 const loc = () => 'en-GB'
-/** 'YYYY-MM-DD' là ngày lịch, không có giờ: dựng theo giờ địa phương để không lùi một ngày ở múi giờ âm. */
-const toDate = (s: string) => { const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(s) }
+let zone: string | undefined
 
+/** Sets the organization's time zone (RequireSession, from GET /core/general); empty or a name this browser does not know: the
+ *  browser's own zone. */
+export function setDisplayTimeZone(z: string | null | undefined) {
+  zone = undefined
+  if (!z) return
+  try {
+    new Intl.DateTimeFormat(loc(), { timeZone: z })
+    zone = z
+  } catch {
+    // an unknown name: the browser's zone
+  }
+}
+/** The zone dates are written in now; undefined is the browser's. */
+export const displayTimeZone = () => zone
+
+const DAY = /^(\d{4})-(\d{2})-(\d{2})$/
+/** A calendar day is written in UTC from its own numbers; a moment in the organization's zone. The formatter is made per call, so
+ *  it follows the zone set now. */
+function write(iso: string, o: Intl.DateTimeFormatOptions) {
+  const m = iso.match(DAY)
+  if (m) return new Intl.DateTimeFormat(loc(), { ...o, timeZone: 'UTC' }).format(new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]))))
+  return new Intl.DateTimeFormat(loc(), zone ? { ...o, timeZone: zone } : o).format(new Date(iso))
+}
+const DATE: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' }
+const CLOCK: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit' }
+
+/** "12 Nov 2026" */
 export function fmtDate(iso: string | null | undefined) {
-  if (!iso) return '–'
-  return new Intl.DateTimeFormat(loc(), { day: 'numeric', month: 'short', year: 'numeric' }).format(toDate(iso))
+  return iso ? write(iso, DATE) : '–'
 }
+/** "12 Nov 2026, 20:51" */
 export function fmtDateTime(iso: string | null | undefined) {
-  if (!iso) return '–'
-  return new Intl.DateTimeFormat(loc(), { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(iso))
+  return iso ? write(iso, { ...DATE, ...CLOCK }) : '–'
 }
-/** The time of day only, "14:03", for something that happened minutes ago. */
-export function fmtTime(iso: string | null | undefined) {
+/** The time of day only, "14:03" (with seconds, "14:03:09"), for something that happened minutes ago. */
+export function fmtTime(iso: string | null | undefined, seconds = false) {
+  return iso ? write(iso, seconds ? { ...CLOCK, second: '2-digit' } : CLOCK) : '–'
+}
+/** "12 Nov", a day of a chart of the last weeks. */
+export function fmtDayMonth(iso: string | null | undefined) {
+  return iso ? write(iso, { day: 'numeric', month: 'short' }) : '–'
+}
+/** "November 2026" */
+export function fmtMonthYear(iso: string | null | undefined) {
+  return iso ? write(iso, { month: 'long', year: 'numeric' }) : '–'
+}
+/** The organization's day of a moment, "2026-11-15" (a calendar day stays as it is). */
+export function dayOf(iso: string) {
+  if (DAY.test(iso)) return iso
+  const parts = new Intl.DateTimeFormat(loc(), { year: 'numeric', month: '2-digit', day: '2-digit', ...(zone ? { timeZone: zone } : {}) }).formatToParts(new Date(iso))
+  const part = (t: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === t)?.value ?? ''
+  return `${part('year')}-${part('month')}-${part('day')}`
+}
+/** A moment as short as it can be: "10:54" on the organization's today, else "13 Nov 2026, 10:54". `now` comes from a clock that
+ *  ticks past midnight. */
+export function fmtWhen(iso: string | null | undefined, now = new Date()) {
   if (!iso) return '–'
-  return new Intl.DateTimeFormat(loc(), { hour: '2-digit', minute: '2-digit' }).format(new Date(iso))
+  return dayOf(iso) === dayOf(now.toISOString()) ? fmtTime(iso) : fmtDateTime(iso)
+}
+/** The end of something that started at start: "22:43" on the same day, else "18 Nov 2026, 00:12". */
+export function fmtEnd(start: string | null | undefined, end: string | null | undefined) {
+  if (!end) return '–'
+  return start && fmtDate(start) === fmtDate(end) ? fmtTime(end) : fmtDateTime(end)
 }
 /** The server sends Go's zero time (0001-01-01) for "never happened". */
 export function isNever(iso: string | null | undefined) {

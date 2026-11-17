@@ -135,7 +135,7 @@ const (
 // TierStatus says what the tier data holds.
 type TierStatus struct {
 	EPSS, Recent TierFeed
-	EPSSDate     time.Time // the day of the last good pull of epss-all (FIRST publishes one file a day); zero unless EPSS is ready
+	EPSSDate     time.Time // FIRST's day of the stored scores (the file's score_date, 00:00 UTC); before a pull stored it, the UTC day of the last good pull; zero unless EPSS is ready
 	RecentSince  time.Time // CVEs published on or after it are in nvd-recent's data; zero unless Recent is ready
 }
 
@@ -160,6 +160,15 @@ func (s *Store) TierStatus(ctx context.Context, now time.Time) (TierStatus, erro
 		out.EPSS = TierLoading
 		if scores > 0 && epss.LastSuccess != nil {
 			out.EPSS, out.EPSSDate = TierReady, epss.LastSuccess.UTC().Truncate(24*time.Hour)
+			// FIRST's own day of the scores, the day Settings › Feeds names too; a pull before the column kept none
+			var day sql.NullString
+			err := s.db.Reader().QueryRowContext(ctx, `SELECT score_date FROM feeds_epss_baseline WHERE id = 1`).Scan(&day)
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				return out, fmt.Errorf("feeds: tier status: %w", err)
+			}
+			if d, err := time.Parse(time.DateOnly, day.String); day.Valid && err == nil {
+				out.EPSSDate = d
+			}
 		}
 	}
 	if recent.Enabled {

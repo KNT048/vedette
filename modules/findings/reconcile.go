@@ -10,6 +10,7 @@ import (
 
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/jobs"
+	"github.com/knt048/vedette/core/orgtime"
 )
 
 // ReconcileEvery is the pause between two reconcile runs (the job also runs once when the module starts).
@@ -365,7 +366,7 @@ func (s *Service) expireRaw(ctx context.Context, tx *sql.Tx, id string, now time
 		resolution_reason = NULL, accepted_until = NULL WHERE id = ? AND status = 'risk_accepted'`, string(to), id); err != nil {
 		return ev, false, err
 	}
-	note := "Risk acceptance expired (accepted by " + by.String + " until " + FmtDay(until) + ")."
+	note := "Risk acceptance expired (accepted by " + by.String + " until " + orgtime.CalendarDay(until) + ")."
 	if err = insertHistory(ctx, tx, id, HistoryEntry{TS: now, User: SystemUser, Action: "reopened", Note: note}); err != nil {
 		return ev, false, err
 	}

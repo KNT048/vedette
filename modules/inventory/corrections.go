@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/apierr"
+	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -73,13 +74,14 @@ func manualOS(ctx context.Context, q querier, id string) (value, setAt, setBy st
 	return value, setAt, setBy, true, nil
 }
 
-// correctionDay is the day of a stored time in the findings history's words ("17 Nov 2026"); the stored text when it does not parse.
-func correctionDay(at string) string {
+// correctionDay is the day of a stored time in the findings history's words ("17 Nov 2026"), in the organization's zone loc; the
+// stored text when it does not parse.
+func correctionDay(at string, loc *time.Location) string {
 	t, err := time.Parse(time.RFC3339Nano, at)
 	if err != nil {
 		return at
 	}
-	return t.UTC().Format("2 Jan 2006")
+	return orgtime.Day(t, loc)
 }
 
 // detectedOS is the OS the device's sources read, the person's left out: the value that would win without the correction.
@@ -555,21 +557,21 @@ func addCorrections(ctx context.Context, q querier, assetID string, views []Soft
 // correctionNote names a person's software correction for the findings history: "it@acme.example corrected OpenSSH
 // 10.2 (nmap) to OpenSSH 10.2p1 (package 10.2_p1-r1) on 17 Nov 2026"; a "not installed" one (INV-41 (6)): "it@acme.example said
 // OpenSSH 10.2 (nmap) is not installed on 17 Nov 2026".
-func correctionNote(display, version, pkg, corrects, setBy, setAt string, notInstalled bool) string {
+func correctionNote(display, version, pkg, corrects, setBy, setAt string, notInstalled bool, loc *time.Location) string {
 	src, _, product, from := correctedFrom(corrects)
 	was := display
 	if !strings.EqualFold(strings.ToLower(display), product) && !strings.Contains(strings.ToLower(display), product) {
 		was = product
 	}
 	if notInstalled { // the row's own name, as the reported row shows it: findings reads "said <name> <version> (<source>)" to tell a person's Clear from a new reading
-		return cmp.Or(setBy, "a person") + " said " + swText(display, from, "") + " (" + src + ") is not installed on " + correctionDay(setAt)
+		return cmp.Or(setBy, "a person") + " said " + swText(display, from, "") + " (" + src + ") is not installed on " + correctionDay(setAt, loc)
 	}
-	return cmp.Or(setBy, "a person") + " corrected " + swText(was, from, "") + " (" + src + ") to " + swText(display, version, pkg) + " on " + correctionDay(setAt)
+	return cmp.Or(setBy, "a person") + " corrected " + swText(was, from, "") + " (" + src + ") to " + swText(display, version, pkg) + " on " + correctionDay(setAt, loc)
 }
 
 // restingCorrections names the device's corrections that rest (#950: the row each corrects is no longer reported) on
 // the reported rows of the same source and product that decide now (Superseded) and in StaleCorrections.
-func restingCorrections(ctx context.Context, q querier, id string, d *MatchDevice, prefix map[string]string) error {
+func restingCorrections(ctx context.Context, q querier, id string, d *MatchDevice, prefix map[string]string, loc *time.Location) error {
 	rows, err := q.QueryContext(ctx, `SELECT s.display, ifnull(s.version, ''), ifnull(s.pkg_version, ''), s.corrects, ifnull(s.set_by, ''), s.seen_at, s.not_installed
 		FROM inv_software s WHERE s.asset_id = ? AND s.corrects IS NOT NULL AND NOT `+correctionLive+` ORDER BY s.seen_at, s.id`, id)
 	if err != nil {
@@ -583,7 +585,7 @@ func restingCorrections(ctx context.Context, q querier, id string, d *MatchDevic
 			return fmt.Errorf("inventory: read resting corrections: %w", err)
 		}
 		src, _, _, _ := correctedFrom(corrects)
-		note := correctionNote(display, version, pkg, corrects, setBy, setAt, notInstalled)
+		note := correctionNote(display, version, pkg, corrects, setBy, setAt, notInstalled, loc)
 		var now []int
 		for i, sw := range d.Software {
 			if prefix[sw.ID] == productPrefix(corrects) {

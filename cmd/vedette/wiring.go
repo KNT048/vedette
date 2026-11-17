@@ -555,7 +555,7 @@ func buildServices(ctx context.Context, d *deps) error {
 	if d.ConnReader, err = read.New(read.Config{Conns: d.Conn, Log: d.Log}); err != nil {
 		return fmt.Errorf("connection reader: %w", err)
 	}
-	if d.OIDC, err = authoidc.New(authoidc.Deps{DB: d.DB, Secrets: d.Secrets, Auth: d.Auth, Audit: d.Audit, Log: d.Log, Clock: d.Clock}); err != nil {
+	if d.OIDC, err = authoidc.New(authoidc.Deps{DB: d.DB, Secrets: d.Secrets, Auth: d.Auth, Audit: d.Audit, Log: d.Log, Clock: d.Clock, Zone: orgTimeZone(d)}); err != nil {
 		return fmt.Errorf("auth-oidc: %w", err)
 	}
 	if d.AgentIntake, err = agentintake.New(agentintake.Config{DB: d.DB, Audit: d.Audit, Sink: d.Inventory, Software: d.Inventory, Services: d.Inventory, Approver: d.Inventory, Secrets: d.Secrets, Conn: d.Conn, Clock: d.Clock, Log: d.Log,
@@ -606,7 +606,7 @@ func buildServices(ctx context.Context, d *deps) error {
 		feed.on = func() bool { return d.Reg.Enabled("feeds") }
 	}
 	// Backlog: findings the reconcile job creates for old KEV entries are backlog, silent for notify (findings does not import notify).
-	cfg := findings.ServiceConfig{DB: d.DB, Audit: d.Audit, Inventory: inv, Feeds: feed, Log: d.Log, Clock: d.Clock, Backlog: notify.WithBaseline,
+	cfg := findings.ServiceConfig{DB: d.DB, Audit: d.Audit, Inventory: inv, Feeds: feed, Log: d.Log, Clock: d.Clock, Zone: orgTimeZone(d), Backlog: notify.WithBaseline,
 		HaveSince: findingsHave(fs.Store()), // "I have this" on Home scopes the one device it declared
 		Applied:   mitigationApplied(d.DB)}  // a merge keeps the finding a person marked a mitigation item applied on
 	if d.Bus != nil {

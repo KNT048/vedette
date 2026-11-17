@@ -6,12 +6,11 @@ import { KeyValue, PageHeader, Section } from '@/components/common/PageHeader'
 import { Card } from '@/components/common/Card'
 import { ModuleOff, QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
-import { fmtPercent } from '@/lib/format'
+import { fmtDate, fmtPercent } from '@/lib/format'
 import { useModuleEnabled } from '@/lib/modules'
 import { usePlan } from '@/features/findings/api'
 import { EvidenceChip, PlanDataState } from '@/features/findings/Plan'
 import { usePlanAction } from '@/features/findings/fix'
-import { fmtDay } from './dates'
 import type { TierCve } from './types'
 import { RiskMarker } from '@/features/inventory/RiskMarker'
 
@@ -30,10 +29,10 @@ export function TierCvePage({ v }: { v: TierCve }) {
             <Card>
               <KeyValue items={[
                 { label: t('tierCve.products'), value: v.products.length ? v.products.join(', ') : <span className="text-muted">{t('tierCve.productsNone')}</span> },
-                { label: t('cve.published'), value: v.published ? fmtDay(v.published) : <span className="text-muted">{t('tierCve.publishedNone')}</span> },
+                { label: t('cve.published'), value: v.published ? fmtDate(v.published) : <span className="text-muted">{t('tierCve.publishedNone')}</span> },
                 { label: t('tierCve.severity'), value: v.severity ? `${t(`tierCve.sev.${v.severity}`)}${v.score !== null ? ` ${v.score.toFixed(1)}` : ''}` : <span className="text-muted">{t('tierCve.notScored')}</span> },
-                { label: t('cve.epss'), value: v.epss === null ? <span className="text-muted">{t('tierCve.epssNone')}</span> : <>{fmtPercent(v.epss)} <span className="text-caption text-muted">{t('tierCve.epssHint', { date: fmtDay(v.epss_date) })}</span></> },
-                { label: t('tierCve.status'), value: v.nvd_status ? <>{v.nvd_status}{v.last_modified ? <span className="text-caption text-muted"> {t('tierCve.changed', { date: fmtDay(v.last_modified) })}</span> : null}</> : '–' },
+                { label: t('cve.epss'), value: v.epss === null ? <span className="text-muted">{t('tierCve.epssNone')}</span> : <>{fmtPercent(v.epss)} <span className="text-caption text-muted">{t('tierCve.epssHint', { date: fmtDate(v.epss_date) })}</span></> },
+                { label: t('tierCve.status'), value: v.nvd_status ? <>{v.nvd_status}{v.last_modified ? <span className="text-caption text-muted"> {t('tierCve.changed', { date: fmtDate(v.last_modified) })}</span> : null}</> : '–' },
                 { label: t('tierCve.ranges'), value: v.published ? t(v.ranges ? 'tierCve.rangesYes' : 'tierCve.rangesNo') : '–' },
               ]} />
             </Card>

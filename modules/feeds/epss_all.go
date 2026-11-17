@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -231,13 +232,14 @@ func (s *Service) buildEPSSAll(ctx context.Context, src sourceRow, p pullPlan) (
 	}
 	p.out = outcome{OK: true, Bytes: read, ETag: resp.ETag, LastModif: resp.LastModified}
 	p.out.fill(res.Stats, len(res.Scores))
-	day := res.ScoreDate
-	if len(day) >= 10 {
-		day = day[:10]
-	}
-	if day != "" {
-		line := fmt.Sprintf("Scores of %s for %s CVEs.", day, grouped(len(res.Scores)))
-		p.out.Note = strings.TrimSpace(line + " " + p.out.Note)
+	// The file's score_date is FIRST's day for these scores (a calendar day, written as such): the note and the plan's "EPSS scores
+	// of <day>" (TierStatus) name it, not the day the box downloaded the file.
+	if len(res.ScoreDate) >= 10 {
+		if d, err := time.Parse(time.DateOnly, res.ScoreDate[:10]); err == nil {
+			p.epssDay = d.Format(time.DateOnly)
+			line := fmt.Sprintf("FIRST's scores of %s for %s CVEs.", orgtime.CalendarDay(d), grouped(len(res.Scores)))
+			p.out.Note = strings.TrimSpace(line + " " + p.out.Note)
+		}
 	}
 	p.epssAll, p.hasEPSSAll = res.Scores, true
 	return p, nil
@@ -247,7 +249,7 @@ func (s *Service) buildEPSSAll(ctx context.Context, src sourceRow, p pullPlan) (
 // rows held the writer about 0.4 s on a Mac in one transaction; the box is slower), under a new gen; the last transaction
 // drops the rows of CVEs the file no longer lists and records the pull (finish). A feed edited or turned off meanwhile
 // stops the writes (stale): the rows written so far are scores of the same day, and the next full pull settles the rest.
-func applyEPSSAll(ctx context.Context, db *store.DB, src sourceRow, scores []EPSSAllScore, finish func(tx *sql.Tx) error) (stale bool, err error) {
+func applyEPSSAll(ctx context.Context, db *store.DB, src sourceRow, scores []EPSSAllScore, day string, finish func(tx *sql.Tx) error) (stale bool, err error) {
 	live := func(tx *sql.Tx) (bool, error) {
 		cur, err := sourceTx(ctx, tx, src.ID)
 		if err != nil {
@@ -297,7 +299,8 @@ ON CONFLICT(cve) DO UPDATE SET epss = excluded.epss, percentile = excluded.perce
 		if _, err := tx.ExecContext(ctx, `DELETE FROM feeds_epss WHERE gen <> ?`, gen); err != nil {
 			return fmt.Errorf("feeds: drop old epss: %w", err)
 		}
-		if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_epss_baseline (id, url, count) VALUES (1, ?, ?) ON CONFLICT(id) DO UPDATE SET url = excluded.url, count = excluded.count`, src.URL, len(scores)); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_epss_baseline (id, url, count, score_date) VALUES (1, ?, ?, ?)
+ON CONFLICT(id) DO UPDATE SET url = excluded.url, count = excluded.count, score_date = excluded.score_date`, src.URL, len(scores), sql.NullString{String: day, Valid: day != ""}); err != nil {
 			return fmt.Errorf("feeds: epss baseline: %w", err)
 		}
 		return finish(tx)

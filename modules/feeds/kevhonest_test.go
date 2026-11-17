@@ -217,8 +217,8 @@ func TestContract_BothFailingAlertsOnceResolvesOnceAcrossRestarts(t *testing.T) 
 	if !a.crit[0] {
 		t.Error("the alert is not critical: a critical-only channel would never get it")
 	}
-	if txt := a.text[0]; !strings.Contains(txt, "The check at 5 Nov 2026, 14:00 UTC failed: cisa.gov refused this box (HTTP 403), and CISA's GitHub copy answered HTTP 502") ||
-		!strings.Contains(txt, "last good pull, at 5 Nov 2026, 12:00 UTC") {
+	if txt := a.text[0]; !strings.Contains(txt, "The check at 5 Nov 2026, 14:00 failed: cisa.gov refused this box (HTTP 403), and CISA's GitHub copy answered HTTP 502") ||
+		!strings.Contains(txt, "last good pull, at 5 Nov 2026, 12:00") {
 		t.Errorf("alert text: %q", txt)
 	}
 	for range 7 { // still failing, past six hours too: nothing more
@@ -298,7 +298,7 @@ func TestContract_SixChecksNotifyOffAndAListTurnedOff(t *testing.T) {
 	a.off = false
 	a.mu.Unlock()
 	e.tick(e.svc, 5*time.Minute)
-	if got := a.list(); len(got) != 1 || !strings.Contains(a.text[0], "last good pull, at 5 Nov 2026, 12:00 UTC") ||
+	if got := a.list(); len(got) != 1 || !strings.Contains(a.text[0], "last good pull, at 5 Nov 2026, 12:00") ||
 		!strings.Contains(a.text[0], "reach "+originHost+", the address set for this list") || strings.Contains(a.text[0], "www.cisa.gov") {
 		t.Fatalf("after notify came back: %v %v", got, a.text)
 	}

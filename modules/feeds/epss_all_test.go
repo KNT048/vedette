@@ -6,6 +6,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 )
 
 func gz(t *testing.T, text string) string {
@@ -66,11 +67,16 @@ func TestEPSSAllPull_StoresEveryScoreAndDropsTheGoneOnes(t *testing.T) {
 		t.Fatal(err)
 	}
 	f := e.feed(epssAllFeedID)
-	if f.Status != "ok" || f.Records == nil || *f.Records != 3 || f.Error == nil || !strings.HasPrefix(*f.Error, "Scores of 2026-11-14 for 3 CVEs.") {
+	if f.Status != "ok" || f.Records == nil || *f.Records != 3 || f.Error == nil || !strings.HasPrefix(*f.Error, "FIRST's scores of 14 Nov 2026 for 3 CVEs.") {
 		t.Fatalf("feed = %+v %v", f, *f.Error)
 	}
 	if n := rowsOf(t, e.db, "feeds_epss"); n != 3 {
 		t.Fatalf("%d scores", n)
+	}
+	// The plan's "EPSS scores of <day>" is FIRST's day of the file (14 Nov), the day the feed's note names, not the day the box
+	// downloaded it (5 Nov); a file that names no day falls back to the day of the pull.
+	if st, err := e.svc.st.TierStatus(t.Context(), e.clock()); err != nil || st.EPSSDate.Format(time.DateOnly) != "2026-11-14" {
+		t.Fatalf("tier status = %+v %v", st, err)
 	}
 	o.body("/epss.csv.gz", `"d2"`, gz(t, "cve,epss,percentile\nCVE-1999-0001,0.5,0.97\nCVE-2026-1234,0.7,0.99\n"))
 	e.setNow(e.clock().Add(25 * 3600e9))
@@ -83,6 +89,9 @@ func TestEPSSAllPull_StoresEveryScoreAndDropsTheGoneOnes(t *testing.T) {
 	}
 	if n := rowsOf(t, e.db, "feeds_epss"); n != 2 {
 		t.Fatalf("%d scores after a file without CVE-2025-0002", n)
+	}
+	if st, err := e.svc.st.TierStatus(t.Context(), e.clock()); err != nil || st.EPSSDate.Format(time.DateOnly) != "2026-11-06" {
+		t.Fatalf("a file without its day: tier status = %+v %v", st, err)
 	}
 	e.setNow(e.clock().Add(25 * 3600e9))
 	if err := e.svc.Fetch(t.Context(), epssAllFeedID); err != nil {

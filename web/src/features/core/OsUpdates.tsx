@@ -17,13 +17,12 @@ import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Input, Label } from '@/components/ui/input'
 import { Segmented } from '@/components/ui/segmented'
 import { Switch } from '@/components/ui/switch'
-import { fmtDateTime, fmtRelative, isNever } from '@/lib/format'
+import { fmtDateTime, fmtMonthYear, fmtRelative, isNever } from '@/lib/format'
 import { useOsMutations, useOsRun, useOsState } from './api'
 import { Band, errMsg, useGate } from './parts'
 import type { MaintenanceWindow, OsPackage, OsRun, OsState } from './types'
 
 const DAYS = [1, 2, 3, 4, 5, 6, 7]
-const monthYear = (d: string) => new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric' }).format(new Date(`${d}T12:00:00`))
 
 /** Hết hạn hỗ trợ: đã qua, sắp tới (trong 12 tháng) hay còn dài. Debian có thêm giai đoạn LTS. */
 function support(os: NonNullable<OsState['os']>, now = Date.now()): 'ok' | 'soon' | 'extended' | 'ended' {
@@ -205,13 +204,13 @@ function Body({ s }: { s: CheckedOs }) {
             <span className="text-meta text-muted">{t('updates.os.support')}</span>
             <span className="grid gap-1 text-sm">
               <span className="flex flex-wrap items-center gap-2">
-                {t('updates.os.supportUntil', { date: monthYear(s.os.support_end) })}
+                {t('updates.os.supportUntil', { date: fmtMonthYear(s.os.support_end) })}
                 {sup === 'ok' ? <Chip tone="ok">{t('updates.os.sup.ok')}</Chip> : null}
                 {sup === 'soon' ? <Chip tone="warn">{t('updates.os.sup.soon')}</Chip> : null}
                 {sup === 'extended' ? <Chip tone="warn">{t('updates.os.sup.extended')}</Chip> : null}
                 {sup === 'ended' ? <Chip tone="danger">{t('updates.os.sup.ended')}</Chip> : null}
               </span>
-              {s.os.extended_end ? <span className="text-meta text-muted">{t('updates.os.extendedUntil', { date: monthYear(s.os.extended_end) })}</span> : null}
+              {s.os.extended_end ? <span className="text-meta text-muted">{t('updates.os.extendedUntil', { date: fmtMonthYear(s.os.extended_end) })}</span> : null}
               {sup === 'extended' || sup === 'ended' || sup === 'soon' ? <span className="max-w-2xl text-meta">{t(`updates.os.supHint.${sup}`)}</span> : null}
             </span>
             <span className="text-meta text-muted">{t('updates.os.rebootLabel')}</span>

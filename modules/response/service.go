@@ -22,6 +22,7 @@ import (
 	"github.com/knt048/vedette/core/chain/chainhead"
 	"github.com/knt048/vedette/core/conn"
 	"github.com/knt048/vedette/core/events"
+	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/store"
 )
@@ -268,6 +269,8 @@ type Config struct {
 	Evidence  EvidencePorts // a nil port means no such evidence exists: an AI proposal naming it is refused (422 evidence_invalid)
 
 	Clock func() time.Time
+	// Zone is the organization's time zone the times in the status lines people read are written in (orgtime); nil: UTC.
+	Zone orgtime.Source
 	// BoxAddrs adds to the addresses of the network interfaces, which always count as never-touch and as forbidden webhook targets. An error
 	// means the set is not known (a configured host that has never answered, an unreadable honeypot record): the callers fail closed
 	// (errNeverTouchUnread: nothing is requested or run) instead of checking against a smaller set.

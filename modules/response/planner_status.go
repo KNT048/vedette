@@ -5,6 +5,8 @@ import (
 	"net/netip"
 	"slices"
 	"strings"
+
+	"github.com/knt048/vedette/core/orgtime"
 )
 
 // What the plan job did on its last run (item 20, S-RESP-2): read-only, so an empty inbox of proposals says why. Every reason is
@@ -80,14 +82,14 @@ func (s *Service) plannerStatus() PlannerStatus {
 }
 
 // backoffReason says when a backed-off finding is asked again.
-func (s *Service) backoffReason(id string) string {
+func (s *Service) backoffReason(ctx context.Context, id string) string {
 	s.limitMu.Lock()
 	defer s.limitMu.Unlock()
 	f := s.planFails[id]
 	if f.n > len(planBackoff) {
 		return "Not asked again: the AI's last 4 plans for it failed or were refused (the reasons are in the Response log)."
 	}
-	return "The AI's last plan for it failed or was refused; it is asked again after " + f.at.Add(planBackoff[max(f.n, 1)-1]).UTC().Format("2006-01-02 15:04 UTC") + "."
+	return "The AI's last plan for it failed or was refused; it is asked again after " + orgtime.Stamp(f.at.Add(planBackoff[max(f.n, 1)-1]), orgtime.At(ctx, s.cfg.Zone)) + "."
 }
 
 // notSentReason is why the proposals of a stored plan were not sent.

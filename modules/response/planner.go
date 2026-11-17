@@ -148,7 +148,7 @@ func (s *Service) PlanOpen(ctx context.Context) (int, error) {
 			status.add(t, OutcomeHasPlan, "A plan was written for it on an earlier run (one plan per finding): its actions, and any request made from them, are in the plan below and in the Response log.")
 			continue
 		case s.backedOff(t.FindingID):
-			status.add(t, OutcomeBackedOff, s.backoffReason(t.FindingID))
+			status.add(t, OutcomeBackedOff, s.backoffReason(ctx, t.FindingID))
 			continue
 		case asked >= maxPlansPerRun:
 			status.add(t, OutcomeLater, "Waiting for a later run: the AI is asked about at most 3 findings per run, every 5 minutes.")

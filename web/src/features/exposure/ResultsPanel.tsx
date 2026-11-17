@@ -7,7 +7,6 @@ import { SourceBadge } from '@/components/common/SourceBadge'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Field, Select } from '@/components/ui/input'
 import { InfoTip } from '@/components/common/InfoTip'
-import { dateText, dateTimeText, endText } from './dates'
 import { identOf, riskOf, serviceText } from './services'
 import { PortHints, RiskChip, ServiceCell } from './PortIdent'
 import { useDiff, useSnapshot, useSnapshots } from './api'
@@ -19,6 +18,7 @@ import { PortMark, PortMarkNote } from './PortMark'
 import { ApplianceNote } from './ApplianceNote'
 import { PORT_NOT_SEEN, VERSION_NOT_READ } from './contract'
 import { CERT_WARN_DAYS, type AdminRow, type CertRow, type DiffItem, type DiffChange, type HostRow, type PortRow, type Snapshot, type Target } from './types'
+import { fmtDate, fmtDateTime, fmtEnd } from '@/lib/format'
 
 /** A scan is named by its start; a snapshot read from a box older than started_at has only the time its results were stored. */
 const startOf = (s: Pick<Snapshot, 'scanned_at'> & { started_at?: string }) => s.started_at ?? s.scanned_at
@@ -46,7 +46,7 @@ export function ResultsPanel({ target, blockedText }: { target: Target; blockedT
             <div className="grid gap-4">
               <Field label={t('results.pick')} htmlFor="ex-snap" className="max-w-xs">
                 <Select id="ex-snap" value={date ?? ''} onChange={(e) => setDate(e.target.value)}>
-                  {l.items.map((s) => <option key={s.id} value={s.date}>{dateTimeText(startOf(s))}</option>)}
+                  {l.items.map((s) => <option key={s.id} value={s.date}>{fmtDateTime(startOf(s))}</option>)}
                 </Select>
               </Field>
               {snap.isPending ? <Loading /> : snap.error ? <ErrorState error={snap.error} onRetry={() => void snap.refetch()} /> : snap.data ? <SnapshotView target={target} s={snap.data} newest={snap.data.date === latest} /> : null}
@@ -55,7 +55,7 @@ export function ResultsPanel({ target, blockedText }: { target: Target; blockedT
         </QueryState>
       </Section>
       {/* A scan is named by its start everywhere (header, pickers, compare, history), in the viewer's time zone */}
-      {list.data && list.data.items.length > 0 ? <Compare target={target} dates={dates} label={Object.fromEntries(list.data.items.map((s) => [s.date, dateTimeText(startOf(s))]))} /> : null}
+      {list.data && list.data.items.length > 0 ? <Compare target={target} dates={dates} label={Object.fromEntries(list.data.items.map((s) => [s.date, fmtDateTime(startOf(s))]))} /> : null}
     </>
   )
 }
@@ -94,7 +94,7 @@ function SnapshotView({ target, s, newest }: { target: Target; s: Snapshot; newe
   const certCols: ColumnDef<CertRow>[] = [
     { id: 'host', header: t('col.name'), accessorFn: (r) => r.host },
     { id: 'issuer', header: t('col.issuer'), accessorFn: (r) => r.issuer },
-    { id: 'expires', header: t('col.expires'), accessorFn: (r) => r.expires_at, cell: ({ row }) => dateText(row.original.expires_at) },
+    { id: 'expires', header: t('col.expires'), accessorFn: (r) => r.expires_at, cell: ({ row }) => fmtDate(row.original.expires_at) },
     { id: 'left', header: t('col.left'), accessorFn: (r) => daysLeft(r.expires_at), cell: ({ row }) => {
       const d = daysLeft(row.original.expires_at)
       return d < 0 ? <Chip tone="danger">{t('cert.expired')}</Chip> : d <= 14 ? <Chip tone="danger">{t('cert.left', { count: d })}</Chip> : d <= CERT_WARN_DAYS ? <Chip tone="warn">{t('cert.left', { count: d })}</Chip> : <span className="text-meta text-muted">{t('cert.left', { count: d })}</span>
@@ -105,8 +105,8 @@ function SnapshotView({ target, s, newest }: { target: Target; s: Snapshot; newe
       <Panel className="p-4">
         <div className="mb-3 flex flex-wrap items-center gap-x-2 text-meta text-muted">
           <SourceBadge source="nmap" />
-          <span>{s.greenbone_run?.state === 'running' ? t('results.spanRunning', { start: dateTimeText(startOf(s)) })
-            : s.finished_at ? t('results.span', { start: dateTimeText(startOf(s)), end: endText(startOf(s), s.finished_at) }) : t('results.spanStart', { start: dateTimeText(startOf(s)) })}</span>
+          <span>{s.greenbone_run?.state === 'running' ? t('results.spanRunning', { start: fmtDateTime(startOf(s)) })
+            : s.finished_at ? t('results.span', { start: fmtDateTime(startOf(s)), end: fmtEnd(startOf(s), s.finished_at) }) : t('results.spanStart', { start: fmtDateTime(startOf(s)) })}</span>
           <InfoTip topic={t('results.scopeTopic')}><p>{t(!target.full_scan ? 'results.scopeBasic' : target.kind === 'domain' ? 'results.scopeDeepDomain' : 'results.scopeDeepIp')}</p><p>{t('results.sourceNote')}</p></InfoTip>
         </div>
         <KeyValue items={[
@@ -156,7 +156,7 @@ function Compare({ target, dates, label }: { target: Target; dates: string[]; la
       if (r.change !== 'changed') return r.item.detail
       if (r.item.kind === 'port' && r.to === PORT_NOT_SEEN) return t('diff.portNotSeen')
       if (r.item.kind === 'service') return r.to === VERSION_NOT_READ ? t('diff.versionNotRead', { from: r.from }) : t('diff.serviceChanged', { from: r.from, to: r.to })
-      return t('diff.certChanged', { from: dateText(r.from), to: dateText(r.to) })
+      return t('diff.certChanged', { from: fmtDate(r.from), to: fmtDate(r.to) })
     } },
   ]
   const rows: Row[] = diff.data ? [

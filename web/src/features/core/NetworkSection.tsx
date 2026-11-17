@@ -23,6 +23,7 @@ import { errMsg, ReadOnlyNote, useGate } from './parts'
 import { SpanCard } from './SpanCard'
 import { SpanGuides } from './SpanGuides'
 import type { IfaceRole, Management, NetInterface, NetworkState, NtpConfig } from './types'
+import { fmtTime } from '@/lib/format'
 
 function useSecondsLeft(iso: string | null, windowS: number) {
   const [now, setNow] = useState(() => Date.now())
@@ -108,7 +109,7 @@ function Pending({ d }: { d: NetworkState }) {
   if (d.pending.reboot_at) {
     return (
       <Notice tone="danger" role="alert" className="mb-4" title={t('network.pending.stuckTitle')}>
-        {t('network.pending.stuckBody', { time: new Date(d.pending.reboot_at).toLocaleTimeString(), old: d.pending.previous_address ?? t('network.pending.previousSettings') })}
+        {t('network.pending.stuckBody', { time: fmtTime(d.pending.reboot_at), old: d.pending.previous_address ?? t('network.pending.previousSettings') })}
       </Notice>
     )
   }

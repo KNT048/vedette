@@ -17,6 +17,7 @@ import (
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/auth"
+	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -123,7 +124,7 @@ func validIssuer(raw string) (string, bool) {
 // normalize checks a Save (INV-2) and returns it trimmed, with the scopes deduplicated and empty mapping rows dropped. An empty secret
 // keeps the stored one only for the same issuer and client: otherwise a changed issuer (an attacker's host, from a stolen admin
 // session) would receive the real secret at its token endpoint (INV-3).
-func normalize(in Save, cur Config, now time.Time) (Save, *apierr.Error) {
+func normalize(in Save, cur Config, now time.Time, loc *time.Location) (Save, *apierr.Error) {
 	var ok bool
 	if in.Issuer, ok = validIssuer(in.Issuer); !ok {
 		return Save{}, apierr.New(400, "invalid_issuer", "The issuer must be an https address, for example https://sso.example.com/realms/main.")
@@ -135,7 +136,7 @@ func normalize(in Save, cur Config, now time.Time) (Save, *apierr.Error) {
 	if in.CAPEM == nil {
 		in.CAPEM = &cur.CAPEM
 	} else {
-		ca, err := parseCA(*in.CAPEM, now)
+		ca, err := parseCA(*in.CAPEM, now, loc)
 		if err != nil {
 			return Save{}, err
 		}
@@ -198,7 +199,7 @@ func (s *Service) Store(ctx context.Context, actor, origin string, in Save) (Con
 	if err != nil && !errors.Is(err, errNotConfigured) {
 		return Config{}, err
 	}
-	in, verr := normalize(in, cur, s.now())
+	in, verr := normalize(in, cur, s.now(), orgtime.At(ctx, s.zone))
 	if verr != nil {
 		return Config{}, verr
 	}

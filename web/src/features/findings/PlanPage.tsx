@@ -7,10 +7,10 @@ import { InfoTip } from '@/components/common/InfoTip'
 import { Card } from '@/components/common/Card'
 import { Button } from '@/components/ui/button'
 import { Segmented } from '@/components/ui/segmented'
-import { fmtDay } from '@/features/feeds/dates'
 import { usePlan } from './api'
 import { PlanDataState, PlanItems } from './Plan'
 import type { PlanFilter } from './types'
+import { fmtDate } from '@/lib/format'
 
 const FILTERS: PlanFilter[] = ['likely', 'recent', 'all']
 
@@ -26,8 +26,8 @@ function Page() {
   const p = q.data
   const setTier = (v: PlanFilter) => { params.set('tier', v); setParams(params, { replace: true }) }
   const dataLine = p && (p.data.epss_date || p.data.recent_since) ? [
-    p.data.epss_date ? t('plan.dataEpss', { date: fmtDay(p.data.epss_date) }) : null,
-    p.data.recent_since ? t('plan.dataRecent', { date: fmtDay(p.data.recent_since) }) : null,
+    p.data.epss_date ? t('plan.dataEpss', { date: fmtDate(p.data.epss_date) }) : null,
+    p.data.recent_since ? t('plan.dataRecent', { date: fmtDate(p.data.recent_since) }) : null,
   ].filter(Boolean).join(' · ') : null
   return (
     <>

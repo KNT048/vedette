@@ -6,8 +6,7 @@ import { Card } from '@/components/common/Card'
 import { EmptyState, ModuleOff, QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { Slot } from '@/components/common/Slot'
-import { fmtPercent } from '@/lib/format'
-import { fmtDay } from './dates'
+import { fmtDate, fmtPercent } from '@/lib/format'
 import { CVE_ID, useCve, useTierCve } from './api'
 import { ApiError } from '@/lib/api'
 import { TierCvePage } from './TierCvePage'
@@ -48,7 +47,7 @@ export default function CvePage() {
         {(v) => (
           <>
             <PageHeader title={t('cve.title', { cve: v.cve, product: v.display })} stories={['S-FEED-1', 'S-FEED-3']}
-              meta={<span className="flex flex-wrap items-center gap-2">{v.ransomware ? <Chip tone="danger">{t('cve.ransomware')}</Chip> : null}<Chip tone="danger">{t('cve.inKev', { date: fmtDay(v.date_added) })}</Chip></span>} />
+              meta={<span className="flex flex-wrap items-center gap-2">{v.ransomware ? <Chip tone="danger">{t('cve.ransomware')}</Chip> : null}<Chip tone="danger">{t('cve.inKev', { date: fmtDate(v.date_added) })}</Chip></span>} />
             <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_380px]">
               <div>
                 <Section title={t('cve.facts')}>
@@ -56,9 +55,9 @@ export default function CvePage() {
                     <KeyValue items={[
                       { label: t('cve.name'), value: v.name },
                       { label: t('cve.product'), value: `${v.vendor} ${v.product}` },
-                      { label: t('cve.published'), value: v.published ? fmtDay(v.published) : <span className="text-muted">{t('cve.publishedUnknown')}</span> },
-                      { label: t('cve.kevDate'), value: fmtDay(v.date_added) },
-                      { label: t('cve.dueDate'), value: v.due_date ? <>{fmtDay(v.due_date)} <span className="text-caption text-muted">{t('cve.dueHint')}</span></> : '–' },
+                      { label: t('cve.published'), value: v.published ? fmtDate(v.published) : <span className="text-muted">{t('cve.publishedUnknown')}</span> },
+                      { label: t('cve.kevDate'), value: fmtDate(v.date_added) },
+                      { label: t('cve.dueDate'), value: v.due_date ? <>{fmtDate(v.due_date)} <span className="text-caption text-muted">{t('cve.dueHint')}</span></> : '–' },
                       { label: t('cve.epss'), value: <>{fmtPercent(v.epss)} <span className="text-caption text-muted">{t('cve.epssHint')}</span></> },
                       { label: t('cve.template'), value: v.has_template ? t('cve.templateYes') : t('cve.templateNo') },
                     ]} />
@@ -77,7 +76,7 @@ export default function CvePage() {
               </div>
               <aside aria-label={t('cve.matched')}>
                 <Section title={t('cve.matched')} stories={['S-FEED-1', 'S-TIER-4']}>
-                  {v.published && v.published < yearAgo() ? <Notice tone="off" className="mb-3" title={t('cve.oldNote', { date: fmtDay(v.published) })} info={t('cve.oldNoteInfo')} /> : null}
+                  {v.published && v.published < yearAgo() ? <Notice tone="off" className="mb-3" title={t('cve.oldNote', { date: fmtDate(v.published) })} info={t('cve.oldNoteInfo')} /> : null}
                   {v.matched === null ? <ModuleOff module="inventory" /> : v.matched.length === 0 && v.not_affected ? (
                     <p className="text-sm text-muted">{t('cve.notAffected', { count: v.not_affected })}</p>
                   ) : v.matched.length === 0 ? (

@@ -26,6 +26,7 @@ import (
 	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/core/store/coredb"
 	"github.com/knt048/vedette/host/api"
 	"github.com/knt048/vedette/internal/release"
@@ -955,6 +956,10 @@ func (h *OSHandlers) updatesState(ctx context.Context) (updatesStateView, error)
 	if err != nil {
 		return updatesStateView{}, err
 	}
+	loc, err := h.location(ctx) // the day an advisory was published, in the organization's zone (orgtime)
+	if err != nil {
+		return updatesStateView{}, err
+	}
 	r, err := h.releaseNow(ctx)
 	if err != nil {
 		if h.upd.firstWarn("release-state") {
@@ -997,7 +1002,7 @@ func (h *OSHandlers) updatesState(ctx context.Context) (updatesStateView, error)
 	return updatesStateView{
 		Channel: s.Channel, Mode: s.Mode, CheckEnabled: on, LastCheck: last, LastCheckErr: s.LastCheckError,
 		Components: comps, Available: availableOf(r.offer, s.Channel, helper),
-		History: nonNil(hist), Advisories: advisoriesOf(r.idx, h.upd.version), Run: run,
+		History: nonNil(hist), Advisories: advisoriesOf(r.idx, h.upd.version, loc), Run: run,
 		Managed:        managedOf(r.running, r.offer),
 		RunningRevoked: runningRevokedOf(r.idx, r.running, h.upd.version),
 		StaleSince:     staleSince(r.idx, h.now()),
@@ -1144,8 +1149,8 @@ func availableOf(v *verifiedRelease, channel string, helper *api.Info) []updateA
 }
 
 // advisoriesOf maps index advisories (§4.1) to the page: low shows as medium (the page has three levels), published is
-// the date of the index, and an advisory without fixed_in is left out (the page can only name a fixed version).
-func advisoriesOf(idx *release.Index, running string) []advisoryView {
+// the day of the index in loc (the organization's zone), and an advisory without fixed_in is left out (the page can only name a fixed version).
+func advisoriesOf(idx *release.Index, running string, loc *time.Location) []advisoryView {
 	out := []advisoryView{}
 	if idx == nil {
 		return out
@@ -1167,7 +1172,7 @@ func advisoriesOf(idx *release.Index, running string) []advisoryView {
 		if c < 0 {
 			status = "affected"
 		}
-		out = append(out, advisoryView{ID: a.ID, Title: a.Title, Severity: sev, Published: idx.GeneratedAt.UTC().Format(time.DateOnly), FixedIn: a.FixedIn, Summary: a.Title, Status: status})
+		out = append(out, advisoryView{ID: a.ID, Title: a.Title, Severity: sev, Published: orgtime.ISODay(idx.GeneratedAt, loc), FixedIn: a.FixedIn, Summary: a.Title, Status: status})
 	}
 	return out
 }

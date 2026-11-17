@@ -14,6 +14,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/events"
+	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/notify/channel"
 )
@@ -652,7 +653,7 @@ func (s *Service) delay(ctx context.Context, cl claim, rec SendRecord, msg chann
 	until := s.now().Add(wait) // the refused rows are due then, and they hold the channel's queue until then (claim): it lasts a restart
 	kind, ref, link := refOf(cl.batch.Notices[0])
 	rec.Delayed, rec.Error = true, fmt.Sprintf("Delayed (rate limited): %s asked Vedette to wait %s. It is sent again by itself after %s.",
-		channelName[cl.channel], wait.Round(time.Second), until.In(s.loc(ctx)).Format("15:04"))
+		channelName[cl.channel], wait.Round(time.Second), orgtime.Clock(until, s.loc(ctx)))
 	wctx, stop := detached(ctx)
 	defer stop()
 	err := s.cfg.DB.Write(wctx, func(tx *sql.Tx) error {

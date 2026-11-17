@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -24,6 +25,7 @@ type ServiceConfig struct {
 	Feeds     Feeds
 	Log       *slog.Logger
 	Clock     func() time.Time // nil: time.Now
+	Zone      orgtime.Source   // the organization's time zone, the days of instants the API sends are in it (orgtime); nil: UTC
 	// Backlog marks the context of work whose findings are backlog, not news: Reconcile writes findings of KEV entries
 	// older than RecentKEV under it, and the binary makes the bus carry it to notify (backlog is silent).
 	// nil: nothing is marked. findings does not know notify; the binary supplies notify.WithBaseline.

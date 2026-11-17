@@ -41030,7 +41030,7 @@
                         "minimum": -9007199254740991,
                         "maximum": 9007199254740991
                       },
-                      "description": "Open findings at the end of each of the last 30 days (UTC), oldest first; the last is now"
+                      "description": "Open findings at the end of each of the last 30 days of the organization time zone, oldest first; the last is now"
                     },
                     "devices": {
                       "type": "object",

@@ -185,6 +185,7 @@ type pullPlan struct {
 
 	epssAll    []EPSSAllScore // epss-all: every CVE's score, written in chunks (applyEPSSAll)
 	hasEPSSAll bool
+	epssDay    string // epss-all: FIRST's day of the scores (YYYY-MM-DD), "" when the file does not say
 
 	winRel    []winrel.Release // windows-releases: the releases Microsoft's pages list, replaced whole
 	winRelUpd []winrel.Update  // windows-releases: the monthly updates of the pages read, replaced per release
@@ -602,7 +603,7 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 		}
 		if p.hasEPSSAll { // 400,000 rows: chunks too (applyEPSSAll)
 			var err error
-			stale, err = applyEPSSAll(ctx, s.DB, src, p.epssAll, func(tx *sql.Tx) error { return finish(tx, p.out) })
+			stale, err = applyEPSSAll(ctx, s.DB, src, p.epssAll, p.epssDay, func(tx *sql.Tx) error { return finish(tx, p.out) })
 			return err
 		}
 		return s.DB.Write(ctx, func(tx *sql.Tx) error {

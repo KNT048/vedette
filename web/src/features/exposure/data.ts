@@ -1,8 +1,8 @@
 // Sample data and scan-result generator of the exposure mock. 203.0.113.0/24 is the documentation range (RFC 5737), not real IPs.
 import { daysAgo } from '@/mocks/db'
-import { dateText } from './dates'
 import { serviceIdent } from './services'
 import { CERT_WARN_DAYS, type AdminRow, type BoxIpSettings, type CertRow, type CheckRow, type Counts, type GapRow, type GreenboneResult, type HostClass, type HostIp, type HostRow, type IgnoredIp, type NotCheckedRow, type OutsideView, type PortRow, type ServiceRow, type Snapshot, type Target, type TargetKind, type TemplateRow, type VulnRow, type WebFinding } from './types'
+import { fmtDate } from '@/lib/format'
 
 export const BOX_EGRESS_IP = '203.0.113.10'
 /** The sample company has two public IPs behind a load balancer: the box leaves through both. */
@@ -322,7 +322,7 @@ export function withDeep(c: Content, at: string, last: Record<string, string> = 
     }
     const n = i - MAX_DEEP_IPS + 1
     state[ip] = { deep: 'waiting', next_in_line: n, ...(last[ip] ? { last_deep: last[ip] } : {}) }
-    lines.push({ kind: 'deep', text: `${label(ip)}: not scanned this run (at most ${MAX_DEEP_IPS} addresses get the deep scan in one run), ${last[ip] ? `last scanned at depth ${dateText(last[ip])}` : 'never scanned at depth'}; next in line (${n}).` })
+    lines.push({ kind: 'deep', text: `${label(ip)}: not scanned this run (at most ${MAX_DEEP_IPS} addresses get the deep scan in one run), ${last[ip] ? `last scanned at depth ${fmtDate(last[ip])}` : 'never scanned at depth'}; next in line (${n}).` })
   })
   if (priv.size > 0) lines.push({ kind: 'deep', text: `Private addresses (${plural(priv.size, 'address')}): listed, never contacted.` })
   const hosts = c.hosts.map((h) => ({ ...h, ...(h.ips ? { ips: h.ips.map((a) => ({ ...a, ...(state[a.ip] ?? {}) })) } : {}) }))
@@ -333,7 +333,7 @@ const plusDays = (iso: string, d: number) => new Date(Date.parse(iso) + d * 864e
 
 export function seedTargets(): StoredTarget[] {
   const ok = (value: string, at: string) => ({ at, ok: true, message: `Found the TXT record on ${value}.` })
-  const ipOk = (ip: string, at: string) => ({ at, ok: true, message: `The box reaches the Internet via ${ip}. Verified until ${dateText(plusDays(at, VERIFY_DAYS))}.` })
+  const ipOk = (ip: string, at: string) => ({ at, ok: true, message: `The box reaches the Internet via ${ip}. Verified until ${fmtDate(plusDays(at, VERIFY_DAYS))}.` })
   const v1 = daysAgo(21), v4 = daysAgo(40), v5 = daysAgo(40)
   const seen = daysAgo(0, 0.7) // the box saw its two IPs 40 minutes ago (auto-detect, every 60 minutes)
   const standby = daysAgo(26) // an old failover link: not seen for 26 days

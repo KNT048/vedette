@@ -16,7 +16,6 @@ import { useCan } from '@/lib/session'
 import { useModules } from '@/lib/modules'
 import { useToggleModule } from '@/features/core/api'
 import { usePatchFeed } from '@/features/feeds/api'
-import { fmtDay } from '@/features/feeds/dates'
 import { noCvesKey, usePlanAction } from './fix'
 import type { Plan, PlanCve, PlanItem } from './types'
 import { InfoTip } from '@/components/common/InfoTip'
@@ -83,7 +82,7 @@ function CveList({ item, gone }: { item: PlanItem; gone: boolean }) {
               <td className="px-3 py-2"><TierChip tier={c.tier} /></td>
               <td className="px-3 py-2"><Severity c={c} /></td>
               <td className="whitespace-nowrap px-3 py-2 text-meta">
-                {fmtDay(c.published)}
+                {fmtDate(c.published)}
                 {c.published < old ? <span className="block text-caption text-muted">{t('plan.cve.old')}</span> : null}
               </td>
               <td className="whitespace-nowrap px-3 py-2 text-right text-meta tabular-nums">{c.epss === null ? '–' : fmtPercent(c.epss)}</td>

@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -509,7 +510,7 @@ func recentText(c recentCursor, stored int, paused bool, busy string, retryAt, n
 	}
 	t := fmt.Sprintf("%s the CVEs of the last 12 months from NVD: %s stored so far", verb, grouped(stored))
 	if c.fill() {
-		t += fmt.Sprintf(", published up to %s", c.From.Format("2 Jan 2006"))
+		t += fmt.Sprintf(", published up to %s", orgtime.CalendarDay(c.From))
 	}
 	t += "."
 	if busy != "" {
@@ -708,7 +709,7 @@ func (s *Service) buildRecent(ctx context.Context, src sourceRow, p pullPlan) (p
 	}
 	p.out = outcome{OK: true, Bytes: bytesRead}
 	p.out.fill(st, all)
-	line := fmt.Sprintf("%s CVEs published since %s; NVD gives affected versions for %s of them.", grouped(all), cutoff.Format("2 Jan 2006"), grouped(ranged))
+	line := fmt.Sprintf("%s CVEs published since %s; NVD gives affected versions for %s of them.", grouped(all), orgtime.CalendarDay(cutoff), grouped(ranged))
 	p.out.Note = strings.TrimSpace(line + " " + p.out.Note)
 	return p, nil
 }

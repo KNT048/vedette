@@ -3,12 +3,12 @@ import { Panel, Section } from '@/components/common/PageHeader'
 import { EmptyState } from '@/components/common/States'
 import { Chip, SeverityChip } from '@/components/common/StatusChip'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
-import { dateText, dateTimeText } from './dates'
 import { PortMark } from './PortMark'
 import { InfoLine } from './InfoLine'
 import type { ServiceRow, Snapshot, TemplateRow, VulnRow } from './types'
 import { serviceIdent, serviceText } from './services'
 import { PortHints, ServiceCell } from './PortIdent'
+import { fmtDate, fmtDateTime } from '@/lib/format'
 
 const SEVERITY_ORDER = { critical: 0, high: 1, medium: 2, low: 3, info: 4, unknown: 5 } as const
 
@@ -53,7 +53,7 @@ export function VulnSection({ s, domain = false }: { s: Snapshot; domain?: boole
     { id: 'port', header: t('col.port'), accessorFn: (r) => r.port, cell: ({ row }) => <span className="grid gap-1"><span className="tabular-nums">{row.original.port}</span>{mark(row.original.ip, row.original.port)}</span> },
     { id: 'basis', header: t('col.basis'), accessorFn: (r) => r.basis, cell: ({ row }) => row.original.basis === 'template' ? <Chip tone="danger">{t('vulns.basis.template', { id: row.original.template })}</Chip> : row.original.basis === 'greenbone' ? <Chip tone="warn">{t('vulns.basis.greenbone', { qod: row.original.qod ?? 0 })}</Chip> : row.original.backport ? <Chip tone="off">{t('vulns.basis.backport', { distro: row.original.backport })}</Chip> : <Chip tone="warn">{t(`vulns.basis.${row.original.basis}`)}</Chip> },
     { id: 'listed', header: t('col.listed'), accessorFn: (r) => r.date_added ?? '', cell: ({ row }) => (
-      <span className="grid gap-1">{row.original.date_added ? dateText(row.original.date_added) : t('common:unknown')}{row.original.ransomware ? <Chip tone="danger">{t('vulns.ransomware')}</Chip> : null}</span>
+      <span className="grid gap-1">{row.original.date_added ? fmtDate(row.original.date_added) : t('common:unknown')}{row.original.ransomware ? <Chip tone="danger">{t('vulns.ransomware')}</Chip> : null}</span>
     ) },
     { id: 'why', header: t('col.why'), enableSorting: false, accessorFn: (r) => r.summary, cell: ({ row }) => <span className="text-meta">{row.original.summary}</span> },
   ]
@@ -115,7 +115,7 @@ export function ChecksSection({ s }: { s: Snapshot }) {
           <div>
             <h3 className="mb-2 text-sm font-semibold">{t('checked.checked')}</h3>
             <ul aria-label={t('checked.checked')} className="grid gap-2 text-sm">
-              {s.checks.map((c, i) => <li key={i}>{c.text} <span className="text-caption text-muted">{dateTimeText(c.at)}</span></li>)}
+              {s.checks.map((c, i) => <li key={i}>{c.text} <span className="text-caption text-muted">{fmtDateTime(c.at)}</span></li>)}
             </ul>
           </div>
           <div>

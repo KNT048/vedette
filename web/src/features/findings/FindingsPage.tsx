@@ -12,7 +12,7 @@ import { Checkbox, RadioGroup, RadioItem } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Input, Select, Textarea } from '@/components/ui/input'
 import { Segmented } from '@/components/ui/segmented'
-import { fmtDate, fmtDateTime, fmtRelative } from '@/lib/format'
+import { dayOf, fmtDate, fmtDateTime, fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { AcceptUntil, FindingStatusChip } from './AcceptRisk'
 import { untilOk } from './accept'
@@ -154,7 +154,7 @@ function List() {
     setCertainty('all')
   }
 
-  const week = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10)
+  const week = dayOf(new Date(Date.now() + 7 * 86_400_000).toISOString()) // the organization's day a week from now
   const kpis = items ? [
     { value: open, label: t('kpi.open'), to: '?tab=open' },
     { value: confirmed, label: t('kpi.confirmed'), to: '?tab=open&status=confirmed' },

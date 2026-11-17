@@ -14,6 +14,7 @@ import (
 	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/host/api"
 )
 
@@ -176,7 +177,11 @@ func (h *OSHandlers) CorePostCoreDataRestore(ctx context.Context, req *oas.CoreP
 	if u, err := h.auth.GetUser(ctx, c.ID); err != nil {
 		return nil, fmt.Errorf("core: read user: %w", err)
 	} else if u.TwofaMethod != "" {
-		if _, err := h.auth.VerifyTwoStep(ctx, c.ID, req.Code.Or(""), "core.data_restore", "Restore the backup from "+b.CreatedAt.UTC().Format("2006-01-02 15:04")+" UTC"); err != nil {
+		loc, err := h.location(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := h.auth.VerifyTwoStep(ctx, c.ID, req.Code.Or(""), "core.data_restore", "Restore the backup from "+orgtime.Stamp(b.CreatedAt, loc)); err != nil {
 			return nil, err
 		}
 	}

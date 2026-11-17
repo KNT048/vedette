@@ -8,9 +8,9 @@ import { eachOption } from '@/test/formMatrix'
 import { auditStore, modulesStore, sessionStore, usersStore } from '@/mocks/stores'
 import { scanPoll } from './api'
 import { NOTICE_VERSION } from './contract'
-import { dateTimeText } from './dates'
 import { feature } from './index'
 import { portLabel, riskOf } from './services'
+import { fmtDateTime } from '@/lib/format'
 
 const USER = { admin: 'u-admin', operator: 'u-op', viewer: 'u-view' } as const
 async function call(method: string, path: string, body?: unknown, role: keyof typeof USER = 'admin') {
@@ -303,7 +303,7 @@ describe('exposure: a verified and confirmed domain', () => {
     const pickers = [await screen.findByRole('combobox', { name: 'Snapshot of' }), screen.getByLabelText('From date'), screen.getByLabelText('To date')]
     for (const pick of pickers) {
       const labels = within(pick).getAllByRole('option').map((o) => o.textContent)
-      expect(labels).toEqual(items.map((i) => dateTimeText(i.scanned_at)))
+      expect(labels).toEqual(items.map((i) => fmtDateTime(i.scanned_at)))
       for (const l of labels) expect(l).toMatch(/^\d{1,2} [A-Z][a-z]{2} \d{4}, \d{2}:\d{2}$/)
       expect(new Set(labels).size).toBe(labels.length)
     }

@@ -60,6 +60,10 @@ func (w exposureWebScan) Baseline(ctx context.Context, t exposure.ScanTarget, pa
 	case exposure.KindIP:
 		args.Kind = api.ZapKindIP
 	case exposure.KindDomain:
+		if p := t.Proof; p != nil { // D-628: the domain whose record proved the target at the gate (itself, or a parent covering it)
+			args.Kind, args.Domain, args.TXTToken = api.ZapKindDomain, p.Domain, p.Token
+			break
+		}
 		tok, err := w.token(ctx, t.ID)
 		if err != nil {
 			return exposure.WebScan{}, fmt.Errorf("exposure web scan: reading the token of %s: %w", t.Value, err)

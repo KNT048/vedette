@@ -3,6 +3,7 @@ package sensoractive_test
 import (
 	"context"
 	"errors"
+	"net"
 	"net/netip"
 	"path/filepath"
 	"strings"
@@ -24,14 +25,27 @@ import (
 
 var testFenceKey = []byte(strings.Repeat("k", domainfence.KeySize))
 
-// zoneDNS: acme.example carries this box's token, www.acme.example points at 8.8.8.8 through a CNAME inside the domain.
+// zoneDNS: acme.example carries this box's token, www.acme.example points at 8.8.8.8 through a CNAME inside the domain. Only
+// acme.example has the TXT record and it is no CNAME: D-628's ownership rule reads a record only at the name asked itself.
 type zoneDNS struct{ txt string }
 
-func (z zoneDNS) LookupTXT(context.Context, string) ([]string, error) { return []string{z.txt}, nil }
+func (z zoneDNS) LookupTXT(_ context.Context, name string) ([]string, error) {
+	name = strings.TrimSuffix(name, ".") // the ownership rule asks rooted names
+	if name != "acme.example" {
+		return nil, &net.DNSError{Err: "no such host", Name: name, IsNotFound: true}
+	}
+	return []string{z.txt}, nil
+}
 func (zoneDNS) LookupNetIP(context.Context, string, string) ([]netip.Addr, error) {
 	return []netip.Addr{boxIP}, nil
 }
-func (zoneDNS) LookupCNAME(context.Context, string) (string, error) { return "web.acme.example.", nil }
+func (zoneDNS) LookupCNAME(_ context.Context, name string) (string, error) {
+	name = strings.TrimSuffix(name, ".")
+	if name == "acme.example" {
+		return name + ".", nil
+	}
+	return "web.acme.example.", nil
+}
 
 func domainEnv(t *testing.T, txt string) *env {
 	t.Helper()

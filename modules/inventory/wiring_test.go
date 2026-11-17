@@ -184,6 +184,25 @@ func TestMatchInputAndDeviceRefs(t *testing.T) {
 	}
 }
 
+// INV-38, review r1 L2 of #955: an ignored device is out of AssetIDs and MatchInput but still in DeviceRefs. Findings' reconcile
+// asks DeviceRefs (as Assets) before it deletes the findings of a device missing from AssetIDs; when the ignored list could not be
+// read, this answer is all that keeps an ignored device's findings and the decisions on them.
+func TestDeviceRefsKeepsAnIgnoredDevice(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	id := e.addDevice(inventory.AddInput{CatalogID: "fortigate", Version: "7.2.5", IP: "192.168.30.1"})
+	if err := e.svc.SetIgnored(e.ctx(), "it@acme.example", id, true); err != nil {
+		t.Fatal(err)
+	}
+	if ids, err := e.svc.AssetIDs(e.ctx()); err != nil || slices.Contains(ids, id) {
+		t.Fatalf("AssetIDs = %v, %v: an ignored device is out", ids, err)
+	}
+	refs, err := e.svc.DeviceRefs(e.ctx(), []string{id})
+	if err != nil || refs[id].ID != id {
+		t.Fatalf("DeviceRefs = %+v, %v: an ignored device must be present", refs, err)
+	}
+}
+
 // D-512: the OS a device states over SNMP is its StatedOS for findings, as LLDP's is (D-510), even when nmap's guess wins the OS
 // field; DeviceRefs says whether a device is approved (sensor-active sends SNMP credentials to approved devices only).
 func TestSNMPStatedOSAndApproval(t *testing.T) {

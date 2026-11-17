@@ -451,7 +451,7 @@ test.describe('Admin: scan scope, sensor, agents', () => {
     await expect(page).toHaveURL(/\/devices\/setup$/)
     await page.getByRole('tab', { name: 'Agents', exact: true }).click() // D-519: agents have their own tab
     await expect(page).toHaveURL(/\/devices\/setup\?tab=agents$/)
-    await expect(page.getByText('Use osquery on your Linux and Windows servers. Already run Wazuh? Connect its API instead.').first()).toBeVisible()
+    await expect(page.getByText('Use osquery on your Linux and Windows PCs and servers. Already run Wazuh? Connect its API instead.').first()).toBeVisible()
     const pkgTable = page.getByRole('table', { name: 'osquery packages this box serves' })
     await expect(pkgTable.getByRole('link')).toHaveCount(5)
     const msiName = { name: /^Download osquery-[\d.]+\.msi$/ }

@@ -330,23 +330,28 @@ type nodeRow struct {
 	enrolledAt  time.Time
 	boundIP     netip.Addr
 	boundMAC    string
-	reported    string // the answers of the first report the inventory took (schedule.go firstReport), comma-separated
-	approved    bool   // the enrolment's approval was done (D-503)
-	kernel      string // the running kernel release the node last reported (kernel_info, D-516), "" until it has
-	win         winOS  // the Windows release and update revision the node last reported (os_revision, D-524), zero until it has
-	hostname    string // the host name osquery gave at enrolment (host_details.system_info), "" when none
-	hostID      string // the host_identifier it enrolled under (the install scripts send the machine's host name, --host_identifier=specified)
+	reported    string    // the answers of the first report the inventory took (schedule.go firstReport), comma-separated
+	approved    bool      // the enrolment's approval was done (D-503)
+	kernel      string    // the running kernel release the node last reported (kernel_info, D-516), "" until it has
+	win         winOS     // the Windows release and update revision the node last reported (os_revision, D-524), zero until it has
+	hostname    string    // the host name osquery gave at enrolment (host_details.system_info), "" when none
+	hostID      string    // the host_identifier it enrolled under (the install scripts send the machine's host name, --host_identifier=specified)
+	askedAt     time.Time // when a person last asked it to send its software now (report.go), zero when never
+	softwareAt  time.Time // when the inventory last took a software list from it that closed an ask (report.go), zero when never
+	osAt        time.Time // when its own OS answer (kernel_info, os_revision) last came while an ask was open (report.go), zero when never
+	platform    string    // osquery's platform at enrolment ("windows", "ubuntu", ...), "" when not given
 }
 
 // nodeByKey finds the node whose key hashes to the hash of key; errNodeInvalid when there is none.
 func (s *Service) nodeByKey(ctx context.Context, key string) (nodeRow, error) {
 	want := hashHex(key)
 	var n nodeRow
-	var got, seen, enrolled string
+	var got, seen, enrolled, asked, taken, osTaken string
 	var ip, mac sql.NullString
 	err := s.db.Reader().QueryRowContext(ctx, `SELECT id, token_id, node_key_hash, last_seen, enrolled_at, bound_ip, bound_mac, reported, approved_at IS NOT NULL, kernel,
-		win_name, win_version, win_target, ifnull(hostname, ''), host_identifier FROM intake_osquery_nodes WHERE node_key_hash = ?`, want).Scan(&n.id, &n.tokenID, &got, &seen, &enrolled, &ip, &mac,
-		&n.reported, &n.approved, &n.kernel, &n.win.name, &n.win.version, &n.win.target, &n.hostname, &n.hostID)
+		win_name, win_version, win_target, ifnull(hostname, ''), host_identifier, ifnull(report_asked_at, ''), ifnull(software_taken_at, ''),
+		ifnull(os_taken_at, ''), ifnull(platform, '') FROM intake_osquery_nodes WHERE node_key_hash = ?`, want).Scan(&n.id, &n.tokenID, &got, &seen, &enrolled, &ip, &mac,
+		&n.reported, &n.approved, &n.kernel, &n.win.name, &n.win.version, &n.win.target, &n.hostname, &n.hostID, &asked, &taken, &osTaken, &n.platform)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nodeRow{}, errNodeInvalid
 	}
@@ -358,6 +363,9 @@ func (s *Service) nodeByKey(ctx context.Context, key string) (nodeRow, error) {
 	}
 	n.lastSeen, _ = time.Parse(time.RFC3339Nano, seen)
 	n.enrolledAt, _ = time.Parse(time.RFC3339Nano, enrolled)
+	n.askedAt, _ = time.Parse(time.RFC3339Nano, asked)
+	n.softwareAt, _ = time.Parse(time.RFC3339Nano, taken)
+	n.osAt, _ = time.Parse(time.RFC3339Nano, osTaken)
 	if ip.Valid {
 		n.boundIP, _ = netip.ParseAddr(ip.String)
 		n.boundMAC = mac.String

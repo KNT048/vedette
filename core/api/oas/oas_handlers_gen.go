@@ -25585,7 +25585,7 @@ func (s *Server) handleInventoryDeleteInventoryDevicesIDRequest(args [1]string, 
 
 // handleInventoryDeleteInventoryDevicesIDSoftwareSidRequest handles inventory_delete_inventory_devices_id_software_sid operation.
 //
-// Remove manually declared software from a device; on a correction (INV-39) this clears it and the
+// Remove manually declared software from a device; on a correction (INV-40) this clears it and the
 // reported row matches again (audit inventory.clear_software_correction).
 //
 // DELETE /inventory/devices/{id}/software/{sid}
@@ -25665,7 +25665,7 @@ func (s *Server) handleInventoryDeleteInventoryDevicesIDSoftwareSidRequest(args 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    InventoryDeleteInventoryDevicesIDSoftwareSidOperation,
-			OperationSummary: "Remove manually declared software from a device; on a correction (INV-39) this clears it and the reported row matches again (audit inventory.clear_software_correction)",
+			OperationSummary: "Remove manually declared software from a device; on a correction (INV-40) this clears it and the reported row matches again (audit inventory.clear_software_correction)",
 			OperationID:      "inventory_delete_inventory_devices_id_software_sid",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -26317,6 +26317,148 @@ func (s *Server) handleInventoryGetInventoryAgentsRequest(args [0]string, argsEs
 	}
 
 	if err := encodeInventoryGetInventoryAgentsResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleInventoryGetInventoryAgentsDevicesIDReportRequest handles inventory_get_inventory_agents_devices_id_report operation.
+//
+// Which agent of this box reads the device and whether an ask to send its software now is open ("I
+// updated it", S-MIT-1). 404 not_found: no such device; 404 too while agent-intake is off.
+//
+// GET /inventory/agents/devices/{id}/report
+func (s *Server) handleInventoryGetInventoryAgentsDevicesIDReportRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: InventoryGetInventoryAgentsDevicesIDReportOperation,
+			ID:   "inventory_get_inventory_agents_devices_id_report",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, InventoryGetInventoryAgentsDevicesIDReportOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+	params, err := decodeInventoryGetInventoryAgentsDevicesIDReportParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response *InventoryGetInventoryAgentsDevicesIDReportOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    InventoryGetInventoryAgentsDevicesIDReportOperation,
+			OperationSummary: "Which agent of this box reads the device and whether an ask to send its software now is open (\"I updated it\", S-MIT-1). 404 not_found: no such device; 404 too while agent-intake is off",
+			OperationID:      "inventory_get_inventory_agents_devices_id_report",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = InventoryGetInventoryAgentsDevicesIDReportParams
+			Response = *InventoryGetInventoryAgentsDevicesIDReportOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackInventoryGetInventoryAgentsDevicesIDReportParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.InventoryGetInventoryAgentsDevicesIDReport(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.InventoryGetInventoryAgentsDevicesIDReport(ctx, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeInventoryGetInventoryAgentsDevicesIDReportResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -27870,7 +28012,7 @@ func (s *Server) handleInventoryPatchInventoryDevicesIDRequest(args [1]string, a
 
 // handleInventoryPatchInventoryDevicesIDSoftwareSidRequest handles inventory_patch_inventory_devices_id_software_sid operation.
 //
-// Change a software row (D-471, INV-39). A row a person declared changes in place. A row a sensor or
+// Change a software row (D-471, INV-40). A row a person declared changes in place. A row a sensor or
 // agent reported is corrected: the values go in a manual correction row (source manual, correction
 // set) that replaces exactly that row (its source, product and version, and its re-reports) for
 // matching until it is deleted; another install of the product (another version or source) keeps
@@ -27971,7 +28113,7 @@ func (s *Server) handleInventoryPatchInventoryDevicesIDSoftwareSidRequest(args [
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    InventoryPatchInventoryDevicesIDSoftwareSidOperation,
-			OperationSummary: "Change a software row (D-471, INV-39). A row a person declared changes in place. A row a sensor or agent reported is corrected: the values go in a manual correction row (source manual, correction set) that replaces exactly that row (its source, product and version, and its re-reports) for matching until it is deleted; another install of the product (another version or source) keeps matching. Fields left out keep their value (the CPE, the packaged flag, the source package; the package release while the version stays); another product starts clean. The device is matched again. 400 bad_edit (nothing to change), bad_version, bad_pkg_version, unknown_product, incomplete_product, bad_product. 409 duplicate_software",
+			OperationSummary: "Change a software row (D-471, INV-40). A row a person declared changes in place. A row a sensor or agent reported is corrected: the values go in a manual correction row (source manual, correction set) that replaces exactly that row (its source, product and version, and its re-reports) for matching until it is deleted; another install of the product (another version or source) keeps matching. Fields left out keep their value (the CPE, the packaged flag, the source package; the package release while the version stays); another product starts clean. The device is matched again. 400 bad_edit (nothing to change), bad_version, bad_pkg_version, unknown_product, incomplete_product, bad_product. 409 duplicate_software",
 			OperationID:      "inventory_patch_inventory_devices_id_software_sid",
 			Body:             request,
 			RawBody:          rawBody,
@@ -28570,6 +28712,151 @@ func (s *Server) handleInventoryPostIntakeOsqueryStatusRequest(args [0]string, a
 	}
 
 	if err := encodeInventoryPostIntakeOsqueryStatusResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleInventoryPostInventoryAgentsDevicesIDReportRequest handles inventory_post_inventory_agents_devices_id_report operation.
+//
+// I updated it: ask the device's osquery agent to send its software now. For 15 minutes, or until its
+// list arrives, the box's config gives the agent's software queries (the same read-only queries,
+// nothing else) a 60 s interval; osquery reads its config every 5 minutes. An open ask is answered as
+// it is; a new ask within 10 minutes of the last: 429 rate_limited (retry_after). 409 cannot_ask: no
+// osquery agent of this box reports on the device (Wazuh only, or none). 404 not_found. Audited.
+//
+// POST /inventory/agents/devices/{id}/report
+func (s *Server) handleInventoryPostInventoryAgentsDevicesIDReportRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: InventoryPostInventoryAgentsDevicesIDReportOperation,
+			ID:   "inventory_post_inventory_agents_devices_id_report",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, InventoryPostInventoryAgentsDevicesIDReportOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+	params, err := decodeInventoryPostInventoryAgentsDevicesIDReportParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response *InventoryPostInventoryAgentsDevicesIDReportOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    InventoryPostInventoryAgentsDevicesIDReportOperation,
+			OperationSummary: "I updated it: ask the device's osquery agent to send its software now. For 15 minutes, or until its list arrives, the box's config gives the agent's software queries (the same read-only queries, nothing else) a 60 s interval; osquery reads its config every 5 minutes. An open ask is answered as it is; a new ask within 10 minutes of the last: 429 rate_limited (retry_after). 409 cannot_ask: no osquery agent of this box reports on the device (Wazuh only, or none). 404 not_found. Audited",
+			OperationID:      "inventory_post_inventory_agents_devices_id_report",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = InventoryPostInventoryAgentsDevicesIDReportParams
+			Response = *InventoryPostInventoryAgentsDevicesIDReportOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackInventoryPostInventoryAgentsDevicesIDReportParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.InventoryPostInventoryAgentsDevicesIDReport(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.InventoryPostInventoryAgentsDevicesIDReport(ctx, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeInventoryPostInventoryAgentsDevicesIDReportResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

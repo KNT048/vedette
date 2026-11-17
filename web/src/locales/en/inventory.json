@@ -582,7 +582,7 @@
     "title": "Agents on servers",
     "description": "An agent tells Vedette exactly which software runs on a server.",
     "descriptionInfo": "With an agent, alerts say \"confirmed\" instead of \"suspected\".",
-    "recommendation": "Use osquery on your Linux and Windows servers. Already run Wazuh? Connect its API instead.",
+    "recommendation": "Use osquery on your Linux and Windows PCs and servers. Already run Wazuh? Connect its API instead.",
     "serverOnly": "Vedette supports Linux and Windows, on PCs and servers. macOS is not supported yet.",
     "boxAddress": {
       "uses": "Install commands use {{url}}.",

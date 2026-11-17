@@ -95154,6 +95154,146 @@ func (s InventoryGetIntakeCaPemOK) Read(p []byte) (n int, err error) {
 	return s.Data.Read(p)
 }
 
+type InventoryGetInventoryAgentsDevicesIDReportOK struct {
+	// Osquery = an osquery agent enrolled with this box reports on the device: Vedette can ask it to send
+	// its software now; wazuh = only the Wazuh pull reads it: Vedette cannot ask, the next pull brings the
+	// list; none = no agent of this box reads it now; box = the Vedette box itself, which reads its own
+	// packages every hour.
+	Agent InventoryGetInventoryAgentsDevicesIDReportOKAgent `json:"agent"`
+	// Agent osquery: when a new ask is possible (10 minutes after the last one) while that is still ahead;
+	// null otherwise.
+	AskAgainAt NilDateTime `json:"ask_again_at"`
+	// The open ask: when a person asked the osquery agent to send its software now, until its list (built
+	// with its OS answer: kernel_info, os_revision) arrives or 15 minutes pass; null when none is open.
+	AskedAt NilDateTime `json:"asked_at"`
+	// Agent osquery: when the agent last called the box (config or results); null otherwise.
+	LastSeen NilDateTime `json:"last_seen"`
+	// Agent osquery: the agent has not called for more than 10 minutes (twice its config refresh): an ask
+	// reaches it only when it is back; false otherwise.
+	Stale bool `json:"stale"`
+	// Agent wazuh: how often Vedette pulls from the Wazuh server (5, 15, 60, 360 or 1440); null otherwise.
+	WazuhIntervalMinutes NilInt `json:"wazuh_interval_minutes"`
+}
+
+// GetAgent returns the value of Agent.
+func (s *InventoryGetInventoryAgentsDevicesIDReportOK) GetAgent() InventoryGetInventoryAgentsDevicesIDReportOKAgent {
+	return s.Agent
+}
+
+// GetAskAgainAt returns the value of AskAgainAt.
+func (s *InventoryGetInventoryAgentsDevicesIDReportOK) GetAskAgainAt() NilDateTime {
+	return s.AskAgainAt
+}
+
+// GetAskedAt returns the value of AskedAt.
+func (s *InventoryGetInventoryAgentsDevicesIDReportOK) GetAskedAt() NilDateTime {
+	return s.AskedAt
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *InventoryGetInventoryAgentsDevicesIDReportOK) GetLastSeen() NilDateTime {
+	return s.LastSeen
+}
+
+// GetStale returns the value of Stale.
+func (s *InventoryGetInventoryAgentsDevicesIDReportOK) GetStale() bool {
+	return s.Stale
+}
+
+// GetWazuhIntervalMinutes returns the value of WazuhIntervalMinutes.
+func (s *InventoryGetInventoryAgentsDevicesIDReportOK) GetWazuhIntervalMinutes() NilInt {
+	return s.WazuhIntervalMinutes
+}
+
+// SetAgent sets the value of Agent.
+func (s *InventoryGetInventoryAgentsDevicesIDReportOK) SetAgent(val InventoryGetInventoryAgentsDevicesIDReportOKAgent) {
+	s.Agent = val
+}
+
+// SetAskAgainAt sets the value of AskAgainAt.
+func (s *InventoryGetInventoryAgentsDevicesIDReportOK) SetAskAgainAt(val NilDateTime) {
+	s.AskAgainAt = val
+}
+
+// SetAskedAt sets the value of AskedAt.
+func (s *InventoryGetInventoryAgentsDevicesIDReportOK) SetAskedAt(val NilDateTime) {
+	s.AskedAt = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *InventoryGetInventoryAgentsDevicesIDReportOK) SetLastSeen(val NilDateTime) {
+	s.LastSeen = val
+}
+
+// SetStale sets the value of Stale.
+func (s *InventoryGetInventoryAgentsDevicesIDReportOK) SetStale(val bool) {
+	s.Stale = val
+}
+
+// SetWazuhIntervalMinutes sets the value of WazuhIntervalMinutes.
+func (s *InventoryGetInventoryAgentsDevicesIDReportOK) SetWazuhIntervalMinutes(val NilInt) {
+	s.WazuhIntervalMinutes = val
+}
+
+// Osquery = an osquery agent enrolled with this box reports on the device: Vedette can ask it to send
+// its software now; wazuh = only the Wazuh pull reads it: Vedette cannot ask, the next pull brings the
+// list; none = no agent of this box reads it now; box = the Vedette box itself, which reads its own
+// packages every hour.
+type InventoryGetInventoryAgentsDevicesIDReportOKAgent string
+
+const (
+	InventoryGetInventoryAgentsDevicesIDReportOKAgentOsquery InventoryGetInventoryAgentsDevicesIDReportOKAgent = "osquery"
+	InventoryGetInventoryAgentsDevicesIDReportOKAgentWazuh   InventoryGetInventoryAgentsDevicesIDReportOKAgent = "wazuh"
+	InventoryGetInventoryAgentsDevicesIDReportOKAgentNone    InventoryGetInventoryAgentsDevicesIDReportOKAgent = "none"
+	InventoryGetInventoryAgentsDevicesIDReportOKAgentBox     InventoryGetInventoryAgentsDevicesIDReportOKAgent = "box"
+)
+
+// AllValues returns all InventoryGetInventoryAgentsDevicesIDReportOKAgent values.
+func (InventoryGetInventoryAgentsDevicesIDReportOKAgent) AllValues() []InventoryGetInventoryAgentsDevicesIDReportOKAgent {
+	return []InventoryGetInventoryAgentsDevicesIDReportOKAgent{
+		InventoryGetInventoryAgentsDevicesIDReportOKAgentOsquery,
+		InventoryGetInventoryAgentsDevicesIDReportOKAgentWazuh,
+		InventoryGetInventoryAgentsDevicesIDReportOKAgentNone,
+		InventoryGetInventoryAgentsDevicesIDReportOKAgentBox,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryAgentsDevicesIDReportOKAgent) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryAgentsDevicesIDReportOKAgentOsquery:
+		return []byte(s), nil
+	case InventoryGetInventoryAgentsDevicesIDReportOKAgentWazuh:
+		return []byte(s), nil
+	case InventoryGetInventoryAgentsDevicesIDReportOKAgentNone:
+		return []byte(s), nil
+	case InventoryGetInventoryAgentsDevicesIDReportOKAgentBox:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryAgentsDevicesIDReportOKAgent) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryAgentsDevicesIDReportOKAgent(data) {
+	case InventoryGetInventoryAgentsDevicesIDReportOKAgentOsquery:
+		*s = InventoryGetInventoryAgentsDevicesIDReportOKAgentOsquery
+		return nil
+	case InventoryGetInventoryAgentsDevicesIDReportOKAgentWazuh:
+		*s = InventoryGetInventoryAgentsDevicesIDReportOKAgentWazuh
+		return nil
+	case InventoryGetInventoryAgentsDevicesIDReportOKAgentNone:
+		*s = InventoryGetInventoryAgentsDevicesIDReportOKAgentNone
+		return nil
+	case InventoryGetInventoryAgentsDevicesIDReportOKAgentBox:
+		*s = InventoryGetInventoryAgentsDevicesIDReportOKAgentBox
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type InventoryGetInventoryAgentsOK struct {
 	Install InventoryGetInventoryAgentsOKInstall `json:"install"`
 	// Https://:8443, or https://<VEDETTE_BOX_IP>:8443 when the IP is unknown.
@@ -96831,7 +96971,7 @@ type InventoryGetInventoryDevicesIDOKAsset struct {
 	Notes  OptString                                   `json:"notes"`
 	Origin InventoryGetInventoryDevicesIDOKAssetOrigin `json:"origin"`
 	Os     NilInventoryGetInventoryDevicesIDOKAssetOs  `json:"os"`
-	// The OS a person set (PATCH os, INV-39); absent when none: os is then what the sources read.
+	// The OS a person set (PATCH os, INV-40); absent when none: os is then what the sources read.
 	OsCorrection OptInventoryGetInventoryDevicesIDOKAssetOsCorrection `json:"os_correction"`
 	// Per-device override of the type setting for regular scans after the one gentle scan (D-45); never =
 	// never actively scanned again, for every kind of device (D-74).
@@ -99419,7 +99559,7 @@ func (s *InventoryGetInventoryDevicesIDOKAssetOs) SetValue(val string) {
 	s.Value = val
 }
 
-// The OS a person set (PATCH os, INV-39); absent when none: os is then what the sources read.
+// The OS a person set (PATCH os, INV-40); absent when none: os is then what the sources read.
 type InventoryGetInventoryDevicesIDOKAssetOsCorrection struct {
 	// The OS the sources read without the correction (the value that would win); null when none reads one.
 	Detected NilInventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected `json:"detected"`
@@ -99997,9 +100137,9 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSnmpSource) UnmarshalText(data []b
 type InventoryGetInventoryDevicesIDOKAssetSoftwareItem struct {
 	Confidence float64 `json:"confidence"`
 	// On a row a sensor or agent reported: the id of the person's correction that replaces it for matching
-	// (INV-39). Show it as replaced; Clear on the correction brings it back.
+	// (INV-40). Show it as replaced; Clear on the correction brings it back.
 	CorrectedBy OptString `json:"corrected_by"`
-	// On a person's correction of a reported row (INV-39): when it was set and what the sources read now.
+	// On a person's correction of a reported row (INV-40): when it was set and what the sources read now.
 	// Clear = DELETE the row.
 	Correction OptInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection `json:"correction"`
 	// Commercial name the user recognizes.
@@ -100125,21 +100265,32 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) SetVersion(val NilSt
 	s.Version = val
 }
 
-// On a person's correction of a reported row (INV-39): when it was set and what the sources read now.
+// On a person's correction of a reported row (INV-40): when it was set and what the sources read now.
 // Clear = DELETE the row.
 type InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection struct {
+	// True: the row it corrects is still reported and matching uses the correction. false: the source
+	// moved on (detected = what it reads now) or reports the product no more (detected null); matching
+	// uses the source's reading until the person sets the correction again (PATCH on detected.id, or on
+	// this row, which moves it onto what the source reads now). Show it as not in use: "You set X on ; the
+	// scan now reads Y (Vedette uses that)" with Set again and Clear.
+	Active bool `json:"active"`
 	// The corrected row when its source still reports it (it does not match while the correction stands),
 	// else that source's newest row of the product at another version (that one matches on its own: a
 	// second install or an update); null when the source reports the product no more: say "no scan or
 	// agent reports it now".
 	Detected NilInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetected `json:"detected"`
-	// The sources read another product, version or package release than the person: show "You set X on ;
-	// the last scan reads Y".
+	// The source reads another product, version or package release than the person (always true while
+	// active is false): show "You set X on ; the last scan reads Y".
 	Disagrees bool `json:"disagrees"`
 	// When the person set it (or last changed it).
 	SetAt time.Time `json:"set_at"`
 	// Who set it (email); "" for a correction stored without one.
 	SetBy string `json:"set_by"`
+}
+
+// GetActive returns the value of Active.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) GetActive() bool {
+	return s.Active
 }
 
 // GetDetected returns the value of Detected.
@@ -100160,6 +100311,11 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) GetSetAt()
 // GetSetBy returns the value of SetBy.
 func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) GetSetBy() string {
 	return s.SetBy
+}
+
+// SetActive sets the value of Active.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) SetActive(val bool) {
+	s.Active = val
 }
 
 // SetDetected sets the value of Detected.
@@ -107200,7 +107356,7 @@ type InventoryPatchInventoryDevicesIDReq struct {
 	// default name). The host name the network reports is not changed.
 	Name  OptString `json:"name"`
 	Notes OptString `json:"notes"`
-	// Correct the operating system (INV-39): trimmed, at most 200 characters, no < or >; it wins over
+	// Correct the operating system (INV-40): trimmed, at most 200 characters, no < or >; it wins over
 	// every sensor and agent and drives matching until cleared. Empty clears it (back to what the sources
 	// read). 400 bad_os.
 	Os OptString `json:"os"`
@@ -108835,6 +108991,146 @@ func (s *InventoryPostIntakeOsqueryStatusReq) GetHostIdentifier() OptString {
 // SetHostIdentifier sets the value of HostIdentifier.
 func (s *InventoryPostIntakeOsqueryStatusReq) SetHostIdentifier(val OptString) {
 	s.HostIdentifier = val
+}
+
+type InventoryPostInventoryAgentsDevicesIDReportOK struct {
+	// Osquery = an osquery agent enrolled with this box reports on the device: Vedette can ask it to send
+	// its software now; wazuh = only the Wazuh pull reads it: Vedette cannot ask, the next pull brings the
+	// list; none = no agent of this box reads it now; box = the Vedette box itself, which reads its own
+	// packages every hour.
+	Agent InventoryPostInventoryAgentsDevicesIDReportOKAgent `json:"agent"`
+	// Agent osquery: when a new ask is possible (10 minutes after the last one) while that is still ahead;
+	// null otherwise.
+	AskAgainAt NilDateTime `json:"ask_again_at"`
+	// The open ask: when a person asked the osquery agent to send its software now, until its list (built
+	// with its OS answer: kernel_info, os_revision) arrives or 15 minutes pass; null when none is open.
+	AskedAt NilDateTime `json:"asked_at"`
+	// Agent osquery: when the agent last called the box (config or results); null otherwise.
+	LastSeen NilDateTime `json:"last_seen"`
+	// Agent osquery: the agent has not called for more than 10 minutes (twice its config refresh): an ask
+	// reaches it only when it is back; false otherwise.
+	Stale bool `json:"stale"`
+	// Agent wazuh: how often Vedette pulls from the Wazuh server (5, 15, 60, 360 or 1440); null otherwise.
+	WazuhIntervalMinutes NilInt `json:"wazuh_interval_minutes"`
+}
+
+// GetAgent returns the value of Agent.
+func (s *InventoryPostInventoryAgentsDevicesIDReportOK) GetAgent() InventoryPostInventoryAgentsDevicesIDReportOKAgent {
+	return s.Agent
+}
+
+// GetAskAgainAt returns the value of AskAgainAt.
+func (s *InventoryPostInventoryAgentsDevicesIDReportOK) GetAskAgainAt() NilDateTime {
+	return s.AskAgainAt
+}
+
+// GetAskedAt returns the value of AskedAt.
+func (s *InventoryPostInventoryAgentsDevicesIDReportOK) GetAskedAt() NilDateTime {
+	return s.AskedAt
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *InventoryPostInventoryAgentsDevicesIDReportOK) GetLastSeen() NilDateTime {
+	return s.LastSeen
+}
+
+// GetStale returns the value of Stale.
+func (s *InventoryPostInventoryAgentsDevicesIDReportOK) GetStale() bool {
+	return s.Stale
+}
+
+// GetWazuhIntervalMinutes returns the value of WazuhIntervalMinutes.
+func (s *InventoryPostInventoryAgentsDevicesIDReportOK) GetWazuhIntervalMinutes() NilInt {
+	return s.WazuhIntervalMinutes
+}
+
+// SetAgent sets the value of Agent.
+func (s *InventoryPostInventoryAgentsDevicesIDReportOK) SetAgent(val InventoryPostInventoryAgentsDevicesIDReportOKAgent) {
+	s.Agent = val
+}
+
+// SetAskAgainAt sets the value of AskAgainAt.
+func (s *InventoryPostInventoryAgentsDevicesIDReportOK) SetAskAgainAt(val NilDateTime) {
+	s.AskAgainAt = val
+}
+
+// SetAskedAt sets the value of AskedAt.
+func (s *InventoryPostInventoryAgentsDevicesIDReportOK) SetAskedAt(val NilDateTime) {
+	s.AskedAt = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *InventoryPostInventoryAgentsDevicesIDReportOK) SetLastSeen(val NilDateTime) {
+	s.LastSeen = val
+}
+
+// SetStale sets the value of Stale.
+func (s *InventoryPostInventoryAgentsDevicesIDReportOK) SetStale(val bool) {
+	s.Stale = val
+}
+
+// SetWazuhIntervalMinutes sets the value of WazuhIntervalMinutes.
+func (s *InventoryPostInventoryAgentsDevicesIDReportOK) SetWazuhIntervalMinutes(val NilInt) {
+	s.WazuhIntervalMinutes = val
+}
+
+// Osquery = an osquery agent enrolled with this box reports on the device: Vedette can ask it to send
+// its software now; wazuh = only the Wazuh pull reads it: Vedette cannot ask, the next pull brings the
+// list; none = no agent of this box reads it now; box = the Vedette box itself, which reads its own
+// packages every hour.
+type InventoryPostInventoryAgentsDevicesIDReportOKAgent string
+
+const (
+	InventoryPostInventoryAgentsDevicesIDReportOKAgentOsquery InventoryPostInventoryAgentsDevicesIDReportOKAgent = "osquery"
+	InventoryPostInventoryAgentsDevicesIDReportOKAgentWazuh   InventoryPostInventoryAgentsDevicesIDReportOKAgent = "wazuh"
+	InventoryPostInventoryAgentsDevicesIDReportOKAgentNone    InventoryPostInventoryAgentsDevicesIDReportOKAgent = "none"
+	InventoryPostInventoryAgentsDevicesIDReportOKAgentBox     InventoryPostInventoryAgentsDevicesIDReportOKAgent = "box"
+)
+
+// AllValues returns all InventoryPostInventoryAgentsDevicesIDReportOKAgent values.
+func (InventoryPostInventoryAgentsDevicesIDReportOKAgent) AllValues() []InventoryPostInventoryAgentsDevicesIDReportOKAgent {
+	return []InventoryPostInventoryAgentsDevicesIDReportOKAgent{
+		InventoryPostInventoryAgentsDevicesIDReportOKAgentOsquery,
+		InventoryPostInventoryAgentsDevicesIDReportOKAgentWazuh,
+		InventoryPostInventoryAgentsDevicesIDReportOKAgentNone,
+		InventoryPostInventoryAgentsDevicesIDReportOKAgentBox,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPostInventoryAgentsDevicesIDReportOKAgent) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPostInventoryAgentsDevicesIDReportOKAgentOsquery:
+		return []byte(s), nil
+	case InventoryPostInventoryAgentsDevicesIDReportOKAgentWazuh:
+		return []byte(s), nil
+	case InventoryPostInventoryAgentsDevicesIDReportOKAgentNone:
+		return []byte(s), nil
+	case InventoryPostInventoryAgentsDevicesIDReportOKAgentBox:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPostInventoryAgentsDevicesIDReportOKAgent) UnmarshalText(data []byte) error {
+	switch InventoryPostInventoryAgentsDevicesIDReportOKAgent(data) {
+	case InventoryPostInventoryAgentsDevicesIDReportOKAgentOsquery:
+		*s = InventoryPostInventoryAgentsDevicesIDReportOKAgentOsquery
+		return nil
+	case InventoryPostInventoryAgentsDevicesIDReportOKAgentWazuh:
+		*s = InventoryPostInventoryAgentsDevicesIDReportOKAgentWazuh
+		return nil
+	case InventoryPostInventoryAgentsDevicesIDReportOKAgentNone:
+		*s = InventoryPostInventoryAgentsDevicesIDReportOKAgentNone
+		return nil
+	case InventoryPostInventoryAgentsDevicesIDReportOKAgentBox:
+		*s = InventoryPostInventoryAgentsDevicesIDReportOKAgentBox
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type InventoryPostInventoryAgentsTokensCreated struct {

@@ -80,22 +80,23 @@ export const DevicesResponse = z.object({
   notify_new: z.boolean(),
   notify_available: z.boolean().describe('false when the notify module is off'),
 })
-/** INV-39 (BN340): a person's correction of a row a sensor or agent reported. */
+/** INV-40 (BN340): a person's correction of a row a sensor or agent reported. */
 export const SoftwareCorrection = z.object({
   set_at: dt.describe('When the person set it (or last changed it)'),
   set_by: z.string().describe('Who set it (email); "" for a correction stored without one'),
   detected: z.object({
     id: z.string(), display: z.string(), version: z.string().nullable(), pkg_version: z.string().nullable(), source: ObsSource, seen_at: dt,
   }).nullable().describe('The corrected row when its source still reports it (it does not match while the correction stands), else that source\'s newest row of the product at another version (that one matches on its own: a second install or an update); null when the source reports the product no more: say "no scan or agent reports it now"'),
-  disagrees: z.boolean().describe('The sources read another product, version or package release than the person: show "You set X on <date>; the last scan reads Y"'),
+  disagrees: z.boolean().describe('The source reads another product, version or package release than the person (always true while active is false): show "You set X on <date>; the last scan reads Y"'),
+  active: z.boolean().describe('true: the row it corrects is still reported and matching uses the correction. false: the source moved on (detected = what it reads now) or reports the product no more (detected null); matching uses the source\'s reading until the person sets the correction again (PATCH on detected.id, or on this row, which moves it onto what the source reads now). Show it as not in use: "You set X on <date>; the scan now reads Y (Vedette uses that)" with Set again and Clear'),
 })
 export const SoftwareView = Software.omit({ kev: true }).extend({
   kev_cves: z.array(z.string()),
   pkg_version: z.string().optional().describe('The full package release: an agent\'s packaged row ("1:9.6p1-3ubuntu13.14", D-516) or a person\'s correction ("10.2_p1-r1"); absent when none'),
-  corrected_by: z.string().optional().describe('On a row a sensor or agent reported: the id of the person\'s correction that replaces it for matching (INV-39). Show it as replaced; Clear on the correction brings it back'),
-  correction: SoftwareCorrection.optional().describe('On a person\'s correction of a reported row (INV-39): when it was set and what the sources read now. Clear = DELETE the row'),
+  corrected_by: z.string().optional().describe('On a row a sensor or agent reported: the id of the person\'s correction that replaces it for matching (INV-40). Show it as replaced; Clear on the correction brings it back'),
+  correction: SoftwareCorrection.optional().describe('On a person\'s correction of a reported row (INV-40): when it was set and what the sources read now. Clear = DELETE the row'),
 })
-/** INV-39: the OS a person set on the device; it wins over every source and drives matching while it stands. */
+/** INV-40: the OS a person set on the device; it wins over every source and drives matching while it stands. */
 export const OsCorrection = z.object({
   value: z.string(), set_at: dt,
   detected: Observed.nullable().describe('The OS the sources read without the correction (the value that would win); null when none reads one'),
@@ -113,7 +114,7 @@ export const SameRef = PossibleSame.omit({ why: true, ignored: true })
 export const DeviceDetail = z.object({
   asset: Asset.omit({ software: true }).extend(ScanInfo.shape).extend({
     software: z.array(SoftwareView),
-    os_correction: OsCorrection.optional().describe('The OS a person set (PATCH os, INV-39); absent when none: os is then what the sources read'),
+    os_correction: OsCorrection.optional().describe('The OS a person set (PATCH os, INV-40); absent when none: os is then what the sources read'),
   }),
   suspicious: z.boolean(),
   findings_count: z.number().int().describe('Number of findings attached to the device; deleting the device also deletes these findings'),
@@ -229,6 +230,15 @@ export const WazuhTestResult = z.object({ ok: z.literal(true), version: z.string
 export const AgentsResponse = z.object({ install: Installers, tokens: z.array(AgentToken), server_url: z.string().describe('https://<box IP>:8443, or https://<VEDETTE_BOX_IP>:8443 when the IP is unknown'), wazuh: WazuhConnection.nullable() })
 export const CreateTokenResult = z.object({ token: AgentToken, secret: z.string().describe('Full token, returned only at creation') })
 export const SampleResult = z.object({ devices: z.number().int(), software: z.number().int() })
+/** "I updated it" for software an agent reads (S-MIT-1, kien G12 follow-up): which agent of this box reads the device, and the open ask. */
+export const AgentReport = z.object({
+  agent: z.enum(['osquery', 'wazuh', 'none', 'box']).describe('osquery = an osquery agent enrolled with this box reports on the device: Vedette can ask it to send its software now; wazuh = only the Wazuh pull reads it: Vedette cannot ask, the next pull brings the list; none = no agent of this box reads it now; box = the Vedette box itself, which reads its own packages every hour'),
+  asked_at: dt.nullable().describe('The open ask: when a person asked the osquery agent to send its software now, until its list (built with its OS answer: kernel_info, os_revision) arrives or 15 minutes pass; null when none is open'),
+  ask_again_at: dt.nullable().describe('agent osquery: when a new ask is possible (10 minutes after the last one) while that is still ahead; null otherwise'),
+  last_seen: dt.nullable().describe('agent osquery: when the agent last called the box (config or results); null otherwise'),
+  stale: z.boolean().describe('agent osquery: the agent has not called for more than 10 minutes (twice its config refresh): an ask reaches it only when it is back; false otherwise'),
+  wazuh_interval_minutes: z.number().int().nullable().describe('agent wazuh: how often Vedette pulls from the Wazuh server (5, 15, 60, 360 or 1440); null otherwise'),
+})
 
 /** SNMP credentials (D-512, S-INV-1): read-only GETs from the scan container to approved devices in the scan scope. Secrets are stored encrypted; the API never returns them, only their last 4 characters. */
 export const SnmpVersion = z.enum(['v2c', 'v3']).describe('No SNMPv1 (D-512)')
@@ -304,7 +314,7 @@ export const endpoints = defineEndpoints([
     body: z.object({
       name: z.string().max(200).optional().describe('The name in Vedette (G2): trimmed, at most 64 characters, no < or >; empty clears it (back to the default name). The host name the network reports is not changed'),
       kind: AssetKind.optional(), fragile: z.boolean().optional(), regular_scan: RegularScan.optional(), notes: z.string().max(2000).optional(),
-      os: z.string().max(400).optional().describe('Correct the operating system (INV-39): trimmed, at most 200 characters, no < or >; it wins over every sensor and agent and drives matching until cleared. Empty clears it (back to what the sources read). 400 bad_os'),
+      os: z.string().max(400).optional().describe('Correct the operating system (INV-40): trimmed, at most 200 characters, no < or >; it wins over every sensor and agent and drives matching until cleared. Empty clears it (back to what the sources read). 400 bad_os'),
     }), response: ok },
   { method: 'put', path: '/inventory/devices/{id}/sources', summary: 'Turn the network scan or the SNMP reads of one device on or off (D-601). On is the person\'s consent to that traffic: a device added by hand gets it from then on, inside every other safety rule (scope, exclusions, window, fragile, never scan); turning the network scan on queues the device for the next window. Off stops it for any device (the run on it stops); what the source found stays and manual values still win. One audit row per source changed. 400 bad_source: neither, or not on/off. 404 not_found. 409 box_device: the Vedette box itself. 409 device_ignored: turning a source on for an ignored device (D-630)', stories: ['S-INV-1', 'S-INV-4'], role: 'admin', params: id, body: SourcesInput, response: SourcesState },
   { method: 'delete', path: '/inventory/devices/{id}', summary: 'Delete a device from the inventory, along with its findings (409 for the Vedette box itself, which is always the first device)', stories: ['S-INV-3'], role: 'operator', params: id, response: null },
@@ -316,14 +326,14 @@ export const endpoints = defineEndpoints([
   { method: 'post', path: '/inventory/devices/{id}/suspicious', summary: 'Mark or unmark a device as suspicious', stories: ['S-INV-3'], role: 'operator', params: id, body: z.object({ suspicious: z.boolean() }), response: ok },
   { method: 'post', path: '/inventory/devices/{id}/software', status: 201, summary: 'Declare additional software running on a device', stories: ['S-INV-2'], role: 'operator', params: id,
     body: AddDeviceInput.omit({ name: true, ip: true }), response: z.object({ kev_cves: z.number().int() }) },
-  { method: 'patch', path: '/inventory/devices/{id}/software/{sid}', summary: 'Change a software row (D-471, INV-39). A row a person declared changes in place. A row a sensor or agent reported is corrected: the values go in a manual correction row (source manual, correction set) that replaces exactly that row (its source, product and version, and its re-reports) for matching until it is deleted; another install of the product (another version or source) keeps matching. Fields left out keep their value (the CPE, the packaged flag, the source package; the package release while the version stays); another product starts clean. The device is matched again. 400 bad_edit (nothing to change), bad_version, bad_pkg_version, unknown_product, incomplete_product, bad_product. 409 duplicate_software', stories: ['S-INV-2'], role: 'operator', params: id.extend({ sid: z.string() }),
+  { method: 'patch', path: '/inventory/devices/{id}/software/{sid}', summary: 'Change a software row (D-471, INV-40). A row a person declared changes in place. A row a sensor or agent reported is corrected: the values go in a manual correction row (source manual, correction set) that replaces exactly that row (its source, product and version, and its re-reports) for matching until it is deleted; another install of the product (another version or source) keeps matching. Fields left out keep their value (the CPE, the packaged flag, the source package; the package release while the version stays); another product starts clean. The device is matched again. 400 bad_edit (nothing to change), bad_version, bad_pkg_version, unknown_product, incomplete_product, bad_product. 409 duplicate_software', stories: ['S-INV-2'], role: 'operator', params: id.extend({ sid: z.string() }),
     body: z.object({
       version: z.string().max(40).optional().describe('Letters, digits, . - + ( ) and spaces; empty removes the version'),
       pkg_version: z.string().max(100).optional().describe('The package release the device\'s package manager shows ("10.2_p1-r1", "1:9.6p1-3ubuntu13.14"); empty removes it'),
       catalog_id: z.string().max(64).optional().describe('Another product, from GET /inventory/catalog'),
       vendor: z.string().max(64).optional(), product: z.string().max(64).optional().describe('Another product typed by hand (both vendor and product)'),
     }), response: ok },
-  { method: 'delete', path: '/inventory/devices/{id}/software/{sid}', summary: 'Remove manually declared software from a device; on a correction (INV-39) this clears it and the reported row matches again (audit inventory.clear_software_correction)', stories: ['S-INV-2'], role: 'operator', params: id.extend({ sid: z.string() }), response: null },
+  { method: 'delete', path: '/inventory/devices/{id}/software/{sid}', summary: 'Remove manually declared software from a device; on a correction (INV-40) this clears it and the reported row matches again (audit inventory.clear_software_correction)', stories: ['S-INV-2'], role: 'operator', params: id.extend({ sid: z.string() }), response: null },
   { method: 'get', path: '/inventory/catalog', summary: 'Suggest products by vendor or commercial name', stories: ['S-INV-2'], role: 'viewer', query: z.object({ q: z.string().max(80) }), response: CatalogResponse, example: { query: { q: 'forti' } } },
   { method: 'put', path: '/inventory/notify-new', summary: 'Turn alerts for new devices on or off', stories: ['S-INV-3'], role: 'operator', body: z.object({ enabled: z.boolean() }), response: z.object({ enabled: z.boolean() }) },
   { method: 'get', path: '/inventory/export.csv', summary: 'Download the device list as CSV (UTF-8 with BOM, opens in Excel); the filters of GET /inventory/devices export what the page shows', stories: ['S-INV-2'], role: 'viewer', query: DevicesQuery, response: 'file' },
@@ -336,6 +346,8 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/inventory/agents', summary: 'Issued osquery tokens and the Wazuh connection (if any)', stories: ['S-INV-4'], role: 'admin', response: AgentsResponse },
   { method: 'post', path: '/inventory/agents/tokens', status: 201, summary: 'Issue an osquery token, returning the full token once', stories: ['S-INV-4'], role: 'admin', body: z.object({ name: z.string().max(64), kind: AgentKind.optional(), expires_in_days: z.number().int().min(0).max(365).optional().describe('Default 7; 0 = never expires') }), response: CreateTokenResult },
   { method: 'delete', path: '/inventory/agents/tokens/{id}', summary: 'Revoke an osquery token', stories: ['S-INV-4'], role: 'admin', params: id, response: null },
+  { method: 'get', path: '/inventory/agents/devices/{id}/report', summary: 'Which agent of this box reads the device and whether an ask to send its software now is open ("I updated it", S-MIT-1). 404 not_found: no such device; 404 too while agent-intake is off', stories: ['S-MIT-1', 'S-INV-4'], role: 'viewer', params: id, response: AgentReport },
+  { method: 'post', path: '/inventory/agents/devices/{id}/report', summary: 'I updated it: ask the device\'s osquery agent to send its software now. For 15 minutes, or until its list arrives, the box\'s config gives the agent\'s software queries (the same read-only queries, nothing else) a 60 s interval; osquery reads its config every 5 minutes. An open ask is answered as it is; a new ask within 10 minutes of the last: 429 rate_limited (retry_after). 409 cannot_ask: no osquery agent of this box reports on the device (Wazuh only, or none). 404 not_found. Audited', stories: ['S-MIT-1', 'S-INV-4'], role: 'operator', params: id, response: AgentReport },
   { method: 'post', path: '/inventory/agents/tokens/{id}/sample-data', summary: 'PREVIEW ONLY (mock): send sample data as if the agent had reported in, to see the effect', stories: ['S-INV-4'], role: 'admin', params: id, response: SampleResult },
   { method: 'get', path: '/install/osquery.sh', summary: 'One-line osquery install script for Linux (Debian, Ubuntu, RHEL, Rocky, AlmaLinux; x86_64 or arm64), served by the box; public, contains no secrets (the token is passed as a parameter); 404 no_box_address while the box knows no address other machines can reach', stories: ['S-INV-4'], role: 'public', response: 'file' },
   { method: 'get', path: '/install/osquery.ps1', summary: 'osquery install script for Windows Server, served by the box; public, contains no secrets; 404 no_box_address while the box knows no address other machines can reach', stories: ['S-INV-4'], role: 'public', response: 'file' },

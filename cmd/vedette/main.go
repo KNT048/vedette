@@ -399,6 +399,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 		}
 		defer func() { _ = link.ln.Close() }() // only matters when a later step fails before serveUntilDone owns it
 	}
+	learnWindowsReleases(ctx, d) // D-603: before agent-intake writes a device's OS row or findings matches it
 	reg.OnChange(sched.ModuleChanged)
 	if err := addJobs(sched, d, wired); err != nil {
 		return err

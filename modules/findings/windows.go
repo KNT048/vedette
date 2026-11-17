@@ -79,7 +79,7 @@ func winDevice(in swInfo) (winDev, bool) {
 }
 
 // winUnknownBuild is the build of a Windows row whose build core/winrel does not know (D-602): a Microsoft row with a full Windows 10.0
-// version ("10.0.26300.9974", an Insider or other build newer than the table) and no CPE of a known release, as agent-intake's
+// version (an Insider Preview build, or a release newer than the table and the releases learned from Microsoft's list, D-603) and no CPE of a known release, as agent-intake's
 // windowsRow writes it ("Windows (build 26300)"). Vedette cannot place such a build among the releases NVD lists.
 func winUnknownBuild(s Software, in swInfo) (int, bool) {
 	if _, ok := winDevice(in); ok || norm(s.Vendor) != "microsoft" {
@@ -206,6 +206,10 @@ func winListedOf(c CPE) (winListed, bool) {
 		}
 		if b := vers[strings.ToLower(v)]; lit && b > 0 {
 			l.build, l.server = b, p == "windows_server"
+			return l, true
+		}
+		if r, ok := winrel.ByProduct(p + "_" + strings.ToLower(v)); lit && ok && r.Server == (p == "windows_server") && p != "windows" { // D-603: windows_11:26h2, a release learned from Microsoft's list
+			l.build, l.server = r.Build, r.Server
 			return l, true
 		}
 		l.family = p

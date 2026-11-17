@@ -235,6 +235,9 @@ func (s *Service) ready(ctx context.Context) error {
 	if err := s.Seed(ctx); err != nil {
 		return err
 	}
+	if err := s.LearnWindowsReleases(ctx); err != nil { // D-603: the last good list of Windows releases, before any match needs it
+		return err
+	}
 	s.seeded = true
 	return nil
 }

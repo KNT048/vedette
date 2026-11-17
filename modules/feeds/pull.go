@@ -18,6 +18,7 @@ import (
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/jobs"
+	"github.com/knt048/vedette/core/winrel"
 )
 
 // Pull schedule.
@@ -155,6 +156,9 @@ type pullPlan struct {
 
 	epssAll    []EPSSAllScore // epss-all (D-614): every CVE's score, written in chunks (applyEPSSAll)
 	hasEPSSAll bool
+
+	winRel    []winrel.Release // windows-releases (D-603): the releases Microsoft's pages list, replaced whole
+	hasWinRel bool
 }
 
 func (s *Service) get(ctx context.Context, req Request) (*Response, error) {
@@ -296,6 +300,8 @@ func (s *Service) build(ctx context.Context, src sourceRow) (pullPlan, error) {
 		return s.buildEPSSAll(ctx, src, p)
 	case DecoderNVDRecent:
 		return s.buildRecent(ctx, src, p)
+	case DecoderWinRel:
+		return s.buildWinRel(ctx, src, p)
 	}
 	auth, err := s.authFor(ctx, src)
 	if err != nil {
@@ -551,6 +557,7 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 		baseline       bool // the CISA list filled an empty table: one baseline event, not one per CVE (D-78)
 		rangesChanged  []string
 		rangesFirst    bool
+		winRelChanged  bool
 	)
 	finish := func(tx *sql.Tx, out outcome) error { // the outcome row and the audit entry, in the pull's last transaction
 		if err := recordOutcome(ctx, tx, src.ID, out); err != nil {
@@ -566,7 +573,7 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 		return s.Audit.Append(ctx, tx, audit.Entry{User: actor, Action: "feeds.fetch", Target: src.Name, Detail: detail})
 	}
 	write := func(p pullPlan) error {
-		fresh, changed, added, removed, stale, baseline, rangesChanged, rangesFirst = nil, nil, 0, 0, false, false, nil, false
+		fresh, changed, added, removed, stale, baseline, rangesChanged, rangesFirst, winRelChanged = nil, nil, 0, 0, false, false, nil, false, false
 		if p.hasIOCs { // a long list: chunks, not one transaction that holds the writer (applyIOCs)
 			var err error
 			added, removed, stale, err = applyIOCs(ctx, s.DB, p.out.Finished, src, p.iocs, s.afterChunk, func(tx *sql.Tx, _, _ int) error { return finish(tx, p.out) })
@@ -667,6 +674,10 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 				if _, err = tx.ExecContext(ctx, `UPDATE feeds_source SET distro_packages = ? WHERE id = ?`, kept, src.ID); err != nil {
 					return fmt.Errorf("feeds: distro print: %w", err)
 				}
+			case p.hasWinRel: // D-603: findings matches the Windows entries again when the releases changed
+				if rangesChanged, winRelChanged, err = applyWinRel(ctx, tx, p.winRel); err != nil {
+					return err
+				}
 			}
 			return finish(tx, p.out)
 		})
@@ -689,6 +700,11 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 	row, rerr := s.st.source(ctx, id)
 	if stale || rerr != nil {
 		return row, 0, nil, rerr
+	}
+	if winRelChanged { // before the event: findings reads the new releases when it matches again
+		if err := s.LearnWindowsReleases(ctx); err != nil {
+			s.Log.ErrorContext(ctx, "reading the Windows releases failed", "error", err)
+		}
 	}
 
 	var evs []events.Event

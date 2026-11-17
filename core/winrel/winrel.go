@@ -6,9 +6,19 @@
 // Sources: Microsoft's release information pages (https://learn.microsoft.com/en-us/windows/release-health/release-information,
 // .../windows11-release-information, https://learn.microsoft.com/en-us/windows-server/get-started/windows-server-release-info)
 // for builds and dates; NVD's CPE dictionary for the names (checked 2026-11-14, docs/decisions/D-546.md lists which).
+//
+// D-603: a release newer than this table (Windows 11 26H2, build 26300, out 2026-09-29) needs no code change. The feeds module reads
+// Microsoft's release information pages on the box and hands the releases it finds to Learn; ByBuild, ByProduct and Releases answer
+// from this table first, then from those. The table's hand facts (Ended, LTSC, LastFreeRev, the NVD names Microsoft's pages do not
+// spell out) always win: a learned release never replaces or changes one of the table.
 package winrel
 
-import "time"
+import (
+	"regexp"
+	"slices"
+	"sync/atomic"
+	"time"
+)
 
 // Release is one Windows release.
 type Release struct {
@@ -81,8 +91,70 @@ var releases = []Release{
 	{26100, "windows_server_2025", "Windows Server 2025", true, 26100, day("2024-11-01"), 1742, 0, false, false}, // GA media 26100.1742 (Microsoft's table, "2024-10 A"; D-610)
 }
 
-// ByBuild is the client (server false) or server release of a build; false when the table has none.
+// learned are the releases Learn was last given that the table does not have (D-603); nil before the first call.
+var learned atomic.Pointer[[]Release]
+
+// learnedProduct is the NVD name a learned release may have: Windows 11 by its version ("windows_11_26h2") or a Windows Server by
+// its year ("windows_server_2028"), the two shapes NVD gives every release of the table since 2021.
+var learnedProduct = regexp.MustCompile(`^windows_(11_[0-9]{2}h[12]|server_20[2-9][0-9])$`)
+
+// Learn sets the releases Microsoft's release information lists (D-603) and returns how many it kept. It keeps a release only when
+// it is valid and the table has neither its build (of its kind) nor its NVD name: the table's hand facts win. A kept release is one
+// Microsoft still services (Ended, LTSC and LastFreeRev are the table's facts, never learned) and is on its own line unless that line
+// is the line of a client release of the table (24H2's 26100 for 26H2) or its own build; a server release is always its own line.
+// Each call replaces what the last one set; nil or empty forgets every learned release.
+func Learn(rs []Release) int {
+	var keep []Release
+	for _, r := range rs {
+		r.Ended, r.LTSC, r.LastFreeRev = false, false, 0
+		if !learnable(r) || slices.ContainsFunc(keep, func(k Release) bool { return k.Product == r.Product || k.Build == r.Build && k.Server == r.Server }) {
+			continue
+		}
+		keep = append(keep, r)
+	}
+	learned.Store(&keep)
+	return len(keep)
+}
+
+func learnable(r Release) bool {
+	if r.Build < 10240 || r.Build > 99999 || !learnedProduct.MatchString(r.Product) || r.Server != (r.Product[8:14] == "server") ||
+		len(r.Display) == 0 || len(r.Display) > 60 || r.GA.IsZero() || r.GARev < 0 || r.GARev > 999999 {
+		return false
+	}
+	if _, ok := tableByBuild(r.Build, r.Server); ok {
+		return false
+	}
+	if _, ok := tableByProduct(r.Product); ok {
+		return false
+	}
+	if r.Line == r.Build {
+		return true
+	}
+	first, ok := tableByBuild(r.Line, false)
+	return !r.Server && ok && first.Line == r.Line && r.Line < r.Build
+}
+
+func learnedReleases() []Release {
+	if p := learned.Load(); p != nil {
+		return *p
+	}
+	return nil
+}
+
+// ByBuild is the client (server false) or server release of a build; false when neither the table nor the learned releases have it.
 func ByBuild(build int, server bool) (Release, bool) {
+	if r, ok := tableByBuild(build, server); ok {
+		return r, true
+	}
+	for _, r := range learnedReleases() {
+		if r.Build == build && r.Server == server {
+			return r, true
+		}
+	}
+	return Release{}, false
+}
+
+func tableByBuild(build int, server bool) (Release, bool) {
 	for _, r := range releases {
 		if r.Build == build && r.Server == server {
 			return r, true
@@ -91,11 +163,24 @@ func ByBuild(build int, server bool) (Release, bool) {
 	return Release{}, false
 }
 
-// Releases is every release of the table, in its order (a copy).
-func Releases() []Release { return append([]Release(nil), releases...) }
+// Releases is every release of the table, in its order, then the learned ones (a copy).
+func Releases() []Release { return append(slices.Clone(releases), learnedReleases()...) }
 
-// ByProduct is the release NVD names product ("windows_11_23h2", lower case as NVD writes it); false when the table has none.
+// ByProduct is the release NVD names product ("windows_11_23h2", lower case as NVD writes it); false when neither the table nor the
+// learned releases have it.
 func ByProduct(product string) (Release, bool) {
+	if r, ok := tableByProduct(product); ok {
+		return r, true
+	}
+	for _, r := range learnedReleases() {
+		if r.Product == product {
+			return r, true
+		}
+	}
+	return Release{}, false
+}
+
+func tableByProduct(product string) (Release, bool) {
 	for _, r := range releases {
 		if r.Product == product {
 			return r, true

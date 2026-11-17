@@ -1,0 +1,359 @@
+// kien G15 (J3, S-MIT-1): Needs your input, one block per device, the most urgent first (To fix's own order), collapsed until opened.
+// Each item says in plain words what the person can do and offers it right there (docs/UI.md §0, "do it where you are"): type the
+// version of software they added by hand, remove what is not installed, mark unproved findings not affected, check the device now
+// (the same "Check this device now" as the device page), or open the software on the device. When nothing a person does would help,
+// it says so and when Vedette checks again (the next version scan or SNMP read from GET /scanning, the next NVD refresh from the
+// feed's last fetch and interval). As Defender's "Software inventory" and Tenable's asset view group a device's open questions under
+// the device, never one flat list per kind.
+import { useEffect, useId, useState, type FormEvent, type ReactNode } from 'react'
+import { Link, useLocation } from 'react-router'
+import { Trans, useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
+import { ChevronDown } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input, Label } from '@/components/ui/input'
+import { useFeedSources } from '@/features/feeds/api'
+import { RiskMarker } from '@/features/inventory/RiskMarker'
+import { useDeviceAction } from '@/features/inventory/api'
+import type { DeviceRisk } from '@/features/inventory/types'
+import { useScanning } from '@/features/scanning/api'
+import { fmtDateTime } from '@/lib/format'
+import { useCan } from '@/lib/session'
+import { useBulkStatus } from './api'
+import { deviceName, hasIp } from './basis'
+import { MAX_BULK } from './contract'
+import { errMsg } from './errors'
+import { useDeviceSoftware } from './rematch'
+import { Worst, unproved } from './ToFix'
+import { UNCHECKED_ANCHOR, UncheckedLine } from './UncheckedList'
+import { CheckNow } from './Updated'
+import type { FindingAsset, ToFixAction, ToFixDevice, UncheckedItem, VersionNeeded } from './types'
+
+const SEV = ['info', 'low', 'medium', 'high', 'critical']
+const rank = (s: string) => SEV.indexOf(s.toLowerCase())
+/** The backend's versionRE (inventory manual.go): what PATCH …/software/{sid} accepts. */
+const VERSION_RE = /^[A-Za-z0-9_.\-+() ]{1,40}$/
+
+/** One device's block: what only a person can settle (a version, an unproved match), then what could not be checked. */
+export type InputGroup = { id: string; asset: FindingAsset | null; versions: VersionNeeded[]; unproved: ToFixAction[]; unchecked: UncheckedItem[] }
+
+const uncheckedCves = (items: UncheckedItem[]) => new Set(items.flatMap((i) => i.cves.map((c) => c.cve))).size
+
+/** Groups the items by device. Order: To fix's own urgency (`order`, the devices of GET /findings/to-fix as the server ranks them),
+ *  then a device with something to settle, its worst unproved severity, how many things to settle, how many CVEs could not be
+ *  checked, and its name. */
+export function groupByDevice(need: VersionNeeded[], unc: UncheckedItem[], devices: ToFixDevice[], order: string[], removed: string): InputGroup[] {
+  const m = new Map<string, InputGroup>()
+  const at = (id: string, asset: FindingAsset | null) => {
+    const g = m.get(id) ?? { id, asset, versions: [], unproved: [], unchecked: [] }
+    g.asset ??= asset
+    m.set(id, g)
+    return g
+  }
+  for (const v of need) at(v.asset_id, v.asset).versions.push(v)
+  for (const d of devices) for (const a of unproved(d)) at(d.asset.id, d.asset).unproved.push(a)
+  for (const u of unc) at(u.asset_id, u.asset).unchecked.push(u)
+  const pos = new Map(order.map((id, i) => [id, i]))
+  const settle = (g: InputGroup) => g.versions.length + g.unproved.length
+  const worst = (g: InputGroup) => Math.max(-1, ...g.unproved.map((a) => rank(a.worst)))
+  const name = (g: InputGroup) => deviceName(g.asset, removed)
+  return [...m.values()].sort((x, y) => (pos.get(x.id) ?? Infinity) - (pos.get(y.id) ?? Infinity) || Number(settle(y) > 0) - Number(settle(x) > 0)
+    || worst(y) - worst(x) || settle(y) - settle(x) || uncheckedCves(y.unchecked) - uncheckedCves(x.unchecked) || name(x).localeCompare(name(y)))
+}
+
+/** Needs your input: the device blocks. `device` (the `?device=` filter, a link from To fix or the Software tab) opens its block. */
+export function NeedsInput({ need, unc, devices, order, risks, device }: { need: VersionNeeded[]; unc: UncheckedItem[]; devices: ToFixDevice[]; order: string[]; risks: Record<string, DeviceRisk | null>; device: string }) {
+  const { t } = useTranslation('findings')
+  const { hash } = useLocation()
+  const groups = groupByDevice(need, unc, devices, order, t('removedDevice'))
+  const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set(device ? [device] : []))
+  const toggle = (id: string) => setOpen((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
+  useEffect(() => {
+    if (hash === `#${UNCHECKED_ANCHOR}`) document.getElementById(UNCHECKED_ANCHOR)?.scrollIntoView?.({ block: 'start' })
+  }, [hash])
+  if (!groups.length) return null
+  return (
+    <section id={UNCHECKED_ANCHOR} aria-labelledby="needs-input-title" className="grid scroll-mt-4 gap-2">
+      <h2 id="needs-input-title" className="text-base font-semibold">{t('needsInput.title', { count: groups.length })}</h2>
+      <p className="text-meta text-muted">{t('needsInput.intro')}</p>
+      <ul aria-label={t('needsInput.label')} className="grid gap-2">
+        {groups.map((g) => <DeviceBlock key={g.id} g={g} open={open.has(g.id)} onToggle={() => toggle(g.id)} risk={risks[g.id] ?? null} />)}
+      </ul>
+    </section>
+  )
+}
+
+function DeviceBlock({ g, open, onToggle, risk }: { g: InputGroup; open: boolean; onToggle: () => void; risk: DeviceRisk | null }) {
+  const { t } = useTranslation('findings')
+  const name = deviceName(g.asset, t('removedDevice'))
+  const settle = g.versions.length + g.unproved.length
+  const cves = uncheckedCves(g.unchecked)
+  const panel = `needs-input-${g.id}`
+  // the block's counts, in its toggle's name; each only when it is not 0 (kien G5)
+  const settleText = settle ? t('needsInput.toSettle', { count: settle }) : ''
+  const cvesText = cves ? t('needsInput.uncheckedCount', { count: cves }) : ''
+  return (
+    <li aria-label={name} className="rounded-md border border-rule bg-surface">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-2 py-2">
+        <Button variant="ghost" size="sm" aria-expanded={open} aria-controls={panel} onClick={onToggle} className="h-auto min-h-9 flex-wrap justify-start gap-x-2 gap-y-0.5 whitespace-normal py-1.5 text-left">
+          <ChevronDown className={open ? 'rotate-180' : ''} aria-hidden />
+          <span className="text-sm font-semibold [overflow-wrap:anywhere]">{name}</span>
+          {settleText ? <span className="whitespace-nowrap font-normal text-warn"><span className="sr-only">,</span> {settleText}</span> : null}
+          {cvesText ? <span className="whitespace-nowrap font-normal text-muted"><span className="sr-only">,</span> {cvesText}</span> : null}
+        </Button>
+        {g.asset ? <RiskMarker id={g.id} risk={risk} /> : null}
+        {hasIp(g.asset) ? <span className="text-meta text-muted">{g.asset?.ip}</span> : null}
+      </div>
+      {open ? (
+        <div id={panel} className="grid gap-3 border-t border-rule px-4 py-3">
+          {settle ? (
+            <ul aria-label={t('needsInput.settleOf', { device: name })} className="divide-y divide-rule">
+              {g.versions.map((v) => <VersionItem key={`v:${v.software_id}`} v={v} />)}
+              {g.unproved.map((a) => <UnprovedItem key={`u:${a.group}`} a={a} asset={g.asset} />)}
+            </ul>
+          ) : null}
+          {cves ? (
+            <div className="grid gap-1">
+              <h3 className="text-sm font-semibold">{t('needsInput.uncheckedTitle', { count: cves })}</h3>
+              <p className="text-meta text-muted">{t('unchecked.help')}</p>
+              <ul aria-label={t('needsInput.uncheckedOf', { device: name })} className="divide-y divide-rule">
+                {g.unchecked.map((u) => (
+                  <li key={`${u.software_id ?? u.software}/${u.reason}`} className="grid gap-2 py-3">
+                    <UncheckedLine item={u} />
+                    <NextStep assetId={u.asset_id} asset={u.asset} softwareId={u.software_id ?? ''} software={u.software} need={u.action === 'add_version' ? 'version' : 'nvd'}
+                      waiting={u.cves.some((c) => c.nvd_pending)} />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </li>
+  )
+}
+
+/** D-500: a software without a usable version: the version decides its exploited CVEs. */
+function VersionItem({ v }: { v: VersionNeeded }) {
+  const { t } = useTranslation('findings')
+  return (
+    <li className="grid gap-2 py-3">
+      <p className="text-sm">
+        <Trans t={t} i18nKey={v.version === null ? 'versionNeeded.missing' : 'versionNeeded.unreadable'} count={v.cves}
+          values={{ software: v.software, version: v.version ?? '' }} components={{ sw: <span className="font-medium" /> }} />
+      </p>
+      <NextStep assetId={v.asset_id} asset={v.asset} softwareId={v.software_id} software={v.software} need="version" />
+    </li>
+  )
+}
+
+/** Findings no update is named for that the box could not prove (kien G8): their CVEs, and how a person settles them. */
+function UnprovedItem({ a, asset }: { a: ToFixAction; asset: FindingAsset | null }) {
+  const { t } = useTranslation('findings')
+  return (
+    <li className="grid gap-2 py-3">
+      <div className="text-sm">
+        <p>
+          <span className="font-medium">{[a.software || t('toFix.theSoftware'), a.version].filter(Boolean).join(' ')}</span>
+          <span className="text-muted">{', '}{t('toFix.unproved.count', { count: a.cves.length })}</span>{' '}<Worst worst={a.worst} />
+        </p>
+        <details>
+          <summary className="w-fit cursor-pointer text-meta text-accent underline-offset-4 hover:underline">{t('toFix.showCves', { count: a.cves.length })}</summary>
+          <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-1 pl-4 text-meta">
+            {a.cves.map((c, i) => <li key={c}><Link to={`/findings/${encodeURIComponent(a.finding_ids[i] ?? '')}`} className="text-accent underline-offset-4 hover:underline">{c}</Link></li>)}
+          </ul>
+        </details>
+      </div>
+      <NextStep assetId={asset?.id ?? ''} asset={asset} softwareId={a.software_id} software={a.software || t('toFix.theSoftware')} need="proof" sourceHint={a.source} findingIds={a.finding_ids} />
+    </li>
+  )
+}
+
+/** What decides an item: its version (version), NVD's data only (nvd), or a person's check of unproved findings (proof). */
+type Need = 'version' | 'nvd' | 'proof'
+const SCAN_READ = new Set(['nmap', 'scan', 'passive'])
+
+/**
+ * The item's next step, from who reported its software row (the device's own read: a row a person added is theirs to type or
+ * remove; a row a scan, SNMP or an agent reads is read again by it, and only that read changes it; #950's corrections will let a person
+ * type over a read row). Every branch names something to do here, or says that nothing a person does helps and when Vedette checks
+ * again. Never a control that can only be refused.
+ */
+function NextStep({ assetId, asset, softwareId, software, need, sourceHint = '', findingIds = [], waiting = false }: {
+  assetId: string; asset: FindingAsset | null; softwareId: string; software: string; need: Need; sourceHint?: string; findingIds?: string[]; waiting?: boolean
+}) {
+  const { t } = useTranslation('findings')
+  const q = useDeviceSoftware(assetId || undefined)
+  if (assetId && q.isPending) return <p className="text-meta text-muted">{t('needsInput.reading')}</p>
+  const d = q.data?.asset
+  const row = d?.software.find((s) => s.id === softwareId)
+  const source = row?.source ?? sourceHint
+  const device = deviceName(asset, t('removedDevice'))
+  // a product added by hand as its own device ("Microsoft SQL Server (no device)"): not installed removes the device
+  const wholeDevice = !!d && d.origin === 'manual' && d.software.length === 1 && row?.source === 'manual'
+  const open = asset && softwareId ? <Link to={`/devices/${encodeURIComponent(asset.id)}?tab=software`} className="text-meta text-accent underline underline-offset-4">{t('needsInput.openRow', { software, device })}</Link> : null
+  const notAffected = need === 'proof' ? <NotAffected ids={findingIds} /> : null
+
+  if (row?.source === 'manual') {
+    return (
+      <Step text={need === 'nvd' ? <>{t('needsInput.next.manualNvd')} <NvdWhen waiting={waiting} /></> : t('needsInput.next.manual')}>
+        {need !== 'nvd' ? <VersionForm assetId={assetId} sw={row} /> : null}
+        <div className="flex flex-wrap items-center gap-2">
+          <NotInstalled assetId={assetId} software={row.display} softwareId={row.id} device={device} wholeDevice={wholeDevice} />
+          {notAffected}
+        </div>
+      </Step>
+    )
+  }
+  if (need === 'nvd') {
+    // not_named, no NVD data or versions, or a version the box read that NVD's ranges cannot order: only NVD's data decides
+    return <Step text={<>{t('needsInput.next.nothing')} <NvdWhen waiting={waiting} /></>}>{open}</Step>
+  }
+  const proof = need === 'proof' ? ` ${t('needsInput.next.proof')}` : ''
+  if (SCAN_READ.has(source) || source === 'snmp') {
+    return (
+      <Step text={<>{t(`needsInput.next.${source === 'snmp' ? 'snmp' : source === 'passive' ? 'passive' : 'scan'}`)} <ScanWhen engine={source === 'snmp' ? 'snmp' : 'nmap-versions'} />{proof}</>}>
+        <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
+          {asset ? <CheckNow asset={asset} size="sm" progress={false} /> : null}
+          {notAffected}
+        </div>
+        {open}
+      </Step>
+    )
+  }
+  return (
+    <Step text={`${t(source === 'agent' ? 'needsInput.next.agent' : 'needsInput.next.device')}${proof}`}>
+      {notAffected}
+      {open}
+    </Step>
+  )
+}
+
+function Step({ text, children }: { text: ReactNode; children?: ReactNode }) {
+  return (
+    <div className="grid gap-2 pl-4">
+      <p className="text-meta">{text}</p>
+      {children}
+    </div>
+  )
+}
+
+/** When the version scan (Service versions) or the SNMP round reads the device again, from GET /scanning. */
+function ScanWhen({ engine }: { engine: 'nmap-versions' | 'snmp' }) {
+  const { t } = useTranslation('findings')
+  const e = useScanning().data?.engines.find((x) => x.id === engine)
+  const k = engine === 'snmp' ? 'snmp' : 'scan'
+  if (e && !e.enabled) {
+    return <>{t(`needsInput.when.${k}Off`)} <Link to={`/settings/scanning?tab=engines#engine-${engine}`} className="text-accent underline underline-offset-4">{t('needsInput.when.scanOffLink')}</Link></>
+  }
+  if (e?.next_run_at && Date.parse(e.next_run_at) > Date.now()) return <>{t(`needsInput.when.${k}At`, { when: fmtDateTime(e.next_run_at) })}</>
+  return <>{t(`needsInput.when.${k}Next`)}</>
+}
+
+/** When Vedette reads NVD's affected versions again (the nvd-kev feed: its last fetch plus its interval), or that the feed is off. */
+function NvdWhen({ waiting }: { waiting: boolean }) {
+  const { t } = useTranslation('findings')
+  const f = useFeedSources().data?.items.find((x) => x.id === 'nvd-kev')
+  const pre = waiting ? `${t('needsInput.when.nvdWaiting')} ` : ''
+  if (f && !f.enabled) return <>{pre}{t('needsInput.when.nvdOff')} <Link to="/settings/feeds" className="text-accent underline underline-offset-4">{t('needsInput.when.nvdOffLink')}</Link></>
+  const next = f?.last_fetch ? Date.parse(f.last_fetch) + f.interval_hours * 3_600_000 : NaN
+  if (Number.isFinite(next) && next > Date.now()) return <>{pre}{t('needsInput.when.nvdAt', { when: fmtDateTime(new Date(next).toISOString()) })}</>
+  return <>{pre}{t('needsInput.when.nvdNext')}</>
+}
+
+/** The version of software a person added, typed here (PATCH …/software/{sid}); the device is matched again at once, so the item
+ *  leaves the list or changes (useDeviceAction refreshes findings, inventory and feeds). */
+function VersionForm({ assetId, sw }: { assetId: string; sw: { id: string; display: string; version: string | null } }) {
+  const { t } = useTranslation('findings')
+  const can = useCan('operator')
+  const act = useDeviceAction(assetId)
+  const id = useId()
+  const [value, setValue] = useState('')
+  const [error, setError] = useState<string | undefined>()
+  function save(e: FormEvent) {
+    e.preventDefault()
+    const v = value.trim()
+    if (!v) { setError(t('updated.required')); return }
+    if (!VERSION_RE.test(v)) { setError(t('updated.bad_version', { version: v })); return }
+    setError(undefined)
+    // mutateAsync: the item leaves the list when the re-match lands, which unmounts this form before mutate's own callbacks would run
+    act.setVersion.mutateAsync({ sid: sw.id, version: v })
+      .then(() => toast.success(t('needsInput.saved', { software: sw.display, version: v })), (er: unknown) => setError(errMsg(er)))
+  }
+  return (
+    <form onSubmit={save} noValidate className="flex flex-wrap items-end gap-2">
+      <div className="grid gap-1">
+        <Label htmlFor={id} className="text-meta">{t('needsInput.versionLabel', { software: sw.display })}</Label>
+        <Input id={id} value={value} maxLength={40} className="h-9 w-48" placeholder={t('needsInput.versionPlaceholder')} disabled={!can}
+          aria-invalid={!!error} aria-describedby={error ? `${id}-error` : undefined} onChange={(e) => { setValue(e.target.value); setError(undefined) }} />
+      </div>
+      <Button type="submit" size="sm" variant="primary" disabled={!can} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })}
+        busy={act.setVersion.isPending} busyLabel={t('common:busy.saving')}>{t('needsInput.saveVersion')}</Button>
+      {error ? <p id={`${id}-error`} role="alert" className="basis-full text-meta text-danger">{error}</p> : null}
+    </form>
+  )
+}
+
+/** Not installed: software a person added (or the device added only for it) is removed, after one confirmation here. A row a scan or
+ *  an agent reads is never offered this: removing it would last only until the next read. */
+function NotInstalled({ assetId, software, softwareId, device, wholeDevice }: { assetId: string; software: string; softwareId: string; device: string; wholeDevice: boolean }) {
+  const { t } = useTranslation('findings')
+  const can = useCan('operator')
+  const act = useDeviceAction(assetId)
+  const [asking, setAsking] = useState(false)
+  const pending = act.remove.isPending || act.removeSoftware.isPending
+  // mutateAsync: the item leaves the list once removed, which unmounts this control before mutate's own callbacks would run
+  const remove = () => (wholeDevice ? act.remove.mutateAsync() : act.removeSoftware.mutateAsync(softwareId))
+    .then(() => toast.success(wholeDevice ? t('needsInput.removedDevice', { device }) : t('needsInput.removed', { software, device })), (e: unknown) => toast.error(errMsg(e)))
+  if (!asking) {
+    return <Button size="sm" disabled={!can} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })} onClick={() => setAsking(true)}>{t('needsInput.notInstalled')}</Button>
+  }
+  return (
+    <div role="group" aria-label={t('needsInput.notInstalled')} className="flex flex-wrap items-center gap-2 rounded-md border border-rule bg-sunken px-3 py-2 text-meta">
+      <span>{wholeDevice ? t('needsInput.removeDeviceAsk', { device, software }) : t('needsInput.removeAsk', { software, device })}</span>
+      <Button size="sm" variant="danger" busy={pending} busyLabel={t('common:busy.removing')} onClick={remove}>{t('needsInput.remove')}</Button>
+      <Button size="sm" disabled={pending} onClick={() => setAsking(false)}>{t('common:cancel')}</Button>
+    </div>
+  )
+}
+
+/** Not affected: the unproved findings of this software close as false positives with the person's reason (one note for all, as the
+ *  bulk status of the list); a person's status stays when the box matches again. */
+function NotAffected({ ids }: { ids: string[] }) {
+  const { t } = useTranslation('findings')
+  const can = useCan('operator')
+  const bulk = useBulkStatus()
+  const id = useId()
+  const [asking, setAsking] = useState(false)
+  const [note, setNote] = useState('')
+  const [error, setError] = useState<string | undefined>()
+  if (!ids.length) return null
+  const tooMany = ids.length > MAX_BULK
+  function submit(e: FormEvent) {
+    e.preventDefault()
+    if (note.trim().length < 3) { setError(t('status.noteRequired')); return }
+    setError(undefined)
+    bulk.mutateAsync({ ids, action: 'false_positive', note: note.trim() })
+      .then((r) => toast.success(t('bulk.done', { count: r.updated })), (er: unknown) => setError(errMsg(er)))
+  }
+  if (!asking) {
+    return (
+      <Button size="sm" disabled={!can || tooMany} title={!can ? t('common:needRole', { role: t('common:role.operator') }) : tooMany ? t('bulk.tooMany', { max: MAX_BULK }) : undefined}
+        onClick={() => setAsking(true)}>{t('needsInput.notAffected')}</Button>
+    )
+  }
+  return (
+    <form onSubmit={submit} noValidate className="grid basis-full gap-2 rounded-md border border-rule bg-sunken px-3 py-2">
+      <div className="grid gap-1">
+        <Label htmlFor={id} className="text-meta">{t('needsInput.notAffectedNote')}</Label>
+        <Input id={id} value={note} maxLength={500} placeholder={t('needsInput.notAffectedHint')} aria-invalid={!!error} aria-describedby={error ? `${id}-error` : undefined}
+          onChange={(e) => { setNote(e.target.value); setError(undefined) }} />
+        {error ? <p id={`${id}-error`} role="alert" className="text-meta text-danger">{error}</p> : null}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Button type="submit" size="sm" variant="primary" busy={bulk.isPending} busyLabel={t('common:busy.saving')}>{t('needsInput.notAffectedSubmit', { count: ids.length })}</Button>
+        <Button size="sm" disabled={bulk.isPending} onClick={() => setAsking(false)}>{t('common:cancel')}</Button>
+      </div>
+    </form>
+  )
+}

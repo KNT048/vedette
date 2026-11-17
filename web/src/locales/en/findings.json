@@ -19,10 +19,7 @@
     "suspected": "Suspected or detected"
   },
   "unchecked": {
-    "title_one": "1 exploited CVE could not be checked automatically for software you have",
-    "title_other": "{{count}} exploited CVEs could not be checked automatically for software you have",
     "help": "Vedette created no finding for these. Read each advisory and check your device yourself.",
-    "info": "These CVEs are on an exploited list and name software you have, but Vedette cannot tell from NVD's data whether your version is affected. It shows them here instead of staying silent.",
     "reason": {
       "no_nvd_data": "NVD has not published which products this CVE affects yet",
       "no_nvd_versions": "NVD names {{software}} but not which versions are affected",
@@ -37,14 +34,9 @@
     "nvdLabel": "{{cve}}: open the NVD page",
     "more_one": "Show 1 more",
     "more_other": "Show {{count}} more",
-    "less": "Show fewer",
-    "addVersion": "Add the version"
+    "less": "Show fewer"
   },
   "versionNeeded": {
-    "title_one": "Add the version of 1 software to check it",
-    "title_other": "Add the version of {{count}} software to check them",
-    "help": "Without a version Vedette cannot check it. Open the device and add it.",
-    "helpInfo": "Vedette compares the version with the versions each exploited CVE affects. Without a version it cannot tell, so it lists the product here once instead of one finding per CVE.",
     "missing_one": "<sw>{{software}}</sw> has no version: adding it checks 1 exploited CVE.",
     "missing_other": "<sw>{{software}}</sw> has no version: adding it checks {{count}} exploited CVEs.",
     "unreadable_one": "<sw>{{software}}</sw> version \"{{version}}\" cannot be compared: enter it as numbers (for example 7.2.5) to check 1 exploited CVE.",
@@ -487,9 +479,6 @@
       "recommendedOn": "recommended on {{on}}"
     },
     "unproved": {
-      "title_one": "1 software has exploited CVEs Vedette could not prove",
-      "title_other": "{{count}} software have exploited CVEs Vedette could not prove",
-      "help": "No update is named for them and Vedette could not compare the version. Check each CVE with the vendor's advice, then mark it.",
       "count_one": "1 exploited CVE to check",
       "count_other": "{{count}} exploited CVEs to check"
     }
@@ -709,5 +698,61 @@
       "all": "See every recommended update"
     },
     "showAllTiers": "Show all updates"
+  },
+  "needsInput": {
+    "title_one": "1 device needs your input",
+    "title_other": "{{count}} devices need your input",
+    "intro": "One block per device, the most urgent first. Open a device: each item says what you can do, and you do it here.",
+    "label": "Devices that need your input, the most urgent first",
+    "toSettle_one": "1 to settle",
+    "toSettle_other": "{{count}} to settle",
+    "uncheckedCount_one": "1 CVE could not be checked",
+    "uncheckedCount_other": "{{count}} CVEs could not be checked",
+    "settleOf": "What only you can settle on {{device}}",
+    "uncheckedTitle_one": "1 exploited CVE could not be checked automatically",
+    "uncheckedTitle_other": "{{count}} exploited CVEs could not be checked automatically",
+    "uncheckedOf": "What Vedette could not check on {{device}}",
+    "reading": "Reading the device…",
+    "openRow": "Open {{software}} on {{device}}",
+    "next": {
+      "manual": "You added it by hand: type the version it runs and Vedette checks it at once. Not on this device? Remove it.",
+      "manualNvd": "You added it by hand, but a version would not decide these: read the advisories to check it yourself. Not on this device? Remove it.",
+      "nothing": "Nothing to type here: read the advisories to check it yourself.",
+      "scan": "The network scan read no version for it.",
+      "passive": "Vedette saw it in network traffic, which carries no version.",
+      "snmp": "The device's SNMP answer gave no version for it.",
+      "agent": "Its agent reports the version: Vedette checks it again when the agent next sends its software list.",
+      "device": "Vedette reads it from the device itself: the next scan of the device reads it again.",
+      "proof": "Meanwhile, check each CVE with the vendor's advice; if the device is not affected, mark them here."
+    },
+    "when": {
+      "scanAt": "The next version scan reads it again on {{when}}, or check the device now.",
+      "scanNext": "The next version scan reads it again, or check the device now.",
+      "scanOff": "Version scans are off, so nothing reads it again.",
+      "snmpAt": "The next SNMP read is on {{when}}, or check the device now.",
+      "snmpNext": "The next SNMP read reads it again, or check the device now.",
+      "snmpOff": "SNMP reads are off, so nothing reads it again.",
+      "scanOffLink": "Turn them on in Settings, Scanning",
+      "nvdAt": "Vedette checks these again at the next NVD refresh, on {{when}}.",
+      "nvdNext": "Vedette checks these again at the next NVD refresh.",
+      "nvdWaiting": "Vedette is still waiting for NVD's data on these.",
+      "nvdOff": "The NVD feed is off, so nothing checks these again.",
+      "nvdOffLink": "Turn it on in Settings, Feeds"
+    },
+    "versionLabel": "Version of {{software}}",
+    "versionPlaceholder": "for example 7.2.5",
+    "saveVersion": "Save and check",
+    "saved": "{{software}} is now version {{version}}. Vedette checked it again.",
+    "notInstalled": "Not installed",
+    "removeAsk": "Remove {{software}} from {{device}}? Its exploited CVEs stop matching.",
+    "removeDeviceAsk": "Remove {{device}}? It was added only for {{software}}; its findings go with it.",
+    "remove": "Remove",
+    "removed": "Removed {{software}} from {{device}}.",
+    "removedDevice": "Removed {{device}}.",
+    "notAffected": "Not affected",
+    "notAffectedNote": "Why is the device not affected? (required)",
+    "notAffectedHint": "For example: the vendor's advisory says our version is fixed",
+    "notAffectedSubmit_one": "Mark 1 finding not affected",
+    "notAffectedSubmit_other": "Mark {{count}} findings not affected"
   }
 }

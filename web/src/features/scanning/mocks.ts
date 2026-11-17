@@ -29,6 +29,11 @@ export const historyStore = collection<HistoryRow[]>('scanning_history', () => [
   { id: 'saj-h2', kind: 'sweep', engine: 'nmap-discovery', trigger: 'sweep', label: 'LAN 192.168.10.0/24', target_id: null, started_at: ago(20), ended_at: ago(19.9), outcome: 'ok', text: 'Swept 254 addresses: 12 hosts answered, 2 new devices' },
   { id: 'saj-h3', kind: 'snmp', engine: 'snmp', trigger: 'automatic', label: 'SNMP read', target_id: null, started_at: ago(21), ended_at: ago(20.95), outcome: 'partial', text: '2 of 3 devices answered over SNMP' },
 ], () => [])
+/** The addresses each mock LAN job reached, as the box keeps them in its probes (History shows only the label or a count): a device
+ *  check its address, an SNMP read every address it asked. ?asset= matches on them, for every kind (kien G7b/c). */
+const reached = collection<Record<string, string[]>>('scanning_history_reached', () => ({ 'saj-h1': ['192.168.10.21'], 'saj-h3': ['192.168.10.1', '192.168.10.21', '192.168.10.30'] }), () => ({}))
+/** A mock that adds a LAN job to History (a device check, an SNMP read) records the addresses it reached. */
+export const markReached = (id: string, ips: string[]) => reached.set({ ...reached.get(), [id]: ips })
 
 interface Def { id: Id; group: EngineT['group']; module: ModuleId & EngineT['module']; follows?: Id; affects?: Id[]; preview?: boolean; cost: EngineT['cost'] }
 const DEFS: Def[] = [
@@ -144,7 +149,15 @@ const SCOPE_NOT_CONFIRMED = 'Tick the confirmation that these network ranges bel
 
 export const handlers = [
   http.get(`${API}/scanning`, () => guard('viewer') ?? HttpResponse.json(scanningView())),
-  http.get(`${API}/scanning/history`, () => guard('viewer') ?? HttpResponse.json({ items: [...historyStore.get()].sort((a, b) => b.started_at.localeCompare(a.started_at)) })),
+  http.get(`${API}/scanning/history`, ({ request }) => {
+    const denied = guard('viewer')
+    if (denied) return denied
+    // kien G7b/c: ?asset= keeps the runs that reached the device's address now: its checks and the SNMP reads that asked it
+    const asset = new URL(request.url).searchParams.get('asset')
+    const ip = asset === null ? null : assetsStore.get().find((a) => a.id === asset)?.ip ?? '—'
+    const rows = ip === null ? historyStore.get() : historyStore.get().filter((r) => ip !== '—' && (r.kind === 'device' || r.kind === 'snmp') && (reached.get()[r.id] ?? []).includes(ip))
+    return HttpResponse.json({ items: [...rows].sort((a, b) => b.started_at.localeCompare(a.started_at)) })
+  }),
 
   http.put(`${API}/scanning/safety`, async ({ request }) => {
     const denied = guard('admin'); if (denied) return denied
@@ -289,6 +302,7 @@ export const handlers = [
       ? picked.map((a) => ({ id: newId('saj'), kind: 'device' as const, engine: 'nmap-versions' as const, trigger: 'person' as const, label: a.ip, target_id: null, started_at: started, ended_at: started, outcome: 'ok' as const, text: `Scanned ${a.ip}: it answered; what it runs is on its device page` }))
       : [{ id: newId('saj'), kind: 'sweep', engine: 'nmap-discovery', trigger: 'sweep', label: `LAN sweep of ${st.lan_ranges.join(', ')}`, target_id: null, started_at: started, ended_at: started, outcome: 'ok', text: `Swept ${st.lan_ranges.length * 254} addresses: 0 hosts answered, 0 new devices` }]
     historyStore.set([...rows, ...historyStore.get()])
+    rows.forEach((r) => { if (r.kind === 'device') markReached(r.id, [r.label]) })
     const { ends_ms: _, ...out } = run
     return HttpResponse.json(out, { status: 202 })
   }),

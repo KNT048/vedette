@@ -45093,7 +45093,7 @@ func (s *Server) handleScanGetScansProbesCsvRequest(args [0]string, argsEscaped 
 
 // handleScanGetScansRunsRequest handles scan_get_scans_runs operation.
 //
-// Scan history and the running scan, with per-device results.
+// Scan history and the running scan, with per-device results: the newest 100 runs.
 //
 // GET /scans/runs
 func (s *Server) handleScanGetScansRunsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -45154,6 +45154,16 @@ func (s *Server) handleScanGetScansRunsRequest(args [0]string, argsEscaped bool,
 			return
 		}
 	}
+	params, err := decodeScanGetScansRunsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
 
 	var rawBody []byte
 
@@ -45162,17 +45172,22 @@ func (s *Server) handleScanGetScansRunsRequest(args [0]string, argsEscaped bool,
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ScanGetScansRunsOperation,
-			OperationSummary: "Scan history and the running scan, with per-device results",
+			OperationSummary: "Scan history and the running scan, with per-device results: the newest 100 runs",
 			OperationID:      "scan_get_scans_runs",
 			Body:             nil,
 			RawBody:          rawBody,
-			Params:           middleware.Parameters{},
-			Raw:              r,
+			Params: middleware.Parameters{
+				{
+					Name: "asset",
+					In:   "query",
+				}: params.Asset,
+			},
+			Raw: r,
 		}
 
 		type (
 			Request  = struct{}
-			Params   = struct{}
+			Params   = ScanGetScansRunsParams
 			Response = *ScanGetScansRunsOK
 		)
 		response, err = middleware.HookMiddleware[
@@ -45182,14 +45197,14 @@ func (s *Server) handleScanGetScansRunsRequest(args [0]string, argsEscaped bool,
 		](
 			m,
 			mreq,
-			nil,
+			unpackScanGetScansRunsParams,
 			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.ScanGetScansRuns(ctx)
+				response, err = s.h.ScanGetScansRuns(ctx, params)
 				return response, err
 			},
 		)
 	} else {
-		response, err = s.h.ScanGetScansRuns(ctx)
+		response, err = s.h.ScanGetScansRuns(ctx, params)
 	}
 	if err != nil {
 		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
@@ -46244,6 +46259,16 @@ func (s *Server) handleScanningGetScanningHistoryRequest(args [0]string, argsEsc
 			return
 		}
 	}
+	params, err := decodeScanningGetScanningHistoryParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
 
 	var rawBody []byte
 
@@ -46256,13 +46281,18 @@ func (s *Server) handleScanningGetScanningHistoryRequest(args [0]string, argsEsc
 			OperationID:      "scanning_get_scanning_history",
 			Body:             nil,
 			RawBody:          rawBody,
-			Params:           middleware.Parameters{},
-			Raw:              r,
+			Params: middleware.Parameters{
+				{
+					Name: "asset",
+					In:   "query",
+				}: params.Asset,
+			},
+			Raw: r,
 		}
 
 		type (
 			Request  = struct{}
-			Params   = struct{}
+			Params   = ScanningGetScanningHistoryParams
 			Response = *ScanningGetScanningHistoryOK
 		)
 		response, err = middleware.HookMiddleware[
@@ -46272,14 +46302,14 @@ func (s *Server) handleScanningGetScanningHistoryRequest(args [0]string, argsEsc
 		](
 			m,
 			mreq,
-			nil,
+			unpackScanningGetScanningHistoryParams,
 			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.ScanningGetScanningHistory(ctx)
+				response, err = s.h.ScanningGetScanningHistory(ctx, params)
 				return response, err
 			},
 		)
 	} else {
-		response, err = s.h.ScanningGetScanningHistory(ctx)
+		response, err = s.h.ScanningGetScanningHistory(ctx, params)
 	}
 	if err != nil {
 		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {

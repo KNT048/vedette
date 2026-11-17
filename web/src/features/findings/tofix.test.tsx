@@ -109,9 +109,14 @@ describe('Findings › To fix (kien G8)', () => {
     const tab = await screen.findByRole('tab', { name: /Needs your input/ }, T)
     await within(tab).findByText('2')
     await userEvent.click(tab)
-    expect(await screen.findByRole('region', { name: 'Add the version of 1 software to check it' })).toHaveTextContent(/Microsoft Office has no version/)
-    expect(screen.getByRole('heading', { name: '1 software has exploited CVEs Vedette could not prove' })).toBeInTheDocument()
-    expect(screen.getByText(/Windows 11 Pro 10.0.26300.9974/)).toBeInTheDocument()
+    // kien G15: one block per device, in To fix's order, collapsed until opened
+    const blocks = await screen.findByRole('list', { name: 'Devices that need your input, the most urgent first' }, T)
+    expect(within(blocks).getAllByRole('listitem').filter((li) => li.parentElement === blocks).map((li) => li.getAttribute('aria-label'))).toEqual(['PC-A', 'DESKTOP-55UKKFV'])
+    expect(screen.queryByText(/Microsoft Office has no version/)).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: /^PC-A/ }))
+    expect(await screen.findByRole('list', { name: 'What only you can settle on PC-A' })).toHaveTextContent(/Microsoft Office has no version/)
+    await userEvent.click(screen.getByRole('button', { name: /^DESKTOP-55UKKFV/ }))
+    expect(screen.getByRole('list', { name: 'What only you can settle on DESKTOP-55UKKFV' })).toHaveTextContent(/Windows 11 Pro 10.0.26300.9974/)
   })
 
   it('kien G12: a typed version per row; the agent and the check read the whole device, so each shows once per device (n83)', async () => {

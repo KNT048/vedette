@@ -23,6 +23,14 @@ export const useRuns = (enabled = true) =>
     refetchInterval: (q) => runsPollMs(q.state.data),
   })
 
+/** GET /scans/runs?asset= (kien G7b/c): the runs of one device, however many runs of other devices came after. */
+export const useDeviceRuns = (asset: string, enabled = true) =>
+  useQuery({
+    queryKey: ['scan', 'runs', asset], enabled,
+    queryFn: () => api.get<{ items: ScanRun[]; engine_busy: boolean }>(`/scans/runs?asset=${encodeURIComponent(asset)}`),
+    refetchInterval: (q) => runsPollMs(q.state.data),
+  })
+
 export const useProbes = () => useQuery({ queryKey: ['scan', 'probes'], queryFn: () => api.get<{ items: ProbeEntry[]; retention_days: number }>('/scans/probes') })
 export const useEvents = () => useQuery({ queryKey: ['scan', 'events'], queryFn: () => api.get<{ items: RescanEvent[]; auto_rescan: boolean }>('/scans/events') })
 export const useCreds = () => useQuery({ queryKey: ['scan', 'creds'], queryFn: () => api.get<{ items: CredTarget[]; enabled: boolean }>('/scans/credentialed') })

@@ -77181,6 +77181,18 @@
           "S-INV-1"
         ],
         "x-min-role": "viewer",
+        "parameters": [
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "A device id (kien G7b/c, the device page's Last checks): only the runs that reached its address now, the identifications of that address (kind device) and the SNMP reads that asked it, at most 200 of each kind: the identifications from the year of runs the box keeps, the SNMP reads among its newest 1000 reads; no sweep, no public scan. The jobs record addresses, so a run of the device under an earlier address is not listed. An unknown device, or one without an address, gives an empty list",
+              "type": "string",
+              "maxLength": 96
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -79471,7 +79483,7 @@
     "/scans/runs": {
       "get": {
         "operationId": "scan_get_scans_runs",
-        "summary": "Scan history and the running scan, with per-device results",
+        "summary": "Scan history and the running scan, with per-device results: the newest 100 runs",
         "tags": [
           "scan"
         ],
@@ -79481,6 +79493,18 @@
           "S-SCAN-4"
         ],
         "x-min-role": "viewer",
+        "parameters": [
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "A device id (kien G7b/c, the device page's Last checks): only the runs that had this device among their targets, the newest 100 of them, however many runs of other devices came after",
+              "type": "string",
+              "maxLength": 96
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",

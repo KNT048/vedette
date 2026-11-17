@@ -57797,8 +57797,9 @@ func (s *FeedsGetFeedsSourcesOK) SetItems(val []FeedsGetFeedsSourcesOKItemsItem)
 }
 
 type FeedsGetFeedsSourcesOKItemsItem struct {
-	// The CISA list only: which address answered the last good pull, "CISA" or "CISA GitHub mirror"
-	// (D-91); null for every other feed and before the first good pull.
+	// The CISA list only: the copy the catalog on the box came from (newest from), "CISA" or "CISA GitHub
+	// mirror"; both copies are asked every check (D-91 as amended, kien G13); null for every other feed
+	// and before the first good pull.
 	AnsweredBy NilString                           `json:"answered_by"`
 	Auth       FeedsGetFeedsSourcesOKItemsItemAuth `json:"auth"`
 	Builtin    bool                                `json:"builtin"`
@@ -58972,8 +58973,9 @@ func (s *FeedsGetFeedsWeeklyOKItemsItemAnswer) UnmarshalText(data []byte) error 
 }
 
 type FeedsPostFeedsCustomCreated struct {
-	// The CISA list only: which address answered the last good pull, "CISA" or "CISA GitHub mirror"
-	// (D-91); null for every other feed and before the first good pull.
+	// The CISA list only: the copy the catalog on the box came from (newest from), "CISA" or "CISA GitHub
+	// mirror"; both copies are asked every check (D-91 as amended, kien G13); null for every other feed
+	// and before the first good pull.
 	AnsweredBy NilString                       `json:"answered_by"`
 	Auth       FeedsPostFeedsCustomCreatedAuth `json:"auth"`
 	Builtin    bool                            `json:"builtin"`
@@ -60739,8 +60741,9 @@ func (s *FeedsPostFeedsParseTestReqParserFormat) UnmarshalText(data []byte) erro
 }
 
 type FeedsPostFeedsSourcesIDFetchOK struct {
-	// The CISA list only: which address answered the last good pull, "CISA" or "CISA GitHub mirror"
-	// (D-91); null for every other feed and before the first good pull.
+	// The CISA list only: the copy the catalog on the box came from (newest from), "CISA" or "CISA GitHub
+	// mirror"; both copies are asked every check (D-91 as amended, kien G13); null for every other feed
+	// and before the first good pull.
 	AnsweredBy NilString                          `json:"answered_by"`
 	Auth       FeedsPostFeedsSourcesIDFetchOKAuth `json:"auth"`
 	Builtin    bool                               `json:"builtin"`
@@ -61617,8 +61620,9 @@ func (s *FeedsPostFeedsWeeklyIDReqAnswer) UnmarshalText(data []byte) error {
 }
 
 type FeedsPutFeedsCustomIDOK struct {
-	// The CISA list only: which address answered the last good pull, "CISA" or "CISA GitHub mirror"
-	// (D-91); null for every other feed and before the first good pull.
+	// The CISA list only: the copy the catalog on the box came from (newest from), "CISA" or "CISA GitHub
+	// mirror"; both copies are asked every check (D-91 as amended, kien G13); null for every other feed
+	// and before the first good pull.
 	AnsweredBy NilString                   `json:"answered_by"`
 	Auth       FeedsPutFeedsCustomIDOKAuth `json:"auth"`
 	Builtin    bool                        `json:"builtin"`
@@ -62791,8 +62795,9 @@ func (s *FeedsPutFeedsCustomIDReqParserFormat) UnmarshalText(data []byte) error 
 }
 
 type FeedsPutFeedsSourcesIDOK struct {
-	// The CISA list only: which address answered the last good pull, "CISA" or "CISA GitHub mirror"
-	// (D-91); null for every other feed and before the first good pull.
+	// The CISA list only: the copy the catalog on the box came from (newest from), "CISA" or "CISA GitHub
+	// mirror"; both copies are asked every check (D-91 as amended, kien G13); null for every other feed
+	// and before the first good pull.
 	AnsweredBy NilString                    `json:"answered_by"`
 	Auth       FeedsPutFeedsSourcesIDOKAuth `json:"auth"`
 	Builtin    bool                         `json:"builtin"`

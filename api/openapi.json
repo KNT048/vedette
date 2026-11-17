@@ -28507,7 +28507,7 @@
                       ]
                     },
                     "answered_by": {
-                      "description": "The CISA list only: which address answered the last good pull, \"CISA\" or \"CISA GitHub mirror\" (D-91); null for every other feed and before the first good pull",
+                      "description": "The CISA list only: the copy the catalog on the box came from (newest from), \"CISA\" or \"CISA GitHub mirror\"; both copies are asked every check (D-91 as amended, kien G13); null for every other feed and before the first good pull",
                       "type": [
                         "string",
                         "null"
@@ -29011,7 +29011,7 @@
                       ]
                     },
                     "answered_by": {
-                      "description": "The CISA list only: which address answered the last good pull, \"CISA\" or \"CISA GitHub mirror\" (D-91); null for every other feed and before the first good pull",
+                      "description": "The CISA list only: the copy the catalog on the box came from (newest from), \"CISA\" or \"CISA GitHub mirror\"; both copies are asked every check (D-91 as amended, kien G13); null for every other feed and before the first good pull",
                       "type": [
                         "string",
                         "null"
@@ -30436,7 +30436,7 @@
                             ]
                           },
                           "answered_by": {
-                            "description": "The CISA list only: which address answered the last good pull, \"CISA\" or \"CISA GitHub mirror\" (D-91); null for every other feed and before the first good pull",
+                            "description": "The CISA list only: the copy the catalog on the box came from (newest from), \"CISA\" or \"CISA GitHub mirror\"; both copies are asked every check (D-91 as amended, kien G13); null for every other feed and before the first good pull",
                             "type": [
                               "string",
                               "null"
@@ -30766,7 +30766,7 @@
                       ]
                     },
                     "answered_by": {
-                      "description": "The CISA list only: which address answered the last good pull, \"CISA\" or \"CISA GitHub mirror\" (D-91); null for every other feed and before the first good pull",
+                      "description": "The CISA list only: the copy the catalog on the box came from (newest from), \"CISA\" or \"CISA GitHub mirror\"; both copies are asked every check (D-91 as amended, kien G13); null for every other feed and before the first good pull",
                       "type": [
                         "string",
                         "null"
@@ -31058,7 +31058,7 @@
                       ]
                     },
                     "answered_by": {
-                      "description": "The CISA list only: which address answered the last good pull, \"CISA\" or \"CISA GitHub mirror\" (D-91); null for every other feed and before the first good pull",
+                      "description": "The CISA list only: the copy the catalog on the box came from (newest from), \"CISA\" or \"CISA GitHub mirror\"; both copies are asked every check (D-91 as amended, kien G13); null for every other feed and before the first good pull",
                       "type": [
                         "string",
                         "null"

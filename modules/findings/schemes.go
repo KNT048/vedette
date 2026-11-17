@@ -67,6 +67,71 @@ func officeEdition(c CPE, r VersionRange, exact bool, ver string) (Tri, bool) {
 	return No, true
 }
 
+// sqlServerMajors maps the release names NVD gives SQL Server ("cpe:...:microsoft:sql_server:2014:sp3") to the major of
+// the builds a computer reports (12.0.6024.0 is SQL Server 2014; 2008 R2 is 10.50, so 2008 and 2008 R2 share 10). One
+// release per major, unlike Office. Source: Microsoft Learn, "Latest updates and version history for SQL Server"
+// (https://support.microsoft.com/servicing/sql/kb321185-download-and-install-latest-updates); D-606.
+var sqlServerMajors = map[string]uint64{"2000": 8, "2005": 9, "2008": 10, "2012": 11, "2014": 12, "2016": 13, "2017": 14, "2019": 15,
+	"2022": 16, "2025": 17}
+
+// sqlServerProducts are the releases NVD names as products of their own with build versions (microsoft:sql_server_2016 …
+// _2025, NVD's CPE dictionary, 2026-11-17), the aliases of Microsoft|SQL Server in nvd-cpe.json. sql_server_2000/2005/2008
+// write the release in the version ("sql_server_2008:r2:sp1") and are neither.
+var sqlServerProducts = map[string]bool{"2016": true, "2017": true, "2019": true, "2022": true, "2025": true}
+
+// sqlServerRelease reads the two ways NVD names a SQL Server release against the software version (D-606):
+//   - an exact release configuration of microsoft:sql_server ("sql_server:2014:sp3"), as officeEdition does for Office: a release
+//     typed by a person ("2014") must be that release; a build a computer reports ("16.0.4135.4") is compared by major: another
+//     major is No (SQL Server 2022 is not SQL Server 2014), the same major is Unknown (the build does not say which service pack);
+//   - a configuration of a release's own product (microsoft:sql_server_2016 … _2025, aliases of Microsoft|SQL Server in
+//     nvd-cpe.json) with build ranges: a typed release other than that product's is No, the same one Unknown (a year is not a build);
+//     a build of the product's major written with a service-pack minor ("13.2.5026.0", how SQL Server 2016 SP2's programs
+//     read) is Unknown, since NVD writes those builds as 13.0.x; any other build is left to the ranges.
+//
+// It never answers Yes for a build. A No here is one entry's: decide still lets a Yes or Unknown of any other entry of the CVE win.
+// ok is false when the rule does not apply.
+func sqlServerRelease(c CPE, r VersionRange, exact bool, ver string) (Tri, bool) {
+	v, okV := c.Vendor.Literal()
+	p, okP := c.Product.Literal()
+	if !okV || !okP || norm(v) != "microsoft" {
+		return Unknown, false
+	}
+	var rel string // the release the configuration names
+	product := false
+	switch np := norm(p); {
+	case np == "sqlserver" && exact:
+		rel = strings.ToLower(r.StartIncl)
+	case strings.HasPrefix(np, "sqlserver") && sqlServerProducts[strings.TrimPrefix(np, "sqlserver")]:
+		rel, product = strings.TrimPrefix(np, "sqlserver"), true
+	}
+	major, ok := sqlServerMajors[rel]
+	if !ok {
+		return Unknown, false
+	}
+	if tok := strings.ToLower(strings.TrimSpace(ver)); sqlServerMajors[tok] != 0 { // the person typed a release
+		switch {
+		case tok != rel:
+			return No, true
+		case product || c.Update.Kind != Any:
+			return Unknown, true // "2016" is not a build of the ranges; "2014" does not say which service pack
+		}
+		return Yes, true
+	}
+	pv, ok := parseVersion(ver)
+	if !ok || len(pv.rel) < 3 || pv.rel[0] < 8 || pv.rel[0] > 17 {
+		return Unknown, false
+	}
+	switch {
+	case product && pv.rel[0] == major && pv.rel[1] != 0:
+		return Unknown, true // a service pack's "13.2.5026.0" against NVD's 13.0.x ranges
+	case product:
+		return Unknown, false // the ranges decide
+	case pv.rel[0] != major:
+		return No, true
+	}
+	return Unknown, true
+}
+
 // schemeClash reports whether the range and the version are written in two different schemes, so that ordering
 // them means nothing: one side starts with a year or a build-sized number (2016, 1607) and the other with a small
 // one (16.0.1, 10.0.14393). Unparseable sides are left to the ordinary comparison (it answers Unknown).

@@ -204,6 +204,8 @@ type UpsertResult struct {
 	Closed, Retired, Aged int
 	// NameOnly counts the product findings closed because they rest on the product name only (D-602).
 	NameOnly int
+	// Asked counts the findings closed because only a person's answer decides them (D-604).
+	Asked int
 }
 
 // OnMatchChanged handles inventory.match.changed: it reads the device and the exploited list and
@@ -360,6 +362,9 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, whole *Matc
 		if res.NameOnly, err = s.closeNameOnly(ctx, tx, a.ID, m.NameOnly, now, emit); err != nil {
 			return err
 		}
+		if res.Asked, err = s.closeAsked(ctx, tx, a.ID, m.Asked, now, emit); err != nil {
+			return err
+		}
 		n, err := s.noteNoLongerMatching(ctx, tx, a.ID, vulns, m, correctionWhy(a, ""), now)
 		if err != nil {
 			return err
@@ -393,6 +398,9 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, whole *Matc
 	}
 	if res.Aged > 0 {
 		s.cfg.Log.InfoContext(ctx, "findings: closed (D-615): KEV CVEs published over 12 months ago matched by product only", "asset", a.ID, "count", res.Aged)
+	}
+	if res.Asked > 0 {
+		s.cfg.Log.InfoContext(ctx, "findings: closed (D-604): platform-limited CVEs only a person's answer decides, now under could-not-be-checked", "asset", a.ID, "count", res.Asked)
 	}
 	if res.NameOnly > 0 {
 		s.cfg.Log.InfoContext(ctx, "findings: closed (D-602): product findings without version evidence, now under could-not-be-checked", "asset", a.ID, "count", res.NameOnly)
@@ -450,7 +458,7 @@ func haveScope(a Asset, vulns []Vuln, m MatchResult, since map[string]Have, have
 		return out
 	}
 	out := MatchResult{New: keep(m.New), Existing: keep(m.Existing), NeedVersion: m.NeedVersion, NotAffected: m.NotAffected, Unlisted: m.Unlisted, Retired: m.Retired, Aged: m.Aged,
-		Unchecked: m.Unchecked}
+		Unchecked: m.Unchecked, Asked: m.Asked}
 	taken := map[string]bool{}
 	for _, x := range append(append([]Match{}, out.New...), out.Existing...) {
 		taken[x.CVE] = true
@@ -517,6 +525,9 @@ func (s *Service) autoResolve(ctx context.Context, tx *sql.Tx, assetID string, p
 		}
 		was := r.Status
 		f, h, ok := r.AutoResolve(p.Evidence.Summary, now)
+		if !ok && !retired {
+			f, h, ok = r.SettleAsked(p.Evidence.Summary, now) // D-604: closed while waiting for an answer; the answer proves it
+		}
 		if !ok {
 			continue
 		}
@@ -529,6 +540,8 @@ func (s *Service) autoResolve(ctx context.Context, tx *sql.Tx, assetID string, p
 		}
 		detail := r.CVE + ": " + ReasonNotAffectedVersion
 		switch {
+		case p.pkgFixed:
+			detail += " (D-604: the package release is at or above the distribution's fix for the device's branch)"
 		case retired:
 			detail += " (D-506: Multiple Products, NVD names none of the device's software, entry over a year old)"
 		case p.why != "": // the reason code is the one the CHECK allows; the detail says no version was compared (review r1 #6)
@@ -636,6 +649,48 @@ func (s *Service) closeNameOnly(ctx context.Context, tx *sql.Tx, assetID string,
 	return closed, nil
 }
 
+// closeAsked closes the open findings of platform-limited CVEs only a person's answer decides (D-604, MatchResult.Asked), like
+// closeNameOnly but whatever the basis (a version inside NVD's range says nothing while the platform condition is open): status
+// not_relevant by the system user, reason not_affected_version, the note (AskedNote first) saying what is not known and that the
+// CVE is under "Could not be checked" with the question, a history row, audit findings.auto_resolved and a status_changed event
+// (notify sends nothing for it). Never one a scan confirmed, a closed one, or one a person reopened or accepted (personKept).
+// ReopenOnMatch reopens it when the answer says the device is affected; autoResolve rewrites its reason when the answer proves
+// it is not (SettleAsked).
+func (s *Service) closeAsked(ctx context.Context, tx *sql.Tx, assetID string, asked []Match, now time.Time, emit func(string, any)) (int, error) {
+	closed := 0
+	for _, p := range asked {
+		r, err := loadByPair(ctx, tx, assetID, p.CVE)
+		if errors.Is(err, ErrNotFound) {
+			continue
+		}
+		if err != nil {
+			return closed, err
+		}
+		if personKept(r.History) {
+			continue
+		}
+		was := r.Status
+		f, h, ok := r.AutoResolve(p.Evidence.Summary, now)
+		if !ok {
+			continue
+		}
+		r.Finding = f
+		if err := updateRecord(ctx, tx, r); err != nil {
+			return closed, err
+		}
+		if err := insertHistory(ctx, tx, r.ID, h); err != nil {
+			return closed, err
+		}
+		if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.auto_resolved", Target: r.ID,
+			Detail: r.CVE + ": " + ReasonNotAffectedVersion + " (D-604: platform condition open, needs a person's answer; listed under could not be checked)"}); err != nil {
+			return closed, err
+		}
+		emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: was, To: r.Status, Reason: ReasonNotAffectedVersion})
+		closed++
+	}
+	return closed, nil
+}
+
 // personKept says a person kept the finding open: reopened it, or accepted its risk (review r2 L3 of #939: an expired acceptance reopens
 // as the system, and closing it an hour after "open again" was told would contradict the notice). The age rule and D-602 never close it.
 func personKept(hist []HistoryEntry) bool {
@@ -696,6 +751,9 @@ func (s *Service) noteNoLongerMatching(ctx context.Context, tx *sql.Tx, assetID 
 	}
 	for _, x := range m.NameOnly { // D-602: one closeNameOnly left open (a person reopened it, a version or agent finding) says why it stays
 		unlisted[x.CVE] = fmt.Sprintf("Vedette now matches %s by the product name only (%s), so it would not list it as a finding on a device today. This finding stays open (you reopened it, or it was matched by version before); close it yourself if it does not apply.", x.CVE, x.gap)
+	}
+	for _, x := range m.Asked { // D-604: one closeAsked left open (a person reopened or accepted it) says what is still asked
+		unlisted[x.CVE] = x.AskedWhy() + ". Vedette lists it under \"Could not be checked\" until you answer there; this finding stays open because you kept it."
 	}
 	for _, cve := range open {
 		if !listed[cve] || matched[cve] {

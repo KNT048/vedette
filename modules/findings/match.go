@@ -97,7 +97,10 @@ type Asset struct {
 	SNMPOS string
 	// MAC is the device's MAC at its own address (inventory's current MAC of a device with an IP), "" when none: with an OUI of Juniper
 	// Networks it lets an LLDP statement of Junos count for the device's scan-seen rows (D-620, networkStated).
-	MAC      string
+	MAC string
+	// ManualOS is the OS a person set on the device (inventory INV-41), "" when none: a person's answer to "Could not be checked",
+	// evidence of the platform of every row (D-604, platformOS).
+	ManualOS string
 	Software []Software
 	// OSCorrection names a person's corrected OS ("it@acme.example set the OS to Alpine Linux 3.23 on 17 Nov 2026", inventory INV-41),
 	// for the history of a finding it closes or reopens (review r1 M3 of #950); "" when none.
@@ -233,6 +236,12 @@ type Match struct {
 	// the evidence sentence the product match had (what the finding said before D-602), kept for the tests of the rules behind it.
 	gap, said string
 	listed    bool // NameOnly: the CVE is on the device's could-not-check list (the audit line says so only then, review r1 L2 of #939)
+	// ask: a platform-limited CVE that needs a person's answer on the row (D-604, outQuestion): no finding, a could-not-check row.
+	ask askKind
+	// answer: with ask, the package release a person gave that is no release of the distribution (the question says so, D-604).
+	answer string
+	// pkgFixed: a proof from the distribution's fixed package release (D-604), not from another platform.
+	pkgFixed bool
 	// bounded: a version match inside a range with an end (a fix to install) or below the distribution's fixed package; not an
 	// exact version NVD lists, a range with only a start, or every version (#910: the only match a row NVD alone ties to the entry
 	// may give, viaNVD; review r1 H1 of #913).
@@ -288,6 +297,11 @@ type MatchResult struct {
 	// product match the age rule drops (D-615), and NotComparable. Independent of have: the list leaves out at read time the CVEs
 	// the device has a finding for (ListUnchecked).
 	Unchecked []Unchecked
+	// Asked lists, whatever the device already has, the platform-limited CVEs no row decides until a person answers (D-604): the
+	// platform is not known, or it is the distribution of the fixed list and the package release is not. No finding; each is in
+	// Unchecked with its question, and the service closes an open suspected finding of the pair with Evidence.Summary (AskedNote
+	// first). The answer reopens it (a release below the fix) or proves it (closed with that reason).
+	Asked []Match
 }
 
 // AgeLimit is the age from which a KEV CVE becomes a finding only on confirmed evidence (D-615): published before now minus
@@ -492,7 +506,7 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 			continue
 		}
 		seen[v.CVE] = true
-		var best, proved, unlisted, platform, other *Match
+		var best, proved, unlisted, platform, other, asked *Match
 		otherVer := ""            // other's version
 		unproved := false         // a software of this product with a No that proves nothing, or one that needs a version
 		othersOnly := true        // every software keyed to the entry is one NVD's list leaves out (D-506)
@@ -544,6 +558,14 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 				if best == nil || betterMatch(m, *best) {
 					best, bestRow = &m, i
 				}
+			case outQuestion: // D-604: no finding until a person answers; listed with the question
+				unproved = true
+				if asked == nil {
+					asked = &m
+				}
+				u := uncheckedOf(s, v, m.ask.reason())
+				u.Answer = m.answer
+				unchecked = append(unchecked, u)
 			case outNeedVersion:
 				unproved, needs = true, true
 				i, ok := need[s.ID]
@@ -565,6 +587,9 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 			r := *platform
 			r.Evidence.Summary, r.why = r.why, ""
 			res.OtherPlatform = append(res.OtherPlatform, r)
+		}
+		if best == nil && asked != nil {
+			res.Asked = append(res.Asked, *asked)
 		}
 		if best == nil && !needs {
 			res.Unchecked = append(res.Unchecked, unchecked...)
@@ -670,6 +695,7 @@ const (
 	outNeedVersion                // this product, but only a version would tell
 	outRuledOut                   // this product, ruled out without a proof about the version (keeps a finding open)
 	outNotAffected                // this product, and its version is proved outside every range (D-530)
+	outQuestion                   // a platform-limited CVE only a person's answer decides (D-604, Match.ask)
 )
 
 // nvdProducts names the products of NVD entries for a sentence: "fusion, horizon client, remote console", the first three
@@ -768,7 +794,7 @@ func viaNVD(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, outco
 		return Match{}, outNone
 	}
 	m, out := judge(a, s, in, v, nil, now)
-	if out == outNotAffected || out == outMatch && m.bounded {
+	if out == outNotAffected || (out == outMatch || out == outQuestion) && m.bounded {
 		return m, out
 	}
 	return Match{}, outNone
@@ -923,6 +949,11 @@ func judge(a Asset, s Software, in swInfo, v Vuln, key []identity, now time.Time
 		note := "Not affected: " + why + " Vedette closed this by itself and reopens it if a later match says the device is affected."
 		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}, why: why}, outNotAffected
 	}
+	ps := platformCheck(a, s, in, v.CVE) // D-604: what a platform-limited CVE still needs on this row
+	if ps.fixed {
+		note := "Not affected: " + ps.note + " Vedette closed this by itself and reopens it if a later match says the device is affected."
+		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}, why: ps.note, pkgFixed: true}, outNotAffected
+	}
 	if why, out := edgeLegacyOnly(s, in, v); out { // D-619: an Edge Legacy (EdgeHTML) CVE on the Chromium-based Edge
 		note := "Not affected: " + why + " Vedette closed this by itself and reopens it if a later match says the device is affected."
 		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}}, outNotAffected
@@ -989,9 +1020,8 @@ func judge(a Asset, s Software, in swInfo, v Vuln, key []identity, now time.Time
 			m.Evidence.Summary = fmt.Sprintf("%s runs %s. Its version is inside the range affected by %s (%s, read with the range NVD gives %s, which takes the same monthly update); no scan has confirmed it yet, so this is only suspected.", name, sw, v.CVE, clean(within.String()), w.via)
 		}
 		// D-548: the device's own agent reports what is installed; a detection, not a guess. Not when NVD gives no end to the range
-		// (every version: no fix to name, review r1 #7), nor while a platform condition is open (a platform-limited CVE whose
-		// platform the agent does not name as one it affects: the person still has to check it, review r1 #5).
-		if s.Source == "agent" && pinned == "" && (within.EndExcl != "" || within.EndIncl != "") && platformSettled(in, v.CVE) {
+		// (every version: no fix to name, review r1 #7). A platform condition still open is no match at all (D-604, outQuestion).
+		if s.Source == "agent" && pinned == "" && (within.EndExcl != "" || within.EndIncl != "") {
 			m.Evidence.Agent = true
 			m.Evidence.Summary = agentSummary(name, s, in, v, within, w, isWin)
 		}
@@ -1013,7 +1043,22 @@ func judge(a Asset, s Software, in swInfo, v Vuln, key []identity, now time.Time
 	default:
 		m.Evidence.Summary = fmt.Sprintf("%s runs %s. Vedette cannot compare version %s with the versions %s lists as affected by %s; compare it with the vendor advisory.", name, sw, clean(in.ver), v.rangesBy(false), v.CVE)
 	}
-	m.Evidence.Summary += platformCondition(v.CVE) // D-547, KF-5: the platform is not known (or is one it affects)
+	switch {
+	case ps.ask != askNone: // D-604: only a person's answer decides; the CVE goes to "Could not be checked" with the question
+		l := platformLimits[v.CVE]
+		note := fmt.Sprintf("%s Vedette cannot check %s on %s yet: it affects only %s, and %s. It is under \"Could not be checked\" with the question; Vedette reopens this if your answer says the device is affected.",
+			AskedNote, v.CVE, name, l.Affects, askGap(ps.ask, v.CVE))
+		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}, ask: ps.ask, answer: ps.bad, bounded: m.bounded}, outQuestion
+	case ps.below: // D-604: below the distribution's fix for the device's branch (or older than every fix): a version finding
+		m.Basis, m.Confidence, m.Severity, m.bounded, m.backed = BasisVersion, ConfVersion, SeverityHigh, true, true
+		if v.Ransomware || v.EPSS >= 0.5 {
+			m.Severity = SeverityCritical
+		}
+		m.Evidence.Summary = ps.note
+		m.Evidence.Agent = s.Source == "agent" // the agent's release (or version) compared with the distribution's fix: a detection
+	case ps.note != "": // D-604: the distribution lists no fix for the device's branch: NVD's range decided, and the finding says why
+		m.Evidence.Summary += ps.note
+	}
 	m.Evidence.AgentRow = m.Basis == BasisProduct && s.Source == "agent" && in.given
 	m.Evidence.CheckedAt = now
 	return m, outMatch
@@ -1082,6 +1127,9 @@ type swInfo struct {
 	// platformOS), "" otherwise.
 	banner     string
 	platformOS string
+	// personPkg: the package release a person gave on the row (a manual row's Software.PkgVersion: inventory's correction), "" otherwise;
+	// evidence of its platform (D-604, review r2 M-2 of #961).
+	personPkg string
 }
 
 func newSWInfo(s Software, osName string) swInfo {
@@ -1099,6 +1147,9 @@ func newSWInfo(s Software, osName string) swInfo {
 	}
 	in.given = versionGiven(in.ver)
 	in.banner = s.Banner
+	if s.Source == "manual" {
+		in.personPkg = strings.TrimSpace(s.PkgVersion)
+	}
 	in.packaged = s.Packaged && s.builtBy() == "agent"
 	if in.packaged {
 		in.pkgVer, in.pkgSrc = s.PkgVersion, s.PkgSource
@@ -1541,6 +1592,8 @@ func evalAffected(c CPE, r VersionRange, ver string, sw CPE, hasSW bool) (Tri, V
 	}
 	var t Tri
 	if et, ok := officeEdition(c, r, exact, ver); ok {
+		t = et
+	} else if et, ok := sqlServerRelease(c, r, exact, ver); ok { // D-606
 		t = et
 	} else if schemeClash(r, ver) {
 		t = Unknown // "2016" against "16.0.1", "1607" against "10.0.14393": two ways of writing versions

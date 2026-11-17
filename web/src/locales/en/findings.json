@@ -25,7 +25,9 @@
       "no_nvd_versions": "NVD names {{software}} but not which versions are affected",
       "not_named": "NVD's data for this CVE names other products, not {{software}}",
       "not_comparable": "Vedette cannot compare version {{version}} with NVD's ranges",
-      "not_comparable_none": "Vedette cannot compare the version of {{software}} with NVD's ranges"
+      "not_comparable_none": "Vedette cannot compare the version of {{software}} with NVD's ranges",
+      "platform_unknown": "It affects only some systems or builds, and Vedette does not know which {{software}} is",
+      "package_unknown": "The package release of {{software}} decides, and Vedette does not know it"
     },
     "ransomware": "Ransomware",
     "advisoryLabel": "{{cve}}: open the advisory",
@@ -716,12 +718,13 @@
       "manual": "You added it by hand: type the version it runs and Vedette checks it at once. Not on this device? Remove it.",
       "manualNvd": "You added it by hand, but a version would not decide these: read the advisories to check it yourself. Not on this device? Remove it.",
       "nothing": "Nothing to type here: read the advisories to check it yourself.",
-      "scan": "The network scan read no version for it.",
+      "scan": "The network scan read no version for it, or one Vedette cannot compare.",
       "passive": "Vedette saw it in network traffic, which carries no version.",
-      "snmp": "The device's SNMP answer gave no version for it.",
+      "snmp": "The device's SNMP answer gave no version for it, or one Vedette cannot compare.",
       "agent": "Its agent reports the version: Vedette checks it again when the agent next sends its software list.",
       "device": "Vedette reads it from the device itself: the next scan of the device reads it again.",
-      "proof": "Meanwhile, check each CVE with the vendor's advice; if the device is not affected, mark them here."
+      "proof": "Meanwhile, check each CVE with the vendor's advice; if the device is not affected, mark them here.",
+      "correct": "Type the version it runs: Vedette checks with yours until you clear it on the device page."
     },
     "when": {
       "scanAt": "The next version scan reads it again on {{when}}, or check the device now.",
@@ -751,6 +754,19 @@
     "notAffectedNote": "Why is the device not affected? (required)",
     "notAffectedHint": "For example: the vendor's advisory says our version is fixed",
     "notAffectedSubmit_one": "Mark 1 finding not affected",
-    "notAffectedSubmit_other": "Mark {{count}} findings not affected"
+    "notAffectedSubmit_other": "Mark {{count}} findings not affected",
+    "question": {
+      "command": "On the device, this prints the answer:",
+      "osLabel": "Operating system of the device",
+      "osPlaceholder": "for example Debian 12",
+      "osRequired": "Type the operating system the device runs, for example Debian 12.",
+      "pkgLabel": "Package release of {{software}}",
+      "pkgPlaceholder": "the release, or the whole line",
+      "pkgHint": "{{command}} prints it on the device: paste the whole line or just the release.",
+      "pkgHintNone": "As the device's package manager shows it.",
+      "pkgRequired": "Type the package release, as the command on the device prints it.",
+      "saved": "Saved. Vedette checked {{software}} again.",
+      "osSaved": "Saved: the device runs {{os}}. Vedette checked it again."
+    }
   }
 }

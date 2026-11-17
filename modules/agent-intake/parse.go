@@ -43,8 +43,9 @@ var columns = map[string][]string{
 	"deb_packages": {"name", "version", "arch", "source"},
 	"kernel_info":  {"version"}, // the running kernel release (D-516)
 	"rpm_packages": {"name", "version", "release", "arch", "epoch"},
-	"programs":     {"name", "version", "publisher", "install_date"},
-	"os_revision":  {"name", "version", "revision", "arch"}, // Windows's update revision (D-524)
+	// sql_setup: the key of a SQL Server instance's PatchLevel row the programs query reads with the list (D-606); '' on a program
+	"programs":    {"name", "version", "publisher", "install_date", "sql_setup"},
+	"os_revision": {"name", "version", "revision", "arch"}, // Windows's update revision (D-524)
 	// the listening sockets and their program (INV-22)
 	"listening_ports":         {"port", "protocol", "address", "name"},
 	"listening_ports_windows": {"port", "protocol", "address", "name"},

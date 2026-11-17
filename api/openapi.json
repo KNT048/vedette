@@ -32422,7 +32422,9 @@
                               "no_nvd_data",
                               "no_nvd_versions",
                               "not_named",
-                              "not_comparable"
+                              "not_comparable",
+                              "platform_unknown",
+                              "package_unknown"
                             ]
                           },
                           "cves": {
@@ -32475,9 +32477,69 @@
                             "type": "string",
                             "enum": [
                               "add_version",
+                              "answer_platform",
                               "none"
                             ],
-                            "description": "add_version: only not_comparable on a software row a person declared (#920): typing the version as the vendor writes it lets Vedette check these CVEs; none: only the advisory decides"
+                            "description": "add_version: only not_comparable on a software row a person declared (#920): typing the version as the vendor writes it lets Vedette check these CVEs; answer_platform (D-604): reasons platform_unknown and package_unknown, answer `question`; none: only the advisory decides"
+                          },
+                          "question": {
+                            "description": "D-604: with action answer_platform; one item per CVE then",
+                            "type": "object",
+                            "properties": {
+                              "text": {
+                                "type": "string",
+                                "description": "\"Is the OpenSSH on BN340 Alpine Linux's openssh-server package, or another build …? CVE-… affects only …\""
+                              },
+                              "error": {
+                                "description": "The last answer could not be read: \"Vedette could not read the release you entered (…)\"; show it at the field",
+                                "type": "string"
+                              },
+                              "command": {
+                                "description": "What prints the answer on the device (\"apk info -e -v openssh-server\" for the package release, \"cat /etc/alpine-release\" for the branch), null when none",
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "answers": {
+                                "minItems": 1,
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "label": {
+                                      "type": "string",
+                                      "description": "The button: \"Alpine Linux 3.23\", \"Another system\", \"Enter the package release\""
+                                    },
+                                    "os": {
+                                      "description": "One click: PATCH /inventory/devices/{asset_id} {os} with this value (INV-41)",
+                                      "type": "string"
+                                    },
+                                    "ask": {
+                                      "description": "What the person types: os → PATCH /inventory/devices/{asset_id} {os}; pkg_version → PATCH /inventory/devices/{asset_id}/software/{software_id} {pkg_version} (the bare release or the line `apk info -e -v openssh-server` prints, \"openssh-server-10.2_p1-r1\"). \"Another system\" asks both: on a row a scan saw only the row's release rules it out",
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string",
+                                        "enum": [
+                                          "os",
+                                          "pkg_version"
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "label"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "text",
+                              "command",
+                              "answers"
+                            ],
+                            "additionalProperties": false
                           }
                         },
                         "required": [

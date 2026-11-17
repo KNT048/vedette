@@ -7,7 +7,11 @@
 // - osquery bảng: os_version, deb_packages, rpm_packages, programs, system_info, interface_details, interface_addresses, kernel_info (D-516: cột
 //   `version` là kernel đang chạy, "7.0.0-43-generic", câu một dòng riêng; hộp gắn nó vào danh sách gói để dòng Kernel lấy đúng ảnh kernel đang chạy). https://osquery.io/schema/
 //   (D-524: `os_revision` đọc cột `revision` của os_version, chỉ có trên Windows từ osquery 5.12: UBR, bản vá tháng, "22631.4460"; osquery tự đọc
-//   HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\UBR, lịch không có bảng registry, D-169 (1). https://github.com/osquery/osquery/blob/5.12.1/specs/os_version.table)
+//   HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\UBR. https://github.com/osquery/osquery/blob/5.12.1/specs/os_version.table)
+//   (D-606: câu `programs` đọc thêm đúng một giá trị registry, PatchLevel của khoá Setup mỗi phiên bản SQL Server
+//   HKLM\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL<n>.<instance>\Setup: bản dựng đã cài gồm cả CU; mục Uninstall chung
+//   "Microsoft SQL Server 2022 (64-bit)" không có DisplayVersion. https://learn.microsoft.com/en-us/troubleshoot/sql/releases/components-client-tools-versions ,
+//   https://github.com/osquery/osquery/blob/5.12.1/specs/windows/registry.table)
 //   (INV-22, kien 2026-11-17: `listening_ports` JOIN `processes` cho Open services của máy chỉ có agent; Linux chỉ namespace mạng của
 //   pid 1 (process_namespaces), Windows không có cột net_namespace nên câu riêng. https://osquery.io/schema/ listening_ports, process_namespaces)
 //   (D-169 (7): `interfaces` cho hộp biết MAC/IP của máy để khớp thiết bị; bỏ cpu_brand, physical_memory, patches vì kho không có trường nào cho chúng.)
@@ -36,7 +40,7 @@ export const OSQUERY_SCHEDULE = JSON.stringify({
     interfaces: { query: "SELECT d.mac, a.address FROM interface_details d JOIN interface_addresses a USING (interface) WHERE a.address NOT LIKE '%:%' AND a.address NOT LIKE '127.%' AND a.address NOT LIKE '169.254.%' AND d.mac != '00:00:00:00:00:00';", interval: 3600, snapshot: true },
     deb_packages: { query: 'SELECT name, version, arch, source FROM deb_packages;', interval: 3600, snapshot: true, platform: 'linux' },
     rpm_packages: { query: 'SELECT name, version, release, arch, epoch FROM rpm_packages;', interval: 3600, snapshot: true, platform: 'linux' },
-    programs: { query: 'SELECT name, version, publisher, install_date FROM programs;', interval: 3600, snapshot: true, platform: 'windows' },
+    programs: { query: "SELECT '' AS name, r.data AS version, '' AS publisher, '' AS install_date, r.key AS sql_setup FROM registry r WHERE r.key LIKE 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Microsoft SQL Server\\MSSQL%\\Setup' AND r.name = 'PatchLevel' UNION ALL SELECT name, version, publisher, install_date, '' FROM programs;", interval: 3600, snapshot: true, platform: 'windows' },
     kernel_info: { query: 'SELECT version FROM kernel_info;', interval: 3600, snapshot: true, platform: 'linux' },
     os_revision: { query: 'SELECT name, version, revision, arch FROM os_version;', interval: 3600, snapshot: true, platform: 'windows' },
     listening_ports: { query: "SELECT DISTINCT l.port, l.protocol, l.address, p.name FROM listening_ports l LEFT JOIN processes p USING (pid) WHERE l.port > 0 AND l.protocol IN (6, 17) AND l.address NOT LIKE '127.%' AND l.address != '::1' AND l.net_namespace = (SELECT net_namespace FROM process_namespaces WHERE pid = 1);", interval: 3600, snapshot: true, platform: 'linux' },

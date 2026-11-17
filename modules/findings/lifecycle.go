@@ -135,6 +135,17 @@ func (f Finding) AutoResolve(note string, now time.Time) (Finding, HistoryEntry,
 	return f, HistoryEntry{TS: now, User: SystemUser, Action: string(StatusNotRelevant), Note: note}, true
 }
 
+// SettleAsked gives a finding Vedette closed while waiting for a person's answer (D-604, AskedNote) the reason the answer proved
+// (D-530 path): same status, the proof as its note and a history row. ok is false for any other finding.
+func (f Finding) SettleAsked(note string, now time.Time) (Finding, HistoryEntry, bool) {
+	if !f.AutoResolved() || f.ResolvedBy != SystemUser || !strings.HasPrefix(f.ResolutionNote, AskedNote) {
+		return f, HistoryEntry{}, false
+	}
+	note = clipNote(note)
+	f.ResolvedAt, f.ResolutionNote = now, note
+	return f, HistoryEntry{TS: now, User: SystemUser, Action: string(StatusNotRelevant), Note: note}, true
+}
+
 // reopenedByPerson reports whether a person reopened the finding after Vedette last closed it by itself (D-530,
 // review M-b of #663): the person overruled the proof, so the matcher never closes it again. hist is oldest first.
 func reopenedByPerson(hist []HistoryEntry) bool {
@@ -161,6 +172,9 @@ func (f Finding) ReopenOnMatch(now time.Time) (Finding, HistoryEntry, bool) {
 	}
 	if strings.HasPrefix(f.ResolutionNote, NameOnlyNote) { // D-602: closed for want of version evidence; a later match compared one
 		note = "The device matches this entry again, so Vedette reopened it (it had closed it because only the product name matched)."
+	}
+	if strings.HasPrefix(f.ResolutionNote, AskedNote) { // D-604: the answer says the device is affected
+		note = "The answer about the device's system or package release says it is affected, so Vedette reopened it."
 	}
 	f.Status, f.ResolvedBy, f.ResolvedAt, f.ResolutionNote, f.ResolutionReason = StatusSuspected, "", time.Time{}, "", ""
 	return f, HistoryEntry{TS: now, User: SystemUser, Action: "matches_again", Note: note}, true

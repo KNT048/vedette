@@ -68,10 +68,12 @@ export function useDeviceAction(id: string) {
     /** D-630: ignore (known, not watched) or stop ignoring (back to To review). */
     ignore: useMutation({ mutationFn: (ignored: boolean) => api.post(`${base}/ignore`, { ignored }), onSuccess: inv }),
     remove: useMutation({ mutationFn: () => api.del(base), onSuccess: inv }),
-    patch: useMutation({ mutationFn: (b: { name?: string; kind?: AssetKind; fragile?: boolean; regular_scan?: RegularScan; notes?: string }) => api.patch(base, b), onSuccess: inv }),
+    patch: useMutation({ mutationFn: (b: { name?: string; kind?: AssetKind; fragile?: boolean; regular_scan?: RegularScan; notes?: string; os?: string }) => api.patch(base, b), onSuccess: inv }),
     addSoftware: useMutation({ mutationFn: (b: Omit<AddDeviceInput, 'name' | 'ip'>) => api.post<{ kev_cves: number }>(`${base}/software`, b), onSuccess: inv }),
     removeSoftware: useMutation({ mutationFn: (sid: string) => api.del(`${base}/software/${encodeURIComponent(sid)}`), onSuccess: inv }),
     setVersion: useMutation({ mutationFn: (b: { sid: string; version: string }) => api.patch(`${base}/software/${encodeURIComponent(b.sid)}`, { version: b.version }), onSuccess: inv }),
+    /** INV-41: the package release (and/or version) of a row; on a row a sensor or agent reported this is a person's correction. */
+    correct: useMutation({ mutationFn: ({ sid, ...b }: { sid: string; version?: string; pkg_version?: string }) => api.patch(`${base}/software/${encodeURIComponent(sid)}`, b), onSuccess: inv }),
   }
 }
 /** D-601: turn the network scan or the SNMP reads of one device on or off (admin); the answer is both, the default resolved. */

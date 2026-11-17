@@ -22,11 +22,10 @@ import (
 // bulk-read, and no object identifier comes from core. A request waits 2 s for its answer and is sent once more (SNMPTimeout,
 // SNMPRetries); the next request leaves at most rate packets a second behind it (a v3 read is two exchanges: the engine discovery
 // and the GET). Credentials live in the job, in memory, for the job only: they are never logged (sensorlink.SNMPCredential
-// redacts itself) and never sent back.
+// redacts itself) and never sent back. A request goes to the credential's UDP port: 161 unless the credential names another.
 const (
 	SNMPTimeout = 2 * time.Second
 	SNMPRetries = 1
-	snmpPort    = 161
 	// snmpValueMax is the longest value kept: an SNMP DisplayString is at most 255 octets (RFC 2579); a longer one is cut.
 	snmpValueMax = 255
 	// packetsPerRead is what one read may cost on the wire, the base of the pace: a v3 engine discovery and the GET.
@@ -50,9 +49,9 @@ var snmpObjects = []string{
 // one unknown object) is asked again for.
 var systemObjects = snmpObjects[:3]
 
-// SNMPDialer says where the request for a target goes; tests point it at a fake agent on loopback. nil means the target itself on
-// port 161.
-type SNMPDialer func(ip netip.Addr) (host string, port uint16)
+// SNMPDialer says where the request for a target and the credential's port goes; tests point it at a fake agent on loopback. nil
+// means the target itself on that port.
+type SNMPDialer func(ip netip.Addr, port uint16) (host string, to uint16)
 
 // executeSNMP re-checks an snmp job (the grammar of sensorlink.CheckSNMPJob, every target local by core/localnet like nmap's, the
 // timeout) and runs it. Its result is done with one answer per target it got to, or stopped when core cancelled it; a job cut by
@@ -134,9 +133,9 @@ func (w *Worker) readTarget(ctx context.Context, ip netip.Addr, job *sensorlink.
 
 // read is one credential against one target: the GET of snmpObjects, and of the system group alone when the agent refuses that.
 func (w *Worker) read(ctx context.Context, ip netip.Addr, c sensorlink.SNMPCredential) (string, sensorlink.SNMPValues) {
-	host, port := ip.String(), uint16(snmpPort)
+	host, port := ip.String(), snmpPort(c)
 	if w.snmpDial != nil {
-		host, port = w.snmpDial(ip)
+		host, port = w.snmpDial(ip, port)
 	}
 	g, err := client(ctx, host, port, w.snmpWait, c)
 	if err != nil {
@@ -157,6 +156,14 @@ func (w *Worker) read(ctx context.Context, ip netip.Addr, c sensorlink.SNMPCrede
 		return sensorlink.SNMPStatusError, sensorlink.SNMPValues{}
 	}
 	return sensorlink.SNMPStatusOK, valuesOf(pkt.Variables)
+}
+
+// snmpPort is the UDP port of a credential: its own, else 161. CheckSNMPJob already refused one outside 0..65535.
+func snmpPort(c sensorlink.SNMPCredential) uint16 {
+	if c.Port < 1 || c.Port > 65535 {
+		return sensorlink.SNMPPort
+	}
+	return uint16(c.Port)
 }
 
 // client builds the gosnmp client of one credential. Its logger is gosnmp's default, which writes nothing.

@@ -227,10 +227,14 @@ type SNMPJob struct {
 }
 
 // SNMPCredential is one way to sign in to an SNMP agent. Version is "v2c" (Community) or "v3" (User, Auth "sha" or "sha256" with
-// AuthPass, Priv "aes128" with PrivPass, or Priv "" for authNoPriv). It holds secrets: printing or logging it gives "[redacted]";
-// only the JSON of the job carries them, inside the mutual-TLS link.
+// AuthPass, Priv "aes128" with PrivPass, or Priv "" for authNoPriv). Port is the UDP port the agent answers on: 0 (left out of the
+// JSON) is SNMPPort, 161; a device that serves SNMP elsewhere has a credential of its own with that port. Port was added to protocol
+// 5 before its first release, as D-520's fields were: core leaves it out for 161, so a worker built before it gets the shape it
+// knows for every credential of the default port. It holds secrets: printing or logging it gives "[redacted]"; only the JSON of the
+// job carries them, inside the mutual-TLS link.
 type SNMPCredential struct {
 	Version   string `json:"version"`
+	Port      int    `json:"port,omitempty"`
 	Community string `json:"community,omitempty"`
 	User      string `json:"user,omitempty"`
 	Auth      string `json:"auth,omitempty"`
@@ -255,6 +259,7 @@ const (
 	MaxSNMPTargetTries = 4   // credentials one target names
 	MaxSNMPValue       = 512 // bytes of one value of an answer (an SNMP DisplayString is at most 255)
 	MaxSNMPSeconds     = 3600
+	SNMPPort           = 161 // the UDP port of an SNMP agent (RFC 3417), what a credential without a port is sent to
 )
 
 // The per-target statuses of an snmp result.
@@ -309,7 +314,7 @@ func (v SNMPValues) all() []string {
 
 // CheckSNMPJob is the grammar of an snmp job, the same for core before it dispatches and for the worker before it sends anything: a
 // rate of 1..1000, 1..8 credentials of a known shape (a v2c community or a v3 user of 1..64 printable characters, v3 passwords of
-// 8..64), 1..64 unique canonical IPv4 targets (local is checked by the caller with core/localnet, which this package does not import),
+// 8..64, a port of 1..65535 or none), 1..64 unique canonical IPv4 targets (local is checked by the caller with core/localnet, which this package does not import),
 // each naming 1..4 distinct credentials.
 func CheckSNMPJob(j *SNMPJob) error {
 	if j == nil {
@@ -362,6 +367,9 @@ func printable(s string, lo int) bool {
 }
 
 func checkSNMPCredential(c SNMPCredential) error {
+	if c.Port < 0 || c.Port > 65535 {
+		return invalid("snmp port")
+	}
 	switch c.Version {
 	case SNMPv2c:
 		if !printable(c.Community, 1) || c.User != "" || c.Auth != "" || c.AuthPass != "" || c.Priv != "" || c.PrivPass != "" {

@@ -44,6 +44,9 @@ type UpdateAction struct {
 	// Product is the software row's identity across devices, "vendor|product" in lower case ("" when no row matches): what "By fix"
 	// groups one update on several devices by, whatever each device calls the row (G8, review r1 of #943).
 	Product string
+	// Source is who reported the row (Software.Source: "agent", "manual", "scan", a sensor; "" when none): the page's "I updated it"
+	// follows it (kien G12: the agent reports the new version by itself, a scan re-reads it, a person types it).
+	Source string
 	// Fixed is the release or build to install ("" for a distribution's updates without a version, and for no named update).
 	Fixed string
 	// Kind: exploited: RowFix.Kind (fixed, esu, feature_update, distro); planned: PlanItem.Kind (fixed, windows, esu, distro);
@@ -117,7 +120,7 @@ func (s *Service) DeviceUpdates(ctx context.Context, assetID string, feedsOn boo
 	}
 	if feedsOn {
 		out.Planned, out.PlanRan, out.PlanCompared = s.plannedUpdates(assetID)
-		withProducts(a, out.Planned)
+		withRows(a, out.Planned)
 	} else {
 		out.PlanOff = true
 	}
@@ -175,10 +178,10 @@ func exploitedUpdates(a Asset, open []Record, vulns []Vuln, now time.Time) (fixe
 		if f != nil {
 			key = "fix:" + f.Group
 			act = UpdateAction{Group: f.Group, SoftwareID: f.SoftwareID, Software: f.Software, Version: f.Version, Fixed: f.Fixed, Kind: f.Kind,
-				Windows: f.Windows, Distro: f.Distro, Pro: f.Pro, Product: productKey(sws[f.SoftwareID])}
+				Windows: f.Windows, Distro: f.Distro, Pro: f.Pro, Product: productKey(sws[f.SoftwareID]), Source: sws[f.SoftwareID].Source}
 		} else {
 			key = "row:" + row.ID
-			act = UpdateAction{Group: a.ID + "/" + row.ID, SoftwareID: row.ID, Software: clean(row.Display), Version: clean(row.Version), Kind: "none", Product: productKey(row)}
+			act = UpdateAction{Group: a.ID + "/" + row.ID, SoftwareID: row.ID, Software: clean(row.Display), Version: clean(row.Version), Kind: "none", Product: productKey(row), Source: row.Source}
 		}
 		g := groups[key]
 		if g == nil {

@@ -573,10 +573,12 @@ type gmpNVTs struct {
 	} `xml:"nvt"`
 }
 
-var gmpOIDRe = regexp.MustCompile(`^1\.3\.6\.1\.4\.1\.25623\.1\.[0-9]{1,6}(\.[0-9]{1,9}){1,3}$`)
+// gmpOIDRe is an NVT id as gvmd answers it: an OID (digits and dots only, so it goes into XML as it is). Any OID form is taken, not
+// only Greenbone's own prefix: a feed NVT of another form must stay in the list, never stop every deep scan (#925 r1 L2).
+var gmpOIDRe = regexp.MustCompile(`^[0-9]{1,10}(\.[0-9]{1,10}){1,30}$`)
 
-// webNVTs is the OIDs of the family Web application abuses: of the feed, or of the config when config is set. One that is not an
-// OID of Greenbone's feed fails closed.
+// webNVTs is the OIDs of the family Web application abuses: of the feed, or, when config is set, those the config selects (gvmd's
+// select_config_nvts: the family minus the NVTs it excludes). An id that is not an OID fails closed.
 func (g *gmpConn) webNVTs(ctx context.Context, config string) ([]string, error) {
 	attr := ""
 	if config != "" {
@@ -597,10 +599,10 @@ func (g *gmpConn) webNVTs(ctx context.Context, config string) ([]string, error) 
 	return out, nil
 }
 
-// levelNVTs leaves the level's webOff NVTs out of the family Web application abuses (#915) and reads the family back. gvmd has no
-// "all but": the family's every other NVT of today's feed is listed, which makes the family a fixed list; the next scan lists it
-// again from its feed (levelConfig first makes the family whole again), so an NVT a feed update adds is in it from then on. An NVT
-// of webOff still in the config, or a family left empty, fails closed: nothing starts.
+// levelNVTs leaves the level's webOff NVTs out of the family Web application abuses (#915) and reads the family back. GMP has no
+// "all but": every other NVT of today's feed is listed, and gvmd stores that for a growing family as the family minus the NVTs not
+// listed (manage_set_config_nvts: "exclude all no's"), so the family stays growing and an NVT a feed update adds is in it. An NVT
+// of webOff still selected, or one listed that is not, fails closed: nothing starts.
 func (g *gmpConn) levelNVTs(ctx context.Context, config string, lv gbLevel) error {
 	if len(lv.webOff) == 0 {
 		return nil
@@ -611,14 +613,14 @@ func (g *gmpConn) levelNVTs(ctx context.Context, config string, lv gbLevel) erro
 	}
 	var sel strings.Builder
 	sel.WriteString(`<modify_config config_id="` + config + `"><nvt_selection><family>` + gmpWebFamily + `</family>`)
-	kept := 0
+	var kept []string
 	for _, oid := range feed {
 		if !slices.Contains(lv.webOff, oid) {
-			kept++
+			kept = append(kept, oid)
 			sel.WriteString(`<nvt oid="` + oid + `"/>`)
 		}
 	}
-	if kept == 0 {
+	if len(kept) == 0 {
 		return fmt.Errorf("%w: the feed has no web application test to keep", ErrGMPBad)
 	}
 	sel.WriteString("</nvt_selection></modify_config>")
@@ -629,7 +631,9 @@ func (g *gmpConn) levelNVTs(ctx context.Context, config string, lv gbLevel) erro
 	if err != nil {
 		return err
 	}
-	if len(got) == 0 || slices.ContainsFunc(got, func(o string) bool { return slices.Contains(lv.webOff, o) }) {
+	// r1 M1: every NVT listed must be selected too, or a cut or partial selection would scan with most of the family missing
+	if slices.ContainsFunc(got, func(o string) bool { return slices.Contains(lv.webOff, o) }) ||
+		slices.ContainsFunc(kept, func(o string) bool { return !slices.Contains(got, o) }) {
 		return &Unavailable{Reason: "OpenVAS did not keep the web-root traversal test off in Vedette's scan config " + lv.name + ", so nothing was started."}
 	}
 	return nil

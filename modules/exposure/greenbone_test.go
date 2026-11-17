@@ -67,6 +67,8 @@ type fakeGVM struct {
 	keepSafe    bool            // gvmd ignores the change of safe_checks
 	keepFamily  bool            // gvmd ignores the family selection
 	keepNVTs    bool            // gvmd ignores the NVT selection of a family
+	partNVTs    bool            // gvmd keeps only the first NVT of a selection
+	webExtra    []string        // NVTs a feed update added to Web application abuses
 	inUse       bool            // modify_config refused: a task uses the config
 	leftover    string          // the state of a task an earlier scan left behind; "" none
 	fail        map[string]bool // commands answered with 400
@@ -245,6 +247,9 @@ func (f *fakeGVM) answer(cmd string, body string) string {
 			for _, part := range strings.Split(body, `<nvt oid="`)[1:] {
 				c.web = append(c.web, part[:strings.Index(part, `"`)])
 			}
+			if f.partNVTs {
+				c.web = c.web[:1]
+			}
 		}
 		if strings.Contains(body, "family_selection") && !f.keepFamily {
 			c.web = nil // all and growing: the whole family again
@@ -255,7 +260,7 @@ func (f *fakeGVM) answer(cmd string, body string) string {
 		}
 		return ok("")
 	case "get_nvts":
-		web := fakeWebNVTs
+		web := append(slices.Clone(fakeWebNVTs), f.webExtra...)
 		if c := f.cfgIn(body); c != nil && c.web != nil {
 			web = c.web
 		}
@@ -1541,12 +1546,38 @@ func TestContract_INV25_WebRootTraversalOffFailsClosed(t *testing.T) {
 		!slices.ContainsFunc(notChecked(s), func(l string) bool { return strings.Contains(l, "did not keep the web-root traversal test off") }) {
 		t.Fatalf("not checked %q, cmds %q", notChecked(s), h.gvm.cmds)
 	}
-	if !slices.ContainsFunc(s.Checks, func(c CheckRow) bool { return strings.Contains(c.Text, "web-root traversal test off") }) &&
-		!strings.Contains(gbDeep.text, "web-root traversal test off") {
-		t.Fatal("the deep level does not say the test is off")
+	for name, set := range map[string]func(*fakeGVM){
+		"part": func(g *fakeGVM) { g.keepNVTs, g.partNVTs = false, true }, // r1 M1: most of the family missing
+		"not an OID": func(g *fakeGVM) { // a feed answer with an id that is not an OID
+			g.partNVTs, g.webExtra = false, []string{"1.3.6.1.4.1.25623.1.0.1;rm"}
+		},
+	} {
+		h.gvm.with(func(g *fakeGVM) { g.cmds = nil; set(g) })
+		e.advance(ScanEvery)
+		s := e.scanIP(gbOpen())
+		if h.gvm.seen("create_task") || len(s.Greenbone) != 0 {
+			t.Fatalf("%s: started, cmds %q", name, h.gvm.cmds)
+		}
 	}
-	if got := gmpOIDRe.MatchString(`1.3.6.1.4.1.25623.1.0.106756"/><x a="`); got {
-		t.Fatal("an OID with markup passed")
+}
+
+// #915: an NVT a feed update adds to Web application abuses is in the deep config from the next scan on, and the check line says
+// the web-root traversal test is off.
+func TestContract_INV25_WebFamilyFollowsTheFeed(t *testing.T) {
+	t.Parallel()
+	e, h := gbEnv(t)
+	e.enable()
+	s := e.scanIP(gbOpen())
+	if !slices.ContainsFunc(s.Checks, func(c CheckRow) bool {
+		return c.Kind == "greenbone" && strings.Contains(c.Text, "web-root traversal test off")
+	}) {
+		t.Fatalf("checks = %+v", s.Checks)
+	}
+	h.gvm.with(func(g *fakeGVM) { g.webExtra = []string{"1.3.6.1.4.1.25623.1.0.200000"} })
+	e.advance(ScanEvery)
+	e.scanIP(gbOpen())
+	if c, _ := h.gvm.cfg(gbDeep.name); !slices.Contains(c.web, "1.3.6.1.4.1.25623.1.0.200000") || slices.Contains(c.web, gmpWebRootTravOID) {
+		t.Fatalf("web application tests = %q", c.web)
 	}
 }
 

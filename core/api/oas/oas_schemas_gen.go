@@ -99797,9 +99797,9 @@ func (s *InventoryGetInventoryDevicesIDOKAssetKindSource) UnmarshalText(data []b
 }
 
 type InventoryGetInventoryDevicesIDOKAssetModel struct {
-	// Stated: the device announced it about itself (its LLDP description, on its own vendor's network
-	// card); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the
-	// source and confidence say it all.
+	// Stated: the device announced it about itself (the OS in its LLDP description on its own vendor's
+	// network card, and the model of the same frame); guess: nmap's OS fingerprint, shown as a guess and
+	// never as a confidence level; absent: the source and confidence say it all.
 	Basis      OptInventoryGetInventoryDevicesIDOKAssetModelBasis `json:"basis"`
 	Confidence float64                                            `json:"confidence"`
 	SeenAt     time.Time                                          `json:"seen_at"`
@@ -99857,9 +99857,9 @@ func (s *InventoryGetInventoryDevicesIDOKAssetModel) SetValue(val string) {
 	s.Value = val
 }
 
-// Stated: the device announced it about itself (its LLDP description, on its own vendor's network
-// card); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the
-// source and confidence say it all.
+// Stated: the device announced it about itself (the OS in its LLDP description on its own vendor's
+// network card, and the model of the same frame); guess: nmap's OS fingerprint, shown as a guess and
+// never as a confidence level; absent: the source and confidence say it all.
 type InventoryGetInventoryDevicesIDOKAssetModelBasis string
 
 const (
@@ -100012,9 +100012,9 @@ func (s *InventoryGetInventoryDevicesIDOKAssetOrigin) UnmarshalText(data []byte)
 }
 
 type InventoryGetInventoryDevicesIDOKAssetOs struct {
-	// Stated: the device announced it about itself (its LLDP description, on its own vendor's network
-	// card); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the
-	// source and confidence say it all.
+	// Stated: the device announced it about itself (the OS in its LLDP description on its own vendor's
+	// network card, and the model of the same frame); guess: nmap's OS fingerprint, shown as a guess and
+	// never as a confidence level; absent: the source and confidence say it all.
 	Basis      OptInventoryGetInventoryDevicesIDOKAssetOsBasis `json:"basis"`
 	Confidence float64                                         `json:"confidence"`
 	SeenAt     time.Time                                       `json:"seen_at"`
@@ -100072,9 +100072,9 @@ func (s *InventoryGetInventoryDevicesIDOKAssetOs) SetValue(val string) {
 	s.Value = val
 }
 
-// Stated: the device announced it about itself (its LLDP description, on its own vendor's network
-// card); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the
-// source and confidence say it all.
+// Stated: the device announced it about itself (the OS in its LLDP description on its own vendor's
+// network card, and the model of the same frame); guess: nmap's OS fingerprint, shown as a guess and
+// never as a confidence level; absent: the source and confidence say it all.
 type InventoryGetInventoryDevicesIDOKAssetOsBasis string
 
 const (
@@ -100167,9 +100167,9 @@ func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrection) SetValue(val string)
 }
 
 type InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected struct {
-	// Stated: the device announced it about itself (its LLDP description, on its own vendor's network
-	// card); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the
-	// source and confidence say it all.
+	// Stated: the device announced it about itself (the OS in its LLDP description on its own vendor's
+	// network card, and the model of the same frame); guess: nmap's OS fingerprint, shown as a guess and
+	// never as a confidence level; absent: the source and confidence say it all.
 	Basis      OptInventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis `json:"basis"`
 	Confidence float64                                                           `json:"confidence"`
 	SeenAt     time.Time                                                         `json:"seen_at"`
@@ -100227,9 +100227,9 @@ func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected) SetValue(val
 	s.Value = val
 }
 
-// Stated: the device announced it about itself (its LLDP description, on its own vendor's network
-// card); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the
-// source and confidence say it all.
+// Stated: the device announced it about itself (the OS in its LLDP description on its own vendor's
+// network card, and the model of the same frame); guess: nmap's OS fingerprint, shown as a guess and
+// never as a confidence level; absent: the source and confidence say it all.
 type InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis string
 
 const (
@@ -101231,9 +101231,9 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemSource) UnmarshalText(
 }
 
 type InventoryGetInventoryDevicesIDOKAssetVendor struct {
-	// Stated: the device announced it about itself (its LLDP description, on its own vendor's network
-	// card); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the
-	// source and confidence say it all.
+	// Stated: the device announced it about itself (the OS in its LLDP description on its own vendor's
+	// network card, and the model of the same frame); guess: nmap's OS fingerprint, shown as a guess and
+	// never as a confidence level; absent: the source and confidence say it all.
 	Basis      OptInventoryGetInventoryDevicesIDOKAssetVendorBasis `json:"basis"`
 	Confidence float64                                             `json:"confidence"`
 	SeenAt     time.Time                                           `json:"seen_at"`
@@ -101291,9 +101291,9 @@ func (s *InventoryGetInventoryDevicesIDOKAssetVendor) SetValue(val string) {
 	s.Value = val
 }
 
-// Stated: the device announced it about itself (its LLDP description, on its own vendor's network
-// card); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the
-// source and confidence say it all.
+// Stated: the device announced it about itself (the OS in its LLDP description on its own vendor's
+// network card, and the model of the same frame); guess: nmap's OS fingerprint, shown as a guess and
+// never as a confidence level; absent: the source and confidence say it all.
 type InventoryGetInventoryDevicesIDOKAssetVendorBasis string
 
 const (
@@ -102056,7 +102056,7 @@ func (s *InventoryGetInventoryDevicesIDOKKindsItem) UnmarshalText(data []byte) e
 }
 
 type InventoryGetInventoryDevicesIDOKObservationsItem struct {
-	// On an OS observation, as Observed.basis.
+	// On an OS or model observation, as Observed.basis.
 	Basis      OptInventoryGetInventoryDevicesIDOKObservationsItemBasis `json:"basis"`
 	Confidence float64                                                  `json:"confidence"`
 	// An nmap OS guess the device type rules out (Android on a firewall): kept, never the device OS;
@@ -102160,7 +102160,7 @@ func (s *InventoryGetInventoryDevicesIDOKObservationsItem) SetValue(val string) 
 	s.Value = val
 }
 
-// On an OS observation, as Observed.basis.
+// On an OS or model observation, as Observed.basis.
 type InventoryGetInventoryDevicesIDOKObservationsItemBasis string
 
 const (
@@ -105131,9 +105131,9 @@ func (s *InventoryGetInventoryDevicesOKItemsItemKindSource) UnmarshalText(data [
 }
 
 type InventoryGetInventoryDevicesOKItemsItemModel struct {
-	// Stated: the device announced it about itself (its LLDP description, on its own vendor's network
-	// card); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the
-	// source and confidence say it all.
+	// Stated: the device announced it about itself (the OS in its LLDP description on its own vendor's
+	// network card, and the model of the same frame); guess: nmap's OS fingerprint, shown as a guess and
+	// never as a confidence level; absent: the source and confidence say it all.
 	Basis      OptInventoryGetInventoryDevicesOKItemsItemModelBasis `json:"basis"`
 	Confidence float64                                              `json:"confidence"`
 	SeenAt     time.Time                                            `json:"seen_at"`
@@ -105191,9 +105191,9 @@ func (s *InventoryGetInventoryDevicesOKItemsItemModel) SetValue(val string) {
 	s.Value = val
 }
 
-// Stated: the device announced it about itself (its LLDP description, on its own vendor's network
-// card); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the
-// source and confidence say it all.
+// Stated: the device announced it about itself (the OS in its LLDP description on its own vendor's
+// network card, and the model of the same frame); guess: nmap's OS fingerprint, shown as a guess and
+// never as a confidence level; absent: the source and confidence say it all.
 type InventoryGetInventoryDevicesOKItemsItemModelBasis string
 
 const (
@@ -105346,9 +105346,9 @@ func (s *InventoryGetInventoryDevicesOKItemsItemOrigin) UnmarshalText(data []byt
 }
 
 type InventoryGetInventoryDevicesOKItemsItemOs struct {
-	// Stated: the device announced it about itself (its LLDP description, on its own vendor's network
-	// card); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the
-	// source and confidence say it all.
+	// Stated: the device announced it about itself (the OS in its LLDP description on its own vendor's
+	// network card, and the model of the same frame); guess: nmap's OS fingerprint, shown as a guess and
+	// never as a confidence level; absent: the source and confidence say it all.
 	Basis      OptInventoryGetInventoryDevicesOKItemsItemOsBasis `json:"basis"`
 	Confidence float64                                           `json:"confidence"`
 	SeenAt     time.Time                                         `json:"seen_at"`
@@ -105406,9 +105406,9 @@ func (s *InventoryGetInventoryDevicesOKItemsItemOs) SetValue(val string) {
 	s.Value = val
 }
 
-// Stated: the device announced it about itself (its LLDP description, on its own vendor's network
-// card); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the
-// source and confidence say it all.
+// Stated: the device announced it about itself (the OS in its LLDP description on its own vendor's
+// network card, and the model of the same frame); guess: nmap's OS fingerprint, shown as a guess and
+// never as a confidence level; absent: the source and confidence say it all.
 type InventoryGetInventoryDevicesOKItemsItemOsBasis string
 
 const (
@@ -106323,9 +106323,9 @@ func (s *InventoryGetInventoryDevicesOKItemsItemSummarySource) UnmarshalText(dat
 }
 
 type InventoryGetInventoryDevicesOKItemsItemVendor struct {
-	// Stated: the device announced it about itself (its LLDP description, on its own vendor's network
-	// card); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the
-	// source and confidence say it all.
+	// Stated: the device announced it about itself (the OS in its LLDP description on its own vendor's
+	// network card, and the model of the same frame); guess: nmap's OS fingerprint, shown as a guess and
+	// never as a confidence level; absent: the source and confidence say it all.
 	Basis      OptInventoryGetInventoryDevicesOKItemsItemVendorBasis `json:"basis"`
 	Confidence float64                                               `json:"confidence"`
 	SeenAt     time.Time                                             `json:"seen_at"`
@@ -106383,9 +106383,9 @@ func (s *InventoryGetInventoryDevicesOKItemsItemVendor) SetValue(val string) {
 	s.Value = val
 }
 
-// Stated: the device announced it about itself (its LLDP description, on its own vendor's network
-// card); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the
-// source and confidence say it all.
+// Stated: the device announced it about itself (the OS in its LLDP description on its own vendor's
+// network card, and the model of the same frame); guess: nmap's OS fingerprint, shown as a guess and
+// never as a confidence level; absent: the source and confidence say it all.
 type InventoryGetInventoryDevicesOKItemsItemVendorBasis string
 
 const (

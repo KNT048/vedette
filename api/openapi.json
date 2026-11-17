@@ -45652,7 +45652,7 @@
                                     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                                   },
                                   "basis": {
-                                    "description": "stated: the device announced it about itself (its LLDP description, on its own vendor's network card); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the source and confidence say it all",
+                                    "description": "stated: the device announced it about itself (the OS in its LLDP description on its own vendor's network card, and the model of the same frame); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the source and confidence say it all",
                                     "type": "string",
                                     "enum": [
                                       "stated",
@@ -45703,7 +45703,7 @@
                                     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                                   },
                                   "basis": {
-                                    "description": "stated: the device announced it about itself (its LLDP description, on its own vendor's network card); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the source and confidence say it all",
+                                    "description": "stated: the device announced it about itself (the OS in its LLDP description on its own vendor's network card, and the model of the same frame); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the source and confidence say it all",
                                     "type": "string",
                                     "enum": [
                                       "stated",
@@ -45754,7 +45754,7 @@
                                     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                                   },
                                   "basis": {
-                                    "description": "stated: the device announced it about itself (its LLDP description, on its own vendor's network card); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the source and confidence say it all",
+                                    "description": "stated: the device announced it about itself (the OS in its LLDP description on its own vendor's network card, and the model of the same frame); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the source and confidence say it all",
                                     "type": "string",
                                     "enum": [
                                       "stated",
@@ -46764,7 +46764,7 @@
                                   "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                                 },
                                 "basis": {
-                                  "description": "stated: the device announced it about itself (its LLDP description, on its own vendor's network card); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the source and confidence say it all",
+                                  "description": "stated: the device announced it about itself (the OS in its LLDP description on its own vendor's network card, and the model of the same frame); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the source and confidence say it all",
                                   "type": "string",
                                   "enum": [
                                     "stated",
@@ -46815,7 +46815,7 @@
                                   "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                                 },
                                 "basis": {
-                                  "description": "stated: the device announced it about itself (its LLDP description, on its own vendor's network card); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the source and confidence say it all",
+                                  "description": "stated: the device announced it about itself (the OS in its LLDP description on its own vendor's network card, and the model of the same frame); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the source and confidence say it all",
                                   "type": "string",
                                   "enum": [
                                     "stated",
@@ -46866,7 +46866,7 @@
                                   "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                                 },
                                 "basis": {
-                                  "description": "stated: the device announced it about itself (its LLDP description, on its own vendor's network card); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the source and confidence say it all",
+                                  "description": "stated: the device announced it about itself (the OS in its LLDP description on its own vendor's network card, and the model of the same frame); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the source and confidence say it all",
                                   "type": "string",
                                   "enum": [
                                     "stated",
@@ -47248,7 +47248,7 @@
                                       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                                     },
                                     "basis": {
-                                      "description": "stated: the device announced it about itself (its LLDP description, on its own vendor's network card); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the source and confidence say it all",
+                                      "description": "stated: the device announced it about itself (the OS in its LLDP description on its own vendor's network card, and the model of the same frame); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the source and confidence say it all",
                                       "type": "string",
                                       "enum": [
                                         "stated",
@@ -47416,7 +47416,7 @@
                             "type": "boolean"
                           },
                           "basis": {
-                            "description": "On an OS observation, as Observed.basis",
+                            "description": "On an OS or model observation, as Observed.basis",
                             "type": "string",
                             "enum": [
                               "stated",

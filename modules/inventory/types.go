@@ -216,7 +216,8 @@ type Observed struct {
 	Confidence float64 `json:"confidence"`
 	SeenAt     string  `json:"seen_at"`
 	// Basis is how Vedette knows the value besides its source (INV-44): "stated" (the device announced it over LLDP on its own
-	// vendor's card), "guess" (nmap's OS fingerprint) or "" (the source and confidence say it all).
+	// vendor's card: the OS, and the model of the same frame), "guess" (nmap's OS fingerprint) or "" (the source and confidence
+	// say it all).
 	Basis string `json:"basis,omitempty"`
 }
 
@@ -341,7 +342,7 @@ type ObservationRow struct {
 	Current    bool    `json:"current"`
 	// ContradictsType: an nmap OS guess the device's type rules out (osguess.go): kept and shown, never the device's OS.
 	ContradictsType bool   `json:"contradicts_type,omitempty"`
-	Basis           string `json:"basis,omitempty"` // Observed.Basis, of an OS observation
+	Basis           string `json:"basis,omitempty"` // Observed.Basis, of an OS or model observation
 }
 
 // Detail is GET /inventory/devices/{id} (contract.ts DeviceDetail).

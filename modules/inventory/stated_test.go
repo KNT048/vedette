@@ -4,6 +4,7 @@ import (
 	"net/netip"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/modules/inventory"
@@ -73,8 +74,8 @@ func TestStatedOSOutranksTheScanGuess(t *testing.T) {
 			if d.OS == nil || d.OS.Value != "JUNOS 15.1R7.9" || d.OS.Source != "passive" || d.OS.Basis != "stated" {
 				t.Fatalf("OS %+v, want JUNOS 15.1R7.9 stated over LLDP", d.OS)
 			}
-			if d.Model == nil || d.Model.Value != "EX4200-48T" {
-				t.Errorf("model %+v, want EX4200-48T", d.Model)
+			if d.Model == nil || d.Model.Value != "EX4200-48T" || d.Model.Basis != "stated" {
+				t.Errorf("model %+v, want EX4200-48T stated over LLDP like the OS of its frame", d.Model)
 			}
 			list, match := shown(e, id)
 			for _, l := range [][]string{list, match} {
@@ -92,6 +93,9 @@ func TestStatedOSOutranksTheScanGuess(t *testing.T) {
 			}
 			if s := osObservation(t, det, "passive"); !s.Current || s.Basis != "stated" {
 				t.Errorf("LLDP OS observation %+v, want current and stated", s)
+			}
+			if i := slices.IndexFunc(det.Observations, func(o inventory.ObservationRow) bool { return o.Field == "model" }); i < 0 || det.Observations[i].Basis != "stated" {
+				t.Errorf("model observations %+v, want the LLDP model stated", det.Observations)
 			}
 			// A later scan that guesses another release changes nothing.
 			scanSwitch(e, juniperMAC, "Juniper Networks J2320 or MX5-T router; or EX2200, EX3200, EX4200, or EX8200 switch (JUNOS 8.5 - 11.2)")
@@ -174,5 +178,72 @@ func TestScanOSFingerprintIsMarkedAGuess(t *testing.T) {
 		if sw.Basis != "" {
 			t.Errorf("software %s basis %q, want none", sw.Display, sw.Basis)
 		}
+	}
+}
+
+// The model of an LLDP frame reads as announced by the device only under the same card check as its OS: on another vendor's card,
+// and for a model no OS statement came with (an mDNS or SSDP model), it keeps the passive wording.
+func TestStatedModelNeedsTheFramesStatementOnItsVendorsCard(t *testing.T) {
+	for _, c := range []struct {
+		name, mac, os, want string
+	}{
+		{"statement on its vendor's card", juniperMAC, "JUNOS 15.1R7.9", "stated"},
+		{"statement on another vendor's card", vmwareMAC, "JUNOS 15.1R7.9", ""},
+		{"a model without a statement", juniperMAC, "", ""},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			e := newEnv(t)
+			scanSwitch(e, c.mac, junosGuess.Display)
+			if c.os != "" {
+				announce(e, c.mac, "EX4200-48T", c.os)
+			} else {
+				e.record(obsv(c.mac, observe.Model, "EX4200-48T", observe.Passive, 0.5))
+			}
+			id := e.idOf(switchIP)
+			d, err := e.svc.Device(e.ctx(), id)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if d.Model == nil || d.Model.Source != "passive" || d.Model.Basis != c.want {
+				t.Errorf("model %+v, want passive with basis %q", d.Model, c.want)
+			}
+			det := e.detail(id)
+			if i := slices.IndexFunc(det.Observations, func(o inventory.ObservationRow) bool { return o.Field == "model" }); i < 0 || det.Observations[i].Basis != c.want {
+				t.Errorf("model observation basis, want %q: %+v", c.want, det.Observations)
+			}
+		})
+	}
+}
+
+// Of two scans, the newer guess is the device's OS even when nmap was less sure of it (its accuracy varies from scan to scan): the
+// OS everywhere and the Software tab's guess row name the same scan's guess, never one each.
+func TestScanGuessTheNewerScanWinsOverAMoreConfidentOlderOne(t *testing.T) {
+	e := newEnv(t)
+	scan := func(name string, conf float64) {
+		h := observe.AssetHint{IP: netip.MustParseAddr(switchIP), MAC: vmwareMAC}
+		e.record(observe.Observation{AssetHint: h, Field: observe.OS, Value: name, Source: observe.Nmap, Confidence: conf})
+		row := junosGuess
+		row.Display, row.Confidence = name, conf
+		if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: h.IP}, observe.Nmap, []observe.Software{row}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	scan("Juniper Networks J2320 or MX5-T router; or EX2200, EX3200, EX4200, or EX8200 switch (JUNOS 8.5 - 11.2)", 0.95)
+	e.tick(time.Hour)
+	scan(junosGuess.Display, 0.90)
+	id := e.idOf(switchIP)
+	det := e.detail(id)
+	if det.Asset.OS == nil || det.Asset.OS.Value != junosGuess.Display || det.Asset.OS.Basis != "guess" {
+		t.Errorf("OS %+v, want the newer scan's guess", det.Asset.OS)
+	}
+	var rows []string
+	for _, sw := range det.Asset.Software {
+		rows = append(rows, sw.Display)
+	}
+	if len(rows) != 1 || rows[0] != junosGuess.Display {
+		t.Errorf("software %v, want the one guess row of the newer scan, the same as the OS", rows)
+	}
+	if m, _, err := e.svc.MatchInput(e.ctx(), id); err != nil || m.OS != junosGuess.Display {
+		t.Errorf("matcher OS %q (%v), want the newer scan's guess", m.OS, err)
 	}
 }

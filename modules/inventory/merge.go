@@ -49,7 +49,7 @@ type obs struct {
 // "fbaf5191-cc17-4626-a85b-812bc3d7b83b") or 32 hex digits. A person cannot tell the device from it.
 var uuidName = regexp.MustCompile(`^(?i:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[0-9a-f]{32})$`)
 
-// better reports whether a wins over b: source rank (obs.rank), then higher confidence, then newer seen_at, then the
+// better reports whether a wins over b: source rank (obs.rank), then (two nmap OS readings) the newer scan, then higher confidence, then newer seen_at, then the
 // smaller id, so the result is deterministic (DATA_MODEL 5.1 (2)). Two exceptions before all that, both unless a person
 // stated the value: of two host names a readable one beats a UUID-looking one (M5-186); of two MACs the
 // one seen last wins, whoever saw it: a MAC is not more true for a stronger source, it is where the
@@ -66,6 +66,11 @@ func better(a, b obs) bool {
 	}
 	if ra, rb := a.rank(), b.rank(); ra != rb {
 		return ra > rb
+	}
+	// Of two nmap OS readings the newer scan wins, whatever its accuracy: a fingerprint is replaced by the next one, as its
+	// software rows are (ReplaceSoftware), so the device's OS and its guess row never name two different scans' guesses.
+	if a.field == "os" && a.source == "nmap" && b.source == "nmap" && a.seenAt != b.seenAt {
+		return a.seenAt > b.seenAt
 	}
 	if a.confidence != b.confidence {
 		return a.confidence > b.confidence

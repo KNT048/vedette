@@ -18,7 +18,9 @@ const noIP = "—" // what the API says for a device whose IP is unknown (contra
 
 const assetColumns = `a.id, a.ip, a.mac, a.hostname, a.user_name, a.kind, k.source, a.origin, a.approved, a.fragile, a.regular_scan, a.first_scan_at, a.approved_at, a.suspicious, a.is_box, a.notes, a.first_seen, a.last_seen, coalesce(a.scan_source, ''), coalesce(a.snmp_source, ''), a.ignored_at,
 	v.value, v.source, v.confidence, v.seen_at, m.value, m.source, m.confidence, m.seen_at, o.value, o.source, o.confidence, o.seen_at,
-	h.value, h.source, h.confidence, h.seen_at, x.value, x.source, x.confidence, x.seen_at`
+	h.value, h.source, h.confidence, h.seen_at, x.value, x.source, x.confidence, x.seen_at,
+	(SELECT f.value FROM inv_observation f WHERE f.asset_id = a.id AND f.field = 'os' AND f.source = 'passive' AND m.source = 'passive'
+		AND f.seen_at = m.seen_at ORDER BY f.id LIMIT 1)`
 
 const assetFrom = ` FROM inv_asset a
 	LEFT JOIN inv_observation v ON v.id = a.vendor_obs_id
@@ -61,10 +63,11 @@ func (s *Service) loadDevices(ctx context.Context, q querier, where string, limi
 		var d Device
 		var ip, mac, host, userName, scan, approvedAt, notes, kindSrc, ignoredAt sql.NullString
 		var v, m, o, h, x obsCols
+		var frameOS sql.NullString // the passive OS seen with a passive model: the same LLDP frame (modelBasis)
 		var approved, fragile, suspicious, box bool
 		if err := rows.Scan(&d.ID, &ip, &mac, &host, &userName, &d.Kind, &kindSrc, &d.Origin, &approved, &fragile, &d.RegularScan, &scan, &approvedAt, &suspicious, &box, &notes, &d.FirstSeen, &d.LastSeen, &d.ScanSource, &d.SNMPSource, &ignoredAt,
 			&v.value, &v.source, &v.conf, &v.seen, &m.value, &m.source, &m.conf, &m.seen, &o.value, &o.source, &o.conf, &o.seen,
-			&h.value, &h.source, &h.conf, &h.seen, &x.value, &x.source, &x.conf, &x.seen); err != nil {
+			&h.value, &h.source, &h.conf, &h.seen, &x.value, &x.source, &x.conf, &x.seen, &frameOS); err != nil {
 			return nil, fmt.Errorf("inventory: read devices: %w", err)
 		}
 		d.Site = "hq" // one site
@@ -76,6 +79,9 @@ func (s *Service) loadDevices(ctx context.Context, q querier, where string, limi
 		d.Vendor, d.Model, d.OS = v.observed(), m.observed(), o.observed()
 		if d.OS != nil {
 			d.OS.Basis = osBasis(d.OS.Value, d.OS.Source, mac.String)
+		}
+		if d.Model != nil {
+			d.Model.Basis = modelBasis(d.Model.Source, frameOS.String, mac.String)
 		}
 		d.ident = []*Observed{h.observed(), x.observed()}
 		d.Approved, d.Fragile, d.Suspicious, d.IsBox = approved, fragile, suspicious, box
@@ -391,6 +397,17 @@ func (s *Service) Detail(ctx context.Context, id string) (Detail, error) {
 	}
 	if err := rows.Err(); err != nil {
 		return Detail{}, fmt.Errorf("inventory: read observations: %w", err)
+	}
+	for i, o := range list { // a passive model reads as stated with the OS statement of its frame (same moment, modelBasis)
+		if o.Field != "model" {
+			continue
+		}
+		for _, f := range list {
+			if f.Field == "os" && f.Source == "passive" && f.SeenAt == o.SeenAt && modelBasis(o.Source, f.Value, mac) != "" {
+				list[i].Basis = basisStated
+				break
+			}
+		}
 	}
 	slices.SortFunc(list, func(a, b ObservationRow) int {
 		if c := slices.Index(fieldOrder, a.Field) - slices.Index(fieldOrder, b.Field); c != 0 {

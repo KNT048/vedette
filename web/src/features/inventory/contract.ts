@@ -13,9 +13,9 @@ const dt = z.iso.datetime()
 const confidence = z.number().min(0).max(1)
 
 /** How Vedette knows a value besides its source: stated = the device announced it about itself (the OS in its LLDP description, on
- *  a network card of that vendor); guess = nmap's OS fingerprint, a guess: show it as one, never as a confidence level. */
+ *  a network card of that vendor, and the model of that frame); guess = nmap's OS fingerprint, a guess: show it as one, never as a confidence level. */
 export const Basis = z.enum(['stated', 'guess'])
-const basis = Basis.optional().describe('stated: the device announced it about itself (its LLDP description, on its own vendor\'s network card); guess: nmap\'s OS fingerprint, shown as a guess and never as a confidence level; absent: the source and confidence say it all')
+const basis = Basis.optional().describe('stated: the device announced it about itself (the OS in its LLDP description on its own vendor\'s network card, and the model of the same frame); guess: nmap\'s OS fingerprint, shown as a guess and never as a confidence level; absent: the source and confidence say it all')
 export const Observed = z.object({ value: z.string(), source: ObsSource, confidence, seen_at: dt, basis })
 export const Software = z.object({
   id: z.string(), display: z.string().describe('Commercial name the user recognizes'), vendor: z.string(), product: z.string(), version: z.string().nullable(),
@@ -45,7 +45,7 @@ export const Asset = z.object({
 /** Một lần quan sát một trường. Không bao giờ bị ghi đè: giá trị mới thêm vào, "đang dùng" chọn theo khai tay > tin cậy cao > mới hơn (ARCHITECTURE §4). */
 export const Observation = z.object({ id: z.string(), field: ObsField, value: z.string(), source: ObsSource, confidence, seen_at: dt, current: z.boolean(),
   contradicts_type: z.boolean().optional().describe('An nmap OS guess the device type rules out (Android on a firewall): kept, never the device OS; absent otherwise'),
-  basis: basis.describe('On an OS observation, as Observed.basis') })
+  basis: basis.describe('On an OS or model observation, as Observed.basis') })
 
 /** A person turns each active source of the box on or off per device, on its Sources card. */
 export const SourceState = z.enum(['on', 'off'])

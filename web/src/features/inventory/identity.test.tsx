@@ -28,17 +28,28 @@ describe('Device page: maker, model and OS with their source', () => {
     await expectNoA11yViolations(container)
   })
 
+  it('an OS that is only a scan guess is its own Software row, never also the OS line', async () => {
+    const user = userEvent.setup()
+    renderApp('/devices/a-srvad')
+    await overviewRow('OS or firmware')
+    await user.click(screen.getByRole('tab', { name: /Software/ }))
+    await screen.findByRole('table', { name: 'Software on the device' }, T)
+    expect(screen.queryByTestId('software-os')).toBeNull()
+  })
+
   it('a value nobody reported says so', async () => {
     renderApp('/devices/a-srvfile')
     expect(await overviewRow('Model')).toHaveTextContent('Not known yet')
   })
 
   it('an OS the device announces about itself: the Overview and the Software tab show it with that source', async () => {
-    assetsStore.update((l) => l.map((a) => (a.id === 'a-sw01' ? { ...a, os: { value: 'JUNOS 15.1R7.9', source: 'passive' as const, confidence: 0.5, seen_at: a.last_seen, basis: 'stated' as const } } : a)))
+    const said = (value: string) => ({ value, source: 'passive' as const, confidence: 0.5, seen_at: new Date().toISOString(), basis: 'stated' as const })
+    assetsStore.update((l) => l.map((a) => (a.id === 'a-sw01' ? { ...a, model: said('EX4200-48T'), os: said('JUNOS 15.1R7.9') } : a)))
     const user = userEvent.setup()
     renderApp('/devices/a-sw01')
     const os = await overviewRow('OS or firmware')
     expect(os).toHaveTextContent(/^JUNOS 15\.1R7\.9\s*Announced by the device \(LLDP\)$/)
+    expect(await overviewRow('Model')).toHaveTextContent(/^EX4200-48T\s*Announced by the device \(LLDP\)$/)
     await user.click(screen.getByRole('tab', { name: /Software/ }))
     const line = await screen.findByTestId('software-os', undefined, T)
     expect(line).toHaveTextContent('Operating system or firmware')

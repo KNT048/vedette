@@ -67,7 +67,7 @@ func lldpStated(os, mac string) bool {
 
 // The basis of a value, beside its source and confidence (contract.ts Observed.basis): how Vedette knows it.
 const (
-	basisStated = "stated" // the device announced it about itself (its LLDP statement, lldpStated)
+	basisStated = "stated" // the device announced it about itself (its LLDP statement, lldpStated, and the model of the same frame)
 	basisGuess  = "guess"  // nmap's OS fingerprint: a guess, shown as one and never as a confidence level
 )
 
@@ -95,4 +95,14 @@ func markStated(list []obs) {
 	for i, o := range list {
 		list[i].stated = o.field == "os" && o.source == "passive" && mac.id != "" && lldpStated(o.value, mac.value)
 	}
+}
+
+// modelBasis is the basis of a model observation: "stated" when it is passive and came with an OS statement of the same LLDP frame
+// (frameOS: the device's passive OS seen at the same moment, "" when none) that its card vouches for (lldpStated), so the model
+// and the OS of one frame read alike; "" otherwise (an mDNS or SSDP model, a frame on another vendor's card).
+func modelBasis(source, frameOS, mac string) string {
+	if source == "passive" && frameOS != "" && lldpStated(frameOS, mac) {
+		return basisStated
+	}
+	return ""
 }

@@ -21744,10 +21744,10 @@
                                   },
                                   "host": {
                                     "type": "string",
-                                    "description": "The Name (host) to type in that zone: \"@\" for the zone itself, \"git\" for git.beyondnetglobal.com"
+                                    "description": "The Name (host) to type in that zone: \"@\", the zone apex, for every target (D-632: the target's own record there proves it, and an apex takes a record whatever the subdomain is)"
                                   },
                                   "alt_host": {
-                                    "description": "The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): \"_vedette-verify\" or \"_vedette-verify.git\"; null when _vedette-verify.<name> would pass 253 characters (no such name can exist)",
+                                    "description": "The alternative Name: \"_vedette-verify\" or \"_vedette-verify.git\", which proves the target only (never the name itself when it is a CNAME: no TXT may sit beside a CNAME); null when _vedette-verify.<name> would pass 253 characters (no such name can exist)",
                                     "type": [
                                       "string",
                                       "null"
@@ -23350,10 +23350,10 @@
                                   },
                                   "host": {
                                     "type": "string",
-                                    "description": "The Name (host) to type in that zone: \"@\" for the zone itself, \"git\" for git.beyondnetglobal.com"
+                                    "description": "The Name (host) to type in that zone: \"@\", the zone apex, for every target (D-632: the target's own record there proves it, and an apex takes a record whatever the subdomain is)"
                                   },
                                   "alt_host": {
-                                    "description": "The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): \"_vedette-verify\" or \"_vedette-verify.git\"; null when _vedette-verify.<name> would pass 253 characters (no such name can exist)",
+                                    "description": "The alternative Name: \"_vedette-verify\" or \"_vedette-verify.git\", which proves the target only (never the name itself when it is a CNAME: no TXT may sit beside a CNAME); null when _vedette-verify.<name> would pass 253 characters (no such name can exist)",
                                     "type": [
                                       "string",
                                       "null"
@@ -24030,10 +24030,10 @@
                             },
                             "host": {
                               "type": "string",
-                              "description": "The Name (host) to type in that zone: \"@\" for the zone itself, \"git\" for git.beyondnetglobal.com"
+                              "description": "The Name (host) to type in that zone: \"@\", the zone apex, for every target (D-632: the target's own record there proves it, and an apex takes a record whatever the subdomain is)"
                             },
                             "alt_host": {
-                              "description": "The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): \"_vedette-verify\" or \"_vedette-verify.git\"; null when _vedette-verify.<name> would pass 253 characters (no such name can exist)",
+                              "description": "The alternative Name: \"_vedette-verify\" or \"_vedette-verify.git\", which proves the target only (never the name itself when it is a CNAME: no TXT may sit beside a CNAME); null when _vedette-verify.<name> would pass 253 characters (no such name can exist)",
                               "type": [
                                 "string",
                                 "null"
@@ -24601,10 +24601,10 @@
                             },
                             "host": {
                               "type": "string",
-                              "description": "The Name (host) to type in that zone: \"@\" for the zone itself, \"git\" for git.beyondnetglobal.com"
+                              "description": "The Name (host) to type in that zone: \"@\", the zone apex, for every target (D-632: the target's own record there proves it, and an apex takes a record whatever the subdomain is)"
                             },
                             "alt_host": {
-                              "description": "The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): \"_vedette-verify\" or \"_vedette-verify.git\"; null when _vedette-verify.<name> would pass 253 characters (no such name can exist)",
+                              "description": "The alternative Name: \"_vedette-verify\" or \"_vedette-verify.git\", which proves the target only (never the name itself when it is a CNAME: no TXT may sit beside a CNAME); null when _vedette-verify.<name> would pass 253 characters (no such name can exist)",
                               "type": [
                                 "string",
                                 "null"
@@ -26934,10 +26934,10 @@
                             },
                             "host": {
                               "type": "string",
-                              "description": "The Name (host) to type in that zone: \"@\" for the zone itself, \"git\" for git.beyondnetglobal.com"
+                              "description": "The Name (host) to type in that zone: \"@\", the zone apex, for every target (D-632: the target's own record there proves it, and an apex takes a record whatever the subdomain is)"
                             },
                             "alt_host": {
-                              "description": "The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): \"_vedette-verify\" or \"_vedette-verify.git\"; null when _vedette-verify.<name> would pass 253 characters (no such name can exist)",
+                              "description": "The alternative Name: \"_vedette-verify\" or \"_vedette-verify.git\", which proves the target only (never the name itself when it is a CNAME: no TXT may sit beside a CNAME); null when _vedette-verify.<name> would pass 253 characters (no such name can exist)",
                               "type": [
                                 "string",
                                 "null"
@@ -27479,10 +27479,10 @@
                             },
                             "host": {
                               "type": "string",
-                              "description": "The Name (host) to type in that zone: \"@\" for the zone itself, \"git\" for git.beyondnetglobal.com"
+                              "description": "The Name (host) to type in that zone: \"@\", the zone apex, for every target (D-632: the target's own record there proves it, and an apex takes a record whatever the subdomain is)"
                             },
                             "alt_host": {
-                              "description": "The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): \"_vedette-verify\" or \"_vedette-verify.git\"; null when _vedette-verify.<name> would pass 253 characters (no such name can exist)",
+                              "description": "The alternative Name: \"_vedette-verify\" or \"_vedette-verify.git\", which proves the target only (never the name itself when it is a CNAME: no TXT may sit beside a CNAME); null when _vedette-verify.<name> would pass 253 characters (no such name can exist)",
                               "type": [
                                 "string",
                                 "null"
@@ -28011,10 +28011,10 @@
                                 },
                                 "host": {
                                   "type": "string",
-                                  "description": "The Name (host) to type in that zone: \"@\" for the zone itself, \"git\" for git.beyondnetglobal.com"
+                                  "description": "The Name (host) to type in that zone: \"@\", the zone apex, for every target (D-632: the target's own record there proves it, and an apex takes a record whatever the subdomain is)"
                                 },
                                 "alt_host": {
-                                  "description": "The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): \"_vedette-verify\" or \"_vedette-verify.git\"; null when _vedette-verify.<name> would pass 253 characters (no such name can exist)",
+                                  "description": "The alternative Name: \"_vedette-verify\" or \"_vedette-verify.git\", which proves the target only (never the name itself when it is a CNAME: no TXT may sit beside a CNAME); null when _vedette-verify.<name> would pass 253 characters (no such name can exist)",
                                   "type": [
                                     "string",
                                     "null"

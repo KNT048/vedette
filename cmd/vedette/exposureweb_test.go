@@ -85,6 +85,16 @@ func TestExposureWeb_AReportComesBack(t *testing.T) {
 	if hc.got.Domain != "example.com" || hc.got.TXTToken != "fedcba9876543210" || hc.got.Host != "git.example.com" {
 		t.Fatalf("covered child: %+v", hc.got)
 	}
+	// D-632 (review r1 M2 of #960): a target proved by its own record on the apex: the host gets the target itself and proof_at
+	own := child
+	own.Proof = &exposure.ProofOwner{Domain: "git.example.com", Token: "0123456789abcdef", ProofAt: "example.com"}
+	ho := &fakeZapHost{run: zapRun(t, api.StatusSucceeded, "", &api.ZapBaselineResult{ReportID: rid}), report: []byte(`{}`)}
+	if _, err := (exposureWebScan{host: ho}).Baseline(t.Context(), own, childPage); err != nil {
+		t.Fatal(err)
+	}
+	if ho.got.Domain != "git.example.com" || ho.got.ProofAt != "example.com" || ho.got.TXTToken != "0123456789abcdef" {
+		t.Fatalf("own record on the apex: %+v", ho.got)
+	}
 	h := &fakeZapHost{run: zapRun(t, api.StatusSucceeded, "", &api.ZapBaselineResult{ReportID: rid}), report: []byte(`{}`)}
 	if _, err := (exposureWebScan{host: h}).Baseline(t.Context(), webIPTarget, webIPPage); err != nil {
 		t.Fatal(err)

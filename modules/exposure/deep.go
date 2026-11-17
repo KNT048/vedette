@@ -195,8 +195,14 @@ func (s *Service) deepGate(ctx context.Context, st ScanTarget, ip netip.Addr, na
 	case name == "":
 		return st, deepMoved, nil
 	}
-	fd := st.Value // D-628: the domain whose record proves the target now, the target itself or a parent of the box covering it
-	if t.proofDomain != "" && underDomain(st.Value, t.proofDomain) {
+	// The domain whose record proves the target now: the target itself, with its own record there or (D-632) on a parent name of it
+	// (proofAt, checked there by the executors with the target's own token), or a parent target of the box covering it (D-628).
+	fd, proofAt := st.Value, ""
+	switch {
+	case t.proofDomain == "" || t.proofDomain == st.Value || !underDomain(st.Value, t.proofDomain):
+	case t.proofOwn:
+		proofAt = t.proofDomain
+	default:
 		fd = t.proofDomain
 	}
 	tok, err := s.cfg.DomainFence.Token(ctx, fd)
@@ -215,7 +221,7 @@ func (s *Service) deepGate(ctx context.Context, st ScanTarget, ip netip.Addr, na
 			return st, deepGone, nil
 		}
 	}
-	out.Domain = &DomainScope{Domain: fd, Name: name, Token: tok, Chain: s.cnameChain(ctx, name)}
+	out.Domain = &DomainScope{Domain: fd, Name: name, Token: tok, ProofAt: proofAt, Chain: s.cnameChain(ctx, name)}
 	if out.Mode.Disruptive { // r2-M1: fail closed: the disruptive checks only when the name is seen to stay inside the domain now
 		out.Mode.Disruptive = s.cnameInZone(ctx, []string{name}, st.Value)
 	}

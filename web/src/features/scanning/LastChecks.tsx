@@ -12,6 +12,7 @@ import { RunStatusChip, runOutcome } from '@/features/scan/shared'
 import type { ScanRun } from '@/features/scan/types'
 import { fmtDateTime, fmtRelative } from '@/lib/format'
 import { useModules } from '@/lib/modules'
+import { useCan } from '@/lib/session'
 import { useScanning, useScanningHistory } from './api'
 import { scanRefusal } from './canScan'
 import { historyRowHref } from './places'
@@ -60,6 +61,7 @@ export function LastChecks(props: Record<string, unknown>) {
   const { t: ts } = useTranslation('scan')
   const modules = useModules()
   const scanOn = modules.data?.modules.find((m) => m.id === 'scan')?.enabled
+  const admin = useCan('admin')
   const device = useDevice(assetId)
   const scanning = useScanning()
   const history = useScanningHistory(assetId)
@@ -75,6 +77,8 @@ export function LastChecks(props: Record<string, unknown>) {
   const vuln = last ? ofDevice(last, assetId) : null
   const a = device.data?.asset
   const refusal = a ? scanRefusal(a, scanning.data) : null
+  // the device's own SNMP card (admin, active discovery on; not on the box or an ignored device) is on this page
+  const snmpCard = admin && modules.data?.modules.find((m) => m.id === 'sensor-active')?.enabled === true && !!a && !a.is_box && !a.ignored_at
   return (
     <Section id="last-checks" title={t('lastChecks.title')} description={t('lastChecks.description')} stories={['S-INV-1', 'S-SCAN-4']}>
       {failed ? <ErrorState error={failed.error} onRetry={() => { for (const q of [history, modules, device]) if (q.isError) void q.refetch() }} /> : (
@@ -91,7 +95,7 @@ export function LastChecks(props: Record<string, unknown>) {
                   : <Never>{t('lastChecks.neverVuln')}</Never>}
               </Row>
               <Row title={t('lastChecks.kind.snmp')} when={snmp?.started_at ?? null} href={snmp ? historyRowHref(assetId, snmp.id) : undefined}>
-                {snmp ? <HistoryOutcome r={snmp} /> : <Never>{t('lastChecks.neverSnmp')} <Link to="/settings/scanning#snmp" className={link}>{t('lastChecks.neverSnmpLink')}</Link></Never>}
+                {snmp ? <HistoryOutcome r={snmp} /> : <Never>{t('lastChecks.neverSnmp')}{snmpCard ? <> <Link to="#device-snmp" className={link}>{t('lastChecks.neverSnmpLink')}</Link></> : null}</Never>}
               </Row>
             </>
           )}

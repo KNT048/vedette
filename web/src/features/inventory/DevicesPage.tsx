@@ -30,6 +30,7 @@ import { RiskMarker, riskRank } from './RiskMarker'
 import { PendingPanel } from './PendingPanel'
 import { IgnoredPanel } from './IgnoreDevice'
 import { SameChip } from './SameDevice'
+import { SnmpNotices } from './SnmpCard'
 import type { DeviceRow } from './types'
 
 /** Where the scan feature (#850) plugs "Scan selected" / "Scan the LAN now" into the Devices list: a component registered as
@@ -355,6 +356,8 @@ function Body() {
             <Button variant="primary" disabled={!canOp} title={needRole} onClick={() => setAdd('manual')}><Plus />{t('add.open')}</Button>
           </>
         } />
+      {/* what the box changed by itself in SNMP settings, for an admin, until dismissed */}
+      <SnmpNotices />
       <QueryState query={q}>
         {(d) => {
           if (all === 0) return <><NoDevices boxOnly={false} canOp={canOp} canAdmin={canAdmin} needRole={needRole} onAdd={setAdd} />{declaredLine}</>

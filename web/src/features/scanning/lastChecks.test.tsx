@@ -57,7 +57,17 @@ describe('the device page says what each check does and when each last ran (kien
     expect(within(screen.getByRole('group', { name: VULN })).getByText(/Run vulnerability checks now” above runs it/)).toBeInTheDocument()
     const snmp = screen.getByRole('group', { name: SNMP })
     expect(within(snmp).getByText('Never')).toBeInTheDocument()
-    expect(within(snmp).getByRole('link', { name: 'Add one on the SNMP card' })).toHaveAttribute('href', '/settings/scanning#snmp')
+    expect(within(snmp).getByText(/once SNMP is set up on this device/)).toBeInTheDocument()
+    // the device's own SNMP card is on this page (admin)
+    expect(within(snmp).getByRole('link', { name: 'Set it up on the SNMP card' })).toHaveAttribute('href', '/devices/a-nas01#device-snmp')
+  })
+
+  it('a viewer gets no link to the SNMP card, which only an admin sees', async () => {
+    server.use(http.get('*/api/v1/scans/runs', () => HttpResponse.json({ engine_busy: false, items: [] })))
+    renderApp('/devices/a-nas01', { role: 'viewer' })
+    const snmp = await screen.findByRole('group', { name: SNMP }, T)
+    expect(within(snmp).getByText(/once SNMP is set up on this device/)).toBeInTheDocument()
+    expect(within(snmp).queryByRole('link', { name: 'Set it up on the SNMP card' })).toBeNull()
   })
 
   it('the vulnerability checks module off: "Off", with where to turn it on', async () => {

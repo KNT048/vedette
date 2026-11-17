@@ -35,6 +35,7 @@ import { NotInstalledDialog } from './NotInstalledDialog'
 import { errMsg } from './kinds'
 import { badUserName, declaredSoftwareOnly, nameOf } from './nameOf'
 import { DeviceSources } from './DeviceSources'
+import { DeviceSnmpCard } from './SnmpCard'
 import { PossibleSameNotice } from './SameDevice'
 import { BoxNotice } from './BoxNotice'
 import { IgnoreDialog, IgnoredNotice } from './IgnoreDevice'
@@ -445,7 +446,7 @@ function Body() {
         { id: 'overview', label: t('detail.tabs.overview'), panel: (
           <>
             <Section id="overview" title={t('detail.overview')}><Card><Overview d={d} /></Card></Section>
-            {a.is_box || declaredSoftwareOnly(a) || a.ignored_at ? null : <DeviceSources d={d} />}
+            {a.is_box || declaredSoftwareOnly(a) || a.ignored_at ? null : <><DeviceSources d={d} /><DeviceSnmpCard d={d} /></>}
             <Slot name="device.panels" props={{ assetId: a.id }} />
             <Section id="notes" title={t('notes.title')}><Notes key={a.notes ?? ''} d={d} /></Section>
           </>

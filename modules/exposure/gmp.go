@@ -80,7 +80,7 @@ type gbLevel struct {
 var (
 	gbDeep = gbLevel{
 		name: "vedette-deep-full-and-fast", disruptive: false, safeChecks: "yes",
-		text: "Full and fast, every non-disruptive check (active ones included; generic web scanning off, as Greenbone's own default); safe checks on",
+		text: "Full and fast, every non-disruptive check (active ones included; generic web scanning off, as in a stock Full and fast scan); safe checks on",
 		prefs: []gmpCheckbox{
 			{gmpBruteOID, "Disable brute force checks", "yes"},
 			{gmpBruteOID, "Disable default account checks", "yes"},

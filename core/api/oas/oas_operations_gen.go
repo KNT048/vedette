@@ -232,6 +232,7 @@ const (
 	InventoryPostInventorySnmpIDReadOperation               OperationName = "InventoryPostInventorySnmpIDRead"
 	InventoryPostInventorySnmpIDTestOperation               OperationName = "InventoryPostInventorySnmpIDTest"
 	InventoryPutInventoryAgentsWazuhOperation               OperationName = "InventoryPutInventoryAgentsWazuh"
+	InventoryPutInventoryDevicesIDSourcesOperation          OperationName = "InventoryPutInventoryDevicesIDSources"
 	InventoryPutInventoryNotifyNewOperation                 OperationName = "InventoryPutInventoryNotifyNew"
 	InventoryPutInventorySettingsOperation                  OperationName = "InventoryPutInventorySettings"
 	InventoryPutInventorySnmpIDOperation                    OperationName = "InventoryPutInventorySnmpID"

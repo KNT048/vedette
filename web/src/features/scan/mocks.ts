@@ -175,14 +175,15 @@ function targets(): ScanTarget[] {
   const c = config.get()
   const sc = scope.get()
   const findings = findingsStore.get()
-  // D-126 (inventory VulnScanPolicy): a device set to "never scan" is never scanned. Picking a device by hand is the consent for it,
-  // so fragile, unclassified and hand-declared devices, and the box itself (D-470), can be picked (fragile and unclassified at a quarter
-  // of the speed); schedule and KEV rescans skip them.
-  const meta = peek<Record<string, { regular_scan?: string }>>('inv_meta') ?? {}
+  // D-126 (inventory VulnScanPolicy): a device set to "never scan", or whose network scan is off on its page (D-601: a device added by
+  // hand starts off), is never scanned. Picking a device by hand is the consent for it, so fragile and unclassified devices and the box
+  // itself (D-470) can be picked (fragile and unclassified at a quarter of the speed); schedule and KEV rescans skip them.
+  const meta = peek<Record<string, { regular_scan?: string; scan_source?: 'on' | 'off' }>>('inv_meta') ?? {}
+  const scanOff = (a: Asset) => (meta[a.id]?.scan_source ?? (a.origin === 'manual' ? 'off' : 'on')) === 'off'
   const open = new Map<string, number>()
   for (const f of findings) if (f.status === 'confirmed' || f.status === 'suspected') open.set(f.asset_id, (open.get(f.asset_id) ?? 0) + 1)
   const internal = assetsStore.get().map((a: Asset): ScanTarget => {
-    const reason = meta[a.id]?.regular_scan === 'never' ? 'regular_scan_never' : !a.approved ? 'unapproved' : !a.ip || a.ip === '—' ? 'no_ip' : c.exclusions.some((e) => inCidr(a.ip, e)) ? 'excluded' : !sc.networks.some((n) => inCidr(a.ip, n)) ? 'out_of_scope' : null
+    const reason = meta[a.id]?.regular_scan === 'never' || scanOff(a) ? 'regular_scan_never' : !a.approved ? 'unapproved' : !a.ip || a.ip === '—' ? 'no_ip' : c.exclusions.some((e) => inCidr(a.ip, e)) ? 'excluded' : !sc.networks.some((n) => inCidr(a.ip, n)) ? 'out_of_scope' : null
     const box = a.id === BOX_ID
     return { id: a.id, kind: 'internal', device_kind: a.kind, label: displayName(a) || a.ip, ip: a.ip, fragile: a.fragile || a.kind === 'unknown', findings: open.get(a.id) ?? 0, selectable: reason === null, pick_only: reason === null && (box || a.fragile || a.kind === 'unknown' || a.origin === 'manual'), box, reason,
       mac: a.mac, vendor: a.vendor?.value ?? null, approved: a.approved, last_seen: a.last_seen }

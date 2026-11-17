@@ -548,6 +548,8 @@ const (
 	reasonUnclassifiedPassive = "unclassified_passive_only"
 	reasonNever               = "regular_scan_never"
 	reasonBox                 = "box"
+	reasonSNMPOff             = "snmp_off" // a person turned SNMP off for the device (D-601; SNMPPolicy only)
+	reasonExcluded            = "excluded" // the address is on the exclusion list (SNMPPolicy only: SNMP is not bound by lan_ranges, D-601)
 )
 
 const stoppedText = "stopped: the window closed, the scope changed or the module was turned off"
@@ -1773,6 +1775,28 @@ func (s *Service) AssetChanged(ctx context.Context, assetID string) error {
 	return s.checkRun(ctx, assetID)
 }
 
+// checkSweep stops the sweep batch in progress when it probes the address of assetID and the device is protected now (its network scan
+// turned off, set to never, made fragile after its gentle scan: D-601 review r1 M2). A batch cannot drop one host while nmap runs, so
+// the batch stops; its cursor stays where the last finished batch left it and the next pass reads the protected list again.
+func (s *Service) checkSweep(ctx context.Context, cur *running, assetID string, targets []netip.Addr) error {
+	a, err := s.inv.Asset(ctx, assetID)
+	if errors.Is(err, ErrNotFound) {
+		return nil
+	}
+	if err != nil {
+		cur.cancel() // fail closed
+		return err
+	}
+	if !a.IP.IsValid() || !slices.Contains(targets, a.IP) {
+		return nil
+	}
+	prot, err := s.inv.ProtectedIPs(ctx)
+	if err != nil || slices.Contains(prot, a.IP) {
+		cur.cancel()
+	}
+	return err
+}
+
 // checkRun stops the device run in progress when it is assetID's and the inventory's policy no longer lets it run as it does
 // (AssetChanged; SettingsChanged too, since a change of the fragile kinds or the regular-scan kinds changes devices without an
 // event of their own: review r1 M2).
@@ -1784,10 +1808,14 @@ func (s *Service) checkRun(ctx context.Context, assetID string) error {
 	var kind nmapargv.Kind
 	var targets []netip.Addr
 	match := cur != nil && cur.asset == assetID && assetID != ""
-	if match {
+	sweep := cur != nil && cur.asset == "" && !cur.external && assetID != "" && len(cur.targets) > 0
+	if match || sweep {
 		gentle, rate, picked, kind, weekly, targets = cur.gentle, cur.rate, cur.picked, cur.kind, cur.weekly, cur.targets
 	}
 	s.mu.Unlock()
+	if sweep {
+		return s.checkSweep(ctx, cur, assetID, targets)
+	}
 	if !match {
 		return nil
 	}

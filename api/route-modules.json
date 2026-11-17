@@ -324,6 +324,7 @@
   "PUT /feeds/sources/{id}": "feeds",
   "PUT /honeypot/trap-ips/{id}": "honeypot",
   "PUT /inventory/agents/wazuh": "agent-intake",
+  "PUT /inventory/devices/{id}/sources": "inventory",
   "PUT /inventory/notify-new": "inventory",
   "PUT /inventory/settings": "inventory",
   "PUT /inventory/snmp/{id}": "sensor-active",

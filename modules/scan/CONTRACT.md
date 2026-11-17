@@ -53,7 +53,7 @@ Nguồn hành vi: `web/src/features/scan/{contract,mocks}.ts`. Phần `/scans/cr
 
 ## Events
 - **Phát**: `scan.run.started|finished|stopped {run_id, status, matched}`, `scan.finding.confirmed {asset_id, cve, template, evidence}` (thông tin; `findings` được gọi thẳng, INV-8). `scan.rescan.triggered` chưa phát: chưa có bên nhận (lát S4 ghi `scan_event`).
-- **Nhận**: `feeds.vuln.new_kev`, `inventory.settings.changed`, `inventory.asset.deleted`, `exposure.target.expired`.
+- **Nhận**: `feeds.vuln.new_kev`, `inventory.settings.changed`, `inventory.asset.deleted`, `exposure.target.expired`, `inventory.asset.updated` (D-601: `DeviceChanged` stops the vulnerability check of the device being checked when `VulnScanPolicy` no longer allows it, e.g. its network scan turned off; its probes close as stopped, its row says so, the run goes on with the next device; `TestD601_ScanTurnedOffStopsThatDeviceOnly`).
 
 ## Behaviour khi tắt
 Không route `/scans*` (404), không job lịch/quét lại; không probe nuclei LAN nào. "Scan now" của External exposure **vẫn chạy** (runner theo công tắc của `exposure`, INV-12, J6) và vẫn ghi probe vào `scan_probe`, đọc lại được khi bật lại `scan`. Job `retention` là việc dọn (`Housekeeping`, D-160): vẫn chạy mỗi giờ khi tắt và chỉ xoá dòng probe quá 90 ngày và sự kiện quét lại quá 1 năm, không quét, không gửi, không ghi mới (`TestTheRetentionJobRunsWhileTheModuleIsOff`). Findings chỉ còn `suspected` (không xác nhận mới); "Scan" mất ở Devices. Cấu hình, lịch sử, nhật ký probe giữ ≥ 90 ngày.

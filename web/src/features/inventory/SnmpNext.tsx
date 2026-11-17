@@ -3,8 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { useCan } from '@/lib/session'
-import { AddToScopeDialog, asRange, inRanges } from './AddToScopeDialog'
-import { useDeviceAction, useSettings } from './api'
+import { AddToScopeDialog, asRange } from './AddToScopeDialog'
+import { useDeviceAction, useDeviceSources } from './api'
 import { isPrivateCidr } from './validate'
 import { DependencyLink } from '@/components/common/DependencyLink'
 import { errMsg } from './kinds'
@@ -17,11 +17,19 @@ export function SnmpNext({ r, ip, cred, onWiden, onEdit, onRetry }: {
 }) {
   const { t } = useTranslation('inventory')
   const approve = useDeviceAction(r.device_id ?? '').approve
+  const sources = useDeviceSources(r.device_id ?? '')
   const admin = useCan('admin')
-  const lan = useSettings(admin).data?.lan_ranges
   const [toScope, setToScope] = useState<string | null | false>(false)
   const scope = '/devices/setup?tab=scope#range-input' // the range field of Scope (useDeepLinkTarget focuses it)
   const active = '/devices/setup?tab=scope#active-enabled' // the active scanning switch
+  const turnOn = (
+    <div>
+      <Button busy={sources.isPending} busyLabel={t('common:busy.saving')} size="sm" variant="primary" disabled={!admin || sources.isPending} title={admin ? undefined : t('common:needRole', { role: t('common:role.admin') })}
+        onClick={() => sources.mutate({ snmp: 'on' }, { onSuccess: () => { toast.success(t('snmpNext.snmpOn', { ip })); onRetry() }, onError: (e) => toast.error(errMsg(e)) })}>
+        {t('snmpNext.turnSnmpOn', { ip })}
+      </Button>
+    </div>
+  )
   const scopeDialog = toScope !== false ? <AddToScopeDialog entry={toScope} onClose={() => setToScope(false)} onDone={onRetry} /> : null
   switch (r.reason) {
     case 'not_for_this_credential':
@@ -37,19 +45,19 @@ export function SnmpNext({ r, ip, cred, onWiden, onEdit, onRetry }: {
           </Button>
         </div>
       ) : null
-    case 'out_of_scope': case 'scope_not_confirmed': {
-      const entry = r.reason === 'out_of_scope' ? ip : null
-      // Decide before offering "Add to scope" (r2 L4): a public address can never be in scope; one inside a saved range is excluded.
-      if (entry && !isPrivateCidr(asRange(entry))) return <p className="text-meta text-muted">{t('snmpNext.publicWhy', { ip })}</p>
-      if (entry && lan && inRanges(entry, lan)) return <DependencyLink reason={t('snmpNext.excludedWhy', { ip })} to="/devices/setup?tab=scope#excl-input" label={t('snmpNext.excluded')} />
+    case 'out_of_scope':
+      // D-601: outside the LAN ranges SNMP reads a device only once a person turns SNMP on for it; the LAN ranges are never widened for
+      // SNMP (they govern discovery and network scans). A public address can never be read.
+      if (!isPrivateCidr(asRange(ip))) return <p className="text-meta text-muted">{t('snmpNext.publicWhy', { ip })}</p>
+      return r.device_id ? turnOn : null
+    case 'scope_not_confirmed':
       if (!admin) return <DependencyLink reason={t('snmpNext.scopeWhy')} to={scope} label={t('snmpNext.scope')} />
       return (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <Button size="sm" variant="primary" onClick={() => setToScope(entry)}>{entry ? t('snmpNext.addToScope', { ip }) : t('snmpNext.confirmScope')}</Button>
+          <Button size="sm" variant="primary" onClick={() => setToScope(null)}>{t('snmpNext.confirmScope')}</Button>
           {scopeDialog}
         </div>
       )
-    }
     case 'scanning_off':
       return <DependencyLink reason={t('snmpNext.scanningWhy')} to={active} label={t('snmpNext.scanning')} />
     case 'regular_scan_never':
@@ -57,9 +65,12 @@ export function SnmpNext({ r, ip, cred, onWiden, onEdit, onRetry }: {
     case 'not_in_inventory':
       // ponytail: no way yet to add an address the box has not found (asked of AI-Trưởng on #849); until then the next step is named.
       return <DependencyLink reason={t('snmpNext.notListedWhy')} to="/devices?tab=review" label={t('snmpNext.notListed')} />
-    case 'declared_by_hand':
-      // A device added manually is never probed (INV-5); turning it into a probed one needs the backend (asked on #849).
-      return r.device_id ? <DependencyLink reason={t('snmpNext.manualWhy')} to={`/devices/${encodeURIComponent(r.device_id)}`} label={t('snmpNext.manual')} /> : null
+    case 'declared_by_hand': case 'snmp_off':
+      // D-601: SNMP is off for this device (added by hand and nobody turned it on, or a person turned it off): turn it on here, read again.
+      return r.device_id ? turnOn : null
+    case 'excluded':
+      // D-601: SNMP is not bound by the LAN ranges, only by the exclusions ("never touch") and the credential's own list.
+      return <DependencyLink reason={t('snmpNext.excludedSnmpWhy', { ip })} to="/devices/setup?tab=scope#excl-input" label={t('snmpNext.excluded')} />
     default:
       return null
   }

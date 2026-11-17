@@ -250,6 +250,7 @@ var Operations = map[string]Operation{
 	"inventory_post_inventory_snmp_id_read":                 {Method: "POST", Path: "/inventory/snmp/{id}/read", MinRole: Admin, Tag: "inventory"},
 	"inventory_post_inventory_snmp_id_test":                 {Method: "POST", Path: "/inventory/snmp/{id}/test", MinRole: Admin, Tag: "inventory"},
 	"inventory_put_inventory_agents_wazuh":                  {Method: "PUT", Path: "/inventory/agents/wazuh", MinRole: Admin, Tag: "inventory"},
+	"inventory_put_inventory_devices_id_sources":            {Method: "PUT", Path: "/inventory/devices/{id}/sources", MinRole: Admin, Tag: "inventory"},
 	"inventory_put_inventory_notify_new":                    {Method: "PUT", Path: "/inventory/notify-new", MinRole: Operator, Tag: "inventory"},
 	"inventory_put_inventory_settings":                      {Method: "PUT", Path: "/inventory/settings", MinRole: Admin, Tag: "inventory"},
 	"inventory_put_inventory_snmp_id":                       {Method: "PUT", Path: "/inventory/snmp/{id}", MinRole: Admin, Tag: "inventory"},

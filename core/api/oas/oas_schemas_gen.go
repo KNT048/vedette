@@ -97007,11 +97007,18 @@ type InventoryGetInventoryDevicesIDOKAsset struct {
 	Os     NilInventoryGetInventoryDevicesIDOKAssetOs  `json:"os"`
 	// Per-device override of the type setting for regular scans after the one gentle scan (D-45); never =
 	// never actively scanned again, for every kind of device (D-74).
-	RegularScan InventoryGetInventoryDevicesIDOKAssetRegularScan    `json:"regular_scan"`
-	Services    []InventoryGetInventoryDevicesIDOKAssetServicesItem `json:"services"`
-	Site        string                                              `json:"site"`
-	Software    []InventoryGetInventoryDevicesIDOKAssetSoftwareItem `json:"software"`
-	Vendor      NilInventoryGetInventoryDevicesIDOKAssetVendor      `json:"vendor"`
+	RegularScan InventoryGetInventoryDevicesIDOKAssetRegularScan `json:"regular_scan"`
+	// D-601: the box's network scan of this device (discovery's nmap and the vulnerability scans). on: the
+	// box's own scan settings decide; off: no scan packet goes to it. Default: on for a device a sensor
+	// found, off for one added by hand. Off is answered as regular_scan_never by the scan refusals.
+	ScanSource InventoryGetInventoryDevicesIDOKAssetScanSource     `json:"scan_source"`
+	Services   []InventoryGetInventoryDevicesIDOKAssetServicesItem `json:"services"`
+	Site       string                                              `json:"site"`
+	// D-601: the box's SNMP reads of this device, as scan_source (default on for a device a sensor found,
+	// off for one added by hand). Off: no SNMP read goes to it (Test answers snmp_off).
+	SnmpSource InventoryGetInventoryDevicesIDOKAssetSnmpSource     `json:"snmp_source"`
+	Software   []InventoryGetInventoryDevicesIDOKAssetSoftwareItem `json:"software"`
+	Vendor     NilInventoryGetInventoryDevicesIDOKAssetVendor      `json:"vendor"`
 }
 
 // GetApproved returns the value of Approved.
@@ -97114,6 +97121,11 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) GetRegularScan() InventoryGetInv
 	return s.RegularScan
 }
 
+// GetScanSource returns the value of ScanSource.
+func (s *InventoryGetInventoryDevicesIDOKAsset) GetScanSource() InventoryGetInventoryDevicesIDOKAssetScanSource {
+	return s.ScanSource
+}
+
 // GetServices returns the value of Services.
 func (s *InventoryGetInventoryDevicesIDOKAsset) GetServices() []InventoryGetInventoryDevicesIDOKAssetServicesItem {
 	return s.Services
@@ -97122,6 +97134,11 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) GetServices() []InventoryGetInve
 // GetSite returns the value of Site.
 func (s *InventoryGetInventoryDevicesIDOKAsset) GetSite() string {
 	return s.Site
+}
+
+// GetSnmpSource returns the value of SnmpSource.
+func (s *InventoryGetInventoryDevicesIDOKAsset) GetSnmpSource() InventoryGetInventoryDevicesIDOKAssetSnmpSource {
+	return s.SnmpSource
 }
 
 // GetSoftware returns the value of Software.
@@ -97234,6 +97251,11 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) SetRegularScan(val InventoryGetI
 	s.RegularScan = val
 }
 
+// SetScanSource sets the value of ScanSource.
+func (s *InventoryGetInventoryDevicesIDOKAsset) SetScanSource(val InventoryGetInventoryDevicesIDOKAssetScanSource) {
+	s.ScanSource = val
+}
+
 // SetServices sets the value of Services.
 func (s *InventoryGetInventoryDevicesIDOKAsset) SetServices(val []InventoryGetInventoryDevicesIDOKAssetServicesItem) {
 	s.Services = val
@@ -97242,6 +97264,11 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) SetServices(val []InventoryGetIn
 // SetSite sets the value of Site.
 func (s *InventoryGetInventoryDevicesIDOKAsset) SetSite(val string) {
 	s.Site = val
+}
+
+// SetSnmpSource sets the value of SnmpSource.
+func (s *InventoryGetInventoryDevicesIDOKAsset) SetSnmpSource(val InventoryGetInventoryDevicesIDOKAssetSnmpSource) {
+	s.SnmpSource = val
 }
 
 // SetSoftware sets the value of Software.
@@ -99663,6 +99690,50 @@ func (s *InventoryGetInventoryDevicesIDOKAssetRegularScan) UnmarshalText(data []
 	}
 }
 
+// D-601: the box's network scan of this device (discovery's nmap and the vulnerability scans). on: the
+// box's own scan settings decide; off: no scan packet goes to it. Default: on for a device a sensor
+// found, off for one added by hand. Off is answered as regular_scan_never by the scan refusals.
+type InventoryGetInventoryDevicesIDOKAssetScanSource string
+
+const (
+	InventoryGetInventoryDevicesIDOKAssetScanSourceOn  InventoryGetInventoryDevicesIDOKAssetScanSource = "on"
+	InventoryGetInventoryDevicesIDOKAssetScanSourceOff InventoryGetInventoryDevicesIDOKAssetScanSource = "off"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesIDOKAssetScanSource values.
+func (InventoryGetInventoryDevicesIDOKAssetScanSource) AllValues() []InventoryGetInventoryDevicesIDOKAssetScanSource {
+	return []InventoryGetInventoryDevicesIDOKAssetScanSource{
+		InventoryGetInventoryDevicesIDOKAssetScanSourceOn,
+		InventoryGetInventoryDevicesIDOKAssetScanSourceOff,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesIDOKAssetScanSource) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesIDOKAssetScanSourceOn:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetScanSourceOff:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesIDOKAssetScanSource) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesIDOKAssetScanSource(data) {
+	case InventoryGetInventoryDevicesIDOKAssetScanSourceOn:
+		*s = InventoryGetInventoryDevicesIDOKAssetScanSourceOn
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetScanSourceOff:
+		*s = InventoryGetInventoryDevicesIDOKAssetScanSourceOff
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type InventoryGetInventoryDevicesIDOKAssetServicesItem struct {
 	Confidence float64 `json:"confidence"`
 	// What the service said about the device besides product and version: nmap extra info and device type,
@@ -99860,6 +99931,49 @@ func (s *InventoryGetInventoryDevicesIDOKAssetServicesItemSource) UnmarshalText(
 		return nil
 	case InventoryGetInventoryDevicesIDOKAssetServicesItemSourceScan:
 		*s = InventoryGetInventoryDevicesIDOKAssetServicesItemSourceScan
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// D-601: the box's SNMP reads of this device, as scan_source (default on for a device a sensor found,
+// off for one added by hand). Off: no SNMP read goes to it (Test answers snmp_off).
+type InventoryGetInventoryDevicesIDOKAssetSnmpSource string
+
+const (
+	InventoryGetInventoryDevicesIDOKAssetSnmpSourceOn  InventoryGetInventoryDevicesIDOKAssetSnmpSource = "on"
+	InventoryGetInventoryDevicesIDOKAssetSnmpSourceOff InventoryGetInventoryDevicesIDOKAssetSnmpSource = "off"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesIDOKAssetSnmpSource values.
+func (InventoryGetInventoryDevicesIDOKAssetSnmpSource) AllValues() []InventoryGetInventoryDevicesIDOKAssetSnmpSource {
+	return []InventoryGetInventoryDevicesIDOKAssetSnmpSource{
+		InventoryGetInventoryDevicesIDOKAssetSnmpSourceOn,
+		InventoryGetInventoryDevicesIDOKAssetSnmpSourceOff,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesIDOKAssetSnmpSource) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesIDOKAssetSnmpSourceOn:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetSnmpSourceOff:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesIDOKAssetSnmpSource) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesIDOKAssetSnmpSource(data) {
+	case InventoryGetInventoryDevicesIDOKAssetSnmpSourceOn:
+		*s = InventoryGetInventoryDevicesIDOKAssetSnmpSourceOn
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetSnmpSourceOff:
+		*s = InventoryGetInventoryDevicesIDOKAssetSnmpSourceOff
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -101205,10 +101319,17 @@ type InventoryGetInventoryDevicesOKItemsItem struct {
 	Os     NilInventoryGetInventoryDevicesOKItemsItemOs  `json:"os"`
 	// Per-device override of the type setting for regular scans after the one gentle scan (D-45); never =
 	// never actively scanned again, for every kind of device (D-74).
-	RegularScan InventoryGetInventoryDevicesOKItemsItemRegularScan    `json:"regular_scan"`
-	Services    []InventoryGetInventoryDevicesOKItemsItemServicesItem `json:"services"`
-	Site        string                                                `json:"site"`
-	Software    []InventoryGetInventoryDevicesOKItemsItemSoftwareItem `json:"software"`
+	RegularScan InventoryGetInventoryDevicesOKItemsItemRegularScan `json:"regular_scan"`
+	// D-601: the box's network scan of this device (discovery's nmap and the vulnerability scans). on: the
+	// box's own scan settings decide; off: no scan packet goes to it. Default: on for a device a sensor
+	// found, off for one added by hand. Off is answered as regular_scan_never by the scan refusals.
+	ScanSource InventoryGetInventoryDevicesOKItemsItemScanSource     `json:"scan_source"`
+	Services   []InventoryGetInventoryDevicesOKItemsItemServicesItem `json:"services"`
+	Site       string                                                `json:"site"`
+	// D-601: the box's SNMP reads of this device, as scan_source (default on for a device a sensor found,
+	// off for one added by hand). Off: no SNMP read goes to it (Test answers snmp_off).
+	SnmpSource InventoryGetInventoryDevicesOKItemsItemSnmpSource     `json:"snmp_source"`
+	Software   []InventoryGetInventoryDevicesOKItemsItemSoftwareItem `json:"software"`
 	// Every source that told Vedette something about the device and is still kept (its details, software
 	// or open ports), plus manual for a device added manually, in the order of DeviceSource (#849 source:
 	// filter, #829 sources of the device page).
@@ -101324,6 +101445,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) GetRegularScan() InventoryGetI
 	return s.RegularScan
 }
 
+// GetScanSource returns the value of ScanSource.
+func (s *InventoryGetInventoryDevicesOKItemsItem) GetScanSource() InventoryGetInventoryDevicesOKItemsItemScanSource {
+	return s.ScanSource
+}
+
 // GetServices returns the value of Services.
 func (s *InventoryGetInventoryDevicesOKItemsItem) GetServices() []InventoryGetInventoryDevicesOKItemsItemServicesItem {
 	return s.Services
@@ -101332,6 +101458,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) GetServices() []InventoryGetIn
 // GetSite returns the value of Site.
 func (s *InventoryGetInventoryDevicesOKItemsItem) GetSite() string {
 	return s.Site
+}
+
+// GetSnmpSource returns the value of SnmpSource.
+func (s *InventoryGetInventoryDevicesOKItemsItem) GetSnmpSource() InventoryGetInventoryDevicesOKItemsItemSnmpSource {
+	return s.SnmpSource
 }
 
 // GetSoftware returns the value of Software.
@@ -101464,6 +101595,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) SetRegularScan(val InventoryGe
 	s.RegularScan = val
 }
 
+// SetScanSource sets the value of ScanSource.
+func (s *InventoryGetInventoryDevicesOKItemsItem) SetScanSource(val InventoryGetInventoryDevicesOKItemsItemScanSource) {
+	s.ScanSource = val
+}
+
 // SetServices sets the value of Services.
 func (s *InventoryGetInventoryDevicesOKItemsItem) SetServices(val []InventoryGetInventoryDevicesOKItemsItemServicesItem) {
 	s.Services = val
@@ -101472,6 +101608,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) SetServices(val []InventoryGet
 // SetSite sets the value of Site.
 func (s *InventoryGetInventoryDevicesOKItemsItem) SetSite(val string) {
 	s.Site = val
+}
+
+// SetSnmpSource sets the value of SnmpSource.
+func (s *InventoryGetInventoryDevicesOKItemsItem) SetSnmpSource(val InventoryGetInventoryDevicesOKItemsItemSnmpSource) {
+	s.SnmpSource = val
 }
 
 // SetSoftware sets the value of Software.
@@ -103908,6 +104049,50 @@ func (s *InventoryGetInventoryDevicesOKItemsItemRegularScan) UnmarshalText(data 
 	}
 }
 
+// D-601: the box's network scan of this device (discovery's nmap and the vulnerability scans). on: the
+// box's own scan settings decide; off: no scan packet goes to it. Default: on for a device a sensor
+// found, off for one added by hand. Off is answered as regular_scan_never by the scan refusals.
+type InventoryGetInventoryDevicesOKItemsItemScanSource string
+
+const (
+	InventoryGetInventoryDevicesOKItemsItemScanSourceOn  InventoryGetInventoryDevicesOKItemsItemScanSource = "on"
+	InventoryGetInventoryDevicesOKItemsItemScanSourceOff InventoryGetInventoryDevicesOKItemsItemScanSource = "off"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesOKItemsItemScanSource values.
+func (InventoryGetInventoryDevicesOKItemsItemScanSource) AllValues() []InventoryGetInventoryDevicesOKItemsItemScanSource {
+	return []InventoryGetInventoryDevicesOKItemsItemScanSource{
+		InventoryGetInventoryDevicesOKItemsItemScanSourceOn,
+		InventoryGetInventoryDevicesOKItemsItemScanSourceOff,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesOKItemsItemScanSource) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesOKItemsItemScanSourceOn:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemScanSourceOff:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesOKItemsItemScanSource) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesOKItemsItemScanSource(data) {
+	case InventoryGetInventoryDevicesOKItemsItemScanSourceOn:
+		*s = InventoryGetInventoryDevicesOKItemsItemScanSourceOn
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemScanSourceOff:
+		*s = InventoryGetInventoryDevicesOKItemsItemScanSourceOff
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type InventoryGetInventoryDevicesOKItemsItemServicesItem struct {
 	Confidence float64 `json:"confidence"`
 	// What the service said about the device besides product and version: nmap extra info and device type,
@@ -104105,6 +104290,49 @@ func (s *InventoryGetInventoryDevicesOKItemsItemServicesItemSource) UnmarshalTex
 		return nil
 	case InventoryGetInventoryDevicesOKItemsItemServicesItemSourceScan:
 		*s = InventoryGetInventoryDevicesOKItemsItemServicesItemSourceScan
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// D-601: the box's SNMP reads of this device, as scan_source (default on for a device a sensor found,
+// off for one added by hand). Off: no SNMP read goes to it (Test answers snmp_off).
+type InventoryGetInventoryDevicesOKItemsItemSnmpSource string
+
+const (
+	InventoryGetInventoryDevicesOKItemsItemSnmpSourceOn  InventoryGetInventoryDevicesOKItemsItemSnmpSource = "on"
+	InventoryGetInventoryDevicesOKItemsItemSnmpSourceOff InventoryGetInventoryDevicesOKItemsItemSnmpSource = "off"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesOKItemsItemSnmpSource values.
+func (InventoryGetInventoryDevicesOKItemsItemSnmpSource) AllValues() []InventoryGetInventoryDevicesOKItemsItemSnmpSource {
+	return []InventoryGetInventoryDevicesOKItemsItemSnmpSource{
+		InventoryGetInventoryDevicesOKItemsItemSnmpSourceOn,
+		InventoryGetInventoryDevicesOKItemsItemSnmpSourceOff,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesOKItemsItemSnmpSource) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesOKItemsItemSnmpSourceOn:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemSnmpSourceOff:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesOKItemsItemSnmpSource) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesOKItemsItemSnmpSource(data) {
+	case InventoryGetInventoryDevicesOKItemsItemSnmpSourceOn:
+		*s = InventoryGetInventoryDevicesOKItemsItemSnmpSourceOn
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemSnmpSourceOff:
+		*s = InventoryGetInventoryDevicesOKItemsItemSnmpSourceOff
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -105984,6 +106212,8 @@ const (
 	InventoryGetInventorySnmpIDReadOKResultsItemReasonRegularScanNever     InventoryGetInventorySnmpIDReadOKResultsItemReason = "regular_scan_never"
 	InventoryGetInventorySnmpIDReadOKResultsItemReasonUnavailable          InventoryGetInventorySnmpIDReadOKResultsItemReason = "unavailable"
 	InventoryGetInventorySnmpIDReadOKResultsItemReasonBusy                 InventoryGetInventorySnmpIDReadOKResultsItemReason = "busy"
+	InventoryGetInventorySnmpIDReadOKResultsItemReasonSnmpOff              InventoryGetInventorySnmpIDReadOKResultsItemReason = "snmp_off"
+	InventoryGetInventorySnmpIDReadOKResultsItemReasonExcluded             InventoryGetInventorySnmpIDReadOKResultsItemReason = "excluded"
 )
 
 // AllValues returns all InventoryGetInventorySnmpIDReadOKResultsItemReason values.
@@ -106005,6 +106235,8 @@ func (InventoryGetInventorySnmpIDReadOKResultsItemReason) AllValues() []Inventor
 		InventoryGetInventorySnmpIDReadOKResultsItemReasonRegularScanNever,
 		InventoryGetInventorySnmpIDReadOKResultsItemReasonUnavailable,
 		InventoryGetInventorySnmpIDReadOKResultsItemReasonBusy,
+		InventoryGetInventorySnmpIDReadOKResultsItemReasonSnmpOff,
+		InventoryGetInventorySnmpIDReadOKResultsItemReasonExcluded,
 	}
 }
 
@@ -106042,6 +106274,10 @@ func (s InventoryGetInventorySnmpIDReadOKResultsItemReason) MarshalText() ([]byt
 	case InventoryGetInventorySnmpIDReadOKResultsItemReasonUnavailable:
 		return []byte(s), nil
 	case InventoryGetInventorySnmpIDReadOKResultsItemReasonBusy:
+		return []byte(s), nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonSnmpOff:
+		return []byte(s), nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonExcluded:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -106098,6 +106334,12 @@ func (s *InventoryGetInventorySnmpIDReadOKResultsItemReason) UnmarshalText(data 
 		return nil
 	case InventoryGetInventorySnmpIDReadOKResultsItemReasonBusy:
 		*s = InventoryGetInventorySnmpIDReadOKResultsItemReasonBusy
+		return nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonSnmpOff:
+		*s = InventoryGetInventorySnmpIDReadOKResultsItemReasonSnmpOff
+		return nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonExcluded:
+		*s = InventoryGetInventorySnmpIDReadOKResultsItemReasonExcluded
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -109655,6 +109897,8 @@ const (
 	InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonRegularScanNever     InventoryPostInventorySnmpIDReadAcceptedResultsItemReason = "regular_scan_never"
 	InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonUnavailable          InventoryPostInventorySnmpIDReadAcceptedResultsItemReason = "unavailable"
 	InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonBusy                 InventoryPostInventorySnmpIDReadAcceptedResultsItemReason = "busy"
+	InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonSnmpOff              InventoryPostInventorySnmpIDReadAcceptedResultsItemReason = "snmp_off"
+	InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonExcluded             InventoryPostInventorySnmpIDReadAcceptedResultsItemReason = "excluded"
 )
 
 // AllValues returns all InventoryPostInventorySnmpIDReadAcceptedResultsItemReason values.
@@ -109676,6 +109920,8 @@ func (InventoryPostInventorySnmpIDReadAcceptedResultsItemReason) AllValues() []I
 		InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonRegularScanNever,
 		InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonUnavailable,
 		InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonBusy,
+		InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonSnmpOff,
+		InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonExcluded,
 	}
 }
 
@@ -109713,6 +109959,10 @@ func (s InventoryPostInventorySnmpIDReadAcceptedResultsItemReason) MarshalText()
 	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonUnavailable:
 		return []byte(s), nil
 	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonBusy:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonSnmpOff:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonExcluded:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -109769,6 +110019,12 @@ func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItemReason) UnmarshalTex
 		return nil
 	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonBusy:
 		*s = InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonBusy
+		return nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonSnmpOff:
+		*s = InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonSnmpOff
+		return nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonExcluded:
+		*s = InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonExcluded
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -110027,6 +110283,8 @@ const (
 	InventoryPostInventorySnmpIDTestOKReasonRegularScanNever     InventoryPostInventorySnmpIDTestOKReason = "regular_scan_never"
 	InventoryPostInventorySnmpIDTestOKReasonUnavailable          InventoryPostInventorySnmpIDTestOKReason = "unavailable"
 	InventoryPostInventorySnmpIDTestOKReasonBusy                 InventoryPostInventorySnmpIDTestOKReason = "busy"
+	InventoryPostInventorySnmpIDTestOKReasonSnmpOff              InventoryPostInventorySnmpIDTestOKReason = "snmp_off"
+	InventoryPostInventorySnmpIDTestOKReasonExcluded             InventoryPostInventorySnmpIDTestOKReason = "excluded"
 )
 
 // AllValues returns all InventoryPostInventorySnmpIDTestOKReason values.
@@ -110048,6 +110306,8 @@ func (InventoryPostInventorySnmpIDTestOKReason) AllValues() []InventoryPostInven
 		InventoryPostInventorySnmpIDTestOKReasonRegularScanNever,
 		InventoryPostInventorySnmpIDTestOKReasonUnavailable,
 		InventoryPostInventorySnmpIDTestOKReasonBusy,
+		InventoryPostInventorySnmpIDTestOKReasonSnmpOff,
+		InventoryPostInventorySnmpIDTestOKReasonExcluded,
 	}
 }
 
@@ -110085,6 +110345,10 @@ func (s InventoryPostInventorySnmpIDTestOKReason) MarshalText() ([]byte, error) 
 	case InventoryPostInventorySnmpIDTestOKReasonUnavailable:
 		return []byte(s), nil
 	case InventoryPostInventorySnmpIDTestOKReasonBusy:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDTestOKReasonSnmpOff:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDTestOKReasonExcluded:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -110141,6 +110405,12 @@ func (s *InventoryPostInventorySnmpIDTestOKReason) UnmarshalText(data []byte) er
 		return nil
 	case InventoryPostInventorySnmpIDTestOKReasonBusy:
 		*s = InventoryPostInventorySnmpIDTestOKReasonBusy
+		return nil
+	case InventoryPostInventorySnmpIDTestOKReasonSnmpOff:
+		*s = InventoryPostInventorySnmpIDTestOKReasonSnmpOff
+		return nil
+	case InventoryPostInventorySnmpIDTestOKReasonExcluded:
+		*s = InventoryPostInventorySnmpIDTestOKReasonExcluded
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -110613,6 +110883,221 @@ func (s *InventoryPutInventoryAgentsWazuhReq) SetURL(val string) {
 // SetUsername sets the value of Username.
 func (s *InventoryPutInventoryAgentsWazuhReq) SetUsername(val string) {
 	s.Username = val
+}
+
+type InventoryPutInventoryDevicesIDSourcesOK struct {
+	ScanSource InventoryPutInventoryDevicesIDSourcesOKScanSource `json:"scan_source"`
+	SnmpSource InventoryPutInventoryDevicesIDSourcesOKSnmpSource `json:"snmp_source"`
+}
+
+// GetScanSource returns the value of ScanSource.
+func (s *InventoryPutInventoryDevicesIDSourcesOK) GetScanSource() InventoryPutInventoryDevicesIDSourcesOKScanSource {
+	return s.ScanSource
+}
+
+// GetSnmpSource returns the value of SnmpSource.
+func (s *InventoryPutInventoryDevicesIDSourcesOK) GetSnmpSource() InventoryPutInventoryDevicesIDSourcesOKSnmpSource {
+	return s.SnmpSource
+}
+
+// SetScanSource sets the value of ScanSource.
+func (s *InventoryPutInventoryDevicesIDSourcesOK) SetScanSource(val InventoryPutInventoryDevicesIDSourcesOKScanSource) {
+	s.ScanSource = val
+}
+
+// SetSnmpSource sets the value of SnmpSource.
+func (s *InventoryPutInventoryDevicesIDSourcesOK) SetSnmpSource(val InventoryPutInventoryDevicesIDSourcesOKSnmpSource) {
+	s.SnmpSource = val
+}
+
+type InventoryPutInventoryDevicesIDSourcesOKScanSource string
+
+const (
+	InventoryPutInventoryDevicesIDSourcesOKScanSourceOn  InventoryPutInventoryDevicesIDSourcesOKScanSource = "on"
+	InventoryPutInventoryDevicesIDSourcesOKScanSourceOff InventoryPutInventoryDevicesIDSourcesOKScanSource = "off"
+)
+
+// AllValues returns all InventoryPutInventoryDevicesIDSourcesOKScanSource values.
+func (InventoryPutInventoryDevicesIDSourcesOKScanSource) AllValues() []InventoryPutInventoryDevicesIDSourcesOKScanSource {
+	return []InventoryPutInventoryDevicesIDSourcesOKScanSource{
+		InventoryPutInventoryDevicesIDSourcesOKScanSourceOn,
+		InventoryPutInventoryDevicesIDSourcesOKScanSourceOff,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPutInventoryDevicesIDSourcesOKScanSource) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPutInventoryDevicesIDSourcesOKScanSourceOn:
+		return []byte(s), nil
+	case InventoryPutInventoryDevicesIDSourcesOKScanSourceOff:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPutInventoryDevicesIDSourcesOKScanSource) UnmarshalText(data []byte) error {
+	switch InventoryPutInventoryDevicesIDSourcesOKScanSource(data) {
+	case InventoryPutInventoryDevicesIDSourcesOKScanSourceOn:
+		*s = InventoryPutInventoryDevicesIDSourcesOKScanSourceOn
+		return nil
+	case InventoryPutInventoryDevicesIDSourcesOKScanSourceOff:
+		*s = InventoryPutInventoryDevicesIDSourcesOKScanSourceOff
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryPutInventoryDevicesIDSourcesOKSnmpSource string
+
+const (
+	InventoryPutInventoryDevicesIDSourcesOKSnmpSourceOn  InventoryPutInventoryDevicesIDSourcesOKSnmpSource = "on"
+	InventoryPutInventoryDevicesIDSourcesOKSnmpSourceOff InventoryPutInventoryDevicesIDSourcesOKSnmpSource = "off"
+)
+
+// AllValues returns all InventoryPutInventoryDevicesIDSourcesOKSnmpSource values.
+func (InventoryPutInventoryDevicesIDSourcesOKSnmpSource) AllValues() []InventoryPutInventoryDevicesIDSourcesOKSnmpSource {
+	return []InventoryPutInventoryDevicesIDSourcesOKSnmpSource{
+		InventoryPutInventoryDevicesIDSourcesOKSnmpSourceOn,
+		InventoryPutInventoryDevicesIDSourcesOKSnmpSourceOff,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPutInventoryDevicesIDSourcesOKSnmpSource) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPutInventoryDevicesIDSourcesOKSnmpSourceOn:
+		return []byte(s), nil
+	case InventoryPutInventoryDevicesIDSourcesOKSnmpSourceOff:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPutInventoryDevicesIDSourcesOKSnmpSource) UnmarshalText(data []byte) error {
+	switch InventoryPutInventoryDevicesIDSourcesOKSnmpSource(data) {
+	case InventoryPutInventoryDevicesIDSourcesOKSnmpSourceOn:
+		*s = InventoryPutInventoryDevicesIDSourcesOKSnmpSourceOn
+		return nil
+	case InventoryPutInventoryDevicesIDSourcesOKSnmpSourceOff:
+		*s = InventoryPutInventoryDevicesIDSourcesOKSnmpSourceOff
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// At least one; a source left out is left alone.
+type InventoryPutInventoryDevicesIDSourcesReq struct {
+	Scan OptInventoryPutInventoryDevicesIDSourcesReqScan `json:"scan"`
+	Snmp OptInventoryPutInventoryDevicesIDSourcesReqSnmp `json:"snmp"`
+}
+
+// GetScan returns the value of Scan.
+func (s *InventoryPutInventoryDevicesIDSourcesReq) GetScan() OptInventoryPutInventoryDevicesIDSourcesReqScan {
+	return s.Scan
+}
+
+// GetSnmp returns the value of Snmp.
+func (s *InventoryPutInventoryDevicesIDSourcesReq) GetSnmp() OptInventoryPutInventoryDevicesIDSourcesReqSnmp {
+	return s.Snmp
+}
+
+// SetScan sets the value of Scan.
+func (s *InventoryPutInventoryDevicesIDSourcesReq) SetScan(val OptInventoryPutInventoryDevicesIDSourcesReqScan) {
+	s.Scan = val
+}
+
+// SetSnmp sets the value of Snmp.
+func (s *InventoryPutInventoryDevicesIDSourcesReq) SetSnmp(val OptInventoryPutInventoryDevicesIDSourcesReqSnmp) {
+	s.Snmp = val
+}
+
+type InventoryPutInventoryDevicesIDSourcesReqScan string
+
+const (
+	InventoryPutInventoryDevicesIDSourcesReqScanOn  InventoryPutInventoryDevicesIDSourcesReqScan = "on"
+	InventoryPutInventoryDevicesIDSourcesReqScanOff InventoryPutInventoryDevicesIDSourcesReqScan = "off"
+)
+
+// AllValues returns all InventoryPutInventoryDevicesIDSourcesReqScan values.
+func (InventoryPutInventoryDevicesIDSourcesReqScan) AllValues() []InventoryPutInventoryDevicesIDSourcesReqScan {
+	return []InventoryPutInventoryDevicesIDSourcesReqScan{
+		InventoryPutInventoryDevicesIDSourcesReqScanOn,
+		InventoryPutInventoryDevicesIDSourcesReqScanOff,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPutInventoryDevicesIDSourcesReqScan) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPutInventoryDevicesIDSourcesReqScanOn:
+		return []byte(s), nil
+	case InventoryPutInventoryDevicesIDSourcesReqScanOff:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPutInventoryDevicesIDSourcesReqScan) UnmarshalText(data []byte) error {
+	switch InventoryPutInventoryDevicesIDSourcesReqScan(data) {
+	case InventoryPutInventoryDevicesIDSourcesReqScanOn:
+		*s = InventoryPutInventoryDevicesIDSourcesReqScanOn
+		return nil
+	case InventoryPutInventoryDevicesIDSourcesReqScanOff:
+		*s = InventoryPutInventoryDevicesIDSourcesReqScanOff
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryPutInventoryDevicesIDSourcesReqSnmp string
+
+const (
+	InventoryPutInventoryDevicesIDSourcesReqSnmpOn  InventoryPutInventoryDevicesIDSourcesReqSnmp = "on"
+	InventoryPutInventoryDevicesIDSourcesReqSnmpOff InventoryPutInventoryDevicesIDSourcesReqSnmp = "off"
+)
+
+// AllValues returns all InventoryPutInventoryDevicesIDSourcesReqSnmp values.
+func (InventoryPutInventoryDevicesIDSourcesReqSnmp) AllValues() []InventoryPutInventoryDevicesIDSourcesReqSnmp {
+	return []InventoryPutInventoryDevicesIDSourcesReqSnmp{
+		InventoryPutInventoryDevicesIDSourcesReqSnmpOn,
+		InventoryPutInventoryDevicesIDSourcesReqSnmpOff,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPutInventoryDevicesIDSourcesReqSnmp) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPutInventoryDevicesIDSourcesReqSnmpOn:
+		return []byte(s), nil
+	case InventoryPutInventoryDevicesIDSourcesReqSnmpOff:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPutInventoryDevicesIDSourcesReqSnmp) UnmarshalText(data []byte) error {
+	switch InventoryPutInventoryDevicesIDSourcesReqSnmp(data) {
+	case InventoryPutInventoryDevicesIDSourcesReqSnmpOn:
+		*s = InventoryPutInventoryDevicesIDSourcesReqSnmpOn
+		return nil
+	case InventoryPutInventoryDevicesIDSourcesReqSnmpOff:
+		*s = InventoryPutInventoryDevicesIDSourcesReqSnmpOff
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type InventoryPutInventoryNotifyNewOK struct {
@@ -143798,6 +144283,98 @@ func (o OptInventoryPostInventorySnmpReqPriv) Get() (v InventoryPostInventorySnm
 
 // Or returns value if set, or given parameter if does not.
 func (o OptInventoryPostInventorySnmpReqPriv) Or(d InventoryPostInventorySnmpReqPriv) InventoryPostInventorySnmpReqPriv {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInventoryPutInventoryDevicesIDSourcesReqScan returns new OptInventoryPutInventoryDevicesIDSourcesReqScan with value set to v.
+func NewOptInventoryPutInventoryDevicesIDSourcesReqScan(v InventoryPutInventoryDevicesIDSourcesReqScan) OptInventoryPutInventoryDevicesIDSourcesReqScan {
+	return OptInventoryPutInventoryDevicesIDSourcesReqScan{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryPutInventoryDevicesIDSourcesReqScan is optional InventoryPutInventoryDevicesIDSourcesReqScan.
+type OptInventoryPutInventoryDevicesIDSourcesReqScan struct {
+	Value InventoryPutInventoryDevicesIDSourcesReqScan
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryPutInventoryDevicesIDSourcesReqScan was set.
+func (o OptInventoryPutInventoryDevicesIDSourcesReqScan) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryPutInventoryDevicesIDSourcesReqScan) Reset() {
+	var v InventoryPutInventoryDevicesIDSourcesReqScan
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryPutInventoryDevicesIDSourcesReqScan) SetTo(v InventoryPutInventoryDevicesIDSourcesReqScan) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryPutInventoryDevicesIDSourcesReqScan) Get() (v InventoryPutInventoryDevicesIDSourcesReqScan, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryPutInventoryDevicesIDSourcesReqScan) Or(d InventoryPutInventoryDevicesIDSourcesReqScan) InventoryPutInventoryDevicesIDSourcesReqScan {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInventoryPutInventoryDevicesIDSourcesReqSnmp returns new OptInventoryPutInventoryDevicesIDSourcesReqSnmp with value set to v.
+func NewOptInventoryPutInventoryDevicesIDSourcesReqSnmp(v InventoryPutInventoryDevicesIDSourcesReqSnmp) OptInventoryPutInventoryDevicesIDSourcesReqSnmp {
+	return OptInventoryPutInventoryDevicesIDSourcesReqSnmp{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryPutInventoryDevicesIDSourcesReqSnmp is optional InventoryPutInventoryDevicesIDSourcesReqSnmp.
+type OptInventoryPutInventoryDevicesIDSourcesReqSnmp struct {
+	Value InventoryPutInventoryDevicesIDSourcesReqSnmp
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryPutInventoryDevicesIDSourcesReqSnmp was set.
+func (o OptInventoryPutInventoryDevicesIDSourcesReqSnmp) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryPutInventoryDevicesIDSourcesReqSnmp) Reset() {
+	var v InventoryPutInventoryDevicesIDSourcesReqSnmp
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryPutInventoryDevicesIDSourcesReqSnmp) SetTo(v InventoryPutInventoryDevicesIDSourcesReqSnmp) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryPutInventoryDevicesIDSourcesReqSnmp) Get() (v InventoryPutInventoryDevicesIDSourcesReqSnmp, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryPutInventoryDevicesIDSourcesReqSnmp) Or(d InventoryPutInventoryDevicesIDSourcesReqSnmp) InventoryPutInventoryDevicesIDSourcesReqSnmp {
 	if v, ok := o.Get(); ok {
 		return v
 	}

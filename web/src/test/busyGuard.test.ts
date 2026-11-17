@@ -45,7 +45,7 @@ type Rule = keyof typeof RULES
 const ALLOWED: { file: string; text: string; count: number; why: string }[] = [
   { file: 'components/ui/button.tsx', text: '<button className', count: 1, why: 'the Button itself: its native button is the one that draws the busy state' },
   { file: 'features/core/SetupPage.tsx', text: 'key="next"', count: 1, why: 'Continue only moves to the next step of the wizard; Finish (busy) is the step that calls the server' },
-  { file: 'features/inventory/AddDialog.tsx', text: '<Button type="submit" variant="primary">', count: 2, why: 'for a range the form only opens a dialog (add to scope, or widen the credential), each with its own busy Save' },
+  { file: 'features/inventory/AddDialog.tsx', text: '<Button type="submit" variant="primary">', count: 1, why: 'for a range the form only opens a dialog (widen the credential), with its own busy Save' },
 ]
 
 function sources() {

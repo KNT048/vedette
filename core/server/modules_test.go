@@ -255,6 +255,7 @@ var contractRoutes = map[string][]string{
 		"POST /inventory/devices/{id}/software",
 		"POST /inventory/devices/{id}/suspicious",
 		"POST /inventory/import",
+		"PUT /inventory/devices/{id}/sources",
 		"PUT /inventory/notify-new",
 		"PUT /inventory/settings",
 	},

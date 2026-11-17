@@ -105,3 +105,76 @@ describe('Device page: Sources (D-598)', () => {
     expect(screen.queryByRole('list', { name: 'Sources' })).toBeNull()
   })
 })
+
+// D-601 (kien, a FortiGate added by hand: "I should still be able to add other checks later like osquery or SNMP; let the user toggle
+// each part on/off"): each active source is switched per device, with what it means in one line; a hand-added device starts silent.
+describe('Device page: Sources switches (D-601)', () => {
+  const addByHand = async (ip: string) => {
+    const r = await api('POST', '/devices', { catalog_id: 'fortigate', ip })
+    expect(r.status).toBe(201)
+    return ((await r.json()) as { id: string }).id
+  }
+  const sw = (li: HTMLElement) => within(li).getByRole('switch')
+
+  it('a device added by hand starts with scan and SNMP off; "Turn SNMP on and add" turns SNMP on and reads it right there', async () => {
+    enableModule('agent-intake', true)
+    const id = await addByHand('192.168.10.77')
+    const user = userEvent.setup()
+    renderApp(`/devices/${id}`, { role: 'admin' })
+    const list = await sources()
+    const scan = item(list, 'Network scan')
+    const snmp = item(list, 'SNMP')
+    expect(sw(scan)).not.toBeChecked()
+    expect(sw(snmp)).not.toBeChecked()
+    expect(scan).toHaveTextContent('Off: no scan packet goes to this device.')
+    expect(snmp).toHaveTextContent('Off: no SNMP read goes to this device.')
+    expect(screen.getByText(/Vedette sends nothing to it until you turn a source on here/)).toBeInTheDocument()
+    expect(item(list, 'Agent (osquery or Wazuh)')).toHaveTextContent('installed or uninstalled on the machine itself')
+    await user.click(within(snmp).getByRole('button', { name: 'Turn SNMP on and add' }))
+    expect(await within(snmp).findByLabelText('Credential', undefined, T)).toBeInTheDocument()
+    await vi.waitFor(() => expect(sw(item(list, 'SNMP'))).toBeChecked(), T)
+    expect(item(list, 'SNMP')).toHaveTextContent('outside the LAN ranges only because you turned it on here; never if excluded')
+    expect(sw(item(list, 'Network scan'))).not.toBeChecked() // that source only
+    await user.click(within(item(list, 'SNMP')).getByRole('button', { name: 'Read this device now' }))
+    expect(await within(item(list, 'SNMP')).findByText(/192\.168\.10\.77 (answered|was not read)\./, undefined, T)).toBeInTheDocument()
+    const d = (await (await api('GET', `/devices/${id}`)).json()) as { asset: { scan_source: string; snmp_source: string } }
+    expect(d.asset).toMatchObject({ scan_source: 'off', snmp_source: 'on' })
+  })
+
+  it('turns the network scan of a discovered device off and on again, saying what off means', async () => {
+    const user = userEvent.setup()
+    renderApp('/devices/a-nas02', { role: 'admin' })
+    const list = await sources()
+    expect(sw(item(list, 'Network scan'))).toBeChecked()
+    await user.click(sw(item(list, 'Network scan')))
+    await vi.waitFor(() => expect(item(list, 'Network scan')).toHaveTextContent('Off: no scan packet goes to this device.'), T)
+    expect(((await (await api('GET', '/devices/a-nas02')).json()) as { asset: { scan_source: string } }).asset.scan_source).toBe('off')
+    await user.click(sw(item(list, 'Network scan')))
+    await vi.waitFor(() => expect(sw(item(list, 'Network scan'))).toBeChecked(), T)
+  })
+
+  it('a viewer sees the switches locked', async () => {
+    renderApp('/devices/a-nas02', { role: 'viewer' })
+    const list = await sources()
+    expect(sw(item(list, 'Network scan'))).toBeDisabled()
+    expect(sw(item(list, 'SNMP'))).toBeDisabled()
+  })
+
+  it('a Test that SNMP is off for answers with "Turn SNMP on" on the spot', async () => {
+    const id = await addByHand('192.168.10.78')
+    expect((await api('PUT', `/devices/${id}/sources`, { snmp: 'off' })).status).toBe(200)
+    const user = userEvent.setup()
+    renderApp(`/devices/${id}`, { role: 'admin' })
+    const list = await sources()
+    await user.click(sw(item(list, 'SNMP')))
+    await vi.waitFor(() => expect(sw(item(list, 'SNMP'))).toBeChecked(), T)
+    await user.click(within(item(list, 'SNMP')).getByRole('button', { name: 'Add SNMP' }))
+    expect(await within(item(list, 'SNMP')).findByLabelText('Credential', undefined, T)).toBeInTheDocument()
+    // turned off again elsewhere (another tab): the read says why and turns it back on here
+    expect((await api('PUT', `/devices/${id}/sources`, { snmp: 'off' })).status).toBe(200)
+    await user.click(within(item(list, 'SNMP')).getByRole('button', { name: 'Read this device now' }))
+    const on = await within(item(list, 'SNMP')).findByRole('button', { name: 'Turn SNMP on for 192.168.10.78 and read it' }, T)
+    await user.click(on)
+    expect(await within(item(list, 'SNMP')).findByText(/192\.168\.10\.78 (answered|was not read)\./, undefined, T)).toBeInTheDocument()
+  })
+})

@@ -5,6 +5,10 @@
 - **core** `GET /scanning/history` reads them through `cmd/vedette/scanninghistory.go` (`jobHistory`): the words of a History row come from `sa_job` (status, error, targets, new_devices, reason) and the results of the job's probes. Changing a probe's result text (`"ok: %d hosts up"` in `service.go`, `"ok: %d of %d answered"` / `"failed: …"` in `snmp.go`) or a `sa_queue`/`sa_job` reason (`check_now`, `scan_now`, `window`, `snmp_test`, `snmp_read`) changes what History says: update `jobHistory` and `TestJobHistory_OutcomeInWords`.
 - **Cost**: one read per kind on `sa_job (kind, started_at)` and one on `sa_probe (job_id)` for the listed jobs, every 30 s while the tab is open.
 
+## Modifying: `snmpPolicy`, `scope.excluded`, the SNMP target checks of `snmpBatch`/`snmpChanged` (D-601, INV-22)
+- **inventory** `SNMPPolicy` (INV-37) decides per device; `Inventory` gained `SNMPPolicy` (adapter `cmd/vedette/sensoractive.go`, fakes in `env_test.go`, `toctou_test.go`). Binding SNMP to lan_ranges again, or dropping the exclusion check, changes which addresses get SNMP packets: change D-601, `TestSNMPSourcesAndScope` and the SNMP lines of the web (`SnmpNext.tsx` `excluded`).
+- New Test reasons `snmp_off`, `excluded` are in `SnmpTestReason` (`web/src/features/inventory/contract.ts`) and `snmpRefusals`: a reason not in both becomes `unavailable`.
+
 ## Modifying: manual runs and the engine view (`StartManual`, `Manual`, `WaitManual`, `Engine`, `manualUntil`; #850, INV-21)
 - **core** (`POST /scanning/engines/nmap-discovery/run`, `GET /scanning` `running[]` and the nmap-discovery, nmap-versions and snmp cards) reaches them through `cmd/vedette/scanning.go`: `TargetError` reasons and the `Err*` refusals map to the API's codes there; renaming one changes what a person reads.
 - **The window rule** (`windowNow`) now also opens for `manualUntil`: a change to it changes the first pass, the queue drain and `SettingsChanged`.

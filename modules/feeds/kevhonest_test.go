@@ -49,13 +49,13 @@ func TestG13_StatusSaysTheNewestCopyAndEachCopysResult(t *testing.T) {
 	if k["error"] != nil {
 		t.Errorf("one copy failing is not a failed check: %v", k["error"])
 	}
-	// cisa.gov answers again with the same catalog: the box keeps what it has (no news), cisa.gov's result is fine again
+	// cisa.gov answers again with the same catalog: of two equal catalogs cisa.gov's is kept (#946 r1: deterministic)
 	o.body(primaryPath, `"p1"`, testFile(t, "kev.json"))
 	e.setNow(e.clock().Add(time.Hour))
 	e.fetch("cisa-kev")
 	k, _ = e.kevStatus()
 	copies, _ = k["copies"].([]any)
-	if at(copies, 0, "error") != nil || at(copies, 0, "catalog_version") != "2026.11.04" || k["answered_by"] != AnsweredMirror {
+	if at(copies, 0, "error") != nil || at(copies, 0, "catalog_version") != "2026.11.04" || k["answered_by"] != AnsweredCISA {
 		t.Errorf("after cisa.gov came back: %v, newest from %v", copies, k["answered_by"])
 	}
 }
@@ -160,16 +160,17 @@ type alerts struct {
 	mu   sync.Mutex
 	sent []string // "id: title"
 	text []string
+	crit []bool
 	off  bool
 }
 
-func (a *alerts) send(_ context.Context, id, title, text string) error {
+func (a *alerts) send(_ context.Context, id, title, text string, critical bool) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.off {
 		return fmt.Errorf("notify: %w", ErrAlertOff)
 	}
-	a.sent, a.text = append(a.sent, id+": "+title), append(a.text, text)
+	a.sent, a.text, a.crit = append(a.sent, id+": "+title), append(a.text, text), append(a.crit, critical)
 	return nil
 }
 
@@ -213,6 +214,9 @@ func TestContract_D629_BothFailingAlertsOnceResolvesOnceAcrossRestarts(t *testin
 	if len(got) != 1 || !strings.HasPrefix(got[0], "feeds-kev-stale-") || !strings.Contains(got[0], "cannot update the list") {
 		t.Fatalf("both failing: %v", got)
 	}
+	if !a.crit[0] {
+		t.Error("the alert is not critical: a critical-only channel would never get it")
+	}
 	if txt := a.text[0]; !strings.Contains(txt, "The check at 5 Nov 2026, 14:00 UTC failed: cisa.gov refused this box (HTTP 403), and CISA's GitHub copy answered HTTP 502") ||
 		!strings.Contains(txt, "last good pull, at 5 Nov 2026, 12:00 UTC") {
 		t.Errorf("alert text: %q", txt)
@@ -237,7 +241,7 @@ func TestContract_D629_BothFailingAlertsOnceResolvesOnceAcrossRestarts(t *testin
 	if len(got) != 2 || !strings.HasPrefix(got[1], "feeds-kev-fresh-") || !strings.Contains(got[1], "up to date again") {
 		t.Fatalf("after the recovery: %v", got)
 	}
-	if !strings.Contains(a.text[1], "the newest list on the box came from CISA's GitHub copy") {
+	if a.crit[1] || !strings.Contains(a.text[1], "the newest list on the box came from CISA's GitHub copy") {
 		t.Errorf("fresh text: %q", a.text[1])
 	}
 	again, err := NewService(e.svc.Deps)
@@ -294,7 +298,8 @@ func TestContract_D629_SixChecksNotifyOffAndAListTurnedOff(t *testing.T) {
 	a.off = false
 	a.mu.Unlock()
 	e.tick(e.svc, 5*time.Minute)
-	if got := a.list(); len(got) != 1 || !strings.Contains(a.text[0], "last good pull, at 5 Nov 2026, 12:00 UTC") {
+	if got := a.list(); len(got) != 1 || !strings.Contains(a.text[0], "last good pull, at 5 Nov 2026, 12:00 UTC") ||
+		!strings.Contains(a.text[0], "reach "+originHost+", the address set for this list") || strings.Contains(a.text[0], "www.cisa.gov") {
 		t.Fatalf("after notify came back: %v %v", got, a.text)
 	}
 

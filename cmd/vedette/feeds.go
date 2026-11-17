@@ -39,12 +39,17 @@ func feedsService(d deps) (*feeds.Service, error) {
 	if d.Bus != nil { // a nil *events.Bus inside the interface would not compare equal to nil
 		fd.Events = d.Bus
 	}
-	// D-629 (kien G13): the alert of the CISA list (both copies failing two checks in a row, or six checks old) and its "up to date again" go to the admins' alert channels through notify's
-	// system notice path, as the AI budget and activity-log alerts do (cmd/vedette/ai.go): an incident-kind notice, high, so every
-	// channel that takes high alerts gets it. newNotify is read at send time (notify is built after feeds). Notify off: ErrAlertOff,
-	// the watch tries again at its next tick.
-	fd.Alert = func(ctx context.Context, id, title, text string) error {
-		err := newNotify(&d).Publish(ctx, notify.Notice{ID: id, Kind: notify.KindIncident, Severity: notify.High, Title: title, What: text, At: d.Clock()})
+	// D-629 (kien G13): the alert of the CISA list (both copies failing at two checks in a row, or six checks old) and its "up to date
+	// again" go to the admins' alert channels through notify's system notice path, as the AI budget and activity-log alerts do
+	// (cmd/vedette/ai.go): an incident-kind notice. The alert is critical (#946 r1: a channel set to critical only carries exactly the
+	// KEV alerts that stop when the list breaks), the recovery high. newNotify is read at send time (notify is built after feeds).
+	// Notify off: ErrAlertOff, the watch tries again at its next tick.
+	fd.Alert = func(ctx context.Context, id, title, text string, critical bool) error {
+		sev := notify.High
+		if critical {
+			sev = notify.Critical
+		}
+		err := newNotify(&d).Publish(ctx, notify.Notice{ID: id, Kind: notify.KindIncident, Severity: sev, Title: title, What: text, At: d.Clock()})
 		if errors.Is(err, notify.ErrModuleOff) {
 			return fmt.Errorf("%w: %w", feeds.ErrAlertOff, err)
 		}

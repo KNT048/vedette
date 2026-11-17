@@ -305,18 +305,37 @@ WHERE id = ? AND builtin = 0`,
 
 // updateSettings is PUT /feeds/sources/{id}: the three things both kinds of feed allow to change.
 func updateSettings(ctx context.Context, tx *sql.Tx, id string, enabled bool, hours int, url string, urlChanged bool) error {
+	var was bool
+	if err := tx.QueryRowContext(ctx, `SELECT enabled FROM feeds_source WHERE id = ?`, id).Scan(&was); err != nil {
+		return fmt.Errorf("feeds: read feed settings: %w", err)
+	}
 	// turning a feed back on forgets its back-off: the admin fixed what failed
-	// turning a feed on or off restarts the stale watch of the CISA list (D-629): the six hours count from when it is on again, and an
-	// alert open when it was turned off is not followed by "up to date again" (the right side of SET reads the row as it was)
-	watch := `stale_watch_from = CASE WHEN enabled <> ? THEN NULL ELSE stale_watch_from END, stale_alerted_at = CASE WHEN enabled <> ? THEN NULL ELSE stale_alerted_at END`
-	q := `UPDATE feeds_source SET rev = rev + 1, failures = CASE WHEN ? = 1 AND enabled = 0 THEN 0 ELSE failures END, ` + watch + `, enabled = ?, interval_hours = ? WHERE id = ?`
-	args := []any{boolInt(enabled), boolInt(enabled), boolInt(enabled), boolInt(enabled), hours, id}
-	if urlChanged {
-		q = `UPDATE feeds_source SET rev = rev + 1, failures = CASE WHEN ? = 1 AND enabled = 0 THEN 0 ELSE failures END, ` + watch + `, enabled = ?, interval_hours = ?, url = ?, etag = NULL, last_modified = NULL, answered_by = NULL, mirror_etag = NULL, kev_copies = NULL, catalog_released = NULL, mirror_last_modified = NULL WHERE id = ?`
-		args = []any{boolInt(enabled), boolInt(enabled), boolInt(enabled), boolInt(enabled), hours, url, id}
+	q := `UPDATE feeds_source SET rev = rev + 1, failures = CASE WHEN ? = 1 AND enabled = 0 THEN 0 ELSE failures END, enabled = ?, interval_hours = ? WHERE id = ?`
+	args := []any{boolInt(enabled), boolInt(enabled), hours, id}
+	if urlChanged { // a new address starts a new count of failures (#946 r1 Low) and forgets what the old one said
+		q = `UPDATE feeds_source SET rev = rev + 1, failures = 0, enabled = ?, interval_hours = ?, url = ?, etag = NULL, last_modified = NULL,
+answered_by = NULL, mirror_etag = NULL, mirror_last_modified = NULL, kev_copies = NULL, catalog_released = NULL, stale_failed_since = NULL,
+stale_failed_checks = 0 WHERE id = ?`
+		args = []any{boolInt(enabled), hours, url, id}
 	}
 	if _, err := tx.ExecContext(ctx, q, args...); err != nil {
 		return fmt.Errorf("feeds: update feed settings: %w", err)
+	}
+	if was == enabled {
+		return nil
+	}
+	// Turned on or off: the watch of the CISA list restarts (D-629: the checks count from when it is on again, and an alert open when it
+	// was turned off is not followed by "up to date again"), and the CISA list forgets its held version and every validator (#946 r1:
+	// the way out of a catalog the box should not have kept; the next check reads both copies in full).
+	if _, err := tx.ExecContext(ctx, `UPDATE feeds_source SET stale_watch_from = NULL, stale_alerted_at = NULL, stale_failed_since = NULL,
+stale_failed_checks = 0 WHERE id = ?`, id); err != nil {
+		return fmt.Errorf("feeds: restart the watch: %w", err)
+	}
+	if id == kevFeedID {
+		if _, err := tx.ExecContext(ctx, `UPDATE feeds_source SET catalog_version = NULL, catalog_released = NULL, kev_copies = NULL, etag = NULL,
+last_modified = NULL, mirror_etag = NULL, mirror_last_modified = NULL WHERE id = ?`, id); err != nil {
+			return fmt.Errorf("feeds: forget the held CISA list version: %w", err)
+		}
 	}
 	return nil
 }

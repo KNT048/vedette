@@ -100,10 +100,10 @@ type Deps struct {
 	KEVPrimary, KEVFallback string
 	// Clock is time.Now when nil; tests inject a fake.
 	Clock func() time.Time
-	// Alert sends a notice to the admins through notify (D-629: the CISA list has not been refreshed for six checks, and is up to date
-	// again): id is the notice's key, so the same alert queued twice goes out once. ErrAlertOff (notify off) makes the watch try again
-	// later. nil: no alerts (tests, a box without notify).
-	Alert func(ctx context.Context, id, title, text string) error
+	// Alert sends a notice to the admins through notify (D-629: the CISA list cannot be updated, critical; it is up to date again, not
+	// critical). id names the alert; notify does not dedupe such notices once sent, so the watch records an alert before it queues it.
+	// ErrAlertOff (notify off) makes the watch try again later. nil: no alerts (tests, a box without notify).
+	Alert func(ctx context.Context, id, title, text string, critical bool) error
 }
 
 // Service is the module: the pull logic, the jobs and the data the handlers read. Build it with NewService,

@@ -11,7 +11,6 @@ import (
 	"net/url"
 	"slices"
 	"strconv"
-	"strings"
 	"syscall"
 	"time"
 	"unicode/utf8"
@@ -49,6 +48,7 @@ func (s *Service) RunPull(ctx context.Context) error {
 		return err
 	}
 	pulled := false
+	var kevPulled *sourceRow
 	for _, r := range rows {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -91,7 +91,10 @@ func (s *Service) RunPull(ctx context.Context) error {
 			continue
 		}
 		pulled = true
-		_, err := s.pull(ctx, r.ID, "") // pull brings the EPSS scores after a CISA list load
+		row, err := s.pull(ctx, r.ID, "") // pull brings the EPSS scores after a CISA list load
+		if r.ID == kevFeedID && err == nil {
+			kevPulled = &row // D-629: only the job's own checks count toward the run of both-failed checks
+		}
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
@@ -103,7 +106,7 @@ func (s *Service) RunPull(ctx context.Context) error {
 			continue
 		}
 	}
-	if err := s.watchKEV(ctx); err != nil && ctx.Err() == nil { // D-629: after the pulls, so a box that was off pulls before it judges
+	if err := s.watchKEV(ctx, kevPulled); err != nil && ctx.Err() == nil { // D-629: after the pulls, so a box that was off pulls before it judges
 		s.Log.ErrorContext(ctx, "the stale watch of the CISA list failed", "error", err)
 	}
 	if err := s.reconcileDevices(ctx); err != nil && ctx.Err() == nil {
@@ -775,29 +778,6 @@ func unreached(err error) string {
 		return "could not be reached from this box"
 	}
 	return ""
-}
-
-// kevOlder reports whether catalog version a (such as "2026.11.04") is older than b. A version that is not dotted numbers is
-// never older: unknown is taken, not refused.
-func kevOlder(a, b string) bool {
-	pa, pb := strings.Split(a, "."), strings.Split(b, ".")
-	for i := 0; i < max(len(pa), len(pb)); i++ {
-		x, y := 0, 0
-		var e1, e2 error
-		if i < len(pa) {
-			x, e1 = strconv.Atoi(pa[i])
-		}
-		if i < len(pb) {
-			y, e2 = strconv.Atoi(pb[i])
-		}
-		if e1 != nil || e2 != nil || a == "" || b == "" {
-			return false
-		}
-		if x != y {
-			return x < y
-		}
-	}
-	return false
 }
 
 func (s *Service) kevPrimary() string {

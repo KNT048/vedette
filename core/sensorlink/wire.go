@@ -18,7 +18,7 @@ import (
 // The bodies of the protocol (sensor-protocol.md section 6). Decoding is strict (internal/jsonstrict: unknown field, repeated
 // key, nesting over 32 and trailing data are errors) and the decoders check what is structural about the whole body: sizes,
 // counts, types, ranges. What is about one observation (a MAC that does not match, a value that is dirty, a time outside the
-// window) is not checked here: core answers those item by item in rejected[] (D-112 (3)).
+// window) is not checked here: core answers those item by item in rejected[].
 
 // Config is the answer to GET /config (passive): what the capture process may do right now.
 type Config struct {
@@ -28,7 +28,7 @@ type Config struct {
 	Filters   []Filter `json:"filters"`
 }
 
-// Extract holds the four metadata switches of D-43.
+// Extract holds the four metadata switches.
 type Extract struct {
 	DNS   bool `json:"dns"`
 	SNI   bool `json:"sni"`
@@ -56,7 +56,7 @@ type ObservationsRequest struct {
 	Items []ObservationItem `json:"items"`
 }
 
-// ObservationItem is one thing a sensor saw. There is deliberately no source: core sets it from the role (D-111 (2)).
+// ObservationItem is one thing a sensor saw. There is deliberately no source: core sets it from the role.
 type ObservationItem struct {
 	MAC        string    `json:"mac,omitempty"`
 	IP         string    `json:"ip,omitempty"`
@@ -66,7 +66,7 @@ type ObservationItem struct {
 	SeenAt     time.Time `json:"seen_at"`
 }
 
-// ObservationsReply is the 200 of POST /observations: partial success, never retried (D-112 (3)).
+// ObservationsReply is the 200 of POST /observations: partial success, never retried.
 type ObservationsReply struct {
 	AckSeq   int64      `json:"ack_seq"`
 	Rejected []Rejected `json:"rejected"`
@@ -85,7 +85,7 @@ type PassiveHeartbeat struct {
 	Span        HeartbeatSpan    `json:"span"`
 	Drops       map[string]int64 `json:"drops"`
 	DevicesSeen int64            `json:"devices_seen"`
-	// CaptureError says why the capture on the chosen card is not running now (proto 4, D-399 (3)): one of CaptureErrors, "" (or
+	// CaptureError says why the capture on the chosen card is not running now (proto 4): one of CaptureErrors, "" (or
 	// absent) while it runs or while no card is chosen. Never the error text: that stays in the sensor's log.
 	CaptureError string `json:"capture_error,omitempty"`
 }
@@ -122,17 +122,17 @@ type ActiveHeartbeat struct {
 	Version string          `json:"version"`
 	Nmap    HeartbeatNmap   `json:"nmap"`
 	Nuclei  HeartbeatNuclei `json:"nuclei"`
-	// SNMP (protocol 5, D-512) says the worker runs snmp jobs. A worker of protocol 4 leaves it out: core then never sends it one,
+	// SNMP (protocol 5) says the worker runs snmp jobs. A worker of protocol 4 leaves it out: core then never sends it one,
 	// so the jobs reply such a worker gets keeps the shape of protocol 4.
 	SNMP bool `json:"snmp,omitempty"`
-	// DomainIP (protocol 5, D-591, FULL-5 slice 2) says the worker runs domain_ip jobs (nmap's full shapes and nuclei at depth full
+	// DomainIP (protocol 5) says the worker runs domain_ip jobs (nmap's full shapes and nuclei at depth full
 	// on an address a name under a verified domain resolves to): it holds the box's fence key and checks the domain fence itself
 	// (core/domainfence). A worker without the key (a remote sensor, a container-only install, an older worker) leaves it out: core
 	// then never sends it one.
 	DomainIP bool `json:"domain_ip,omitempty"`
 }
 
-// ScopeDomainIP is the scope of a domain_ip job (D-591): one public IPv4 target that is not the box's own egress, reached because a
+// ScopeDomainIP is the scope of a domain_ip job: one public IPv4 target that is not the box's own egress, reached because a
 // name under a verified domain resolves to it; the job carries Domain and the worker checks the domain fence before the tool starts.
 const ScopeDomainIP = "domain_ip"
 
@@ -143,7 +143,7 @@ type DomainScope struct {
 	Domain string `json:"domain"`
 	Name   string `json:"name"`
 	Token  string `json:"token"`
-	// ProofAt (D-632): the parent name of Domain where Domain's own record sits (the zone apex), checked there by the worker's fence;
+	// ProofAt: the parent name of Domain where Domain's own record sits (the zone apex), checked there by the worker's fence;
 	// omitted when the record is on Domain. A worker that does not know the field refuses the job (the check fails closed).
 	ProofAt string `json:"proof_at,omitempty"`
 }
@@ -152,25 +152,25 @@ type DomainScope struct {
 type HeartbeatNmap struct {
 	Present bool   `json:"present"`
 	Version string `json:"version"`
-	// Full (protocol 5, D-526) says the worker runs the external_full and external_disruptive shapes, behind its own-IP fence. An
+	// Full (protocol 5) says the worker runs the external_full and external_disruptive shapes, behind its own-IP fence. An
 	// older worker leaves it out: core then never sends it one.
 	Full bool `json:"full,omitempty"`
-	// Ports (protocol 5, D-592) says the worker runs the port_versions shape, whose job carries its ports. An older worker leaves it
+	// Ports (protocol 5) says the worker runs the port_versions shape, whose job carries its ports. An older worker leaves it
 	// out: core then never sends it one (the weekly scan of every port then records the open ports without their versions).
 	Ports bool `json:"ports,omitempty"`
 }
 
-// HeartbeatNuclei says whether the worker can run nuclei (D-125 (1)): Present is "the pinned binary runs -version"; Pack is
+// HeartbeatNuclei says whether the worker can run nuclei: Present is "the pinned binary runs -version"; Pack is
 // the version and SHA-256 of the template pack whose index the worker read from its image, both "" when there is none.
 type HeartbeatNuclei struct {
 	Present bool          `json:"present"`
 	Version string        `json:"version"`
 	Pack    HeartbeatPack `json:"pack"`
-	// OwnIP (protocol 5, D-520) says the worker runs nuclei jobs of scope own_ip, with its own-IP fence. An older worker leaves it
+	// OwnIP (protocol 5) says the worker runs nuclei jobs of scope own_ip, with its own-IP fence. An older worker leaves it
 	// out: core then never sends it one.
 	OwnIP bool `json:"own_ip,omitempty"`
 
-	// FULL-4 (D-527, protocol 5 before its first release): Full says the worker runs nuclei jobs of depth full (the deep scan of the
+	// protocol 5 before its first release: Full says the worker runs nuclei jobs of depth full (the deep scan of the
 	// box's own public IP, with the own-IP fence and the pack's sets). An older worker leaves it out: core then never sends it one.
 	Full bool `json:"full,omitempty"`
 }
@@ -196,7 +196,7 @@ const (
 	KindSNMP   = "snmp"
 )
 
-// Job is one job of the worker. There is no argv, flag, path or URL on the wire (D-111 (3)): the worker builds the command
+// Job is one job of the worker. There is no argv, flag, path or URL on the wire: the worker builds the command
 // itself. An nmap job fills Shape, Rate and Targets; a nuclei job fills Nuclei (its fields sit at the top level on the wire:
 // pack, templates, targets, rate, max_host_errors). A kind this version does not know decodes to a Job with only ID and
 // Kind, so the worker can refuse it (invalid_job) instead of failing the whole poll; whatever else the object holds is not read.
@@ -208,11 +208,11 @@ type Job struct {
 	Shape   string   // nmap
 	Rate    int      // nmap
 	Targets []string // nmap
-	// Scope and Domain (protocol 5, D-591): an nmap job of a full shape with Scope ScopeDomainIP carries Domain (its one target is the
+	// Scope and Domain (protocol 5): an nmap job of a full shape with Scope ScopeDomainIP carries Domain (its one target is the
 	// address); "" and nil on every other nmap job, which keeps the shape an older worker knows.
 	Scope  string
 	Domain *DomainScope
-	// Ports (protocol 5, D-592) are the ports of a port_versions job (1..20, ascending); nil on every other nmap job, which keeps the
+	// Ports (protocol 5) are the ports of a port_versions job (1..20, ascending); nil on every other nmap job, which keeps the
 	// shape an older worker knows. Sent only to a worker whose heartbeat says nmap.ports.
 	Ports []int
 
@@ -232,7 +232,7 @@ type SNMPJob struct {
 // SNMPCredential is one way to sign in to an SNMP agent. Version is "v2c" (Community) or "v3" (User, Auth "sha" or "sha256" with
 // AuthPass, Priv "aes128" with PrivPass, or Priv "" for authNoPriv). Port is the UDP port the agent answers on: 0 (left out of the
 // JSON) is SNMPPort, 161. Port was added to protocol
-// 5 before its first release, as D-520's fields were: core leaves it out for 161, so a worker built before it gets the shape it
+// 5 before its first release, as the nuclei job's scope was: core leaves it out for 161, so a worker built before it gets the shape it
 // knows for every credential of the default port. It holds secrets: printing or logging it gives "[redacted]"; only the JSON of the
 // job carries them, inside the mutual-TLS link.
 type SNMPCredential struct {
@@ -272,7 +272,7 @@ const (
 	SNMPStatusError       = "error"        // anything else: an error status, a message that does not decode
 )
 
-// The versions and algorithms of an SNMPCredential (D-512: no v1, no MD5, no DES, no noAuthNoPriv).
+// The versions and algorithms of an SNMPCredential (no v1, no MD5, no DES, no noAuthNoPriv).
 const (
 	SNMPv2c        = "v2c"
 	SNMPv3         = "v3"
@@ -304,7 +304,7 @@ type SNMPValues struct {
 	EntSoftware string `json:"ent_software"`
 	EntSerial   string `json:"ent_serial"`
 	// OSVersion is a vendor MIB's software version, read only for the device that has it: MIKROTIK-MIB mtxrLicVersion.0, the
-	// RouterOS version ("6.49.10"), which MikroTik's sysDescr ("RouterOS RB4011iGS+") does not carry (#910, review r1 M3 of #919).
+	// RouterOS version ("6.49.10"), which MikroTik's sysDescr ("RouterOS RB4011iGS+") does not carry (#910, #919).
 	OSVersion string `json:"os_version,omitempty"`
 }
 
@@ -377,9 +377,9 @@ func checkSNMPCredential(c SNMPCredential) error {
 	return nil
 }
 
-// NucleiJob is what a nuclei run is made of (D-125 (1), D-136 (4) and (6)): template ids, never paths; the worker maps them
-// through the index of the pack named here. Scope (protocol 5, D-520) is "" or "lan" (private targets, the scan module) or
-// "own_ip" (one public target, the box's own IP, exposure D-561: the worker checks by itself that the box goes out through it
+// NucleiJob is what a nuclei run is made of: template ids, never paths; the worker maps them
+// through the index of the pack named here. Scope (protocol 5) is "" or "lan" (private targets, the scan module) or
+// "own_ip" (one public target, the box's own IP, for exposure: the worker checks by itself that the box goes out through it
 // before nuclei starts). Core leaves it out of a LAN job, so an older worker gets the shape it knows.
 type NucleiJob struct {
 	Pack          JobPack        `json:"pack"`
@@ -389,14 +389,14 @@ type NucleiJob struct {
 	MaxHostErrors int            `json:"max_host_errors"`
 	Scope         string         `json:"scope,omitempty"`
 
-	// FULL-4 (D-527, protocol 5 before its first release, as scope): the depth of an own_ip job. Depth is "" (the read-only KEV
-	// checks of D-520) or "full" (the deep scan of a target whose testing terms were accepted: nucleiargv's full shape, templates of
+	// protocol 5 before its first release, as scope: the depth of an own_ip job. Depth is "" (the read-only KEV
+	// checks) or "full" (the deep scan of a target whose testing terms were accepted: nucleiargv's full shape, templates of
 	// the pack's deep set); Disruptive (full only) adds the disruptive set (the extra tick of the terms). Core leaves both out of
 	// every other job and sends a full one only to a worker whose heartbeat said nuclei.full, so an older decoder never gets one;
 	// if it did, strict decoding refuses it and nothing runs.
 	Depth      string `json:"depth,omitempty"`
 	Disruptive bool   `json:"disruptive,omitempty"`
-	// Domain (D-591): the fence fields of a job of scope domain_ip (depth full only); nil on every other job.
+	// Domain: the fence fields of a job of scope domain_ip (depth full only); nil on every other job.
 	Domain *DomainScope `json:"domain,omitempty"`
 }
 
@@ -512,10 +512,10 @@ type JobResult struct {
 	XMLB64    string `json:"xml_b64"`             // nmap's stdout
 	JSONLB64  string `json:"jsonl_b64,omitempty"` // nuclei's stdout (protocol 2); a result carries at most one of the two
 	// HostErrors (protocol 3, nuclei only): per target, the timeouts nuclei logged, so core can see a device stop answering
-	// when stdout holds matches only (scan INV-6, D-165). At most MaxHostErrors entries, one per target, only for targets with
+	// when stdout holds matches only (scan INV-6). At most MaxHostErrors entries, one per target, only for targets with
 	// at least one timeout.
 	HostErrors []HostError `json:"host_errors,omitempty"`
-	// SNMP (protocol 5, snmp jobs only, D-512): one answer per target the worker got to, only on a done result.
+	// SNMP (protocol 5, snmp jobs only): one answer per target the worker got to, only on a done result.
 	SNMP []SNMPAnswer `json:"snmp,omitempty"`
 
 	xml   []byte // the decoded XMLB64, set by the server's decoder
@@ -577,7 +577,7 @@ var (
 	hostPortRE = regexp.MustCompile(`^[0-9]{1,3}(\.[0-9]{1,3}){3}:[0-9]{1,5}$`)
 	etagRE     = regexp.MustCompile(`^"[A-Za-z0-9._:-]{1,64}"$`)
 	resultCode = map[string]bool{"": true, "invalid_job": true, "busy": true, "nmap_missing": true, "nuclei_missing": true, "pack_mismatch": true, "pack_invalid": true, "exec_failed": true, "deadline": true, "cancelled": true, "not_own_ip": true, "egress_unverified": true,
-		// D-591: the refusals of the domain fence (core/domainfence.Reasons; invalid_job is above)
+		// The refusals of the domain fence (core/domainfence.Reasons; invalid_job is above)
 		"token_foreign": true, "target_not_owned": true, "name_moved": true, "ownership_unchecked": true, "cname_outside": true}
 	resultStat = map[string]bool{"done": true, "failed": true, "stopped": true, "refused": true}
 )
@@ -609,8 +609,8 @@ func ValidDropKey(k string) bool { return slices.Contains(DropKeys, k) }
 func ValidIfaceName(s string) bool { return ifaceRE.MatchString(s) }
 
 // virtualRE names links that are not network cards: loopback, container and virtual links, bridges, bonds, VPN tunnels,
-// VLANs, and the box's own container bridge vedette0 (install.sh, D-267). One rule for the Box network page (core) and
-// for the sensor's cards without a host (sensor-passive, D-380, D-393).
+// VLANs, and the box's own container bridge vedette0 (install.sh). One rule for the Box network page (core) and
+// for the sensor's cards without a host (sensor-passive).
 var virtualRE = regexp.MustCompile(`^(lo|veth|podman|cni|docker|br|virbr|vdh|bond|tun|tap|wg|dummy|vnet|macvtap|ifb|vedette)|[.@]`)
 
 // VirtualIfaceName reports whether s names a link that is not a network card (see virtualRE): never a default card, and
@@ -641,7 +641,7 @@ func decodeObservations(raw []byte) (*ObservationsRequest, error) {
 }
 
 // ValidVersion reports whether s is a SemVer of the form a heartbeat may carry. core checks its own build version with it at start
-// (the -ldflags -X main.version of a release must be SemVer, D-141), so the three binaries agree on what a version looks like.
+// (the -ldflags -X main.version of a release must be SemVer), so the three binaries agree on what a version looks like.
 func ValidVersion(s string) bool { return len(s) <= 64 && versionRE.MatchString(s) }
 
 func decodePassiveHeartbeat(raw []byte) (*PassiveHeartbeat, error) {
@@ -680,7 +680,7 @@ func decodePassiveHeartbeat(raw []byte) (*PassiveHeartbeat, error) {
 		return nil, invalid("drops")
 	}
 	for k, v := range h.Drops {
-		if !dropKeyRE.MatchString(k) || v < 0 { // unknown keys of a good shape pass: core ignores them (forward compatibility, D-122 (5))
+		if !dropKeyRE.MatchString(k) || v < 0 { // unknown keys of a good shape pass: core ignores them (forward compatibility)
 			return nil, invalid("drops")
 		}
 	}

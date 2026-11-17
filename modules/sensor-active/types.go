@@ -23,9 +23,9 @@ type Decision struct {
 	Allowed     bool
 	Rate        int    // packets per second the scan may use
 	Reason      string // the inventory's reason, passed through in sensor.scan.blocked
-	FirstGentle bool   // the one gentle scan of a fragile device (D-45)
-	// Fragile and Unclassified describe the device (fragile, kind still unknown): IdentifyDevice picks its scan shape from them (D-501).
-	// Never is regular_scan=never: IdentifyDevice refuses it outright (D-126 (1)).
+	FirstGentle bool   // the one gentle scan of a fragile device
+	// Fragile and Unclassified describe the device (fragile, kind still unknown): IdentifyDevice picks its scan shape from them.
+	// Never is regular_scan=never: IdentifyDevice refuses it outright.
 	Fragile, Unclassified, Never bool
 }
 
@@ -33,7 +33,7 @@ type Decision struct {
 type Asset struct {
 	ID string
 	IP netip.Addr // invalid when the inventory knows no IP
-	// Approved: a person approved the device (or its osquery enrolment did). SNMP credentials go only to approved devices (D-512):
+	// Approved: a person approved the device (or its osquery enrolment did). SNMP credentials go only to approved devices:
 	// a device nobody vouched for may be a rogue one that collects communities.
 	Approved bool
 	// Name is how a person knows the device (its host name, else its model, else its vendor; "" when none): for plain words only.
@@ -47,7 +47,7 @@ type Inventory interface {
 	// InScope reports whether ip is inside lan_ranges and outside the exclusions (SYS-7).
 	InScope(ctx context.Context, ip netip.Addr) (bool, error)
 	ScanPolicy(ctx context.Context, assetID string) (Decision, error)
-	// SNMPPolicy is ScanPolicy for SNMP reads (D-601): the device's own SNMP setting in place of its network scan setting (snmp_off
+	// SNMPPolicy is ScanPolicy for SNMP reads: the device's own SNMP setting in place of its network scan setting (snmp_off
 	// when a person turned SNMP off for it; a device added by hand only once a person turned its SNMP on).
 	SNMPPolicy(ctx context.Context, assetID string) (Decision, error)
 	MarkFirstScan(ctx context.Context, assetID string) error
@@ -59,7 +59,7 @@ type Inventory interface {
 	// is by IP, so a new MAC at a protected address does not make it fair game.
 	ProtectedIPs(ctx context.Context) ([]netip.Addr, error)
 	// BoxIPs lists only the addresses that are the box (its own device, its cards, the decoys): never probed, not even by an SNMP read
-	// of a fragile device (D-512).
+	// of a fragile device.
 	BoxIPs(ctx context.Context) ([]netip.Addr, error)
 	// SNMPKnown lists the devices an SNMP read described (an snmp observation) and those whose SNMP switch a person stored on: the
 	// devices the old SNMP credentials are moved to (snmp_move.go).
@@ -69,7 +69,7 @@ type Inventory interface {
 	TurnSNMPOn(ctx context.Context, actor, assetID string) error
 }
 
-// PendingGentle is an optional part of Inventory (D-511, review of #714 round 2): the devices whose one gentle scan is still to come
+// PendingGentle is an optional part of Inventory (#714): the devices whose one gentle scan is still to come
 // (discovered, kind unknown, not fragile, not set to never, not the box, not declared by hand, no first scan yet). Devices reach the
 // queue only through inventory.asset.discovered, which fires for new devices; inventory migration 0004 cleared the first scan of
 // devices seen before, so Tick queues these once per start (INSERT OR IGNORE, idempotent).
@@ -126,7 +126,7 @@ type BlockedEvent struct {
 const (
 	KindSweep  = "sweep"
 	KindDevice = "device"
-	KindSNMP   = "snmp" // a Test or the window's round of SNMP reads (D-512)
+	KindSNMP   = "snmp" // a Test or the window's round of SNMP reads
 
 	StatusRunning = "running"
 	StatusDone    = "done"
@@ -148,7 +148,7 @@ var (
 
 // Health is the module's state for the status page (INV-6): "ok", or "unavailable" with a message. Zone is
 // the time zone the windows are read in (INV-3). Warning is set while a full sweep cannot fit in one window at
-// the configured rate (an estimate, D-523: one packet an address on the box's own networks, nmapargv.SweepProbes or more
+// the configured rate (an estimate: one packet an address on the box's own networks, nmapargv.SweepProbes or more
 // behind a router); the sweep then takes several days.
 type Health struct {
 	Status  string `json:"status"`

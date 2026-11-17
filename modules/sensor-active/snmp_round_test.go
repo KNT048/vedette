@@ -106,7 +106,7 @@ func TestSNMPAChangeOfADeviceTheBatchNoLongerHoldsDoesNotStopIt(t *testing.T) {
 	}
 }
 
-// A device of batch 2 moves while batch 2 is with the worker: the batch stops (D-512 (3): nothing is recorded from it), and the
+// A device of batch 2 moves while batch 2 is with the worker: the batch stops (nothing is recorded from it), and the
 // round reads batch 2 again without that device, not batch 1 again. The round is then done, and the next Tick sends nothing.
 func TestSNMPAMoveOfAHeldDeviceStopsTheBatchAndTheRoundReadsItAgain(t *testing.T) {
 	t.Parallel()
@@ -172,7 +172,7 @@ func TestSNMPADeviceThatKeepsChangingIsLeftOutAndTheRoundEnds(t *testing.T) {
 // Review #881 r2 L2: a device run is two scans (the top 1000 ports, then the extra ports); the targets are cleared between them.
 // A device that left the address in between (the inventory moved it while the first scan ran; its event then found no targets to
 // compare) gets no second scan at the old address, and the first scan is not recorded either: it is recorded by address, and
-// another device, or none, is there now (review r2 L1). The run is stopped, not failed.
+// another device, or none, is there now. The run is stopped, not failed.
 func TestADeviceThatMovedBetweenTheTwoScansGetsNoSecond(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, fakeOpts{})

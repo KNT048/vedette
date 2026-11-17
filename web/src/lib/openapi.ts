@@ -56,7 +56,7 @@ export function buildOpenApi() {
   }
   return {
     openapi: '3.1.0',
-    info: { title: 'Vedette API', version: '0.1.0-m1', description: 'Generated from the SPA mock contract (D-18). The Go backend must match this file.' },
+    info: { title: 'Vedette API', version: '0.1.0-m1', description: 'Generated from the SPA mock contract. The Go backend must match this file.' },
     servers: [{ url: '/api/v1' }],
     security: [{ session: [] }],
     components: {

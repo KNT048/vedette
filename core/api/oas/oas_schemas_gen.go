@@ -710,7 +710,7 @@ type AiGetAiAsksOKItemsItem struct {
 	Hooks []AiGetAiAsksOKItemsItemHooksItem `json:"hooks"`
 	ID    string                            `json:"id"`
 	// Memories the AI suggested with this answer (0 when read back); they wait for an administrator
-	// (S-AI-7, D-225).
+	// (S-AI-7).
 	MemoriesSuggested int                                   `json:"memories_suggested"`
 	Model             string                                `json:"model"`
 	Profile           string                                `json:"profile"`
@@ -1442,14 +1442,14 @@ type AiGetAiConfigOK struct {
 	JobsReady AiGetAiConfigOKJobsReady `json:"jobs_ready"`
 	// Tokens used this calendar month by all profiles.
 	MonthUsed int `json:"month_used"`
-	// Shared monthly token budget, summed across all profiles (D-531): warning at 80 %, every AI job stops
-	// at 100 % until it renews or is raised.
+	// Shared monthly token budget, summed across all profiles: warning at 80 %, every AI job stops at 100
+	// % until it renews or is raised.
 	MonthlyBudget int  `json:"monthly_budget"`
 	RedactPii     bool `json:"redact_pii"`
 	// Local date (YYYY-MM-DD) the monthly budgets start again.
 	RenewsOn string              `json:"renews_on"`
 	Tier     AiGetAiConfigOKTier `json:"tier"`
-	// Estimated tokens/day per tier (no money, D-6). null = depends on alert count.
+	// Estimated tokens/day per tier (no money). null = depends on alert count.
 	TierEstimates AiGetAiConfigOKTierEstimates `json:"tier_estimates"`
 }
 
@@ -1593,7 +1593,7 @@ func (s *AiGetAiConfigOKTier) UnmarshalText(data []byte) error {
 	}
 }
 
-// Estimated tokens/day per tier (no money, D-6). null = depends on alert count.
+// Estimated tokens/day per tier (no money). null = depends on alert count.
 type AiGetAiConfigOKTierEstimates map[string]NilFloat64
 
 func (s *AiGetAiConfigOKTierEstimates) init() AiGetAiConfigOKTierEstimates {
@@ -2486,8 +2486,8 @@ func (s *AiGetAiHooksOKCustomItemWhen) UnmarshalText(data []byte) error {
 }
 
 type AiGetAiKnowledgeOK struct {
-	// AI profile id chosen for the index (required; it builds nothing until embeddings exist, D-209); null
-	// = none chosen.
+	// AI profile id chosen for the index (required; it builds nothing until embeddings exist); null = none
+	// chosen.
 	IndexProfile NilString                     `json:"index_profile"`
 	Items        []AiGetAiKnowledgeOKItemsItem `json:"items"`
 }
@@ -2759,7 +2759,7 @@ type AiGetAiLogsDigestOKDigest struct {
 	GeneratedAt time.Time                            `json:"generated_at"`
 	Items       []AiGetAiLogsDigestOKDigestItemsItem `json:"items"`
 	// Memories the AI suggested while making this digest (0 when read back); they wait for an
-	// administrator (S-AI-7, D-223).
+	// administrator (S-AI-7).
 	MemoriesSuggested int                                      `json:"memories_suggested"`
 	Model             string                                   `json:"model"`
 	Profile           string                                   `json:"profile"`
@@ -3317,13 +3317,13 @@ type AiGetAiProfilesOKItemsItem struct {
 	Kind    AiGetAiProfilesOKItemsItemKind `json:"kind"`
 	// Last connection test of the profile as saved (S-AI-1). null = not tested since it was added or its
 	// address, model, key or place changed. A test the same admin ran in the Add or Edit dialog of exactly
-	// the settings saved (within 15 minutes) counts (D-445); the request cannot carry one.
+	// the settings saved (within 15 minutes) counts; the request cannot carry one.
 	LastTest NilAiGetAiProfilesOKItemsItemLastTest `json:"last_test"`
 	// Internal = runs inside the company network, data never leaves it; cloud = cloud provider.
 	Location AiGetAiProfilesOKItemsItemLocation `json:"location"`
 	Model    string                             `json:"model"`
-	// Monthly token budget of this profile alone (D-531); when used up, its jobs switch to the fallback
-	// profile or stop with 429 budget_reached.
+	// Monthly token budget of this profile alone; when used up, its jobs switch to the fallback profile or
+	// stop with 429 budget_reached.
 	MonthlyBudget int    `json:"monthly_budget"`
 	Name          string `json:"name"`
 	Usable        bool   `json:"usable"`
@@ -4590,7 +4590,7 @@ type AiPostAiAskOK struct {
 	Hooks []AiPostAiAskOKHooksItem `json:"hooks"`
 	ID    string                   `json:"id"`
 	// Memories the AI suggested with this answer (0 when read back); they wait for an administrator
-	// (S-AI-7, D-225).
+	// (S-AI-7).
 	MemoriesSuggested int                          `json:"memories_suggested"`
 	Model             string                       `json:"model"`
 	Profile           string                       `json:"profile"`
@@ -7201,7 +7201,7 @@ type AiPostAiLogsDigestOKDigest struct {
 	GeneratedAt time.Time                             `json:"generated_at"`
 	Items       []AiPostAiLogsDigestOKDigestItemsItem `json:"items"`
 	// Memories the AI suggested while making this digest (0 when read back); they wait for an
-	// administrator (S-AI-7, D-223).
+	// administrator (S-AI-7).
 	MemoriesSuggested int                                       `json:"memories_suggested"`
 	Model             string                                    `json:"model"`
 	Profile           string                                    `json:"profile"`
@@ -8031,13 +8031,13 @@ type AiPostAiProfilesOK struct {
 	Kind    AiPostAiProfilesOKKind `json:"kind"`
 	// Last connection test of the profile as saved (S-AI-1). null = not tested since it was added or its
 	// address, model, key or place changed. A test the same admin ran in the Add or Edit dialog of exactly
-	// the settings saved (within 15 minutes) counts (D-445); the request cannot carry one.
+	// the settings saved (within 15 minutes) counts; the request cannot carry one.
 	LastTest NilAiPostAiProfilesOKLastTest `json:"last_test"`
 	// Internal = runs inside the company network, data never leaves it; cloud = cloud provider.
 	Location AiPostAiProfilesOKLocation `json:"location"`
 	Model    string                     `json:"model"`
-	// Monthly token budget of this profile alone (D-531); when used up, its jobs switch to the fallback
-	// profile or stop with 429 budget_reached.
+	// Monthly token budget of this profile alone; when used up, its jobs switch to the fallback profile or
+	// stop with 429 budget_reached.
 	MonthlyBudget int    `json:"monthly_budget"`
 	Name          string `json:"name"`
 	Usable        bool   `json:"usable"`
@@ -9408,14 +9408,14 @@ type AiPutAiConfigOK struct {
 	JobsReady AiPutAiConfigOKJobsReady `json:"jobs_ready"`
 	// Tokens used this calendar month by all profiles.
 	MonthUsed int `json:"month_used"`
-	// Shared monthly token budget, summed across all profiles (D-531): warning at 80 %, every AI job stops
-	// at 100 % until it renews or is raised.
+	// Shared monthly token budget, summed across all profiles: warning at 80 %, every AI job stops at 100
+	// % until it renews or is raised.
 	MonthlyBudget int  `json:"monthly_budget"`
 	RedactPii     bool `json:"redact_pii"`
 	// Local date (YYYY-MM-DD) the monthly budgets start again.
 	RenewsOn string              `json:"renews_on"`
 	Tier     AiPutAiConfigOKTier `json:"tier"`
-	// Estimated tokens/day per tier (no money, D-6). null = depends on alert count.
+	// Estimated tokens/day per tier (no money). null = depends on alert count.
 	TierEstimates AiPutAiConfigOKTierEstimates `json:"tier_estimates"`
 }
 
@@ -9559,7 +9559,7 @@ func (s *AiPutAiConfigOKTier) UnmarshalText(data []byte) error {
 	}
 }
 
-// Estimated tokens/day per tier (no money, D-6). null = depends on alert count.
+// Estimated tokens/day per tier (no money). null = depends on alert count.
 type AiPutAiConfigOKTierEstimates map[string]NilFloat64
 
 func (s *AiPutAiConfigOKTierEstimates) init() AiPutAiConfigOKTierEstimates {
@@ -10555,8 +10555,8 @@ func (s *AiPutAiKnowledgeIDReqJobsItem) UnmarshalText(data []byte) error {
 }
 
 type AiPutAiKnowledgeSettingsOK struct {
-	// AI profile id chosen for the index (required; it builds nothing until embeddings exist, D-209); null
-	// = none chosen.
+	// AI profile id chosen for the index (required; it builds nothing until embeddings exist); null = none
+	// chosen.
 	IndexProfile NilString                             `json:"index_profile"`
 	Items        []AiPutAiKnowledgeSettingsOKItemsItem `json:"items"`
 }
@@ -11179,13 +11179,13 @@ type AiPutAiProfilesIDOK struct {
 	Kind    AiPutAiProfilesIDOKKind `json:"kind"`
 	// Last connection test of the profile as saved (S-AI-1). null = not tested since it was added or its
 	// address, model, key or place changed. A test the same admin ran in the Add or Edit dialog of exactly
-	// the settings saved (within 15 minutes) counts (D-445); the request cannot carry one.
+	// the settings saved (within 15 minutes) counts; the request cannot carry one.
 	LastTest NilAiPutAiProfilesIDOKLastTest `json:"last_test"`
 	// Internal = runs inside the company network, data never leaves it; cloud = cloud provider.
 	Location AiPutAiProfilesIDOKLocation `json:"location"`
 	Model    string                      `json:"model"`
-	// Monthly token budget of this profile alone (D-531); when used up, its jobs switch to the fallback
-	// profile or stop with 429 budget_reached.
+	// Monthly token budget of this profile alone; when used up, its jobs switch to the fallback profile or
+	// stop with 429 budget_reached.
 	MonthlyBudget int    `json:"monthly_budget"`
 	Name          string `json:"name"`
 	Usable        bool   `json:"usable"`
@@ -12237,7 +12237,7 @@ type CoreDeleteCoreUpdatesOsRebootOK struct {
 	// An install run is in progress; only one at a time.
 	Busy bool `json:"busy"`
 	// Null until the box first looks for operating system updates (Check now): pending and reboot_reasons
-	// are then empty and the rest is core's own settings (D-407; before it, GET answered 409 no_check_yet).
+	// are then empty and the rest is core's own settings (before it, GET answered 409 no_check_yet).
 	Os      NilCoreDeleteCoreUpdatesOsRebootOKOs         `json:"os"`
 	Pending []CoreDeleteCoreUpdatesOsRebootOKPendingItem `json:"pending"`
 	// Packages that need a reboot to take effect.
@@ -12854,7 +12854,7 @@ type CoreGetCoreAccountOKUser struct {
 	LastLogin NilDateTime                  `json:"last_login"`
 	Name      string                       `json:"name"`
 	Role      CoreGetCoreAccountOKUserRole `json:"role"`
-	// The account signs in only through SSO (D-195): no Vedette password, two-step sign-in is the identity
+	// The account signs in only through SSO: no Vedette password, two-step sign-in is the identity
 	// provider's.
 	SSO         bool                                   `json:"sso"`
 	Twofa       bool                                   `json:"twofa"`
@@ -13042,7 +13042,7 @@ func (s *CoreGetCoreAccountOKUserTwofaMethod) UnmarshalText(data []byte) error {
 }
 
 // People: leave out the automatic lines (user "system" or "system:"), so what people and tools did
-// stands out (D-416).
+// stands out.
 type CoreGetCoreAuditActor string
 
 const (
@@ -13078,7 +13078,7 @@ func (s *CoreGetCoreAuditActor) UnmarshalText(data []byte) error {
 }
 
 // People: leave out the automatic lines (user "system" or "system:"), so what people and tools did
-// stands out (D-416).
+// stands out.
 type CoreGetCoreAuditExportActor string
 
 const (
@@ -13131,7 +13131,7 @@ type CoreGetCoreAuditOK struct {
 	Groups []string                      `json:"groups"`
 	Items  []CoreGetCoreAuditOKItemsItem `json:"items"`
 	// Display names of the devices and findings whose ids appear in the target or detail of these rows (id
-	// to name); an id the box no longer has is left out (D-416).
+	// to name); an id the box no longer has is left out.
 	Names CoreGetCoreAuditOKNames `json:"names"`
 	Total float64                 `json:"total"`
 	Users []string                `json:"users"`
@@ -13257,7 +13257,7 @@ func (s *CoreGetCoreAuditOKItemsItem) SetUser(val string) {
 }
 
 // Display names of the devices and findings whose ids appear in the target or detail of these rows (id
-// to name); an id the box no longer has is left out (D-416).
+// to name); an id the box no longer has is left out.
 type CoreGetCoreAuditOKNames map[string]string
 
 func (s *CoreGetCoreAuditOKNames) init() CoreGetCoreAuditOKNames {
@@ -13310,7 +13310,7 @@ type CoreGetCoreConnectionsOKItemsItem struct {
 	// Read-only. null until the first Test, or after the pin was forgotten.
 	Pin    NilCoreGetCoreConnectionsOKItemsItemPin `json:"pin"`
 	Status CoreGetCoreConnectionsOKItemsItemStatus `json:"status"`
-	// Base URL or host:port. "mcp-stdio" rows are not supported (D-94).
+	// Base URL or host:port. "mcp-stdio" rows are not supported.
 	Target string                                       `json:"target"`
 	Tools  []CoreGetCoreConnectionsOKItemsItemToolsItem `json:"tools"`
 	// User name for SSH and for Basic sign-in; null for the other sign-ins.
@@ -13448,8 +13448,8 @@ func (s *CoreGetCoreConnectionsOKItemsItem) SetUsername(val NilString) {
 }
 
 type CoreGetCoreConnectionsOKItemsItemAuth struct {
-	// Token sign-in only: the name of the header the token is sent in (D-174), for a device whose API
-	// wants a key header. null sends Authorization: Bearer . The token itself stays in the vault.
+	// Token sign-in only: the name of the header the token is sent in, for a device whose API wants a key
+	// header. null sends Authorization: Bearer . The token itself stays in the vault.
 	Header NilString `json:"header"`
 	// SSH key only: SHA256: fingerprint of the saved private key, like GitHub shows for a key. The mock
 	// uses a hash of the key body; the backend computes the public-key fingerprint.
@@ -13624,7 +13624,7 @@ func (s *CoreGetCoreConnectionsOKItemsItemKind) UnmarshalText(data []byte) error
 	}
 }
 
-// Pinned at the first successful Test (trust on first use, D-94). A changed certificate or host key is
+// Pinned at the first successful Test (trust on first use). A changed certificate or host key is
 // refused until an administrator forgets the pin.
 type CoreGetCoreConnectionsOKItemsItemPin struct {
 	FirstSeen time.Time `json:"first_seen"`
@@ -14418,8 +14418,8 @@ func (s *CoreGetCoreMcpOKToolsItem) SetScope(val string) {
 }
 
 type CoreGetCoreNetworkOK struct {
-	// D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail,
-	// block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
+	// The address every link the box makes carries (alert messages, approval links, sign-in mail, block
+	// list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
 	BoxAddress CoreGetCoreNetworkOKBoxAddress       `json:"box_address"`
 	DecoyIps   []string                             `json:"decoy_ips"`
 	DefaultNtp string                               `json:"default_ntp"`
@@ -14523,8 +14523,8 @@ func (s *CoreGetCoreNetworkOK) SetSpanStatus(val CoreGetCoreNetworkOKSpanStatus)
 	s.SpanStatus = val
 }
 
-// D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail,
-// block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
+// The address every link the box makes carries (alert messages, approval links, sign-in mail, block
+// list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
 type CoreGetCoreNetworkOKBoxAddress struct {
 	// The host name or IPv4 address an administrator saved; null = the default is used.
 	Address NilString `json:"address"`
@@ -14879,7 +14879,7 @@ type CoreGetCoreNetworkOKPending struct {
 	ExpiresAt       time.Time `json:"expires_at"`
 	PreviousAddress NilString `json:"previous_address"`
 	// Set when the box could not go back to the old settings by itself: it restarts at this time, and the
-	// saved settings on disk are the old ones (D-100).
+	// saved settings on disk are the old ones.
 	RebootAt NilDateTime `json:"reboot_at"`
 	// Seconds the box waits for the confirmation (the whole window, not what is left).
 	WindowS int `json:"window_s"`
@@ -15388,10 +15388,10 @@ type CoreGetCoreOidcOK struct {
 	// The saved CA certificates, one row each.
 	CaCerts []CoreGetCoreOidcOKCaCertsItem `json:"ca_certs"`
 	// PEM of the CA certificates the box trusts for calls to this identity provider only, in addition to
-	// the system roots (D-378); empty = system roots only.
+	// the system roots; empty = system roots only.
 	CaPem    string `json:"ca_pem"`
 	ClientID string `json:"client_id"`
-	// Role for a person in none of the mapped groups; null = no access, the default (D-195).
+	// Role for a person in none of the mapped groups; null = no access, the default.
 	DefaultRole NilCoreGetCoreOidcOKDefaultRole `json:"default_role"`
 	// Name of the ID-token claim that lists the person's groups (default "groups").
 	GroupsClaim string `json:"groups_claim"`
@@ -15401,8 +15401,8 @@ type CoreGetCoreOidcOK struct {
 	RedirectURI string `json:"redirect_uri"`
 	// Group to role; a person in several mapped groups gets the highest of their roles.
 	RoleMap []CoreGetCoreOidcOKRoleMapItem `json:"role_map"`
-	// Space-separated scopes asked for at sign-in; always contains openid (D-194). Default "openid email
-	// profile"; add "groups" for IdPs that need it (Okta, Authentik).
+	// Space-separated scopes asked for at sign-in; always contains openid. Default "openid email profile";
+	// add "groups" for IdPs that need it (Okta, Authentik).
 	Scopes      string    `json:"scopes"`
 	SecretLast4 NilString `json:"secret_last4"`
 	// Accounts that sign in only through SSO; they cannot sign in while the module is off.
@@ -15889,12 +15889,11 @@ func (s *CoreGetCorePrivacyOKTelemetryPayload) init() CoreGetCorePrivacyOKTeleme
 
 type CoreGetCoreSetupModulesOK struct {
 	// Appliance: installed by install.sh, with the system helper vedette-host; container: container-only
-	// install on the customer's Docker or Podman, no helper (D-168). The one place the GUI learns it
-	// (D-381).
+	// install on the customer's Docker or Podman, no helper. The one place the GUI learns it.
 	Install CoreGetCoreSetupModulesOKInstall `json:"install"`
 	// The network of the box's management address (CIDR, like 192.168.18.0/24), offered as the first range
-	// of the network step (D-405); null when setup is done, on a container-only install, or when the box
-	// has no private IPv4 address.
+	// of the network step; null when setup is done, on a container-only install, or when the box has no
+	// private IPv4 address.
 	Lan     NilString                              `json:"lan"`
 	Modules []CoreGetCoreSetupModulesOKModulesItem `json:"modules"`
 }
@@ -15930,8 +15929,7 @@ func (s *CoreGetCoreSetupModulesOK) SetModules(val []CoreGetCoreSetupModulesOKMo
 }
 
 // Appliance: installed by install.sh, with the system helper vedette-host; container: container-only
-// install on the customer's Docker or Podman, no helper (D-168). The one place the GUI learns it
-// (D-381).
+// install on the customer's Docker or Podman, no helper. The one place the GUI learns it.
 type CoreGetCoreSetupModulesOKInstall string
 
 const (
@@ -15975,7 +15973,7 @@ func (s *CoreGetCoreSetupModulesOKInstall) UnmarshalText(data []byte) error {
 
 type CoreGetCoreSetupModulesOKModulesItem struct {
 	// False: this install cannot run the module (needs_host in its manifest on a container-only install:
-	// honeypot, credentialed scans, D-381); turning it on answers 409 not_appliance.
+	// honeypot, credentialed scans); turning it on answers 409 not_appliance.
 	Available bool                                              `json:"available"`
 	Depends   []CoreGetCoreSetupModulesOKModulesItemDependsItem `json:"depends"`
 	ID        CoreGetCoreSetupModulesOKModulesItemID            `json:"id"`
@@ -16621,19 +16619,19 @@ type CoreGetCoreUpdatesOK struct {
 	// Null until the first update check.
 	LastCheck NilDateTime `json:"last_check"`
 	// The latest update check (Check for releases or the 6-hourly check) failed; null once one succeeds.
-	// Kept across restarts; while it is set the automatic mode installs nothing (D-388, D-392).
+	// Kept across restarts; while it is set the automatic mode installs nothing.
 	LastCheckError NilCoreGetCoreUpdatesOKLastCheckError `json:"last_check_error"`
 	// Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates).
 	Managed []CoreGetCoreUpdatesOKManagedItem `json:"managed"`
 	Mode    CoreGetCoreUpdatesOKMode          `json:"mode"`
 	// The software install or rollback running now, or one that ended in the last 24 hours; null otherwise.
 	Run NilCoreGetCoreUpdatesOKRun `json:"run"`
-	// The newest stored update information withdraws the release this box runs (update-manifest §8,
-	// D-386); null otherwise.
+	// The newest stored update information withdraws the release this box runs (update-manifest §8); null
+	// otherwise.
 	RunningRevoked NilCoreGetCoreUpdatesOKRunningRevoked `json:"running_revoked"`
 	// The stored update information ran out at this time (its expires_at has passed; update-manifest
-	// §4.1, §13 (d), D-386): newer and withdrawn releases may be missing. Null while it is current or
-	// none is stored. Never blocks Apply, Rollback or a bundle.
+	// §4.1, §13 (d)): newer and withdrawn releases may be missing. Null while it is current or none is
+	// stored. Never blocks Apply, Rollback or a bundle.
 	StaleSince NilDateTime `json:"stale_since"`
 }
 
@@ -16940,10 +16938,10 @@ type CoreGetCoreUpdatesOKAvailableItem struct {
 	Channel   CoreGetCoreUpdatesOKAvailableItemChannel `json:"channel"`
 	Component string                                   `json:"component"`
 	// Software only: the system helper (vedette-host) version this release brings, when it is above the
-	// running one; the software run then updates it first (D-316). Absent otherwise.
+	// running one; the software run then updates it first. Absent otherwise.
 	HostVersion OptString `json:"host_version"`
 	// Software only: the images of the release by digest, from its verified manifest; a container-only
-	// install shows one cosign verify line per image it runs (S-CORE-9 G4). Absent otherwise.
+	// install shows one cosign verify line per image it runs (S-CORE-9). Absent otherwise.
 	Images  []CoreGetCoreUpdatesOKAvailableItemImagesItem `json:"images"`
 	Note    string                                        `json:"note"`
 	SizeKB  float64                                       `json:"size_kb"`
@@ -17131,7 +17129,7 @@ func (s *CoreGetCoreUpdatesOKChannel) UnmarshalText(data []byte) error {
 type CoreGetCoreUpdatesOKComponentsItem struct {
 	// "host": the system helper vedette-host (appliance only; a container-only install has no such row),
 	// kind software, updated by the software run (its first step, host), previous always null: it is never
-	// rolled back by hand (D-316).
+	// rolled back by hand.
 	ID          string                                 `json:"id"`
 	InstalledAt time.Time                              `json:"installed_at"`
 	Kind        CoreGetCoreUpdatesOKComponentsItemKind `json:"kind"`
@@ -17441,10 +17439,10 @@ type CoreGetCoreUpdatesOKLastCheckError struct {
 	At time.Time `json:"at"`
 	// Update_source_unreachable = the release source could not be reached (network, timeout, an answer
 	// other than 200, a 404 for the index once one is stored or for its signature, or for a manifest the
-	// index names; the message names the host and the reason in fixed words, D-540); update_not_published
-	// = only in a record kept by an older version (D-407): since D-540 a 404 for the index on a box that
-	// never stored one is a good check with nothing offered; update_check_failed = what arrived did not
-	// pass the signature or shape checks, or this build cannot check.
+	// index names; the message names the host and the reason in fixed words); update_not_published = only
+	// in a record kept by an older version: a 404 for the index on a box that never stored one is a good
+	// check with nothing offered; update_check_failed = what arrived did not pass the signature or shape
+	// checks, or this build cannot check.
 	Code CoreGetCoreUpdatesOKLastCheckErrorCode `json:"code"`
 	// The box's own sentence for this failure (the message of the 503/502 answer): fixed words and the
 	// configured source host; never text received from the network.
@@ -17483,10 +17481,10 @@ func (s *CoreGetCoreUpdatesOKLastCheckError) SetMessage(val string) {
 
 // Update_source_unreachable = the release source could not be reached (network, timeout, an answer
 // other than 200, a 404 for the index once one is stored or for its signature, or for a manifest the
-// index names; the message names the host and the reason in fixed words, D-540); update_not_published
-// = only in a record kept by an older version (D-407): since D-540 a 404 for the index on a box that
-// never stored one is a good check with nothing offered; update_check_failed = what arrived did not
-// pass the signature or shape checks, or this build cannot check.
+// index names; the message names the host and the reason in fixed words); update_not_published = only
+// in a record kept by an older version: a 404 for the index on a box that never stored one is a good
+// check with nothing offered; update_check_failed = what arrived did not pass the signature or shape
+// checks, or this build cannot check.
 type CoreGetCoreUpdatesOKLastCheckErrorCode string
 
 const (
@@ -17669,7 +17667,7 @@ type CoreGetCoreUpdatesOKRun struct {
 	// "software": the whole release, every service in lockstep.
 	Component string `json:"component"`
 	// Only when failed or reverted: why, in words, naming the service that failed; for the system helper
-	// (host step, or host_too_old before it) the sentences of S-CORE-2 criterion D-316.
+	// (host step, or host_too_old before it) the sentences S-CORE-2 defines.
 	Error      NilString   `json:"error"`
 	FinishedAt NilDateTime `json:"finished_at"`
 	// Release running when the run started.
@@ -17679,18 +17677,16 @@ type CoreGetCoreUpdatesOKRun struct {
 	ID        string    `json:"id"`
 	StartedAt time.Time `json:"started_at"`
 	// Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
-	// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to",
-	// D-459).
+	// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to").
 	Status CoreGetCoreUpdatesOKRunStatus `json:"status"`
 	// One of steps while running; null when ended. host: update the system helper vedette-host (Vedette
 	// keeps running; a step that does not succeed ends the run before any image changes); download: fetch
 	// and verify the signed images; start: the other services; restore: put back the database from before
 	// the update; restart: Vedette itself restarts (the page loses its connection for a moment).
 	Step NilCoreGetCoreUpdatesOKRunStep `json:"step"`
-	// The steps of this run in order: update = host (only when the release brings a newer system helper,
-	// D-316), download, restart, start (Vedette itself before the sensor, scan and decoy parts, D-459);
-	// rollback = start, then restore (only when it puts back the database), restart (a rollback never
-	// takes the helper back).
+	// The steps of this run in order: update = host (only when the release brings a newer system helper),
+	// download, restart, start (Vedette itself before the sensor, scan and decoy parts); rollback = start,
+	// then restore (only when it puts back the database), restart (a rollback never takes the helper back).
 	Steps []CoreGetCoreUpdatesOKRunStepsItem `json:"steps"`
 	// Release the run installs (update) or goes back to (rollback).
 	To string `json:"to"`
@@ -17860,8 +17856,7 @@ func (s *CoreGetCoreUpdatesOKRunAction) UnmarshalText(data []byte) error {
 }
 
 // Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
-// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to",
-// D-459).
+// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to").
 type CoreGetCoreUpdatesOKRunStatus string
 
 const (
@@ -18043,7 +18038,7 @@ func (s *CoreGetCoreUpdatesOKRunStepsItem) UnmarshalText(data []byte) error {
 
 type CoreGetCoreUpdatesOKRunningRevoked struct {
 	// Block_install: the Updates page only; block_install_and_warn and rollback_if_possible: a banner on
-	// every page (D-386).
+	// every page.
 	Action CoreGetCoreUpdatesOKRunningRevokedAction `json:"action"`
 	// Short English reason signed by the Vedette project.
 	Reason string    `json:"reason"`
@@ -18093,7 +18088,7 @@ func (s *CoreGetCoreUpdatesOKRunningRevoked) SetVersion(val string) {
 }
 
 // Block_install: the Updates page only; block_install_and_warn and rollback_if_possible: a banner on
-// every page (D-386).
+// every page.
 type CoreGetCoreUpdatesOKRunningRevokedAction string
 
 const (
@@ -18148,7 +18143,7 @@ type CoreGetCoreUpdatesOsOK struct {
 	// An install run is in progress; only one at a time.
 	Busy bool `json:"busy"`
 	// Null until the box first looks for operating system updates (Check now): pending and reboot_reasons
-	// are then empty and the rest is core's own settings (D-407; before it, GET answered 409 no_check_yet).
+	// are then empty and the rest is core's own settings (before it, GET answered 409 no_check_yet).
 	Os      NilCoreGetCoreUpdatesOsOKOs         `json:"os"`
 	Pending []CoreGetCoreUpdatesOsOKPendingItem `json:"pending"`
 	// Packages that need a reboot to take effect.
@@ -18873,9 +18868,8 @@ type CoreGetCoreUsersOKItemsItem struct {
 	LastLogin NilDateTime                     `json:"last_login"`
 	Name      string                          `json:"name"`
 	Role      CoreGetCoreUsersOKItemsItemRole `json:"role"`
-	// Created by an SSO sign-in (D-195): signs in only through the identity provider; its role follows the
-	// IdP groups at every sign-in, so it cannot be changed here (409 sso_user), nor can its password be
-	// reset.
+	// Created by an SSO sign-in: signs in only through the identity provider; its role follows the IdP
+	// groups at every sign-in, so it cannot be changed here (409 sso_user), nor can its password be reset.
 	SSO         bool                                      `json:"sso"`
 	Twofa       bool                                      `json:"twofa"`
 	TwofaMethod NilCoreGetCoreUsersOKItemsItemTwofaMethod `json:"twofa_method"`
@@ -19076,9 +19070,9 @@ type CoreGetMeOK struct {
 	ID    string `json:"id"`
 	Name  string `json:"name"`
 	Org   string `json:"org"`
-	// The password was set by an administrator (D-180): until the user changes it, every call except GET
-	// /me, POST /core/account/password and POST /auth/logout answers 403 password_change_required, and the
-	// GUI shows the Choose a new password screen.
+	// The password was set by an administrator: until the user changes it, every call except GET /me, POST
+	// /core/account/password and POST /auth/logout answers 403 password_change_required, and the GUI shows
+	// the Choose a new password screen.
 	PasswordChangeRequired bool                      `json:"password_change_required"`
 	Role                   CoreGetMeOKRole           `json:"role"`
 	Twofa                  bool                      `json:"twofa"`
@@ -19257,8 +19251,7 @@ func (s *CoreGetMeOKTwofaMethod) UnmarshalText(data []byte) error {
 
 type CoreGetModulesOK struct {
 	// Appliance: installed by install.sh, with the system helper vedette-host; container: container-only
-	// install on the customer's Docker or Podman, no helper (D-168). The one place the GUI learns it
-	// (D-381).
+	// install on the customer's Docker or Podman, no helper. The one place the GUI learns it.
 	Install CoreGetModulesOKInstall       `json:"install"`
 	Modules []CoreGetModulesOKModulesItem `json:"modules"`
 }
@@ -19284,8 +19277,7 @@ func (s *CoreGetModulesOK) SetModules(val []CoreGetModulesOKModulesItem) {
 }
 
 // Appliance: installed by install.sh, with the system helper vedette-host; container: container-only
-// install on the customer's Docker or Podman, no helper (D-168). The one place the GUI learns it
-// (D-381).
+// install on the customer's Docker or Podman, no helper. The one place the GUI learns it.
 type CoreGetModulesOKInstall string
 
 const (
@@ -19329,7 +19321,7 @@ func (s *CoreGetModulesOKInstall) UnmarshalText(data []byte) error {
 
 type CoreGetModulesOKModulesItem struct {
 	// False: this install cannot run the module (needs_host in its manifest on a container-only install:
-	// honeypot, credentialed scans, D-381); turning it on answers 409 not_appliance.
+	// honeypot, credentialed scans); turning it on answers 409 not_appliance.
 	Available bool                                     `json:"available"`
 	Depends   []CoreGetModulesOKModulesItemDependsItem `json:"depends"`
 	Enabled   bool                                     `json:"enabled"`
@@ -20131,19 +20123,19 @@ type CorePatchCoreUpdatesOK struct {
 	// Null until the first update check.
 	LastCheck NilDateTime `json:"last_check"`
 	// The latest update check (Check for releases or the 6-hourly check) failed; null once one succeeds.
-	// Kept across restarts; while it is set the automatic mode installs nothing (D-388, D-392).
+	// Kept across restarts; while it is set the automatic mode installs nothing.
 	LastCheckError NilCorePatchCoreUpdatesOKLastCheckError `json:"last_check_error"`
 	// Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates).
 	Managed []CorePatchCoreUpdatesOKManagedItem `json:"managed"`
 	Mode    CorePatchCoreUpdatesOKMode          `json:"mode"`
 	// The software install or rollback running now, or one that ended in the last 24 hours; null otherwise.
 	Run NilCorePatchCoreUpdatesOKRun `json:"run"`
-	// The newest stored update information withdraws the release this box runs (update-manifest §8,
-	// D-386); null otherwise.
+	// The newest stored update information withdraws the release this box runs (update-manifest §8); null
+	// otherwise.
 	RunningRevoked NilCorePatchCoreUpdatesOKRunningRevoked `json:"running_revoked"`
 	// The stored update information ran out at this time (its expires_at has passed; update-manifest
-	// §4.1, §13 (d), D-386): newer and withdrawn releases may be missing. Null while it is current or
-	// none is stored. Never blocks Apply, Rollback or a bundle.
+	// §4.1, §13 (d)): newer and withdrawn releases may be missing. Null while it is current or none is
+	// stored. Never blocks Apply, Rollback or a bundle.
 	StaleSince NilDateTime `json:"stale_since"`
 }
 
@@ -20450,10 +20442,10 @@ type CorePatchCoreUpdatesOKAvailableItem struct {
 	Channel   CorePatchCoreUpdatesOKAvailableItemChannel `json:"channel"`
 	Component string                                     `json:"component"`
 	// Software only: the system helper (vedette-host) version this release brings, when it is above the
-	// running one; the software run then updates it first (D-316). Absent otherwise.
+	// running one; the software run then updates it first. Absent otherwise.
 	HostVersion OptString `json:"host_version"`
 	// Software only: the images of the release by digest, from its verified manifest; a container-only
-	// install shows one cosign verify line per image it runs (S-CORE-9 G4). Absent otherwise.
+	// install shows one cosign verify line per image it runs (S-CORE-9). Absent otherwise.
 	Images  []CorePatchCoreUpdatesOKAvailableItemImagesItem `json:"images"`
 	Note    string                                          `json:"note"`
 	SizeKB  float64                                         `json:"size_kb"`
@@ -20641,7 +20633,7 @@ func (s *CorePatchCoreUpdatesOKChannel) UnmarshalText(data []byte) error {
 type CorePatchCoreUpdatesOKComponentsItem struct {
 	// "host": the system helper vedette-host (appliance only; a container-only install has no such row),
 	// kind software, updated by the software run (its first step, host), previous always null: it is never
-	// rolled back by hand (D-316).
+	// rolled back by hand.
 	ID          string                                   `json:"id"`
 	InstalledAt time.Time                                `json:"installed_at"`
 	Kind        CorePatchCoreUpdatesOKComponentsItemKind `json:"kind"`
@@ -20951,10 +20943,10 @@ type CorePatchCoreUpdatesOKLastCheckError struct {
 	At time.Time `json:"at"`
 	// Update_source_unreachable = the release source could not be reached (network, timeout, an answer
 	// other than 200, a 404 for the index once one is stored or for its signature, or for a manifest the
-	// index names; the message names the host and the reason in fixed words, D-540); update_not_published
-	// = only in a record kept by an older version (D-407): since D-540 a 404 for the index on a box that
-	// never stored one is a good check with nothing offered; update_check_failed = what arrived did not
-	// pass the signature or shape checks, or this build cannot check.
+	// index names; the message names the host and the reason in fixed words); update_not_published = only
+	// in a record kept by an older version: a 404 for the index on a box that never stored one is a good
+	// check with nothing offered; update_check_failed = what arrived did not pass the signature or shape
+	// checks, or this build cannot check.
 	Code CorePatchCoreUpdatesOKLastCheckErrorCode `json:"code"`
 	// The box's own sentence for this failure (the message of the 503/502 answer): fixed words and the
 	// configured source host; never text received from the network.
@@ -20993,10 +20985,10 @@ func (s *CorePatchCoreUpdatesOKLastCheckError) SetMessage(val string) {
 
 // Update_source_unreachable = the release source could not be reached (network, timeout, an answer
 // other than 200, a 404 for the index once one is stored or for its signature, or for a manifest the
-// index names; the message names the host and the reason in fixed words, D-540); update_not_published
-// = only in a record kept by an older version (D-407): since D-540 a 404 for the index on a box that
-// never stored one is a good check with nothing offered; update_check_failed = what arrived did not
-// pass the signature or shape checks, or this build cannot check.
+// index names; the message names the host and the reason in fixed words); update_not_published = only
+// in a record kept by an older version: a 404 for the index on a box that never stored one is a good
+// check with nothing offered; update_check_failed = what arrived did not pass the signature or shape
+// checks, or this build cannot check.
 type CorePatchCoreUpdatesOKLastCheckErrorCode string
 
 const (
@@ -21179,7 +21171,7 @@ type CorePatchCoreUpdatesOKRun struct {
 	// "software": the whole release, every service in lockstep.
 	Component string `json:"component"`
 	// Only when failed or reverted: why, in words, naming the service that failed; for the system helper
-	// (host step, or host_too_old before it) the sentences of S-CORE-2 criterion D-316.
+	// (host step, or host_too_old before it) the sentences S-CORE-2 defines.
 	Error      NilString   `json:"error"`
 	FinishedAt NilDateTime `json:"finished_at"`
 	// Release running when the run started.
@@ -21189,18 +21181,16 @@ type CorePatchCoreUpdatesOKRun struct {
 	ID        string    `json:"id"`
 	StartedAt time.Time `json:"started_at"`
 	// Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
-	// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to",
-	// D-459).
+	// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to").
 	Status CorePatchCoreUpdatesOKRunStatus `json:"status"`
 	// One of steps while running; null when ended. host: update the system helper vedette-host (Vedette
 	// keeps running; a step that does not succeed ends the run before any image changes); download: fetch
 	// and verify the signed images; start: the other services; restore: put back the database from before
 	// the update; restart: Vedette itself restarts (the page loses its connection for a moment).
 	Step NilCorePatchCoreUpdatesOKRunStep `json:"step"`
-	// The steps of this run in order: update = host (only when the release brings a newer system helper,
-	// D-316), download, restart, start (Vedette itself before the sensor, scan and decoy parts, D-459);
-	// rollback = start, then restore (only when it puts back the database), restart (a rollback never
-	// takes the helper back).
+	// The steps of this run in order: update = host (only when the release brings a newer system helper),
+	// download, restart, start (Vedette itself before the sensor, scan and decoy parts); rollback = start,
+	// then restore (only when it puts back the database), restart (a rollback never takes the helper back).
 	Steps []CorePatchCoreUpdatesOKRunStepsItem `json:"steps"`
 	// Release the run installs (update) or goes back to (rollback).
 	To string `json:"to"`
@@ -21370,8 +21360,7 @@ func (s *CorePatchCoreUpdatesOKRunAction) UnmarshalText(data []byte) error {
 }
 
 // Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
-// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to",
-// D-459).
+// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to").
 type CorePatchCoreUpdatesOKRunStatus string
 
 const (
@@ -21553,7 +21542,7 @@ func (s *CorePatchCoreUpdatesOKRunStepsItem) UnmarshalText(data []byte) error {
 
 type CorePatchCoreUpdatesOKRunningRevoked struct {
 	// Block_install: the Updates page only; block_install_and_warn and rollback_if_possible: a banner on
-	// every page (D-386).
+	// every page.
 	Action CorePatchCoreUpdatesOKRunningRevokedAction `json:"action"`
 	// Short English reason signed by the Vedette project.
 	Reason string    `json:"reason"`
@@ -21603,7 +21592,7 @@ func (s *CorePatchCoreUpdatesOKRunningRevoked) SetVersion(val string) {
 }
 
 // Block_install: the Updates page only; block_install_and_warn and rollback_if_possible: a banner on
-// every page (D-386).
+// every page.
 type CorePatchCoreUpdatesOKRunningRevokedAction string
 
 const (
@@ -21658,7 +21647,7 @@ type CorePatchCoreUpdatesOsSettingsOK struct {
 	// An install run is in progress; only one at a time.
 	Busy bool `json:"busy"`
 	// Null until the box first looks for operating system updates (Check now): pending and reboot_reasons
-	// are then empty and the rest is core's own settings (D-407; before it, GET answered 409 no_check_yet).
+	// are then empty and the rest is core's own settings (before it, GET answered 409 no_check_yet).
 	Os      NilCorePatchCoreUpdatesOsSettingsOKOs         `json:"os"`
 	Pending []CorePatchCoreUpdatesOsSettingsOKPendingItem `json:"pending"`
 	// Packages that need a reboot to take effect.
@@ -22329,9 +22318,8 @@ type CorePatchCoreUsersIDOKUser struct {
 	LastLogin NilDateTime                    `json:"last_login"`
 	Name      string                         `json:"name"`
 	Role      CorePatchCoreUsersIDOKUserRole `json:"role"`
-	// Created by an SSO sign-in (D-195): signs in only through the identity provider; its role follows the
-	// IdP groups at every sign-in, so it cannot be changed here (409 sso_user), nor can its password be
-	// reset.
+	// Created by an SSO sign-in: signs in only through the identity provider; its role follows the IdP
+	// groups at every sign-in, so it cannot be changed here (409 sso_user), nor can its password be reset.
 	SSO         bool                                     `json:"sso"`
 	Twofa       bool                                     `json:"twofa"`
 	TwofaMethod NilCorePatchCoreUsersIDOKUserTwofaMethod `json:"twofa_method"`
@@ -22788,7 +22776,7 @@ func (s *CorePatchModulesIDOKAffectedItem) UnmarshalText(data []byte) error {
 
 type CorePatchModulesIDOKModulesItem struct {
 	// False: this install cannot run the module (needs_host in its manifest on a container-only install:
-	// honeypot, credentialed scans, D-381); turning it on answers 409 not_appliance.
+	// honeypot, credentialed scans); turning it on answers 409 not_appliance.
 	Available bool                                         `json:"available"`
 	Depends   []CorePatchModulesIDOKModulesItemDependsItem `json:"depends"`
 	Enabled   bool                                         `json:"enabled"`
@@ -23681,7 +23669,7 @@ type CorePostCoreConnectionsCreated struct {
 	// Read-only. null until the first Test, or after the pin was forgotten.
 	Pin    NilCorePostCoreConnectionsCreatedPin `json:"pin"`
 	Status CorePostCoreConnectionsCreatedStatus `json:"status"`
-	// Base URL or host:port. "mcp-stdio" rows are not supported (D-94).
+	// Base URL or host:port. "mcp-stdio" rows are not supported.
 	Target string                                    `json:"target"`
 	Tools  []CorePostCoreConnectionsCreatedToolsItem `json:"tools"`
 	// User name for SSH and for Basic sign-in; null for the other sign-ins.
@@ -23819,8 +23807,8 @@ func (s *CorePostCoreConnectionsCreated) SetUsername(val NilString) {
 }
 
 type CorePostCoreConnectionsCreatedAuth struct {
-	// Token sign-in only: the name of the header the token is sent in (D-174), for a device whose API
-	// wants a key header. null sends Authorization: Bearer . The token itself stays in the vault.
+	// Token sign-in only: the name of the header the token is sent in, for a device whose API wants a key
+	// header. null sends Authorization: Bearer . The token itself stays in the vault.
 	Header NilString `json:"header"`
 	// SSH key only: SHA256: fingerprint of the saved private key, like GitHub shows for a key. The mock
 	// uses a hash of the key body; the backend computes the public-key fingerprint.
@@ -23995,7 +23983,7 @@ func (s *CorePostCoreConnectionsCreatedKind) UnmarshalText(data []byte) error {
 	}
 }
 
-// Pinned at the first successful Test (trust on first use, D-94). A changed certificate or host key is
+// Pinned at the first successful Test (trust on first use). A changed certificate or host key is
 // refused until an administrator forgets the pin.
 type CorePostCoreConnectionsCreatedPin struct {
 	FirstSeen time.Time `json:"first_seen"`
@@ -24298,7 +24286,7 @@ type CorePostCoreConnectionsIDTestOKConnector struct {
 	// Read-only. null until the first Test, or after the pin was forgotten.
 	Pin    NilCorePostCoreConnectionsIDTestOKConnectorPin `json:"pin"`
 	Status CorePostCoreConnectionsIDTestOKConnectorStatus `json:"status"`
-	// Base URL or host:port. "mcp-stdio" rows are not supported (D-94).
+	// Base URL or host:port. "mcp-stdio" rows are not supported.
 	Target string                                              `json:"target"`
 	Tools  []CorePostCoreConnectionsIDTestOKConnectorToolsItem `json:"tools"`
 	// User name for SSH and for Basic sign-in; null for the other sign-ins.
@@ -24436,8 +24424,8 @@ func (s *CorePostCoreConnectionsIDTestOKConnector) SetUsername(val NilString) {
 }
 
 type CorePostCoreConnectionsIDTestOKConnectorAuth struct {
-	// Token sign-in only: the name of the header the token is sent in (D-174), for a device whose API
-	// wants a key header. null sends Authorization: Bearer . The token itself stays in the vault.
+	// Token sign-in only: the name of the header the token is sent in, for a device whose API wants a key
+	// header. null sends Authorization: Bearer . The token itself stays in the vault.
 	Header NilString `json:"header"`
 	// SSH key only: SHA256: fingerprint of the saved private key, like GitHub shows for a key. The mock
 	// uses a hash of the key body; the backend computes the public-key fingerprint.
@@ -24612,7 +24600,7 @@ func (s *CorePostCoreConnectionsIDTestOKConnectorKind) UnmarshalText(data []byte
 	}
 }
 
-// Pinned at the first successful Test (trust on first use, D-94). A changed certificate or host key is
+// Pinned at the first successful Test (trust on first use). A changed certificate or host key is
 // refused until an administrator forgets the pin.
 type CorePostCoreConnectionsIDTestOKConnectorPin struct {
 	FirstSeen time.Time `json:"first_seen"`
@@ -24847,10 +24835,9 @@ func (s *CorePostCoreConnectionsIDTestOKConnectorToolsItemAccess) UnmarshalText(
 type CorePostCoreConnectionsReq struct {
 	Allow   []string     `json:"allow"`
 	AssetID OptNilString `json:"asset_id"`
-	// Token sign-in only (D-174): the header name the token is sent in, for example X-API-Key; empty or
-	// null sends Authorization: Bearer . An RFC 7230 token that is not Host, Content-Length,
-	// Transfer-Encoding, Connection and the like (400 invalid_auth_header); with another sign-in 400
-	// invalid.
+	// Token sign-in only: the header name the token is sent in, for example X-API-Key; empty or null sends
+	// Authorization: Bearer . An RFC 7230 token that is not Host, Content-Length, Transfer-Encoding,
+	// Connection and the like (400 invalid_auth_header); with another sign-in 400 invalid.
 	AuthHeader OptNilString                       `json:"auth_header"`
 	AuthType   CorePostCoreConnectionsReqAuthType `json:"auth_type"`
 	// True = forget the pinned certificate or host key; the next Test pins again. It is also forgotten
@@ -25695,8 +25682,8 @@ func (s *CorePostCoreMcpTokensReq) SetScopes(val []string) {
 }
 
 type CorePostCoreNetworkBoxAddressForgetOK struct {
-	// D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail,
-	// block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
+	// The address every link the box makes carries (alert messages, approval links, sign-in mail, block
+	// list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
 	BoxAddress CorePostCoreNetworkBoxAddressForgetOKBoxAddress       `json:"box_address"`
 	DecoyIps   []string                                              `json:"decoy_ips"`
 	DefaultNtp string                                                `json:"default_ntp"`
@@ -25800,8 +25787,8 @@ func (s *CorePostCoreNetworkBoxAddressForgetOK) SetSpanStatus(val CorePostCoreNe
 	s.SpanStatus = val
 }
 
-// D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail,
-// block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
+// The address every link the box makes carries (alert messages, approval links, sign-in mail, block
+// list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
 type CorePostCoreNetworkBoxAddressForgetOKBoxAddress struct {
 	// The host name or IPv4 address an administrator saved; null = the default is used.
 	Address NilString `json:"address"`
@@ -26156,7 +26143,7 @@ type CorePostCoreNetworkBoxAddressForgetOKPending struct {
 	ExpiresAt       time.Time `json:"expires_at"`
 	PreviousAddress NilString `json:"previous_address"`
 	// Set when the box could not go back to the old settings by itself: it restarts at this time, and the
-	// saved settings on disk are the old ones (D-100).
+	// saved settings on disk are the old ones.
 	RebootAt NilDateTime `json:"reboot_at"`
 	// Seconds the box waits for the confirmation (the whole window, not what is left).
 	WindowS int `json:"window_s"`
@@ -26542,8 +26529,8 @@ func (s *CorePostCoreNetworkBoxAddressForgetReq) SetAddress(val string) {
 }
 
 type CorePostCoreNetworkManagementConfirmOK struct {
-	// D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail,
-	// block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
+	// The address every link the box makes carries (alert messages, approval links, sign-in mail, block
+	// list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
 	BoxAddress CorePostCoreNetworkManagementConfirmOKBoxAddress       `json:"box_address"`
 	DecoyIps   []string                                               `json:"decoy_ips"`
 	DefaultNtp string                                                 `json:"default_ntp"`
@@ -26647,8 +26634,8 @@ func (s *CorePostCoreNetworkManagementConfirmOK) SetSpanStatus(val CorePostCoreN
 	s.SpanStatus = val
 }
 
-// D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail,
-// block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
+// The address every link the box makes carries (alert messages, approval links, sign-in mail, block
+// list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
 type CorePostCoreNetworkManagementConfirmOKBoxAddress struct {
 	// The host name or IPv4 address an administrator saved; null = the default is used.
 	Address NilString `json:"address"`
@@ -27003,7 +26990,7 @@ type CorePostCoreNetworkManagementConfirmOKPending struct {
 	ExpiresAt       time.Time `json:"expires_at"`
 	PreviousAddress NilString `json:"previous_address"`
 	// Set when the box could not go back to the old settings by itself: it restarts at this time, and the
-	// saved settings on disk are the old ones (D-100).
+	// saved settings on disk are the old ones.
 	RebootAt NilDateTime `json:"reboot_at"`
 	// Seconds the box waits for the confirmation (the whole window, not what is left).
 	WindowS int `json:"window_s"`
@@ -27375,8 +27362,8 @@ func (s *CorePostCoreNetworkManagementConfirmOKSpanStatusVerdict) UnmarshalText(
 }
 
 type CorePostCoreNetworkManagementRevertOK struct {
-	// D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail,
-	// block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
+	// The address every link the box makes carries (alert messages, approval links, sign-in mail, block
+	// list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
 	BoxAddress CorePostCoreNetworkManagementRevertOKBoxAddress       `json:"box_address"`
 	DecoyIps   []string                                              `json:"decoy_ips"`
 	DefaultNtp string                                                `json:"default_ntp"`
@@ -27480,8 +27467,8 @@ func (s *CorePostCoreNetworkManagementRevertOK) SetSpanStatus(val CorePostCoreNe
 	s.SpanStatus = val
 }
 
-// D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail,
-// block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
+// The address every link the box makes carries (alert messages, approval links, sign-in mail, block
+// list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
 type CorePostCoreNetworkManagementRevertOKBoxAddress struct {
 	// The host name or IPv4 address an administrator saved; null = the default is used.
 	Address NilString `json:"address"`
@@ -27836,7 +27823,7 @@ type CorePostCoreNetworkManagementRevertOKPending struct {
 	ExpiresAt       time.Time `json:"expires_at"`
 	PreviousAddress NilString `json:"previous_address"`
 	// Set when the box could not go back to the old settings by itself: it restarts at this time, and the
-	// saved settings on disk are the old ones (D-100).
+	// saved settings on disk are the old ones.
 	RebootAt NilDateTime `json:"reboot_at"`
 	// Seconds the box waits for the confirmation (the whole window, not what is left).
 	WindowS int `json:"window_s"`
@@ -28258,9 +28245,9 @@ func (s *CorePostCoreSetupOK) SetOk(val bool) {
 }
 
 type CorePostCoreSetupReq struct {
-	// True = the administrator read, understood and agrees to the terms of use (TERMS.md, D-544). Required
-	// to create the first administrator: anything else gives 400 terms_not_accepted, judged right after
-	// the setup code.
+	// True = the administrator read, understood and agrees to the terms of use (TERMS.md). Required to
+	// create the first administrator: anything else gives 400 terms_not_accepted, judged right after the
+	// setup code.
 	AcceptTerms OptBool                       `json:"accept_terms"`
 	Admin       OptCorePostCoreSetupReqAdmin  `json:"admin"`
 	Bundle      OptCorePostCoreSetupReqBundle `json:"bundle"`
@@ -28271,9 +28258,9 @@ type CorePostCoreSetupReq struct {
 	Org        OptString                         `json:"org"`
 	// True = use sample data and sign in as the sample administrator; other fields are ignored.
 	Sample OptBool `json:"sample"`
-	// The one-time setup code the box prints in its log while setup is open (D-75). Required to create the
-	// first administrator: missing or wrong gives 403 invalid_setup_code, 429 rate_limited after repeated
-	// wrong tries.
+	// The one-time setup code the box prints in its log while setup is open. Required to create the first
+	// administrator: missing or wrong gives 403 invalid_setup_code, 429 rate_limited after repeated wrong
+	// tries.
 	SetupCode OptString `json:"setup_code"`
 }
 
@@ -28695,7 +28682,7 @@ func (s *CorePostCoreSetupRestoreAcceptedStatus) UnmarshalText(data []byte) erro
 }
 
 type CorePostCoreSetupRestoreReq struct {
-	// True = the operator read, understood and agrees to the terms of use (D-544); anything else gives 400
+	// True = the operator read, understood and agrees to the terms of use; anything else gives 400
 	// terms_not_accepted, judged right after the setup code.
 	AcceptTerms OptBool `json:"accept_terms"`
 	// Required (true) without key when the backup holds secrets: they are lost and two-step users cannot
@@ -28871,19 +28858,19 @@ type CorePostCoreUpdatesApplyOK struct {
 	// Null until the first update check.
 	LastCheck NilDateTime `json:"last_check"`
 	// The latest update check (Check for releases or the 6-hourly check) failed; null once one succeeds.
-	// Kept across restarts; while it is set the automatic mode installs nothing (D-388, D-392).
+	// Kept across restarts; while it is set the automatic mode installs nothing.
 	LastCheckError NilCorePostCoreUpdatesApplyOKLastCheckError `json:"last_check_error"`
 	// Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates).
 	Managed []CorePostCoreUpdatesApplyOKManagedItem `json:"managed"`
 	Mode    CorePostCoreUpdatesApplyOKMode          `json:"mode"`
 	// The software install or rollback running now, or one that ended in the last 24 hours; null otherwise.
 	Run NilCorePostCoreUpdatesApplyOKRun `json:"run"`
-	// The newest stored update information withdraws the release this box runs (update-manifest §8,
-	// D-386); null otherwise.
+	// The newest stored update information withdraws the release this box runs (update-manifest §8); null
+	// otherwise.
 	RunningRevoked NilCorePostCoreUpdatesApplyOKRunningRevoked `json:"running_revoked"`
 	// The stored update information ran out at this time (its expires_at has passed; update-manifest
-	// §4.1, §13 (d), D-386): newer and withdrawn releases may be missing. Null while it is current or
-	// none is stored. Never blocks Apply, Rollback or a bundle.
+	// §4.1, §13 (d)): newer and withdrawn releases may be missing. Null while it is current or none is
+	// stored. Never blocks Apply, Rollback or a bundle.
 	StaleSince NilDateTime `json:"stale_since"`
 }
 
@@ -29190,10 +29177,10 @@ type CorePostCoreUpdatesApplyOKAvailableItem struct {
 	Channel   CorePostCoreUpdatesApplyOKAvailableItemChannel `json:"channel"`
 	Component string                                         `json:"component"`
 	// Software only: the system helper (vedette-host) version this release brings, when it is above the
-	// running one; the software run then updates it first (D-316). Absent otherwise.
+	// running one; the software run then updates it first. Absent otherwise.
 	HostVersion OptString `json:"host_version"`
 	// Software only: the images of the release by digest, from its verified manifest; a container-only
-	// install shows one cosign verify line per image it runs (S-CORE-9 G4). Absent otherwise.
+	// install shows one cosign verify line per image it runs (S-CORE-9). Absent otherwise.
 	Images  []CorePostCoreUpdatesApplyOKAvailableItemImagesItem `json:"images"`
 	Note    string                                              `json:"note"`
 	SizeKB  float64                                             `json:"size_kb"`
@@ -29381,7 +29368,7 @@ func (s *CorePostCoreUpdatesApplyOKChannel) UnmarshalText(data []byte) error {
 type CorePostCoreUpdatesApplyOKComponentsItem struct {
 	// "host": the system helper vedette-host (appliance only; a container-only install has no such row),
 	// kind software, updated by the software run (its first step, host), previous always null: it is never
-	// rolled back by hand (D-316).
+	// rolled back by hand.
 	ID          string                                       `json:"id"`
 	InstalledAt time.Time                                    `json:"installed_at"`
 	Kind        CorePostCoreUpdatesApplyOKComponentsItemKind `json:"kind"`
@@ -29691,10 +29678,10 @@ type CorePostCoreUpdatesApplyOKLastCheckError struct {
 	At time.Time `json:"at"`
 	// Update_source_unreachable = the release source could not be reached (network, timeout, an answer
 	// other than 200, a 404 for the index once one is stored or for its signature, or for a manifest the
-	// index names; the message names the host and the reason in fixed words, D-540); update_not_published
-	// = only in a record kept by an older version (D-407): since D-540 a 404 for the index on a box that
-	// never stored one is a good check with nothing offered; update_check_failed = what arrived did not
-	// pass the signature or shape checks, or this build cannot check.
+	// index names; the message names the host and the reason in fixed words); update_not_published = only
+	// in a record kept by an older version: a 404 for the index on a box that never stored one is a good
+	// check with nothing offered; update_check_failed = what arrived did not pass the signature or shape
+	// checks, or this build cannot check.
 	Code CorePostCoreUpdatesApplyOKLastCheckErrorCode `json:"code"`
 	// The box's own sentence for this failure (the message of the 503/502 answer): fixed words and the
 	// configured source host; never text received from the network.
@@ -29733,10 +29720,10 @@ func (s *CorePostCoreUpdatesApplyOKLastCheckError) SetMessage(val string) {
 
 // Update_source_unreachable = the release source could not be reached (network, timeout, an answer
 // other than 200, a 404 for the index once one is stored or for its signature, or for a manifest the
-// index names; the message names the host and the reason in fixed words, D-540); update_not_published
-// = only in a record kept by an older version (D-407): since D-540 a 404 for the index on a box that
-// never stored one is a good check with nothing offered; update_check_failed = what arrived did not
-// pass the signature or shape checks, or this build cannot check.
+// index names; the message names the host and the reason in fixed words); update_not_published = only
+// in a record kept by an older version: a 404 for the index on a box that never stored one is a good
+// check with nothing offered; update_check_failed = what arrived did not pass the signature or shape
+// checks, or this build cannot check.
 type CorePostCoreUpdatesApplyOKLastCheckErrorCode string
 
 const (
@@ -29919,7 +29906,7 @@ type CorePostCoreUpdatesApplyOKRun struct {
 	// "software": the whole release, every service in lockstep.
 	Component string `json:"component"`
 	// Only when failed or reverted: why, in words, naming the service that failed; for the system helper
-	// (host step, or host_too_old before it) the sentences of S-CORE-2 criterion D-316.
+	// (host step, or host_too_old before it) the sentences S-CORE-2 defines.
 	Error      NilString   `json:"error"`
 	FinishedAt NilDateTime `json:"finished_at"`
 	// Release running when the run started.
@@ -29929,18 +29916,16 @@ type CorePostCoreUpdatesApplyOKRun struct {
 	ID        string    `json:"id"`
 	StartedAt time.Time `json:"started_at"`
 	// Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
-	// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to",
-	// D-459).
+	// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to").
 	Status CorePostCoreUpdatesApplyOKRunStatus `json:"status"`
 	// One of steps while running; null when ended. host: update the system helper vedette-host (Vedette
 	// keeps running; a step that does not succeed ends the run before any image changes); download: fetch
 	// and verify the signed images; start: the other services; restore: put back the database from before
 	// the update; restart: Vedette itself restarts (the page loses its connection for a moment).
 	Step NilCorePostCoreUpdatesApplyOKRunStep `json:"step"`
-	// The steps of this run in order: update = host (only when the release brings a newer system helper,
-	// D-316), download, restart, start (Vedette itself before the sensor, scan and decoy parts, D-459);
-	// rollback = start, then restore (only when it puts back the database), restart (a rollback never
-	// takes the helper back).
+	// The steps of this run in order: update = host (only when the release brings a newer system helper),
+	// download, restart, start (Vedette itself before the sensor, scan and decoy parts); rollback = start,
+	// then restore (only when it puts back the database), restart (a rollback never takes the helper back).
 	Steps []CorePostCoreUpdatesApplyOKRunStepsItem `json:"steps"`
 	// Release the run installs (update) or goes back to (rollback).
 	To string `json:"to"`
@@ -30110,8 +30095,7 @@ func (s *CorePostCoreUpdatesApplyOKRunAction) UnmarshalText(data []byte) error {
 }
 
 // Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
-// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to",
-// D-459).
+// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to").
 type CorePostCoreUpdatesApplyOKRunStatus string
 
 const (
@@ -30293,7 +30277,7 @@ func (s *CorePostCoreUpdatesApplyOKRunStepsItem) UnmarshalText(data []byte) erro
 
 type CorePostCoreUpdatesApplyOKRunningRevoked struct {
 	// Block_install: the Updates page only; block_install_and_warn and rollback_if_possible: a banner on
-	// every page (D-386).
+	// every page.
 	Action CorePostCoreUpdatesApplyOKRunningRevokedAction `json:"action"`
 	// Short English reason signed by the Vedette project.
 	Reason string    `json:"reason"`
@@ -30343,7 +30327,7 @@ func (s *CorePostCoreUpdatesApplyOKRunningRevoked) SetVersion(val string) {
 }
 
 // Block_install: the Updates page only; block_install_and_warn and rollback_if_possible: a banner on
-// every page (D-386).
+// every page.
 type CorePostCoreUpdatesApplyOKRunningRevokedAction string
 
 const (
@@ -30442,19 +30426,19 @@ type CorePostCoreUpdatesBundleOKState struct {
 	// Null until the first update check.
 	LastCheck NilDateTime `json:"last_check"`
 	// The latest update check (Check for releases or the 6-hourly check) failed; null once one succeeds.
-	// Kept across restarts; while it is set the automatic mode installs nothing (D-388, D-392).
+	// Kept across restarts; while it is set the automatic mode installs nothing.
 	LastCheckError NilCorePostCoreUpdatesBundleOKStateLastCheckError `json:"last_check_error"`
 	// Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates).
 	Managed []CorePostCoreUpdatesBundleOKStateManagedItem `json:"managed"`
 	Mode    CorePostCoreUpdatesBundleOKStateMode          `json:"mode"`
 	// The software install or rollback running now, or one that ended in the last 24 hours; null otherwise.
 	Run NilCorePostCoreUpdatesBundleOKStateRun `json:"run"`
-	// The newest stored update information withdraws the release this box runs (update-manifest §8,
-	// D-386); null otherwise.
+	// The newest stored update information withdraws the release this box runs (update-manifest §8); null
+	// otherwise.
 	RunningRevoked NilCorePostCoreUpdatesBundleOKStateRunningRevoked `json:"running_revoked"`
 	// The stored update information ran out at this time (its expires_at has passed; update-manifest
-	// §4.1, §13 (d), D-386): newer and withdrawn releases may be missing. Null while it is current or
-	// none is stored. Never blocks Apply, Rollback or a bundle.
+	// §4.1, §13 (d)): newer and withdrawn releases may be missing. Null while it is current or none is
+	// stored. Never blocks Apply, Rollback or a bundle.
 	StaleSince NilDateTime `json:"stale_since"`
 }
 
@@ -30761,10 +30745,10 @@ type CorePostCoreUpdatesBundleOKStateAvailableItem struct {
 	Channel   CorePostCoreUpdatesBundleOKStateAvailableItemChannel `json:"channel"`
 	Component string                                               `json:"component"`
 	// Software only: the system helper (vedette-host) version this release brings, when it is above the
-	// running one; the software run then updates it first (D-316). Absent otherwise.
+	// running one; the software run then updates it first. Absent otherwise.
 	HostVersion OptString `json:"host_version"`
 	// Software only: the images of the release by digest, from its verified manifest; a container-only
-	// install shows one cosign verify line per image it runs (S-CORE-9 G4). Absent otherwise.
+	// install shows one cosign verify line per image it runs (S-CORE-9). Absent otherwise.
 	Images  []CorePostCoreUpdatesBundleOKStateAvailableItemImagesItem `json:"images"`
 	Note    string                                                    `json:"note"`
 	SizeKB  float64                                                   `json:"size_kb"`
@@ -30952,7 +30936,7 @@ func (s *CorePostCoreUpdatesBundleOKStateChannel) UnmarshalText(data []byte) err
 type CorePostCoreUpdatesBundleOKStateComponentsItem struct {
 	// "host": the system helper vedette-host (appliance only; a container-only install has no such row),
 	// kind software, updated by the software run (its first step, host), previous always null: it is never
-	// rolled back by hand (D-316).
+	// rolled back by hand.
 	ID          string                                             `json:"id"`
 	InstalledAt time.Time                                          `json:"installed_at"`
 	Kind        CorePostCoreUpdatesBundleOKStateComponentsItemKind `json:"kind"`
@@ -31262,10 +31246,10 @@ type CorePostCoreUpdatesBundleOKStateLastCheckError struct {
 	At time.Time `json:"at"`
 	// Update_source_unreachable = the release source could not be reached (network, timeout, an answer
 	// other than 200, a 404 for the index once one is stored or for its signature, or for a manifest the
-	// index names; the message names the host and the reason in fixed words, D-540); update_not_published
-	// = only in a record kept by an older version (D-407): since D-540 a 404 for the index on a box that
-	// never stored one is a good check with nothing offered; update_check_failed = what arrived did not
-	// pass the signature or shape checks, or this build cannot check.
+	// index names; the message names the host and the reason in fixed words); update_not_published = only
+	// in a record kept by an older version: a 404 for the index on a box that never stored one is a good
+	// check with nothing offered; update_check_failed = what arrived did not pass the signature or shape
+	// checks, or this build cannot check.
 	Code CorePostCoreUpdatesBundleOKStateLastCheckErrorCode `json:"code"`
 	// The box's own sentence for this failure (the message of the 503/502 answer): fixed words and the
 	// configured source host; never text received from the network.
@@ -31304,10 +31288,10 @@ func (s *CorePostCoreUpdatesBundleOKStateLastCheckError) SetMessage(val string) 
 
 // Update_source_unreachable = the release source could not be reached (network, timeout, an answer
 // other than 200, a 404 for the index once one is stored or for its signature, or for a manifest the
-// index names; the message names the host and the reason in fixed words, D-540); update_not_published
-// = only in a record kept by an older version (D-407): since D-540 a 404 for the index on a box that
-// never stored one is a good check with nothing offered; update_check_failed = what arrived did not
-// pass the signature or shape checks, or this build cannot check.
+// index names; the message names the host and the reason in fixed words); update_not_published = only
+// in a record kept by an older version: a 404 for the index on a box that never stored one is a good
+// check with nothing offered; update_check_failed = what arrived did not pass the signature or shape
+// checks, or this build cannot check.
 type CorePostCoreUpdatesBundleOKStateLastCheckErrorCode string
 
 const (
@@ -31490,7 +31474,7 @@ type CorePostCoreUpdatesBundleOKStateRun struct {
 	// "software": the whole release, every service in lockstep.
 	Component string `json:"component"`
 	// Only when failed or reverted: why, in words, naming the service that failed; for the system helper
-	// (host step, or host_too_old before it) the sentences of S-CORE-2 criterion D-316.
+	// (host step, or host_too_old before it) the sentences S-CORE-2 defines.
 	Error      NilString   `json:"error"`
 	FinishedAt NilDateTime `json:"finished_at"`
 	// Release running when the run started.
@@ -31500,18 +31484,16 @@ type CorePostCoreUpdatesBundleOKStateRun struct {
 	ID        string    `json:"id"`
 	StartedAt time.Time `json:"started_at"`
 	// Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
-	// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to",
-	// D-459).
+	// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to").
 	Status CorePostCoreUpdatesBundleOKStateRunStatus `json:"status"`
 	// One of steps while running; null when ended. host: update the system helper vedette-host (Vedette
 	// keeps running; a step that does not succeed ends the run before any image changes); download: fetch
 	// and verify the signed images; start: the other services; restore: put back the database from before
 	// the update; restart: Vedette itself restarts (the page loses its connection for a moment).
 	Step NilCorePostCoreUpdatesBundleOKStateRunStep `json:"step"`
-	// The steps of this run in order: update = host (only when the release brings a newer system helper,
-	// D-316), download, restart, start (Vedette itself before the sensor, scan and decoy parts, D-459);
-	// rollback = start, then restore (only when it puts back the database), restart (a rollback never
-	// takes the helper back).
+	// The steps of this run in order: update = host (only when the release brings a newer system helper),
+	// download, restart, start (Vedette itself before the sensor, scan and decoy parts); rollback = start,
+	// then restore (only when it puts back the database), restart (a rollback never takes the helper back).
 	Steps []CorePostCoreUpdatesBundleOKStateRunStepsItem `json:"steps"`
 	// Release the run installs (update) or goes back to (rollback).
 	To string `json:"to"`
@@ -31681,8 +31663,7 @@ func (s *CorePostCoreUpdatesBundleOKStateRunAction) UnmarshalText(data []byte) e
 }
 
 // Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
-// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to",
-// D-459).
+// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to").
 type CorePostCoreUpdatesBundleOKStateRunStatus string
 
 const (
@@ -31864,7 +31845,7 @@ func (s *CorePostCoreUpdatesBundleOKStateRunStepsItem) UnmarshalText(data []byte
 
 type CorePostCoreUpdatesBundleOKStateRunningRevoked struct {
 	// Block_install: the Updates page only; block_install_and_warn and rollback_if_possible: a banner on
-	// every page (D-386).
+	// every page.
 	Action CorePostCoreUpdatesBundleOKStateRunningRevokedAction `json:"action"`
 	// Short English reason signed by the Vedette project.
 	Reason string    `json:"reason"`
@@ -31914,7 +31895,7 @@ func (s *CorePostCoreUpdatesBundleOKStateRunningRevoked) SetVersion(val string) 
 }
 
 // Block_install: the Updates page only; block_install_and_warn and rollback_if_possible: a banner on
-// every page (D-386).
+// every page.
 type CorePostCoreUpdatesBundleOKStateRunningRevokedAction string
 
 const (
@@ -32024,19 +32005,19 @@ type CorePostCoreUpdatesCheckOK struct {
 	// Null until the first update check.
 	LastCheck NilDateTime `json:"last_check"`
 	// The latest update check (Check for releases or the 6-hourly check) failed; null once one succeeds.
-	// Kept across restarts; while it is set the automatic mode installs nothing (D-388, D-392).
+	// Kept across restarts; while it is set the automatic mode installs nothing.
 	LastCheckError NilCorePostCoreUpdatesCheckOKLastCheckError `json:"last_check_error"`
 	// Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates).
 	Managed []CorePostCoreUpdatesCheckOKManagedItem `json:"managed"`
 	Mode    CorePostCoreUpdatesCheckOKMode          `json:"mode"`
 	// The software install or rollback running now, or one that ended in the last 24 hours; null otherwise.
 	Run NilCorePostCoreUpdatesCheckOKRun `json:"run"`
-	// The newest stored update information withdraws the release this box runs (update-manifest §8,
-	// D-386); null otherwise.
+	// The newest stored update information withdraws the release this box runs (update-manifest §8); null
+	// otherwise.
 	RunningRevoked NilCorePostCoreUpdatesCheckOKRunningRevoked `json:"running_revoked"`
 	// The stored update information ran out at this time (its expires_at has passed; update-manifest
-	// §4.1, §13 (d), D-386): newer and withdrawn releases may be missing. Null while it is current or
-	// none is stored. Never blocks Apply, Rollback or a bundle.
+	// §4.1, §13 (d)): newer and withdrawn releases may be missing. Null while it is current or none is
+	// stored. Never blocks Apply, Rollback or a bundle.
 	StaleSince NilDateTime `json:"stale_since"`
 }
 
@@ -32353,10 +32334,10 @@ type CorePostCoreUpdatesCheckOKAvailableItem struct {
 	Channel   CorePostCoreUpdatesCheckOKAvailableItemChannel `json:"channel"`
 	Component string                                         `json:"component"`
 	// Software only: the system helper (vedette-host) version this release brings, when it is above the
-	// running one; the software run then updates it first (D-316). Absent otherwise.
+	// running one; the software run then updates it first. Absent otherwise.
 	HostVersion OptString `json:"host_version"`
 	// Software only: the images of the release by digest, from its verified manifest; a container-only
-	// install shows one cosign verify line per image it runs (S-CORE-9 G4). Absent otherwise.
+	// install shows one cosign verify line per image it runs (S-CORE-9). Absent otherwise.
 	Images  []CorePostCoreUpdatesCheckOKAvailableItemImagesItem `json:"images"`
 	Note    string                                              `json:"note"`
 	SizeKB  float64                                             `json:"size_kb"`
@@ -32544,7 +32525,7 @@ func (s *CorePostCoreUpdatesCheckOKChannel) UnmarshalText(data []byte) error {
 type CorePostCoreUpdatesCheckOKComponentsItem struct {
 	// "host": the system helper vedette-host (appliance only; a container-only install has no such row),
 	// kind software, updated by the software run (its first step, host), previous always null: it is never
-	// rolled back by hand (D-316).
+	// rolled back by hand.
 	ID          string                                       `json:"id"`
 	InstalledAt time.Time                                    `json:"installed_at"`
 	Kind        CorePostCoreUpdatesCheckOKComponentsItemKind `json:"kind"`
@@ -32854,10 +32835,10 @@ type CorePostCoreUpdatesCheckOKLastCheckError struct {
 	At time.Time `json:"at"`
 	// Update_source_unreachable = the release source could not be reached (network, timeout, an answer
 	// other than 200, a 404 for the index once one is stored or for its signature, or for a manifest the
-	// index names; the message names the host and the reason in fixed words, D-540); update_not_published
-	// = only in a record kept by an older version (D-407): since D-540 a 404 for the index on a box that
-	// never stored one is a good check with nothing offered; update_check_failed = what arrived did not
-	// pass the signature or shape checks, or this build cannot check.
+	// index names; the message names the host and the reason in fixed words); update_not_published = only
+	// in a record kept by an older version: a 404 for the index on a box that never stored one is a good
+	// check with nothing offered; update_check_failed = what arrived did not pass the signature or shape
+	// checks, or this build cannot check.
 	Code CorePostCoreUpdatesCheckOKLastCheckErrorCode `json:"code"`
 	// The box's own sentence for this failure (the message of the 503/502 answer): fixed words and the
 	// configured source host; never text received from the network.
@@ -32896,10 +32877,10 @@ func (s *CorePostCoreUpdatesCheckOKLastCheckError) SetMessage(val string) {
 
 // Update_source_unreachable = the release source could not be reached (network, timeout, an answer
 // other than 200, a 404 for the index once one is stored or for its signature, or for a manifest the
-// index names; the message names the host and the reason in fixed words, D-540); update_not_published
-// = only in a record kept by an older version (D-407): since D-540 a 404 for the index on a box that
-// never stored one is a good check with nothing offered; update_check_failed = what arrived did not
-// pass the signature or shape checks, or this build cannot check.
+// index names; the message names the host and the reason in fixed words); update_not_published = only
+// in a record kept by an older version: a 404 for the index on a box that never stored one is a good
+// check with nothing offered; update_check_failed = what arrived did not pass the signature or shape
+// checks, or this build cannot check.
 type CorePostCoreUpdatesCheckOKLastCheckErrorCode string
 
 const (
@@ -33082,7 +33063,7 @@ type CorePostCoreUpdatesCheckOKRun struct {
 	// "software": the whole release, every service in lockstep.
 	Component string `json:"component"`
 	// Only when failed or reverted: why, in words, naming the service that failed; for the system helper
-	// (host step, or host_too_old before it) the sentences of S-CORE-2 criterion D-316.
+	// (host step, or host_too_old before it) the sentences S-CORE-2 defines.
 	Error      NilString   `json:"error"`
 	FinishedAt NilDateTime `json:"finished_at"`
 	// Release running when the run started.
@@ -33092,18 +33073,16 @@ type CorePostCoreUpdatesCheckOKRun struct {
 	ID        string    `json:"id"`
 	StartedAt time.Time `json:"started_at"`
 	// Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
-	// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to",
-	// D-459).
+	// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to").
 	Status CorePostCoreUpdatesCheckOKRunStatus `json:"status"`
 	// One of steps while running; null when ended. host: update the system helper vedette-host (Vedette
 	// keeps running; a step that does not succeed ends the run before any image changes); download: fetch
 	// and verify the signed images; start: the other services; restore: put back the database from before
 	// the update; restart: Vedette itself restarts (the page loses its connection for a moment).
 	Step NilCorePostCoreUpdatesCheckOKRunStep `json:"step"`
-	// The steps of this run in order: update = host (only when the release brings a newer system helper,
-	// D-316), download, restart, start (Vedette itself before the sensor, scan and decoy parts, D-459);
-	// rollback = start, then restore (only when it puts back the database), restart (a rollback never
-	// takes the helper back).
+	// The steps of this run in order: update = host (only when the release brings a newer system helper),
+	// download, restart, start (Vedette itself before the sensor, scan and decoy parts); rollback = start,
+	// then restore (only when it puts back the database), restart (a rollback never takes the helper back).
 	Steps []CorePostCoreUpdatesCheckOKRunStepsItem `json:"steps"`
 	// Release the run installs (update) or goes back to (rollback).
 	To string `json:"to"`
@@ -33273,8 +33252,7 @@ func (s *CorePostCoreUpdatesCheckOKRunAction) UnmarshalText(data []byte) error {
 }
 
 // Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
-// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to",
-// D-459).
+// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to").
 type CorePostCoreUpdatesCheckOKRunStatus string
 
 const (
@@ -33456,7 +33434,7 @@ func (s *CorePostCoreUpdatesCheckOKRunStepsItem) UnmarshalText(data []byte) erro
 
 type CorePostCoreUpdatesCheckOKRunningRevoked struct {
 	// Block_install: the Updates page only; block_install_and_warn and rollback_if_possible: a banner on
-	// every page (D-386).
+	// every page.
 	Action CorePostCoreUpdatesCheckOKRunningRevokedAction `json:"action"`
 	// Short English reason signed by the Vedette project.
 	Reason string    `json:"reason"`
@@ -33506,7 +33484,7 @@ func (s *CorePostCoreUpdatesCheckOKRunningRevoked) SetVersion(val string) {
 }
 
 // Block_install: the Updates page only; block_install_and_warn and rollback_if_possible: a banner on
-// every page (D-386).
+// every page.
 type CorePostCoreUpdatesCheckOKRunningRevokedAction string
 
 const (
@@ -33561,7 +33539,7 @@ type CorePostCoreUpdatesOsCheckOK struct {
 	// An install run is in progress; only one at a time.
 	Busy bool `json:"busy"`
 	// Null until the box first looks for operating system updates (Check now): pending and reboot_reasons
-	// are then empty and the rest is core's own settings (D-407; before it, GET answered 409 no_check_yet).
+	// are then empty and the rest is core's own settings (before it, GET answered 409 no_check_yet).
 	Os      NilCorePostCoreUpdatesOsCheckOKOs         `json:"os"`
 	Pending []CorePostCoreUpdatesOsCheckOKPendingItem `json:"pending"`
 	// Packages that need a reboot to take effect.
@@ -34325,7 +34303,7 @@ type CorePostCoreUpdatesOsRebootOK struct {
 	// An install run is in progress; only one at a time.
 	Busy bool `json:"busy"`
 	// Null until the box first looks for operating system updates (Check now): pending and reboot_reasons
-	// are then empty and the rest is core's own settings (D-407; before it, GET answered 409 no_check_yet).
+	// are then empty and the rest is core's own settings (before it, GET answered 409 no_check_yet).
 	Os      NilCorePostCoreUpdatesOsRebootOKOs         `json:"os"`
 	Pending []CorePostCoreUpdatesOsRebootOKPendingItem `json:"pending"`
 	// Packages that need a reboot to take effect.
@@ -34835,19 +34813,19 @@ type CorePostCoreUpdatesRollbackOK struct {
 	// Null until the first update check.
 	LastCheck NilDateTime `json:"last_check"`
 	// The latest update check (Check for releases or the 6-hourly check) failed; null once one succeeds.
-	// Kept across restarts; while it is set the automatic mode installs nothing (D-388, D-392).
+	// Kept across restarts; while it is set the automatic mode installs nothing.
 	LastCheckError NilCorePostCoreUpdatesRollbackOKLastCheckError `json:"last_check_error"`
 	// Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates).
 	Managed []CorePostCoreUpdatesRollbackOKManagedItem `json:"managed"`
 	Mode    CorePostCoreUpdatesRollbackOKMode          `json:"mode"`
 	// The software install or rollback running now, or one that ended in the last 24 hours; null otherwise.
 	Run NilCorePostCoreUpdatesRollbackOKRun `json:"run"`
-	// The newest stored update information withdraws the release this box runs (update-manifest §8,
-	// D-386); null otherwise.
+	// The newest stored update information withdraws the release this box runs (update-manifest §8); null
+	// otherwise.
 	RunningRevoked NilCorePostCoreUpdatesRollbackOKRunningRevoked `json:"running_revoked"`
 	// The stored update information ran out at this time (its expires_at has passed; update-manifest
-	// §4.1, §13 (d), D-386): newer and withdrawn releases may be missing. Null while it is current or
-	// none is stored. Never blocks Apply, Rollback or a bundle.
+	// §4.1, §13 (d)): newer and withdrawn releases may be missing. Null while it is current or none is
+	// stored. Never blocks Apply, Rollback or a bundle.
 	StaleSince NilDateTime `json:"stale_since"`
 }
 
@@ -35154,10 +35132,10 @@ type CorePostCoreUpdatesRollbackOKAvailableItem struct {
 	Channel   CorePostCoreUpdatesRollbackOKAvailableItemChannel `json:"channel"`
 	Component string                                            `json:"component"`
 	// Software only: the system helper (vedette-host) version this release brings, when it is above the
-	// running one; the software run then updates it first (D-316). Absent otherwise.
+	// running one; the software run then updates it first. Absent otherwise.
 	HostVersion OptString `json:"host_version"`
 	// Software only: the images of the release by digest, from its verified manifest; a container-only
-	// install shows one cosign verify line per image it runs (S-CORE-9 G4). Absent otherwise.
+	// install shows one cosign verify line per image it runs (S-CORE-9). Absent otherwise.
 	Images  []CorePostCoreUpdatesRollbackOKAvailableItemImagesItem `json:"images"`
 	Note    string                                                 `json:"note"`
 	SizeKB  float64                                                `json:"size_kb"`
@@ -35345,7 +35323,7 @@ func (s *CorePostCoreUpdatesRollbackOKChannel) UnmarshalText(data []byte) error 
 type CorePostCoreUpdatesRollbackOKComponentsItem struct {
 	// "host": the system helper vedette-host (appliance only; a container-only install has no such row),
 	// kind software, updated by the software run (its first step, host), previous always null: it is never
-	// rolled back by hand (D-316).
+	// rolled back by hand.
 	ID          string                                          `json:"id"`
 	InstalledAt time.Time                                       `json:"installed_at"`
 	Kind        CorePostCoreUpdatesRollbackOKComponentsItemKind `json:"kind"`
@@ -35655,10 +35633,10 @@ type CorePostCoreUpdatesRollbackOKLastCheckError struct {
 	At time.Time `json:"at"`
 	// Update_source_unreachable = the release source could not be reached (network, timeout, an answer
 	// other than 200, a 404 for the index once one is stored or for its signature, or for a manifest the
-	// index names; the message names the host and the reason in fixed words, D-540); update_not_published
-	// = only in a record kept by an older version (D-407): since D-540 a 404 for the index on a box that
-	// never stored one is a good check with nothing offered; update_check_failed = what arrived did not
-	// pass the signature or shape checks, or this build cannot check.
+	// index names; the message names the host and the reason in fixed words); update_not_published = only
+	// in a record kept by an older version: a 404 for the index on a box that never stored one is a good
+	// check with nothing offered; update_check_failed = what arrived did not pass the signature or shape
+	// checks, or this build cannot check.
 	Code CorePostCoreUpdatesRollbackOKLastCheckErrorCode `json:"code"`
 	// The box's own sentence for this failure (the message of the 503/502 answer): fixed words and the
 	// configured source host; never text received from the network.
@@ -35697,10 +35675,10 @@ func (s *CorePostCoreUpdatesRollbackOKLastCheckError) SetMessage(val string) {
 
 // Update_source_unreachable = the release source could not be reached (network, timeout, an answer
 // other than 200, a 404 for the index once one is stored or for its signature, or for a manifest the
-// index names; the message names the host and the reason in fixed words, D-540); update_not_published
-// = only in a record kept by an older version (D-407): since D-540 a 404 for the index on a box that
-// never stored one is a good check with nothing offered; update_check_failed = what arrived did not
-// pass the signature or shape checks, or this build cannot check.
+// index names; the message names the host and the reason in fixed words); update_not_published = only
+// in a record kept by an older version: a 404 for the index on a box that never stored one is a good
+// check with nothing offered; update_check_failed = what arrived did not pass the signature or shape
+// checks, or this build cannot check.
 type CorePostCoreUpdatesRollbackOKLastCheckErrorCode string
 
 const (
@@ -35883,7 +35861,7 @@ type CorePostCoreUpdatesRollbackOKRun struct {
 	// "software": the whole release, every service in lockstep.
 	Component string `json:"component"`
 	// Only when failed or reverted: why, in words, naming the service that failed; for the system helper
-	// (host step, or host_too_old before it) the sentences of S-CORE-2 criterion D-316.
+	// (host step, or host_too_old before it) the sentences S-CORE-2 defines.
 	Error      NilString   `json:"error"`
 	FinishedAt NilDateTime `json:"finished_at"`
 	// Release running when the run started.
@@ -35893,18 +35871,16 @@ type CorePostCoreUpdatesRollbackOKRun struct {
 	ID        string    `json:"id"`
 	StartedAt time.Time `json:"started_at"`
 	// Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
-	// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to",
-	// D-459).
+	// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to").
 	Status CorePostCoreUpdatesRollbackOKRunStatus `json:"status"`
 	// One of steps while running; null when ended. host: update the system helper vedette-host (Vedette
 	// keeps running; a step that does not succeed ends the run before any image changes); download: fetch
 	// and verify the signed images; start: the other services; restore: put back the database from before
 	// the update; restart: Vedette itself restarts (the page loses its connection for a moment).
 	Step NilCorePostCoreUpdatesRollbackOKRunStep `json:"step"`
-	// The steps of this run in order: update = host (only when the release brings a newer system helper,
-	// D-316), download, restart, start (Vedette itself before the sensor, scan and decoy parts, D-459);
-	// rollback = start, then restore (only when it puts back the database), restart (a rollback never
-	// takes the helper back).
+	// The steps of this run in order: update = host (only when the release brings a newer system helper),
+	// download, restart, start (Vedette itself before the sensor, scan and decoy parts); rollback = start,
+	// then restore (only when it puts back the database), restart (a rollback never takes the helper back).
 	Steps []CorePostCoreUpdatesRollbackOKRunStepsItem `json:"steps"`
 	// Release the run installs (update) or goes back to (rollback).
 	To string `json:"to"`
@@ -36074,8 +36050,7 @@ func (s *CorePostCoreUpdatesRollbackOKRunAction) UnmarshalText(data []byte) erro
 }
 
 // Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
-// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to",
-// D-459).
+// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to").
 type CorePostCoreUpdatesRollbackOKRunStatus string
 
 const (
@@ -36257,7 +36232,7 @@ func (s *CorePostCoreUpdatesRollbackOKRunStepsItem) UnmarshalText(data []byte) e
 
 type CorePostCoreUpdatesRollbackOKRunningRevoked struct {
 	// Block_install: the Updates page only; block_install_and_warn and rollback_if_possible: a banner on
-	// every page (D-386).
+	// every page.
 	Action CorePostCoreUpdatesRollbackOKRunningRevokedAction `json:"action"`
 	// Short English reason signed by the Vedette project.
 	Reason string    `json:"reason"`
@@ -36307,7 +36282,7 @@ func (s *CorePostCoreUpdatesRollbackOKRunningRevoked) SetVersion(val string) {
 }
 
 // Block_install: the Updates page only; block_install_and_warn and rollback_if_possible: a banner on
-// every page (D-386).
+// every page.
 type CorePostCoreUpdatesRollbackOKRunningRevokedAction string
 
 const (
@@ -36416,9 +36391,8 @@ type CorePostCoreUsersCreatedUser struct {
 	LastLogin NilDateTime                      `json:"last_login"`
 	Name      string                           `json:"name"`
 	Role      CorePostCoreUsersCreatedUserRole `json:"role"`
-	// Created by an SSO sign-in (D-195): signs in only through the identity provider; its role follows the
-	// IdP groups at every sign-in, so it cannot be changed here (409 sso_user), nor can its password be
-	// reset.
+	// Created by an SSO sign-in: signs in only through the identity provider; its role follows the IdP
+	// groups at every sign-in, so it cannot be changed here (409 sso_user), nor can its password be reset.
 	SSO         bool                                       `json:"sso"`
 	Twofa       bool                                       `json:"twofa"`
 	TwofaMethod NilCorePostCoreUsersCreatedUserTwofaMethod `json:"twofa_method"`
@@ -36739,7 +36713,7 @@ type CorePutCoreConnectionsIDOK struct {
 	// Read-only. null until the first Test, or after the pin was forgotten.
 	Pin    NilCorePutCoreConnectionsIDOKPin `json:"pin"`
 	Status CorePutCoreConnectionsIDOKStatus `json:"status"`
-	// Base URL or host:port. "mcp-stdio" rows are not supported (D-94).
+	// Base URL or host:port. "mcp-stdio" rows are not supported.
 	Target string                                `json:"target"`
 	Tools  []CorePutCoreConnectionsIDOKToolsItem `json:"tools"`
 	// User name for SSH and for Basic sign-in; null for the other sign-ins.
@@ -36877,8 +36851,8 @@ func (s *CorePutCoreConnectionsIDOK) SetUsername(val NilString) {
 }
 
 type CorePutCoreConnectionsIDOKAuth struct {
-	// Token sign-in only: the name of the header the token is sent in (D-174), for a device whose API
-	// wants a key header. null sends Authorization: Bearer . The token itself stays in the vault.
+	// Token sign-in only: the name of the header the token is sent in, for a device whose API wants a key
+	// header. null sends Authorization: Bearer . The token itself stays in the vault.
 	Header NilString `json:"header"`
 	// SSH key only: SHA256: fingerprint of the saved private key, like GitHub shows for a key. The mock
 	// uses a hash of the key body; the backend computes the public-key fingerprint.
@@ -37053,7 +37027,7 @@ func (s *CorePutCoreConnectionsIDOKKind) UnmarshalText(data []byte) error {
 	}
 }
 
-// Pinned at the first successful Test (trust on first use, D-94). A changed certificate or host key is
+// Pinned at the first successful Test (trust on first use). A changed certificate or host key is
 // refused until an administrator forgets the pin.
 type CorePutCoreConnectionsIDOKPin struct {
 	FirstSeen time.Time `json:"first_seen"`
@@ -37288,10 +37262,9 @@ func (s *CorePutCoreConnectionsIDOKToolsItemAccess) UnmarshalText(data []byte) e
 type CorePutCoreConnectionsIDReq struct {
 	Allow   []string     `json:"allow"`
 	AssetID OptNilString `json:"asset_id"`
-	// Token sign-in only (D-174): the header name the token is sent in, for example X-API-Key; empty or
-	// null sends Authorization: Bearer . An RFC 7230 token that is not Host, Content-Length,
-	// Transfer-Encoding, Connection and the like (400 invalid_auth_header); with another sign-in 400
-	// invalid.
+	// Token sign-in only: the header name the token is sent in, for example X-API-Key; empty or null sends
+	// Authorization: Bearer . An RFC 7230 token that is not Host, Content-Length, Transfer-Encoding,
+	// Connection and the like (400 invalid_auth_header); with another sign-in 400 invalid.
 	AuthHeader OptNilString                        `json:"auth_header"`
 	AuthType   CorePutCoreConnectionsIDReqAuthType `json:"auth_type"`
 	// True = forget the pinned certificate or host key; the next Test pins again. It is also forgotten
@@ -37687,8 +37660,8 @@ func (s *CorePutCoreGeneralReq) SetTimezone(val string) {
 }
 
 type CorePutCoreNetworkBoxAddressOK struct {
-	// D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail,
-	// block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
+	// The address every link the box makes carries (alert messages, approval links, sign-in mail, block
+	// list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
 	BoxAddress CorePutCoreNetworkBoxAddressOKBoxAddress       `json:"box_address"`
 	DecoyIps   []string                                       `json:"decoy_ips"`
 	DefaultNtp string                                         `json:"default_ntp"`
@@ -37792,8 +37765,8 @@ func (s *CorePutCoreNetworkBoxAddressOK) SetSpanStatus(val CorePutCoreNetworkBox
 	s.SpanStatus = val
 }
 
-// D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail,
-// block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
+// The address every link the box makes carries (alert messages, approval links, sign-in mail, block
+// list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
 type CorePutCoreNetworkBoxAddressOKBoxAddress struct {
 	// The host name or IPv4 address an administrator saved; null = the default is used.
 	Address NilString `json:"address"`
@@ -38148,7 +38121,7 @@ type CorePutCoreNetworkBoxAddressOKPending struct {
 	ExpiresAt       time.Time `json:"expires_at"`
 	PreviousAddress NilString `json:"previous_address"`
 	// Set when the box could not go back to the old settings by itself: it restarts at this time, and the
-	// saved settings on disk are the old ones (D-100).
+	// saved settings on disk are the old ones.
 	RebootAt NilDateTime `json:"reboot_at"`
 	// Seconds the box waits for the confirmation (the whole window, not what is left).
 	WindowS int `json:"window_s"`
@@ -38536,8 +38509,8 @@ func (s *CorePutCoreNetworkBoxAddressReq) SetAddress(val string) {
 }
 
 type CorePutCoreNetworkInterfacesOK struct {
-	// D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail,
-	// block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
+	// The address every link the box makes carries (alert messages, approval links, sign-in mail, block
+	// list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
 	BoxAddress CorePutCoreNetworkInterfacesOKBoxAddress       `json:"box_address"`
 	DecoyIps   []string                                       `json:"decoy_ips"`
 	DefaultNtp string                                         `json:"default_ntp"`
@@ -38641,8 +38614,8 @@ func (s *CorePutCoreNetworkInterfacesOK) SetSpanStatus(val CorePutCoreNetworkInt
 	s.SpanStatus = val
 }
 
-// D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail,
-// block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
+// The address every link the box makes carries (alert messages, approval links, sign-in mail, block
+// list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
 type CorePutCoreNetworkInterfacesOKBoxAddress struct {
 	// The host name or IPv4 address an administrator saved; null = the default is used.
 	Address NilString `json:"address"`
@@ -38997,7 +38970,7 @@ type CorePutCoreNetworkInterfacesOKPending struct {
 	ExpiresAt       time.Time `json:"expires_at"`
 	PreviousAddress NilString `json:"previous_address"`
 	// Set when the box could not go back to the old settings by itself: it restarts at this time, and the
-	// saved settings on disk are the old ones (D-100).
+	// saved settings on disk are the old ones.
 	RebootAt NilDateTime `json:"reboot_at"`
 	// Seconds the box waits for the confirmation (the whole window, not what is left).
 	WindowS int `json:"window_s"`
@@ -39442,8 +39415,8 @@ func (s *CorePutCoreNetworkInterfacesReqRolesItem) UnmarshalText(data []byte) er
 }
 
 type CorePutCoreNetworkManagementOK struct {
-	// D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail,
-	// block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
+	// The address every link the box makes carries (alert messages, approval links, sign-in mail, block
+	// list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
 	BoxAddress CorePutCoreNetworkManagementOKBoxAddress       `json:"box_address"`
 	DecoyIps   []string                                       `json:"decoy_ips"`
 	DefaultNtp string                                         `json:"default_ntp"`
@@ -39547,8 +39520,8 @@ func (s *CorePutCoreNetworkManagementOK) SetSpanStatus(val CorePutCoreNetworkMan
 	s.SpanStatus = val
 }
 
-// D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail,
-// block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
+// The address every link the box makes carries (alert messages, approval links, sign-in mail, block
+// list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
 type CorePutCoreNetworkManagementOKBoxAddress struct {
 	// The host name or IPv4 address an administrator saved; null = the default is used.
 	Address NilString `json:"address"`
@@ -39903,7 +39876,7 @@ type CorePutCoreNetworkManagementOKPending struct {
 	ExpiresAt       time.Time `json:"expires_at"`
 	PreviousAddress NilString `json:"previous_address"`
 	// Set when the box could not go back to the old settings by itself: it restarts at this time, and the
-	// saved settings on disk are the old ones (D-100).
+	// saved settings on disk are the old ones.
 	RebootAt NilDateTime `json:"reboot_at"`
 	// Seconds the box waits for the confirmation (the whole window, not what is left).
 	WindowS int `json:"window_s"`
@@ -40388,8 +40361,8 @@ func (s *CorePutCoreNetworkManagementReqMode) UnmarshalText(data []byte) error {
 }
 
 type CorePutCoreNetworkNtpOK struct {
-	// D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail,
-	// block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
+	// The address every link the box makes carries (alert messages, approval links, sign-in mail, block
+	// list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
 	BoxAddress CorePutCoreNetworkNtpOKBoxAddress       `json:"box_address"`
 	DecoyIps   []string                                `json:"decoy_ips"`
 	DefaultNtp string                                  `json:"default_ntp"`
@@ -40493,8 +40466,8 @@ func (s *CorePutCoreNetworkNtpOK) SetSpanStatus(val CorePutCoreNetworkNtpOKSpanS
 	s.SpanStatus = val
 }
 
-// D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail,
-// block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
+// The address every link the box makes carries (alert messages, approval links, sign-in mail, block
+// list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
 type CorePutCoreNetworkNtpOKBoxAddress struct {
 	// The host name or IPv4 address an administrator saved; null = the default is used.
 	Address NilString `json:"address"`
@@ -40849,7 +40822,7 @@ type CorePutCoreNetworkNtpOKPending struct {
 	ExpiresAt       time.Time `json:"expires_at"`
 	PreviousAddress NilString `json:"previous_address"`
 	// Set when the box could not go back to the old settings by itself: it restarts at this time, and the
-	// saved settings on disk are the old ones (D-100).
+	// saved settings on disk are the old ones.
 	RebootAt NilDateTime `json:"reboot_at"`
 	// Seconds the box waits for the confirmation (the whole window, not what is left).
 	WindowS int `json:"window_s"`
@@ -41288,8 +41261,8 @@ func (s *CorePutCoreNetworkNtpReqMode) UnmarshalText(data []byte) error {
 }
 
 type CorePutCoreNetworkSpanOK struct {
-	// D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail,
-	// block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
+	// The address every link the box makes carries (alert messages, approval links, sign-in mail, block
+	// list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
 	BoxAddress CorePutCoreNetworkSpanOKBoxAddress       `json:"box_address"`
 	DecoyIps   []string                                 `json:"decoy_ips"`
 	DefaultNtp string                                   `json:"default_ntp"`
@@ -41393,8 +41366,8 @@ func (s *CorePutCoreNetworkSpanOK) SetSpanStatus(val CorePutCoreNetworkSpanOKSpa
 	s.SpanStatus = val
 }
 
-// D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail,
-// block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
+// The address every link the box makes carries (alert messages, approval links, sign-in mail, block
+// list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
 type CorePutCoreNetworkSpanOKBoxAddress struct {
 	// The host name or IPv4 address an administrator saved; null = the default is used.
 	Address NilString `json:"address"`
@@ -41749,7 +41722,7 @@ type CorePutCoreNetworkSpanOKPending struct {
 	ExpiresAt       time.Time `json:"expires_at"`
 	PreviousAddress NilString `json:"previous_address"`
 	// Set when the box could not go back to the old settings by itself: it restarts at this time, and the
-	// saved settings on disk are the old ones (D-100).
+	// saved settings on disk are the old ones.
 	RebootAt NilDateTime `json:"reboot_at"`
 	// Seconds the box waits for the confirmation (the whole window, not what is left).
 	WindowS int `json:"window_s"`
@@ -42315,10 +42288,10 @@ type CorePutCoreOidcOK struct {
 	// The saved CA certificates, one row each.
 	CaCerts []CorePutCoreOidcOKCaCertsItem `json:"ca_certs"`
 	// PEM of the CA certificates the box trusts for calls to this identity provider only, in addition to
-	// the system roots (D-378); empty = system roots only.
+	// the system roots; empty = system roots only.
 	CaPem    string `json:"ca_pem"`
 	ClientID string `json:"client_id"`
-	// Role for a person in none of the mapped groups; null = no access, the default (D-195).
+	// Role for a person in none of the mapped groups; null = no access, the default.
 	DefaultRole NilCorePutCoreOidcOKDefaultRole `json:"default_role"`
 	// Name of the ID-token claim that lists the person's groups (default "groups").
 	GroupsClaim string `json:"groups_claim"`
@@ -42328,8 +42301,8 @@ type CorePutCoreOidcOK struct {
 	RedirectURI string `json:"redirect_uri"`
 	// Group to role; a person in several mapped groups gets the highest of their roles.
 	RoleMap []CorePutCoreOidcOKRoleMapItem `json:"role_map"`
-	// Space-separated scopes asked for at sign-in; always contains openid (D-194). Default "openid email
-	// profile"; add "groups" for IdPs that need it (Okta, Authentik).
+	// Space-separated scopes asked for at sign-in; always contains openid. Default "openid email profile";
+	// add "groups" for IdPs that need it (Okta, Authentik).
 	Scopes      string    `json:"scopes"`
 	SecretLast4 NilString `json:"secret_last4"`
 	// Accounts that sign in only through SSO; they cannot sign in while the module is off.
@@ -42593,8 +42566,8 @@ func (s *CorePutCoreOidcOKRoleMapItemRole) UnmarshalText(data []byte) error {
 }
 
 type CorePutCoreOidcReq struct {
-	// D-378: 1 to 5 PEM CA certificates, at most 64 KB (400 invalid_ca: not PEM, another block such as a
-	// private key, not a CA, expired). Absent keeps the saved ones; empty removes them.
+	// 1 to 5 PEM CA certificates, at most 64 KB (400 invalid_ca: not PEM, another block such as a private
+	// key, not a CA, expired). Absent keeps the saved ones; empty removes them.
 	CaPem    OptString `json:"ca_pem"`
 	ClientID string    `json:"client_id"`
 	// Empty keeps the stored secret.
@@ -42948,18 +42921,18 @@ type ExposureDeleteExposureTargetsIDTermsOK struct {
 	// that got an answer did not see the IP and no check since has, so scans are paused (until a later
 	// check sees it) while the IP stays in the list; verified_at is when the box last saw it.
 	BlockedReason NilExposureDeleteExposureTargetsIDTermsOKBlockedReason `json:"blocked_reason"`
-	// Recorded by the first Scan now of an administrator with two-step sign-in (D-473): who, when and the
-	// exact sentence shown next to the button.
+	// Recorded by the first Scan now of an administrator with two-step sign-in: who, when and the exact
+	// sentence shown next to the button.
 	Commitment NilExposureDeleteExposureTargetsIDTermsOKCommitment `json:"commitment"`
 	// The sentence the first Scan now of an administrator confirms, with this target in it; null once the
-	// target has a commitment of the current sentence; an older one is asked again once (D-559), so a
-	// target with a commitment can carry it too.
+	// target has a commitment of the current sentence; an older one is asked again once, so a target with
+	// a commitment can carry it too.
 	CommitmentNotice NilExposureDeleteExposureTargetsIDTermsOKCommitmentNotice `json:"commitment_notice"`
 	CreatedAt        time.Time                                                 `json:"created_at"`
 	// IP: verified_at + 30 days. Domain: null (the TXT record is re-checked right before every scan).
 	ExpiresAt NilDateTime `json:"expires_at"`
-	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the K-4 scope
-	// of the Scan now sentence.
+	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the scope of
+	// the Scan now sentence.
 	FullScan   bool                                               `json:"full_scan"`
 	ID         string                                             `json:"id"`
 	Kind       ExposureDeleteExposureTargetsIDTermsOKKind         `json:"kind"`
@@ -42970,20 +42943,19 @@ type ExposureDeleteExposureTargetsIDTermsOK struct {
 	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
 	// can say what is open; null when never scanned.
 	OpenPorts []ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem `json:"open_ports"`
-	// Domains: where the TXT record goes and which verified domain covers this one already (D-628); null
-	// for an IP.
+	// Domains: where the TXT record goes and which verified domain covers this one already; null for an IP.
 	Proof     NilExposureDeleteExposureTargetsIDTermsOKProof `json:"proof"`
 	Scannable bool                                           `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposureDeleteExposureTargetsIDTermsOKStatus `json:"status"`
-	// FULL-1 (D-566): the acceptance of the testing terms; null when none. An acceptance of an older
-	// version does not count (full_scan is false) until accepted again.
+	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
+	// count (full_scan is false) until accepted again.
 	Terms NilExposureDeleteExposureTargetsIDTermsOKTerms `json:"terms"`
 	// The current testing terms for this target, to accept or to read again.
 	TermsNotice ExposureDeleteExposureTargetsIDTermsOKTermsNotice `json:"terms_notice"`
 	// GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in
 	// 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409
-	// shared_address) while it shows (D-566).
+	// shared_address) while it shows.
 	TermsWarning OptNilString `json:"terms_warning"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
 	// string.
@@ -43291,11 +43263,11 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKBlockedReason) UnmarshalText(data
 type ExposureDeleteExposureTargetsIDTermsOKCommitment struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
-	// The exact sentence, with the target in it, kept with who and when; null on a commitment recorded
-	// before D-473.
+	// The exact sentence, with the target in it, kept with who and when; null on a commitment recorded by
+	// an older version.
 	Sentence NilString `json:"sentence"`
-	// Version of the sentence the administrator saw next to Scan now; null on a commitment recorded before
-	// D-473.
+	// Version of the sentence the administrator saw next to Scan now; null on a commitment recorded by an
+	// older version.
 	Version NilString `json:"version"`
 }
 
@@ -43541,11 +43513,11 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKMethod) UnmarshalText(data []byte
 }
 
 type ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem struct {
-	// M2-7: the names of the port's TLS certificate as the deep scan read them (subject common name, then
-	// DNS alternative names), at most 5.
+	// The names of the port's TLS certificate as the deep scan read them (subject common name, then DNS
+	// alternative names), at most 5.
 	CertNames []string `json:"cert_names"`
-	// M2-7: how service identification named the service: probed (a probe's answer, or the surface scan's
-	// GET read a product), port (only the usual service of the port number: not confirmed), none (nothing
+	// How service identification named the service: probed (a probe's answer, or the surface scan's GET
+	// read a product), port (only the usual service of the port number: not confirmed), none (nothing
 	// identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on
 	// the port, or an older scan.
 	Ident OptExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent `json:"ident"`
@@ -43558,10 +43530,10 @@ type ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem struct {
 	Misses  OptInt    `json:"misses"`
 	Port    int       `json:"port"`
 	Product OptString `json:"product"`
-	// M2-7: the HTTP Server header on the port (deep scan, http-server-header).
+	// The HTTP Server header on the port (deep scan, http-server-header).
 	Server  OptString `json:"server"`
 	Service string    `json:"service"`
-	// M2-7: the title of the web page on the port (deep scan, http-title).
+	// The title of the web page on the port (deep scan, http-title).
 	Title OptString `json:"title"`
 	// The newest scan did not check the address: the row is as an earlier scan left it.
 	Unchecked OptBool `json:"unchecked"`
@@ -43677,8 +43649,8 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) SetUnchecked(val O
 	s.Unchecked = val
 }
 
-// M2-7: how service identification named the service: probed (a probe's answer, or the surface scan's
-// GET read a product), port (only the usual service of the port number: not confirmed), none (nothing
+// How service identification named the service: probed (a probe's answer, or the surface scan's GET
+// read a product), port (only the usual service of the port number: not confirmed), none (nothing
 // identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on
 // the port, or an older scan.
 type ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent string
@@ -43737,8 +43709,8 @@ type ExposureDeleteExposureTargetsIDTermsOKProof struct {
 	// A verified domain of this box that covers this name already (its parent or the zone): a Check is
 	// enough, no second record; null when none.
 	CoveredBy NilString `json:"covered_by"`
-	// The Name (host) to type in that zone: "@", the zone apex, for every target (D-632: the target's own
-	// record there proves it, and an apex takes a record whatever the subdomain is).
+	// The Name (host) to type in that zone: "@", the zone apex, for every target (the target's own record
+	// there proves it, and an apex takes a record whatever the subdomain is).
 	Host string `json:"host"`
 	// The registered domain: the DNS zone the record is added in ("beyondnetglobal.com").
 	Zone string `json:"zone"`
@@ -43990,8 +43962,8 @@ type ExposureGetExposureGreenboneOK struct {
 	// The feed OpenVAS itself has loaded (T10): there from the first feed load at enable on; null while it
 	// is off or unavailable, and until Vedette has read it since the box started.
 	Feed NilExposureGetExposureGreenboneOKFeed `json:"feed"`
-	// The weekly update of Greenbone's feed while it is enabled (D-564): never during a scan, refused
-	// below 60 GB free, audited.
+	// The weekly update of Greenbone's feed while it is enabled: never during a scan, refused below 60 GB
+	// free, audited.
 	FeedSync  ExposureGetExposureGreenboneOKFeedSync  `json:"feed_sync"`
 	Preflight ExposureGetExposureGreenboneOKPreflight `json:"preflight"`
 	// Why, for unavailable and error; the feed sentence for loading; null otherwise.
@@ -44122,8 +44094,8 @@ func (s *ExposureGetExposureGreenboneOKFeed) SetNvtVersion(val NilString) {
 	s.NvtVersion = val
 }
 
-// The weekly update of Greenbone's feed while it is enabled (D-564): never during a scan, refused
-// below 60 GB free, audited.
+// The weekly update of Greenbone's feed while it is enabled: never during a scan, refused below 60 GB
+// free, audited.
 type ExposureGetExposureGreenboneOKFeedSync struct {
 	// When the weekly feed update was last tried; null before the first.
 	LastAt NilDateTime `json:"last_at"`
@@ -44182,8 +44154,7 @@ type ExposureGetExposureGreenboneOKPreflight struct {
 	DiskFreeBytes NilInt `json:"disk_free_bytes"`
 	// MemTotal of the box; null when it could not be read.
 	MemoryBytes NilInt `json:"memory_bytes"`
-	// Both meet the thresholds: 6 GB (decimal) of memory (under 8 GB, also 2 GB of swap) and 60 GB free
-	// (D-569).
+	// Both meet the thresholds: 6 GB (decimal) of memory (under 8 GB, also 2 GB of swap) and 60 GB free.
 	Ok bool `json:"ok"`
 	// Why it cannot be enabled, with the measured number, e.g. "This box has 5.9 GB of memory; OpenVAS
 	// needs at least 6.0 GB.".
@@ -44311,8 +44282,8 @@ type ExposureGetExposureScanOK struct {
 	ID         string                            `json:"id"`
 	// Queued: accepted, about to start; probing: the scan module's runner is scanning the target; saving:
 	// the result is being stored; greenbone: the snapshot of the other steps is stored and the optional
-	// Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done: the
-	// snapshot exists. A failed or stopped run keeps the phase it reached.
+	// Greenbone scan runs (up to 90 minutes), the box's one scan slot stays busy; done: the snapshot
+	// exists. A failed or stopped run keeps the phase it reached.
 	Phase ExposureGetExposureScanOKPhase `json:"phase"`
 	// How far the step that runs now is (#830): the port scan, service detection and vulnerability checks
 	// as the scan worker reports them, the passive web checks, and OpenVAS's own percent during the
@@ -44324,7 +44295,7 @@ type ExposureGetExposureScanOK struct {
 	StartedAt  time.Time                       `json:"started_at"`
 	Status     ExposureGetExposureScanOKStatus `json:"status"`
 	// Why the box stopped this run when it was not a person's Stop, e.g. "the testing terms of this target
-	// were withdrawn" (D-566).
+	// were withdrawn".
 	StopReason  OptNilString `json:"stop_reason"`
 	TargetID    string       `json:"target_id"`
 	TargetValue string       `json:"target_value"`
@@ -44477,8 +44448,8 @@ func (s *ExposureGetExposureScanOKError) SetMessage(val string) {
 
 // Queued: accepted, about to start; probing: the scan module's runner is scanning the target; saving:
 // the result is being stored; greenbone: the snapshot of the other steps is stored and the optional
-// Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done: the
-// snapshot exists. A failed or stopped run keeps the phase it reached.
+// Greenbone scan runs (up to 90 minutes), the box's one scan slot stays busy; done: the snapshot
+// exists. A failed or stopped run keeps the phase it reached.
 type ExposureGetExposureScanOKPhase string
 
 const (
@@ -45300,18 +45271,18 @@ type ExposureGetExposureTargetsIDOK struct {
 	// that got an answer did not see the IP and no check since has, so scans are paused (until a later
 	// check sees it) while the IP stays in the list; verified_at is when the box last saw it.
 	BlockedReason NilExposureGetExposureTargetsIDOKBlockedReason `json:"blocked_reason"`
-	// Recorded by the first Scan now of an administrator with two-step sign-in (D-473): who, when and the
-	// exact sentence shown next to the button.
+	// Recorded by the first Scan now of an administrator with two-step sign-in: who, when and the exact
+	// sentence shown next to the button.
 	Commitment NilExposureGetExposureTargetsIDOKCommitment `json:"commitment"`
 	// The sentence the first Scan now of an administrator confirms, with this target in it; null once the
-	// target has a commitment of the current sentence; an older one is asked again once (D-559), so a
-	// target with a commitment can carry it too.
+	// target has a commitment of the current sentence; an older one is asked again once, so a target with
+	// a commitment can carry it too.
 	CommitmentNotice NilExposureGetExposureTargetsIDOKCommitmentNotice `json:"commitment_notice"`
 	CreatedAt        time.Time                                         `json:"created_at"`
 	// IP: verified_at + 30 days. Domain: null (the TXT record is re-checked right before every scan).
 	ExpiresAt NilDateTime `json:"expires_at"`
-	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the K-4 scope
-	// of the Scan now sentence.
+	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the scope of
+	// the Scan now sentence.
 	FullScan   bool                                       `json:"full_scan"`
 	ID         string                                     `json:"id"`
 	Kind       ExposureGetExposureTargetsIDOKKind         `json:"kind"`
@@ -45322,20 +45293,19 @@ type ExposureGetExposureTargetsIDOK struct {
 	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
 	// can say what is open; null when never scanned.
 	OpenPorts []ExposureGetExposureTargetsIDOKOpenPortsItem `json:"open_ports"`
-	// Domains: where the TXT record goes and which verified domain covers this one already (D-628); null
-	// for an IP.
+	// Domains: where the TXT record goes and which verified domain covers this one already; null for an IP.
 	Proof     NilExposureGetExposureTargetsIDOKProof `json:"proof"`
 	Scannable bool                                   `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposureGetExposureTargetsIDOKStatus `json:"status"`
-	// FULL-1 (D-566): the acceptance of the testing terms; null when none. An acceptance of an older
-	// version does not count (full_scan is false) until accepted again.
+	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
+	// count (full_scan is false) until accepted again.
 	Terms NilExposureGetExposureTargetsIDOKTerms `json:"terms"`
 	// The current testing terms for this target, to accept or to read again.
 	TermsNotice ExposureGetExposureTargetsIDOKTermsNotice `json:"terms_notice"`
 	// GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in
 	// 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409
-	// shared_address) while it shows (D-566).
+	// shared_address) while it shows.
 	TermsWarning OptNilString `json:"terms_warning"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
 	// string.
@@ -45643,11 +45613,11 @@ func (s *ExposureGetExposureTargetsIDOKBlockedReason) UnmarshalText(data []byte)
 type ExposureGetExposureTargetsIDOKCommitment struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
-	// The exact sentence, with the target in it, kept with who and when; null on a commitment recorded
-	// before D-473.
+	// The exact sentence, with the target in it, kept with who and when; null on a commitment recorded by
+	// an older version.
 	Sentence NilString `json:"sentence"`
-	// Version of the sentence the administrator saw next to Scan now; null on a commitment recorded before
-	// D-473.
+	// Version of the sentence the administrator saw next to Scan now; null on a commitment recorded by an
+	// older version.
 	Version NilString `json:"version"`
 }
 
@@ -45893,11 +45863,11 @@ func (s *ExposureGetExposureTargetsIDOKMethod) UnmarshalText(data []byte) error 
 }
 
 type ExposureGetExposureTargetsIDOKOpenPortsItem struct {
-	// M2-7: the names of the port's TLS certificate as the deep scan read them (subject common name, then
-	// DNS alternative names), at most 5.
+	// The names of the port's TLS certificate as the deep scan read them (subject common name, then DNS
+	// alternative names), at most 5.
 	CertNames []string `json:"cert_names"`
-	// M2-7: how service identification named the service: probed (a probe's answer, or the surface scan's
-	// GET read a product), port (only the usual service of the port number: not confirmed), none (nothing
+	// How service identification named the service: probed (a probe's answer, or the surface scan's GET
+	// read a product), port (only the usual service of the port number: not confirmed), none (nothing
 	// identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on
 	// the port, or an older scan.
 	Ident OptExposureGetExposureTargetsIDOKOpenPortsItemIdent `json:"ident"`
@@ -45910,10 +45880,10 @@ type ExposureGetExposureTargetsIDOKOpenPortsItem struct {
 	Misses  OptInt    `json:"misses"`
 	Port    int       `json:"port"`
 	Product OptString `json:"product"`
-	// M2-7: the HTTP Server header on the port (deep scan, http-server-header).
+	// The HTTP Server header on the port (deep scan, http-server-header).
 	Server  OptString `json:"server"`
 	Service string    `json:"service"`
-	// M2-7: the title of the web page on the port (deep scan, http-title).
+	// The title of the web page on the port (deep scan, http-title).
 	Title OptString `json:"title"`
 	// The newest scan did not check the address: the row is as an earlier scan left it.
 	Unchecked OptBool `json:"unchecked"`
@@ -46029,8 +45999,8 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetUnchecked(val OptBool) 
 	s.Unchecked = val
 }
 
-// M2-7: how service identification named the service: probed (a probe's answer, or the surface scan's
-// GET read a product), port (only the usual service of the port number: not confirmed), none (nothing
+// How service identification named the service: probed (a probe's answer, or the surface scan's GET
+// read a product), port (only the usual service of the port number: not confirmed), none (nothing
 // identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on
 // the port, or an older scan.
 type ExposureGetExposureTargetsIDOKOpenPortsItemIdent string
@@ -46089,8 +46059,8 @@ type ExposureGetExposureTargetsIDOKProof struct {
 	// A verified domain of this box that covers this name already (its parent or the zone): a Check is
 	// enough, no second record; null when none.
 	CoveredBy NilString `json:"covered_by"`
-	// The Name (host) to type in that zone: "@", the zone apex, for every target (D-632: the target's own
-	// record there proves it, and an apex takes a record whatever the subdomain is).
+	// The Name (host) to type in that zone: "@", the zone apex, for every target (the target's own record
+	// there proves it, and an apex takes a record whatever the subdomain is).
 	Host string `json:"host"`
 	// The registered domain: the DNS zone the record is added in ("beyondnetglobal.com").
 	Zone string `json:"zone"`
@@ -46904,7 +46874,7 @@ type ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneItem struct {
 	// Quality of detection, 70 to 100.
 	Qod int `json:"qod"`
 	// CVSS score, 0.1 to 10. Below 4.0 (Low) it is a hardening note, shown apart and never counted as an
-	// alert (D-564).
+	// alert.
 	Severity float64 `json:"severity"`
 	// Greenbone's advice, plain text, clipped.
 	Solution string `json:"solution"`
@@ -46991,7 +46961,7 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneItem) SetSolution(v
 }
 
 type ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRun struct {
-	// A domain's run: the OpenVAS state of each deep-scanned address (D-571); [] for an IP.
+	// A domain's run: the OpenVAS state of each deep-scanned address; [] for an IP.
 	Addresses []ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItem `json:"addresses"`
 	// When the OpenVAS step started; null when it did not.
 	StartedAt NilDateTime `json:"started_at"`
@@ -47233,7 +47203,8 @@ type ExposureGetExposureTargetsIDSnapshotsDateOKHostsItem struct {
 	LookupFailed OptBool `json:"lookup_failed"`
 	Name         string  `json:"name"`
 	// Where the name was found: a certificate-transparency log, the domain itself, its MX or NS records,
-	// or the list of common names. Missing on a snapshot older than D-567: its classes are unknown.
+	// or the list of common names. Missing on a snapshot taken by an older version: its classes are
+	// unknown.
 	Source OptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource `json:"source"`
 }
 
@@ -47304,7 +47275,7 @@ type ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem struct {
 	// The check by name (one GET / on ports 80 and 443) went to this address: the name's first public
 	// IPv4. Missing or false: not contacted.
 	Contacted OptBool `json:"contacted"`
-	// D-571: what this run's deep scan did with the address (domain terms accepted): scanned (service
+	// What this run's deep scan did with the address (domain terms accepted): scanned (service
 	// identification ran), waiting (left by the cap, next_in_line), fence (not this box's, and the box has
 	// no domain fence: by-name checks only), refused (the re-check right before it refused: nothing sent),
 	// incomplete (the re-check passed but service identification did not finish: its ports are not known
@@ -47313,12 +47284,12 @@ type ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem struct {
 	// IPv6 is listed, not scanned yet.
 	Family ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemFamily `json:"family"`
 	IP     string                                                            `json:"ip"`
-	// D-571: when a run last deep-scanned this address (rotation: the least recently scanned go first).
+	// When a run last deep-scanned this address (rotation: the least recently scanned go first).
 	LastDeep OptDateTime `json:"last_deep"`
-	// D-571 review r1 M3: when a run last took this address in turn (scanned, incomplete or refused); the
-	// rotation goes by the later of last_deep and last_tried.
+	// When a run last took this address in turn (scanned, incomplete or refused); the rotation goes by the
+	// later of last_deep and last_tried.
 	LastTried OptDateTime `json:"last_tried"`
-	// D-571: its place among the addresses the cap left for the next runs.
+	// Its place among the addresses the cap left for the next runs.
 	NextInLine OptInt `json:"next_in_line"`
 }
 
@@ -47452,7 +47423,7 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemClass) Unmar
 	}
 }
 
-// D-571: what this run's deep scan did with the address (domain terms accepted): scanned (service
+// What this run's deep scan did with the address (domain terms accepted): scanned (service
 // identification ran), waiting (left by the cap, next_in_line), fence (not this box's, and the box has
 // no domain fence: by-name checks only), refused (the re-check right before it refused: nothing sent),
 // incomplete (the re-check passed but service identification did not finish: its ports are not known
@@ -47562,7 +47533,8 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemFamily) Unma
 }
 
 // Where the name was found: a certificate-transparency log, the domain itself, its MX or NS records,
-// or the list of common names. Missing on a snapshot older than D-567: its classes are unknown.
+// or the list of common names. Missing on a snapshot taken by an older version: its classes are
+// unknown.
 type ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource string
 
 const (
@@ -47629,8 +47601,8 @@ type ExposureGetExposureTargetsIDSnapshotsDateOKNotCheckedItem struct {
 	// Udp, ports, non_exploited, services, templates, cve, web, greenbone; a domain's surface (INV-27):
 	// wordlist (common names not tried: wildcard DNS), by_name (names on other public addresses: checked
 	// by name only), address_family (IPv6 not scanned), lookup (names whose address lookup got no answer:
-	// left as the last scan found them); deep (D-571: the deep scan of the names' addresses: the cap,
-	// needs the domain fence, private addresses, a refused re-check).
+	// left as the last scan found them); deep (the deep scan of the names' addresses: the cap, needs the
+	// domain fence, private addresses, a refused re-check).
 	Kind string `json:"kind"`
 	Text string `json:"text"`
 }
@@ -47656,11 +47628,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKNotCheckedItem) SetText(val 
 }
 
 type ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem struct {
-	// M2-7: the names of the port's TLS certificate as the deep scan read them (subject common name, then
-	// DNS alternative names), at most 5.
+	// The names of the port's TLS certificate as the deep scan read them (subject common name, then DNS
+	// alternative names), at most 5.
 	CertNames []string `json:"cert_names"`
-	// M2-7: how service identification named the service: probed (a probe's answer, or the surface scan's
-	// GET read a product), port (only the usual service of the port number: not confirmed), none (nothing
+	// How service identification named the service: probed (a probe's answer, or the surface scan's GET
+	// read a product), port (only the usual service of the port number: not confirmed), none (nothing
 	// identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on
 	// the port, or an older scan.
 	Ident OptExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdent `json:"ident"`
@@ -47673,10 +47645,10 @@ type ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem struct {
 	Misses  OptInt    `json:"misses"`
 	Port    int       `json:"port"`
 	Product OptString `json:"product"`
-	// M2-7: the HTTP Server header on the port (deep scan, http-server-header).
+	// The HTTP Server header on the port (deep scan, http-server-header).
 	Server  OptString `json:"server"`
 	Service string    `json:"service"`
-	// M2-7: the title of the web page on the port (deep scan, http-title).
+	// The title of the web page on the port (deep scan, http-title).
 	Title OptString `json:"title"`
 	// The newest scan did not check the address: the row is as an earlier scan left it.
 	Unchecked OptBool `json:"unchecked"`
@@ -47792,8 +47764,8 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) SetUnchecked(val 
 	s.Unchecked = val
 }
 
-// M2-7: how service identification named the service: probed (a probe's answer, or the surface scan's
-// GET read a product), port (only the usual service of the port number: not confirmed), none (nothing
+// How service identification named the service: probed (a probe's answer, or the surface scan's GET
+// read a product), port (only the usual service of the port number: not confirmed), none (nothing
 // identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on
 // the port, or an older scan.
 type ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdent string
@@ -47845,15 +47817,15 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdent) UnmarshalTex
 }
 
 type ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem struct {
-	// M2-7: nmap's confidence in the name, 1 to 10 (a table name is 3).
+	// Nmap's confidence in the name, 1 to 10 (a table name is 3).
 	Conf OptInt `json:"conf"`
 	// The CPE 2.2 URI nmap printed; "" when none.
 	Cpe string `json:"cpe"`
 	// Nmap's extrainfo, e.g. (Debian); "" when none.
 	Extra string `json:"extra"`
 	IP    string `json:"ip"`
-	// M2-7: how nmap named the service: probed (a probe's answer matched) or table (only the usual service
-	// of the port number, not confirmed). Missing: an older scan.
+	// How nmap named the service: probed (a probe's answer matched) or table (only the usual service of
+	// the port number, not confirmed). Missing: an older scan.
 	Method OptExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethod `json:"method"`
 	// Nmap's service name: http, ssh, tcpwrapped.
 	Name string `json:"name"`
@@ -47954,8 +47926,8 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) SetVersion(val
 	s.Version = val
 }
 
-// M2-7: how nmap named the service: probed (a probe's answer matched) or table (only the usual service
-// of the port number, not confirmed). Missing: an older scan.
+// How nmap named the service: probed (a probe's answer matched) or table (only the usual service of
+// the port number, not confirmed). Missing: an older scan.
 type ExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethod string
 
 const (
@@ -48002,13 +47974,13 @@ type ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItem struct {
 	// .git, an admin panel).
 	Cve string `json:"cve"`
 	IP  string `json:"ip"`
-	// D-527 (deep scan, testing terms accepted): the template's name from the pack index, one plain line;
-	// absent on a row of a scan without the terms.
+	// Deep scan, testing terms accepted: the template's name from the pack index, one plain line; absent
+	// on a row of a scan without the terms.
 	Name    OptString                                                       `json:"name"`
 	Outcome ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemOutcome `json:"outcome"`
 	Port    int                                                             `json:"port"`
-	// D-527: the template's severity from the pack index; absent on a row of a scan without the terms. A
-	// deep row is kept only when it matched.
+	// The template's severity from the pack index; absent on a row of a scan without the terms. A deep row
+	// is kept only when it matched.
 	Severity OptExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity `json:"severity"`
 	Template string                                                              `json:"template"`
 }
@@ -48131,8 +48103,8 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemOutcome) Unmars
 	}
 }
 
-// D-527: the template's severity from the pack index; absent on a row of a scan without the terms. A
-// deep row is kept only when it matched.
+// The template's severity from the pack index; absent on a row of a scan without the terms. A deep row
+// is kept only when it matched.
 type ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity string
 
 const (
@@ -48255,10 +48227,10 @@ type ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem struct {
 	// changing the version; "" when none.
 	Backport string `json:"backport"`
 	// Version: the version is inside an NVD range (from nmap, or from a Server or X-Powered-By header ZAP
-	// read, D-565); product: only the product matches; template: a safe template matched (INV-23), the
-	// strongest evidence; greenbone: Greenbone named this CVE and it is on the list (INV-25), shown next
-	// to any other row of the same CVE, never instead of it; js_library: Retire.js names this CVE for a
-	// JavaScript library version ZAP saw on a page (D-565).
+	// read); product: only the product matches; template: a safe template matched (INV-23), the strongest
+	// evidence; greenbone: Greenbone named this CVE and it is on the list (INV-25), shown next to any
+	// other row of the same CVE, never instead of it; js_library: Retire.js names this CVE for a
+	// JavaScript library version ZAP saw on a page.
 	Basis ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis `json:"basis"`
 	Cve   string                                                    `json:"cve"`
 	// When CISA listed it as exploited.
@@ -48398,10 +48370,10 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) SetTemplateResult
 }
 
 // Version: the version is inside an NVD range (from nmap, or from a Server or X-Powered-By header ZAP
-// read, D-565); product: only the product matches; template: a safe template matched (INV-23), the
-// strongest evidence; greenbone: Greenbone named this CVE and it is on the list (INV-25), shown next
-// to any other row of the same CVE, never instead of it; js_library: Retire.js names this CVE for a
-// JavaScript library version ZAP saw on a page (D-565).
+// read); product: only the product matches; template: a safe template matched (INV-23), the strongest
+// evidence; greenbone: Greenbone named this CVE and it is on the list (INV-25), shown next to any
+// other row of the same CVE, never instead of it; js_library: Retire.js names this CVE for a
+// JavaScript library version ZAP saw on a page.
 type ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis string
 
 const (
@@ -48529,8 +48501,8 @@ type ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem struct {
 	Cwe int `json:"cwe"`
 	// Plain text, clipped.
 	Description string `json:"description"`
-	// D-565, content/zap/vedette-baseline.conf: fix = a FAIL rule, shown first as "Fix this"; hardening =
-	// a WARN rule or one the list does not name.
+	// Content/zap/vedette-baseline.conf: fix = a FAIL rule, shown first as "Fix this"; hardening = a WARN
+	// rule or one the list does not name.
 	Group ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemGroup `json:"group"`
 	// ZAP's alert name; plain text.
 	Name     string                                                         `json:"name"`
@@ -48538,8 +48510,8 @@ type ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem struct {
 	Risk     ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRisk `json:"risk"`
 	// The page ZAP scanned, e.g. https://203.0.113.10:18443/.
 	Site string `json:"site"`
-	// D-565: versions ZAP read (10003 JavaScript library, 10036 Server header, 10037 X-Powered-By); [] for
-	// other rules.
+	// Versions ZAP read (10003 JavaScript library, 10036 Server header, 10037 X-Powered-By); [] for other
+	// rules.
 	Software []ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemSoftwareItem `json:"software"`
 	// ZAP's advice, plain text, clipped.
 	Solution string `json:"solution"`
@@ -48722,8 +48694,8 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemConfidence) U
 	}
 }
 
-// D-565, content/zap/vedette-baseline.conf: fix = a FAIL rule, shown first as "Fix this"; hardening =
-// a WARN rule or one the list does not name.
+// Content/zap/vedette-baseline.conf: fix = a FAIL rule, shown first as "Fix this"; hardening = a WARN
+// rule or one the list does not name.
 type ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemGroup string
 
 const (
@@ -48991,7 +48963,7 @@ func (s *ExposureGetExposureTargetsIDSnapshotsOKItemsItemCounts) SetSubdomains(v
 type ExposureGetExposureTargetsOK struct {
 	BoxIP ExposureGetExposureTargetsOKBoxIP `json:"box_ip"`
 	// Null unless one of the box's own IPs has an open port in its newest scan; then who probably answers
-	// it (D-492).
+	// it.
 	Gateway NilExposureGetExposureTargetsOKGateway `json:"gateway"`
 	// The Ignored list, newest first.
 	Ignored []ExposureGetExposureTargetsOKIgnoredItem `json:"ignored"`
@@ -49222,18 +49194,18 @@ type ExposureGetExposureTargetsOKItemsItem struct {
 	// that got an answer did not see the IP and no check since has, so scans are paused (until a later
 	// check sees it) while the IP stays in the list; verified_at is when the box last saw it.
 	BlockedReason NilExposureGetExposureTargetsOKItemsItemBlockedReason `json:"blocked_reason"`
-	// Recorded by the first Scan now of an administrator with two-step sign-in (D-473): who, when and the
-	// exact sentence shown next to the button.
+	// Recorded by the first Scan now of an administrator with two-step sign-in: who, when and the exact
+	// sentence shown next to the button.
 	Commitment NilExposureGetExposureTargetsOKItemsItemCommitment `json:"commitment"`
 	// The sentence the first Scan now of an administrator confirms, with this target in it; null once the
-	// target has a commitment of the current sentence; an older one is asked again once (D-559), so a
-	// target with a commitment can carry it too.
+	// target has a commitment of the current sentence; an older one is asked again once, so a target with
+	// a commitment can carry it too.
 	CommitmentNotice NilExposureGetExposureTargetsOKItemsItemCommitmentNotice `json:"commitment_notice"`
 	CreatedAt        time.Time                                                `json:"created_at"`
 	// IP: verified_at + 30 days. Domain: null (the TXT record is re-checked right before every scan).
 	ExpiresAt NilDateTime `json:"expires_at"`
-	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the K-4 scope
-	// of the Scan now sentence.
+	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the scope of
+	// the Scan now sentence.
 	FullScan   bool                                              `json:"full_scan"`
 	ID         string                                            `json:"id"`
 	Kind       ExposureGetExposureTargetsOKItemsItemKind         `json:"kind"`
@@ -49244,20 +49216,19 @@ type ExposureGetExposureTargetsOKItemsItem struct {
 	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
 	// can say what is open; null when never scanned.
 	OpenPorts []ExposureGetExposureTargetsOKItemsItemOpenPortsItem `json:"open_ports"`
-	// Domains: where the TXT record goes and which verified domain covers this one already (D-628); null
-	// for an IP.
+	// Domains: where the TXT record goes and which verified domain covers this one already; null for an IP.
 	Proof     NilExposureGetExposureTargetsOKItemsItemProof `json:"proof"`
 	Scannable bool                                          `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposureGetExposureTargetsOKItemsItemStatus `json:"status"`
-	// FULL-1 (D-566): the acceptance of the testing terms; null when none. An acceptance of an older
-	// version does not count (full_scan is false) until accepted again.
+	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
+	// count (full_scan is false) until accepted again.
 	Terms NilExposureGetExposureTargetsOKItemsItemTerms `json:"terms"`
 	// The current testing terms for this target, to accept or to read again.
 	TermsNotice ExposureGetExposureTargetsOKItemsItemTermsNotice `json:"terms_notice"`
 	// GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in
 	// 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409
-	// shared_address) while it shows (D-566).
+	// shared_address) while it shows.
 	TermsWarning OptNilString `json:"terms_warning"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
 	// string.
@@ -49565,11 +49536,11 @@ func (s *ExposureGetExposureTargetsOKItemsItemBlockedReason) UnmarshalText(data 
 type ExposureGetExposureTargetsOKItemsItemCommitment struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
-	// The exact sentence, with the target in it, kept with who and when; null on a commitment recorded
-	// before D-473.
+	// The exact sentence, with the target in it, kept with who and when; null on a commitment recorded by
+	// an older version.
 	Sentence NilString `json:"sentence"`
-	// Version of the sentence the administrator saw next to Scan now; null on a commitment recorded before
-	// D-473.
+	// Version of the sentence the administrator saw next to Scan now; null on a commitment recorded by an
+	// older version.
 	Version NilString `json:"version"`
 }
 
@@ -49815,11 +49786,11 @@ func (s *ExposureGetExposureTargetsOKItemsItemMethod) UnmarshalText(data []byte)
 }
 
 type ExposureGetExposureTargetsOKItemsItemOpenPortsItem struct {
-	// M2-7: the names of the port's TLS certificate as the deep scan read them (subject common name, then
-	// DNS alternative names), at most 5.
+	// The names of the port's TLS certificate as the deep scan read them (subject common name, then DNS
+	// alternative names), at most 5.
 	CertNames []string `json:"cert_names"`
-	// M2-7: how service identification named the service: probed (a probe's answer, or the surface scan's
-	// GET read a product), port (only the usual service of the port number: not confirmed), none (nothing
+	// How service identification named the service: probed (a probe's answer, or the surface scan's GET
+	// read a product), port (only the usual service of the port number: not confirmed), none (nothing
 	// identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on
 	// the port, or an older scan.
 	Ident OptExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent `json:"ident"`
@@ -49832,10 +49803,10 @@ type ExposureGetExposureTargetsOKItemsItemOpenPortsItem struct {
 	Misses  OptInt    `json:"misses"`
 	Port    int       `json:"port"`
 	Product OptString `json:"product"`
-	// M2-7: the HTTP Server header on the port (deep scan, http-server-header).
+	// The HTTP Server header on the port (deep scan, http-server-header).
 	Server  OptString `json:"server"`
 	Service string    `json:"service"`
-	// M2-7: the title of the web page on the port (deep scan, http-title).
+	// The title of the web page on the port (deep scan, http-title).
 	Title OptString `json:"title"`
 	// The newest scan did not check the address: the row is as an earlier scan left it.
 	Unchecked OptBool `json:"unchecked"`
@@ -49951,8 +49922,8 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetUnchecked(val Op
 	s.Unchecked = val
 }
 
-// M2-7: how service identification named the service: probed (a probe's answer, or the surface scan's
-// GET read a product), port (only the usual service of the port number: not confirmed), none (nothing
+// How service identification named the service: probed (a probe's answer, or the surface scan's GET
+// read a product), port (only the usual service of the port number: not confirmed), none (nothing
 // identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on
 // the port, or an older scan.
 type ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent string
@@ -50011,8 +49982,8 @@ type ExposureGetExposureTargetsOKItemsItemProof struct {
 	// A verified domain of this box that covers this name already (its parent or the zone): a Check is
 	// enough, no second record; null when none.
 	CoveredBy NilString `json:"covered_by"`
-	// The Name (host) to type in that zone: "@", the zone apex, for every target (D-632: the target's own
-	// record there proves it, and an apex takes a record whatever the subdomain is).
+	// The Name (host) to type in that zone: "@", the zone apex, for every target (the target's own record
+	// there proves it, and an apex takes a record whatever the subdomain is).
 	Host string `json:"host"`
 	// The registered domain: the DNS zone the record is added in ("beyondnetglobal.com").
 	Zone string `json:"zone"`
@@ -50286,18 +50257,18 @@ type ExposurePostExposureBoxIPVerifyOKItemsItem struct {
 	// that got an answer did not see the IP and no check since has, so scans are paused (until a later
 	// check sees it) while the IP stays in the list; verified_at is when the box last saw it.
 	BlockedReason NilExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason `json:"blocked_reason"`
-	// Recorded by the first Scan now of an administrator with two-step sign-in (D-473): who, when and the
-	// exact sentence shown next to the button.
+	// Recorded by the first Scan now of an administrator with two-step sign-in: who, when and the exact
+	// sentence shown next to the button.
 	Commitment NilExposurePostExposureBoxIPVerifyOKItemsItemCommitment `json:"commitment"`
 	// The sentence the first Scan now of an administrator confirms, with this target in it; null once the
-	// target has a commitment of the current sentence; an older one is asked again once (D-559), so a
-	// target with a commitment can carry it too.
+	// target has a commitment of the current sentence; an older one is asked again once, so a target with
+	// a commitment can carry it too.
 	CommitmentNotice NilExposurePostExposureBoxIPVerifyOKItemsItemCommitmentNotice `json:"commitment_notice"`
 	CreatedAt        time.Time                                                     `json:"created_at"`
 	// IP: verified_at + 30 days. Domain: null (the TXT record is re-checked right before every scan).
 	ExpiresAt NilDateTime `json:"expires_at"`
-	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the K-4 scope
-	// of the Scan now sentence.
+	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the scope of
+	// the Scan now sentence.
 	FullScan   bool                                                   `json:"full_scan"`
 	ID         string                                                 `json:"id"`
 	Kind       ExposurePostExposureBoxIPVerifyOKItemsItemKind         `json:"kind"`
@@ -50308,20 +50279,19 @@ type ExposurePostExposureBoxIPVerifyOKItemsItem struct {
 	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
 	// can say what is open; null when never scanned.
 	OpenPorts []ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem `json:"open_ports"`
-	// Domains: where the TXT record goes and which verified domain covers this one already (D-628); null
-	// for an IP.
+	// Domains: where the TXT record goes and which verified domain covers this one already; null for an IP.
 	Proof     NilExposurePostExposureBoxIPVerifyOKItemsItemProof `json:"proof"`
 	Scannable bool                                               `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposurePostExposureBoxIPVerifyOKItemsItemStatus `json:"status"`
-	// FULL-1 (D-566): the acceptance of the testing terms; null when none. An acceptance of an older
-	// version does not count (full_scan is false) until accepted again.
+	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
+	// count (full_scan is false) until accepted again.
 	Terms NilExposurePostExposureBoxIPVerifyOKItemsItemTerms `json:"terms"`
 	// The current testing terms for this target, to accept or to read again.
 	TermsNotice ExposurePostExposureBoxIPVerifyOKItemsItemTermsNotice `json:"terms_notice"`
 	// GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in
 	// 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409
-	// shared_address) while it shows (D-566).
+	// shared_address) while it shows.
 	TermsWarning OptNilString `json:"terms_warning"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
 	// string.
@@ -50629,11 +50599,11 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason) UnmarshalText(
 type ExposurePostExposureBoxIPVerifyOKItemsItemCommitment struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
-	// The exact sentence, with the target in it, kept with who and when; null on a commitment recorded
-	// before D-473.
+	// The exact sentence, with the target in it, kept with who and when; null on a commitment recorded by
+	// an older version.
 	Sentence NilString `json:"sentence"`
-	// Version of the sentence the administrator saw next to Scan now; null on a commitment recorded before
-	// D-473.
+	// Version of the sentence the administrator saw next to Scan now; null on a commitment recorded by an
+	// older version.
 	Version NilString `json:"version"`
 }
 
@@ -50879,11 +50849,11 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemMethod) UnmarshalText(data []
 }
 
 type ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem struct {
-	// M2-7: the names of the port's TLS certificate as the deep scan read them (subject common name, then
-	// DNS alternative names), at most 5.
+	// The names of the port's TLS certificate as the deep scan read them (subject common name, then DNS
+	// alternative names), at most 5.
 	CertNames []string `json:"cert_names"`
-	// M2-7: how service identification named the service: probed (a probe's answer, or the surface scan's
-	// GET read a product), port (only the usual service of the port number: not confirmed), none (nothing
+	// How service identification named the service: probed (a probe's answer, or the surface scan's GET
+	// read a product), port (only the usual service of the port number: not confirmed), none (nothing
 	// identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on
 	// the port, or an older scan.
 	Ident OptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent `json:"ident"`
@@ -50896,10 +50866,10 @@ type ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem struct {
 	Misses  OptInt    `json:"misses"`
 	Port    int       `json:"port"`
 	Product OptString `json:"product"`
-	// M2-7: the HTTP Server header on the port (deep scan, http-server-header).
+	// The HTTP Server header on the port (deep scan, http-server-header).
 	Server  OptString `json:"server"`
 	Service string    `json:"service"`
-	// M2-7: the title of the web page on the port (deep scan, http-title).
+	// The title of the web page on the port (deep scan, http-title).
 	Title OptString `json:"title"`
 	// The newest scan did not check the address: the row is as an earlier scan left it.
 	Unchecked OptBool `json:"unchecked"`
@@ -51015,8 +50985,8 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetUnchecked(v
 	s.Unchecked = val
 }
 
-// M2-7: how service identification named the service: probed (a probe's answer, or the surface scan's
-// GET read a product), port (only the usual service of the port number: not confirmed), none (nothing
+// How service identification named the service: probed (a probe's answer, or the surface scan's GET
+// read a product), port (only the usual service of the port number: not confirmed), none (nothing
 // identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on
 // the port, or an older scan.
 type ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent string
@@ -51075,8 +51045,8 @@ type ExposurePostExposureBoxIPVerifyOKItemsItemProof struct {
 	// A verified domain of this box that covers this name already (its parent or the zone): a Check is
 	// enough, no second record; null when none.
 	CoveredBy NilString `json:"covered_by"`
-	// The Name (host) to type in that zone: "@", the zone apex, for every target (D-632: the target's own
-	// record there proves it, and an apex takes a record whatever the subdomain is).
+	// The Name (host) to type in that zone: "@", the zone apex, for every target (the target's own record
+	// there proves it, and an apex takes a record whatever the subdomain is).
 	Host string `json:"host"`
 	// The registered domain: the DNS zone the record is added in ("beyondnetglobal.com").
 	Zone string `json:"zone"`
@@ -51329,8 +51299,8 @@ type ExposurePostExposureScanStopOK struct {
 	ID         string                                 `json:"id"`
 	// Queued: accepted, about to start; probing: the scan module's runner is scanning the target; saving:
 	// the result is being stored; greenbone: the snapshot of the other steps is stored and the optional
-	// Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done: the
-	// snapshot exists. A failed or stopped run keeps the phase it reached.
+	// Greenbone scan runs (up to 90 minutes), the box's one scan slot stays busy; done: the snapshot
+	// exists. A failed or stopped run keeps the phase it reached.
 	Phase ExposurePostExposureScanStopOKPhase `json:"phase"`
 	// How far the step that runs now is (#830): the port scan, service detection and vulnerability checks
 	// as the scan worker reports them, the passive web checks, and OpenVAS's own percent during the
@@ -51342,7 +51312,7 @@ type ExposurePostExposureScanStopOK struct {
 	StartedAt  time.Time                            `json:"started_at"`
 	Status     ExposurePostExposureScanStopOKStatus `json:"status"`
 	// Why the box stopped this run when it was not a person's Stop, e.g. "the testing terms of this target
-	// were withdrawn" (D-566).
+	// were withdrawn".
 	StopReason  OptNilString `json:"stop_reason"`
 	TargetID    string       `json:"target_id"`
 	TargetValue string       `json:"target_value"`
@@ -51495,8 +51465,8 @@ func (s *ExposurePostExposureScanStopOKError) SetMessage(val string) {
 
 // Queued: accepted, about to start; probing: the scan module's runner is scanning the target; saving:
 // the result is being stored; greenbone: the snapshot of the other steps is stored and the optional
-// Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done: the
-// snapshot exists. A failed or stopped run keeps the phase it reached.
+// Greenbone scan runs (up to 90 minutes), the box's one scan slot stays busy; done: the snapshot
+// exists. A failed or stopped run keeps the phase it reached.
 type ExposurePostExposureScanStopOKPhase string
 
 const (
@@ -51890,18 +51860,18 @@ type ExposurePostExposureTargetsCreated struct {
 	// that got an answer did not see the IP and no check since has, so scans are paused (until a later
 	// check sees it) while the IP stays in the list; verified_at is when the box last saw it.
 	BlockedReason NilExposurePostExposureTargetsCreatedBlockedReason `json:"blocked_reason"`
-	// Recorded by the first Scan now of an administrator with two-step sign-in (D-473): who, when and the
-	// exact sentence shown next to the button.
+	// Recorded by the first Scan now of an administrator with two-step sign-in: who, when and the exact
+	// sentence shown next to the button.
 	Commitment NilExposurePostExposureTargetsCreatedCommitment `json:"commitment"`
 	// The sentence the first Scan now of an administrator confirms, with this target in it; null once the
-	// target has a commitment of the current sentence; an older one is asked again once (D-559), so a
-	// target with a commitment can carry it too.
+	// target has a commitment of the current sentence; an older one is asked again once, so a target with
+	// a commitment can carry it too.
 	CommitmentNotice NilExposurePostExposureTargetsCreatedCommitmentNotice `json:"commitment_notice"`
 	CreatedAt        time.Time                                             `json:"created_at"`
 	// IP: verified_at + 30 days. Domain: null (the TXT record is re-checked right before every scan).
 	ExpiresAt NilDateTime `json:"expires_at"`
-	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the K-4 scope
-	// of the Scan now sentence.
+	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the scope of
+	// the Scan now sentence.
 	FullScan   bool                                           `json:"full_scan"`
 	ID         string                                         `json:"id"`
 	Kind       ExposurePostExposureTargetsCreatedKind         `json:"kind"`
@@ -51912,20 +51882,19 @@ type ExposurePostExposureTargetsCreated struct {
 	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
 	// can say what is open; null when never scanned.
 	OpenPorts []ExposurePostExposureTargetsCreatedOpenPortsItem `json:"open_ports"`
-	// Domains: where the TXT record goes and which verified domain covers this one already (D-628); null
-	// for an IP.
+	// Domains: where the TXT record goes and which verified domain covers this one already; null for an IP.
 	Proof     NilExposurePostExposureTargetsCreatedProof `json:"proof"`
 	Scannable bool                                       `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposurePostExposureTargetsCreatedStatus `json:"status"`
-	// FULL-1 (D-566): the acceptance of the testing terms; null when none. An acceptance of an older
-	// version does not count (full_scan is false) until accepted again.
+	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
+	// count (full_scan is false) until accepted again.
 	Terms NilExposurePostExposureTargetsCreatedTerms `json:"terms"`
 	// The current testing terms for this target, to accept or to read again.
 	TermsNotice ExposurePostExposureTargetsCreatedTermsNotice `json:"terms_notice"`
 	// GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in
 	// 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409
-	// shared_address) while it shows (D-566).
+	// shared_address) while it shows.
 	TermsWarning OptNilString `json:"terms_warning"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
 	// string.
@@ -52233,11 +52202,11 @@ func (s *ExposurePostExposureTargetsCreatedBlockedReason) UnmarshalText(data []b
 type ExposurePostExposureTargetsCreatedCommitment struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
-	// The exact sentence, with the target in it, kept with who and when; null on a commitment recorded
-	// before D-473.
+	// The exact sentence, with the target in it, kept with who and when; null on a commitment recorded by
+	// an older version.
 	Sentence NilString `json:"sentence"`
-	// Version of the sentence the administrator saw next to Scan now; null on a commitment recorded before
-	// D-473.
+	// Version of the sentence the administrator saw next to Scan now; null on a commitment recorded by an
+	// older version.
 	Version NilString `json:"version"`
 }
 
@@ -52483,11 +52452,11 @@ func (s *ExposurePostExposureTargetsCreatedMethod) UnmarshalText(data []byte) er
 }
 
 type ExposurePostExposureTargetsCreatedOpenPortsItem struct {
-	// M2-7: the names of the port's TLS certificate as the deep scan read them (subject common name, then
-	// DNS alternative names), at most 5.
+	// The names of the port's TLS certificate as the deep scan read them (subject common name, then DNS
+	// alternative names), at most 5.
 	CertNames []string `json:"cert_names"`
-	// M2-7: how service identification named the service: probed (a probe's answer, or the surface scan's
-	// GET read a product), port (only the usual service of the port number: not confirmed), none (nothing
+	// How service identification named the service: probed (a probe's answer, or the surface scan's GET
+	// read a product), port (only the usual service of the port number: not confirmed), none (nothing
 	// identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on
 	// the port, or an older scan.
 	Ident OptExposurePostExposureTargetsCreatedOpenPortsItemIdent `json:"ident"`
@@ -52500,10 +52469,10 @@ type ExposurePostExposureTargetsCreatedOpenPortsItem struct {
 	Misses  OptInt    `json:"misses"`
 	Port    int       `json:"port"`
 	Product OptString `json:"product"`
-	// M2-7: the HTTP Server header on the port (deep scan, http-server-header).
+	// The HTTP Server header on the port (deep scan, http-server-header).
 	Server  OptString `json:"server"`
 	Service string    `json:"service"`
-	// M2-7: the title of the web page on the port (deep scan, http-title).
+	// The title of the web page on the port (deep scan, http-title).
 	Title OptString `json:"title"`
 	// The newest scan did not check the address: the row is as an earlier scan left it.
 	Unchecked OptBool `json:"unchecked"`
@@ -52619,8 +52588,8 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetUnchecked(val OptBo
 	s.Unchecked = val
 }
 
-// M2-7: how service identification named the service: probed (a probe's answer, or the surface scan's
-// GET read a product), port (only the usual service of the port number: not confirmed), none (nothing
+// How service identification named the service: probed (a probe's answer, or the surface scan's GET
+// read a product), port (only the usual service of the port number: not confirmed), none (nothing
 // identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on
 // the port, or an older scan.
 type ExposurePostExposureTargetsCreatedOpenPortsItemIdent string
@@ -52679,8 +52648,8 @@ type ExposurePostExposureTargetsCreatedProof struct {
 	// A verified domain of this box that covers this name already (its parent or the zone): a Check is
 	// enough, no second record; null when none.
 	CoveredBy NilString `json:"covered_by"`
-	// The Name (host) to type in that zone: "@", the zone apex, for every target (D-632: the target's own
-	// record there proves it, and an apex takes a record whatever the subdomain is).
+	// The Name (host) to type in that zone: "@", the zone apex, for every target (the target's own record
+	// there proves it, and an apex takes a record whatever the subdomain is).
 	Host string `json:"host"`
 	// The registered domain: the DNS zone the record is added in ("beyondnetglobal.com").
 	Zone string `json:"zone"`
@@ -53067,8 +53036,8 @@ type ExposurePostExposureTargetsIDScanAccepted struct {
 	ID         string                                            `json:"id"`
 	// Queued: accepted, about to start; probing: the scan module's runner is scanning the target; saving:
 	// the result is being stored; greenbone: the snapshot of the other steps is stored and the optional
-	// Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done: the
-	// snapshot exists. A failed or stopped run keeps the phase it reached.
+	// Greenbone scan runs (up to 90 minutes), the box's one scan slot stays busy; done: the snapshot
+	// exists. A failed or stopped run keeps the phase it reached.
 	Phase ExposurePostExposureTargetsIDScanAcceptedPhase `json:"phase"`
 	// How far the step that runs now is (#830): the port scan, service detection and vulnerability checks
 	// as the scan worker reports them, the passive web checks, and OpenVAS's own percent during the
@@ -53080,7 +53049,7 @@ type ExposurePostExposureTargetsIDScanAccepted struct {
 	StartedAt  time.Time                                       `json:"started_at"`
 	Status     ExposurePostExposureTargetsIDScanAcceptedStatus `json:"status"`
 	// Why the box stopped this run when it was not a person's Stop, e.g. "the testing terms of this target
-	// were withdrawn" (D-566).
+	// were withdrawn".
 	StopReason  OptNilString `json:"stop_reason"`
 	TargetID    string       `json:"target_id"`
 	TargetValue string       `json:"target_value"`
@@ -53233,8 +53202,8 @@ func (s *ExposurePostExposureTargetsIDScanAcceptedError) SetMessage(val string) 
 
 // Queued: accepted, about to start; probing: the scan module's runner is scanning the target; saving:
 // the result is being stored; greenbone: the snapshot of the other steps is stored and the optional
-// Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done: the
-// snapshot exists. A failed or stopped run keeps the phase it reached.
+// Greenbone scan runs (up to 90 minutes), the box's one scan slot stays busy; done: the snapshot
+// exists. A failed or stopped run keeps the phase it reached.
 type ExposurePostExposureTargetsIDScanAcceptedPhase string
 
 const (
@@ -53680,18 +53649,18 @@ type ExposurePostExposureTargetsIDVerifyOKTarget struct {
 	// that got an answer did not see the IP and no check since has, so scans are paused (until a later
 	// check sees it) while the IP stays in the list; verified_at is when the box last saw it.
 	BlockedReason NilExposurePostExposureTargetsIDVerifyOKTargetBlockedReason `json:"blocked_reason"`
-	// Recorded by the first Scan now of an administrator with two-step sign-in (D-473): who, when and the
-	// exact sentence shown next to the button.
+	// Recorded by the first Scan now of an administrator with two-step sign-in: who, when and the exact
+	// sentence shown next to the button.
 	Commitment NilExposurePostExposureTargetsIDVerifyOKTargetCommitment `json:"commitment"`
 	// The sentence the first Scan now of an administrator confirms, with this target in it; null once the
-	// target has a commitment of the current sentence; an older one is asked again once (D-559), so a
-	// target with a commitment can carry it too.
+	// target has a commitment of the current sentence; an older one is asked again once, so a target with
+	// a commitment can carry it too.
 	CommitmentNotice NilExposurePostExposureTargetsIDVerifyOKTargetCommitmentNotice `json:"commitment_notice"`
 	CreatedAt        time.Time                                                      `json:"created_at"`
 	// IP: verified_at + 30 days. Domain: null (the TXT record is re-checked right before every scan).
 	ExpiresAt NilDateTime `json:"expires_at"`
-	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the K-4 scope
-	// of the Scan now sentence.
+	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the scope of
+	// the Scan now sentence.
 	FullScan   bool                                                    `json:"full_scan"`
 	ID         string                                                  `json:"id"`
 	Kind       ExposurePostExposureTargetsIDVerifyOKTargetKind         `json:"kind"`
@@ -53702,20 +53671,19 @@ type ExposurePostExposureTargetsIDVerifyOKTarget struct {
 	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
 	// can say what is open; null when never scanned.
 	OpenPorts []ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem `json:"open_ports"`
-	// Domains: where the TXT record goes and which verified domain covers this one already (D-628); null
-	// for an IP.
+	// Domains: where the TXT record goes and which verified domain covers this one already; null for an IP.
 	Proof     NilExposurePostExposureTargetsIDVerifyOKTargetProof `json:"proof"`
 	Scannable bool                                                `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposurePostExposureTargetsIDVerifyOKTargetStatus `json:"status"`
-	// FULL-1 (D-566): the acceptance of the testing terms; null when none. An acceptance of an older
-	// version does not count (full_scan is false) until accepted again.
+	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
+	// count (full_scan is false) until accepted again.
 	Terms NilExposurePostExposureTargetsIDVerifyOKTargetTerms `json:"terms"`
 	// The current testing terms for this target, to accept or to read again.
 	TermsNotice ExposurePostExposureTargetsIDVerifyOKTargetTermsNotice `json:"terms_notice"`
 	// GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in
 	// 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409
-	// shared_address) while it shows (D-566).
+	// shared_address) while it shows.
 	TermsWarning OptNilString `json:"terms_warning"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
 	// string.
@@ -54023,11 +53991,11 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetBlockedReason) UnmarshalText
 type ExposurePostExposureTargetsIDVerifyOKTargetCommitment struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
-	// The exact sentence, with the target in it, kept with who and when; null on a commitment recorded
-	// before D-473.
+	// The exact sentence, with the target in it, kept with who and when; null on a commitment recorded by
+	// an older version.
 	Sentence NilString `json:"sentence"`
-	// Version of the sentence the administrator saw next to Scan now; null on a commitment recorded before
-	// D-473.
+	// Version of the sentence the administrator saw next to Scan now; null on a commitment recorded by an
+	// older version.
 	Version NilString `json:"version"`
 }
 
@@ -54273,11 +54241,11 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetMethod) UnmarshalText(data [
 }
 
 type ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem struct {
-	// M2-7: the names of the port's TLS certificate as the deep scan read them (subject common name, then
-	// DNS alternative names), at most 5.
+	// The names of the port's TLS certificate as the deep scan read them (subject common name, then DNS
+	// alternative names), at most 5.
 	CertNames []string `json:"cert_names"`
-	// M2-7: how service identification named the service: probed (a probe's answer, or the surface scan's
-	// GET read a product), port (only the usual service of the port number: not confirmed), none (nothing
+	// How service identification named the service: probed (a probe's answer, or the surface scan's GET
+	// read a product), port (only the usual service of the port number: not confirmed), none (nothing
 	// identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on
 	// the port, or an older scan.
 	Ident OptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent `json:"ident"`
@@ -54290,10 +54258,10 @@ type ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem struct {
 	Misses  OptInt    `json:"misses"`
 	Port    int       `json:"port"`
 	Product OptString `json:"product"`
-	// M2-7: the HTTP Server header on the port (deep scan, http-server-header).
+	// The HTTP Server header on the port (deep scan, http-server-header).
 	Server  OptString `json:"server"`
 	Service string    `json:"service"`
-	// M2-7: the title of the web page on the port (deep scan, http-title).
+	// The title of the web page on the port (deep scan, http-title).
 	Title OptString `json:"title"`
 	// The newest scan did not check the address: the row is as an earlier scan left it.
 	Unchecked OptBool `json:"unchecked"`
@@ -54409,8 +54377,8 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetUnchecked(
 	s.Unchecked = val
 }
 
-// M2-7: how service identification named the service: probed (a probe's answer, or the surface scan's
-// GET read a product), port (only the usual service of the port number: not confirmed), none (nothing
+// How service identification named the service: probed (a probe's answer, or the surface scan's GET
+// read a product), port (only the usual service of the port number: not confirmed), none (nothing
 // identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on
 // the port, or an older scan.
 type ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent string
@@ -54469,8 +54437,8 @@ type ExposurePostExposureTargetsIDVerifyOKTargetProof struct {
 	// A verified domain of this box that covers this name already (its parent or the zone): a Check is
 	// enough, no second record; null when none.
 	CoveredBy NilString `json:"covered_by"`
-	// The Name (host) to type in that zone: "@", the zone apex, for every target (D-632: the target's own
-	// record there proves it, and an apex takes a record whatever the subdomain is).
+	// The Name (host) to type in that zone: "@", the zone apex, for every target (the target's own record
+	// there proves it, and an apex takes a record whatever the subdomain is).
 	Host string `json:"host"`
 	// The registered domain: the DNS zone the record is added in ("beyondnetglobal.com").
 	Zone string `json:"zone"`
@@ -54851,8 +54819,8 @@ type ExposurePutExposureGreenboneOK struct {
 	// The feed OpenVAS itself has loaded (T10): there from the first feed load at enable on; null while it
 	// is off or unavailable, and until Vedette has read it since the box started.
 	Feed NilExposurePutExposureGreenboneOKFeed `json:"feed"`
-	// The weekly update of Greenbone's feed while it is enabled (D-564): never during a scan, refused
-	// below 60 GB free, audited.
+	// The weekly update of Greenbone's feed while it is enabled: never during a scan, refused below 60 GB
+	// free, audited.
 	FeedSync  ExposurePutExposureGreenboneOKFeedSync  `json:"feed_sync"`
 	Preflight ExposurePutExposureGreenboneOKPreflight `json:"preflight"`
 	// Why, for unavailable and error; the feed sentence for loading; null otherwise.
@@ -54983,8 +54951,8 @@ func (s *ExposurePutExposureGreenboneOKFeed) SetNvtVersion(val NilString) {
 	s.NvtVersion = val
 }
 
-// The weekly update of Greenbone's feed while it is enabled (D-564): never during a scan, refused
-// below 60 GB free, audited.
+// The weekly update of Greenbone's feed while it is enabled: never during a scan, refused below 60 GB
+// free, audited.
 type ExposurePutExposureGreenboneOKFeedSync struct {
 	// When the weekly feed update was last tried; null before the first.
 	LastAt NilDateTime `json:"last_at"`
@@ -55043,8 +55011,7 @@ type ExposurePutExposureGreenboneOKPreflight struct {
 	DiskFreeBytes NilInt `json:"disk_free_bytes"`
 	// MemTotal of the box; null when it could not be read.
 	MemoryBytes NilInt `json:"memory_bytes"`
-	// Both meet the thresholds: 6 GB (decimal) of memory (under 8 GB, also 2 GB of swap) and 60 GB free
-	// (D-569).
+	// Both meet the thresholds: 6 GB (decimal) of memory (under 8 GB, also 2 GB of swap) and 60 GB free.
 	Ok bool `json:"ok"`
 	// Why it cannot be enabled, with the measured number, e.g. "This box has 5.9 GB of memory; OpenVAS
 	// needs at least 6.0 GB.".
@@ -55181,18 +55148,18 @@ type ExposurePutExposureTargetsIDTermsOK struct {
 	// that got an answer did not see the IP and no check since has, so scans are paused (until a later
 	// check sees it) while the IP stays in the list; verified_at is when the box last saw it.
 	BlockedReason NilExposurePutExposureTargetsIDTermsOKBlockedReason `json:"blocked_reason"`
-	// Recorded by the first Scan now of an administrator with two-step sign-in (D-473): who, when and the
-	// exact sentence shown next to the button.
+	// Recorded by the first Scan now of an administrator with two-step sign-in: who, when and the exact
+	// sentence shown next to the button.
 	Commitment NilExposurePutExposureTargetsIDTermsOKCommitment `json:"commitment"`
 	// The sentence the first Scan now of an administrator confirms, with this target in it; null once the
-	// target has a commitment of the current sentence; an older one is asked again once (D-559), so a
-	// target with a commitment can carry it too.
+	// target has a commitment of the current sentence; an older one is asked again once, so a target with
+	// a commitment can carry it too.
 	CommitmentNotice NilExposurePutExposureTargetsIDTermsOKCommitmentNotice `json:"commitment_notice"`
 	CreatedAt        time.Time                                              `json:"created_at"`
 	// IP: verified_at + 30 days. Domain: null (the TXT record is re-checked right before every scan).
 	ExpiresAt NilDateTime `json:"expires_at"`
-	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the K-4 scope
-	// of the Scan now sentence.
+	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the scope of
+	// the Scan now sentence.
 	FullScan   bool                                            `json:"full_scan"`
 	ID         string                                          `json:"id"`
 	Kind       ExposurePutExposureTargetsIDTermsOKKind         `json:"kind"`
@@ -55203,20 +55170,19 @@ type ExposurePutExposureTargetsIDTermsOK struct {
 	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
 	// can say what is open; null when never scanned.
 	OpenPorts []ExposurePutExposureTargetsIDTermsOKOpenPortsItem `json:"open_ports"`
-	// Domains: where the TXT record goes and which verified domain covers this one already (D-628); null
-	// for an IP.
+	// Domains: where the TXT record goes and which verified domain covers this one already; null for an IP.
 	Proof     NilExposurePutExposureTargetsIDTermsOKProof `json:"proof"`
 	Scannable bool                                        `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposurePutExposureTargetsIDTermsOKStatus `json:"status"`
-	// FULL-1 (D-566): the acceptance of the testing terms; null when none. An acceptance of an older
-	// version does not count (full_scan is false) until accepted again.
+	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
+	// count (full_scan is false) until accepted again.
 	Terms NilExposurePutExposureTargetsIDTermsOKTerms `json:"terms"`
 	// The current testing terms for this target, to accept or to read again.
 	TermsNotice ExposurePutExposureTargetsIDTermsOKTermsNotice `json:"terms_notice"`
 	// GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in
 	// 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409
-	// shared_address) while it shows (D-566).
+	// shared_address) while it shows.
 	TermsWarning OptNilString `json:"terms_warning"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
 	// string.
@@ -55524,11 +55490,11 @@ func (s *ExposurePutExposureTargetsIDTermsOKBlockedReason) UnmarshalText(data []
 type ExposurePutExposureTargetsIDTermsOKCommitment struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
-	// The exact sentence, with the target in it, kept with who and when; null on a commitment recorded
-	// before D-473.
+	// The exact sentence, with the target in it, kept with who and when; null on a commitment recorded by
+	// an older version.
 	Sentence NilString `json:"sentence"`
-	// Version of the sentence the administrator saw next to Scan now; null on a commitment recorded before
-	// D-473.
+	// Version of the sentence the administrator saw next to Scan now; null on a commitment recorded by an
+	// older version.
 	Version NilString `json:"version"`
 }
 
@@ -55774,11 +55740,11 @@ func (s *ExposurePutExposureTargetsIDTermsOKMethod) UnmarshalText(data []byte) e
 }
 
 type ExposurePutExposureTargetsIDTermsOKOpenPortsItem struct {
-	// M2-7: the names of the port's TLS certificate as the deep scan read them (subject common name, then
-	// DNS alternative names), at most 5.
+	// The names of the port's TLS certificate as the deep scan read them (subject common name, then DNS
+	// alternative names), at most 5.
 	CertNames []string `json:"cert_names"`
-	// M2-7: how service identification named the service: probed (a probe's answer, or the surface scan's
-	// GET read a product), port (only the usual service of the port number: not confirmed), none (nothing
+	// How service identification named the service: probed (a probe's answer, or the surface scan's GET
+	// read a product), port (only the usual service of the port number: not confirmed), none (nothing
 	// identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on
 	// the port, or an older scan.
 	Ident OptExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent `json:"ident"`
@@ -55791,10 +55757,10 @@ type ExposurePutExposureTargetsIDTermsOKOpenPortsItem struct {
 	Misses  OptInt    `json:"misses"`
 	Port    int       `json:"port"`
 	Product OptString `json:"product"`
-	// M2-7: the HTTP Server header on the port (deep scan, http-server-header).
+	// The HTTP Server header on the port (deep scan, http-server-header).
 	Server  OptString `json:"server"`
 	Service string    `json:"service"`
-	// M2-7: the title of the web page on the port (deep scan, http-title).
+	// The title of the web page on the port (deep scan, http-title).
 	Title OptString `json:"title"`
 	// The newest scan did not check the address: the row is as an earlier scan left it.
 	Unchecked OptBool `json:"unchecked"`
@@ -55910,8 +55876,8 @@ func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) SetUnchecked(val OptB
 	s.Unchecked = val
 }
 
-// M2-7: how service identification named the service: probed (a probe's answer, or the surface scan's
-// GET read a product), port (only the usual service of the port number: not confirmed), none (nothing
+// How service identification named the service: probed (a probe's answer, or the surface scan's GET
+// read a product), port (only the usual service of the port number: not confirmed), none (nothing
 // identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on
 // the port, or an older scan.
 type ExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent string
@@ -55970,8 +55936,8 @@ type ExposurePutExposureTargetsIDTermsOKProof struct {
 	// A verified domain of this box that covers this name already (its parent or the zone): a Check is
 	// enough, no second record; null when none.
 	CoveredBy NilString `json:"covered_by"`
-	// The Name (host) to type in that zone: "@", the zone apex, for every target (D-632: the target's own
-	// record there proves it, and an apex takes a record whatever the subdomain is).
+	// The Name (host) to type in that zone: "@", the zone apex, for every target (the target's own record
+	// there proves it, and an apex takes a record whatever the subdomain is).
 	Host string `json:"host"`
 	// The registered domain: the DNS zone the record is added in ("beyondnetglobal.com").
 	Zone string `json:"zone"`
@@ -56256,18 +56222,18 @@ type FeedsGetFeedsCveIDOK struct {
 	Links   []string                          `json:"links"`
 	Matched []FeedsGetFeedsCveIDOKMatchedItem `json:"matched"`
 	Name    string                            `json:"name"`
-	// D-549: devices that run the product but that the platform rules of the findings prove are not
-	// affected; left out of matched.
+	// Devices that run the product but that the platform rules of the findings prove are not affected;
+	// left out of matched.
 	NotAffected OptInt `json:"not_affected"`
 	Product     string `json:"product"`
-	// D-615: the day NVD published the CVE (never CISA's date_added); null when NVD has not answered for
-	// it. Older than 12 months: a device that matches by the product name only (no version compared) is
-	// not a finding (D-616), so matched may list devices that are not findings.
+	// The day NVD published the CVE (never CISA's date_added); null when NVD has not answered for it.
+	// Older than 12 months: a device that matches by the product name only (no version compared) is not a
+	// finding, so matched may list devices that are not findings.
 	Published      NilString `json:"published"`
 	Ransomware     bool      `json:"ransomware"`
 	RequiredAction string    `json:"required_action"`
-	// Which list the entry is on: "cisa-kev", "vulncheck-kev" (VulnCheck KEV, D-557) or the id of a custom
-	// feed; texts name it, an entry of VulnCheck is never called CISA's.
+	// Which list the entry is on: "cisa-kev", "vulncheck-kev" (VulnCheck KEV) or the id of a custom feed;
+	// texts name it, an entry of VulnCheck is never called CISA's.
 	Source OptString `json:"source"`
 	Vendor string    `json:"vendor"`
 }
@@ -56454,7 +56420,7 @@ func (s *FeedsGetFeedsCveIDOK) SetVendor(val string) {
 
 type FeedsGetFeedsCveIDOKMatchedItem struct {
 	Display string `json:"display"`
-	// The device's name: the name a person gave it in Vedette (G2), else its host name; null when neither.
+	// The device's name: the name a person gave it in Vedette, else its host name; null when neither.
 	Hostname NilString                          `json:"hostname"`
 	How      FeedsGetFeedsCveIDOKMatchedItemHow `json:"how"`
 	ID       string                             `json:"id"`
@@ -56578,8 +56544,7 @@ type FeedsGetFeedsCveIDTierOK struct {
 	// NVD's CVSS severity.
 	Severity NilFeedsGetFeedsCveIDTierOKSeverity `json:"severity"`
 	// Likely = EPSS 10 % or more and published in the last 12 months; recent = published in the last 12
-	// months; null = older, or no published date in the data (only a scan engine that finds it lists it,
-	// D-615).
+	// months; null = older, or no published date in the data (only a scan engine that finds it lists it).
 	Tier NilFeedsGetFeedsCveIDTierOKTier `json:"tier"`
 }
 
@@ -57543,8 +57508,8 @@ type FeedsGetFeedsSearch1TextVulnsItem struct {
 	Product        string   `json:"product"`
 	Ransomware     bool     `json:"ransomware"`
 	RequiredAction string   `json:"required_action"`
-	// Which list the entry is on: "cisa-kev", "vulncheck-kev" (VulnCheck KEV, D-557) or the id of a custom
-	// feed; texts name it, an entry of VulnCheck is never called CISA's.
+	// Which list the entry is on: "cisa-kev", "vulncheck-kev" (VulnCheck KEV) or the id of a custom feed;
+	// texts name it, an entry of VulnCheck is never called CISA's.
 	Source OptString `json:"source"`
 	Vendor string    `json:"vendor"`
 }
@@ -57812,8 +57777,7 @@ func (s *FeedsGetFeedsSourcesOK) SetItems(val []FeedsGetFeedsSourcesOKItemsItem)
 
 type FeedsGetFeedsSourcesOKItemsItem struct {
 	// The CISA list only: the copy the catalog on the box came from (newest from), "CISA" or "CISA GitHub
-	// mirror"; both copies are asked every check (D-91 as amended, kien G13); null for every other feed
-	// and before the first good pull.
+	// mirror"; both copies are asked every check; null for every other feed and before the first good pull.
 	AnsweredBy NilString                           `json:"answered_by"`
 	Auth       FeedsGetFeedsSourcesOKItemsItemAuth `json:"auth"`
 	Builtin    bool                                `json:"builtin"`
@@ -58570,24 +58534,23 @@ func (s *FeedsGetFeedsStatusOK) SetSources(val []FeedsGetFeedsStatusOKSourcesIte
 
 type FeedsGetFeedsStatusOKKev struct {
 	// Newest from: the copy the catalog on the box came from, "CISA" (cisa.gov) or "CISA GitHub mirror"
-	// (D-91 as amended, kien G13: both are asked every check and the newer catalog is kept); null before
-	// the first good pull.
+	// (both are asked every check and the newer catalog is kept); null before the first good pull.
 	AnsweredBy NilString `json:"answered_by"`
 	// When the box last asked for the CISA list, whether the pull worked or not; null before the first
 	// pull.
 	CheckedAt NilDateTime `json:"checked_at"`
-	// What each copy of the CISA list said at its last check (D-91 as amended); empty for a list at an
-	// admin's own address or before the first check.
+	// What each copy of the CISA list said at its last check; empty for a list at an admin's own address
+	// or before the first check.
 	Copies []FeedsGetFeedsStatusOKKevCopiesItem `json:"copies"`
 	// One line, cleaned: why the last pull failed (also when an earlier pull had loaded the list); null
 	// when the last pull worked, has not been tried, or the list is off.
 	Error NilString `json:"error"`
-	// How often the box pulls the CISA list (kien G11: Home says "checked every hour").
+	// How often the box pulls the CISA list (Home says "checked every hour").
 	IntervalHours int `json:"interval_hours"`
 	// When a pull of the CISA list last worked; null when none ever did.
 	LastSuccess NilDateTime `json:"last_success"`
-	// The CISA list (cisa-kev) for the Home count (D-92): "off" when an admin turned it off, else "loaded"
-	// once a pull has ever succeeded (even if a later pull failed), else "never_loaded".
+	// The CISA list (cisa-kev) for the Home count: "off" when an admin turned it off, else "loaded" once a
+	// pull has ever succeeded (even if a later pull failed), else "never_loaded".
 	State FeedsGetFeedsStatusOKKevState `json:"state"`
 }
 
@@ -58764,8 +58727,8 @@ func (s *FeedsGetFeedsStatusOKKevCopiesItemName) UnmarshalText(data []byte) erro
 	}
 }
 
-// The CISA list (cisa-kev) for the Home count (D-92): "off" when an admin turned it off, else "loaded"
-// once a pull has ever succeeded (even if a later pull failed), else "never_loaded".
+// The CISA list (cisa-kev) for the Home count: "off" when an admin turned it off, else "loaded" once a
+// pull has ever succeeded (even if a later pull failed), else "never_loaded".
 type FeedsGetFeedsStatusOKKevState string
 
 const (
@@ -58818,7 +58781,7 @@ type FeedsGetFeedsStatusOKSourcesItem struct {
 	FetchedAt time.Time `json:"fetched_at"`
 	License   string    `json:"license"`
 	Name      string    `json:"name"`
-	// The address the data came from: for the CISA list, the copy the newest catalog came from (kien G13).
+	// The address the data came from: for the CISA list, the copy the newest catalog came from.
 	URL url.URL `json:"url"`
 }
 
@@ -58988,8 +58951,7 @@ func (s *FeedsGetFeedsWeeklyOKItemsItemAnswer) UnmarshalText(data []byte) error 
 
 type FeedsPostFeedsCustomCreated struct {
 	// The CISA list only: the copy the catalog on the box came from (newest from), "CISA" or "CISA GitHub
-	// mirror"; both copies are asked every check (D-91 as amended, kien G13); null for every other feed
-	// and before the first good pull.
+	// mirror"; both copies are asked every check; null for every other feed and before the first good pull.
 	AnsweredBy NilString                       `json:"answered_by"`
 	Auth       FeedsPostFeedsCustomCreatedAuth `json:"auth"`
 	Builtin    bool                            `json:"builtin"`
@@ -60756,8 +60718,7 @@ func (s *FeedsPostFeedsParseTestReqParserFormat) UnmarshalText(data []byte) erro
 
 type FeedsPostFeedsSourcesIDFetchOK struct {
 	// The CISA list only: the copy the catalog on the box came from (newest from), "CISA" or "CISA GitHub
-	// mirror"; both copies are asked every check (D-91 as amended, kien G13); null for every other feed
-	// and before the first good pull.
+	// mirror"; both copies are asked every check; null for every other feed and before the first good pull.
 	AnsweredBy NilString                          `json:"answered_by"`
 	Auth       FeedsPostFeedsSourcesIDFetchOKAuth `json:"auth"`
 	Builtin    bool                               `json:"builtin"`
@@ -61635,8 +61596,7 @@ func (s *FeedsPostFeedsWeeklyIDReqAnswer) UnmarshalText(data []byte) error {
 
 type FeedsPutFeedsCustomIDOK struct {
 	// The CISA list only: the copy the catalog on the box came from (newest from), "CISA" or "CISA GitHub
-	// mirror"; both copies are asked every check (D-91 as amended, kien G13); null for every other feed
-	// and before the first good pull.
+	// mirror"; both copies are asked every check; null for every other feed and before the first good pull.
 	AnsweredBy NilString                   `json:"answered_by"`
 	Auth       FeedsPutFeedsCustomIDOKAuth `json:"auth"`
 	Builtin    bool                        `json:"builtin"`
@@ -62810,8 +62770,7 @@ func (s *FeedsPutFeedsCustomIDReqParserFormat) UnmarshalText(data []byte) error 
 
 type FeedsPutFeedsSourcesIDOK struct {
 	// The CISA list only: the copy the catalog on the box came from (newest from), "CISA" or "CISA GitHub
-	// mirror"; both copies are asked every check (D-91 as amended, kien G13); null for every other feed
-	// and before the first good pull.
+	// mirror"; both copies are asked every check; null for every other feed and before the first good pull.
 	AnsweredBy NilString                    `json:"answered_by"`
 	Auth       FeedsPutFeedsSourcesIDOKAuth `json:"auth"`
 	Builtin    bool                         `json:"builtin"`
@@ -63559,11 +63518,10 @@ func (s *FeedsPutFeedsSourcesIDReq) SetURL(val OptString) {
 }
 
 type FindingsGetFindingsIDOK struct {
-	// Risk_accepted only (D-498): the last day of the acceptance (UTC); the finding reopens by itself
-	// after it.
+	// Risk_accepted only: the last day of the acceptance (UTC); the finding reopens by itself after it.
 	AcceptedUntil NilDate                   `json:"accepted_until"`
 	Ai            FindingsGetFindingsIDOKAi `json:"ai"`
-	// Whether an AI profile is assigned and allowed for each job (D-29).
+	// Whether an AI profile is assigned and allowed for each job.
 	AiAvailable FindingsGetFindingsIDOKAiAvailable   `json:"ai_available"`
 	Applied     []FindingsGetFindingsIDOKAppliedItem `json:"applied"`
 	Asset       NilFindingsGetFindingsIDOKAsset      `json:"asset"`
@@ -63578,11 +63536,11 @@ type FindingsGetFindingsIDOK struct {
 	Cvss      NilFindingsGetFindingsIDOKCvss     `json:"cvss"`
 	Evidence  NilFindingsGetFindingsIDOKEvidence `json:"evidence"`
 	FirstSeen time.Time                          `json:"first_seen"`
-	// GET /findings only, open findings: the update that fixes it with others (D-545); null when there is
-	// none to name.
+	// GET /findings only, open findings: the update that fixes it with others; null when there is none to
+	// name.
 	Fix OptNilFindingsGetFindingsIDOKFix `json:"fix"`
-	// The release that fixes this finding on this device, from the NVD affected versions (D-488); null =
-	// NVD gives none, the page shows CISA and the vendor advisory only.
+	// The release that fixes this finding on this device, from the NVD affected versions; null = NVD gives
+	// none, the page shows CISA and the vendor advisory only.
 	FixedIn NilFindingsGetFindingsIDOKFixedIn `json:"fixed_in"`
 	// Null when the confirmed pack has its own compromise signs, or mitigation is off.
 	Hardening NilFindingsGetFindingsIDOKHardening  `json:"hardening"`
@@ -63590,10 +63548,10 @@ type FindingsGetFindingsIDOK struct {
 	ID        string                               `json:"id"`
 	// Read from KEV, not from the project recommendation pack.
 	Kev NilFindingsGetFindingsIDOKKev `json:"kev"`
-	// M2-3: null when the matched software has no version or its source is not known.
+	// Null when the matched software has no version or its source is not known.
 	KnownVersion NilFindingsGetFindingsIDOKKnownVersion `json:"known_version"`
 	LastSeen     time.Time                              `json:"last_seen"`
-	// Null = no recommendation confirmed by Vedette maintainers yet (D-21).
+	// Null = no recommendation confirmed by Vedette maintainers yet.
 	Pack           NilFindingsGetFindingsIDOKPack  `json:"pack"`
 	Recheck        FindingsGetFindingsIDOKRecheck  `json:"recheck"`
 	ResolutionNote NilString                       `json:"resolution_note"`
@@ -63908,7 +63866,7 @@ func (s *FindingsGetFindingsIDOKAi) SetExplain(val NilFindingsGetFindingsIDOKAiE
 	s.Explain = val
 }
 
-// Whether an AI profile is assigned and allowed for each job (D-29).
+// Whether an AI profile is assigned and allowed for each job.
 type FindingsGetFindingsIDOKAiAvailable struct {
 	Config  bool `json:"config"`
 	Explain bool `json:"explain"`
@@ -63936,9 +63894,9 @@ func (s *FindingsGetFindingsIDOKAiAvailable) SetExplain(val bool) {
 
 type FindingsGetFindingsIDOKAiConfig struct {
 	Citations []FindingsGetFindingsIDOKAiConfigCitationsItem `json:"citations"`
-	// Mitigation-config (M2-2): config blocks to paste as they are, the device's own workaround first,
-	// then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is
-	// based on, `side_effect` what it can break. Absent for explain and for answers stored before.
+	// Mitigation-config: config blocks to paste as they are, the device's own workaround first, then a
+	// rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based
+	// on, `side_effect` what it can break. Absent for explain and for answers stored before.
 	Configs []FindingsGetFindingsIDOKAiConfigConfigsItem `json:"configs"`
 	Model   string                                       `json:"model"`
 	// #897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding
@@ -63946,10 +63904,10 @@ type FindingsGetFindingsIDOKAiConfig struct {
 	// words; the page shows it where the configuration would be.
 	NoConfigReason OptString `json:"no_config_reason"`
 	Paragraphs     []string  `json:"paragraphs"`
-	// Name of the AI profile that answered (D-29).
+	// Name of the AI profile that answered.
 	Profile OptString `json:"profile"`
-	// M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence
-	// (never in the middle of one) or a config block was left out whole.
+	// A part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never
+	// in the middle of one) or a config block was left out whole.
 	Shortened OptBool                               `json:"shortened"`
 	Skill     FindingsGetFindingsIDOKAiConfigSkill  `json:"skill"`
 	Steps     []string                              `json:"steps"`
@@ -64222,9 +64180,9 @@ func (s *FindingsGetFindingsIDOKAiConfigTokens) SetOutput(val float64) {
 
 type FindingsGetFindingsIDOKAiExplain struct {
 	Citations []FindingsGetFindingsIDOKAiExplainCitationsItem `json:"citations"`
-	// Mitigation-config (M2-2): config blocks to paste as they are, the device's own workaround first,
-	// then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is
-	// based on, `side_effect` what it can break. Absent for explain and for answers stored before.
+	// Mitigation-config: config blocks to paste as they are, the device's own workaround first, then a
+	// rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based
+	// on, `side_effect` what it can break. Absent for explain and for answers stored before.
 	Configs []FindingsGetFindingsIDOKAiExplainConfigsItem `json:"configs"`
 	Model   string                                        `json:"model"`
 	// #897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding
@@ -64232,10 +64190,10 @@ type FindingsGetFindingsIDOKAiExplain struct {
 	// words; the page shows it where the configuration would be.
 	NoConfigReason OptString `json:"no_config_reason"`
 	Paragraphs     []string  `json:"paragraphs"`
-	// Name of the AI profile that answered (D-29).
+	// Name of the AI profile that answered.
 	Profile OptString `json:"profile"`
-	// M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence
-	// (never in the middle of one) or a config block was left out whole.
+	// A part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never
+	// in the middle of one) or a config block was left out whole.
 	Shortened OptBool                                `json:"shortened"`
 	Skill     FindingsGetFindingsIDOKAiExplainSkill  `json:"skill"`
 	Steps     []string                               `json:"steps"`
@@ -64550,7 +64508,7 @@ type FindingsGetFindingsIDOKAsset struct {
 	IP   string                           `json:"ip"`
 	Kind FindingsGetFindingsIDOKAssetKind `json:"kind"`
 	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
-	// never the internal id (D-484).
+	// never the internal id.
 	Name string `json:"name"`
 }
 
@@ -65635,12 +65593,11 @@ func (s *FindingsGetFindingsIDOKCvssVersion) UnmarshalText(data []byte) error {
 }
 
 type FindingsGetFindingsIDOKEvidence struct {
-	// D-548: the version compared is the one the device's own agent (osquery, Wazuh) reports installed: a
+	// The version compared is the one the device's own agent (osquery, Wazuh) reports installed: a
 	// detection, shown as "Detected by the agent", with nothing for the person to look up.
 	Agent OptBool `json:"agent"`
-	// N52-2: a product-only match on a software row the device's own agent reported with its installed
-	// version: Vedette could not compare that version with NVD's data, so the page does not ask to add the
-	// version.
+	// A product-only match on a software row the device's own agent reported with its installed version:
+	// Vedette could not compare that version with NVD's data, so the page does not ask to add the version.
 	AgentRow  OptBool   `json:"agent_row"`
 	CheckedAt time.Time `json:"checked_at"`
 	Request   OptString `json:"request"`
@@ -65719,8 +65676,8 @@ func (s *FindingsGetFindingsIDOKEvidence) SetTemplate(val OptString) {
 	s.Template = val
 }
 
-// D-545: one update fixes this finding together with the device's other open findings of the same
-// software (top-tier: one item per missing update).
+// One update fixes this finding together with the device's other open findings of the same software
+// (top-tier: one item per missing update).
 type FindingsGetFindingsIDOKFix struct {
 	// Distro: "Ubuntu" or "Debian", empty for the distribution's.
 	Distro string `json:"distro"`
@@ -65739,7 +65696,7 @@ type FindingsGetFindingsIDOKFix struct {
 	Software string `json:"software"`
 	// The installed version.
 	Version string `json:"version"`
-	// A Windows release row (D-546): the update is the monthly cumulative update Windows Update offers.
+	// A Windows release row: the update is the monthly cumulative update Windows Update offers.
 	Windows bool `json:"windows"`
 }
 
@@ -65891,9 +65848,9 @@ type FindingsGetFindingsIDOKFixedIn struct {
 	// inventory kept the flag); the page adds "if you installed it from the distribution's packages,
 	// install its security updates instead".
 	Distro string `json:"distro"`
-	// D-516, kind distro only: the version of the distribution's package that fixes the CVE on the
-	// device's release (Ubuntu security data, Debian Security Tracker); `version` is then the device's
-	// full package version. Empty when the distribution's data does not say.
+	// Kind distro only: the version of the distribution's package that fixes the CVE on the device's
+	// release (Ubuntu security data, Debian Security Tracker); `version` is then the device's full package
+	// version. Empty when the distribution's data does not say.
 	DistroFixed string `json:"distro_fixed"`
 	// Distro_fixed is in Ubuntu Pro (ESM) only.
 	DistroPro bool `json:"distro_pro"`
@@ -65905,23 +65862,23 @@ type FindingsGetFindingsIDOKFixedIn struct {
 	Fixed string `json:"fixed"`
 	// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
 	// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
-	// named); end_listed (M2-4) = inside a range that ends before `fixed`, but NVD lists releases of
-	// `fixed` itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix,
-	// the vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the
-	// fix of each release line; distro = a package of the distribution, whose security updates carry the
-	// fix under their own numbers: an agent read it from the device's package database (deb/rpm), or the
-	// version carries a marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release
-	// NVD does not list for the fix, which only a later release of its line (`branches[0].branch`, from
-	// build `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the
-	// fixing Windows build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+	// named); end_listed = inside a range that ends before `fixed`, but NVD lists releases of `fixed`
+	// itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix, the
+	// vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the fix
+	// of each release line; distro = a package of the distribution, whose security updates carry the fix
+	// under their own numbers: an agent read it from the device's package database (deb/rpm), or the
+	// version carries a marker such as ubuntu, +deb12, .el9; feature_update = a Windows release NVD does
+	// not list for the fix, which only a later release of its line (`branches[0].branch`, from build
+	// `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu = the fixing Windows
+	// build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
 	Kind FindingsGetFindingsIDOKFixedInKind `json:"kind"`
 	// Release lines with a fix left out of branches.
 	More int `json:"more"`
 	// Release lines NVD gives no fixed release for (a range that ends at an affected version).
 	NoFix int `json:"no_fix"`
 	// Where the versions come from: "NVD affected versions", "CVE.org affected versions (from the CVE
-	// record's CNA)" when NVD has none (D-556), or with distro_fixed "Ubuntu security data" / "Debian
-	// Security Tracker" (D-516).
+	// record's CNA)" when NVD has none, or with distro_fixed "Ubuntu security data" / "Debian Security
+	// Tracker".
 	Source string `json:"source"`
 	// The device's version; for branches empty when it has none, else the text Vedette cannot read.
 	Version string `json:"version"`
@@ -66065,15 +66022,15 @@ func (s *FindingsGetFindingsIDOKFixedInBranchesItem) SetFixed(val string) {
 
 // Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
 // range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
-// named); end_listed (M2-4) = inside a range that ends before `fixed`, but NVD lists releases of
-// `fixed` itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix,
-// the vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the
-// fix of each release line; distro = a package of the distribution, whose security updates carry the
-// fix under their own numbers: an agent read it from the device's package database (deb/rpm), or the
-// version carries a marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release
-// NVD does not list for the fix, which only a later release of its line (`branches[0].branch`, from
-// build `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the
-// fixing Windows build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+// named); end_listed = inside a range that ends before `fixed`, but NVD lists releases of `fixed`
+// itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix, the
+// vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the fix
+// of each release line; distro = a package of the distribution, whose security updates carry the fix
+// under their own numbers: an agent read it from the device's package database (deb/rpm), or the
+// version carries a marker such as ubuntu, +deb12, .el9; feature_update = a Windows release NVD does
+// not list for the fix, which only a later release of its line (`branches[0].branch`, from build
+// `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu = the fixing Windows
+// build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
 type FindingsGetFindingsIDOKFixedInKind string
 
 const (
@@ -66151,8 +66108,8 @@ func (s *FindingsGetFindingsIDOKFixedInKind) UnmarshalText(data []byte) error {
 }
 
 // Mitigation INV-8: general compromise checks written by reviewed code, not a recommendation for the
-// CVE (D-21): never shown as "Vedette confirmed", never run by Vedette. The generated firewall configs
-// and the admin network field (M2-1) are gone (D-631, kien 2026-11-17).
+// CVE: never shown as "Vedette confirmed", never run by Vedette. The generated firewall configs and
+// the admin network field are gone.
 type FindingsGetFindingsIDOKHardening struct {
 	// General "Have I been hit?" checks for the software family.
 	Checks NilFindingsGetFindingsIDOKHardeningChecks `json:"checks"`
@@ -66411,14 +66368,14 @@ type FindingsGetFindingsIDOKKev struct {
 	Links       []string   `json:"links"`
 	Name        string     `json:"name"`
 	Product     string     `json:"product"`
-	// D-615: the day the CVE was published (NVD `published`), never the day CISA added it; null when NVD
-	// has not answered for it (then it counts as recent: an older CVE is not a finding on a product-only
-	// match (D-616), and a missing date never closes a finding).
+	// The day the CVE was published (NVD `published`), never the day CISA added it; null when NVD has not
+	// answered for it (then it counts as recent: an older CVE is not a finding on a product-only match,
+	// and a missing date never closes a finding).
 	Published      NilDate `json:"published"`
 	Ransomware     bool    `json:"ransomware"`
 	RequiredAction string  `json:"required_action"`
-	// Which list the entry is on (D-557): texts and the source badge name it; an entry of VulnCheck KEV is
-	// never called CISA's.
+	// Which list the entry is on: texts and the source badge name it; an entry of VulnCheck KEV is never
+	// called CISA's.
 	Source OptFindingsGetFindingsIDOKKevSource `json:"source"`
 	Vendor string                              `json:"vendor"`
 }
@@ -66553,8 +66510,8 @@ func (s *FindingsGetFindingsIDOKKev) SetVendor(val string) {
 	s.Vendor = val
 }
 
-// Which list the entry is on (D-557): texts and the source badge name it; an entry of VulnCheck KEV is
-// never called CISA's.
+// Which list the entry is on: texts and the source badge name it; an entry of VulnCheck KEV is never
+// called CISA's.
 type FindingsGetFindingsIDOKKevSource string
 
 const (
@@ -66596,7 +66553,7 @@ func (s *FindingsGetFindingsIDOKKevSource) UnmarshalText(data []byte) error {
 	}
 }
 
-// M2-3: the version the box has for the matched software; the page says it and how a newer one reaches
+// The version the box has for the matched software; the page says it and how a newer one reaches
 // Vedette, never "find which version".
 type FindingsGetFindingsIDOKKnownVersion struct {
 	// Display name of the software the finding was matched on.
@@ -67557,8 +67514,7 @@ func (s *FindingsGetFindingsOK) SetVersionNeeded(val []FindingsGetFindingsOKVers
 }
 
 type FindingsGetFindingsOKItemsItem struct {
-	// Risk_accepted only (D-498): the last day of the acceptance (UTC); the finding reopens by itself
-	// after it.
+	// Risk_accepted only: the last day of the acceptance (UTC); the finding reopens by itself after it.
 	AcceptedUntil NilDate                                `json:"accepted_until"`
 	Asset         NilFindingsGetFindingsOKItemsItemAsset `json:"asset"`
 	AssetID       string                                 `json:"asset_id"`
@@ -67571,8 +67527,8 @@ type FindingsGetFindingsOKItemsItem struct {
 	Cvss      NilFindingsGetFindingsOKItemsItemCvss     `json:"cvss"`
 	Evidence  NilFindingsGetFindingsOKItemsItemEvidence `json:"evidence"`
 	FirstSeen time.Time                                 `json:"first_seen"`
-	// GET /findings only, open findings: the update that fixes it with others (D-545); null when there is
-	// none to name.
+	// GET /findings only, open findings: the update that fixes it with others; null when there is none to
+	// name.
 	Fix     OptNilFindingsGetFindingsOKItemsItemFix     `json:"fix"`
 	History []FindingsGetFindingsOKItemsItemHistoryItem `json:"history"`
 	ID      string                                      `json:"id"`
@@ -67784,7 +67740,7 @@ type FindingsGetFindingsOKItemsItemAsset struct {
 	IP   string                                  `json:"ip"`
 	Kind FindingsGetFindingsOKItemsItemAssetKind `json:"kind"`
 	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
-	// never the internal id (D-484).
+	// never the internal id.
 	Name string `json:"name"`
 }
 
@@ -68706,12 +68662,11 @@ func (s *FindingsGetFindingsOKItemsItemCvssVersion) UnmarshalText(data []byte) e
 }
 
 type FindingsGetFindingsOKItemsItemEvidence struct {
-	// D-548: the version compared is the one the device's own agent (osquery, Wazuh) reports installed: a
+	// The version compared is the one the device's own agent (osquery, Wazuh) reports installed: a
 	// detection, shown as "Detected by the agent", with nothing for the person to look up.
 	Agent OptBool `json:"agent"`
-	// N52-2: a product-only match on a software row the device's own agent reported with its installed
-	// version: Vedette could not compare that version with NVD's data, so the page does not ask to add the
-	// version.
+	// A product-only match on a software row the device's own agent reported with its installed version:
+	// Vedette could not compare that version with NVD's data, so the page does not ask to add the version.
 	AgentRow  OptBool   `json:"agent_row"`
 	CheckedAt time.Time `json:"checked_at"`
 	Request   OptString `json:"request"`
@@ -68790,8 +68745,8 @@ func (s *FindingsGetFindingsOKItemsItemEvidence) SetTemplate(val OptString) {
 	s.Template = val
 }
 
-// D-545: one update fixes this finding together with the device's other open findings of the same
-// software (top-tier: one item per missing update).
+// One update fixes this finding together with the device's other open findings of the same software
+// (top-tier: one item per missing update).
 type FindingsGetFindingsOKItemsItemFix struct {
 	// Distro: "Ubuntu" or "Debian", empty for the distribution's.
 	Distro string `json:"distro"`
@@ -68810,7 +68765,7 @@ type FindingsGetFindingsOKItemsItemFix struct {
 	Software string `json:"software"`
 	// The installed version.
 	Version string `json:"version"`
-	// A Windows release row (D-546): the update is the monthly cumulative update Windows Update offers.
+	// A Windows release row: the update is the monthly cumulative update Windows Update offers.
 	Windows bool `json:"windows"`
 }
 
@@ -69009,14 +68964,14 @@ type FindingsGetFindingsOKItemsItemKev struct {
 	Links       []string   `json:"links"`
 	Name        string     `json:"name"`
 	Product     string     `json:"product"`
-	// D-615: the day the CVE was published (NVD `published`), never the day CISA added it; null when NVD
-	// has not answered for it (then it counts as recent: an older CVE is not a finding on a product-only
-	// match (D-616), and a missing date never closes a finding).
+	// The day the CVE was published (NVD `published`), never the day CISA added it; null when NVD has not
+	// answered for it (then it counts as recent: an older CVE is not a finding on a product-only match,
+	// and a missing date never closes a finding).
 	Published      NilDate `json:"published"`
 	Ransomware     bool    `json:"ransomware"`
 	RequiredAction string  `json:"required_action"`
-	// Which list the entry is on (D-557): texts and the source badge name it; an entry of VulnCheck KEV is
-	// never called CISA's.
+	// Which list the entry is on: texts and the source badge name it; an entry of VulnCheck KEV is never
+	// called CISA's.
 	Source OptFindingsGetFindingsOKItemsItemKevSource `json:"source"`
 	Vendor string                                     `json:"vendor"`
 }
@@ -69151,8 +69106,8 @@ func (s *FindingsGetFindingsOKItemsItemKev) SetVendor(val string) {
 	s.Vendor = val
 }
 
-// Which list the entry is on (D-557): texts and the source badge name it; an entry of VulnCheck KEV is
-// never called CISA's.
+// Which list the entry is on: texts and the source badge name it; an entry of VulnCheck KEV is never
+// called CISA's.
 type FindingsGetFindingsOKItemsItemKevSource string
 
 const (
@@ -69336,13 +69291,13 @@ func (s *FindingsGetFindingsOKItemsItemStatus) UnmarshalText(data []byte) error 
 // software x reason. No finding is created from it.
 type FindingsGetFindingsOKUncheckedItem struct {
 	// Add_version: only not_comparable on a software row a person declared (#920): typing the version as
-	// the vendor writes it lets Vedette check these CVEs; answer_platform (D-604): reasons
-	// platform_unknown and package_unknown, answer `question`; none: only the advisory decides.
+	// the vendor writes it lets Vedette check these CVEs; answer_platform: reasons platform_unknown and
+	// package_unknown, answer `question`; none: only the advisory decides.
 	Action  FindingsGetFindingsOKUncheckedItemAction     `json:"action"`
 	Asset   NilFindingsGetFindingsOKUncheckedItemAsset   `json:"asset"`
 	AssetID string                                       `json:"asset_id"`
 	Cves    []FindingsGetFindingsOKUncheckedItemCvesItem `json:"cves"`
-	// D-604: with action answer_platform; one item per CVE then.
+	// With action answer_platform; one item per CVE then.
 	Question OptFindingsGetFindingsOKUncheckedItemQuestion `json:"question"`
 	Reason   FindingsGetFindingsOKUncheckedItemReason      `json:"reason"`
 	// Display name, as on the device page.
@@ -69442,8 +69397,8 @@ func (s *FindingsGetFindingsOKUncheckedItem) SetVersion(val NilString) {
 }
 
 // Add_version: only not_comparable on a software row a person declared (#920): typing the version as
-// the vendor writes it lets Vedette check these CVEs; answer_platform (D-604): reasons
-// platform_unknown and package_unknown, answer `question`; none: only the advisory decides.
+// the vendor writes it lets Vedette check these CVEs; answer_platform: reasons platform_unknown and
+// package_unknown, answer `question`; none: only the advisory decides.
 type FindingsGetFindingsOKUncheckedItemAction string
 
 const (
@@ -69500,7 +69455,7 @@ type FindingsGetFindingsOKUncheckedItemAsset struct {
 	IP   string                                      `json:"ip"`
 	Kind FindingsGetFindingsOKUncheckedItemAssetKind `json:"kind"`
 	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
-	// never the internal id (D-484).
+	// never the internal id.
 	Name string `json:"name"`
 }
 
@@ -70219,8 +70174,8 @@ type FindingsGetFindingsOKUncheckedItemCvesItem struct {
 	Cve       string    `json:"cve"`
 	DateAdded time.Time `json:"date_added"`
 	Name      string    `json:"name"`
-	// D-602: reason no_nvd_data while Vedette has not read NVD's answer for this CVE yet (new box, NVD
-	// feed off or failing): say "waiting for NVD's data", not "NVD has not published".
+	// Reason no_nvd_data while Vedette has not read NVD's answer for this CVE yet (new box, NVD feed off
+	// or failing): say "waiting for NVD's data", not "NVD has not published".
 	NvdPending OptBool `json:"nvd_pending"`
 	Ransomware bool    `json:"ransomware"`
 }
@@ -70285,7 +70240,7 @@ func (s *FindingsGetFindingsOKUncheckedItemCvesItem) SetRansomware(val bool) {
 	s.Ransomware = val
 }
 
-// D-604: with action answer_platform; one item per CVE then.
+// With action answer_platform; one item per CVE then.
 type FindingsGetFindingsOKUncheckedItemQuestion struct {
 	Answers []FindingsGetFindingsOKUncheckedItemQuestionAnswersItem `json:"answers"`
 	// What prints the answer on the device ("apk info -e -v openssh-server" for the package release, "cat
@@ -70491,8 +70446,7 @@ func (s *FindingsGetFindingsOKUncheckedItemReason) UnmarshalText(data []byte) er
 	}
 }
 
-// D-500: a software on the exploited list without a usable version is ONE item, not one finding per
-// CVE.
+// A software on the exploited list without a usable version is ONE item, not one finding per CVE.
 type FindingsGetFindingsOKVersionNeededItem struct {
 	Asset   NilFindingsGetFindingsOKVersionNeededItemAsset `json:"asset"`
 	AssetID string                                         `json:"asset_id"`
@@ -70573,7 +70527,7 @@ type FindingsGetFindingsOKVersionNeededItemAsset struct {
 	IP   string                                          `json:"ip"`
 	Kind FindingsGetFindingsOKVersionNeededItemAssetKind `json:"kind"`
 	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
-	// never the internal id (D-484).
+	// never the internal id.
 	Name string `json:"name"`
 }
 
@@ -71288,17 +71242,17 @@ func (s *FindingsGetFindingsOKVersionNeededItemAssetKind) UnmarshalText(data []b
 }
 
 type FindingsGetFindingsPlanOK struct {
-	// False = no comparison of tier 2 and 3 CVEs with the devices has run since the box started (D-617:
-	// the plan job runs within minutes); the page says so instead of "no update to plan".
+	// False = no comparison of tier 2 and 3 CVEs with the devices has run since the box started (the plan
+	// job runs within minutes); the page says so instead of "no update to plan".
 	Compared bool `json:"compared"`
 	// Devices with at least one version Vedette can compare.
 	ComparedDevices int `json:"compared_devices"`
-	// M2-9: the number of items each tier filter lists, for the same device filter, whatever tier was
-	// asked: one answer gives every tab its count.
+	// The number of items each tier filter lists, for the same device filter, whatever tier was asked: one
+	// answer gives every tab its count.
 	Counts FindingsGetFindingsPlanOKCounts      `json:"counts"`
 	Data   FindingsGetFindingsPlanOKData        `json:"data"`
 	Items  []FindingsGetFindingsPlanOKItemsItem `json:"items"`
-	// D-615: CVEs published more than 12 months ago listed because a scan engine found them.
+	// CVEs published more than 12 months ago listed because a scan engine found them.
 	OldEvidence int `json:"old_evidence"`
 	// Devices with no version Vedette can read: not checked.
 	UncheckedDevices int `json:"unchecked_devices"`
@@ -71374,8 +71328,8 @@ func (s *FindingsGetFindingsPlanOK) SetUncheckedDevices(val int) {
 	s.UncheckedDevices = val
 }
 
-// M2-9: the number of items each tier filter lists, for the same device filter, whatever tier was
-// asked: one answer gives every tab its count.
+// The number of items each tier filter lists, for the same device filter, whatever tier was asked: one
+// answer gives every tab its count.
 type FindingsGetFindingsPlanOKCounts struct {
 	// Items the tier=all answer lists.
 	All int `json:"all"`
@@ -71580,25 +71534,25 @@ func (s *FindingsGetFindingsPlanOKDataRecent) UnmarshalText(data []byte) error {
 
 type FindingsGetFindingsPlanOKItemsItem struct {
 	Asset FindingsGetFindingsPlanOKItemsItemAsset `json:"asset"`
-	// Likely first, by EPSS; then the recent ones by CVSS score, then EPSS; then newest (D-623).
+	// Likely first, by EPSS; then the recent ones by CVSS score, then EPSS; then newest.
 	Cves []FindingsGetFindingsPlanOKItemsItemCvesItem `json:"cves"`
 	// Fixed: the version that fixes every CVE of the item; windows, esu: the build of the cumulative
 	// update; distro: the distribution's package version that fixes every CVE of the item on the device's
-	// release (D-622).
+	// release.
 	Fixed string `json:"fixed"`
-	// "/", as RowFix.group (D-545).
+	// "/", as RowFix.group.
 	Group string `json:"group"`
 	// Fixed = upgrade the software to `fixed`; distro = upgrade the Ubuntu or Debian source package
-	// `software` from `version` to `fixed` or later (the distribution's security update, D-622); windows =
-	// the monthly cumulative update with build `fixed` or later; esu = the same on a Windows release past
-	// its end of support: the update comes only with Extended Security Updates (D-617).
+	// `software` from `version` to `fixed` or later (the distribution's security update); windows = the
+	// monthly cumulative update with build `fixed` or later; esu = the same on a Windows release past its
+	// end of support: the update comes only with Extended Security Updates.
 	Kind   FindingsGetFindingsPlanOKItemsItemKind `json:"kind"`
 	Likely int                                    `json:"likely"`
 	// Distro only: `fixed` is in Ubuntu Pro (ESM) only; false otherwise.
 	Pro    bool `json:"pro"`
 	Recent int  `json:"recent"`
-	// The device's risk marker (G4): exploited = open exploited findings To fix lists; update = none, but
-	// a recommended update fixes a CVE likely to be exploited or of High or Critical severity; null when
+	// The device's risk marker: exploited = open exploited findings To fix lists; update = none, but a
+	// recommended update fixes a CVE likely to be exploited or of High or Critical severity; null when
 	// clean, for the Vedette box itself, or when it could not be read.
 	Risk NilFindingsGetFindingsPlanOKItemsItemRisk `json:"risk"`
 	// Display name of the software row.
@@ -71719,7 +71673,7 @@ func (s *FindingsGetFindingsPlanOKItemsItem) SetVersion(val string) {
 
 type FindingsGetFindingsPlanOKItemsItemAsset struct {
 	ID string `json:"id"`
-	// The name the Devices page shows, never the internal id (D-484).
+	// The name the Devices page shows, never the internal id.
 	Name string `json:"name"`
 }
 
@@ -71744,22 +71698,22 @@ func (s *FindingsGetFindingsPlanOKItemsItemAsset) SetName(val string) {
 }
 
 type FindingsGetFindingsPlanOKItemsItemCvesItem struct {
-	// D-615 evidence: scan = a scan engine (nuclei, OpenVAS, ZAP) found it on the device; agent = the
-	// device's agent reports a build or package inside the affected range; distro = Ubuntu's or Debian's
-	// own data says the installed package is affected; version = an exact version compared with the CVE's
-	// ranges. Never a product-only match.
+	// Evidence: scan = a scan engine (nuclei, OpenVAS, ZAP) found it on the device; agent = the device's
+	// agent reports a build or package inside the affected range; distro = Ubuntu's or Debian's own data
+	// says the installed package is affected; version = an exact version compared with the CVE's ranges.
+	// Never a product-only match.
 	Basis      FindingsGetFindingsPlanOKItemsItemCvesItemBasis `json:"basis"`
 	Cve        string                                          `json:"cve"`
 	Epss       NilFloat64                                      `json:"epss"`
 	Percentile NilFloat64                                      `json:"percentile"`
-	// NVD `published`; older than 12 months only with basis scan (D-615).
+	// NVD `published`; older than 12 months only with basis scan.
 	Published time.Time `json:"published"`
 	// NVD's CVSS base score.
 	Score NilFloat64 `json:"score"`
 	// NVD's CVSS severity; null when NVD has not scored it yet.
 	Severity NilFindingsGetFindingsPlanOKItemsItemCvesItemSeverity `json:"severity"`
-	// Likely = EPSS 10 % or more; recent = published in the last 12 months (D-613); a CVE on an exploited
-	// list is a finding, never here.
+	// Likely = EPSS 10 % or more; recent = published in the last 12 months; a CVE on an exploited list is
+	// a finding, never here.
 	Tier FindingsGetFindingsPlanOKItemsItemCvesItemTier `json:"tier"`
 }
 
@@ -71843,10 +71797,10 @@ func (s *FindingsGetFindingsPlanOKItemsItemCvesItem) SetTier(val FindingsGetFind
 	s.Tier = val
 }
 
-// D-615 evidence: scan = a scan engine (nuclei, OpenVAS, ZAP) found it on the device; agent = the
-// device's agent reports a build or package inside the affected range; distro = Ubuntu's or Debian's
-// own data says the installed package is affected; version = an exact version compared with the CVE's
-// ranges. Never a product-only match.
+// Evidence: scan = a scan engine (nuclei, OpenVAS, ZAP) found it on the device; agent = the device's
+// agent reports a build or package inside the affected range; distro = Ubuntu's or Debian's own data
+// says the installed package is affected; version = an exact version compared with the CVE's ranges.
+// Never a product-only match.
 type FindingsGetFindingsPlanOKItemsItemCvesItemBasis string
 
 const (
@@ -71964,8 +71918,8 @@ func (s *FindingsGetFindingsPlanOKItemsItemCvesItemSeverity) UnmarshalText(data 
 	}
 }
 
-// Likely = EPSS 10 % or more; recent = published in the last 12 months (D-613); a CVE on an exploited
-// list is a finding, never here.
+// Likely = EPSS 10 % or more; recent = published in the last 12 months; a CVE on an exploited list is
+// a finding, never here.
 type FindingsGetFindingsPlanOKItemsItemCvesItemTier string
 
 const (
@@ -72008,9 +71962,9 @@ func (s *FindingsGetFindingsPlanOKItemsItemCvesItemTier) UnmarshalText(data []by
 }
 
 // Fixed = upgrade the software to `fixed`; distro = upgrade the Ubuntu or Debian source package
-// `software` from `version` to `fixed` or later (the distribution's security update, D-622); windows =
-// the monthly cumulative update with build `fixed` or later; esu = the same on a Windows release past
-// its end of support: the update comes only with Extended Security Updates (D-617).
+// `software` from `version` to `fixed` or later (the distribution's security update); windows = the
+// monthly cumulative update with build `fixed` or later; esu = the same on a Windows release past its
+// end of support: the update comes only with Extended Security Updates.
 type FindingsGetFindingsPlanOKItemsItemKind string
 
 const (
@@ -72447,11 +72401,10 @@ type FindingsGetFindingsSummaryOKTopItem struct {
 	// The exploited list says ransomware campaigns use it.
 	Ransomware bool                                        `json:"ransomware"`
 	Severity   FindingsGetFindingsSummaryOKTopItemSeverity `json:"severity"`
-	// N73: the device's software the exploited-list entry is keyed to, as the finding's page names it
-	// (e.g. "Windows Server 2025"); empty when not known. Home leads with it and keeps `product` as
-	// context.
+	// The device's software the exploited-list entry is keyed to, as the finding's page names it (e.g.
+	// "Windows Server 2025"); empty when not known. Home leads with it and keeps `product` as context.
 	Software string `json:"software"`
-	// Which exploited list names it (D-557); null when the CVE left the list.
+	// Which exploited list names it; null when the CVE left the list.
 	Source NilFindingsGetFindingsSummaryOKTopItemSource `json:"source"`
 	// Open findings only.
 	Status FindingsGetFindingsSummaryOKTopItemStatus `json:"status"`
@@ -72575,7 +72528,7 @@ type FindingsGetFindingsSummaryOKTopItemAsset struct {
 	IP   string                                       `json:"ip"`
 	Kind FindingsGetFindingsSummaryOKTopItemAssetKind `json:"kind"`
 	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
-	// never the internal id (D-484).
+	// never the internal id.
 	Name string `json:"name"`
 }
 
@@ -73628,7 +73581,7 @@ type FindingsGetFindingsToFixOK struct {
 	// The plan job compared the devices since the box started; false: recommended updates are not known
 	// yet.
 	PlanRan bool `json:"plan_ran"`
-	// G4: the risk marker of every marked device by id, not capped like devices (empty for ?asset=): the
+	// The risk marker of every marked device by id, not capped like devices (empty for ?asset=): the
 	// Findings table and filter read it.
 	Risks FindingsGetFindingsToFixOKRisks `json:"risks"`
 	// More devices had something than the 500 listed.
@@ -73696,10 +73649,10 @@ type FindingsGetFindingsToFixOKDevicesItem struct {
 	Open int `json:"open"`
 	// The last plan pass compared this device.
 	PlanCompared bool `json:"plan_compared"`
-	// Recommended updates (D-613): CVEs on no exploited list, as GET /findings/plan lists them.
+	// Recommended updates: CVEs on no exploited list, as GET /findings/plan lists them.
 	Planned []FindingsGetFindingsToFixOKDevicesItemPlannedItem `json:"planned"`
-	// The device's risk marker (G4): exploited = open exploited findings To fix lists; update = none, but
-	// a recommended update fixes a CVE likely to be exploited or of High or Critical severity; null when
+	// The device's risk marker: exploited = open exploited findings To fix lists; update = none, but a
+	// recommended update fixes a CVE likely to be exploited or of High or Critical severity; null when
 	// clean, for the Vedette box itself, or when it could not be read.
 	Risk NilFindingsGetFindingsToFixOKDevicesItemRisk `json:"risk"`
 }
@@ -73782,7 +73735,7 @@ type FindingsGetFindingsToFixOKDevicesItemAsset struct {
 	IP   string                                         `json:"ip"`
 	Kind FindingsGetFindingsToFixOKDevicesItemAssetKind `json:"kind"`
 	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
-	// never the internal id (D-484).
+	// never the internal id.
 	Name string `json:"name"`
 }
 
@@ -74526,10 +74479,10 @@ type FindingsGetFindingsToFixOKDevicesItemExploitedItem struct {
 	// The device's software row it is about; "" when none matches.
 	SoftwareID string `json:"software_id"`
 	// Who reported the software row (agent, manual, scan, a sensor; "" when none): "I updated it" follows
-	// it (kien G12).
+	// it.
 	Source string `json:"source"`
-	// How each exploited finding is known (G9 proof): confirmed by a scan, detected from a version the
-	// device reported, reported but not compared, suspected from the network.
+	// How each exploited finding is known: confirmed by a scan, detected from a version the device
+	// reported, reported but not compared, suspected from the network.
 	Suspected int `json:"suspected"`
 	// The installed version; "" when none.
 	Version string `json:"version"`
@@ -74850,10 +74803,10 @@ type FindingsGetFindingsToFixOKDevicesItemNoUpdateItem struct {
 	// The device's software row it is about; "" when none matches.
 	SoftwareID string `json:"software_id"`
 	// Who reported the software row (agent, manual, scan, a sensor; "" when none): "I updated it" follows
-	// it (kien G12).
+	// it.
 	Source string `json:"source"`
-	// How each exploited finding is known (G9 proof): confirmed by a scan, detected from a version the
-	// device reported, reported but not compared, suspected from the network.
+	// How each exploited finding is known: confirmed by a scan, detected from a version the device
+	// reported, reported but not compared, suspected from the network.
 	Suspected int `json:"suspected"`
 	// The installed version; "" when none.
 	Version string `json:"version"`
@@ -75174,10 +75127,10 @@ type FindingsGetFindingsToFixOKDevicesItemPlannedItem struct {
 	// The device's software row it is about; "" when none matches.
 	SoftwareID string `json:"software_id"`
 	// Who reported the software row (agent, manual, scan, a sensor; "" when none): "I updated it" follows
-	// it (kien G12).
+	// it.
 	Source string `json:"source"`
-	// How each exploited finding is known (G9 proof): confirmed by a scan, detected from a version the
-	// device reported, reported but not compared, suspected from the network.
+	// How each exploited finding is known: confirmed by a scan, detected from a version the device
+	// reported, reported but not compared, suspected from the network.
 	Suspected int `json:"suspected"`
 	// The installed version; "" when none.
 	Version string `json:"version"`
@@ -75545,7 +75498,7 @@ func (s *FindingsGetFindingsToFixOKDevicesItemRiskLevel) UnmarshalText(data []by
 	}
 }
 
-// G4: the risk marker of every marked device by id, not capped like devices (empty for ?asset=): the
+// The risk marker of every marked device by id, not capped like devices (empty for ?asset=): the
 // Findings table and filter read it.
 type FindingsGetFindingsToFixOKRisks map[string]FindingsGetFindingsToFixOKRisksItem
 
@@ -75636,11 +75589,10 @@ func (s *FindingsGetFindingsToFixOKRisksItemLevel) UnmarshalText(data []byte) er
 }
 
 type FindingsPostFindingsIDAiOK struct {
-	// Risk_accepted only (D-498): the last day of the acceptance (UTC); the finding reopens by itself
-	// after it.
+	// Risk_accepted only: the last day of the acceptance (UTC); the finding reopens by itself after it.
 	AcceptedUntil NilDate                      `json:"accepted_until"`
 	Ai            FindingsPostFindingsIDAiOKAi `json:"ai"`
-	// Whether an AI profile is assigned and allowed for each job (D-29).
+	// Whether an AI profile is assigned and allowed for each job.
 	AiAvailable FindingsPostFindingsIDAiOKAiAvailable   `json:"ai_available"`
 	Applied     []FindingsPostFindingsIDAiOKAppliedItem `json:"applied"`
 	Asset       NilFindingsPostFindingsIDAiOKAsset      `json:"asset"`
@@ -75655,11 +75607,11 @@ type FindingsPostFindingsIDAiOK struct {
 	Cvss      NilFindingsPostFindingsIDAiOKCvss     `json:"cvss"`
 	Evidence  NilFindingsPostFindingsIDAiOKEvidence `json:"evidence"`
 	FirstSeen time.Time                             `json:"first_seen"`
-	// GET /findings only, open findings: the update that fixes it with others (D-545); null when there is
-	// none to name.
+	// GET /findings only, open findings: the update that fixes it with others; null when there is none to
+	// name.
 	Fix OptNilFindingsPostFindingsIDAiOKFix `json:"fix"`
-	// The release that fixes this finding on this device, from the NVD affected versions (D-488); null =
-	// NVD gives none, the page shows CISA and the vendor advisory only.
+	// The release that fixes this finding on this device, from the NVD affected versions; null = NVD gives
+	// none, the page shows CISA and the vendor advisory only.
 	FixedIn NilFindingsPostFindingsIDAiOKFixedIn `json:"fixed_in"`
 	// Null when the confirmed pack has its own compromise signs, or mitigation is off.
 	Hardening NilFindingsPostFindingsIDAiOKHardening  `json:"hardening"`
@@ -75667,10 +75619,10 @@ type FindingsPostFindingsIDAiOK struct {
 	ID        string                                  `json:"id"`
 	// Read from KEV, not from the project recommendation pack.
 	Kev NilFindingsPostFindingsIDAiOKKev `json:"kev"`
-	// M2-3: null when the matched software has no version or its source is not known.
+	// Null when the matched software has no version or its source is not known.
 	KnownVersion NilFindingsPostFindingsIDAiOKKnownVersion `json:"known_version"`
 	LastSeen     time.Time                                 `json:"last_seen"`
-	// Null = no recommendation confirmed by Vedette maintainers yet (D-21).
+	// Null = no recommendation confirmed by Vedette maintainers yet.
 	Pack           NilFindingsPostFindingsIDAiOKPack  `json:"pack"`
 	Recheck        FindingsPostFindingsIDAiOKRecheck  `json:"recheck"`
 	ResolutionNote NilString                          `json:"resolution_note"`
@@ -75985,7 +75937,7 @@ func (s *FindingsPostFindingsIDAiOKAi) SetExplain(val NilFindingsPostFindingsIDA
 	s.Explain = val
 }
 
-// Whether an AI profile is assigned and allowed for each job (D-29).
+// Whether an AI profile is assigned and allowed for each job.
 type FindingsPostFindingsIDAiOKAiAvailable struct {
 	Config  bool `json:"config"`
 	Explain bool `json:"explain"`
@@ -76013,9 +75965,9 @@ func (s *FindingsPostFindingsIDAiOKAiAvailable) SetExplain(val bool) {
 
 type FindingsPostFindingsIDAiOKAiConfig struct {
 	Citations []FindingsPostFindingsIDAiOKAiConfigCitationsItem `json:"citations"`
-	// Mitigation-config (M2-2): config blocks to paste as they are, the device's own workaround first,
-	// then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is
-	// based on, `side_effect` what it can break. Absent for explain and for answers stored before.
+	// Mitigation-config: config blocks to paste as they are, the device's own workaround first, then a
+	// rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based
+	// on, `side_effect` what it can break. Absent for explain and for answers stored before.
 	Configs []FindingsPostFindingsIDAiOKAiConfigConfigsItem `json:"configs"`
 	Model   string                                          `json:"model"`
 	// #897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding
@@ -76023,10 +75975,10 @@ type FindingsPostFindingsIDAiOKAiConfig struct {
 	// words; the page shows it where the configuration would be.
 	NoConfigReason OptString `json:"no_config_reason"`
 	Paragraphs     []string  `json:"paragraphs"`
-	// Name of the AI profile that answered (D-29).
+	// Name of the AI profile that answered.
 	Profile OptString `json:"profile"`
-	// M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence
-	// (never in the middle of one) or a config block was left out whole.
+	// A part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never
+	// in the middle of one) or a config block was left out whole.
 	Shortened OptBool                                  `json:"shortened"`
 	Skill     FindingsPostFindingsIDAiOKAiConfigSkill  `json:"skill"`
 	Steps     []string                                 `json:"steps"`
@@ -76299,9 +76251,9 @@ func (s *FindingsPostFindingsIDAiOKAiConfigTokens) SetOutput(val float64) {
 
 type FindingsPostFindingsIDAiOKAiExplain struct {
 	Citations []FindingsPostFindingsIDAiOKAiExplainCitationsItem `json:"citations"`
-	// Mitigation-config (M2-2): config blocks to paste as they are, the device's own workaround first,
-	// then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is
-	// based on, `side_effect` what it can break. Absent for explain and for answers stored before.
+	// Mitigation-config: config blocks to paste as they are, the device's own workaround first, then a
+	// rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based
+	// on, `side_effect` what it can break. Absent for explain and for answers stored before.
 	Configs []FindingsPostFindingsIDAiOKAiExplainConfigsItem `json:"configs"`
 	Model   string                                           `json:"model"`
 	// #897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding
@@ -76309,10 +76261,10 @@ type FindingsPostFindingsIDAiOKAiExplain struct {
 	// words; the page shows it where the configuration would be.
 	NoConfigReason OptString `json:"no_config_reason"`
 	Paragraphs     []string  `json:"paragraphs"`
-	// Name of the AI profile that answered (D-29).
+	// Name of the AI profile that answered.
 	Profile OptString `json:"profile"`
-	// M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence
-	// (never in the middle of one) or a config block was left out whole.
+	// A part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never
+	// in the middle of one) or a config block was left out whole.
 	Shortened OptBool                                   `json:"shortened"`
 	Skill     FindingsPostFindingsIDAiOKAiExplainSkill  `json:"skill"`
 	Steps     []string                                  `json:"steps"`
@@ -76627,7 +76579,7 @@ type FindingsPostFindingsIDAiOKAsset struct {
 	IP   string                              `json:"ip"`
 	Kind FindingsPostFindingsIDAiOKAssetKind `json:"kind"`
 	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
-	// never the internal id (D-484).
+	// never the internal id.
 	Name string `json:"name"`
 }
 
@@ -77712,12 +77664,11 @@ func (s *FindingsPostFindingsIDAiOKCvssVersion) UnmarshalText(data []byte) error
 }
 
 type FindingsPostFindingsIDAiOKEvidence struct {
-	// D-548: the version compared is the one the device's own agent (osquery, Wazuh) reports installed: a
+	// The version compared is the one the device's own agent (osquery, Wazuh) reports installed: a
 	// detection, shown as "Detected by the agent", with nothing for the person to look up.
 	Agent OptBool `json:"agent"`
-	// N52-2: a product-only match on a software row the device's own agent reported with its installed
-	// version: Vedette could not compare that version with NVD's data, so the page does not ask to add the
-	// version.
+	// A product-only match on a software row the device's own agent reported with its installed version:
+	// Vedette could not compare that version with NVD's data, so the page does not ask to add the version.
 	AgentRow  OptBool   `json:"agent_row"`
 	CheckedAt time.Time `json:"checked_at"`
 	Request   OptString `json:"request"`
@@ -77796,8 +77747,8 @@ func (s *FindingsPostFindingsIDAiOKEvidence) SetTemplate(val OptString) {
 	s.Template = val
 }
 
-// D-545: one update fixes this finding together with the device's other open findings of the same
-// software (top-tier: one item per missing update).
+// One update fixes this finding together with the device's other open findings of the same software
+// (top-tier: one item per missing update).
 type FindingsPostFindingsIDAiOKFix struct {
 	// Distro: "Ubuntu" or "Debian", empty for the distribution's.
 	Distro string `json:"distro"`
@@ -77816,7 +77767,7 @@ type FindingsPostFindingsIDAiOKFix struct {
 	Software string `json:"software"`
 	// The installed version.
 	Version string `json:"version"`
-	// A Windows release row (D-546): the update is the monthly cumulative update Windows Update offers.
+	// A Windows release row: the update is the monthly cumulative update Windows Update offers.
 	Windows bool `json:"windows"`
 }
 
@@ -77968,9 +77919,9 @@ type FindingsPostFindingsIDAiOKFixedIn struct {
 	// inventory kept the flag); the page adds "if you installed it from the distribution's packages,
 	// install its security updates instead".
 	Distro string `json:"distro"`
-	// D-516, kind distro only: the version of the distribution's package that fixes the CVE on the
-	// device's release (Ubuntu security data, Debian Security Tracker); `version` is then the device's
-	// full package version. Empty when the distribution's data does not say.
+	// Kind distro only: the version of the distribution's package that fixes the CVE on the device's
+	// release (Ubuntu security data, Debian Security Tracker); `version` is then the device's full package
+	// version. Empty when the distribution's data does not say.
 	DistroFixed string `json:"distro_fixed"`
 	// Distro_fixed is in Ubuntu Pro (ESM) only.
 	DistroPro bool `json:"distro_pro"`
@@ -77982,23 +77933,23 @@ type FindingsPostFindingsIDAiOKFixedIn struct {
 	Fixed string `json:"fixed"`
 	// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
 	// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
-	// named); end_listed (M2-4) = inside a range that ends before `fixed`, but NVD lists releases of
-	// `fixed` itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix,
-	// the vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the
-	// fix of each release line; distro = a package of the distribution, whose security updates carry the
-	// fix under their own numbers: an agent read it from the device's package database (deb/rpm), or the
-	// version carries a marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release
-	// NVD does not list for the fix, which only a later release of its line (`branches[0].branch`, from
-	// build `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the
-	// fixing Windows build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+	// named); end_listed = inside a range that ends before `fixed`, but NVD lists releases of `fixed`
+	// itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix, the
+	// vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the fix
+	// of each release line; distro = a package of the distribution, whose security updates carry the fix
+	// under their own numbers: an agent read it from the device's package database (deb/rpm), or the
+	// version carries a marker such as ubuntu, +deb12, .el9; feature_update = a Windows release NVD does
+	// not list for the fix, which only a later release of its line (`branches[0].branch`, from build
+	// `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu = the fixing Windows
+	// build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
 	Kind FindingsPostFindingsIDAiOKFixedInKind `json:"kind"`
 	// Release lines with a fix left out of branches.
 	More int `json:"more"`
 	// Release lines NVD gives no fixed release for (a range that ends at an affected version).
 	NoFix int `json:"no_fix"`
 	// Where the versions come from: "NVD affected versions", "CVE.org affected versions (from the CVE
-	// record's CNA)" when NVD has none (D-556), or with distro_fixed "Ubuntu security data" / "Debian
-	// Security Tracker" (D-516).
+	// record's CNA)" when NVD has none, or with distro_fixed "Ubuntu security data" / "Debian Security
+	// Tracker".
 	Source string `json:"source"`
 	// The device's version; for branches empty when it has none, else the text Vedette cannot read.
 	Version string `json:"version"`
@@ -78142,15 +78093,15 @@ func (s *FindingsPostFindingsIDAiOKFixedInBranchesItem) SetFixed(val string) {
 
 // Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
 // range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
-// named); end_listed (M2-4) = inside a range that ends before `fixed`, but NVD lists releases of
-// `fixed` itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix,
-// the vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the
-// fix of each release line; distro = a package of the distribution, whose security updates carry the
-// fix under their own numbers: an agent read it from the device's package database (deb/rpm), or the
-// version carries a marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release
-// NVD does not list for the fix, which only a later release of its line (`branches[0].branch`, from
-// build `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the
-// fixing Windows build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+// named); end_listed = inside a range that ends before `fixed`, but NVD lists releases of `fixed`
+// itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix, the
+// vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the fix
+// of each release line; distro = a package of the distribution, whose security updates carry the fix
+// under their own numbers: an agent read it from the device's package database (deb/rpm), or the
+// version carries a marker such as ubuntu, +deb12, .el9; feature_update = a Windows release NVD does
+// not list for the fix, which only a later release of its line (`branches[0].branch`, from build
+// `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu = the fixing Windows
+// build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
 type FindingsPostFindingsIDAiOKFixedInKind string
 
 const (
@@ -78228,8 +78179,8 @@ func (s *FindingsPostFindingsIDAiOKFixedInKind) UnmarshalText(data []byte) error
 }
 
 // Mitigation INV-8: general compromise checks written by reviewed code, not a recommendation for the
-// CVE (D-21): never shown as "Vedette confirmed", never run by Vedette. The generated firewall configs
-// and the admin network field (M2-1) are gone (D-631, kien 2026-11-17).
+// CVE: never shown as "Vedette confirmed", never run by Vedette. The generated firewall configs and
+// the admin network field are gone.
 type FindingsPostFindingsIDAiOKHardening struct {
 	// General "Have I been hit?" checks for the software family.
 	Checks NilFindingsPostFindingsIDAiOKHardeningChecks `json:"checks"`
@@ -78488,14 +78439,14 @@ type FindingsPostFindingsIDAiOKKev struct {
 	Links       []string   `json:"links"`
 	Name        string     `json:"name"`
 	Product     string     `json:"product"`
-	// D-615: the day the CVE was published (NVD `published`), never the day CISA added it; null when NVD
-	// has not answered for it (then it counts as recent: an older CVE is not a finding on a product-only
-	// match (D-616), and a missing date never closes a finding).
+	// The day the CVE was published (NVD `published`), never the day CISA added it; null when NVD has not
+	// answered for it (then it counts as recent: an older CVE is not a finding on a product-only match,
+	// and a missing date never closes a finding).
 	Published      NilDate `json:"published"`
 	Ransomware     bool    `json:"ransomware"`
 	RequiredAction string  `json:"required_action"`
-	// Which list the entry is on (D-557): texts and the source badge name it; an entry of VulnCheck KEV is
-	// never called CISA's.
+	// Which list the entry is on: texts and the source badge name it; an entry of VulnCheck KEV is never
+	// called CISA's.
 	Source OptFindingsPostFindingsIDAiOKKevSource `json:"source"`
 	Vendor string                                 `json:"vendor"`
 }
@@ -78630,8 +78581,8 @@ func (s *FindingsPostFindingsIDAiOKKev) SetVendor(val string) {
 	s.Vendor = val
 }
 
-// Which list the entry is on (D-557): texts and the source badge name it; an entry of VulnCheck KEV is
-// never called CISA's.
+// Which list the entry is on: texts and the source badge name it; an entry of VulnCheck KEV is never
+// called CISA's.
 type FindingsPostFindingsIDAiOKKevSource string
 
 const (
@@ -78673,7 +78624,7 @@ func (s *FindingsPostFindingsIDAiOKKevSource) UnmarshalText(data []byte) error {
 	}
 }
 
-// M2-3: the version the box has for the matched software; the page says it and how a newer one reaches
+// The version the box has for the matched software; the page says it and how a newer one reaches
 // Vedette, never "find which version".
 type FindingsPostFindingsIDAiOKKnownVersion struct {
 	// Display name of the software the finding was matched on.
@@ -79653,11 +79604,10 @@ func (s *FindingsPostFindingsIDAiReqSkill) UnmarshalText(data []byte) error {
 }
 
 type FindingsPostFindingsIDAppliedOK struct {
-	// Risk_accepted only (D-498): the last day of the acceptance (UTC); the finding reopens by itself
-	// after it.
+	// Risk_accepted only: the last day of the acceptance (UTC); the finding reopens by itself after it.
 	AcceptedUntil NilDate                           `json:"accepted_until"`
 	Ai            FindingsPostFindingsIDAppliedOKAi `json:"ai"`
-	// Whether an AI profile is assigned and allowed for each job (D-29).
+	// Whether an AI profile is assigned and allowed for each job.
 	AiAvailable FindingsPostFindingsIDAppliedOKAiAvailable   `json:"ai_available"`
 	Applied     []FindingsPostFindingsIDAppliedOKAppliedItem `json:"applied"`
 	Asset       NilFindingsPostFindingsIDAppliedOKAsset      `json:"asset"`
@@ -79672,11 +79622,11 @@ type FindingsPostFindingsIDAppliedOK struct {
 	Cvss      NilFindingsPostFindingsIDAppliedOKCvss     `json:"cvss"`
 	Evidence  NilFindingsPostFindingsIDAppliedOKEvidence `json:"evidence"`
 	FirstSeen time.Time                                  `json:"first_seen"`
-	// GET /findings only, open findings: the update that fixes it with others (D-545); null when there is
-	// none to name.
+	// GET /findings only, open findings: the update that fixes it with others; null when there is none to
+	// name.
 	Fix OptNilFindingsPostFindingsIDAppliedOKFix `json:"fix"`
-	// The release that fixes this finding on this device, from the NVD affected versions (D-488); null =
-	// NVD gives none, the page shows CISA and the vendor advisory only.
+	// The release that fixes this finding on this device, from the NVD affected versions; null = NVD gives
+	// none, the page shows CISA and the vendor advisory only.
 	FixedIn NilFindingsPostFindingsIDAppliedOKFixedIn `json:"fixed_in"`
 	// Null when the confirmed pack has its own compromise signs, or mitigation is off.
 	Hardening NilFindingsPostFindingsIDAppliedOKHardening  `json:"hardening"`
@@ -79684,10 +79634,10 @@ type FindingsPostFindingsIDAppliedOK struct {
 	ID        string                                       `json:"id"`
 	// Read from KEV, not from the project recommendation pack.
 	Kev NilFindingsPostFindingsIDAppliedOKKev `json:"kev"`
-	// M2-3: null when the matched software has no version or its source is not known.
+	// Null when the matched software has no version or its source is not known.
 	KnownVersion NilFindingsPostFindingsIDAppliedOKKnownVersion `json:"known_version"`
 	LastSeen     time.Time                                      `json:"last_seen"`
-	// Null = no recommendation confirmed by Vedette maintainers yet (D-21).
+	// Null = no recommendation confirmed by Vedette maintainers yet.
 	Pack           NilFindingsPostFindingsIDAppliedOKPack  `json:"pack"`
 	Recheck        FindingsPostFindingsIDAppliedOKRecheck  `json:"recheck"`
 	ResolutionNote NilString                               `json:"resolution_note"`
@@ -80002,7 +79952,7 @@ func (s *FindingsPostFindingsIDAppliedOKAi) SetExplain(val NilFindingsPostFindin
 	s.Explain = val
 }
 
-// Whether an AI profile is assigned and allowed for each job (D-29).
+// Whether an AI profile is assigned and allowed for each job.
 type FindingsPostFindingsIDAppliedOKAiAvailable struct {
 	Config  bool `json:"config"`
 	Explain bool `json:"explain"`
@@ -80030,9 +79980,9 @@ func (s *FindingsPostFindingsIDAppliedOKAiAvailable) SetExplain(val bool) {
 
 type FindingsPostFindingsIDAppliedOKAiConfig struct {
 	Citations []FindingsPostFindingsIDAppliedOKAiConfigCitationsItem `json:"citations"`
-	// Mitigation-config (M2-2): config blocks to paste as they are, the device's own workaround first,
-	// then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is
-	// based on, `side_effect` what it can break. Absent for explain and for answers stored before.
+	// Mitigation-config: config blocks to paste as they are, the device's own workaround first, then a
+	// rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based
+	// on, `side_effect` what it can break. Absent for explain and for answers stored before.
 	Configs []FindingsPostFindingsIDAppliedOKAiConfigConfigsItem `json:"configs"`
 	Model   string                                               `json:"model"`
 	// #897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding
@@ -80040,10 +79990,10 @@ type FindingsPostFindingsIDAppliedOKAiConfig struct {
 	// words; the page shows it where the configuration would be.
 	NoConfigReason OptString `json:"no_config_reason"`
 	Paragraphs     []string  `json:"paragraphs"`
-	// Name of the AI profile that answered (D-29).
+	// Name of the AI profile that answered.
 	Profile OptString `json:"profile"`
-	// M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence
-	// (never in the middle of one) or a config block was left out whole.
+	// A part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never
+	// in the middle of one) or a config block was left out whole.
 	Shortened OptBool                                       `json:"shortened"`
 	Skill     FindingsPostFindingsIDAppliedOKAiConfigSkill  `json:"skill"`
 	Steps     []string                                      `json:"steps"`
@@ -80316,9 +80266,9 @@ func (s *FindingsPostFindingsIDAppliedOKAiConfigTokens) SetOutput(val float64) {
 
 type FindingsPostFindingsIDAppliedOKAiExplain struct {
 	Citations []FindingsPostFindingsIDAppliedOKAiExplainCitationsItem `json:"citations"`
-	// Mitigation-config (M2-2): config blocks to paste as they are, the device's own workaround first,
-	// then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is
-	// based on, `side_effect` what it can break. Absent for explain and for answers stored before.
+	// Mitigation-config: config blocks to paste as they are, the device's own workaround first, then a
+	// rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based
+	// on, `side_effect` what it can break. Absent for explain and for answers stored before.
 	Configs []FindingsPostFindingsIDAppliedOKAiExplainConfigsItem `json:"configs"`
 	Model   string                                                `json:"model"`
 	// #897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding
@@ -80326,10 +80276,10 @@ type FindingsPostFindingsIDAppliedOKAiExplain struct {
 	// words; the page shows it where the configuration would be.
 	NoConfigReason OptString `json:"no_config_reason"`
 	Paragraphs     []string  `json:"paragraphs"`
-	// Name of the AI profile that answered (D-29).
+	// Name of the AI profile that answered.
 	Profile OptString `json:"profile"`
-	// M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence
-	// (never in the middle of one) or a config block was left out whole.
+	// A part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never
+	// in the middle of one) or a config block was left out whole.
 	Shortened OptBool                                        `json:"shortened"`
 	Skill     FindingsPostFindingsIDAppliedOKAiExplainSkill  `json:"skill"`
 	Steps     []string                                       `json:"steps"`
@@ -80644,7 +80594,7 @@ type FindingsPostFindingsIDAppliedOKAsset struct {
 	IP   string                                   `json:"ip"`
 	Kind FindingsPostFindingsIDAppliedOKAssetKind `json:"kind"`
 	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
-	// never the internal id (D-484).
+	// never the internal id.
 	Name string `json:"name"`
 }
 
@@ -81729,12 +81679,11 @@ func (s *FindingsPostFindingsIDAppliedOKCvssVersion) UnmarshalText(data []byte) 
 }
 
 type FindingsPostFindingsIDAppliedOKEvidence struct {
-	// D-548: the version compared is the one the device's own agent (osquery, Wazuh) reports installed: a
+	// The version compared is the one the device's own agent (osquery, Wazuh) reports installed: a
 	// detection, shown as "Detected by the agent", with nothing for the person to look up.
 	Agent OptBool `json:"agent"`
-	// N52-2: a product-only match on a software row the device's own agent reported with its installed
-	// version: Vedette could not compare that version with NVD's data, so the page does not ask to add the
-	// version.
+	// A product-only match on a software row the device's own agent reported with its installed version:
+	// Vedette could not compare that version with NVD's data, so the page does not ask to add the version.
 	AgentRow  OptBool   `json:"agent_row"`
 	CheckedAt time.Time `json:"checked_at"`
 	Request   OptString `json:"request"`
@@ -81813,8 +81762,8 @@ func (s *FindingsPostFindingsIDAppliedOKEvidence) SetTemplate(val OptString) {
 	s.Template = val
 }
 
-// D-545: one update fixes this finding together with the device's other open findings of the same
-// software (top-tier: one item per missing update).
+// One update fixes this finding together with the device's other open findings of the same software
+// (top-tier: one item per missing update).
 type FindingsPostFindingsIDAppliedOKFix struct {
 	// Distro: "Ubuntu" or "Debian", empty for the distribution's.
 	Distro string `json:"distro"`
@@ -81833,7 +81782,7 @@ type FindingsPostFindingsIDAppliedOKFix struct {
 	Software string `json:"software"`
 	// The installed version.
 	Version string `json:"version"`
-	// A Windows release row (D-546): the update is the monthly cumulative update Windows Update offers.
+	// A Windows release row: the update is the monthly cumulative update Windows Update offers.
 	Windows bool `json:"windows"`
 }
 
@@ -81985,9 +81934,9 @@ type FindingsPostFindingsIDAppliedOKFixedIn struct {
 	// inventory kept the flag); the page adds "if you installed it from the distribution's packages,
 	// install its security updates instead".
 	Distro string `json:"distro"`
-	// D-516, kind distro only: the version of the distribution's package that fixes the CVE on the
-	// device's release (Ubuntu security data, Debian Security Tracker); `version` is then the device's
-	// full package version. Empty when the distribution's data does not say.
+	// Kind distro only: the version of the distribution's package that fixes the CVE on the device's
+	// release (Ubuntu security data, Debian Security Tracker); `version` is then the device's full package
+	// version. Empty when the distribution's data does not say.
 	DistroFixed string `json:"distro_fixed"`
 	// Distro_fixed is in Ubuntu Pro (ESM) only.
 	DistroPro bool `json:"distro_pro"`
@@ -81999,23 +81948,23 @@ type FindingsPostFindingsIDAppliedOKFixedIn struct {
 	Fixed string `json:"fixed"`
 	// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
 	// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
-	// named); end_listed (M2-4) = inside a range that ends before `fixed`, but NVD lists releases of
-	// `fixed` itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix,
-	// the vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the
-	// fix of each release line; distro = a package of the distribution, whose security updates carry the
-	// fix under their own numbers: an agent read it from the device's package database (deb/rpm), or the
-	// version carries a marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release
-	// NVD does not list for the fix, which only a later release of its line (`branches[0].branch`, from
-	// build `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the
-	// fixing Windows build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+	// named); end_listed = inside a range that ends before `fixed`, but NVD lists releases of `fixed`
+	// itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix, the
+	// vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the fix
+	// of each release line; distro = a package of the distribution, whose security updates carry the fix
+	// under their own numbers: an agent read it from the device's package database (deb/rpm), or the
+	// version carries a marker such as ubuntu, +deb12, .el9; feature_update = a Windows release NVD does
+	// not list for the fix, which only a later release of its line (`branches[0].branch`, from build
+	// `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu = the fixing Windows
+	// build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
 	Kind FindingsPostFindingsIDAppliedOKFixedInKind `json:"kind"`
 	// Release lines with a fix left out of branches.
 	More int `json:"more"`
 	// Release lines NVD gives no fixed release for (a range that ends at an affected version).
 	NoFix int `json:"no_fix"`
 	// Where the versions come from: "NVD affected versions", "CVE.org affected versions (from the CVE
-	// record's CNA)" when NVD has none (D-556), or with distro_fixed "Ubuntu security data" / "Debian
-	// Security Tracker" (D-516).
+	// record's CNA)" when NVD has none, or with distro_fixed "Ubuntu security data" / "Debian Security
+	// Tracker".
 	Source string `json:"source"`
 	// The device's version; for branches empty when it has none, else the text Vedette cannot read.
 	Version string `json:"version"`
@@ -82159,15 +82108,15 @@ func (s *FindingsPostFindingsIDAppliedOKFixedInBranchesItem) SetFixed(val string
 
 // Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
 // range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
-// named); end_listed (M2-4) = inside a range that ends before `fixed`, but NVD lists releases of
-// `fixed` itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix,
-// the vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the
-// fix of each release line; distro = a package of the distribution, whose security updates carry the
-// fix under their own numbers: an agent read it from the device's package database (deb/rpm), or the
-// version carries a marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release
-// NVD does not list for the fix, which only a later release of its line (`branches[0].branch`, from
-// build `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the
-// fixing Windows build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+// named); end_listed = inside a range that ends before `fixed`, but NVD lists releases of `fixed`
+// itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix, the
+// vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the fix
+// of each release line; distro = a package of the distribution, whose security updates carry the fix
+// under their own numbers: an agent read it from the device's package database (deb/rpm), or the
+// version carries a marker such as ubuntu, +deb12, .el9; feature_update = a Windows release NVD does
+// not list for the fix, which only a later release of its line (`branches[0].branch`, from build
+// `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu = the fixing Windows
+// build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
 type FindingsPostFindingsIDAppliedOKFixedInKind string
 
 const (
@@ -82245,8 +82194,8 @@ func (s *FindingsPostFindingsIDAppliedOKFixedInKind) UnmarshalText(data []byte) 
 }
 
 // Mitigation INV-8: general compromise checks written by reviewed code, not a recommendation for the
-// CVE (D-21): never shown as "Vedette confirmed", never run by Vedette. The generated firewall configs
-// and the admin network field (M2-1) are gone (D-631, kien 2026-11-17).
+// CVE: never shown as "Vedette confirmed", never run by Vedette. The generated firewall configs and
+// the admin network field are gone.
 type FindingsPostFindingsIDAppliedOKHardening struct {
 	// General "Have I been hit?" checks for the software family.
 	Checks NilFindingsPostFindingsIDAppliedOKHardeningChecks `json:"checks"`
@@ -82505,14 +82454,14 @@ type FindingsPostFindingsIDAppliedOKKev struct {
 	Links       []string   `json:"links"`
 	Name        string     `json:"name"`
 	Product     string     `json:"product"`
-	// D-615: the day the CVE was published (NVD `published`), never the day CISA added it; null when NVD
-	// has not answered for it (then it counts as recent: an older CVE is not a finding on a product-only
-	// match (D-616), and a missing date never closes a finding).
+	// The day the CVE was published (NVD `published`), never the day CISA added it; null when NVD has not
+	// answered for it (then it counts as recent: an older CVE is not a finding on a product-only match,
+	// and a missing date never closes a finding).
 	Published      NilDate `json:"published"`
 	Ransomware     bool    `json:"ransomware"`
 	RequiredAction string  `json:"required_action"`
-	// Which list the entry is on (D-557): texts and the source badge name it; an entry of VulnCheck KEV is
-	// never called CISA's.
+	// Which list the entry is on: texts and the source badge name it; an entry of VulnCheck KEV is never
+	// called CISA's.
 	Source OptFindingsPostFindingsIDAppliedOKKevSource `json:"source"`
 	Vendor string                                      `json:"vendor"`
 }
@@ -82647,8 +82596,8 @@ func (s *FindingsPostFindingsIDAppliedOKKev) SetVendor(val string) {
 	s.Vendor = val
 }
 
-// Which list the entry is on (D-557): texts and the source badge name it; an entry of VulnCheck KEV is
-// never called CISA's.
+// Which list the entry is on: texts and the source badge name it; an entry of VulnCheck KEV is never
+// called CISA's.
 type FindingsPostFindingsIDAppliedOKKevSource string
 
 const (
@@ -82690,7 +82639,7 @@ func (s *FindingsPostFindingsIDAppliedOKKevSource) UnmarshalText(data []byte) er
 	}
 }
 
-// M2-3: the version the box has for the matched software; the page says it and how a newer one reaches
+// The version the box has for the matched software; the page says it and how a newer one reaches
 // Vedette, never "find which version".
 type FindingsPostFindingsIDAppliedOKKnownVersion struct {
 	// Display name of the software the finding was matched on.
@@ -83691,11 +83640,10 @@ func (s *FindingsPostFindingsIDAppliedReqItem) UnmarshalText(data []byte) error 
 }
 
 type FindingsPostFindingsIDStatusOK struct {
-	// Risk_accepted only (D-498): the last day of the acceptance (UTC); the finding reopens by itself
-	// after it.
+	// Risk_accepted only: the last day of the acceptance (UTC); the finding reopens by itself after it.
 	AcceptedUntil NilDate                          `json:"accepted_until"`
 	Ai            FindingsPostFindingsIDStatusOKAi `json:"ai"`
-	// Whether an AI profile is assigned and allowed for each job (D-29).
+	// Whether an AI profile is assigned and allowed for each job.
 	AiAvailable FindingsPostFindingsIDStatusOKAiAvailable   `json:"ai_available"`
 	Applied     []FindingsPostFindingsIDStatusOKAppliedItem `json:"applied"`
 	Asset       NilFindingsPostFindingsIDStatusOKAsset      `json:"asset"`
@@ -83710,11 +83658,11 @@ type FindingsPostFindingsIDStatusOK struct {
 	Cvss      NilFindingsPostFindingsIDStatusOKCvss     `json:"cvss"`
 	Evidence  NilFindingsPostFindingsIDStatusOKEvidence `json:"evidence"`
 	FirstSeen time.Time                                 `json:"first_seen"`
-	// GET /findings only, open findings: the update that fixes it with others (D-545); null when there is
-	// none to name.
+	// GET /findings only, open findings: the update that fixes it with others; null when there is none to
+	// name.
 	Fix OptNilFindingsPostFindingsIDStatusOKFix `json:"fix"`
-	// The release that fixes this finding on this device, from the NVD affected versions (D-488); null =
-	// NVD gives none, the page shows CISA and the vendor advisory only.
+	// The release that fixes this finding on this device, from the NVD affected versions; null = NVD gives
+	// none, the page shows CISA and the vendor advisory only.
 	FixedIn NilFindingsPostFindingsIDStatusOKFixedIn `json:"fixed_in"`
 	// Null when the confirmed pack has its own compromise signs, or mitigation is off.
 	Hardening NilFindingsPostFindingsIDStatusOKHardening  `json:"hardening"`
@@ -83722,10 +83670,10 @@ type FindingsPostFindingsIDStatusOK struct {
 	ID        string                                      `json:"id"`
 	// Read from KEV, not from the project recommendation pack.
 	Kev NilFindingsPostFindingsIDStatusOKKev `json:"kev"`
-	// M2-3: null when the matched software has no version or its source is not known.
+	// Null when the matched software has no version or its source is not known.
 	KnownVersion NilFindingsPostFindingsIDStatusOKKnownVersion `json:"known_version"`
 	LastSeen     time.Time                                     `json:"last_seen"`
-	// Null = no recommendation confirmed by Vedette maintainers yet (D-21).
+	// Null = no recommendation confirmed by Vedette maintainers yet.
 	Pack           NilFindingsPostFindingsIDStatusOKPack  `json:"pack"`
 	Recheck        FindingsPostFindingsIDStatusOKRecheck  `json:"recheck"`
 	ResolutionNote NilString                              `json:"resolution_note"`
@@ -84040,7 +83988,7 @@ func (s *FindingsPostFindingsIDStatusOKAi) SetExplain(val NilFindingsPostFinding
 	s.Explain = val
 }
 
-// Whether an AI profile is assigned and allowed for each job (D-29).
+// Whether an AI profile is assigned and allowed for each job.
 type FindingsPostFindingsIDStatusOKAiAvailable struct {
 	Config  bool `json:"config"`
 	Explain bool `json:"explain"`
@@ -84068,9 +84016,9 @@ func (s *FindingsPostFindingsIDStatusOKAiAvailable) SetExplain(val bool) {
 
 type FindingsPostFindingsIDStatusOKAiConfig struct {
 	Citations []FindingsPostFindingsIDStatusOKAiConfigCitationsItem `json:"citations"`
-	// Mitigation-config (M2-2): config blocks to paste as they are, the device's own workaround first,
-	// then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is
-	// based on, `side_effect` what it can break. Absent for explain and for answers stored before.
+	// Mitigation-config: config blocks to paste as they are, the device's own workaround first, then a
+	// rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based
+	// on, `side_effect` what it can break. Absent for explain and for answers stored before.
 	Configs []FindingsPostFindingsIDStatusOKAiConfigConfigsItem `json:"configs"`
 	Model   string                                              `json:"model"`
 	// #897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding
@@ -84078,10 +84026,10 @@ type FindingsPostFindingsIDStatusOKAiConfig struct {
 	// words; the page shows it where the configuration would be.
 	NoConfigReason OptString `json:"no_config_reason"`
 	Paragraphs     []string  `json:"paragraphs"`
-	// Name of the AI profile that answered (D-29).
+	// Name of the AI profile that answered.
 	Profile OptString `json:"profile"`
-	// M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence
-	// (never in the middle of one) or a config block was left out whole.
+	// A part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never
+	// in the middle of one) or a config block was left out whole.
 	Shortened OptBool                                      `json:"shortened"`
 	Skill     FindingsPostFindingsIDStatusOKAiConfigSkill  `json:"skill"`
 	Steps     []string                                     `json:"steps"`
@@ -84354,9 +84302,9 @@ func (s *FindingsPostFindingsIDStatusOKAiConfigTokens) SetOutput(val float64) {
 
 type FindingsPostFindingsIDStatusOKAiExplain struct {
 	Citations []FindingsPostFindingsIDStatusOKAiExplainCitationsItem `json:"citations"`
-	// Mitigation-config (M2-2): config blocks to paste as they are, the device's own workaround first,
-	// then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is
-	// based on, `side_effect` what it can break. Absent for explain and for answers stored before.
+	// Mitigation-config: config blocks to paste as they are, the device's own workaround first, then a
+	// rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based
+	// on, `side_effect` what it can break. Absent for explain and for answers stored before.
 	Configs []FindingsPostFindingsIDStatusOKAiExplainConfigsItem `json:"configs"`
 	Model   string                                               `json:"model"`
 	// #897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding
@@ -84364,10 +84312,10 @@ type FindingsPostFindingsIDStatusOKAiExplain struct {
 	// words; the page shows it where the configuration would be.
 	NoConfigReason OptString `json:"no_config_reason"`
 	Paragraphs     []string  `json:"paragraphs"`
-	// Name of the AI profile that answered (D-29).
+	// Name of the AI profile that answered.
 	Profile OptString `json:"profile"`
-	// M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence
-	// (never in the middle of one) or a config block was left out whole.
+	// A part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never
+	// in the middle of one) or a config block was left out whole.
 	Shortened OptBool                                       `json:"shortened"`
 	Skill     FindingsPostFindingsIDStatusOKAiExplainSkill  `json:"skill"`
 	Steps     []string                                      `json:"steps"`
@@ -84682,7 +84630,7 @@ type FindingsPostFindingsIDStatusOKAsset struct {
 	IP   string                                  `json:"ip"`
 	Kind FindingsPostFindingsIDStatusOKAssetKind `json:"kind"`
 	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
-	// never the internal id (D-484).
+	// never the internal id.
 	Name string `json:"name"`
 }
 
@@ -85767,12 +85715,11 @@ func (s *FindingsPostFindingsIDStatusOKCvssVersion) UnmarshalText(data []byte) e
 }
 
 type FindingsPostFindingsIDStatusOKEvidence struct {
-	// D-548: the version compared is the one the device's own agent (osquery, Wazuh) reports installed: a
+	// The version compared is the one the device's own agent (osquery, Wazuh) reports installed: a
 	// detection, shown as "Detected by the agent", with nothing for the person to look up.
 	Agent OptBool `json:"agent"`
-	// N52-2: a product-only match on a software row the device's own agent reported with its installed
-	// version: Vedette could not compare that version with NVD's data, so the page does not ask to add the
-	// version.
+	// A product-only match on a software row the device's own agent reported with its installed version:
+	// Vedette could not compare that version with NVD's data, so the page does not ask to add the version.
 	AgentRow  OptBool   `json:"agent_row"`
 	CheckedAt time.Time `json:"checked_at"`
 	Request   OptString `json:"request"`
@@ -85851,8 +85798,8 @@ func (s *FindingsPostFindingsIDStatusOKEvidence) SetTemplate(val OptString) {
 	s.Template = val
 }
 
-// D-545: one update fixes this finding together with the device's other open findings of the same
-// software (top-tier: one item per missing update).
+// One update fixes this finding together with the device's other open findings of the same software
+// (top-tier: one item per missing update).
 type FindingsPostFindingsIDStatusOKFix struct {
 	// Distro: "Ubuntu" or "Debian", empty for the distribution's.
 	Distro string `json:"distro"`
@@ -85871,7 +85818,7 @@ type FindingsPostFindingsIDStatusOKFix struct {
 	Software string `json:"software"`
 	// The installed version.
 	Version string `json:"version"`
-	// A Windows release row (D-546): the update is the monthly cumulative update Windows Update offers.
+	// A Windows release row: the update is the monthly cumulative update Windows Update offers.
 	Windows bool `json:"windows"`
 }
 
@@ -86023,9 +85970,9 @@ type FindingsPostFindingsIDStatusOKFixedIn struct {
 	// inventory kept the flag); the page adds "if you installed it from the distribution's packages,
 	// install its security updates instead".
 	Distro string `json:"distro"`
-	// D-516, kind distro only: the version of the distribution's package that fixes the CVE on the
-	// device's release (Ubuntu security data, Debian Security Tracker); `version` is then the device's
-	// full package version. Empty when the distribution's data does not say.
+	// Kind distro only: the version of the distribution's package that fixes the CVE on the device's
+	// release (Ubuntu security data, Debian Security Tracker); `version` is then the device's full package
+	// version. Empty when the distribution's data does not say.
 	DistroFixed string `json:"distro_fixed"`
 	// Distro_fixed is in Ubuntu Pro (ESM) only.
 	DistroPro bool `json:"distro_pro"`
@@ -86037,23 +85984,23 @@ type FindingsPostFindingsIDStatusOKFixedIn struct {
 	Fixed string `json:"fixed"`
 	// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
 	// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
-	// named); end_listed (M2-4) = inside a range that ends before `fixed`, but NVD lists releases of
-	// `fixed` itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix,
-	// the vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the
-	// fix of each release line; distro = a package of the distribution, whose security updates carry the
-	// fix under their own numbers: an agent read it from the device's package database (deb/rpm), or the
-	// version carries a marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release
-	// NVD does not list for the fix, which only a later release of its line (`branches[0].branch`, from
-	// build `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the
-	// fixing Windows build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+	// named); end_listed = inside a range that ends before `fixed`, but NVD lists releases of `fixed`
+	// itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix, the
+	// vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the fix
+	// of each release line; distro = a package of the distribution, whose security updates carry the fix
+	// under their own numbers: an agent read it from the device's package database (deb/rpm), or the
+	// version carries a marker such as ubuntu, +deb12, .el9; feature_update = a Windows release NVD does
+	// not list for the fix, which only a later release of its line (`branches[0].branch`, from build
+	// `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu = the fixing Windows
+	// build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
 	Kind FindingsPostFindingsIDStatusOKFixedInKind `json:"kind"`
 	// Release lines with a fix left out of branches.
 	More int `json:"more"`
 	// Release lines NVD gives no fixed release for (a range that ends at an affected version).
 	NoFix int `json:"no_fix"`
 	// Where the versions come from: "NVD affected versions", "CVE.org affected versions (from the CVE
-	// record's CNA)" when NVD has none (D-556), or with distro_fixed "Ubuntu security data" / "Debian
-	// Security Tracker" (D-516).
+	// record's CNA)" when NVD has none, or with distro_fixed "Ubuntu security data" / "Debian Security
+	// Tracker".
 	Source string `json:"source"`
 	// The device's version; for branches empty when it has none, else the text Vedette cannot read.
 	Version string `json:"version"`
@@ -86197,15 +86144,15 @@ func (s *FindingsPostFindingsIDStatusOKFixedInBranchesItem) SetFixed(val string)
 
 // Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
 // range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
-// named); end_listed (M2-4) = inside a range that ends before `fixed`, but NVD lists releases of
-// `fixed` itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix,
-// the vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the
-// fix of each release line; distro = a package of the distribution, whose security updates carry the
-// fix under their own numbers: an agent read it from the device's package database (deb/rpm), or the
-// version carries a marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release
-// NVD does not list for the fix, which only a later release of its line (`branches[0].branch`, from
-// build `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the
-// fixing Windows build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+// named); end_listed = inside a range that ends before `fixed`, but NVD lists releases of `fixed`
+// itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix, the
+// vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the fix
+// of each release line; distro = a package of the distribution, whose security updates carry the fix
+// under their own numbers: an agent read it from the device's package database (deb/rpm), or the
+// version carries a marker such as ubuntu, +deb12, .el9; feature_update = a Windows release NVD does
+// not list for the fix, which only a later release of its line (`branches[0].branch`, from build
+// `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu = the fixing Windows
+// build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
 type FindingsPostFindingsIDStatusOKFixedInKind string
 
 const (
@@ -86283,8 +86230,8 @@ func (s *FindingsPostFindingsIDStatusOKFixedInKind) UnmarshalText(data []byte) e
 }
 
 // Mitigation INV-8: general compromise checks written by reviewed code, not a recommendation for the
-// CVE (D-21): never shown as "Vedette confirmed", never run by Vedette. The generated firewall configs
-// and the admin network field (M2-1) are gone (D-631, kien 2026-11-17).
+// CVE: never shown as "Vedette confirmed", never run by Vedette. The generated firewall configs and
+// the admin network field are gone.
 type FindingsPostFindingsIDStatusOKHardening struct {
 	// General "Have I been hit?" checks for the software family.
 	Checks NilFindingsPostFindingsIDStatusOKHardeningChecks `json:"checks"`
@@ -86543,14 +86490,14 @@ type FindingsPostFindingsIDStatusOKKev struct {
 	Links       []string   `json:"links"`
 	Name        string     `json:"name"`
 	Product     string     `json:"product"`
-	// D-615: the day the CVE was published (NVD `published`), never the day CISA added it; null when NVD
-	// has not answered for it (then it counts as recent: an older CVE is not a finding on a product-only
-	// match (D-616), and a missing date never closes a finding).
+	// The day the CVE was published (NVD `published`), never the day CISA added it; null when NVD has not
+	// answered for it (then it counts as recent: an older CVE is not a finding on a product-only match,
+	// and a missing date never closes a finding).
 	Published      NilDate `json:"published"`
 	Ransomware     bool    `json:"ransomware"`
 	RequiredAction string  `json:"required_action"`
-	// Which list the entry is on (D-557): texts and the source badge name it; an entry of VulnCheck KEV is
-	// never called CISA's.
+	// Which list the entry is on: texts and the source badge name it; an entry of VulnCheck KEV is never
+	// called CISA's.
 	Source OptFindingsPostFindingsIDStatusOKKevSource `json:"source"`
 	Vendor string                                     `json:"vendor"`
 }
@@ -86685,8 +86632,8 @@ func (s *FindingsPostFindingsIDStatusOKKev) SetVendor(val string) {
 	s.Vendor = val
 }
 
-// Which list the entry is on (D-557): texts and the source badge name it; an entry of VulnCheck KEV is
-// never called CISA's.
+// Which list the entry is on: texts and the source badge name it; an entry of VulnCheck KEV is never
+// called CISA's.
 type FindingsPostFindingsIDStatusOKKevSource string
 
 const (
@@ -86728,7 +86675,7 @@ func (s *FindingsPostFindingsIDStatusOKKevSource) UnmarshalText(data []byte) err
 	}
 }
 
-// M2-3: the version the box has for the matched software; the page says it and how a newer one reaches
+// The version the box has for the matched software; the page says it and how a newer one reaches
 // Vedette, never "find which version".
 type FindingsPostFindingsIDStatusOKKnownVersion struct {
 	// Display name of the software the finding was matched on.
@@ -87655,8 +87602,8 @@ func (s *FindingsPostFindingsIDStatusOKStatus) UnmarshalText(data []byte) error 
 type FindingsPostFindingsIDStatusReq struct {
 	Action FindingsPostFindingsIDStatusReqAction `json:"action"`
 	Note   string                                `json:"note"`
-	// Accept_risk only (D-498): the last day the risk is accepted, from tomorrow to 365 days ahead; the
-	// finding reopens by itself after it.
+	// Accept_risk only: the last day the risk is accepted, from tomorrow to 365 days ahead; the finding
+	// reopens by itself after it.
 	Until OptDate `json:"until"`
 }
 
@@ -87790,8 +87737,8 @@ type FindingsPostFindingsStatusReq struct {
 	Action FindingsPostFindingsStatusReqAction `json:"action"`
 	Ids    []string                            `json:"ids"`
 	Note   string                              `json:"note"`
-	// Accept_risk only (D-498): the last day the risk is accepted, from tomorrow to 365 days ahead; the
-	// finding reopens by itself after it.
+	// Accept_risk only: the last day the risk is accepted, from tomorrow to 365 days ahead; the finding
+	// reopens by itself after it.
 	Until OptDate `json:"until"`
 }
 
@@ -87921,8 +87868,8 @@ type HoneypotGetHoneypotHitsIDOK struct {
 	SrcIP      string                                `json:"src_ip"`
 	// Source device name, looked up from the inventory when read; null = not in the inventory.
 	SrcName NilString `json:"src_name"`
-	// Name of the Trap IP that was hit (D-466), of the token, or of the Trap IPs a scan touched ("Decoy
-	// sweep" for a probe without names): the Trap IP column of the hit list (W1-13).
+	// Name of the Trap IP that was hit, of the token, or of the Trap IPs a scan touched ("Decoy sweep" for
+	// a probe without names): the Trap IP column of the hit list.
 	TrapHostname string `json:"trap_hostname"`
 	// The Trap IP that was touched; for a scan the Trap IPs it touched, comma-separated; for a token its
 	// value.
@@ -88297,8 +88244,8 @@ func (s *HoneypotGetHoneypotHitsIDOKKind) UnmarshalText(data []byte) error {
 	}
 }
 
-// A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and
-// never answer, they only log.
+// A trap service. tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and never
+// answer, they only log.
 type HoneypotGetHoneypotHitsIDOKService string
 
 const (
@@ -88482,8 +88429,8 @@ type HoneypotGetHoneypotHitsOKItemsItem struct {
 	SrcIP      string                                       `json:"src_ip"`
 	// Source device name, looked up from the inventory when read; null = not in the inventory.
 	SrcName NilString `json:"src_name"`
-	// Name of the Trap IP that was hit (D-466), of the token, or of the Trap IPs a scan touched ("Decoy
-	// sweep" for a probe without names): the Trap IP column of the hit list (W1-13).
+	// Name of the Trap IP that was hit, of the token, or of the Trap IPs a scan touched ("Decoy sweep" for
+	// a probe without names): the Trap IP column of the hit list.
 	TrapHostname string `json:"trap_hostname"`
 	// The Trap IP that was touched; for a scan the Trap IPs it touched, comma-separated; for a token its
 	// value.
@@ -88671,8 +88618,8 @@ func (s *HoneypotGetHoneypotHitsOKItemsItemKind) UnmarshalText(data []byte) erro
 	}
 }
 
-// A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and
-// never answer, they only log.
+// A trap service. tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and never
+// answer, they only log.
 type HoneypotGetHoneypotHitsOKItemsItemService string
 
 const (
@@ -89114,8 +89061,8 @@ type HoneypotGetHoneypotOKTrapsItem struct {
 	Hits7d    int         `json:"hits_7d"`
 	LastHitAt NilDateTime `json:"last_hit_at"`
 	Port      int         `json:"port"`
-	// A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and
-	// never answer, they only log.
+	// A trap service. tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and never
+	// answer, they only log.
 	Service HoneypotGetHoneypotOKTrapsItemService `json:"service"`
 	// The best state of the enabled Trap IPs that have this service: listening when one of them listens.
 	State HoneypotGetHoneypotOKTrapsItemState `json:"state"`
@@ -89193,8 +89140,8 @@ func (s *HoneypotGetHoneypotOKTrapsItem) SetTrapIps(val []string) {
 	s.TrapIps = val
 }
 
-// A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and
-// never answer, they only log.
+// A trap service. tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and never
+// answer, they only log.
 type HoneypotGetHoneypotOKTrapsItemService string
 
 const (
@@ -89923,8 +89870,8 @@ func (s *HoneypotGetHoneypotTrapIpsOKItemsItemAttachmentKind) UnmarshalText(data
 	}
 }
 
-// A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and
-// never answer, they only log.
+// A trap service. tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and never
+// answer, they only log.
 type HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem string
 
 const (
@@ -90156,8 +90103,8 @@ func (s *HoneypotGetHoneypotTrapIpsOKItemsItemPreset) UnmarshalText(data []byte)
 	}
 }
 
-// A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and
-// never answer, they only log.
+// A trap service. tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and never
+// answer, they only log.
 type HoneypotGetHoneypotTrapIpsOKItemsItemServicesItem string
 
 const (
@@ -90894,8 +90841,8 @@ func (s *HoneypotPatchHoneypotTrapIpsIDOKAttachmentKind) UnmarshalText(data []by
 	}
 }
 
-// A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and
-// never answer, they only log.
+// A trap service. tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and never
+// answer, they only log.
 type HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem string
 
 const (
@@ -91127,8 +91074,8 @@ func (s *HoneypotPatchHoneypotTrapIpsIDOKPreset) UnmarshalText(data []byte) erro
 	}
 }
 
-// A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and
-// never answer, they only log.
+// A trap service. tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and never
+// answer, they only log.
 type HoneypotPatchHoneypotTrapIpsIDOKServicesItem string
 
 const (
@@ -91496,8 +91443,8 @@ type HoneypotPostHoneypotTestHitOK struct {
 	SrcIP      string                                  `json:"src_ip"`
 	// Source device name, looked up from the inventory when read; null = not in the inventory.
 	SrcName NilString `json:"src_name"`
-	// Name of the Trap IP that was hit (D-466), of the token, or of the Trap IPs a scan touched ("Decoy
-	// sweep" for a probe without names): the Trap IP column of the hit list (W1-13).
+	// Name of the Trap IP that was hit, of the token, or of the Trap IPs a scan touched ("Decoy sweep" for
+	// a probe without names): the Trap IP column of the hit list.
 	TrapHostname string `json:"trap_hostname"`
 	// The Trap IP that was touched; for a scan the Trap IPs it touched, comma-separated; for a token its
 	// value.
@@ -91685,8 +91632,8 @@ func (s *HoneypotPostHoneypotTestHitOKKind) UnmarshalText(data []byte) error {
 	}
 }
 
-// A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and
-// never answer, they only log.
+// A trap service. tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and never
+// answer, they only log.
 type HoneypotPostHoneypotTestHitOKService string
 
 const (
@@ -91841,8 +91788,8 @@ func (s *HoneypotPostHoneypotTestHitOKService) UnmarshalText(data []byte) error 
 }
 
 type HoneypotPostHoneypotTestHitReq struct {
-	// A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and
-	// never answer, they only log.
+	// A trap service. tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and never
+	// answer, they only log.
 	Service HoneypotPostHoneypotTestHitReqService `json:"service"`
 }
 
@@ -91856,8 +91803,8 @@ func (s *HoneypotPostHoneypotTestHitReq) SetService(val HoneypotPostHoneypotTest
 	s.Service = val
 }
 
-// A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and
-// never answer, they only log.
+// A trap service. tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and never
+// answer, they only log.
 type HoneypotPostHoneypotTestHitReqService string
 
 const (
@@ -92027,8 +91974,8 @@ type HoneypotPostHoneypotTestScanOK struct {
 	SrcIP      string                                   `json:"src_ip"`
 	// Source device name, looked up from the inventory when read; null = not in the inventory.
 	SrcName NilString `json:"src_name"`
-	// Name of the Trap IP that was hit (D-466), of the token, or of the Trap IPs a scan touched ("Decoy
-	// sweep" for a probe without names): the Trap IP column of the hit list (W1-13).
+	// Name of the Trap IP that was hit, of the token, or of the Trap IPs a scan touched ("Decoy sweep" for
+	// a probe without names): the Trap IP column of the hit list.
 	TrapHostname string `json:"trap_hostname"`
 	// The Trap IP that was touched; for a scan the Trap IPs it touched, comma-separated; for a token its
 	// value.
@@ -92216,8 +92163,8 @@ func (s *HoneypotPostHoneypotTestScanOKKind) UnmarshalText(data []byte) error {
 	}
 }
 
-// A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and
-// never answer, they only log.
+// A trap service. tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and never
+// answer, they only log.
 type HoneypotPostHoneypotTestScanOKService string
 
 const (
@@ -92547,8 +92494,8 @@ type HoneypotPostHoneypotTokensIDTestOK struct {
 	SrcIP      string                                       `json:"src_ip"`
 	// Source device name, looked up from the inventory when read; null = not in the inventory.
 	SrcName NilString `json:"src_name"`
-	// Name of the Trap IP that was hit (D-466), of the token, or of the Trap IPs a scan touched ("Decoy
-	// sweep" for a probe without names): the Trap IP column of the hit list (W1-13).
+	// Name of the Trap IP that was hit, of the token, or of the Trap IPs a scan touched ("Decoy sweep" for
+	// a probe without names): the Trap IP column of the hit list.
 	TrapHostname string `json:"trap_hostname"`
 	// The Trap IP that was touched; for a scan the Trap IPs it touched, comma-separated; for a token its
 	// value.
@@ -92736,8 +92683,8 @@ func (s *HoneypotPostHoneypotTokensIDTestOKKind) UnmarshalText(data []byte) erro
 	}
 }
 
-// A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and
-// never answer, they only log.
+// A trap service. tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and never
+// answer, they only log.
 type HoneypotPostHoneypotTokensIDTestOKService string
 
 const (
@@ -93316,8 +93263,8 @@ func (s *HoneypotPostHoneypotTrapIpsCreatedAttachmentKind) UnmarshalText(data []
 	}
 }
 
-// A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and
-// never answer, they only log.
+// A trap service. tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and never
+// answer, they only log.
 type HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem string
 
 const (
@@ -93549,8 +93496,8 @@ func (s *HoneypotPostHoneypotTrapIpsCreatedPreset) UnmarshalText(data []byte) er
 	}
 }
 
-// A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and
-// never answer, they only log.
+// A trap service. tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and never
+// answer, they only log.
 type HoneypotPostHoneypotTrapIpsCreatedServicesItem string
 
 const (
@@ -94026,8 +93973,8 @@ func (s *HoneypotPostHoneypotTrapIpsReqPreset) UnmarshalText(data []byte) error 
 	}
 }
 
-// A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and
-// never answer, they only log.
+// A trap service. tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and never
+// answer, they only log.
 type HoneypotPostHoneypotTrapIpsReqServicesItem string
 
 const (
@@ -94576,8 +94523,8 @@ func (s *HoneypotPutHoneypotTrapIpsIDOKAttachmentKind) UnmarshalText(data []byte
 	}
 }
 
-// A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and
-// never answer, they only log.
+// A trap service. tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and never
+// answer, they only log.
 type HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem string
 
 const (
@@ -94809,8 +94756,8 @@ func (s *HoneypotPutHoneypotTrapIpsIDOKPreset) UnmarshalText(data []byte) error 
 	}
 }
 
-// A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and
-// never answer, they only log.
+// A trap service. tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and never
+// answer, they only log.
 type HoneypotPutHoneypotTrapIpsIDOKServicesItem string
 
 const (
@@ -95286,8 +95233,8 @@ func (s *HoneypotPutHoneypotTrapIpsIDReqPreset) UnmarshalText(data []byte) error
 	}
 }
 
-// A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and
-// never answer, they only log.
+// A trap service. tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and never
+// answer, they only log.
 type HoneypotPutHoneypotTrapIpsIDReqServicesItem string
 
 const (
@@ -95816,8 +95763,8 @@ func (s *InventoryGetInventoryAgentsOK) SetWazuh(val NilInventoryGetInventoryAge
 type InventoryGetInventoryAgentsOKInstall struct {
 	Linux          InventoryGetInventoryAgentsOKInstallLinux `json:"linux"`
 	OsqueryVersion string                                    `json:"osquery_version"`
-	// The osquery packages this box serves (D-404); empty when it has no copy (a development build without
-	// the mirror).
+	// The osquery packages this box serves; empty when it has no copy (a development build without the
+	// mirror).
 	Packages []InventoryGetInventoryAgentsOKInstallPackagesItem `json:"packages"`
 	Windows  InventoryGetInventoryAgentsOKInstallWindows        `json:"windows"`
 }
@@ -95902,7 +95849,7 @@ func (s *InventoryGetInventoryAgentsOKInstallLinux) SetURL(val string) {
 
 type InventoryGetInventoryAgentsOKInstallPackagesItem struct {
 	Arch InventoryGetInventoryAgentsOKInstallPackagesItemArch `json:"arch"`
-	// File name; the browser downloads it from /api/v1/install/osquery/{file} (D-404).
+	// File name; the browser downloads it from /api/v1/install/osquery/{file}.
 	File     string                                                   `json:"file"`
 	Format   InventoryGetInventoryAgentsOKInstallPackagesItemFormat   `json:"format"`
 	Platform InventoryGetInventoryAgentsOKInstallPackagesItemPlatform `json:"platform"`
@@ -96455,7 +96402,7 @@ type InventoryGetInventoryCatalogOKItemsItem struct {
 	ID string `json:"id"`
 	// Number of the product vulnerabilities ever exploited in the wild (CISA KEV).
 	KevCves int `json:"kev_cves"`
-	// Device type (content/devicetypes/types.json, D-511).
+	// Device type (content/devicetypes/types.json).
 	Kind        InventoryGetInventoryCatalogOKItemsItemKind `json:"kind"`
 	Product     string                                      `json:"product"`
 	Vendor      string                                      `json:"vendor"`
@@ -96552,7 +96499,7 @@ func (s *InventoryGetInventoryCatalogOKItemsItem) SetVersionHint(val string) {
 	s.VersionHint = val
 }
 
-// Device type (content/devicetypes/types.json, D-511).
+// Device type (content/devicetypes/types.json).
 type InventoryGetInventoryCatalogOKItemsItemKind string
 
 const (
@@ -97334,14 +97281,14 @@ type InventoryGetInventoryDevicesIDOK struct {
 	FindingsCount int                                                `json:"findings_count"`
 	Kinds         []InventoryGetInventoryDevicesIDOKKindsItem        `json:"kinds"`
 	Observations  []InventoryGetInventoryDevicesIDOKObservationsItem `json:"observations"`
-	// Devices that may be this same machine (D-599), the 5 seen last, the one seen last first; empty for
-	// the box and when none. A pair is offered when the rows share a MAC, or a host name or stated model
-	// while one uses a private Wi-Fi address; never when a person kept them separate, two agents or two
-	// different burned-in MACs say two machines, they state another name, model or OS, or one was seen
-	// while the other was.
+	// Devices that may be this same machine, the 5 seen last, the one seen last first; empty for the box
+	// and when none. A pair is offered when the rows share a MAC, or a host name or stated model while one
+	// uses a private Wi-Fi address; never when a person kept them separate, two agents or two different
+	// burned-in MACs say two machines, they state another name, model or OS, or one was seen while the
+	// other was.
 	PossibleSame []InventoryGetInventoryDevicesIDOKPossibleSameItem `json:"possible_same"`
 	Risk         NilInventoryGetInventoryDevicesIDOKRisk            `json:"risk"`
-	// G4: the risk marker could not be read (the findings module failed).
+	// The risk marker could not be read (the findings module failed).
 	RiskUnavailable bool `json:"risk_unavailable"`
 	Suspicious      bool `json:"suspicious"`
 }
@@ -97428,9 +97375,8 @@ func (s *InventoryGetInventoryDevicesIDOK) SetSuspicious(val bool) {
 
 type InventoryGetInventoryDevicesIDOKAsset struct {
 	Approved bool `json:"approved"`
-	// When a person approved the device, or osquery enrolment did (D-471: "Approved in the last 24 h");
-	// approving again does not move it; null = not approved, added by hand, or approved before this field
-	// existed.
+	// When a person approved the device, or osquery enrolment did ("Approved in the last 24 h"); approving
+	// again does not move it; null = not approved, added by hand, or approved before this field existed.
 	ApprovedAt NilDateTime `json:"approved_at"`
 	// When the one gentle first scan happened; null = no gentle scan (declared by hand, the box itself, or
 	// a known kind that is not fragile and not set to never).
@@ -97442,9 +97388,9 @@ type InventoryGetInventoryDevicesIDOKAsset struct {
 	// was added manually; read-only.
 	Hostname NilString `json:"hostname"`
 	ID       string    `json:"id"`
-	// D-630: when a person ignored the device (a staff phone: known, not watched); null = watched. An
-	// ignored device is out of To review, the counts and the Devices list (ignored=true lists them), sends
-	// no new-device alert, is not scanned or read over SNMP, its open findings are closed (what a person
+	// When a person ignored the device (a staff phone: known, not watched); null = watched. An ignored
+	// device is out of To review, the counts and the Devices list (ignored=true lists them), sends no
+	// new-device alert, is not scanned or read over SNMP, its open findings are closed (what a person
 	// settled keeps its status) and none are made; a trap hit or an intrusion-detection incident from it
 	// still alerts.
 	IgnoredAt NilDateTime `json:"ignored_at"`
@@ -97452,27 +97398,27 @@ type InventoryGetInventoryDevicesIDOKAsset struct {
 	IP string `json:"ip"`
 	// True for the Vedette box itself: the first device, always present, cannot be deleted (409).
 	IsBox bool `json:"is_box"`
-	// Device type (content/devicetypes/types.json, D-511).
+	// Device type (content/devicetypes/types.json).
 	Kind InventoryGetInventoryDevicesIDOKAssetKind `json:"kind"`
-	// Source of the kind; null for the default unknown (D-511).
+	// Source of the kind; null for the default unknown.
 	KindSource NilInventoryGetInventoryDevicesIDOKAssetKindSource `json:"kind_source"`
 	LastSeen   time.Time                                          `json:"last_seen"`
 	MAC        NilString                                          `json:"mac"`
 	Model      NilInventoryGetInventoryDevicesIDOKAssetModel      `json:"model"`
-	// The name a person gave the device in Vedette (G2, PATCH name): it wins over every other name on
-	// every page; null = the default name (the naming rule, D-471).
+	// The name a person gave the device in Vedette (PATCH name): it wins over every other name on every
+	// page; null = the default name (the naming rule).
 	Name   NilString                                   `json:"name"`
 	Notes  OptString                                   `json:"notes"`
 	Origin InventoryGetInventoryDevicesIDOKAssetOrigin `json:"origin"`
 	Os     NilInventoryGetInventoryDevicesIDOKAssetOs  `json:"os"`
 	// The OS a person set (PATCH os, INV-41); absent when none: os is then what the sources read.
 	OsCorrection OptInventoryGetInventoryDevicesIDOKAssetOsCorrection `json:"os_correction"`
-	// Per-device override of the type setting for regular scans after the one gentle scan (D-45); never =
-	// never actively scanned again, for every kind of device (D-74).
+	// Per-device override of the type setting for regular scans after the one gentle scan; never = never
+	// actively scanned again, for every kind of device.
 	RegularScan InventoryGetInventoryDevicesIDOKAssetRegularScan `json:"regular_scan"`
-	// D-601: the box's network scan of this device (discovery's nmap and the vulnerability scans). on: the
-	// box's own scan settings decide; off: no scan packet goes to it. Default: on for a device a sensor
-	// found, off for one added by hand. Off is answered as regular_scan_never by the scan refusals.
+	// The box's network scan of this device (discovery's nmap and the vulnerability scans). on: the box's
+	// own scan settings decide; off: no scan packet goes to it. Default: on for a device a sensor found,
+	// off for one added by hand. Off is answered as regular_scan_never by the scan refusals.
 	ScanSource InventoryGetInventoryDevicesIDOKAssetScanSource     `json:"scan_source"`
 	Services   []InventoryGetInventoryDevicesIDOKAssetServicesItem `json:"services"`
 	Site       string                                              `json:"site"`
@@ -97764,15 +97710,15 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) SetVendor(val NilInventoryGetInv
 	s.Vendor = val
 }
 
-// What the identification rules say the device most likely is (D-511), only while kind is unknown; it
-// changes no behaviour until a person sets the kind.
+// What the identification rules say the device most likely is, only while kind is unknown; it changes
+// no behaviour until a person sets the kind.
 type InventoryGetInventoryDevicesIDOKAssetGuess struct {
 	// Other types the same signals fit, offered next to the guess.
 	Alternatives []InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem `json:"alternatives"`
 	Confidence   float64                                                      `json:"confidence"`
 	// What matched and what it most likely means, one sentence.
 	Evidence string `json:"evidence"`
-	// Device type (content/devicetypes/types.json, D-511).
+	// Device type (content/devicetypes/types.json).
 	Kind InventoryGetInventoryDevicesIDOKAssetGuessKind `json:"kind"`
 	// A model a certificate or page title states.
 	Model OptString `json:"model"`
@@ -97828,7 +97774,7 @@ func (s *InventoryGetInventoryDevicesIDOKAssetGuess) SetModel(val OptString) {
 	s.Model = val
 }
 
-// Device type (content/devicetypes/types.json, D-511).
+// Device type (content/devicetypes/types.json).
 type InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem string
 
 const (
@@ -98479,7 +98425,7 @@ func (s *InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem) UnmarshalTe
 	}
 }
 
-// Device type (content/devicetypes/types.json, D-511).
+// Device type (content/devicetypes/types.json).
 type InventoryGetInventoryDevicesIDOKAssetGuessKind string
 
 const (
@@ -99130,7 +99076,7 @@ func (s *InventoryGetInventoryDevicesIDOKAssetGuessKind) UnmarshalText(data []by
 	}
 }
 
-// Device type (content/devicetypes/types.json, D-511).
+// Device type (content/devicetypes/types.json).
 type InventoryGetInventoryDevicesIDOKAssetKind string
 
 const (
@@ -100289,8 +100235,8 @@ func (s *InventoryGetInventoryDevicesIDOKAssetOsSource) UnmarshalText(data []byt
 	}
 }
 
-// Per-device override of the type setting for regular scans after the one gentle scan (D-45); never =
-// never actively scanned again, for every kind of device (D-74).
+// Per-device override of the type setting for regular scans after the one gentle scan; never = never
+// actively scanned again, for every kind of device.
 type InventoryGetInventoryDevicesIDOKAssetRegularScan string
 
 const (
@@ -100339,9 +100285,9 @@ func (s *InventoryGetInventoryDevicesIDOKAssetRegularScan) UnmarshalText(data []
 	}
 }
 
-// D-601: the box's network scan of this device (discovery's nmap and the vulnerability scans). on: the
-// box's own scan settings decide; off: no scan packet goes to it. Default: on for a device a sensor
-// found, off for one added by hand. Off is answered as regular_scan_never by the scan refusals.
+// The box's network scan of this device (discovery's nmap and the vulnerability scans). on: the box's
+// own scan settings decide; off: no scan packet goes to it. Default: on for a device a sensor found,
+// off for one added by hand. Off is answered as regular_scan_never by the scan refusals.
 type InventoryGetInventoryDevicesIDOKAssetScanSource string
 
 const (
@@ -100386,7 +100332,7 @@ func (s *InventoryGetInventoryDevicesIDOKAssetScanSource) UnmarshalText(data []b
 type InventoryGetInventoryDevicesIDOKAssetServicesItem struct {
 	Confidence float64 `json:"confidence"`
 	// What the service said about the device besides product and version: nmap extra info and device type,
-	// page title, certificate subject (D-511). Evidence only, never software.
+	// page title, certificate subject. Evidence only, never software.
 	Detail  OptString                                               `json:"detail"`
 	Name    string                                                  `json:"name"`
 	Port    int                                                     `json:"port"`
@@ -100642,8 +100588,8 @@ type InventoryGetInventoryDevicesIDOKAssetSoftwareItem struct {
 	Display string   `json:"display"`
 	ID      string   `json:"id"`
 	KevCves []string `json:"kev_cves"`
-	// The full package release: an agent's packaged row ("1:9.6p1-3ubuntu13.14", D-516) or a person's
-	// correction ("10.2_p1-r1"); absent when none.
+	// The full package release: an agent's packaged row ("1:9.6p1-3ubuntu13.14") or a person's correction
+	// ("10.2_p1-r1"); absent when none.
 	PkgVersion OptString                                               `json:"pkg_version"`
 	Product    string                                                  `json:"product"`
 	Source     InventoryGetInventoryDevicesIDOKAssetSoftwareItemSource `json:"source"`
@@ -101172,7 +101118,7 @@ func (s *InventoryGetInventoryDevicesIDOKAssetVendorSource) UnmarshalText(data [
 	}
 }
 
-// Device type (content/devicetypes/types.json, D-511).
+// Device type (content/devicetypes/types.json).
 type InventoryGetInventoryDevicesIDOKKindsItem string
 
 const (
@@ -102057,12 +102003,11 @@ func (s *InventoryGetInventoryDevicesIDOKObservationsItemSource) UnmarshalText(d
 type InventoryGetInventoryDevicesIDOKPossibleSameItem struct {
 	Approved bool   `json:"approved"`
 	ID       string `json:"id"`
-	// D-630: a person ignored the other device. A merge keeps the kept device watched or ignored, except
-	// that an approved device a person watches is never hidden: merged with it, an ignored device is
-	// watched again.
+	// A person ignored the other device. A merge keeps the kept device watched or ignored, except that an
+	// approved device a person watches is never hidden: merged with it, an ignored device is watched again.
 	Ignored  bool      `json:"ignored"`
 	LastSeen time.Time `json:"last_seen"`
-	// The other device, named as every page names it (D-471).
+	// The other device, named as every page names it.
 	Name string `json:"name"`
 	// What the two share, in plain words to show as is, e.g. Same name "iPhone", never online at the same
 	// time, and a private Wi-Fi address (phones and laptops change it).
@@ -102129,8 +102074,8 @@ func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) SetWhy(val string) {
 	s.Why = val
 }
 
-// The device's risk marker (G4, findings.RiskMap): null when it has no open exploited finding To fix
-// lists and no such update, for the Vedette box itself, and while the findings module is off.
+// The device's risk marker (findings.RiskMap): null when it has no open exploited finding To fix lists
+// and no such update, for the Vedette box itself, and while the findings module is off.
 type InventoryGetInventoryDevicesIDOKRisk struct {
 	// Open exploited findings of the device that Findings › To fix lists: an update is named for them,
 	// or the box proved them (a product-only guess is in Needs your input, not here).
@@ -102212,7 +102157,7 @@ func (s *InventoryGetInventoryDevicesIDOKRiskLevel) UnmarshalText(data []byte) e
 	}
 }
 
-// D-630: true lists only the ignored devices; false or absent leaves them out.
+// True lists only the ignored devices; false or absent leaves them out.
 type InventoryGetInventoryDevicesIgnored string
 
 const (
@@ -102260,8 +102205,8 @@ type InventoryGetInventoryDevicesOK struct {
 	// False when the notify module is off.
 	NotifyAvailable bool `json:"notify_available"`
 	NotifyNew       bool `json:"notify_new"`
-	// G4: the risk markers could not be read (the findings module failed): no row has one and a risk
-	// filter was not applied.
+	// The risk markers could not be read (the findings module failed): no row has one and a risk filter
+	// was not applied.
 	RiskUnavailable bool `json:"risk_unavailable"`
 }
 
@@ -102318,7 +102263,7 @@ func (s *InventoryGetInventoryDevicesOK) SetRiskUnavailable(val bool) {
 type InventoryGetInventoryDevicesOKCounts struct {
 	All     int `json:"all"`
 	Fragile int `json:"fragile"`
-	// Ignored devices (D-630); no other count includes them.
+	// Ignored devices; no other count includes them.
 	Ignored int `json:"ignored"`
 	Manual  int `json:"manual"`
 	Pending int `json:"pending"`
@@ -102376,9 +102321,8 @@ func (s *InventoryGetInventoryDevicesOKCounts) SetPending(val int) {
 
 type InventoryGetInventoryDevicesOKItemsItem struct {
 	Approved bool `json:"approved"`
-	// When a person approved the device, or osquery enrolment did (D-471: "Approved in the last 24 h");
-	// approving again does not move it; null = not approved, added by hand, or approved before this field
-	// existed.
+	// When a person approved the device, or osquery enrolment did ("Approved in the last 24 h"); approving
+	// again does not move it; null = not approved, added by hand, or approved before this field existed.
 	ApprovedAt NilDateTime `json:"approved_at"`
 	// Number of findings attached to the device; deleting the device also deletes these findings.
 	FindingsCount int `json:"findings_count"`
@@ -102392,9 +102336,9 @@ type InventoryGetInventoryDevicesOKItemsItem struct {
 	// was added manually; read-only.
 	Hostname NilString `json:"hostname"`
 	ID       string    `json:"id"`
-	// D-630: when a person ignored the device (a staff phone: known, not watched); null = watched. An
-	// ignored device is out of To review, the counts and the Devices list (ignored=true lists them), sends
-	// no new-device alert, is not scanned or read over SNMP, its open findings are closed (what a person
+	// When a person ignored the device (a staff phone: known, not watched); null = watched. An ignored
+	// device is out of To review, the counts and the Devices list (ignored=true lists them), sends no
+	// new-device alert, is not scanned or read over SNMP, its open findings are closed (what a person
 	// settled keeps its status) and none are made; a trap hit or an intrusion-detection incident from it
 	// still alerts.
 	IgnoredAt NilDateTime `json:"ignored_at"`
@@ -102402,26 +102346,26 @@ type InventoryGetInventoryDevicesOKItemsItem struct {
 	IP string `json:"ip"`
 	// True for the Vedette box itself: the first device, always present, cannot be deleted (409).
 	IsBox bool `json:"is_box"`
-	// Device type (content/devicetypes/types.json, D-511).
+	// Device type (content/devicetypes/types.json).
 	Kind InventoryGetInventoryDevicesOKItemsItemKind `json:"kind"`
-	// Source of the kind; null for the default unknown (D-511).
+	// Source of the kind; null for the default unknown.
 	KindSource NilInventoryGetInventoryDevicesOKItemsItemKindSource `json:"kind_source"`
 	LastSeen   time.Time                                            `json:"last_seen"`
 	MAC        NilString                                            `json:"mac"`
 	Model      NilInventoryGetInventoryDevicesOKItemsItemModel      `json:"model"`
-	// The name a person gave the device in Vedette (G2, PATCH name): it wins over every other name on
-	// every page; null = the default name (the naming rule, D-471).
+	// The name a person gave the device in Vedette (PATCH name): it wins over every other name on every
+	// page; null = the default name (the naming rule).
 	Name   NilString                                     `json:"name"`
 	Notes  OptString                                     `json:"notes"`
 	Origin InventoryGetInventoryDevicesOKItemsItemOrigin `json:"origin"`
 	Os     NilInventoryGetInventoryDevicesOKItemsItemOs  `json:"os"`
-	// Per-device override of the type setting for regular scans after the one gentle scan (D-45); never =
-	// never actively scanned again, for every kind of device (D-74).
+	// Per-device override of the type setting for regular scans after the one gentle scan; never = never
+	// actively scanned again, for every kind of device.
 	RegularScan InventoryGetInventoryDevicesOKItemsItemRegularScan `json:"regular_scan"`
 	Risk        NilInventoryGetInventoryDevicesOKItemsItemRisk     `json:"risk"`
-	// D-601: the box's network scan of this device (discovery's nmap and the vulnerability scans). on: the
-	// box's own scan settings decide; off: no scan packet goes to it. Default: on for a device a sensor
-	// found, off for one added by hand. Off is answered as regular_scan_never by the scan refusals.
+	// The box's network scan of this device (discovery's nmap and the vulnerability scans). on: the box's
+	// own scan settings decide; off: no scan packet goes to it. Default: on for a device a sensor found,
+	// off for one added by hand. Off is answered as regular_scan_never by the scan refusals.
 	ScanSource InventoryGetInventoryDevicesOKItemsItemScanSource     `json:"scan_source"`
 	Services   []InventoryGetInventoryDevicesOKItemsItemServicesItem `json:"services"`
 	Site       string                                                `json:"site"`
@@ -102760,15 +102704,15 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) SetVendor(val NilInventoryGetI
 	s.Vendor = val
 }
 
-// What the identification rules say the device most likely is (D-511), only while kind is unknown; it
-// changes no behaviour until a person sets the kind.
+// What the identification rules say the device most likely is, only while kind is unknown; it changes
+// no behaviour until a person sets the kind.
 type InventoryGetInventoryDevicesOKItemsItemGuess struct {
 	// Other types the same signals fit, offered next to the guess.
 	Alternatives []InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem `json:"alternatives"`
 	Confidence   float64                                                        `json:"confidence"`
 	// What matched and what it most likely means, one sentence.
 	Evidence string `json:"evidence"`
-	// Device type (content/devicetypes/types.json, D-511).
+	// Device type (content/devicetypes/types.json).
 	Kind InventoryGetInventoryDevicesOKItemsItemGuessKind `json:"kind"`
 	// A model a certificate or page title states.
 	Model OptString `json:"model"`
@@ -102824,7 +102768,7 @@ func (s *InventoryGetInventoryDevicesOKItemsItemGuess) SetModel(val OptString) {
 	s.Model = val
 }
 
-// Device type (content/devicetypes/types.json, D-511).
+// Device type (content/devicetypes/types.json).
 type InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem string
 
 const (
@@ -103475,7 +103419,7 @@ func (s *InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem) Unmarshal
 	}
 }
 
-// Device type (content/devicetypes/types.json, D-511).
+// Device type (content/devicetypes/types.json).
 type InventoryGetInventoryDevicesOKItemsItemGuessKind string
 
 const (
@@ -104126,7 +104070,7 @@ func (s *InventoryGetInventoryDevicesOKItemsItemGuessKind) UnmarshalText(data []
 	}
 }
 
-// Device type (content/devicetypes/types.json, D-511).
+// Device type (content/devicetypes/types.json).
 type InventoryGetInventoryDevicesOKItemsItemKind string
 
 const (
@@ -105119,8 +105063,8 @@ func (s *InventoryGetInventoryDevicesOKItemsItemOsSource) UnmarshalText(data []b
 	}
 }
 
-// Per-device override of the type setting for regular scans after the one gentle scan (D-45); never =
-// never actively scanned again, for every kind of device (D-74).
+// Per-device override of the type setting for regular scans after the one gentle scan; never = never
+// actively scanned again, for every kind of device.
 type InventoryGetInventoryDevicesOKItemsItemRegularScan string
 
 const (
@@ -105169,8 +105113,8 @@ func (s *InventoryGetInventoryDevicesOKItemsItemRegularScan) UnmarshalText(data 
 	}
 }
 
-// The device's risk marker (G4, findings.RiskMap): null when it has no open exploited finding To fix
-// lists and no such update, for the Vedette box itself, and while the findings module is off.
+// The device's risk marker (findings.RiskMap): null when it has no open exploited finding To fix lists
+// and no such update, for the Vedette box itself, and while the findings module is off.
 type InventoryGetInventoryDevicesOKItemsItemRisk struct {
 	// Open exploited findings of the device that Findings › To fix lists: an update is named for them,
 	// or the box proved them (a product-only guess is in Needs your input, not here).
@@ -105252,9 +105196,9 @@ func (s *InventoryGetInventoryDevicesOKItemsItemRiskLevel) UnmarshalText(data []
 	}
 }
 
-// D-601: the box's network scan of this device (discovery's nmap and the vulnerability scans). on: the
-// box's own scan settings decide; off: no scan packet goes to it. Default: on for a device a sensor
-// found, off for one added by hand. Off is answered as regular_scan_never by the scan refusals.
+// The box's network scan of this device (discovery's nmap and the vulnerability scans). on: the box's
+// own scan settings decide; off: no scan packet goes to it. Default: on for a device a sensor found,
+// off for one added by hand. Off is answered as regular_scan_never by the scan refusals.
 type InventoryGetInventoryDevicesOKItemsItemScanSource string
 
 const (
@@ -105299,7 +105243,7 @@ func (s *InventoryGetInventoryDevicesOKItemsItemScanSource) UnmarshalText(data [
 type InventoryGetInventoryDevicesOKItemsItemServicesItem struct {
 	Confidence float64 `json:"confidence"`
 	// What the service said about the device besides product and version: nmap extra info and device type,
-	// page title, certificate subject (D-511). Evidence only, never software.
+	// page title, certificate subject. Evidence only, never software.
 	Detail  OptString                                                 `json:"detail"`
 	Name    string                                                    `json:"name"`
 	Port    int                                                       `json:"port"`
@@ -106109,7 +106053,7 @@ func (s *InventoryGetInventoryExportCsvHasFindings) UnmarshalText(data []byte) e
 	}
 }
 
-// D-630: true lists only the ignored devices; false or absent leaves them out.
+// True lists only the ignored devices; false or absent leaves them out.
 type InventoryGetInventoryExportCsvIgnored string
 
 const (
@@ -106180,7 +106124,7 @@ func (s InventoryGetInventoryImportTemplateCsvOK) Read(p []byte) (n int, err err
 }
 
 type InventoryGetInventoryPossibleSameOK struct {
-	// Every pair of devices that may be one machine (D-599), the pair seen last first.
+	// Every pair of devices that may be one machine, the pair seen last first.
 	Items []InventoryGetInventoryPossibleSameOKItemsItem `json:"items"`
 }
 
@@ -106238,7 +106182,7 @@ type InventoryGetInventoryPossibleSameOKItemsItemA struct {
 	Approved bool      `json:"approved"`
 	ID       string    `json:"id"`
 	LastSeen time.Time `json:"last_seen"`
-	// The other device, named as every page names it (D-471).
+	// The other device, named as every page names it.
 	Name string `json:"name"`
 }
 
@@ -106286,7 +106230,7 @@ type InventoryGetInventoryPossibleSameOKItemsItemB struct {
 	Approved bool      `json:"approved"`
 	ID       string    `json:"id"`
 	LastSeen time.Time `json:"last_seen"`
-	// The other device, named as every page names it (D-471).
+	// The other device, named as every page names it.
 	Name string `json:"name"`
 }
 
@@ -106345,20 +106289,19 @@ func (s *InventoryGetInventorySensorsOK) SetSensors(val []InventoryGetInventoryS
 }
 
 type InventoryGetInventorySensorsOKSensorsItem struct {
-	// Why the sensor, online, does not capture on its card (from its heartbeat, D-399): no_permission = no
+	// Why the sensor, online, does not capture on its card (from its heartbeat): no_permission = no
 	// CAP_NET_RAW (rootless container), no_interface = the card is not on that machine, filters_invalid =
 	// the capture filters cannot be read, capture_failed = anything else (the sensor log says what); null
 	// while it captures, has no card, or is not online.
 	CaptureError NilInventoryGetInventorySensorsOKSensorsItemCaptureError `json:"capture_error"`
 	// True: interface is a stored choice (the SPAN port of Settings → Box network, or the card chosen
-	// with PATCH on a container-only install); false: interface is the default card (D-380) or null
-	// (D-393).
+	// with PATCH on a container-only install); false: interface is the default card or null.
 	Chosen      bool   `json:"chosen"`
 	DevicesSeen int    `json:"devices_seen"`
 	ID          string `json:"id"`
 	// The port the sensor listens on: the card chosen (the SPAN port when SPAN is on), else the default
-	// card, the management port (D-380); null: none. Set in Settings → Box network; on a container-only
-	// install with PATCH /inventory/sensors/{id} (D-387, D-393).
+	// card, the management port; null: none. Set in Settings → Box network; on a container-only install
+	// with PATCH /inventory/sensors/{id}.
 	Interface NilString `json:"interface"`
 	// The cards the sensor reported in its last heartbeat.
 	Interfaces []string    `json:"interfaces"`
@@ -106368,10 +106311,10 @@ type InventoryGetInventorySensorsOKSensorsItem struct {
 	// Live mirrored-traffic health, the same as Settings → Box network.
 	SpanStatus InventoryGetInventorySensorsOKSensorsItemSpanStatus `json:"span_status"`
 	// Online: a heartbeat in the last 90 s; offline: it reported before, then nothing for 90 s;
-	// never_connected: no heartbeat ever (D-387); starting: not online while the box is still starting the
-	// sensor container (an appliance after setup or after the module is turned on: the start is being
-	// retried, for up to 10 minutes, or was confirmed less than 3 minutes ago; walk 2, W2-6). A
-	// container-only install never says starting: the customer starts it.
+	// never_connected: no heartbeat ever; starting: not online while the box is still starting the sensor
+	// container (an appliance after setup or after the module is turned on: the start is being retried,
+	// for up to 10 minutes, or was confirmed less than 3 minutes ago). A container-only install never says
+	// starting: the customer starts it.
 	Status  InventoryGetInventorySensorsOKSensorsItemStatus `json:"status"`
 	Version NilString                                       `json:"version"`
 }
@@ -106651,10 +106594,10 @@ func (s *InventoryGetInventorySensorsOKSensorsItemSpanStatusVerdict) UnmarshalTe
 }
 
 // Online: a heartbeat in the last 90 s; offline: it reported before, then nothing for 90 s;
-// never_connected: no heartbeat ever (D-387); starting: not online while the box is still starting the
-// sensor container (an appliance after setup or after the module is turned on: the start is being
-// retried, for up to 10 minutes, or was confirmed less than 3 minutes ago; walk 2, W2-6). A
-// container-only install never says starting: the customer starts it.
+// never_connected: no heartbeat ever; starting: not online while the box is still starting the sensor
+// container (an appliance after setup or after the module is turned on: the start is being retried,
+// for up to 10 minutes, or was confirmed less than 3 minutes ago). A container-only install never says
+// starting: the customer starts it.
 type InventoryGetInventorySensorsOKSensorsItemStatus string
 
 const (
@@ -106713,9 +106656,9 @@ func (s *InventoryGetInventorySensorsOKSensorsItemStatus) UnmarshalText(data []b
 type InventoryGetInventorySettingsOK struct {
 	Active InventoryGetInventorySettingsOKActive `json:"active"`
 	// Device types scanned only once, gently, when first seen; passive-only after that. Every type acting
-	// as one of them counts (D-511).
+	// as one of them counts.
 	FragileKinds []InventoryGetInventorySettingsOKFragileKindsItem `json:"fragile_kinds"`
-	// Internal IPv4 CIDR (RFC 1918, or the RFC 6598 shared address space 100.64.0.0/10, D-461).
+	// Internal IPv4 CIDR (RFC 1918, or the RFC 6598 shared address space 100.64.0.0/10).
 	LanRanges []string `json:"lan_ranges"`
 	// Subset of fragile_kinds for which the owner allowed regular scans.
 	RegularScanKinds []InventoryGetInventorySettingsOKRegularScanKindsItem `json:"regular_scan_kinds"`
@@ -108534,18 +108477,18 @@ func (s *InventoryPatchInventoryDevicesIDOK) SetOk(val bool) {
 
 type InventoryPatchInventoryDevicesIDReq struct {
 	Fragile OptBool `json:"fragile"`
-	// Device type (content/devicetypes/types.json, D-511).
+	// Device type (content/devicetypes/types.json).
 	Kind OptInventoryPatchInventoryDevicesIDReqKind `json:"kind"`
-	// The name in Vedette (G2): trimmed, at most 64 characters, no < or >; empty clears it (back to the
-	// default name). The host name the network reports is not changed.
+	// The name in Vedette: trimmed, at most 64 characters, no < or >; empty clears it (back to the default
+	// name). The host name the network reports is not changed.
 	Name  OptString `json:"name"`
 	Notes OptString `json:"notes"`
 	// Correct the operating system (INV-41): trimmed, at most 200 characters, no < or >; it wins over
 	// every sensor and agent and drives matching until cleared. Empty clears it (back to what the sources
 	// read). 400 bad_os.
 	Os OptString `json:"os"`
-	// Per-device override of the type setting for regular scans after the one gentle scan (D-45); never =
-	// never actively scanned again, for every kind of device (D-74).
+	// Per-device override of the type setting for regular scans after the one gentle scan; never = never
+	// actively scanned again, for every kind of device.
 	RegularScan OptInventoryPatchInventoryDevicesIDReqRegularScan `json:"regular_scan"`
 }
 
@@ -108609,7 +108552,7 @@ func (s *InventoryPatchInventoryDevicesIDReq) SetRegularScan(val OptInventoryPat
 	s.RegularScan = val
 }
 
-// Device type (content/devicetypes/types.json, D-511).
+// Device type (content/devicetypes/types.json).
 type InventoryPatchInventoryDevicesIDReqKind string
 
 const (
@@ -109260,8 +109203,8 @@ func (s *InventoryPatchInventoryDevicesIDReqKind) UnmarshalText(data []byte) err
 	}
 }
 
-// Per-device override of the type setting for regular scans after the one gentle scan (D-45); never =
-// never actively scanned again, for every kind of device (D-74).
+// Per-device override of the type setting for regular scans after the one gentle scan; never = never
+// actively scanned again, for every kind of device.
 type InventoryPatchInventoryDevicesIDReqRegularScan string
 
 const (
@@ -109401,20 +109344,19 @@ func (s *InventoryPatchInventoryDevicesIDSoftwareSidReq) SetVersion(val OptStrin
 }
 
 type InventoryPatchInventorySensorsIDOK struct {
-	// Why the sensor, online, does not capture on its card (from its heartbeat, D-399): no_permission = no
+	// Why the sensor, online, does not capture on its card (from its heartbeat): no_permission = no
 	// CAP_NET_RAW (rootless container), no_interface = the card is not on that machine, filters_invalid =
 	// the capture filters cannot be read, capture_failed = anything else (the sensor log says what); null
 	// while it captures, has no card, or is not online.
 	CaptureError NilInventoryPatchInventorySensorsIDOKCaptureError `json:"capture_error"`
 	// True: interface is a stored choice (the SPAN port of Settings → Box network, or the card chosen
-	// with PATCH on a container-only install); false: interface is the default card (D-380) or null
-	// (D-393).
+	// with PATCH on a container-only install); false: interface is the default card or null.
 	Chosen      bool   `json:"chosen"`
 	DevicesSeen int    `json:"devices_seen"`
 	ID          string `json:"id"`
 	// The port the sensor listens on: the card chosen (the SPAN port when SPAN is on), else the default
-	// card, the management port (D-380); null: none. Set in Settings → Box network; on a container-only
-	// install with PATCH /inventory/sensors/{id} (D-387, D-393).
+	// card, the management port; null: none. Set in Settings → Box network; on a container-only install
+	// with PATCH /inventory/sensors/{id}.
 	Interface NilString `json:"interface"`
 	// The cards the sensor reported in its last heartbeat.
 	Interfaces []string    `json:"interfaces"`
@@ -109424,10 +109366,10 @@ type InventoryPatchInventorySensorsIDOK struct {
 	// Live mirrored-traffic health, the same as Settings → Box network.
 	SpanStatus InventoryPatchInventorySensorsIDOKSpanStatus `json:"span_status"`
 	// Online: a heartbeat in the last 90 s; offline: it reported before, then nothing for 90 s;
-	// never_connected: no heartbeat ever (D-387); starting: not online while the box is still starting the
-	// sensor container (an appliance after setup or after the module is turned on: the start is being
-	// retried, for up to 10 minutes, or was confirmed less than 3 minutes ago; walk 2, W2-6). A
-	// container-only install never says starting: the customer starts it.
+	// never_connected: no heartbeat ever; starting: not online while the box is still starting the sensor
+	// container (an appliance after setup or after the module is turned on: the start is being retried,
+	// for up to 10 minutes, or was confirmed less than 3 minutes ago). A container-only install never says
+	// starting: the customer starts it.
 	Status  InventoryPatchInventorySensorsIDOKStatus `json:"status"`
 	Version NilString                                `json:"version"`
 }
@@ -109707,10 +109649,10 @@ func (s *InventoryPatchInventorySensorsIDOKSpanStatusVerdict) UnmarshalText(data
 }
 
 // Online: a heartbeat in the last 90 s; offline: it reported before, then nothing for 90 s;
-// never_connected: no heartbeat ever (D-387); starting: not online while the box is still starting the
-// sensor container (an appliance after setup or after the module is turned on: the start is being
-// retried, for up to 10 minutes, or was confirmed less than 3 minutes ago; walk 2, W2-6). A
-// container-only install never says starting: the customer starts it.
+// never_connected: no heartbeat ever; starting: not online while the box is still starting the sensor
+// container (an appliance after setup or after the module is turned on: the start is being retried,
+// for up to 10 minutes, or was confirmed less than 3 minutes ago). A container-only install never says
+// starting: the customer starts it.
 type InventoryPatchInventorySensorsIDOKStatus string
 
 const (
@@ -109768,7 +109710,7 @@ func (s *InventoryPatchInventorySensorsIDOKStatus) UnmarshalText(data []byte) er
 
 type InventoryPatchInventorySensorsIDReq struct {
 	// A card of the sensor's last heartbeat (younger than 90 s); null: no card chosen, the sensor listens
-	// on the default one (D-380).
+	// on the default one.
 	Interface NilString `json:"interface"`
 	// The card receives mirrored traffic; it must have no IPv4 address. true needs an interface.
 	Span bool `json:"span"`
@@ -112871,9 +112813,9 @@ type InventoryPutInventorySettingsOK struct {
 	// Ranges normalized on save, e.g. 192.168.18.0 → 192.168.18.0/24.
 	Adjusted []InventoryPutInventorySettingsOKAdjustedItem `json:"adjusted"`
 	// Device types scanned only once, gently, when first seen; passive-only after that. Every type acting
-	// as one of them counts (D-511).
+	// as one of them counts.
 	FragileKinds []InventoryPutInventorySettingsOKFragileKindsItem `json:"fragile_kinds"`
-	// Internal IPv4 CIDR (RFC 1918, or the RFC 6598 shared address space 100.64.0.0/10, D-461).
+	// Internal IPv4 CIDR (RFC 1918, or the RFC 6598 shared address space 100.64.0.0/10).
 	LanRanges []string `json:"lan_ranges"`
 	// Subset of fragile_kinds for which the owner allowed regular scans.
 	RegularScanKinds []InventoryPutInventorySettingsOKRegularScanKindsItem `json:"regular_scan_kinds"`
@@ -113302,9 +113244,9 @@ func (s *InventoryPutInventorySettingsOKRegularScanKindsItem) UnmarshalText(data
 type InventoryPutInventorySettingsReq struct {
 	Active InventoryPutInventorySettingsReqActive `json:"active"`
 	// Device types scanned only once, gently, when first seen; passive-only after that. Every type acting
-	// as one of them counts (D-511).
+	// as one of them counts.
 	FragileKinds []InventoryPutInventorySettingsReqFragileKindsItem `json:"fragile_kinds"`
-	// Internal IPv4 CIDR (RFC 1918, or the RFC 6598 shared address space 100.64.0.0/10, D-461).
+	// Internal IPv4 CIDR (RFC 1918, or the RFC 6598 shared address space 100.64.0.0/10).
 	LanRanges []string `json:"lan_ranges"`
 	// Subset of fragile_kinds for which the owner allowed regular scans.
 	RegularScanKinds []InventoryPutInventorySettingsReqRegularScanKindsItem `json:"regular_scan_kinds"`
@@ -113312,9 +113254,9 @@ type InventoryPutInventorySettingsReq struct {
 	ScopeConfirmed   bool        `json:"scope_confirmed"`
 	ScopeConfirmedAt NilDateTime `json:"scope_confirmed_at"`
 	ScopeConfirmedBy NilString   `json:"scope_confirmed_by"`
-	// The version this page read. Given and not the stored one: 409 safety_changed, nothing stored (review
-	// #860 M1). Left out: no check, so a range or exclusion added since the page loaded is replaced; this
-	// page is being replaced by Settings › Scanning (#850).
+	// The version this page read. Given and not the stored one: 409 safety_changed, nothing stored (#860).
+	// Left out: no check, so a range or exclusion added since the page loaded is replaced; this page is
+	// being replaced by Settings › Scanning (#850).
 	Version OptString `json:"version"`
 }
 
@@ -114993,8 +114935,8 @@ type LogsGetLogsDigestOKBadConnectionsItem struct {
 	// Threat feeds that list the destination.
 	Feeds []string `json:"feeds"`
 	ID    string   `json:"id"`
-	// The name a feed lists for itself and all of its subdomains when dest is one of them (hagezi TIF,
-	// D-228, D-425): look this name up in Feeds. null when a feed lists dest itself.
+	// The name a feed lists for itself and all of its subdomains when dest is one of them (hagezi TIF):
+	// look this name up in Feeds. null when a feed lists dest itself.
 	ListedAs NilString `json:"listed_as"`
 	// How the box saw it. SPAN metadata: span_dns | span_sni | span_http | span_flow. Syslog: "syslog:".
 	SeenVia string    `json:"seen_via"`
@@ -115379,8 +115321,7 @@ func (s *LogsGetLogsEventsOK) SetTotal(val int) {
 type LogsGetLogsEventsOKEventsItem struct {
 	// The program the header names (sshd, CRON, …); null when it does not say.
 	App NilString `json:"app"`
-	// The sending host the syslog header names (RFC 5424 or 3164); null when it does not say (W1-22,
-	// D-485).
+	// The sending host the syslog header names (RFC 5424 or 3164); null when it does not say.
 	Host NilString `json:"host"`
 	ID   string    `json:"id"`
 	// The line as stored: what search and evidence use.
@@ -137775,25 +137716,25 @@ func (s *NotifyGetNotifyChannelsOK) SetQuiet(val NotifyGetNotifyChannelsOKQuiet)
 type NotifyGetNotifyChannelsOKChannelsItem struct {
 	// Slack Socket Mode tokens (xapp-, xoxb-): only the last 4 characters are returned.
 	ApprovalLast4 NotifyGetNotifyChannelsOKChannelsItemApprovalLast4 `json:"approval_last4"`
-	// Approve actions from this channel (Slack, Telegram, Email, Zalo personal; D-38, D-46).
+	// Approve actions from this channel (Slack, Telegram, Email, Zalo personal).
 	Approvals bool `json:"approvals"`
 	// Vedette users (operator or admin) allowed to approve from this channel, with their address on it.
 	Approvers  []NotifyGetNotifyChannelsOKChannelsItemApproversItem `json:"approvers"`
 	Configured bool                                                 `json:"configured"`
 	Enabled    bool                                                 `json:"enabled"`
 	// Non-secret fields: telegram chat_id · zalo oa_id, user_id, app_id (the Zalo app of the
-	// refresh-token flow, D-483; absent for a channel with only an access token) · zalo-personal user_id
+	// refresh-token flow; absent for a channel with only an access token) · zalo-personal user_id
 	// (recipient user or group ID), group ("true" for a group), name (shown name of the recipient),
-	// account (shown name of the signed-in Zalo account; set by the box from the QR sign-in, D-447; the
-	// session is the secret) · email provider (preset, D-449:
+	// account (shown name of the signed-in Zalo account; set by the box from the QR sign-in; the session
+	// is the secret) · email provider (preset:
 	// custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace;
-	// D-480 user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom),
-	// host, port, security (starttls|ssl|none), username (the mailbox for microsoft365 and
-	// google-workspace; none for postmark, whose server token is the secret), tenant_id (microsoft365,
-	// microsoft365-user, outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by
-	// the box: the sign-in method, server and port the saved secret is for; changing one needs the secret
-	// again) · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its
-	// last 4 characters; send it empty, or as returned, to keep the saved one) · slack label (optional),
+	// user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom), host,
+	// port, security (starttls|ssl|none), username (the mailbox for microsoft365 and google-workspace;
+	// none for postmark, whose server token is the secret), tenant_id (microsoft365, microsoft365-user,
+	// outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by the box: the
+	// sign-in method, server and port the saved secret is for; changing one needs the secret again) ·
+	// webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its last 4
+	// characters; send it empty, or as returned, to keep the saved one) · slack label (optional),
 	// channel_id (approvals only).
 	Fields      NotifyGetNotifyChannelsOKChannelsItemFields      `json:"fields"`
 	LastTest    NilNotifyGetNotifyChannelsOKChannelsItemLastTest `json:"last_test"`
@@ -137933,7 +137874,7 @@ type NotifyGetNotifyChannelsOKChannelsItemApproversItem struct {
 	// Slack member ID · Telegram user ID · sign-in email · Zalo user ID (digits, not a phone number);
 	// unique per channel.
 	Address string `json:"address"`
-	// Zalo personal: the shown name of the approver's Zalo account, from the picker (D-447).
+	// Zalo personal: the shown name of the approver's Zalo account, from the picker.
 	Name   OptString `json:"name"`
 	UserID string    `json:"user_id"`
 }
@@ -137969,18 +137910,18 @@ func (s *NotifyGetNotifyChannelsOKChannelsItemApproversItem) SetUserID(val strin
 }
 
 // Non-secret fields: telegram chat_id · zalo oa_id, user_id, app_id (the Zalo app of the
-// refresh-token flow, D-483; absent for a channel with only an access token) · zalo-personal user_id
+// refresh-token flow; absent for a channel with only an access token) · zalo-personal user_id
 // (recipient user or group ID), group ("true" for a group), name (shown name of the recipient),
-// account (shown name of the signed-in Zalo account; set by the box from the QR sign-in, D-447; the
-// session is the secret) · email provider (preset, D-449:
+// account (shown name of the signed-in Zalo account; set by the box from the QR sign-in; the session
+// is the secret) · email provider (preset:
 // custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace;
-// D-480 user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom),
-// host, port, security (starttls|ssl|none), username (the mailbox for microsoft365 and
-// google-workspace; none for postmark, whose server token is the secret), tenant_id (microsoft365,
-// microsoft365-user, outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by
-// the box: the sign-in method, server and port the saved secret is for; changing one needs the secret
-// again) · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its
-// last 4 characters; send it empty, or as returned, to keep the saved one) · slack label (optional),
+// user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom), host,
+// port, security (starttls|ssl|none), username (the mailbox for microsoft365 and google-workspace;
+// none for postmark, whose server token is the secret), tenant_id (microsoft365, microsoft365-user,
+// outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by the box: the
+// sign-in method, server and port the saved secret is for; changing one needs the secret again) ·
+// webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its last 4
+// characters; send it empty, or as returned, to keep the saved one) · slack label (optional),
 // channel_id (approvals only).
 type NotifyGetNotifyChannelsOKChannelsItemFields map[string]string
 
@@ -138260,7 +138201,7 @@ type NotifyGetNotifyFindingsIDNoticesOKSendsItem struct {
 	At      time.Time                                          `json:"at"`
 	Channel NotifyGetNotifyFindingsIDNoticesOKSendsItemChannel `json:"channel"`
 	// The provider asked to slow down (HTTP 429, Zalo -32): the message waits in the queue and is sent
-	// again by itself; not a failure, no Resend (D-483).
+	// again by itself; not a failure, no Resend.
 	Delayed bool      `json:"delayed"`
 	Error   OptString `json:"error"`
 	ID      string    `json:"id"`
@@ -138436,7 +138377,7 @@ type NotifyGetNotifyHistoryOKItemsItem struct {
 	At      time.Time                                `json:"at"`
 	Channel NotifyGetNotifyHistoryOKItemsItemChannel `json:"channel"`
 	// A "Delayed (rate limited)" row: the message is sent again by itself after the wait the provider
-	// asked for (D-483).
+	// asked for.
 	Delayed bool                                  `json:"delayed"`
 	Error   OptString                             `json:"error"`
 	ID      string                                `json:"id"`
@@ -138717,13 +138658,13 @@ func (s *NotifyGetNotifyIncidentsIDOK) SetPreviews(val []NotifyGetNotifyIncident
 type NotifyGetNotifyIncidentsIDOKIncident struct {
 	Action string `json:"action"`
 	// Bad_address only: the device that logged the connection blocked it, so it was an attempt, not a
-	// connection (D-227); false for the other kinds.
+	// connection; false for the other kinds.
 	Attempt bool `json:"attempt"`
 	// Repeats of the same thing are grouped into one incident.
 	Count   int                                               `json:"count"`
 	Devices []NotifyGetNotifyIncidentsIDOKIncidentDevicesItem `json:"devices"`
 	// Opened in the first 36 hours as a low or medium bad-connection or log incident, so it was told in
-	// the hourly first-run summary message instead of its own (D-550).
+	// the hourly first-run summary message instead of its own.
 	FirstRunSummary bool        `json:"first_run_summary"`
 	FirstSeen       time.Time   `json:"first_seen"`
 	HandledAt       NilDateTime `json:"handled_at"`
@@ -138741,7 +138682,7 @@ type NotifyGetNotifyIncidentsIDOKIncident struct {
 	Note    NilString                                      `json:"note"`
 	// Why Vedette closed it by itself, plain English shown as is ("Closed by Vedette: the device was
 	// approved by an@example.com.", "Closed by Vedette: no new activity for 7 days."); null when a person
-	// handled it last or it is open (D-550).
+	// handled it last or it is open.
 	ResolvedReason NilString                                       `json:"resolved_reason"`
 	Sends          []NotifyGetNotifyIncidentsIDOKIncidentSendsItem `json:"sends"`
 	Severity       NotifyGetNotifyIncidentsIDOKIncidentSeverity    `json:"severity"`
@@ -139036,9 +138977,8 @@ type NotifyGetNotifyIncidentsIDOKIncidentNotSent struct {
 	// the message waited (channel_off, channel_removed), or the one with the lowest minimum
 	// (below_min_severity).
 	Channel OptNotifyGetNotifyIncidentsIDOKIncidentNotSentChannel `json:"channel"`
-	// Why no channel has it (INV-24, D-551): the decision kept when it was opened; queued and quiet_hours
-	// still go out by themselves; unknown = opened before the reason was kept and today's channels would
-	// take it.
+	// Why no channel has it (INV-24): the decision kept when it was opened; queued and quiet_hours still
+	// go out by themselves; unknown = opened before the reason was kept and today's channels would take it.
 	Reason NotifyGetNotifyIncidentsIDOKIncidentNotSentReason `json:"reason"`
 	// One plain sentence for the customer, e.g. "Not sent: this incident is medium, and your channels only
 	// send high and above.".
@@ -139159,9 +139099,8 @@ func (s *NotifyGetNotifyIncidentsIDOKIncidentNotSentChannel) UnmarshalText(data 
 	}
 }
 
-// Why no channel has it (INV-24, D-551): the decision kept when it was opened; queued and quiet_hours
-// still go out by themselves; unknown = opened before the reason was kept and today's channels would
-// take it.
+// Why no channel has it (INV-24): the decision kept when it was opened; queued and quiet_hours still
+// go out by themselves; unknown = opened before the reason was kept and today's channels would take it.
 type NotifyGetNotifyIncidentsIDOKIncidentNotSentReason string
 
 const (
@@ -139270,7 +139209,7 @@ type NotifyGetNotifyIncidentsIDOKIncidentSendsItem struct {
 	At      time.Time                                            `json:"at"`
 	Channel NotifyGetNotifyIncidentsIDOKIncidentSendsItemChannel `json:"channel"`
 	// The provider asked to slow down (HTTP 429, Zalo -32): the message waits in the queue and is sent
-	// again by itself; not a failure, no Resend (D-483).
+	// again by itself; not a failure, no Resend.
 	Delayed bool      `json:"delayed"`
 	Error   OptString `json:"error"`
 	ID      string    `json:"id"`
@@ -139649,13 +139588,13 @@ func (s *NotifyGetNotifyIncidentsOK) SetIncidents(val []NotifyGetNotifyIncidents
 type NotifyGetNotifyIncidentsOKIncidentsItem struct {
 	Action string `json:"action"`
 	// Bad_address only: the device that logged the connection blocked it, so it was an attempt, not a
-	// connection (D-227); false for the other kinds.
+	// connection; false for the other kinds.
 	Attempt bool `json:"attempt"`
 	// Repeats of the same thing are grouped into one incident.
 	Count   int                                                  `json:"count"`
 	Devices []NotifyGetNotifyIncidentsOKIncidentsItemDevicesItem `json:"devices"`
 	// Opened in the first 36 hours as a low or medium bad-connection or log incident, so it was told in
-	// the hourly first-run summary message instead of its own (D-550).
+	// the hourly first-run summary message instead of its own.
 	FirstRunSummary bool        `json:"first_run_summary"`
 	FirstSeen       time.Time   `json:"first_seen"`
 	HandledAt       NilDateTime `json:"handled_at"`
@@ -139673,7 +139612,7 @@ type NotifyGetNotifyIncidentsOKIncidentsItem struct {
 	Note    NilString                                         `json:"note"`
 	// Why Vedette closed it by itself, plain English shown as is ("Closed by Vedette: the device was
 	// approved by an@example.com.", "Closed by Vedette: no new activity for 7 days."); null when a person
-	// handled it last or it is open (D-550).
+	// handled it last or it is open.
 	ResolvedReason NilString                                          `json:"resolved_reason"`
 	Sends          []NotifyGetNotifyIncidentsOKIncidentsItemSendsItem `json:"sends"`
 	Severity       NotifyGetNotifyIncidentsOKIncidentsItemSeverity    `json:"severity"`
@@ -139968,9 +139907,8 @@ type NotifyGetNotifyIncidentsOKIncidentsItemNotSent struct {
 	// the message waited (channel_off, channel_removed), or the one with the lowest minimum
 	// (below_min_severity).
 	Channel OptNotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel `json:"channel"`
-	// Why no channel has it (INV-24, D-551): the decision kept when it was opened; queued and quiet_hours
-	// still go out by themselves; unknown = opened before the reason was kept and today's channels would
-	// take it.
+	// Why no channel has it (INV-24): the decision kept when it was opened; queued and quiet_hours still
+	// go out by themselves; unknown = opened before the reason was kept and today's channels would take it.
 	Reason NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason `json:"reason"`
 	// One plain sentence for the customer, e.g. "Not sent: this incident is medium, and your channels only
 	// send high and above.".
@@ -140091,9 +140029,8 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel) UnmarshalText(da
 	}
 }
 
-// Why no channel has it (INV-24, D-551): the decision kept when it was opened; queued and quiet_hours
-// still go out by themselves; unknown = opened before the reason was kept and today's channels would
-// take it.
+// Why no channel has it (INV-24): the decision kept when it was opened; queued and quiet_hours still
+// go out by themselves; unknown = opened before the reason was kept and today's channels would take it.
 type NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason string
 
 const (
@@ -140202,7 +140139,7 @@ type NotifyGetNotifyIncidentsOKIncidentsItemSendsItem struct {
 	At      time.Time                                               `json:"at"`
 	Channel NotifyGetNotifyIncidentsOKIncidentsItemSendsItemChannel `json:"channel"`
 	// The provider asked to slow down (HTTP 429, Zalo -32): the message waits in the queue and is sent
-	// again by itself; not a failure, no Resend (D-483).
+	// again by itself; not a failure, no Resend.
 	Delayed bool      `json:"delayed"`
 	Error   OptString `json:"error"`
 	ID      string    `json:"id"`
@@ -141128,13 +141065,13 @@ func (s *NotifyPatchNotifyIncidentsIDOK) SetPreviews(val []NotifyPatchNotifyInci
 type NotifyPatchNotifyIncidentsIDOKIncident struct {
 	Action string `json:"action"`
 	// Bad_address only: the device that logged the connection blocked it, so it was an attempt, not a
-	// connection (D-227); false for the other kinds.
+	// connection; false for the other kinds.
 	Attempt bool `json:"attempt"`
 	// Repeats of the same thing are grouped into one incident.
 	Count   int                                                 `json:"count"`
 	Devices []NotifyPatchNotifyIncidentsIDOKIncidentDevicesItem `json:"devices"`
 	// Opened in the first 36 hours as a low or medium bad-connection or log incident, so it was told in
-	// the hourly first-run summary message instead of its own (D-550).
+	// the hourly first-run summary message instead of its own.
 	FirstRunSummary bool        `json:"first_run_summary"`
 	FirstSeen       time.Time   `json:"first_seen"`
 	HandledAt       NilDateTime `json:"handled_at"`
@@ -141152,7 +141089,7 @@ type NotifyPatchNotifyIncidentsIDOKIncident struct {
 	Note    NilString                                        `json:"note"`
 	// Why Vedette closed it by itself, plain English shown as is ("Closed by Vedette: the device was
 	// approved by an@example.com.", "Closed by Vedette: no new activity for 7 days."); null when a person
-	// handled it last or it is open (D-550).
+	// handled it last or it is open.
 	ResolvedReason NilString                                         `json:"resolved_reason"`
 	Sends          []NotifyPatchNotifyIncidentsIDOKIncidentSendsItem `json:"sends"`
 	Severity       NotifyPatchNotifyIncidentsIDOKIncidentSeverity    `json:"severity"`
@@ -141447,9 +141384,8 @@ type NotifyPatchNotifyIncidentsIDOKIncidentNotSent struct {
 	// the message waited (channel_off, channel_removed), or the one with the lowest minimum
 	// (below_min_severity).
 	Channel OptNotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel `json:"channel"`
-	// Why no channel has it (INV-24, D-551): the decision kept when it was opened; queued and quiet_hours
-	// still go out by themselves; unknown = opened before the reason was kept and today's channels would
-	// take it.
+	// Why no channel has it (INV-24): the decision kept when it was opened; queued and quiet_hours still
+	// go out by themselves; unknown = opened before the reason was kept and today's channels would take it.
 	Reason NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason `json:"reason"`
 	// One plain sentence for the customer, e.g. "Not sent: this incident is medium, and your channels only
 	// send high and above.".
@@ -141570,9 +141506,8 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel) UnmarshalText(dat
 	}
 }
 
-// Why no channel has it (INV-24, D-551): the decision kept when it was opened; queued and quiet_hours
-// still go out by themselves; unknown = opened before the reason was kept and today's channels would
-// take it.
+// Why no channel has it (INV-24): the decision kept when it was opened; queued and quiet_hours still
+// go out by themselves; unknown = opened before the reason was kept and today's channels would take it.
 type NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason string
 
 const (
@@ -141681,7 +141616,7 @@ type NotifyPatchNotifyIncidentsIDOKIncidentSendsItem struct {
 	At      time.Time                                              `json:"at"`
 	Channel NotifyPatchNotifyIncidentsIDOKIncidentSendsItemChannel `json:"channel"`
 	// The provider asked to slow down (HTTP 429, Zalo -32): the message waits in the queue and is sent
-	// again by itself; not a failure, no Resend (D-483).
+	// again by itself; not a failure, no Resend.
 	Delayed bool      `json:"delayed"`
 	Error   OptString `json:"error"`
 	ID      string    `json:"id"`
@@ -142865,7 +142800,7 @@ type NotifyPostNotifyHistoryIDResendOK struct {
 	At      time.Time                                `json:"at"`
 	Channel NotifyPostNotifyHistoryIDResendOKChannel `json:"channel"`
 	// A "Delayed (rate limited)" row: the message is sent again by itself after the wait the provider
-	// asked for (D-483).
+	// asked for.
 	Delayed bool                                  `json:"delayed"`
 	Error   OptString                             `json:"error"`
 	ID      string                                `json:"id"`
@@ -143926,25 +143861,25 @@ func (s *NotifyPostNotifyZaloResolveReq) SetQuery(val string) {
 type NotifyPutNotifyChannelsTypeOK struct {
 	// Slack Socket Mode tokens (xapp-, xoxb-): only the last 4 characters are returned.
 	ApprovalLast4 NotifyPutNotifyChannelsTypeOKApprovalLast4 `json:"approval_last4"`
-	// Approve actions from this channel (Slack, Telegram, Email, Zalo personal; D-38, D-46).
+	// Approve actions from this channel (Slack, Telegram, Email, Zalo personal).
 	Approvals bool `json:"approvals"`
 	// Vedette users (operator or admin) allowed to approve from this channel, with their address on it.
 	Approvers  []NotifyPutNotifyChannelsTypeOKApproversItem `json:"approvers"`
 	Configured bool                                         `json:"configured"`
 	Enabled    bool                                         `json:"enabled"`
 	// Non-secret fields: telegram chat_id · zalo oa_id, user_id, app_id (the Zalo app of the
-	// refresh-token flow, D-483; absent for a channel with only an access token) · zalo-personal user_id
+	// refresh-token flow; absent for a channel with only an access token) · zalo-personal user_id
 	// (recipient user or group ID), group ("true" for a group), name (shown name of the recipient),
-	// account (shown name of the signed-in Zalo account; set by the box from the QR sign-in, D-447; the
-	// session is the secret) · email provider (preset, D-449:
+	// account (shown name of the signed-in Zalo account; set by the box from the QR sign-in; the session
+	// is the secret) · email provider (preset:
 	// custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace;
-	// D-480 user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom),
-	// host, port, security (starttls|ssl|none), username (the mailbox for microsoft365 and
-	// google-workspace; none for postmark, whose server token is the secret), tenant_id (microsoft365,
-	// microsoft365-user, outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by
-	// the box: the sign-in method, server and port the saved secret is for; changing one needs the secret
-	// again) · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its
-	// last 4 characters; send it empty, or as returned, to keep the saved one) · slack label (optional),
+	// user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom), host,
+	// port, security (starttls|ssl|none), username (the mailbox for microsoft365 and google-workspace;
+	// none for postmark, whose server token is the secret), tenant_id (microsoft365, microsoft365-user,
+	// outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by the box: the
+	// sign-in method, server and port the saved secret is for; changing one needs the secret again) ·
+	// webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its last 4
+	// characters; send it empty, or as returned, to keep the saved one) · slack label (optional),
 	// channel_id (approvals only).
 	Fields      NotifyPutNotifyChannelsTypeOKFields      `json:"fields"`
 	LastTest    NilNotifyPutNotifyChannelsTypeOKLastTest `json:"last_test"`
@@ -144084,7 +144019,7 @@ type NotifyPutNotifyChannelsTypeOKApproversItem struct {
 	// Slack member ID · Telegram user ID · sign-in email · Zalo user ID (digits, not a phone number);
 	// unique per channel.
 	Address string `json:"address"`
-	// Zalo personal: the shown name of the approver's Zalo account, from the picker (D-447).
+	// Zalo personal: the shown name of the approver's Zalo account, from the picker.
 	Name   OptString `json:"name"`
 	UserID string    `json:"user_id"`
 }
@@ -144120,18 +144055,18 @@ func (s *NotifyPutNotifyChannelsTypeOKApproversItem) SetUserID(val string) {
 }
 
 // Non-secret fields: telegram chat_id · zalo oa_id, user_id, app_id (the Zalo app of the
-// refresh-token flow, D-483; absent for a channel with only an access token) · zalo-personal user_id
+// refresh-token flow; absent for a channel with only an access token) · zalo-personal user_id
 // (recipient user or group ID), group ("true" for a group), name (shown name of the recipient),
-// account (shown name of the signed-in Zalo account; set by the box from the QR sign-in, D-447; the
-// session is the secret) · email provider (preset, D-449:
+// account (shown name of the signed-in Zalo account; set by the box from the QR sign-in; the session
+// is the secret) · email provider (preset:
 // custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace;
-// D-480 user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom),
-// host, port, security (starttls|ssl|none), username (the mailbox for microsoft365 and
-// google-workspace; none for postmark, whose server token is the secret), tenant_id (microsoft365,
-// microsoft365-user, outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by
-// the box: the sign-in method, server and port the saved secret is for; changing one needs the secret
-// again) · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its
-// last 4 characters; send it empty, or as returned, to keep the saved one) · slack label (optional),
+// user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom), host,
+// port, security (starttls|ssl|none), username (the mailbox for microsoft365 and google-workspace;
+// none for postmark, whose server token is the secret), tenant_id (microsoft365, microsoft365-user,
+// outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by the box: the
+// sign-in method, server and port the saved secret is for; changing one needs the secret again) ·
+// webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its last 4
+// characters; send it empty, or as returned, to keep the saved one) · slack label (optional),
 // channel_id (approvals only).
 type NotifyPutNotifyChannelsTypeOKFields map[string]string
 
@@ -144316,21 +144251,21 @@ type NotifyPutNotifyChannelsTypeReq struct {
 	Enabled     bool                                      `json:"enabled"`
 	Fields      NotifyPutNotifyChannelsTypeReqFields      `json:"fields"`
 	MinSeverity NotifyPutNotifyChannelsTypeReqMinSeverity `json:"min_severity"`
-	// Zalo OA (D-483): the OA refresh token (about 3 months, single use; the box refreshes the access
-	// token and keeps the rotated refresh token); leave blank to keep the saved one. With it, secret is
-	// the current access token, optional.
+	// Zalo OA: the OA refresh token (about 3 months, single use; the box refreshes the access token and
+	// keeps the rotated refresh token); leave blank to keep the saved one. With it, secret is the current
+	// access token, optional.
 	RefreshToken OptString `json:"refresh_token"`
 	// Leave blank to keep the saved secret (email: only while the sign-in method of the provider stays the
 	// same). Email: password, app password or API key; the Microsoft 365 client secret; the Google
 	// Workspace service account key file (JSON).
 	Secret OptString `json:"secret"`
-	// Zalo OA (D-483): the Secret key of the Zalo app; leave blank to keep the saved one.
+	// Zalo OA: the Secret key of the Zalo app; leave blank to keep the saved one.
 	SecretKey OptString `json:"secret_key"`
-	// Email user sign-in (D-480): the id of a finished sign-in of the same admin; its refresh token
-	// becomes the secret and its mailbox the username.
+	// Email user sign-in: the id of a finished sign-in of the same admin; its refresh token becomes the
+	// secret and its mailbox the username.
 	Signin OptString `json:"signin"`
-	// Zalo personal: save the session of your finished QR sign-in (D-447); without it the saved session is
-	// kept. The session is never sent by the client.
+	// Zalo personal: save the session of your finished QR sign-in; without it the saved session is kept.
+	// The session is never sent by the client.
 	ZaloLogin OptBool `json:"zalo_login"`
 }
 
@@ -144458,7 +144393,7 @@ type NotifyPutNotifyChannelsTypeReqApproversItem struct {
 	// Slack member ID · Telegram user ID · sign-in email · Zalo user ID (digits, not a phone number);
 	// unique per channel.
 	Address string `json:"address"`
-	// Zalo personal: the shown name of the approver's Zalo account, from the picker (D-447).
+	// Zalo personal: the shown name of the approver's Zalo account, from the picker.
 	Name   OptString `json:"name"`
 	UserID string    `json:"user_id"`
 }
@@ -150607,8 +150542,8 @@ func (s *ReportsGetReportsPdplOKReportOrgSize) UnmarshalText(data []byte) error 
 }
 
 type ReportsGetReportsPdplOKReportRisksItem struct {
-	// The version compared is the one the device's own agent reports (findings evidence.agent, D-548): the
-	// status reads "Detected by the agent", not "Suspected"; absent in reports sent before it.
+	// The version compared is the one the device's own agent reports (findings evidence.agent): the status
+	// reads "Detected by the agent", not "Suspected"; absent in reports sent before it.
 	Agent   OptBool `json:"agent"`
 	AssetID string  `json:"asset_id"`
 	// Who closed it (rows of what was done).
@@ -150861,7 +150796,7 @@ func (s *ReportsGetReportsPdplOKReportRisksItemStatus) UnmarshalText(data []byte
 }
 
 type ReportsGetReportsScheduleOK struct {
-	// 1 = Monday … 7 = Sunday (D-57).
+	// 1 = Monday … 7 = Sunday.
 	Day        int         `json:"day"`
 	Enabled    bool        `json:"enabled"`
 	Hour       int         `json:"hour"`
@@ -150919,8 +150854,8 @@ func (s *ReportsGetReportsScheduleOK) SetRecipients(val []string) {
 	s.Recipients = val
 }
 
-// Since D-485 one top risk: product and count (its open findings) are set; cve and finding_id are its
-// worst finding.
+// One top risk: product and count (its open findings) are set; cve and finding_id are its worst
+// finding.
 // Ref: #/components/schemas/reports_get_reports_weekly_history_id_1_fix
 type ReportsGetReportsWeeklyHistoryID1Fix struct {
 	Count     OptInt    `json:"count"`
@@ -150929,7 +150864,7 @@ type ReportsGetReportsWeeklyHistoryID1Fix struct {
 	FindingID string    `json:"finding_id"`
 	Kind      string    `json:"kind"`
 	Product   OptString `json:"product"`
-	// Since D-490 the sentence of the top risk action.
+	// The sentence of the top risk action.
 	Text OptString `json:"text"`
 }
 
@@ -151221,15 +151156,15 @@ type ReportsGetReportsWeeklyHistoryIDOKReport struct {
 	AiSummary   NilReportsGetReportsWeeklyHistoryIDOKReportAiSummary  `json:"ai_summary"`
 	Counts      ReportsGetReportsWeeklyHistoryIDOKReportCounts        `json:"counts"`
 	GeneratedAt time.Time                                             `json:"generated_at"`
-	// Absent or null when notify is off, or in reports sent before D-490.
+	// Absent or null when notify is off, or in reports sent by an older version.
 	Happened    OptNilReportsGetReportsWeeklyHistoryIDOKReportHappened    `json:"happened"`
 	NewFindings []ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem `json:"new_findings"`
 	Open        []ReportsGetReportsWeeklyHistoryIDOKReportOpenItem        `json:"open"`
 	Period      ReportsGetReportsWeeklyHistoryIDOKReportPeriod            `json:"period"`
 	Resolved    []ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem    `json:"resolved"`
-	// Sources of the figures in the report; incidents only when notify is on (D-490).
+	// Sources of the figures in the report; incidents only when notify is on.
 	Sources []ReportsGetReportsWeeklyHistoryIDOKReportSourcesItem `json:"sources"`
-	// The three biggest open risks, by product (D-485); absent in reports sent before it.
+	// The three biggest open risks, by product; absent in reports sent before it.
 	TopRisks []ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem `json:"top_risks"`
 }
 
@@ -151553,7 +151488,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportAiSummaryTokens) SetOutput(val 
 }
 
 type ReportsGetReportsWeeklyHistoryIDOKReportCounts struct {
-	// Risks accepted this week (D-498); absent when none or in reports sent before it.
+	// Risks accepted this week; absent when none or in reports sent before it.
 	Accepted OptFloat64 `json:"accepted"`
 	// The earliest day one of those acceptances ends.
 	AcceptedUntil OptDate `json:"accepted_until"`
@@ -151561,14 +151496,14 @@ type ReportsGetReportsWeeklyHistoryIDOKReportCounts struct {
 	Devices           float64 `json:"devices"`
 	DevicesNew        float64 `json:"devices_new"`
 	DevicesUnapproved float64 `json:"devices_unapproved"`
-	// Products you use among them, as Home counts them (D-485; earlier reports: their CVEs on a device).
+	// Products you use among them, as Home counts them (earlier reports: their CVEs on a device).
 	KevMatched float64 `json:"kev_matched"`
-	// Vulnerabilities newly exploited in the last 7 days, as Home counts them (D-485).
+	// Vulnerabilities newly exploited in the last 7 days, as Home counts them.
 	KevNew        float64 `json:"kev_new"`
 	NewFindings   float64 `json:"new_findings"`
 	OpenConfirmed float64 `json:"open_confirmed"`
 	OpenSuspected float64 `json:"open_suspected"`
-	// Closed this week; accepted risks are counted in accepted (D-498).
+	// Closed this week; accepted risks are counted in accepted.
 	Resolved float64 `json:"resolved"`
 }
 
@@ -151682,7 +151617,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) SetResolved(val float64
 	s.Resolved = val
 }
 
-// Incidents of the week from notify (D-490): counts per kind and the few that matter.
+// Incidents of the week from notify: counts per kind and the few that matter.
 type ReportsGetReportsWeeklyHistoryIDOKReportHappened struct {
 	AcceptedLogins int `json:"accepted_logins"`
 	BadConnections int `json:"bad_connections"`
@@ -151937,8 +151872,8 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity) Unmars
 }
 
 type ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem struct {
-	// The version compared is the one the device's own agent reports (findings evidence.agent, D-548): the
-	// status reads "Detected by the agent", not "Suspected"; absent in reports sent before it.
+	// The version compared is the one the device's own agent reports (findings evidence.agent): the status
+	// reads "Detected by the agent", not "Suspected"; absent in reports sent before it.
 	Agent   OptBool `json:"agent"`
 	AssetID string  `json:"asset_id"`
 	// Who closed it (rows of what was done).
@@ -152191,8 +152126,8 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemStatus) Unmarsha
 }
 
 type ReportsGetReportsWeeklyHistoryIDOKReportOpenItem struct {
-	// The version compared is the one the device's own agent reports (findings evidence.agent, D-548): the
-	// status reads "Detected by the agent", not "Suspected"; absent in reports sent before it.
+	// The version compared is the one the device's own agent reports (findings evidence.agent): the status
+	// reads "Detected by the agent", not "Suspected"; absent in reports sent before it.
 	Agent   OptBool `json:"agent"`
 	AssetID string  `json:"asset_id"`
 	// Who closed it (rows of what was done).
@@ -152470,8 +152405,8 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportPeriod) SetTo(val time.Time) {
 }
 
 type ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem struct {
-	// The version compared is the one the device's own agent reports (findings evidence.agent, D-548): the
-	// status reads "Detected by the agent", not "Suspected"; absent in reports sent before it.
+	// The version compared is the one the device's own agent reports (findings evidence.agent): the status
+	// reads "Detected by the agent", not "Suspected"; absent in reports sent before it.
 	Agent   OptBool `json:"agent"`
 	AssetID string  `json:"asset_id"`
 	// Who closed it (rows of what was done).
@@ -152811,8 +152746,8 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID) UnmarshalText(da
 }
 
 type ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem struct {
-	// What to do this week, one sentence naming the device(s) and the fixed version when NVD says (D-490);
-	// absent in reports sent before it.
+	// What to do this week, one sentence naming the device(s) and the fixed version when NVD says; absent
+	// in reports sent before it.
 	Action OptString `json:"action"`
 	// Open findings a scan confirmed.
 	Confirmed int    `json:"confirmed"`
@@ -153229,8 +153164,8 @@ func (s *ReportsGetReportsWeeklyHistoryOKItemsItemTrigger) UnmarshalText(data []
 	}
 }
 
-// Since D-485 one top risk: product and count (its open findings) are set; cve and finding_id are its
-// worst finding.
+// One top risk: product and count (its open findings) are set; cve and finding_id are its worst
+// finding.
 // Ref: #/components/schemas/reports_get_reports_weekly_preview_1_fix
 type ReportsGetReportsWeeklyPreview1Fix struct {
 	Count     OptInt    `json:"count"`
@@ -153239,7 +153174,7 @@ type ReportsGetReportsWeeklyPreview1Fix struct {
 	FindingID string    `json:"finding_id"`
 	Kind      string    `json:"kind"`
 	Product   OptString `json:"product"`
-	// Since D-490 the sentence of the top risk action.
+	// The sentence of the top risk action.
 	Text OptString `json:"text"`
 }
 
@@ -153476,15 +153411,15 @@ type ReportsGetReportsWeeklyPreviewOKReport struct {
 	AiSummary   NilReportsGetReportsWeeklyPreviewOKReportAiSummary  `json:"ai_summary"`
 	Counts      ReportsGetReportsWeeklyPreviewOKReportCounts        `json:"counts"`
 	GeneratedAt time.Time                                           `json:"generated_at"`
-	// Absent or null when notify is off, or in reports sent before D-490.
+	// Absent or null when notify is off, or in reports sent by an older version.
 	Happened    OptNilReportsGetReportsWeeklyPreviewOKReportHappened    `json:"happened"`
 	NewFindings []ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem `json:"new_findings"`
 	Open        []ReportsGetReportsWeeklyPreviewOKReportOpenItem        `json:"open"`
 	Period      ReportsGetReportsWeeklyPreviewOKReportPeriod            `json:"period"`
 	Resolved    []ReportsGetReportsWeeklyPreviewOKReportResolvedItem    `json:"resolved"`
-	// Sources of the figures in the report; incidents only when notify is on (D-490).
+	// Sources of the figures in the report; incidents only when notify is on.
 	Sources []ReportsGetReportsWeeklyPreviewOKReportSourcesItem `json:"sources"`
-	// The three biggest open risks, by product (D-485); absent in reports sent before it.
+	// The three biggest open risks, by product; absent in reports sent before it.
 	TopRisks []ReportsGetReportsWeeklyPreviewOKReportTopRisksItem `json:"top_risks"`
 }
 
@@ -153808,7 +153743,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportAiSummaryTokens) SetOutput(val fl
 }
 
 type ReportsGetReportsWeeklyPreviewOKReportCounts struct {
-	// Risks accepted this week (D-498); absent when none or in reports sent before it.
+	// Risks accepted this week; absent when none or in reports sent before it.
 	Accepted OptFloat64 `json:"accepted"`
 	// The earliest day one of those acceptances ends.
 	AcceptedUntil OptDate `json:"accepted_until"`
@@ -153816,14 +153751,14 @@ type ReportsGetReportsWeeklyPreviewOKReportCounts struct {
 	Devices           float64 `json:"devices"`
 	DevicesNew        float64 `json:"devices_new"`
 	DevicesUnapproved float64 `json:"devices_unapproved"`
-	// Products you use among them, as Home counts them (D-485; earlier reports: their CVEs on a device).
+	// Products you use among them, as Home counts them (earlier reports: their CVEs on a device).
 	KevMatched float64 `json:"kev_matched"`
-	// Vulnerabilities newly exploited in the last 7 days, as Home counts them (D-485).
+	// Vulnerabilities newly exploited in the last 7 days, as Home counts them.
 	KevNew        float64 `json:"kev_new"`
 	NewFindings   float64 `json:"new_findings"`
 	OpenConfirmed float64 `json:"open_confirmed"`
 	OpenSuspected float64 `json:"open_suspected"`
-	// Closed this week; accepted risks are counted in accepted (D-498).
+	// Closed this week; accepted risks are counted in accepted.
 	Resolved float64 `json:"resolved"`
 }
 
@@ -153937,7 +153872,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) SetResolved(val float64) 
 	s.Resolved = val
 }
 
-// Incidents of the week from notify (D-490): counts per kind and the few that matter.
+// Incidents of the week from notify: counts per kind and the few that matter.
 type ReportsGetReportsWeeklyPreviewOKReportHappened struct {
 	AcceptedLogins int `json:"accepted_logins"`
 	BadConnections int `json:"bad_connections"`
@@ -154192,8 +154127,8 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity) Unmarsha
 }
 
 type ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem struct {
-	// The version compared is the one the device's own agent reports (findings evidence.agent, D-548): the
-	// status reads "Detected by the agent", not "Suspected"; absent in reports sent before it.
+	// The version compared is the one the device's own agent reports (findings evidence.agent): the status
+	// reads "Detected by the agent", not "Suspected"; absent in reports sent before it.
 	Agent   OptBool `json:"agent"`
 	AssetID string  `json:"asset_id"`
 	// Who closed it (rows of what was done).
@@ -154446,8 +154381,8 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemStatus) UnmarshalT
 }
 
 type ReportsGetReportsWeeklyPreviewOKReportOpenItem struct {
-	// The version compared is the one the device's own agent reports (findings evidence.agent, D-548): the
-	// status reads "Detected by the agent", not "Suspected"; absent in reports sent before it.
+	// The version compared is the one the device's own agent reports (findings evidence.agent): the status
+	// reads "Detected by the agent", not "Suspected"; absent in reports sent before it.
 	Agent   OptBool `json:"agent"`
 	AssetID string  `json:"asset_id"`
 	// Who closed it (rows of what was done).
@@ -154725,8 +154660,8 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportPeriod) SetTo(val time.Time) {
 }
 
 type ReportsGetReportsWeeklyPreviewOKReportResolvedItem struct {
-	// The version compared is the one the device's own agent reports (findings evidence.agent, D-548): the
-	// status reads "Detected by the agent", not "Suspected"; absent in reports sent before it.
+	// The version compared is the one the device's own agent reports (findings evidence.agent): the status
+	// reads "Detected by the agent", not "Suspected"; absent in reports sent before it.
 	Agent   OptBool `json:"agent"`
 	AssetID string  `json:"asset_id"`
 	// Who closed it (rows of what was done).
@@ -155066,8 +155001,8 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportSourcesItemID) UnmarshalText(data
 }
 
 type ReportsGetReportsWeeklyPreviewOKReportTopRisksItem struct {
-	// What to do this week, one sentence naming the device(s) and the fixed version when NVD says (D-490);
-	// absent in reports sent before it.
+	// What to do this week, one sentence naming the device(s) and the fixed version when NVD says; absent
+	// in reports sent before it.
 	Action OptString `json:"action"`
 	// Open findings a scan confirmed.
 	Confirmed int    `json:"confirmed"`
@@ -156444,8 +156379,8 @@ func (s *ReportsPostReportsPdplGenerateOKOrgSize) UnmarshalText(data []byte) err
 }
 
 type ReportsPostReportsPdplGenerateOKRisksItem struct {
-	// The version compared is the one the device's own agent reports (findings evidence.agent, D-548): the
-	// status reads "Detected by the agent", not "Suspected"; absent in reports sent before it.
+	// The version compared is the one the device's own agent reports (findings evidence.agent): the status
+	// reads "Detected by the agent", not "Suspected"; absent in reports sent before it.
 	Agent   OptBool `json:"agent"`
 	AssetID string  `json:"asset_id"`
 	// Who closed it (rows of what was done).
@@ -157659,7 +157594,7 @@ func (s *ReportsPutReportsPdplOrgReqSize) UnmarshalText(data []byte) error {
 }
 
 type ReportsPutReportsScheduleOK struct {
-	// 1 = Monday … 7 = Sunday (D-57).
+	// 1 = Monday … 7 = Sunday.
 	Day        int         `json:"day"`
 	Enabled    bool        `json:"enabled"`
 	Hour       int         `json:"hour"`
@@ -157718,7 +157653,7 @@ func (s *ReportsPutReportsScheduleOK) SetRecipients(val []string) {
 }
 
 type ReportsPutReportsScheduleReq struct {
-	// 1 = Monday … 7 = Sunday (D-57).
+	// 1 = Monday … 7 = Sunday.
 	Day        int      `json:"day"`
 	Enabled    bool     `json:"enabled"`
 	Hour       int      `json:"hour"`
@@ -157804,8 +157739,7 @@ type ResponseGetResponseActionsOKItemsItem struct {
 	Note       NilString                                             `json:"note"`
 	// Carried out by the rule pre-approval option, without a person.
 	PreApproved bool `json:"pre_approved"`
-	// The AI plan proposal, rule:: for a rule run, or incident: for a request asked from an incident
-	// (D-509).
+	// The AI plan proposal, rule:: for a rule run, or incident: for a request asked from an incident.
 	ProposalID        string    `json:"proposal_id"`
 	RequestedAt       time.Time `json:"requested_at"`
 	RequiresApprovals int       `json:"requires_approvals"`
@@ -157815,7 +157749,7 @@ type ResponseGetResponseActionsOKItemsItem struct {
 	RuleName NilString                                 `json:"rule_name"`
 	// Channels that received the approval request.
 	SentTo []string `json:"sent_to"`
-	// Who asked: the AI, a rule, or a person from an incident (D-509).
+	// Who asked: the AI, a rule, or a person from an incident.
 	Source         ResponseGetResponseActionsOKItemsItemSource     `json:"source"`
 	Status         ResponseGetResponseActionsOKItemsItemStatus     `json:"status"`
 	Title          string                                          `json:"title"`
@@ -159247,7 +159181,7 @@ func (s *ResponseGetResponseActionsOKItemsItemRisk) UnmarshalText(data []byte) e
 	}
 }
 
-// Who asked: the AI, a rule, or a person from an incident (D-509).
+// Who asked: the AI, a rule, or a person from an incident.
 type ResponseGetResponseActionsOKItemsItemSource string
 
 const (
@@ -162720,8 +162654,7 @@ type ResponseGetResponseIncidentsIDOKSource struct {
 	Device NilString `json:"device"`
 	// Read by the server from the incident (a trap: the hit), never sent by the browser.
 	IP string `json:"ip"`
-	// Lan: an address the block list never publishes (private, CGNAT, link-local…, D-469); public: any
-	// other.
+	// Lan: an address the block list never publishes (private, CGNAT, link-local…); public: any other.
 	Scope ResponseGetResponseIncidentsIDOKSourceScope `json:"scope"`
 }
 
@@ -162765,8 +162698,7 @@ func (s *ResponseGetResponseIncidentsIDOKSource) SetScope(val ResponseGetRespons
 	s.Scope = val
 }
 
-// Lan: an address the block list never publishes (private, CGNAT, link-local…, D-469); public: any
-// other.
+// Lan: an address the block list never publishes (private, CGNAT, link-local…); public: any other.
 type ResponseGetResponseIncidentsIDOKSourceScope string
 
 const (
@@ -162827,8 +162759,8 @@ type ResponseGetResponseLogOKItemsItem struct {
 	Actor  string `json:"actor"`
 	Detail string `json:"detail"`
 	// Lowercase hex SHA-256 of prev_hash + "\n" + JSON.stringify({actor, detail, id, kind, prev_hash, ts})
-	// (keys sorted by code point, no whitespace: web/src/lib/chain.ts canonical, D-57 (14)), with ts
-	// exactly as served.
+	// (keys sorted by code point, no whitespace: web/src/lib/chain.ts canonical), with ts exactly as
+	// served.
 	Hash string                                `json:"hash"`
 	ID   string                                `json:"id"`
 	Kind ResponseGetResponseLogOKItemsItemKind `json:"kind"`
@@ -163094,10 +163026,10 @@ type ResponseGetResponseMeIdentitiesOKItemsItem struct {
 	Linked   bool        `json:"linked"`
 	LinkedAt NilDateTime `json:"linked_at"`
 	// Email_code: Vedette mails a code to this address. send_code: the box sends a confirm link to that
-	// chat account and you confirm it while signed in to Vedette (Zalo personal D-447, Telegram D-414);
-	// Send again asks for a new one. unavailable: this channel cannot be linked yet (approve in Vedette).
+	// chat account and you confirm it while signed in to Vedette (Zalo personal, Telegram); Send again
+	// asks for a new one. unavailable: this channel cannot be linked yet (approve in Vedette).
 	Method ResponseGetResponseMeIdentitiesOKItemsItemMethod `json:"method"`
-	// The shown name of that address where the channel knows it (Zalo personal, D-447).
+	// The shown name of that address where the channel knows it (Zalo personal).
 	Name OptString `json:"name"`
 }
 
@@ -163182,8 +163114,8 @@ func (s *ResponseGetResponseMeIdentitiesOKItemsItem) SetName(val OptString) {
 }
 
 // Email_code: Vedette mails a code to this address. send_code: the box sends a confirm link to that
-// chat account and you confirm it while signed in to Vedette (Zalo personal D-447, Telegram D-414);
-// Send again asks for a new one. unavailable: this channel cannot be linked yet (approve in Vedette).
+// chat account and you confirm it while signed in to Vedette (Zalo personal, Telegram); Send again
+// asks for a new one. unavailable: this channel cannot be linked yet (approve in Vedette).
 type ResponseGetResponseMeIdentitiesOKItemsItemMethod string
 
 const (
@@ -163374,7 +163306,7 @@ type ResponseGetResponseMetricsOKRejectedItem struct {
 	At     time.Time `json:"at"`
 	ID     string    `json:"id"`
 	Reason string    `json:"reason"`
-	// Who asked: the AI, a rule, or a person from an incident (D-509).
+	// Who asked: the AI, a rule, or a person from an incident.
 	Source ResponseGetResponseMetricsOKRejectedItemSource `json:"source"`
 	Title  string                                         `json:"title"`
 }
@@ -163429,7 +163361,7 @@ func (s *ResponseGetResponseMetricsOKRejectedItem) SetTitle(val string) {
 	s.Title = val
 }
 
-// Who asked: the AI, a rule, or a person from an incident (D-509).
+// Who asked: the AI, a rule, or a person from an incident.
 type ResponseGetResponseMetricsOKRejectedItemSource string
 
 const (
@@ -163615,7 +163547,7 @@ type ResponseGetResponsePlansOKItemsItem struct {
 	Model       string    `json:"model"`
 	// How the device is reachable, from the inventory and read-only connection calls.
 	Path string `json:"path"`
-	// Name of the AI profile that drafted the plan (D-29).
+	// Name of the AI profile that drafted the plan.
 	Profile string                                         `json:"profile"`
 	Reads   []ResponseGetResponsePlansOKItemsItemReadsItem `json:"reads"`
 	// Report channels that received the plan, for example "Slack #security".
@@ -163884,7 +163816,7 @@ type ResponseGetResponsePlansOKItemsItemStepsItemProposal struct {
 	// Open (pending) or executed request for this proposal.
 	RequestID NilString `json:"request_id"`
 	// Ready = a request can be made now; the others say what blocks it (not_publishable: a block list
-	// action on an address the list never publishes, D-469).
+	// action on an address the list never publishes).
 	State ResponseGetResponsePlansOKItemsItemStepsItemProposalState `json:"state"`
 	Title string                                                    `json:"title"`
 	Tool  string                                                    `json:"tool"`
@@ -164401,7 +164333,7 @@ func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestM
 }
 
 // Ready = a request can be made now; the others say what blocks it (not_publishable: a block list
-// action on an address the list never publishes, D-469).
+// action on an address the list never publishes).
 type ResponseGetResponsePlansOKItemsItemStepsItemProposalState string
 
 const (
@@ -164478,7 +164410,7 @@ type ResponseGetResponsePlansOKPlanner struct {
 	Proposed int `json:"proposed"`
 	// Last run of the plan job (every 5 minutes); null = not run since the box started.
 	RanAt NilDateTime `json:"ran_at"`
-	// The execution switch is on and the AI may send requests for critical findings (D-314).
+	// The execution switch is on and the AI may send requests for critical findings.
 	Sending bool `json:"sending"`
 }
 
@@ -165258,7 +165190,7 @@ type ResponseGetResponseSettingsOK struct {
 	BreakerNotified   []string                                    `json:"breaker_notified"`
 	BreakerTrippedAt  NilDateTime                                 `json:"breaker_tripped_at"`
 	Channels          []ResponseGetResponseSettingsOKChannelsItem `json:"channels"`
-	// OFF by default (D-41); gates actions that change another device.
+	// OFF by default; gates actions that change another device.
 	Execution bool `json:"execution"`
 	// Minutes an approval request stays open (15 to 30).
 	ExpiryMin int `json:"expiry_min"`
@@ -165561,8 +165493,8 @@ type ResponseGetResponseSettingsOKChannelsItem struct {
 	Label     string `json:"label"`
 	// Approves through a one-time link (email, Zalo OA).
 	Link bool `json:"link"`
-	// Approvers who proved this address themselves in My account (D-191); only they can approve with
-	// buttons or links.
+	// Approvers who proved this address themselves in My account; only they can approve with buttons or
+	// links.
 	Linked int `json:"linked"`
 	// Configured, enabled, approvals on and at least one approver.
 	Ready bool   `json:"ready"`
@@ -166364,7 +166296,7 @@ func (s *ResponseGetResponseTriggersOK) SetItems(val []ResponseGetResponseTrigge
 
 type ResponseGetResponseTriggersOKItemsItem struct {
 	AiAllowed bool `json:"ai_allowed"`
-	// Kinds of evidence that prove the trigger to the AI (D-119); empty = the AI may never use it.
+	// Kinds of evidence that prove the trigger to the AI; empty = the AI may never use it.
 	AiEvidence  []ResponseGetResponseTriggersOKItemsItemAiEvidenceItem `json:"ai_evidence"`
 	Description string                                                 `json:"description"`
 	Fields      []ResponseGetResponseTriggersOKItemsItemFieldsItem     `json:"fields"`
@@ -166777,8 +166709,7 @@ type ResponsePostResponseActionsIDApproveOK struct {
 	Note       NilString                                              `json:"note"`
 	// Carried out by the rule pre-approval option, without a person.
 	PreApproved bool `json:"pre_approved"`
-	// The AI plan proposal, rule:: for a rule run, or incident: for a request asked from an incident
-	// (D-509).
+	// The AI plan proposal, rule:: for a rule run, or incident: for a request asked from an incident.
 	ProposalID        string    `json:"proposal_id"`
 	RequestedAt       time.Time `json:"requested_at"`
 	RequiresApprovals int       `json:"requires_approvals"`
@@ -166788,7 +166719,7 @@ type ResponsePostResponseActionsIDApproveOK struct {
 	RuleName NilString                                  `json:"rule_name"`
 	// Channels that received the approval request.
 	SentTo []string `json:"sent_to"`
-	// Who asked: the AI, a rule, or a person from an incident (D-509).
+	// Who asked: the AI, a rule, or a person from an incident.
 	Source         ResponsePostResponseActionsIDApproveOKSource     `json:"source"`
 	Status         ResponsePostResponseActionsIDApproveOKStatus     `json:"status"`
 	Title          string                                           `json:"title"`
@@ -168220,7 +168151,7 @@ func (s *ResponsePostResponseActionsIDApproveOKRisk) UnmarshalText(data []byte) 
 	}
 }
 
-// Who asked: the AI, a rule, or a person from an incident (D-509).
+// Who asked: the AI, a rule, or a person from an incident.
 type ResponsePostResponseActionsIDApproveOKSource string
 
 const (
@@ -168469,8 +168400,7 @@ type ResponsePostResponseActionsIDChatDecisionOK struct {
 	Note       NilString                                                   `json:"note"`
 	// Carried out by the rule pre-approval option, without a person.
 	PreApproved bool `json:"pre_approved"`
-	// The AI plan proposal, rule:: for a rule run, or incident: for a request asked from an incident
-	// (D-509).
+	// The AI plan proposal, rule:: for a rule run, or incident: for a request asked from an incident.
 	ProposalID        string    `json:"proposal_id"`
 	RequestedAt       time.Time `json:"requested_at"`
 	RequiresApprovals int       `json:"requires_approvals"`
@@ -168480,7 +168410,7 @@ type ResponsePostResponseActionsIDChatDecisionOK struct {
 	RuleName NilString                                       `json:"rule_name"`
 	// Channels that received the approval request.
 	SentTo []string `json:"sent_to"`
-	// Who asked: the AI, a rule, or a person from an incident (D-509).
+	// Who asked: the AI, a rule, or a person from an incident.
 	Source         ResponsePostResponseActionsIDChatDecisionOKSource     `json:"source"`
 	Status         ResponsePostResponseActionsIDChatDecisionOKStatus     `json:"status"`
 	Title          string                                                `json:"title"`
@@ -169912,7 +169842,7 @@ func (s *ResponsePostResponseActionsIDChatDecisionOKRisk) UnmarshalText(data []b
 	}
 }
 
-// Who asked: the AI, a rule, or a person from an incident (D-509).
+// Who asked: the AI, a rule, or a person from an incident.
 type ResponsePostResponseActionsIDChatDecisionOKSource string
 
 const (
@@ -170261,8 +170191,7 @@ type ResponsePostResponseActionsIDRejectOK struct {
 	Note       NilString                                             `json:"note"`
 	// Carried out by the rule pre-approval option, without a person.
 	PreApproved bool `json:"pre_approved"`
-	// The AI plan proposal, rule:: for a rule run, or incident: for a request asked from an incident
-	// (D-509).
+	// The AI plan proposal, rule:: for a rule run, or incident: for a request asked from an incident.
 	ProposalID        string    `json:"proposal_id"`
 	RequestedAt       time.Time `json:"requested_at"`
 	RequiresApprovals int       `json:"requires_approvals"`
@@ -170272,7 +170201,7 @@ type ResponsePostResponseActionsIDRejectOK struct {
 	RuleName NilString                                 `json:"rule_name"`
 	// Channels that received the approval request.
 	SentTo []string `json:"sent_to"`
-	// Who asked: the AI, a rule, or a person from an incident (D-509).
+	// Who asked: the AI, a rule, or a person from an incident.
 	Source         ResponsePostResponseActionsIDRejectOKSource     `json:"source"`
 	Status         ResponsePostResponseActionsIDRejectOKStatus     `json:"status"`
 	Title          string                                          `json:"title"`
@@ -171704,7 +171633,7 @@ func (s *ResponsePostResponseActionsIDRejectOKRisk) UnmarshalText(data []byte) e
 	}
 }
 
-// Who asked: the AI, a rule, or a person from an incident (D-509).
+// Who asked: the AI, a rule, or a person from an incident.
 type ResponsePostResponseActionsIDRejectOKSource string
 
 const (
@@ -172001,8 +171930,7 @@ type ResponsePostResponseActionsIDRollbackOK struct {
 	Note       NilString                                               `json:"note"`
 	// Carried out by the rule pre-approval option, without a person.
 	PreApproved bool `json:"pre_approved"`
-	// The AI plan proposal, rule:: for a rule run, or incident: for a request asked from an incident
-	// (D-509).
+	// The AI plan proposal, rule:: for a rule run, or incident: for a request asked from an incident.
 	ProposalID        string    `json:"proposal_id"`
 	RequestedAt       time.Time `json:"requested_at"`
 	RequiresApprovals int       `json:"requires_approvals"`
@@ -172012,7 +171940,7 @@ type ResponsePostResponseActionsIDRollbackOK struct {
 	RuleName NilString                                   `json:"rule_name"`
 	// Channels that received the approval request.
 	SentTo []string `json:"sent_to"`
-	// Who asked: the AI, a rule, or a person from an incident (D-509).
+	// Who asked: the AI, a rule, or a person from an incident.
 	Source         ResponsePostResponseActionsIDRollbackOKSource     `json:"source"`
 	Status         ResponsePostResponseActionsIDRollbackOKStatus     `json:"status"`
 	Title          string                                            `json:"title"`
@@ -173444,7 +173372,7 @@ func (s *ResponsePostResponseActionsIDRollbackOKRisk) UnmarshalText(data []byte)
 	}
 }
 
-// Who asked: the AI, a rule, or a person from an incident (D-509).
+// Who asked: the AI, a rule, or a person from an incident.
 type ResponsePostResponseActionsIDRollbackOKSource string
 
 const (
@@ -173752,8 +173680,7 @@ type ResponsePostResponseAiProposalsOKRequest struct {
 	Note       NilString                                                `json:"note"`
 	// Carried out by the rule pre-approval option, without a person.
 	PreApproved bool `json:"pre_approved"`
-	// The AI plan proposal, rule:: for a rule run, or incident: for a request asked from an incident
-	// (D-509).
+	// The AI plan proposal, rule:: for a rule run, or incident: for a request asked from an incident.
 	ProposalID        string    `json:"proposal_id"`
 	RequestedAt       time.Time `json:"requested_at"`
 	RequiresApprovals int       `json:"requires_approvals"`
@@ -173763,7 +173690,7 @@ type ResponsePostResponseAiProposalsOKRequest struct {
 	RuleName NilString                                    `json:"rule_name"`
 	// Channels that received the approval request.
 	SentTo []string `json:"sent_to"`
-	// Who asked: the AI, a rule, or a person from an incident (D-509).
+	// Who asked: the AI, a rule, or a person from an incident.
 	Source         ResponsePostResponseAiProposalsOKRequestSource     `json:"source"`
 	Status         ResponsePostResponseAiProposalsOKRequestStatus     `json:"status"`
 	Title          string                                             `json:"title"`
@@ -175195,7 +175122,7 @@ func (s *ResponsePostResponseAiProposalsOKRequestRisk) UnmarshalText(data []byte
 	}
 }
 
-// Who asked: the AI, a rule, or a person from an incident (D-509).
+// Who asked: the AI, a rule, or a person from an incident.
 type ResponsePostResponseAiProposalsOKRequestSource string
 
 const (
@@ -176269,8 +176196,7 @@ type ResponsePostResponseApproveTokenOK struct {
 	Note       NilString                                          `json:"note"`
 	// Carried out by the rule pre-approval option, without a person.
 	PreApproved bool `json:"pre_approved"`
-	// The AI plan proposal, rule:: for a rule run, or incident: for a request asked from an incident
-	// (D-509).
+	// The AI plan proposal, rule:: for a rule run, or incident: for a request asked from an incident.
 	ProposalID        string    `json:"proposal_id"`
 	RequestedAt       time.Time `json:"requested_at"`
 	RequiresApprovals int       `json:"requires_approvals"`
@@ -176280,7 +176206,7 @@ type ResponsePostResponseApproveTokenOK struct {
 	RuleName NilString                              `json:"rule_name"`
 	// Channels that received the approval request.
 	SentTo []string `json:"sent_to"`
-	// Who asked: the AI, a rule, or a person from an incident (D-509).
+	// Who asked: the AI, a rule, or a person from an incident.
 	Source         ResponsePostResponseApproveTokenOKSource     `json:"source"`
 	Status         ResponsePostResponseApproveTokenOKStatus     `json:"status"`
 	Title          string                                       `json:"title"`
@@ -177712,7 +177638,7 @@ func (s *ResponsePostResponseApproveTokenOKRisk) UnmarshalText(data []byte) erro
 	}
 }
 
-// Who asked: the AI, a rule, or a person from an incident (D-509).
+// Who asked: the AI, a rule, or a person from an incident.
 type ResponsePostResponseApproveTokenOKSource string
 
 const (
@@ -178117,7 +178043,7 @@ type ResponsePostResponseBreakerResetOK struct {
 	BreakerNotified   []string                                         `json:"breaker_notified"`
 	BreakerTrippedAt  NilDateTime                                      `json:"breaker_tripped_at"`
 	Channels          []ResponsePostResponseBreakerResetOKChannelsItem `json:"channels"`
-	// OFF by default (D-41); gates actions that change another device.
+	// OFF by default; gates actions that change another device.
 	Execution bool `json:"execution"`
 	// Minutes an approval request stays open (15 to 30).
 	ExpiryMin int `json:"expiry_min"`
@@ -178420,8 +178346,8 @@ type ResponsePostResponseBreakerResetOKChannelsItem struct {
 	Label     string `json:"label"`
 	// Approves through a one-time link (email, Zalo OA).
 	Link bool `json:"link"`
-	// Approvers who proved this address themselves in My account (D-191); only they can approve with
-	// buttons or links.
+	// Approvers who proved this address themselves in My account; only they can approve with buttons or
+	// links.
 	Linked int `json:"linked"`
 	// Configured, enabled, approvals on and at least one approver.
 	Ready bool   `json:"ready"`
@@ -180477,7 +180403,7 @@ type ResponsePostResponseExecutionOK struct {
 	BreakerNotified   []string                                      `json:"breaker_notified"`
 	BreakerTrippedAt  NilDateTime                                   `json:"breaker_tripped_at"`
 	Channels          []ResponsePostResponseExecutionOKChannelsItem `json:"channels"`
-	// OFF by default (D-41); gates actions that change another device.
+	// OFF by default; gates actions that change another device.
 	Execution bool `json:"execution"`
 	// Minutes an approval request stays open (15 to 30).
 	ExpiryMin int `json:"expiry_min"`
@@ -180780,8 +180706,8 @@ type ResponsePostResponseExecutionOKChannelsItem struct {
 	Label     string `json:"label"`
 	// Approves through a one-time link (email, Zalo OA).
 	Link bool `json:"link"`
-	// Approvers who proved this address themselves in My account (D-191); only they can approve with
-	// buttons or links.
+	// Approvers who proved this address themselves in My account; only they can approve with buttons or
+	// links.
 	Linked int `json:"linked"`
 	// Configured, enabled, approvals on and at least one approver.
 	Ready bool   `json:"ready"`
@@ -180948,8 +180874,7 @@ type ResponsePostResponseIncidentsIDRequestCreated struct {
 	Note       NilString                                                     `json:"note"`
 	// Carried out by the rule pre-approval option, without a person.
 	PreApproved bool `json:"pre_approved"`
-	// The AI plan proposal, rule:: for a rule run, or incident: for a request asked from an incident
-	// (D-509).
+	// The AI plan proposal, rule:: for a rule run, or incident: for a request asked from an incident.
 	ProposalID        string    `json:"proposal_id"`
 	RequestedAt       time.Time `json:"requested_at"`
 	RequiresApprovals int       `json:"requires_approvals"`
@@ -180959,7 +180884,7 @@ type ResponsePostResponseIncidentsIDRequestCreated struct {
 	RuleName NilString                                         `json:"rule_name"`
 	// Channels that received the approval request.
 	SentTo []string `json:"sent_to"`
-	// Who asked: the AI, a rule, or a person from an incident (D-509).
+	// Who asked: the AI, a rule, or a person from an incident.
 	Source         ResponsePostResponseIncidentsIDRequestCreatedSource     `json:"source"`
 	Status         ResponsePostResponseIncidentsIDRequestCreatedStatus     `json:"status"`
 	Title          string                                                  `json:"title"`
@@ -182391,7 +182316,7 @@ func (s *ResponsePostResponseIncidentsIDRequestCreatedRisk) UnmarshalText(data [
 	}
 }
 
-// Who asked: the AI, a rule, or a person from an incident (D-509).
+// Who asked: the AI, a rule, or a person from an incident.
 type ResponsePostResponseIncidentsIDRequestCreatedSource string
 
 const (
@@ -182675,10 +182600,10 @@ type ResponsePostResponseMeIdentitiesChannelConfirmOK struct {
 	Linked   bool        `json:"linked"`
 	LinkedAt NilDateTime `json:"linked_at"`
 	// Email_code: Vedette mails a code to this address. send_code: the box sends a confirm link to that
-	// chat account and you confirm it while signed in to Vedette (Zalo personal D-447, Telegram D-414);
-	// Send again asks for a new one. unavailable: this channel cannot be linked yet (approve in Vedette).
+	// chat account and you confirm it while signed in to Vedette (Zalo personal, Telegram); Send again
+	// asks for a new one. unavailable: this channel cannot be linked yet (approve in Vedette).
 	Method ResponsePostResponseMeIdentitiesChannelConfirmOKMethod `json:"method"`
-	// The shown name of that address where the channel knows it (Zalo personal, D-447).
+	// The shown name of that address where the channel knows it (Zalo personal).
 	Name OptString `json:"name"`
 }
 
@@ -182763,8 +182688,8 @@ func (s *ResponsePostResponseMeIdentitiesChannelConfirmOK) SetName(val OptString
 }
 
 // Email_code: Vedette mails a code to this address. send_code: the box sends a confirm link to that
-// chat account and you confirm it while signed in to Vedette (Zalo personal D-447, Telegram D-414);
-// Send again asks for a new one. unavailable: this channel cannot be linked yet (approve in Vedette).
+// chat account and you confirm it while signed in to Vedette (Zalo personal, Telegram); Send again
+// asks for a new one. unavailable: this channel cannot be linked yet (approve in Vedette).
 type ResponsePostResponseMeIdentitiesChannelConfirmOKMethod string
 
 const (
@@ -182843,8 +182768,7 @@ type ResponsePostResponseProposalsIDRequestCreated struct {
 	Note       NilString                                                     `json:"note"`
 	// Carried out by the rule pre-approval option, without a person.
 	PreApproved bool `json:"pre_approved"`
-	// The AI plan proposal, rule:: for a rule run, or incident: for a request asked from an incident
-	// (D-509).
+	// The AI plan proposal, rule:: for a rule run, or incident: for a request asked from an incident.
 	ProposalID        string    `json:"proposal_id"`
 	RequestedAt       time.Time `json:"requested_at"`
 	RequiresApprovals int       `json:"requires_approvals"`
@@ -182854,7 +182778,7 @@ type ResponsePostResponseProposalsIDRequestCreated struct {
 	RuleName NilString                                         `json:"rule_name"`
 	// Channels that received the approval request.
 	SentTo []string `json:"sent_to"`
-	// Who asked: the AI, a rule, or a person from an incident (D-509).
+	// Who asked: the AI, a rule, or a person from an incident.
 	Source         ResponsePostResponseProposalsIDRequestCreatedSource     `json:"source"`
 	Status         ResponsePostResponseProposalsIDRequestCreatedStatus     `json:"status"`
 	Title          string                                                  `json:"title"`
@@ -184286,7 +184210,7 @@ func (s *ResponsePostResponseProposalsIDRequestCreatedRisk) UnmarshalText(data [
 	}
 }
 
-// Who asked: the AI, a rule, or a person from an incident (D-509).
+// Who asked: the AI, a rule, or a person from an incident.
 type ResponsePostResponseProposalsIDRequestCreatedSource string
 
 const (
@@ -190163,7 +190087,7 @@ type ResponsePutResponseSettingsOK struct {
 	BreakerNotified   []string                                    `json:"breaker_notified"`
 	BreakerTrippedAt  NilDateTime                                 `json:"breaker_tripped_at"`
 	Channels          []ResponsePutResponseSettingsOKChannelsItem `json:"channels"`
-	// OFF by default (D-41); gates actions that change another device.
+	// OFF by default; gates actions that change another device.
 	Execution bool `json:"execution"`
 	// Minutes an approval request stays open (15 to 30).
 	ExpiryMin int `json:"expiry_min"`
@@ -190466,8 +190390,8 @@ type ResponsePutResponseSettingsOKChannelsItem struct {
 	Label     string `json:"label"`
 	// Approves through a one-time link (email, Zalo OA).
 	Link bool `json:"link"`
-	// Approvers who proved this address themselves in My account (D-191); only they can approve with
-	// buttons or links.
+	// Approvers who proved this address themselves in My account; only they can approve with buttons or
+	// links.
 	Linked int `json:"linked"`
 	// Configured, enabled, approvals on and at least one approver.
 	Ready bool   `json:"ready"`
@@ -190850,7 +190774,7 @@ type ScanGetScansConfigOK struct {
 	DangerousChecks bool                       `json:"dangerous_checks"`
 	NextRun         NilDateTime                `json:"next_run"`
 	// Set while the schedule is on but nothing automated can start because the organization time zone
-	// cannot be read; next_run is null then (D-261 (3)).
+	// cannot be read; next_run is null then.
 	ScheduleBlockedReason NilString                 `json:"schedule_blocked_reason"`
 	Scope                 ScanGetScansConfigOKScope `json:"scope"`
 	// Version of the shared safety block (window, rate, exclusions live in inventory INV-32; the same as
@@ -191025,7 +190949,7 @@ type ScanGetScansConfigOKConfigSchedule struct {
 	At        string                                      `json:"at"`
 	Enabled   bool                                        `json:"enabled"`
 	Frequency ScanGetScansConfigOKConfigScheduleFrequency `json:"frequency"`
-	// 1 = Monday … 7 = Sunday (D-57).
+	// 1 = Monday … 7 = Sunday.
 	Weekday int `json:"weekday"`
 }
 
@@ -191230,7 +191154,7 @@ type ScanGetScansCredentialedOKItemsItem struct {
 	Host      string    `json:"host"`
 	ID        string    `json:"id"`
 	// Last 4 characters only. The private key is stored encrypted on the box (SYS-4) and never shown or
-	// returned again (D-57).
+	// returned again.
 	KeyLast4 string                                         `json:"key_last4"`
 	Label    string                                         `json:"label"`
 	LastTest NilScanGetScansCredentialedOKItemsItemLastTest `json:"last_test"`
@@ -191395,11 +191319,10 @@ type ScanGetScansEventsOKItemsItem struct {
 	ID         string     `json:"id"`
 	LatencyMin NilFloat64 `json:"latency_min"`
 	Product    string     `json:"product"`
-	// Clear: no match reported, never "not affected" (D-133 (5)); pick_only: every device that matches may
-	// only be scanned by a hand pick (D-126 (2)), devices names them; stopped: the run stopped before
-	// every device was done (D-145 (7)); expired_*: the rescan waited 7 days and was dropped, for no
-	// template in the installed pack, the scanner not ready, or the organization time zone unreadable;
-	// devices is empty, no run (D-261 (2)).
+	// Clear: no match reported, never "not affected"; pick_only: every device that matches may only be
+	// scanned by a hand pick, devices names them; stopped: the run stopped before every device was done;
+	// expired_*: the rescan waited 7 days and was dropped, for no template in the installed pack, the
+	// scanner not ready, or the organization time zone unreadable; devices is empty, no run.
 	Result ScanGetScansEventsOKItemsItemResult `json:"result"`
 	RunID  NilString                           `json:"run_id"`
 	Ts     time.Time                           `json:"ts"`
@@ -191485,11 +191408,10 @@ func (s *ScanGetScansEventsOKItemsItem) SetTs(val time.Time) {
 	s.Ts = val
 }
 
-// Clear: no match reported, never "not affected" (D-133 (5)); pick_only: every device that matches may
-// only be scanned by a hand pick (D-126 (2)), devices names them; stopped: the run stopped before
-// every device was done (D-145 (7)); expired_*: the rescan waited 7 days and was dropped, for no
-// template in the installed pack, the scanner not ready, or the organization time zone unreadable;
-// devices is empty, no run (D-261 (2)).
+// Clear: no match reported, never "not affected"; pick_only: every device that matches may only be
+// scanned by a hand pick, devices names them; stopped: the run stopped before every device was done;
+// expired_*: the rescan waited 7 days and was dropped, for no template in the installed pack, the
+// scanner not ready, or the organization time zone unreadable; devices is empty, no run.
 type ScanGetScansEventsOKItemsItemResult string
 
 const (
@@ -191794,7 +191716,7 @@ func (s *ScanGetScansProbesOKItemsItemResult) UnmarshalText(data []byte) error {
 
 type ScanGetScansRunsOK struct {
 	// True while the scanner still works on a run that already shows stopped; a new scan is refused (409
-	// already_running) until it is free (D-261 (4)).
+	// already_running) until it is free.
 	EngineBusy bool                          `json:"engine_busy"`
 	Items      []ScanGetScansRunsOKItemsItem `json:"items"`
 }
@@ -191824,8 +191746,8 @@ type ScanGetScansRunsOKItemsItem struct {
 	Done    int                                   `json:"done"`
 	EndedAt NilDateTime                           `json:"ended_at"`
 	ID      string                                `json:"id"`
-	// One row per device of a Scan now run: what nmap identified first, or exactly why nothing was
-	// (D-501). Empty for scheduled scans and KEV rescans, and while the run is going.
+	// One row per device of a Scan now run: what nmap identified first, or exactly why nothing was. Empty
+	// for scheduled scans and KEV rescans, and while the run is going.
 	Identification []ScanGetScansRunsOKItemsItemIdentificationItem `json:"identification"`
 	Matched        int                                             `json:"matched"`
 	// How far the current device is (#830): its phase, how far into it, an estimate of its end. Set while
@@ -192029,12 +191951,11 @@ type ScanGetScansRunsOKItemsItemIdentificationItem struct {
 	// never shown as a fact that it filters), no_version (services gave no product or version),
 	// os_unconfirmed (only an OS guess: shown, never matched until a person adds the OS with its version),
 	// os_no_patch_level (the device named its Windows release and build in its NTLM answer, not its
-	// monthly update level: shown, never matched until a person adds it with its full version, D-504),
+	// monthly update level: shown, never matched until a person adds it with its full version),
 	// os_low_confidence (OS guess under 85%), scope_not_confirmed, box (the box or a decoy),
 	// regular_scan_never, gentle_only (fragile: gentle scan only), timed_out (scan incomplete: nmap gave
 	// up on the host), busy (discovery was running nmap), unavailable (nmap not available or Active
-	// discovery off), declared_by_hand, scanning_off, not_approved, out_of_scope, no_ip, not_scanned
-	// (D-501).
+	// discovery off), declared_by_hand, scanning_off, not_approved, out_of_scope, no_ip, not_scanned.
 	Reason   NilScanGetScansRunsOKItemsItemIdentificationItemReason `json:"reason"`
 	TargetID string                                                 `json:"target_id"`
 }
@@ -192811,35 +192732,35 @@ func (s *ScanGetScansTargetsOK) SetItems(val []ScanGetScansTargetsOKItemsItem) {
 }
 
 type ScanGetScansTargetsOKItemsItem struct {
-	// Approved in the inventory (picker filter, D-472); false for external targets.
+	// Approved in the inventory (picker filter); false for external targets.
 	Approved bool `json:"approved"`
-	// The Vedette box itself (D-470): pick_only, so it is scanned only when a person ticks it; sweeps,
-	// schedules, KEV rescans and Select all never include it.
+	// The Vedette box itself: pick_only, so it is scanned only when a person ticks it; sweeps, schedules,
+	// KEV rescans and Select all never include it.
 	Box bool `json:"box"`
 	// Device type in the inventory; null for external targets.
 	DeviceKind NilScanGetScansTargetsOKItemsItemDeviceKind `json:"device_kind"`
 	Findings   int                                         `json:"findings"`
 	// Fragile, or not yet classified (kind unknown): only scanned when picked by hand, at a quarter of the
-	// speed (D-126).
+	// speed.
 	Fragile bool `json:"fragile"`
 	// Device id (a-nas02) or ext: for a verified external target.
 	ID    string                             `json:"id"`
 	IP    string                             `json:"ip"`
 	Kind  ScanGetScansTargetsOKItemsItemKind `json:"kind"`
 	Label string                             `json:"label"`
-	// When the inventory last saw the device (picker filter, D-472); null for external targets.
+	// When the inventory last saw the device (picker filter); null for external targets.
 	LastSeen NilDateTime `json:"last_seen"`
-	// For the picker search (D-472); null when unknown and for external targets.
+	// For the picker search; null when unknown and for external targets.
 	MAC NilString `json:"mac"`
-	// Fragile, unclassified or added by hand: scanned only when a person ticks it in Scan now (D-126 (2)).
-	// The page never ticks it for you: not by default, not with Select all, not from a link.
+	// Fragile, unclassified or added by hand: scanned only when a person ticks it in Scan now. The page
+	// never ticks it for you: not by default, not with Select all, not from a link.
 	PickOnly bool `json:"pick_only"`
 	// Null when the target can be scanned by picking it. no_ip: the device has no IP address in the
-	// inventory (D-484). regular_scan_never: a person set "never scan" on the device (D-126).
-	// not_supported: external targets are not scanned by this version yet.
+	// inventory. regular_scan_never: a person set "never scan" on the device. not_supported: external
+	// targets are not scanned by this version yet.
 	Reason     NilScanGetScansTargetsOKItemsItemReason `json:"reason"`
 	Selectable bool                                    `json:"selectable"`
-	// For the picker search (D-472); null when unknown and for external targets.
+	// For the picker search; null when unknown and for external targets.
 	Vendor NilString `json:"vendor"`
 }
 
@@ -193773,7 +193694,7 @@ type ScanPostScansCredentialedCreated struct {
 	Host      string    `json:"host"`
 	ID        string    `json:"id"`
 	// Last 4 characters only. The private key is stored encrypted on the box (SYS-4) and never shown or
-	// returned again (D-57).
+	// returned again.
 	KeyLast4 string                                      `json:"key_last4"`
 	Label    string                                      `json:"label"`
 	LastTest NilScanPostScansCredentialedCreatedLastTest `json:"last_test"`
@@ -193913,7 +193834,7 @@ type ScanPostScansCredentialedIDTestOK struct {
 	Host      string    `json:"host"`
 	ID        string    `json:"id"`
 	// Last 4 characters only. The private key is stored encrypted on the box (SYS-4) and never shown or
-	// returned again (D-57).
+	// returned again.
 	KeyLast4 string                                       `json:"key_last4"`
 	Label    string                                       `json:"label"`
 	LastTest NilScanPostScansCredentialedIDTestOKLastTest `json:"last_test"`
@@ -194099,8 +194020,8 @@ type ScanPostScansRunsCreated struct {
 	Done    int                                `json:"done"`
 	EndedAt NilDateTime                        `json:"ended_at"`
 	ID      string                             `json:"id"`
-	// One row per device of a Scan now run: what nmap identified first, or exactly why nothing was
-	// (D-501). Empty for scheduled scans and KEV rescans, and while the run is going.
+	// One row per device of a Scan now run: what nmap identified first, or exactly why nothing was. Empty
+	// for scheduled scans and KEV rescans, and while the run is going.
 	Identification []ScanPostScansRunsCreatedIdentificationItem `json:"identification"`
 	Matched        int                                          `json:"matched"`
 	// How far the current device is (#830): its phase, how far into it, an estimate of its end. Set while
@@ -194304,12 +194225,11 @@ type ScanPostScansRunsCreatedIdentificationItem struct {
 	// never shown as a fact that it filters), no_version (services gave no product or version),
 	// os_unconfirmed (only an OS guess: shown, never matched until a person adds the OS with its version),
 	// os_no_patch_level (the device named its Windows release and build in its NTLM answer, not its
-	// monthly update level: shown, never matched until a person adds it with its full version, D-504),
+	// monthly update level: shown, never matched until a person adds it with its full version),
 	// os_low_confidence (OS guess under 85%), scope_not_confirmed, box (the box or a decoy),
 	// regular_scan_never, gentle_only (fragile: gentle scan only), timed_out (scan incomplete: nmap gave
 	// up on the host), busy (discovery was running nmap), unavailable (nmap not available or Active
-	// discovery off), declared_by_hand, scanning_off, not_approved, out_of_scope, no_ip, not_scanned
-	// (D-501).
+	// discovery off), declared_by_hand, scanning_off, not_approved, out_of_scope, no_ip, not_scanned.
 	Reason   NilScanPostScansRunsCreatedIdentificationItemReason `json:"reason"`
 	TargetID string                                              `json:"target_id"`
 }
@@ -195076,8 +194996,8 @@ type ScanPostScansRunsIDStopOK struct {
 	Done    int                                 `json:"done"`
 	EndedAt NilDateTime                         `json:"ended_at"`
 	ID      string                              `json:"id"`
-	// One row per device of a Scan now run: what nmap identified first, or exactly why nothing was
-	// (D-501). Empty for scheduled scans and KEV rescans, and while the run is going.
+	// One row per device of a Scan now run: what nmap identified first, or exactly why nothing was. Empty
+	// for scheduled scans and KEV rescans, and while the run is going.
 	Identification []ScanPostScansRunsIDStopOKIdentificationItem `json:"identification"`
 	Matched        int                                           `json:"matched"`
 	// How far the current device is (#830): its phase, how far into it, an estimate of its end. Set while
@@ -195281,12 +195201,11 @@ type ScanPostScansRunsIDStopOKIdentificationItem struct {
 	// never shown as a fact that it filters), no_version (services gave no product or version),
 	// os_unconfirmed (only an OS guess: shown, never matched until a person adds the OS with its version),
 	// os_no_patch_level (the device named its Windows release and build in its NTLM answer, not its
-	// monthly update level: shown, never matched until a person adds it with its full version, D-504),
+	// monthly update level: shown, never matched until a person adds it with its full version),
 	// os_low_confidence (OS guess under 85%), scope_not_confirmed, box (the box or a decoy),
 	// regular_scan_never, gentle_only (fragile: gentle scan only), timed_out (scan incomplete: nmap gave
 	// up on the host), busy (discovery was running nmap), unavailable (nmap not available or Active
-	// discovery off), declared_by_hand, scanning_off, not_approved, out_of_scope, no_ip, not_scanned
-	// (D-501).
+	// discovery off), declared_by_hand, scanning_off, not_approved, out_of_scope, no_ip, not_scanned.
 	Reason   NilScanPostScansRunsIDStopOKIdentificationItemReason `json:"reason"`
 	TargetID string                                               `json:"target_id"`
 }
@@ -196070,7 +195989,7 @@ type ScanPutScansConfigOK struct {
 	DangerousChecks bool                       `json:"dangerous_checks"`
 	NextRun         NilDateTime                `json:"next_run"`
 	// Set while the schedule is on but nothing automated can start because the organization time zone
-	// cannot be read; next_run is null then (D-261 (3)).
+	// cannot be read; next_run is null then.
 	ScheduleBlockedReason NilString                 `json:"schedule_blocked_reason"`
 	Scope                 ScanPutScansConfigOKScope `json:"scope"`
 	// Version of the shared safety block (window, rate, exclusions live in inventory INV-32; the same as
@@ -196245,7 +196164,7 @@ type ScanPutScansConfigOKConfigSchedule struct {
 	At        string                                      `json:"at"`
 	Enabled   bool                                        `json:"enabled"`
 	Frequency ScanPutScansConfigOKConfigScheduleFrequency `json:"frequency"`
-	// 1 = Monday … 7 = Sunday (D-57).
+	// 1 = Monday … 7 = Sunday.
 	Weekday int `json:"weekday"`
 }
 
@@ -196431,9 +196350,9 @@ type ScanPutScansConfigReq struct {
 	StopOnUnresponsive OptBool                          `json:"stop_on_unresponsive"`
 	UnresponsiveAfter  OptInt                           `json:"unresponsive_after"`
 	// The version of the shared safety block this page read (version of GET /scans/config). Given and not
-	// the stored one: 409 safety_changed, nothing stored (review #860 M1). Left out: no check, so an
-	// exclusion added since the page loaded is replaced when exclusions are sent; this page is being
-	// replaced by Settings › Scanning (#850).
+	// the stored one: 409 safety_changed, nothing stored (#860). Left out: no check, so an exclusion added
+	// since the page loaded is replaced when exclusions are sent; this page is being replaced by Settings
+	// › Scanning (#850).
 	Version OptString                      `json:"version"`
 	Window  OptScanPutScansConfigReqWindow `json:"window"`
 }
@@ -196533,7 +196452,7 @@ type ScanPutScansConfigReqSchedule struct {
 	At        OptString                                 `json:"at"`
 	Enabled   OptBool                                   `json:"enabled"`
 	Frequency OptScanPutScansConfigReqScheduleFrequency `json:"frequency"`
-	// 1 = Monday … 7 = Sunday (D-57).
+	// 1 = Monday … 7 = Sunday.
 	Weekday OptInt `json:"weekday"`
 }
 
@@ -197429,8 +197348,8 @@ type ScanningGetScanningOKEnginesItemCost struct {
 	// once. null when the figure is its own.
 	Container NilString `json:"container"`
 	// Memory it may take, from a fact of the box's code: its container's memory cap (sensor 512, honeypot
-	// 256, scan 1024, ZAP 1024), or the measured peak for OpenVAS (about 4000, D-569); 0 for osquery and
-	// Wazuh, which run inside core. null when it is not known; never an estimate.
+	// 256, scan 1024, ZAP 1024), or the measured peak for OpenVAS (about 4000); 0 for osquery and Wazuh,
+	// which run inside core. null when it is not known; never an estimate.
 	RAMMB NilInt `json:"ram_mb"`
 	// On: held as long as the engine is on (a long-running container); running: only while one of its jobs
 	// runs (a one-shot container, or OpenVAS scanning).
@@ -198454,10 +198373,9 @@ type ScanningGetScanningOKSafety struct {
 	Fragile    ScanningGetScanningOKSafetyFragile `json:"fragile"`
 	Scope      ScanningGetScanningOKSafetyScope   `json:"scope"`
 	Speed      ScanningGetScanningOKSafetySpeed   `json:"speed"`
-	// Names the stored values of this block (review #860 M1): PUT /scanning/safety must send back the
-	// version it was built on (409 safety_changed otherwise), so a page opened before an inline add never
-	// drops it. Every answer that changed the block carries the new one. The same values give the same
-	// version.
+	// Names the stored values of this block (#860): PUT /scanning/safety must send back the version it was
+	// built on (409 safety_changed otherwise), so a page opened before an inline add never drops it. Every
+	// answer that changed the block carries the new one. The same values give the same version.
 	Version string `json:"version"`
 	// One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now,
 	// Check this device now and external scans are not bound by it.
@@ -198528,7 +198446,7 @@ type ScanningGetScanningOKSafetyFragile struct {
 	// Devices fragile today (by type or marked by hand), for the link to Devices with the fragile filter;
 	// read-only.
 	Devices int `json:"devices"`
-	// Types scanned once, gently, when first seen; passive-only after that (D-45, D-511).
+	// Types scanned once, gently, when first seen; passive-only after that.
 	Kinds []ScanningGetScanningOKSafetyFragileKindsItem `json:"kinds"`
 	// Subset of kinds that may still get regular scans.
 	RegularScanKinds []ScanningGetScanningOKSafetyFragileRegularScanKindsItem `json:"regular_scan_kinds"`
@@ -198803,7 +198721,7 @@ func (s *ScanningGetScanningOKSafetyFragileRegularScanKindsItem) UnmarshalText(d
 type ScanningGetScanningOKSafetyScope struct {
 	ConfirmedAt NilDateTime `json:"confirmed_at"`
 	ConfirmedBy NilString   `json:"confirmed_by"`
-	// Internal IPv4 CIDR (RFC 1918 or 100.64.0.0/10, D-461); inventory lan_ranges.
+	// Internal IPv4 CIDR (RFC 1918 or 100.64.0.0/10); inventory lan_ranges.
 	LanRanges []string `json:"lan_ranges"`
 }
 
@@ -199359,8 +199277,8 @@ type ScanningPatchScanningEnginesIDOKEnginesItemCost struct {
 	// once. null when the figure is its own.
 	Container NilString `json:"container"`
 	// Memory it may take, from a fact of the box's code: its container's memory cap (sensor 512, honeypot
-	// 256, scan 1024, ZAP 1024), or the measured peak for OpenVAS (about 4000, D-569); 0 for osquery and
-	// Wazuh, which run inside core. null when it is not known; never an estimate.
+	// 256, scan 1024, ZAP 1024), or the measured peak for OpenVAS (about 4000); 0 for osquery and Wazuh,
+	// which run inside core. null when it is not known; never an estimate.
 	RAMMB NilInt `json:"ram_mb"`
 	// On: held as long as the engine is on (a long-running container); running: only while one of its jobs
 	// runs (a one-shot container, or OpenVAS scanning).
@@ -200384,10 +200302,9 @@ type ScanningPatchScanningEnginesIDOKSafety struct {
 	Fragile    ScanningPatchScanningEnginesIDOKSafetyFragile `json:"fragile"`
 	Scope      ScanningPatchScanningEnginesIDOKSafetyScope   `json:"scope"`
 	Speed      ScanningPatchScanningEnginesIDOKSafetySpeed   `json:"speed"`
-	// Names the stored values of this block (review #860 M1): PUT /scanning/safety must send back the
-	// version it was built on (409 safety_changed otherwise), so a page opened before an inline add never
-	// drops it. Every answer that changed the block carries the new one. The same values give the same
-	// version.
+	// Names the stored values of this block (#860): PUT /scanning/safety must send back the version it was
+	// built on (409 safety_changed otherwise), so a page opened before an inline add never drops it. Every
+	// answer that changed the block carries the new one. The same values give the same version.
 	Version string `json:"version"`
 	// One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now,
 	// Check this device now and external scans are not bound by it.
@@ -200458,7 +200375,7 @@ type ScanningPatchScanningEnginesIDOKSafetyFragile struct {
 	// Devices fragile today (by type or marked by hand), for the link to Devices with the fragile filter;
 	// read-only.
 	Devices int `json:"devices"`
-	// Types scanned once, gently, when first seen; passive-only after that (D-45, D-511).
+	// Types scanned once, gently, when first seen; passive-only after that.
 	Kinds []ScanningPatchScanningEnginesIDOKSafetyFragileKindsItem `json:"kinds"`
 	// Subset of kinds that may still get regular scans.
 	RegularScanKinds []ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItem `json:"regular_scan_kinds"`
@@ -200733,7 +200650,7 @@ func (s *ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItem) Unma
 type ScanningPatchScanningEnginesIDOKSafetyScope struct {
 	ConfirmedAt NilDateTime `json:"confirmed_at"`
 	ConfirmedBy NilString   `json:"confirmed_by"`
-	// Internal IPv4 CIDR (RFC 1918 or 100.64.0.0/10, D-461); inventory lan_ranges.
+	// Internal IPv4 CIDR (RFC 1918 or 100.64.0.0/10); inventory lan_ranges.
 	LanRanges []string `json:"lan_ranges"`
 }
 
@@ -201342,10 +201259,9 @@ type ScanningPostScanningSafetyExclusionsOK struct {
 	Fragile    ScanningPostScanningSafetyExclusionsOKFragile `json:"fragile"`
 	Scope      ScanningPostScanningSafetyExclusionsOKScope   `json:"scope"`
 	Speed      ScanningPostScanningSafetyExclusionsOKSpeed   `json:"speed"`
-	// Names the stored values of this block (review #860 M1): PUT /scanning/safety must send back the
-	// version it was built on (409 safety_changed otherwise), so a page opened before an inline add never
-	// drops it. Every answer that changed the block carries the new one. The same values give the same
-	// version.
+	// Names the stored values of this block (#860): PUT /scanning/safety must send back the version it was
+	// built on (409 safety_changed otherwise), so a page opened before an inline add never drops it. Every
+	// answer that changed the block carries the new one. The same values give the same version.
 	Version string `json:"version"`
 	// One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now,
 	// Check this device now and external scans are not bound by it.
@@ -201416,7 +201332,7 @@ type ScanningPostScanningSafetyExclusionsOKFragile struct {
 	// Devices fragile today (by type or marked by hand), for the link to Devices with the fragile filter;
 	// read-only.
 	Devices int `json:"devices"`
-	// Types scanned once, gently, when first seen; passive-only after that (D-45, D-511).
+	// Types scanned once, gently, when first seen; passive-only after that.
 	Kinds []ScanningPostScanningSafetyExclusionsOKFragileKindsItem `json:"kinds"`
 	// Subset of kinds that may still get regular scans.
 	RegularScanKinds []ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItem `json:"regular_scan_kinds"`
@@ -201691,7 +201607,7 @@ func (s *ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItem) Unma
 type ScanningPostScanningSafetyExclusionsOKScope struct {
 	ConfirmedAt NilDateTime `json:"confirmed_at"`
 	ConfirmedBy NilString   `json:"confirmed_by"`
-	// Internal IPv4 CIDR (RFC 1918 or 100.64.0.0/10, D-461); inventory lan_ranges.
+	// Internal IPv4 CIDR (RFC 1918 or 100.64.0.0/10); inventory lan_ranges.
 	LanRanges []string `json:"lan_ranges"`
 }
 
@@ -201830,10 +201746,9 @@ type ScanningPostScanningSafetyRangesOK struct {
 	Fragile    ScanningPostScanningSafetyRangesOKFragile `json:"fragile"`
 	Scope      ScanningPostScanningSafetyRangesOKScope   `json:"scope"`
 	Speed      ScanningPostScanningSafetyRangesOKSpeed   `json:"speed"`
-	// Names the stored values of this block (review #860 M1): PUT /scanning/safety must send back the
-	// version it was built on (409 safety_changed otherwise), so a page opened before an inline add never
-	// drops it. Every answer that changed the block carries the new one. The same values give the same
-	// version.
+	// Names the stored values of this block (#860): PUT /scanning/safety must send back the version it was
+	// built on (409 safety_changed otherwise), so a page opened before an inline add never drops it. Every
+	// answer that changed the block carries the new one. The same values give the same version.
 	Version string `json:"version"`
 	// One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now,
 	// Check this device now and external scans are not bound by it.
@@ -201939,7 +201854,7 @@ type ScanningPostScanningSafetyRangesOKFragile struct {
 	// Devices fragile today (by type or marked by hand), for the link to Devices with the fragile filter;
 	// read-only.
 	Devices int `json:"devices"`
-	// Types scanned once, gently, when first seen; passive-only after that (D-45, D-511).
+	// Types scanned once, gently, when first seen; passive-only after that.
 	Kinds []ScanningPostScanningSafetyRangesOKFragileKindsItem `json:"kinds"`
 	// Subset of kinds that may still get regular scans.
 	RegularScanKinds []ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItem `json:"regular_scan_kinds"`
@@ -202214,7 +202129,7 @@ func (s *ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItem) Unmarsha
 type ScanningPostScanningSafetyRangesOKScope struct {
 	ConfirmedAt NilDateTime `json:"confirmed_at"`
 	ConfirmedBy NilString   `json:"confirmed_by"`
-	// Internal IPv4 CIDR (RFC 1918 or 100.64.0.0/10, D-461); inventory lan_ranges.
+	// Internal IPv4 CIDR (RFC 1918 or 100.64.0.0/10); inventory lan_ranges.
 	LanRanges []string `json:"lan_ranges"`
 }
 
@@ -202333,18 +202248,17 @@ type ScanningPostScanningSafetyRangesReq struct {
 	// the company and scanning them is permitted. Must be true (400 scope_not_confirmed); recorded as
 	// confirmed_at/confirmed_by.
 	Confirm bool `json:"confirm"`
-	// One internal IPv4 CIDR (RFC 1918 or 100.64.0.0/10, D-461) to add to the scope, e.g. 192.168.20.0/24;
-	// host bits are dropped and reported in adjusted.
+	// One internal IPv4 CIDR (RFC 1918 or 100.64.0.0/10) to add to the scope, e.g. 192.168.20.0/24; host
+	// bits are dropped and reported in adjusted.
 	Range string `json:"range"`
 	// The confirmation the dialog showed (safety.scope.confirmed_at as read, compared to the second; null:
 	// shown as not confirmed). When the stored one is another (an admin unconfirmed the scope, or
-	// confirmed it again, since), 409 scope_changed with the current block, nothing stored (review #860 r2
-	// M1).
+	// confirmed it again, since), 409 scope_changed with the current block, nothing stored (#860).
 	ShownConfirmedAt NilString `json:"shown_confirmed_at"`
 	// The ranges the dialog showed next to the tick (safety.scope.lan_ranges as read; order does not
 	// matter, compared as networks). The tick confirms exactly these and the new range: when the stored
 	// list is another one (an admin changed the ranges since), 409 scope_changed with the current block
-	// (error.safety) and nothing stored (review #860 H1).
+	// (error.safety) and nothing stored (#860).
 	ShownRanges []string `json:"shown_ranges"`
 }
 
@@ -202397,10 +202311,9 @@ type ScanningPutScanningSafetyOK struct {
 	Fragile    ScanningPutScanningSafetyOKFragile `json:"fragile"`
 	Scope      ScanningPutScanningSafetyOKScope   `json:"scope"`
 	Speed      ScanningPutScanningSafetyOKSpeed   `json:"speed"`
-	// Names the stored values of this block (review #860 M1): PUT /scanning/safety must send back the
-	// version it was built on (409 safety_changed otherwise), so a page opened before an inline add never
-	// drops it. Every answer that changed the block carries the new one. The same values give the same
-	// version.
+	// Names the stored values of this block (#860): PUT /scanning/safety must send back the version it was
+	// built on (409 safety_changed otherwise), so a page opened before an inline add never drops it. Every
+	// answer that changed the block carries the new one. The same values give the same version.
 	Version string `json:"version"`
 	// One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now,
 	// Check this device now and external scans are not bound by it.
@@ -202506,7 +202419,7 @@ type ScanningPutScanningSafetyOKFragile struct {
 	// Devices fragile today (by type or marked by hand), for the link to Devices with the fragile filter;
 	// read-only.
 	Devices int `json:"devices"`
-	// Types scanned once, gently, when first seen; passive-only after that (D-45, D-511).
+	// Types scanned once, gently, when first seen; passive-only after that.
 	Kinds []ScanningPutScanningSafetyOKFragileKindsItem `json:"kinds"`
 	// Subset of kinds that may still get regular scans.
 	RegularScanKinds []ScanningPutScanningSafetyOKFragileRegularScanKindsItem `json:"regular_scan_kinds"`
@@ -202781,7 +202694,7 @@ func (s *ScanningPutScanningSafetyOKFragileRegularScanKindsItem) UnmarshalText(d
 type ScanningPutScanningSafetyOKScope struct {
 	ConfirmedAt NilDateTime `json:"confirmed_at"`
 	ConfirmedBy NilString   `json:"confirmed_by"`
-	// Internal IPv4 CIDR (RFC 1918 or 100.64.0.0/10, D-461); inventory lan_ranges.
+	// Internal IPv4 CIDR (RFC 1918 or 100.64.0.0/10); inventory lan_ranges.
 	LanRanges []string `json:"lan_ranges"`
 }
 
@@ -202968,7 +202881,7 @@ func (s *ScanningPutScanningSafetyReq) SetWindow(val ScanningPutScanningSafetyRe
 }
 
 type ScanningPutScanningSafetyReqFragile struct {
-	// Types scanned once, gently, when first seen; passive-only after that (D-45, D-511).
+	// Types scanned once, gently, when first seen; passive-only after that.
 	Kinds []ScanningPutScanningSafetyReqFragileKindsItem `json:"kinds"`
 	// Subset of kinds that may still get regular scans.
 	RegularScanKinds []ScanningPutScanningSafetyReqFragileRegularScanKindsItem `json:"regular_scan_kinds"`
@@ -203234,7 +203147,7 @@ type ScanningPutScanningSafetyReqScope struct {
 	// Attestation: the ranges belong to the company and scanning them is permitted. Required true while
 	// nmap-discovery is on (400 scope_not_confirmed); changing the ranges asks for it again.
 	Confirmed bool `json:"confirmed"`
-	// Internal IPv4 CIDR (RFC 1918 or 100.64.0.0/10, D-461); inventory lan_ranges.
+	// Internal IPv4 CIDR (RFC 1918 or 100.64.0.0/10); inventory lan_ranges.
 	LanRanges []string `json:"lan_ranges"`
 }
 

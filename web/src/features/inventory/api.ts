@@ -11,7 +11,7 @@ import type {
 } from './types'
 
 export const useDevices = () => useQuery({ queryKey: ['inventory', 'devices'], queryFn: () => api.get<DevicesResponse>('/inventory/devices') })
-/** D-630: the devices a person ignored (the Ignored tab), read only while that tab is open. */
+/** The devices a person ignored (the Ignored tab), read only while that tab is open. */
 export const useIgnoredDevices = (enabled = true) => useQuery({ queryKey: ['inventory', 'devices', 'ignored'], queryFn: () => api.get<DevicesResponse>('/inventory/devices?ignored=true'), enabled })
 export const useDevice = (id: string) => useQuery({ queryKey: ['inventory', 'device', id], queryFn: () => api.get<DeviceDetail>(`/inventory/devices/${encodeURIComponent(id)}`), retry: false })
 /** The contract allows at most 80 characters in `q` (the backend answers 400 above that; the mock clips). A pasted long text is clipped here so suggestions keep working. */
@@ -20,10 +20,10 @@ export const catalogPath = (q: string) => `/inventory/catalog?q=${encodeURICompo
 export const useCatalog = (q: string) =>
   useQuery({ queryKey: ['inventory', 'catalog', q.trim().slice(0, CATALOG_Q_MAX)], queryFn: () => api.get<CatalogResponse>(catalogPath(q)), placeholderData: (prev) => prev, enabled: q.trim() !== '' })
 export const useSettings = (enabled = true) => useQuery({ queryKey: ['inventory', 'settings'], queryFn: () => api.get<InventorySettings>('/inventory/settings'), retry: false, enabled })
-// W2-6: while the box is starting the sensor the row is read again every 10 s, so "Starting…" turns into "Reporting" by itself.
+// While the box is starting the sensor the row is read again every 10 s, so "Starting…" turns into "Reporting" by itself.
 export const useSensors = () => useQuery({ queryKey: ['inventory', 'sensors'], queryFn: () => api.get<SensorsResponse>('/inventory/sensors'), retry: false,
   refetchInterval: (q) => (q.state.status !== 'error' && q.state.data?.sensors.some((s) => s.status === 'starting') ? 10_000 : false) })
-/** Container-only install (D-387): choose the SPAN card among the cards the sensor reported; the row follows the answer. */
+/** Container-only install: choose the SPAN card among the cards the sensor reported; the row follows the answer. */
 export function useSensorCard(id: string) {
   const qc = useQueryClient()
   return useMutation({ mutationFn: (b: SensorPatch) => api.patch<Sensor>(`/inventory/sensors/${encodeURIComponent(id)}`, b), onSuccess: () => qc.invalidateQueries({ queryKey: ['inventory', 'sensors'] }) })
@@ -42,7 +42,7 @@ export function useAskReport(id: string) {
   return useMutation({ mutationFn: () => api.post<AgentReport>(reportPath(id)), onSuccess: (r) => qc.setQueryData(['inventory', 'agent-report', id], r) })
 }
 
-/** D-512: `enabled` false while sensor-active is off (its SNMP routes answer 404 then), so the GUI does not ask. */
+/** `enabled` false while sensor-active is off (its SNMP routes answer 404 then), so the GUI does not ask. */
 export const useSnmp = (enabled = true) => useQuery({ queryKey: ['inventory', 'snmp'], queryFn: () => api.get<SnmpResponse>('/inventory/snmp'), retry: false, enabled })
 
 /** Sau mọi thay đổi thiết bị: làm mới cả danh sách, chi tiết và các trang module khác đọc tài sản (feeds, findings). */
@@ -65,7 +65,7 @@ export function useDeviceAction(id: string) {
   return {
     approve: useMutation({ mutationFn: () => api.post(`${base}/approve`), onSuccess: inv }),
     suspicious: useMutation({ mutationFn: (suspicious: boolean) => api.post(`${base}/suspicious`, { suspicious }), onSuccess: inv }),
-    /** D-630: ignore (known, not watched) or stop ignoring (back to To review). */
+    /** Ignore (known, not watched) or stop ignoring (back to To review). */
     ignore: useMutation({ mutationFn: (ignored: boolean) => api.post(`${base}/ignore`, { ignored }), onSuccess: inv }),
     remove: useMutation({ mutationFn: () => api.del(base), onSuccess: inv }),
     patch: useMutation({ mutationFn: (b: { name?: string; kind?: AssetKind; fragile?: boolean; regular_scan?: RegularScan; notes?: string; os?: string }) => api.patch(base, b), onSuccess: inv }),
@@ -78,16 +78,16 @@ export function useDeviceAction(id: string) {
     notInstalled: useMutation({ mutationFn: (sid: string) => api.patch(`${base}/software/${encodeURIComponent(sid)}`, { not_installed: true }), onSuccess: inv }),
   }
 }
-/** D-601: turn the network scan or the SNMP reads of one device on or off (admin); the answer is both, the default resolved. */
+/** Turn the network scan or the SNMP reads of one device on or off (admin); the answer is both, the default resolved. */
 export function useDeviceSources(id: string) {
   const inv = useInvalidate()
   return useMutation({
     mutationFn: (b: SourcesInput) => api.put<SourcesState>(`/inventory/devices/${encodeURIComponent(id)}/sources`, b), onSuccess: inv,
   })
 }
-/** D-599 (#829): every pair of devices that may be one machine; one cached read for the To review hints and the `possible:same` filter. */
+/** Every pair of devices that may be one machine; one cached read for the To review hints and the `possible:same` filter. */
 export const usePossibleSame = () => useQuery({ queryKey: ['inventory', 'possible-same'], queryFn: () => api.get<SamePairs>('/inventory/possible-same'), retry: false })
-/** D-599 (#829, J2): Merge (`from` joins `into` and is gone) and Keep separate, admin only. After a merge the device that went is not
+/** Merge (`from` joins `into` and is gone) and Keep separate, admin only. After a merge the device that went is not
  *  read again (its page would answer 404 while it navigates away); every other inventory, feeds and findings query is. */
 export function useSameDevice() {
   const qc = useQueryClient()
@@ -126,7 +126,7 @@ export function useSaveSettings() {
       toast.success(r.adjusted.length ? i18n.t('inventory:network.savedAdjusted', { list: r.adjusted.map((a) => `${a.from} → ${a.to}`).join(', ') }) : i18n.t('inventory:network.saved'))
       await inv()
     },
-    // review #860 r2 L2: the block changed since the page loaded (another admin, an inline add): read it again, so the form shows
+    // #860: the block changed since the page loaded (another admin, an inline add): read it again, so the form shows
     // the current values and its version; the toast outlives the form, which is built again on the new values
     onError: async (e) => {
       if (e instanceof ApiError && e.code === 'safety_changed') {

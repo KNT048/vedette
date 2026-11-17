@@ -54,7 +54,7 @@ func TestSQLServerVersionLeavesNeedsYourInput(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// report is the agent's SQL Server rows as agent-intake maps DESKTOP-55UKKFV's programs (TestSQLServer_D606_*): the release's own
+	// report is the agent's SQL Server rows as agent-intake maps DESKTOP-55UKKFV's programs (the tests in `../../modules/agent-intake/sqlserver_test.go`, `../../modules/findings/sqlserver_test.go`): the release's own
 	// row, then the components that are not keyed to the product.
 	report := func(version string) {
 		t.Helper()

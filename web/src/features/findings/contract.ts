@@ -15,7 +15,7 @@ export const StatusAction = z.enum(['patched', 'mitigated', 'false_positive', 'n
 export const BulkAction = z.enum(['patched', 'mitigated', 'false_positive', 'not_relevant', 'accept_risk'])
 /** How far ahead a risk can be accepted. */
 export const MAX_ACCEPT_DAYS = 365
-const until = z.iso.date().optional().describe('accept_risk only (D-498): the last day the risk is accepted, from tomorrow to 365 days ahead; the finding reopens by itself after it')
+const until = z.iso.date().optional().describe('accept_risk only: the last day the risk is accepted, from tomorrow to 365 days ahead; the finding reopens by itself after it')
 /** Most findings one bulk status change may touch (INV-10 of findings). */
 export const MAX_BULK = 500
 
@@ -29,38 +29,38 @@ export const Finding = z.object({
   basis: z.enum(['scan', 'version', 'product']).describe('scan = confirmed by a scan template; version = suspected by version; product = only the product matches'),
   evidence: z.object({
     summary: z.string(), template: z.string().optional(), request: z.string().optional(), response: z.string().optional(), checked_at: iso,
-    agent: z.boolean().optional().describe('D-548: the version compared is the one the device\'s own agent (osquery, Wazuh) reports installed: a detection, shown as "Detected by the agent", with nothing for the person to look up'),
-    agent_row: z.boolean().optional().describe('N52-2: a product-only match on a software row the device\'s own agent reported with its installed version: Vedette could not compare that version with NVD\'s data, so the page does not ask to add the version'),
+    agent: z.boolean().optional().describe('the version compared is the one the device\'s own agent (osquery, Wazuh) reports installed: a detection, shown as "Detected by the agent", with nothing for the person to look up'),
+    agent_row: z.boolean().optional().describe('a product-only match on a software row the device\'s own agent reported with its installed version: Vedette could not compare that version with NVD\'s data, so the page does not ask to add the version'),
   }).nullable(),
   first_seen: iso,
   last_seen: iso,
   resolved_by: z.string().nullable(),
   resolved_at: iso.nullable(),
   resolution_note: z.string().nullable(),
-  accepted_until: z.iso.date().nullable().describe('risk_accepted only (D-498): the last day of the acceptance (UTC); the finding reopens by itself after it'),
+  accepted_until: z.iso.date().nullable().describe('risk_accepted only: the last day of the acceptance (UTC); the finding reopens by itself after it'),
   history: z.array(z.object({ ts: iso, user: z.string(), action: z.string(), note: z.string().optional() })),
 })
 
 export const KevInfo = z.object({
   name: z.string(), vendor: z.string(), product: z.string(), display: z.string(), required_action: z.string(), links: z.array(z.string()),
   date_added: z.string(), due_date: z.string().nullable(), ransomware: z.boolean(), epss: z.number().nullable(), has_template: z.boolean(),
-  source: z.enum(['cisa-kev', 'vulncheck-kev']).optional().describe('Which list the entry is on (D-557): texts and the source badge name it; an entry of VulnCheck KEV is never called CISA\'s'),
-  published: z.iso.date().nullable().describe('D-615: the day the CVE was published (NVD `published`), never the day CISA added it; null when NVD has not answered for it (then it counts as recent: an older CVE is not a finding on a product-only match (D-616), and a missing date never closes a finding)'),
+  source: z.enum(['cisa-kev', 'vulncheck-kev']).optional().describe('Which list the entry is on: texts and the source badge name it; an entry of VulnCheck KEV is never called CISA\'s'),
+  published: z.iso.date().nullable().describe('the day the CVE was published (NVD `published`), never the day CISA added it; null when NVD has not answered for it (then it counts as recent: an older CVE is not a finding on a product-only match, and a missing date never closes a finding)'),
 })
 export const FindingAsset = z.object({
-  id: z.string(), name: z.string().describe('The name the Devices page shows: hostname, else vendor and model, else the IP, else the software; never the internal id (D-484)'),
+  id: z.string(), name: z.string().describe('The name the Devices page shows: hostname, else vendor and model, else the IP, else the software; never the internal id'),
   hostname: z.string().nullable(), ip: z.string().describe('"—" when the device has no IP address'), kind: AssetKind, display: z.string(),
 })
 export const RowFix = z.object({
   group: z.string().describe('"<device id>/<software id>": the open findings with the same group are fixed by the same update'),
   kind: z.enum(['fixed', 'esu', 'feature_update', 'distro']).describe('fixed = upgrade to `fixed` (a Windows release: the monthly cumulative update with build `fixed` or later); esu = that build needs Extended Security Updates; feature_update = no update of this release fixes them, move to release `fixed`; distro = install the distribution\'s security updates for the package'),
-  windows: z.boolean().describe('A Windows release row (D-546): the update is the monthly cumulative update Windows Update offers'),
+  windows: z.boolean().describe('A Windows release row: the update is the monthly cumulative update Windows Update offers'),
   software: z.string().describe('Display name of the software row'),
   version: z.string().describe('The installed version'),
   fixed: z.string().describe('The release or build that fixes them all; feature_update: the release to move to; empty for distro'),
   distro: z.string().describe('distro: "Ubuntu" or "Debian", empty for the distribution\'s'),
   pro: z.boolean().describe('distro: the fix of at least one of them is in Ubuntu Pro (ESM) only'),
-}).describe('D-545: one update fixes this finding together with the device\'s other open findings of the same software (top-tier: one item per missing update)')
+}).describe('one update fixes this finding together with the device\'s other open findings of the same software (top-tier: one item per missing update)')
 export const Cvss = z.object({
   score: z.number().min(0).max(10).describe('The CVSS base score (0.0 to 10.0, one decimal); its band follows from FIRST\'s table (3.x, 4.0) or NVD\'s v2 table (2.0: Low, Medium, High; no Critical)'),
   version: z.enum(['4.0', '3.1', '3.0', '2.0']).describe('The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has nothing newer)'),
@@ -70,7 +70,7 @@ export const Cvss = z.object({
 export const FindingRow = Finding.extend({
   asset: FindingAsset.nullable(), kev: KevInfo.nullable().describe('Read from KEV, not from the project recommendation pack'),
   cvss: Cvss.nullable().describe('null = no CVSS score known: the pages say "No score", never 0'),
-  fix: RowFix.nullable().optional().describe('GET /findings only, open findings: the update that fixes it with others (D-545); null when there is none to name'),
+  fix: RowFix.nullable().optional().describe('GET /findings only, open findings: the update that fixes it with others; null when there is none to name'),
 })
 
 export const CodeStep = z.object({
@@ -100,45 +100,45 @@ export const GeneralHardening = z.object({
   software: z.string().describe('The software the checks are for, as the page names it'),
   family: z.string().describe('The family the checks are written for ("Linux", "Network device", "General")'),
   checks: CompromiseCheck.nullable().describe('General "Have I been hit?" checks for the software family'),
-}).describe('Mitigation INV-8: general compromise checks written by reviewed code, not a recommendation for the CVE (D-21): never shown as "Vedette confirmed", never run by Vedette. The generated firewall configs and the admin network field (M2-1) are gone (D-631, kien 2026-11-17)')
+}).describe('Mitigation INV-8: general compromise checks written by reviewed code, not a recommendation for the CVE: never shown as "Vedette confirmed", never run by Vedette. The generated firewall configs and the admin network field are gone')
 export const AiResult = z.object({
   skill: z.enum(['explain', 'mitigation-config']), ts: iso, model: z.string(),
-  profile: z.string().optional().describe('Name of the AI profile that answered (D-29)'),
+  profile: z.string().optional().describe('Name of the AI profile that answered'),
   tokens: z.object({ input: z.number(), output: z.number() }),
   paragraphs: z.array(z.string()), steps: z.array(z.string()),
   citations: z.array(z.object({ title: z.string(), url: z.string().optional() })),
-  configs: z.array(CodeStep).optional().describe('mitigation-config (M2-2): config blocks to paste as they are, the device\'s own workaround first, then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based on, `side_effect` what it can break. Absent for explain and for answers stored before'),
+  configs: z.array(CodeStep).optional().describe('mitigation-config: config blocks to paste as they are, the device\'s own workaround first, then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based on, `side_effect` what it can break. Absent for explain and for answers stored before'),
   no_config_reason: z.string().optional().describe('#897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI\'s words; the page shows it where the configuration would be'),
-  shortened: z.boolean().optional().describe('M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never in the middle of one) or a config block was left out whole'),
+  shortened: z.boolean().optional().describe('A part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never in the middle of one) or a config block was left out whole'),
 })
 export const AppliedEntry = z.object({ item: z.string(), ts: iso, user: z.string() })
 
 export const FixedIn = z.object({
-  kind: z.enum(['fixed', 'up_to', 'end_listed', 'branches', 'distro', 'feature_update', 'esu']).describe('fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release named); end_listed (M2-4) = inside a range that ends before `fixed`, but NVD lists releases of `fixed` itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix, the vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the fix of each release line; distro = a package of the distribution, whose security updates carry the fix under their own numbers: an agent read it from the device\'s package database (deb/rpm), or the version carries a marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release NVD does not list for the fix, which only a later release of its line (`branches[0].branch`, from build `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the fixing Windows build `fixed` comes only with Extended Security Updates for `branches[0].branch`'),
+  kind: z.enum(['fixed', 'up_to', 'end_listed', 'branches', 'distro', 'feature_update', 'esu']).describe('fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release named); end_listed = inside a range that ends before `fixed`, but NVD lists releases of `fixed` itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix, the vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the fix of each release line; distro = a package of the distribution, whose security updates carry the fix under their own numbers: an agent read it from the device\'s package database (deb/rpm), or the version carries a marker such as ubuntu, +deb12, .el9; feature_update = a Windows release NVD does not list for the fix, which only a later release of its line (`branches[0].branch`, from build `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu = the fixing Windows build `fixed` comes only with Extended Security Updates for `branches[0].branch`'),
   version: z.string().describe("The device's version; for branches empty when it has none, else the text Vedette cannot read"),
   fixed: z.string().describe('The fixed release (fixed), the last affected release (up_to), the upstream fixed release as a reference when NVD names one (distro: the backport may keep the package\'s number below it); empty for branches'),
   branches: z.array(z.object({ branch: z.string().describe('Release line such as 7.4; empty when it cannot be told'), fixed: z.string() })).describe('At most 5, newest first'),
   more: z.number().int().min(0).describe('Release lines with a fix left out of branches'),
   no_fix: z.number().int().min(0).describe('Release lines NVD gives no fixed release for (a range that ends at an affected version)'),
   distro: z.string().describe('"Ubuntu" or "Debian" when the device runs one, empty otherwise. distro: whose security updates to install (empty = the distribution). Other kinds: set only when the software is not known to come from the package database (typed by a person, read by a scan, or an agent row stored before inventory kept the flag); the page adds "if you installed it from the distribution\'s packages, install its security updates instead"'),
-  distro_fixed: z.string().describe('D-516, kind distro only: the version of the distribution\'s package that fixes the CVE on the device\'s release (Ubuntu security data, Debian Security Tracker); `version` is then the device\'s full package version. Empty when the distribution\'s data does not say'),
+  distro_fixed: z.string().describe('Kind distro only: the version of the distribution\'s package that fixes the CVE on the device\'s release (Ubuntu security data, Debian Security Tracker); `version` is then the device\'s full package version. Empty when the distribution\'s data does not say'),
   distro_release: z.string().describe('The device\'s release with distro_fixed ("24.04", "12"); empty otherwise'),
   distro_pro: z.boolean().describe('distro_fixed is in Ubuntu Pro (ESM) only'),
-  source: z.string().describe('Where the versions come from: "NVD affected versions", "CVE.org affected versions (from the CVE record\'s CNA)" when NVD has none (D-556), or with distro_fixed "Ubuntu security data" / "Debian Security Tracker" (D-516)'),
+  source: z.string().describe('Where the versions come from: "NVD affected versions", "CVE.org affected versions (from the CVE record\'s CNA)" when NVD has none, or with distro_fixed "Ubuntu security data" / "Debian Security Tracker"'),
 })
 export const KnownVersion = z.object({
   software: z.string().describe('Display name of the software the finding was matched on'),
   version: z.string(),
   source: z.enum(['agent', 'snmp', 'stated', 'scan', 'manual']).describe('Who gave the version: the device\'s agent, its answer to Vedette\'s SNMP read, its own statement on the network (LLDP), a network scan, or a person on the Devices page'),
-}).describe('M2-3: the version the box has for the matched software; the page says it and how a newer one reaches Vedette, never "find which version"')
+}).describe('The version the box has for the matched software; the page says it and how a newer one reaches Vedette, never "find which version"')
 export const FindingDetail = FindingRow.extend({
-  known_version: KnownVersion.nullable().describe('M2-3: null when the matched software has no version or its source is not known'),
-  fixed_in: FixedIn.nullable().describe('The release that fixes this finding on this device, from the NVD affected versions (D-488); null = NVD gives none, the page shows CISA and the vendor advisory only'),
-  pack: MitigationPack.nullable().describe('null = no recommendation confirmed by Vedette maintainers yet (D-21)'),
+  known_version: KnownVersion.nullable().describe('Null when the matched software has no version or its source is not known'),
+  fixed_in: FixedIn.nullable().describe('The release that fixes this finding on this device, from the NVD affected versions; null = NVD gives none, the page shows CISA and the vendor advisory only'),
+  pack: MitigationPack.nullable().describe('null = no recommendation confirmed by Vedette maintainers yet'),
   compromise: CompromiseCheck.nullable(),
   recheck: z.object({ steps: z.array(z.string()), code: z.string().optional() }),
   ai: z.object({ explain: AiResult.nullable(), config: AiResult.nullable() }),
-  ai_available: z.object({ explain: z.boolean(), config: z.boolean() }).describe('Whether an AI profile is assigned and allowed for each job (D-29)'),
+  ai_available: z.object({ explain: z.boolean(), config: z.boolean() }).describe('Whether an AI profile is assigned and allowed for each job'),
   applied: z.array(AppliedEntry),
   hardening: GeneralHardening.nullable().describe('null when the confirmed pack has its own compromise signs, or mitigation is off'),
 })
@@ -146,7 +146,7 @@ export const VersionNeeded = z.object({
   asset: FindingAsset.nullable(), asset_id: z.string(), software_id: z.string(), software: z.string().describe('Display name of the software'),
   version: z.string().nullable().describe('null = no version; otherwise the version as entered, which Vedette cannot read'),
   cves: z.number().int().min(1).describe('Exploited CVEs of this product that the version would decide'),
-}).describe('D-500: a software on the exploited list without a usable version is ONE item, not one finding per CVE')
+}).describe('a software on the exploited list without a usable version is ONE item, not one finding per CVE')
 export const UncheckedReason = z.enum([
   'no_nvd_data',     // NVD has no CPE configuration for the CVE yet
   'no_nvd_versions', // NVD names the product but gives no affected versions
@@ -157,7 +157,7 @@ export const UncheckedReason = z.enum([
 ])
 export const UncheckedCve = z.object({
   cve: z.string(), name: z.string(), date_added: z.iso.date(), ransomware: z.boolean(), advisory: z.string().url().nullable(),
-  nvd_pending: z.boolean().optional().describe('D-602: reason no_nvd_data while Vedette has not read NVD\'s answer for this CVE yet (new box, NVD feed off or failing): say "waiting for NVD\'s data", not "NVD has not published"'),
+  nvd_pending: z.boolean().optional().describe('reason no_nvd_data while Vedette has not read NVD\'s answer for this CVE yet (new box, NVD feed off or failing): say "waiting for NVD\'s data", not "NVD has not published"'),
 })
 export const UncheckedAnswer = z.object({
   label: z.string().describe('The button: "Alpine Linux 3.23", "Another system", "Enter the package release"'),
@@ -169,15 +169,15 @@ export const UncheckedQuestion = z.object({
   error: z.string().optional().describe('The last answer could not be read: "Vedette could not read the release you entered (…)"; show it at the field'),
   command: z.string().nullable().describe('What prints the answer on the device ("apk info -e -v openssh-server" for the package release, "cat /etc/alpine-release" for the branch), null when none'),
   answers: z.array(UncheckedAnswer).min(1),
-}).describe('D-604: the one question left for a platform-limited CVE; every answer is an inventory correction, and the next match decides')
+}).describe('the one question left for a platform-limited CVE; every answer is an inventory correction, and the next match decides')
 export const UncheckedItem = z.object({
   asset: FindingAsset.nullable(), asset_id: z.string(),
   software_id: z.string().nullable(), software: z.string().describe('Display name, as on the device page'),
   version: z.string().nullable(),
   reason: UncheckedReason,
   cves: z.array(UncheckedCve).min(1),
-  action: z.enum(['add_version', 'answer_platform', 'none']).describe('add_version: only not_comparable on a software row a person declared (#920): typing the version as the vendor writes it lets Vedette check these CVEs; answer_platform (D-604): reasons platform_unknown and package_unknown, answer `question`; none: only the advisory decides'),
-  question: UncheckedQuestion.optional().describe('D-604: with action answer_platform; one item per CVE then'),
+  action: z.enum(['add_version', 'answer_platform', 'none']).describe('add_version: only not_comparable on a software row a person declared (#920): typing the version as the vendor writes it lets Vedette check these CVEs; answer_platform: reasons platform_unknown and package_unknown, answer `question`; none: only the advisory decides'),
+  question: UncheckedQuestion.optional().describe('with action answer_platform; one item per CVE then'),
 }).describe('#910 phase 1: exploited CVEs of software the box has that it could not check; one item per device x software x reason. No finding is created from it')
 export const FindingList = z.object({ items: z.array(FindingRow), version_needed: z.array(VersionNeeded), unchecked: z.array(UncheckedItem) })
 
@@ -189,28 +189,28 @@ export const PlanTier = z.enum(['likely', 'recent'])
 export const PlanFilter = z.enum(['likely', 'recent', 'all'])
 export const PlanCve = z.object({
   cve: z.string().regex(/^CVE-\d{4}-\d{4,}$/),
-  tier: PlanTier.describe('likely = EPSS 10 % or more; recent = published in the last 12 months (D-613); a CVE on an exploited list is a finding, never here'),
-  basis: z.enum(['scan', 'agent', 'distro', 'version']).describe('D-615 evidence: scan = a scan engine (nuclei, OpenVAS, ZAP) found it on the device; agent = the device\'s agent reports a build or package inside the affected range; distro = Ubuntu\'s or Debian\'s own data says the installed package is affected; version = an exact version compared with the CVE\'s ranges. Never a product-only match'),
+  tier: PlanTier.describe('likely = EPSS 10 % or more; recent = published in the last 12 months; a CVE on an exploited list is a finding, never here'),
+  basis: z.enum(['scan', 'agent', 'distro', 'version']).describe('Evidence: scan = a scan engine (nuclei, OpenVAS, ZAP) found it on the device; agent = the device\'s agent reports a build or package inside the affected range; distro = Ubuntu\'s or Debian\'s own data says the installed package is affected; version = an exact version compared with the CVE\'s ranges. Never a product-only match'),
   severity: z.enum(['critical', 'high', 'medium', 'low', 'none']).nullable().describe('NVD\'s CVSS severity; null when NVD has not scored it yet'),
   score: z.number().min(0).max(10).nullable().describe('NVD\'s CVSS base score'),
-  published: z.iso.date().describe('NVD `published`; older than 12 months only with basis scan (D-615)'),
+  published: z.iso.date().describe('NVD `published`; older than 12 months only with basis scan'),
   epss: z.number().min(0).max(1).nullable(),
   percentile: z.number().min(0).max(1).nullable(),
 })
 /** A device's risk marker (the same value as GET /inventory/devices gives, findings.RiskMap); null when clean, for the Vedette box
  * itself, or when the marker could not be read. */
 export const DeviceRiskView = z.object({ level: z.enum(['exploited', 'update']), exploited: z.number().int(), updates: z.number().int() }).nullable()
-  .describe('The device\'s risk marker (G4): exploited = open exploited findings To fix lists; update = none, but a recommended update fixes a CVE likely to be exploited or of High or Critical severity; null when clean, for the Vedette box itself, or when it could not be read')
+  .describe('The device\'s risk marker: exploited = open exploited findings To fix lists; update = none, but a recommended update fixes a CVE likely to be exploited or of High or Critical severity; null when clean, for the Vedette box itself, or when it could not be read')
 export const PlanItem = z.object({
-  group: z.string().describe('"<device id>/<software id>", as RowFix.group (D-545)'),
-  asset: z.object({ id: z.string(), name: z.string().describe('The name the Devices page shows, never the internal id (D-484)') }),
+  group: z.string().describe('"<device id>/<software id>", as RowFix.group'),
+  asset: z.object({ id: z.string(), name: z.string().describe('The name the Devices page shows, never the internal id') }),
   risk: DeviceRiskView,
   software: z.string().describe('Display name of the software row'),
   version: z.string().describe('The installed version'),
-  fixed: z.string().describe('fixed: the version that fixes every CVE of the item; windows, esu: the build of the cumulative update; distro: the distribution\'s package version that fixes every CVE of the item on the device\'s release (D-622)'),
-  kind: z.enum(['fixed', 'distro', 'windows', 'esu']).describe('fixed = upgrade the software to `fixed`; distro = upgrade the Ubuntu or Debian source package `software` from `version` to `fixed` or later (the distribution\'s security update, D-622); windows = the monthly cumulative update with build `fixed` or later; esu = the same on a Windows release past its end of support: the update comes only with Extended Security Updates (D-617)'),
+  fixed: z.string().describe('fixed: the version that fixes every CVE of the item; windows, esu: the build of the cumulative update; distro: the distribution\'s package version that fixes every CVE of the item on the device\'s release'),
+  kind: z.enum(['fixed', 'distro', 'windows', 'esu']).describe('fixed = upgrade the software to `fixed`; distro = upgrade the Ubuntu or Debian source package `software` from `version` to `fixed` or later (the distribution\'s security update); windows = the monthly cumulative update with build `fixed` or later; esu = the same on a Windows release past its end of support: the update comes only with Extended Security Updates'),
   pro: z.boolean().describe('distro only: `fixed` is in Ubuntu Pro (ESM) only; false otherwise'),
-  cves: z.array(PlanCve).min(1).describe('Likely first, by EPSS; then the recent ones by CVSS score, then EPSS; then newest (D-623)'),
+  cves: z.array(PlanCve).min(1).describe('Likely first, by EPSS; then the recent ones by CVSS score, then EPSS; then newest'),
   likely: z.number().int().min(0),
   recent: z.number().int().min(0),
 })
@@ -221,11 +221,11 @@ export const Plan = z.object({
     likely: z.number().int().min(0).describe('Items the tier=likely answer lists'),
     recent: z.number().int().min(0).describe('Items the tier=recent answer lists'),
     all: z.number().int().min(0).describe('Items the tier=all answer lists'),
-  }).describe('M2-9: the number of items each tier filter lists, for the same device filter, whatever tier was asked: one answer gives every tab its count'),
-  compared: z.boolean().describe('false = no comparison of tier 2 and 3 CVEs with the devices has run since the box started (D-617: the plan job runs within minutes); the page says so instead of "no update to plan"'),
+  }).describe('The number of items each tier filter lists, for the same device filter, whatever tier was asked: one answer gives every tab its count'),
+  compared: z.boolean().describe('false = no comparison of tier 2 and 3 CVEs with the devices has run since the box started (the plan job runs within minutes); the page says so instead of "no update to plan"'),
   compared_devices: z.number().int().min(0).describe('Devices with at least one version Vedette can compare'),
   unchecked_devices: z.number().int().min(0).describe('Devices with no version Vedette can read: not checked'),
-  old_evidence: z.number().int().min(0).describe('D-615: CVEs published more than 12 months ago listed because a scan engine found them'),
+  old_evidence: z.number().int().min(0).describe('CVEs published more than 12 months ago listed because a scan engine found them'),
   data: z.object({
     epss: PlanFeed.describe('Feed epss-all (tier 2)'),
     recent: PlanFeed.describe('Feed nvd-recent (tier 3, and the published dates of tier 2)'),
@@ -241,9 +241,9 @@ export const SummaryItem = z.object({
   id: z.string(), cve: z.string(), status: z.enum(['confirmed', 'suspected']).describe('Open findings only'), severity: Severity,
   asset: FindingAsset.nullable().describe('null when the device was removed'),
   product: z.string().describe('The product as the findings list names it (the KEV display name, else "<vendor> <product>"; empty when the CVE left the list)'),
-  software: z.string().describe('n73: the device\'s software the exploited-list entry is keyed to, as the finding\'s page names it (e.g. "Windows Server 2025"); empty when not known. Home leads with it and keeps `product` as context'),
+  software: z.string().describe('The device\'s software the exploited-list entry is keyed to, as the finding\'s page names it (e.g. "Windows Server 2025"); empty when not known. Home leads with it and keeps `product` as context'),
   ransomware: z.boolean().describe('The exploited list says ransomware campaigns use it'),
-  source: z.enum(['cisa-kev', 'vulncheck-kev']).nullable().describe('Which exploited list names it (D-557); null when the CVE left the list'),
+  source: z.enum(['cisa-kev', 'vulncheck-kev']).nullable().describe('Which exploited list names it; null when the CVE left the list'),
   cvss: Cvss.nullable().describe('null = no score known: "No score", never 0'),
   first_seen: iso,
 })
@@ -268,7 +268,7 @@ const idParams = z.object({ id: findingId })
 /** One update or action on one device, from findings.DeviceUpdates (the same groupings as FindingRow.fix and the plan). */
 export const ToFixAction = z.object({
   group: z.string().describe('The key of the action on its device: FindingRow.fix.group of an exploited update ("<device>/<software>", the ?fix= filter of the list), PlanItem.group of a planned one, "<device>/<software>" for findings no update is named for. Per device: "By fix" groups by product and release instead'),
-  source: z.string().describe('Who reported the software row (agent, manual, scan, a sensor; "" when none): "I updated it" follows it (kien G12)'),
+  source: z.string().describe('Who reported the software row (agent, manual, scan, a sensor; "" when none): "I updated it" follows it'),
   product: z.string().describe('The software row\'s identity across devices, "vendor|product" in lower case ("" when no row matches): "By fix" groups the same update on several devices by it, whatever each device calls the row'),
   software_id: z.string().describe('The device\'s software row it is about; "" when none matches'),
   software: z.string(), version: z.string().describe('The installed version; "" when none'),
@@ -280,7 +280,7 @@ export const ToFixAction = z.object({
   finding_ids: z.array(z.string()).describe('The open findings of the CVEs, same order (exploited only; empty for planned)'),
   worst: z.string().describe('The finding\'s severity (critical, high, medium, low) for exploited ones; NVD\'s for planned ones; "" when none'),
   ransomware: z.number().int(), likely: z.number().int().describe('Planned: CVEs EPSS says are likely to be exploited soon'),
-  confirmed: z.number().int(), detected: z.number().int(), reported: z.number().int(), suspected: z.number().int().describe('How each exploited finding is known (G9 proof): confirmed by a scan, detected from a version the device reported, reported but not compared, suspected from the network'),
+  confirmed: z.number().int(), detected: z.number().int(), reported: z.number().int(), suspected: z.number().int().describe('How each exploited finding is known: confirmed by a scan, detected from a version the device reported, reported but not compared, suspected from the network'),
 })
 export const ToFixDevice = z.object({
   asset: FindingAsset,
@@ -288,7 +288,7 @@ export const ToFixDevice = z.object({
   open: z.number().int().describe('Open findings of the device'),
   exploited: z.array(ToFixAction).describe('Open exploited findings one named update fixes, one action per update, worst first'),
   no_update: z.array(ToFixAction).describe('Open findings no update is named for, one per software row; one with confirmed + detected = 0 is the person\'s to check (Needs your input), not to fix'),
-  planned: z.array(ToFixAction).describe('Recommended updates (D-613): CVEs on no exploited list, as GET /findings/plan lists them'),
+  planned: z.array(ToFixAction).describe('Recommended updates: CVEs on no exploited list, as GET /findings/plan lists them'),
   plan_compared: z.boolean().describe('The last plan pass compared this device'),
 })
 export const ToFix = z.object({
@@ -296,13 +296,13 @@ export const ToFix = z.object({
   truncated: z.boolean().describe('More devices had something than the 500 listed'),
   plan_ran: z.boolean().describe('The plan job compared the devices since the box started; false: recommended updates are not known yet'),
   plan_off: z.boolean().describe('The feeds module is off: no recommended update is listed'),
-  risks: z.record(z.string(), DeviceRiskView.unwrap()).describe('G4: the risk marker of every marked device by id, not capped like devices (empty for ?asset=): the Findings table and filter read it'),
+  risks: z.record(z.string(), DeviceRiskView.unwrap()).describe('The risk marker of every marked device by id, not capped like devices (empty for ?asset=): the Findings table and filter read it'),
 })
 
 export const endpoints = defineEndpoints([
   { method: 'get', path: '/findings', summary: 'List findings (CVE x device), optionally for one device', stories: ['S-MIT-1', 'S-SCAN-3'], role: 'viewer',
     query: z.object({ asset: z.string().optional() }), response: FindingList },
-  { method: 'get', path: '/findings/to-fix', summary: 'To fix (kien G8): every device that needs an update or an action, the most urgent first, each with its actions in plain sentences (findings.DeviceUpdates), at most 500 devices', stories: ['S-MIT-1', 'S-TIER-1'], role: 'viewer',
+  { method: 'get', path: '/findings/to-fix', summary: 'To fix: every device that needs an update or an action, the most urgent first, each with its actions in plain sentences (findings.DeviceUpdates), at most 500 devices', stories: ['S-MIT-1', 'S-TIER-1'], role: 'viewer',
     query: z.object({ asset: z.string().optional().describe('One device only (its Software tab)') }), response: ToFix },
   { method: 'get', path: '/findings/{id}', summary: 'One finding: evidence, recommendation, compromise indicators, AI results', stories: ['S-MIT-1', 'S-MIT-3', 'S-SCAN-3', 'S-AI-2'], role: 'viewer',
     params: idParams, response: FindingDetail, example: { params: { id: 'f-1' } } },

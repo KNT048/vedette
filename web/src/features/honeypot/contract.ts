@@ -6,7 +6,7 @@ import { z } from 'zod'
 import { defineEndpoints } from '@/lib/contract'
 
 export const HpService = z.enum(['smb', 'rdp', 'ssh', 'mssql', 'http', 'https', 'ftp', 'telnet', 'mysql', 'mongodb', 'redis', 'vnc', 'git', 'httpproxy', 'tcpbanner', 'tftp', 'ntp', 'sip'])
-  .describe('A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and never answer, they only log')
+  .describe('A trap service. tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and never answer, they only log')
 
 export const TrapState = z.enum(['off', 'listening', 'conflict', 'starting', 'stopping', 'failed'])
   .describe('What the box reports, not the switch. conflict = on, but the IP clashes with a device in the inventory or the host refused it. starting = switched on, the box is bringing it up (container start and health check take minutes). stopping = switched off, the host has not confirmed yet. failed = switched on, but the box could not set it up (see problem / reason)')
@@ -51,7 +51,7 @@ export const Hit = z.object({
   is_test: z.boolean(),
   excerpt: z.string(),
   trap_ip: z.string().describe('The Trap IP that was touched; for a scan the Trap IPs it touched, comma-separated; for a token its value'),
-  trap_hostname: z.string().describe('Name of the Trap IP that was hit (D-466), of the token, or of the Trap IPs a scan touched ("Decoy sweep" for a probe without names): the Trap IP column of the hit list (W1-13)'),
+  trap_hostname: z.string().describe('Name of the Trap IP that was hit, of the token, or of the Trap IPs a scan touched ("Decoy sweep" for a probe without names): the Trap IP column of the hit list'),
 })
 
 export const HitEvent = z.object({ ts: z.iso.datetime(), source: z.enum(['honeypot', 'firewall', 'dhcp', 'ad', 'vedette']), text: z.string(), mark: z.boolean() })
@@ -116,7 +116,7 @@ export const endpoints = defineEndpoints([
   { method: 'delete', path: '/honeypot/trap-ips/{id}', summary: 'Delete a Trap IP; the address stops answering, its hits stay', stories: ['S-HP-1', 'S-HP-2'], role: 'admin', params: z.object({ id: z.string() }), response: null },
   { method: 'post', path: '/honeypot/test-scan', summary: '"Test scan": a labelled test scan alert from the box across the Trap IPs, not counted, no alert sent', stories: ['S-HP-2'], role: 'operator', response: Hit },
   { method: 'get', path: '/honeypot/tokens', summary: 'Honey tokens with last triggered time', stories: ['S-HP-2'], role: 'viewer', response: z.object({ items: z.array(Token) }) },
-  { method: 'post', path: '/honeypot/tokens', status: 201, summary: 'Create a honey token (decoy file, fake credentials or URL); a DNS token is refused (D-468)', stories: ['S-HP-2'], role: 'admin', body: TokenInput, response: Token },
+  { method: 'post', path: '/honeypot/tokens', status: 201, summary: 'Create a honey token (decoy file, fake credentials or URL); a DNS token is refused', stories: ['S-HP-2'], role: 'admin', body: TokenInput, response: Token },
   { method: 'delete', path: '/honeypot/tokens/{id}', summary: 'Delete a honey token; the planted copy stops alerting', stories: ['S-HP-2'], role: 'admin', params: z.object({ id: z.string() }), response: null },
   { method: 'post', path: '/honeypot/tokens/{id}/test', summary: '"Test token": a labelled test trigger, not counted, no alert sent', stories: ['S-HP-2'], role: 'operator', params: z.object({ id: z.string() }), response: Hit },
 ])

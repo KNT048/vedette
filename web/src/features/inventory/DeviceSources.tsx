@@ -19,7 +19,7 @@ import { toast } from 'sonner'
 import { errMsg } from './kinds'
 import type { DeviceDetail } from './types'
 
-/** The five ways a device is fed (D-598, issue #829): scan, passive sensor, SNMP, agent (osquery or Wazuh), the person. */
+/** The five ways a device is fed (issue #829): scan, passive sensor, SNMP, agent (osquery or Wazuh), the person. */
 const FEEDS = ['scan', 'passive', 'snmp', 'agent', 'manual'] as const
 type Feed = (typeof FEEDS)[number]
 const FEED_OF: Record<string, Feed> = { nmap: 'scan', scan: 'scan', passive: 'passive', snmp: 'snmp', agent: 'agent', manual: 'manual' }
@@ -41,14 +41,14 @@ function feedsOf(d: DeviceDetail): Map<Feed, string | null> {
 
 const IPV4 = /^\d{1,3}(\.\d{1,3}){3}$/
 
-/** D-601: the person's switch of one active source of the box for this device (network scan, SNMP), with what on and off mean in one
+/** The person's switch of one active source of the box for this device (network scan, SNMP), with what on and off mean in one
  *  line. Admin only; others see it locked with the reason. An agent has no switch: it is installed or uninstalled on the machine. */
 function SourceSwitch({ d, which }: { d: DeviceDetail; which: 'scan' | 'snmp' }) {
   const { t } = useTranslation('inventory')
   const admin = useCan('admin')
   const set = useDeviceSources(d.asset.id)
   const on = (which === 'scan' ? d.asset.scan_source : d.asset.snmp_source) === 'on'
-  // review r2 M1: a discovered device outside the LAN ranges is read with SNMP only once a person turns it on here (the list is admin-only)
+  // a discovered device outside the LAN ranges is read with SNMP only once a person turns it on here (the list is admin-only)
   const lan = useSettings(admin && which === 'snmp' && !on && d.asset.origin !== 'manual').data?.lan_ranges
   const outside = !!lan && IPV4.test(d.asset.ip) && !inRanges(d.asset.ip, lan)
   const id = `device-source-${which}`
@@ -65,8 +65,8 @@ function SourceSwitch({ d, which }: { d: DeviceDetail; which: 'scan' | 'snmp' })
   )
 }
 
-/** S-INV-1 (D-598, issue #829): which sources feed this device, and adding SNMP or osquery to it from here. Both can feed it at once.
- *  D-601: the network scan and SNMP are switched on or off per device here; a device added by hand starts with both off. */
+/** S-INV-1 (issue #829): which sources feed this device, and adding SNMP or osquery to it from here. Both can feed it at once.
+ *  The network scan and SNMP are switched on or off per device here; a device added by hand starts with both off. */
 export function DeviceSources({ d }: { d: DeviceDetail }) {
   const { t } = useTranslation('inventory')
   const me = useMe()
@@ -86,7 +86,7 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
       if (!snmpOn) return <TurnOnModule id="sensor-active" reason={t('sources.snmp.off')} />
       if (!ip) return <span className="text-meta text-muted">{t('sources.noIp')}</span>
       if (!a.approved) {
-        // SNMP reads only approved devices (D-512): approve it here, then add SNMP (#842 "do it where you are").
+        // SNMP reads only approved devices: approve it here, then add SNMP (#842 "do it where you are").
         return (
           <span className="flex flex-wrap items-center gap-2">
             <span className="text-meta text-muted">{t('sources.snmp.approveFirst')}</span>

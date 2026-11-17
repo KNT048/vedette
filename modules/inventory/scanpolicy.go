@@ -24,39 +24,39 @@ type ScanDecision struct {
 	IP      netip.Addr
 	// Fragile, Unclassified and Never are set by ScanPolicy only, for every device that passed origin, address and scope: the device
 	// is fragile, its kind is still unknown, a person set regular_scan=never. sensor-active's identification for Scan now picks its
-	// scan shape from them, and refuses Never (D-501).
+	// scan shape from them, and refuses Never.
 	Fragile, Unclassified, Never bool
 }
 
 // Reasons of a ScanDecision.
 const (
 	ReasonOK                 = "ok"
-	ReasonFirstGentleScan    = "first_gentle_scan" // D-45: one scan at the lowest speed, then passive only
+	ReasonFirstGentleScan    = "first_gentle_scan" // One scan at the lowest speed, then passive only
 	ReasonDeclaredByHand     = "declared_by_hand"  // INV-5
 	ReasonNoIP               = "no_ip"
 	ReasonScanningOff        = "scanning_off"         // active.enabled is false
-	ReasonScopeNotConfirmed  = "scope_not_confirmed"  // INV-7, D-26
+	ReasonScopeNotConfirmed  = "scope_not_confirmed"  // INV-7
 	ReasonOutOfScope         = "out_of_scope"         // outside lan_ranges or in the exclusions
-	ReasonFragilePassiveOnly = "fragile_passive_only" // D-45 after the first scan
+	ReasonFragilePassiveOnly = "fragile_passive_only" // fragile, after the first scan
 	// ReasonUnclassifiedPassiveOnly: the kind is still unknown after the first scan, so the device may be
 	// fragile; nothing heavier than the gentle scan until passive data, the gentle scan's results or a person
-	// set its kind (D-84 (H1)).
+	// set its kind.
 	ReasonUnclassifiedPassiveOnly = "unclassified_passive_only"
 	// ReasonBox: the machine Vedette runs on is not scanned on its own: never by sensor-active (discovery, sweeps) nor by a
-	// schedule or a KEV rescan; only a person's pick in Scan now scans it (VulnScanPolicy explicit, D-470).
+	// schedule or a KEV rescan; only a person's pick in Scan now scans it (VulnScanPolicy explicit).
 	ReasonBox = "box"
 	// ReasonRegularScanNever: a person chose "never" for this device, for any kind: after the one gentle scan
-	// it is passive only (conservative, like a per-asset "do not scan" in OT scanners; D-74).
+	// it is passive only (conservative, like a per-asset "do not scan" in OT scanners).
 	ReasonRegularScanNever = "regular_scan_never"
-	// ReasonSNMPOff: a person turned SNMP off for this device on its Sources card (D-601). SNMPPolicy only: ScanPolicy answers a
+	// ReasonSNMPOff: a person turned SNMP off for this device on its Sources card. SNMPPolicy only: ScanPolicy answers a
 	// network scan turned off as ReasonRegularScanNever, the words every reader of a scan refusal already shows.
 	ReasonSNMPOff = "snmp_off"
 	// ReasonExcluded: the address is on the exclusion list, which nothing active ever touches. SNMPPolicy only: SNMP is not bound by
-	// lan_ranges (D-601), so its refusal names the exclusions alone; ScanPolicy answers ReasonOutOfScope for both.
+	// lan_ranges, so its refusal names the exclusions alone; ScanPolicy answers ReasonOutOfScope for both.
 	ReasonExcluded = "excluded"
 )
 
-// The per-device setting of one active source (inv_asset.scan_source, snmp_source; D-601). "" is the default: on for a device a sensor
+// The per-device setting of one active source (inv_asset.scan_source, snmp_source). "" is the default: on for a device a sensor
 // found, off for one added by hand.
 const (
 	SourceOn  = "on"
@@ -64,7 +64,7 @@ const (
 )
 
 // ScanPolicy decides whether sensor-active and scan may probe a device (PRE-3, POST-3; INV-5, 7, 8): the box itself is never scanned,
-// nor a device whose network scan a person turned off (D-601, answered as regular_scan_never with Never set: "set to never be
+// nor a device whose network scan a person turned off (answered as regular_scan_never with Never set: "set to never be
 // scanned on its device page"), nor a device declared by hand until a person turns its network scan on; nothing outside lan_ranges or inside the exclusions is; a fragile device,
 // and one whose kind is still unknown (it may be fragile), gets one gentle scan when first seen and then only
 // if regular scans are allowed for it (regular_scan "never" beats the type setting; an unknown kind is in no
@@ -82,12 +82,12 @@ func (s *Service) ScanPolicy(ctx context.Context, assetID string) (ScanDecision,
 	return decideActive(f, st, f.scanSrc, false), nil
 }
 
-// SNMPPolicy is ScanPolicy for the SNMP reads of sensor-active (D-601): the same rules, with the device's SNMP setting in place of its
+// SNMPPolicy is ScanPolicy for the SNMP reads of sensor-active: the same rules, with the device's SNMP setting in place of its
 // network scan setting. SNMP off refuses with ReasonSNMPOff; a device added by hand is read only once a person turned its SNMP on. Its
 // network scan setting does not matter here: a device may be read with SNMP and never port-scanned. sensor-active adds its own SNMP
 // rules on top (a fragile device is read, the box never, only approved devices, the credential's own scope). Inside lan_ranges the
-// credential's "Send only to" list decides, as before; outside them only a device whose SNMP a person turned on is read (kien: the
-// person administers the device; review r1 M4); the exclusions always win (ReasonExcluded), and the scan switch and the scope
+// credential's "Send only to" list decides, as before; outside them only a device whose SNMP a person turned on is read (the
+// person administers the device); the exclusions always win (ReasonExcluded), and the scan switch and the scope
 // commitment hold too.
 func (s *Service) SNMPPolicy(ctx context.Context, assetID string) (ScanDecision, error) {
 	f, st, err := s.scanFacts(ctx, assetID)
@@ -101,7 +101,7 @@ func (s *Service) SNMPPolicy(ctx context.Context, assetID string) (ScanDecision,
 }
 
 // decideActive is the policy of one active source of the box (the network scan or SNMP) for a device whose setting for that source
-// is not off: src is "on" or "" (the default). snmp: outside lan_ranges only a stored "on"; the exclusions always (D-601).
+// is not off: src is "on" or "" (the default). snmp: outside lan_ranges only a stored "on"; the exclusions always.
 func decideActive(f scanFacts, st Settings, src string, snmp bool) ScanDecision {
 	switch {
 	case f.isBox:
@@ -116,8 +116,8 @@ func decideActive(f scanFacts, st Settings, src string, snmp bool) ScanDecision 
 		return deny(ReasonScopeNotConfirmed)
 	case snmp && st.Excluded(f.addr):
 		return deny(ReasonExcluded)
-	// Outside lan_ranges SNMP reads only a device whose SNMP a person turned on (stored "on"; review r1 M4): a credential's scope alone,
-	// or the default "on" of a discovered device, never reaches past the LAN ranges, so no credential saved before D-601 starts reading
+	// Outside lan_ranges SNMP reads only a device whose SNMP a person turned on (stored "on"): a credential's scope alone,
+	// or the default "on" of a discovered device, never reaches past the LAN ranges, so no credential saved before per-device SNMP existed starts reading
 	// there by itself. Inside them the credential's scope decides, as before.
 	case snmp && !st.InScope(f.addr) && src != SourceOn, !snmp && !st.InScope(f.addr):
 		return deny(ReasonOutOfScope)
@@ -127,15 +127,15 @@ func decideActive(f scanFacts, st Settings, src string, snmp bool) ScanDecision 
 	return d
 }
 
-// VulnScanPolicy decides whether the vulnerability scanner (module scan) may probe a device (D-126). It is
+// VulnScanPolicy decides whether the vulnerability scanner (module scan) may probe a device. It is
 // ScanPolicy without the sensor-active switch (scan has its own) and with one more input: explicit, true when a
 // person picked this very device in "Scan now" (that pick is the consent, audited by the caller).
 //
 // Always refused: no IP, scope not confirmed, outside lan_ranges or inside the exclusions, regular_scan=never, a network scan
-// turned off (D-601), and a device declared by hand whose network scan nobody turned on (INV-5, D-601 review r1 M1): absolute here,
+// turned off, and a device declared by hand whose network scan nobody turned on (INV-5): absolute here,
 // even with explicit; the person changes the setting first. A device declared by hand with its network scan on is scanned like a
 // discovered one.
-// The box itself is refused unless explicit (D-470): a person may scan it, nothing automatic does; picked, it goes through
+// The box itself is refused unless explicit: a person may scan it, nothing automatic does; picked, it goes through
 // the same checks as any device and runs at the normal rate.
 // A fragile device and an unclassified one (kind unknown) are refused for schedules and the KEV rescan (explicit=false), and
 // allowed when explicit, at a quarter of the configured rate (Active.Rate, packets per second, at least 1). regular_scan=allow,
@@ -198,9 +198,9 @@ func decideVuln(f scanFacts, st Settings, explicit bool) ScanDecision {
 		return deny(ReasonScopeNotConfirmed)
 	case !st.InScope(f.addr):
 		return deny(ReasonOutOfScope)
-	case f.regular == "never", f.scanSrc == SourceOff: // a network scan turned off (D-601) is absolute too
+	case f.regular == "never", f.scanSrc == SourceOff: // a network scan turned off is absolute too
 		return deny(ReasonRegularScanNever)
-	case f.origin == "manual" && f.scanSrc != SourceOn: // added by hand, network scan not turned on: off, even for a pick (review r1 M1)
+	case f.origin == "manual" && f.scanSrc != SourceOn: // added by hand, network scan not turned on: off, even for a pick
 		return deny(ReasonDeclaredByHand)
 	}
 	unclassified := f.kind == "unknown"
@@ -226,12 +226,12 @@ func deny(reason string) ScanDecision { return ScanDecision{Reason: reason} }
 type scanFacts struct {
 	addr                      netip.Addr // zero when the device has no valid IP
 	origin, kind, regular     string
-	scanSrc, snmpSrc          string // SourceOn, SourceOff or "" (the default; D-601)
+	scanSrc, snmpSrc          string // SourceOn, SourceOff or "" (the default)
 	fragile, isBox, firstScan bool
 }
 
 // effectiveSources is a device's scan and SNMP settings as the policies apply them: off for both while a person ignores the device
-// (D-630, review r1 M1 of #945: the stored choice of an admin is kept and comes back when the device is watched again).
+// (#945: the stored choice of an admin is kept and comes back when the device is watched again).
 const effectiveSources = `CASE WHEN ignored_at IS NOT NULL THEN 'off' ELSE coalesce(scan_source, '') END, CASE WHEN ignored_at IS NOT NULL THEN 'off' ELSE coalesce(snmp_source, '') END`
 
 const scanCols = `ip, origin, kind, fragile, regular_scan, first_scan_at, is_box, ` + effectiveSources
@@ -242,7 +242,7 @@ func (f *scanFacts) scan(r interface{ Scan(...any) error }, lead ...any) error {
 	if err := r.Scan(append(lead, &ip, &f.origin, &f.kind, &f.fragile, &f.regular, &firstScan, &f.isBox, &f.scanSrc, &f.snmpSrc)...); err != nil {
 		return err
 	}
-	f.kind = devicetypes.ActsAs(f.kind) // the policies are keyed on the 13 kinds; a type acts as one of them (D-511)
+	f.kind = devicetypes.ActsAs(f.kind) // the policies are keyed on the 13 kinds; a type acts as one of them
 	f.firstScan = firstScan.Valid
 	if ip.Valid {
 		f.addr, _ = netip.ParseAddr(ip.String)
@@ -264,9 +264,9 @@ func (s *Service) scanFacts(ctx context.Context, assetID string) (scanFacts, Set
 }
 
 // sweepSkips says whether the discovery sweep leaves the device out (ProtectedIPs): the box, a device added by hand whose network scan
-// nobody turned on, one whose network scan is off (D-601), one set to "never",
+// nobody turned on, one whose network scan is off, one set to "never",
 // and a fragile or unclassified one after its first gentle scan. f.kind is the kind it acts as. The sweep never confirms such a device at
-// its address, so its silence there says nothing (resolve, #829 review r2 H-new-1 of #872).
+// its address, so its silence there says nothing (resolve, #829).
 func sweepSkips(st Settings, f scanFacts) bool {
 	return f.isBox || (f.origin == "manual" && f.scanSrc != SourceOn) || f.scanSrc == SourceOff || f.regular == "never" || (f.firstScan && !afterScope(st, f.kind, f.fragile, f.regular, f.firstScan).Allowed)
 }
@@ -293,7 +293,7 @@ func afterScope(st Settings, kind string, fragile bool, regular string, hadFirst
 }
 
 // BoxIPs lists the addresses that are the box: the IPv4 of its own device and the addresses of Config.BoxOwnedIPs (the decoys). It is
-// the part of ProtectedIPs nothing may ever probe, apart from the devices discovery leaves to the passive sensors (D-512: SNMP reads
+// the part of ProtectedIPs nothing may ever probe, apart from the devices discovery leaves to the passive sensors (SNMP reads
 // fragile devices but never the box).
 func (s *Service) BoxIPs(ctx context.Context) ([]netip.Addr, error) {
 	rows, err := s.db.Reader().QueryContext(ctx, `SELECT ip FROM inv_asset WHERE is_box = 1 AND ip IS NOT NULL`)
@@ -325,8 +325,8 @@ func (s *Service) BoxIPs(ctx context.Context) ([]netip.Addr, error) {
 }
 
 // ProtectedIPs lists the addresses a sweep must not probe, whatever MAC shows up there: the box itself,
-// devices declared by hand (unless a person turned their network scan on), devices whose network scan is off (D-601), devices with regular_scan=never, and devices that already had their gentle scan and
-// are fragile or unclassified without permission for regular scans (D-45, INV-5; D-84 (M2)). A fragile or
+// devices declared by hand (unless a person turned their network scan on), devices whose network scan is off, devices with regular_scan=never, and devices that already had their gentle scan and
+// are fragile or unclassified without permission for regular scans (INV-5). A fragile or
 // unclassified device that has not had its gentle scan yet is not listed: its one gentle scan is the policy's. The
 // addresses of Config.BoxOwnedIPs (the decoys of the honeypot) are listed too: they are the box.
 func (s *Service) ProtectedIPs(ctx context.Context) ([]netip.Addr, error) {
@@ -370,7 +370,7 @@ func (s *Service) ProtectedIPs(ctx context.Context) ([]netip.Addr, error) {
 	return out, nil
 }
 
-// MarkFirstScan records that the one gentle scan of a device happened (D-45); later calls change nothing.
+// MarkFirstScan records that the one gentle scan of a device happened; later calls change nothing.
 func (s *Service) MarkFirstScan(ctx context.Context, assetID string) error {
 	return s.write(ctx, func(tx *sql.Tx, _ *outbox) error {
 		res, err := tx.ExecContext(ctx, `UPDATE inv_asset SET first_scan_at = ? WHERE id = ? AND first_scan_at IS NULL`, s.now(), assetID)
@@ -391,8 +391,8 @@ func (s *Service) MarkFirstScan(ctx context.Context, assetID string) error {
 	})
 }
 
-// PendingGentleScans lists the devices whose one gentle scan is still to come (D-511, review of #714 round 2): discovered
-// (or added by hand with its network scan turned on, and never one whose scan is off; D-601), kind unknown, not fragile, not set to never, not the box, with an IP and no first scan. Migration 0004 cleared the first scan of such
+// PendingGentleScans lists the devices whose one gentle scan is still to come (#714): discovered
+// (or added by hand with its network scan turned on, and never one whose scan is off), kind unknown, not fragile, not set to never, not the box, with an IP and no first scan. Migration 0004 cleared the first scan of such
 // devices seen before, so the gentle scan with titles reaches them; sensor-active queues them once per start, since only a new
 // device's inventory.asset.discovered queues one otherwise. Read-only.
 func (s *Service) PendingGentleScans(ctx context.Context) ([]string, error) {

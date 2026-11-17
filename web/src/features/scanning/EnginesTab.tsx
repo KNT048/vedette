@@ -46,7 +46,7 @@ const ADMIN_PLACE = (to: string) => to.startsWith('/devices/setup')
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
 const mb = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)} GB` : `${n} MB`)
 
-/** osquery: the token and its install commands, made here (Trưởng's 10:53 map: POST /inventory/agents/tokens; §0). */
+/** osquery: the token and its install commands, made here (POST /inventory/agents/tokens). */
 function OsqueryDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation('scanning')
   const q = useAgents()
@@ -154,7 +154,7 @@ function EngineRow({ e, d, open, onOpen }: { e: Engine; d: Scanning; open: boole
   const admin = useCan('admin')
   const set = useSetEngine()
   const [ask, setAsk] = useState<{ off: boolean; deps?: string } | null>(null)
-  // review r2 N1: a switch refused for a missing scope opens the scope dialog and is tried again on save; no days links to the field
+  // a switch refused for a missing scope opens the scope dialog and is tried again on save; no days links to the field
   const [needScope, setNeedScope] = useState(false)
   const [noDays, setNoDays] = useState(false)
   const nameId = useId()
@@ -236,7 +236,7 @@ function EngineRow({ e, d, open, onOpen }: { e: Engine; d: Scanning; open: boole
   )
 }
 
-/** The memory line (n73): the sum is of upper limits, so it says so; when the limits add up to more than the box has, it says what to do
+/** The memory line: the sum is of upper limits, so it says so; when the limits add up to more than the box has, it says what to do
  *  and takes an administrator to the switch of the engine that holds the most while it is on (docs/UI.md §0: need → place → action). */
 function BoxMemory({ d }: { d: Scanning }) {
   const { t } = useTranslation('scanning')
@@ -253,7 +253,7 @@ function BoxMemory({ d }: { d: Scanning }) {
     sw?.focus()
   }
   return (
-    // accent, not warn (review r1 of #890): on a small box with OpenVAS on this shows all the time; it informs, nothing is wrong yet
+    // accent, not warn (#890): on a small box with OpenVAS on this shows all the time; it informs, nothing is wrong yet
     <Notice tone="accent" title={t('box.overTitle')}
       actions={biggest && admin ? <Button size="sm" onClick={() => go(biggest.id)}>{t('box.goTo', { name: t(`engines.${biggest.id}.name`) })}</Button> : null}>
       {t(admin ? 'box.over' : 'box.overViewer', { used: mb(used), total: mb(total) })}{' '}

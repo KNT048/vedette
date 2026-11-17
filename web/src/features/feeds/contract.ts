@@ -19,7 +19,7 @@ export const Vuln = z.object({
   epss: z.number().min(0).max(1).nullable(),
   epss_7d_ago: z.number().min(0).max(1).nullable(),
   has_template: z.boolean(),
-  source: z.string().optional().describe('Which list the entry is on: "cisa-kev", "vulncheck-kev" (VulnCheck KEV, D-557) or the id of a custom feed; texts name it, an entry of VulnCheck is never called CISA\'s'),
+  source: z.string().optional().describe('Which list the entry is on: "cisa-kev", "vulncheck-kev" (VulnCheck KEV) or the id of a custom feed; texts name it, an entry of VulnCheck is never called CISA\'s'),
 })
 
 export const YouHave = z.enum(['yes', 'maybe', 'no'])
@@ -41,36 +41,36 @@ export const HotRow = z.object({
 export const FeedStatus = z.object({
   generated_at: z.iso.datetime(),
   kev_catalog_version: z.string(),
-  sources: z.array(z.object({ name: z.string(), url: z.url().describe('The address the data came from: for the CISA list, the copy the newest catalog came from (kien G13)'), license: z.string(), fetched_at: z.iso.datetime() })),
+  sources: z.array(z.object({ name: z.string(), url: z.url().describe('The address the data came from: for the CISA list, the copy the newest catalog came from'), license: z.string(), fetched_at: z.iso.datetime() })),
   inventory_on: z.boolean(),
   kev: z.object({
-    state: z.enum(['loaded', 'never_loaded', 'off']).describe('The CISA list (cisa-kev) for the Home count (D-92): "off" when an admin turned it off, else "loaded" once a pull has ever succeeded (even if a later pull failed), else "never_loaded"'),
+    state: z.enum(['loaded', 'never_loaded', 'off']).describe('The CISA list (cisa-kev) for the Home count: "off" when an admin turned it off, else "loaded" once a pull has ever succeeded (even if a later pull failed), else "never_loaded"'),
     error: z.string().nullable().describe('One line, cleaned: why the last pull failed (also when an earlier pull had loaded the list); null when the last pull worked, has not been tried, or the list is off'),
-    interval_hours: z.number().int().describe('How often the box pulls the CISA list (kien G11: Home says "checked every hour")'),
+    interval_hours: z.number().int().describe('How often the box pulls the CISA list (Home says "checked every hour")'),
     checked_at: z.iso.datetime().nullable().describe('When the box last asked for the CISA list, whether the pull worked or not; null before the first pull'),
     last_success: z.iso.datetime().nullable().describe('When a pull of the CISA list last worked; null when none ever did'),
-    answered_by: z.string().nullable().describe('Newest from: the copy the catalog on the box came from, "CISA" (cisa.gov) or "CISA GitHub mirror" (D-91 as amended, kien G13: both are asked every check and the newer catalog is kept); null before the first good pull'),
+    answered_by: z.string().nullable().describe('Newest from: the copy the catalog on the box came from, "CISA" (cisa.gov) or "CISA GitHub mirror" (both are asked every check and the newer catalog is kept); null before the first good pull'),
     copies: z.array(z.object({
       name: z.enum(['CISA', 'CISA GitHub mirror']),
       url: z.url(),
       checked_at: z.iso.datetime().describe('When the box last asked this copy'),
       error: z.string().nullable().describe('Why the last ask failed, one clause naming the copy ("cisa.gov refused this box (HTTP 403)"); null when it answered'),
       catalog_version: z.string().nullable().describe('The catalogVersion this copy last gave; null when not known yet'),
-    })).describe('What each copy of the CISA list said at its last check (D-91 as amended); empty for a list at an admin\'s own address or before the first check'),
+    })).describe('What each copy of the CISA list said at its last check; empty for a list at an admin\'s own address or before the first check'),
   }),
 })
 
 export const WeeklyItem = z.object({ id: z.string(), key: z.string(), text: z.string(), date_added: isoDate, cve: cveId, answer: z.enum(['have', 'not_relevant']).nullable() })
-export const MatchedAsset = z.object({ id: z.string(), hostname: z.string().nullable().describe('The device\'s name: the name a person gave it in Vedette (G2), else its host name; null when neither'), ip: z.string(), display: z.string(), how: YouHave })
+export const MatchedAsset = z.object({ id: z.string(), hostname: z.string().nullable().describe('The device\'s name: the name a person gave it in Vedette, else its host name; null when neither'), ip: z.string(), display: z.string(), how: YouHave })
 export const CveDetail = Vuln.extend({
   display: z.string(), matched: z.array(MatchedAsset).nullable(),
-  not_affected: z.number().int().min(0).optional().describe('D-549: devices that run the product but that the platform rules of the findings prove are not affected; left out of matched'),
-  published: isoDate.nullable().describe('D-615: the day NVD published the CVE (never CISA\'s date_added); null when NVD has not answered for it. Older than 12 months: a device that matches by the product name only (no version compared) is not a finding (D-616), so matched may list devices that are not findings'),
+  not_affected: z.number().int().min(0).optional().describe('devices that run the product but that the platform rules of the findings prove are not affected; left out of matched'),
+  published: isoDate.nullable().describe('the day NVD published the CVE (never CISA\'s date_added); null when NVD has not answered for it. Older than 12 months: a device that matches by the product name only (no version compared) is not a finding, so matched may list devices that are not findings'),
 })
 // S-TIER-1: a CVE that is on no exploited list, from the tier data (feeds epss-all and nvd-recent).
 export const TierCve = z.object({
   cve: cveId,
-  tier: z.enum(['likely', 'recent']).nullable().describe('likely = EPSS 10 % or more and published in the last 12 months; recent = published in the last 12 months; null = older, or no published date in the data (only a scan engine that finds it lists it, D-615)'),
+  tier: z.enum(['likely', 'recent']).nullable().describe('likely = EPSS 10 % or more and published in the last 12 months; recent = published in the last 12 months; null = older, or no published date in the data (only a scan engine that finds it lists it)'),
   published: isoDate.nullable().describe('NVD `published`; null when nvd-recent does not hold it (older than 12 months, or the feed is off)'),
   last_modified: isoDate.nullable(),
   nvd_status: z.string().nullable().describe('NVD\'s vulnStatus ("Analyzed", "Awaiting Analysis", "Deferred"…)'),
@@ -136,7 +136,7 @@ export const Feed = z.object({
   status: z.enum(['ok', 'error', 'never']),
   error: z.string().nullable(),
   license: z.string().nullable(),
-  answered_by: z.string().nullable().describe('The CISA list only: the copy the catalog on the box came from (newest from), "CISA" or "CISA GitHub mirror"; both copies are asked every check (D-91 as amended, kien G13); null for every other feed and before the first good pull'),
+  answered_by: z.string().nullable().describe('The CISA list only: the copy the catalog on the box came from (newest from), "CISA" or "CISA GitHub mirror"; both copies are asked every check; null for every other feed and before the first good pull'),
 })
 export const FeedList = z.object({ items: z.array(Feed) })
 export const FeedPatch = z.object({

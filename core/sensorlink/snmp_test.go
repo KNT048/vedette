@@ -127,7 +127,7 @@ func TestCheckSNMPJob(t *testing.T) {
 	}
 }
 
-// D-512: snmp on a result is bounded and shaped; the value of a device is untrusted and only its size is checked here.
+// snmp on a result is bounded and shaped; the value of a device is untrusted and only its size is checked here.
 func TestSNMPResult(t *testing.T) {
 	t.Parallel()
 	head := `{"status":"done","reason":"","exit_code":0,"truncated":false,"xml_b64":""`
@@ -163,7 +163,7 @@ func TestSNMPResult(t *testing.T) {
 	}
 }
 
-// D-512: the heartbeat of a worker of protocol 5 says snmp; one of protocol 4 leaves it out and still decodes.
+// The heartbeat of a worker of protocol 5 says snmp; one of protocol 4 leaves it out and still decodes.
 func TestActiveHeartbeatSNMP(t *testing.T) {
 	t.Parallel()
 	base := `{"version":"1.2.3","nmap":{"present":true,"version":"7.94"},"nuclei":{"present":false,"version":"","pack":{"version":"","sha256":""}}`

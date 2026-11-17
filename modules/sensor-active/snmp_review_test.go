@@ -121,7 +121,7 @@ func TestMigration0004KeepsTheProbeCounter(t *testing.T) {
 	db := storetest.New(t)
 	before := fstest.MapFS{}
 	if err := fs.WalkDir(sa.Migrations, ".", func(p string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() || p >= "0004" { // 0004 and every later one (0005, D-514)
+		if err != nil || d.IsDir() || p >= "0004" { // 0004 and every later one (0005)
 			return err
 		}
 		b, err := fs.ReadFile(sa.Migrations, p)

@@ -6,20 +6,20 @@ import { JobProgress } from '@/lib/progress'
 
 const iso = z.iso.datetime()
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).describe('HH:MM')
-const day = z.number().int().min(1).max(7).describe('1 = Monday … 7 = Sunday (D-57)')
+const day = z.number().int().min(1).max(7).describe('1 = Monday … 7 = Sunday')
 
 export const ScanTarget = z.object({
   id: z.string().describe('device id (a-nas02) or ext:<target id> for a verified external target'),
   kind: z.enum(['internal', 'external']), device_kind: z.enum(TYPE_IDS).nullable().describe('Device type in the inventory; null for external targets'), label: z.string(), ip: z.string(),
-  fragile: z.boolean().describe('Fragile, or not yet classified (kind unknown): only scanned when picked by hand, at a quarter of the speed (D-126)'), findings: z.number().int(),
-  pick_only: z.boolean().describe('Fragile, unclassified or added by hand: scanned only when a person ticks it in Scan now (D-126 (2)). The page never ticks it for you: not by default, not with Select all, not from a link'),
+  fragile: z.boolean().describe('Fragile, or not yet classified (kind unknown): only scanned when picked by hand, at a quarter of the speed'), findings: z.number().int(),
+  pick_only: z.boolean().describe('Fragile, unclassified or added by hand: scanned only when a person ticks it in Scan now. The page never ticks it for you: not by default, not with Select all, not from a link'),
   selectable: z.boolean(), reason: z.enum(['unapproved', 'excluded', 'out_of_scope', 'no_ip', 'regular_scan_never', 'unverified', 'expired', 'not_supported']).nullable()
-    .describe('null when the target can be scanned by picking it. no_ip: the device has no IP address in the inventory (D-484). regular_scan_never: a person set "never scan" on the device (D-126). not_supported: external targets are not scanned by this version yet'),
-  box: z.boolean().describe('The Vedette box itself (D-470): pick_only, so it is scanned only when a person ticks it; sweeps, schedules, KEV rescans and Select all never include it'),
-  mac: z.string().nullable().describe('For the picker search (D-472); null when unknown and for external targets'),
-  vendor: z.string().nullable().describe('For the picker search (D-472); null when unknown and for external targets'),
-  approved: z.boolean().describe('Approved in the inventory (picker filter, D-472); false for external targets'),
-  last_seen: iso.nullable().describe('When the inventory last saw the device (picker filter, D-472); null for external targets'),
+    .describe('null when the target can be scanned by picking it. no_ip: the device has no IP address in the inventory. regular_scan_never: a person set "never scan" on the device. not_supported: external targets are not scanned by this version yet'),
+  box: z.boolean().describe('The Vedette box itself: pick_only, so it is scanned only when a person ticks it; sweeps, schedules, KEV rescans and Select all never include it'),
+  mac: z.string().nullable().describe('For the picker search; null when unknown and for external targets'),
+  vendor: z.string().nullable().describe('For the picker search; null when unknown and for external targets'),
+  approved: z.boolean().describe('Approved in the inventory (picker filter); false for external targets'),
+  last_seen: iso.nullable().describe('When the inventory last saw the device (picker filter); null for external targets'),
 })
 export const ScanScope = z.object({ networks: z.array(z.string()), commitment: z.object({ confirmed_at: iso, by: z.string() }).nullable().describe('The scope commitment ticked under Devices, Scope and sensors (inventory scope_confirmed_at)') })
 export const ScanConfig = z.object({
@@ -36,13 +36,13 @@ export const ScanConfigPatch = z.object({
   stop_on_unresponsive: z.boolean(), unresponsive_after: ScanConfig.shape.unresponsive_after, auto_rescan: z.boolean(),
   schedule: ScanConfig.shape.schedule.partial(),
   dangerous_checks: z.literal(false).describe('Rejected when true: no exploitation, no DoS'),
-  version: z.string().max(64).describe('The version of the shared safety block this page read (version of GET /scans/config). Given and not the stored one: 409 safety_changed, nothing stored (review #860 M1). Left out: no check, so an exclusion added since the page loaded is replaced when exclusions are sent; this page is being replaced by Settings › Scanning (#850)'),
+  version: z.string().max(64).describe('The version of the shared safety block this page read (version of GET /scans/config). Given and not the stored one: 409 safety_changed, nothing stored (#860). Left out: no check, so an exclusion added since the page loaded is replaced when exclusions are sent; this page is being replaced by Settings › Scanning (#850)'),
 }).partial()
 export const ScanConfigResponse = z.object({
   config: ScanConfig, next_run: iso.nullable(), scope: ScanScope,
   can_scan: z.boolean().describe('false without the scope commitment, or while the scanner in the scan container is not available'), block_reason: z.string().nullable(), dangerous_checks: z.literal(false),
   version: z.string().describe('Version of the shared safety block (window, rate, exclusions live in inventory INV-32; the same as GET /scanning safety.version); "" when this module keeps its own copy'),
-  schedule_blocked_reason: z.string().nullable().describe('Set while the schedule is on but nothing automated can start because the organization time zone cannot be read; next_run is null then (D-261 (3))'),
+  schedule_blocked_reason: z.string().nullable().describe('Set while the schedule is on but nothing automated can start because the organization time zone cannot be read; next_run is null then'),
 })
 
 export const RunStatus = z.enum(['running', 'stopping', 'done', 'stopped', 'auto_stopped'])
@@ -54,7 +54,7 @@ export const IdentReason = z.enum(['host_down', 'no_open_ports', 'filtered', 'no
 export const RunIdentRow = z.object({
   target_id: z.string(), label: z.string(), ip: z.string(),
   found: z.array(z.string()).max(20).describe('What the identification recorded, in words: "Operating system: …", "Type: …", "Software: …"'),
-  reason: IdentReason.nullable().describe('null: software with a version was recorded and compared with the KEV list. Otherwise why nothing was: host_down (no answer), no_open_ports (all closed), filtered (scan incomplete: the device answered but no port it was asked about did; the device or a firewall dropped or slowed the probes; never shown as a fact that it filters), no_version (services gave no product or version), os_unconfirmed (only an OS guess: shown, never matched until a person adds the OS with its version), os_no_patch_level (the device named its Windows release and build in its NTLM answer, not its monthly update level: shown, never matched until a person adds it with its full version, D-504), os_low_confidence (OS guess under 85%), scope_not_confirmed, box (the box or a decoy), regular_scan_never, gentle_only (fragile: gentle scan only), timed_out (scan incomplete: nmap gave up on the host), busy (discovery was running nmap), unavailable (nmap not available or Active discovery off), declared_by_hand, scanning_off, not_approved, out_of_scope, no_ip, not_scanned (D-501)'),
+  reason: IdentReason.nullable().describe('null: software with a version was recorded and compared with the KEV list. Otherwise why nothing was: host_down (no answer), no_open_ports (all closed), filtered (scan incomplete: the device answered but no port it was asked about did; the device or a firewall dropped or slowed the probes; never shown as a fact that it filters), no_version (services gave no product or version), os_unconfirmed (only an OS guess: shown, never matched until a person adds the OS with its version), os_no_patch_level (the device named its Windows release and build in its NTLM answer, not its monthly update level: shown, never matched until a person adds it with its full version), os_low_confidence (OS guess under 85%), scope_not_confirmed, box (the box or a decoy), regular_scan_never, gentle_only (fragile: gentle scan only), timed_out (scan incomplete: nmap gave up on the host), busy (discovery was running nmap), unavailable (nmap not available or Active discovery off), declared_by_hand, scanning_off, not_approved, out_of_scope, no_ip, not_scanned'),
   note: z.string().describe("The box's sentence for the reason, shown as is"),
 })
 export const ScanRun = z.object({
@@ -63,7 +63,7 @@ export const ScanRun = z.object({
   total: z.number().int(), done: z.number().int(), current: z.object({ label: z.string(), ip: z.string() }).nullable(),
   progress: JobProgress.nullable().describe('How far the current device is (#830): its phase, how far into it, an estimate of its end. Set while the run is running or stopping in this process; null otherwise'),
   results: z.array(RunResultRow), matched: z.number().int(), stop_reason: z.string().nullable(),
-  identification: z.array(RunIdentRow).describe('One row per device of a Scan now run: what nmap identified first, or exactly why nothing was (D-501). Empty for scheduled scans and KEV rescans, and while the run is going'),
+  identification: z.array(RunIdentRow).describe('One row per device of a Scan now run: what nmap identified first, or exactly why nothing was. Empty for scheduled scans and KEV rescans, and while the run is going'),
 })
 export const ProbeEntry = z.object({
   id: z.string(), ts: iso, run_id: z.string().nullable(), ip: z.string(), label: z.string(), template: z.string(), request: z.string(),
@@ -71,11 +71,11 @@ export const ProbeEntry = z.object({
 })
 export const RescanEvent = z.object({
   id: z.string(), ts: iso, cve: z.string(), product: z.string(), devices: z.array(z.string()), latency_min: z.number().nullable(), run_id: z.string().nullable(),
-  result: z.enum(['matched', 'clear', 'skipped_off', 'no_match', 'pick_only', 'stopped', 'expired_no_template', 'expired_scanner', 'expired_zone']).describe('clear: no match reported, never "not affected" (D-133 (5)); pick_only: every device that matches may only be scanned by a hand pick (D-126 (2)), devices names them; stopped: the run stopped before every device was done (D-145 (7)); expired_*: the rescan waited 7 days and was dropped, for no template in the installed pack, the scanner not ready, or the organization time zone unreadable; devices is empty, no run (D-261 (2))'),
+  result: z.enum(['matched', 'clear', 'skipped_off', 'no_match', 'pick_only', 'stopped', 'expired_no_template', 'expired_scanner', 'expired_zone']).describe('clear: no match reported, never "not affected"; pick_only: every device that matches may only be scanned by a hand pick, devices names them; stopped: the run stopped before every device was done; expired_*: the rescan waited 7 days and was dropped, for no template in the installed pack, the scanner not ready, or the organization time zone unreadable; devices is empty, no run'),
 })
 export const CredTarget = z.object({
   id: z.string(), asset_id: z.string(), label: z.string(), host: z.string(), port: z.number().int(), username: z.string(),
-  key_last4: z.string().describe('Last 4 characters only. The private key is stored encrypted on the box (SYS-4) and never shown or returned again (D-57)'), created_at: iso,
+  key_last4: z.string().describe('Last 4 characters only. The private key is stored encrypted on the box (SYS-4) and never shown or returned again'), created_at: iso,
   last_test: z.object({ ok: z.boolean(), ts: iso, message: z.string() }).nullable(),
 })
 
@@ -83,7 +83,7 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/scans/config', summary: 'Scan settings: time window, rate, exclusions, schedule, scope and commitment', stories: ['S-SCAN-1', 'S-SCAN-4'], role: 'viewer', response: ScanConfigResponse },
   { method: 'put', path: '/scans/config', summary: 'Save scan settings (partial update); dangerous checks are always rejected. 409 safety_changed when the version sent is not the stored one', stories: ['S-SCAN-2', 'S-SCAN-4'], role: 'admin', body: ScanConfigPatch, response: ScanConfigResponse },
   { method: 'get', path: '/scans/targets', summary: 'Scannable targets and why others are not (unapproved device, out of scope, external IP the box has not seen for 30 days)', stories: ['S-SCAN-1'], role: 'viewer', response: z.object({ items: z.array(ScanTarget) }) },
-  { method: 'get', path: '/scans/runs', summary: 'Scan history and the running scan, with per-device results: the newest 100 runs', stories: ['S-SCAN-1', 'S-SCAN-3', 'S-SCAN-4'], role: 'viewer', query: z.object({ asset: z.string().max(96).optional().describe('A device id (kien G7b/c, the device page\'s Last checks): only the runs that had this device among their targets, the newest 100 of them, however many runs of other devices came after') }), response: z.object({ items: z.array(ScanRun), engine_busy: z.boolean().describe('true while the scanner still works on a run that already shows stopped; a new scan is refused (409 already_running) until it is free (D-261 (4))') }) },
+  { method: 'get', path: '/scans/runs', summary: 'Scan history and the running scan, with per-device results: the newest 100 runs', stories: ['S-SCAN-1', 'S-SCAN-3', 'S-SCAN-4'], role: 'viewer', query: z.object({ asset: z.string().max(96).optional().describe('A device id (the device page\'s Last checks): only the runs that had this device among their targets, the newest 100 of them, however many runs of other devices came after') }), response: z.object({ items: z.array(ScanRun), engine_busy: z.boolean().describe('true while the scanner still works on a run that already shows stopped; a new scan is refused (409 already_running) until it is free') }) },
   { method: 'post', path: '/scans/runs', status: 201, summary: 'Scan the chosen targets now (only inside the confirmed scope, with the commitment ticked)', stories: ['S-SCAN-1'], role: 'operator', body: z.object({ targets: z.array(z.string()).min(1).max(200) }), response: ScanRun },
   { method: 'post', path: '/scans/runs/{id}/stop', summary: 'Stop a scan now (takes effect within 5 seconds)', stories: ['S-SCAN-4'], role: 'operator', params: z.object({ id: z.string() }), response: ScanRun },
   { method: 'get', path: '/scans/probes.csv', summary: 'Download the probe log (target, time, template) as CSV', stories: ['S-SCAN-4'], role: 'viewer', response: 'file' },

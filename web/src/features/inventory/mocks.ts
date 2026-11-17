@@ -25,7 +25,7 @@ import { deviceRisk } from '@/features/findings/mocks'
 import { actsAs, lookupType, TYPE_IDS } from '@/lib/deviceTypes'
 
 // Địa chỉ hộp Vedette đưa vào cấu hình agent: Vedette phục vụ cả giao diện lẫn API trên https://<IP hộp>:8443 (TLS). Không biết IP thì để chỗ trống rõ ràng, không bịa.
-const serverUrl = () => `https://${boxAddress() ?? NO_BOX_ADDRESS}:8443` // D-465: the Box address
+const serverUrl = () => `https://${boxAddress() ?? NO_BOX_ADDRESS}:8443` // The Box address
 const noBoxAddress = () => fail(404, 'no_box_address', "This box knows no address that other machines can reach, so an install script would point nowhere. Open Vedette at its network address; on a container-only install first set VEDETTE_BIND_IP to this machine's LAN address and VEDETTE_HOSTS to that address or a name for it. Then copy the command again.")
 const FIELD_ORDER: ObsField[] = ['kind', 'hostname', 'mac', 'vendor', 'model', 'os']
 
@@ -34,13 +34,13 @@ const cvesFor = (keys: string[]) => kevVulns.filter((v) => keys.includes(`${v.ve
 
 // ---- bảng riêng ----
 interface Meta { suspicious?: boolean; fragile_manual?: boolean; regular_scan?: RegularScan; approved_at?: string; scan_source?: 'on' | 'off'; snmp_source?: 'on' | 'off'; ignored_at?: string }
-/** D-601: a device's network scan and SNMP reads, the default resolved (on for a device a sensor found, off for one added by hand). */
+/** A device's network scan and SNMP reads, the default resolved (on for a device a sensor found, off for one added by hand). */
 const sourceOf = (a: Asset, which: 'scan_source' | 'snmp_source'): 'on' | 'off' => {
-  if (metaStore.get()[a.id]?.ignored_at) return 'off' // D-630: off while ignored; the stored choice stays for when it is watched again
+  if (metaStore.get()[a.id]?.ignored_at) return 'off' // Off while ignored; the stored choice stays for when it is watched again
   const stored = metaStore.get()[a.id]?.[which]
   if (stored) return stored
   if (a.origin === 'manual') return 'off'
-  // review r2 M1: outside the LAN ranges a discovered device's default SNMP does not reach it; it shows off until a person turns it on
+  // outside the LAN ranges a discovered device's default SNMP does not reach it; it shows off until a person turns it on
   if (which === 'snmp_source' && IPV4_RE.test(a.ip) && !inList(a.ip, loadSettings().lan_ranges)) return 'off'
   return 'on'
 }
@@ -61,7 +61,7 @@ const settingsStore = collection<StoredSettings>('inv_settings', () => ({
   fragile_kinds: ['printer', 'camera', 'nvr', 'nas', 'ap', 'iot'], regular_scan_kinds: [],
   scope_confirmed_at: null, scope_confirmed_by: null,
 }))
-// Chỉ cảm biến của chính hộp này (đa site chưa hỗ trợ — chủ dự án, D-28).
+// Chỉ cảm biến của chính hộp này (đa site chưa hỗ trợ — chủ dự án).
 type StoredSensor = Omit<Sensor, 'interface' | 'interfaces' | 'span' | 'chosen' | 'span_status' | 'capture_error'>
 export const sensorsStore = collection<StoredSensor[]>('sp_sensor', () => [
   { id: 'sn-local', name: 'vedette-hq', status: 'online', last_seen: nowIso(), version: '0.1.0', devices_seen: 30 },
@@ -69,22 +69,22 @@ export const sensorsStore = collection<StoredSensor[]>('sp_sensor', () => [
   // Cài sạch: cảm biến của chính hộp, chưa thấy thiết bị nào.
   { id: 'sn-local', name: boxInfo().hostname, status: 'online', last_seen: nowIso(), version: '0.1.0', devices_seen: 0 },
 ])
-/** Container-only install (D-263, D-387, D-393): the cards the sensor container reported in its heartbeat and the card the admin
- *  chose (null: the default card, D-380), SPAN or not. A clean install has not started the sensor yet (compose.sensors.yaml): no heartbeat, no card. */
+/** Container-only install: the cards the sensor container reported in its heartbeat and the card the admin
+ *  chose (null: the default card), SPAN or not. A clean install has not started the sensor yet (compose.sensors.yaml): no heartbeat, no card. */
 type ReportedCard = { name: string; ipv4: string | null; link: boolean }
-/** capture_error: what the sensor's heartbeat says about its capture (D-399 (3)); unset = it captures. A rootless container reports no_permission. */
+/** capture_error: what the sensor's heartbeat says about its capture; unset = it captures. A rootless container reports no_permission. */
 export const containerSensorStore = collection<{ connected: boolean; cards: ReportedCard[]; chosen: string | null; span: boolean; capture_error?: Sensor['capture_error'] }>('sp_container', () => ({
   connected: true, chosen: null, span: false,
   cards: [{ name: 'eno1', ipv4: '192.168.10.20/24', link: true }, { name: 'eno2', ipv4: null, link: true }, { name: 'wlp2s0', ipv4: null, link: false }, { name: 'docker0', ipv4: '172.17.0.1/16', link: true }, { name: 'lo', ipv4: '127.0.0.1/8', link: true }],
 }), () => ({ connected: false, cards: [], chosen: null, span: false }))
 /** core/sensorlink VirtualIfaceName: a link that is not a network card. */
 const VIRTUAL = /^(lo|veth|podman|cni|docker|br|virbr|vdh|bond|tun|tap|wg|dummy|vnet|macvtap|ifb|vedette)|[.@]/
-/** GET /inventory/sensors on a container-only install: everything about the cards comes from the heartbeat (D-263); never_connected before the first one. */
+/** GET /inventory/sensors on a container-only install: everything about the cards comes from the heartbeat; never_connected before the first one. */
 function containerSensors() {
   const c = containerSensorStore.get()
-  // D-380: of the cards that are up with an address, the one wired card, else the one card; two candidates → none.
+  // Of the cards that are up with an address, the one wired card, else the one card; two candidates → none.
   // The backend counts only a global IPv4 (globalIPv4); the fixtures hold no link-local address.
-  // D-393: links that are not cards (sensorlink.VirtualIfaceName: loopback, container bridges, veth, VPN) are never the default nor listed.
+  // Links that are not cards (sensorlink.VirtualIfaceName: loopback, container bridges, veth, VPN) are never the default nor listed.
   const cards = c.cards.filter((x) => !VIRTUAL.test(x.name))
   const withAddress = cards.filter((x) => x.link && x.ipv4)
   const wired = withAddress.filter((x) => !/^w[lw]/.test(x.name))
@@ -102,7 +102,7 @@ const agentsStore = collection<AgentToken[]>('intake_agent_tokens', () => [
 type StoredWazuh = WazuhConnection & { password: string }
 // Chứng chỉ CA của hộp (mock: giá trị giả, nhúng trong script như bản thật sẽ nhúng CA tự ký của hộp).
 const MOCK_CA = '-----BEGIN CERTIFICATE-----\nMIIBmockVedetteBoxCA0000000000000000000000000000000000000000000000\n(mock certificate: the real box embeds its own CA here)\n-----END CERTIFICATE-----'
-/** The five packages the real box serves (D-404), with the sizes and SHA-256 of deploy/osquery/PINS; the mock has no file to send. */
+/** The five packages the real box serves, with the sizes and SHA-256 of deploy/osquery/PINS; the mock has no file to send. */
 const V = OSQUERY_VERSION
 const MOCK_PACKAGES: OsqueryPackage[] = [
   { file: `osquery_${V}-1.linux_amd64.deb`, platform: 'linux', format: 'deb', arch: 'x86_64', size: 30579058, sha256: '051c287741d71b09184cb6bc53065cda972e3c27592b1e558696aaec9f0eb013' },
@@ -141,8 +141,8 @@ export function hashOf(s: string): string {
   for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0 }
   return h.toString(16).padStart(8, '0')
 }
-/** Version of the shared safety block (inventory INV-32, review #860 M1): names its values as the backend's SafetyVersion does,
- *  the discovery switch included (r2 L1); GET /scanning safety.version, GET /inventory/settings and GET /scans/config version. */
+/** Version of the shared safety block (inventory INV-32, #860): names its values as the backend's SafetyVersion does,
+ *  the discovery switch included; GET /scanning safety.version, GET /inventory/settings and GET /scans/config version. */
 export function safetyVersion(): string {
   const st = settingsStore.get()
   return hashOf(JSON.stringify([st.lan_ranges, st.scope_confirmed_at, st.scope_confirmed_by, st.active, st.fragile_kinds, st.regular_scan_kinds, peek('scanning_check_rate') ?? null]))
@@ -157,9 +157,9 @@ function loadSettings(): StoredSettings {
   settingsStore.set(upd)
   return upd
 }
-const policyFragile = (kind: AssetKind) => (settingsStore.get().fragile_kinds as string[]).includes(actsAs(kind)) // a type acts as one of the 13 kinds (D-511)
+const policyFragile = (kind: AssetKind) => (settingsStore.get().fragile_kinds as string[]).includes(actsAs(kind)) // a type acts as one of the 13 kinds
 
-// ---- Chính hộp là thiết bị đầu tiên (D-53, S-INV-5) ----
+// ---- Chính hộp là thiết bị đầu tiên (S-INV-5) ----
 export const BOX_ID = 'a-box'
 const boxSoftware = (key: string, display: string, vendor: string, product: string, version: string, kev: string[]): Software => ({ id: `s-box-${key}`, display, vendor, product, version, kev, source: 'agent', confidence: 1 })
 /** Gói trên hộp (dpkg), nguồn "this box" (tác nhân của chính hộp), độ tin cậy 1.0. Phiên bản khớp trạng thái hệ điều hành mẫu ở Settings, Updates. */
@@ -247,7 +247,7 @@ export function markCurrent(list: StoredObs[]): Observation[] {
   return list.map((o) => ({ ...o, current: best.get(o.field)?.id === o.id }))
 }
 
-/** A device with no vendor, model or OS (seen only by ARP) takes its current hostname and MAC instead (walk 4: source "–"). */
+/** A device with no vendor, model or OS (seen only by ARP) takes its current hostname and MAC instead (source "–"). */
 function summaryOf(a: Asset): DeviceRow['summary'] {
   let f: { source: ObsSource; confidence: number }[] = [a.vendor, a.model, a.os].filter((x): x is NonNullable<typeof x> => x !== null)
   if (!f.length) f = markCurrent(obsOf(a)).filter((o) => o.current && (o.field === 'hostname' || o.field === 'mac'))
@@ -256,18 +256,18 @@ function summaryOf(a: Asset): DeviceRow['summary'] {
   return { source: top.source, confidence: Math.min(...f.map((x) => x.confidence)) }
 }
 const findingsOf = (id: string) => findingsStore.get().filter((f) => f.asset_id === id).length
-/** D-45, D-84: one gentle scan right after a fragile device, a device of unknown kind or one set to "never" is first seen (lowest speed, no service/OS detection); discovery never scans devices declared by hand or the box itself. */
+/** One gentle scan right after a fragile device, a device of unknown kind or one set to "never" is first seen (lowest speed, no service/OS detection); discovery never scans devices declared by hand or the box itself. */
 const scanInfo = (a: Asset) => ({
   is_box: a.id === BOX_ID,
   first_scan_at: a.origin === 'discovered' && a.id !== BOX_ID && (a.fragile || a.kind === 'unknown' || metaStore.get()[a.id]?.regular_scan === 'never') ? new Date(new Date(a.first_seen).getTime() + 4 * 60_000).toISOString() : null,
   regular_scan: metaStore.get()[a.id]?.regular_scan ?? ('follow' as RegularScan),
-  approved_at: metaStore.get()[a.id]?.approved_at ?? null, // D-471: a person's first approval
+  approved_at: metaStore.get()[a.id]?.approved_at ?? null, // A person's first approval
   scan_source: sourceOf(a, 'scan_source'),
   snmp_source: sourceOf(a, 'snmp_source'),
-  ignored_at: metaStore.get()[a.id]?.ignored_at ?? null, // D-630: a person ignored it (known, not watched)
+  ignored_at: metaStore.get()[a.id]?.ignored_at ?? null, // A person ignored it (known, not watched)
 })
 // Hộp luôn "vừa thấy": nó là máy đang chạy Vedette.
-/** The wire shape adds the source of the kind and the rules' guess, only while the kind is unknown (D-511). */
+/** The wire shape adds the source of the kind and the rules' guess, only while the kind is unknown. */
 const live = (a: Asset) => ({ ...a, name: a.name ?? null, ...(a.id === BOX_ID ? { last_seen: nowIso() } : {}), kind_source: a.kind_source ?? (a.kind === 'unknown' ? null : a.origin === 'manual' ? 'manual' as const : 'nmap' as const), guess: a.kind === 'unknown' ? a.guess ?? null : null })
 /** #849: what feeds a device, in the words of the Devices search. Agent data is osquery's when osquery reports the device (its node is
  * bound to it) and Wazuh's when the saved Wazuh connection delivered it (both when both do); not Wazuh's once that connection is gone. */
@@ -286,7 +286,7 @@ function sourcesOf(a: Asset): DeviceSource[] {
   }
   return DEVICE_SOURCES.filter((x) => has.has(x))
 }
-/** G4: the CSV's risk column, in the marker's words (inventory riskWords). */
+/** The CSV's risk column, in the marker's words (inventory riskWords). */
 const csvRisk = (r: DeviceRow['risk']) => (!r ? '' : r.level === 'exploited' ? `${r.exploited} exploited` : 'Update recommended')
 /** The asks of "I updated it: ask the agent now" by device (agent-intake INV-23), and how the backend times them. */
 const reportAsks = new Map<string, number>()
@@ -323,7 +323,7 @@ function deviceFilter(url: string): ((r: DeviceRow) => boolean) | Response {
   if (badType) return fail(400, 'bad_filter', `"${badType}" is not a device type. Use a type id such as server, switch, firewall or printer.`)
   const badSource = sources.find((x) => !DEVICE_SOURCES.includes(x as DeviceSource))
   if (badSource) return fail(400, 'bad_filter', `"${badSource}" is not a source. Use one of: ${DEVICE_SOURCES.join(', ')}.`)
-  const risks = list('risk') // G4: exploited, update, none (ParseDeviceSearch)
+  const risks = list('risk') // exploited, update, none (ParseDeviceSearch)
   const badRisk = risks.find((x) => !['exploited', 'update', 'none'].includes(x))
   if (badRisk) return fail(400, 'bad_filter', `"${badRisk}" is not a risk. Use one of: exploited, update, none.`)
   const q = (p.get('q') ?? '').trim().toLowerCase()
@@ -332,7 +332,7 @@ function deviceFilter(url: string): ((r: DeviceRow) => boolean) | Response {
   const macLike = /^[0-9a-f]{2}([:-][0-9a-f]{2})+$/.test(q) || /^([0-9a-f]{4}\.)+[0-9a-f]{2}([0-9a-f]{2})?$/.test(q) || /^([0-9a-f]{2}){3,6}$/.test(q)
   const macBytes = (q.replace(/[:.-]/g, '').match(/../g) ?? []).join(':')
   return (r) =>
-    (r.ignored_at !== null) === (ignored === true) // D-630: an ignored device only when asked for
+    (r.ignored_at !== null) === (ignored === true) // An ignored device only when asked for
     && (approved === null || r.approved === approved)
     && (fragile === null || r.fragile === fragile)
     && (hasFindings === null || (r.findings_count > 0) === hasFindings)
@@ -344,7 +344,7 @@ function deviceFilter(url: string): ((r: DeviceRow) => boolean) | Response {
 }
 const find = (id: string) => allAssets().find((x) => x.id === id)
 
-// ---- D-599: possibly the same device (Merge / Keep separate). The mock offers rows of one host name (first label) where one is
+// ---- possibly the same device (Merge / Keep separate). The mock offers rows of one host name (first label) where one is
 // still waiting for review; the backend's rules (shared MAC, name or model with a private Wi-Fi address, never online together) are
 // in modules/inventory/samedevice.go. ----
 const separateStore = collection<string[]>('inv_separate', () => [])
@@ -386,7 +386,7 @@ const notFound = (_request?: Request) => fail(404, 'not_found', 'No such device.
 function createManual(entry: CatalogEntry | null, o: { version?: string; name?: string; ip?: string; kind?: AssetKind; userName?: string }): Asset {
   const now = nowIso()
   const suggested = o.kind ?? entry?.kind ?? 'unknown'
-  // A product with neither an IP nor a name is only a product ("(no device)"): no computer type for it (W9-1, D-515); an appliance keeps its type.
+  // A product with neither an IP nor a name is only a product ("(no device)"): no computer type for it; an appliance keeps its type.
   const kind: AssetKind = !o.ip && !o.name && ['pc', 'server', 'web'].includes(actsAs(suggested)) ? 'unknown' : suggested
   const a: Asset = {
     id: newId('a'), site: 'hq', ip: o.ip || '—', mac: null, hostname: o.name || null, name: o.userName || null, kind,
@@ -468,7 +468,7 @@ const HEADER_ALIAS: Record<string, string> = {
   device: 'name', device_name: 'name', hostname: 'name', host_name: 'name', ip_address: 'ip', address: 'ip', software: 'product', application: 'product',
   product_name: 'product', ver: 'version', type: 'kind', device_type: 'kind',
 }
-// Loại như người gõ: id, nhãn giao diện ("Wi-Fi (AP)", "IP phone") hay bí danh (camera_recorder, notebook), như devicetypes.Lookup của Go (D-511).
+// Loại như người gõ: id, nhãn giao diện ("Wi-Fi (AP)", "IP phone") hay bí danh (camera_recorder, notebook), như devicetypes.Lookup của Go.
 const parseKind = (text: string): AssetKind | undefined => lookupType(text)
 /** Như rowShapeProblem của Go: nhiều ô có chữ hơn số cột, hoặc một ô duy nhất chứa cả dòng ngăn cách bằng ký tự khác tiêu đề; dòng ngắn thì chấp nhận. */
 function rowShapeProblem(cells: string[], columns: number, delim: string): string {
@@ -483,7 +483,7 @@ function rowShapeProblem(cells: string[], columns: number, delim: string): strin
 /** Như ipNote của Go: IP công cộng hoặc ngoài các dải đã lưu vẫn được thêm nhưng kèm ghi chú (Vedette không quét nó). */
 function ipNote(ip: string, ranges: string[]): string {
   const [a, b] = ip.split('.').map(Number) as [number, number]
-  const priv = isPrivateCidr(`${ip}/32`) || (a === 169 && b === 254) || a === 127 // local networks incl. 100.64/10 (D-461), link-local, loopback
+  const priv = isPrivateCidr(`${ip}/32`) || (a === 169 && b === 254) || a === 127 // local networks incl. 100.64/10, link-local, loopback
   if (ranges.some((r) => { const c = cidrRange(r); const n = ip.split('.').reduce((x, y) => x * 256 + Number(y), 0); return n >= c.base && n < c.base + c.size })) return ''
   if (!priv) return `IP ${ip} is a public address. The device was added, but Vedette only scans your own network ranges.`
   if (ranges.length) return `IP ${ip} is outside your saved network ranges. The device was added, but Vedette will not scan it.`
@@ -680,7 +680,7 @@ function checkSnmp(a: Asset, b: Partial<DeviceSnmpInput>, prev: StoredSnmp | nul
   if (pp.err) return { err: pp.err }
   return { value: { ...base, version: 'v3', username, auth: b.auth, priv, auth_password: ap.v, priv_password: pp.v } }
 }
-/** What the mock device says when it answers: the device it is (#849 review: the preview's answer for 192.168.10.1 must be the FortiGate the
+/** What the mock device says when it answers: the device it is (#849: the preview's answer for 192.168.10.1 must be the FortiGate the
  *  list shows, not some other box), with the sysDescr and enterprise number its maker uses; recording it changes nothing the list shows. */
 const SNMP_VENDOR: Record<string, { oid: string; descr: (m: string, os: string) => string }> = {
   fortinet: { oid: '.1.3.6.1.4.1.12356.101.1.6005', descr: (m, os) => `${m.replace(/\s+/g, '-')} ${os.replace(/^FortiOS\s*/i, 'v')}` },
@@ -704,7 +704,7 @@ const snmpAnswer = (a: Asset): SnmpAnswer => {
 function recordSnmp(a: Asset, ans: SnmpAnswer) {
   const conf = 0.9
   const now = nowIso()
-  // an empty answer field says nothing: it is neither observed nor shown (#849 review)
+  // an empty answer field says nothing: it is neither observed nor shown (#849)
   if (ans.sys_name) addObs(a, 'hostname', ans.sys_name, 'snmp', conf)
   if (ans.vendor) addObs(a, 'vendor', ans.vendor, 'snmp', conf)
   if (ans.model) addObs(a, 'model', ans.model, 'snmp', conf)
@@ -749,7 +749,7 @@ export const handlers = [
     const keep = deviceFilter(request.url)
     if (keep instanceof Response) return keep
     const rows = allAssets().map(toRow)
-    const all = rows.filter((a) => a.ignored_at === null) // D-630: an ignored device is in no count but its own
+    const all = rows.filter((a) => a.ignored_at === null) // An ignored device is in no count but its own
     return HttpResponse.json({
       items: rows.filter(keep),
       counts: { all: all.length, pending: all.filter((a) => !a.approved).length, fragile: all.filter((a) => a.fragile).length, manual: all.filter((a) => a.origin === 'manual').length, ignored: rows.length - all.length },
@@ -835,7 +835,7 @@ export const handlers = [
     return HttpResponse.json({ ok: true })
   }),
 
-  // D-601: turn the network scan or the SNMP reads of one device on or off.
+  // Turn the network scan or the SNMP reads of one device on or off.
   http.put(`${API}/inventory/devices/:id/sources`, async ({ params, request }) => {
     const denied = guard('admin'); if (denied) return denied
     const a = find(String(params.id))
@@ -869,7 +869,7 @@ export const handlers = [
       patch.os = os ? { value: os, source: 'manual', confidence: 1, seen_at: nowIso() } : obsOf({ ...a }).filter((o) => o.field === 'os' && o.source !== 'manual').map((o) => ({ value: o.value, source: o.source, confidence: o.confidence, seen_at: o.seen_at }))[0] ?? null
       audit(os ? 'inventory.correct_os' : 'inventory.clear_os', nameOf(a, a.kind), os)
     }
-    if (b.name !== undefined) { // G2: the name in Vedette, as the backend checks it (trimmed, at most 64 characters, no < or >; empty clears it)
+    if (b.name !== undefined) { // the name in Vedette, as the backend checks it (trimmed, at most 64 characters, no < or >; empty clears it)
       const n = typeof b.name === 'string' ? b.name.trim() : null
       if (n === null || badUserName(n)) return fail(400, 'bad_name', 'The name is at most 64 characters and cannot contain < or >, control characters or invisible characters.')
       if (n !== (a.name ?? '')) {
@@ -916,7 +916,7 @@ export const handlers = [
     assetsStore.update((l) => l.filter((x) => x.id !== a.id))
     metaStore.update((m) => { const { [a.id]: _gone, ...rest } = m; return rest })
     obsStore.update((m) => { const { [a.id]: _gone, ...rest } = m; return rest })
-    // Phát hiện gắn thiết bị đã xoá không còn nghĩa: gỡ cùng lúc để không còn phát hiện mồ côi (supervisor).
+    // Phát hiện gắn thiết bị đã xoá không còn nghĩa: gỡ cùng lúc để không còn phát hiện mồ côi.
     const orphaned = findingsStore.get().filter((f) => f.asset_id === a.id).length
     if (orphaned) findingsStore.update((l) => l.filter((f) => f.asset_id !== a.id))
     audit('inventory.delete', nameOf(a, a.kind), orphaned ? `${a.id}; removed ${orphaned} findings of the device` : a.id)
@@ -934,7 +934,7 @@ export const handlers = [
     return HttpResponse.json({ ok: true })
   }),
 
-  // D-630: ignore a device that needs no watching (a staff phone), or stop ignoring it (back to To review).
+  // Ignore a device that needs no watching (a staff phone), or stop ignoring it (back to To review).
   http.post(`${API}/inventory/devices/:id/ignore`, async ({ params, request }) => {
     const denied = guard('operator'); if (denied) return denied
     const a = find(String(params.id))
@@ -944,8 +944,8 @@ export const handlers = [
     if (a.id === BOX_ID) return fail(409, 'box_device', 'This is the Vedette box itself: it cannot be ignored.')
     if (!!metaStore.get()[a.id]?.ignored_at === b.ignored) return HttpResponse.json({ ok: true })
     if (b.ignored) {
-      metaStore.update((m) => ({ ...m, [a.id]: { ...m[a.id], ignored_at: nowIso() } })) // sources and the unknown mark stay (review r1 M1, L4)
-      // D-630: its open findings close with a readable reason; what a person settled keeps its status
+      metaStore.update((m) => ({ ...m, [a.id]: { ...m[a.id], ignored_at: nowIso() } })) // sources and the unknown mark stay
+      // Its open findings close with a readable reason; what a person settled keeps its status
       const note = `Closed by Vedette: the device was ignored by ${currentUser()?.email ?? 'admin@example.com'}.`
       const ts = nowIso()
       findingsStore.update((l) => l.map((f) => (f.asset_id === a.id && (f.status === 'suspected' || f.status === 'confirmed')
@@ -989,7 +989,7 @@ export const handlers = [
     return HttpResponse.json({ kev_cves: v.entry!.kev_count }, { status: 201 })
   }),
 
-  // D-471, INV-41: a row a person declared changes in place; a row a sensor or agent reported is corrected (a manual row that replaces
+  // INV-41: a row a person declared changes in place; a row a sensor or agent reported is corrected (a manual row that replaces
   // it for matching, created once, then edited). version and/or pkg_version (the bare release or the line `apk info -e -v` prints).
   http.patch(`${API}/inventory/devices/:id/software/:sid`, async ({ params, request }) => {
     const denied = guard('operator'); if (denied) return denied
@@ -1049,7 +1049,7 @@ export const handlers = [
     const denied = guard('viewer'); if (denied) return denied
     const keep = deviceFilter(request.url)
     if (keep instanceof Response) return keep
-    // name is the host name; name_in_vedette the name a person gave the device (G2, review r1 of #929): import reads both back
+    // name is the host name; name_in_vedette the name a person gave the device (#929): import reads both back
     const head = ['name', 'ip', 'mac', 'kind', 'vendor', 'model', 'os', 'software', 'approved', 'fragile', 'origin', 'source', 'confidence', 'last_seen', 'name_in_vedette', 'risk']
     const lines = allAssets().filter((a) => keep(toRow(a))).map((a) => {
       const s = summaryOf(a)
@@ -1176,7 +1176,7 @@ export const handlers = [
   http.get(`${API}/inventory/sensors`, () => {
     const denied = guard('admin'); if (denied) return denied
     if (installStore.get().kind === 'container') return HttpResponse.json({ sensors: containerSensors() })
-    // SPAN and the listening port are owned by Settings → Box network (D-56); the sensor row only reflects them.
+    // SPAN and the listening port are owned by Settings → Box network; the sensor row only reflects them.
     const net = networkStore.get()
     const st = spanStatusOf(net)
     const spanOn = net.span.enabled && !!net.span.interface
@@ -1184,7 +1184,7 @@ export const handlers = [
     return HttpResponse.json({ sensors: sensorsStore.get().map((s) => ({ ...s, interface: spanOn ? net.span.interface : mgmt, interfaces: net.ifaces.map((i) => i.name), span: spanOn, chosen: spanOn, span_status: { verdict: st.verdict, packets_per_s: st.packets_per_s, other_macs: st.other_macs }, capture_error: null })) })
   }),
 
-  // D-387: only a container-only install chooses the card here; an appliance sets it in Settings → Box network (D-56, D-118).
+  // Only a container-only install chooses the card here; an appliance sets it in Settings → Box network.
   http.patch(`${API}/inventory/sensors/:id`, async ({ request, params }) => {
     const denied = guard('admin'); if (denied) return denied
     if (!sensorsStore.get().some((s) => s.id === params.id)) return fail(404, 'not_found', 'No such sensor. This box has one sensor, sn-local.')
@@ -1214,7 +1214,7 @@ export const handlers = [
   }),
 
   // Công khai (không bí mật): script do hộp phục vụ; SHA-256 hiện trong giao diện tính đúng trên nội dung này.
-  // D-399 (2): no script pinned to the placeholder address: it would pass its SHA-256 check and then fail on every server.
+  // No script pinned to the placeholder address: it would pass its SHA-256 check and then fail on every server.
   http.get(`${API}/install/osquery.sh`, () => serverUrl().includes(NO_BOX_ADDRESS) ? noBoxAddress() : new HttpResponse(linuxInstallScript(serverUrl(), MOCK_CA), { headers: { 'Content-Type': 'text/x-shellscript; charset=utf-8' } })),
   http.get(`${API}/install/osquery.ps1`, () => serverUrl().includes(NO_BOX_ADDRESS) ? noBoxAddress() : new HttpResponse(windowsInstallScript(serverUrl(), MOCK_CA), { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })),
 
@@ -1230,7 +1230,7 @@ export const handlers = [
     return HttpResponse.json({ enrolled: t.last_received !== null, hosts: t.hosts, ...(named ? { host_last_seen: t.hosts > 0 ? new Date().toISOString() : null } : {}) })
   }),
 
-  // osquery TLS remote API (D-169): machine to machine, no GUI calls these; the mock answers with the real shapes so the contract tests and OpenAPI cover them.
+  // osquery TLS remote API: machine to machine, no GUI calls these; the mock answers with the real shapes so the contract tests and OpenAPI cover them.
   // Credential failures are HTTP 200 + node_invalid (osquery does not handle HTTP errors). The mock keeps no nodes: a node key is "mock-node-" + token last4.
   http.post(`${API}/intake/osquery/enroll`, async ({ request }) => {
     const b = await body<{ enroll_secret?: string }>(request)
@@ -1335,7 +1335,7 @@ export const handlers = [
     const password = b.password ? b.password : prev!.password
     const conn: StoredWazuh = {
       url: (b.url ?? '').trim().replace(/\/+$/, ''), username: (b.username ?? '').trim(), password, password_last4: password.slice(-4), interval_minutes: Number(b.interval_minutes),
-      // the check just passed: 'never' until the first pull, else 'connected' (the next pull says more), as the backend does (D-309)
+      // the check just passed: 'never' until the first pull, else 'connected' (the next pull says more), as the backend does
       status: prev?.last_sync ? 'connected' : 'never', last_sync: prev?.last_sync ?? null, agents: prev?.agents ?? 0, packages: prev?.packages ?? 0, error: null,
     }
     wazuhStore.set(conn)
@@ -1453,5 +1453,5 @@ export const handlers = [
 
 function sameSet(a: string[], b: string[]) { return a.length === b.length && a.every((x) => b.includes(x)) }
 
-// Dùng chung trong lớp mock (supervisor): module scan đọc dải mạng và xác nhận phạm vi từ đây.
+// Dùng chung trong lớp mock: module scan đọc dải mạng và xác nhận phạm vi từ đây.
 export { settingsStore as inventorySettingsStore }

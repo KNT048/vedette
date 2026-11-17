@@ -10,7 +10,7 @@ import { NetworkForm } from './NetworkForm'
 import { SensorsSection } from './SensorsSection'
 import { Navigate, useLocation } from 'react-router'
 
-// "Add devices" links to #agents (D-471) and SNMP to #snmp (D-512); those and the other section ids open their tab (D-519).
+// "Add devices" links to #agents and SNMP to #snmp; those and the other section ids open their tab.
 const OLD_HASH: Record<string, string> = { ranges: 'scope', active: 'scope', fragile: 'scope', scope: 'scope', sensors: 'sensor', agents: 'agents' }
 
 /** #850: old SNMP links (?tab=snmp, #snmp) land on the SNMP card of Settings › Scanning (SNMP itself is set up per device). */
@@ -42,12 +42,12 @@ function Body() {
       {back}
       <PageHeader title={title} stories={['S-INV-1', 'S-INV-4']} meta={<span className="inline-flex flex-wrap items-center gap-2"><SampleDataNote />{t('setup.meta')}</span>} info={t('setup.metaInfo')} />
       <OldHashToTab map={OLD_HASH} />
-      {/* D-519: four areas that each save on their own (scope, the box's sensor, SNMP credentials, agents), as Lansweeper keeps
+      {/* Four areas that each save on their own (scope, the box's sensor, SNMP credentials, agents), as Lansweeper keeps
           scanning targets and scanning credentials on separate pages. */}
       <PageTabs label={t('setup.tabs.label')} tabs={[
         { id: 'scope', label: t('setup.tabs.scope'), panel: <QueryState query={settings}>{(s) => <NetworkForm key={JSON.stringify(s)} settings={s} />}</QueryState> },
         { id: 'sensor', label: t('setup.tabs.sensor'), panel: <SensorsSection /> },
-        // SNMP reads run in the active scanner: with sensor-active off the area does not exist (D-512), so neither does its tab.
+        // SNMP reads run in the active scanner: with sensor-active off the area does not exist, so neither does its tab.
         { id: 'agents', label: t('setup.tabs.agents'), panel: <AgentsSection /> },
       ]} />
     </>

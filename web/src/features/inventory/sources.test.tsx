@@ -5,7 +5,7 @@ import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { modulesStore, sessionStore } from '@/mocks/stores'
 import { ensureBox } from './mocks'
 
-// D-598, issue #829 (kien: "the device came from a scan, I added it, then I could not add SNMP to it; can I add osquery later, or both?").
+// issue #829 ("the device came from a scan, I added it, then I could not add SNMP to it; can I add osquery later, or both?").
 vi.setConfig({ testTimeout: 30_000 })
 beforeEach(() => ensureBox())
 
@@ -18,7 +18,7 @@ const api = async (method: string, path: string, body?: unknown) => {
 const sources = async () => screen.findByRole('list', { name: 'Sources' }, T)
 const item = (list: HTMLElement, name: string) => within(list).getByText(name).closest('li') as HTMLElement
 
-describe('Device page: Sources (D-598)', () => {
+describe('Device page: Sources', () => {
   it('lists what feeds a scanned device and offers osquery', async () => {
     enableModule('agent-intake', true)
     const user = userEvent.setup()
@@ -56,9 +56,9 @@ describe('Device page: Sources (D-598)', () => {
   })
 })
 
-// D-601 (kien, a FortiGate added by hand: "I should still be able to add other checks later like osquery or SNMP; let the user toggle
+// A user request (a FortiGate added by hand: "I should still be able to add other checks later like osquery or SNMP; let the user toggle
 // each part on/off"): each active source is switched per device, with what it means in one line; a hand-added device starts silent.
-describe('Device page: Sources switches (D-601)', () => {
+describe('Device page: Sources switches', () => {
   const addByHand = async (ip: string) => {
     const r = await api('POST', '/devices', { catalog_id: 'fortigate', ip })
     expect(r.status).toBe(201)

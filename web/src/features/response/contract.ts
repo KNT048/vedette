@@ -59,13 +59,13 @@ export const ProposalState = z.enum(['ready', 'execution_off', 'tool_not_allowed
 export const Proposal = z.object({
   id, title: z.string(), tool_key: z.string().describe('connection id / tool name'), tool: z.string(),
   connector_id: z.string(), connection: z.string(), asset_id: z.string(), asset_name: z.string(), change: Change,
-  state: ProposalState.describe('ready = a request can be made now; the others say what blocks it (not_publishable: a block list action on an address the list never publishes, D-469)'),
+  state: ProposalState.describe('ready = a request can be made now; the others say what blocks it (not_publishable: a block list action on an address the list never publishes)'),
   request_id: z.string().nullable().describe('Open (pending) or executed request for this proposal'),
 })
 export const PlanStep = z.object({ kind: z.enum(['contain', 'check', 'patch']), title: z.string(), detail: z.string(), proposal: Proposal.nullable() })
 export const Plan = z.object({
   id, finding_id: z.string(), cve: z.string(), asset_id: z.string(), asset_name: z.string(), generated_at: iso,
-  model: z.string(), profile: z.string().describe('Name of the AI profile that drafted the plan (D-29)'),
+  model: z.string(), profile: z.string().describe('Name of the AI profile that drafted the plan'),
   path: z.string().describe('How the device is reachable, from the inventory and read-only connection calls'),
   reads: z.array(z.object({ connection: z.string(), tool: z.string(), summary: z.string() })),
   steps: z.array(PlanStep),
@@ -76,7 +76,7 @@ export const PlannerOutcome = z.enum(['proposed', 'noted', 'refused', 'not_sent'
 export const PlannerStatus = z.object({
   ran_at: iso.nullable().describe('Last run of the plan job (every 5 minutes); null = not run since the box started'),
   blocked: z.enum(['', 'no_ai', 'ai_paused']).describe('The run asked nothing: no_ai = no usable AI profile for Response plans (or the AI module is off); ai_paused = the quality breaker paused AI proposals'),
-  sending: z.boolean().describe('The execution switch is on and the AI may send requests for critical findings (D-314)'),
+  sending: z.boolean().describe('The execution switch is on and the AI may send requests for critical findings'),
   considered: z.number().int().describe('Open critical findings the run looked at'), asked: z.number().int().describe('Of those, how many the AI was asked about'),
   proposed: z.number().int().describe('Requests the run sent to the inbox'),
   findings: z.array(z.object({ finding_id: z.string(), cve: z.string(), asset_name: z.string(), outcome: PlannerOutcome, reason: z.string().describe("The box's own sentence") }))
@@ -102,9 +102,9 @@ export const AiMeta = z.object({
   second_check: z.object({ ok: z.boolean(), notes: z.string() }).nullable().describe('Deterministic second checker, only for high-risk actions'),
   in_app_only: z.boolean().describe('High risk: only an in-app approval with the two-step code counts'),
 })
-export const RequestSource = z.enum(['ai', 'rule', 'person']).describe('Who asked: the AI, a rule, or a person from an incident (D-509)')
+export const RequestSource = z.enum(['ai', 'rule', 'person']).describe('Who asked: the AI, a rule, or a person from an incident')
 export const ActionRequest = z.object({
-  id, source: RequestSource, proposal_id: z.string().describe('The AI plan proposal, rule:<rule>:<event> for a rule run, or incident:<id> for a request asked from an incident (D-509)'), rule_id: z.string().nullable(), rule_name: z.string().nullable(),
+  id, source: RequestSource, proposal_id: z.string().describe('The AI plan proposal, rule:<rule>:<event> for a rule run, or incident:<id> for a request asked from an incident'), rule_id: z.string().nullable(), rule_name: z.string().nullable(),
   trigger: TriggerKind.nullable(), trigger_summary: z.string().nullable(),
   finding_id: z.string().nullable(), cve: z.string().nullable(), asset_id: z.string().nullable(), asset_name: z.string(),
   title: z.string(), items: z.array(RequestItem), risk: Risk.describe('Highest risk among the actions'),
@@ -126,7 +126,7 @@ export const AiGates = z.object({
   paused_at: iso.nullable().describe('Set when the quality breaker paused AI proposals'), paused_reason: z.string().nullable(),
 })
 export const Settings = z.object({
-  execution: z.boolean().describe('OFF by default (D-41); gates actions that change another device'),
+  execution: z.boolean().describe('OFF by default; gates actions that change another device'),
   accepted_by: z.string().nullable(), accepted_at: iso.nullable(),
   max_per_hour: z.number().int().min(1).max(20).describe('Approved device actions per hour'),
   expiry_min: z.number().int().min(15).max(30).describe('Minutes an approval request stays open (15 to 30)'),
@@ -140,7 +140,7 @@ export const Settings = z.object({
 })
 export const SettingsView = Settings.extend({
   channels: z.array(z.object({ type: z.string(), label: z.string(), ready: z.boolean().describe('Configured, enabled, approvals on and at least one approver'), approvers: z.number().int(), link: z.boolean().describe('Approves through a one-time link (email, Zalo OA)'),
-    linked: z.number().int().describe('Approvers who proved this address themselves in My account (D-191); only they can approve with buttons or links'),
+    linked: z.number().int().describe('Approvers who proved this address themselves in My account; only they can approve with buttons or links'),
     unlinked: z.array(z.string()).describe('Names of the approvers who have not linked their address yet') })),
 })
 
@@ -148,9 +148,9 @@ export const SettingsView = Settings.extend({
 export const IdentityMethod = z.enum(['email_code', 'send_code', 'unavailable'])
 export const Identity = z.object({
   channel: z.string(), label: z.string(), address: z.string().describe('The address or ID on the approver list of the channel, as an administrator saved it'),
-  name: z.string().optional().describe('The shown name of that address where the channel knows it (Zalo personal, D-447)'),
+  name: z.string().optional().describe('The shown name of that address where the channel knows it (Zalo personal)'),
   linked: z.boolean().describe('Proved by this person for exactly this address; a changed address or sign-in email is not linked'), linked_at: iso.nullable(),
-  method: IdentityMethod.describe('email_code: Vedette mails a code to this address. send_code: the box sends a confirm link to that chat account and you confirm it while signed in to Vedette (Zalo personal D-447, Telegram D-414); Send again asks for a new one. unavailable: this channel cannot be linked yet (approve in Vedette)'),
+  method: IdentityMethod.describe('email_code: Vedette mails a code to this address. send_code: the box sends a confirm link to that chat account and you confirm it while signed in to Vedette (Zalo personal, Telegram); Send again asks for a new one. unavailable: this channel cannot be linked yet (approve in Vedette)'),
   code_waiting: z.boolean().describe('A code or confirm link was sent and can be used now'),
 })
 export const IdentityList = z.object({ items: z.array(Identity) })
@@ -164,7 +164,7 @@ export const SettingsInput = z.object({
 // ---- Trigger catalog ----
 export const TriggerField = z.object({ key: z.string(), label: z.string(), type: FieldType, example: z.string(), choices: z.array(z.string()), min: z.number().nullable(), max: z.number().nullable() })
 export const TriggerInfo = z.object({ id: TriggerKind, name: z.string(), description: z.string(), fields: z.array(TriggerField), ai_allowed: z.boolean(),
-  ai_evidence: z.array(z.enum(['finding', 'ioc_hit', 'config_read'])).describe('Kinds of evidence that prove the trigger to the AI (D-119); empty = the AI may never use it') })
+  ai_evidence: z.array(z.enum(['finding', 'ioc_hit', 'config_read'])).describe('Kinds of evidence that prove the trigger to the AI; empty = the AI may never use it') })
 export const TriggerList = z.object({ items: z.array(TriggerInfo) })
 
 // ---- Action catalog ----
@@ -240,7 +240,7 @@ export const LogKind = z.enum(['rule_fired', 'proposal', 'request', 'approved', 
 export const LogEntry = z.object({
   id, ts: z.string().describe('Exactly as stored and hashed (UTC, milliseconds: 2026-11-11T14:16:30.000Z); a date-time would be re-encoded and break the hash'), kind: LogKind, actor: z.string(), detail: z.string(),
   prev_hash: z.string().describe('hash of the previous entry; 64 zeros for the first'),
-  hash: z.string().describe('lowercase hex SHA-256 of prev_hash + "\\n" + JSON.stringify({actor, detail, id, kind, prev_hash, ts}) (keys sorted by code point, no whitespace: web/src/lib/chain.ts canonical, D-57 (14)), with ts exactly as served'),
+  hash: z.string().describe('lowercase hex SHA-256 of prev_hash + "\\n" + JSON.stringify({actor, detail, id, kind, prev_hash, ts}) (keys sorted by code point, no whitespace: web/src/lib/chain.ts canonical), with ts exactly as served'),
 })
 export const LogList = z.object({ items: z.array(LogEntry).describe('Oldest first, so the chain can be checked from the start') })
 
@@ -276,7 +276,7 @@ export const IncidentSource = z.object({
   ip: z.string().describe('Read by the server from the incident (a trap: the hit), never sent by the browser'),
   device: z.string().nullable().describe('The inventory name of the source, when known'),
   asset_id: z.string().nullable(),
-  scope: z.enum(['lan', 'public']).describe('lan: an address the block list never publishes (private, CGNAT, link-local…, D-469); public: any other'),
+  scope: z.enum(['lan', 'public']).describe('lan: an address the block list never publishes (private, CGNAT, link-local…); public: any other'),
 })
 export const IncidentOption = z.object({
   action_id: id, name: z.string().describe('The catalog action'), title: z.string().describe('What the request will say, for example "Add 203.0.113.9 to the block list"'),
@@ -303,8 +303,8 @@ export const endpoints = defineEndpoints([
   R({ method: 'get', path: '/response/actions', summary: 'Requests (one bundled request per rule run or AI proposal) with items, approvals, status, exact changes, rollback and read-back result', stories: ['S-RESP-2', 'S-RESP-3'], role: 'viewer', response: ActionList }),
   R({ method: 'post', path: '/response/proposals/{id}/request', status: 201, summary: 'Ask for approval of one action proposed in an AI plan (refused when execution is off, the action is not enabled or a request is already open)', stories: ['S-RESP-2'], role: 'operator',
     params: idParams, response: ActionRequest }),
-  R({ method: 'get', path: '/response/incidents/{id}', summary: 'Respond to an incident (D-509): its source address and device, LAN or public, and the actions that can really be asked for it, each with why it is not ready', stories: ['S-RESP-3'], role: 'viewer', params: idParams, response: IncidentPanel }),
-  R({ method: 'post', path: '/response/incidents/{id}/request', status: 201, summary: "Ask for approval of one offered action on the incident's source (D-509). The server reads the source from the incident; the request waits for approval like any other (expiry, undo after 24 hours, log). Refused when the action is not offered for this source, a device action while execution is off, a request is already open, the incident is resolved (incident_resolved) or the source of a scan may be forged (source_unconfirmed)", stories: ['S-RESP-3'], role: 'operator',
+  R({ method: 'get', path: '/response/incidents/{id}', summary: 'Respond to an incident: its source address and device, LAN or public, and the actions that can really be asked for it, each with why it is not ready', stories: ['S-RESP-3'], role: 'viewer', params: idParams, response: IncidentPanel }),
+  R({ method: 'post', path: '/response/incidents/{id}/request', status: 201, summary: "Ask for approval of one offered action on the incident's source. The server reads the source from the incident; the request waits for approval like any other (expiry, undo after 24 hours, log). Refused when the action is not offered for this source, a device action while execution is off, a request is already open, the incident is resolved (incident_resolved) or the source of a scan may be forged (source_unconfirmed)", stories: ['S-RESP-3'], role: 'operator',
     params: idParams, body: z.object({ action_id: id }), response: ActionRequest }),
   R({ method: 'post', path: '/response/actions/{id}/approve', summary: 'Approve a request in the app: all actions or the ones picked. High-risk requests need a second, different approver; AI high-risk requests need the two-step code', stories: ['S-RESP-2'], role: 'operator',
     params: idParams, body: z.object({ items: z.array(z.string()).optional(), code: z.string().optional() }), response: ActionRequest }),
@@ -316,8 +316,8 @@ export const endpoints = defineEndpoints([
   R({ method: 'get', path: '/response/approve/{token}', summary: 'Public: what an emailed approval link would change. Read only: opening the link never approves', stories: ['S-RESP-2'], role: 'public', params: tokenParams, response: ApprovalView }),
   R({ method: 'post', path: '/response/approve/{token}', summary: 'Public: approve or reject through an emailed link. The token is single-use, valid 30 minutes and bound to one request and one approver', stories: ['S-RESP-2'], role: 'public',
     params: tokenParams, body: z.object({ decision: z.enum(['approve', 'reject']) }), response: ActionRequest }),
-  R({ method: 'get', path: '/response/me/identities', summary: 'My approver identities: each approval channel whose approver list names me, with the address, whether I linked it myself and how to link it (D-191)', stories: ['S-RESP-2'], role: 'operator', response: IdentityList }),
-  R({ method: 'post', path: '/response/me/identities/{channel}/code', summary: 'Email: mail a 6-digit link code to my address on the email approval channel (my sign-in email). Telegram and Zalo personal (send_code): send a new confirm link to my listed chat ID (D-414; sent_to names it). 10 minutes, one at a time, a new one after 60 seconds, 5 an hour', stories: ['S-RESP-2'], role: 'operator',
+  R({ method: 'get', path: '/response/me/identities', summary: 'My approver identities: each approval channel whose approver list names me, with the address, whether I linked it myself and how to link it', stories: ['S-RESP-2'], role: 'operator', response: IdentityList }),
+  R({ method: 'post', path: '/response/me/identities/{channel}/code', summary: 'Email: mail a 6-digit link code to my address on the email approval channel (my sign-in email). Telegram and Zalo personal (send_code): send a new confirm link to my listed chat ID (sent_to names it). 10 minutes, one at a time, a new one after 60 seconds, 5 an hour', stories: ['S-RESP-2'], role: 'operator',
     params: chanParams, response: CodeSent }),
   R({ method: 'post', path: '/response/me/identities/{channel}/confirm', summary: 'Link my address on a channel with the code it received. Single use; 5 wrong codes cancel it', stories: ['S-RESP-2'], role: 'operator',
     params: chanParams, body: z.object({ code: z.string() }), response: Identity }),
@@ -350,13 +350,13 @@ export const endpoints = defineEndpoints([
   R({ method: 'post', path: '/response/blocklist/token', summary: 'Regenerate the block list token; the old address stops working at once', stories: ['S-RESP-3'], role: 'admin', response: Blocklist }),
   R({ method: 'get', path: '/response/blocklist/{token}.txt', summary: 'Plain-text block list (one IP address per line) for firewalls to pull; the token in the address is the only credential', stories: ['S-RESP-3'], role: 'public', params: tokenParams, response: 'text' }),
 
-  R({ method: 'get', path: '/response/catalog', summary: 'Action catalog in plain words: template packs from the library (data, D-58), generic actions and custom ones; connections with their kind and whether they can write', stories: ['S-RESP-4'], role: 'viewer', response: Catalog }),
+  R({ method: 'get', path: '/response/catalog', summary: 'Action catalog in plain words: template packs from the library (data), generic actions and custom ones; connections with their kind and whether they can write', stories: ['S-RESP-4'], role: 'viewer', response: Catalog }),
   R({ method: 'post', path: '/response/catalog', status: 201, summary: 'Add a custom action. The fields must fit the connection kind (API: method, path, body; SSH: command; MCP: write tool and arguments) and the connection must have an enabled write tool', stories: ['S-RESP-4'], role: 'admin', body: CatalogInput, response: CatalogAction }),
   R({ method: 'put', path: '/response/catalog/{id}', summary: 'Change a custom action, or enable a built-in one, choose its connection and set whether the AI may propose it', stories: ['S-RESP-4'], role: 'admin', params: idParams, body: CatalogUpdate, response: CatalogAction }),
   R({ method: 'delete', path: '/response/catalog/{id}', summary: 'Delete a custom action that no rule uses', stories: ['S-RESP-4'], role: 'admin', params: idParams, response: null }),
 
   R({ method: 'get', path: '/response/ai', summary: 'AI request state: gates, usage against the budget, quality breaker, suggestions, digest and saved hints', stories: ['S-RESP-2', 'S-AI-8'], role: 'viewer', response: AiState }),
-  R({ method: 'post', path: '/response/ai/proposals', summary: 'Preview build only (D-97): on a real box the AI sends its requests inside the process and this route answers 404. The gates it applies: allowed trigger, action flagged for AI, real evidence, confidence of 0.8 or more, one open request per target and action, 7 days after a rejection, hourly and daily budget, quality breaker, second checker for high risk. 201 when an approval request was created, 200 for a suggestion note or a digest (the generated file documents 200)', stories: ['S-RESP-2'], role: 'operator',
+  R({ method: 'post', path: '/response/ai/proposals', summary: 'Preview build only: on a real box the AI sends its requests inside the process and this route answers 404. The gates it applies: allowed trigger, action flagged for AI, real evidence, confidence of 0.8 or more, one open request per target and action, 7 days after a rejection, hourly and daily budget, quality breaker, second checker for high risk. 201 when an approval request was created, 200 for a suggestion note or a digest (the generated file documents 200)', stories: ['S-RESP-2'], role: 'operator',
     body: ProposeBody, response: ProposeResult }),
   R({ method: 'post', path: '/response/ai/resume', summary: 'Resume AI requests after the quality breaker paused them', stories: ['S-RESP-2'], role: 'admin', response: AiState }),
   R({ method: 'get', path: '/response/metrics', summary: 'Acceptance rate, time to approve and rejected requests, for the AI and for rules', stories: ['S-RESP-2', 'S-AI-8'], role: 'viewer', response: Metrics }),

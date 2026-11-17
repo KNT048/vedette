@@ -21,7 +21,7 @@ import { normalizeRange, rangeProblem } from './validate'
 vi.setConfig({ testTimeout: 30_000 })
 // The box is always the first device; the store gets it on the first inventory call, so counts taken before the page loads need it already there.
 beforeEach(() => ensureBox())
-afterEach(() => { server.events.removeAllListeners() }) // #849 review r2 L8: a failing test never leaks its request listener
+afterEach(() => { server.events.removeAllListeners() }) // #849: a failing test never leaks its request listener
 
 const BASE = `${location.origin}/api/v1/inventory`
 const T = { timeout: 5000 }
@@ -61,7 +61,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
 
   it('#849: one search box with tokens and chips, kept in ?q=; the old ?show= links open the same filter', async () => {
     const user = userEvent.setup()
-    renderApp('/devices?tab=all&show=recent') // the D-471 KPI link
+    renderApp('/devices?tab=all&show=recent') // the KPI link
     let table = await deviceTable()
     const box = screen.getByRole('combobox', { name: 'Search devices' })
     await waitFor(() => expect(box).toHaveValue('approved:24h'), T)
@@ -265,7 +265,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     expect(within(dlg).getByRole('radio', { name: /^CSV import/ })).toBeEnabled()
   })
 
-  it('#849 review r2 L7: turning a module on here says which modules it also turns on', async () => {
+  it('#849: turning a module on here says which modules it also turns on', async () => {
     enableModule('agent-intake', false)
     enableModule('notify', false)
     modulesStore.update((l) => l.map((m) => (m.id === 'agent-intake' ? { ...m, depends: ['inventory', 'notify'] } : m)))
@@ -274,7 +274,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     expect(await within(dlg).findByText(/also turns on Notifications, which it needs/, undefined, T)).toBeInTheDocument()
   })
 
-  it('#849, kien 2026-11-16: a module the method needs is off: the admin turns it on right in the dialog, and the method opens', async () => {
+  it('a module the method needs is off: the admin turns it on right in the dialog, and the method opens', async () => {
     const user = userEvent.setup()
     enableModule('agent-intake', false)
     renderApp('/devices?add=osquery')
@@ -285,14 +285,14 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     expect(modulesStore.get().find((m) => m.id === 'agent-intake')?.enabled).toBe(true)
   })
 
-  it('#849 review M1: a viewer\'s old ?tab=add link lands on the list, not on a form that ends in 403', async () => {
+  it('#849: a viewer\'s old ?tab=add link lands on the list, not on a form that ends in 403', async () => {
     renderApp('/devices?tab=add', { role: 'viewer' })
     await deviceTable()
     expect(screen.queryByRole('dialog', { name: 'Add a device' })).toBeNull()
     expect(screen.getByRole('button', { name: 'Add a device' })).toBeDisabled()
   })
 
-  it('#849 review M2: with software: the list shows the matched software and its version (the old Software tab)', async () => {
+  it('#849: with software: the list shows the matched software and its version (the old Software tab)', async () => {
     const user = userEvent.setup()
     renderApp('/devices?tab=software') // the old tab opens has:software
     const table = await deviceTable()
@@ -327,7 +327,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     expect(screen.queryByRole('link', { name: /sensors/ })).not.toBeInTheDocument()
   })
 
-  it('D-519: old #agents links open their tab; #snmp lands on the SNMP card of Settings › Scanning (#850)', async () => {
+  it('old #agents links open their tab; #snmp lands on the SNMP card of Settings › Scanning (#850)', async () => {
     const { unmount } = renderApp('/devices/setup#agents')
     expect(await screen.findByRole('tab', { name: 'Agents', selected: true }, T)).toBeInTheDocument()
     unmount()
@@ -364,7 +364,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     const toast = (await screen.findByText(/^Approved .+\.$/, undefined, T)).closest<HTMLElement>('[data-sonner-toast]')!
     expect(assetsStore.get().filter((a) => !a.approved)).toHaveLength(1)
     expect(await screen.findByRole('heading', { level: 1, name: /1 not yet approved/ }, T)).toBeInTheDocument()
-    // D-471: the toast says where to find it again and opens the device
+    // The toast says where to find it again and opens the device
     expect(within(toast).getByText('Find it later in Devices.')).toBeInTheDocument()
     const approved = pending.find((id) => find(id).approved)!
     fireEvent.click(within(toast).getByRole('button', { name: 'Open device' })) // no pointer events: sonner's swipe handler needs setPointerCapture, which jsdom lacks
@@ -378,7 +378,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     expect(screen.getByRole('combobox', { name: 'Search devices' })).toHaveValue('approved:24h')
   })
 
-  it('S-INV-3 (kien 2026-11-17, D-630): a To review row offers Approve, Ignore and Remove; the unknown mark lives on the device page', async () => {
+  it('S-INV-3: a To review row offers Approve, Ignore and Remove; the unknown mark lives on the device page', async () => {
     const user = userEvent.setup()
     renderApp('/devices?tab=review')
     const list = await screen.findByRole('list', { name: '2 new devices not approved' }, T)
@@ -394,7 +394,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     expect(find('a-unk01').approved).toBe(false)
   })
 
-  it('D-630: Ignore asks first, says what still alerts and that a private MAC may come back; the Ignored tab lists it with Stop ignoring', async () => {
+  it('Ignore asks first, says what still alerts and that a private MAC may come back; the Ignored tab lists it with Stop ignoring', async () => {
     const user = userEvent.setup()
     renderApp('/devices?tab=review')
     const list = await screen.findByRole('list', { name: '2 new devices not approved' }, T)
@@ -418,7 +418,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     expect(await screen.findByRole('list', { name: '2 new devices not approved' }, T)).toBeInTheDocument()
   })
 
-  it('D-630: an ignored device is out of Devices by default; its page says so and offers Stop ignoring', async () => {
+  it('an ignored device is out of Devices by default; its page says so and offers Stop ignoring', async () => {
     const user = userEvent.setup()
     asAdmin()
     const r = await api.post('/inventory/devices/a-nas02/ignore', { ignored: true })
@@ -427,7 +427,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     expect(all.items.some((d) => d.id === 'a-nas02')).toBe(false)
     expect(all.counts.ignored).toBe(1)
     expect((await api.get<DevicesResponse>('/inventory/devices?ignored=true')).items.map((d) => d.id)).toEqual(['a-nas02'])
-    // D-630: its open findings are closed with the reason, none deleted, none open
+    // Its open findings are closed with the reason, none deleted, none open
     const mine = findingsStore.get().filter((f) => f.asset_id === 'a-nas02')
     expect(mine.length).toBeGreaterThan(0)
     expect(mine.some((f) => f.status === 'suspected' || f.status === 'confirmed')).toBe(false)
@@ -505,7 +505,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
   it('no devices at all: guides the next action', async () => {
     assetsStore.set([])
     renderApp('/devices')
-    // Only the box is left (it cannot be deleted): the header and the empty state agree (2026-11-12 walk, S-INV-5).
+    // Only the box is left (it cannot be deleted): the header and the empty state agree (S-INV-5).
     expect(await screen.findByRole('heading', { name: 'Only the Vedette box so far' }, T)).toBeInTheDocument()
     expect(screen.getByText('No other devices yet')).toBeInTheDocument()
     expect(screen.queryByText('No devices yet')).toBeNull()
@@ -530,7 +530,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
   })
 })
 
-describe('inventory: device types in two levels (D-511)', () => {
+describe('inventory: device types in two levels', () => {
   it('the list shows category and type, a guess as "likely" with its evidence, and filters by category with type:', async () => {
     const user = userEvent.setup()
     renderApp('/devices')
@@ -566,7 +566,7 @@ describe('inventory: device types in two levels (D-511)', () => {
     await waitFor(() => expect(screen.queryByTestId('kind-guess')).toBeNull(), T)
   })
 
-  it('the guess offers the other types the same signals fit; picking the access point keeps the device fragile (#714 review)', async () => {
+  it('the guess offers the other types the same signals fit; picking the access point keeps the device fragile (#714)', async () => {
     const user = userEvent.setup()
     asAdmin()
     renderApp('/devices/a-unk02')
@@ -687,7 +687,7 @@ describe('inventory: CSV (S-INV-2)', () => {
     expect(r.notes).toHaveLength(2)
     expect(r.notes[0].message).toContain('public address')
     expect(r.notes[1].message).toContain('outside your saved network ranges')
-    // D-461, like import_test.go: a 100.64/10 device is on a local network (outside the saved ranges here), a 100.128 one is public
+    // like import_test.go: a 100.64/10 device is on a local network (outside the saved ranges here), a 100.128 one is public
     const c = (await call('POST', '/import', { text: 'name,ip\ncgnat,100.65.254.7\npub100,100.128.0.7\n' })).json!
     expect(c.created).toBe(2)
     expect(c.notes).toHaveLength(2)
@@ -721,7 +721,7 @@ describe('inventory: device detail (S-INV-1)', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'NAS-PHOTOS' }, T)).toBeInTheDocument()
     expect(screen.getByText(/^NAS, last seen/)).toBeInTheDocument()
     expect(screen.getByRole('switch', { name: 'Fragile device' })).toBeChecked()
-    // D-543: the page frame: numbers that link to the detail, then one tab per area of the device
+    // The page frame: numbers that link to the detail, then one tab per area of the device
     const kpis = screen.getByRole('list', { name: 'This device at a glance' })
     expect(within(kpis).getByRole('link', { name: /Open findings/ })).toHaveAttribute('href', '/findings?tab=open&device=a-nas02')
     expect(within(kpis).getByRole('link', { name: '3 Open services' })).toHaveAttribute('href', '/devices/a-nas02?tab=services')
@@ -737,36 +737,36 @@ describe('inventory: device detail (S-INV-1)', () => {
     await user.click(within(screen.getByRole('list', { name: 'This device at a glance' })).getByRole('link', { name: '3 Open services' }))
     const services = await screen.findByRole('table', { name: 'Services open on the device' }, T)
     expect(within(services).getByText('8080/tcp')).toBeInTheDocument()
-    // kf-scan item 2: what nmap -sV read is shown per port: service, product and version in their own columns
+    // what nmap -sV read is shown per port: service, product and version in their own columns
     expect(within(services).getAllByRole('columnheader').map((h) => h.textContent?.trim())).toEqual(expect.arrayContaining(['Port', 'Service', 'Product', 'Version']))
     const row8080 = within(services).getByText('8080/tcp').closest('tr') as HTMLElement
     expect(within(row8080).getByText('QNAP QTS')).toBeInTheDocument()
     expect(within(row8080).getByText('5.1.0')).toBeInTheDocument()
     await user.click(screen.getByRole('tab', { name: 'Software' }))
     const sw = await screen.findByRole('table', { name: 'Software on the device' }, T)
-    // kien G8: the row says what it needs, linked to the device's To fix
+    // The row says what it needs, linked to the device's To fix
     expect(await within(sw).findByRole('link', { name: '1 exploited CVE' }, T)).toHaveAttribute('href', '/findings?tab=open&device=a-nas02')
     await expectNoA11yViolations()
   })
 
-  // W11-1: the column agrees with Findings: a CVE shows against a software row only while the device has it open.
+  // The column agrees with Findings: a CVE shows against a software row only while the device has it open.
   // The row is looked up on every try: the table re-renders when the module list and the findings arrive.
   const photoStation = () => within(screen.getByRole('table', { name: 'Software on the device' })).getByText('QNAP Photo Station').closest('tr')!
   const openSoftwareTab = () => renderApp('/devices/a-nas02?tab=software')
-  it('W11-1, G8: an open finding shows on the software row as what it needs, linked to the device\'s To fix', async () => {
+  it('an open finding shows on the software row as what it needs, linked to the device\'s To fix', async () => {
     openSoftwareTab()
     await waitFor(() => expect(within(photoStation()).getByRole('link', { name: '1 exploited CVE' })).toHaveAttribute('href', '/findings?tab=open&device=a-nas02'), T)
   })
 
-  it('W11-1: an exploited CVE of the product without an open finding on the device is not shown', async () => {
+  it('an exploited CVE of the product without an open finding on the device is not shown', async () => {
     findingsStore.update((l) => l.map((f) => (f.asset_id === 'a-nas02' ? { ...f, status: 'not_relevant' as const } : f)))
     openSoftwareTab()
     await screen.findByRole('table', { name: 'Software on the device' }, T)
     await waitFor(() => expect(screen.queryByText('Checking findings')).toBeNull(), T)
-    expect(within(photoStation()).queryByRole('link', { name: /exploited CVE/ })).toBeNull() // G8: nothing on a clean row
+    expect(within(photoStation()).queryByRole('link', { name: /exploited CVE/ })).toBeNull() // nothing on a clean row
   })
 
-  it('W11-1: with findings off the column says so instead of listing the product\'s exploited CVEs', async () => {
+  it('with findings off the column says so instead of listing the product\'s exploited CVEs', async () => {
     enableModule('findings', false)
     openSoftwareTab()
     await waitFor(() => expect(within(photoStation()).getByText('Findings are off')).toBeInTheDocument(), T)
@@ -918,7 +918,7 @@ describe('inventory: device detail (S-INV-1)', () => {
     expect((await call('PATCH', '/devices/a-none', { notes: 'x' })).status).toBe(404)
   })
 
-  it('an empty Services tab says who lists the ports: the box itself, an agent, or the scan (kien 2026-11-17)', async () => {
+  it('an empty Services tab says who lists the ports: the box itself, an agent, or the scan', async () => {
     asAdmin()
     assetsStore.update((l) => l.map((a) => (a.id === 'a-box' ? { ...a, services: [] } : a)))
     renderApp('/devices/a-box?tab=services')
@@ -1089,7 +1089,7 @@ describe('inventory: range validation helpers', () => {
     expect(rangeProblem('192.168.10.0/25', ['192.168.10.0/24', '192.168.10.0/25'])).toBe('overlap')
     expect(rangeProblem('192.168.10.0/24', ['192.168.10.0/24'])).toBeNull()
     expect(rangeProblem('172.16.0.0/12', [])).toBeNull()
-    // D-461: the RFC 6598 shared address space is internal, the rest of 100/8 is not.
+    // The RFC 6598 shared address space is internal, the rest of 100/8 is not.
     expect(rangeProblem('100.65.254.0/24', [])).toBeNull()
     expect(rangeProblem('100.64.0.0/10', [])).toBeNull()
     expect(rangeProblem('100.128.0.0/24', [])).toBe('notPrivate')
@@ -1102,7 +1102,7 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
     const user = userEvent.setup()
     renderApp('/devices/setup')
     expect(await screen.findByRole('heading', { level: 1, name: '2 network ranges to watch' }, T)).toBeInTheDocument()
-    // D-519: one tab per area that saves on its own; Scope first
+    // One tab per area that saves on its own; Scope first
     const tabs = await screen.findByRole('tablist', { name: 'Parts of the setup' }, T)
     expect(within(tabs).getAllByRole('tab').map((x) => x.textContent?.trim())).toEqual(['Scope', 'Sensor', 'Agents']) // #850: SNMP credentials moved to Settings › Scanning
     for (const h of ['LAN ranges', 'Active scanning', 'Device types scanned only once']) {
@@ -1231,7 +1231,7 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
     expect((await call('GET', '/settings')).json!.lan_ranges).toEqual(['192.168.20.0/25'])
   })
 
-  it('review #860 r2 L2: a save over a scope changed elsewhere is refused, says so, and shows the current values', async () => {
+  it('#860: a save over a scope changed elsewhere is refused, says so, and shows the current values', async () => {
     const user = userEvent.setup()
     renderApp('/devices/setup')
     await screen.findByRole('button', { name: 'Remove range 192.168.10.0/24' }, T)
@@ -1312,7 +1312,7 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
     expect(put2.json!.adjusted).toEqual([{ from: '192.168.18.5/24', to: '192.168.18.0/24' }])
     const put3 = await call('PUT', '/settings', { ...base, lan_ranges: ['192.168.18.0/24'], scope_confirmed: true, version: put2.json!.version })
     expect(put3.json!.adjusted).toEqual([]) // already normal: nothing adjusted
-    // review #860 M1: the version the page read is checked when it is sent; an older one is 409 safety_changed
+    // #860: the version the page read is checked when it is sent; an older one is 409 safety_changed
     const stale = await call('PUT', '/settings', { ...base, lan_ranges: ['192.168.18.0/24'], scope_confirmed: true })
     expect(stale.status).toBe(409)
     expect(stale.json!.error.code).toBe('safety_changed')
@@ -1351,7 +1351,7 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
     const put = async (patch: Record<string, unknown>) => (await call('PUT', '/settings', { ...base, scope_confirmed: true, ...patch })).json?.error?.code
     expect(await put({ lan_ranges: ['8.8.8.0/24'] })).toBe('public_range')
     expect(await put({ lan_ranges: ['10.0.0.0/7'] })).toBe('public_range')
-    expect(await put({ lan_ranges: ['100.128.0.0/24'] })).toBe('public_range') // only 100.64/10 of 100/8 is internal (D-461)
+    expect(await put({ lan_ranges: ['100.128.0.0/24'] })).toBe('public_range') // only 100.64/10 of 100/8 is internal
     expect((await call('PUT', '/settings', { ...base, scope_confirmed: true, lan_ranges: ['100.63.0.0/16'] })).json?.error?.message).toBe('100.63.0.0/16 is not an internal range (10.x, 172.16-31.x, 192.168.x, 100.64-127.x). To scan public addresses, add them under External exposure after verifying ownership.')
     expect((await call('PUT', '/settings', { ...base, scope_confirmed: true, lan_ranges: ['100.65.254.0/24'] })).json?.error).toBeUndefined()
     expect(await put({ lan_ranges: ['8.8.8.8'] })).toBe('no_prefix') // a bare address is never guessed
@@ -1402,7 +1402,7 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
     expect((await call('GET', `/devices/${f.id}`)).json!.asset.regular_scan).toBe('never')
   })
 
-  // The sample box already listens on a SPAN card (eth1): with SPAN hidden for v1 (D-403) it still shows that state, read-only.
+  // The sample box already listens on a SPAN card (eth1): with SPAN hidden for v1 it still shows that state, read-only.
   it('the sensor dialog shows the SPAN status a box already has and links to Box network; it has no SPAN switch', async () => {
     const user = userEvent.setup()
     renderApp('/devices/setup?tab=sensor')
@@ -1415,7 +1415,7 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
     expect(within(dlg).getByRole('link', { name: 'Open Settings → Box network' })).toHaveAttribute('href', '/settings/network')
   })
 
-  it('SPAN hidden for v1 (D-403): a box without SPAN says the sensor listens on the management port, with no word about SPAN or mirrored traffic', async () => {
+  it('SPAN hidden for v1: a box without SPAN says the sensor listens on the management port, with no word about SPAN or mirrored traffic', async () => {
     const user = userEvent.setup()
     asAdmin()
     const r = await fetch(`${location.origin}/api/v1/core/network/interfaces`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ roles: { eth0: 'management', eth1: 'unused', eth2: 'unused' } }) })
@@ -1435,7 +1435,7 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
     expect(within(dlg).getByRole('link', { name: 'Open Settings → Box network' })).toHaveAttribute('href', '/settings/network')
   })
 
-  it('W2-6: while the box starts the sensor the row says Starting… with why; a sensor the box could not start says what to check', async () => {
+  it('while the box starts the sensor the row says Starting… with why; a sensor the box could not start says what to check', async () => {
     asAdmin()
     sensorsStore.update((l) => l.map((x) => ({ ...x, status: 'starting' as const, last_seen: null, version: null, devices_seen: 0 })))
     const sec = () => document.getElementById('sensors')!
@@ -1555,7 +1555,7 @@ describe('inventory: agents (S-INV-4)', () => {
     expect(screen.queryByText(/macOS/i)).not.toBeInTheDocument()
   })
 
-  it('the page itself lists every osquery package as step 1, without opening a dialog; the token is step 2 (item 26b, D-404)', async () => {
+  it('the page itself lists every osquery package as step 1, without opening a dialog; the token is step 2 (item 26b)', async () => {
     enableModule('agent-intake', true)
     renderApp('/devices/setup?tab=agents')
     const table = await screen.findByRole('table', { name: 'osquery packages this box serves' }, T)
@@ -1580,7 +1580,7 @@ describe('inventory: agents (S-INV-4)', () => {
     await expectNoA11yViolations()
   })
 
-  it('without the packages the page says so in step 1 and links nowhere else (item 26b, D-404)', async () => {
+  it('without the packages the page says so in step 1 and links nowhere else (item 26b)', async () => {
     enableModule('agent-intake', true)
     asAdmin()
     const real = (await call('GET', '/agents')).json!
@@ -1617,7 +1617,7 @@ describe('inventory: agents (S-INV-4)', () => {
     expect(within(dialog).getByText('What this script does')).toBeInTheDocument()
     expect(within(dialog).getByText('Advanced: manual setup')).toBeInTheDocument()
     expect(within(dialog).getByText('Remove osquery from the server again')).toBeInTheDocument()
-    // D-404: direct downloads from this origin, one row per Linux package, with what it is for, its size and its SHA-256
+    // Direct downloads from this origin, one row per Linux package, with what it is for, its size and its SHA-256
     const pkgs = (await call('GET', '/agents')).json!.install.packages as OsqueryPackage[]
     const downloads = () => within(within(dialog).getByRole('table', { name: 'osquery packages this box serves' })).getAllByRole('link')
     expect(downloads().map((a) => [a.getAttribute('href'), a.getAttribute('download')])).toEqual(
@@ -1653,7 +1653,7 @@ describe('inventory: agents (S-INV-4)', () => {
     const dialog = await screen.findByRole('dialog', undefined, T)
     for (const platform of ['Linux', 'Windows']) {
       await user.click(within(dialog).getByRole('button', { name: platform }))
-      // the D-465 note may name the page's own host (jsdom: localhost) to say agents will NOT use it; every command and script must not
+      // the note may name the page's own host (jsdom: localhost) to say agents will NOT use it; every command and script must not
       const text = (dialog.textContent ?? '').replace(/You opened Vedette at [^,]+, but agents will use [^.]+\./, '')
       expect(text).toContain(`${BOX}/api/v1/install/osquery.${platform === 'Linux' ? 'sh' : 'ps1'}`)
       expect(text, platform).not.toMatch(/localhost|127\.0\.0\.1/)
@@ -1662,7 +1662,7 @@ describe('inventory: agents (S-INV-4)', () => {
     }
   })
 
-  it('a box without the osquery packages says so, offers no download and points nowhere else (D-404)', async () => {
+  it('a box without the osquery packages says so, offers no download and points nowhere else', async () => {
     enableModule('agent-intake', true)
     asAdmin()
     const real = (await call('GET', '/agents')).json!
@@ -1735,7 +1735,7 @@ describe('inventory: agents (S-INV-4)', () => {
     expect((await raw('GET', '/install/osquery.ps1')).text).toContain('-Uninstall')
   })
 
-  // D-399 (2), walk 4: a box opened as localhost only knows no address a server can reach; a command pinned to <VEDETTE_BOX_IP> would pass its
+  // A box opened as localhost only knows no address a server can reach; a command pinned to <VEDETTE_BOX_IP> would pass its
   // hash check and then fail, so the box serves no script and the dialog says how to give the box an address instead of showing one.
   it('no reachable box address: no script is served and the dialog explains instead of showing a command that cannot work', async () => {
     const { setDataMode } = await import('@/mocks/db')
@@ -1768,7 +1768,7 @@ describe('inventory: agents (S-INV-4)', () => {
     }
   })
 
-  it('the token row counts enrolled machines and the Linux command names both architectures (walk 4)', async () => {
+  it('the token row counts enrolled machines and the Linux command names both architectures', async () => {
     enableModule('agent-intake', true)
     const user = userEvent.setup()
     renderApp('/devices/setup?tab=agents')
@@ -1796,7 +1796,7 @@ describe('inventory: agents (S-INV-4)', () => {
     try { expect((await raw('POST', '/intake/osquery/status', { Authorization: `Bearer ${secret}` })).json?.error.code).toBe('token_expired') } finally { spy.mockRestore() }
   })
 
-  it('osquery TLS API (D-169): enroll gives a node key for a valid token only, config carries the schedule, every credential failure is 200 + node_invalid', async () => {
+  it('osquery TLS API: enroll gives a node key for a valid token only, config carries the schedule, every credential failure is 200 + node_invalid', async () => {
     const { secret } = await newToken()
     sessionStore.set({ userId: null })
     const post = (path: string, b: unknown) => fetch(`${location.origin}/api/v1${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) })
@@ -1906,7 +1906,7 @@ describe('inventory: agents (S-INV-4)', () => {
     expect((await call('GET', '/agents')).json!.wazuh).toBeNull() // testing does not save
   })
 
-  it('kien G1: while Test connection waits on the Wazuh manager, the button is busy and a note says it can take up to 30 seconds', async () => {
+  it('while Test connection waits on the Wazuh manager, the button is busy and a note says it can take up to 30 seconds', async () => {
     enableModule('agent-intake', true)
     let release = () => {}
     const held = new Promise<void>((r) => { release = r })
@@ -1953,7 +1953,7 @@ describe('inventory: agents (S-INV-4)', () => {
     expect(screen.getByText(/vedette, ••••pass/)).toBeInTheDocument()
     expect(screen.getByText('Connected, waiting for the first sync')).toBeInTheDocument()
     const flow14 = async () => ((await (await fetch(`${location.origin}/api/v1/core/privacy`)).json()) as { flows: { id: number; state: string }[] }).flows.find((f) => f.id === 14)?.state
-    expect(await flow14()).toBe('on') // Settings → Privacy flow 14 while a Wazuh server is saved (D-309)
+    expect(await flow14()).toBe('on') // Settings → Privacy flow 14 while a Wazuh server is saved
     await user.click(screen.getByRole('button', { name: 'Send sample data' })) // the card's own button (token rows say "for <name>")
     await waitFor(async () => expect(((await call('GET', '/agents')).json!.wazuh).status).toBe('connected'), T)
     expect((await call('GET', '/agents')).json!.wazuh.agents).toBeGreaterThan(0)
@@ -2021,8 +2021,8 @@ describe('inventory: agents (S-INV-4)', () => {
     const sha = 'a'.repeat(64)
     const lin = linuxOneLiner(BOX, sha, 'vdt_osquery_x')
     expect(lin).toContain(`curl -fsSLk ${BOX}/api/v1/install/osquery.sh`) // -k exactly once, for the script itself
-    // W2-3: a new mktemp file every run (a fixed /tmp name left by another user cannot be overwritten), removed afterwards
-    expect(lin).toMatch(/^\(f=\$\(mktemp\) && curl /) // a subshell: the install's exit status survives the cleanup (review)
+    // A new mktemp file every run (a fixed /tmp name left by another user cannot be overwritten), removed afterwards
+    expect(lin).toMatch(/^\(f=\$\(mktemp\) && curl /) // a subshell: the install's exit status survives the cleanup
     expect(lin).toContain(`-o "$f" && echo "${sha}  $f" | sha256sum -c -`)
     expect(lin).toContain('sudo sh "$f" --token vdt_osquery_x; r=$?; rm -f "$f"; exit $r)')
     expect(lin).not.toContain('/tmp/')
@@ -2052,7 +2052,7 @@ describe('inventory: agents (S-INV-4)', () => {
     }
     expect(osquerySteps('linux', BOX, 't', pkgs).map((s) => s.key)).toEqual(['installDeb', 'installRpm', 'secret', 'flags', 'start'])
     expect(osquerySteps('windows', BOX, 't', pkgs).map((s) => s.key)).toEqual(['install', 'secret', 'flags', 'service'])
-    // D-404: the box is the only source; each package is checked against the SHA-256 of this page before it is installed
+    // The box is the only source; each package is checked against the SHA-256 of this page before it is installed
     const all = [...osquerySteps('linux', BOX, 't', pkgs), ...osquerySteps('windows', BOX, 't', pkgs)].map((s) => s.code).join('\n')
     expect(all).not.toMatch(/osquery\.io|choco|yum-config-manager|apt-get/)
     for (const p of pkgs) expect(all).toContain(p.sha256)
@@ -2073,15 +2073,15 @@ describe('inventory: agents (S-INV-4)', () => {
     expect(osquerySteps('windows', BOX, 't', []).map((s) => s.key)).toEqual(['secret', 'flags', 'service'])
 
     const sched = JSON.parse(OSQUERY_SCHEDULE).schedule as Record<string, { query: string; platform?: string }>
-    expect(Object.keys(sched).sort()).toEqual(['deb_packages', 'interfaces', 'kernel_info', 'listening_ports', 'listening_ports_windows', 'os_revision', 'os_version', 'programs', 'rpm_packages', 'system_info']) // D-169 (7): identity query in, unused columns and patches out; INV-22: open ports
+    expect(Object.keys(sched).sort()).toEqual(['deb_packages', 'interfaces', 'kernel_info', 'listening_ports', 'listening_ports_windows', 'os_revision', 'os_version', 'programs', 'rpm_packages', 'system_info']) // Identity query in, unused columns and patches out; INV-22: open ports
     expect(JSON.stringify(sched)).not.toMatch(/cpu_brand|physical_memory|patches/)
     expect(sched.interfaces!.query).toContain('interface_details')
     for (const q of Object.values(sched)) expect(q.query).toMatch(/^SELECT /) // read-only queries
     expect(sched.programs!.platform).toBe('windows')
     expect(sched.deb_packages!.platform).toBe('linux')
-    expect(sched.os_revision!.platform).toBe('windows') // D-524: Windows's update revision, a Windows-only column of os_version
+    expect(sched.os_revision!.platform).toBe('windows') // Windows's update revision, a Windows-only column of os_version
     expect(sched.os_revision!.query).not.toMatch(/registry/) // the revision comes from os_version, not the registry table
-    // D-606: the one registry read is each SQL Server instance's PatchLevel, in the Windows programs query
+    // The one registry read is each SQL Server instance's PatchLevel, in the Windows programs query
     for (const [name, q] of Object.entries(sched)) if (name !== 'programs') expect(q.query).not.toMatch(/registry/)
     expect(sched.programs!.query).toContain("FROM registry r WHERE r.key LIKE 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Microsoft SQL Server\\MSSQL%\\Setup' AND r.name = 'PatchLevel' UNION ALL")
     expect(sched.programs!.query).toMatch(/FROM programs;$/)
@@ -2159,7 +2159,7 @@ describe('inventory: English only', () => {
   })
 })
 
-describe('inventory: the box is the first device (S-INV-5, D-53)', () => {
+describe('inventory: the box is the first device (S-INV-5)', () => {
   it('sample data: first in the list with a "This box" badge, hostname and IP from the box, Ubuntu, packages at confidence 1.0', async () => {
     asAdmin()
     const r = await call('GET', '/devices')
@@ -2187,7 +2187,7 @@ describe('inventory: the box is the first device (S-INV-5, D-53)', () => {
     await expectNoA11yViolations()
   })
 
-  it('n82: the box\'s own open services are read by the box itself: "This box", not "Agent"', async () => {
+  it('the box\'s own open services are read by the box itself: "This box", not "Agent"', async () => {
     renderApp(`/devices/${BOX_ID}?tab=services`)
     const table = await screen.findByRole('table', { name: 'Services open on the device' }, T)
     const ssh = within(table).getByText('sshd').closest('tr')!
@@ -2195,12 +2195,12 @@ describe('inventory: the box is the first device (S-INV-5, D-53)', () => {
     expect(within(table).queryByText('Agent')).toBeNull()
   })
 
-  it('S-CORE-9 G3: on the appliance the box page says its packages are read with dpkg', async () => {
+  it('S-CORE-9: on the appliance the box page says its packages are read with dpkg', async () => {
     renderApp(`/devices/${BOX_ID}`)
     expect(await screen.findByText(/Its packages are read from the box \(dpkg\)/, undefined, T)).toBeInTheDocument()
   })
 
-  it('S-CORE-9 G3: on a container-only install the box page says there is no package list and never mentions dpkg', async () => {
+  it('S-CORE-9: on a container-only install the box page says there is no package list and never mentions dpkg', async () => {
     installStore.set({ kind: 'container' })
     try {
       renderApp(`/devices/${BOX_ID}`)
@@ -2335,7 +2335,7 @@ describe('inventory: merging observations follows the source priority (DATA_MODE
   })
 })
 
-describe('inventory: D-471 naming, versions, Software tab (S-INV-2)', () => {
+describe('inventory: naming, versions, Software tab (S-INV-2)', () => {
   const addOffice = async (body: Record<string, string> = {}) => {
     asAdmin()
     const r = await call('POST', '/devices', { vendor: 'Microsoft', product: 'Office', ...body })
@@ -2389,7 +2389,7 @@ describe('inventory: D-471 naming, versions, Software tab (S-INV-2)', () => {
     assetsStore.update((l) => l.map((a) => (a.id === id ? { ...a, software: [...a.software, { ...a.software[0]!, id: 'sw-agent-office', version: '2021', source: 'agent' as const, confidence: 0.95 }] } : a)))
     renderApp(`/devices/${id}?tab=software`)
     expect(await screen.findByText('The device reports 2021 (Agent).', undefined, T)).toBeInTheDocument()
-    await waitFor(() => expect(screen.queryByText('Checking findings')).not.toBeInTheDocument(), T) // the Open findings column (W11-1) has its list: the row is drawn for good
+    await waitFor(() => expect(screen.queryByText('Checking findings')).not.toBeInTheDocument(), T) // the Open findings column has its list: the row is drawn for good
     await user.click(screen.getByRole('button', { name: 'Use version 2021 for Microsoft Office' }))
     await waitFor(() => expect(find(id).software.find((s) => s.source === 'manual')!.version).toBe('2021'), T)
     await waitFor(() => expect(screen.queryByText(/The device reports/)).not.toBeInTheDocument(), T)
@@ -2416,7 +2416,7 @@ describe('inventory: D-471 naming, versions, Software tab (S-INV-2)', () => {
   })
 })
 
-describe('inventory: G2 rename a device (S-INV-1)', () => {
+describe('inventory: rename a device (S-INV-1)', () => {
   const nas = () => find('a-nas02')
 
   it('Rename next to the title: Enter saves the name in Vedette, the host name stays apart, empty gives the default name back', async () => {
@@ -2463,7 +2463,7 @@ describe('inventory: G2 rename a device (S-INV-1)', () => {
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
   })
 
-  it('review r1 of #929: invisible and bidi characters are refused like < >; a refused save keeps the focus and says why next to the field', async () => {
+  it('#929: invisible and bidi characters are refused like < >; a refused save keeps the focus and says why next to the field', async () => {
     const user = userEvent.setup()
     renderApp('/devices/a-nas02', { role: 'operator' })
     await user.click(await screen.findByRole('button', { name: 'Rename' }, T))
@@ -2482,7 +2482,7 @@ describe('inventory: G2 rename a device (S-INV-1)', () => {
     expect(nas().name ?? null).toBeNull()
   })
 
-  it('review r1 of #929: the CSV export keeps the host name and the name in Vedette apart, and import reads both back', async () => {
+  it('#929: the CSV export keeps the host name and the name in Vedette apart, and import reads both back', async () => {
     asAdmin()
     expect((await call('PATCH', '/devices/a-nas02', { name: 'Photo NAS' })).status).toBe(200)
     const csv = (await call('GET', '/export.csv')).text

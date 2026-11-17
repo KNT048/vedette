@@ -112,7 +112,7 @@ func TestSNMPSendsEachTargetItsOwnCredentialOnly(t *testing.T) {
 	}
 }
 
-// kien 2026-11-17: a device that serves SNMP on another UDP port is read on the port its credential names; a credential without a
+// A device that serves SNMP on another UDP port is read on the port its credential names; a credential without a
 // port goes to 161 as before (here no agent listens there: no answer).
 func TestSNMPReadsTheCredentialsPort(t *testing.T) {
 	t.Parallel()
@@ -153,7 +153,7 @@ func TestSNMPReadsTheCredentialsPort(t *testing.T) {
 	}
 }
 
-// D-512: SNMPv3 authPriv (SHA, AES-128) and authNoPriv (SHA-256) are read; a user the agent does not know and a wrong password
+// SNMPv3 authPriv (SHA, AES-128) and authNoPriv (SHA-256) are read; a user the agent does not know and a wrong password
 // are told apart from no answer (both are "auth_failed": gosnmp takes no unauthenticated report after the discovery).
 func TestSNMPv3(t *testing.T) {
 	t.Parallel()
@@ -223,7 +223,7 @@ func TestSNMPRefusesWhatTheGrammarForbids(t *testing.T) {
 	}
 }
 
-// D-512: the heartbeat of this worker says it runs snmp jobs.
+// The heartbeat of this worker says it runs snmp jobs.
 func TestHeartbeatSaysSNMP(t *testing.T) {
 	t.Parallel()
 	r := startSNMP(t, nil)
@@ -237,7 +237,7 @@ func TestHeartbeatSaysSNMP(t *testing.T) {
 	}
 }
 
-// #910, review r1 M3 of #919: MikroTik's sysDescr names the board only; the same one GET reads MIKROTIK-MIB mtxrLicVersion.0, the
+// #910, #919: MikroTik's sysDescr names the board only; the same one GET reads MIKROTIK-MIB mtxrLicVersion.0, the
 // RouterOS version. An agent without the object (the Juniper here) answers noSuchObject: "", and the rest of its answer is kept.
 func TestSNMPReadsTheMikroTikVersionInTheSameGet(t *testing.T) {
 	t.Parallel()

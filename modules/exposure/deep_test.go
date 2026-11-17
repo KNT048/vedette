@@ -28,15 +28,31 @@ type deepDNS struct {
 	a        map[string][]string
 	err      error
 	cnameErr error // LookupCNAME answers it when set; otherwise the name itself (no CNAME)
+	proofAsk map[string]bool
 }
 
 func (d *deepDNS) LookupCNAME(_ context.Context, host string) (string, error) {
+	host = strings.TrimSuffix(host, ".")
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	if d.cnameErr != nil {
+	if d.cnameErr != nil && !d.proofAsk[host] {
 		return "", d.cnameErr
 	}
+	delete(d.proofAsk, host)
 	return host + ".", nil
+}
+
+// LookupTXT marks the name: the ownership rule (D-628) asks the CNAME of the name whose record it just found, and cnameErr is about
+// the names a step resolves, not that check.
+func (d *deepDNS) LookupTXT(ctx context.Context, name string) ([]string, error) {
+	name = strings.TrimSuffix(name, ".")
+	d.mu.Lock()
+	if d.proofAsk == nil {
+		d.proofAsk = map[string]bool{}
+	}
+	d.proofAsk[name] = true
+	d.mu.Unlock()
+	return d.fakeResolver.LookupTXT(ctx, name)
 }
 
 func (d *deepDNS) LookupNetIP(_ context.Context, _ string, host string) ([]netip.Addr, error) {
@@ -163,15 +179,28 @@ func (l *deepLog) RecordWebProbe(_ context.Context, p WebProbe) error {
 }
 
 type fakeFence struct {
-	mu    sync.Mutex
-	asked []string
+	mu      sync.Mutex
+	asked   []string
+	forgot  []string
+	onToken func(domain string) // runs after a token is issued (a test changes the world meanwhile)
 }
 
 func (f *fakeFence) Token(_ context.Context, domain string) (string, error) {
 	f.mu.Lock()
 	f.asked = append(f.asked, domain)
+	hook := f.onToken
 	f.mu.Unlock()
+	if hook != nil {
+		hook(domain)
+	}
 	return deepToken, nil
+}
+
+func (f *fakeFence) Forget(_ context.Context, domain string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.forgot = append(f.forgot, domain)
+	return nil
 }
 
 type deepEnv struct {
@@ -810,5 +839,48 @@ func TestContract_INV28_Deep_OpenVASStoppedKeepsTheFinishedAddress(t *testing.T)
 	}
 	if !slices.Contains(notChecked(s), notGBStoppedSome) || slices.Contains(notChecked(s), notGBStopped) { // never "not shown" over rows it shows
 		t.Fatalf("not checked %q", notChecked(s))
+	}
+}
+
+// D-628 (review r2 L1 of #941): the deep step of a child covered only by its parent (git.acme.example under the verified
+// acme.example, no record of its own) carries the parent's domain and the parent's box-bound token, so the executors' fence checks
+// the record that proves it; the step's name stays the child's.
+func TestContract_INV28_Deep_ACoveredChildUsesItsParentsDomain(t *testing.T) {
+	t.Parallel()
+	d := newDeepEnv(t)
+	fence := &fakeFence{}
+	d.svc.cfg.DomainFence = fence
+	child, err := d.svc.AddDomain(d.ctx(), "admin@acme.example", "git.acme.example")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r := d.verify(child.ID); !r.Verified || !strings.Contains(r.Message, "Found the TXT record of acme.example on acme.example") {
+		t.Fatalf("covered child: %+v", r)
+	}
+	if _, err := d.commit(child.ID); err != nil {
+		t.Fatal(err)
+	}
+	d.acceptTerms(child.ID, false)
+	d.dns.point("git.acme.example", ipB)
+	fence.asked = nil
+	st := ScanTarget{ID: child.ID, Kind: KindDomain, Value: "git.acme.example", User: "admin@acme.example", Mode: ScanMode{Full: true}}
+	out, why, err := d.svc.deepGate(d.ctx(), st, netip.MustParseAddr(ipB), []string{"git.acme.example"})
+	if err != nil || why != "" || out.Domain == nil {
+		t.Fatalf("deep gate: %+v %q %v", out, why, err)
+	}
+	if out.Domain.Domain != "acme.example" || out.Domain.Name != "git.acme.example" || out.Domain.Token != deepToken || strings.Join(fence.asked, ",") != "acme.example" {
+		t.Fatalf("scope %+v, fence asked %v", out.Domain, fence.asked)
+	}
+	// review r2 L6: the parent is deleted (and forgotten at the host) between the gate and the token, which lists it again: the step
+	// is refused and the parent's slot is given back once more
+	fence.onToken = func(string) {
+		fence.onToken = nil
+		if err := d.svc.Delete(context.WithoutCancel(d.ctx()), "admin@acme.example", d.dom.ID); err != nil {
+			t.Error(err)
+		}
+	}
+	out, why, err = d.svc.deepGate(d.ctx(), st, netip.MustParseAddr(ipB), []string{"git.acme.example"})
+	if err != nil || why != deepGone || out.Domain != nil || strings.Join(fence.forgot, ",") != "acme.example,acme.example" {
+		t.Fatalf("parent deleted meanwhile: %+v %q %v, forgot %v", out.Domain, why, err, fence.forgot)
 	}
 }

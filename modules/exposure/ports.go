@@ -59,7 +59,13 @@ type ScanTarget struct {
 	// domain's box-bound token from DomainFence. The scanner then runs the job with scope domain_ip and its executor checks the fence
 	// itself (plan 2026-11-14 §5). nil on every other step: an IP target, a domain's by-name checks, or a deep step to the box's own IP.
 	Domain *DomainScope
+	// Proof is, on a domain's scan, the domain target whose record proved it at the gate (the target itself, or a parent of the box
+	// that covers it, D-628) with that target's stored token: the host's re-check of a web page asks that domain's record (ZAP).
+	Proof *ProofOwner
 }
+
+// ProofOwner is the domain whose record proves a scanned domain, and that domain's stored token.
+type ProofOwner struct{ Domain, Token string }
 
 // DomainScope is the domain_ip scope of one deep step (D-571, plan 2026-11-14 §5): the job fields {domain, name, ip, token} without the
 // address and ports, which the seam call carries.

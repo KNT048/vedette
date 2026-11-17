@@ -152,3 +152,11 @@
 
 ## Modifying: `Matches.RuledOut` (D-547)
 - **cmd/vedette** `exposurematch.go` điền nó từ `findings.MatchResult.OtherPlatform`; **GUI** không đổi (dòng "checked" sẵn có hiện câu). Một dòng là văn bản không tin cậy (banner của dịch vụ đã qua `clean` của findings), cắt 400 ký tự.
+
+## Modifying: bằng chứng sở hữu domain (`proof.go`: `prove`, `Covers`, `proofChain`, `proofHint`, `coverOthers`, `stillOwner`, `IsPublicSuffix`; `core/domainfence.Owned`; INV-32, D-628)
+- Là cổng của INV-1 (c): mọi đường quét domain (`gate`: `StartScan`, `CheckScannable`, `deepGate`, `runTemplates`, Greenbone, điều khoản) đi qua `prove`. Nới `Covers` (bỏ ranh giới hậu tố công cộng, nhận token không phải của hộp, cho phủ lên trên) hay `Owned` (nhận qua CNAME, bỏ kiểm wildcard) là đổi ai được quét: cần quyết định mới và review bảo mật.
+- `domainfence.Owned` là **một luật cho bốn bên**: exposure, worker của container scan (sensor link nó, chỉ thư viện chuẩn), vedette-host (`host/ops/zap.go` `zapOwnedLegacy` và `fence.Check`). Đổi nó đổi cả bốn cùng lúc (cố ý); `core/` là vùng chung (D-65): báo Trưởng.
+- `ScanTarget.Proof` và `DomainScope.Domain` mang domain chứng minh (chính mục tiêu hay mục tiêu cha phủ nó): adapter `cmd/vedette/exposureweb.go` gửi nó cho ZAP, `exposurefence.go` cho bước sâu. Bỏ nó thì tên con chỉ được cha phủ bị host từ chối mọi trang.
+- Ranh giới dùng danh sách PSL nhúng trong `golang.org/x/net/publicsuffix`: nâng phiên bản x/net có thể đổi tên miền đã đăng ký của một tên (hiếm; chạy `TestProof_D628_*`).
+- `TargetView.proof` là trường của `contract.ts` `Target` (`ProofHint`): đổi hình dạng thì sửa contract, mock (`proofOf`), `VerifyPanel` và `make generate`.
+- Mỗi lần kiểm hỏi: TXT ở tên và `_vedette-verify.<tên>`, CNAME của tên có bản ghi khớp, TXT của một tên ngẫu nhiên khi bản ghi ở `_vedette-verify`, cho chính mục tiêu và mỗi mục tiêu cha; khi không thấy, TXT và CNAME của tên lần nữa để nói đã nhận gì. PRIVACY luồng 9 liệt kê đủ; thêm lượt tra thì sửa cả hai chỗ.

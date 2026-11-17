@@ -26,6 +26,9 @@ export function VerifyPanel({ target }: { target: Target }) {
   const verified = target.status !== 'unverified'
   // The box was just checked and no longer goes out through this IP: the green result of an earlier check would say the opposite, so it is not shown.
   const paused = target.blocked_reason === 'ip_not_current'
+  // D-628: the Name to type in the domain's zone (@ for the zone itself, "git" for git.example.com), the dedicated name for a CNAME,
+  // and a verified parent that covers this name already.
+  const proof = target.proof
 
   function run() {
     verify.mutate(target.id, {
@@ -54,16 +57,19 @@ export function VerifyPanel({ target }: { target: Target }) {
             <>
               <p className="max-w-3xl text-sm">{t('verify.doneDomain', { time: dateTimeText(target.verified_at) })}</p>
             </>
-          ) : <InfoLine className="max-w-3xl text-sm" topic={t('verify.dnsTopic')} info={t('verify.dnsIntroInfo')}>{t('verify.dnsIntro', { value: target.value })}</InfoLine>}
+          ) : <InfoLine className="max-w-3xl text-sm" topic={t('verify.dnsTopic')} info={t('verify.dnsIntroInfo')}>{proof ? t('verify.dnsIntroZone', { zone: proof.zone, value: target.value }) : t('verify.dnsIntro', { value: target.value })}</InfoLine>}
+          {proof?.covered_by && (!verified || target.blocked_reason === 'txt_missing') ? <p className="max-w-3xl text-sm" data-testid="proof-covered">{t('verify.coveredBy', { parent: proof.covered_by, value: target.value })}</p> : null}
           {!verified || target.blocked_reason === 'txt_missing' ? (
             <>
               <KeyValue items={[
                 { label: t('verify.dns.type'), value: 'TXT' },
-                { label: t('verify.dns.name'), value: t('verify.dns.nameValue', { value: target.value }) },
+                { label: t('verify.dns.name'), value: <span data-testid="proof-host">{!proof ? t('verify.dns.nameValue', { value: target.value }) : proof.host === '@' ? t('verify.dns.nameApex', { value: target.value }) : t('verify.dns.nameSub', { host: proof.host, value: target.value })}</span> },
                 { label: t('verify.dns.ttl'), value: t('verify.dns.ttlValue') },
               ]} />
               <CodeBlock code={`vedette-verify=${target.token}`} label={t('verify.dns.valueLabel')} />
               <InfoLine className="max-w-3xl text-meta text-muted" topic={t('verify.dns.valueLabel')} info={t('verify.dnsHintInfo')}>{t('verify.dnsHint')}</InfoLine>
+              {proof && proof.host !== '@' && proof.alt_host ? <p className="max-w-3xl text-meta text-muted" data-testid="proof-cname">{t('verify.cnameHint', { value: target.value, alt: proof.alt_host })}</p> : null}
+              {proof && proof.host !== '@' ? <p className="max-w-3xl text-meta text-muted">{t('verify.parentHint', { zone: proof.zone, value: target.value })}</p> : null}
             </>
           ) : <p className="max-w-3xl text-meta text-muted">{t('verify.keepRecord')}</p>}
         </>

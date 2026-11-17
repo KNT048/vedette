@@ -21732,6 +21732,48 @@
                               }
                             ],
                             "description": "The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list can say what is open; null when never scanned"
+                          },
+                          "proof": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "zone": {
+                                    "type": "string",
+                                    "description": "The registered domain: the DNS zone the record is added in (\"beyondnetglobal.com\")"
+                                  },
+                                  "host": {
+                                    "type": "string",
+                                    "description": "The Name (host) to type in that zone: \"@\" for the zone itself, \"git\" for git.beyondnetglobal.com"
+                                  },
+                                  "alt_host": {
+                                    "description": "The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): \"_vedette-verify\" or \"_vedette-verify.git\"; null when _vedette-verify.<name> would pass 253 characters (no such name can exist)",
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "covered_by": {
+                                    "description": "A verified domain of this box that covers this name already (its parent or the zone): a Check is enough, no second record; null when none",
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "zone",
+                                  "host",
+                                  "alt_host",
+                                  "covered_by"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "Domains: where the TXT record goes and which verified domain covers this one already (D-628); null for an IP"
                           }
                         },
                         "required": [
@@ -21755,7 +21797,8 @@
                           "created_at",
                           "last_scan_at",
                           "latest",
-                          "open_ports"
+                          "open_ports",
+                          "proof"
                         ],
                         "additionalProperties": false
                       },
@@ -23295,6 +23338,48 @@
                               }
                             ],
                             "description": "The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list can say what is open; null when never scanned"
+                          },
+                          "proof": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "zone": {
+                                    "type": "string",
+                                    "description": "The registered domain: the DNS zone the record is added in (\"beyondnetglobal.com\")"
+                                  },
+                                  "host": {
+                                    "type": "string",
+                                    "description": "The Name (host) to type in that zone: \"@\" for the zone itself, \"git\" for git.beyondnetglobal.com"
+                                  },
+                                  "alt_host": {
+                                    "description": "The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): \"_vedette-verify\" or \"_vedette-verify.git\"; null when _vedette-verify.<name> would pass 253 characters (no such name can exist)",
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "covered_by": {
+                                    "description": "A verified domain of this box that covers this name already (its parent or the zone): a Check is enough, no second record; null when none",
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "zone",
+                                  "host",
+                                  "alt_host",
+                                  "covered_by"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "Domains: where the TXT record goes and which verified domain covers this one already (D-628); null for an IP"
                           }
                         },
                         "required": [
@@ -23318,7 +23403,8 @@
                           "created_at",
                           "last_scan_at",
                           "latest",
-                          "open_ports"
+                          "open_ports",
+                          "proof"
                         ],
                         "additionalProperties": false
                       }
@@ -23932,6 +24018,48 @@
                         }
                       ],
                       "description": "The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list can say what is open; null when never scanned"
+                    },
+                    "proof": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "zone": {
+                              "type": "string",
+                              "description": "The registered domain: the DNS zone the record is added in (\"beyondnetglobal.com\")"
+                            },
+                            "host": {
+                              "type": "string",
+                              "description": "The Name (host) to type in that zone: \"@\" for the zone itself, \"git\" for git.beyondnetglobal.com"
+                            },
+                            "alt_host": {
+                              "description": "The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): \"_vedette-verify\" or \"_vedette-verify.git\"; null when _vedette-verify.<name> would pass 253 characters (no such name can exist)",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "covered_by": {
+                              "description": "A verified domain of this box that covers this name already (its parent or the zone): a Check is enough, no second record; null when none",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "zone",
+                            "host",
+                            "alt_host",
+                            "covered_by"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Domains: where the TXT record goes and which verified domain covers this one already (D-628); null for an IP"
                     }
                   },
                   "required": [
@@ -23955,7 +24083,8 @@
                     "created_at",
                     "last_scan_at",
                     "latest",
-                    "open_ports"
+                    "open_ports",
+                    "proof"
                   ],
                   "additionalProperties": false
                 }
@@ -24460,6 +24589,48 @@
                         }
                       ],
                       "description": "The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list can say what is open; null when never scanned"
+                    },
+                    "proof": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "zone": {
+                              "type": "string",
+                              "description": "The registered domain: the DNS zone the record is added in (\"beyondnetglobal.com\")"
+                            },
+                            "host": {
+                              "type": "string",
+                              "description": "The Name (host) to type in that zone: \"@\" for the zone itself, \"git\" for git.beyondnetglobal.com"
+                            },
+                            "alt_host": {
+                              "description": "The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): \"_vedette-verify\" or \"_vedette-verify.git\"; null when _vedette-verify.<name> would pass 253 characters (no such name can exist)",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "covered_by": {
+                              "description": "A verified domain of this box that covers this name already (its parent or the zone): a Check is enough, no second record; null when none",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "zone",
+                            "host",
+                            "alt_host",
+                            "covered_by"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Domains: where the TXT record goes and which verified domain covers this one already (D-628); null for an IP"
                     }
                   },
                   "required": [
@@ -24483,7 +24654,8 @@
                     "created_at",
                     "last_scan_at",
                     "latest",
-                    "open_ports"
+                    "open_ports",
+                    "proof"
                   ],
                   "additionalProperties": false
                 }
@@ -26750,6 +26922,48 @@
                         }
                       ],
                       "description": "The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list can say what is open; null when never scanned"
+                    },
+                    "proof": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "zone": {
+                              "type": "string",
+                              "description": "The registered domain: the DNS zone the record is added in (\"beyondnetglobal.com\")"
+                            },
+                            "host": {
+                              "type": "string",
+                              "description": "The Name (host) to type in that zone: \"@\" for the zone itself, \"git\" for git.beyondnetglobal.com"
+                            },
+                            "alt_host": {
+                              "description": "The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): \"_vedette-verify\" or \"_vedette-verify.git\"; null when _vedette-verify.<name> would pass 253 characters (no such name can exist)",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "covered_by": {
+                              "description": "A verified domain of this box that covers this name already (its parent or the zone): a Check is enough, no second record; null when none",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "zone",
+                            "host",
+                            "alt_host",
+                            "covered_by"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Domains: where the TXT record goes and which verified domain covers this one already (D-628); null for an IP"
                     }
                   },
                   "required": [
@@ -26773,7 +26987,8 @@
                     "created_at",
                     "last_scan_at",
                     "latest",
-                    "open_ports"
+                    "open_ports",
+                    "proof"
                   ],
                   "additionalProperties": false
                 }
@@ -27252,6 +27467,48 @@
                         }
                       ],
                       "description": "The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list can say what is open; null when never scanned"
+                    },
+                    "proof": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "zone": {
+                              "type": "string",
+                              "description": "The registered domain: the DNS zone the record is added in (\"beyondnetglobal.com\")"
+                            },
+                            "host": {
+                              "type": "string",
+                              "description": "The Name (host) to type in that zone: \"@\" for the zone itself, \"git\" for git.beyondnetglobal.com"
+                            },
+                            "alt_host": {
+                              "description": "The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): \"_vedette-verify\" or \"_vedette-verify.git\"; null when _vedette-verify.<name> would pass 253 characters (no such name can exist)",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "covered_by": {
+                              "description": "A verified domain of this box that covers this name already (its parent or the zone): a Check is enough, no second record; null when none",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "zone",
+                            "host",
+                            "alt_host",
+                            "covered_by"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Domains: where the TXT record goes and which verified domain covers this one already (D-628); null for an IP"
                     }
                   },
                   "required": [
@@ -27275,7 +27532,8 @@
                     "created_at",
                     "last_scan_at",
                     "latest",
-                    "open_ports"
+                    "open_ports",
+                    "proof"
                   ],
                   "additionalProperties": false
                 }
@@ -27741,6 +27999,48 @@
                             }
                           ],
                           "description": "The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list can say what is open; null when never scanned"
+                        },
+                        "proof": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "zone": {
+                                  "type": "string",
+                                  "description": "The registered domain: the DNS zone the record is added in (\"beyondnetglobal.com\")"
+                                },
+                                "host": {
+                                  "type": "string",
+                                  "description": "The Name (host) to type in that zone: \"@\" for the zone itself, \"git\" for git.beyondnetglobal.com"
+                                },
+                                "alt_host": {
+                                  "description": "The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): \"_vedette-verify\" or \"_vedette-verify.git\"; null when _vedette-verify.<name> would pass 253 characters (no such name can exist)",
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "covered_by": {
+                                  "description": "A verified domain of this box that covers this name already (its parent or the zone): a Check is enough, no second record; null when none",
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "zone",
+                                "host",
+                                "alt_host",
+                                "covered_by"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Domains: where the TXT record goes and which verified domain covers this one already (D-628); null for an IP"
                         }
                       },
                       "required": [
@@ -27764,7 +28064,8 @@
                         "created_at",
                         "last_scan_at",
                         "latest",
-                        "open_ports"
+                        "open_ports",
+                        "proof"
                       ],
                       "additionalProperties": false
                     }

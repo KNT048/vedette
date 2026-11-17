@@ -196,6 +196,19 @@ export const greenboneMock = {
   },
 }
 
+/** D-628: where a domain's record goes. The mock takes the last two labels as the registered domain (the box reads the Public Suffix
+ *  List, so it also knows co.uk or ddns.net). covered_by: the nearest verified domain of the list that the name is under. */
+function proofOf(t: StoredTarget): Target['proof'] {
+  if (t.kind !== 'domain') return null
+  const zone = t.value.split('.').slice(-2).join('.')
+  const host = t.value === zone ? '@' : t.value.slice(0, -(zone.length + 1))
+  const covering = targets.get()
+    .filter((o) => o.kind === 'domain' && o.id !== t.id && o.verified_at !== null && o.txt_ok && t.value.endsWith(`.${o.value}`) && o.value.endsWith(zone))
+    .sort((a, b) => b.value.length - a.value.length)[0]
+  const alt = host === '@' ? '_vedette-verify' : `_vedette-verify.${host}`
+  return { zone, host, alt_host: t.value.length + '_vedette-verify.'.length <= 253 ? alt : null, covered_by: covering ? covering.value : null }
+}
+
 function view(t: StoredTarget): Target {
   const commitment = commitments.get()[t.id] ?? null
   const terms = termsStore.get()[t.id] ?? null
@@ -213,6 +226,7 @@ function view(t: StoredTarget): Target {
     commitment_notice: current ? null : { version: NOTICE_VERSION, text: NOTICE_TEMPLATE.replace('{value}', t.value) },
     terms, terms_notice: { version: TERMS_VERSION, text: (t.kind === 'domain' ? TERMS_TEMPLATE_DOMAIN : TERMS_TEMPLATE).replaceAll('{value}', t.value), disruptive: TERMS_DISRUPTIVE }, full_scan: terms?.version === TERMS_VERSION,
     scannable: blocked === null, blocked_reason: blocked, created_at: t.created_at, last_scan_at: t.last_scan_at, latest: last ? last.counts : null, open_ports: last ? last.ports.slice(0, 20) : null,
+    proof: proofOf(t),
   }
 }
 
@@ -506,10 +520,11 @@ export const handlers = [
     let message: string
     let next: StoredTarget
     if (t.kind === 'domain') {
-      ok = t.txt_ok || checks >= 2
+      const cover = proofOf(t)?.covered_by
+      ok = t.txt_ok || checks >= 2 || !!cover
       message = ok
-        ? `Found the TXT record vedette-verify=${t.token} on ${t.value}.`
-        : `The TXT record vedette-verify=${t.token} was not found on ${t.value}. DNS usually updates within minutes and can take up to 72 hours. Check again later, and make sure the value was pasted without extra quotes and that the Name field is just @ (some providers append the domain automatically).`
+        ? (cover ? `Found the TXT record of ${cover} on ${cover}: it proves ${cover} and every name under it, ${t.value} included.` : `Found the TXT record vedette-verify=${t.token} on ${t.value}.`)
+        : `No TXT record vedette-verify=${t.token} was found. Vedette asked ${t.value}, _vedette-verify.${t.value}. ${t.value}: no TXT record. _vedette-verify.${t.value}: no TXT record. DNS usually updates within minutes and can take up to 72 hours. Check again later, and make sure the value was pasted without extra quotes and that the Name field is the host shown (some providers append the domain automatically).`
       next = { ...t, checks, txt_ok: ok, last_check: { at, ok, message }, verified_at: ok ? (t.verified_at ?? at) : t.verified_at }
     } else {
       // One check = three probes: the IP is verified when the box leaves through it now (any of several IPs behind a load balancer). It renews for 30 days.
@@ -576,7 +591,7 @@ export const handlers = [
     // Re-check the TXT record right before the scan; a missing record blocks it.
     if (t.kind === 'domain' && !t.txt_ok) {
       targets.update((l) => l.map((x) => (x.id === t.id ? { ...x, last_check: { at: nowIso(), ok: false, message: `The TXT record vedette-verify=${t.token} was not found on ${t.value}.` } } : x)))
-      return fail(409, 'txt_missing', `The DNS TXT record vedette-verify=${t.token} is no longer on ${t.value}, so it cannot be scanned. Add the record back, then check again.`)
+      return fail(409, 'txt_missing', `The DNS TXT record vedette-verify=${t.token} is no longer found on ${t.value}, on _vedette-verify.${t.value} or on a parent domain that covers it, so it cannot be scanned. Add the record back, then check again.`)
     }
     if (v.commitment?.version !== NOTICE_VERSION) {
       // D-473: an administrator's first Scan now is the confirmation (D-26); an operator cannot scan an unconfirmed target.

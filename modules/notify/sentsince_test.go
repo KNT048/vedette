@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"testing"
 	"time"
+
+	"github.com/knt048/vedette/modules/notify"
 )
 
 // SentSince (#825, Home's "alerts sent"): alert messages (incident, vuln) that arrived and that failed since a time. Not a failure: a
@@ -71,5 +73,47 @@ func TestOpenIncidentsCountsOpenAndUrgent(t *testing.T) {
 	})
 	if open, urgent, err := e.svc.OpenIncidents(e.ctx()); err != nil || open != 4 || urgent != 2 {
 		t.Fatalf("OpenIncidents = %d open, %d urgent, %v; want 4, 2", open, urgent, err)
+	}
+}
+
+// G6 (kien, N100): the Incidents page counts its Open tab from GET /notify/incidents, which keeps at most incidentsLimit rows; an open
+// incident seen before the incidentsLimit most recent resolved ones must still be listed, so the page, Home and the badge agree.
+func TestIncidentsListsEveryOpenOneBeforeTheLimit(t *testing.T) {
+	e := newEnv(t)
+	e.write(func(tx *sql.Tx) error {
+		ins := func(id, status, seen, handled any, key int) error {
+			_, err := tx.ExecContext(e.ctx(), `INSERT INTO notify_incident (id, kind, title, link, severity, what, action, first_seen, last_seen, status, handled_at, dedupe_key)
+				VALUES (?, 'trap', 't', '/x', 'high', 'w', 'a', ?, ?, ?, ?, ?)`, id, seen, seen, status, handled, fmt.Sprintf("%064d", key))
+			return err
+		}
+		if err := ins("in-old-open", "acknowledged", "2026-11-01T00:00:00.000Z", "2026-11-01T01:00:00.000Z", 0); err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(e.ctx(), `INSERT INTO notify_incident_device (incident_id, asset_id, name) VALUES ('in-old-open', 'a1', 'PC-01')`); err != nil {
+			return err
+		}
+		for i := range notify.IncidentsLimitForTest {
+			if err := ins(fmt.Sprintf("in-r-%d", i), "resolved", "2026-11-09T01:00:00.000Z", "2026-11-09T02:00:00.000Z", i+1); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	list, err := e.svc.Incidents(e.ctx())
+	if err != nil {
+		t.Fatal(err)
+	}
+	open, urgent, _ := e.svc.OpenIncidents(e.ctx())
+	listed := 0
+	for _, i := range list {
+		if i.Status != "resolved" {
+			listed++
+			if len(i.Devices) != 1 || i.Devices[0].Name != "PC-01" { // #931 r1 H: its devices are read with it
+				t.Fatalf("the old open incident lost its devices: %+v", i.Devices)
+			}
+		}
+	}
+	if len(list) != notify.IncidentsLimitForTest || listed != 1 || open != 1 || urgent != 1 {
+		t.Fatalf("listed %d rows, %d open; OpenIncidents %d open, %d urgent", len(list), listed, open, urgent)
 	}
 }

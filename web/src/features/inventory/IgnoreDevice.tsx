@@ -17,7 +17,7 @@ import type { DeviceDetail, DeviceRow } from './types'
 /** A private (locally administered) MAC: the 0x02 bit of the first byte. Phones and laptops pick one per network and change it. */
 const privateMAC = (mac: string | null | undefined) => !!mac && /^[0-9a-f]{2}/i.test(mac) && (parseInt(mac.slice(0, 2), 16) & 2) === 2
 
-/** D-628 (kien 2026-11-17): confirm Ignore. Says what stops, what still alerts (trap hits, intrusion detection), and, for a private
+/** D-630 (kien 2026-11-17): confirm Ignore. Says what stops, what still alerts (trap hits, intrusion detection), and, for a private
  *  MAC, that a phone that changes it comes back in To review as a new device. */
 export function IgnoreDialog({ open, onOpenChange, name, mac, findings, pending, onConfirm }: {
   open: boolean; onOpenChange: (o: boolean) => void; name: string; mac: string | null; findings: number; pending: boolean; onConfirm: () => void
@@ -29,7 +29,7 @@ export function IgnoreDialog({ open, onOpenChange, name, mac, findings, pending,
         <ul className="grid list-disc gap-1 pl-5 text-sm">
           <li>{t('ignore.review')}</li>
           <li>{t('ignore.scans')}</li>
-          <li>{findings > 0 ? t('ignore.findings', { count: findings }) : t('ignore.noFindings')}</li>
+          <li>{findings > 0 ? t('ignore.findings') : t('ignore.noFindings')}</li>
         </ul>
         <p className="text-sm"><strong className="font-medium">{t('ignore.stillTitle')}</strong> {t('ignore.still')}</p>
         {privateMAC(mac) ? <p className="text-sm text-muted">{t('ignore.privateMac', { mac })}</p> : null}
@@ -80,7 +80,7 @@ function IgnoredItem({ d }: { d: DeviceRow }) {
   )
 }
 
-/** D-628: the Ignored tab of /devices: devices a person said need no watching, each with Stop ignoring. */
+/** D-630: the Ignored tab of /devices: devices a person said need no watching, each with Stop ignoring. */
 export function IgnoredPanel() {
   const { t } = useTranslation('inventory')
   const q = useIgnoredDevices()

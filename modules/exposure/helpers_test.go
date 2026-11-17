@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/netip"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -85,6 +86,7 @@ type fakeResolver struct {
 }
 
 func (r *fakeResolver) LookupTXT(_ context.Context, name string) ([]string, error) {
+	name = strings.TrimSuffix(name, ".") // the ownership rule asks rooted names (D-628)
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.asks = append(r.asks, name)
@@ -92,6 +94,11 @@ func (r *fakeResolver) LookupTXT(_ context.Context, name string) ([]string, erro
 		return nil, r.err
 	}
 	return r.txt[name], nil
+}
+
+// LookupCNAME: no name of the fake is a CNAME (cnameDNS of proof_test.go has some), so a record is the name's own (D-628).
+func (r *fakeResolver) LookupCNAME(_ context.Context, name string) (string, error) {
+	return strings.TrimSuffix(name, ".") + ".", nil
 }
 
 func (r *fakeResolver) put(name string, vals ...string) {
@@ -106,10 +113,12 @@ type fakeRunner struct {
 	content Content
 	err     error
 	calls   int
+	last    ScanTarget // what the last call was given
 }
 
-func (r *fakeRunner) Scan(context.Context, ScanTarget) (Content, error) {
+func (r *fakeRunner) Scan(_ context.Context, st ScanTarget) (Content, error) {
 	r.calls++
+	r.last = st
 	return r.content, r.err
 }
 

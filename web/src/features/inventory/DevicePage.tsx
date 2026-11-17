@@ -416,7 +416,7 @@ function Body() {
           {/* #850: "Check this device now" plugs in here (slot device.actions, props { assetId, asset }: the facts that say whether
               it can be checked, from this page's own read, #877 r1 L6). */}
           <Slot name="device.actions" props={{ assetId: a.id, asset: a }} />
-          {/* D-628: an approved device can be ignored here; a waiting one in its notice below, an ignored one is stopped there */}
+          {/* D-630: an approved device can be ignored here; a waiting one in its notice below, an ignored one is stopped there */}
           {a.approved && !a.ignored_at && !a.is_box ? <Button disabled={!can} busy={act.ignore.isPending} busyLabel={t('common:busy.saving')} title={needRole} onClick={() => setIgn(true)}><EyeOff />{t('pending.ignore')}</Button> : null}
           <Button disabled={!can || a.is_box} title={a.is_box ? t('box.noDelete') : needRole} onClick={() => setDel(true)}><Trash2 />{t('detail.delete')}</Button>
         </>} />

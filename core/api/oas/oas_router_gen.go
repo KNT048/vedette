@@ -15441,7 +15441,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										switch method {
 										case "POST":
 											r.name = InventoryPostInventoryDevicesIDIgnoreOperation
-											r.summary = "Ignore a device that needs no watching, such as a staff phone, or stop ignoring it (D-628). Ignored: it stays known (seen again by its MAC or agent, it is the same device) but leaves To review and the Devices list, its new-device alert closes, its network scan and SNMP reads turn off and its findings are removed; a trap hit or an intrusion-detection incident from it still alerts. Stopped: it goes back to To review (not approved), both sources back to their default, matched again. Saying it again changes nothing. 404 not_found. 409 box_device: the Vedette box itself"
+											r.summary = "Ignore a device that needs no watching, such as a staff phone, or stop ignoring it (D-630). Ignored: it stays known (seen again by its MAC or agent, it is the same device) but leaves To review and the Devices list, its new-device alert closes, its network scan and SNMP reads turn off and its open findings close as not relevant (\"Closed by Vedette: the device was ignored by <person>.\", no notice; findings a person settled keep their status); a trap hit or an intrusion-detection incident from it still alerts. Stopped: it goes back to To review (not approved), both sources back to their default, the findings Ignore closed reopen, matched again. Saying it again changes nothing. 404 not_found. 409 box_device: the Vedette box itself"
 											r.operationID = "inventory_post_inventory_devices_id_ignore"
 											r.operationGroup = ""
 											r.pathPattern = "/inventory/devices/{id}/ignore"
@@ -15609,7 +15609,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 												switch method {
 												case "PUT":
 													r.name = InventoryPutInventoryDevicesIDSourcesOperation
-													r.summary = "Turn the network scan or the SNMP reads of one device on or off (D-601). On is the person's consent to that traffic: a device added by hand gets it from then on, inside every other safety rule (scope, exclusions, window, fragile, never scan); turning the network scan on queues the device for the next window. Off stops it for any device (the run on it stops); what the source found stays and manual values still win. One audit row per source changed. 400 bad_source: neither, or not on/off. 404 not_found. 409 box_device: the Vedette box itself. 409 device_ignored: turning a source on for an ignored device (D-628)"
+													r.summary = "Turn the network scan or the SNMP reads of one device on or off (D-601). On is the person's consent to that traffic: a device added by hand gets it from then on, inside every other safety rule (scope, exclusions, window, fragile, never scan); turning the network scan on queues the device for the next window. Off stops it for any device (the run on it stops); what the source found stays and manual values still win. One audit row per source changed. 400 bad_source: neither, or not on/off. 404 not_found. 409 box_device: the Vedette box itself. 409 device_ignored: turning a source on for an ignored device (D-630)"
 													r.operationID = "inventory_put_inventory_devices_id_sources"
 													r.operationGroup = ""
 													r.pathPattern = "/inventory/devices/{id}/sources"

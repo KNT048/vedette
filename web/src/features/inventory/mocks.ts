@@ -261,7 +261,7 @@ const scanInfo = (a: Asset) => ({
   approved_at: metaStore.get()[a.id]?.approved_at ?? null, // D-471: a person's first approval
   scan_source: sourceOf(a, 'scan_source'),
   snmp_source: sourceOf(a, 'snmp_source'),
-  ignored_at: metaStore.get()[a.id]?.ignored_at ?? null, // D-628: a person ignored it (known, not watched)
+  ignored_at: metaStore.get()[a.id]?.ignored_at ?? null, // D-630: a person ignored it (known, not watched)
 })
 // Hộp luôn "vừa thấy": nó là máy đang chạy Vedette.
 /** The wire shape adds the source of the kind and the rules' guess, only while the kind is unknown (D-511). */
@@ -304,7 +304,7 @@ function deviceFilter(url: string): ((r: DeviceRow) => boolean) | Response {
   const macLike = /^[0-9a-f]{2}([:-][0-9a-f]{2})+$/.test(q) || /^([0-9a-f]{4}\.)+[0-9a-f]{2}([0-9a-f]{2})?$/.test(q) || /^([0-9a-f]{2}){3,6}$/.test(q)
   const macBytes = (q.replace(/[:.-]/g, '').match(/../g) ?? []).join(':')
   return (r) =>
-    (r.ignored_at !== null) === (ignored === true) // D-628: an ignored device only when asked for
+    (r.ignored_at !== null) === (ignored === true) // D-630: an ignored device only when asked for
     && (approved === null || r.approved === approved)
     && (fragile === null || r.fragile === fragile)
     && (hasFindings === null || (r.findings_count > 0) === hasFindings)
@@ -656,7 +656,7 @@ export const handlers = [
     const keep = deviceFilter(request.url)
     if (keep instanceof Response) return keep
     const rows = allAssets().map(toRow)
-    const all = rows.filter((a) => a.ignored_at === null) // D-628: an ignored device is in no count but its own
+    const all = rows.filter((a) => a.ignored_at === null) // D-630: an ignored device is in no count but its own
     return HttpResponse.json({
       items: rows.filter(keep),
       counts: { all: all.length, pending: all.filter((a) => !a.approved).length, fragile: all.filter((a) => a.fragile).length, manual: all.filter((a) => a.origin === 'manual').length, ignored: rows.length - all.length },
@@ -821,7 +821,7 @@ export const handlers = [
     return HttpResponse.json({ ok: true })
   }),
 
-  // D-628: ignore a device that needs no watching (a staff phone), or stop ignoring it (back to To review).
+  // D-630: ignore a device that needs no watching (a staff phone), or stop ignoring it (back to To review).
   http.post(`${API}/inventory/devices/:id/ignore`, async ({ params, request }) => {
     const denied = guard('operator'); if (denied) return denied
     const a = find(String(params.id))
@@ -832,11 +832,19 @@ export const handlers = [
     if (!!metaStore.get()[a.id]?.ignored_at === b.ignored) return HttpResponse.json({ ok: true })
     if (b.ignored) {
       metaStore.update((m) => ({ ...m, [a.id]: { ...m[a.id], ignored_at: nowIso(), suspicious: false, scan_source: 'off', snmp_source: 'off' } }))
-      findingsStore.update((l) => l.filter((f) => f.asset_id !== a.id)) // its findings go, as on the box
+      // D-630: its open findings close with a readable reason; what a person settled keeps its status
+      const note = `Closed by Vedette: the device was ignored by ${currentUser()?.email ?? 'admin@example.com'}.`
+      const ts = nowIso()
+      findingsStore.update((l) => l.map((f) => (f.asset_id === a.id && (f.status === 'suspected' || f.status === 'confirmed')
+        ? { ...f, status: 'not_relevant' as const, resolved_by: 'system', resolved_at: ts, resolution_note: note, history: [...f.history, { ts, user: 'system', action: 'not_relevant', note }] } : f)))
       audit('inventory.ignore', nameOf(a, a.kind), a.id)
     } else {
       metaStore.update((m) => ({ ...m, [a.id]: { ...m[a.id], ignored_at: undefined, approved_at: undefined, scan_source: undefined, snmp_source: undefined } }))
       assetsStore.update((l) => l.map((x) => (x.id === a.id ? { ...x, approved: false } : x)))
+      // only what Ignore closed reopens (a person's later decision has the person in resolved_by)
+      const ts = nowIso()
+      findingsStore.update((l) => l.map((f) => (f.asset_id === a.id && f.status === 'not_relevant' && f.resolved_by === 'system' && (f.resolution_note ?? '').startsWith('Closed by Vedette: the device was ignored')
+        ? { ...f, status: 'suspected' as const, resolved_by: null, resolved_at: null, resolution_note: null, history: [...f.history, { ts, user: 'system', action: 'reopened', note: 'The device is watched again, so Vedette reopened this finding it had closed when the device was ignored.' }] } : f)))
       matchAssetToKev(a.id)
       audit('inventory.unignore', nameOf(a, a.kind), a.id)
     }

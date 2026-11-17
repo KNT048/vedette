@@ -442,7 +442,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     expect(screen.getByRole('combobox', { name: 'Search devices' })).toHaveValue('approved:24h')
   })
 
-  it('S-INV-3 (kien 2026-11-17, D-628): a To review row offers Approve, Ignore and Remove; the unknown mark lives on the device page', async () => {
+  it('S-INV-3 (kien 2026-11-17, D-630): a To review row offers Approve, Ignore and Remove; the unknown mark lives on the device page', async () => {
     const user = userEvent.setup()
     renderApp('/devices?tab=review')
     const list = await screen.findByRole('list', { name: '2 new devices not approved' }, T)
@@ -458,7 +458,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     expect(find('a-unk01').approved).toBe(false)
   })
 
-  it('D-628: Ignore asks first, says what still alerts and that a private MAC may come back; the Ignored tab lists it with Stop ignoring', async () => {
+  it('D-630: Ignore asks first, says what still alerts and that a private MAC may come back; the Ignored tab lists it with Stop ignoring', async () => {
     const user = userEvent.setup()
     renderApp('/devices?tab=review')
     const list = await screen.findByRole('list', { name: '2 new devices not approved' }, T)
@@ -482,7 +482,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     expect(await screen.findByRole('list', { name: '2 new devices not approved' }, T)).toBeInTheDocument()
   })
 
-  it('D-628: an ignored device is out of Devices by default; its page says so and offers Stop ignoring', async () => {
+  it('D-630: an ignored device is out of Devices by default; its page says so and offers Stop ignoring', async () => {
     const user = userEvent.setup()
     asAdmin()
     const r = await api.post('/inventory/devices/a-nas02/ignore', { ignored: true })
@@ -491,7 +491,11 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     expect(all.items.some((d) => d.id === 'a-nas02')).toBe(false)
     expect(all.counts.ignored).toBe(1)
     expect((await api.get<DevicesResponse>('/inventory/devices?ignored=true')).items.map((d) => d.id)).toEqual(['a-nas02'])
-    expect(findingsStore.get().some((f) => f.asset_id === 'a-nas02')).toBe(false) // no findings for an ignored device
+    // D-630: its open findings are closed with the reason, none deleted, none open
+    const mine = findingsStore.get().filter((f) => f.asset_id === 'a-nas02')
+    expect(mine.length).toBeGreaterThan(0)
+    expect(mine.some((f) => f.status === 'suspected' || f.status === 'confirmed')).toBe(false)
+    expect(mine.some((f) => (f.resolution_note ?? '').startsWith('Closed by Vedette: the device was ignored by'))).toBe(true)
     renderApp('/devices/a-nas02')
     expect(await screen.findByText('This device is ignored', undefined, T)).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Stop ignoring' }))

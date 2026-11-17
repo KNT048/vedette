@@ -105,6 +105,9 @@ type Target struct {
 	Terms      *Terms // the testing terms (FULL-1); nil when not accepted
 	CreatedAt  time.Time
 	LastScanAt time.Time // zero when never scanned
+	// proofDomain and proofToken are, after the scan gate, the domain target whose record proved this one now (itself, or a parent
+	// of the box that covers it) and its token: the domain and token the executors' fence checks (D-628). Never stored.
+	proofDomain, proofToken string
 }
 
 // TargetView is the API shape of a target (contract.ts Target), with the derived fields filled in.
@@ -139,6 +142,8 @@ type TargetView struct {
 	// OpenPorts are the first MaxOpenPorts open ports of the newest snapshot, in its order (Latest.Ports is the total), so
 	// the list page can say what is open (S-EXP-1, D-485); nil when never scanned.
 	OpenPorts []PortRow `json:"open_ports"`
+	// Proof says where a domain's TXT record goes and which verified domain of the box covers it already (D-628); nil for an IP.
+	Proof *ProofHint `json:"proof"`
 }
 
 // MaxOpenPorts bounds TargetView.OpenPorts (a domain can have hundreds of names on 80 and 443).

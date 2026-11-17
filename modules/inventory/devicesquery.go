@@ -26,7 +26,7 @@ var DeviceSources = []string{"manual", "passive", "scan", "snmp", "osquery", "wa
 // The zero filter keeps every device (Devices, for the other modules: the honeypot names an ignored device too).
 type DeviceFilter struct {
 	Approved, Fragile, HasFindings *bool
-	// Ignored keeps only the ignored devices (true) or leaves them out (false); nil keeps both (D-628). ParseDeviceFilter, the query of
+	// Ignored keeps only the ignored devices (true) or leaves them out (false); nil keeps both (D-630). ParseDeviceFilter, the query of
 	// the page and the export, never leaves it nil: an ignored device is out of the Devices list unless asked for.
 	Ignored *bool
 	Types   []string // device type ids; a type also matches the types that act as it (D-511)
@@ -39,7 +39,7 @@ func badFilter(msg string) *apierr.Error { return apierr.New(400, "bad_filter", 
 // ParseDeviceFilter checks the query of GET /inventory/devices: approved, fragile and has_findings are "true", "false" or empty; type
 // and source are comma-separated lists of known words (a type id of content/devicetypes, DeviceSources). Anything else is 400
 // bad_filter. The schema already bounds the lengths and the boolean words (400 invalid, D-73); this is the same check for a caller
-// that does not go through it. ignored is "true" (only the ignored devices) or "false"/empty (leave them out, D-628).
+// that does not go through it. ignored is "true" (only the ignored devices) or "false"/empty (leave them out, D-630).
 func ParseDeviceFilter(approved, fragile, hasFindings, ignored, types, sources, q string) (DeviceFilter, error) {
 	var f DeviceFilter
 	var err error

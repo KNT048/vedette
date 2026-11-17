@@ -26,7 +26,7 @@ const (
 	EventAssetDiscovered      = "inventory.asset.discovered"
 	EventAssetDeleted         = "inventory.asset.deleted"
 	EventAssetApproved        = "inventory.asset.approved" // B9 (D-474): {asset_id, actor}
-	EventAssetIgnored         = "inventory.asset.ignored"  // D-628: {asset_id, actor}: a person said the device needs no watching
+	EventAssetIgnored         = "inventory.asset.ignored"  // D-630: {asset_id, actor}: a person said the device needs no watching
 	EventAssetUpdated         = "inventory.asset.updated"  // {asset_id}: also what a person's Approve publishes today (D-552)
 	EventAssetMerged          = "inventory.asset.merged"   // {from, into}: inventory joined two rows of one device (D-515, D-554)
 	EventNewKEV               = "feeds.vuln.new_kev"
@@ -115,6 +115,9 @@ func (s *Service) findingEvent(ctx context.Context, data any, statusChange bool)
 		return err
 	}
 	if e.FindingID == "" {
+		return nil
+	}
+	if statusChange && (e.Reason == "device_ignored" || e.Reason == "device_watched") { // D-630: a person ignored the device or watches it again
 		return nil
 	}
 	if statusChange && e.Reason == "matches_again" { // Vedette reopened a finding it had closed as not affected (D-530)
@@ -494,9 +497,9 @@ func (s *Service) assetApproved(ctx context.Context, data any) error {
 	})
 }
 
-// assetIgnored takes a device a person ignored in Devices (inventory.asset.ignored {asset_id, actor}, D-628: a staff phone, known and
+// assetIgnored takes a device a person ignored in Devices (inventory.asset.ignored {asset_id, actor}, D-630: a staff phone, known and
 // not watched) off the open new-device incidents the way an approval does: there is nothing left to review. Only the new-device
-// incidents: a trap hit or an intrusion-detection incident from the device stays open and new ones still come (D-628).
+// incidents: a trap hit or an intrusion-detection incident from the device stays open and new ones still come (D-630).
 func (s *Service) assetIgnored(ctx context.Context, data any) error {
 	var e struct {
 		AssetID string `json:"asset_id"`

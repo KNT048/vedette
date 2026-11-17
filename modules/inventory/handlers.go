@@ -203,7 +203,7 @@ func (h *Handlers) InventoryPostInventoryDevicesIDKeepSeparate(ctx context.Conte
 	return &oas.InventoryPostInventoryDevicesIDKeepSeparateOK{Ok: true}, nil
 }
 
-// InventoryPostInventoryDevicesIDIgnore implements POST /inventory/devices/{id}/ignore (operator, D-628).
+// InventoryPostInventoryDevicesIDIgnore implements POST /inventory/devices/{id}/ignore (operator, D-630).
 func (h *Handlers) InventoryPostInventoryDevicesIDIgnore(ctx context.Context, req *oas.InventoryPostInventoryDevicesIDIgnoreReq, params oas.InventoryPostInventoryDevicesIDIgnoreParams) (*oas.InventoryPostInventoryDevicesIDIgnoreOK, error) {
 	who, err := actor(ctx)
 	if err != nil {

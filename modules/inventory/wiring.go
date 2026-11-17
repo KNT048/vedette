@@ -115,8 +115,8 @@ type MatchDevice struct {
 	Software []MatchSoftware
 }
 
-// MatchInput returns the device with its software; ok is false when it does not exist or a person ignored it (D-628: an ignored
-// device is outside every vulnerability reader, so it has no findings).
+// MatchInput returns the device with its software; ok is false when it does not exist or a person ignored it (D-630: an ignored
+// device is outside every vulnerability reader, so nothing new is matched for it).
 func (s *Service) MatchInput(ctx context.Context, id string) (d MatchDevice, ok bool, err error) {
 	q := s.db.Reader()
 	var ignored bool
@@ -263,7 +263,7 @@ func (d KindDevice) TrustedKind() bool {
 // AssetIDs returns the id of every device, with no kind filter and no row cap, ordered by id: the list a reconcile compares
 // against (findings, D-144), so a device of any kind, even one added to the schema later, is never missing. Any read error is
 // returned and the caller must fail closed: a short list would make the caller drop data of devices that still exist. A device a
-// person ignored is left out (D-628): every caller reads vulnerabilities (findings, the plan, the distribution feeds), and an ignored
+// person ignored is left out (D-630): every caller reads vulnerabilities (findings, the plan, the distribution feeds), and an ignored
 // device has none.
 func (s *Service) AssetIDs(ctx context.Context) ([]string, error) {
 	rows, err := s.db.Reader().QueryContext(ctx, `SELECT id FROM inv_asset WHERE ignored_at IS NULL ORDER BY id`)
@@ -472,7 +472,7 @@ const multiProducts = "multiple products"
 // "I have it" device); a device that has any software of the vendor, or that the vendor made, matches by
 // vendor only. Display is the software row that matched (KF-3: not the device's first row by name, "3cpio" on
 // an Ubuntu box whose OpenSSH matched); when only its maker matched, DeviceRefs' display (first row by name, else the kind).
-// A device a person ignored runs nothing here (D-628).
+// A device a person ignored runs nothing here (D-630).
 func (s *Service) DevicesRunning(ctx context.Context, products []ProductQuery) (map[string][]DeviceMatch, error) {
 	out := map[string][]DeviceMatch{}
 	var ignored map[string]bool
@@ -518,7 +518,7 @@ func (s *Service) DevicesRunning(ctx context.Context, products []ProductQuery) (
 		var list []DeviceMatch
 		for _, id := range slices.Concat(exact, byVendor) {
 			if ignored[id] {
-				continue // D-628: an ignored device does not answer "Do you have it?"
+				continue // D-630: an ignored device does not answer "Do you have it?"
 			}
 			if r, ok := refs[id]; ok {
 				if d, ok := shown[id]; ok {
@@ -535,7 +535,7 @@ func (s *Service) DevicesRunning(ctx context.Context, products []ProductQuery) (
 	return out, nil
 }
 
-// ignoredIDs is the set of devices a person ignored (D-628).
+// ignoredIDs is the set of devices a person ignored (D-630).
 func (s *Service) ignoredIDs(ctx context.Context) (map[string]bool, error) {
 	ids, err := s.assetIDs(ctx, `SELECT id FROM inv_asset WHERE ignored_at IS NOT NULL`)
 	if err != nil {

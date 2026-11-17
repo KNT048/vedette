@@ -135,7 +135,7 @@ func (s scanInventory) Devices(ctx context.Context) ([]scan.Device, error) {
 	out := make([]scan.Device, 0, len(list.Items))
 	for _, d := range list.Items {
 		if d.IgnoredAt != nil {
-			continue // D-628: an ignored device is not scanned (VulnScanPolicy refuses it too: its network scan is off)
+			continue // D-630: an ignored device is not scanned (VulnScanPolicy refuses it too: its network scan is off)
 		}
 		sd := scan.Device{ID: d.ID, Label: deviceLabel(d), IP: d.IP, Kind: d.Kind, Approved: d.Approved, Fragile: d.Fragile, LastSeen: d.LastSeen, Box: d.IsBox}
 		if d.MAC != nil {

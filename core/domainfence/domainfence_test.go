@@ -25,6 +25,7 @@ type fakeDNS struct {
 	a     map[string][]netip.Addr
 	cname map[string]string
 	fail  map[string]bool
+	wild  map[string][]string // zone -> the TXT a wildcard "*.zone" answers for every name under it with no record of its own
 	n     int
 }
 
@@ -39,6 +40,7 @@ func (f *fakeDNS) look(name string) error {
 }
 
 func (f *fakeDNS) LookupTXT(_ context.Context, name string) ([]string, error) {
+	name = strings.TrimSuffix(name, ".") // Owned asks rooted names
 	if err := f.look(name); err != nil {
 		return nil, err
 	}
@@ -46,6 +48,11 @@ func (f *fakeDNS) LookupTXT(_ context.Context, name string) ([]string, error) {
 	defer f.mu.Unlock()
 	if v, ok := f.txt[name]; ok {
 		return v, nil
+	}
+	for zone, v := range f.wild {
+		if strings.HasSuffix(name, "."+zone) {
+			return v, nil
+		}
 	}
 	return nil, &net.DNSError{Err: "no such host", Name: name, IsNotFound: true}
 }
@@ -63,6 +70,7 @@ func (f *fakeDNS) LookupNetIP(_ context.Context, _, name string) ([]netip.Addr, 
 }
 
 func (f *fakeDNS) LookupCNAME(_ context.Context, name string) (string, error) {
+	name = strings.TrimSuffix(name, ".")
 	if err := f.look("cname:" + name); err != nil {
 		return "", err
 	}
@@ -139,6 +147,25 @@ func TestCheckRefusals(t *testing.T) {
 		{"name moved", func(_ *Job, d *fakeDNS) { d.a["www.acme.example"] = []netip.Addr{netip.MustParseAddr("34.117.59.80")} }, NameMoved},
 		{"name gone", func(_ *Job, d *fakeDNS) { delete(d.a, "www.acme.example") }, NameMoved},
 		{"TXT lookup fails", func(_ *Job, d *fakeDNS) { d.fail["acme.example"] = true }, Unchecked},
+		{"D-628: TXT on _vedette-verify.<domain> (the domain is a CNAME)", func(_ *Job, d *fakeDNS) {
+			d.txt["_vedette-verify.acme.example"], d.txt["acme.example"] = d.txt["acme.example"], nil
+		}, ""},
+		{"D-628: another box's token on _vedette-verify.<domain>", func(_ *Job, d *fakeDNS) {
+			d.txt["_vedette-verify.acme.example"], d.txt["acme.example"] = []string{"vedette-verify=" + Token(key2, "acme.example")}, nil
+		}, NotOwned},
+		{"r1 High of #941: a wildcard TXT answers _vedette-verify.<domain> and any random name beside it", func(_ *Job, d *fakeDNS) {
+			d.wild = map[string][]string{"acme.example": d.txt["acme.example"]}
+			d.txt["acme.example"] = nil
+		}, NotOwned},
+		{"r1 High of #941: a wildcard CNAME makes _vedette-verify.<domain> a CNAME to the attacker's name", func(_ *Job, d *fakeDNS) {
+			d.txt["_vedette-verify.acme.example"], d.txt["acme.example"] = d.txt["acme.example"], nil // what the CNAME's target answers
+			d.cname["_vedette-verify.acme.example"] = "lb.lapsed-vendor.example"
+		}, NotOwned},
+		{"r1 Low of #941: the domain itself is a CNAME: the TXT reached through it is the target's", func(_ *Job, d *fakeDNS) {
+			d.cname["acme.example"] = "tenant.vendor.example"
+		}, NotOwned},
+		{"the CNAME check of the record's name fails", func(_ *Job, d *fakeDNS) { d.fail["cname:acme.example"] = true }, Unchecked},
+		{"D-628: the _vedette-verify lookup fails", func(_ *Job, d *fakeDNS) { delete(d.txt, "acme.example"); d.fail["_vedette-verify.acme.example"] = true }, Unchecked},
 		{"A lookup fails", func(_ *Job, d *fakeDNS) { d.fail["www.acme.example"] = true }, Unchecked},
 		{"CNAME lookup fails", func(_ *Job, d *fakeDNS) { d.fail["cname:www.acme.example"] = true }, Unchecked},
 		{"disruptive, CNAME outside", func(j *Job, _ *fakeDNS) { j.Name, j.Disruptive = "cdn.acme.example", true }, CNAMEOutside},
@@ -337,5 +364,44 @@ func TestFileListReadsAMissingCopyAgain(t *testing.T) {
 	}
 	if listed("other.example") || waited != 1 {
 		t.Fatalf("a readable list that lacks the domain waited (%d)", waited)
+	}
+}
+
+// rootedDNS records the names asked.
+type rootedDNS struct {
+	mu    sync.Mutex
+	names []string
+}
+
+func (r *rootedDNS) LookupTXT(_ context.Context, name string) ([]string, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.names = append(r.names, name)
+	if name == "acme.example." {
+		return []string{"vedette-verify=" + Token(key1, "acme.example")}, nil
+	}
+	return nil, &net.DNSError{Err: "no such host", Name: name, IsNotFound: true}
+}
+
+func (r *rootedDNS) LookupCNAME(_ context.Context, name string) (string, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.names = append(r.names, "cname:"+name)
+	return name, nil
+}
+
+// Review r2 L3 of #941: Owned asks every name rooted (a trailing dot), so the resolver's search domains never apply.
+func TestOwnedAsksRootedNames(t *testing.T) {
+	t.Parallel()
+	r := &rootedDNS{}
+	if p := Owned(t.Context(), r, "acme.example", Token(key1, "acme.example"), time.Second); p.At != "acme.example" {
+		t.Fatalf("%+v", p)
+	}
+	r2 := &rootedDNS{}
+	Owned(t.Context(), r2, "other.example", "0123456789abcdef", time.Second)
+	for _, n := range append(r.names, r2.names...) {
+		if !strings.HasSuffix(n, ".") {
+			t.Fatalf("asked %q, not rooted (all: %v %v)", n, r.names, r2.names)
+		}
 	}
 }

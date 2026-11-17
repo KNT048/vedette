@@ -143,26 +143,33 @@ func (s *Service) Reconcile(ctx context.Context) (ReconcileResult, error) {
 // INV-13): Finding.ExpireAcceptance, its history row by the system user, an audit row findings.status and the
 // status_changed event with reason ReasonRiskExpired. A row that cannot be read or reopened whole is reopened on its
 // status alone (expireRaw); one that cannot be even so is logged with its id and skipped; the others still reopen. It
-// returns how many it reopened.
+// returns how many it reopened. A finding of a device the inventory does not match (a person ignored it, D-630; or it is gone and
+// the orphan pass removes it) keeps its acceptance until the device is watched again: no alert about a device nobody watches.
 func (s *Service) expireAcceptances(ctx context.Context) (int, error) {
 	ctx, cancel := context.WithTimeout(ctx, eventWriteTimeout)
 	defer cancel()
+	unwatched, err := s.unwatchedAccepted(ctx)
+	if err != nil {
+		return 0, err
+	}
 	n := 0
-	err := s.write(ctx, func(tx *sql.Tx, now time.Time, emit func(string, any)) error {
+	err = s.write(ctx, func(tx *sql.Tx, now time.Time, emit func(string, any)) error {
 		n = 0
 		// accepted_until < the latest day that has ended everywhere; ExpireAcceptance decides with AcceptanceEnds.
-		rows, err := tx.QueryContext(ctx, `SELECT id FROM fnd_finding WHERE status = 'risk_accepted' AND accepted_until < ? ORDER BY id`, dayOf(now).Format(time.DateOnly))
+		rows, err := tx.QueryContext(ctx, `SELECT id, asset_id FROM fnd_finding WHERE status = 'risk_accepted' AND accepted_until < ? ORDER BY id`, dayOf(now).Format(time.DateOnly))
 		if err != nil {
 			return fmt.Errorf("findings: reading expired risk acceptances: %w", err)
 		}
 		var ids []string
 		for rows.Next() {
-			var id string
-			if err := rows.Scan(&id); err != nil {
+			var id, asset string
+			if err := rows.Scan(&id, &asset); err != nil {
 				_ = rows.Close()
 				return fmt.Errorf("findings: reading expired risk acceptances: %w", err)
 			}
-			ids = append(ids, id)
+			if !unwatched[asset] {
+				ids = append(ids, id)
+			}
 		}
 		if err := errors.Join(rows.Err(), rows.Close()); err != nil {
 			return fmt.Errorf("findings: reading expired risk acceptances: %w", err)
@@ -213,6 +220,38 @@ func (s *Service) expireAcceptances(ctx context.Context) (int, error) {
 		return 0, err
 	}
 	return n, nil
+}
+
+// unwatchedAccepted is the set of devices with a risk-accepted finding that the inventory does not match (MatchInput ok false: a
+// device a person ignored, D-630, or one already gone). Read before the expiry's write, outside its transaction.
+func (s *Service) unwatchedAccepted(ctx context.Context) (map[string]bool, error) {
+	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT DISTINCT asset_id FROM fnd_finding WHERE status = 'risk_accepted' ORDER BY asset_id`)
+	if err != nil {
+		return nil, fmt.Errorf("findings: reading risk acceptances: %w", err)
+	}
+	var assets []string
+	for rows.Next() {
+		var a string
+		if err := rows.Scan(&a); err != nil {
+			_ = rows.Close()
+			return nil, fmt.Errorf("findings: reading risk acceptances: %w", err)
+		}
+		assets = append(assets, a)
+	}
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+		return nil, fmt.Errorf("findings: reading risk acceptances: %w", err)
+	}
+	out := map[string]bool{}
+	for _, a := range assets {
+		_, ok, err := s.cfg.Inventory.MatchInput(ctx, a)
+		if err != nil {
+			return nil, fmt.Errorf("findings: reading the device of a risk acceptance: %w", err)
+		}
+		if !ok {
+			out[a] = true
+		}
+	}
+	return out, nil
 }
 
 // expireOne writes one expiry under a savepoint, so a row that fails leaves nothing half written and the pass goes on.

@@ -382,7 +382,7 @@ var (
 // source ever saw it with a MAC other than nodeMAC (the agent's card on that address). An address DHCP gave to a new machine still
 // resolves to the old machine's row until a sensor sees the move, and the agent's own MAC observation has by then made nodeMAC the
 // row's MAC (the newest MAC), so the column alone proves nothing: the old MAC's observations do. Such a row is found but
-// left waiting for a person, with a log line. A device a person marked suspicious or ignored (D-628) keeps waiting (a person's flag wins); the box and
+// left waiting for a person, with a log line. A device a person marked suspicious or ignored (D-630) keeps waiting (a person's flag wins); the box and
 // an approved device are left as they are. One audit row inventory.approve_enrolled by "system", reason naming the token and its
 // maker, only when the flag changes. On the same row (not the box, not one seen with another MAC) an agent OS stored with no agent kind
 // gives the device its kind (typeFromAgentOS), approved or not: a node enrolled before agents sent a kind is typed without a new report.

@@ -10,7 +10,7 @@ import type {
 } from './types'
 
 export const useDevices = () => useQuery({ queryKey: ['inventory', 'devices'], queryFn: () => api.get<DevicesResponse>('/inventory/devices') })
-/** D-628: the devices a person ignored (the Ignored tab), read only while that tab is open. */
+/** D-630: the devices a person ignored (the Ignored tab), read only while that tab is open. */
 export const useIgnoredDevices = (enabled = true) => useQuery({ queryKey: ['inventory', 'devices', 'ignored'], queryFn: () => api.get<DevicesResponse>('/inventory/devices?ignored=true'), enabled })
 export const useDevice = (id: string) => useQuery({ queryKey: ['inventory', 'device', id], queryFn: () => api.get<DeviceDetail>(`/inventory/devices/${encodeURIComponent(id)}`), retry: false })
 /** The contract allows at most 80 characters in `q` (the backend answers 400 above that; the mock clips). A pasted long text is clipped here so suggestions keep working. */
@@ -53,7 +53,7 @@ export function useDeviceAction(id: string) {
   return {
     approve: useMutation({ mutationFn: () => api.post(`${base}/approve`), onSuccess: inv }),
     suspicious: useMutation({ mutationFn: (suspicious: boolean) => api.post(`${base}/suspicious`, { suspicious }), onSuccess: inv }),
-    /** D-628: ignore (known, not watched) or stop ignoring (back to To review). */
+    /** D-630: ignore (known, not watched) or stop ignoring (back to To review). */
     ignore: useMutation({ mutationFn: (ignored: boolean) => api.post(`${base}/ignore`, { ignored }), onSuccess: inv }),
     remove: useMutation({ mutationFn: () => api.del(base), onSuccess: inv }),
     patch: useMutation({ mutationFn: (b: { name?: string; kind?: AssetKind; fragile?: boolean; regular_scan?: RegularScan; notes?: string }) => api.patch(base, b), onSuccess: inv }),

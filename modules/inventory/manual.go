@@ -482,7 +482,7 @@ func (s *Service) SetSources(ctx context.Context, actor, id string, scan, snmp *
 		if box {
 			return conflict("box_device", "This is the Vedette box itself: Vedette never scans or reads it on its own.")
 		}
-		if ignored && (deref(scan) == SourceOn || deref(snmp) == SourceOn) { // D-628: an ignored device is not watched
+		if ignored && (deref(scan) == SourceOn || deref(snmp) == SourceOn) { // D-630: an ignored device is not watched
 			return conflict("device_ignored", "This device is ignored, so Vedette does not scan or read it. Stop ignoring it first.")
 		}
 		name := deviceName(ctx, tx, id)
@@ -558,13 +558,14 @@ func (s *Service) SetSuspicious(ctx context.Context, actor, id string, suspiciou
 	return s.setFlag(ctx, actor, id, `UPDATE inv_asset SET suspicious = ? WHERE id = ?`, []any{suspicious, id}, action)
 }
 
-// SetIgnored ignores a device or stops ignoring it (D-628, S-INV-3): "this device needs no watching", a staff phone. An ignored device
+// SetIgnored ignores a device or stops ignoring it (D-630, S-INV-3): "this device needs no watching", a staff phone. An ignored device
 // stays known (its row, so its MAC and agent key keep matching it when it is seen again) but is out of To review, the counts and the
 // Devices list unless asked for; it sends no new-device alert (notify closes its open one on inventory.asset.ignored), its network scan
 // and SNMP reads are set off (the per-device sources of D-601, one switch), and it is out of the vulnerability readers (MatchInput,
-// AssetIDs, DevicesRunning), so findings removes its findings and makes none. A trap hit or an intrusion-detection incident from it still
-// alerts: those modules never ask about it. Stopping sends it through review again: not approved, both sources back to their default,
-// matched again. Saying it again changes nothing (no audit row, no event). The box is 409 box_device.
+// AssetIDs, DevicesRunning), so findings makes none and closes its open ones (findings OnAssetIgnored; what a person settled keeps its
+// status). A trap hit or an intrusion-detection incident from it still alerts: those modules never ask about it. Stopping sends it
+// through review again: not approved, both sources back to their default, inventory.asset.unignored (findings reopens only what Ignore
+// closed), then matched again. Saying it again changes nothing (no audit row, no event). The box is 409 box_device.
 func (s *Service) SetIgnored(ctx context.Context, actor, id string, ignored bool) error {
 	return s.write(ctx, func(tx *sql.Tx, o *outbox) error {
 		var box bool
@@ -596,7 +597,9 @@ func (s *Service) SetIgnored(ctx context.Context, actor, id string, ignored bool
 		if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET ignored_at = NULL, approved = 0, approved_at = NULL, scan_source = NULL, snmp_source = NULL WHERE id = ?`, id); err != nil {
 			return fmt.Errorf("inventory: stop ignoring a device: %w", err)
 		}
-		// match: findings matches it again; ScanOn: sensor-active queues a discovered device for its next window (the default is on).
+		// unignored first: findings reopens what Ignore closed; then updated with match: findings matches it again, and ScanOn:
+		// sensor-active queues a discovered device for its next window (the default is on).
+		o.add(EventAssetUnignored, AssetEvent{AssetID: id, Actor: actor})
 		o.add(EventAssetUpdated, AssetEvent{AssetID: id, Match: true, ScanOn: origin != "manual"})
 		return s.auditTx(ctx, tx, actor, "inventory.unignore", name, id)
 	})

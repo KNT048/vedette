@@ -778,6 +778,82 @@ func (s *Service) OnAssetDeleted(ctx context.Context, assetID string) (int, erro
 	return s.deleteAsset(ctx, assetID)
 }
 
+// OnAssetIgnored handles inventory.asset.ignored (D-630, inventory INV-38): a person said the device needs no watching. Its open
+// findings close (Finding.IgnoreClose: not_relevant by the system user, "Closed by Vedette: the device was ignored by <person>."),
+// each with its history row, an audit row findings.status and a status_changed event with ReasonDeviceIgnored (notify sends
+// nothing for it). Findings already closed keep their status, note and history. Its "add the version" items and unchecked rows go
+// (derived; the next match makes them again) and its plan entry is dropped. While ignored the inventory leaves the device out of
+// MatchInput and AssetIDs, so nothing new is made. It returns how many findings it closed.
+func (s *Service) OnAssetIgnored(ctx context.Context, assetID, actor string) (int, error) {
+	ctx, cancel := eventContext(ctx)
+	defer cancel()
+	s.dropPlan(assetID)
+	return s.forAssetFindings(ctx, assetID, ReasonDeviceIgnored, func(f Finding, now time.Time) (Finding, HistoryEntry, bool) {
+		return f.IgnoreClose(actor, now)
+	}, true)
+}
+
+// OnAssetUnignored handles inventory.asset.unignored (D-630): the device is watched again. Only the findings OnAssetIgnored closed
+// and nobody touched since reopen (Finding.UnignoreReopen), with a history row, an audit row and a status_changed event with
+// ReasonDeviceWatched (notify sends nothing for it); the inventory.asset.updated that follows matches the device again as usual.
+// It returns how many findings it reopened.
+func (s *Service) OnAssetUnignored(ctx context.Context, assetID, actor string) (int, error) {
+	ctx, cancel := eventContext(ctx)
+	defer cancel()
+	s.markPlan(assetID)
+	return s.forAssetFindings(ctx, assetID, ReasonDeviceWatched, func(f Finding, now time.Time) (Finding, HistoryEntry, bool) {
+		return f.UnignoreReopen(actor, now)
+	}, false)
+}
+
+// forAssetFindings runs change on every finding of a device in one write; a finding it changes (ok) is validated and stored with its
+// history row, an audit row findings.status and a status_changed event with reason. dropDerived also removes the device's "add the
+// version" items and unchecked rows.
+func (s *Service) forAssetFindings(ctx context.Context, assetID, reason string, change func(f Finding, now time.Time) (Finding, HistoryEntry, bool), dropDerived bool) (int, error) {
+	n := 0
+	err := s.write(ctx, func(tx *sql.Tx, now time.Time, emit func(string, any)) error {
+		n = 0
+		recs, err := listRecords(ctx, tx, assetID)
+		if err != nil {
+			return fmt.Errorf("findings: reading the findings of a device: %w", err)
+		}
+		for i := range recs {
+			r := &recs[i]
+			before := r.Status
+			f, h, ok := change(r.Finding, now)
+			if !ok {
+				continue
+			}
+			r.Finding = f
+			if err := r.Validate(); err != nil {
+				return fmt.Errorf("findings: finding %s: %w", r.ID, err)
+			}
+			if err := updateRecord(ctx, tx, *r); err != nil {
+				return err
+			}
+			if err := insertHistory(ctx, tx, r.ID, h); err != nil {
+				return err
+			}
+			if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.status", Target: r.ID,
+				Detail: fmt.Sprintf("%s: %s to %s (%s)", r.CVE, before, r.Status, reason)}); err != nil {
+				return err
+			}
+			emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: before, To: r.Status, Reason: reason})
+			n++
+		}
+		if !dropDerived {
+			return nil
+		}
+		for _, q := range []string{`DELETE FROM fnd_version_needed WHERE asset_id = ?`, `DELETE FROM fnd_unchecked WHERE asset_id = ?`} {
+			if _, err := tx.ExecContext(ctx, q, assetID); err != nil {
+				return fmt.Errorf("findings: clearing the derived rows of an ignored device: %w", err)
+			}
+		}
+		return nil
+	})
+	return n, err
+}
+
 // OnAssetMerged handles inventory.asset.merged (D-515): device from was the same device as into, so its findings become into's,
 // with their status, history, mitigation log and AI results (those key on the finding id). For a CVE both devices hold, the finding
 // that ranks higher stays and the other goes: decided (a person closed it, wrote its history, or marked a mitigation item applied)

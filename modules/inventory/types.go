@@ -55,8 +55,9 @@ const (
 	EventAssetUpdated    = "inventory.asset.updated"
 	EventAssetDeleted    = "inventory.asset.deleted"
 	EventAssetMerged     = "inventory.asset.merged"
-	EventAssetApproved   = "inventory.asset.approved" // a person approved a discovered device (D-474, B9b)
-	EventAssetIgnored    = "inventory.asset.ignored"  // a person ignored a device (D-628): {asset_id, actor}
+	EventAssetApproved   = "inventory.asset.approved"  // a person approved a discovered device (D-474, B9b)
+	EventAssetIgnored    = "inventory.asset.ignored"   // a person ignored a device (D-630): {asset_id, actor}
+	EventAssetUnignored  = "inventory.asset.unignored" // a person stopped ignoring a device (D-630): {asset_id, actor}
 	EventSoftwareChanged = "inventory.software.changed"
 	EventMatchChanged    = "inventory.match.changed"
 	EventSettingsChanged = "inventory.settings.changed"
@@ -225,7 +226,7 @@ type AssetCore struct {
 	// default resolved: on for a device a sensor found, off for one added by hand; D-601).
 	ScanSource string `json:"scan_source"`
 	SNMPSource string `json:"snmp_source"`
-	// IgnoredAt is when a person ignored the device (D-628): known, not watched. nil = watched.
+	// IgnoredAt is when a person ignored the device (D-630): known, not watched. nil = watched.
 	IgnoredAt *string `json:"ignored_at"`
 }
 
@@ -274,7 +275,7 @@ type Detail struct {
 }
 
 // Counts are the numbers behind the filter chips of the device list.
-// Every count but Ignored leaves the ignored devices out (D-628).
+// Every count but Ignored leaves the ignored devices out (D-630).
 type Counts struct {
 	All     int `json:"all"`
 	Pending int `json:"pending"`

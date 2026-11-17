@@ -45,7 +45,7 @@ function PendingItem({ d, sameAs }: { d: DeviceRow; sameAs: string[] }) {
       {/* mutateAsync: the row leaves this list when the list reloads, which would drop a mutate() callback and its toast (D-471: the toast links the device). */}
       <div className="flex flex-wrap gap-2">
         <Button size="sm" variant="primary" disabled={!can || busy} busy={act.approve.isPending} busyLabel={t('common:busy.approving')} title={title} onClick={() => void act.approve.mutateAsync().then(() => toast.success(t('pending.approved', { name }), { description: t('pending.findLater'), action: { label: t('add.openDevice'), onClick: () => void navigate(`/devices/${d.id}`) } }), fail)}>{t('pending.approve')}</Button>
-        {/* kien 2026-11-17 (D-628): Ignore replaces "Remove unknown mark" here; marking stays on the device page. */}
+        {/* kien 2026-11-17 (D-630): Ignore replaces "Remove unknown mark" here; marking stays on the device page. */}
         <Button size="sm" disabled={!can || busy} busy={act.ignore.isPending} busyLabel={t('common:busy.saving')} title={title} onClick={() => setIgn(true)}>{t('pending.ignore')}</Button>
         <Button size="sm" disabled={!can || busy} busy={act.remove.isPending} busyLabel={t('common:busy.deleting')} title={title} onClick={() => setDel(true)}>{t('pending.delete')}</Button>
       </div>
@@ -58,7 +58,7 @@ function PendingItem({ d, sameAs }: { d: DeviceRow; sameAs: string[] }) {
   )
 }
 
-/** S-INV-3, #849 "To review": devices found by a scan or by listening and not approved yet; approve, ignore (D-628) or remove.
+/** S-INV-3, #849 "To review": devices found by a scan or by listening and not approved yet; approve, ignore (D-630) or remove.
  *  The switch "notify me about new devices". `items` is the list after the search; `total` before it. */
 export function PendingPanel({ items, total, notifyNew, notifyAvailable, search, filtered, onClear, sameAs }: {
   items: DeviceRow[]; total: number; notifyNew: boolean; notifyAvailable: boolean; search?: ReactNode; filtered?: boolean; onClear?: () => void

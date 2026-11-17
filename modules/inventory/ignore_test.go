@@ -9,7 +9,7 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// D-628 (kien 2026-11-17: "some devices need no watching, a staff phone"): Ignore keeps a device known but unwatched. The N100's
+// D-630 (kien 2026-11-17: "some devices need no watching, a staff phone"): Ignore keeps a device known but unwatched. The N100's
 // "iPhone" at 192.168.18.129 with its private MAC.
 const phoneMAC = "c2:31:86:3f:8c:a0"
 
@@ -34,7 +34,7 @@ func ids(l inventory.DeviceList) []string {
 	return out
 }
 
-func TestContract_D628_AnIgnoredDeviceIsKnownButNotWatched(t *testing.T) {
+func TestContract_D630_AnIgnoredDeviceIsKnownButNotWatched(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.confirmScope("192.168.18.0/24")
@@ -137,6 +137,9 @@ func TestContract_D628_AnIgnoredDeviceIsKnownButNotWatched(t *testing.T) {
 	if up := e.ev.named(inventory.EventAssetUpdated); len(up) != 1 || !up[0].Data.(inventory.AssetEvent).Match || !up[0].Data.(inventory.AssetEvent).ScanOn {
 		t.Fatalf("undo events: %+v", up)
 	}
+	if un := e.ev.named(inventory.EventAssetUnignored); len(un) != 1 || un[0].Data.(inventory.AssetEvent) != (inventory.AssetEvent{AssetID: id, Actor: who}) {
+		t.Fatalf("undo publishes unignored (findings reopens what Ignore closed): %+v", un)
+	}
 	if e.count(`SELECT count(*) FROM core_audit WHERE action = 'inventory.unignore'`) != 1 {
 		t.Fatal("no audit row for the undo")
 	}
@@ -152,7 +155,7 @@ func TestContract_D628_AnIgnoredDeviceIsKnownButNotWatched(t *testing.T) {
 }
 
 // An approved device a person ignores (from its page) and then stops ignoring goes through review again; the box cannot be ignored.
-func TestContract_D628_UndoSendsAnApprovedDeviceBackToReview(t *testing.T) {
+func TestContract_D630_UndoSendsAnApprovedDeviceBackToReview(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.record(obs(netip.MustParseAddr("192.168.18.20"), macA, observe.Hostname, "laptop-ha", observe.Passive, 0.7))
@@ -181,7 +184,7 @@ func TestContract_D628_UndoSendsAnApprovedDeviceBackToReview(t *testing.T) {
 }
 
 // An osquery enrolment never approves a device a person ignored: a person's choice wins, as a suspicious mark does (INV-25).
-func TestContract_D628_AnOsqueryEnrolmentDoesNotApproveAnIgnoredDevice(t *testing.T) {
+func TestContract_D630_AnOsqueryEnrolmentDoesNotApproveAnIgnoredDevice(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	ip := netip.MustParseAddr("192.168.18.30")

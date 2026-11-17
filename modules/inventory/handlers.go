@@ -53,7 +53,7 @@ func fail(err error) error {
 
 // InventoryGetInventoryDevices implements GET /inventory/devices (viewer): the devices the search keeps (#849).
 func (h *Handlers) InventoryGetInventoryDevices(ctx context.Context, p oas.InventoryGetInventoryDevicesParams) (*oas.InventoryGetInventoryDevicesOK, error) {
-	f, err := ParseDeviceFilter(string(p.Approved.Value), string(p.Fragile.Value), string(p.HasFindings.Value), string(p.Ignored.Value), p.Type.Value, p.Source.Value, p.Q.Value)
+	f, err := ParseDeviceSearch(string(p.Approved.Value), string(p.Fragile.Value), string(p.HasFindings.Value), string(p.Ignored.Value), p.Type.Value, p.Source.Value, p.Risk.Value, p.Q.Value)
 	if err != nil {
 		return nil, err
 	}
@@ -279,7 +279,7 @@ func (h *Handlers) InventoryGetInventoryExportCsv(ctx context.Context, p oas.Inv
 	if err != nil {
 		return oas.InventoryGetInventoryExportCsvOK{}, err
 	}
-	f, err := ParseDeviceFilter(string(p.Approved.Value), string(p.Fragile.Value), string(p.HasFindings.Value), string(p.Ignored.Value), p.Type.Value, p.Source.Value, p.Q.Value)
+	f, err := ParseDeviceSearch(string(p.Approved.Value), string(p.Fragile.Value), string(p.HasFindings.Value), string(p.Ignored.Value), p.Type.Value, p.Source.Value, p.Risk.Value, p.Q.Value)
 	if err != nil {
 		return oas.InventoryGetInventoryExportCsvOK{}, err
 	}

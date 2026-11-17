@@ -26718,6 +26718,10 @@ func (s *Server) handleInventoryGetInventoryDevicesRequest(args [0]string, argsE
 					In:   "query",
 				}: params.HasFindings,
 				{
+					Name: "risk",
+					In:   "query",
+				}: params.Risk,
+				{
 					Name: "q",
 					In:   "query",
 				}: params.Q,
@@ -27024,6 +27028,10 @@ func (s *Server) handleInventoryGetInventoryExportCsvRequest(args [0]string, arg
 					Name: "has_findings",
 					In:   "query",
 				}: params.HasFindings,
+				{
+					Name: "risk",
+					In:   "query",
+				}: params.Risk,
 				{
 					Name: "q",
 					In:   "query",

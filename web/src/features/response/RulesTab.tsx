@@ -24,6 +24,8 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import type { EventView, Rule, RuleInput, Simulation } from './types'
 import { useFrozen } from './frozen'
+import { riskWord } from '@/features/inventory/RiskMarker'
+import type { DeviceRisk } from '@/features/inventory/types'
 
 const toInput = (r: Rule): RuleInput => ({ name: r.name, enabled: r.enabled, live: r.live, trigger: r.trigger, match: r.match, conditions: r.conditions, actions: r.actions, pre_approved: r.pre_approved, max_per_hour: r.max_per_hour, schedule_min: r.schedule_min })
 const mins = (m: number) => (m >= 1440 && m % 1440 === 0 ? `${m / 1440} d` : m >= 60 ? `${Math.round((m / 60) * 10) / 10} h` : `${m} min`)
@@ -49,13 +51,13 @@ function LiveDialog({ rule, onClose }: { rule: Rule; onClose: () => void }) {
 function ManualRun({ rule }: { rule: Rule }) {
   const { t } = useTranslation('response')
   const operator = useCan('operator')
-  const assets = useQuery({ queryKey: ['inventory', 'devices', 'pick'], queryFn: () => api.get<{ items: { id: string; ip: string; hostname: string | null; name: string | null }[] }>('/inventory/devices') })
+  const assets = useQuery({ queryKey: ['inventory', 'devices', 'pick'], queryFn: () => api.get<{ items: { id: string; ip: string; hostname: string | null; name: string | null; risk: DeviceRisk | null }[] }>('/inventory/devices') })
   const run = useRunManual()
   const [asset, setAsset] = useState('')
   return (
     <div className="flex flex-wrap items-end gap-2">
       <Field htmlFor={`man-${rule.id}`} label={t('rules.manualPick')} className="min-w-56">
-        <Select id={`man-${rule.id}`} value={asset} onChange={(e) => setAsset(e.target.value)}><option value="">{t('rules.manualChoose')}</option>{(assets.data?.items ?? []).map((a) => <option key={a.id} value={a.id}>{a.name ?? a.hostname ?? a.ip} ({a.ip})</option>)}</Select>
+        <Select id={`man-${rule.id}`} value={asset} onChange={(e) => setAsset(e.target.value)}><option value="">{t('rules.manualChoose')}</option>{(assets.data?.items ?? []).map((a) => <option key={a.id} value={a.id}>{a.name ?? a.hostname ?? a.ip} ({[a.ip, riskWord(t, a.risk)].filter(Boolean).join(', ')})</option>)}</Select>
       </Field>
       <Button disabled={!operator || !asset || !rule.enabled} busy={run.isPending} busyLabel={t('common:busy.running')} title={!rule.enabled ? t('rules.manualOff') : undefined}
         onClick={() => run.mutate({ id: rule.id, asset_id: asset }, { onSuccess: (r) => toast.success(t('det.ran', r)), onError: (e) => toast.error(errText(e)) })}><Play className="size-4" aria-hidden />{t('rules.manualRun')}</Button>

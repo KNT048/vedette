@@ -4,8 +4,11 @@ import (
 	"cmp"
 	"context"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
+	"sync"
+	"time"
 )
 
 // ToFixLimit is how many devices GET /findings/to-fix lists at most (the most urgent first); Truncated says more had something.
@@ -41,15 +44,34 @@ func (d DeviceUpdates) actionable() []UpdateAction {
 // ToFix lists every device with open findings or recommended updates, the most urgent first (urgency); assetID "" for every device,
 // else that one only (the device's Software tab and findings panel). feedsOn as for DeviceUpdates.
 //
-// Cost (review r1 of #943): one pass over the findings and one over the plan rank every device cheaply (preRank: its worst open
-// severity, ransomware, open findings; then its plan); only the ToFixLimit first get the per-device work (MatchInput, MatchAsset,
-// RowFixes), so the page never pays it for more than ToFixLimit devices, and Truncated says more had something.
+// Cost (review r2 of #949): every device's classification (the per-device work: MatchInput, MatchAsset, RowFixes) is computed once
+// and cached until a finding is written (gen), the plan changes (plan.ver), the feeds switch moves or riskTTL passes (classified); the
+// page shows the ToFixLimit most urgent of them and says Truncated when there were more. The risk marker reads the same cached
+// classification (RiskMap), so the two never disagree, whatever the number of devices.
 func (s *Service) ToFix(ctx context.Context, feedsOn bool, assetID string) (ToFix, error) {
 	return s.toFix(ctx, feedsOn, assetID, ToFixLimit)
 }
 
-// toFix is ToFix with the cap as a parameter (the tests use a small one).
+// toFix is ToFix with the display cap as a parameter (the tests use a small one).
 func (s *Service) toFix(ctx context.Context, feedsOn bool, assetID string, limit int) (ToFix, error) {
+	if assetID != "" {
+		return s.classify(ctx, feedsOn, assetID)
+	}
+	all, err := s.classified(ctx, feedsOn)
+	if err != nil {
+		return ToFix{}, err
+	}
+	out := all.tf
+	if len(out.Devices) > limit {
+		out.Devices, out.Truncated = out.Devices[:limit], true
+	}
+	return out, nil
+}
+
+// classify is To fix's classification (assetID "": every device, no cap; else that one): per device, its open findings grouped by
+// their update and proof (exploitedUpdates) and its plan items, the most urgent first. The one place the rule lives: To fix's page,
+// its cards and the risk marker (RiskOf) all read it.
+func (s *Service) classify(ctx context.Context, feedsOn bool, assetID string) (ToFix, error) {
 	recs, err := s.List(ctx, assetID)
 	if err != nil {
 		return ToFix{}, err
@@ -61,45 +83,27 @@ func (s *Service) toFix(ctx context.Context, feedsOn bool, assetID string, limit
 		}
 	}
 	out := ToFix{PlanOff: !feedsOn}
-	plan := map[string]planRank{} // device -> what its plan items weigh, as urgency reads them
+	seen := map[string]bool{}
+	for id := range open {
+		seen[id] = true
+	}
 	if feedsOn {
 		s.plan.mu.RLock()
 		out.PlanRan = s.plan.ran
 		for id, d := range s.plan.devices {
-			if len(d.items) == 0 || (assetID != "" && id != assetID) {
-				continue
+			if len(d.items) > 0 && (assetID == "" || id == assetID) {
+				seen[id] = true
 			}
-			var p planRank
-			for _, it := range d.items {
-				for _, c := range it.CVEs {
-					p.cves++
-					if c.Tier == "likely" {
-						p.likely++
-					}
-					if c.Severity != nil {
-						p.worst = max(p.worst, sevRank(Severity(*c.Severity)))
-					}
-				}
-			}
-			plan[id] = p
 		}
 		s.plan.mu.RUnlock()
 	}
 	var vulns []Vuln
-	ransom := map[string]bool{}
 	if len(open) > 0 {
 		if vulns, err = s.cfg.Feeds.Vulns(ctx); err != nil {
 			return ToFix{}, fmt.Errorf("findings: to fix: reading the exploited list: %w", err)
 		}
-		for _, v := range vulns {
-			ransom[v.CVE] = v.Ransomware
-		}
 	}
-	ids := preRank(open, plan, ransom)
-	if len(ids) > limit {
-		ids, out.Truncated = ids[:limit], true
-	}
-	for _, id := range ids {
+	for _, id := range slices.Sorted(maps.Keys(seen)) {
 		a, ok, err := s.cfg.Inventory.MatchInput(ctx, id)
 		if err != nil {
 			return ToFix{}, fmt.Errorf("findings: to fix: reading device %s: %w", id, err)
@@ -125,65 +129,52 @@ func (s *Service) toFix(ctx context.Context, feedsOn bool, assetID string, limit
 	return out, nil
 }
 
+// classifiedCache is the last classification of every device (classify with assetID "") and the risk map read from it, with the key
+// they were computed under.
+type classifiedCache struct {
+	mu      sync.Mutex
+	gen     uint64
+	planVer uint64
+	feedsOn bool
+	at      time.Time
+	tf      ToFix
+	risk    map[string]AssetRisk
+}
+
+// classified is classify for every device, cached until a finding is written (gen), the plan changes (plan.ver), the feeds switch
+// moves or riskTTL passes. The key is read before the work, so a change during it is computed again at the next call. The answer is
+// shared: read it, never change it.
+func (s *Service) classified(ctx context.Context, feedsOn bool) (*classifiedCache, error) {
+	gen := s.gen.Load()
+	s.plan.mu.RLock()
+	planVer := s.plan.ver
+	s.plan.mu.RUnlock()
+	now := s.now()
+	c := &s.toFixCache
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.risk != nil && c.gen == gen && c.planVer == planVer && c.feedsOn == feedsOn && now.Sub(c.at) < riskTTL && now.Sub(c.at) >= 0 {
+		return c, nil
+	}
+	tf, err := s.classify(ctx, feedsOn, "")
+	if err != nil {
+		return nil, err
+	}
+	risk := map[string]AssetRisk{}
+	for _, d := range tf.Devices {
+		if r := RiskOf(d); r != (AssetRisk{}) {
+			risk[d.AssetID] = r
+		}
+	}
+	c.gen, c.planVer, c.feedsOn, c.at, c.tf, c.risk = gen, planVer, feedsOn, now, tf, risk
+	return c, nil
+}
+
 // sortByUrgency orders devices the most urgent first (urgent.compare), ties by id.
 func sortByUrgency(ds []DeviceUpdates) {
 	slices.SortStableFunc(ds, func(p, q DeviceUpdates) int {
 		return cmp.Or(urgency(q).compare(urgency(p)), strings.Compare(p.AssetID, q.AssetID))
 	})
-}
-
-// planRank is what a device's plan items weigh: their worst severity, likely CVEs and CVEs (urgency's plan keys).
-type planRank struct{ worst, likely, cves int }
-
-// preRank orders the devices from what is read without the per-device work, by the same keys as urgency (review r2 of #943): first
-// whether the device has something to fix (an open finding the box proved or can name an update for: any basis but a product-only
-// match, or the agent's evidence), then that part's worst severity, ransomware, proved findings and CVEs; then its plan's worst
-// severity, likely CVEs and CVEs; ties by id. A device with only product-only guesses (To fix does not list it) never pushes out one
-// with something to fix.
-func preRank(open map[string][]Record, plan map[string]planRank, ransom map[string]bool) []string {
-	type pre struct {
-		id                              string
-		act, worst, ransomware, n, cves int
-		plan                            planRank
-	}
-	seen := map[string]*pre{}
-	for id, rs := range open {
-		p := &pre{id: id, plan: plan[id]}
-		for _, r := range rs {
-			if r.Basis == BasisProduct && (r.Evidence == nil || !r.Evidence.Agent) {
-				continue // a product-only match: no update is named, nothing proved (Needs your input)
-			}
-			p.act = 1
-			p.worst = max(p.worst, sevRank(r.Severity))
-			if ransom[r.CVE] {
-				p.ransomware++
-			}
-			if r.Basis == BasisScan || (r.Evidence != nil && r.Evidence.Agent) {
-				p.n++
-			}
-			p.cves++
-		}
-		seen[id] = p
-	}
-	for id, pl := range plan {
-		if seen[id] == nil {
-			seen[id] = &pre{id: id, plan: pl}
-		}
-	}
-	list := make([]*pre, 0, len(seen))
-	for _, p := range seen {
-		list = append(list, p)
-	}
-	slices.SortFunc(list, func(p, q *pre) int {
-		return cmp.Or(cmp.Compare(q.act, p.act), cmp.Compare(q.worst, p.worst), cmp.Compare(q.ransomware, p.ransomware), cmp.Compare(q.n, p.n),
-			cmp.Compare(q.cves, p.cves), cmp.Compare(q.plan.worst, p.plan.worst), cmp.Compare(q.plan.likely, p.plan.likely), cmp.Compare(q.plan.cves, p.plan.cves),
-			strings.Compare(p.id, q.id))
-	})
-	ids := make([]string, len(list))
-	for i, p := range list {
-		ids[i] = p.id
-	}
-	return ids
 }
 
 // urgent is how urgent a device is: what it has to fix (exploited, proved or with a named update) before what it may plan.

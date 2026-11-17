@@ -2477,7 +2477,7 @@ describe('inventory: G2 rename a device (S-INV-1)', () => {
     expect((await call('PATCH', '/devices/a-nas02', { name: 'Photo NAS' })).status).toBe(200)
     const csv = (await call('GET', '/export.csv')).text
     expect(csv).toContain('last_seen,name_in_vedette')
-    expect(csv).toMatch(/\r\nNAS-PHOTOS,[^\r]*,Photo NAS\r\n/)
+    expect(csv).toMatch(/\r\nNAS-PHOTOS,[^\r]*,Photo NAS,[^,\r]*\r\n/)
     const r = await call('POST', '/import', { filename: 'x.csv', size: 1, sha256: 'x', text: 'name,ip,name_in_vedette\nfw-core,192.168.77.1,Office firewall\n' })
     expect(r.json!.created).toBe(1)
     const a = assetsStore.get().find((x) => x.ip === '192.168.77.1')!

@@ -77,7 +77,9 @@ func (h *FeedHandlers) FeedsPutFeedsSourcesID(ctx context.Context, req *oas.Feed
 			if err := CheckDest(v, h.s.boxAddrs()); err != nil {
 				return apiError(err)
 			}
-			if isBYOK(cur.ID) && v != *cur.DefaultURL { // VulnCheck has no mirror: the key must not follow a typo to another host
+			// VulnCheck has no mirror: the key must not follow a typo to another host. Microsoft's release pages have none either, and what
+			// they say decides Windows verdicts (D-603, review r1 M2 of #951)
+			if (isBYOK(cur.ID) || cur.ID == winRelFeedID) && v != *cur.DefaultURL {
 				return apierr.New(http.StatusBadRequest, "invalid_url", "This feed has no mirror: its address cannot be changed.")
 			}
 			if cur.ID == "first-epss" && strings.ContainsAny(v, "?#") { // EPSSBatchURLs adds the query itself

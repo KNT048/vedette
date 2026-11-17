@@ -12,14 +12,14 @@ import type { ToFix, ToFixAction, ToFixDevice } from './types'
 const T = { timeout: 5000 }
 const act = (o: Partial<ToFixAction>): ToFixAction => ({ group: 'g', software_id: '', software: '', version: '', product: '', source: '', fixed: '', kind: 'fixed', windows: false, distro: '', pro: false, action: '',
   cves: [], finding_ids: [], worst: 'high', ransomware: 0, likely: 0, confirmed: 0, detected: 1, reported: 0, suspected: 0, ...o })
-const dev = (id: string, name: string, o: Partial<ToFixDevice>): ToFixDevice => ({ asset: { id, name, hostname: name, ip: '192.168.18.10', kind: 'pc', display: 'Windows 11' }, open: 0, exploited: [], no_update: [], planned: [], plan_compared: true, ...o })
+const dev = (id: string, name: string, o: Partial<ToFixDevice>): ToFixDevice => ({ asset: { id, name, hostname: name, ip: '192.168.18.10', kind: 'pc', display: 'Windows 11' }, risk: null, open: 0, exploited: [], no_update: [], planned: [], plan_compared: true, ...o })
 const winUpdate = act({ group: 'a-pc/s-win', software_id: 's-win', software: 'Windows 11 Pro', version: '10.0.26100.1742', fixed: '10.0.26100.33650', windows: true,
   action: 'Install the latest cumulative update for Windows 11 Pro (build 26100.33650 or later)', cves: ['CVE-2026-1001', 'CVE-2026-1002', 'CVE-2026-1003'], finding_ids: ['f-a', 'f-b', 'f-c'], worst: 'critical', ransomware: 1, detected: 3 })
 const winrar = (devId: string, name = 'RARLAB WinRAR') => act({ group: `${devId}/s-rar`, software_id: 's-rar', software: name, product: 'rarlab|winrar', version: '7.01', fixed: '7.13', action: 'Upgrade RARLAB WinRAR from 7.01 to 7.13 or later', cves: ['CVE-2025-6218', 'CVE-2025-8088'], finding_ids: ['f-r1', 'f-r2'], worst: 'high', detected: 2 })
 const firefox = act({ group: 'a-desk/s-ff', software_id: 's-ff', software: 'Mozilla Firefox', version: '152.0', fixed: '157.0.1', action: 'Upgrade Mozilla Firefox from 152.0 to 157.0.1 or later', cves: Array.from({ length: 228 }, (_, i) => `CVE-2026-${20000 + i}`), worst: 'critical', likely: 3, detected: 0 })
 const unprovedWin = act({ group: 'a-desk/s-w', software_id: 's-w', software: 'Windows 11 Pro', version: '10.0.26300.9974', kind: 'none', action: "No update is named that fixes these: follow the vendor's advice for Windows 11 Pro",
   cves: ['CVE-2002-0367', 'CVE-2016-3427'], finding_ids: ['f-u1', 'f-u2'], worst: 'medium', detected: 0, reported: 2 })
-const sample: ToFix = { truncated: false, plan_ran: true, plan_off: false, devices: [
+const sample: ToFix = { truncated: false, plan_ran: true, plan_off: false, risks: {}, devices: [
   dev('a-pc', 'PC-A', { open: 3, exploited: [winUpdate] }),
   dev('a-desk', 'DESKTOP-55UKKFV', { open: 4, exploited: [winrar('a-desk')], no_update: [unprovedWin], planned: [firefox] }),
   dev('a-lap', 'LAPTOP-B', { open: 2, exploited: [winrar('a-lap', 'WinRAR 7.01 (64-bit)')] }), // the same product under another name: one By fix row

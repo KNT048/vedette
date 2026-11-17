@@ -415,7 +415,9 @@ func ipOwner(ctx context.Context, q querier, ip string) (string, error) {
 // ExportCSV writes the devices f keeps (the Devices search, #849; the zero filter: all) as CSV, UTF-8 with a BOM so Excel opens it
 // right (INV-13). Values that start like a formula are defused (csvCell).
 func (s *Service) ExportCSV(ctx context.Context, actor string, f DeviceFilter) (io.Reader, error) {
-	items, err := s.filtered(ctx, s.db.Reader(), f, 0, false) // the CSV has no sources column
+	// the CSV has no sources column; its risk column (G4) says what the marker says; when the markers cannot be read it is empty, and a
+	// risk filter is 503 risk_unavailable (filtered), never every device
+	items, _, err := s.filtered(ctx, s.db.Reader(), f, 0, false, true)
 	if err != nil {
 		return nil, err
 	}
@@ -423,7 +425,7 @@ func (s *Service) ExportCSV(ctx context.Context, actor string, f DeviceFilter) (
 	b.WriteString(bom)
 	// name is the host name (seen on the network, or typed when the device was added); name_in_vedette the name a person gave it (G2).
 	// Import reads both back the same way.
-	b.WriteString("name,ip,mac,kind,vendor,model,os,software,approved,fragile,origin,source,confidence,last_seen,name_in_vedette\r\n")
+	b.WriteString("name,ip,mac,kind,vendor,model,os,software,approved,fragile,origin,source,confidence,last_seen,name_in_vedette,risk\r\n")
 	for i := range items {
 		d := &items[i]
 		sum := d.Summary
@@ -443,7 +445,7 @@ func (s *Service) ExportCSV(ctx context.Context, actor string, f DeviceFilter) (
 		if sum != nil {
 			src, conf = sum.Source, strconv.FormatFloat(sum.Confidence, 'f', 2, 64)
 		}
-		cells := []string{deref(d.Hostname), ip, deref(d.MAC), d.Kind, obsValue(d.Vendor), obsValue(d.Model), obsValue(d.OS), strings.Join(sw, "; "), yesNo(d.Approved), yesNo(d.Fragile), d.Origin, src, conf, d.LastSeen, deref(d.UserName)}
+		cells := []string{deref(d.Hostname), ip, deref(d.MAC), d.Kind, obsValue(d.Vendor), obsValue(d.Model), obsValue(d.OS), strings.Join(sw, "; "), yesNo(d.Approved), yesNo(d.Fragile), d.Origin, src, conf, d.LastSeen, deref(d.UserName), riskWords(d.Risk)}
 		for j, c := range cells {
 			if j > 0 {
 				b.WriteByte(',')

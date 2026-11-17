@@ -220,7 +220,7 @@ func TestContract_G2_CSVKeepsBothNames(t *testing.T) {
 	}
 	raw, _ := io.ReadAll(rd)
 	lines := strings.Split(strings.TrimPrefix(string(raw), "\ufeff"), "\r\n")
-	if !strings.HasPrefix(lines[0], "name,ip,") || !strings.HasSuffix(lines[0], ",name_in_vedette") {
+	if !strings.HasPrefix(lines[0], "name,ip,") || !strings.HasSuffix(lines[0], ",name_in_vedette,risk") {
 		t.Fatalf("header = %q", lines[0])
 	}
 	var row string
@@ -229,7 +229,7 @@ func TestContract_G2_CSVKeepsBothNames(t *testing.T) {
 			row = l
 		}
 	}
-	if !strings.HasPrefix(row, "fw-core,192.168.18.1,") || !strings.HasSuffix(row, ",Office firewall") {
+	if !strings.HasPrefix(row, "fw-core,192.168.18.1,") || !strings.HasSuffix(row, ",Office firewall,") {
 		t.Fatalf("row = %q", row)
 	}
 	// Imported on a fresh box: the host name is fw-core (typed), the name in Vedette "Office firewall".

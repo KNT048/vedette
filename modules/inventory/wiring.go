@@ -21,6 +21,7 @@ type DeviceRef struct {
 	ID       string
 	Hostname *string // the host name the network reports (observations)
 	UserName *string // the name a person gave the device in Vedette (G2); nil = none
+	IsBox    bool    // the Vedette box itself (G4: never given a risk marker)
 	IP       string  // "—" when unknown, like the API
 	MAC      string  // "" when unknown
 	Vendor   string  // the current vendor value, "" when none
@@ -34,7 +35,9 @@ type DeviceRef struct {
 	ApprovedAt *time.Time
 }
 
-// DeviceRefs returns the devices with these ids; unknown ids are absent.
+// DeviceRefs returns the devices with these ids; unknown ids are absent. An ignored device is present (INV-38): findings' reconcile
+// (its orphan pass, through cmd/vedette findingsInventory.Assets) relies on it to keep an ignored device's findings and the decisions
+// on them when the ignored list cannot be read. Never filter ignored rows out here.
 func (s *Service) DeviceRefs(ctx context.Context, ids []string) (map[string]DeviceRef, error) {
 	out := make(map[string]DeviceRef, len(ids))
 	for chunk := range slices.Chunk(ids, 400) {
@@ -42,7 +45,7 @@ func (s *Service) DeviceRefs(ctx context.Context, ids []string) (map[string]Devi
 		for i, id := range chunk {
 			args[i] = id
 		}
-		rows, err := s.db.Reader().QueryContext(ctx, `SELECT a.id, a.hostname, a.user_name, a.ip, a.mac, a.vendor, a.kind, a.approved, a.model, a.origin, a.approved_at, a.os,
+		rows, err := s.db.Reader().QueryContext(ctx, `SELECT a.id, a.hostname, a.user_name, a.is_box, a.ip, a.mac, a.vendor, a.kind, a.approved, a.model, a.origin, a.approved_at, a.os,
 			(SELECT display FROM inv_software WHERE asset_id = a.id ORDER BY display, id LIMIT 1)
 			FROM inv_asset a WHERE a.id IN (?`+strings.Repeat(`, ?`, len(chunk)-1)+`)`, args...)
 		if err != nil {
@@ -51,7 +54,7 @@ func (s *Service) DeviceRefs(ctx context.Context, ids []string) (map[string]Devi
 		for rows.Next() {
 			var d DeviceRef
 			var host, userName, ip, mac, vendor, model, approvedAt, osName, display sql.NullString
-			if err := rows.Scan(&d.ID, &host, &userName, &ip, &mac, &vendor, &d.Kind, &d.Approved, &model, &d.Origin, &approvedAt, &osName, &display); err != nil {
+			if err := rows.Scan(&d.ID, &host, &userName, &d.IsBox, &ip, &mac, &vendor, &d.Kind, &d.Approved, &model, &d.Origin, &approvedAt, &osName, &display); err != nil {
 				_ = rows.Close()
 				return nil, fmt.Errorf("inventory: read devices: %w", err)
 			}

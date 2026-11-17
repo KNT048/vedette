@@ -74,7 +74,8 @@
     "false_positive": "{{device}}: {{cve}} marked as false positive",
     "not_relevant": "{{device}}: {{cve}} marked as not relevant",
     "risk_accepted": "{{device}}: {{cve}} risk accepted until {{date}}",
-    "agent": "{{device}} has {{cve}}: its agent reports an affected version"
+    "agent": "{{device}} has {{cve}}: its agent reports an affected version",
+    "agentLast": "{{device}} has {{cve}}: an agent last reported an affected version"
   },
   "meta": {
     "ransomware": "Used by ransomware",

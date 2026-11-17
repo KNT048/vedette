@@ -976,6 +976,13 @@ describe('findings: one update, one item; the agent\'s build is a detection (TUN
     expect(screen.getByText(/^Nothing to look up: the agent on SRV-AD reports the installed version/)).toBeInTheDocument()
     expect(screen.queryByText(/About screen/)).toBeNull()
     cleanup()
+    // no agent of the box reports the device now: the title says the version is the last one an agent reported
+    modulesStore.update((l) => l.map((m) => (m.id === 'agent-intake' ? { ...m, enabled: true } : m)))
+    server.use(http.get('*/api/v1/inventory/agents/devices/:id/report', () =>
+      HttpResponse.json({ agent: 'none', asked_at: null, ask_again_at: null, last_seen: null, stale: false, wazuh_interval_minutes: null })))
+    renderApp('/findings/f-9')
+    expect(await screen.findByRole('heading', { level: 1, name: 'SRV-AD has CVE-2024-43451: an agent last reported an affected version' })).toBeInTheDocument()
+    cleanup()
     renderApp('/devices/a-srvad')
     // The device page shows the same To fix card as Findings (one grouping), no warning box
     const todo = await screen.findByRole('list', { name: 'What to do on this device' })

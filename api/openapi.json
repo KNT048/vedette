@@ -39723,6 +39723,14 @@
                             "type": "boolean",
                             "description": "distro only: `fixed` is in Ubuntu Pro (ESM) only; false otherwise"
                           },
+                          "nvd_lag": {
+                            "type": "boolean",
+                            "description": "windows, esu: `fixed` is the newest monthly update Microsoft's release information lists for the release, newer than the update that carries every fixed build NVD names for these CVEs. The item fixes at least `cves`; the newest update's CVEs are not yet analysed by NVD, so the page says \"at least\". false otherwise"
+                          },
+                          "kb": {
+                            "type": "string",
+                            "description": "windows, esu: the KB number of `fixed` when Microsoft's release information lists that build (\"KB5131080\"), named next to the build; \"\" otherwise"
+                          },
                           "cves": {
                             "minItems": 1,
                             "type": "array",
@@ -39864,6 +39872,8 @@
                           "fixed",
                           "kind",
                           "pro",
+                          "nvd_lag",
+                          "kb",
                           "cves",
                           "likely",
                           "recent",
@@ -40904,6 +40914,14 @@
                                   "minimum": -9007199254740991,
                                   "maximum": 9007199254740991,
                                   "description": "How each exploited finding is known: confirmed by a scan, detected from a version the device reported, reported but not compared, suspected from the network"
+                                },
+                                "kb": {
+                                  "type": "string",
+                                  "description": "A Windows update: the KB number of `fixed` when Microsoft's release information lists that build; \"\" otherwise"
+                                },
+                                "nvd_lag": {
+                                  "type": "boolean",
+                                  "description": "Planned Windows updates: PlanItem.nvd_lag (it fixes at least `cves`; the newest update's CVEs are not yet analysed by NVD); false otherwise"
                                 }
                               },
                               "required": [
@@ -40927,7 +40945,9 @@
                                 "confirmed",
                                 "detected",
                                 "reported",
-                                "suspected"
+                                "suspected",
+                                "kb",
+                                "nvd_lag"
                               ],
                               "additionalProperties": false
                             },
@@ -41040,6 +41060,14 @@
                                   "minimum": -9007199254740991,
                                   "maximum": 9007199254740991,
                                   "description": "How each exploited finding is known: confirmed by a scan, detected from a version the device reported, reported but not compared, suspected from the network"
+                                },
+                                "kb": {
+                                  "type": "string",
+                                  "description": "A Windows update: the KB number of `fixed` when Microsoft's release information lists that build; \"\" otherwise"
+                                },
+                                "nvd_lag": {
+                                  "type": "boolean",
+                                  "description": "Planned Windows updates: PlanItem.nvd_lag (it fixes at least `cves`; the newest update's CVEs are not yet analysed by NVD); false otherwise"
                                 }
                               },
                               "required": [
@@ -41063,7 +41091,9 @@
                                 "confirmed",
                                 "detected",
                                 "reported",
-                                "suspected"
+                                "suspected",
+                                "kb",
+                                "nvd_lag"
                               ],
                               "additionalProperties": false
                             },
@@ -41176,6 +41206,14 @@
                                   "minimum": -9007199254740991,
                                   "maximum": 9007199254740991,
                                   "description": "How each exploited finding is known: confirmed by a scan, detected from a version the device reported, reported but not compared, suspected from the network"
+                                },
+                                "kb": {
+                                  "type": "string",
+                                  "description": "A Windows update: the KB number of `fixed` when Microsoft's release information lists that build; \"\" otherwise"
+                                },
+                                "nvd_lag": {
+                                  "type": "boolean",
+                                  "description": "Planned Windows updates: PlanItem.nvd_lag (it fixes at least `cves`; the newest update's CVEs are not yet analysed by NVD); false otherwise"
                                 }
                               },
                               "required": [
@@ -41199,7 +41237,9 @@
                                 "confirmed",
                                 "detected",
                                 "reported",
-                                "suspected"
+                                "suspected",
+                                "kb",
+                                "nvd_lag"
                               ],
                               "additionalProperties": false
                             },

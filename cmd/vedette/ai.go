@@ -1038,7 +1038,7 @@ func (a aiAsk) DeviceUpdates(ctx context.Context, assetID string) (ai.DeviceUpda
 		out := make([]ai.UpdateRow, len(us))
 		for i, x := range us {
 			out[i] = ai.UpdateRow{Action: x.Action, Software: x.Software, Version: x.Version, Fixed: x.Fixed, CVEs: x.CVEs, Worst: x.Worst, Ransomware: x.Ransomware,
-				Likely: x.Likely, Confirmed: x.Confirmed, Detected: x.Detected, Reported: x.Reported, Suspected: x.Suspected}
+				Likely: x.Likely, Confirmed: x.Confirmed, Detected: x.Detected, Reported: x.Reported, Suspected: x.Suspected, NVDLag: x.NVDLag}
 		}
 		return out
 	}

@@ -41,7 +41,8 @@
 - **core/winrel** (`Learn`): mọi bản `winRelReleases` suy ra đi vào `ByBuild`/`ByProduct`/`Releases` sau bảng tay. Đổi cách đặt tên NVD, line hay GA ⇒ đổi dòng hệ điều hành mà agent-intake `windowsRow` ghi (CPE `windows_11_26h2`) và cách findings `windowsDecide` đọc hàng NVD (anh em cùng line, luật tháng, bằng chứng "ra sau khi CISA liệt kê" theo GA). Line sai = so revision với line khác: chỉ gán line khi cùng KB **và** cùng revision.
 - **agent-intake**: dòng hệ điều hành của máy có build mới đổi ở lần báo kế (programs, 3600 s) từ "Windows (build 26300)" sang "Windows 11 26H2" có CPE; inventory đánh dấu, findings khớp lại máy đó.
 - **findings**: `feeds.ranges.updated` sau lượt đổi bảng; câu "could not be checked" của build không biết nói "not a Windows release Vedette knows (an Insider …)".
-- **Pháp lý/quyền riêng tư**: host `learn.microsoft.com` trong PRIVACY.md luồng 1 + Settings → Privacy (`core.json`), THIRD_PARTY_NOTICES (điều khoản Microsoft, chỉ dữ kiện).
+- **findings** (`winLatest`): bản vá hằng tháng (`parseWinRelUpdates`, `feeds_winrel_update` → `core/winrel.LearnUpdates`/`Updates`) là build đích của mục kế hoạch Windows, `RowFix` và `ToFixAction` khi mới hơn build vá của NVD, và `nvd_lag` ("fixes at least N CVEs"). Đổi loại hàng giữ (chỉ `B`), cách gán build hay server/client ⇒ build đích đổi (`TestParseWinRelUpdates`, `TestWinRelPull_MonthlyUpdates`, findings `TestPlan_WindowsTargetIsMicrosoftsNewestUpdate`). `TierStamp` có `windows-releases`: mỗi lượt kéo (một lần/ngày) cho findings một lượt so đầy đủ.
+- **Pháp lý/quyền riêng tư**: host `learn.microsoft.com` (ba trang: Windows 11, Windows Server, Windows 10) trong PRIVACY.md luồng 1 + Settings → Privacy (`core.json`), THIRD_PARTY_NOTICES (điều khoản Microsoft, chỉ dữ kiện).
 
 ## Modifying: feeds `ubuntu-osv`, `ubuntu-vex`, `debian-tracker`, `ParseUbuntuOSV`/`ParseUbuntuVEX`/`ParseDebianTracker`, `Store.DistroFixes`, `Request.Stream`
 

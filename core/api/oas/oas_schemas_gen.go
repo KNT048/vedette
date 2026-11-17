@@ -73825,12 +73825,20 @@ type FindingsGetFindingsPlanOKItemsItem struct {
 	Fixed string `json:"fixed"`
 	// "/", as RowFix.group.
 	Group string `json:"group"`
+	// Windows, esu: the KB number of `fixed` when Microsoft's release information lists that build
+	// ("KB5131080"), named next to the build; "" otherwise.
+	KB string `json:"kb"`
 	// Fixed = upgrade the software to `fixed`; distro = upgrade the Ubuntu or Debian source package
 	// `software` from `version` to `fixed` or later (the distribution's security update); windows = the
 	// monthly cumulative update with build `fixed` or later; esu = the same on a Windows release past its
 	// end of support: the update comes only with Extended Security Updates.
 	Kind   FindingsGetFindingsPlanOKItemsItemKind `json:"kind"`
 	Likely int                                    `json:"likely"`
+	// Windows, esu: `fixed` is the newest monthly update Microsoft's release information lists for the
+	// release, newer than the update that carries every fixed build NVD names for these CVEs. The item
+	// fixes at least `cves`; the newest update's CVEs are not yet analysed by NVD, so the page says "at
+	// least". false otherwise.
+	NvdLag bool `json:"nvd_lag"`
 	// Distro only: `fixed` is in Ubuntu Pro (ESM) only; false otherwise.
 	Pro    bool `json:"pro"`
 	Recent int  `json:"recent"`
@@ -73874,6 +73882,11 @@ func (s *FindingsGetFindingsPlanOKItemsItem) GetGroup() string {
 	return s.Group
 }
 
+// GetKB returns the value of KB.
+func (s *FindingsGetFindingsPlanOKItemsItem) GetKB() string {
+	return s.KB
+}
+
 // GetKind returns the value of Kind.
 func (s *FindingsGetFindingsPlanOKItemsItem) GetKind() FindingsGetFindingsPlanOKItemsItemKind {
 	return s.Kind
@@ -73882,6 +73895,11 @@ func (s *FindingsGetFindingsPlanOKItemsItem) GetKind() FindingsGetFindingsPlanOK
 // GetLikely returns the value of Likely.
 func (s *FindingsGetFindingsPlanOKItemsItem) GetLikely() int {
 	return s.Likely
+}
+
+// GetNvdLag returns the value of NvdLag.
+func (s *FindingsGetFindingsPlanOKItemsItem) GetNvdLag() bool {
+	return s.NvdLag
 }
 
 // GetPro returns the value of Pro.
@@ -73939,6 +73957,11 @@ func (s *FindingsGetFindingsPlanOKItemsItem) SetGroup(val string) {
 	s.Group = val
 }
 
+// SetKB sets the value of KB.
+func (s *FindingsGetFindingsPlanOKItemsItem) SetKB(val string) {
+	s.KB = val
+}
+
 // SetKind sets the value of Kind.
 func (s *FindingsGetFindingsPlanOKItemsItem) SetKind(val FindingsGetFindingsPlanOKItemsItemKind) {
 	s.Kind = val
@@ -73947,6 +73970,11 @@ func (s *FindingsGetFindingsPlanOKItemsItem) SetKind(val FindingsGetFindingsPlan
 // SetLikely sets the value of Likely.
 func (s *FindingsGetFindingsPlanOKItemsItem) SetLikely(val int) {
 	s.Likely = val
+}
+
+// SetNvdLag sets the value of NvdLag.
+func (s *FindingsGetFindingsPlanOKItemsItem) SetNvdLag(val bool) {
+	s.NvdLag = val
 }
 
 // SetPro sets the value of Pro.
@@ -76768,10 +76796,16 @@ type FindingsGetFindingsToFixOKDevicesItemExploitedItem struct {
 	// filter of the list), PlanItem.group of a planned one, "/" for findings no update is named for. Per
 	// device: "By fix" groups by product and release instead.
 	Group string `json:"group"`
+	// A Windows update: the KB number of `fixed` when Microsoft's release information lists that build; ""
+	// otherwise.
+	KB string `json:"kb"`
 	// None: no update is named that fixes these findings (follow the vendor's advice).
 	Kind FindingsGetFindingsToFixOKDevicesItemExploitedItemKind `json:"kind"`
 	// Planned: CVEs EPSS says are likely to be exploited soon.
-	Likely int  `json:"likely"`
+	Likely int `json:"likely"`
+	// Planned Windows updates: PlanItem.nvd_lag (it fixes at least `cves`; the newest update's CVEs are
+	// not yet analysed by NVD); false otherwise.
+	NvdLag bool `json:"nvd_lag"`
 	Pro    bool `json:"pro"`
 	// The software row's identity across devices, "vendor|product" in lower case ("" when no row matches):
 	// "By fix" groups the same update on several devices by it, whatever each device calls the row.
@@ -76836,6 +76870,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetGroup() string {
 	return s.Group
 }
 
+// GetKB returns the value of KB.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetKB() string {
+	return s.KB
+}
+
 // GetKind returns the value of Kind.
 func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetKind() FindingsGetFindingsToFixOKDevicesItemExploitedItemKind {
 	return s.Kind
@@ -76844,6 +76883,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetKind() FindingsG
 // GetLikely returns the value of Likely.
 func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetLikely() int {
 	return s.Likely
+}
+
+// GetNvdLag returns the value of NvdLag.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetNvdLag() bool {
+	return s.NvdLag
 }
 
 // GetPro returns the value of Pro.
@@ -76941,6 +76985,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetGroup(val string
 	s.Group = val
 }
 
+// SetKB sets the value of KB.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetKB(val string) {
+	s.KB = val
+}
+
 // SetKind sets the value of Kind.
 func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetKind(val FindingsGetFindingsToFixOKDevicesItemExploitedItemKind) {
 	s.Kind = val
@@ -76949,6 +76998,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetKind(val Finding
 // SetLikely sets the value of Likely.
 func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetLikely(val int) {
 	s.Likely = val
+}
+
+// SetNvdLag sets the value of NvdLag.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetNvdLag(val bool) {
+	s.NvdLag = val
 }
 
 // SetPro sets the value of Pro.
@@ -77092,10 +77146,16 @@ type FindingsGetFindingsToFixOKDevicesItemNoUpdateItem struct {
 	// filter of the list), PlanItem.group of a planned one, "/" for findings no update is named for. Per
 	// device: "By fix" groups by product and release instead.
 	Group string `json:"group"`
+	// A Windows update: the KB number of `fixed` when Microsoft's release information lists that build; ""
+	// otherwise.
+	KB string `json:"kb"`
 	// None: no update is named that fixes these findings (follow the vendor's advice).
 	Kind FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKind `json:"kind"`
 	// Planned: CVEs EPSS says are likely to be exploited soon.
-	Likely int  `json:"likely"`
+	Likely int `json:"likely"`
+	// Planned Windows updates: PlanItem.nvd_lag (it fixes at least `cves`; the newest update's CVEs are
+	// not yet analysed by NVD); false otherwise.
+	NvdLag bool `json:"nvd_lag"`
 	Pro    bool `json:"pro"`
 	// The software row's identity across devices, "vendor|product" in lower case ("" when no row matches):
 	// "By fix" groups the same update on several devices by it, whatever each device calls the row.
@@ -77160,6 +77220,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetGroup() string {
 	return s.Group
 }
 
+// GetKB returns the value of KB.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetKB() string {
+	return s.KB
+}
+
 // GetKind returns the value of Kind.
 func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetKind() FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKind {
 	return s.Kind
@@ -77168,6 +77233,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetKind() FindingsGe
 // GetLikely returns the value of Likely.
 func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetLikely() int {
 	return s.Likely
+}
+
+// GetNvdLag returns the value of NvdLag.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetNvdLag() bool {
+	return s.NvdLag
 }
 
 // GetPro returns the value of Pro.
@@ -77265,6 +77335,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetGroup(val string)
 	s.Group = val
 }
 
+// SetKB sets the value of KB.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetKB(val string) {
+	s.KB = val
+}
+
 // SetKind sets the value of Kind.
 func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetKind(val FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKind) {
 	s.Kind = val
@@ -77273,6 +77348,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetKind(val Findings
 // SetLikely sets the value of Likely.
 func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetLikely(val int) {
 	s.Likely = val
+}
+
+// SetNvdLag sets the value of NvdLag.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetNvdLag(val bool) {
+	s.NvdLag = val
 }
 
 // SetPro sets the value of Pro.
@@ -77416,10 +77496,16 @@ type FindingsGetFindingsToFixOKDevicesItemPlannedItem struct {
 	// filter of the list), PlanItem.group of a planned one, "/" for findings no update is named for. Per
 	// device: "By fix" groups by product and release instead.
 	Group string `json:"group"`
+	// A Windows update: the KB number of `fixed` when Microsoft's release information lists that build; ""
+	// otherwise.
+	KB string `json:"kb"`
 	// None: no update is named that fixes these findings (follow the vendor's advice).
 	Kind FindingsGetFindingsToFixOKDevicesItemPlannedItemKind `json:"kind"`
 	// Planned: CVEs EPSS says are likely to be exploited soon.
-	Likely int  `json:"likely"`
+	Likely int `json:"likely"`
+	// Planned Windows updates: PlanItem.nvd_lag (it fixes at least `cves`; the newest update's CVEs are
+	// not yet analysed by NVD); false otherwise.
+	NvdLag bool `json:"nvd_lag"`
 	Pro    bool `json:"pro"`
 	// The software row's identity across devices, "vendor|product" in lower case ("" when no row matches):
 	// "By fix" groups the same update on several devices by it, whatever each device calls the row.
@@ -77484,6 +77570,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetGroup() string {
 	return s.Group
 }
 
+// GetKB returns the value of KB.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetKB() string {
+	return s.KB
+}
+
 // GetKind returns the value of Kind.
 func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetKind() FindingsGetFindingsToFixOKDevicesItemPlannedItemKind {
 	return s.Kind
@@ -77492,6 +77583,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetKind() FindingsGet
 // GetLikely returns the value of Likely.
 func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetLikely() int {
 	return s.Likely
+}
+
+// GetNvdLag returns the value of NvdLag.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetNvdLag() bool {
+	return s.NvdLag
 }
 
 // GetPro returns the value of Pro.
@@ -77589,6 +77685,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetGroup(val string) 
 	s.Group = val
 }
 
+// SetKB sets the value of KB.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetKB(val string) {
+	s.KB = val
+}
+
 // SetKind sets the value of Kind.
 func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetKind(val FindingsGetFindingsToFixOKDevicesItemPlannedItemKind) {
 	s.Kind = val
@@ -77597,6 +77698,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetKind(val FindingsG
 // SetLikely sets the value of Likely.
 func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetLikely(val int) {
 	s.Likely = val
+}
+
+// SetNvdLag sets the value of NvdLag.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetNvdLag(val bool) {
+	s.NvdLag = val
 }
 
 // SetPro sets the value of Pro.

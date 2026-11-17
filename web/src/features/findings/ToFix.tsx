@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Segmented } from '@/components/ui/segmented'
 import { useDevice, useDevices } from '@/features/inventory/api'
 import { deviceName } from './basis'
+import { kbNote } from './fix'
 import type { ToFix, ToFixAction, ToFixDevice } from './types'
 import type { SoftwareView } from '@/features/inventory/types'
 import { isOsSoftware, IUpdated } from './Updated'
@@ -53,7 +54,7 @@ function ActionButton({ a, box }: { a: ToFixAction; box: boolean }) {
 function Action({ a, planned, box, asset }: { a: ToFixAction; planned: boolean; box: boolean; asset: ToFixDevice['asset'] }) {
   const { t } = useTranslation('findings')
   const what = planned
-    ? t('toFix.plannedFixes', { count: a.cves.length })
+    ? t(a.nvd_lag ? 'toFix.plannedFixesAtLeast' : 'toFix.plannedFixes', { count: a.cves.length })
     : a.kind === 'none' ? t('toFix.noUpdateCount', { count: a.cves.length }) : t('toFix.fixes', { count: a.cves.length })
   return (
     <li className="grid gap-1 py-2">
@@ -65,6 +66,7 @@ function Action({ a, planned, box, asset }: { a: ToFixAction; planned: boolean; 
           {/* review r1 of #943: an update named for versions only read from the network, or not compared, says so */}
           {!planned && a.reported + a.suspected > 0 ? <span className="text-warn">{', '}{t(proved(a) ? 'toFix.someUnverified' : 'toFix.unverified', { count: a.reported + a.suspected })}</span> : null}
           {planned && a.likely ? <span className="text-warn">{', '}{t('toFix.likely', { count: a.likely })}</span> : null}
+          {planned && a.nvd_lag ? <span className="text-muted">{t('plan.nvdLag')}</span> : null}
           {' '}<Worst worst={a.worst} />
           <span className="ml-2 text-meta text-accent underline-offset-4 group-open:hidden">{t('toFix.showCves', { count: a.cves.length })}</span>
           <span className="ml-2 hidden text-meta text-accent underline-offset-4 group-open:inline">{t('toFix.hideCves')}</span>
@@ -156,7 +158,7 @@ function ByFix({ devices }: { devices: ToFixDevice[] }) {
     return [...m.values()].sort((x, y) => Number(x.planned) - Number(y.planned) || worst(y) - worst(x) || y.devices.length - x.devices.length || x.sample.software.localeCompare(y.sample.software))
   }, [devices])
   const label = (a: ToFixAction) => {
-    const v = { software: a.software || t('toFix.theSoftware'), fixed: a.windows ? a.fixed.replace(/^10\.0\./, '') : a.fixed }
+    const v = { software: a.software || t('toFix.theSoftware'), fixed: a.windows ? a.fixed.replace(/^10\.0\./, '') : a.fixed, kb: kbNote(a.kb) }
     // review r1 of #943: a Windows row's feature update and ESU before the monthly cumulative update
     switch (a.kind) {
       case 'none': return t('toFix.byFix.none', v)
@@ -172,13 +174,14 @@ function ByFix({ devices }: { devices: ToFixDevice[] }) {
       {rows.map((r) => {
         const cves = r.devices.reduce((n, x) => n + x.a.cves.length, 0)
         const worst = r.devices.reduce((w, x) => (rank(x.a.worst) > rank(w) ? x.a.worst : w), '')
-        const on = `${t('toFix.byFix.devices', { count: r.devices.length })}, ${t(r.planned ? 'toFix.byFix.cvesPlanned' : 'toFix.byFix.cves', { count: cves })}`
+        const lag = r.planned && r.devices.some((x) => x.a.nvd_lag) // Microsoft's newest update: the CVEs NVD has analysed so far
+        const on = `${t('toFix.byFix.devices', { count: r.devices.length })}, ${t(lag ? 'toFix.byFix.cvesPlannedAtLeast' : r.planned ? 'toFix.byFix.cvesPlanned' : 'toFix.byFix.cves', { count: cves })}`
         return (
           <li key={r.key} className="rounded-md border border-rule bg-surface px-4 py-3">
             <details>
               <summary className="cursor-pointer text-sm">
                 <span className="font-medium">{label(r.sample)}</span>
-                <span className="text-muted">{': '}{r.planned ? t('toFix.byFix.recommendedOn', { on }) : on}</span>
+                <span className="text-muted">{': '}{r.planned ? t('toFix.byFix.recommendedOn', { on }) : on}{lag ? t('plan.nvdLag') : null}</span>
                 {' '}<Worst worst={worst} />
               </summary>
               <ul className="mt-1 grid gap-1 pl-4 text-meta">
@@ -186,7 +189,7 @@ function ByFix({ devices }: { devices: ToFixDevice[] }) {
                   <li key={d.asset.id}>
                     <Link to={`/devices/${encodeURIComponent(d.asset.id)}`} className="font-medium text-accent underline-offset-4 hover:underline">{deviceName(d.asset, t('removedDevice'))}</Link>
                     {' '}<RiskMarker id={d.asset.id} risk={d.risk} className="align-middle" />
-                    <span className="text-muted">{': '}{a.action}, {t('toFix.cveCount', { count: a.cves.length })}</span>
+                    <span className="text-muted">{': '}{a.action}, {t(a.nvd_lag ? 'toFix.cveCountAtLeast' : 'toFix.cveCount', { count: a.cves.length })}{a.nvd_lag ? t('plan.nvdLag') : null}</span>
                   </li>
                 ))}
               </ul>

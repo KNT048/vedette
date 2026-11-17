@@ -209,12 +209,12 @@ func (s *Store) MatchStamp(ctx context.Context) (string, error) {
 
 // TierStamp changes whenever what TierRecords and TierDistroRecords return may have changed: the last pull time and rev
 // (turned on or off) of epss-all, nvd-recent, nvd-kev and the distribution feeds ubuntu-osv and debian-tracker (ubuntu-vex keeps no tier
-// row). The hourly exploited-list pulls are not in it: findings' hourly full pass takes their new CVEs out of
+// row), and of windows-releases, whose monthly updates are the target builds of the plan's Windows items. The hourly exploited-list pulls are not in it: findings' hourly full pass takes their new CVEs out of
 // the plan (review r1 #7 of #804).
 func (s *Store) TierStamp(ctx context.Context) (string, error) {
 	var stamp sql.NullString
 	err := s.db.Reader().QueryRowContext(ctx, `SELECT group_concat(id || '=' || COALESCE(last_fetch, '') || '/' || rev || '/' || enabled, ',') FROM
-(SELECT id, last_fetch, rev, enabled FROM feeds_source WHERE id IN ('debian-tracker', 'epss-all', 'nvd-kev', 'nvd-recent', 'ubuntu-osv') ORDER BY id)`).Scan(&stamp)
+(SELECT id, last_fetch, rev, enabled FROM feeds_source WHERE id IN ('debian-tracker', 'epss-all', 'nvd-kev', 'nvd-recent', 'ubuntu-osv', 'windows-releases') ORDER BY id)`).Scan(&stamp)
 	if err != nil {
 		return "", fmt.Errorf("feeds: tier stamp: %w", err)
 	}

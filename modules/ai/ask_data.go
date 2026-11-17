@@ -98,6 +98,9 @@ type UpdateRow struct {
 	// reported the version and it is inside the affected range), reported (the agent reported the version, Vedette could not compare
 	// it), suspected (a network guess: a banner, a fingerprint, the product name only).
 	Confirmed, Detected, Reported, Suspected int
+	// NVDLag (a recommended Windows update): the update is Microsoft's newest, newer than every fix NVD names, so it fixes at least
+	// the CVEs listed; the newest update's CVEs are not analysed by NVD yet.
+	NVDLag bool
 }
 
 // DeviceUpdates is what to install on one device to clear its CVEs (findings.DeviceUpdates).

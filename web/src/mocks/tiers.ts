@@ -12,6 +12,10 @@ export type PlanBasis = 'scan' | 'agent' | 'distro' | 'version'
 export interface PlanSeed {
   asset_id: string; software_id: string; software: string; version: string; fixed: string; kind: 'fixed' | 'distro' | 'windows' | 'esu'
   pro?: boolean
+  /** windows, esu: `fixed` is Microsoft's newest monthly update, newer than every fix NVD names (the count is a floor). */
+  nvd_lag?: boolean
+  /** windows, esu: the KB number of `fixed` from Microsoft's release information. */
+  kb?: string
   /** The day an agent last reported the row (agent basis), shown once no agent reports the device. */
   reported?: string
   cves: { cve: string; basis: PlanBasis }[]
@@ -55,7 +59,7 @@ export const tierFacts: TierFact[] = [
 ]
 
 const seed: PlanSeed[] = [
-  { asset_id: 'a-srvacc', software_id: 's-srvacc', software: 'Windows Server 2022', version: '10.0.20348.2700', fixed: '10.0.20348.4405', kind: 'windows', reported: day(12),
+  { asset_id: 'a-srvacc', software_id: 's-srvacc', software: 'Windows Server 2022', version: '10.0.20348.2700', fixed: '10.0.20348.4405', kind: 'windows', nvd_lag: true, kb: 'KB5000001', reported: day(12),
     cves: ['CVE-2026-32010', 'CVE-2026-32011', 'CVE-2026-32012', 'CVE-2026-32013', 'CVE-2026-32014', ...Array.from({ length: 60 }, (_, i) => `CVE-2026-${32100 + i}`)].map((cve) => ({ cve, basis: 'agent' as const })) },
   { asset_id: 'a-web01', software_id: 's-web01-nginx', software: 'nginx', version: '1.18.0', fixed: '1.28.1', kind: 'fixed',
     cves: ['CVE-2026-31001', 'CVE-2026-31002', 'CVE-2026-31003'].map((cve) => ({ cve, basis: 'version' as const })) },

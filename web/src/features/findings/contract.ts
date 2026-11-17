@@ -32,8 +32,8 @@ export const Finding = z.object({
     agent: z.boolean().optional().describe('the version compared is the one the device\'s own agent (osquery, Wazuh) reports installed: a detection, shown as "Detected by the agent", with nothing for the person to look up'),
     agent_row: z.boolean().optional().describe('a product-only match on a software row the device\'s own agent reported with its installed version: Vedette could not compare that version with NVD\'s data, so the page does not ask to add the version'),
   }).nullable(),
-  first_seen: iso,
-  last_seen: iso,
+  first_seen: iso.describe('When Vedette first matched this vulnerability to the device'),
+  last_seen: iso.describe('When Vedette last matched it: each re-match (after a change to the device\'s software, and every hour) or scan that still finds it moves it. Not when the device or its software was last seen; known_version.seen_at says when the version was reported'),
   resolved_by: z.string().nullable(),
   resolved_at: iso.nullable(),
   resolution_note: z.string().nullable(),
@@ -130,6 +130,7 @@ export const KnownVersion = z.object({
   software: z.string().describe('Display name of the software the finding was matched on'),
   version: z.string(),
   source: z.enum(['agent', 'snmp', 'stated', 'scan', 'manual']).describe('Who gave the version: the device\'s agent, its answer to Vedette\'s SNMP read, its own statement on the network (LLDP), a network scan, or a person on the Devices page'),
+  seen_at: iso.nullable().describe('When that source last gave the version: the agent\'s last list, the last scan or SNMP read that returned it, or when a person entered it; null when not known. Not the same as the finding\'s last_seen'),
 }).describe('The version the box has for the matched software; the page says it and how a newer one reaches Vedette, never "find which version"')
 export const FindingDetail = FindingRow.extend({
   known_version: KnownVersion.nullable().describe('Null when the matched software has no version or its source is not known'),

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Section } from '@/components/common/PageHeader'
 import { Card } from '@/components/common/Card'
 import { ModuleOff, QueryState } from '@/components/common/States'
-import { fmtRelative } from '@/lib/format'
+import { fmtDateTime, fmtRelative } from '@/lib/format'
 import { useModuleEnabled } from '@/lib/modules'
 import { FindingStatusChip } from './AcceptRisk'
 import { useFindings, usePlan, useToFix } from './api'
@@ -60,7 +60,7 @@ export function DevicePanel(props: Record<string, unknown>) {
                 <span className="text-sm text-muted">{f.kev?.display ?? ''}</span>
                 <FindingStatusChip f={f} />
                 <RiskChip f={f} />
-                <span className="ml-auto text-caption text-muted">{t('device.lastSeen', { time: fmtRelative(f.last_seen) })}</span>
+                <span className="ml-auto text-caption text-muted" title={`${fmtDateTime(f.last_seen)}. ${t('matchedInfo')}`}>{t('matched', { time: fmtRelative(f.last_seen) })}</span>
               </li>
             ))}
           </ul></Card> : null}

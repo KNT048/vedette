@@ -50,6 +50,8 @@
   "emptyHelpInfo": "Vedette only matches vulnerabilities against devices it knows, and tells you when a new vulnerability matches.",
   "emptyDevices": "Open Devices",
   "emptyScan": "Open Settings, Scanning",
+  "matched": "Last matched {{time}}",
+  "matchedInfo": "When Vedette last matched the software of the device to this vulnerability. It matches again every hour and after every change to the software of the device. It is not when the device or its software was last seen.",
   "col": {
     "device": "Device",
     "cve": "CVE",
@@ -57,7 +59,7 @@
     "status": "Status",
     "severity": "Severity",
     "basis": "Basis",
-    "lastSeen": "Last seen",
+    "lastSeen": "Last matched",
     "cvss": "CVSS"
   },
   "basis": {
@@ -79,7 +81,15 @@
   },
   "meta": {
     "ransomware": "Used by ransomware",
-    "seen": "First seen {{first}}, last seen {{last}}.",
+    "seen": "Found {{first}}, last matched {{last}}.",
+    "version": {
+      "agent": "{{software}} {{version}}: reported by its agent on {{date}}.",
+      "agentLast": "{{software}} {{version}}: from the last list an agent sent, on {{date}}.",
+      "snmp": "{{software}} {{version}}: read over SNMP on {{date}}.",
+      "stated": "{{software}} {{version}}: announced by the device over LLDP on {{date}}.",
+      "scan": "{{software}} {{version}}: read by a network scan on {{date}}.",
+      "manual": "{{software}} {{version}}: entered on the Devices page on {{date}}."
+    },
     "due": "CISA requires action by {{date}}.",
     "duePassed": "CISA's deadline passed on {{date}}."
   },
@@ -89,7 +99,6 @@
     "none": "No findings for this device yet.",
     "onlyNotRelevant_one": "No findings to handle: the one finding of this device is closed as not relevant.",
     "onlyNotRelevant_other": "No findings to handle: the {{count}} findings of this device are closed as not relevant.",
-    "lastSeen": "Seen {{time}}",
     "handleAll": "Select and handle these findings in the Findings list",
     "todo": "What to do on this device",
     "all": "Every finding of this device"

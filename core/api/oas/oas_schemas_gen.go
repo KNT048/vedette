@@ -66703,9 +66703,10 @@ type FindingsGetFindingsIDOK struct {
 	Confidence float64                              `json:"confidence"`
 	Cve        string                               `json:"cve"`
 	// Null = no CVSS score known: the pages say "No score", never 0.
-	Cvss      NilFindingsGetFindingsIDOKCvss     `json:"cvss"`
-	Evidence  NilFindingsGetFindingsIDOKEvidence `json:"evidence"`
-	FirstSeen time.Time                          `json:"first_seen"`
+	Cvss     NilFindingsGetFindingsIDOKCvss     `json:"cvss"`
+	Evidence NilFindingsGetFindingsIDOKEvidence `json:"evidence"`
+	// When Vedette first matched this vulnerability to the device.
+	FirstSeen time.Time `json:"first_seen"`
 	// GET /findings only, open findings: the update that fixes it with others; null when there is none to
 	// name.
 	Fix OptNilFindingsGetFindingsIDOKFix `json:"fix"`
@@ -66720,7 +66721,10 @@ type FindingsGetFindingsIDOK struct {
 	Kev NilFindingsGetFindingsIDOKKev `json:"kev"`
 	// Null when the matched software has no version or its source is not known.
 	KnownVersion NilFindingsGetFindingsIDOKKnownVersion `json:"known_version"`
-	LastSeen     time.Time                              `json:"last_seen"`
+	// When Vedette last matched it: each re-match (after a change to the device's software, and every
+	// hour) or scan that still finds it moves it. Not when the device or its software was last seen;
+	// known_version.seen_at says when the version was reported.
+	LastSeen time.Time `json:"last_seen"`
 	// Null = no recommendation confirmed by Vedette maintainers yet.
 	Pack           NilFindingsGetFindingsIDOKPack  `json:"pack"`
 	Recheck        FindingsGetFindingsIDOKRecheck  `json:"recheck"`
@@ -69726,12 +69730,21 @@ func (s *FindingsGetFindingsIDOKKevSource) UnmarshalText(data []byte) error {
 // The version the box has for the matched software; the page says it and how a newer one reaches
 // Vedette, never "find which version".
 type FindingsGetFindingsIDOKKnownVersion struct {
+	// When that source last gave the version: the agent's last list, the last scan or SNMP read that
+	// returned it, or when a person entered it; null when not known. Not the same as the finding's
+	// last_seen.
+	SeenAt NilDateTime `json:"seen_at"`
 	// Display name of the software the finding was matched on.
 	Software string `json:"software"`
 	// Who gave the version: the device's agent, its answer to Vedette's SNMP read, its own statement on
 	// the network (LLDP), a network scan, or a person on the Devices page.
 	Source  FindingsGetFindingsIDOKKnownVersionSource `json:"source"`
 	Version string                                    `json:"version"`
+}
+
+// GetSeenAt returns the value of SeenAt.
+func (s *FindingsGetFindingsIDOKKnownVersion) GetSeenAt() NilDateTime {
+	return s.SeenAt
 }
 
 // GetSoftware returns the value of Software.
@@ -69747,6 +69760,11 @@ func (s *FindingsGetFindingsIDOKKnownVersion) GetSource() FindingsGetFindingsIDO
 // GetVersion returns the value of Version.
 func (s *FindingsGetFindingsIDOKKnownVersion) GetVersion() string {
 	return s.Version
+}
+
+// SetSeenAt sets the value of SeenAt.
+func (s *FindingsGetFindingsIDOKKnownVersion) SetSeenAt(val NilDateTime) {
+	s.SeenAt = val
 }
 
 // SetSoftware sets the value of Software.
@@ -70694,16 +70712,20 @@ type FindingsGetFindingsOKItemsItem struct {
 	Confidence float64                             `json:"confidence"`
 	Cve        string                              `json:"cve"`
 	// Null = no CVSS score known: the pages say "No score", never 0.
-	Cvss      NilFindingsGetFindingsOKItemsItemCvss     `json:"cvss"`
-	Evidence  NilFindingsGetFindingsOKItemsItemEvidence `json:"evidence"`
-	FirstSeen time.Time                                 `json:"first_seen"`
+	Cvss     NilFindingsGetFindingsOKItemsItemCvss     `json:"cvss"`
+	Evidence NilFindingsGetFindingsOKItemsItemEvidence `json:"evidence"`
+	// When Vedette first matched this vulnerability to the device.
+	FirstSeen time.Time `json:"first_seen"`
 	// GET /findings only, open findings: the update that fixes it with others; null when there is none to
 	// name.
 	Fix     OptNilFindingsGetFindingsOKItemsItemFix     `json:"fix"`
 	History []FindingsGetFindingsOKItemsItemHistoryItem `json:"history"`
 	ID      string                                      `json:"id"`
 	// Read from KEV, not from the project recommendation pack.
-	Kev            NilFindingsGetFindingsOKItemsItemKev   `json:"kev"`
+	Kev NilFindingsGetFindingsOKItemsItemKev `json:"kev"`
+	// When Vedette last matched it: each re-match (after a change to the device's software, and every
+	// hour) or scan that still finds it moves it. Not when the device or its software was last seen;
+	// known_version.seen_at says when the version was reported.
 	LastSeen       time.Time                              `json:"last_seen"`
 	ResolutionNote NilString                              `json:"resolution_note"`
 	ResolvedAt     NilDateTime                            `json:"resolved_at"`
@@ -78912,9 +78934,10 @@ type FindingsPostFindingsIDAiOK struct {
 	Confidence float64                                 `json:"confidence"`
 	Cve        string                                  `json:"cve"`
 	// Null = no CVSS score known: the pages say "No score", never 0.
-	Cvss      NilFindingsPostFindingsIDAiOKCvss     `json:"cvss"`
-	Evidence  NilFindingsPostFindingsIDAiOKEvidence `json:"evidence"`
-	FirstSeen time.Time                             `json:"first_seen"`
+	Cvss     NilFindingsPostFindingsIDAiOKCvss     `json:"cvss"`
+	Evidence NilFindingsPostFindingsIDAiOKEvidence `json:"evidence"`
+	// When Vedette first matched this vulnerability to the device.
+	FirstSeen time.Time `json:"first_seen"`
 	// GET /findings only, open findings: the update that fixes it with others; null when there is none to
 	// name.
 	Fix OptNilFindingsPostFindingsIDAiOKFix `json:"fix"`
@@ -78929,7 +78952,10 @@ type FindingsPostFindingsIDAiOK struct {
 	Kev NilFindingsPostFindingsIDAiOKKev `json:"kev"`
 	// Null when the matched software has no version or its source is not known.
 	KnownVersion NilFindingsPostFindingsIDAiOKKnownVersion `json:"known_version"`
-	LastSeen     time.Time                                 `json:"last_seen"`
+	// When Vedette last matched it: each re-match (after a change to the device's software, and every
+	// hour) or scan that still finds it moves it. Not when the device or its software was last seen;
+	// known_version.seen_at says when the version was reported.
+	LastSeen time.Time `json:"last_seen"`
 	// Null = no recommendation confirmed by Vedette maintainers yet.
 	Pack           NilFindingsPostFindingsIDAiOKPack  `json:"pack"`
 	Recheck        FindingsPostFindingsIDAiOKRecheck  `json:"recheck"`
@@ -81935,12 +81961,21 @@ func (s *FindingsPostFindingsIDAiOKKevSource) UnmarshalText(data []byte) error {
 // The version the box has for the matched software; the page says it and how a newer one reaches
 // Vedette, never "find which version".
 type FindingsPostFindingsIDAiOKKnownVersion struct {
+	// When that source last gave the version: the agent's last list, the last scan or SNMP read that
+	// returned it, or when a person entered it; null when not known. Not the same as the finding's
+	// last_seen.
+	SeenAt NilDateTime `json:"seen_at"`
 	// Display name of the software the finding was matched on.
 	Software string `json:"software"`
 	// Who gave the version: the device's agent, its answer to Vedette's SNMP read, its own statement on
 	// the network (LLDP), a network scan, or a person on the Devices page.
 	Source  FindingsPostFindingsIDAiOKKnownVersionSource `json:"source"`
 	Version string                                       `json:"version"`
+}
+
+// GetSeenAt returns the value of SeenAt.
+func (s *FindingsPostFindingsIDAiOKKnownVersion) GetSeenAt() NilDateTime {
+	return s.SeenAt
 }
 
 // GetSoftware returns the value of Software.
@@ -81956,6 +81991,11 @@ func (s *FindingsPostFindingsIDAiOKKnownVersion) GetSource() FindingsPostFinding
 // GetVersion returns the value of Version.
 func (s *FindingsPostFindingsIDAiOKKnownVersion) GetVersion() string {
 	return s.Version
+}
+
+// SetSeenAt sets the value of SeenAt.
+func (s *FindingsPostFindingsIDAiOKKnownVersion) SetSeenAt(val NilDateTime) {
+	s.SeenAt = val
 }
 
 // SetSoftware sets the value of Software.
@@ -82927,9 +82967,10 @@ type FindingsPostFindingsIDAppliedOK struct {
 	Confidence float64                                      `json:"confidence"`
 	Cve        string                                       `json:"cve"`
 	// Null = no CVSS score known: the pages say "No score", never 0.
-	Cvss      NilFindingsPostFindingsIDAppliedOKCvss     `json:"cvss"`
-	Evidence  NilFindingsPostFindingsIDAppliedOKEvidence `json:"evidence"`
-	FirstSeen time.Time                                  `json:"first_seen"`
+	Cvss     NilFindingsPostFindingsIDAppliedOKCvss     `json:"cvss"`
+	Evidence NilFindingsPostFindingsIDAppliedOKEvidence `json:"evidence"`
+	// When Vedette first matched this vulnerability to the device.
+	FirstSeen time.Time `json:"first_seen"`
 	// GET /findings only, open findings: the update that fixes it with others; null when there is none to
 	// name.
 	Fix OptNilFindingsPostFindingsIDAppliedOKFix `json:"fix"`
@@ -82944,7 +82985,10 @@ type FindingsPostFindingsIDAppliedOK struct {
 	Kev NilFindingsPostFindingsIDAppliedOKKev `json:"kev"`
 	// Null when the matched software has no version or its source is not known.
 	KnownVersion NilFindingsPostFindingsIDAppliedOKKnownVersion `json:"known_version"`
-	LastSeen     time.Time                                      `json:"last_seen"`
+	// When Vedette last matched it: each re-match (after a change to the device's software, and every
+	// hour) or scan that still finds it moves it. Not when the device or its software was last seen;
+	// known_version.seen_at says when the version was reported.
+	LastSeen time.Time `json:"last_seen"`
 	// Null = no recommendation confirmed by Vedette maintainers yet.
 	Pack           NilFindingsPostFindingsIDAppliedOKPack  `json:"pack"`
 	Recheck        FindingsPostFindingsIDAppliedOKRecheck  `json:"recheck"`
@@ -85950,12 +85994,21 @@ func (s *FindingsPostFindingsIDAppliedOKKevSource) UnmarshalText(data []byte) er
 // The version the box has for the matched software; the page says it and how a newer one reaches
 // Vedette, never "find which version".
 type FindingsPostFindingsIDAppliedOKKnownVersion struct {
+	// When that source last gave the version: the agent's last list, the last scan or SNMP read that
+	// returned it, or when a person entered it; null when not known. Not the same as the finding's
+	// last_seen.
+	SeenAt NilDateTime `json:"seen_at"`
 	// Display name of the software the finding was matched on.
 	Software string `json:"software"`
 	// Who gave the version: the device's agent, its answer to Vedette's SNMP read, its own statement on
 	// the network (LLDP), a network scan, or a person on the Devices page.
 	Source  FindingsPostFindingsIDAppliedOKKnownVersionSource `json:"source"`
 	Version string                                            `json:"version"`
+}
+
+// GetSeenAt returns the value of SeenAt.
+func (s *FindingsPostFindingsIDAppliedOKKnownVersion) GetSeenAt() NilDateTime {
+	return s.SeenAt
 }
 
 // GetSoftware returns the value of Software.
@@ -85971,6 +86024,11 @@ func (s *FindingsPostFindingsIDAppliedOKKnownVersion) GetSource() FindingsPostFi
 // GetVersion returns the value of Version.
 func (s *FindingsPostFindingsIDAppliedOKKnownVersion) GetVersion() string {
 	return s.Version
+}
+
+// SetSeenAt sets the value of SeenAt.
+func (s *FindingsPostFindingsIDAppliedOKKnownVersion) SetSeenAt(val NilDateTime) {
+	s.SeenAt = val
 }
 
 // SetSoftware sets the value of Software.
@@ -86963,9 +87021,10 @@ type FindingsPostFindingsIDStatusOK struct {
 	Confidence float64                                     `json:"confidence"`
 	Cve        string                                      `json:"cve"`
 	// Null = no CVSS score known: the pages say "No score", never 0.
-	Cvss      NilFindingsPostFindingsIDStatusOKCvss     `json:"cvss"`
-	Evidence  NilFindingsPostFindingsIDStatusOKEvidence `json:"evidence"`
-	FirstSeen time.Time                                 `json:"first_seen"`
+	Cvss     NilFindingsPostFindingsIDStatusOKCvss     `json:"cvss"`
+	Evidence NilFindingsPostFindingsIDStatusOKEvidence `json:"evidence"`
+	// When Vedette first matched this vulnerability to the device.
+	FirstSeen time.Time `json:"first_seen"`
 	// GET /findings only, open findings: the update that fixes it with others; null when there is none to
 	// name.
 	Fix OptNilFindingsPostFindingsIDStatusOKFix `json:"fix"`
@@ -86980,7 +87039,10 @@ type FindingsPostFindingsIDStatusOK struct {
 	Kev NilFindingsPostFindingsIDStatusOKKev `json:"kev"`
 	// Null when the matched software has no version or its source is not known.
 	KnownVersion NilFindingsPostFindingsIDStatusOKKnownVersion `json:"known_version"`
-	LastSeen     time.Time                                     `json:"last_seen"`
+	// When Vedette last matched it: each re-match (after a change to the device's software, and every
+	// hour) or scan that still finds it moves it. Not when the device or its software was last seen;
+	// known_version.seen_at says when the version was reported.
+	LastSeen time.Time `json:"last_seen"`
 	// Null = no recommendation confirmed by Vedette maintainers yet.
 	Pack           NilFindingsPostFindingsIDStatusOKPack  `json:"pack"`
 	Recheck        FindingsPostFindingsIDStatusOKRecheck  `json:"recheck"`
@@ -89986,12 +90048,21 @@ func (s *FindingsPostFindingsIDStatusOKKevSource) UnmarshalText(data []byte) err
 // The version the box has for the matched software; the page says it and how a newer one reaches
 // Vedette, never "find which version".
 type FindingsPostFindingsIDStatusOKKnownVersion struct {
+	// When that source last gave the version: the agent's last list, the last scan or SNMP read that
+	// returned it, or when a person entered it; null when not known. Not the same as the finding's
+	// last_seen.
+	SeenAt NilDateTime `json:"seen_at"`
 	// Display name of the software the finding was matched on.
 	Software string `json:"software"`
 	// Who gave the version: the device's agent, its answer to Vedette's SNMP read, its own statement on
 	// the network (LLDP), a network scan, or a person on the Devices page.
 	Source  FindingsPostFindingsIDStatusOKKnownVersionSource `json:"source"`
 	Version string                                           `json:"version"`
+}
+
+// GetSeenAt returns the value of SeenAt.
+func (s *FindingsPostFindingsIDStatusOKKnownVersion) GetSeenAt() NilDateTime {
+	return s.SeenAt
 }
 
 // GetSoftware returns the value of Software.
@@ -90007,6 +90078,11 @@ func (s *FindingsPostFindingsIDStatusOKKnownVersion) GetSource() FindingsPostFin
 // GetVersion returns the value of Version.
 func (s *FindingsPostFindingsIDStatusOKKnownVersion) GetVersion() string {
 	return s.Version
+}
+
+// SetSeenAt sets the value of SeenAt.
+func (s *FindingsPostFindingsIDStatusOKKnownVersion) SetSeenAt(val NilDateTime) {
+	s.SeenAt = val
 }
 
 // SetSoftware sets the value of Software.

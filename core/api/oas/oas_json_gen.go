@@ -136220,6 +136220,10 @@ func (s *FindingsGetFindingsIDOKKnownVersion) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *FindingsGetFindingsIDOKKnownVersion) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("seen_at")
+		s.SeenAt.Encode(e, json.EncodeDateTime)
+	}
+	{
 		e.FieldStart("software")
 		e.Str(s.Software)
 	}
@@ -136233,10 +136237,11 @@ func (s *FindingsGetFindingsIDOKKnownVersion) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsIDOKKnownVersion = [3]string{
-	0: "software",
-	1: "source",
-	2: "version",
+var jsonFieldsNameOfFindingsGetFindingsIDOKKnownVersion = [4]string{
+	0: "seen_at",
+	1: "software",
+	2: "source",
+	3: "version",
 }
 
 // Decode decodes FindingsGetFindingsIDOKKnownVersion from json.
@@ -136248,8 +136253,18 @@ func (s *FindingsGetFindingsIDOKKnownVersion) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "software":
+		case "seen_at":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.SeenAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"seen_at\"")
+			}
+		case "software":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Software = string(v)
@@ -136261,7 +136276,7 @@ func (s *FindingsGetFindingsIDOKKnownVersion) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"software\"")
 			}
 		case "source":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Source.Decode(d); err != nil {
 					return err
@@ -136271,7 +136286,7 @@ func (s *FindingsGetFindingsIDOKKnownVersion) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"source\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -136292,7 +136307,7 @@ func (s *FindingsGetFindingsIDOKKnownVersion) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -154227,6 +154242,10 @@ func (s *FindingsPostFindingsIDAiOKKnownVersion) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *FindingsPostFindingsIDAiOKKnownVersion) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("seen_at")
+		s.SeenAt.Encode(e, json.EncodeDateTime)
+	}
+	{
 		e.FieldStart("software")
 		e.Str(s.Software)
 	}
@@ -154240,10 +154259,11 @@ func (s *FindingsPostFindingsIDAiOKKnownVersion) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDAiOKKnownVersion = [3]string{
-	0: "software",
-	1: "source",
-	2: "version",
+var jsonFieldsNameOfFindingsPostFindingsIDAiOKKnownVersion = [4]string{
+	0: "seen_at",
+	1: "software",
+	2: "source",
+	3: "version",
 }
 
 // Decode decodes FindingsPostFindingsIDAiOKKnownVersion from json.
@@ -154255,8 +154275,18 @@ func (s *FindingsPostFindingsIDAiOKKnownVersion) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "software":
+		case "seen_at":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.SeenAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"seen_at\"")
+			}
+		case "software":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Software = string(v)
@@ -154268,7 +154298,7 @@ func (s *FindingsPostFindingsIDAiOKKnownVersion) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"software\"")
 			}
 		case "source":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Source.Decode(d); err != nil {
 					return err
@@ -154278,7 +154308,7 @@ func (s *FindingsPostFindingsIDAiOKKnownVersion) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"source\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -154299,7 +154329,7 @@ func (s *FindingsPostFindingsIDAiOKKnownVersion) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -162111,6 +162141,10 @@ func (s *FindingsPostFindingsIDAppliedOKKnownVersion) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *FindingsPostFindingsIDAppliedOKKnownVersion) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("seen_at")
+		s.SeenAt.Encode(e, json.EncodeDateTime)
+	}
+	{
 		e.FieldStart("software")
 		e.Str(s.Software)
 	}
@@ -162124,10 +162158,11 @@ func (s *FindingsPostFindingsIDAppliedOKKnownVersion) encodeFields(e *jx.Encoder
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDAppliedOKKnownVersion = [3]string{
-	0: "software",
-	1: "source",
-	2: "version",
+var jsonFieldsNameOfFindingsPostFindingsIDAppliedOKKnownVersion = [4]string{
+	0: "seen_at",
+	1: "software",
+	2: "source",
+	3: "version",
 }
 
 // Decode decodes FindingsPostFindingsIDAppliedOKKnownVersion from json.
@@ -162139,8 +162174,18 @@ func (s *FindingsPostFindingsIDAppliedOKKnownVersion) Decode(d *jx.Decoder) erro
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "software":
+		case "seen_at":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.SeenAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"seen_at\"")
+			}
+		case "software":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Software = string(v)
@@ -162152,7 +162197,7 @@ func (s *FindingsPostFindingsIDAppliedOKKnownVersion) Decode(d *jx.Decoder) erro
 				return errors.Wrap(err, "decode field \"software\"")
 			}
 		case "source":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Source.Decode(d); err != nil {
 					return err
@@ -162162,7 +162207,7 @@ func (s *FindingsPostFindingsIDAppliedOKKnownVersion) Decode(d *jx.Decoder) erro
 				return errors.Wrap(err, "decode field \"source\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -162183,7 +162228,7 @@ func (s *FindingsPostFindingsIDAppliedOKKnownVersion) Decode(d *jx.Decoder) erro
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -170001,6 +170046,10 @@ func (s *FindingsPostFindingsIDStatusOKKnownVersion) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *FindingsPostFindingsIDStatusOKKnownVersion) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("seen_at")
+		s.SeenAt.Encode(e, json.EncodeDateTime)
+	}
+	{
 		e.FieldStart("software")
 		e.Str(s.Software)
 	}
@@ -170014,10 +170063,11 @@ func (s *FindingsPostFindingsIDStatusOKKnownVersion) encodeFields(e *jx.Encoder)
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDStatusOKKnownVersion = [3]string{
-	0: "software",
-	1: "source",
-	2: "version",
+var jsonFieldsNameOfFindingsPostFindingsIDStatusOKKnownVersion = [4]string{
+	0: "seen_at",
+	1: "software",
+	2: "source",
+	3: "version",
 }
 
 // Decode decodes FindingsPostFindingsIDStatusOKKnownVersion from json.
@@ -170029,8 +170079,18 @@ func (s *FindingsPostFindingsIDStatusOKKnownVersion) Decode(d *jx.Decoder) error
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "software":
+		case "seen_at":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.SeenAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"seen_at\"")
+			}
+		case "software":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Software = string(v)
@@ -170042,7 +170102,7 @@ func (s *FindingsPostFindingsIDStatusOKKnownVersion) Decode(d *jx.Decoder) error
 				return errors.Wrap(err, "decode field \"software\"")
 			}
 		case "source":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Source.Decode(d); err != nil {
 					return err
@@ -170052,7 +170112,7 @@ func (s *FindingsPostFindingsIDStatusOKKnownVersion) Decode(d *jx.Decoder) error
 				return errors.Wrap(err, "decode field \"source\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -170073,7 +170133,7 @@ func (s *FindingsPostFindingsIDStatusOKKnownVersion) Decode(d *jx.Decoder) error
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

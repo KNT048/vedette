@@ -178,11 +178,13 @@ const VERSION_SOURCE: Record<string, KnownVersion['source']> = { agent: 'agent',
 function knownFor(f: Finding, k: KevInfo | null): KnownVersion | null {
   if (!k) return null
   const key = `${k.vendor}|${k.product}`.toLowerCase()
-  const s = assetsStore.get().find((a) => a.id === f.asset_id)?.software.find((x) => x.kev.includes(key) && !!x.version)
+  const a = assetsStore.get().find((x) => x.id === f.asset_id)
+  const s = a?.software.find((x) => x.kev.includes(key) && !!x.version)
   const source = s ? VERSION_SOURCE[s.source] : undefined
-  if (!s || !s.version || !source) return null
+  if (!a || !s || !s.version || !source) return null
   const name = source === 'manual' ? s.display : s.display.endsWith(` ${s.version}`) ? s.display.slice(0, -s.version.length - 1) : s.display
-  return { software: name, version: s.version, source }
+  // the sample software rows keep no time of their own: the device's last sighting stands in for when the source gave the version
+  return { software: name, version: s.version, source, seen_at: a.last_seen }
 }
 
 /** mitigation knownRecheck: the version and who gave it, how a newer one reaches Vedette, what a scan template adds. */

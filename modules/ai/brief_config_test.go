@@ -135,8 +135,8 @@ func TestBrief_FixFollowsThePageAndRulesFollowThePath(t *testing.T) {
 }
 
 // An answer blocked only port 80 of a switch whose web interface also served 443 ("ssl/https"), and applied its change with a plain
-// commit on a platform with an automatic rollback. The config job covers every port of the vulnerable service, plain and TLS, and
-// applies the change the safe way the data names for the target, never inventing one.
+// commit on a platform with an automatic rollback. The config job covers the ports of the vulnerable product, plain and TLS, never a
+// port of another product, and applies the change the safe way the data names for the target, never inventing one.
 func TestBriefConfig_EveryPortOfTheServiceAndSafeApply(t *testing.T) {
 	a := newAPI(t)
 	a.withProfile()
@@ -147,9 +147,11 @@ func TestBriefConfig_EveryPortOfTheServiceAndSafeApply(t *testing.T) {
 	req := a.fake.lastRequest(t)
 	all := req.System + req.Messages[0].Text
 	for _, w := range []string{
-		`every port the "Ports of each service" line lists for that service, plain and TLS alike`, "never only one of them",
-		"that target's block applies the change that way", "never end such a block with a plain commit alone",
-		"When the data gives a target none, never name an automatic rollback for it",
+		`as the "Ports of the vulnerable product" line gives them`, "plain and TLS alike", "never only one of them",
+		"never a port it says runs another product", "never every web port of the device",
+		"that target's change is applied that way", `a command it calls a separate step goes in "steps", never in "lines"`,
+		"never end such a block with a plain commit alone",
+		"For a remote change to a network device or firewall the data gives no safe apply, never name an automatic rollback",
 	} {
 		if !strings.Contains(all, w) {
 			t.Errorf("the instructions lack %q", w)

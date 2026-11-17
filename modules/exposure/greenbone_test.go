@@ -66,6 +66,7 @@ type fakeGVM struct {
 	keepWeb     bool            // gvmd ignores the change of that checkbox only
 	keepSafe    bool            // gvmd ignores the change of safe_checks
 	keepFamily  bool            // gvmd ignores the family selection
+	keepNVTs    bool            // gvmd ignores the NVT selection of a family
 	inUse       bool            // modify_config refused: a task uses the config
 	leftover    string          // the state of a task an earlier scan left behind; "" none
 	fail        map[string]bool // commands answered with 400
@@ -88,7 +89,11 @@ type fakeCfg struct {
 	id, name string
 	families []string
 	prefs    map[string]string
+	web      []string // the NVTs of Web application abuses; nil is the whole family (growing)
 }
+
+// fakeWebNVTs is the feed's family Web application abuses in the fake gvmd.
+var fakeWebNVTs = []string{"1.3.6.1.4.1.25623.1.0.113002", gmpWebRootTravOID, "1.3.6.1.4.1.25623.1.0.117574"}
 
 var cfgIDRe = regexp.MustCompile(`config_id=([0-9a-f-]{36})`)
 
@@ -113,7 +118,7 @@ func (f *fakeGVM) cfg(name string) (fakeCfg, string) {
 			used = c.name
 		}
 		if c.name == name {
-			return fakeCfg{id: c.id, name: c.name, families: slices.Clone(c.families), prefs: maps.Clone(c.prefs)}, used
+			return fakeCfg{id: c.id, name: c.name, families: slices.Clone(c.families), prefs: maps.Clone(c.prefs), web: slices.Clone(c.web)}, used
 		}
 	}
 	return fakeCfg{}, used
@@ -235,13 +240,30 @@ func (f *fakeGVM) answer(cmd string, body string) string {
 		if strings.Contains(body, "<name>safe_checks</name>") && !f.keepSafe {
 			c.prefs["safe_checks"] = value()
 		}
+		if strings.Contains(body, "nvt_selection") && !f.keepNVTs {
+			c.web = []string{}
+			for _, part := range strings.Split(body, `<nvt oid="`)[1:] {
+				c.web = append(c.web, part[:strings.Index(part, `"`)])
+			}
+		}
 		if strings.Contains(body, "family_selection") && !f.keepFamily {
+			c.web = nil // all and growing: the whole family again
 			c.families = nil
 			for _, part := range strings.Split(body, "<family><name>")[1:] {
 				c.families = append(c.families, part[:strings.Index(part, "<")])
 			}
 		}
 		return ok("")
+	case "get_nvts":
+		web := fakeWebNVTs
+		if c := f.cfgIn(body); c != nil && c.web != nil {
+			web = c.web
+		}
+		out := ""
+		for _, oid := range web {
+			out += `<nvt oid="` + oid + `"><name>x</name></nvt>`
+		}
+		return ok(out)
 	case "get_port_lists":
 		if f.hadLeftover { // the earlier scan left its port list too
 			return ok(`<port_list id="99999999-eeee-4fff-8000-111111111111"><name>vedette-scan-old</name><owner><name>vedette</name></owner></port_list>` +
@@ -781,7 +803,7 @@ func TestContract_INV25_SeamNilWording(t *testing.T) {
 // ---- when it runs ----
 
 // INV-25, D-566: an enabled, ready Greenbone scans the verified, committed IP with accepted testing terms after the other steps: the
-// deep config (every family but brute force, default accounts and DoS; generic web scanning off; brute-force options off; safe checks
+// deep config (every family but brute force, default accounts and DoS; generic web scanning and the web-root traversal NVT off; brute-force options off; safe checks
 // on), the probe log row before the task starts, results stored, the task and target cleaned up.
 func TestContract_INV25_ScansTheVerifiedIP(t *testing.T) {
 	t.Parallel()
@@ -799,6 +821,10 @@ func TestContract_INV25_ScansTheVerifiedIP(t *testing.T) {
 	}
 	if !slices.Equal(c.families, []string{"General", "Web application abuses"}) {
 		t.Fatalf("families = %q", c.families)
+	}
+	// #915: the web-root traversal test, which the checkbox does not gate, is left out; the rest of its family stays
+	if want := []string{"1.3.6.1.4.1.25623.1.0.113002", "1.3.6.1.4.1.25623.1.0.117574"}; !slices.Equal(c.web, want) {
+		t.Fatalf("web application tests = %q", c.web)
 	}
 	l := gvm.log
 	if len(l.rows) != 1 || l.rows[0].IP != ipA || l.rows[0].PortList != "T:22,443" || !strings.Contains(l.rows[0].Note, "many probes") || gvm.logAtStart != 1 {
@@ -1474,6 +1500,9 @@ func TestContract_INV25_TermsDecideGreenbone(t *testing.T) {
 	if !slices.Equal(c.families, []string{"General", "Brute force attacks", "Default Accounts", "Denial of Service", "Web application abuses"}) {
 		t.Fatalf("families = %q", c.families)
 	}
+	if c.web != nil || h.gvm.seen("get_nvts") { // #915: the disruptive level keeps the whole family, growing
+		t.Fatalf("web application tests = %q", c.web)
+	}
 	if d, _ := h.gvm.cfg(gbDeep.name); d.id != "" {
 		t.Fatal("the deep config was made for a disruptive scan")
 	}
@@ -1497,6 +1526,27 @@ func TestContract_INV25_TermsDecideGreenbone(t *testing.T) {
 	o, err := e.svc.greenboneStep(e.ctx(), ScanTarget{ID: id, Kind: KindIP, Value: ipA, User: "admin@acme.example", Mode: ScanMode{Full: true, Disruptive: true}}, []int{443})
 	if err != nil || len(o.not) != 1 || o.not[0].Text != notGBTerms || h.dialCount() != dials {
 		t.Fatalf("step = %+v, %v, dials %d -> %d", o, err, dials, h.dialCount())
+	}
+}
+
+// #915: a gvmd that does not keep the web-root traversal test out of the deep config starts nothing, and says why; a feed answer
+// with an NVT id that is not Greenbone's is refused.
+func TestContract_INV25_WebRootTraversalOffFailsClosed(t *testing.T) {
+	t.Parallel()
+	e, h := gbEnv(t)
+	e.enable()
+	h.gvm.with(func(g *fakeGVM) { g.keepNVTs = true })
+	s := e.scanIP(gbOpen())
+	if h.gvm.seen("create_task") || len(s.Greenbone) != 0 ||
+		!slices.ContainsFunc(notChecked(s), func(l string) bool { return strings.Contains(l, "did not keep the web-root traversal test off") }) {
+		t.Fatalf("not checked %q, cmds %q", notChecked(s), h.gvm.cmds)
+	}
+	if !slices.ContainsFunc(s.Checks, func(c CheckRow) bool { return strings.Contains(c.Text, "web-root traversal test off") }) &&
+		!strings.Contains(gbDeep.text, "web-root traversal test off") {
+		t.Fatal("the deep level does not say the test is off")
+	}
+	if got := gmpOIDRe.MatchString(`1.3.6.1.4.1.25623.1.0.106756"/><x a="`); got {
+		t.Fatal("an OID with markup passed")
 	}
 }
 

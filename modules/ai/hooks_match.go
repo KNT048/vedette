@@ -328,8 +328,10 @@ func isIDSep(b byte) bool {
 // findIDNumbers finds identity numbers of exactly 9 or 12 digits as people write them: unbroken, or in groups of
 // three or more digits joined by up to three separator characters ([ \t\n.-]), such as 0790.1234.5678,
 // 123 456 789 or 079 012 345 678. A digit run longer than that is not an ID number. IP address literals are blanked
-// first (blankIPs), so they are left alone and never join a digit run; dotted digits that are not an address are ID-shaped. (A list of numbers that happens to be nine digits in groups, such as three 3-digit ports with
-// spaces between them, is blocked too; the person can rephrase.)
+// first (blankIPs), so they are left alone and never join a digit run; dotted digits that are not an address are ID-shaped,
+// except two groups joined by one dot (26100.1742: a build or a decimal number). Versions, update numbers, advisory ids, CPE names,
+// digests and port lists are blanked by their context first (notIDForms). (A list of numbers that happens to be nine digits in
+// groups without such a context is blocked too; the person can rephrase.)
 func findIDNumbers(s string) []span {
 	// A number written after an ID label (CCCD 079201234567, CMND:123456789, passport C1234567) is an ID number whatever it sits in
 	// or next to: a link, a hash, letters. Read first, from the text as it is, so no blanking below can hide it.
@@ -407,35 +409,89 @@ func blankUUIDs(s string) string {
 
 // notIDForms are the written forms whose digits are never an ID number. Each match is blanked (blankForms) before the digit runs are
 // read; a number after an ID label is found before that (labelledIDs). An all-digit dotted 0790.1234.5678 stays ID-shaped (a Cisco
-// MAC address in that form has a letter in nearly every case, and then it is blanked), and so does a bare 2023-36844: only a CVE id
-// written with "CVE-" is blanked.
+// MAC address in that form has a letter in nearly every case, and then it is blanked), and so does a bare 2023-36844: only an
+// advisory id written with its prefix (CVE-, ELSA-, GHSA-…) is blanked. Each form is anchored on its own context (a prefix, a
+// keyword, a fixed shape), never on the digits alone, so the same digits standing on their own are still read.
 var notIDForms = []*regexp.Regexp{
 	linkRE, // a link: its scheme, host and path segments (blankLink); never userinfo, a query, a fragment or an ID-shaped segment
 	uuidRE, // a UUID
-	regexp.MustCompile(`\b[a-z][a-z0-9]{0,31}-[a-z2-7]{26}\b`),                                                        // a record id of this box (store.NewID: dev-…, fnd-…)
-	regexp.MustCompile(`(?i)\bcve-(?:19|20)\d{2}-\d{4,7}\b`),                                                          // a CVE id
+	regexp.MustCompile(`\b[a-z][a-z0-9]{0,31}-[a-z2-7]{26}\b`), // a record id of this box (store.NewID: dev-…, fnd-…)
+	cveFormRE,
+	advisoryRE,
+	ghsaRE,
 	regexp.MustCompile(`\b\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:[.,]\d{1,9})?)?(?:Z|[+-]\d{2}:?\d{2})?)?\b`), // a date or a timestamp
+	cpeRE,
+	digestRE,
 	hexRE,                                  // a hash or a long hex id (with a letter a-f; not one that starts with "cccd")
 	ciscoMAC,                               // a Cisco MAC address (kept when all digits: see above)
 	regexp.MustCompile(`\bASN?\d{1,10}\b`), // an autonomous system number written as one word (AS13335, ASN401234567)
+	kbRE,
+	versionFormRE,
+	portListRE,
 }
 
 var (
 	linkRE   = regexp.MustCompile(`(?i)\b(?:https?|ftp)://[^\s"'<>\\?#,;]+`)
 	hexRE    = regexp.MustCompile(`(?i)\b[0-9a-f]{16,}\b`)
 	ciscoMAC = regexp.MustCompile(`(?i)\b[0-9a-f]{4}\.[0-9a-f]{4}\.[0-9a-f]{4}\b`)
+	// cveFormRE: a CVE id, also written with a space, an underscore, a colon or nothing after "CVE" (CVE 2024-12345, CVE2024-12345).
+	cveFormRE = regexp.MustCompile(`(?i)\bcve[-_: ]?(?:19|20)\d{2}-\d{4,7}\b`)
+	// advisoryRE: an advisory id of the shape PREFIX-YEAR-NUMBER, the shape most vendor and database ids share (ELSA-2024-12345,
+	// CNVD-2024-12345, EUVD-2025-14498, BDU:2024-01234, MAL-2024-12345, NTAP-20240621-0002, BIT-nginx-2024-12345). The prefix starts
+	// with two capital letters and is glued to a year (19xx or 20xx, optionally with month and day) by "-" or ":", so a word and a
+	// space before a bare 2012-34567 do not make it an advisory. The labels "ID", "CMND", "CCCD" are read as labels first (labelledIDs).
+	advisoryRE = regexp.MustCompile(`\b[A-Z]{2}[A-Z0-9]*(?:-[A-Za-z][A-Za-z0-9]*){0,3}[-:](?:19|20)\d{2}(?:\d{2}){0,2}[-:]\d{1,7}\b`)
+	// ghsaRE: a GitHub advisory id: three groups of four characters from its own alphabet, which has digits 2-9 (GHSA-2345-6789-2345).
+	ghsaRE = regexp.MustCompile(`(?i)\bGHSA(?:-[23456789cfghjmpqrvwx]{4}){3}\b`)
+	// cpeRE: a CPE name, 2.3 or 2.2 (cpe:2.3:o:microsoft:windows_11_24h2:26100.1742:*:…, cpe:/o:juniper:junos:21.4:r3-s5).
+	cpeRE = regexp.MustCompile(`(?i)\bcpe:(?:2\.3:|/)[^\s"'<>,;]+`)
+	// digestRE: a digest written after its algorithm, in hex or base64 (sha256:…, sha384-… as in a subresource integrity value).
+	digestRE = regexp.MustCompile(`(?i)\b(?:sha(?:1|224|256|384|512)|sha3-(?:224|256|384|512)|md5|blake2[bs]?|blake3)[-:= ][A-Za-z0-9+/_=-]{16,}`)
+	// kbRE: a Microsoft update number (KB5034441, KB 5034441): six or seven digits after a capital "KB".
+	kbRE = regexp.MustCompile(`\bKB ?\d{6,7}\b`)
+	// versionFormRE: a dotted number right after a version word or a "v" glued to it (version 2024.003.20180, build 100.234.567,
+	// v123.456.789). Only the dotted number is taken: a number after it, with a space between, is read on its own.
+	versionFormRE = regexp.MustCompile(`(?i)(?:\b(?:version|ver|build|release|firmware|kernel|revision|rev)\.?[ \t]*[:#=]?[ \t]*v?|\bv)\d+(?:\.\d+)+\b`)
+	// portListRE: a list of port numbers after "port", "ports" or "cổng" (ports 8080 8443 9443, port 135 139 445/tcp). A port is
+	// written without a leading zero, so a citizen ID number (it starts with 0) never joins the list; keepForm also keeps a list
+	// with a number above 65535.
+	portListRE = regexp.MustCompile(`(?i)(?:\bports?|\bcổng)[ \t]*[:=]?[ \t]*` + portNum + `(?:[ \t]*(?:,|and|or|&)?[ \t]*` + portNum + `)*`)
 )
 
-// keepForm reports whether a match of a form must not be blanked: a hex run or a Cisco MAC with no letter a-f is only digits, and a
-// hex run that starts with the label "cccd" is a label glued to its number (CCCD079201234567).
+const portNum = `[1-9]\d{0,4}\b(?:/(?:tcp|udp)\b)?`
+
+// keepForm reports whether a match of a form must not be blanked: a hex run or a Cisco MAC with no letter a-f is only digits, a
+// hex run that starts with the label "cccd" is a label glued to its number (CCCD079201234567), and a port list with a number that
+// is not a port is not a port list.
 func keepForm(re *regexp.Regexp, m string) bool {
 	switch re {
 	case hexRE:
 		return !hasHexLetter(m) || strings.HasPrefix(strings.ToLower(m), "cccd")
 	case ciscoMAC:
 		return !hasHexLetter(m)
+	case portListRE:
+		return !allPorts(m)
 	}
 	return false
+}
+
+// allPorts reports whether every digit run of s is a port number (1-65535).
+func allPorts(s string) bool {
+	for i := 0; i < len(s); {
+		if !isDigitByte(s[i]) {
+			i++
+			continue
+		}
+		n, j := 0, i
+		for j < len(s) && isDigitByte(s[j]) {
+			if n = n*10 + int(s[j]-'0'); n > 65535 {
+				return false
+			}
+			j++
+		}
+		i = j
+	}
+	return true
 }
 
 // blankLink blanks the parts of a link (linkRE) whose digits are never a person's ID: the scheme, the host and every path segment
@@ -539,6 +595,9 @@ func idRuns(s string) []span {
 		}
 		if groups > 1 && minGroup < 3 {
 			continue
+		}
+		if groups == 2 && end-start == digits+1 && strings.IndexByte(s[start:end], '.') >= 0 {
+			continue // two groups joined by one dot: a build or a decimal number (26100.1742, 12345.6789), not how an ID number is written
 		}
 		if cveBefore(s, start) {
 			continue

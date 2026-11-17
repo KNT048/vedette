@@ -584,7 +584,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 |---|---|---|---|
 | `ai_timeout` | 504 | The AI did not finish in time. Ask a narrower question, or use a faster profile for this job. | `POST /findings/{id}/ai`, `POST /ai/cve/{id}/explain`, `POST /ai/cve/{id}/news`, `POST /ai/ask`, `POST /ai/logs/digest`, `POST /reports/weekly/ai-summary`, `POST /reports/pdpl/ai-summary` (D-481): mọi yêu cầu đã gửi hết giờ (90 s mỗi lần), hoặc câu hỏi Ask hết 2 phút |
 
-#### HTTP 503 (6 mã)
+#### HTTP 503 (7 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|

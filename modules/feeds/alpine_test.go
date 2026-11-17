@@ -42,7 +42,7 @@ func alpineZip(t testing.TB, files ...[2]string) []byte {
 // alpineRecords is the zip of the four real records, with a folder and a file that is no record.
 func alpineRecords(t testing.TB) []byte {
 	t.Helper()
-	files := [][2]string{{"docs/", ""}, {"README.txt", "not read"}}
+	files := [][2]string{{"advisories/", ""}, {"README.txt", "not read"}}
 	for _, id := range []string{"CVE-2006-20001", "CVE-2021-3156", "CVE-2026-31431", "CVE-2026-123158"} {
 		files = append(files, [2]string{"ALPINE-" + id + ".json", testFile(t, "alpine/ALPINE-"+id+".json")})
 	}

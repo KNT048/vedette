@@ -2,6 +2,7 @@ package exposure
 
 import (
 	"context"
+	"time"
 	"testing"
 
 	"github.com/knt048/vedette/core/progress"
@@ -45,5 +46,12 @@ func TestReportOpenVASIsItsPercent(t *testing.T) {
 	reportOpenVAS(progress.WithSink(t.Context(), tr), 37)
 	if v := tr.View(); v.Phase != progress.PhaseOpenVAS || *v.Percent != 37 {
 		t.Fatalf("view = %+v", v)
+	}
+	ctx, cancel := context.WithTimeout(progress.WithSink(t.Context(), tr), time.Hour)
+	defer cancel()
+	d, _ := ctx.Deadline()
+	reportOpenVAS(ctx, 50)
+	if v := tr.View(); v.EndsBy == nil || *v.EndsBy != d.Add(gbStopBudget).UTC().Format("2006-01-02T15:04:05.000Z") {
+		t.Fatalf("ends_by = %v", v.EndsBy)
 	}
 }

@@ -67,6 +67,8 @@ type Update struct {
 	Unit      string
 	Remaining time.Duration
 	Message   string
+	// EndsBy is the latest time the phase ends, when its owner enforces one (OpenVAS's cap and its stop budget); zero: none.
+	EndsBy time.Time
 	// NewPass starts a new pass of the phase whatever came before it (the first report of a Series): its time and pace start
 	// again, and the percent may start again from 0.
 	NewPass bool
@@ -110,6 +112,7 @@ type View struct {
 	UpdatedAt      string   `json:"updated_at"`
 	ETA            *string  `json:"eta"`
 	Message        *string  `json:"message"`
+	EndsBy         *string  `json:"ends_by"`
 }
 
 // Tracker keeps the latest state of one job. The zero value is not usable; make it with NewTracker. Safe for concurrent use.
@@ -206,6 +209,10 @@ func (t *Tracker) View() *View {
 	if !t.eta.IsZero() {
 		e := ts(t.eta)
 		v.ETA = &e
+	}
+	if !u.EndsBy.IsZero() {
+		e := ts(u.EndsBy)
+		v.EndsBy = &e
 	}
 	if u.Message != "" {
 		m := u.Message

@@ -75412,7 +75412,8 @@ type FindingsGetFindingsSummaryOK struct {
 	// The open findings to fix first: confirmed before suspected, then ransomware, then the highest CVSS
 	// (no score last), then the newest.
 	Top []FindingsGetFindingsSummaryOKTopItem `json:"top"`
-	// Open findings at the end of each of the last 30 days (UTC), oldest first; the last is now.
+	// Open findings at the end of each of the last 30 days of the organization time zone, oldest first;
+	// the last is now.
 	Trend []int `json:"trend"`
 	// #910 phase 1.
 	Unchecked FindingsGetFindingsSummaryOKUnchecked `json:"unchecked"`

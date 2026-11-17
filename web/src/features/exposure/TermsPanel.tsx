@@ -7,9 +7,9 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/input'
 import { useCan } from '@/lib/session'
 import { useAcceptTerms, useRevokeTerms } from './api'
-import { dateTimeText } from './dates'
 import { InfoLine } from './InfoLine'
 import type { Target } from './types'
+import { fmtDateTime } from '@/lib/format'
 
 /**
  * S-EXP-2: the testing terms of a verified target, one screen. Accepted once, every scan of the target is a deep scan;
@@ -32,7 +32,7 @@ export function TermsPanel({ target }: { target: Target }) {
   return (
     <Panel className="grid max-w-3xl gap-3 p-4 text-sm">
       <p role="status" className="font-medium">
-        {target.full_scan && a ? t('terms.accepted', { by: a.by, time: dateTimeText(a.at) }) + ' ' + t(a.disruptive ? 'terms.withDisruptive' : 'terms.withoutDisruptive')
+        {target.full_scan && a ? t('terms.accepted', { by: a.by, time: fmtDateTime(a.at) }) + ' ' + t(a.disruptive ? 'terms.withDisruptive' : 'terms.withoutDisruptive')
           : a ? t('terms.changed') : t('terms.none')}
       </p>
       <div className="grid gap-2 rounded-md border border-line p-3" aria-label={t('terms.textLabel')} role="group">

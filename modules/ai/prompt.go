@@ -88,7 +88,11 @@ type PromptInput struct {
 	Task     string // the job's own instructions (skill prompt)
 	Rules    []Rule
 	Question string // what the user asked, already through the before_ai hooks
-	Data     []DataBlock
+	// Zone is the organization's time zone (an IANA name): the data's ISO timestamps are UTC, its sentences (notes, alerts) already
+	// in this zone, and the model writes the dates and times it gives the reader in it, as every page and alert of the box does. ""
+	// says nothing about zones.
+	Zone string
+	Data []DataBlock
 	// WithTools must be true when the model will be offered tools: it gets a fence token even without Data, so tool
 	// results can be fenced the same way (see WrapToolResult).
 	WithTools bool
@@ -141,6 +145,9 @@ func (b PromptBuilder) Build(in PromptInput) (Prompt, error) {
 	}
 	if t := strings.TrimSpace(in.Task); t != "" {
 		sys.WriteString("\nYour task:\n" + t + "\n")
+	}
+	if in.Zone != "" {
+		fmt.Fprintf(&sys, "\nTimes ending in Z are UTC; all other times, and yours, are in %s.\n", in.Zone)
 	}
 
 	var user strings.Builder

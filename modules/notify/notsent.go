@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/modules/notify/channel"
 )
 
@@ -216,7 +217,7 @@ func notSent(why NotSentReason, sev, floor Severity, ch channel.Type, detail str
 		n.Text = "Held for quiet hours. It goes out by itself when they end."
 		if t, err := time.Parse(time.RFC3339, detail); err == nil {
 			n.Until = detail
-			n.Text = fmt.Sprintf("Held for quiet hours until %s. It goes out by itself then.", t.In(loc).Format("15:04"))
+			n.Text = fmt.Sprintf("Held for quiet hours until %s. It goes out by itself then.", orgtime.Clock(t, loc))
 		}
 	case UnsentNoChannel:
 		n.Text = "Not sent: no alert channel was set up."
@@ -241,7 +242,7 @@ func notSent(why NotSentReason, sev, floor Severity, ch channel.Type, detail str
 	case UnsentFirstRun: // detail: "" = not in a summary yet, "pending" = in one no channel delivered yet, else when one delivered it
 		n.Text = "Not sent on its own: it goes out in the next first-run summary, within the hour."
 		if t, err := time.Parse(time.RFC3339, detail); err == nil {
-			n.Text = fmt.Sprintf("Not sent on its own: it was in the first-run summary sent at %s.", t.In(loc).Format("15:04"))
+			n.Text = fmt.Sprintf("Not sent on its own: it was in the first-run summary sent at %s.", orgtime.Clock(t, loc))
 		} else if detail == "pending" {
 			n.Text = "Not sent on its own: it is in the first-run summary, which no channel has delivered yet."
 		}

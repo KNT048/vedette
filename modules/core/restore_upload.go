@@ -24,6 +24,7 @@ import (
 	"github.com/knt048/vedette"
 	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/apierr"
+	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/core/store"
@@ -523,7 +524,9 @@ func (h *OSHandlers) CorePostCoreSetupRestore(ctx context.Context, req *oas.Core
 	accepted := firstRunTerms{Version: vedette.TermsVersion(), At: h.now().UTC()}
 	detail += ", terms of use " + accepted.Version + " accepted"
 	err = h.act(ctx, c, false, "data.restore_import", "backup", detail, func(id, actor string) error {
-		label := "Uploaded backup of " + up.meta.CreatedAt.Format("2006-01-02 15:04") // labelRE of the host: letters, digits, space, : and -
+		// labelRE of the host: letters, digits, space, : and - (no comma). This runs before first-run setup, when the restored
+		// organization's zone is not known yet (a fresh box has only the default), so the time is UTC and says so.
+		label := "Uploaded backup of " + orgtime.ISODay(up.meta.CreatedAt, time.UTC) + " " + orgtime.ClockZone(up.meta.CreatedAt, time.UTC)
 		run, kept, err := h.startBackup(ctx, api.BackupCreateArgs{Kind: "manual", IncludeSecrets: key != nil, Label: label, Snapshot: up.ID}, id, actor)
 		if err != nil {
 			keep = kept // the host may be reading it: the start-up sweep removes it later

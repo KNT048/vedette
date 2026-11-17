@@ -13,6 +13,7 @@ import (
 
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/jobs"
+	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -228,7 +229,7 @@ func acceptedText(by, until string) string {
 	}
 	out := who + " accepted this risk"
 	if d, err := time.Parse(time.DateOnly, until); err == nil {
-		out += " until " + d.Format("2 Jan 2006")
+		out += " until " + orgtime.CalendarDay(d)
 	}
 	return out
 }

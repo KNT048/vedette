@@ -12,6 +12,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/ai/provider"
 )
@@ -542,7 +543,7 @@ func (s *Service) LogDigest(ctx context.Context, actor string) (LogDigestResult,
 	sctx, cancel := detached(ctx) // the tokens are spent: the suggestions are kept even if the person has gone
 	defer cancel()
 	v := s.digestView(tier, body, res.Model, res.Profile, res.TokensIn, res.TokensOut, now)
-	v.MemoriesSuggested = s.suggestFrom(sctx, remember, "From the log summary of "+now.UTC().Format("2 Jan 2006"), "the log digest")
+	v.MemoriesSuggested = s.suggestFrom(sctx, remember, "From the log summary of "+orgtime.Day(now, s.loc), "the log digest")
 	return v, nil
 }
 

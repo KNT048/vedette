@@ -3,10 +3,10 @@ import { KeyValue, Notice, Panel, Section } from '@/components/common/PageHeader
 import { EmptyState, ErrorState, Loading, QueryState } from '@/components/common/States'
 import { Chip, type Tone } from '@/components/common/StatusChip'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
-import { dateTimeText } from './dates'
 import { useSnapshot, useSnapshots } from './api'
 import { InfoLine } from './InfoLine'
 import type { HostClass, HostIp, HostRow, Snapshot, Target } from './types'
+import { fmtDateTime } from '@/lib/format'
 
 // S-EXP-1, INV-27: the surface of a verified domain from its newest scan: names, then their addresses, CNAME and where each
 // name was found. What serves a name (a CDN or not) does not matter; each address says what the scan does with it.
@@ -51,7 +51,7 @@ function SurfaceView({ s }: { s: Snapshot }) {
   return (
     <div className="grid gap-6">
       <Panel className="p-4">
-        <p className="mb-3 text-meta text-muted">{t('surface.from', { time: dateTimeText(s.started_at ?? s.scanned_at) })}</p>
+        <p className="mb-3 text-meta text-muted">{t('surface.from', { time: fmtDateTime(s.started_at ?? s.scanned_at) })}</p>
         <KeyValue items={[
           { label: t('surface.count.names'), value: s.hosts.length },
           { label: t('count.ips'), value: s.counts.ips },
@@ -85,8 +85,8 @@ function Addresses({ h }: { h: HostRow }) {
 function Address({ a, used }: { a: HostIp; used: string | undefined }) {
   const { t } = useTranslation('exposure')
   // What this run's deep scan did with the address: scanned, next in line (with when it was last scanned), or why not
-  const last = a.last_deep ? t('surface.deep.last', { time: dateTimeText(a.last_deep) }) : t('surface.deep.never')
-  const deepNote = (x: HostIp) => x.deep === 'scanned' ? t('surface.deep.scanned', { time: dateTimeText(x.last_deep ?? '') })
+  const last = a.last_deep ? t('surface.deep.last', { time: fmtDateTime(a.last_deep) }) : t('surface.deep.never')
+  const deepNote = (x: HostIp) => x.deep === 'scanned' ? t('surface.deep.scanned', { time: fmtDateTime(x.last_deep ?? '') })
     : x.deep === 'waiting' ? t('surface.deep.waiting', { n: x.next_in_line ?? 1, last })
     : t(`surface.deep.${x.deep}`)
   return (

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/modules/notify/channel"
 )
 
@@ -71,5 +72,5 @@ func (s *Service) recordReplyCodes(ctx context.Context, req ApprovalRequest, a A
 			return nil, fmt.Errorf("notify: record reply code: %w", err)
 		}
 	}
-	return &channel.ReplyCodes{Approve: approve, Reject: reject, Until: expires.In(s.loc(ctx)).Format("15:04")}, nil
+	return &channel.ReplyCodes{Approve: approve, Reject: reject, Until: orgtime.Clock(expires, s.loc(ctx))}, nil
 }

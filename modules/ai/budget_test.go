@@ -60,7 +60,7 @@ func TestBudgetWatchWarnsAt80AndStopsAt100(t *testing.T) {
 		}
 	}
 	if len(alerts) != 1 || alerts[0].high || !strings.Contains(alerts[0].title, "80 %") ||
-		!strings.Contains(alerts[0].text, "8,500 of 10,000 tokens used this month (85 %)") || !strings.Contains(alerts[0].text, "renews on 1 December 2026") ||
+		!strings.Contains(alerts[0].text, "8,500 of 10,000 tokens used this month (85 %)") || !strings.Contains(alerts[0].text, "renews on 1 Dec 2026") ||
 		!strings.Contains(alerts[0].text, "Settings, AI assistant") {
 		t.Fatalf("alerts at 85 %% = %+v", alerts)
 	}
@@ -73,7 +73,7 @@ func TestBudgetWatchWarnsAt80AndStopsAt100(t *testing.T) {
 	a.facts.mu.Lock()
 	a.facts.assets["CVE-2022-27593"][0].Name = "NAS-3"
 	a.facts.mu.Unlock()
-	if msg := a.explain("CVE-2022-27593", 429, "budget_reached")["error"].(map[string]any)["message"].(string); !strings.HasPrefix(msg, "This month's AI budget of 10,000 tokens is used up, so AI jobs are stopped until it renews on 1 December 2026.") {
+	if msg := a.explain("CVE-2022-27593", 429, "budget_reached")["error"].(map[string]any)["message"].(string); !strings.HasPrefix(msg, "This month's AI budget of 10,000 tokens is used up, so AI jobs are stopped until it renews on 1 Dec 2026.") {
 		t.Fatalf("message = %q", msg)
 	}
 	for range 2 {

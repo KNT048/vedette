@@ -311,7 +311,7 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 		}
 		return JobResult{}, apiBlocked(msg)
 	}
-	prompt, err := PromptBuilder{}.Build(PromptInput{Job: spec.Job, Task: spec.Task, Rules: har.rules, Question: question, Data: data, WithTools: spec.tools != nil})
+	prompt, err := PromptBuilder{}.Build(PromptInput{Job: spec.Job, Task: spec.Task, Rules: har.rules, Question: question, Zone: s.loc.String(), Data: data, WithTools: spec.tools != nil})
 	if err != nil {
 		return JobResult{}, fmt.Errorf("ai: build prompt: %w", err)
 	}

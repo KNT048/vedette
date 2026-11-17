@@ -6,11 +6,11 @@ import { CodeBlock } from '@/components/common/CodeBlock'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
 import { BusyNote } from '@/components/common/BusyNote'
-import { dateText, dateTimeText } from './dates'
 import { useCan } from '@/lib/session'
 import { useVerify } from './api'
 import { InfoLine } from './InfoLine'
 import type { Target } from './types'
+import { fmtDate, fmtDateTime } from '@/lib/format'
 
 /**
  * Step 1: prove ownership.
@@ -55,7 +55,7 @@ export function VerifyPanel({ target }: { target: Target }) {
         <>
           {verified ? (
             <>
-              <p className="max-w-3xl text-sm">{t('verify.doneDomain', { time: dateTimeText(target.verified_at) })}</p>
+              <p className="max-w-3xl text-sm">{t('verify.doneDomain', { time: fmtDateTime(target.verified_at) })}</p>
             </>
           ) : <InfoLine className="max-w-3xl text-sm" topic={t('verify.dnsTopic')} info={t('verify.dnsIntroInfo')}>{!proof ? t('verify.dnsIntro', { value: target.value }) : proof.zone === target.value ? t('verify.dnsIntroZone', { zone: proof.zone }) : t('verify.dnsIntroSub', { zone: proof.zone, value: target.value })}</InfoLine>}
           {proof?.covered_by && (!verified || target.blocked_reason === 'txt_missing') ? <p className="max-w-3xl text-sm" data-testid="proof-covered">{t('verify.coveredBy', { parent: proof.covered_by, value: target.value })}</p> : null}
@@ -80,15 +80,15 @@ export function VerifyPanel({ target }: { target: Target }) {
           {/* The "verified because the box reaches the Internet through it" fact is said once, in the step description above. */}
           <KeyValue items={[
             { label: t('verify.ipStatus'), value: target.validity === 'expired' ? <Chip tone="danger">{t('status.expired')}</Chip> : paused ? <Chip tone="warn">{t('verify.pausedChip')}</Chip> : target.validity === 'expiring' ? <Chip tone="warn">{t('status.expiresIn', { count: Math.max(0, Math.ceil((Date.parse(target.expires_at ?? '') - Date.now()) / 864e5)) })}</Chip> : <Chip tone="ok">{t('verify.valid')}</Chip> },
-            { label: t('verify.verifiedOn'), value: dateTimeText(target.verified_at) },
-            { label: t('verify.expiresOn'), value: dateText(target.expires_at) },
+            { label: t('verify.verifiedOn'), value: fmtDateTime(target.verified_at) },
+            { label: t('verify.expiresOn'), value: fmtDate(target.expires_at) },
           ]} />
         </>
       )}
       {recheck}
       {check && !paused ? (
         <div role="status" className={`rounded-md border px-3 py-2 text-sm ${check.ok ? 'border-ok/40 bg-ok-soft' : 'border-warn/50 bg-warn-soft/60'}`}>
-          <p className="mb-1 flex flex-wrap items-center gap-2"><Chip tone={check.ok ? 'ok' : 'warn'}>{domain ? (check.ok ? t('verify.found') : t('verify.notFound')) : (check.ok ? t('verify.passed') : t('verify.failed'))}</Chip><span className="text-caption text-muted">{t('verify.checkedAt', { time: dateTimeText(check.at) })}</span></p>
+          <p className="mb-1 flex flex-wrap items-center gap-2"><Chip tone={check.ok ? 'ok' : 'warn'}>{domain ? (check.ok ? t('verify.found') : t('verify.notFound')) : (check.ok ? t('verify.passed') : t('verify.failed'))}</Chip><span className="text-caption text-muted">{t('verify.checkedAt', { time: fmtDateTime(check.at) })}</span></p>
           <p>{check.message}</p>
         </div>
       ) : null}

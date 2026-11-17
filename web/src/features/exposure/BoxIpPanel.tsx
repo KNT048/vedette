@@ -12,8 +12,7 @@ import { Field, Label, Select } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { InfoTip } from '@/components/common/InfoTip'
 import { BusyNote } from '@/components/common/BusyNote'
-import { fmtRelative } from '@/lib/format'
-import { dateText, dateTimeText } from './dates'
+import { fmtDate, fmtDateTime, fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { InfoLine } from './InfoLine'
 import { OwnerChip } from './OwnerChip'
@@ -53,8 +52,8 @@ export function BoxIpPanel({ items, settings, ignored }: { items: Target[]; sett
   const columns: ColumnDef<Target>[] = [
     { id: 'ip', header: t('boxIp.col.ip'), accessorFn: (r) => r.value, cell: ({ row }) => <Link className="font-medium text-accent underline-offset-4 hover:underline" to={`/exposure/${row.original.id}`}>{row.original.value}</Link> },
     { id: 'status', header: t('boxIp.col.status'), accessorFn: (r) => r.status, cell: ({ row }) => <OwnerChip target={row.original} /> },
-    { id: 'seen', header: t('boxIp.col.seen'), accessorFn: (r) => r.verified_at ?? '', cell: ({ row }) => <span title={dateTimeText(row.original.verified_at)}>{fmtRelative(row.original.verified_at)}</span> },
-    { id: 'expires', header: t('boxIp.col.expires'), accessorFn: (r) => r.expires_at ?? '', cell: ({ row }) => <span>{dateText(row.original.expires_at)}</span> },
+    { id: 'seen', header: t('boxIp.col.seen'), accessorFn: (r) => r.verified_at ?? '', cell: ({ row }) => <span title={fmtDateTime(row.original.verified_at)}>{fmtRelative(row.original.verified_at)}</span> },
+    { id: 'expires', header: t('boxIp.col.expires'), accessorFn: (r) => r.expires_at ?? '', cell: ({ row }) => <span>{fmtDate(row.original.expires_at)}</span> },
     { id: 'scan', header: t('boxIp.col.scan'), enableSorting: false, cell: ({ row }) => (row.original.blocked_reason ? <span className="text-meta text-warn">{t(`blocked.${blockedKey(row.original)}`)}</span> : <span className="text-meta">{t('targets.ready')}</span>) },
     { id: 'remove', header: t('boxIp.col.remove'), enableSorting: false, cell: ({ row }) => <RemoveButton target={row.original} onRemove={setRemoving} /> },
   ]
@@ -91,7 +90,7 @@ export function BoxIpPanel({ items, settings, ignored }: { items: Target[]; sett
             <div role="status" className={`rounded-md border px-3 py-2 text-sm ${run.ok ? 'border-ok/40 bg-ok-soft' : 'border-warn/50 bg-warn-soft/60'}`}>
               <p className="mb-1 flex flex-wrap items-center gap-2">
                 <Chip tone={run.ok ? 'ok' : 'warn'}>{run.ok ? t('boxIp.last.ok') : t('boxIp.last.failed')}</Chip>
-                <span className="text-caption text-muted">{t('boxIp.last.title')} {t('boxIp.last.at', { time: dateTimeText(run.at) })}</span>
+                <span className="text-caption text-muted">{t('boxIp.last.title')} {t('boxIp.last.at', { time: fmtDateTime(run.at) })}</span>
               </p>
               <p>{run.message}</p>
             </div>
@@ -105,7 +104,7 @@ export function BoxIpPanel({ items, settings, ignored }: { items: Target[]; sett
                 <RemoveButton target={r} onRemove={setRemoving} />
               </div>
               <div className="flex flex-wrap items-center gap-2"><OwnerChip target={r} /></div>
-              <p className="text-meta text-muted">{t('boxIp.col.seen')}: {fmtRelative(r.verified_at)}. {t('boxIp.col.expires')}: {dateText(r.expires_at)}.</p>
+              <p className="text-meta text-muted">{t('boxIp.col.seen')}: {fmtRelative(r.verified_at)}. {t('boxIp.col.expires')}: {fmtDate(r.expires_at)}.</p>
               <p className="text-meta text-muted">{r.blocked_reason ? t(`blocked.${blockedKey(r)}`) : t('targets.ready')}</p>
             </div>
           )}
@@ -134,7 +133,7 @@ function IgnoredList({ ignored }: { ignored: IgnoredIp[] }) {
   const columns: ColumnDef<IgnoredIp>[] = [
     { id: 'ip', header: t('boxIp.ignored.col.ip'), accessorFn: (r) => r.value, cell: ({ row }) => <span className="font-medium">{row.original.value}</span> },
     { id: 'by', header: t('boxIp.ignored.col.by'), accessorFn: (r) => r.ignored_by },
-    { id: 'at', header: t('boxIp.ignored.col.at'), accessorFn: (r) => r.ignored_at, cell: ({ row }) => <span title={dateTimeText(row.original.ignored_at)}>{dateText(row.original.ignored_at)}</span> },
+    { id: 'at', header: t('boxIp.ignored.col.at'), accessorFn: (r) => r.ignored_at, cell: ({ row }) => <span title={fmtDateTime(row.original.ignored_at)}>{fmtDate(row.original.ignored_at)}</span> },
     { id: 'restore', header: t('boxIp.ignored.col.restore'), enableSorting: false, cell: ({ row }) => btn(row.original) },
   ]
   return (
@@ -143,7 +142,7 @@ function IgnoredList({ ignored }: { ignored: IgnoredIp[] }) {
         mobileRow={(r) => (
           <div className="grid gap-1.5">
             <div className="flex items-center justify-between gap-2"><span className="font-medium">{r.value}</span>{btn(r)}</div>
-            <p className="text-meta text-muted">{t('boxIp.ignored.col.by')}: {r.ignored_by}. {t('boxIp.ignored.col.at')}: {dateText(r.ignored_at)}.</p>
+            <p className="text-meta text-muted">{t('boxIp.ignored.col.by')}: {r.ignored_by}. {t('boxIp.ignored.col.at')}: {fmtDate(r.ignored_at)}.</p>
           </div>
         )}
         empty={<EmptyState title={t('boxIp.ignored.emptyTitle')}>{t('boxIp.ignored.emptyBody')}</EmptyState>} />

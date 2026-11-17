@@ -503,7 +503,8 @@ func TestMigration0021ContentVersion(t *testing.T) {
 			again = append(again, r.ID)
 		}
 	}
-	if !slices.Equal(again, []string{winRelFeedID}) {
+	// The code's later versions read again what they changed: the Windows releases (0019/0020) and the day of the EPSS scores (0022).
+	if !slices.Equal(again, []string{epssAllFeedID, winRelFeedID}) {
 		t.Fatalf("read again after the update: %v", again)
 	}
 }

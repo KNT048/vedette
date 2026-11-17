@@ -21,6 +21,7 @@ import (
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/events"
+	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/logs/listen"
@@ -47,6 +48,8 @@ type Config struct {
 	TrustAnchor func() ([]byte, error)
 	Log         *slog.Logger
 	Clock       func() time.Time // nil: time.Now
+	// Zone is the organization's time zone the times in alerts are written in (orgtime); nil: UTC.
+	Zone orgtime.Source
 	// Syslog is where the listener binds (listener.go); the zero value is every address, port 514 then 5514.
 	Syslog SyslogConfig
 	// Events receives logs.anomaly.detected (see AnomalyEvent). Nil: no event is sent.

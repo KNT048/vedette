@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/api/oas"
+	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -328,15 +329,18 @@ type summaryRow struct {
 	firstSeen        time.Time
 }
 
-// summaryData reads the open findings and the trend: at the end of each of the last SummaryDays UTC days (the last is now), how many
+// summaryData reads the open findings and the trend: at the end of each of the last SummaryDays days of the organization's time zone
+// (ServiceConfig.Zone, the days Home's chart names; the last is now), how many
 // findings had been first seen and were not closed yet. Two reads: the open rows (status index), and the first_seen/resolved_at of the
 // rows closed inside the window, one range per closed status on fnd_finding_status_resolved_idx (the statuses are listed so the index
 // serves it; rows closed before the window count on no day). The last point is the open count. A finding reopened after a close
 // counts as open since its first sighting (fnd_finding keeps one resolved_at): the line is a trend, the tile's number is exact.
 func (s *Service) summaryData(ctx context.Context, now time.Time) ([]summaryRow, []int, error) {
 	db := s.cfg.DB.Reader()
+	loc := orgtime.At(ctx, s.cfg.Zone)
 	now = now.UTC()
-	start := now.Truncate(24*time.Hour).AddDate(0, 0, -(SummaryDays - 1)) // midnight UTC of the first day
+	y, m, d := now.In(loc).Date()
+	start := time.Date(y, m, d-(SummaryDays-1), 0, 0, 0, 0, loc) // midnight of the first day, in the organization's zone
 	ends := make([]time.Time, SummaryDays)
 	for i := range ends {
 		ends[i] = start.AddDate(0, 0, i+1)

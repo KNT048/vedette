@@ -28,7 +28,7 @@ const startOfToday = () => { const d = new Date(); d.setHours(0, 0, 0, 0); retur
 const startOfMonth = () => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1).getTime() }
 const renewsOn = () => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth() + 1, 1) }
 const isoDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-const renewDay = () => renewsOn().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+const renewDay = () => renewsOn().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 const budgetStop = () => `this month's AI budget of ${num(aiConfigStore.get().monthly_budget)} tokens is used up, so AI jobs are stopped until it renews on ${renewDay()}. An administrator can raise the budget in Settings, AI assistant.`
 
 /** The backend's pause of scheduled AI jobs (response plans, Actor "system"): from 80 % of the month's shared budget spent, and when it is

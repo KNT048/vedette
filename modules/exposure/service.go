@@ -14,6 +14,7 @@ import (
 
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/events"
+	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -147,9 +148,9 @@ func (s *Service) audit(ctx context.Context, tx *sql.Tx, user, action, target, d
 
 // dayText and momentText are the one human date format of every message the API sends: "9 Nov 2026" and "9 Nov 2026, 17:00",
 // in the organization's time zone (loc; never ISO, never "UTC").
-func (s *Service) dayText(t time.Time) string { return t.In(s.loc()).Format("2 Jan 2006") }
+func (s *Service) dayText(t time.Time) string { return orgtime.Day(t, s.loc()) }
 func (s *Service) momentText(t time.Time) string {
-	return t.In(s.loc()).Format("2 Jan 2006, 15:04")
+	return orgtime.Stamp(t, s.loc())
 }
 
 // loc is the time zone of a snapshot's day and of the API's messages: the organization's (Zone, read on the Service's own context,

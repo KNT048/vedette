@@ -2,8 +2,8 @@ import { useTranslation } from 'react-i18next'
 import { Section } from '@/components/common/PageHeader'
 import { Chip, type Tone } from '@/components/common/StatusChip'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
-import { dateTimeText } from './dates'
 import type { HostIp, Snapshot } from './types'
+import { fmtDateTime } from '@/lib/format'
 
 // S-EXP-2: a domain's deep scan per address. Each public IPv4 address its names resolve to, the names that led to
 // it, what this run's deep scan did with it and what it found there; the details (services, exploited CVEs, web findings, OpenVAS) are
@@ -50,7 +50,7 @@ export function DeepSection({ s }: { s: Snapshot }) {
       return (
         <span className="grid gap-1">
           <Chip tone={TONE[r.deep]}>{t(`deep.state.${r.deep}`)}</Chip>
-          <span className="text-caption text-muted">{r.deep === 'waiting' ? t('deep.next', { n: r.next ?? 1 }) + ' ' : ''}{r.last ? t('deep.last', { time: dateTimeText(r.last) }) : t('deep.never')}</span>
+          <span className="text-caption text-muted">{r.deep === 'waiting' ? t('deep.next', { n: r.next ?? 1 }) + ' ' : ''}{r.last ? t('deep.last', { time: fmtDateTime(r.last) }) : t('deep.never')}</span>
         </span>
       )
     } },

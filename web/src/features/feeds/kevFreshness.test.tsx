@@ -3,7 +3,7 @@ import { screen } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { renderApp } from '@/test/render'
 import { server } from '@/test/server'
-import { fmtWhen } from './dates'
+import { fmtWhen } from '@/lib/format'
 
 // Home's "Newly exploited" board read as a list that ran once at install. It says how often the box checks CISA's list,
 // when it last did (the reader's time), CISA's own last addition, a failed check with the last good pull, and a list never pulled.
@@ -38,6 +38,15 @@ describe('Home: how fresh the exploited list is', () => {
     latest()
     renderApp('/')
     expect(await screen.findByText('Checked every hour, last at 10:54. CISA\'s last addition: 13 Nov 2026, Check Point Multiple Products.', undefined, T)).toBeInTheDocument()
+  })
+
+  it("times are the organization's (Settings › General), not the reader's browser", async () => {
+    server.use(http.get('*/api/v1/core/general', () => HttpResponse.json({ name: 'Example Co', timezone: 'America/New_York' })))
+    status({ state: 'loaded', error: null, interval_hours: 1, checked_at: '2026-11-17T03:54:00Z', last_success: '2026-11-17T03:54:00Z' })
+    latest()
+    renderApp('/')
+    // 03:54 UTC is 22:54 on 16 Nov in New York, where it is already 17 Nov 00:00: not today there
+    expect(await screen.findByText('Checked every hour, last at 16 Nov 2026, 22:54. CISA\'s last addition: 13 Nov 2026, Check Point Multiple Products.', undefined, T)).toBeInTheDocument()
   })
 
   it('a failed check says so plainly, keeps the cadence, the last good pull, CISA\'s last addition and the way to the feed settings', async () => {

@@ -3,6 +3,8 @@ package feeds
 import (
 	"fmt"
 	"strings"
+
+	"github.com/knt048/vedette/core/orgtime"
 )
 
 // displaySlugs is the vendor_product_slug of DATA_PIPELINE section 3: the name a person recognises for a
@@ -78,7 +80,7 @@ func weeklyText(v Vuln) string {
 	}
 	day := v.DateAdded
 	if t, err := parseDate(v.DateAdded); err == nil {
-		day = fmt.Sprintf("%d %s", t.Day(), t.Format("Jan"))
+		day = orgtime.CalendarShort(t)
 	}
 	return fmt.Sprintf("%s has a vulnerability %s (added to the CISA list on %s). If your company uses it, update it following the advisory from %s this week.",
 		DisplayOf(v.Vendor, v.Product), what, day, v.Vendor)

@@ -233,7 +233,7 @@ func TestSetupRestoreChecksTheKeyThenImportsAndRestores(t *testing.T) {
 	}
 	var imported *api.Backup
 	for i, b := range bl.Backups {
-		if b.Label == "Uploaded backup of 2026-11-01 08:30" {
+		if b.Label == "Uploaded backup of 2026-11-01 08:30 UTC" {
 			imported = &bl.Backups[i]
 		}
 	}

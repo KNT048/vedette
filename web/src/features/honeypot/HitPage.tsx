@@ -7,7 +7,7 @@ import { ErrorState, Loading, RequireModule } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { CodeBlock } from '@/components/common/CodeBlock'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
-import { fmtDateTime } from '@/lib/format'
+import { fmtDateTime, fmtTime } from '@/lib/format'
 import { useHit } from './api'
 import { hitName } from './hitName'
 import { RespondLink } from './hitParts'
@@ -32,11 +32,11 @@ export default function HitPage() {
 }
 
 function HitBody({ h, crumbs, respond }: { h: HitDetail; crumbs: Crumb[]; respond: boolean }) {
-  const { t, i18n } = useTranslation('honeypot')
+  const { t } = useTranslation('honeypot')
   const service = hitName(t, h)
   const src = h.src_name ?? h.src_ip
   const columns: ColumnDef<HitEvent>[] = [
-    { id: 'ts', header: t('hit.col.time'), accessorFn: (r) => r.ts, cell: ({ row }) => <span className="whitespace-nowrap tabular-nums">{new Intl.DateTimeFormat(i18n.language === 'en' ? 'en-GB' : 'vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(new Date(row.original.ts))}</span> },
+    { id: 'ts', header: t('hit.col.time'), accessorFn: (r) => r.ts, cell: ({ row }) => <span className="whitespace-nowrap tabular-nums">{fmtTime(row.original.ts, true)}</span> },
     { id: 'source', header: t('hit.col.source'), accessorFn: (r) => t(`eventSource.${r.source}`) },
     { id: 'text', header: t('hit.col.text'), enableSorting: false, cell: ({ row }) => <span>{row.original.text}{row.original.mark ? <span className="ml-2"><Chip tone="warn">{t('hit.markTrap')}</Chip></span> : null}</span> },
   ]

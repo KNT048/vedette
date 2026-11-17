@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/content/devicetypes"
+	"github.com/knt048/vedette/core/orgtime"
 )
 
 // This file is what other modules read and ask through their own ports (feeds.Inventory, findings.Inventory,
@@ -164,7 +165,7 @@ type MatchDevice struct {
 // MatchInput returns the device with its software; ok is false when it does not exist or a person ignored it (an ignored
 // device is outside every vulnerability reader, so nothing new is matched for it).
 func (s *Service) MatchInput(ctx context.Context, id string) (d MatchDevice, ok bool, err error) {
-	q := s.db.Reader()
+	q, loc := s.db.Reader(), orgtime.At(ctx, s.zone)
 	var ignored bool
 	if err := q.QueryRowContext(ctx, `SELECT ignored_at IS NOT NULL FROM inv_asset WHERE id = ?`, id).Scan(&ignored); errors.Is(err, sql.ErrNoRows) || ignored {
 		return MatchDevice{}, false, nil
@@ -192,7 +193,7 @@ func (s *Service) MatchInput(ctx context.Context, id string) (d MatchDevice, ok 
 		return MatchDevice{}, false, err
 	} else if ok {
 		d.ManualOS = v
-		d.OSCorrection = cmp.Or(by, "a person") + " set the OS to " + v + " on " + correctionDay(at)
+		d.OSCorrection = cmp.Or(by, "a person") + " set the OS to " + v + " on " + correctionDay(at, loc)
 		for _, r := range []*string{&d.StatedOS, &d.AgentOS, &d.SNMPOS} {
 			if *r != "" {
 				*r = v
@@ -218,7 +219,7 @@ func (s *Service) MatchInput(ctx context.Context, id string) (d MatchDevice, ok 
 			if src, v, p, _ := correctedFrom(corrects); v == lv && p == lp { // the same product: its source's rules still hold
 				sw.ReportedSource = src
 			}
-			sw.Correction = correctionNote(sw.Display, sw.Version, sw.PkgVersion, corrects, setBy, seenAt, false)
+			sw.Correction = correctionNote(sw.Display, sw.Version, sw.PkgVersion, corrects, setBy, seenAt, false, loc)
 		}
 		if n := len(d.Software); n > 0 && d.Software[n-1].ID == sw.ID {
 			d.Software[n-1].KevKeys = append(d.Software[n-1].KevKeys, key.String)
@@ -236,10 +237,10 @@ func (s *Service) MatchInput(ctx context.Context, id string) (d MatchDevice, ok 
 	if err := rows.Err(); err != nil {
 		return MatchDevice{}, false, fmt.Errorf("inventory: read software: %w", err)
 	}
-	if err := restingCorrections(ctx, q, id, &d, prefix); err != nil {
+	if err := restingCorrections(ctx, q, id, &d, prefix, loc); err != nil {
 		return MatchDevice{}, false, err
 	}
-	if d.NotInstalled, err = notInstalledRows(ctx, q, id); err != nil {
+	if d.NotInstalled, err = notInstalledRows(ctx, q, id, loc); err != nil {
 		return MatchDevice{}, false, err
 	}
 	return d, true, nil
@@ -247,7 +248,7 @@ func (s *Service) MatchInput(ctx context.Context, id string) (d MatchDevice, ok 
 
 // notInstalledRows reads the reported rows a "not installed" correction in use replaces (INV-41 (6)), with their keys and the person's
 // words, for MatchDevice.NotInstalled.
-func notInstalledRows(ctx context.Context, q querier, id string) ([]MatchSoftware, error) {
+func notInstalledRows(ctx context.Context, q querier, id string, loc *time.Location) ([]MatchSoftware, error) {
 	rows, err := q.QueryContext(ctx, `SELECT s.id, s.display, s.vendor, s.product, ifnull(s.version, ''), ifnull(s.cpe, ''), s.source, s.packaged, ifnull(s.pkg_version, ''),
 		ifnull(s.pkg_source, ''), c.corrects, ifnull(c.set_by, ''), c.seen_at, k.kev_key
 		FROM inv_software c JOIN inv_software s ON s.asset_id = c.asset_id AND s.source <> 'manual' AND `+rowKey("s")+` = c.corrects
@@ -274,7 +275,7 @@ func notInstalledRows(ctx context.Context, q querier, id string) ([]MatchSoftwar
 		if key.Valid {
 			sw.KevKeys = append(sw.KevKeys, key.String)
 		}
-		sw.Correction = correctionNote(sw.Display, sw.Version, sw.PkgVersion, corrects, setBy, setAt, true)
+		sw.Correction = correctionNote(sw.Display, sw.Version, sw.PkgVersion, corrects, setBy, setAt, true, loc)
 		sw.Key, sw.MarkedAt = corrects, setAt
 		out = append(out, sw)
 	}

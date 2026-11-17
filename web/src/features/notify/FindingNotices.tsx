@@ -4,7 +4,7 @@ import { Section } from '@/components/common/PageHeader'
 import { useModuleEnabled } from '@/lib/modules'
 import { useCan } from '@/lib/session'
 import { useFindingNotices } from './api'
-import { fmtClock } from './shared'
+import { fmtTime } from '@/lib/format'
 
 /** Slot `finding.panels` (S-ALERT-1): which channels were told about this finding, and whether it arrived. */
 export default function FindingNotices({ findingId }: Record<string, unknown>) {
@@ -15,7 +15,7 @@ export default function FindingNotices({ findingId }: Record<string, unknown>) {
   const sends = q.data?.sends ?? []
   if (!on || sends.length === 0) return null
   // "Notified" only for a message that arrived and named this finding; a failed attempt is said apart, never as notified.
-  const ok = sends.filter((s) => s.ok).map((s) => t('finding.entry', { channel: t(`ch.${s.channel}`), time: fmtClock(s.at) })).join(', ')
+  const ok = sends.filter((s) => s.ok).map((s) => t('finding.entry', { channel: t(`ch.${s.channel}`), time: fmtTime(s.at) })).join(', ')
   const failed = sends.filter((s) => !s.ok).map((s) => t('finding.entryFailed', { channel: t(`ch.${s.channel}`), reason: s.error ?? t('history.failed') })).join(', ')
   return (
     <Section id="notified" title={t('finding.title')} description={t('finding.description')} stories={['S-ALERT-1']}

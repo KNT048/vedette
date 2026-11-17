@@ -8,8 +8,7 @@ import { EmptyState, ErrorState, Loading } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { fmtPercent } from '@/lib/format'
-import { fmtDay } from './dates'
+import { fmtDate, fmtPercent } from '@/lib/format'
 import { useSearch } from './api'
 
 export default function LookupPage() {
@@ -48,7 +47,7 @@ export default function LookupPage() {
                 { label: t('lookup.category'), value: res.data.hit.category },
                 { label: t('lookup.sources'), value: res.data.hit.sources.join(', ') },
                 { label: t('lookup.score'), value: fmtPercent(res.data.hit.score, 0) },
-                { label: t('lookup.seen'), value: t('lookup.seenRange', { first: fmtDay(res.data.hit.first_seen), last: fmtDay(res.data.hit.last_seen) }) },
+                { label: t('lookup.seen'), value: t('lookup.seenRange', { first: fmtDate(res.data.hit.first_seen), last: fmtDate(res.data.hit.last_seen) }) },
               ]} />
               <p className="text-meta text-muted">{t('lookup.iocNote')}</p>
             </Card>
@@ -58,7 +57,7 @@ export default function LookupPage() {
             {res.data.vulns.map((v) => (
               <li key={v.cve} className="flex flex-wrap items-baseline justify-between gap-2 px-4 py-3">
                 <span><Link to={`/cve/${v.cve}`} className="font-medium text-accent underline-offset-4 hover:underline">{v.cve}</Link> <span className="text-muted">{v.display}</span></span>
-                <span className="text-meta text-muted">{t('lookup.addedOn', { date: fmtDay(v.date_added) })}</span>
+                <span className="text-meta text-muted">{t('lookup.addedOn', { date: fmtDate(v.date_added) })}</span>
               </li>
             ))}
           </ul></Card>

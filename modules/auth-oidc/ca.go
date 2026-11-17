@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/apierr"
+	"github.com/knt048/vedette/core/orgtime"
 )
 
 // Limits of the identity provider's CA (INV-12).
@@ -31,8 +32,8 @@ func invalidCA(why string) *apierr.Error {
 }
 
 // parseCA checks the pasted CA text at the edge (INV-12): only CERTIFICATE blocks without headers, 1..5 of them, at most 64 KiB, each
-// a CA that has not expired at now. It returns the text normalised (the blocks re-encoded, nothing else); "" is no CA.
-func parseCA(raw string, now time.Time) (string, *apierr.Error) {
+// a CA that has not expired at now (an expiry is written in loc, the organization's zone). It returns the text normalised (the blocks re-encoded, nothing else); "" is no CA.
+func parseCA(raw string, now time.Time, loc *time.Location) (string, *apierr.Error) {
 	if len(raw) > maxCAPEM {
 		return "", invalidCA("text is larger than 64 KB")
 	}
@@ -60,7 +61,7 @@ func parseCA(raw string, now time.Time) (string, *apierr.Error) {
 			return "", invalidCA(`"` + subject(c) + `" is not a CA certificate (the server's own certificate?)`)
 		}
 		if now.After(c.NotAfter) {
-			return "", invalidCA(`"` + subject(c) + `" expired on ` + c.NotAfter.UTC().Format("2006-01-02"))
+			return "", invalidCA(`"` + subject(c) + `" expired on ` + orgtime.Day(c.NotAfter, loc))
 		}
 		n++
 		_ = pem.Encode(&out, &pem.Block{Type: "CERTIFICATE", Bytes: b.Bytes}) // a bytes.Buffer does not fail

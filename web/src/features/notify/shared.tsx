@@ -2,6 +2,7 @@ import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { Chip } from '@/components/common/StatusChip'
 import type { Incident, IncidentStatus, NotSent, NotSentReason, Preview, SendRecord } from './types'
+import { fmtTime } from '@/lib/format'
 
 const TONE = { new: 'warn', acknowledged: 'accent', resolved: 'ok' } as const
 
@@ -13,7 +14,6 @@ export function IncidentStatusChip({ status }: { status: IncidentStatus }) {
 /** The locale key of an incident's kind: a blocked connection to a known-bad address is an attempt. */
 export const kindKey = (i: Pick<Incident, 'kind' | 'attempt'>) => `incidents.kind.${i.attempt ? 'bad_address_attempt' : i.kind}` as const
 
-export const fmtClock = (iso: string) => new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' }).format(new Date(iso))
 
 /** Lý do có chỗ sửa: liên kết tới Settings, Alert channels; chỉ admin mở được trang đó. */
 const FIXABLE: NotSentReason[] = ['no_channel', 'channels_off', 'channel_off', 'channel_removed', 'below_min_severity', 'quiet_hours', 'failed']
@@ -54,7 +54,7 @@ export function DeliveryBadges({ sends, notSent = null, admin = false, noChannel
   return (
     <span className="flex flex-wrap items-center gap-1">
       {[...last.values()].map((s) => (s.ok
-        ? <Chip key={s.channel} tone="off">{t('incidents.sentAt', { channel: t(`ch.${s.channel}`), time: fmtClock(s.at) })}</Chip>
+        ? <Chip key={s.channel} tone="off">{t('incidents.sentAt', { channel: t(`ch.${s.channel}`), time: fmtTime(s.at) })}</Chip>
         : s.delayed ? <Chip key={s.channel} tone="accent" title={s.error}>{t('incidents.sentDelayed', { channel: t(`ch.${s.channel}`) })}</Chip>
         : <Chip key={s.channel} tone="warn" title={s.error}>{t('incidents.sentFailed', { channel: t(`ch.${s.channel}`) })}</Chip>))}
       <NotSentFix notSent={notSent} admin={admin} />

@@ -169,23 +169,8 @@ func newSensorActive(ctx context.Context, d deps, prober sensoractive.Prober) (*
 // end (the service outlives the caller that built it), each with its own 2 s budget. parent is held for the life of the process:
 // never a request's context (see sensorActiveService).
 func orgLocation(parent context.Context, d deps) func() *time.Location {
-	base := context.WithoutCancel(parent)
-	return func() *time.Location {
-		if d.Core == nil {
-			return nil
-		}
-		ctx, cancel := context.WithTimeout(base, 2*time.Second)
-		defer cancel()
-		name, err := d.Core.OrgTimeZone(ctx)
-		if err != nil {
-			return nil
-		}
-		loc, err := time.LoadLocation(name)
-		if err != nil {
-			return nil
-		}
-		return loc
-	}
+	base, zone := context.WithoutCancel(parent), orgTimeZone(&d)
+	return func() *time.Location { return zone(base) }
 }
 
 // sensorActiveJobs is the Jobs func of the sensor-active entry in wiredModules: the window tick every minute and

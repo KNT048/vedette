@@ -210,3 +210,18 @@ func FuzzDataFence(f *testing.F) {
 		}
 	})
 }
+
+// The model writes the dates and times it gives the reader in the organization's zone, like every page and alert; the data's are UTC.
+func TestPromptNamesTheOrganizationZone(t *testing.T) {
+	p, err := PromptBuilder{}.Build(PromptInput{Job: JobLogDigest, Question: "When did the agent last report?", Zone: "Asia/Ho_Chi_Minh"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// ISO timestamps are UTC, but a sentence in the data (a correction note, an alert) is already in the zone: not converted twice
+	if !strings.Contains(p.System, "Times ending in Z are UTC; all other times, and yours, are in Asia/Ho_Chi_Minh.") {
+		t.Fatalf("system: %s", p.System)
+	}
+	if p, _ := (PromptBuilder{}).Build(PromptInput{Job: JobLogDigest, Question: "q"}); strings.Contains(p.System, "ending in Z") {
+		t.Fatal("no zone: nothing said")
+	}
+}

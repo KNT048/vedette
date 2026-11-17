@@ -9,6 +9,7 @@ import (
 	"time"
 
 	catalogdata "github.com/knt048/vedette/content/catalog"
+	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/modules/exposure"
 	"github.com/knt048/vedette/modules/findings"
 )
@@ -128,7 +129,7 @@ func (m exposureMatcher) Match(ctx context.Context, svcs []exposure.ServiceRow) 
 				continue
 			}
 			out.RuledOut = append(out.RuledOut, exposure.RuledOutRow{IP: s.IP, Port: s.Port, CVE: x.CVE,
-				Reason: fmt.Sprintf("Published on %s, more than 12 months ago, and only the product name matches: the banner gives no version Vedette can compare. For an old CVE Vedette needs a version or a hit of this page's scans.", findings.FmtDay(v.Published))})
+				Reason: fmt.Sprintf("Published on %s, more than 12 months ago, and only the product name matches: the banner gives no version Vedette can compare. For an old CVE Vedette needs a version or a hit of this page's scans.", orgtime.CalendarDay(v.Published))})
 		}
 		for _, x := range res.NameOnly { // Only the product name matches, whatever the CVE's age
 			s := where[x.SoftwareID]

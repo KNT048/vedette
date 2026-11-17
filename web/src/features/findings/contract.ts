@@ -260,7 +260,7 @@ export const HomeSummary = z.object({
     ransomware: z.number().int().describe('Open findings whose CVE ransomware campaigns use'),
   }),
   top: z.array(SummaryItem).max(SUMMARY_TOP).describe('The open findings to fix first: confirmed before suspected, then ransomware, then the highest CVSS (no score last), then the newest'),
-  trend: z.array(z.number().int()).length(SUMMARY_DAYS).describe('Open findings at the end of each of the last 30 days (UTC), oldest first; the last is now'),
+  trend: z.array(z.number().int()).length(SUMMARY_DAYS).describe('Open findings at the end of each of the last 30 days of the organization time zone, oldest first; the last is now'),
   devices: z.object({ total: z.number().int().describe('Devices on the Devices page'), pending: z.number().int().describe('Devices waiting for review') }),
   alerts: z.object({ sent: z.number().int(), failed: z.number().int(), days: z.number().int() }).nullable().describe('Alert messages (incidents, vulnerabilities; not approval requests) sent and failed in the last `days` days; a failure resent later with success to the same channel is not counted as failed; null when Notifications is off'),
   incidents: z.object({ open: z.number().int().describe('Open incidents (new or acknowledged)'), urgent: z.number().int().describe('Of them, high or critical') }).nullable().describe('null when Notifications is off'),

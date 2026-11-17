@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 	"unicode"
+
+	"github.com/knt048/vedette/core/orgtime"
 )
 
 // Basis says how a finding was established.
@@ -414,20 +416,20 @@ func nameOnlySummary(v Vuln, why string, listed bool) string {
 // agedSummary is the note of a finding the age rule closes.
 func agedSummary(v Vuln) string {
 	return fmt.Sprintf("%s: %s was published on %s and added to %s's list on %s, both more than 12 months ago, and Vedette could not compare a version (it matched the product name only). Vedette reopens this finding when it can compare the version (from the agent, the device or one you enter) or a scan that reads the version finds it.",
-		AgedNote, v.CVE, FmtDay(v.Published), v.listName(), FmtDay(v.DateAdded))
+		AgedNote, v.CVE, orgtime.CalendarDay(v.Published), v.listName(), orgtime.CalendarDay(v.DateAdded))
 }
 
 // agedGapSummary is agedSummary with why no version was compared (nameOnlyWhy) and where the CVE is now.
 func agedGapSummary(v Vuln, why string) string {
 	return fmt.Sprintf("%s: %s was published on %s and added to %s's list on %s, both more than 12 months ago, and %s. It is listed under \"Could not be checked\" for this device; Vedette reopens this finding when it can compare the version.",
-		AgedNote, v.CVE, FmtDay(v.Published), v.listName(), FmtDay(v.DateAdded), why)
+		AgedNote, v.CVE, orgtime.CalendarDay(v.Published), v.listName(), orgtime.CalendarDay(v.DateAdded), why)
 }
 
 // agedOthersSummary is the note of a finding the age rule closes because NVD's list names only other products than its row (#904).
 // It names the software once; a very long display or product list is clipped by AutoResolve (MaxNote) like any note.
 func agedOthersSummary(v Vuln, m Match) string {
 	return fmt.Sprintf("%s: %s was published on %s and added to %s's list on %s, both more than 12 months ago, and NVD lists it for %s, not %s, so no version could be compared. Vedette reopens this finding if NVD's data names this software or a scan finds it.",
-		AgedNote, v.CVE, FmtDay(v.Published), v.listName(), FmtDay(v.DateAdded), m.others, m.SoftwareDisplay)
+		AgedNote, v.CVE, orgtime.CalendarDay(v.Published), v.listName(), orgtime.CalendarDay(v.DateAdded), m.others, m.SoftwareDisplay)
 }
 
 // SettledKEV is how long a "Multiple Products" entry must have been in KEV before NVD's product list for it is taken as

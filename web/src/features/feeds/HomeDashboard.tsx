@@ -14,7 +14,7 @@ import { EmptyState, ErrorState } from '@/components/common/States'
 import { DependencyLink } from '@/components/common/DependencyLink'
 import { Chip, StatusChip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
-import { fmtRelative } from '@/lib/format'
+import { dayOf as orgDay, fmtDateTime, fmtDayMonth, fmtRelative } from '@/lib/format'
 import { api, ApiError } from '@/lib/api'
 import { useModuleEnabled } from '@/lib/modules'
 import { useCan, useMe } from '@/lib/session'
@@ -25,13 +25,11 @@ import { useChannels } from '@/features/notify/api'
 import { useAccount } from '@/features/core/api'
 import type { RunningJob } from '@/features/scanning/contract'
 import { KEY, SCANNING_KEY, isFirstRun, useHome, useScanning } from './homeSummary'
-import { fmtStamp } from './dates'
 
 // The add-device dialog is inventory's; Home loads it only when the button is pressed, so the Home chunk does not carry it.
 const AddDialog = lazy(() => import('@/features/inventory/AddDialog').then((m) => ({ default: m.AddDialog })))
 const AddRangeDialog = lazy(() => import('./AddRangeDialog').then((m) => ({ default: m.AddRangeDialog })))
 
-const dayFmt = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })
 
 /** The tiles: what needs action now (with its 30-day trend), devices, and, while Notifications is on, alerts and incidents.
  *  `noClaim`: the exploited list is off or was never fetched, so a 0 open is not good news and is not shown green. */
@@ -42,7 +40,10 @@ function Tiles({ s, noClaim }: { s: HomeSummary; noClaim: boolean }) {
   const first = trend[0]!, last = trend[trend.length - 1]!
   const delta = last - first
   const days = trend.length
-  const dayOf = (i: number) => (i === days - 1 ? t('dash.now') : dayFmt.format(new Date(Date.parse(s.generated_at) - (days - 1 - i) * 864e5)))
+  // The server counts the organization's days: step calendar days back from its day of generated_at (24 h steps miss a day at a
+  // daylight-saving change).
+  const [y, m, d] = orgDay(s.generated_at).split('-').map(Number) as [number, number, number]
+  const dayOf = (i: number) => (i === days - 1 ? t('dash.now') : fmtDayMonth(new Date(Date.UTC(y, m - 1, d - (days - 1 - i))).toISOString().slice(0, 10)))
   const suspected = open.total - open.confirmed
   const notify = !!s.alerts && !!s.incidents
   const link = 'text-accent underline-offset-4 hover:underline'
@@ -208,7 +209,7 @@ function useSteps(s: HomeSummary, onAdd: () => void, onRange: () => void): Step[
       line = [t('start.devices.rangeSetNoNext', { ranges }), discovery.reason].filter(Boolean).join(' ')
       action = <><DependencyLink reason={t('start.devices.scopeWhere')} to="/devices/setup?tab=scope#scope-confirm" label={t('start.devices.confirm')} />{more}</>
     } else {
-      line = discovery.next_run_at ? t('start.devices.rangeSet', { ranges, when: fmtStamp(discovery.next_run_at) }) : t('start.devices.rangeSetNoNext', { ranges })
+      line = discovery.next_run_at ? t('start.devices.rangeSet', { ranges, when: fmtDateTime(discovery.next_run_at) }) : t('start.devices.rangeSetNoNext', { ranges })
       action = <><Button size="sm" variant="primary" busy={scan.isPending} busyLabel={t('common:busy.starting')} onClick={() => scan.mutate()}>{t('start.devices.scanNow')}</Button>{more}</>
     }
   }

@@ -13,6 +13,7 @@ import (
 
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/events"
+	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/store"
 )
@@ -100,6 +101,8 @@ type Deps struct {
 	KEVPrimary, KEVFallback string
 	// Clock is time.Now when nil; tests inject a fake.
 	Clock func() time.Time
+	// Zone is the organization's time zone the times of alerts are written in (orgtime); nil: UTC.
+	Zone orgtime.Source
 	// Alert sends a notice to the admins through notify (the CISA list cannot be updated, critical; it is up to date again, not
 	// critical). id names the alert; notify does not dedupe such notices once sent, so the watch records an alert before it queues it.
 	// ErrAlertOff (notify off) makes the watch try again later. nil: no alerts (tests, a box without notify).

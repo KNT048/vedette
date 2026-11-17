@@ -21,7 +21,7 @@ import { useInstallKind, useModuleAvailable } from '@/lib/modules'
 import { useScope } from '@/lib/v1'
 import { ContainerBackup, InstallPending } from './ContainerOnly'
 import type { BoxBackup } from './types'
-import { fmtDateTime } from '@/lib/format'
+import { dayOf, fmtDateTime } from '@/lib/format'
 import { errMsg, useGate } from './parts'
 import { nav } from './util'
 import { beginBoxRestart } from './BoxRestarting'
@@ -45,7 +45,7 @@ export default function DataSection() {
   const [askReset, setAskReset] = useState(false)
 
   const dl = (path: string, filename: string) => ({ path, filename, onSaved: (saved: string) => toast.success(t('data.downloaded', { file: saved })), onError: (e: unknown) => toast.error(errMsg(e, t)) })
-  const [day] = useState(() => new Date().toISOString().slice(0, 10))
+  const [day] = useState(() => dayOf(new Date().toISOString())) // today in the organization's zone
 
   const [picked, setCats] = useState<LogCategory[]>(LOG_CATEGORIES.map((c) => c.id))
   // No AI response log to offer while this build does not offer that module and this box never turned it on

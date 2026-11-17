@@ -33,7 +33,7 @@ var contentVersions = map[Decoder]int{
 	DecoderUbuntuVEX:     1,
 	DecoderDebianTracker: 1,
 	DecoderAlpineOSV:     1,
-	DecoderEPSSAll:       1,
+	DecoderEPSSAll:       2, // 2: FIRST's day of the scores (feeds_epss_baseline.score_date)
 	DecoderNVDRecent:     1,
 	DecoderWinRel:        2, // 2: the monthly updates and hotpatches of the release pages (feeds_winrel_update)
 }

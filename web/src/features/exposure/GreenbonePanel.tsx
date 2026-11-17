@@ -8,11 +8,11 @@ import { Button } from '@/components/ui/button'
 import { BusyNote } from '@/components/common/BusyNote'
 import { useCan } from '@/lib/session'
 import { DependencyLink } from '@/components/common/DependencyLink'
-import { dateText, dateTimeText, endText } from './dates'
 import { InfoLine } from './InfoLine'
 import { useGreenbone, useOpenVasAgain, useScanRun, useSetGreenbone } from './api'
 import type { Greenbone, GreenboneResult, GreenboneRun, Snapshot, Target } from './types'
 import { blockedKey } from './types'
+import { fmtDate, fmtDateTime, fmtEnd } from '@/lib/format'
 
 /** Under 8 GB (decimal) the first feed load uses swap, so the box then needs 2 GB of swap; it passes from 6 GB. */
 const SWAP_BELOW = 8e9
@@ -78,8 +78,8 @@ function GreenboneBody({ g, embedded = false }: { g: Greenbone; embedded?: boole
             // after a start the line is left out.
             ...(on && (g.feed?.nvt_version || g.state === 'ready') ? [{ label: t('greenbone.feedTests'), value: <FeedTests g={g} /> }] : []),
             // The weekly feed update, its last outcome (only once one ran) and when the next one is due
-            ...(f.last_at ? [{ label: t('greenbone.feedLast'), value: `${dateTimeText(f.last_at)}. ${f.note ?? ''}` }] : []),
-            ...(f.next_at ? [{ label: t('greenbone.feedNext'), value: dateTimeText(f.next_at) }] : []),
+            ...(f.last_at ? [{ label: t('greenbone.feedLast'), value: `${fmtDateTime(f.last_at)}. ${f.note ?? ''}` }] : []),
+            ...(f.next_at ? [{ label: t('greenbone.feedNext'), value: fmtDateTime(f.next_at) }] : []),
           ]} />
           {!on ? <InfoLine className="text-meta" topic={t('greenbone.needsTopic')} info={t('greenbone.needsInfo')}>{t('greenbone.needs')}</InfoLine> : null}
           {(!on || (g.state === 'loading' && !f.last_at)) && p.ok && p.memory_bytes != null && p.memory_bytes < SWAP_BELOW ? <InfoLine className="text-meta text-muted" topic={t('greenbone.memory')} info={t('greenbone.swapNoteInfo')}>{t('greenbone.swapNote')}</InfoLine> : null}
@@ -90,7 +90,7 @@ function GreenboneBody({ g, embedded = false }: { g: Greenbone; embedded?: boole
             ) : (
               <Button variant="primary" onClick={() => change(true)} disabled={!can || !p.ok} busy={set.isPending} busyLabel={t('common:busy.turningOn')} title={locked ?? (p.ok ? undefined : p.reason ?? undefined)}>{t('greenbone.enable')}</Button>
             )}
-            {g.changed_by && g.changed_at ? <span className="text-caption text-muted">{t(on ? 'greenbone.changedOn' : 'greenbone.changedOff', { by: g.changed_by, time: dateTimeText(g.changed_at) })}</span> : null}
+            {g.changed_by && g.changed_at ? <span className="text-caption text-muted">{t(on ? 'greenbone.changedOn' : 'greenbone.changedOff', { by: g.changed_by, time: fmtDateTime(g.changed_at) })}</span> : null}
             {/* Turn off stops the OpenVAS containers and waits for them (up to 5 minutes); Enable only starts them in the background */}
             <BusyNote busy={set.isPending && set.variables === false} className="basis-full">{t('greenbone.offWaiting')}</BusyNote>
           </div>}
@@ -106,9 +106,9 @@ function FeedTests({ g }: { g: Greenbone }) {
   const { t } = useTranslation('exposure')
   const feed = g.feed
   if (feed?.nvt_version) {
-    return <InfoLine topic={t('greenbone.feedTests')} info={t('greenbone.feedTestsInfo', { version: feed.nvt_version })}>{feed.nvt_date ? dateText(feed.nvt_date) : feed.nvt_version}</InfoLine>
+    return <InfoLine topic={t('greenbone.feedTests')} info={t('greenbone.feedTestsInfo', { version: feed.nvt_version })}>{feed.nvt_date ? fmtDate(feed.nvt_date) : feed.nvt_version}</InfoLine>
   }
-  return <>{g.changed_at ? t('greenbone.feedFirstDoneAt', { time: dateTimeText(g.changed_at) }) : t('greenbone.feedFirstDone')}</>
+  return <>{g.changed_at ? t('greenbone.feedFirstDoneAt', { time: fmtDateTime(g.changed_at) }) : t('greenbone.feedFirstDone')}</>
 }
 
 /** docs/UI.md §0: OpenVAS did not run because it is off: the place to turn it on, on the External exposure page. */
@@ -165,7 +165,7 @@ export function GreenboneSection({ s, again }: { s: Snapshot; again?: Target }) 
   // rows were read: the table, or "found none"; review round 2 N3: stored Low rows (hardening notes) show in any state too
   const read = rows.length > 0 || run.state === 'done' || run.state === 'partial'
   const line = shown ? rowsLine(run) : undefined
-  const started = run.started_at ? dateTimeText(run.started_at) : null
+  const started = run.started_at ? fmtDateTime(run.started_at) : null
   const stopped = stopText(t, run)
   const cols: ColumnDef<GreenboneResult>[] = [
     { id: 'severity', header: t('greenbone.col.severity'), accessorFn: (r) => r.severity, cell: ({ row }) => {
@@ -199,7 +199,7 @@ export function GreenboneSection({ s, again }: { s: Snapshot; again?: Target }) 
         {again && againShown(s, run) ? <OpenVasAgain target={again} s={s} /> : null}
         {run.again && run.state !== 'running' ? <p className="mt-2 text-caption text-muted">{t('greenbone.results.again')}</p> : null}
         {started && run.state !== 'running' ? <p className="mt-2 text-caption text-muted">{run.ended_at && run.state !== 'stopped'
-          ? t('greenbone.results.startedEnded', { time: started, end: endText(run.started_at, run.ended_at) }) : t('greenbone.results.startedAt', { time: started })}</p> : null}
+          ? t('greenbone.results.startedEnded', { time: started, end: fmtEnd(run.started_at, run.ended_at) }) : t('greenbone.results.startedAt', { time: started })}</p> : null}
       </Section>
       {read && notes.length > 0 ? (
         <Section id="greenbone-notes" title={t('greenbone.results.notesTitle')} description={t('greenbone.results.notesHeader')} info={t('greenbone.results.notesHeaderInfo')}>
@@ -215,7 +215,7 @@ export function GreenboneSection({ s, again }: { s: Snapshot; again?: Target }) 
  *  stop time on record the box could not check, and every cause is named. */
 function stopText(t: (k: string, o?: Record<string, unknown>) => string, run: GreenboneRun): string | null {
   if (run.state !== 'stopped') return null
-  const time = run.ended_at ? dateTimeText(run.ended_at) : null
+  const time = run.ended_at ? fmtDateTime(run.ended_at) : null
   if (!run.stop) return t(time ? 'greenbone.results.stop.unknown' : 'greenbone.results.stop.unknownNoTime', { time })
   const key = run.stop.reason === 'restart' && !time ? 'restartNoTime' : run.stop.reason
   return t(`greenbone.results.stop.${key}`, { time, by: run.stop.by ?? t('greenbone.results.stop.someone') })
@@ -253,7 +253,7 @@ function OpenVasAgain({ target, s }: { target: Target; s: Snapshot }) {
     : !target.full_scan ? { text: t('greenbone.again.terms'), link: { to: '?tab=ownership#step-terms', label: t('greenbone.again.termsLink') } }
     : openvas === 'off' ? { text: t('greenbone.offReason'), link: { to: '/exposure?tab=targets#greenbone', label: t('greenbone.offLink') } }
     : openvas !== undefined && openvas !== 'ready' ? { text: t('greenbone.again.notReady'), link: { to: '/exposure?tab=targets#greenbone', label: t('greenbone.again.notReadyLink') } }
-    : Date.now() - since < SCAN_EVERY_MS ? { text: t('greenbone.again.wait', { time: dateTimeText(new Date(since + SCAN_EVERY_MS).toISOString()) }) }
+    : Date.now() - since < SCAN_EVERY_MS ? { text: t('greenbone.again.wait', { time: fmtDateTime(new Date(since + SCAN_EVERY_MS).toISOString()) }) }
     : null
   return (
     <div className="mt-3 grid max-w-3xl gap-2">

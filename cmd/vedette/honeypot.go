@@ -14,6 +14,7 @@ import (
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/modreg"
+	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/modules/honeypot"
 	"github.com/knt048/vedette/modules/inventory"
 )
@@ -216,7 +217,12 @@ func (a honeypotInventory) Box(ctx context.Context) (honeypot.Box, error) {
 
 // orgLocationAt is honeypot's Config.Location: the organization time zone of core's general settings, read at every use
 // with the caller's context. nil (the module uses UTC) when core is not built or the read fails or names an unknown zone.
-func orgLocationAt(d deps) func(ctx context.Context) *time.Location {
+func orgLocationAt(d deps) func(ctx context.Context) *time.Location { return orgTimeZone(&d) }
+
+// orgTimeZone is the organization time zone every module writes the times people read in (orgtime.Source): d.Core is read at
+// each use, so a module built before core (inventory) gets the zone once core exists, and a change in Settings › General
+// applies at once. nil when core is not built, the read fails or the name is unknown: orgtime then writes UTC.
+func orgTimeZone(d *deps) orgtime.Source {
 	return func(ctx context.Context) *time.Location {
 		if d.Core == nil {
 			return nil

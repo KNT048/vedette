@@ -7,6 +7,8 @@ import (
 	"time"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/knt048/vedette/core/orgtime"
 )
 
 // Status is the state of a finding.
@@ -96,9 +98,6 @@ func dayOf(t time.Time) time.Time {
 	return time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
 }
 
-// FmtDay is how a day is written in history notes: "12 Feb 2027", like the GUI.
-func FmtDay(t time.Time) string { return t.UTC().Format("2 Jan 2006") }
-
 // ExpireAcceptance reopens a risk_accepted finding once AcceptanceEnds(its last day) (INV-13): to the open status a
 // fresh match would give (confirmed with a scan basis, else suspected), with a history row by the system user that names
 // who accepted it and until when. ok is false for anything else.
@@ -106,7 +105,7 @@ func (f Finding) ExpireAcceptance(now time.Time) (Finding, HistoryEntry, bool) {
 	if f.Status != StatusRiskAccepted || now.Before(AcceptanceEnds(f.AcceptedUntil)) {
 		return f, HistoryEntry{}, false
 	}
-	note := "Risk acceptance expired (accepted by " + f.ResolvedBy + " until " + FmtDay(f.AcceptedUntil) + ")."
+	note := "Risk acceptance expired (accepted by " + f.ResolvedBy + " until " + orgtime.CalendarDay(f.AcceptedUntil) + ")."
 	f.Status = StatusSuspected
 	if f.Basis == BasisScan {
 		f.Status = StatusConfirmed
@@ -420,7 +419,7 @@ func (f Finding) apply(action Action, note, user string, until, now time.Time) (
 	f.ResolvedBy, f.ResolvedAt, f.ResolutionNote, f.ResolutionReason, f.AcceptedUntil = user, now, note, "", time.Time{}
 	if action == ActionAcceptRisk {
 		f.Status, f.AcceptedUntil = StatusRiskAccepted, until
-		return f, HistoryEntry{TS: now, User: user, Action: string(StatusRiskAccepted), Note: note + " (until " + FmtDay(until) + ")"}, nil
+		return f, HistoryEntry{TS: now, User: user, Action: string(StatusRiskAccepted), Note: note + " (until " + orgtime.CalendarDay(until) + ")"}, nil
 	}
 	f.Status = Status(action)
 	return f, HistoryEntry{TS: now, User: user, Action: string(action), Note: note}, nil

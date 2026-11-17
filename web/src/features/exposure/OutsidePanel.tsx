@@ -12,9 +12,9 @@ import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { useCan } from '@/lib/session'
 import { InfoTip } from '@/components/common/InfoTip'
 import { InfoLine } from './InfoLine'
-import { dateTimeText } from './dates'
 import { useCheckOutside, useOutside } from './api'
 import type { OutsideView, Target } from './types'
+import { fmtDateTime } from '@/lib/format'
 
 /** S-EXP-1: "What the Internet sees". Our scan runs from inside the network (NAT loopback); Shodan sees the IP from outside.
  * Nothing is sent until an administrator clicks and then confirms what is sent; every check is a click (no job, no polling). */
@@ -66,7 +66,7 @@ export function Answer({ v }: { v: OutsideView }) {
   const ports = [...new Set([...v.ports, ...(ours ?? [])])].sort((a, b) => a - b)
   return (
     <div className="grid max-w-3xl gap-3" data-testid="outside-answer">
-      <InfoLine className="text-meta text-muted" topic={t('outside.title')} info={t('outside.askedInfo')}>{t('outside.asked', { time: dateTimeText(v.checked_at), by: v.checked_by })}</InfoLine>
+      <InfoLine className="text-meta text-muted" topic={t('outside.title')} info={t('outside.askedInfo')}>{t('outside.asked', { time: fmtDateTime(v.checked_at), by: v.checked_by })}</InfoLine>
       {!v.found ? <Panel className="px-4 py-3 text-sm">{t('outside.noRecord', { ip: v.ip })}</Panel> : null}
       {ours === null ? <p className="text-sm">{t('outside.notScanned', { ip: v.ip })}</p> : null}
       {ports.length > 0 ? (

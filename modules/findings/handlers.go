@@ -11,6 +11,7 @@ import (
 
 	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/apierr"
+	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/core/server"
 )
 
@@ -454,6 +455,7 @@ func (h *FindingHandlers) FindingsGetFindingsPlan(ctx context.Context, params oa
 			return nil, fmt.Errorf("findings: reading the tier data: %w", err)
 		}
 	}
+	// day writes a calendar day (FIRST's day of the scores, the first day of the recent window), stored at 00:00 UTC
 	day := func(t time.Time) *string {
 		if t.IsZero() {
 			return nil
@@ -461,6 +463,7 @@ func (h *FindingHandlers) FindingsGetFindingsPlan(ctx context.Context, params oa
 		d := t.UTC().Format(time.DateOnly)
 		return &d
 	}
+	zone := orgtime.At(ctx, h.svc.cfg.Zone)
 	state := func(s string) string {
 		switch s {
 		case "ready", "loading", "module_off":
@@ -557,8 +560,9 @@ func (h *FindingHandlers) FindingsGetFindingsPlan(ctx context.Context, params oa
 		if cves == nil {
 			cves = []PlanCVE{}
 		}
-		if lastOnly && !k.it.Reported.IsZero() {
-			reported = day(k.it.Reported)
+		if lastOnly && !k.it.Reported.IsZero() { // an instant: its day in the organization's zone, the day the finding page shows
+			d := orgtime.ISODay(k.it.Reported, zone)
+			reported = &d
 		}
 		items = append(items, map[string]any{"group": k.it.Group, "asset": map[string]any{"id": a.ID, "name": a.Name}, "risk": riskOfView(risks, a), "software": k.it.Software,
 			"version": k.it.Version, "fixed": k.it.Fixed, "kind": k.it.Kind, "pro": k.it.Pro, "nvd_lag": k.it.NVDLag, "kb": k.it.KB, "cves": cves, "likely": likely, "recent": len(k.cves) - likely,

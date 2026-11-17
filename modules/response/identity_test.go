@@ -175,6 +175,45 @@ func TestContract_TelegramWrongAndExpiredLinks(t *testing.T) {
 	}
 }
 
+// Links asked for at the same moment (an administrator's save and the person's Send again) give one token: the others wait their
+// minute, and the one token handed out is the one that works.
+func TestContract_LinksAskedAtOnceGiveOneToken(t *testing.T) {
+	t.Parallel()
+	c := unlinkedChat(t)
+	const n = 4
+	var (
+		wg     sync.WaitGroup
+		start  = make(chan struct{})
+		tokens = make([]string, n)
+		errs   = make([]error, n)
+	)
+	for i := range n {
+		wg.Go(func() {
+			<-start
+			tokens[i], _, errs[i] = c.svc.ChatLinkToken(c.ctx(), "u-op", "telegram", tgOp)
+		})
+	}
+	close(start)
+	wg.Wait()
+	var token string
+	for i, err := range errs {
+		switch {
+		case err == nil && token == "":
+			token = tokens[i]
+		case err == nil:
+			t.Fatal("two tokens were handed out at once")
+		default:
+			wantCode(t, err, 429, "resend_too_soon")
+		}
+	}
+	if token == "" {
+		t.Fatal("no token was handed out")
+	}
+	if _, err := c.svc.ConfirmLink(c.ctx(), op, "telegram", token); err != nil {
+		t.Fatalf("the token handed out does not work: %v", err)
+	}
+}
+
 func TestContract_AChangedAddressOrAnUnlinkDropsTheProof(t *testing.T) {
 	t.Parallel()
 	c := unlinkedChat(t)

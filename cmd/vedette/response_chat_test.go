@@ -36,6 +36,29 @@ func TestWiringChatDecisionsPort(t *testing.T) {
 		Fields: map[string]string{"chat_id": "-1002145678901"}, Approvals: true, Approvers: []notify.Approver{{UserID: bao.ID, Address: "100200"}}}); err != nil {
 		t.Fatal(err)
 	}
+	// The save sends Bao a confirm link in the background, with its own token, and drops that token when the link cannot be delivered
+	// (the bot token here is made up). Wait until that send is over, so the token made below is the only one waiting: a send still
+	// running could replace it or drop it.
+	for deadline := time.Now().Add(45 * time.Second); ; { // the send gives up after 30 s
+		list, err := n.TelegramApprovers(ctx, "admin@acme.example")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(list) != 1 || list[0].UserID != bao.ID {
+			t.Fatalf("approvers: %+v", list)
+		}
+		if list[0].State != "sending" {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the confirm link sent by the save is still sending")
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatal(ctx.Err())
+		case <-time.After(10 * time.Millisecond):
+		}
+	}
 	st, err := svc.Settings(ctx)
 	if err != nil {
 		t.Fatal(err)

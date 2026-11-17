@@ -329,26 +329,18 @@ func (s *Service) SendLinkCode(ctx context.Context, who Actor, channel string) (
 		return CodeSent{}, fail(http.StatusServiceUnavailable, "email_not_ready", "Email is not set up, so no code can be sent. Ask an administrator to set up the email channel.")
 	}
 	addr := rows[i].Address
-	var sent string
-	err = s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT sent_at FROM resp_link_codes WHERE user_id = ? AND channel = ?`, u.ID, channel).Scan(&sent)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return CodeSent{}, fmt.Errorf("response: read link code: %w", err)
-	}
-	if at, perr := time.Parse(time.RFC3339Nano, sent); err == nil && perr == nil {
-		if wait := linkCodeResend - s.now().Sub(at); wait > 0 {
-			secs := int((wait + time.Second - 1) / time.Second)
-			return CodeSent{}, fail(http.StatusTooManyRequests, "resend_too_soon", fmt.Sprintf("Wait %d seconds before asking for a new code.", secs)).With("retry_after", secs)
-		}
-	}
-	if !s.noteLinkCode(u.ID, channel) {
-		return CodeSent{}, fail(http.StatusTooManyRequests, "too_many_codes", "Too many codes were sent in the last hour. Try again later.")
-	}
 	code, err := newLinkCode()
 	if err != nil {
 		return CodeSent{}, err
 	}
-	if err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error { return s.putCode(ctx, tx, u.ID, channel, addr, code) }); err != nil {
+	switch wait, full, err := s.putNewCode(ctx, u.ID, channel, addr, code); {
+	case err != nil:
 		return CodeSent{}, err
+	case wait > 0:
+		secs := int((wait + time.Second - 1) / time.Second)
+		return CodeSent{}, fail(http.StatusTooManyRequests, "resend_too_soon", fmt.Sprintf("Wait %d seconds before asking for a new code.", secs)).With("retry_after", secs)
+	case full:
+		return CodeSent{}, fail(http.StatusTooManyRequests, "too_many_codes", "Too many codes were sent in the last hour. Try again later.")
 	}
 	if err := s.cfg.Mailer.SendLinkCode(ctx, addr, code); err != nil {
 		s.cfg.Log.WarnContext(ctx, "response: a link code could not be mailed", "user", u.ID, "error", err.Error())
@@ -473,28 +465,45 @@ func (s *Service) confirmCode(ctx context.Context, u User, channel, code string)
 // issueLinkToken makes the token of a confirm link for a sendLink channel (the same limits as a mailed code: one a minute, five an hour);
 // it replaces any token waiting.
 func (s *Service) issueLinkToken(ctx context.Context, u User, channel, addr string) (string, error) {
-	var sent string
-	err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT sent_at FROM resp_link_codes WHERE user_id = ? AND channel = ?`, u.ID, channel).Scan(&sent)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return "", fmt.Errorf("response: read link code: %w", err)
-	}
-	if at, perr := time.Parse(time.RFC3339Nano, sent); err == nil && perr == nil {
-		if wait := linkCodeResend - s.now().Sub(at); wait > 0 {
-			secs := int((wait + time.Second - 1) / time.Second)
-			return "", fail(http.StatusTooManyRequests, "resend_too_soon", fmt.Sprintf("Wait %d seconds before sending a new link.", secs)).With("retry_after", secs)
-		}
-	}
-	if !s.noteLinkCode(u.ID, channel) {
-		return "", fail(http.StatusTooManyRequests, "too_many_codes", "Too many links were made for this person in the last hour. Try again later.")
-	}
 	token, err := newLinkToken(u.ID)
 	if err != nil {
 		return "", err
 	}
-	if err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error { return s.putCode(ctx, tx, u.ID, channel, addr, token) }); err != nil {
+	switch wait, full, err := s.putNewCode(ctx, u.ID, channel, addr, token); {
+	case err != nil:
 		return "", err
+	case wait > 0:
+		secs := int((wait + time.Second - 1) / time.Second)
+		return "", fail(http.StatusTooManyRequests, "resend_too_soon", fmt.Sprintf("Wait %d seconds before sending a new link.", secs)).With("retry_after", secs)
+	case full:
+		return "", fail(http.StatusTooManyRequests, "too_many_codes", "Too many links were made for this person in the last hour. Try again later.")
 	}
 	return token, nil
+}
+
+// putNewCode stores code as the person's waiting code for the channel, replacing the one waiting, unless that one was sent less than
+// linkCodeResend ago (wait > 0) or the hour's limit is used up (full). The check and the write are one transaction: two requests at the
+// same moment (an administrator's save and the person's Send again) cannot both pass the check, and the later one never replaces the
+// code the earlier one has just handed out.
+func (s *Service) putNewCode(ctx context.Context, userID, channel, addr, code string) (wait time.Duration, full bool, err error) {
+	err = s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+		var sent string
+		err := tx.QueryRowContext(ctx, `SELECT sent_at FROM resp_link_codes WHERE user_id = ? AND channel = ?`, userID, channel).Scan(&sent)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("response: read link code: %w", err)
+		}
+		if at, perr := time.Parse(time.RFC3339Nano, sent); err == nil && perr == nil {
+			if left := linkCodeResend - s.now().Sub(at); left > 0 {
+				wait = left
+				return nil
+			}
+		}
+		if full = !s.noteLinkCode(userID, channel); full {
+			return nil
+		}
+		return s.putCode(ctx, tx, userID, channel, addr, code)
+	})
+	return wait, full, err
 }
 
 // Unlink is DELETE /response/me/identities/{channel} (operator).

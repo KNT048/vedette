@@ -26,13 +26,18 @@ func TestKeptOrderKeepsAWatchedApprovedRowOverAnIgnoredOne(t *testing.T) {
 			{"a-server", newer, true, nil},     // approved, watched
 			{"a-phone", old, false, &old},      // older, ignored, not approved
 			{"a-new-phone", newer, false, nil}, // a new sighting nobody approved
+			{"a-declared", old, true, &old},    // added by hand, then ignored (origin set below)
 		} {
 			if _, err := tx.ExecContext(ctx, `INSERT INTO inv_asset (id, kind, origin, approved, first_seen, last_seen, ignored_at) VALUES (?, 'unknown', 'discovered', ?, ?, ?, ?)`,
 				r.id, r.approved, r.first, r.first, r.ignored); err != nil {
 				return err
 			}
 		}
+		if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET origin = 'manual' WHERE id = 'a-declared'`); err != nil {
+			return err
+		}
 		for _, c := range []struct{ x, y, into string }{
+			{"a-server", "a-declared", "a-declared"}, // review r1 L1 of #948: a declared row keeps its origin and address; joinAs watches it again
 			{"a-ignored-dup", "a-server", "a-server"},
 			{"a-server", "a-ignored-dup", "a-server"},
 			{"a-phone", "a-new-phone", "a-phone"}, // the usual order: the older row

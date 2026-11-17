@@ -121,6 +121,9 @@ func (h *Handlers) InventoryPatchInventoryDevicesID(ctx context.Context, req *oa
 	if v, ok := req.Name.Get(); ok {
 		p.Name = &v
 	}
+	if v, ok := req.Os.Get(); ok {
+		p.OS = &v
+	}
 	if err := h.svc.PatchDevice(ctx, who, params.ID, p); err != nil {
 		return nil, fail(err)
 	}
@@ -240,13 +243,20 @@ func (h *Handlers) InventoryPostInventoryDevicesIDSoftware(ctx context.Context, 
 	return &oas.InventoryPostInventoryDevicesIDSoftwareCreated{KevCves: n}, nil
 }
 
-// InventoryPatchInventoryDevicesIDSoftwareSid implements PATCH /inventory/devices/{id}/software/{sid} (operator, D-471).
+// InventoryPatchInventoryDevicesIDSoftwareSid implements PATCH /inventory/devices/{id}/software/{sid} (operator, D-471, INV-41).
 func (h *Handlers) InventoryPatchInventoryDevicesIDSoftwareSid(ctx context.Context, req *oas.InventoryPatchInventoryDevicesIDSoftwareSidReq, params oas.InventoryPatchInventoryDevicesIDSoftwareSidParams) (*oas.InventoryPatchInventoryDevicesIDSoftwareSidOK, error) {
 	who, err := actor(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if err := h.svc.SetSoftwareVersion(ctx, who, params.ID, params.Sid, req.Version); err != nil {
+	e := SoftwareEdit{CatalogID: req.CatalogID.Or(""), Vendor: req.Vendor.Or(""), Product: req.Product.Or("")}
+	if v, ok := req.Version.Get(); ok {
+		e.Version = &v
+	}
+	if v, ok := req.PkgVersion.Get(); ok {
+		e.PkgVersion = &v
+	}
+	if err := h.svc.EditSoftware(ctx, who, params.ID, params.Sid, e); err != nil {
 		return nil, fail(err)
 	}
 	return &oas.InventoryPatchInventoryDevicesIDSoftwareSidOK{Ok: true}, nil

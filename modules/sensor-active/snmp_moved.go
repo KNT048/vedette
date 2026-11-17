@@ -161,9 +161,9 @@ func (s *Service) AssetMerged(ctx context.Context, from, into string) error {
 		return nil
 	}
 	return s.db.Write(ctx, func(tx *sql.Tx) error {
-		if _, err := tx.ExecContext(ctx, `INSERT INTO sa_snmp_answer (credential_id, asset_id, ip, answered_at)
-			SELECT credential_id, ?, ip, answered_at FROM sa_snmp_answer WHERE asset_id = ?
-			ON CONFLICT (credential_id, asset_id) DO UPDATE SET ip = excluded.ip, answered_at = excluded.answered_at
+		if _, err := tx.ExecContext(ctx, `INSERT INTO sa_snmp_answer (credential_id, asset_id, ip, answered_at, sys_descr, sys_object_id)
+			SELECT credential_id, ?, ip, answered_at, sys_descr, sys_object_id FROM sa_snmp_answer WHERE asset_id = ?
+			ON CONFLICT (credential_id, asset_id) DO UPDATE SET ip = excluded.ip, answered_at = excluded.answered_at, sys_descr = excluded.sys_descr, sys_object_id = excluded.sys_object_id
 			WHERE excluded.answered_at > sa_snmp_answer.answered_at`, into, from); err != nil {
 			return fmt.Errorf("sensoractive: merge snmp answers: %w", err)
 		}
@@ -172,4 +172,12 @@ func (s *Service) AssetMerged(ctx context.Context, from, into string) error {
 		}
 		return nil
 	})
+}
+
+// nullText is NULL for an empty text, the text otherwise (the columns refuse "").
+func nullText(s string) any {
+	if s == "" {
+		return nil
+	}
+	return s
 }

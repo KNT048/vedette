@@ -1292,7 +1292,8 @@ type Handler interface {
 	InventoryDeleteInventoryDevicesID(ctx context.Context, params InventoryDeleteInventoryDevicesIDParams) error
 	// InventoryDeleteInventoryDevicesIDSoftwareSid implements inventory_delete_inventory_devices_id_software_sid operation.
 	//
-	// Remove manually declared software from a device.
+	// Remove manually declared software from a device; on a correction (INV-41) this clears it and the
+	// reported row matches again (audit inventory.clear_software_correction).
 	//
 	// DELETE /inventory/devices/{id}/software/{sid}
 	InventoryDeleteInventoryDevicesIDSoftwareSid(ctx context.Context, params InventoryDeleteInventoryDevicesIDSoftwareSidParams) error
@@ -1417,8 +1418,14 @@ type Handler interface {
 	InventoryPatchInventoryDevicesID(ctx context.Context, req *InventoryPatchInventoryDevicesIDReq, params InventoryPatchInventoryDevicesIDParams) (*InventoryPatchInventoryDevicesIDOK, error)
 	// InventoryPatchInventoryDevicesIDSoftwareSid implements inventory_patch_inventory_devices_id_software_sid operation.
 	//
-	// Change the version of manually declared software (400 not_manual for software a sensor or agent
-	// saw); an empty version removes it; the device is matched again (D-471).
+	// Change a software row (D-471, INV-41). A row a person declared changes in place. A row a sensor or
+	// agent reported is corrected: the values go in a manual correction row (source manual, correction
+	// set) that replaces exactly that row (its source, product and version, and its re-reports) for
+	// matching until it is deleted; another install of the product (another version or source) keeps
+	// matching. Fields left out keep their value (the CPE, the packaged flag, the source package; the
+	// package release while the version stays); another product starts clean. The device is matched again.
+	// 400 bad_edit (nothing to change), bad_version, bad_pkg_version, unknown_product, incomplete_product,
+	// bad_product. 409 duplicate_software.
 	//
 	// PATCH /inventory/devices/{id}/software/{sid}
 	InventoryPatchInventoryDevicesIDSoftwareSid(ctx context.Context, req *InventoryPatchInventoryDevicesIDSoftwareSidReq, params InventoryPatchInventoryDevicesIDSoftwareSidParams) (*InventoryPatchInventoryDevicesIDSoftwareSidOK, error)
@@ -2260,10 +2267,10 @@ type Handler interface {
 	ScanGetScansProbesCsv(ctx context.Context) (ScanGetScansProbesCsvOK, error)
 	// ScanGetScansRuns implements scan_get_scans_runs operation.
 	//
-	// Scan history and the running scan, with per-device results.
+	// Scan history and the running scan, with per-device results: the newest 100 runs.
 	//
 	// GET /scans/runs
-	ScanGetScansRuns(ctx context.Context) (*ScanGetScansRunsOK, error)
+	ScanGetScansRuns(ctx context.Context, params ScanGetScansRunsParams) (*ScanGetScansRunsOK, error)
 	// ScanGetScansTargets implements scan_get_scans_targets operation.
 	//
 	// Scannable targets and why others are not (unapproved device, out of scope, external IP the box has
@@ -2318,7 +2325,7 @@ type Handler interface {
 	// scans module is on.
 	//
 	// GET /scanning/history
-	ScanningGetScanningHistory(ctx context.Context) (*ScanningGetScanningHistoryOK, error)
+	ScanningGetScanningHistory(ctx context.Context, params ScanningGetScanningHistoryParams) (*ScanningGetScanningHistoryOK, error)
 	// ScanningPatchScanningEnginesID implements scanning_patch_scanning_engines_id operation.
 	//
 	// Turn an engine on or off: its module switch (passive, osquery, wazuh, nuclei, honeypot), active

@@ -12,9 +12,8 @@ import (
 	"strconv"
 	"time"
 
-	"golang.org/x/net/publicsuffix"
-
 	"github.com/knt048/vedette/core/domainfence"
+	"github.com/knt048/vedette/core/domainfence/proofat"
 	"github.com/knt048/vedette/host/api"
 	"github.com/knt048/vedette/host/server"
 )
@@ -346,7 +345,7 @@ func (o *Ops) exposureToken(a api.ExposureTokenArgs) (any, error) {
 	// D-628 (review r2 L4 of #941): the host does not trust core, so it never issues a token for a public suffix (co.uk, ddns.net,
 	// github.io: the Public Suffix List, both sections), whose record at _vedette-verify.<suffix> could otherwise prove every customer's
 	// name under it at the fence. Forgetting one stays possible.
-	if s, _ := publicsuffix.PublicSuffix(a.Domain); s == a.Domain {
+	if proofat.IsPublicSuffix(a.Domain) {
 		return nil, server.Invalid("domain", "is a public suffix (like co.uk or ddns.net), under which many owners register their names; no token is issued for it")
 	}
 	if o.fence == nil {
@@ -365,9 +364,14 @@ func fenceJob(a api.ExposureFenceCheckArgs) (domainfence.Job, error) {
 	if err != nil || ip.String() != a.IP {
 		return domainfence.Job{}, server.Invalid(fieldIP, "must be a public IPv4 address")
 	}
-	j := domainfence.Job{Domain: a.Domain, Name: a.Name, IP: ip, Token: a.Token, Disruptive: a.Disruptive}
+	j := domainfence.Job{Domain: a.Domain, Name: a.Name, IP: ip, Token: a.Token, Disruptive: a.Disruptive, ProofAt: a.ProofAt}
 	if err := j.Valid(); err != nil {
 		return domainfence.Job{}, server.Invalid("domain", err.Error())
+	}
+	// D-632: the host trusts no core: the parent name a record is looked for on lies between the domain and its registered domain,
+	// never on or above a public suffix (co.uk, ddns.net, github.io, s3.amazonaws.com; review r1 L1 of #960)
+	if j.ProofAt != "" && !proofat.Within(j.Domain, j.ProofAt) {
+		return domainfence.Job{}, server.Invalid("proof_at", "must be a parent name of the domain, down to its registered domain")
 	}
 	return j, nil
 }

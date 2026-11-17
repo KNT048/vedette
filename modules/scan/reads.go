@@ -66,7 +66,17 @@ func (s *Service) Run(ctx context.Context, id string) (RunView, error) {
 
 // Runs returns the newest runs, newest first, with their per-device results (S-SCAN-3).
 func (s *Service) Runs(ctx context.Context) ([]RunView, error) {
-	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT `+runColumns+` FROM scan_run ORDER BY started_at DESC, rowid DESC LIMIT ?`, keepRuns)
+	return s.runs(ctx, ``)
+}
+
+// RunsOf returns the newest runs that had this device among their targets (kien G7b/c, the device page's Last checks), newest
+// first, however many runs of other devices came after.
+func (s *Service) RunsOf(ctx context.Context, asset string) ([]RunView, error) {
+	return s.runs(ctx, `WHERE EXISTS (SELECT 1 FROM json_each(scan_run.target_ids) WHERE value = ?)`, asset)
+}
+
+func (s *Service) runs(ctx context.Context, where string, args ...any) ([]RunView, error) {
+	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT `+runColumns+` FROM scan_run `+where+` ORDER BY started_at DESC, rowid DESC LIMIT ?`, append(args, keepRuns)...)
 	if err != nil {
 		return nil, fmt.Errorf("scan: listing runs: %w", err)
 	}

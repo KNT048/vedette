@@ -143,6 +143,9 @@ type DomainScope struct {
 	Domain string `json:"domain"`
 	Name   string `json:"name"`
 	Token  string `json:"token"`
+	// ProofAt (D-632): the parent name of Domain where Domain's own record sits (the zone apex), checked there by the worker's fence;
+	// omitted when the record is on Domain. A worker that does not know the field refuses the job (the check fails closed).
+	ProofAt string `json:"proof_at,omitempty"`
 }
 
 // HeartbeatNmap says whether the worker can run nmap.

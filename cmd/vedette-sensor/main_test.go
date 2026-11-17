@@ -207,8 +207,9 @@ func TestBinaryDependencies(t *testing.T) {
 	allowed := []string{
 		"cmd/vedette-sensor",
 		"content/oui",
-		"core/domainfence", // the worker's domain fence of domain_ip jobs (D-591); standard library and core/localnet only, its own leaf test
-		"core/egressip",    // the worker's own-IP fence of the external shape and its public-address rule (D-514); standard library only, its own leaf test
+		"core/domainfence",         // the worker's domain fence of domain_ip jobs (D-591); standard library and core/localnet only, its own leaf test
+		"core/domainfence/proofat", // where a domain_ip job's record may sit (D-632): the Public Suffix List bound core and vedette-host apply too
+		"core/egressip",            // the worker's own-IP fence of the external shape and its public-address rule (D-514); standard library only, its own leaf test
 		"core/exec",
 		"core/localnet", // the local networks of nmapargv and nucleiargv (D-461); net/netip and slices only, its own leaf test
 		"core/observe",
@@ -225,7 +226,8 @@ func TestBinaryDependencies(t *testing.T) {
 	// The only code from outside the standard library and this module: the raw socket of the capture (afpacket_linux.go) uses
 	// one receive-side option that package syscall lacks; the worker reads SNMP agents with gosnmp (BSD-2, D-512: SNMPv3 USM is
 	// key localization, HMAC and AES-CFB, not worth writing again). Both are pinned in go.mod and import the standard library only.
-	thirdParty := []string{"golang.org/x/sys/unix", "github.com/gosnmp/gosnmp"}
+	// golang.org/x/net/publicsuffix (D-632): the embedded Public Suffix List of proofat; it imports the standard library only.
+	thirdParty := []string{"golang.org/x/sys/unix", "github.com/gosnmp/gosnmp", "golang.org/x/net/publicsuffix"}
 	for _, goos := range []string{runtime.GOOS, "linux"} {
 		t.Run(goos, func(t *testing.T) {
 			t.Parallel()

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/modreg"
 	"github.com/knt048/vedette/modules"
@@ -25,14 +26,19 @@ func TestScanningHistory_NewestFirstCappedAndEmptyWithoutSource(t *testing.T) {
 	for i := range 205 {
 		runs = append(runs, core.HistoryRun{ID: fmt.Sprintf("r%03d", i), Kind: "device", Engine: "nmap-versions", Trigger: "person", Label: "192.168.18.20", StartedAt: base.Add(time.Duration(i) * time.Minute), Outcome: "ok", Text: "Scanned 192.168.18.20"})
 	}
-	mk := func(src func(context.Context) ([]core.HistoryRun, error)) *core.ScanningHandlers {
+	mk := func(src func(context.Context, string) ([]core.HistoryRun, error)) *core.ScanningHandlers {
 		h, err := core.NewScanningHandlers(core.ScanningConfig{DB: db, Reg: reg, Audit: audit.New(nil), Safety: &fakeSafety{}, History: src})
 		if err != nil {
 			t.Fatal(err)
 		}
 		return h
 	}
-	got, err := mk(func(context.Context) ([]core.HistoryRun, error) { return runs, nil }).ScanningGetScanningHistory(t.Context())
+	var asked []string
+	src := func(_ context.Context, asset string) ([]core.HistoryRun, error) {
+		asked = append(asked, asset)
+		return runs, nil
+	}
+	got, err := mk(src).ScanningGetScanningHistory(t.Context(), oas.ScanningGetScanningHistoryParams{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,7 +48,12 @@ func TestScanningHistory_NewestFirstCappedAndEmptyWithoutSource(t *testing.T) {
 	if got.Items[0].TargetID.Null != true || got.Items[0].EndedAt.Null != true || got.Items[0].Text != "Scanned 192.168.18.20" {
 		t.Errorf("item: %+v", got.Items[0])
 	}
-	empty, err := mk(nil).ScanningGetScanningHistory(t.Context())
+	// kien G7b/c: ?asset= hands the device to the source, which caps its runs per kind: core does not cut them at 200
+	dev, err := mk(src).ScanningGetScanningHistory(t.Context(), oas.ScanningGetScanningHistoryParams{Asset: oas.NewOptString("a-bn340")})
+	if err != nil || len(dev.Items) != 205 || asked[0] != "" || asked[1] != "a-bn340" {
+		t.Errorf("asset: %d items, sources asked %q, %v", len(dev.Items), asked, err)
+	}
+	empty, err := mk(nil).ScanningGetScanningHistory(t.Context(), oas.ScanningGetScanningHistoryParams{})
 	if err != nil || empty.Items == nil || len(empty.Items) != 0 {
 		t.Errorf("no source: %+v %v", empty, err)
 	}

@@ -114,7 +114,7 @@ func (a feedsInventory) Distros(ctx context.Context) (map[string]map[string]bool
 		}
 		fa := findings.Asset{OS: d.OS, Software: make([]findings.Software, len(d.Software))}
 		for i, sw := range d.Software {
-			fa.Software[i] = findings.Software{Source: sw.Source, Packaged: sw.Packaged, PkgVersion: sw.PkgVersion, PkgSource: sw.PkgSource}
+			fa.Software[i] = findings.Software{Source: sw.Source, Packaged: sw.Packaged, PkgVersion: sw.PkgVersion, PkgSource: sw.PkgSource, ReportedSource: sw.ReportedSource}
 		}
 		dist, _, pkgs := findings.DevicePackages(fa)
 		if dist == "" {
@@ -229,7 +229,7 @@ func (a findingsInventory) MatchInput(ctx context.Context, assetID string) (find
 		return findings.Asset{}, false, err
 	}
 	out := findings.Asset{ID: d.ID, Name: d.Name, OS: d.OS, Model: d.Model, StatedOS: d.StatedOS, AgentOS: d.AgentOS, SNMPOS: d.SNMPOS, MAC: d.MAC,
-		Software: make([]findings.Software, len(d.Software))}
+		Software: make([]findings.Software, len(d.Software)), OSCorrection: d.OSCorrection, StaleCorrections: d.StaleCorrections}
 	if d.Name == d.ID { // no hostname and no IP (hand-added, LLDP only): the evidence names it as the Devices page does, never by its id (D-484)
 		names, err := a.inv.Names(ctx)
 		if err != nil {
@@ -241,7 +241,7 @@ func (a findingsInventory) MatchInput(ctx context.Context, assetID string) (find
 	}
 	for i, s := range d.Software {
 		out.Software[i] = findings.Software{ID: s.ID, Display: s.Display, Vendor: s.Vendor, Product: s.Product, Version: s.Version, KevKeys: s.KevKeys, CPE: s.CPE,
-			Source: s.Source, Packaged: s.Packaged, PkgVersion: s.PkgVersion, PkgSource: s.PkgSource}
+			Source: s.Source, Packaged: s.Packaged, PkgVersion: s.PkgVersion, PkgSource: s.PkgSource, ReportedSource: s.ReportedSource, Correction: s.Correction, Superseded: s.Superseded}
 	}
 	return out, true, nil
 }

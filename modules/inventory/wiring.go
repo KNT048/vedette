@@ -1,6 +1,7 @@
 package inventory
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"errors"
@@ -93,8 +94,17 @@ type MatchSoftware struct {
 	Source string
 	// Packaged: an agent row read from the operating system's package database (deb/rpm), so the distribution ships its fixes.
 	Packaged bool
-	// PkgVersion and PkgSource: a packaged deb row's full Debian version and source package, "" otherwise (D-516).
+	// PkgVersion and PkgSource: a packaged deb row's full Debian version and source package, "" otherwise (D-516); on a person's
+	// correction, the package release the person gave or kept (INV-41).
 	PkgVersion, PkgSource string
+	// ReportedSource is, on a person's correction of a reported row (Source "manual", INV-41), the source of the row it replaces, so
+	// the matcher keeps that row's distribution and platform rules (review r1 M1 of #950); "" otherwise and when the person changed the
+	// product. Correction names the person's correction for the findings history (review r1 M3): who, from what, to what, when.
+	ReportedSource, Correction string
+	// Superseded, on a reported row, names a person's correction of an earlier reading of the same product from the same source that
+	// rests since the source moved on (review r2 M-B of #950): "op corrected OpenSSH 10.2 (nmap) to OpenSSH 10.2p1 on 17 Nov 2026;
+	// nmap now reads OpenSSH 10.3, so Vedette uses that until the correction is set again"; "" otherwise.
+	Superseded string
 }
 
 // MatchDevice is a device with its software, for the matcher of findings.
@@ -116,6 +126,12 @@ type MatchDevice struct {
 	// LLDP statement of Junos counts for the device's scan-seen rows (D-620).
 	MAC      string
 	Software []MatchSoftware
+	// OSCorrection names a person's corrected OS for the findings history ("it@acme.example set the OS to Alpine Linux 3.23 on 17 Nov
+	// 2026", INV-41, review r1 M3); "" when none.
+	OSCorrection string
+	// StaleCorrections names every resting correction of the device (Superseded's sentences, and "…; nmap reports it no more" for a
+	// product its source stopped reporting), for the history of a finding that stops matching because of it; nil when none.
+	StaleCorrections []string
 }
 
 // MatchInput returns the device with its software; ok is false when it does not exist or a person ignored it (D-630: an ignored
@@ -143,17 +159,37 @@ func (s *Service) MatchInput(ctx context.Context, id string) (d MatchDevice, ok 
 	if d.SNMPOS, err = osFrom(ctx, q, id, "snmp"); err != nil {
 		return MatchDevice{}, false, err
 	}
-	rows, err := q.QueryContext(ctx, `SELECT s.id, s.display, s.vendor, s.product, ifnull(s.version, ''), ifnull(s.cpe, ''), s.source, s.packaged, ifnull(s.pkg_version, ''), ifnull(s.pkg_source, ''), k.kev_key
-		FROM inv_software s LEFT JOIN inv_software_kev k ON k.software_id = s.id WHERE s.asset_id = ? ORDER BY s.display, s.id, k.kev_key`, id)
+	// A person's OS (INV-41) is what the device runs for every reading the matcher takes: the agent's, SNMP's and LLDP's statements it
+	// corrects say the person's value while it stands. A reading the device never gave stays "" (an agent row needs an agent).
+	if v, at, by, ok, err := manualOS(ctx, q, id); err != nil {
+		return MatchDevice{}, false, err
+	} else if ok {
+		d.OSCorrection = cmp.Or(by, "a person") + " set the OS to " + v + " on " + correctionDay(at)
+		for _, r := range []*string{&d.StatedOS, &d.AgentOS, &d.SNMPOS} {
+			if *r != "" {
+				*r = v
+			}
+		}
+	}
+	rows, err := q.QueryContext(ctx, matchSoftwareSQL, id)
 	if err != nil {
 		return MatchDevice{}, false, fmt.Errorf("inventory: read software: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
+	prefix := map[string]string{} // row id -> its productKey
 	for rows.Next() {
 		var sw MatchSoftware
 		var key sql.NullString
-		if err := rows.Scan(&sw.ID, &sw.Display, &sw.Vendor, &sw.Product, &sw.Version, &sw.CPE, &sw.Source, &sw.Packaged, &sw.PkgVersion, &sw.PkgSource, &key); err != nil {
+		var corrects, setBy, seenAt, lv, lp, pk string
+		if err := rows.Scan(&sw.ID, &sw.Display, &sw.Vendor, &sw.Product, &sw.Version, &sw.CPE, &sw.Source, &sw.Packaged, &sw.PkgVersion, &sw.PkgSource,
+			&corrects, &setBy, &seenAt, &lv, &lp, &pk, &key); err != nil {
 			return MatchDevice{}, false, fmt.Errorf("inventory: read software: %w", err)
+		}
+		if corrects != "" {
+			if src, v, p, _ := correctedFrom(corrects); v == lv && p == lp { // the same product: its source's rules still hold
+				sw.ReportedSource = src
+			}
+			sw.Correction = correctionNote(sw.Display, sw.Version, sw.PkgVersion, corrects, setBy, seenAt)
 		}
 		if n := len(d.Software); n > 0 && d.Software[n-1].ID == sw.ID {
 			d.Software[n-1].KevKeys = append(d.Software[n-1].KevKeys, key.String)
@@ -163,13 +199,28 @@ func (s *Service) MatchInput(ctx context.Context, id string) (d MatchDevice, ok 
 		if key.Valid {
 			sw.KevKeys = append(sw.KevKeys, key.String)
 		}
+		if sw.Source != "manual" {
+			prefix[sw.ID] = pk
+		}
 		d.Software = append(d.Software, sw)
 	}
 	if err := rows.Err(); err != nil {
 		return MatchDevice{}, false, fmt.Errorf("inventory: read software: %w", err)
 	}
+	if err := restingCorrections(ctx, q, id, &d, prefix); err != nil {
+		return MatchDevice{}, false, err
+	}
 	return d, true, nil
 }
+
+// matchSoftwareSQL reads the software MatchInput gives: every row liveSW keeps, with its correction and its productKey.
+var matchSoftwareSQL = matchSoftwareCols + productKey("s") + ", k.kev_key " + matchSoftwareFrom + liveSW + " ORDER BY s.display, s.id, k.kev_key" //nolint:gosec // G202: fixed SQL fragments, no input
+
+const (
+	matchSoftwareCols = `SELECT s.id, s.display, s.vendor, s.product, ifnull(s.version, ''), ifnull(s.cpe, ''), s.source, s.packaged, ifnull(s.pkg_version, ''),
+	ifnull(s.pkg_source, ''), ifnull(s.corrects, ''), ifnull(s.set_by, ''), s.seen_at, lower(s.vendor), lower(s.product), `
+	matchSoftwareFrom = `FROM inv_software s LEFT JOIN inv_software_kev k ON k.software_id = s.id WHERE s.asset_id = ? AND `
+)
 
 // statedOS is the newest OS observation of the device from its own statement (LLDP, SNMP: sources passive and snmp).
 func statedOS(ctx context.Context, q querier, id string) (string, error) {
@@ -487,25 +538,25 @@ func (s *Service) DevicesRunning(ctx context.Context, products []ProductQuery) (
 		vendor, product := strings.ToLower(p.Vendor), strings.ToLower(p.Product)
 		multi := strings.TrimSpace(product) == multiProducts
 		exact, err := s.assetIDs(ctx, `SELECT DISTINCT s.asset_id FROM inv_software_kev k JOIN inv_software s ON s.id = k.software_id
-			WHERE k.kev_key = ? AND (? = 0 OR lower(s.product) = ?)`, key, boolInt(multi), product)
+			WHERE k.kev_key = ? AND (? = 0 OR lower(s.product) = ?) AND `+liveSW, key, boolInt(multi), product)
 		if err != nil {
 			return nil, err
 		}
 		shown, err := s.softwareNames(ctx, `SELECT s.asset_id, min(s.display) FROM inv_software_kev k JOIN inv_software s ON s.id = k.software_id
-			WHERE k.kev_key = ? AND (? = 0 OR lower(s.product) = ?) GROUP BY s.asset_id`, nil, key, boolInt(multi), product)
+			WHERE k.kev_key = ? AND (? = 0 OR lower(s.product) = ?) AND `+liveSW+` GROUP BY s.asset_id`, nil, key, boolInt(multi), product)
 		if err != nil {
 			return nil, err
 		}
 		var byVendor []string
 		if multi {
 			prefix := vendor + "|"
-			byVendor, err = s.assetIDs(ctx, `SELECT DISTINCT s.asset_id FROM inv_software_kev k JOIN inv_software s ON s.id = k.software_id WHERE substr(k.kev_key, 1, ?) = ?
+			byVendor, err = s.assetIDs(ctx, `SELECT DISTINCT s.asset_id FROM inv_software_kev k JOIN inv_software s ON s.id = k.software_id WHERE substr(k.kev_key, 1, ?) = ? AND `+liveSW+`
 				UNION SELECT id FROM inv_asset WHERE lower(vendor) = ?`, len(prefix), prefix, vendor)
 			if err != nil {
 				return nil, err
 			}
 			if shown, err = s.softwareNames(ctx, `SELECT s.asset_id, min(s.display) FROM inv_software_kev k JOIN inv_software s ON s.id = k.software_id
-				WHERE substr(k.kev_key, 1, ?) = ? GROUP BY s.asset_id`, shown, len(prefix), prefix); err != nil {
+				WHERE substr(k.kev_key, 1, ?) = ? AND `+liveSW+` GROUP BY s.asset_id`, shown, len(prefix), prefix); err != nil {
 				return nil, err
 			}
 		}

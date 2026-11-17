@@ -1,6 +1,6 @@
 # Sensor-passive Contract
 
-> Tier: standard · Story: S-INV-1, S-INV-3, S-LOG-4 (phần trích metadata SPAN) · Last verified: 2026-11-16 (n69: `UsefulValue`, `value_meaningless`, INV-3); 2026-11-09 (WP-11: code + test hợp đồng + fuzz 35 s mỗi parser; bắt gói trực tiếp AF_PACKET chưa kiểm bằng hiệu ứng, xem `.ai/deferred/feat-sensor-passive.md`); 2026-11-10 (SP-0: tách bắt gói sang container `sensor` qua giao thức sensor, D-109…D-116, chốt trên giấy; xem "Tách đôi"); 2026-11-10 (SP-4: mã của sự tách, D-122; xem "SP-4 xong")
+> Tier: standard · Story: S-INV-1, S-INV-3, S-LOG-4 (phần trích metadata SPAN) · Last verified: 2026-11-17 (n82: `parseSysDesc` reads net-snmp's uname layout "Linux <host> <release> #…": the distribution only from the kernel build's own marks, `unameDistros`, `TestParseSysDesc`); 2026-11-16 (n69: `UsefulValue`, `value_meaningless`, INV-3); 2026-11-09 (WP-11: code + test hợp đồng + fuzz 35 s mỗi parser; bắt gói trực tiếp AF_PACKET chưa kiểm bằng hiệu ứng, xem `.ai/deferred/feat-sensor-passive.md`); 2026-11-10 (SP-0: tách bắt gói sang container `sensor` qua giao thức sensor, D-109…D-116, chốt trên giấy; xem "Tách đôi"); 2026-11-10 (SP-4: mã của sự tách, D-122; xem "SP-4 xong")
 
 Nguồn hành vi: `web/src/features/inventory/{contract,SensorsSection}` (`/inventory/sensors*`) và D-43/D-56 (Box network). GUI chưa có màn Box network (không có endpoint/mock): phần đó nằm ở module `host` (nhóm B), module này chỉ đọc trạng thái.
 

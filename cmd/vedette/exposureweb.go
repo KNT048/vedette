@@ -40,6 +40,8 @@ const (
 	webPullFailed = "the download of the ZAP image from ghcr.io failed (the box may not reach ghcr.io, or its disk is full). Scan again to try once more; the box log has the reason."
 	webNotOwnIP   = "this box no longer reaches the Internet through %s, so its pages were not scanned."
 	webNotOwnDom  = "%s no longer has its vedette-verify TXT record, so its pages were not scanned."
+	webNotOwnAt   = "%s no longer has the vedette-verify TXT record of %s, so its pages were not scanned."
+	webForeignAt  = "the token of %s is older than the value this box binds to it, so its record on %s cannot prove its web pages and they were not scanned. Select Check on its Ownership tab: it names the value to add next to the current one."
 	webNameMoved  = "%s now points at other addresses than %s, the one the surface scan saw (a moved record, or a CDN or load balancer answering with other addresses), so this page was not scanned. Scan again to check it at its current address."
 	webUnchecked  = "the box could not confirm that the target is still yours (the public IP services or DNS did not answer, or did not agree), so nothing was sent."
 	webFence      = "the box could not set up the network fence that keeps ZAP to this one address and port, so ZAP was not started. The box log has the reason."
@@ -61,7 +63,7 @@ func (w exposureWebScan) Baseline(ctx context.Context, t exposure.ScanTarget, pa
 		args.Kind = api.ZapKindIP
 	case exposure.KindDomain:
 		if p := t.Proof; p != nil { // D-628: the domain whose record proved the target at the gate (itself, or a parent covering it)
-			args.Kind, args.Domain, args.TXTToken = api.ZapKindDomain, p.Domain, p.Token
+			args.Kind, args.Domain, args.TXTToken, args.ProofAt = api.ZapKindDomain, p.Domain, p.Token, p.ProofAt
 			break
 		}
 		tok, err := w.token(ctx, t.ID)
@@ -138,12 +140,18 @@ func webReason(code string, t exposure.ScanTarget, page exposure.WebPage) string
 		return webPullFailed
 	case api.CodeTargetNotOwned:
 		if t.Kind == exposure.KindDomain {
+			if p := t.Proof; p != nil && p.ProofAt != "" { // D-632: its record on the parent name is the one that went
+				return fmt.Sprintf(webNotOwnAt, p.ProofAt, t.Value)
+			}
 			return fmt.Sprintf(webNotOwnDom, t.Value)
 		}
 		return fmt.Sprintf(webNotOwnIP, page.IP)
 	case api.CodeOwnershipUnchecked:
 		return webUnchecked
 	case api.CodeTokenForeign:
+		if p := t.Proof; p != nil && p.ProofAt != "" { // D-632: an older target's own token cannot prove pages through a parent name
+			return fmt.Sprintf(webForeignAt, t.Value, p.ProofAt)
+		}
 		return webForeign
 	case api.CodeFenceUnavailable:
 		return webNoFenceK

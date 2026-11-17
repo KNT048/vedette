@@ -19,7 +19,7 @@ const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
 /** The most devices one run takes (contract.ts DiscoveryRunInput.targets max). */
 const MAX_RUN_TARGETS = 64
 
-type Look = { label?: string; variant?: 'primary' | 'secondary'; size?: 'sm' | 'md'; className?: string }
+type Look = { label?: string; variant?: 'primary' | 'secondary'; size?: 'sm' | 'md'; className?: string; /** The id of a line that says what the button does (kien G7b/c). */ describedBy?: string }
 
 /** Any other job (the exposure deep scan): the caller starts it and owns its state; this gives it the same button and progress. */
 export type ScanNowJob = Look & {
@@ -61,7 +61,7 @@ function JobButton({ label, runningLabel, variant = 'primary', size, className, 
   )
 }
 
-function LanButton({ targets, label, variant = 'primary', size, className, showProgress = true }: ScanNowLan) {
+function LanButton({ targets, label, variant = 'primary', size, className, showProgress = true, describedBy }: ScanNowLan) {
   const { t } = useTranslation('scanning')
   const admin = useCan('admin')
   const q = useScanning()
@@ -90,7 +90,7 @@ function LanButton({ targets, label, variant = 'primary', size, className, showP
   return (
     <div className={cn('grid min-w-0 gap-2', className)}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <Button variant={variant} size={size} disabled={!q.data || !!blocked} busy={run.isPending || !!ours} busyLabel={t('scanNow.running')}
+        <Button variant={variant} size={size} disabled={!q.data || !!blocked} busy={run.isPending || !!ours} busyLabel={t('scanNow.running')} aria-describedby={describedBy}
           onClick={() => run.mutate(targets === 'lan' ? undefined : ids, { onSuccess: (j) => { setMine(j.id); toast.success(t('scanNow.started')) }, onError: (e) => toast.error(errMsg(e)) })}>
           <Play />{text}
         </Button>

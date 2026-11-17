@@ -127,6 +127,17 @@ func TestDomainNmapJobRefusals(t *testing.T) {
 			return j
 		}(), func(*fakeZone) {}, "invalid_job"},
 		"domain_ip without fields": {func() sensorlink.Job { j := domainNmapJob(nmapargv.ExternalFull, fenceKey); j.Domain = nil; return j }(), func(*fakeZone) {}, "invalid_job"},
+		// D-632 (review r1 L1 of #960): the record's parent name stays between the domain and its registered domain
+		"proof_at on a public suffix": {func() sensorlink.Job {
+			j := domainNmapJob(nmapargv.ExternalFull, fenceKey)
+			j.Domain.Domain, j.Domain.Name, j.Domain.ProofAt = "victim.github.io", "victim.github.io", "github.io"
+			return j
+		}(), func(*fakeZone) {}, "invalid_job"},
+		"proof_at above a private suffix": {func() sensorlink.Job {
+			j := domainNmapJob(nmapargv.ExternalFull, fenceKey)
+			j.Domain.Domain, j.Domain.Name, j.Domain.ProofAt = "bucket.s3.amazonaws.com", "bucket.s3.amazonaws.com", "amazonaws.com"
+			return j
+		}(), func(*fakeZone) {}, "invalid_job"},
 		"a name outside the domain": {func() sensorlink.Job {
 			j := domainNmapJob(nmapargv.ExternalFull, fenceKey)
 			j.Domain.Name = "www.evil.example"

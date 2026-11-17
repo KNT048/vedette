@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/netip"
 	"regexp"
 	"strconv"
 	"strings"
@@ -20,11 +21,23 @@ const historyRead = 200
 // (discovery sweeps, device identifications, SNMP reads) and every stored scan of a public target, each with its outcome in words
 // from what it stored. The vulnerability checks keep their own list (GET /scans/runs). A source that is not built or not readable
 // gives nothing; it never fails the page.
-func (e scanningEngines) history(ctx context.Context) ([]core.HistoryRun, error) {
+//
+// With asset (kien G7b/c, the device page's Last checks): only the LAN jobs that reached that device's address now, its
+// identifications and the SNMP reads that asked it, at most historyRead of each kind; no sweep, no public scan. The jobs record
+// addresses, not devices: an unknown device, or one without an address, has none.
+func (e scanningEngines) history(ctx context.Context, asset string) ([]core.HistoryRun, error) {
 	var out []core.HistoryRun
 	if e.d.DB != nil && e.d.SensorDispatcher != nil {
 		if svc, err := sensorActiveService(ctx, e.d); err == nil {
-			jobs, err := svc.Jobs(ctx, historyRead)
+			var jobs []sensoractive.JobRow
+			if asset == "" {
+				jobs, err = svc.Jobs(ctx, historyRead)
+			} else {
+				var at netip.Addr
+				if at, err = e.deviceAddr(ctx, asset); err == nil && at.IsValid() {
+					jobs, err = svc.JobsAt(ctx, at, historyRead)
+				}
+			}
 			if err != nil {
 				return nil, err
 			}
@@ -34,6 +47,9 @@ func (e scanningEngines) history(ctx context.Context) ([]core.HistoryRun, error)
 				}
 			}
 		}
+	}
+	if asset != "" {
+		return out, nil
 	}
 	if e.d.DB != nil && e.d.Reg != nil && e.d.Reg.Enabled("exposure") {
 		scans, err := exposureService(e.d).RecentScans(ctx, historyRead)
@@ -47,6 +63,22 @@ func (e scanningEngines) history(ctx context.Context) ([]core.HistoryRun, error)
 		}
 	}
 	return out, nil
+}
+
+// deviceAddr is the address of device id now; the zero Addr when the device is unknown or has none.
+func (e scanningEngines) deviceAddr(ctx context.Context, id string) (netip.Addr, error) {
+	if e.d.Inventory == nil {
+		return netip.Addr{}, nil
+	}
+	refs, err := e.d.Inventory.DeviceRefs(ctx, []string{id})
+	if err != nil {
+		return netip.Addr{}, err
+	}
+	at, err := netip.ParseAddr(refs[id].IP) // "—" or "" when it has none
+	if err != nil {
+		return netip.Addr{}, nil //nolint:nilerr // no address: no run reached it
+	}
+	return at, nil
 }
 
 // probeUp reads nmap's one-line result of a probe ("ok: 1 hosts up"); snmpAnswered an SNMP read's ("ok: 2 of 3 answered").

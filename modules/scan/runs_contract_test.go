@@ -2,12 +2,14 @@ package scan
 
 import (
 	"database/sql"
+	"fmt"
 	"io"
 	"slices"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/modules/scan/nucleiargv"
 )
 
@@ -530,5 +532,45 @@ func TestEndpointsTakeTLSFromTheServiceName(t *testing.T) {
 	want := []string{"https://192.168.18.20:4443", "http://192.168.18.20:8080", "https://192.168.18.20:5986", "192.168.18.20:22"}
 	if !slices.Equal(got, want) {
 		t.Fatalf("targets = %q, want %q", got, want)
+	}
+}
+
+// kien G7b/c: the device page's Last checks finds the newest run of one device through ?asset=, however many runs of other devices
+// came after it (GET /scans/runs alone lists the newest 100 of all).
+func TestRunsOf_TheDevicesRunsPastTheNewest100(t *testing.T) {
+	t.Parallel()
+	r := newRunEnv(t)
+	err := r.db.Write(r.ctx(), func(tx *sql.Tx) error {
+		ins := `INSERT INTO scan_run (id, trigger, started_at, started_by, ended_at, status, picked, target_ids, total) VALUES (?, 'manual', ?, 'x', ?, 'done', '[]', ?, 1)`
+		at := func(i int) string {
+			return time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC).Add(time.Duration(i) * time.Minute).Format("2006-01-02T15:04:05.000Z")
+		}
+		if _, err := tx.ExecContext(r.ctx(), ins, "run-bn340", at(0), at(0), `["a-bn340","a-web01"]`); err != nil {
+			return err
+		}
+		for i := 1; i <= 120; i++ {
+			if _, err := tx.ExecContext(r.ctx(), ins, fmt.Sprintf("run-%03d", i), at(i), at(i), `["a-web01"]`); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := NewScanHandlers(r.svc)
+	all, err := h.ScanGetScansRuns(r.ctx(), oas.ScanGetScansRunsParams{})
+	if err != nil || len(all.Items) != 100 || all.Items[0].ID != "run-120" {
+		t.Fatalf("every run: %d %v", len(all.Items), err)
+	}
+	mine, err := h.ScanGetScansRuns(r.ctx(), oas.ScanGetScansRunsParams{Asset: oas.NewOptString("a-bn340")})
+	if err != nil || len(mine.Items) != 1 || mine.Items[0].ID != "run-bn340" {
+		t.Fatalf("a-bn340: %+v %v", mine, err)
+	}
+	if web, _ := r.svc.RunsOf(r.ctx(), "a-web01"); len(web) != 100 || web[0].ID != "run-120" {
+		t.Fatalf("a-web01: %d", len(web))
+	}
+	if none, err := r.svc.RunsOf(r.ctx(), "a-unknown"); err != nil || none == nil || len(none) != 0 {
+		t.Fatalf("unknown: %+v %v", none, err)
 	}
 }

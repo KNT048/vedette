@@ -405,3 +405,36 @@ func TestOwnedAsksRootedNames(t *testing.T) {
 		}
 	}
 }
+
+// D-632: a job may say its domain's own record sits on a parent name (ProofAt, the zone apex): the fence looks for the domain's own
+// token there, with the same rules; never on a name that is not a parent of the domain.
+func TestCheckProofAtAParentName(t *testing.T) {
+	t.Parallel()
+	d := world()
+	tok := Token(key1, "git.acme.example")
+	d.txt["acme.example"] = append(d.txt["acme.example"], "vedette-verify="+tok)
+	d.a["git.acme.example"] = []netip.Addr{ip}
+	f, err := New(key1, d, func(dom string) bool { return dom == "git.acme.example" }, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	j := Job{Domain: "git.acme.example", Name: "git.acme.example", IP: ip, Token: tok, ProofAt: "acme.example"}
+	if o := f.Check(t.Context(), j, false); o.Reason != "" {
+		t.Fatalf("own token on the apex: %+v", o)
+	}
+	j.ProofAt = ""
+	if o := f.Check(t.Context(), j, false); o.Reason != NotOwned {
+		t.Fatalf("no record on the domain itself: %+v", o)
+	}
+	for _, bad := range []string{"git.acme.example", "other.example", "example", "x.git.acme.example"} {
+		j.ProofAt = bad
+		if o := f.Check(t.Context(), j, false); o.Reason != InvalidJob {
+			t.Fatalf("ProofAt %q: %+v", bad, o)
+		}
+	}
+	d.cname["acme.example"] = "lb.vendor.example" // the apex answers through a CNAME: not the domain's record
+	j.ProofAt = "acme.example"
+	if o := f.Check(t.Context(), j, false); o.Reason != NotOwned {
+		t.Fatalf("apex through a CNAME: %+v", o)
+	}
+}

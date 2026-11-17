@@ -513,34 +513,109 @@ type JobProbe struct{ Targets, Result string }
 // (sa_job (kind, started_at)), then the probes of the listed jobs in one read (sa_probe (job_id)).
 func (s *Service) Jobs(ctx context.Context, limit int) ([]JobRow, error) {
 	limit = clamp(limit, 1, 500)
-	db := s.db.Reader()
 	out := []JobRow{}
 	for _, kind := range []string{KindSweep, KindDevice, KindSNMP} {
-		rows, err := db.QueryContext(ctx, `SELECT id, kind, status, reason, started_at, finished_at, targets, new_devices, error FROM sa_job
-WHERE kind = ? ORDER BY started_at DESC LIMIT ?`, kind, limit)
+		rows, err := s.jobHeads(ctx, `WHERE kind = ? ORDER BY started_at DESC, rowid DESC LIMIT ?`, kind, limit)
 		if err != nil {
-			return nil, fmt.Errorf("sensoractive: list jobs: %w", err)
+			return nil, err
 		}
-		for rows.Next() {
-			var r JobRow
-			var reason, errText sql.NullString
-			if err := rows.Scan(&r.ID, &r.Kind, &r.Status, &reason, &r.StartedAt, &r.FinishedAt, &r.Targets, &r.NewDevices, &errText); err != nil {
-				_ = rows.Close()
-				return nil, fmt.Errorf("sensoractive: list jobs: %w", err)
-			}
-			r.Reason, r.Error = reason.String, errText.String
-			out = append(out, r)
-		}
-		if err := rows.Close(); err != nil {
-			return nil, fmt.Errorf("sensoractive: list jobs: %w", err)
-		}
+		out = append(out, rows...)
 	}
 	slices.SortStableFunc(out, func(a, b JobRow) int { return strings.Compare(b.StartedAt, a.StartedAt) })
 	if len(out) > limit {
 		out = out[:limit]
 	}
+	return out, s.jobProbes(ctx, out)
+}
+
+// snmpReadsScanned is how many of the newest SNMP reads JobsAt looks through: a read keeps its addresses as a compact list with
+// ranges, which SQL cannot match, so they are matched here. An older read of the address is not found (the contract says so).
+const snmpReadsScanned = 1000
+
+// JobsAt lists the LAN jobs that reached addr (kien G7b/c, the device page's Last checks), newest first, at most limit (1..500) of
+// each kind: the identifications of that address (kind device: Check this device now, the window's queue, the first step of a
+// vulnerability check) and the SNMP reads that asked it (rounds, Read now, a credential Test) among the newest snmpReadsScanned
+// reads. No sweep: it reaches every address of the scope and identifies nothing. Read only; the probes, and so the jobs, are kept
+// ProbeRetention. Two jobs started in the same millisecond come newest row first.
+func (s *Service) JobsAt(ctx context.Context, addr netip.Addr, limit int) ([]JobRow, error) {
+	limit = clamp(limit, 1, 500)
+	out, err := s.jobHeads(ctx, `j WHERE kind = ? AND EXISTS (SELECT 1 FROM sa_probe p WHERE p.job_id = j.id AND p.targets = ?)
+ORDER BY j.started_at DESC, j.rowid DESC LIMIT ?`, KindDevice, addr.String(), limit)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.jobProbes(ctx, out); err != nil {
+		return nil, err
+	}
+	reads, err := s.jobHeads(ctx, `WHERE kind = ? ORDER BY started_at DESC, rowid DESC LIMIT ?`, KindSNMP, snmpReadsScanned)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.jobProbes(ctx, reads); err != nil {
+		return nil, err
+	}
+	n := 0
+	for _, r := range reads {
+		if n == limit {
+			break
+		}
+		if slices.ContainsFunc(r.Probes, func(p JobProbe) bool { return targetsHave(p.Targets, addr) }) {
+			out = append(out, r)
+			n++
+		}
+	}
+	slices.SortStableFunc(out, func(a, b JobRow) int { return strings.Compare(b.StartedAt, a.StartedAt) })
+	return out, nil
+}
+
+// targetsHave tells whether a probe's compact target list ("192.168.18.1-192.168.18.4,192.168.18.9", compactTargets) names addr.
+func targetsHave(list string, addr netip.Addr) bool {
+	for part := range strings.SplitSeq(list, ",") {
+		lo, hi, isRange := strings.Cut(part, "-")
+		a, err := netip.ParseAddr(lo)
+		if err != nil {
+			continue
+		}
+		if !isRange {
+			if a == addr {
+				return true
+			}
+			continue
+		}
+		if b, err := netip.ParseAddr(hi); err == nil && a.Compare(addr) <= 0 && addr.Compare(b) <= 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// jobHeads reads sa_job rows: where is the rest of the statement after FROM sa_job (an alias, WHERE, ORDER BY and LIMIT).
+func (s *Service) jobHeads(ctx context.Context, where string, args ...any) ([]JobRow, error) {
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT id, kind, status, reason, started_at, finished_at, targets, new_devices, error FROM sa_job `+where, args...)
+	if err != nil {
+		return nil, fmt.Errorf("sensoractive: list jobs: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []JobRow
+	for rows.Next() {
+		var r JobRow
+		var reason, errText sql.NullString
+		if err := rows.Scan(&r.ID, &r.Kind, &r.Status, &reason, &r.StartedAt, &r.FinishedAt, &r.Targets, &r.NewDevices, &errText); err != nil {
+			return nil, fmt.Errorf("sensoractive: list jobs: %w", err)
+		}
+		r.Reason, r.Error = reason.String, errText.String
+		out = append(out, r)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("sensoractive: list jobs: %w", err)
+	}
+	return out, nil
+}
+
+// jobProbes fills the probes of these jobs, in the order they were sent, in one read (sa_probe (job_id)).
+func (s *Service) jobProbes(ctx context.Context, out []JobRow) error {
 	if len(out) == 0 {
-		return out, nil
+		return nil
 	}
 	at := make(map[string]int, len(out))
 	ids := make([]string, len(out))
@@ -549,22 +624,22 @@ WHERE kind = ? ORDER BY started_at DESC LIMIT ?`, kind, limit)
 	}
 	list, err := json.Marshal(ids)
 	if err != nil {
-		return nil, fmt.Errorf("sensoractive: list job probes: %w", err)
+		return fmt.Errorf("sensoractive: list job probes: %w", err)
 	}
-	rows, err := db.QueryContext(ctx, `SELECT job_id, targets, result FROM sa_probe WHERE job_id IN (SELECT value FROM json_each(?)) ORDER BY id`, string(list))
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT job_id, targets, result FROM sa_probe WHERE job_id IN (SELECT value FROM json_each(?)) ORDER BY id`, string(list))
 	if err != nil {
-		return nil, fmt.Errorf("sensoractive: list job probes: %w", err)
+		return fmt.Errorf("sensoractive: list job probes: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		var id string
 		var p JobProbe
 		if err := rows.Scan(&id, &p.Targets, &p.Result); err != nil {
-			return nil, fmt.Errorf("sensoractive: list job probes: %w", err)
+			return fmt.Errorf("sensoractive: list job probes: %w", err)
 		}
 		if i, ok := at[id]; ok {
 			out[i].Probes = append(out[i].Probes, p)
 		}
 	}
-	return out, rows.Err()
+	return rows.Err()
 }

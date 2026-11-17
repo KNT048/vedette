@@ -1134,9 +1134,11 @@ func (s *Service) recordSNMP(ctx context.Context, creds []snmpRow, targets []snm
 			if a.Status != sensorlink.SNMPStatusOK || i < 0 || a.Credential < 0 || a.Credential >= len(creds) {
 				continue
 			}
-			if _, err := tx.ExecContext(ctx, `INSERT INTO sa_snmp_answer (credential_id, asset_id, ip, answered_at) SELECT ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM sa_snmp WHERE id = ?)
-				ON CONFLICT (credential_id, asset_id) DO UPDATE SET ip = excluded.ip, answered_at = excluded.answered_at`,
-				creds[a.Credential].ID, targets[i].asset, a.Target, now, creds[a.Credential].ID); err != nil {
+			// The raw sysDescr and sysObjectID (cleaned, n82) stay with the answer, to read the next unknown layout on the box.
+			f := identifySNMP(a.Values)
+			if _, err := tx.ExecContext(ctx, `INSERT INTO sa_snmp_answer (credential_id, asset_id, ip, answered_at, sys_descr, sys_object_id) SELECT ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM sa_snmp WHERE id = ?)
+				ON CONFLICT (credential_id, asset_id) DO UPDATE SET ip = excluded.ip, answered_at = excluded.answered_at, sys_descr = excluded.sys_descr, sys_object_id = excluded.sys_object_id`,
+				creds[a.Credential].ID, targets[i].asset, a.Target, now, nullText(f.SysDescr), nullText(f.SysObjectID), creds[a.Credential].ID); err != nil {
 				return err
 			}
 		}

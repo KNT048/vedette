@@ -50,6 +50,12 @@ var versionStrings = []string{
 	"26100.1742\n- 120 devices", "22631.4460 - 120", "26100.1742   312", "build 26100.1742\n- 120 devices", "publicsuffix 20260129.1928",
 	// counts with thousands separators, and port lists written with commas
 	"123,456,789 lines", "1,234,567,890 events", "ports 135, 139, 445", "ports 135, 139 and 445 are open",
+	// lists written with slashes: ports, speeds, VLANs, versions, paths
+	"TCP 135/139/445", "ports 135/139/445", "UDP 137/138/139", "Block TCP 135/139/445 and UDP 137/138", "cổng 135/139/445",
+	"Chrome 120/121/122", "100/1000/10000 Mbps", "10/100/1000 Mbps", "eth 100/200/300", "vlan 100/200/300", "/var/log/123/456/789",
+	"nmap -p 22,80,443,135,139,445",
+	// port lists written with spaces
+	"Top ports: 80 443 135 139 445", "open: 21 22 23 25 53 80 110 143 443", "ports 21 22 23 25 53 80 110 143 443",
 }
 
 // TestVersionStringsAreNotPersonalData: every version, build, update and advisory identifier goes through the personal-data hook
@@ -102,7 +108,7 @@ func TestPersonalDataNextToVersionsIsStillFound(t *testing.T) {
 		// next to a bare build
 		"26100.1742 079201234567", "079201234567 26100.1742",
 		// after a port word: three 3-digit groups, or a list cut short by a group that is not a port
-		"port 271 234 567", "cổng 271 234 567", "ports 22 and 271 234 567", "ports 123 456 789/tcp", "port 271 034 567",
+		"port 271 234 567", "cổng 271 234 567", "ports 123 456 789/tcp", "port 271 034 567", "port 271 234 567 890",
 		// after KB: a KB number never starts with 0
 		"KB 079201 234567", "KB 0792012 34567",
 		// an abbreviation that is not an advisory source
@@ -114,7 +120,10 @@ func TestPersonalDataNextToVersionsIsStillFound(t *testing.T) {
 		"1234 079201234567", "ports 22 079201234567", "CMND AS201234567 5", "079 201 234 567 1234", "8443 079-201 234-567",
 		// separators: dashes of every kind, slash, underscore, and a comma in a number that starts with 0
 		"079–201–234–567", "079—201—234—567", "079‐201‐234‐567", "079−201−234−567", "079/201/234/567", "079_201_234_567",
-		"079,201,234,567", "123–456–789",
+		"079,201,234,567", "123–456–789", "079 / 201 / 234 / 567", "0792/0123/4567",
+		// joined by a slash or an underscore to a short number: a path, a date, a file name
+		"079201234567/2", "079201234567/2024", "079201234567/12/2020", "/uploads/079201234567/1", "scan_079201234567_2.jpg",
+		"079201234567_1.jpg", "IMG_079201234567_01.png", "271234567/2", "x_271234567_2.jpg",
 	}
 	for _, s := range blocked {
 		if res := run(t, r, BeforeAI, s); res.Outcome != OutcomeBlocked {

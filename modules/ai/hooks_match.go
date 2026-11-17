@@ -485,7 +485,8 @@ var (
 	androidBuildRE = regexp.MustCompile(`\b[A-Z]{2}[A-Z0-9]{2}\.\d{6}\.\d{3}\b`)
 	// portListRE: a list of port numbers after "port", "ports" or "cổng" (ports 8080 8443 9443, port 3389 8443/tcp). A port is
 	// written without a leading zero, so a citizen ID number (it starts with 0) never joins the list; keepForm also keeps a list
-	// with a number above 65535 or with three 3-digit numbers in a row (271 234 567 is how a 9-digit ID number is written).
+	// with a number above 65535, a list of exactly three or four 3-digit numbers (271 234 567 is how a 9-digit ID number is written),
+	// and a list cut short by another group of digits.
 	portListRE = regexp.MustCompile(`(?i)(?:\bports?|\bcổng)[ \t]*[:=]?[ \t]*` + portNum + `(?:[ \t]*(?:,|and|or|&)?[ \t]*` + portNum + `)*`)
 )
 
@@ -529,7 +530,7 @@ func keepForm(re *regexp.Regexp, s string, a, z int) bool {
 // digitAfterIDSeps reports whether one to three ID separators and then a digit follow position e.
 func digitAfterIDSeps(s string, e int) bool {
 	k := e
-	for k < len(s) && k-e < 3 && isIDGroupSep(s[k]) {
+	for k < len(s) && k-e < 3 && isIDSep(s[k]) {
 		k++
 	}
 	return k > e && k < len(s) && isDigitByte(s[k])
@@ -567,9 +568,10 @@ func threeDigitGroups(m string) bool {
 	return true
 }
 
-// allPorts reports whether every digit run of s is a port number (1-65535) and no three runs in a row have three digits each.
+// allPorts reports whether every digit run of s is a port number (1-65535) and the list is not exactly three or four numbers of
+// three digits each (271 234 567 is how a 9-digit ID number is written).
 func allPorts(s string) bool {
-	three := 0
+	runs, three := 0, 0
 	for i := 0; i < len(s); {
 		if !isDigitByte(s[i]) {
 			i++
@@ -582,15 +584,13 @@ func allPorts(s string) bool {
 			}
 			j++
 		}
-		if three = three + 1; j-i != 3 {
-			three = 0
-		}
-		if three == 3 {
-			return false
+		runs++
+		if j-i == 3 {
+			three++
 		}
 		i = j
 	}
-	return true
+	return !(three == runs && (runs == 3 || runs == 4))
 }
 
 // blankLink blanks the parts of a link (linkRE) whose digits are never a person's ID: the scheme, the host and every path segment
@@ -691,27 +691,29 @@ func blankForms(s string) string {
 	return s
 }
 
-// isIDGroupSep reports whether b may stand between the digit groups of an ID number: the separators of isIDSep and also / and _
-// (079/201/234/567, 079_201_234_567). A dash of any kind is folded to '-' by the normalisation.
-func isIDGroupSep(b byte) bool { return isIDSep(b) || b == '/' || b == '_' }
+// isIDJoin reports whether b is a comma, a slash or an underscore. These join digit groups only in a number that starts with 0
+// (079,201,234,567, 079/201/234/567, 079_201_234_567); elsewhere they stand in counts, port and speed lists, paths and file names
+// (123,456,789 lines, TCP 135/139/445, 100/1000/10000, scan_271234567_2.jpg) and end the run. Where they join, they also end a word,
+// so a 9- or 12-digit group beside them is read on its own (079201234567/2).
+func isIDJoin(b byte) bool { return b == ',' || b == '/' || b == '_' }
 
 func isSpaceByte(b byte) bool {
 	return b == ' ' || b == '\t' || b == '\n' || b == '\r' || b == '\f' || b == '\v'
 }
 
 // digitGroup is one unbroken group of digits of a run; word reports that the separator before it ends a word (it holds white space
-// or is a comma).
+// or a comma, a slash or an underscore).
 type digitGroup struct {
 	start, end int
 	word       bool
 }
 
-// idRuns finds the ID-shaped digit runs of s. A run is digit groups joined by one to three separators (isIDGroupSep); a comma joins
-// groups only in a run that starts with 0 and only on its own (079,201,234,567), because counts written with thousands separators
-// (123,456,789 lines) never start with 0. A run is an ID number when it holds 9 or 12 digits in one group or in groups of three or
-// more. When the whole run is not, a word of it (the groups between white space or commas) can be, and so can a stretch of words
-// whose groups all have three digits or more: the number next to an ID never hides it (Windows 11 079201234567, 079201234567 2,
-// room 5 079 201 234 567). Groups joined by a dot stay one word, so a decimal or a version (1.123456789, v2.079123456789) is not cut.
+// idRuns finds the ID-shaped digit runs of s. A run is digit groups joined by one to three separators (isIDSep, and isIDJoin in a
+// run that starts with 0). A run is an ID number when it holds 9 or 12 digits in one group or in groups of three or more. When the
+// whole run is not, a word of it (the groups between white space, commas, slashes or underscores) can be, and so can a stretch of
+// words whose groups all have three digits or more next to at most two short numbers, and so can the groups from a word that starts
+// with 0: the number next to an ID never hides it (Windows 11 079201234567, 079201234567 2, room 5 079 201 234 567). Groups joined by
+// a dot stay one word, so a decimal or a version (1.123456789, v2.079123456789) is not cut.
 func idRuns(s string) []span {
 	var out []span
 	var gs []digitGroup
@@ -721,7 +723,7 @@ func idRuns(s string) []span {
 			continue
 		}
 		gs = gs[:0]
-		comma := s[i] == '0'
+		zeroLed := s[i] == '0'
 		word := false
 		for j := i; ; {
 			k := j
@@ -729,18 +731,15 @@ func idRuns(s string) []span {
 				k++
 			}
 			gs = append(gs, digitGroup{j, k, word})
-			if comma && k+1 < len(s) && s[k] == ',' && isDigitByte(s[k+1]) {
-				j, word = k+1, true
-				continue
-			}
 			// A separator run of one to three characters followed by a digit continues the number.
-			m := k
+			m, join := k, false
 			word = false
-			for m < len(s) && m-k < 4 && isIDGroupSep(s[m]) {
-				word = word || isSpaceByte(s[m])
+			for m < len(s) && m-k < 4 && (isIDSep(s[m]) || isIDJoin(s[m])) {
+				join = join || isIDJoin(s[m])
+				word = word || isSpaceByte(s[m]) || isIDJoin(s[m])
 				m++
 			}
-			if m-k >= 1 && m-k <= 3 && m < len(s) && isDigitByte(s[m]) {
+			if m-k >= 1 && m-k <= 3 && m < len(s) && isDigitByte(s[m]) && (!join || zeroLed) {
 				j = m
 				continue
 			}
@@ -765,6 +764,15 @@ func appendIDRuns(out []span, s string, gs []digitGroup) []span {
 	if try(gs) {
 		return out
 	}
+	// A stretch of long words is read on its own only beside at most two short numbers (room 5 271 234 567, 271 234 567 2): in a
+	// longer list of numbers (open: 21 22 23 25 53 80 110 143 443) three 3-digit numbers in a row are part of the list.
+	short := 0
+	for _, g := range gs {
+		if g.end-g.start < 3 {
+			short++
+		}
+	}
+	stretches := short <= 2
 	stretch := -1 // the first group of the current stretch of long words
 	for a := 0; a < len(gs); {
 		b := a + 1
@@ -782,12 +790,14 @@ func appendIDRuns(out []span, s string, gs []digitGroup) []span {
 		case long && stretch < 0:
 			stretch = a
 		case !long && stretch >= 0:
-			try(gs[stretch:a])
+			if stretches {
+				try(gs[stretch:a])
+			}
 			stretch = -1
 		}
 		a = b
 	}
-	if stretch > 0 { // a stretch from the first group to the end is the whole run, tested above
+	if stretch > 0 && stretches { // a stretch from the first group to the end is the whole run, tested above
 		try(gs[stretch:])
 	}
 	// A citizen ID number starts with 0 (its province code): inside a run, the groups from the start of a word with a leading 0 that

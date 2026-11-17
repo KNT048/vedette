@@ -4,7 +4,7 @@ import { http, HttpResponse } from 'msw'
 import kev from '@/mocks/fixtures/kev.json'
 import { API, audit, body, CIDR_RE, currentUser, fail, guard, IPV4_RE } from '@/mocks/http'
 import { assetsStore, boxInfo, installStore, isOn, findingsStore } from '@/mocks/stores'
-import { matchAssetToKev } from '@/mocks/match'
+import { closeNotInstalled, matchAssetToKev, reopenNotInstalled } from '@/mocks/match'
 import { collection, dataMode, daysAgo, newId, nowIso, peek } from '@/mocks/db'
 import { boxAddress, networkStore, spanStatusOf } from '@/mocks/network'
 import type { Asset, AssetKind, ObsSource, Software } from '@/lib/types'
@@ -680,6 +680,24 @@ function recordSnmp(a: Asset, ans: NonNullable<SnmpTestResult['answer']>) {
   matchAssetToKev(a.id)
 }
 
+/** INV-41 (6): PATCH …/software/{sid} with `not_installed: true` (alone): a "not installed" correction of the reported row (or of the row
+ *  a correction replaces) that holds what the source reads and matches nothing; findings closes what only that row produced
+ *  (INV-6c). A row a person added is removed instead (DELETE). */
+function notInstalled(a: Asset, sid: string, b: { version?: string; pkg_version?: string }) {
+  if (b.version !== undefined || b.pkg_version !== undefined) return fail(400, 'bad_edit', '"Not installed" takes no version, package release or product: send it alone.')
+  const sw = a.software.find((s) => s.id === sid)
+  if (!sw) return fail(404, 'not_found', 'No such software on this device.')
+  if (sw.source === 'manual' && !sw.corrects) return fail(400, 'bad_edit', 'A person added this software: remove it instead (Not installed on a row a person added deletes it).')
+  const orig = sw.corrects ? a.software.find((x) => x.id === sw.corrects) : sw
+  const have = sw.corrects ? sw : a.software.find((c) => c.corrects === sw.id)
+  const base = orig ?? have!
+  const corr: Software = { ...base, id: have?.id ?? newId('s'), source: 'manual', confidence: 1, corrects: orig?.id ?? have!.corrects, corrected_at: nowIso(), not_installed: true }
+  assetsStore.update((l) => l.map((x) => (x.id === a.id ? { ...x, software: have ? x.software.map((s) => (s.id === have.id ? corr : s)) : [...x.software, corr] } : x)))
+  closeNotInstalled(a.id, base, currentUser()?.email ?? '')
+  audit('inventory.mark_not_installed', `${nameOf(a, a.kind)}: ${base.display}`, `${[base.display, base.version].filter(Boolean).join(' ')} (${base.source}) → not installed`)
+  return HttpResponse.json({ ok: true })
+}
+
 export const handlers = [
   // ---- Danh sách thiết bị ----
   http.get(`${API}/inventory/devices`, ({ request }) => {
@@ -725,9 +743,11 @@ export const handlers = [
     const software: SoftwareView[] = a.software.map((s) => {
       const by = a.software.find((c) => c.corrects === s.id)
       const orig = s.corrects ? a.software.find((x) => x.id === s.corrects) : undefined
-      return { id: s.id, display: s.display, vendor: s.vendor, product: s.product, version: s.version, source: s.source, confidence: s.confidence, kev_cves: cvesFor(s.kev),
+      // INV-41 (6): a "not installed" correction matches nothing and, while in use, does not disagree with the row it says is not there
+      const disagrees = !!orig && !s.not_installed && (orig.version !== s.version || (orig.pkg_version ?? null) !== (s.pkg_version ?? null))
+      return { id: s.id, display: s.display, vendor: s.vendor, product: s.product, version: s.version, source: s.source, confidence: s.confidence, kev_cves: s.not_installed ? [] : cvesFor(s.kev),
         ...(s.pkg_version ? { pkg_version: s.pkg_version } : {}), ...(by ? { corrected_by: by.id } : {}),
-        ...(s.corrects ? { correction: { set_at: s.corrected_at ?? nowIso(), set_by: currentUser()?.email ?? '', active: !!orig, disagrees: !!orig && (orig.version !== s.version || (orig.pkg_version ?? null) !== (s.pkg_version ?? null)),
+        ...(s.corrects ? { correction: { set_at: s.corrected_at ?? nowIso(), set_by: currentUser()?.email ?? '', active: !!orig, disagrees: disagrees || !orig, ...(s.not_installed ? { not_installed: true } : {}),
           detected: orig ? { id: orig.id, display: orig.display, version: orig.version, pkg_version: orig.pkg_version ?? null, source: orig.source, seen_at: nowIso() } : null } } : {}) }
     })
     const observations = markCurrent(obsOf(a)).sort((x, y) => FIELD_ORDER.indexOf(x.field) - FIELD_ORDER.indexOf(y.field) || new Date(y.seen_at).getTime() - new Date(x.seen_at).getTime())
@@ -931,7 +951,8 @@ export const handlers = [
     const denied = guard('operator'); if (denied) return denied
     const a = find(String(params.id))
     if (!a) return notFound(request)
-    const b = await body<{ version?: string; pkg_version?: string }>(request)
+    const b = await body<{ version?: string; pkg_version?: string; not_installed?: boolean }>(request)
+    if (b.not_installed === true) return notInstalled(a, String(params.sid), b)
     if (b.version === undefined && b.pkg_version === undefined) return fail(400, 'bad_edit', 'Nothing to change: give a version or a package release.')
     const version = typeof b.version === 'string' ? b.version.trim() : b.version === undefined ? undefined : null
     if (version === null || (version && !/^[A-Za-z0-9_.\-+() ]{1,40}$/.test(version))) return fail(400, 'bad_version', 'The version may only contain letters, digits, dots, hyphens and brackets, up to 40 characters. Example 7.2.5.')
@@ -939,7 +960,7 @@ export const handlers = [
     if (pkg === null || (pkg && !/^[A-Za-z0-9.:+~_-]{1,100}$/.test(pkg))) return fail(400, 'bad_pkg_version', 'The package release may only contain letters, digits and . : + ~ _ -, up to 100 characters, as the package manager prints it. Example 10.2_p1-r1.')
     const sw = a.software.find((s) => s.id === params.sid)
     if (!sw) return fail(404, 'not_found', 'No such software on this device.')
-    const next = (s: Software): Software => ({ ...s, ...(version !== undefined ? { version: version || null } : {}), ...(pkg !== undefined ? { pkg_version: pkg || null } : {}) })
+    const next = (s: Software): Software => ({ ...s, not_installed: false, ...(version !== undefined ? { version: version || null } : {}), ...(pkg !== undefined ? { pkg_version: pkg || null } : {}) })
     if (sw.source === 'manual') {
       assetsStore.update((l) => l.map((x) => (x.id === a.id ? { ...x, software: x.software.map((s) => (s.id === sw.id ? { ...next(s), ...(s.corrects ? { corrected_at: nowIso() } : {}) } : s)) } : x)))
     } else {
@@ -948,6 +969,7 @@ export const handlers = [
       assetsStore.update((l) => l.map((x) => (x.id === a.id ? { ...x, software: have ? x.software.map((s) => (s.id === have.id ? corr : s)) : [...x.software, corr] } : x)))
     }
     matchAssetToKev(a.id)
+    reopenNotInstalled(a.id) // a person now says what is installed (INV-41 (6))
     audit(sw.source === 'manual' && !sw.corrects ? 'inventory.set_software_version' : 'inventory.correct_software', `${nameOf(a, a.kind)}: ${sw.display}`,
       [version !== undefined ? `version ${version || 'none'}` : '', pkg !== undefined ? `package ${pkg || 'none'}` : ''].filter(Boolean).join(', '))
     return HttpResponse.json({ ok: true })
@@ -961,7 +983,11 @@ export const handlers = [
     if (!sw) return fail(404, 'not_found', 'No such software on this device.')
     if (sw.source !== 'manual') return fail(400, 'not_manual', 'Only manually declared software can be removed. Software seen by a sensor or agent updates on the next scan.')
     assetsStore.update((l) => l.map((x) => (x.id === a.id ? { ...x, software: x.software.filter((s) => s.id !== sw.id) } : x)))
-    audit('inventory.remove_software', `${nameOf(a, a.kind)}: ${sw.display}`)
+    if (sw.corrects) { // clearing a correction (INV-41): the reported row matches again; findings closed for "Not installed" reopen
+      matchAssetToKev(a.id)
+      reopenNotInstalled(a.id)
+      audit('inventory.clear_software_correction', `${nameOf(a, a.kind)}: ${sw.display}`, 'back to detected')
+    } else audit('inventory.remove_software', `${nameOf(a, a.kind)}: ${sw.display}`)
     return new HttpResponse(null, { status: 204 })
   }),
 

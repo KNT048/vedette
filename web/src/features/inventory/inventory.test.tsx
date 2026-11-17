@@ -837,6 +837,44 @@ describe('inventory: device detail (S-INV-1)', () => {
     expect(within(photoStation()).queryByRole('link', { name: /exploited CVE/ })).toBeNull()
   })
 
+  it('INV-41 (6), kien G15: a row a scan reported is marked Not installed after one confirmation; it shows as the person said, with Clear', async () => {
+    const user = userEvent.setup()
+    findingsStore.update((l) => l.map((f) => (f.id === 'f-1' ? { ...f, status: 'suspected' as const, basis: 'version' as const } : f)))
+    openSoftwareTab()
+    await waitFor(() => expect(within(photoStation()).getByRole('link', { name: '1 exploited CVE' })).toBeInTheDocument(), T) // the row is settled: findings arrived
+    await user.click(within(photoStation()).getByRole('button', { name: 'Say QNAP Photo Station is not installed on this device' }))
+    const dialog = await screen.findByRole('dialog', undefined, T)
+    expect(dialog).toHaveAccessibleName('Is QNAP Photo Station 6.0.20 not installed on NAS-PHOTOS?')
+    expect(dialog).toHaveTextContent('Vedette stops matching it and closes its findings, as long as the scan or agent reads this same version.')
+    await user.click(within(dialog).getByRole('button', { name: 'Not installed' }))
+    expect(await screen.findByText('QNAP Photo Station 6.0.20 is marked not installed. Its findings are closed.', undefined, T)).toBeInTheDocument()
+    const f1 = () => findingsStore.get().find((f) => f.id === 'f-1')!
+    expect(f1()).toMatchObject({ status: 'not_relevant', resolved_by: 'system' })
+    expect(f1().resolution_note).toMatch(/^Closed: a person said the software is not installed\. .* said QNAP Photo Station 6\.0\.20 \(scan\) is not installed on NAS-PHOTOS/)
+    // one row: the person's word, with Clear; the reported row it replaces is not listed again
+    await waitFor(() => expect(within(screen.getByRole('table', { name: 'Software on the device' })).getAllByText('QNAP Photo Station')).toHaveLength(1), T)
+    expect(within(photoStation()).getByText(/^Not installed \(you said, .+\)$/)).toBeInTheDocument()
+    expect(within(photoStation()).queryByRole('button', { name: /Change the version/ })).toBeNull()
+    expect(auditStore.get().some((a) => a.action === 'inventory.mark_not_installed')).toBe(true)
+    await expectNoA11yViolations()
+    await user.click(within(photoStation()).getByRole('button', { name: 'Clear "not installed" for QNAP Photo Station' }))
+    expect(await screen.findByText('QNAP Photo Station is back as the scan or agent reads it. Its findings are checked again.', undefined, T)).toBeInTheDocument()
+    await waitFor(() => expect(within(photoStation()).getByRole('button', { name: 'Say QNAP Photo Station is not installed on this device' })).toBeInTheDocument(), T)
+    expect(f1().status).toBe('suspected')
+    expect(find('a-nas02').software.some((s) => s.corrects)).toBe(false)
+  })
+
+  it('INV-41 (6): a viewer sees Not installed locked; a row a person added is removed, never marked; the API refuses mixing it with a version', async () => {
+    renderApp('/devices/a-nas02?tab=software', { role: 'viewer' })
+    await waitFor(() => expect(within(photoStation()).getByRole('button', { name: 'Say QNAP Photo Station is not installed on this device' })).toBeDisabled(), T)
+    asAdmin()
+    expect((await call('PATCH', '/devices/a-nas02/software/s-nas02-ps', { not_installed: true, version: '6.1' })).json?.error.code).toBe('bad_edit')
+    const added = await call('POST', '/devices/a-pc01/software', { catalog_id: CATALOG[0]!.id, version: '1.0' })
+    expect(added.status).toBe(201)
+    const mine = find('a-pc01').software.find((s) => s.source === 'manual')!
+    expect((await call('PATCH', `/devices/a-pc01/software/${mine.id}`, { not_installed: true })).json?.error.code).toBe('bad_edit')
+  })
+
   it('changing the type adds a manual observation and keeps the old one', async () => {
     const user = userEvent.setup()
     renderApp('/devices/a-nas01')

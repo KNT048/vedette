@@ -194,14 +194,18 @@ function NextStep({ assetId, asset, softwareId, software, need, sourceHint = '',
   if (assetId && q.isPending) return <p className="text-meta text-muted">{t('needsInput.reading')}</p>
   const d = q.data?.asset
   const row = d?.software.find((s) => s.id === softwareId)
-  const source = row?.source ?? sourceHint
+  // a person's correction of a reported row (INV-41) is still that row: its source is the one that reads it, and Not installed marks it
+  const source = row?.correction ? (row.correction.detected?.source ?? sourceHint) : row?.source ?? sourceHint
   const device = deviceName(asset, t('removedDevice'))
   // a product added by hand as its own device ("Microsoft SQL Server (no device)"): not installed removes the device
   const wholeDevice = !!d && d.origin === 'manual' && d.software.length === 1 && row?.source === 'manual'
   const open = asset && softwareId ? <Link to={`/devices/${encodeURIComponent(asset.id)}?tab=software`} className="text-meta text-accent underline underline-offset-4">{t('needsInput.openRow', { software, device })}</Link> : null
   const notAffected = need === 'proof' ? <NotAffected ids={findingIds} /> : null
 
-  if (row?.source === 'manual') {
+  // INV-41 (6): on a row a scan, SNMP or an agent reads, Not installed is the person's word, kept while the source reads that row
+  const notInstalled = row && asset ? <NotInstalled assetId={assetId} software={row.display} softwareId={row.id} device={device} wholeDevice={false} reported /> : null
+
+  if (row?.source === 'manual' && !row.correction) {
     return (
       <Step text={need === 'nvd' ? <>{t('needsInput.next.manualNvd')} <NvdWhen waiting={waiting} /></> : t('needsInput.next.manual')}>
         {need !== 'nvd' ? <VersionForm assetId={assetId} sw={row} /> : null}
@@ -223,6 +227,7 @@ function NextStep({ assetId, asset, softwareId, software, need, sourceHint = '',
         {row ? <VersionForm assetId={assetId} sw={row} /> : null}
         <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
           {asset ? <CheckNow asset={asset} size="sm" progress={false} /> : null}
+          {notInstalled}
           {notAffected}
         </div>
         {open}
@@ -232,7 +237,7 @@ function NextStep({ assetId, asset, softwareId, software, need, sourceHint = '',
   return (
     <Step text={`${t(source === 'agent' ? 'needsInput.next.agent' : 'needsInput.next.device')}${row ? ` ${t('needsInput.next.correct')}` : ''}${proof}`}>
       {row ? <VersionForm assetId={assetId} sw={row} /> : null}
-      {notAffected}
+      {notInstalled || notAffected ? <div className="flex flex-wrap items-center gap-2">{notInstalled}{notAffected}</div> : null}
       {open}
     </Step>
   )
@@ -304,24 +309,26 @@ function VersionForm({ assetId, sw }: { assetId: string; sw: { id: string; displ
   )
 }
 
-/** Not installed: software a person added (or the device added only for it) is removed, after one confirmation here. A row a scan or
- *  an agent reads is never offered this: removing it would last only until the next read. */
-function NotInstalled({ assetId, software, softwareId, device, wholeDevice }: { assetId: string; software: string; softwareId: string; device: string; wholeDevice: boolean }) {
+/** Not installed, after one confirmation here: software a person added (or the device added only for it) is removed; on a row a scan,
+ *  SNMP or an agent reads (`reported`), deleting would last only until the next read, so it is the person's word kept as an inventory
+ *  correction (INV-41 (6), PATCH not_installed): the row stops matching while the source reads it and its findings close (findings
+ *  INV-6c); Clear on the device page undoes it. */
+function NotInstalled({ assetId, software, softwareId, device, wholeDevice, reported = false }: { assetId: string; software: string; softwareId: string; device: string; wholeDevice: boolean; reported?: boolean }) {
   const { t } = useTranslation('findings')
   const can = useCan('operator')
   const act = useDeviceAction(assetId)
   const [asking, setAsking] = useState(false)
-  const pending = act.remove.isPending || act.removeSoftware.isPending
+  const pending = act.remove.isPending || act.removeSoftware.isPending || act.notInstalled.isPending
   // mutateAsync: the item leaves the list once removed, which unmounts this control before mutate's own callbacks would run
-  const remove = () => (wholeDevice ? act.remove.mutateAsync() : act.removeSoftware.mutateAsync(softwareId))
-    .then(() => toast.success(wholeDevice ? t('needsInput.removedDevice', { device }) : t('needsInput.removed', { software, device })), (e: unknown) => toast.error(errMsg(e)))
+  const remove = () => (reported ? act.notInstalled.mutateAsync(softwareId) : wholeDevice ? act.remove.mutateAsync() : act.removeSoftware.mutateAsync(softwareId))
+    .then(() => toast.success(reported ? t('needsInput.notInstalledSaved', { software, device }) : wholeDevice ? t('needsInput.removedDevice', { device }) : t('needsInput.removed', { software, device })), (e: unknown) => toast.error(errMsg(e)))
   if (!asking) {
     return <Button size="sm" disabled={!can} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })} onClick={() => setAsking(true)}>{t('needsInput.notInstalled')}</Button>
   }
   return (
     <div role="group" aria-label={t('needsInput.notInstalled')} className="flex flex-wrap items-center gap-2 rounded-md border border-rule bg-sunken px-3 py-2 text-meta">
-      <span>{wholeDevice ? t('needsInput.removeDeviceAsk', { device, software }) : t('needsInput.removeAsk', { software, device })}</span>
-      <Button size="sm" variant="danger" busy={pending} busyLabel={t('common:busy.removing')} onClick={remove}>{t('needsInput.remove')}</Button>
+      <span>{reported ? t('needsInput.notInstalledAsk', { software, device }) : wholeDevice ? t('needsInput.removeDeviceAsk', { device, software }) : t('needsInput.removeAsk', { software, device })}</span>
+      <Button size="sm" variant={reported ? 'primary' : 'danger'} busy={pending} busyLabel={t(reported ? 'common:busy.saving' : 'common:busy.removing')} onClick={remove}>{t(reported ? 'needsInput.notInstalledConfirm' : 'needsInput.remove')}</Button>
       <Button size="sm" disabled={pending} onClick={() => setAsking(false)}>{t('common:cancel')}</Button>
     </div>
   )

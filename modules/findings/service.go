@@ -206,6 +206,8 @@ type UpsertResult struct {
 	NameOnly int
 	// Asked counts the findings closed because only a person's answer decides them (D-604).
 	Asked int
+	// NotInstalled counts the findings closed because a person said their software is not installed (INV-6c).
+	NotInstalled int
 }
 
 // OnMatchChanged handles inventory.match.changed: it reads the device and the exploited list and
@@ -301,6 +303,7 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, whole *Matc
 			before := r.Finding
 			reopened := false
 			if f, h, ok := r.ReopenOnMatch(now); ok { // D-530: Vedette closed it by itself; it applies again
+				why := reopenReason(a, before, em.SoftwareID)
 				r.Finding, reopened = f, true
 				h.Note = withCorrection(h.Note, correctionWhy(a, em.SoftwareID))
 				if err := insertHistory(ctx, tx, r.ID, h); err != nil {
@@ -309,7 +312,7 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, whole *Matc
 				if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.matches_again", Target: r.ID, Detail: r.CVE + ": reopened"}); err != nil {
 					return err
 				}
-				emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: before.Status, To: r.Status, Reason: ReasonMatchesAgain})
+				emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: before.Status, To: r.Status, Reason: why})
 			}
 			r.Finding = r.ApplyMatch(em)
 			r.LastSeen = now
@@ -363,6 +366,9 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, whole *Matc
 			return err
 		}
 		if res.Asked, err = s.closeAsked(ctx, tx, a.ID, m.Asked, now, emit); err != nil {
+			return err
+		}
+		if res.NotInstalled, err = s.closeNotInstalled(ctx, tx, a.ID, a.Name, notInstalledCVEs(a, vulns, hs, m, now), now, emit); err != nil {
 			return err
 		}
 		n, err := s.noteNoLongerMatching(ctx, tx, a.ID, vulns, m, correctionWhy(a, ""), now)

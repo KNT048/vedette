@@ -249,7 +249,7 @@ func (h *Handlers) InventoryPatchInventoryDevicesIDSoftwareSid(ctx context.Conte
 	if err != nil {
 		return nil, err
 	}
-	e := SoftwareEdit{CatalogID: req.CatalogID.Or(""), Vendor: req.Vendor.Or(""), Product: req.Product.Or("")}
+	e := SoftwareEdit{CatalogID: req.CatalogID.Or(""), Vendor: req.Vendor.Or(""), Product: req.Product.Or(""), NotInstalled: req.NotInstalled.Or(false)}
 	if v, ok := req.Version.Get(); ok {
 		e.Version = &v
 	}

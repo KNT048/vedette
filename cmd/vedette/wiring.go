@@ -240,10 +240,17 @@ func (a findingsInventory) MatchInput(ctx context.Context, assetID string) (find
 		}
 	}
 	for i, s := range d.Software {
-		out.Software[i] = findings.Software{ID: s.ID, Display: s.Display, Vendor: s.Vendor, Product: s.Product, Version: s.Version, KevKeys: s.KevKeys, CPE: s.CPE,
-			Source: s.Source, Packaged: s.Packaged, PkgVersion: s.PkgVersion, PkgSource: s.PkgSource, ReportedSource: s.ReportedSource, Correction: s.Correction, Superseded: s.Superseded}
+		out.Software[i] = findingsSoftware(s)
+	}
+	for _, s := range d.NotInstalled { // INV-41 (6): rows a person said are not installed; findings closes what only they produce
+		out.NotInstalled = append(out.NotInstalled, findingsSoftware(s))
 	}
 	return out, true, nil
+}
+
+func findingsSoftware(s inventory.MatchSoftware) findings.Software {
+	return findings.Software{ID: s.ID, Display: s.Display, Vendor: s.Vendor, Product: s.Product, Version: s.Version, KevKeys: s.KevKeys, CPE: s.CPE,
+		Source: s.Source, Packaged: s.Packaged, PkgVersion: s.PkgVersion, PkgSource: s.PkgSource, ReportedSource: s.ReportedSource, Correction: s.Correction, Superseded: s.Superseded}
 }
 
 type findingsFeeds struct {

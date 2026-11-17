@@ -108,6 +108,9 @@ type Asset struct {
 	// StaleCorrections names the device's resting corrections (inventory INV-41, review r2 M-B), for the history of a finding that stops
 	// matching because of one; nil when none.
 	StaleCorrections []string
+	// NotInstalled are the reported rows a person said are not installed on the device (inventory INV-41 (6)), as the source reports
+	// them, with Correction naming the person; they are not in Software. The open findings only they produce close (INV-6c).
+	NotInstalled []Software
 	// winList is the whole stored exploited list a Windows release row's build month is read from (D-618, review r1 #1 of #806) when
 	// the match gets only a part of it (Reconcile's backlog and recent writes); nil: the match's own list.
 	winList []Vuln

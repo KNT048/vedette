@@ -2049,8 +2049,13 @@ func (UnimplementedHandler) InventoryPatchInventoryDevicesID(ctx context.Context
 // set) that replaces exactly that row (its source, product and version, and its re-reports) for
 // matching until it is deleted; another install of the product (another version or source) keeps
 // matching. Fields left out keep their value (the CPE, the packaged flag, the source package; the
-// package release while the version stays); another product starts clean. The device is matched again.
-// 400 bad_edit (nothing to change), bad_version, bad_pkg_version, unknown_product, incomplete_product,
+// package release while the version stays); another product starts clean. `not_installed: true`
+// (alone) on a reported row, or on its correction, says the software is not installed (INV-41 (6)): a
+// correction of the same kind that replaces the row with nothing while the row stays reported; its
+// open findings close (findings INV-6c); a later edit of the version or product makes it an ordinary
+// correction; DELETE clears it. Audit inventory.mark_not_installed. The device is matched again. 400
+// bad_edit (nothing to change; not_installed with another field; not_installed on a row a person
+// added, which DELETE removes), bad_version, bad_pkg_version, unknown_product, incomplete_product,
 // bad_product. 409 duplicate_software.
 //
 // PATCH /inventory/devices/{id}/software/{sid}

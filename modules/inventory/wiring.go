@@ -134,6 +134,11 @@ type MatchDevice struct {
 	// StaleCorrections names every resting correction of the device (Superseded's sentences, and "…; nmap reports it no more" for a
 	// product its source stopped reporting), for the history of a finding that stops matching because of it; nil when none.
 	StaleCorrections []string
+	// NotInstalled are the reported rows a person said are not installed on the device, while that correction is in use (INV-41 (6)):
+	// matching leaves them out (they are not in Software), and findings closes the open findings only they produce. Each is the row as
+	// its source reports it, with Correction naming the person ("op@example.com said OpenSSH 10.2 (nmap) is not installed on 17 Nov
+	// 2026"); nil when none.
+	NotInstalled []MatchSoftware
 }
 
 // MatchInput returns the device with its software; ok is false when it does not exist or a person ignored it (D-630: an ignored
@@ -192,7 +197,7 @@ func (s *Service) MatchInput(ctx context.Context, id string) (d MatchDevice, ok 
 			if src, v, p, _ := correctedFrom(corrects); v == lv && p == lp { // the same product: its source's rules still hold
 				sw.ReportedSource = src
 			}
-			sw.Correction = correctionNote(sw.Display, sw.Version, sw.PkgVersion, corrects, setBy, seenAt)
+			sw.Correction = correctionNote(sw.Display, sw.Version, sw.PkgVersion, corrects, setBy, seenAt, false)
 		}
 		if n := len(d.Software); n > 0 && d.Software[n-1].ID == sw.ID {
 			d.Software[n-1].KevKeys = append(d.Software[n-1].KevKeys, key.String)
@@ -213,7 +218,45 @@ func (s *Service) MatchInput(ctx context.Context, id string) (d MatchDevice, ok 
 	if err := restingCorrections(ctx, q, id, &d, prefix); err != nil {
 		return MatchDevice{}, false, err
 	}
+	if d.NotInstalled, err = notInstalledRows(ctx, q, id); err != nil {
+		return MatchDevice{}, false, err
+	}
 	return d, true, nil
+}
+
+// notInstalledRows reads the reported rows a "not installed" correction in use replaces (INV-41 (6)), with their keys and the person's
+// words, for MatchDevice.NotInstalled.
+func notInstalledRows(ctx context.Context, q querier, id string) ([]MatchSoftware, error) {
+	rows, err := q.QueryContext(ctx, `SELECT s.id, s.display, s.vendor, s.product, ifnull(s.version, ''), ifnull(s.cpe, ''), s.source, s.packaged, ifnull(s.pkg_version, ''),
+		ifnull(s.pkg_source, ''), c.corrects, ifnull(c.set_by, ''), c.seen_at, k.kev_key
+		FROM inv_software c JOIN inv_software s ON s.asset_id = c.asset_id AND s.source <> 'manual' AND `+rowKey("s")+` = c.corrects
+		LEFT JOIN inv_software_kev k ON k.software_id = s.id
+		WHERE c.asset_id = ? AND c.not_installed = 1 ORDER BY s.display, s.id, k.kev_key`, id)
+	if err != nil {
+		return nil, fmt.Errorf("inventory: read software a person said is not installed: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []MatchSoftware
+	for rows.Next() {
+		var sw MatchSoftware
+		var corrects, setBy, setAt string
+		var key sql.NullString
+		if err := rows.Scan(&sw.ID, &sw.Display, &sw.Vendor, &sw.Product, &sw.Version, &sw.CPE, &sw.Source, &sw.Packaged, &sw.PkgVersion, &sw.PkgSource,
+			&corrects, &setBy, &setAt, &key); err != nil {
+			return nil, fmt.Errorf("inventory: read software a person said is not installed: %w", err)
+		}
+		if n := len(out); n > 0 && out[n-1].ID == sw.ID {
+			out[n-1].KevKeys = append(out[n-1].KevKeys, key.String)
+			continue
+		}
+		sw.KevKeys = []string{}
+		if key.Valid {
+			sw.KevKeys = append(sw.KevKeys, key.String)
+		}
+		sw.Correction = correctionNote(sw.Display, sw.Version, sw.PkgVersion, corrects, setBy, setAt, true)
+		out = append(out, sw)
+	}
+	return out, rows.Err()
 }
 
 // matchSoftwareSQL reads the software MatchInput gives: every row liveSW keeps, with its correction and its productKey.

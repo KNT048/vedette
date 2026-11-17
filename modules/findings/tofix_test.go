@@ -53,6 +53,13 @@ func TestToFix_G8_MostUrgentDeviceFirst(t *testing.T) {
 	if p := tf.Devices[0].Exploited[0].Product; p != "qnap|photo station" {
 		t.Errorf("exploited product %q", p)
 	}
+	// kien G12: the row's source too, so the page's "I updated it" follows who reports the version
+	if src := tf.Devices[0].Exploited[0].Source; src != "agent" {
+		t.Errorf("exploited source %q", src)
+	}
+	if src := tf.Devices[1].Planned[0].Source; src != "agent" {
+		t.Errorf("planned source %q", src)
+	}
 	if p := tf.Devices[1].Planned[0].Product; p != "f5|nginx" {
 		t.Errorf("planned product %q", p)
 	}

@@ -1,9 +1,8 @@
 // "I updated <software>" (D-499, S-MIT-1, item 14): tell Vedette the new version once; the re-match closes what it fixes.
 import { useState } from 'react'
-import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
-import { ScanSearch } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { ScanNowButton } from '@/features/scanning/ScanNow'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Input } from '@/components/ui/input'
 import { ApiError } from '@/lib/api'
@@ -16,13 +15,36 @@ import { softwareFor, useDeviceSoftware, useSetVersion, type Outcome } from './r
 
 const ERRORS = ['bad_version', 'duplicate_software', 'not_manual']
 
-/** One button and its dialog for one software of one device. `fixed` prefills the version (D-488 `fixed`), if known. */
-/** `active`: an open finding is behind it (kien G5: no "I updated" on what is already closed); the button stays while its own dialog
- * is open, so the dialog can say what the re-match closed. */
-export function IUpdated({ asset, software, fixed, size, active = true }: { asset: FindingAsset; software: SoftwareView; fixed?: string; size?: 'sm'; active?: boolean }) {
+/** What "I updated it" needs of a software row: the finding page passes the row, a To fix action builds it from its own fields. */
+export type UpdatedSoftware = Pick<SoftwareView, 'id' | 'display' | 'version' | 'source' | 'kev_cves'>
+
+/**
+ * "I updated it" for one software of one device, the one control the finding page and each To fix action use (kien G12): it does
+ * what the update needs, never a control with nothing behind it.
+ * - Agent-read software: no button; a line says the agent reports the new version by itself and the findings close on their own.
+ * - Scan-read software: the button is "Check this device now" itself (POST /scanning/engines/nmap-discovery/run, admin, the same
+ *   ScanNowButton as the device page), with its busy state and its result.
+ * - Typed (manual) software: the version dialog (D-499). `fixed` prefills it (D-488 `fixed`), if known.
+ * `active`: an open finding is behind it (kien G5: nothing on what is already closed); the manual button stays while its own dialog is
+ * open, so the dialog can say what the re-match closed. `progress`: show the check's progress under the button (the finding page).
+ */
+export function IUpdated({ asset, software, fixed, size, active = true, progress = true }: { asset: FindingAsset; software: UpdatedSoftware; fixed?: string; size?: 'sm'; active?: boolean; progress?: boolean }) {
+  const { t } = useTranslation('findings')
+  if (software.source === 'agent') {
+    return active ? <p className="text-meta text-muted">{t('updated.agentLine', { device: deviceName(asset, t('removedDevice')) })}</p> : null
+  }
+  if (software.source !== 'manual') {
+    if (!active) return null
+    if (!hasIp(asset)) return <p className="text-meta text-muted">{t('evidence.noIpScan')}</p>
+    return <ScanNowButton targets={[asset.id]} label={t('updated.buttonScan')} size={size} variant="secondary" showProgress={progress} />
+  }
+  return <TypedVersion asset={asset} software={software} fixed={fixed} size={size} active={active} />
+}
+
+/** Typed (manual) software: "I updated <software>" and its dialog (D-499): the new version, then what the re-match closed. */
+function TypedVersion({ asset, software, fixed, size, active }: { asset: FindingAsset; software: UpdatedSoftware; fixed?: string; size?: 'sm'; active: boolean }) {
   const { t } = useTranslation('findings')
   const can = useCan('operator')
-  const manual = software.source === 'manual'
   const set = useSetVersion(asset.id)
   const [open, setOpen] = useState(false)
   const [version, setVersion] = useState('')
@@ -61,21 +83,12 @@ export function IUpdated({ asset, software, fixed, size, active = true }: { asse
     <>
       {active || open ? (
         <Button size={size} disabled={!can} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })} onClick={() => show(true)}>
-          {manual ? t('updated.button', { software: sw }) : t('updated.buttonScan')}
+          {t('updated.button', { software: sw })}
         </Button>
       ) : null}
       <Dialog open={open} onOpenChange={show}>
-        <DialogContent title={t('updated.title', { software: sw })} description={manual ? t('updated.description', { device }) : undefined} info={manual ? t('updated.descriptionInfo', { software: sw }) : undefined}>
-          {software.source === 'agent' ? (
-            <p className="text-sm">{t('updated.agent', { device })}</p>
-          ) : !manual ? (
-            <div className="grid gap-3 text-sm">
-              <p>{t('updated.scanned', { device })}</p>
-              {hasIp(asset) ? (
-                <Button asChild variant="primary" className="w-fit"><Link to={`/devices/${encodeURIComponent(asset.id)}`}><ScanSearch />{t('updated.scan', { device })}</Link></Button>
-              ) : <p className="text-meta text-muted">{t('evidence.noIpScan')}</p>}
-            </div>
-          ) : done ? (
+        <DialogContent title={t('updated.title', { software: sw })} description={t('updated.description', { device })} info={t('updated.descriptionInfo', { software: sw })}>
+          {done ? (
             <p role="status" className="text-sm">{result}</p>
           ) : (
             <Field htmlFor={id} label={t('updated.version')} error={error}
@@ -85,7 +98,7 @@ export function IUpdated({ asset, software, fixed, size, active = true }: { asse
             </Field>
           )}
           <DialogFooter>
-            {manual && !done ? (
+            {!done ? (
               <>
                 <Button onClick={() => show(false)}>{t('common:cancel')}</Button>
                 <Button variant="primary" busy={set.isPending} busyLabel={t('updated.checking')} onClick={submit}>{t('updated.submit')}</Button>

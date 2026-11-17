@@ -14,6 +14,8 @@ import { Segmented } from '@/components/ui/segmented'
 import { useDevice, useDevices } from '@/features/inventory/api'
 import { deviceName } from './basis'
 import type { ToFix, ToFixAction, ToFixDevice } from './types'
+import type { SoftwareView } from '@/features/inventory/types'
+import { IUpdated } from './Updated'
 
 const SEV = ['info', 'low', 'medium', 'high', 'critical']
 const rank = (s: string) => SEV.indexOf(s.toLowerCase())
@@ -43,7 +45,7 @@ function ActionButton({ a, box }: { a: ToFixAction; box: boolean }) {
 }
 
 /** One action: the sentence and what it fixes; it opens to its CVEs, each linking to its finding. */
-function Action({ a, planned, box }: { a: ToFixAction; planned: boolean; box: boolean }) {
+function Action({ a, planned, box, asset }: { a: ToFixAction; planned: boolean; box: boolean; asset: ToFixDevice['asset'] }) {
   const { t } = useTranslation('findings')
   const what = planned
     ? t('toFix.plannedFixes', { count: a.cves.length })
@@ -75,6 +77,8 @@ function Action({ a, planned, box }: { a: ToFixAction; planned: boolean; box: bo
         ) : null}
       </details>
       <ActionButton a={a} box={box} />
+      {/* kien G12: the same "I updated it" as the finding page: what the update needs, by who reports the version */}
+      {a.software_id ? <IUpdated asset={asset} software={{ id: a.software_id, display: a.software, version: a.version || null, source: a.source as SoftwareView['source'], kev_cves: a.cves }} size="sm" progress={false} /> : null}
     </li>
   )
 }
@@ -93,11 +97,11 @@ export function DeviceCard({ d, box, showName = true }: { d: ToFixDevice; box: b
         {d.asset.ip && d.asset.ip !== '—' ? <span className="text-meta text-muted">{d.asset.ip}</span> : null}
         {acts.length ? <><Worst worst={worst} /><span className="text-meta text-muted">{t('toFix.deviceCount', { count: acts.reduce((n, a) => n + a.cves.length, 0) })}</span></> : null}
       </div>
-      {acts.length ? <ul aria-label={t('toFix.actionsOf', { device: name })} className="divide-y divide-rule">{acts.map((a) => <Action key={`${a.kind}:${a.group}`} a={a} planned={false} box={box} />)}</ul> : null}
+      {acts.length ? <ul aria-label={t('toFix.actionsOf', { device: name })} className="divide-y divide-rule">{acts.map((a) => <Action key={`${a.kind}:${a.group}`} a={a} planned={false} box={box} asset={d.asset} />)}</ul> : null}
       {d.planned.length ? (
         <>
           <p className="mt-2 text-meta font-medium text-muted">{t('toFix.recommended')}</p>
-          <ul aria-label={t('toFix.recommendedOf', { device: name })} className="divide-y divide-rule">{d.planned.map((a) => <Action key={`plan:${a.group}`} a={a} planned box={box} />)}</ul>
+          <ul aria-label={t('toFix.recommendedOf', { device: name })} className="divide-y divide-rule">{d.planned.map((a) => <Action key={`plan:${a.group}`} a={a} planned box={box} asset={d.asset} />)}</ul>
         </>
       ) : null}
       {check ? <Link to={`/findings?tab=input&device=${encodeURIComponent(d.asset.id)}`} className="mt-1 inline-block text-meta text-accent underline underline-offset-4">{t('toFix.toCheck', { count: check })}</Link> : null}

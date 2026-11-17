@@ -35,6 +35,18 @@ import { PossibleSameNotice } from './SameDevice'
 import { BoxNotice } from './BoxNotice'
 import type { DeviceDetail, Observation, RegularScan, SoftwareView } from './types'
 
+/** kien G12 (n82 walk): what the fragile line promises follows the scan source state: the box itself is never scanned, a device whose
+ *  network scan is off (D-601) or that may never be scanned gets no scan, a device without an address cannot be reached. Only a device
+ *  Vedette really may scan reads "may scan this device during the scan window". */
+function scanHint(a: DeviceDetail['asset'], t: (k: string) => string): string {
+  if (a.is_box) return t('detail.scanNeverBox')
+  if (a.scan_source === 'off') return t('detail.scanNeverOff')
+  if (!a.ip || a.ip === '—') return t('detail.scanNeverNoIp')
+  if (a.regular_scan === 'never') return t('detail.scanNeverRegular') // never, for every kind of device (D-74)
+  if (a.fragile) return t('detail.fragileOnHint')
+  return t('detail.fragileOffHint')
+}
+
 function Overview({ d }: { d: DeviceDetail }) {
   const { t } = useTranslation('inventory')
   const can = useCan('operator')
@@ -84,7 +96,7 @@ function Overview({ d }: { d: DeviceDetail }) {
       <dd className="flex flex-wrap items-center gap-3">
         <Switch id="device-fragile" checked={a.fragile} disabled={!can || act.patch.isPending} title={needRole}
           onCheckedChange={(v) => act.patch.mutate({ fragile: v }, { onSuccess: () => toast.success(v ? t('detail.fragileOn') : t('detail.fragileOff')), onError: fail })} />
-        <span className="max-w-xl text-meta text-muted">{a.fragile ? t('detail.fragileOnHint') : t('detail.fragileOffHint')}</span>
+        <span className="max-w-xl text-meta text-muted">{scanHint(a, t)}</span>
       </dd>
       {a.fragile ? (
         <>

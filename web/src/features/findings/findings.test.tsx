@@ -9,6 +9,7 @@ import { eachOption } from '@/test/formMatrix'
 import { server } from '@/test/server'
 import { makeQueryClient } from '@/app/App'
 import { aiConfigStore, aiRunsStore, assetsStore, auditStore, findingsStore, modulesStore, sessionStore } from '@/mocks/stores'
+import { inventorySettingsStore } from '@/features/inventory/mocks'
 import { feature } from './index'
 import { accepted, fixes } from './mocks'
 import { AiOutput, FixedInNote } from './Recommendation'
@@ -707,24 +708,39 @@ describe('findings: "I updated <software>" (D-499, S-MIT-1, item 14)', () => {
     expect(await within(dlg).findByText('FortiOS 7.4.5 is already on SRV-AD. Remove the older FortiOS on the device page instead.')).toBeInTheDocument()
   })
 
-  it('software a scan reads: no version box, says to scan the device', async () => {
-    server.use(device('nmap'))
+  it('kien G12: software a scan reads: the button is "Check this device now" itself, with its busy state, no detour', async () => {
+    modulesStore.update((l) => l.map((m) => (m.id === 'sensor-active' ? { ...m, enabled: true } : m)))
+    inventorySettingsStore.update((st) => ({ ...st, active: { ...st.active, enabled: true }, scope_confirmed_at: st.scope_confirmed_at ?? '2026-11-01T00:00:00.000Z' }))
+    let sent: unknown = null
+    let release!: () => void
+    const held = new Promise<void>((r) => { release = r })
+    server.use(device('nmap'), http.post('*/api/v1/scanning/engines/nmap-discovery/run', async ({ request }) => {
+      sent = await request.json()
+      await held
+      return HttpResponse.json({ engine: 'nmap-discovery', id: 'sar-g12', label: 'Check 192.168.10.20', target_id: 'a-srvad', started_at: new Date().toISOString(), progress: null }, { status: 202 })
+    }))
     renderApp('/findings/f-3')
-    await userEvent.click(await screen.findByRole('button', { name: 'I updated it' }))
-    const dlg = await screen.findByRole('dialog', { name: 'I updated FortiOS' })
-    expect(within(dlg).queryByLabelText('New version')).toBeNull()
-    expect(within(dlg).getByText('Vedette reads this version from the device. Run a scan of SRV-AD to check.')).toBeInTheDocument()
-    expect(within(dlg).getByRole('link', { name: 'Scan SRV-AD' })).toHaveAttribute('href', '/devices/a-srvad')
+    const btn = await screen.findByRole('button', { name: 'I updated it: check the device now' })
+    await waitFor(() => expect(btn).toBeEnabled())
+    await userEvent.click(btn)
+    expect(await screen.findByRole('button', { name: 'Scanning…' })).toHaveAttribute('aria-busy', 'true')
+    expect(sent).toEqual({ targets: ['a-srvad'] })
+    expect(screen.queryByRole('dialog')).toBeNull() // no detour through an explanation
+    release()
   })
 
-  it('software an agent reads (the Windows row of osquery, D-546): no version box, no scan, the agent reports it', async () => {
+  it('kien G12: a viewer sees the check refused with the role it needs, as on the device page', async () => {
+    server.use(device('nmap'))
+    renderApp('/findings/f-3', { role: 'viewer' })
+    expect(await screen.findByRole('button', { name: 'I updated it: check the device now' })).toBeDisabled()
+    expect(screen.getByText('Requires Admin role')).toBeInTheDocument()
+  })
+
+  it('kien G12: software an agent reads (the Windows row of osquery, D-546): no button, a line says the agent reports it', async () => {
     server.use(device('agent'))
     renderApp('/findings/f-3')
-    await userEvent.click(await screen.findByRole('button', { name: 'I updated it' }))
-    const dlg = await screen.findByRole('dialog', { name: 'I updated FortiOS' })
-    expect(within(dlg).queryByLabelText('New version')).toBeNull()
-    expect(within(dlg).queryByRole('link', { name: 'Scan SRV-AD' })).toBeNull()
-    expect(within(dlg).getByText(/^The agent on SRV-AD reports the new version by itself, usually within two hours after the restart/)).toBeInTheDocument()
+    expect(await screen.findByText(/^The agent on SRV-AD reports the new version by itself after the update and a restart; these findings then close on their own\.$/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^I updated/ })).toBeNull()
   })
 })
 

@@ -390,7 +390,8 @@
   },
   "updated": {
     "button": "I updated {{software}}",
-    "buttonScan": "I updated it",
+    "buttonScan": "I updated it: check the device now",
+    "agentLine": "The agent on {{device}} reports the new version by itself after the update and a restart; these findings then close on their own.",
     "title": "I updated {{software}}",
     "description": "Type the version {{device}} runs now.",
     "descriptionInfo": "Vedette checks every finding of {{software}} against it: the ones this version fixes close by themselves, the others stay open.",
@@ -411,10 +412,7 @@
     "still_one": "1 still matches this version.",
     "still_other": "{{count}} still match this version.",
     "stillNone": "None still match this version.",
-    "pending": "Vedette is checking the new version; this list updates in a moment.",
-    "scanned": "Vedette reads this version from the device. Run a scan of {{device}} to check.",
-    "agent": "The agent on {{device}} reports the new version by itself, usually within two hours after the restart that finishes the update. The findings the update fixes then close by themselves.",
-    "scan": "Scan {{device}}"
+    "pending": "Vedette is checking the new version; this list updates in a moment."
   },
   "clearSeverity": "Clear {{severity}} filter",
   "kpi": {

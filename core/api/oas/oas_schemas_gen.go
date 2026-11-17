@@ -74273,6 +74273,9 @@ type FindingsGetFindingsToFixOKDevicesItemExploitedItem struct {
 	Software   string `json:"software"`
 	// The device's software row it is about; "" when none matches.
 	SoftwareID string `json:"software_id"`
+	// Who reported the software row (agent, manual, scan, a sensor; "" when none): "I updated it" follows
+	// it (kien G12).
+	Source string `json:"source"`
 	// How each exploited finding is known (G9 proof): confirmed by a scan, detected from a version the
 	// device reported, reported but not compared, suspected from the network.
 	Suspected int `json:"suspected"`
@@ -74363,6 +74366,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetSoftware() strin
 // GetSoftwareID returns the value of SoftwareID.
 func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetSoftwareID() string {
 	return s.SoftwareID
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetSource() string {
+	return s.Source
 }
 
 // GetSuspected returns the value of Suspected.
@@ -74463,6 +74471,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetSoftware(val str
 // SetSoftwareID sets the value of SoftwareID.
 func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetSoftwareID(val string) {
 	s.SoftwareID = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetSource(val string) {
+	s.Source = val
 }
 
 // SetSuspected sets the value of Suspected.
@@ -74584,6 +74597,9 @@ type FindingsGetFindingsToFixOKDevicesItemNoUpdateItem struct {
 	Software   string `json:"software"`
 	// The device's software row it is about; "" when none matches.
 	SoftwareID string `json:"software_id"`
+	// Who reported the software row (agent, manual, scan, a sensor; "" when none): "I updated it" follows
+	// it (kien G12).
+	Source string `json:"source"`
 	// How each exploited finding is known (G9 proof): confirmed by a scan, detected from a version the
 	// device reported, reported but not compared, suspected from the network.
 	Suspected int `json:"suspected"`
@@ -74674,6 +74690,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetSoftware() string
 // GetSoftwareID returns the value of SoftwareID.
 func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetSoftwareID() string {
 	return s.SoftwareID
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetSource() string {
+	return s.Source
 }
 
 // GetSuspected returns the value of Suspected.
@@ -74774,6 +74795,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetSoftware(val stri
 // SetSoftwareID sets the value of SoftwareID.
 func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetSoftwareID(val string) {
 	s.SoftwareID = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetSource(val string) {
+	s.Source = val
 }
 
 // SetSuspected sets the value of Suspected.
@@ -74895,6 +74921,9 @@ type FindingsGetFindingsToFixOKDevicesItemPlannedItem struct {
 	Software   string `json:"software"`
 	// The device's software row it is about; "" when none matches.
 	SoftwareID string `json:"software_id"`
+	// Who reported the software row (agent, manual, scan, a sensor; "" when none): "I updated it" follows
+	// it (kien G12).
+	Source string `json:"source"`
 	// How each exploited finding is known (G9 proof): confirmed by a scan, detected from a version the
 	// device reported, reported but not compared, suspected from the network.
 	Suspected int `json:"suspected"`
@@ -74985,6 +75014,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetSoftware() string 
 // GetSoftwareID returns the value of SoftwareID.
 func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetSoftwareID() string {
 	return s.SoftwareID
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetSource() string {
+	return s.Source
 }
 
 // GetSuspected returns the value of Suspected.
@@ -75085,6 +75119,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetSoftware(val strin
 // SetSoftwareID sets the value of SoftwareID.
 func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetSoftwareID(val string) {
 	s.SoftwareID = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetSource(val string) {
+	s.Source = val
 }
 
 // SetSuspected sets the value of Suspected.

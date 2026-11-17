@@ -165,6 +165,22 @@ type AgentReleaser interface {
 	ReleaseAgents(ctx context.Context, agents []string) error
 }
 
+// AgentDevice is what the inventory knows of one device for the agents that report on it: the agent bound to it (AssetHint.Agent,
+// "" when none), its IPv4 (zero when none), its MAC ("" when none) and whether it is the box.
+type AgentDevice struct {
+	Agent string
+	IP    netip.Addr
+	MAC   string
+	IsBox bool // the Vedette box itself, whose packages the box reads (no agent)
+}
+
+// AgentDevices finds a device by its inventory id; found is false when there is none. agent-intake reads it to ask the osquery node
+// bound to a device for its software now ("I updated it", S-MIT-1) and to tell a Wazuh device by its address. Optional: the inventory
+// implements it next to Approver.
+type AgentDevices interface {
+	AgentDevice(ctx context.Context, id string) (d AgentDevice, found bool, err error)
+}
+
 // SoftwareSink receives the full software list of one device from one source. The list replaces the
 // rows that source reported before (rows of other sources are untouched).
 type SoftwareSink interface {

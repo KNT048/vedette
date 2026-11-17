@@ -153,7 +153,7 @@ func (h *FeedHandlers) FeedsPutFeedsSourcesID(ctx context.Context, req *oas.Feed
 	if len(rematch) > 0 { // findings follow the switch now: off goes back to NVD's ranges, on uses the rows again
 		h.s.publish(ctx, EventRangesUpdated, RangesUpdatedEvent{CVEs: rematch})
 	}
-	return convert[oas.FeedsPutFeedsSourcesIDOK](toFeedDTO(row))
+	return convert[oas.FeedsPutFeedsSourcesIDOK](toFeedDTO(h.s.live(ctx, row)))
 }
 
 // isBYOK says whether a built-in feed needs the customer's own API key.
@@ -477,7 +477,6 @@ func (h *FeedHandlers) FeedsPostFeedsSourcesIDFetch(ctx context.Context, params 
 	var row sourceRow
 	if h.s.busy(params.ID) { // a pull is running: say how far it got instead of starting or waiting for another
 		row, err = h.s.st.source(ctx, params.ID)
-		row = h.s.live(ctx, row)
 	} else {
 		row, err = h.s.pull(ctx, params.ID, p.Email)
 	}
@@ -489,5 +488,5 @@ func (h *FeedHandlers) FeedsPostFeedsSourcesIDFetch(ctx context.Context, params 
 	case err != nil:
 		return nil, err
 	}
-	return convert[oas.FeedsPostFeedsSourcesIDFetchOK](toFeedDTO(row))
+	return convert[oas.FeedsPostFeedsSourcesIDFetchOK](toFeedDTO(h.s.live(ctx, row)))
 }

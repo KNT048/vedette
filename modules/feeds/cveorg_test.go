@@ -224,7 +224,7 @@ func TestContract_CVEOrgRanges(t *testing.T) {
 			t.Fatalf("a request carried more than the CVE ID: %+v", h)
 		}
 	}
-	f := e.feed("cve-org")
+	f := e.shown("cve-org")
 	if f.Status != "ok" || f.Records == nil || *f.Records != 1 || f.Error == nil ||
 		*f.Error != "3 exploited CVEs have no affected versions from NVD; CVE.org gives versions Vedette can compare for 1 of them, none for 2. "+
 			"Read 3 CVE.org records of exploited CVEs NVD has no versions for: 1 with affected versions from their CNA, 1 without versions Vedette can compare, 1 not on CVE.org yet." {
@@ -245,12 +245,13 @@ func TestContract_CVEOrgRanges(t *testing.T) {
 		t.Fatalf("RangesFromCVEOrg = %v %v", src, err)
 	}
 
-	// within cveOrgRecheck nothing is asked again, and the row still says what the feed holds
+	// within cveOrgRecheck nothing is asked again, and the row still says what the feed holds: in the answer to Fetch now too
 	before := len(o.all())
-	if err := e.svc.Fetch(t.Context(), "cve-org"); err != nil || len(o.all()) != before {
-		t.Fatalf("asked again too soon: %d requests, %v", len(o.all())-before, err)
+	held := "3 exploited CVEs have no affected versions from NVD; CVE.org gives versions Vedette can compare for 1 of them, none for 2."
+	if c, b := e.fetch("cve-org"); c != 200 || len(o.all()) != before || b["error"] != held {
+		t.Fatalf("asked again too soon: %d requests, %d %v", len(o.all())-before, c, b["error"])
 	}
-	if f := e.feed("cve-org"); f.Error == nil || *f.Error != "3 exploited CVEs have no affected versions from NVD; CVE.org gives versions Vedette can compare for 1 of them, none for 2." {
+	if f := e.shown("cve-org"); f.Error == nil || *f.Error != held {
 		t.Fatalf("a pull with nothing due: %q", deref(f.Error))
 	}
 
@@ -288,7 +289,7 @@ func TestContract_CVEOrgRanges(t *testing.T) {
 	if err := e.svc.Fetch(t.Context(), "cve-org"); err != nil {
 		t.Fatal(err)
 	}
-	if f := e.feed("cve-org"); f.Status != "ok" || *f.Records != 0 || f.Error == nil ||
+	if f := e.shown("cve-org"); f.Status != "ok" || *f.Records != 0 || f.Error == nil ||
 		*f.Error != "2 exploited CVEs have no affected versions from NVD, and CVE.org gives none Vedette can compare for them either; each is asked again every 12 hours." {
 		t.Fatalf("0 records: %+v %q", f, deref(f.Error))
 	}

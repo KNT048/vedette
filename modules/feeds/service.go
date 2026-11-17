@@ -141,6 +141,8 @@ type Service struct {
 	// on at the next check.
 	recentAt time.Time
 
+	held heldCache // what each feed of heldNotes holds, counted when its row is read
+
 	nvdGateMu   sync.Mutex
 	nvdNext     time.Time // the earliest time the next NVD request of a feed may start (nvdSlot, review r1 #5)
 	nvdBookedAt time.Time // the clock reading the last slot was booked at: a later reading before it is a clock stepped back

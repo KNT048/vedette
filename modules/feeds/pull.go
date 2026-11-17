@@ -512,7 +512,7 @@ func (s *Service) buildEPSS(ctx context.Context, src sourceRow, p pullPlan) (pul
 const errStoreFailed = "The result could not be stored. Check the disk space and the box logs."
 
 // pullOne runs one pull of one feed under the feed's lock and writes its result in one transaction (with a core_audit
-// row when a person started it: actor is their email). It returns the feed as stored afterwards and how many CVEs
+// row when a person started it: actor is their email). It returns the feed as stored afterwards (not as shown: live) and how many CVEs
 // of the CISA list were new. A pull whose feed was edited, turned off or deleted while it ran writes nothing (the
 // row is re-read inside the transaction and its rev compared): deleted is ErrNotFound, the others return the feed
 // as it is. A failed pull is recorded on the feed; if even that fails to store, a second short transaction records
@@ -527,7 +527,7 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 	}
 	if joined { // another pull of this feed ran while this one waited: its result is the answer, not a second pull
 		row, err := s.st.source(ctx, id)
-		return s.live(ctx, row), 0, nil, err
+		return row, 0, nil, err
 	}
 	defer release()
 	src, err := s.st.source(ctx, id)
@@ -554,10 +554,10 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 		return src, 0, nil, nil
 	}
 	if errors.Is(perr, errNVDPaused) { // The pages so far are kept and the pull goes on later; nothing is written
-		return s.live(ctx, src), 0, nil, nil
+		return src, 0, nil, nil
 	}
 	if errors.Is(perr, errDistroWaits) || errors.Is(perr, errDistroNoDevice) { // No CISA list yet; no device needs it. Nothing to keep; the feed stays due
-		return s.live(ctx, src), 0, nil, nil
+		return src, 0, nil, nil
 	}
 	if perr != nil {
 		s.Log.WarnContext(ctx, "feed pull failed", "feed", src.ID, "name", src.Name, "error", perr) // the name too: an admin knows the feed by it
@@ -581,15 +581,9 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 		rangesChanged  []string
 		rangesFirst    bool
 	)
-	finish := func(tx *sql.Tx, out outcome) error { // the outcome row and the audit entry, in the pull's last transaction
-		if out.OK { // after the data is written: what the feed holds now (heldNotes), on every good pull
-			// a sentence never costs the pull its data: a failing count is logged and the pull's own note stays
-			if note, err := withHeld(ctx, tx, src.ID, out.Note); err != nil {
-				s.Log.ErrorContext(ctx, "feeds: what the feed holds could not be counted", "feed", src.ID, "error", err)
-			} else {
-				out.Note = note
-			}
-		}
+	// the outcome row and the audit entry, in the pull's last transaction; the note is the pull's own (what the feed holds is
+	// counted when the row is read: heldNow)
+	finish := func(tx *sql.Tx, out outcome) error {
 		if err := recordOutcome(ctx, tx, src.ID, out); err != nil {
 			return err
 		}

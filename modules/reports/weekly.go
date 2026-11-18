@@ -212,6 +212,9 @@ func computeWeekly(in weeklyInput) WeeklyReport {
 		} else if inWeek(f.ResolvedAt) {
 			r := row(f, f.Status)
 			r.By = clip(f.ResolvedBy, 80)
+			if f.ResolvedBy == "system" { // Vedette's own close (a version proof, an update it saw): the line names it, not an account
+				r.By = "Vedette"
+			}
 			resolvedRows = append(resolvedRows, r)
 		}
 		switch f.Status {

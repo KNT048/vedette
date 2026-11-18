@@ -5199,6 +5199,7 @@ func decodeFindingsGetFindingsIDParams(args [1]string, argsEscaped bool, r *http
 type FindingsGetFindingsPlanParams struct {
 	Tier  OptFindingsGetFindingsPlanTier `json:",omitempty,omitzero"`
 	Asset OptString                      `json:",omitempty,omitzero"`
+	Done  OptFindingsGetFindingsPlanDone `json:",omitempty,omitzero"`
 }
 
 func unpackFindingsGetFindingsPlanParams(packed middleware.Parameters) (params FindingsGetFindingsPlanParams) {
@@ -5218,6 +5219,15 @@ func unpackFindingsGetFindingsPlanParams(packed middleware.Parameters) (params F
 		}
 		if v, ok := packed[key]; ok {
 			params.Asset = v.(OptString)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "done",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Done = v.(OptFindingsGetFindingsPlanDone)
 		}
 	}
 	return params
@@ -5345,6 +5355,62 @@ func decodeFindingsGetFindingsPlanParams(args [0]string, argsEscaped bool, r *ht
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "asset",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: done.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "done",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotDoneVal FindingsGetFindingsPlanDone
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotDoneVal = FindingsGetFindingsPlanDone(c)
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.Done.SetTo(paramsDotDoneVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.Done.Get(); ok {
+					if err := func() error {
+						if err := value.Validate(); err != nil {
+							return err
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "done",
 			In:   "query",
 			Err:  err,
 		}

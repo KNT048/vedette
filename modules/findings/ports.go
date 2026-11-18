@@ -68,7 +68,8 @@ type StatusChangedEvent struct {
 	From      Status `json:"from"`
 	To        Status `json:"to"`
 	// Reason is set when Vedette changed the status by itself: ReasonNotAffectedVersion when it closed the
-	// finding, ReasonMatchesAgain when it reopened one it had closed, ReasonRiskExpired when a risk acceptance ran out,
+	// finding, ReasonFixedByUpdate when it closed it as patched because the device's version moved out of the range (alerts and
+	// response send nothing for either),ReasonMatchesAgain when it reopened one it had closed, ReasonRiskExpired when a risk acceptance ran out,
 	// ReasonDeviceVersion when the version the device reports confirmed it or no longer does. Empty for a person's action or a scan.
 	Reason string `json:"reason,omitempty"`
 	// AcceptedBy and AcceptedUntil (YYYY-MM-DD) are set only with ReasonRiskExpired: who accepted the risk and its last day.
@@ -197,6 +198,17 @@ type TierStatus struct {
 	EPSSDate, RecentSince time.Time
 }
 
+// DistroTier is the distributions' data for "Updates to plan" (Feeds.TierDistro, feeds' TierDistro).
+type DistroTier struct {
+	// Vulns are the tier CVEs (as TierVulns: published in the last 12 months, EPSS) for which a distribution feed that is on has a row
+	// (fixed, not affected, open) of one of the packages, each with those rows in Distro and no Affected.
+	Vulns []TierVuln
+	// Covered holds the releases ("ubuntu/24.04"; "alpine/" for a package asked with no release) the feeds stored rows for in a pull
+	// made for the devices' packages; Known the packages ("alpine/openssh") a feed that is on has any row of; Loading the distributions
+	// whose feed is on but holds no row yet.
+	Covered, Known, Loading map[string]bool
+}
+
 // Feeds is what findings reads from the feeds module (WP-20; not built yet). findings never reads
 // feeds_* tables (FORBID-5 of feeds).
 type Feeds interface {
@@ -212,10 +224,9 @@ type Feeds interface {
 	// affected entries name a CPE keep accepts, each with those entries only. None while nvd-recent is not ready or the feeds
 	// module is off; no EPSS while epss-all is not ready.
 	TierVulns(ctx context.Context, keep func(cpe string) bool) ([]TierVuln, error)
-	// TierDistro returns the tier CVEs (as TierVulns: published in the last 12 months, EPSS) for which a distribution feed that is on
-	// has a fixed row of one of pkgs, each with those rows in Distro and no Affected, and the releases ("ubuntu/24.04") among pkgs'
-	// that the distribution feeds hold rows for. Nothing while nvd-recent is not ready or the feeds module is off.
-	TierDistro(ctx context.Context, pkgs []DistroPackage) (vulns []TierVuln, covered map[string]bool, err error)
+	// TierDistro returns the distributions' data of pkgs for the plan (DistroTier). Nothing while the feeds module is off; only Loading
+	// while nvd-recent is not ready.
+	TierDistro(ctx context.Context, pkgs []DistroPackage) (DistroTier, error)
 	// TierStamp changes whenever what TierVulns or TierDistro returns may have changed: a pull or switch of epss-all, nvd-recent,
 	// nvd-kev, ubuntu-osv or debian-tracker, or the feeds module turned on or off (feeds' Store.TierStamp plus the module switch, cmd/vedette).
 	TierStamp(ctx context.Context) (string, error)

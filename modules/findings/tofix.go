@@ -90,12 +90,13 @@ func (s *Service) classify(ctx context.Context, feedsOn bool, assetID string) (T
 	if feedsOn {
 		s.plan.mu.RLock()
 		out.PlanRan = s.plan.ran
-		for id, d := range s.plan.devices {
-			if len(d.items) > 0 && (assetID == "" || id == assetID) {
+		plans := maps.Clone(s.plan.devices)
+		s.plan.mu.RUnlock()
+		for id, d := range plans {
+			if len(s.notDone(d.items)) > 0 && (assetID == "" || id == assetID) {
 				seen[id] = true
 			}
 		}
-		s.plan.mu.RUnlock()
 	}
 	var vulns []Vuln
 	if len(open) > 0 {

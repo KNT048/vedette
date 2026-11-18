@@ -220,29 +220,29 @@ describe('Updates to plan (S-TIER-1, S-TIER-2)', () => {
     await expectNoA11yViolations()
   })
 
-  it('a package of a distribution without fix data says the count is upstream\'s and how to confirm, never "fixes N CVEs"', async () => {
+  it('a package the distribution\'s data says nothing about says NVD\'s count is for the upstream version, never "fixes N CVEs"', async () => {
     const cve = (n: number) => ({ cve: `CVE-2026-${4000 + n}`, tier: 'recent', basis: 'agent', severity: 'high', score: 7.5, published: '2026-06-01', epss: 0.01, percentile: 0.5 })
     const item = { group: 'a-alp/s-ssh', asset: { id: 'a-alp', name: 'alpine-edge' }, risk: null, software: 'OpenSSH', version: '10.2_p1-r1', fixed: '',
-      kind: 'distro', pro: false, distro: 'Alpine Linux', nvd_lag: false, kb: '', cves: [cve(1), cve(2)], likely: 0, recent: 2, agent_gone: false, agent_reported: null }
+      kind: 'distro', pro: false, distro: 'Alpine Linux', nvd_lag: false, kb: '', cves: [cve(1), cve(2)], likely: 0, recent: 2, agent_gone: false, agent_reported: null, done: null, distro_data: 'none' }
     server.use(http.get('*/api/v1/findings/plan', () => HttpResponse.json({ items: [item], counts: { likely: 0, recent: 1, all: 1 }, compared: true, compared_devices: 1, unchecked_devices: 0, old_evidence: 0,
       data: { epss: 'ready', recent: 'ready', epss_date: '2026-11-17', recent_since: '2025-11-17' } })))
     renderApp('/plan?tier=all')
     const list = await screen.findByRole('list', { name: 'Recommended updates' })
     const row = within(list).getAllByRole('listitem')[0]!
-    expect(row).toHaveTextContent('Install Alpine Linux\'s security updates for OpenSSH (10.2_p1-r1): upstream fixed 2 CVEs in later releases')
-    expect(row).toHaveTextContent('Alpine Linux publishes no fix data Vedette can check this package against, so confirm with apk upgrade.')
+    expect(row).toHaveTextContent("Check Alpine Linux's security updates for OpenSSH (10.2_p1-r1): NVD lists 2 CVEs for its upstream version")
+    expect(row).toHaveTextContent("The distribution's own security data says nothing about this package")
     expect(row).not.toHaveTextContent(/fixes 2 CVEs/)
     cleanup()
 
-    // Ubuntu has fix data Vedette reads: this package could not be matched to it
+    // the same for Ubuntu, whose data Vedette reads: this package is not in it
     const ubuntu = { ...item, asset: { id: 'a-ub', name: 'web-ubuntu' }, software: 'example-lib', version: '1.2-1', distro: 'Ubuntu' }
     server.use(http.get('*/api/v1/findings/plan', () => HttpResponse.json({ items: [ubuntu], counts: { likely: 0, recent: 1, all: 1 }, compared: true, compared_devices: 1, unchecked_devices: 0, old_evidence: 0,
       data: { epss: 'ready', recent: 'ready', epss_date: '2026-11-17', recent_since: '2025-11-17' } })))
     renderApp('/plan?tier=all')
     const again = await screen.findByRole('list', { name: 'Recommended updates' })
     const u = within(again).getAllByRole('listitem')[0]!
-    expect(u).toHaveTextContent('Vedette could not match this package to Ubuntu\'s fix data, so confirm with apt upgrade.')
-    expect(u).not.toHaveTextContent('publishes no fix data')
+    expect(u).toHaveTextContent("Check Ubuntu's security updates for example-lib (1.2-1): NVD lists 2 CVEs for its upstream version")
+    expect(u).not.toHaveTextContent(/fixes 2 CVEs/)
   })
 
   it('the CVE page answers for a CVE on no exploited list, with its devices from Updates to plan', async () => {
@@ -251,5 +251,39 @@ describe('Updates to plan (S-TIER-1, S-TIER-2)', () => {
     expect(screen.getByText('Not on an exploited list')).toBeInTheDocument()
     expect(screen.getByText('F5 nginx')).toBeInTheDocument()
     expect(await screen.findByRole('link', { name: 'WEB01' })).toHaveAttribute('href', '/devices/a-web01')
+  })
+})
+
+describe('Recommended updates a person marks as done (S-TIER-1)', () => {
+  it('Mark as done hides the item, lists it under Done with who did it, and Undo puts it back', async () => {
+    renderApp('/plan?tier=all')
+    const list = await screen.findByRole('list', { name: 'Recommended updates' })
+    const nginx = within(list).getAllByRole('listitem').find((li) => li.textContent?.includes('Upgrade nginx'))!
+    await userEvent.click(within(nginx).getByRole('button', { name: /^Mark Upgrade nginx .* as done$/ }))
+    const dialog = await screen.findByRole('dialog')
+    await userEvent.type(within(dialog).getByLabelText('Note (optional)'), 'updated by hand')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Mark as done' }))
+    await waitFor(() => expect(within(screen.getByRole('list', { name: 'Recommended updates' })).queryByText(/Upgrade nginx/)).toBeNull())
+    await userEvent.click(await screen.findByText('Done (1)'))
+    expect(await screen.findByText(/^Marked done by .+ on \d{1,2} \w{3} \d{4}: updated by hand$/)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: /^Put Upgrade nginx .* back on the list$/ }))
+    await waitFor(() => expect(screen.queryByText('Done (1)')).toBeNull())
+    expect(within(screen.getByRole('list', { name: 'Recommended updates' })).getByText(/Upgrade nginx/)).toBeInTheDocument()
+  })
+
+  it('a distribution package says what the distribution\'s own data says, never "fixes" when nothing does', async () => {
+    const item = (o: object) => ({ group: 'a-fw/s-ssh', asset: { id: 'a-fw', name: 'BN340' }, risk: null, software: 'openssh', version: '10.2_p1-r1', fixed: '', kind: 'distro', pro: false, distro: 'Alpine Linux',
+      nvd_lag: false, kb: '', cves: [{ cve: 'CVE-2026-70003', tier: 'recent', basis: 'distro', severity: 'high', score: 7.5, published: '2026-10-10', epss: 0.01, percentile: 0.5 }],
+      likely: 0, recent: 1, agent_gone: false, agent_reported: null, done: null, distro_data: 'no_fix', ...o })
+    server.use(http.get('/api/v1/findings/plan', () => HttpResponse.json({ items: [item({}), item({ group: 'a-fw/s-ssh/distro', software: 'OpenSSH', distro_data: 'none' })],
+      counts: { likely: 0, recent: 2, all: 2, done: 0 }, compared: true, compared_devices: 1, unchecked_devices: 0, old_evidence: 0,
+      data: { epss: 'ready', recent: 'ready', epss_date: '2026-11-17', recent_since: '2025-11-18' } })))
+    renderApp('/plan?tier=all')
+    const list = await screen.findByRole('list', { name: 'Recommended updates' })
+    const [noFix, none] = within(list).getAllByRole('listitem').filter((li) => li.parentElement === list)
+    expect(noFix).toHaveTextContent('No fix from Alpine Linux yet for openssh (10.2_p1-r1): 1 CVE has no fix yet')
+    expect(none).toHaveTextContent("Check Alpine Linux's security updates for OpenSSH (10.2_p1-r1): NVD lists 1 CVE for its upstream version")
+    expect(none).toHaveTextContent("The distribution's own security data says nothing about this package")
+    expect(list).not.toHaveTextContent(/fixes 1 CVE/)
   })
 })

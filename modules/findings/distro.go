@@ -70,12 +70,6 @@ func debPkg(s Software) (version, source string, guessed, ok bool) {
 	return "", "", false, false
 }
 
-// debOS says the device's OS is Ubuntu or Debian: the distributions whose own data the plan reads for their packages.
-func debOS(osName string) bool {
-	os, _ := osIdentity(osName)
-	return os.vendor == "canonical" || os.vendor == "debian"
-}
-
 // debSourceName is a product's name as Debian names its source package ("OpenSSH" -> "openssh"), "" when it is not one.
 func debSourceName(product string) string {
 	if n := strings.ToLower(strings.TrimSpace(product)); debPkgName.MatchString(n) {
@@ -144,75 +138,82 @@ func distroOf(in swInfo) (string, string) {
 	return "", ""
 }
 
-// DeviceDistro is "ubuntu" or "debian" when the distribution feeds can say something about this device: its OS is that
-// distribution and an agent read at least one deb package from it (what distroVerdict needs); "" otherwise. The feeds module
-// pulls a distribution's files only while some device needs them (LEAN).
+// DeviceDistro is the distribution whose own security data the feeds supply ("ubuntu", "debian", "alpine") when it can say something
+// about this device: its OS is that distribution and it has at least one package row that data names (distroRows); "" otherwise. The
+// feeds module pulls a distribution's files only while some device needs them (LEAN).
 func DeviceDistro(a Asset) string {
 	d, _, _ := DevicePackages(a)
 	return d
 }
 
-// DevicePackages is DeviceDistro with the release ("24.04", "12") and the source packages of the device's agent deb rows as the
-// distributions' security data names them (securitySource: "linux" for linux-signed), sorted, each once (the distribution
-// feeds keep the tier CVEs' fixed rows for these packages only). A kernel's packages count only for the running kernel
+// DevicePackages is DeviceDistro with the release as the distribution's data is asked for it ("24.04", "12"; "" for a distribution
+// whose rows of every release are read, Alpine: the plan picks the branch, distroData.anyRelease) and the source packages of the
+// device's package rows as the security data names them (securitySource: "linux" for linux-signed), sorted, each once (the
+// distribution feeds keep the tier CVEs' rows for these packages only). A kernel's packages count only for the running kernel
 // (distroRows). "" and nil when DeviceDistro is "".
 func DevicePackages(a Asset) (distro, release string, pkgs []string) {
-	distro, release, rows := distroRows(a)
+	d, rel, rows := distroRows(a)
+	if d == nil || len(rows) == 0 {
+		return "", "", nil
+	}
 	for _, r := range rows {
 		pkgs = append(pkgs, r.pkg)
 	}
 	slices.Sort(pkgs)
-	return distro, release, slices.Compact(pkgs)
+	if d.anyRelease {
+		rel = ""
+	}
+	return d.id, rel, slices.Compact(pkgs)
 }
 
-// distroPkgRow is a row the distribution's word may decide on the plan: its swInfo and source package as the security data names it.
+// distroPkgRow is a row the distribution's word may decide on the plan: its swInfo, its package release and its source package as the
+// security data names it.
 type distroPkgRow struct {
 	s   Software
 	in  swInfo
+	ver string // the package release ("1:9.6p1-3ubuntu13.14", "10.2_p1-r1")
 	pkg string
 }
 
-// distroRows are the device's deb rows (debPkg: an agent's, with full Debian version and source package, or a Debian release a
-// person gave) the plan compares with the distribution's data, with the device's distribution and release (release "" when the OS names none; then no row). Packages of a kernel source
-// count only when they are the running kernel's (review r1 #1 of #808): apt keeps the previous kernel's linux-modules-*,
-// linux-headers-* and linux-tools-* installed, intake blanks only the image of a kernel that does not run, and those rows would
-// plan "Upgrade linux" on a box that already runs the fix. The running kernel is the Kernel row intake built from the running
-// image (its source and version); a device without one compares no kernel package (drop when unsure).
-func distroRows(a Asset) (distro, release string, rows []distroPkgRow) {
-	if !debOS(a.OS) {
-		return "", "", nil
+// distroRows are the device's package rows the plan compares with its distribution's data (distroData.pkgOf: an agent's package row
+// with its release and source package, or a package release a person gave), with that distribution and the device's release ("" when
+// the OS names none: no row, unless the distribution's rows of every release are read, Alpine). Packages of a kernel source count only
+// when they are the running kernel's (review r1 #1 of #808, distroData.kernelRule): apt keeps the previous kernel's linux-modules-*,
+// linux-headers-* and linux-tools-* installed, intake blanks only the image of a kernel that does not run, and those rows would plan
+// "Upgrade linux" on a box that already runs the fix. The running kernel is the Kernel row intake built from the running image (its
+// source and version); a device without one compares no kernel package (drop when unsure).
+func distroRows(a Asset) (d *distroData, release string, rows []distroPkgRow) {
+	d = distroOfDevice(a)
+	if d == nil {
+		return nil, "", nil
+	}
+	osName := d.os(a)
+	release = d.rel(osName)
+	if release == "" && !d.anyRelease {
+		return d, "", nil
 	}
 	var ksrc, kver string
 	var all []distroPkgRow
 	for _, s := range a.Software {
-		ver, src, _, ok := debPkg(s)
+		ver, src, ok := d.pkgOf(s, osName)
 		if !ok {
 			continue
 		}
-		in := newSWInfo(s, a.OS)
+		in := newSWInfo(s, osName)
 		in.pkgVer, in.pkgSrc = ver, src
-		d, rel := distroOf(in)
-		if d == "" {
-			continue
-		}
-		distro = d
-		if rel == "" {
-			continue
-		}
-		release = rel
-		r := distroPkgRow{s: s, in: in, pkg: securitySource(d, in.pkgSrc)}
-		if norm(s.Vendor) == "linux" && norm(s.Product) == "kernel" {
-			ksrc, kver = r.pkg, in.pkgVer
+		r := distroPkgRow{s: s, in: in, ver: ver, pkg: d.source(src)}
+		if d.kernelRule && norm(s.Vendor) == "linux" && norm(s.Product) == "kernel" {
+			ksrc, kver = r.pkg, ver
 		}
 		all = append(all, r)
 	}
 	for _, r := range all {
-		if kernelSource(r.pkg) && (r.pkg != ksrc || r.in.pkgVer != kver) {
+		if d.kernelRule && kernelSource(r.pkg) && (r.pkg != ksrc || r.ver != kver) {
 			continue
 		}
 		rows = append(rows, r)
 	}
-	return distro, release, rows
+	return d, release, rows
 }
 
 // notKernel are the linux-* source packages that build no kernel, kernel modules, headers or tools.

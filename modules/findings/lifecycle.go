@@ -202,6 +202,44 @@ func (f Finding) AutoResolve(note string, now time.Time) (Finding, HistoryEntry,
 	return f, HistoryEntry{TS: now, User: SystemUser, Action: string(StatusNotRelevant), Note: note}, true
 }
 
+// ReasonFixedByUpdate is the resolution reason (and StatusChangedEvent reason) of a finding Vedette closed as patched because a later
+// reading of the same software on the device has a version outside every affected range: the device got an update (FixedByUpdate).
+const ReasonFixedByUpdate = "fixed_by_update"
+
+// FixedByUpdateNote starts the note of a finding closed by FixedByUpdate.
+const FixedByUpdateNote = "Fixed by an update:"
+
+// PatchedByUpdate reports whether Vedette closed the finding as patched because the device's version moved out of the affected range.
+// Like AutoResolved, only such a patched finding reopens on a match (the version went back into the range).
+func (f Finding) PatchedByUpdate() bool {
+	return f.Status == StatusPatched && f.ResolutionReason == ReasonFixedByUpdate
+}
+
+// FixedByUpdate closes an open finding the way AutoResolve does, but as patched: a version match whose software a later reading shows
+// at a version outside every range (the caller decides that, fixedByUpdate). Status patched by the system user, reason
+// ReasonFixedByUpdate, note the "Fixed by an update: …" sentence. ok is false for what AutoResolve leaves alone.
+func (f Finding) FixedByUpdate(note string, now time.Time) (Finding, HistoryEntry, bool) {
+	if !f.Status.Open() || f.Basis == BasisScan {
+		return f, HistoryEntry{}, false
+	}
+	note = clipNote(note)
+	f.Status, f.ResolvedBy, f.ResolvedAt, f.ResolutionNote, f.ResolutionReason, f.AcceptedUntil = StatusPatched, SystemUser, now, note, ReasonFixedByUpdate, time.Time{}
+	f.ProvedVersion = ""
+	return f, HistoryEntry{TS: now, User: SystemUser, Action: string(StatusPatched), Note: note}, true
+}
+
+// RelabelFixed turns a finding Vedette closed as not affected by a version proof (AutoResolved) into one patched by an update, for the
+// one-time pass over findings closed before the rule existed (reclassifyPatched): status and reason change, the day it was closed
+// stays (resolved_at: the day the update was seen), the note becomes the "Fixed by an update" sentence. ok is false for anything else.
+func (f Finding) RelabelFixed(note string, now time.Time) (Finding, HistoryEntry, bool) {
+	if !f.AutoResolved() || f.ResolvedBy != SystemUser {
+		return f, HistoryEntry{}, false
+	}
+	note = clipNote(note)
+	f.Status, f.ResolutionNote, f.ResolutionReason = StatusPatched, note, ReasonFixedByUpdate
+	return f, HistoryEntry{TS: now, User: SystemUser, Action: string(StatusPatched), Note: note}, true
+}
+
 // SettleAsked gives a finding Vedette closed while waiting for a person's answer (AskedNote) the reason the answer proved:
 // same status, the proof as its note and a history row. ok is false for any other finding.
 func (f Finding) SettleAsked(note string, now time.Time) (Finding, HistoryEntry, bool) {
@@ -219,7 +257,8 @@ func reopenedByPerson(hist []HistoryEntry) bool {
 	reopened := false
 	for i := len(hist) - 1; i >= 0; i-- {
 		switch h := hist[i]; {
-		case h.User == SystemUser && h.Action == string(StatusNotRelevant) && !strings.HasPrefix(h.Note, IgnoredNote): // the close of an ignored device is no proof
+		case h.User == SystemUser && (h.Action == string(StatusNotRelevant) && !strings.HasPrefix(h.Note, IgnoredNote) || // the close of an ignored device is no proof
+			h.Action == string(StatusPatched) && strings.HasPrefix(h.Note, FixedByUpdateNote)):
 			return reopened
 		case h.User != SystemUser && h.Action == "reopened":
 			reopened = true
@@ -230,10 +269,13 @@ func reopenedByPerson(hist []HistoryEntry) bool {
 
 // ReopenOnMatch reopens a finding Vedette closed by itself when the matcher says the device matches again.
 func (f Finding) ReopenOnMatch(now time.Time) (Finding, HistoryEntry, bool) {
-	if !f.AutoResolved() {
+	if !f.AutoResolved() && !f.PatchedByUpdate() {
 		return f, HistoryEntry{}, false
 	}
 	note := "The device matches this entry again, so Vedette reopened it (it had closed it as not affected)."
+	if f.PatchedByUpdate() { // the version went back inside the range: a rollback, or a reading of another install
+		note = "The device matches this entry again, so Vedette reopened it (it had marked it fixed by an update; the version it reports now is inside the affected range)."
+	}
 	if strings.HasPrefix(f.ResolutionNote, AgedNote) { // Closed for its age; whatever brought it back (a version, a template, a new date), say only that it matches
 		note = "The device matches this entry again, so Vedette reopened it (it had closed it as older than 12 months and matched by the product name only)."
 	}

@@ -64,12 +64,12 @@ func (s *Service) setDistroIdle(id string, idle bool) {
 // downloads a day per feed, and a device's new package waits at most this long instead of the feed's daily interval.
 const distroBehindFloor = 6 * time.Hour
 
-// distroKeep is the sorted list of the packages a pull keeps tier rows for: only names a Debian source package can have
+// distroKeep is the sorted list of the packages a pull keeps tier rows for: only names a Debian or Alpine source package can have
 // (the inventory's names come from agents: untrusted); nil for none.
 func distroKeep(pkgs map[string]bool) []string {
 	var out []string
 	for p := range pkgs {
-		if debPackageRE.MatchString(p) {
+		if debPackageRE.MatchString(p) || apkPackageRE.MatchString(p) {
 			out = append(out, p)
 		}
 	}
@@ -177,10 +177,10 @@ func (s *Service) buildDistro(ctx context.Context, src sourceRow, p pullPlan, de
 	for _, c := range cves {
 		want.KEV[c] = true
 	}
-	// ubuntu-vex keeps only "not affected", which never makes a plan item (the plan lists packages below a fixed version, and a
-	// fixed version beats not affected): its tier rows would cost 561,161 rows and 485 MB of peak RSS for nothing (2026-11-15).
-	// alpine-osv keeps none either: the plan reads no apk package, and Alpine's lister names no package.
-	if dec != DecoderUbuntuVEX && dec != DecoderAlpineOSV && len(pkgs) > 0 {
+	// ubuntu-vex keeps only "not affected", which never makes a plan item for Ubuntu (Ubuntu's own OSV data lists every release it
+	// tracks, so a CVE it does not list for a package is no item): its tier rows would cost 561,161 rows and 485 MB of peak RSS for
+	// nothing (2026-11-15). alpine-osv keeps the tier rows of the apk source packages the Alpine devices run, like the others.
+	if dec != DecoderUbuntuVEX && len(pkgs) > 0 {
 		if want.Tier, err = s.st.tierCVEs(ctx, s.now()); err != nil {
 			return p, err
 		}
@@ -329,12 +329,13 @@ func (s *Store) DistroFixes(ctx context.Context) (map[string][]DistroFix, error)
 	return s.distroFixes(ctx, "")
 }
 
-// DistroLoading lists the distributions one of whose feeds is on but holds no row: never filled, or every
-// pull failed. findings then keeps an Alpine CVE of the platform list a question ("not loaded yet") instead of letting NVD decide; a
+// DistroLoading lists the distributions one of whose feeds is on but holds no row while a first pull can still come: never
+// completed, not yet failed DistroGiveUpFailures times in a row, and the CISA list it waits for on the box or still coming
+// (kevCanArrive). findings then keeps an Alpine CVE of the platform list a question ("not loaded yet") instead of letting NVD decide; a
 // feed that is off is not loading (its distribution falls back to NVD), and one with rows from an earlier good pull decides with them.
 func (s *Store) DistroLoading(ctx context.Context) (map[string]bool, error) {
 	rows, err := s.db.Reader().QueryContext(ctx, `SELECT id FROM feeds_source s WHERE s.enabled = 1 AND s.builtin = 1 AND s.id IN ('alpine-osv', 'debian-tracker', 'ubuntu-osv', 'ubuntu-vex')
-AND NOT EXISTS (SELECT 1 FROM feeds_distro_fix d WHERE d.source_id = s.id)`)
+AND NOT EXISTS (SELECT 1 FROM feeds_distro_fix d WHERE d.source_id = s.id) AND s.last_success IS NULL AND s.failures < ? AND `+kevCanArrive, DistroGiveUpFailures, DistroGiveUpFailures)
 	if err != nil {
 		return nil, fmt.Errorf("feeds: distro loading: %w", err)
 	}
@@ -350,6 +351,39 @@ AND NOT EXISTS (SELECT 1 FROM feeds_distro_fix d WHERE d.source_id = s.id)`)
 	return out, rows.Err()
 }
 
+// kevCanArrive is true while the CISA list the distribution feeds wait for (errDistroWaits) is on the box or can still come: its
+// feed is on and has either rows or not yet failed DistroGiveUpFailures times in a row with none completed. A distribution feed
+// that waits on a list that cannot come (turned off, blocked) records nothing, so without this it would be loading for good.
+// It takes one argument: DistroGiveUpFailures.
+const kevCanArrive = `(EXISTS (SELECT 1 FROM feeds_vuln WHERE source_id = 'cisa-kev') OR EXISTS (SELECT 1 FROM feeds_source k WHERE k.id = 'cisa-kev'
+AND k.enabled = 1 AND k.last_success IS NULL AND k.failures < ?))`
+
+// DistroGiveUpFailures is how many pulls in a row may fail, with none ever completed, before the plan stops waiting for a
+// distribution feed (KEVStaleChecks: the same count of checks after which the exploited list is called stale).
+const DistroGiveUpFailures = KEVStaleChecks
+
+// DistroPlanLoading lists the distributions the plan still waits for: a feed the plan reads (alpine-osv, debian-tracker, ubuntu-osv;
+// ubuntu-vex is not read by the plan) is on, has never completed a pull and has not failed DistroGiveUpFailures times in a row. A pull
+// that completed is loaded even if it stored no row; a feed that keeps failing is given up, so the plan falls back to "Check <distro>'s
+// security updates" for its devices instead of leaving them unchecked for good.
+func (s *Store) DistroPlanLoading(ctx context.Context) (map[string]bool, error) {
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT id FROM feeds_source WHERE enabled = 1 AND builtin = 1 AND id IN ('alpine-osv', 'debian-tracker', 'ubuntu-osv')
+AND last_success IS NULL AND failures < ? AND `+kevCanArrive, DistroGiveUpFailures, DistroGiveUpFailures)
+	if err != nil {
+		return nil, fmt.Errorf("feeds: distro plan loading: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	out := map[string]bool{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("feeds: distro plan loading: %w", err)
+		}
+		out[distroOfFeed[id]] = true
+	}
+	return out, rows.Err()
+}
+
 // DistroFixesOf is DistroFixes of one CVE (the CVE page's platform check); nil when none.
 func (s *Store) DistroFixesOf(ctx context.Context, cve string) ([]DistroFix, error) {
 	out, err := s.distroFixes(ctx, cve)
@@ -359,7 +393,7 @@ func (s *Store) DistroFixesOf(ctx context.Context, cve string) ([]DistroFix, err
 // distroFixes reads DistroFixes, of one CVE when cve is not "".
 func (s *Store) distroFixes(ctx context.Context, cve string) (map[string][]DistroFix, error) {
 	rows, err := s.db.Reader().QueryContext(ctx, `SELECT d.distro, d.release, d.package, d.cve, d.status, COALESCE(d.fixed_version, ''), d.pro
-FROM feeds_distro_fix d JOIN feeds_source s ON s.id = d.source_id WHERE s.enabled = 1 AND d.cve IN (SELECT cve FROM feeds_vuln WHERE source_id = 'cisa-kev')
+FROM feeds_distro_fix d JOIN feeds_source s ON s.id = d.source_id WHERE s.enabled = 1 AND d.status IN ('fixed', 'not_affected') AND d.cve IN (SELECT cve FROM feeds_vuln WHERE source_id = 'cisa-kev')
 AND (? = '' OR d.cve = ?) ORDER BY d.cve, d.distro, d.release, d.package, d.source_id`, cve, cve)
 	if err != nil {
 		return nil, fmt.Errorf("feeds: read distro: %w", err)

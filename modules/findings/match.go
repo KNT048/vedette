@@ -240,6 +240,24 @@ type Evidence struct {
 	// agent: its OS or package list); "" otherwise (a banner, an OS guess, a person's entry). Set only when the version is inside a
 	// range with an end that covers it (a fix exists past it): then the finding is confirmed (INV-2, Finding.ByDevice).
 	Source string
+	// Read is the reading of the software row the matcher compared (who read it, its version and package release, when): stored with a
+	// version match, never sent. A later proof that the same software's version moved outside every range is an update the device got
+	// (Finding.FixedByUpdate) only against it; nil on a finding written before it was kept (priorReading then reads the sentence).
+	Read *Reading
+}
+
+// Reading is one reading of a software row as the matcher compared it (Evidence.Read).
+type Reading struct {
+	Software string    // the software's name without its version ("WinRAR")
+	Source   string    // the row's source (Software.Source: agent, snmp, manual, nmap, scan, ...), "" when unknown
+	Version  string    // the version compared ("6.24")
+	Pkg      string    // the package release of a distribution's package ("10.2_p1-r1", "1:9.6p1-3ubuntu13.14"), "" otherwise
+	At       time.Time // when the source read it (Software.SeenAt), zero when unknown
+}
+
+// readingOf is the reading of row s as the matcher compares it.
+func readingOf(s Software, in swInfo) *Reading {
+	return &Reading{Software: softwareName(s.Display, s.Version), Source: s.Source, Version: clean(in.ver), Pkg: clean(strings.TrimSpace(s.PkgVersion)), At: s.SeenAt}
 }
 
 // The device-stated sources of Evidence.Source.
@@ -285,6 +303,8 @@ type Match struct {
 	// provedOn: for a proof from a version, the version or package release the matcher compared ("" when none: another platform, a
 	// distribution's blanket word); stored on the finding it closes (Finding.ProvedVersion).
 	provedOn string
+	// corrected: the proof follows a person's correction of the row or of the device's OS (correctionWhy): never an update.
+	corrected bool
 	// bounded: a version match inside a range with an end (a fix to install) or below the distribution's fixed package; not an
 	// exact version NVD lists, a range with only a start, or every version (#910: the only match a row NVD alone ties to the entry
 	// may give, viaNVD; #913).
@@ -817,13 +837,20 @@ func keyedTo(s Software, v Vuln) bool {
 // matchOne reads entry v for one software row: through CISA's key (keyedTo), else through NVD's CPE list when named says it may
 // name the row (viaNVD, #910).
 func matchOne(a Asset, s Software, in swInfo, v Vuln, named bool, now time.Time) (Match, outcome) {
+	var m Match
+	var out outcome
 	switch {
 	case keyedTo(s, v):
-		return judge(a, s, in, v, keyIDs(v), now)
+		m, out = judge(a, s, in, v, keyIDs(v), now)
 	case named:
-		return viaNVD(a, s, in, v, now)
+		m, out = viaNVD(a, s, in, v, now)
+	default:
+		return Match{}, outNone
 	}
-	return Match{}, outNone
+	if out == outMatch || out == outNotAffected { // what was compared: a later proof tells an update from a better reading by it
+		m.Evidence.Read = readingOf(s, in)
+	}
+	return m, out
 }
 
 // viaNVD is matchOne for a row CISA's key does not reach but NVD's CPE list for the entry names (#910, nvdNames): CISA wrote a

@@ -99,6 +99,7 @@ type fakeFeeds struct {
 	// distro: TierDistro keeps the rows of the packages asked for; covered: the releases it says the feeds hold rows for
 	distro  []TierVuln
 	covered map[string]bool
+	loading map[string]bool // TierDistro's Loading: the distributions the plan still waits for
 	stamp   string
 }
 
@@ -145,25 +146,26 @@ func (f *fakeFeeds) TierVulns(_ context.Context, keep func(string) bool) ([]Tier
 
 func (f *fakeFeeds) TierStamp(context.Context) (string, error) { return f.stamp, nil }
 
-func (f *fakeFeeds) TierDistro(_ context.Context, pkgs []DistroPackage) ([]TierVuln, map[string]bool, error) {
+func (f *fakeFeeds) TierDistro(_ context.Context, pkgs []DistroPackage) (DistroTier, error) {
 	asked := map[DistroPackage]bool{}
 	for _, p := range pkgs {
 		asked[p] = true
 	}
-	var out []TierVuln
+	out := DistroTier{Covered: f.covered, Known: map[string]bool{}, Loading: f.loading}
 	for _, t := range f.distro {
 		var kept []DistroFix
 		for _, d := range t.Distro {
-			if asked[DistroPackage{Distro: d.Distro, Release: d.Release, Package: d.Package}] {
+			if asked[DistroPackage{Distro: d.Distro, Release: d.Release, Package: d.Package}] || asked[DistroPackage{Distro: d.Distro, Package: d.Package}] {
 				kept = append(kept, d)
+				out.Known[d.Distro+"/"+d.Package] = true
 			}
 		}
 		if len(kept) > 0 {
 			t.Distro = kept
-			out = append(out, t)
+			out.Vulns = append(out.Vulns, t)
 		}
 	}
-	return out, f.covered, nil
+	return out, nil
 }
 
 type published struct {

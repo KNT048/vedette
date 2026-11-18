@@ -63,6 +63,13 @@ func (s *Service) Reconcile(ctx context.Context) (ReconcileResult, error) {
 		failed = append(failed, err)
 	}
 	res.Expired = n
+	if err := s.reclassifyPatched(ctx); err != nil { // once: earlier closures after an update become patched, no notice
+		if ctx.Err() != nil {
+			return res, ctx.Err()
+		}
+		s.cfg.Log.WarnContext(ctx, "findings reconcile could not mark earlier closures after an update as patched", "error", err)
+		failed = append(failed, err)
+	}
 	ids, err := s.cfg.Inventory.AssetIDs(ctx)
 	if err != nil {
 		return res, errors.Join(append(failed, fmt.Errorf("findings: reconcile: listing devices: %w", err))...)

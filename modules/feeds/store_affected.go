@@ -214,7 +214,7 @@ func (s *Store) MatchStamp(ctx context.Context) (string, error) {
 func (s *Store) TierStamp(ctx context.Context) (string, error) {
 	var stamp sql.NullString
 	err := s.db.Reader().QueryRowContext(ctx, `SELECT group_concat(id || '=' || COALESCE(last_fetch, '') || '/' || rev || '/' || enabled, ',') FROM
-(SELECT id, last_fetch, rev, enabled FROM feeds_source WHERE id IN ('debian-tracker', 'epss-all', 'nvd-kev', 'nvd-recent', 'ubuntu-osv', 'windows-releases') ORDER BY id)`).Scan(&stamp)
+(SELECT id, last_fetch, rev, enabled FROM feeds_source WHERE id IN ('alpine-osv', 'debian-tracker', 'epss-all', 'nvd-kev', 'nvd-recent', 'ubuntu-osv', 'windows-releases') ORDER BY id)`).Scan(&stamp)
 	if err != nil {
 		return "", fmt.Errorf("feeds: tier stamp: %w", err)
 	}

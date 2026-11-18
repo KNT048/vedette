@@ -95,6 +95,55 @@ func TestAgentNeverReported(t *testing.T) {
 	}
 }
 
+// The package reporter (Alpine, Arch: no osquery) enrols without an osquery version and reports once an hour. Between two of its runs the
+// device is still reported (the plan and the finding page must not say "no agent reports this device now"); it is quiet only after three
+// missed hourly runs.
+func TestReporterIsQuietOnlyAfterThreeMissedHours(t *testing.T) {
+	w := newWorld(t)
+	_, secret := w.token("firewalls", 7)
+	body := enrollBody(secret, "fw-1")
+	delete(body["host_details"].(map[string]any), "osquery_info") // as scripts/osquery.sh's reporter enrols
+	body["host_details"].(map[string]any)["os_version"] = map[string]any{"platform": "alpine"}
+	r := w.post("/intake/osquery/enroll", peerA, body)
+	key, _ := r.body["node_key"].(string)
+	if r.code != 200 || key == "" {
+		t.Fatalf("enroll: %d %s", r.code, r.raw)
+	}
+	rep := func() {
+		t.Helper()
+		if r := w.post("/intake/osquery/log", peerA, logBody(key, snap("os_version", map[string]string{"name": "Alpine Linux", "version": "3.23.2", "platform": "alpine"}),
+			snap("interfaces", ifaceRow(macA, peerA)), snap("apk_packages", map[string]string{"name": "openssh-server", "version": "10.2_p1-r1", "arch": "x86_64", "origin": "openssh"}))); r.code != 200 || r.invalid() {
+			t.Fatalf("report: %d %s", r.code, r.raw)
+		}
+	}
+	rep()
+	d, ok := w.device(peerA)
+	if !ok {
+		t.Fatal("no device")
+	}
+	state := func() map[string]any {
+		t.Helper()
+		r := w.req("viewer", "GET", "/inventory/agents/devices/"+d.ID+"/report")
+		if r.code != 200 {
+			t.Fatalf("GET report: %d %s", r.code, r.raw)
+		}
+		return r.body
+	}
+	w.clock.Advance(59 * time.Minute) // the next hourly run is not due yet
+	if b := state(); b["state"] != "reporting" || b["stale"] == true {
+		t.Fatalf("59 minutes after its report: %v", b)
+	}
+	rep()
+	w.clock.Advance(2*time.Hour + 30*time.Minute) // two missed runs
+	if b := state(); b["state"] != "reporting" {
+		t.Fatalf("two missed hourly runs: %v", b)
+	}
+	w.clock.Advance(time.Hour) // three
+	if b := state(); b["state"] != "quiet" || b["stale"] != true {
+		t.Fatalf("three missed hourly runs: %v", b)
+	}
+}
+
 // Windows machines are told apart, since the person restarts the service with a different command there.
 func TestAgentStateKnowsWindows(t *testing.T) {
 	w := newWorld(t)

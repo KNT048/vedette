@@ -14,7 +14,9 @@ import (
 // The state of an enrolled osquery agent, from its own check-ins against its own schedule. The install scripts set --config_refresh=300,
 // so a running agent asks for its config every five minutes; the box cannot see the flag on the machine, and the config it serves is the
 // one that sets it, so that interval is the schedule. Quiet after three missed calls: one lost call (a busy box, a network blip) must not
-// raise it, and a stopped service is found within a quarter of an hour.
+// raise it, and a stopped service is found within a quarter of an hour. The package reporter (scripts/osquery.sh, for systems osquery
+// does not run on: Alpine, Arch) is no osquery: it enrols without osquery_info and calls once an hour (its timer or cron line), so its
+// schedule is the hour and it is quiet after three missed hourly reports (reporterQuiet).
 const (
 	StateReporting     = "reporting"
 	StateQuiet         = "quiet"
@@ -23,6 +25,9 @@ const (
 
 	configRefresh = 5 * time.Minute
 	quietAfter    = 3 * configRefresh
+	// reporterEvery is the package reporter's schedule: one run an hour, at a minute of its own plus up to a minute of random delay.
+	reporterEvery = time.Hour + time.Minute
+	reporterQuiet = 3 * reporterEvery
 )
 
 // NodeState is one enrolled osquery agent as the screens show it.
@@ -38,8 +43,13 @@ type NodeState struct {
 
 // stateOf classifies a node. Quiet wins over never reported: a silent agent needs its service looked at, whatever else is true. A node
 // that checks in but delivered nothing is only "never reported" once its first-report window (firstReportWindow, schedule.go) is over.
-func stateOf(now, enrolled, lastCall, lastResult time.Time) (string, time.Time) {
-	if now.Sub(lastCall) > quietAfter {
+// reporter says the node is the package reporter (no osquery version at enrolment): quiet only after three of its hourly runs.
+func stateOf(now, enrolled, lastCall, lastResult time.Time, reporter bool) (string, time.Time) {
+	limit := quietAfter
+	if reporter {
+		limit = reporterQuiet
+	}
+	if now.Sub(lastCall) > limit {
 		return StateQuiet, lastCall
 	}
 	if lastResult.IsZero() && now.Sub(enrolled) > firstReportWindow {
@@ -61,14 +71,15 @@ type nodeStateRow struct {
 	id, tokenID, host, hostID, platform string
 	boundIP                             string
 	enrolled, lastCall, lastResult      time.Time
+	reporter                            bool // the package reporter: it enrolled without an osquery version (stateOf)
 }
 
-const nodeStateCols = `id, token_id, ifnull(hostname, host_identifier), host_identifier, ifnull(platform, ''), ifnull(bound_ip, ''), enrolled_at, ifnull(last_call_at, last_seen), ifnull(last_result_at, '')`
+const nodeStateCols = `id, token_id, ifnull(hostname, host_identifier), host_identifier, ifnull(platform, ''), ifnull(bound_ip, ''), enrolled_at, ifnull(last_call_at, last_seen), ifnull(last_result_at, ''), ifnull(osquery_version, '') = ''`
 
 func scanNodeState(sc interface{ Scan(...any) error }) (nodeStateRow, error) {
 	var r nodeStateRow
 	var enrolled, call, result string
-	if err := sc.Scan(&r.id, &r.tokenID, &r.host, &r.hostID, &r.platform, &r.boundIP, &enrolled, &call, &result); err != nil {
+	if err := sc.Scan(&r.id, &r.tokenID, &r.host, &r.hostID, &r.platform, &r.boundIP, &enrolled, &call, &result, &r.reporter); err != nil {
 		return r, err
 	}
 	r.enrolled, _ = time.Parse(time.RFC3339Nano, enrolled)
@@ -79,7 +90,7 @@ func scanNodeState(sc interface{ Scan(...any) error }) (nodeStateRow, error) {
 
 func (r nodeStateRow) state(now time.Time) NodeState {
 	n := NodeState{ID: r.id, TokenID: r.tokenID, Host: r.host, HostID: r.hostID, OS: osOf(r.platform), EnrolledAt: r.enrolled, LastSeen: r.lastCall, LastResult: r.lastResult}
-	n.State, n.QuietSince = stateOf(now, r.enrolled, r.lastCall, r.lastResult)
+	n.State, n.QuietSince = stateOf(now, r.enrolled, r.lastCall, r.lastResult, r.reporter)
 	return n
 }
 

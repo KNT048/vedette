@@ -8,6 +8,7 @@ import { fmtDateTime, fmtRelative } from '@/lib/format'
 import { useModuleEnabled } from '@/lib/modules'
 import { FindingStatusChip } from './AcceptRisk'
 import { useFindings, usePlan, useToFix } from './api'
+import { DoneList } from './DoneList'
 import type { SoftwareView } from '@/features/inventory/types'
 import type { FindingRow, ToFixDevice } from './types'
 import { isOpen, riskRank } from './basis'
@@ -92,6 +93,8 @@ function DevicePlan({ assetId }: { assetId: string }) {
             {d.compared && d.items.length === 0 && (d.data.epss === 'ready' || d.data.recent === 'ready') ? <p className="text-sm text-muted">{t('plan.device.none')}</p> : null}
             {/* The way to every update to plan only when this device has some (no link to an empty list) */}
             {d.items.length > 0 ? <Link to="/plan" className="w-fit text-meta text-accent underline underline-offset-4">{t('plan.device.all')}</Link> : null}
+            {/* the device's recommended updates a person marked done, with Undo (Mark as done… is on each one in To fix above) */}
+            {d.counts.done > 0 ? <DoneList count={d.counts.done} asset={assetId} /> : null}
           </div>
         )}
       </QueryState>

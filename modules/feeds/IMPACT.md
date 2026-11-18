@@ -204,3 +204,10 @@
 ## Modifying: câu "feed giữ gì" (`heldNotes`, `heldFrom`, `Service.heldNow`, `Service.live`, migration 0023; POST-1)
 - **Hàng feed của API** (`GET /feeds/sources`, Fetch now, `PUT /feeds/sources/{id}`): câu giữ gì đếm lúc đọc, trước ghi chú của lượt cuối; `feeds_source.error` và `feeds_fetch_log.error` của lượt tốt chỉ còn ghi chú của chính lượt. `pullOne` trả hàng như đã lưu; handler áp `live` một lần. Web (`FeedsSettings.tsx`, `NeedsInput.tsx`, `PrivacySection.tsx`) đọc cùng trường `error`, không đổi.
 - **Chi phí đọc**: một feed bản phân phối đếm mọi hàng của nó (~0,1 s mỗi 100 000 hàng, Linux x86 dev box); đếm lại chỉ khi `last_fetch`/`rev` của một feed trong `heldFrom` đổi. Thêm nguồn ghi vào các bảng đó (ngoài lượt kéo hay sửa feed) thì phải thêm feed ấy vào `heldFrom` hoặc đổi khoá đệm (`TestHeldNotes_FollowTheData`).
+
+## Modifying: hàng `open`, hàng tầng Alpine, `TierDistroRecords`/`TierDistro` (INV-27, migration 0024)
+
+- **findings** (cmd/vedette `findingsFeeds.TierDistro` → `Feeds.TierDistro`, `plandistro.go`): `Records` có hàng fixed, not affected, open; `Known` (gói có dữ liệu) và `Loading` quyết định ba câu của mục bản phân phối (bản vá / "No fix from … yet" / "Check …'s security updates"); đổi chữ ký hay ý nghĩa `TierDistro` hay `DistroOpen` ⇒ sửa `distroWords`/`distroItems`, `cmd/vedette/distro_test.go` và các cài đặt giả `findings.Feeds.TierDistro` (`modules/findings/service_test.go`, `modules/mitigation/mitigation_test.go`). Bộ khớp KEV không đọc `open`: `Store.DistroFixes` lọc `fixed|not_affected`.
+- **Bảng và nội dung**: migration 0024 dựng lại `feeds_distro_fix` (CHECK `status`, `fixed_version`); tăng phiên bản nội dung decoder (`contentversion.go`, INV-32) làm hộp đang chạy đọc lại `ubuntu-osv`, `debian-tracker`, `alpine-osv` một lần: kiểm `contentversion_test.go`.
+- **`TierStamp`** thêm `alpine-osv`: lượt kéo của nó chạy lại lượt so đầy đủ của job `plan`.
+- **Bộ nhớ/thời gian của lượt kéo Alpine** tăng vì giữ hàng tầng; đo lại bằng log `feeds: distribution pull parsed` khi đổi tập gói giữ.

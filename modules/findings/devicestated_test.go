@@ -177,8 +177,8 @@ func TestUpsert_DeviceStatedVersionConfirmsAndReJudges(t *testing.T) {
 	}
 
 	run(fortiSNMP("7.2.13"))
-	run(fortiSNMP("7.4.8")) // 7.4.8: outside the first range (before 7.4.7 is fixed too); inside the other
-	if r := load("CVE-2025-68686"); r.Status != StatusNotRelevant || r.ResolvedBy != SystemUser || r.ResolutionReason != ReasonNotAffectedVersion {
+	run(fortiSNMP("7.4.8")) // 7.4.8: outside the first range (before 7.4.7 is fixed too); inside the other. The device moved: an update
+	if r := load("CVE-2025-68686"); r.Status != StatusPatched || r.ResolvedBy != SystemUser || r.ResolutionReason != ReasonFixedByUpdate {
 		t.Fatalf("a stated version outside the range: %+v", r.Finding)
 	}
 	if r := load("CVE-2025-61624"); r.Status != StatusConfirmed {

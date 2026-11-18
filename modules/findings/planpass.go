@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 )
@@ -26,9 +27,10 @@ type planState struct {
 	fullAt  time.Time // when the last full pass finished
 	lastRun time.Time // when the job last ran: a longer gap (the findings module was off) makes the next run a full pass
 	devices map[string]planDevice
-	ver     uint64          // moves on every change of devices: the risk marker's cache (RiskMap) is dropped when it does
-	dirty   map[string]bool // devices to compare again at the next run
-	dropped map[string]bool // devices deleted since the run started: never written back by it (review r1 #4 of #804)
+	ver     uint64              // moves on every change of devices: the risk marker's cache (RiskMap) is dropped when it does
+	dirty   map[string]bool     // devices to compare again at the next run
+	dropped map[string]bool     // devices deleted since the run started: never written back by it (review r1 #4 of #804)
+	marks   map[string]PlanDone // the items a person marked done, by key (plandone.go); read at each full pass
 }
 
 type planDevice struct {
@@ -110,6 +112,11 @@ func (s *Service) RefreshPlan(ctx context.Context) error {
 		return nil
 	}
 	retry := dirty
+	if full {
+		if err := s.loadMarks(ctx); err != nil {
+			return err
+		}
+	}
 	defer func() { // what this run could not do is done by the next one
 		if len(retry) > 0 {
 			s.markPlan(slices.Collect(maps.Keys(retry))...)
@@ -165,28 +172,44 @@ func (s *Service) RefreshPlan(ctx context.Context) error {
 		}
 		assets = append(assets, a)
 	}
-	scope := NewTierScope(assets)
-	var tv []TierVuln
-	if !scope.Empty() {
-		if tv, err = s.cfg.Feeds.TierVulns(ctx, scope.Keep); err != nil {
-			return fmt.Errorf("findings: plan: reading the tier data: %w", err)
-		}
-	}
-	var pkgs []DistroPackage // The Ubuntu and Debian packages, compared with the distribution's own data
+	var pkgs []DistroPackage // The distributions' packages, judged by the distribution's own data (plandistro.go)
 	for _, a := range assets {
 		d, rel, ps := DevicePackages(a)
 		for _, p := range ps {
 			pkgs = append(pkgs, DistroPackage{Distro: d, Release: rel, Package: p})
 		}
 	}
-	var dv []TierVuln
-	var covered map[string]bool
+	var dt DistroTier
 	if len(pkgs) > 0 {
-		if dv, covered, err = s.cfg.Feeds.TierDistro(ctx, pkgs); err != nil {
+		if dt, err = s.cfg.Feeds.TierDistro(ctx, pkgs); err != nil {
 			return fmt.Errorf("findings: plan: reading the distributions' tier data: %w", err)
 		}
 	}
-	x := newTierIndex(tv).withDistro(dv, covered).withKEV(kevs, open)
+	dx := (&tierIndex{}).withKnown(dt.Known, dt.Loading).withDistro(dt.Vulns, dt.Covered)
+	st, err := s.cfg.Feeds.TierStatus(ctx)
+	if err != nil {
+		return fmt.Errorf("findings: plan: reading the tier data's status: %w", err)
+	}
+	hadData := map[string]bool{}         // the devices whose items this pass could all compute: their done marks may be pruned (pruneMarks)
+	skip := map[string]map[string]bool{} // the packages the distribution's data alone decides: NVD's entries of them are not read
+	for _, a := range assets {
+		d, _, judged, wait := dx.distroWords(a)
+		hadData[a.ID] = st.Recent == "ready" && len(wait) == 0 && distroHasData(d, dt)
+		for id := range judged {
+			if !d.fixedOnly {
+				wait[id] = true
+			}
+		}
+		skip[a.ID] = wait
+	}
+	scope := newTierScope(assets, skip)
+	var tv []TierVuln
+	if !scope.Empty() {
+		if tv, err = s.cfg.Feeds.TierVulns(ctx, scope.Keep); err != nil {
+			return fmt.Errorf("findings: plan: reading the tier data: %w", err)
+		}
+	}
+	x := newTierIndex(tv).withKnown(dt.Known, dt.Loading).withDistro(dt.Vulns, dt.Covered).withKEV(kevs, open)
 	now := s.now()
 	got := make(map[string]planDevice, len(assets))
 	items := 0
@@ -224,6 +247,9 @@ func (s *Service) RefreshPlan(ctx context.Context) error {
 	}
 	s.plan.mu.Unlock()
 	retry = unread
+	if err := s.pruneMarks(ctx, got, hadData); err != nil {
+		s.cfg.Log.WarnContext(ctx, "findings: plan: the done marks that no longer hold stay until the next pass", "error", err)
+	}
 	compared := 0
 	for _, d := range got {
 		if d.compared {
@@ -231,7 +257,22 @@ func (s *Service) RefreshPlan(ctx context.Context) error {
 		}
 	}
 	s.cfg.Log.InfoContext(ctx, "findings: plan pass done", "full", full, "devices", len(assets), "compared", compared, "tier_cves_read", len(tv),
-		"distro_packages", len(pkgs), "distro_cves_read", len(dv), "items", items, "items_fixed", kinds["fixed"], "items_windows", kinds["windows"],
+		"distro_packages", len(pkgs), "distro_cves_read", len(dt.Vulns), "items", items, "items_fixed", kinds["fixed"], "items_windows", kinds["windows"],
 		"items_esu", kinds["esu"], "items_distro", kinds["distro"], "took", s.now().Sub(start))
 	return errors.Join(failed...)
+}
+
+// distroHasData says whether the plan pass holds data of distribution d for its devices: a device with no distribution package rows
+// needs none; otherwise a feed that is on has stored rows of a release (a feed that was switched off or is re-pulling leaves items out
+// that are not installed updates).
+func distroHasData(d *distroData, dt DistroTier) bool {
+	if d == nil {
+		return true
+	}
+	for k := range dt.Covered {
+		if strings.HasPrefix(k, d.id+"/") {
+			return true
+		}
+	}
+	return false
 }

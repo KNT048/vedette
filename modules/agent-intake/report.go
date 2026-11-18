@@ -141,7 +141,7 @@ func (s *Service) reportState(ctx context.Context, device string) (ReportState, 
 		var asked, taken string
 		var bound nodeStateRow
 		err := s.db.Reader().QueryRowContext(ctx, `SELECT ifnull(report_asked_at, ''), ifnull(software_taken_at, ''), `+nodeStateCols+` FROM intake_osquery_nodes WHERE id = ?`, id).
-			Scan(&asked, &taken, &bound.id, &bound.tokenID, &bound.host, &bound.hostID, &bound.platform, &bound.boundIP, &enrolledS, &callS, &resultS)
+			Scan(&asked, &taken, &bound.id, &bound.tokenID, &bound.host, &bound.hostID, &bound.platform, &bound.boundIP, &enrolledS, &callS, &resultS, &bound.reporter)
 		switch {
 		case err == nil:
 			bound.enrolled, _ = time.Parse(time.RFC3339Nano, enrolledS)
@@ -161,7 +161,7 @@ func (s *Service) reportState(ctx context.Context, device string) (ReportState, 
 			}
 			st := ReportState{Agent: ReportOsquery}
 			st.LastSeen = live.lastCall
-			st.State, st.QuietSince = stateOf(now, live.enrolled, live.lastCall, live.lastResult)
+			st.State, st.QuietSince = stateOf(now, live.enrolled, live.lastCall, live.lastResult, live.reporter)
 			st.Stale = st.State == StateQuiet // one rule: "no agent reports this device now" and "quiet" are the same fact
 			st.OS = osOf(live.platform)
 			if askOpen(nodeRow{askedAt: n.askedAt, softwareAt: n.softwareAt}, now) {

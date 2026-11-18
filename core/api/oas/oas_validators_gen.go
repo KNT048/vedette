@@ -42513,6 +42513,17 @@ func (s FindingsGetFindingsOKVersionNeededItemAssetKind) Validate() error {
 	}
 }
 
+func (s FindingsGetFindingsPlanDone) Validate() error {
+	switch s {
+	case "true":
+		return nil
+	case "false":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s *FindingsGetFindingsPlanOK) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -42676,6 +42687,27 @@ func (s *FindingsGetFindingsPlanOKCounts) Validate() error {
 			MultipleOfSet: false,
 			MultipleOf:    0,
 			Pattern:       nil,
+		}).Validate(int64(s.Done)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "done",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
 		}).Validate(int64(s.Likely)); err != nil {
 			return errors.Wrap(err, "int")
 		}
@@ -42808,6 +42840,17 @@ func (s *FindingsGetFindingsPlanOKItemsItem) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "cves",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.DistroData.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "distro_data",
 			Error: err,
 		})
 	}
@@ -43084,6 +43127,21 @@ func (s FindingsGetFindingsPlanOKItemsItemCvesItemTier) Validate() error {
 	case "likely":
 		return nil
 	case "recent":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s FindingsGetFindingsPlanOKItemsItemDistroData) Validate() error {
+	switch s {
+	case "fixed":
+		return nil
+	case "no_fix":
+		return nil
+	case "none":
+		return nil
+	case "":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -44615,6 +44673,17 @@ func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) Validate() error {
 		})
 	}
 	if err := func() error {
+		if err := s.DistroData.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "distro_data",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if s.FindingIds == nil {
 			return errors.New("nil is invalid value")
 		}
@@ -44724,6 +44793,21 @@ func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s FindingsGetFindingsToFixOKDevicesItemExploitedItemDistroData) Validate() error {
+	switch s {
+	case "fixed":
+		return nil
+	case "no_fix":
+		return nil
+	case "none":
+		return nil
+	case "":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s FindingsGetFindingsToFixOKDevicesItemExploitedItemKind) Validate() error {
@@ -44826,6 +44910,17 @@ func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) Validate() error {
 		})
 	}
 	if err := func() error {
+		if err := s.DistroData.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "distro_data",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if s.FindingIds == nil {
 			return errors.New("nil is invalid value")
 		}
@@ -44935,6 +45030,21 @@ func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s FindingsGetFindingsToFixOKDevicesItemNoUpdateItemDistroData) Validate() error {
+	switch s {
+	case "fixed":
+		return nil
+	case "no_fix":
+		return nil
+	case "none":
+		return nil
+	case "":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKind) Validate() error {
@@ -45037,6 +45147,17 @@ func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) Validate() error {
 		})
 	}
 	if err := func() error {
+		if err := s.DistroData.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "distro_data",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if s.FindingIds == nil {
 			return errors.New("nil is invalid value")
 		}
@@ -45146,6 +45267,21 @@ func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s FindingsGetFindingsToFixOKDevicesItemPlannedItemDistroData) Validate() error {
+	switch s {
+	case "fixed":
+		return nil
+	case "no_fix":
+		return nil
+	case "none":
+		return nil
+	case "":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s FindingsGetFindingsToFixOKDevicesItemPlannedItemKind) Validate() error {
@@ -54048,6 +54184,99 @@ func (s FindingsPostFindingsIDUnconfirmOKStatus) Validate() error {
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
+}
+
+func (s *FindingsPostFindingsPlanDoneReq) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:     1,
+			MinLengthSet:  true,
+			MaxLength:     400,
+			MaxLengthSet:  true,
+			Email:         false,
+			Hostname:      false,
+			Regex:         nil,
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.Group)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "group",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:     0,
+			MinLengthSet:  false,
+			MaxLength:     500,
+			MaxLengthSet:  true,
+			Email:         false,
+			Hostname:      false,
+			Regex:         nil,
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.Note)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "note",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *FindingsPostFindingsPlanUndoneReq) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:     1,
+			MinLengthSet:  true,
+			MaxLength:     400,
+			MaxLengthSet:  true,
+			Email:         false,
+			Hostname:      false,
+			Regex:         nil,
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.Group)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "group",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
 }
 
 func (s *FindingsPostFindingsStatusOK) Validate() error {

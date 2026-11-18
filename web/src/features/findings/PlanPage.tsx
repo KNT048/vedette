@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Segmented } from '@/components/ui/segmented'
 import { usePlan } from './api'
 import { PlanDataState, PlanItems } from './Plan'
+import { DoneList } from './DoneList'
 import type { PlanFilter } from './types'
 import { fmtDate } from '@/lib/format'
 
@@ -67,6 +68,7 @@ function Page() {
                 </Card>
               )
             ) : null}
+            {d.counts.done > 0 ? <DoneList count={d.counts.done} showDevice /> : null}
             {d.compared && d.items.length > 0 && d.unchecked_devices > 0 ? (
               <Notice tone="off" className="mt-4" title={t('plan.unchecked', { count: d.unchecked_devices })} info={t('plan.uncheckedBodyInfo')}>
                 <p>{t('plan.uncheckedBody')} <Link to="/devices" className="text-accent underline underline-offset-4">{t('plan.emptyDevices')}</Link></p>

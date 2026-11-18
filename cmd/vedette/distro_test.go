@@ -72,7 +72,8 @@ func TestDistroFixReachesFindings(t *testing.T) {
 		t.Fatalf("below the fix: %+v", f)
 	}
 	install("1:9.6p1-3ubuntu13.14")
-	if f := finding(); f.Status != findings.StatusNotRelevant || f.ResolutionReason != findings.ReasonNotAffectedVersion || !strings.Contains(f.ResolutionNote, "this device has 1:9.6p1-3ubuntu13.14") {
+	// the agent read another release at or above Ubuntu's fix: an update the device got (patched), with Ubuntu's word as the proof
+	if f := finding(); f.Status != findings.StatusPatched || f.ResolutionReason != findings.ReasonFixedByUpdate || !strings.Contains(f.ResolutionNote, "this device has 1:9.6p1-3ubuntu13.14") {
 		t.Fatalf("after the update: %+v", f)
 	}
 }
@@ -146,7 +147,7 @@ func TestDistroKernelFollowsTheRunningKernel(t *testing.T) {
 		t.Fatalf("the new kernel is installed but does not run yet, and the finding closed: %+v", f)
 	}
 	install("7.0.0-43-generic", old, updated, meta) // rebooted
-	if f := status()["CVE-2026-53266"]; f.Status != findings.StatusNotRelevant || !strings.Contains(f.ResolutionNote, "fixed CVE-2026-53266 in linux 7.0.0-31.31, and this device has 7.0.0-43.43") {
+	if f := status()["CVE-2026-53266"]; f.Status != findings.StatusPatched || !strings.Contains(f.ResolutionNote, "fixed CVE-2026-53266 in linux 7.0.0-31.31, and this device has 7.0.0-43.43") {
 		t.Fatalf("after the reboot to 7.0.0-43: %+v", f)
 	}
 }

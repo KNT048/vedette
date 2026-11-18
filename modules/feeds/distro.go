@@ -40,6 +40,9 @@ const (
 
 	DistroFixed       = "fixed"
 	DistroNotAffected = "not_affected"
+	// DistroOpen is the distribution's word "affected, no fix yet" (Debian's open entries, an Ubuntu release with no fixed event):
+	// kept only for the tier CVEs of the devices' packages (DistroWant.Row), for "Updates to plan".
+	DistroOpen = "open"
 
 	ubuntuOSVFeedID     = "ubuntu-osv"
 	ubuntuVEXFeedID     = "ubuntu-vex"
@@ -95,9 +98,10 @@ type DistroWant struct {
 // CVE says whether some row of the CVE may be kept: its entry is read.
 func (w DistroWant) CVE(c string) bool { return w.KEV[c] || w.Tier[c] }
 
-// Row says whether the row of the CVE for the source package with this status is kept.
+// Row says whether the row of the CVE for the source package with this status is kept: every fixed or not-affected row of a CVE of the
+// CISA list (the matcher's), and every row of a tier CVE for a package some device runs (the plan's: fixed, not affected, or open).
 func (w DistroWant) Row(cve, pkg, status string) bool {
-	return w.KEV[cve] || status == DistroFixed && w.Tier[cve] && w.Packages[pkg]
+	return w.KEV[cve] && status != DistroOpen || w.Tier[cve] && w.Packages[pkg]
 }
 
 // DistroResult is one parsed pull.
@@ -423,12 +427,22 @@ func ParseUbuntuOSV(r io.Reader, want DistroWant) (DistroResult, error) {
 		}
 		type key struct{ release, pkg string }
 		got := map[key]DistroFix{}
+		var open []key // a public release's package with no fixed event: Ubuntu has no fix yet
 		for _, a := range rec.Affected {
 			m := ubuntuEcosystemRE.FindStringSubmatch(a.Package.Ecosystem)
 			if m == nil {
 				continue
 			}
 			pro := m[1] != ""
+			fixed := false
+			for _, rg := range a.Ranges {
+				for _, e := range rg.Events {
+					fixed = fixed || e.Fixed != ""
+				}
+			}
+			if !fixed && !pro && debPackageRE.MatchString(a.Package.Name) && want.Row(cve, a.Package.Name, DistroOpen) {
+				open = append(open, key{m[2], a.Package.Name})
+			}
 			for _, rg := range a.Ranges {
 				for _, e := range rg.Events {
 					if e.Fixed == "" {
@@ -454,6 +468,11 @@ func ParseUbuntuOSV(r io.Reader, want DistroWant) (DistroResult, error) {
 				}
 			}
 		}
+		for _, k := range open { // a fix for the same release and package elsewhere in the record wins
+			if _, ok := got[k]; !ok {
+				got[k] = DistroFix{Distro: DistroUbuntu, Release: k.release, Package: k.pkg, CVE: cve, Status: DistroOpen}
+			}
+		}
 		if len(got) > distroMaxRowsPerCVE {
 			tl.reject(row, "%s: more than 20,000 packages", cve)
 			return nil
@@ -470,10 +489,10 @@ func ParseUbuntuOSV(r io.Reader, want DistroWant) (DistroResult, error) {
 	return DistroResult{Rows: out, Stats: tl.stats()}, nil
 }
 
-// ParseAlpineOSV reads OSV.dev's Alpine all.zip and keeps, for the CVEs of want's KEV list, the first fixed release of each
-// source package of each Alpine branch ("Alpine:v3.23" → release "3.23"): a "fixed" event, the highest of several; "0" is Alpine's
-// "not affected" (secdb's convention). Every branch the record lists is kept. Tier CVEs are not kept: findings reads Alpine's rows only
-// for the KEV CVEs of the platform list. The record must be about its file's CVE; a record with a bad package name, no affected package
+// ParseAlpineOSV reads OSV.dev's Alpine all.zip and keeps, for the CVEs of want (DistroWant.Row: every row of a CVE of the CISA list,
+// and of a tier CVE the rows of the packages the Alpine devices run), the first fixed release of each source package of each Alpine
+// branch ("Alpine:v3.23" → release "3.23"): a "fixed" event, the highest of several; "0" is Alpine's "not affected" (secdb's
+// convention). secdb lists fixed releases only: a CVE it does not list for a package has no fix from Alpine yet. The record must be about its file's CVE; a record with a bad package name, no affected package
 // of an Alpine branch or too many rows is rejected whole, and a withdrawn record keeps nothing. A release apkver cannot read ("1.9.5p2-r0", in old branches of two KEV CVEs on 2026-11-17) drops that branch's
 // row only, counted with its value (also one longer than 100 characters or with spaces): a branch without a row never proves "not
 // affected" in findings, so the other branches stay usable.
@@ -481,8 +500,7 @@ func ParseAlpineOSV(r io.Reader, want DistroWant) (DistroResult, error) {
 	tl := newTally()
 	var out []DistroFix
 	row := 0
-	kev := func(c string) bool { return want.KEV[c] }
-	err := eachZipEntry(r, alpineEntryRE, kev, tl, func(cve string, body io.Reader) error {
+	err := eachZipEntry(r, alpineEntryRE, want.CVE, tl, func(cve string, body io.Reader) error {
 		row++
 		var rec osvRecord
 		if err := json.NewDecoder(body).Decode(&rec); err != nil || rec.ID != "ALPINE-"+cve {
@@ -516,6 +534,9 @@ func ParseAlpineOSV(r io.Reader, want DistroWant) (DistroResult, error) {
 						f.Status, f.Fixed = DistroNotAffected, ""
 					case len(e.Fixed) > alpineMaxRelease || strings.TrimSpace(e.Fixed) != e.Fixed || !apkver.Valid(e.Fixed):
 						tl.reject(row, "%s: release %s is not an Alpine package release", cve, quoteVal(e.Fixed))
+						continue
+					}
+					if !want.Row(cve, a.Package.Name, f.Status) {
 						continue
 					}
 					k := key{m[1], a.Package.Name}
@@ -661,11 +682,28 @@ func sourcePurl(id string) (name, codename string, ok, bad bool) {
 	return name, codename, true, false
 }
 
+type debianRelease struct {
+	Status       string `json:"status"`
+	FixedVersion string `json:"fixed_version"`
+	Urgency      string `json:"urgency"`
+	// NoDSA and NoDSAReason are set when Debian will not publish a security update for the entry ("minor issue", "ignored",
+	// "postponed", "end-of-life"); the tracker writes them as strings, a boolean is read too
+	NoDSA       json.RawMessage `json:"nodsa"`
+	NoDSAReason json.RawMessage `json:"nodsa_reason"`
+}
+
 type debianEntry struct {
-	Releases map[string]struct {
-		Status       string `json:"status"`
-		FixedVersion string `json:"fixed_version"`
-	} `json:"releases"`
+	Releases map[string]debianRelease `json:"releases"`
+}
+
+// noSecurityUpdate says whether Debian has decided not to publish a security update for the entry: urgency unimportant or
+// end-of-life, or a nodsa / nodsa_reason mark.
+func (r debianRelease) noSecurityUpdate() bool {
+	set := func(m json.RawMessage) bool {
+		t := strings.TrimSpace(string(m))
+		return t != "" && t != "null" && t != "false" && t != `""`
+	}
+	return r.Urgency == "unimportant" || r.Urgency == "end-of-life" || set(r.NoDSA) || set(r.NoDSAReason)
 }
 
 // ParseDebianTracker reads the Debian Security Tracker JSON ({source: {CVE: {releases: {codename: {status,
@@ -718,7 +756,9 @@ func parseDebian(dec *json.Decoder, want DistroWant) (DistroResult, error) {
 			var rows []DistroFix
 			bad := false
 			for codename, rel := range e.Releases {
-				if rel.Status != "resolved" || codename == "sid" {
+				// open: affected, no fix yet; one Debian will not fix in a security update (unimportant, end-of-life, nodsa, ignored) is left out
+				open := rel.Status == "open" && !rel.noSecurityUpdate()
+				if rel.Status != "resolved" && !open || codename == "sid" {
 					continue
 				}
 				num, known := debianReleases[codename]
@@ -728,6 +768,8 @@ func parseDebian(dec *json.Decoder, want DistroWant) (DistroResult, error) {
 				}
 				f := DistroFix{Distro: DistroDebian, Release: num, Package: pkg, CVE: cve, Status: DistroFixed, Fixed: rel.FixedVersion}
 				switch {
+				case open:
+					f.Status, f.Fixed = DistroOpen, ""
 				case rel.FixedVersion == "0":
 					f.Status, f.Fixed = DistroNotAffected, ""
 				case !debver.Valid(rel.FixedVersion):

@@ -142,9 +142,8 @@ func (f Finding) AutoResolved() bool {
 // AutoResolve closes a suspected finding (basis version or product), or one a person confirmed (basis person), that the matcher
 // proved not affected (the version is outside every range, or the software is not installed): a person's confirm only keeps the
 // matcher from taking it back to suspected, it never outranks a newer version. A scan's confirmation is never closed here. It is
-// closed
-// not_relevant by the system user, with the matcher's sentence as note. ok is false for anything else: an open
-// finding a scan confirmed, or a closed one, is never touched.
+// closed not_relevant by the system user, with the matcher's sentence as note. ok is false for anything else: an open finding a
+// scan confirmed, or a closed one, is never touched.
 func (f Finding) AutoResolve(note string, now time.Time) (Finding, HistoryEntry, bool) {
 	suspected, byPerson := f.Status == StatusSuspected && f.Basis != BasisScan, f.Status == StatusConfirmed && f.Basis == BasisPerson
 	if !suspected && !byPerson {

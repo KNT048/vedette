@@ -277,6 +277,7 @@ var contractRoutes = map[string][]string{
 	},
 	"logs": {
 		"DELETE /logs/sources/{id}",
+		"GET /logs/bad-connections",
 		"GET /logs/digest",
 		"GET /logs/events",
 		"GET /logs/siem",

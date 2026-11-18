@@ -7368,7 +7368,8 @@ func (s *Server) handleCoreGetCoreAccountRequest(args [0]string, argsEscaped boo
 
 // handleCoreGetCoreAuditRequest handles core_get_core_audit operation.
 //
-// Audit log filtered by text, user, group and date (at most 200 rows).
+// Audit log filtered by text, user, group and date, newest first, one page of at most 200 rows
+// (offset, limit); total counts every matching row.
 //
 // GET /core/audit
 func (s *Server) handleCoreGetCoreAuditRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -7447,7 +7448,7 @@ func (s *Server) handleCoreGetCoreAuditRequest(args [0]string, argsEscaped bool,
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CoreGetCoreAuditOperation,
-			OperationSummary: "Audit log filtered by text, user, group and date (at most 200 rows)",
+			OperationSummary: "Audit log filtered by text, user, group and date, newest first, one page of at most 200 rows (offset, limit); total counts every matching row",
 			OperationID:      "core_get_core_audit",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -7476,6 +7477,14 @@ func (s *Server) handleCoreGetCoreAuditRequest(args [0]string, argsEscaped bool,
 					Name: "actor",
 					In:   "query",
 				}: params.Actor,
+				{
+					Name: "offset",
+					In:   "query",
+				}: params.Offset,
+				{
+					Name: "limit",
+					In:   "query",
+				}: params.Limit,
 			},
 			Raw: r,
 		}
@@ -33908,6 +33917,167 @@ func (s *Server) handleLogsDeleteLogsSourcesIDRequest(args [1]string, argsEscape
 	}
 
 	if err := encodeLogsDeleteLogsSourcesIDResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleLogsGetLogsBadConnectionsRequest handles logs_get_logs_bad_connections operation.
+//
+// Connections to known-bad addresses, one row per source address and destination over the range
+// (grouped by the box): hits, first and last seen, feeds, highest confidence. Searched by the box over
+// the device address and name, the destination, the listed name and the feed names; ordered by the
+// newest last hit (sort=last) or the most hits (sort=hits); paged by offset and limit (at most 200).
+// Empty while the Feeds module is off (PRE-3). 400 bad_window.
+//
+// GET /logs/bad-connections
+func (s *Server) handleLogsGetLogsBadConnectionsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: LogsGetLogsBadConnectionsOperation,
+			ID:   "logs_get_logs_bad_connections",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, LogsGetLogsBadConnectionsOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+	params, err := decodeLogsGetLogsBadConnectionsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response *LogsGetLogsBadConnectionsOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    LogsGetLogsBadConnectionsOperation,
+			OperationSummary: "Connections to known-bad addresses, one row per source address and destination over the range (grouped by the box): hits, first and last seen, feeds, highest confidence. Searched by the box over the device address and name, the destination, the listed name and the feed names; ordered by the newest last hit (sort=last) or the most hits (sort=hits); paged by offset and limit (at most 200). Empty while the Feeds module is off (PRE-3). 400 bad_window",
+			OperationID:      "logs_get_logs_bad_connections",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "window",
+					In:   "query",
+				}: params.Window,
+				{
+					Name: "q",
+					In:   "query",
+				}: params.Q,
+				{
+					Name: "sort",
+					In:   "query",
+				}: params.Sort,
+				{
+					Name: "offset",
+					In:   "query",
+				}: params.Offset,
+				{
+					Name: "limit",
+					In:   "query",
+				}: params.Limit,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = LogsGetLogsBadConnectionsParams
+			Response = *LogsGetLogsBadConnectionsOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackLogsGetLogsBadConnectionsParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.LogsGetLogsBadConnections(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.LogsGetLogsBadConnections(ctx, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeLogsGetLogsBadConnectionsResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

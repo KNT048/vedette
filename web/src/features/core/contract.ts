@@ -96,6 +96,10 @@ export const OidcTest = z.object({ ok: z.literal(true), endpoints: z.record(z.st
 export const AuditRow = z.object({ id: z.string(), ts, user: z.string(), action: z.string(), target: z.string(), detail: z.string().optional() })
 export const AuditQuery = z.object({ q: z.string().optional(), user: z.string().optional(), group: z.string().optional(), from: z.string().optional(), to: z.string().optional(),
   actor: z.enum(['people']).optional().describe('people: leave out the automatic lines (user "system" or "system:<part>"), so what people and tools did stands out') })
+export const AuditListQuery = AuditQuery.extend({
+  offset: z.string().regex(/^[0-9]{1,7}$/).optional().describe('Matching rows to skip, newest first (default 0): the page of the list'),
+  limit: z.string().regex(/^[0-9]{1,3}$/).optional().describe('Rows of the page, 1 to 200 (default and above: 200)'),
+})
 export const AuditResult = z.object({ items: z.array(AuditRow), total: z.number(), users: z.array(z.string()), groups: z.array(z.string()),
   names: z.record(z.string(), z.string()).describe('Display names of the devices and findings whose ids appear in the target or detail of these rows (id to name); an id the box no longer has is left out') })
 
@@ -325,7 +329,7 @@ export const endpoints = defineEndpoints([
   { method: 'put', path: '/core/oidc', summary: 'Save OIDC settings', stories: ['S-CORE-3'], role: 'admin', body: OidcSave, response: OidcConfig },
   { method: 'post', path: '/core/oidc/test', summary: 'Try reading the IdP discovery document', stories: ['S-CORE-3'], role: 'admin', response: OidcTest },
   // audit
-  { method: 'get', path: '/core/audit', summary: 'Audit log filtered by text, user, group and date (at most 200 rows)', stories: ['S-CORE-3'], role: 'admin', query: AuditQuery, response: AuditResult, example: { query: { group: 'core' } } },
+  { method: 'get', path: '/core/audit', summary: 'Audit log filtered by text, user, group and date, newest first, one page of at most 200 rows (offset, limit); total counts every matching row', stories: ['S-CORE-3'], role: 'admin', query: AuditListQuery, response: AuditResult, example: { query: { group: 'core' } } },
   { method: 'get', path: '/core/audit/export', summary: 'Export the audit log to CSV with the same filters', stories: ['S-CORE-3'], role: 'admin', query: AuditQuery, response: 'file' },
   // cập nhật
   { method: 'get', path: '/core/updates', summary: 'Versions, new builds, history and security advisories of Vedette', stories: ['S-CORE-2'], role: 'viewer', response: UpdatesState },

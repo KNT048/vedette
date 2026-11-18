@@ -21,7 +21,7 @@ WHERE chain = ?;
 SELECT CAST(COALESCE(MAX(seq), 0) AS INTEGER) FROM core_audit;
 
 -- The audit screen and its CSV export (GET /core/audit, /core/audit/export): newest first, keyset on seq
--- (seq < before_seq), every filter optional. The text filter is a case-insensitive substring over the
+-- (seq < before_seq), every filter optional; the screen pages with skip_rows (the export reads with 0). The text filter is a case-insensitive substring over the
 -- same four columns the screen shows; lower() folds ASCII only. The group is the part of the action before
 -- the first dot. people, when set, leaves out the automatic lines: user "system" or "system:<part>".
 -- name: ListAuditFiltered :many
@@ -35,7 +35,7 @@ WHERE seq < sqlc.arg('before_seq')
   AND (sqlc.narg('people') IS NULL OR (user <> 'system' AND substr(user, 1, 7) <> 'system:'))
   AND (sqlc.narg('needle') IS NULL OR instr(lower(action || ' ' || target || ' ' || COALESCE(detail, '') || ' ' || user), sqlc.narg('needle')) > 0)
 ORDER BY seq DESC
-LIMIT sqlc.arg('max_rows');
+LIMIT sqlc.arg('max_rows') OFFSET sqlc.arg('skip_rows');
 
 -- name: CountAuditFiltered :one
 SELECT count(*)

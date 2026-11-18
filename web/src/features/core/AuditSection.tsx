@@ -4,6 +4,8 @@ import { toast } from 'sonner'
 import { Download } from 'lucide-react'
 import { PageHeader } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
+import { ListSearch } from '@/components/common/Pager'
+import { useListParams } from '@/components/common/listParams'
 import { QueryState } from '@/components/common/States'
 import { DownloadButton } from '@/components/common/DownloadButton'
 import { Button } from '@/components/ui/button'
@@ -12,6 +14,9 @@ import { fmtDateTime } from '@/lib/format'
 import { auditExportPath, useAudit } from './api'
 import { errMsg } from './parts'
 import type { AuditQuery, AuditRow } from './types'
+
+/** Rows of a page of the audit log by default. */
+const AUDIT_PAGE = 50
 
 /** The Who option "Not the system": sends actor=people. No user value can be it: user values never hold a NUL. */
 const PEOPLE = '\u0000people'
@@ -27,12 +32,16 @@ function Named({ text, names }: { text: string; names: Record<string, string> })
 
 export default function AuditSection() {
   const { t } = useTranslation('core')
-  const [f, setF] = useState<AuditQuery>({ q: '', user: '', group: '', from: '', to: '', actor: '' })
-  const deferred = useDeferredValue(f)
-  const q = useAudit(deferred)
-  const set = (patch: Partial<AuditQuery>) => setF({ ...f, ...patch })
+  // The box pages the log (offset, limit) and searches it (q): the text and the page are in the URL (audit.q, audit.page, audit.size)
+  const list = useListParams('audit')
+  const [other, setOther] = useState<Omit<AuditQuery, 'q'>>({ user: '', group: '', from: '', to: '', actor: '' })
+  const f: AuditQuery = { ...other, q: list.q }
+  const deferred = useDeferredValue(other)
+  const size = list.size ?? AUDIT_PAGE
+  const q = useAudit({ ...deferred, q: list.q }, { offset: list.page * size, limit: size })
+  const set = (patch: Partial<Omit<AuditQuery, 'q'>>) => { setOther({ ...other, ...patch }); if (list.page) list.set({ page: 0 }) }
   const filtered = Object.values(f).some(Boolean)
-  const clear = () => setF({ q: '', user: '', group: '', from: '', to: '', actor: '' })
+  const clear = () => { setOther({ user: '', group: '', from: '', to: '', actor: '' }); list.set({ q: '', page: 0 }) }
 
 
   const names = q.data?.names ?? {}
@@ -51,7 +60,7 @@ export default function AuditSection() {
     <>
       <PageHeader title={t('settings.audit')} meta={t('audit.meta')} info={t('audit.metaInfo')} stories={['S-CORE-3']} />
       <div role="search" aria-label={t('audit.filter.label')} className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <Field label={t('audit.filter.text')} htmlFor="au-q"><Input id="au-q" value={f.q} onChange={(e) => set({ q: e.target.value })} /></Field>
+        <Field label={t('audit.filter.text')} htmlFor="au-q"><ListSearch id="au-q" className="sm:max-w-none" value={list.q} onChange={(v) => list.set({ q: v, page: 0 })} label={t('audit.filter.text')} /></Field>
         <Field label={t('audit.filter.user')} htmlFor="au-user">
           <Select id="au-user" value={f.actor === 'people' ? PEOPLE : f.user} onChange={(e) => set(e.target.value === PEOPLE ? { actor: 'people', user: '' } : { actor: '', user: e.target.value })}>
             <option value="">{t('audit.filter.any')}</option>
@@ -68,14 +77,14 @@ export default function AuditSection() {
       {/* The list's toolbar, under the filters it counts: how many lines match (one line, the cut-off said in it) and Export CSV of them */}
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <p role="status" className="text-meta text-muted tabular-nums">
-          {q.data ? (q.data.total > q.data.items.length ? t('audit.truncated', { shown: q.data.items.length, total: q.data.total }) : t('audit.count', { count: q.data.total })) : ''}
+          {q.data ? t('audit.count', { count: q.data.total }) : ''}
         </p>
         <DownloadButton variant="ghost" className="ml-auto" path={auditExportPath(f)} filename="vedette-audit.csv" onError={(e) => toast.error(errMsg(e, t))}><Download />{t('audit.export')}</DownloadButton>
       </div>
       <QueryState query={q}>
         {(d) => (
           <>
-            <DataTable data={d.items} columns={columns} caption={t('audit.caption')} pageSize={25}
+            <DataTable data={d.items} columns={columns} caption={t('audit.caption')} pageSize={AUDIT_PAGE} server={{ total: d.total, list }}
               mobileRow={(r) => (
                 <div className="grid gap-0.5 text-meta">
                   <span className="font-medium">{t(`audit.action.${r.action}`, { defaultValue: r.action })}</span>

@@ -162,7 +162,7 @@ WHERE seq < ?1
   AND (?6 IS NULL OR (user <> 'system' AND substr(user, 1, 7) <> 'system:'))
   AND (?7 IS NULL OR instr(lower(action || ' ' || target || ' ' || COALESCE(detail, '') || ' ' || user), ?7) > 0)
 ORDER BY seq DESC
-LIMIT ?8
+LIMIT ?9 OFFSET ?8
 `
 
 type ListAuditFilteredParams struct {
@@ -173,6 +173,7 @@ type ListAuditFilteredParams struct {
 	Grp       interface{}
 	People    interface{}
 	Needle    interface{}
+	SkipRows  int64
 	MaxRows   int64
 }
 
@@ -187,7 +188,7 @@ type ListAuditFilteredRow struct {
 }
 
 // The audit screen and its CSV export (GET /core/audit, /core/audit/export): newest first, keyset on seq
-// (seq < before_seq), every filter optional. The text filter is a case-insensitive substring over the
+// (seq < before_seq), every filter optional; the screen pages with skip_rows (the export reads with 0). The text filter is a case-insensitive substring over the
 // same four columns the screen shows; lower() folds ASCII only. The group is the part of the action before
 // the first dot. people, when set, leaves out the automatic lines: user "system" or "system:<part>".
 func (q *Queries) ListAuditFiltered(ctx context.Context, arg ListAuditFilteredParams) ([]ListAuditFilteredRow, error) {
@@ -199,6 +200,7 @@ func (q *Queries) ListAuditFiltered(ctx context.Context, arg ListAuditFilteredPa
 		arg.Grp,
 		arg.People,
 		arg.Needle,
+		arg.SkipRows,
 		arg.MaxRows,
 	)
 	if err != nil {

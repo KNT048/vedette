@@ -562,7 +562,7 @@ describe('scan: nhật ký probe (S-SCAN-4)', () => {
     expect(within(table).getAllByText('NAS-PHOTOS').length).toBeGreaterThan(0)
     expect(within(table).getAllByText('http/cves/2022/CVE-2022-27593.yaml').length).toBeGreaterThan(0)
     const rows = within(table).getAllByRole('row').length
-    await userEvent.type(screen.getByRole('textbox', { name: 'Filter by target, template, result' }), 'CAM-LOBBY')
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Filter by target, template, result' }), 'CAM-LOBBY')
     await waitFor(() => expect(within(screen.getByRole('table')).getAllByRole('row').length).toBeLessThan(rows))
     const csv = await fetch(`${base()}/scans/probes.csv`)
     expect(csv.headers.get('Content-Disposition')).toContain('attachment; filename=vedette-probe-log.csv')

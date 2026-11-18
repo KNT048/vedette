@@ -272,6 +272,7 @@ var Operations = map[string]Operation{
 	"inventory_put_inventory_settings":                       {Method: "PUT", Path: "/inventory/settings", MinRole: Admin, Tag: "inventory"},
 	"inventory_put_inventory_snmp_devices_id":                {Method: "PUT", Path: "/inventory/snmp/devices/{id}", MinRole: Admin, Tag: "inventory"},
 	"logs_delete_logs_sources_id":                            {Method: "DELETE", Path: "/logs/sources/{id}", MinRole: Admin, Tag: "logs"},
+	"logs_get_logs_bad_connections":                          {Method: "GET", Path: "/logs/bad-connections", MinRole: Viewer, Tag: "logs"},
 	"logs_get_logs_digest":                                   {Method: "GET", Path: "/logs/digest", MinRole: Viewer, Tag: "logs"},
 	"logs_get_logs_events":                                   {Method: "GET", Path: "/logs/events", MinRole: Viewer, Tag: "logs"},
 	"logs_get_logs_siem":                                     {Method: "GET", Path: "/logs/siem", MinRole: Admin, Tag: "logs"},

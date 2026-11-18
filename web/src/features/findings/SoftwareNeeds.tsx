@@ -39,6 +39,33 @@ export function useSoftwareNeeds(assetId: string): Map<string, Needs> | 'off' | 
   return m
 }
 
+/** The needs keyed by the row each software is shown as. An action names the software row its findings or plan item rest on, and
+ *  that can be any row of the software: the device page shows one line per software (inventory's effective row) and lists the other
+ *  rows under it (also_seen). `lineOf` maps every row id to the id of its line; the needs of all the rows of a line are merged. */
+export function needsByLine(needs: ReturnType<typeof useSoftwareNeeds>, lineOf: ReadonlyMap<string, string>): ReturnType<typeof useSoftwareNeeds> {
+  if (!(needs instanceof Map)) return needs
+  const m = new Map<string, Needs>()
+  for (const [id, n] of needs) {
+    const line = lineOf.get(id) ?? id
+    const e = m.get(line)
+    m.set(line, e ? { exploited: [...e.exploited, ...n.exploited], check: [...e.check, ...n.check], planned: [...e.planned, ...n.planned] } : n)
+  }
+  return m
+}
+
+/** The order of a row by what it needs, for sorting the Software tab (higher first): exploited CVEs, then exploited matches to check,
+ *  then recommended updates, each by its number of CVEs; 0 for a clean row and while the answer is not there. */
+export function needsRank(needs: ReturnType<typeof useSoftwareNeeds>, softwareId: string): number {
+  const n = needs instanceof Map ? needs.get(softwareId) : undefined
+  if (!n) return 0
+  const cves = (l: ToFixAction[]) => l.reduce((s, a) => s + a.cves.length, 0)
+  const planned = n.planned.filter((a) => a.cves.length > 0 || a.windows)
+  if (n.exploited.length) return 3_000_000 + Math.min(cves(n.exploited), 999_999)
+  if (n.check.length) return 2_000_000 + Math.min(cves(n.check), 999_999)
+  if (planned.length) return 1_000_000 + Math.min(cves(planned), 999_999)
+  return 0
+}
+
 /** One software row's needs. */
 export function SoftwareNeeds({ assetId, softwareId, needs }: { assetId: string; softwareId: string; needs: ReturnType<typeof useSoftwareNeeds> }) {
   const { t } = useTranslation('findings')

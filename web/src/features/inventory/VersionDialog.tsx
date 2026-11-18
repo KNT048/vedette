@@ -40,6 +40,7 @@ export function VersionDialog({ sw, assetId, onClose }: { sw: Pick<SoftwareView,
           <Field label={t('add.version')} htmlFor="sw-version" hint={t('add.versionHint')}>
             <Input id="sw-version" value={value} maxLength={40} placeholder={t('add.versionPlaceholder')} aria-describedby="sw-version-hint" onChange={(e) => { setValue(e.target.value); setError(null) }} />
           </Field>
+          <p className="text-meta text-muted">{t('software.newerWins')}</p>
           {withPkg ? (
             <Field label={t('software.pkgVersion')} htmlFor="sw-pkg-version" hint={t('software.pkgVersionHint')}>
               <Input id="sw-pkg-version" value={pkg} maxLength={100} aria-describedby="sw-pkg-version-hint" onChange={(e) => { setPkg(e.target.value); setError(null) }} />

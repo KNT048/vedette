@@ -67,10 +67,11 @@ describe('An entered package release', () => {
     await within(table).findByText(/Closed 1 CVE as not affected:/, undefined, T)
     const note = within(table).getAllByTestId('entered-note')[0]!
     expect(note).toHaveTextContent('Package release 10.2_p1-r1')
-    expect(note).toHaveTextContent(/Entered by .+@.+ /)
+    expect(note).toHaveTextContent(/Set by .+@.+ /)
     expect(within(note).getByRole('link', { name: 'CVE-2026-123158' })).toBeInTheDocument()
-    // edit in place: the pencil of the row opens its package release
-    await userEvent.click(within(table).getByRole('button', { name: 'Change the version of OpenSSH' }))
+    // edit in place: "Correct version…" in the row's menu opens its package release
+    await userEvent.click(within(table).getByRole('button', { name: 'Actions for OpenSSH' }))
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Correct version…' }, T))
     const field = await screen.findByLabelText('Package release', undefined, T)
     expect(field).toHaveValue('10.2_p1-r1')
     await userEvent.clear(field)

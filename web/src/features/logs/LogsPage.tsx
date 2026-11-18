@@ -1,6 +1,6 @@
-import { useDeferredValue, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Link, Navigate, useLocation } from 'react-router'
+import { Link, Navigate, useLocation, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Plus, RefreshCw } from 'lucide-react'
@@ -10,23 +10,25 @@ import { InfoTip } from '@/components/common/InfoTip'
 import { Notice, PageHeader, Section } from '@/components/common/PageHeader'
 import { KpiStrip, PageTabs } from '@/components/common/PageFrame'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
+import { ListSearch } from '@/components/common/Pager'
+import { useListParams } from '@/components/common/listParams'
 import { EmptyState, QueryState, RequireModule, SampleDataNote } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { Slot } from '@/components/common/Slot'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
-import { Field, Input, Select } from '@/components/ui/input'
+import { Field, Select } from '@/components/ui/input'
 import { Segmented } from '@/components/ui/segmented'
 import { ApiError } from '@/lib/api'
 import { fmtDateTime, fmtNumber, fmtRelative } from '@/lib/format'
 import { useModuleEnabled } from '@/lib/modules'
 import { SPAN_IN_UI } from '@/lib/span'
 import { useCan } from '@/lib/session'
-import { fetchOlderEvents, useDigest, useEvents, useSetRetention, useSources, useUnknownSenders } from './api'
+import { fetchOlderEvents, useBadConnections, useDigest, useEvents, useSetRetention, useSources, useUnknownSenders } from './api'
 import { CATALOG } from './catalog'
 import { LAN_RANGE } from './places'
 import { BoxCertificate, ConfigDialog, DeleteDialog, SourceFormDialog } from './SourceDialogs'
-import type { IocHit, EventsResponse, EventWindow, LogEvent, LogSource, NewItem, Proto, SourcesResponse, SpikeItem } from './types'
+import type { IocPair, EventsResponse, EventWindow, LogEvent, LogSource, NewItem, Proto, SourcesResponse, SpikeItem } from './types'
 
 const STATE_TONE = { receiving: 'ok', silent: 'warn', never: 'off' } as const
 
@@ -193,6 +195,91 @@ function ScrollToHash() {
   return null
 }
 
+/** The smallest time range of the Events tab that reaches back to `first` (the newest line is now or before). */
+export function eventsWindowFor(first: string, now = Date.now()): EventWindow {
+  const age = now - new Date(first).getTime()
+  return age <= 3600e3 ? '1h' : age <= 86400e3 ? '24h' : '7d'
+}
+
+/** The Events tab with the keyword set to a destination and the range from its first hit to now: the log lines of the connection. */
+export const eventsLinkFor = (r: Pick<IocPair, 'dest' | 'first_seen'>) => `?${new URLSearchParams({ tab: 'events', 'events.q': r.dest, 'events.window': eventsWindowFor(r.first_seen) })}`
+
+/**
+ * Connections to bad IPs or domains (S-LOG-2, S-LOG-4): one row per device and destination over the range, grouped, searched, ordered and
+ * paged by the box (GET /logs/bad-connections), the newest last hit first or the most hits first. The destination opens the log lines
+ * that show it (the Events tab, keyword and range set). Range, order, search and page are in the URL.
+ */
+function BadConnections({ feedsOn }: { feedsOn: boolean | undefined }) {
+  const { t } = useTranslation('logs')
+  const list = useListParams('bad')
+  const [params, setParams] = useSearchParams()
+  const win = params.get('bad.window') === '24h' ? '24h' : '7d'
+  const sort = params.get('bad.sort') === 'hits' ? 'hits' : 'last'
+  const setParam = (k: 'window' | 'sort', v: string, dflt: string) => setParams((prev) => {
+    const p = new URLSearchParams(prev)
+    if (v === dflt) p.delete(`bad.${k}`); else p.set(`bad.${k}`, v)
+    p.delete('bad.page')
+    return p
+  }, { replace: true, preventScrollReset: true })
+  const size = list.size ?? 25
+  const q = useBadConnections({ window: win, q: list.q, sort, offset: list.page * size, limit: size })
+  const via = (v: string) => (v.startsWith('syslog:') ? t('digest.bad.via.syslog', { name: v.slice(7) }) : t(`digest.bad.via.${v}`, { defaultValue: v }))
+  const clear = () => list.set({ q: '', page: 0 })
+  const columns: ColumnDef<IocPair>[] = [
+    { id: 'device', header: t('digest.bad.col.device'), cell: ({ row: { original: r } }) => (
+      <div className="grid">
+        {r.asset_id ? <Link to={`/devices/${r.asset_id}`} className="font-medium text-accent underline-offset-4 hover:underline">{r.asset_name}</Link> : <span className="font-medium">{r.src_ip}</span>}
+        <span className="text-caption text-muted">{r.asset_id ? r.src_ip : t('sources.notInInventory')}</span>
+      </div>
+    ) },
+    { id: 'dst', header: t('digest.bad.col.dst'), cell: ({ row: { original: r } }) => (
+      <div className="grid gap-0.5">
+        <Link to={eventsLinkFor(r)} className="font-medium text-accent underline-offset-4 [overflow-wrap:anywhere] hover:underline" aria-label={t('digest.bad.showLogs', { dst: r.dest })} title={t('digest.bad.showLogs', { dst: r.dest })}>{r.dest}</Link>
+        {r.listed_as ? <span className="flex items-center gap-1 text-caption text-muted">{t('digest.bad.listedAs', { name: r.listed_as })}<InfoTip topic={t('digest.bad.listedAs', { name: r.listed_as })}>{t('digest.bad.listedAsHint')}</InfoTip></span> : null}
+        {r.other_devices > 0 ? <span className="text-caption text-muted">{t('digest.bad.otherDevices', { count: r.other_devices })}</span> : null}
+        {r.blocked > 0 ? <span className="flex items-center gap-1"><Chip tone="warn">{r.blocked === r.hits ? t('digest.bad.blocked') : t('digest.bad.blockedSome', { count: r.blocked, hits: r.hits })}</Chip><InfoTip topic={t('digest.bad.blocked')}>{t('digest.bad.blockedHint')}</InfoTip></span> : null}
+      </div>
+    ) },
+    { id: 'hits', header: t('digest.bad.col.hits'), cell: ({ row }) => <span className="tabular-nums">{fmtNumber(row.original.hits)}</span> },
+    { id: 'seen', header: t('digest.bad.col.seen'), cell: ({ row: { original: r } }) => (
+      <span className="grid whitespace-nowrap text-meta"><span>{fmtDateTime(r.last_seen)}</span>{r.hits > 1 ? <span className="text-caption text-muted">{t('digest.bad.firstSeen', { time: fmtDateTime(r.first_seen) })}</span> : null}</span>
+    ) },
+    { id: 'via', header: t('digest.bad.col.via'), cell: ({ row }) => <span className="grid text-meta">{row.original.seen_via.map((v) => <span key={v}>{via(v)}</span>)}</span> },
+    { id: 'feed', header: t('digest.bad.col.feed'), cell: ({ row }) => <span className="text-meta text-muted">{row.original.feeds.join(', ')}</span> },
+    { id: 'confidence', header: t('digest.bad.col.confidence'), cell: ({ row }) => <span className="tabular-nums">{Math.round(row.original.confidence * 100)}%</span> },
+  ]
+  return (
+    <div className="grid gap-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <ListSearch value={list.q} onChange={(v) => list.set({ q: v, page: 0 })} label={t('digest.bad.search')} />
+        <Segmented label={t('events.window')} value={win} onChange={(v) => setParam('window', v, '7d')} options={[{ value: '24h', label: t('events.w24h') }, { value: '7d', label: t('events.w7d') }]} />
+        <Select className="w-full sm:w-auto" aria-label={t('digest.bad.sortLabel')} value={sort} onChange={(e) => setParam('sort', e.target.value, 'last')}>
+          <option value="last">{t('digest.bad.sortLast')}</option>
+          <option value="hits">{t('digest.bad.sortHits')}</option>
+        </Select>
+      </div>
+      <QueryState query={q}>
+        {(d) => d.total === 0 && !list.q ? (
+          feedsOn === false ? <EmptyState title={t('digest.bad.emptyFeedsOff')}><DependencyLink reason={t('digest.bad.feedsOffReason')} to="/settings/modules#module-feeds" label={t('digest.bad.openModules')} /></EmptyState>
+            : d.ioc_matching ? <EmptyState title={t(win === '24h' ? 'digest.bad.empty' : 'digest.bad.empty7d')} />
+              : <EmptyState title={t('digest.bad.emptyNoIoc')}><DependencyLink reason={t('digest.bad.emptyNoIocAction')} to="/settings/feeds#feeds-builtin" label={t('digest.bad.openFeeds')} /></EmptyState>
+        ) : (
+          <DataTable caption={t('digest.bad.caption')} data={d.items} columns={columns} rowTone={() => 'danger'} pageSize={25} urlKey="bad"
+            server={{ total: d.total, list }} filtered={!!list.q} onClearFilters={clear}
+            mobileRow={(r) => (
+              <div className="grid gap-1">
+                <Link to={eventsLinkFor(r)} className="font-medium text-accent underline-offset-4 [overflow-wrap:anywhere] hover:underline" aria-label={t('digest.bad.showLogs', { dst: r.dest })}>{r.dest}</Link>
+                <span className="text-meta">{r.asset_name ?? r.src_ip}{r.asset_name ? ` (${r.src_ip})` : ''}</span>
+                <span className="text-caption text-muted">{t('digest.bad.mobileLine', { count: r.hits, time: fmtDateTime(r.last_seen), confidence: Math.round(r.confidence * 100) })}</span>
+                {r.other_devices > 0 ? <span className="text-caption text-muted">{t('digest.bad.otherDevices', { count: r.other_devices })}</span> : null}
+              </div>
+            )} />
+        )}
+      </QueryState>
+    </div>
+  )
+}
+
 function DigestSections() {
   const { t } = useTranslation('logs')
   const q = useDigest()
@@ -202,22 +289,6 @@ function DigestSections() {
       {(d) => {
         const days = d.baseline_days
         const learning = d.history_days < days
-        const via = (v: string) => (v.startsWith('syslog:') ? t('digest.bad.via.syslog', { name: v.slice(7) }) : t(`digest.bad.via.${v}`, { defaultValue: v }))
-        const bad: ColumnDef<IocHit>[] = [
-          { id: 'last', header: t('digest.bad.col.last'), accessorFn: (r) => r.ts, cell: ({ row }) => <span className="whitespace-nowrap">{fmtDateTime(row.original.ts)}</span> },
-          { id: 'device', header: t('digest.bad.col.device'), accessorFn: (r) => r.asset_name ?? r.src_ip, cell: ({ row: { original: r } }) => (
-            <div className="grid">
-              {r.asset_id ? <Link to={`/devices/${r.asset_id}`} className="font-medium text-accent underline-offset-4 hover:underline">{r.asset_name}</Link> : <span className="font-medium">{r.src_ip}</span>}
-              <span className="text-caption text-muted">{r.asset_id ? r.src_ip : t('sources.notInInventory')}</span>
-            </div>
-          ) },
-          { id: 'dst', header: t('digest.bad.col.dst'), accessorFn: (r) => r.dest, cell: ({ row: { original: r } }) => (
-            <div className="grid gap-0.5"><span className="font-medium">{r.dest}</span>{r.listed_as ? <span className="flex items-center gap-1 text-caption text-muted">{t('digest.bad.listedAs', { name: r.listed_as })}<InfoTip topic={t('digest.bad.listedAs', { name: r.listed_as })}>{t('digest.bad.listedAsHint')}</InfoTip></span> : null}{r.blocked ? <span className="flex items-center gap-1"><Chip tone="warn">{t('digest.bad.blocked')}</Chip><InfoTip topic={t('digest.bad.blocked')}>{t('digest.bad.blockedHint')}</InfoTip></span> : null}<Link to={`/lookup?q=${encodeURIComponent(r.listed_as ?? r.dest)}`} className="text-caption text-accent underline-offset-4 hover:underline">{t('digest.bad.lookup', { dst: r.listed_as ?? r.dest })}</Link></div>
-          ) },
-          { id: 'via', header: t('digest.bad.col.via'), accessorFn: (r) => via(r.seen_via), cell: ({ row }) => <span className="text-meta">{via(row.original.seen_via)}</span> },
-          { id: 'feed', header: t('digest.bad.col.feed'), accessorFn: (r) => r.feeds.join(', '), cell: ({ row }) => <span className="text-meta text-muted">{row.original.feeds.join(', ')}</span> },
-          { id: 'confidence', header: t('digest.bad.col.confidence'), accessorFn: (r) => r.confidence, cell: ({ row }) => <span className="tabular-nums">{Math.round(row.original.confidence * 100)}%</span> },
-        ]
         const fresh: ColumnDef<NewItem>[] = [
           { id: 'signature', header: t('digest.new.col.signature'), accessorFn: (r) => r.signature, cell: ({ row: { original: r } }) => <div><span className="font-medium">{r.signature}</span>{sampleLine(r.sample)}</div> },
           { id: 'source', header: t('digest.new.col.source'), accessorFn: (r) => r.source_name },
@@ -237,7 +308,7 @@ function DigestSections() {
             <ScrollToHash />
             <Section id="bad" title={t('digest.bad.title')} description={t(spanRows ? 'digest.bad.description' : 'digest.bad.descriptionNoSpan')}
               info={<><p>{t(spanRows ? 'digest.bad.descriptionInfo' : 'digest.bad.descriptionNoSpanInfo')}</p>{SPAN_IN_UI ? <p>{t('digest.bad.note')}</p> : spanRows ? <p>{t('digest.bad.noteKept')}</p> : null}</>} stories={['S-LOG-2', 'S-LOG-4']}>
-              {d.bad_connections.length ? <DataTable caption={t('digest.bad.caption')} data={d.bad_connections} columns={bad} rowTone={() => 'danger'} /> : feedsOn === false ? <EmptyState title={t('digest.bad.emptyFeedsOff')}><DependencyLink reason={t('digest.bad.feedsOffReason')} to="/settings/modules#module-feeds" label={t('digest.bad.openModules')} /></EmptyState> : d.ioc_matching ? <EmptyState title={t('digest.bad.empty')} /> : <EmptyState title={t('digest.bad.emptyNoIoc')}><DependencyLink reason={t('digest.bad.emptyNoIocAction')} to="/settings/feeds#feeds-builtin" label={t('digest.bad.openFeeds')} /></EmptyState>}
+              <BadConnections feedsOn={feedsOn} />
             </Section>
             <Section id="new" title={learning ? t('digest.new.titleLearning') : t('digest.new.title', { days })} description={t('digest.new.description')} info={t('digest.new.descriptionInfo')} stories={['S-LOG-1']}>
               {d.new.length ? <DataTable caption={t('digest.new.caption')} data={d.new} columns={fresh} /> : <EmptyState title={learning ? t('digest.new.emptyLearning', { n: d.history_days, days }) : t('digest.new.empty', { days })} />}
@@ -254,10 +325,21 @@ function DigestSections() {
 
 function EventsSection({ sources }: { sources: LogSource[] }) {
   const { t } = useTranslation('logs')
-  const [win, setWin] = useState<EventWindow>('24h')
-  const [source, setSource] = useState('')
-  const [text, setText] = useState('')
-  const kw = useDeferredValue(text)
+  // Range, source and keyword are in the URL (events.window, events.source, events.q): a link from a bad connection opens the lines
+  // of its destination, and reload or back keeps them
+  const [params, setParams] = useSearchParams()
+  const win: EventWindow = (['1h', '24h', '7d'] as const).find((w) => w === params.get('events.window')) ?? '24h'
+  const source = params.get('events.source') ?? ''
+  const setUrl = (k: 'window' | 'source', v: string, dflt: string) => setParams((prev) => {
+    const p = new URLSearchParams(prev)
+    if (v === dflt) p.delete(`events.${k}`); else p.set(`events.${k}`, v)
+    return p
+  }, { replace: true, preventScrollReset: true })
+  const setWin = (w: EventWindow) => setUrl('window', w, '24h')
+  const setSource = (v: string) => setUrl('source', v, '')
+  // The keyword is searched by the box over the whole window (q), not in the lines already shown; it is in the URL like a list's search
+  const list = useListParams('events')
+  const kw = list.q
   const q = useEvents({ window: win, source, q: kw })
   // The keyword search can stop before the start of the window: "Search older lines" appends the next step below what is shown.
   const [older, setOlder] = useState<{ key: string; fetched: boolean; events: LogEvent[]; next?: string; back?: string; busy: boolean; failed: boolean }>({ key: '', fetched: false, events: [], busy: false, failed: false })
@@ -272,8 +354,9 @@ function EventsSection({ sources }: { sources: LogSource[] }) {
       () => setOlder({ ...extra, busy: false, failed: true }),
     )
   }
-  const filtered = !!text.trim() || !!source
-  const clearFilters = () => { setText(''); setSource('') }
+  const filtered = !!kw.trim() || !!source
+  // One URL change for both (two in a row would each start from the same URL and the second would undo the first)
+  const clearFilters = () => setParams((prev) => { const p = new URLSearchParams(prev); for (const k of ['events.q', 'events.page', 'events.source']) p.delete(k); return p }, { replace: true, preventScrollReset: true })
   const columns: ColumnDef<LogEvent>[] = [
     { id: 'time', header: t('events.col.time'), accessorFn: (r) => r.ts, cell: ({ row }) => <span className="whitespace-nowrap">{fmtDateTime(row.original.ts)}</span> },
     { id: 'source', header: t('events.col.source'), accessorFn: (r) => r.source_name, cell: ({ row }) => <span className="grid">{row.original.source_name}{row.original.host && row.original.host !== row.original.source_name ? <span className="text-caption text-muted">{row.original.host}</span> : null}</span> },
@@ -284,7 +367,7 @@ function EventsSection({ sources }: { sources: LogSource[] }) {
       <div className="mb-3 flex flex-wrap items-end gap-3">
         <Segmented label={t('events.window')} value={win} onChange={setWin} options={[{ value: '1h', label: t('events.w1h') }, { value: '24h', label: t('events.w24h') }, { value: '7d', label: t('events.w7d') }]} />
         <Field label={t('events.source')} htmlFor="ev-source"><Select id="ev-source" className="h-8 w-44" value={source} onChange={(e) => setSource(e.target.value)}><option value="">{t('events.allSources')}</option>{sources.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</Select></Field>
-        <Field label={t('events.q')} htmlFor="ev-q"><Input id="ev-q" className="h-8 w-56" value={text} onChange={(e) => setText(e.target.value)} placeholder={t('events.qPlaceholder')} autoComplete="off" /></Field>
+        <Field label={t('events.q')} htmlFor="ev-q"><ListSearch id="ev-q" className="sm:w-56" value={kw} onChange={(v) => list.set({ q: v, page: 0 })} label={t('events.q')} placeholder={t('events.qPlaceholder')} /></Field>
       </div>
       <QueryState query={q}>
         {(d) => {
@@ -302,7 +385,7 @@ function EventsSection({ sources }: { sources: LogSource[] }) {
             ) : (
               <p className="mb-2 text-meta text-muted">{kw.trim() ? t('events.found', { count: rows.length }) : t('events.count', { shown: d.events.length, total: d.total })} {!kw.trim() && d.total > d.events.length ? t('events.capped') : ''}</p>
             )}
-            <DataTable key={`${win}-${source}-${text}`} caption={t('events.caption')} data={rows} columns={columns} pageSize={25} mobileRow={(r) => (
+            <DataTable caption={t('events.caption')} data={rows} columns={columns} pageSize={25} search={false} urlKey="events" resetPageOn={`${win}-${source}`} mobileRow={(r) => (
               <div className="grid gap-1"><p className="text-caption text-muted">{fmtDateTime(r.ts)}, {r.source_name}{r.host && r.host !== r.source_name ? ` (${r.host})` : ''}</p><Message e={r} /></div>
             )} empty={<span className="inline-flex items-center gap-1">{t('events.emptyNone')}<InfoTip topic={t('events.title')}>{t('events.emptyNoneInfo')}</InfoTip></span>}
               filtered={filtered} onClearFilters={clearFilters}

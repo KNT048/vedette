@@ -6,7 +6,7 @@
 // feed's last fetch and interval). As Defender's "Software inventory" and Tenable's asset view group a device's open questions under
 // the device, never one flat list per kind. A CVE only the platform or the package release can settle asks its
 // question here, with every answer the box offers (one click for an OS, fields for what the person types), each an inventory correction.
-import { useEffect, useId, useState, type FormEvent, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useId, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useLocation } from 'react-router'
 import { Trans, useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -29,7 +29,8 @@ import { useDeviceSoftware } from './rematch'
 import { Worst, unproved } from './ToFix'
 import { nameWithVersion, UNCHECKED_ANCHOR, UncheckedLine } from './UncheckedList'
 import { CheckNow } from './Updated'
-import type { FindingAsset, ToFixAction, ToFixDevice, UncheckedItem, VersionNeeded } from './types'
+import { EnteredOutcome, readDeviceFindings } from './EnteredRelease'
+import type { FindingAsset, FindingRow, ToFixAction, ToFixDevice, UncheckedItem, VersionNeeded } from './types'
 import type { z } from 'zod'
 import type { UncheckedAnswer } from './contract'
 
@@ -42,6 +43,15 @@ const VERSION_RE = /^[A-Za-z0-9_.\-+() ]{1,40}$/
 
 /** One device's block: what only a person can settle (a version, an unproved match), then what could not be checked. */
 export type InputGroup = { id: string; asset: FindingAsset | null; versions: VersionNeeded[]; unproved: ToFixAction[]; unchecked: UncheckedItem[] }
+
+/** A value a person just entered here (a version, or the package release): the item leaves the list once the box checks the device, so
+ *  its result stays above the blocks, in place, with a way to change it. */
+type Saved = {
+  sid: string; assetId: string; software: string; device: string; field: 'version' | 'pkg_version'; value: string
+  /** the device's findings read before this save (null: unreadable), to tell when the box has matched the device again; rev counts the saves of the row */
+  before: FindingRow[] | null; rev: number
+}
+const SavedContext = createContext<(s: Saved) => void>(() => undefined)
 
 const uncheckedCves = (items: UncheckedItem[]) => new Set(items.flatMap((i) => i.cves.map((c) => c.cve))).size
 
@@ -73,19 +83,79 @@ export function NeedsInput({ need, unc, devices, order, risks, device }: { need:
   const { hash } = useLocation()
   const groups = groupByDevice(need, unc, devices, order, t('removedDevice'))
   const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set(device ? [device] : []))
+  const [saved, setSaved] = useState<Saved[]>([])
+  const remember = (s: Saved) => setSaved((l) => [...l.filter((x) => !(x.assetId === s.assetId && x.sid === s.sid)), { ...s, rev: (l.find((x) => x.assetId === s.assetId && x.sid === s.sid)?.rev ?? 0) + 1 }])
   const toggle = (id: string) => setOpen((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
   useEffect(() => {
     if (hash === `#${UNCHECKED_ANCHOR}`) document.getElementById(UNCHECKED_ANCHOR)?.scrollIntoView?.({ block: 'start' })
   }, [hash])
-  if (!groups.length) return null
+  if (!groups.length && !saved.length) return null
   return (
-    <section id={UNCHECKED_ANCHOR} aria-labelledby="needs-input-title" className="grid scroll-mt-4 gap-2">
-      <h2 id="needs-input-title" className="text-base font-semibold">{t('needsInput.title', { count: groups.length })}</h2>
-      <p className="text-meta text-muted">{t('needsInput.intro')}</p>
-      <ul aria-label={t('needsInput.label')} className="grid gap-2">
-        {groups.map((g) => <DeviceBlock key={g.id} g={g} open={open.has(g.id)} onToggle={() => toggle(g.id)} risk={risks[g.id] ?? null} />)}
-      </ul>
-    </section>
+    <SavedContext.Provider value={remember}>
+      <section id={UNCHECKED_ANCHOR} aria-labelledby="needs-input-title" className="grid scroll-mt-4 gap-2">
+        {groups.length ? <h2 id="needs-input-title" className="text-base font-semibold">{t('needsInput.title', { count: groups.length })}</h2> : <h2 id="needs-input-title" className="sr-only">{t('entered.list')}</h2>}
+        {saved.length ? (
+          <ul aria-label={t('entered.list')} className="grid gap-2">
+            {saved.map((s) => <SavedEntry key={`${s.assetId}/${s.sid}`} s={s} onChange={remember} onDismiss={() => setSaved((l) => l.filter((x) => x !== s))} />)}
+          </ul>
+        ) : null}
+        {groups.length ? <p className="text-meta text-muted">{t('needsInput.intro')}</p> : null}
+        {groups.length ? (
+          <ul aria-label={t('needsInput.label')} className="grid gap-2">
+            {groups.map((g) => <DeviceBlock key={g.id} g={g} open={open.has(g.id)} onToggle={() => toggle(g.id)} risk={risks[g.id] ?? null} />)}
+          </ul>
+        ) : null}
+      </section>
+    </SavedContext.Provider>
+  )
+}
+
+/** The result of an entry, in place: what was saved, which CVEs it closed (and which are still affected), and Change. */
+function SavedEntry({ s, onChange, onDismiss }: { s: Saved; onChange: (s: Saved) => void; onDismiss: () => void }) {
+  const { t } = useTranslation('findings')
+  const can = useCan('operator')
+  const act = useDeviceAction(s.assetId)
+  const sw = useDeviceSoftware(s.assetId).data?.asset.software
+  const row = sw?.find((x) => x.id === s.sid)
+  const carrier = sw?.find((x) => x.id === row?.corrected_by) ?? row // the row that carries the entry: the correction of a reported row
+  const rowIds = [s.sid, row?.corrected_by].filter((x): x is string => !!x)
+  const entered = [s.value, carrier?.pkg_version, carrier?.version].filter((x): x is string => !!x)
+  const id = useId()
+  const [editing, setEditing] = useState(false)
+  const [value, setValue] = useState(s.value)
+  const [error, setError] = useState<string | undefined>()
+  const field = t(`entered.field_${s.field}`)
+  function save(e: FormEvent) {
+    e.preventDefault()
+    const v = value.trim()
+    if (!v) { setError(t(s.field === 'version' ? 'updated.required' : 'needsInput.question.pkgRequired')); return }
+    if (s.field === 'version' && !VERSION_RE.test(v)) { setError(t('updated.bad_version', { version: v })); return }
+    setError(undefined)
+    void readDeviceFindings(s.assetId).then((before) => act.correct.mutateAsync({ sid: s.sid, [s.field]: v })
+      .then(() => { setEditing(false); onChange({ ...s, value: v, before }) }, (er: unknown) => setError(errMsg(er))))
+  }
+  return (
+    <li className="grid gap-2 rounded-md border border-rule bg-surface px-4 py-3" aria-label={t('entered.saved', { software: s.software, value: s.value, device: s.device })}>
+      <p role="status" className="text-sm font-medium [overflow-wrap:anywhere]">{t('entered.saved', { software: s.software, value: s.value, device: s.device })}</p>
+      <EnteredOutcome key={s.rev} assetId={s.assetId} rowIds={rowIds} entered={entered} before={s.before} />
+      <div className="flex flex-wrap items-center gap-2">
+        <Button size="sm" disabled={!can || editing} aria-label={t('entered.changeLabel', { software: s.software, device: s.device })} onClick={() => { setValue(s.value); setEditing(true) }}>{t('entered.change')}</Button>
+        <Link to={`/devices/${encodeURIComponent(s.assetId)}?tab=software`} className="text-meta text-accent underline underline-offset-4">{t('entered.openRow', { software: s.software })}</Link>
+        <Button size="sm" variant="ghost" aria-label={t('entered.dismissLabel', { software: s.software })} onClick={onDismiss}>{t('entered.dismiss')}</Button>
+      </div>
+      {editing ? (
+        <form onSubmit={save} noValidate className="flex flex-wrap items-end gap-2">
+          <div className="grid gap-1">
+            <Label htmlFor={id} className="text-meta">{t('entered.valueLabel', { field, software: s.software })}</Label>
+            <Input id={id} value={value} maxLength={s.field === 'version' ? 40 : 100} className="h-9 w-full sm:w-72" aria-invalid={!!error} aria-describedby={error ? `${id}-error` : undefined}
+              onChange={(e) => { setValue(e.target.value); setError(undefined) }} />
+          </div>
+          <Button type="submit" size="sm" variant="primary" busy={act.correct.isPending} busyLabel={t('common:busy.saving')}>{t('entered.update')}</Button>
+          <Button size="sm" disabled={act.correct.isPending} onClick={() => setEditing(false)}>{t('common:cancel')}</Button>
+          {error ? <p id={`${id}-error`} role="alert" className="basis-full text-meta text-danger">{error}</p> : null}
+        </form>
+      ) : null}
+    </li>
   )
 }
 
@@ -210,7 +280,7 @@ function NextStep({ assetId, asset, softwareId, software, need, sourceHint = '',
   if (row?.source === 'manual' && !row.correction) {
     return (
       <Step text={need === 'nvd' ? <>{t('needsInput.next.manualNvd')} <NvdWhen waiting={waiting} /></> : t('needsInput.next.manual')}>
-        {need !== 'nvd' ? <VersionForm assetId={assetId} sw={row} /> : null}
+        {need !== 'nvd' ? <VersionForm assetId={assetId} sw={row} device={device} /> : null}
         <div className="flex flex-wrap items-center gap-2">
           <NotInstalled assetId={assetId} software={row.display} softwareId={row.id} device={device} wholeDevice={wholeDevice} />
           {notAffected}
@@ -226,7 +296,7 @@ function NextStep({ assetId, asset, softwareId, software, need, sourceHint = '',
   if (SCAN_READ.has(source) || source === 'snmp') {
     return (
       <Step text={<>{t(`needsInput.next.${source === 'snmp' ? 'snmp' : source === 'passive' ? 'passive' : 'scan'}`)}{row ? ` ${t('needsInput.next.correct')}` : ''} <ScanWhen engine={source === 'snmp' ? 'snmp' : 'nmap-versions'} />{proof}</>}>
-        {row ? <VersionForm assetId={assetId} sw={row} /> : null}
+        {row ? <VersionForm assetId={assetId} sw={row} device={device} /> : null}
         <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
           {asset ? <CheckNow asset={asset} size="sm" progress={false} /> : null}
           {notInstalled}
@@ -238,7 +308,7 @@ function NextStep({ assetId, asset, softwareId, software, need, sourceHint = '',
   }
   return (
     <Step text={`${t(source === 'agent' ? 'needsInput.next.agent' : 'needsInput.next.device')}${row ? ` ${t('needsInput.next.correct')}` : ''}${proof}`}>
-      {row ? <VersionForm assetId={assetId} sw={row} /> : null}
+      {row ? <VersionForm assetId={assetId} sw={row} device={device} /> : null}
       {notInstalled || notAffected ? <div className="flex flex-wrap items-center gap-2">{notInstalled}{notAffected}</div> : null}
       {open}
     </Step>
@@ -280,8 +350,9 @@ function NvdWhen({ waiting }: { waiting: boolean }) {
 /** The version typed here (PATCH …/software/{sid}): in place on a row a person added, a correction of a row a sensor or agent reported
  *  (INV-41); the device is matched again at once, so the item leaves the list or changes (useDeviceAction refreshes findings, inventory
  *  and feeds). */
-function VersionForm({ assetId, sw }: { assetId: string; sw: { id: string; display: string; version: string | null } }) {
+function VersionForm({ assetId, sw, device }: { assetId: string; sw: { id: string; display: string; version: string | null }; device: string }) {
   const { t } = useTranslation('findings')
+  const remember = useContext(SavedContext)
   const can = useCan('operator')
   const act = useDeviceAction(assetId)
   const id = useId()
@@ -294,8 +365,8 @@ function VersionForm({ assetId, sw }: { assetId: string; sw: { id: string; displ
     if (!VERSION_RE.test(v)) { setError(t('updated.bad_version', { version: v })); return }
     setError(undefined)
     // mutateAsync: the item leaves the list when the re-match lands, which unmounts this form before mutate's own callbacks would run
-    act.setVersion.mutateAsync({ sid: sw.id, version: v })
-      .then(() => toast.success(t('needsInput.saved', { software: sw.display, version: v })), (er: unknown) => setError(errMsg(er)))
+    void readDeviceFindings(assetId).then((before) => act.setVersion.mutateAsync({ sid: sw.id, version: v })
+      .then(() => { remember({ sid: sw.id, assetId, software: sw.display, device, field: 'version', value: v, before, rev: 0 }); toast.success(t('needsInput.saved', { software: sw.display, version: v })) }, (er: unknown) => setError(errMsg(er))))
   }
   return (
     <form onSubmit={save} noValidate className="flex flex-wrap items-end gap-2">
@@ -436,6 +507,7 @@ function AnswerForm({ u, q, answer }: { u: UncheckedItem; q: NonNullable<Uncheck
   const { t } = useTranslation('findings')
   const can = useCan('operator')
   const act = useDeviceAction(u.asset_id)
+  const remember = useContext(SavedContext)
   const id = useId()
   const wantOs = !!answer.ask?.includes('os')
   const wantPkg = !!answer.ask?.includes('pkg_version') && !!u.software_id
@@ -445,12 +517,14 @@ function AnswerForm({ u, q, answer }: { u: UncheckedItem; q: NonNullable<Uncheck
   const [pkgError, setPkgError] = useState<string | undefined>(q.error)
   const busy = act.patch.isPending || act.correct.isPending
   async function send() {
+    const before = await readDeviceFindings(u.asset_id)
     try {
       if (wantOs) await act.patch.mutateAsync({ os: os.trim() })
     } catch (e) { setOsError(errMsg(e)); return }
     try {
       if (wantPkg) await act.correct.mutateAsync({ sid: u.software_id!, pkg_version: pkg.trim() })
     } catch (e) { setPkgError(errMsg(e)); return }
+    if (wantPkg) remember({ sid: u.software_id!, assetId: u.asset_id, software: u.software, device: deviceName(u.asset, t('removedDevice')), field: 'pkg_version', value: pkg.trim(), before, rev: 0 })
     toast.success(t('needsInput.question.saved', { software: u.software }))
   }
   function submit(e: FormEvent) {

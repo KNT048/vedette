@@ -825,5 +825,25 @@
     "keptAccepted_other": "{{count}} stay open: a person accepted their risk.",
     "keptOther_one": "{{count}} stays open: another source still reports the software.",
     "keptOther_other": "{{count}} stay open: another source still reports the software."
+  },
+  "entered": {
+    "checking": "Checking which CVEs this closes…",
+    "none": "Vedette found no exploited CVE left to check for this release.",
+    "closed_one": "Closed {{count}} CVE as not affected:",
+    "closed_other": "Closed {{count}} CVEs as not affected:",
+    "stillOpen_one": "{{count}} CVE is still affected:",
+    "stillOpen_other": "{{count}} CVEs are still affected:",
+    "saved": "Saved {{software}} {{value}} on {{device}}.",
+    "list": "Saved entries",
+    "change": "Change",
+    "changeLabel": "Change {{software}} on {{device}}",
+    "dismiss": "Dismiss",
+    "dismissLabel": "Dismiss the result for {{software}}",
+    "valueLabel": "New {{field}} of {{software}}",
+    "field_pkg_version": "package release",
+    "field_version": "version",
+    "update": "Save and check",
+    "openRow": "Open {{software}} on the device",
+    "stillChecking": "Still checking. Reload this page in a minute for the result."
   }
 }

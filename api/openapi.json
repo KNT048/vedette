@@ -33275,6 +33275,24 @@
                             ],
                             "description": "null = no CVSS score known: the pages say \"No score\", never 0"
                           },
+                          "resolution_reason": {
+                            "description": "not_affected_version when Vedette closed the finding by itself (a matcher proof, or one of its rules that compares no version); null for a person's own action and for open findings. A string, not an enum: a new reason must not break the list",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "proved_version": {
+                            "description": "A finding closed by proof (resolution_reason set): the version or package release the matcher compared to rule it out, as the device row gives it; null when the closure compared none (name only, age, an open platform question, another platform) or it is not closed by Vedette. An entry a person typed closed it only when this equals the entry",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "software_id": {
+                            "type": "string",
+                            "description": "The device's software row the matcher matched the finding on (the id FindingRow.fix.group and ToFixAction use), stored when it opens, touches or closes the finding; \"\" until the next match reaches an older finding. Never guessed from the product"
+                          },
                           "fix": {
                             "description": "GET /findings only, open findings: the update that fixes it with others; null when there is none to name",
                             "anyOf": [
@@ -33357,7 +33375,10 @@
                           "history",
                           "asset",
                           "kev",
-                          "cvss"
+                          "cvss",
+                          "resolution_reason",
+                          "proved_version",
+                          "software_id"
                         ],
                         "additionalProperties": false
                       }
@@ -34337,6 +34358,24 @@
                       ],
                       "description": "null = no CVSS score known: the pages say \"No score\", never 0"
                     },
+                    "resolution_reason": {
+                      "description": "not_affected_version when Vedette closed the finding by itself (a matcher proof, or one of its rules that compares no version); null for a person's own action and for open findings. A string, not an enum: a new reason must not break the list",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "proved_version": {
+                      "description": "A finding closed by proof (resolution_reason set): the version or package release the matcher compared to rule it out, as the device row gives it; null when the closure compared none (name only, age, an open platform question, another platform) or it is not closed by Vedette. An entry a person typed closed it only when this equals the entry",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "software_id": {
+                      "type": "string",
+                      "description": "The device's software row the matcher matched the finding on (the id FindingRow.fix.group and ToFixAction use), stored when it opens, touches or closes the finding; \"\" until the next match reaches an older finding. Never guessed from the product"
+                    },
                     "fix": {
                       "description": "GET /findings only, open findings: the update that fixes it with others; null when there is none to name",
                       "anyOf": [
@@ -35389,6 +35428,9 @@
                     "asset",
                     "kev",
                     "cvss",
+                    "resolution_reason",
+                    "proved_version",
+                    "software_id",
                     "known_version",
                     "fixed_in",
                     "pack",
@@ -35914,6 +35956,24 @@
                       ],
                       "description": "null = no CVSS score known: the pages say \"No score\", never 0"
                     },
+                    "resolution_reason": {
+                      "description": "not_affected_version when Vedette closed the finding by itself (a matcher proof, or one of its rules that compares no version); null for a person's own action and for open findings. A string, not an enum: a new reason must not break the list",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "proved_version": {
+                      "description": "A finding closed by proof (resolution_reason set): the version or package release the matcher compared to rule it out, as the device row gives it; null when the closure compared none (name only, age, an open platform question, another platform) or it is not closed by Vedette. An entry a person typed closed it only when this equals the entry",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "software_id": {
+                      "type": "string",
+                      "description": "The device's software row the matcher matched the finding on (the id FindingRow.fix.group and ToFixAction use), stored when it opens, touches or closes the finding; \"\" until the next match reaches an older finding. Never guessed from the product"
+                    },
                     "fix": {
                       "description": "GET /findings only, open findings: the update that fixes it with others; null when there is none to name",
                       "anyOf": [
@@ -36966,6 +37026,9 @@
                     "asset",
                     "kev",
                     "cvss",
+                    "resolution_reason",
+                    "proved_version",
+                    "software_id",
                     "known_version",
                     "fixed_in",
                     "pack",
@@ -37493,6 +37556,24 @@
                       ],
                       "description": "null = no CVSS score known: the pages say \"No score\", never 0"
                     },
+                    "resolution_reason": {
+                      "description": "not_affected_version when Vedette closed the finding by itself (a matcher proof, or one of its rules that compares no version); null for a person's own action and for open findings. A string, not an enum: a new reason must not break the list",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "proved_version": {
+                      "description": "A finding closed by proof (resolution_reason set): the version or package release the matcher compared to rule it out, as the device row gives it; null when the closure compared none (name only, age, an open platform question, another platform) or it is not closed by Vedette. An entry a person typed closed it only when this equals the entry",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "software_id": {
+                      "type": "string",
+                      "description": "The device's software row the matcher matched the finding on (the id FindingRow.fix.group and ToFixAction use), stored when it opens, touches or closes the finding; \"\" until the next match reaches an older finding. Never guessed from the product"
+                    },
                     "fix": {
                       "description": "GET /findings only, open findings: the update that fixes it with others; null when there is none to name",
                       "anyOf": [
@@ -38545,6 +38626,9 @@
                     "asset",
                     "kev",
                     "cvss",
+                    "resolution_reason",
+                    "proved_version",
+                    "software_id",
                     "known_version",
                     "fixed_in",
                     "pack",
@@ -39084,6 +39168,24 @@
                       ],
                       "description": "null = no CVSS score known: the pages say \"No score\", never 0"
                     },
+                    "resolution_reason": {
+                      "description": "not_affected_version when Vedette closed the finding by itself (a matcher proof, or one of its rules that compares no version); null for a person's own action and for open findings. A string, not an enum: a new reason must not break the list",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "proved_version": {
+                      "description": "A finding closed by proof (resolution_reason set): the version or package release the matcher compared to rule it out, as the device row gives it; null when the closure compared none (name only, age, an open platform question, another platform) or it is not closed by Vedette. An entry a person typed closed it only when this equals the entry",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "software_id": {
+                      "type": "string",
+                      "description": "The device's software row the matcher matched the finding on (the id FindingRow.fix.group and ToFixAction use), stored when it opens, touches or closes the finding; \"\" until the next match reaches an older finding. Never guessed from the product"
+                    },
                     "fix": {
                       "description": "GET /findings only, open findings: the update that fixes it with others; null when there is none to name",
                       "anyOf": [
@@ -40136,6 +40238,9 @@
                     "asset",
                     "kev",
                     "cvss",
+                    "resolution_reason",
+                    "proved_version",
+                    "software_id",
                     "known_version",
                     "fixed_in",
                     "pack",

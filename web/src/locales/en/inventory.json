@@ -412,7 +412,15 @@
     "notInstalledGone": "You said not installed on {{date}}; no scan or agent reports it now.",
     "clear": "Clear",
     "clearLabel": "Clear \"not installed\" for {{name}}",
-    "cleared": "{{name}} is back as the scan or agent reads it. Its findings are checked again."
+    "cleared": "{{name}} is back as the scan or agent reads it. Its findings are checked again.",
+    "packageRelease": "Package release {{release}}",
+    "enteredBy": "Entered by {{user}} {{when}}",
+    "enteredAt": "Entered {{when}}",
+    "enteredByHand": "Entered by hand",
+    "pkgVersion": "Package release",
+    "pkgVersionHint": "As the device's package manager shows it, for example 10.2_p1-r1. Empty removes it.",
+    "editedPkg": "{{name}} is now package release {{release}}. Findings are matched again.",
+    "editedPkgNone": "The package release of {{name}} is removed. Findings are matched again."
   },
   "notes": {
     "title": "Notes",

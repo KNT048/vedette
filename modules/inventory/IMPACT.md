@@ -31,6 +31,7 @@
 ## Modifying: detected values that differ from an entered one (`differences`, `sameValue`, `UseDetected`, `KeepEntered`, `Detail.DetectedDiffers`, `inv_detected_keep`; INV-47)
 - **Trusted sources** are decided in `trustedRead`: a new source or a new statement that should count is added there, and `TestINV47_EachFieldAgainstEachSource` lists which sources raise a notice and which never do.
 - **Noise rules** are `sameValue` and `makerSuffixes`; a rule that is too loose hides a real difference, one too tight raises a notice on every device: add a case to `TestINV47_NotADifference` with the change.
+- **Export**: `inv_detected_keep` is classified in `modules/core/export_policy.go` (a column added later needs its entry; `TestExport_PolicyClassifiesEveryColumn`). A merge moves its rows in `joinAs`.
 - **Use detected** deletes manual observations of one field, so anything else that writes a manual observation of that field (a new edit path) must keep working with that delete.
 - **Web**: `DetectedNotice.tsx` (own component, Overview rows), `useDeviceAction().useDetected/keepEntered`, locale `detectedNotice.*`; the mock computes the list in `differsOf` and gives a device entered as "edge-fw" an SNMP reading (`SNMP_READS`).
 

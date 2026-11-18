@@ -233,13 +233,19 @@ type DetectedField = (typeof DETECTED_FIELDS)[number]
 const foldText = (v: string) => v.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim()
 const MAKER_SUFFIX = ['inc', 'incorporated', 'corp', 'corporation', 'co', 'company', 'ltd', 'limited', 'llc', 'gmbh', 'sa', 'ag', 'plc', 'bv', 'pte', 'networks', 'network', 'technologies', 'technology', 'systems', 'communications']
 const makerWords = (v: string) => { const w = foldText(v).split(' '); while (w.length > 1 && MAKER_SUFFIX.includes(w[w.length - 1]!)) w.pop(); return w.join(' ') }
-function sameValue(field: DetectedField, a: string, b: string): boolean {
-  if (field === 'hostname') { const x = a.trim().toLowerCase(), y = b.trim().toLowerCase(); return x === y || x.startsWith(`${y}.`) || y.startsWith(`${x}.`) }
+function sameValue(field: DetectedField, a: string, b: string, makerOf = ''): boolean {
+  if (field === 'hostname') { const x = a.trim().toLowerCase(), y = b.trim().toLowerCase(); return x === y || x.startsWith(`${y}.`) || y.startsWith(`${x}.`) || /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[0-9a-f]{32})$/.test(y) }
   if (field === 'vendor') return makerWords(a) === makerWords(b)
-  if (field === 'model') return foldText(a).replace(/ /g, '') === foldText(b).replace(/ /g, '')
-  if (field === 'os') { const x = foldText(a.replace(/^microsoft /i, '')), y = foldText(b.replace(/^microsoft /i, '')); return x === y || x.startsWith(`${y} `) || y.startsWith(`${x} `) }
+  if (field === 'model') { const x = foldText(a), y = foldText(b); return x.replace(/ /g, '') === y.replace(/ /g, '') || x === `${foldText(makerOf)} ${y}` || y === `${foldText(makerOf)} ${x}` }
+  if (field === 'os') { // only a detected name that extends the entered one without being a version is asked about: a contradicted OS has its own block (INV-41)
+    const x = foldText(a.replace(/^microsoft /i, '')), y = foldText(b.replace(/^microsoft /i, ''))
+    if (x === y || x.startsWith(`${y} `) || !y.startsWith(`${x} `)) return true
+    const w = y.slice(x.length + 1).split(' ')[0]!
+    return w === 'build' || /^v?\d/.test(w)
+  }
   return a.trim().toLowerCase() === b.trim().toLowerCase()
 }
+const rows0 = (list: { field: string; value: string }[]) => list.find((o) => o.field === 'vendor')?.value ?? ''
 function differsOf(a: Asset): NonNullable<DeviceDetail['detected_differs']> {
   const list = markCurrent(obsOf(a))
   const kept = keptStore.get()[a.id] ?? []
@@ -248,7 +254,7 @@ function differsOf(a: Asset): NonNullable<DeviceDetail['detected_differs']> {
     const rows = list.filter((o) => o.field === field)
     const entered = rows.filter((o) => o.source === 'manual').sort((x, y) => -compareObs(x, y))[0]
     const detected = rows.filter((o) => o.source === 'agent' || o.source === 'snmp').sort((x, y) => -compareObs(x, y))[0]
-    if (!entered || !detected || sameValue(field, entered.value, detected.value) || kept.includes(`${field}\u0000${detected.value}`)) continue
+    if (!entered || !detected || sameValue(field, entered.value, detected.value, rows0(list)) || kept.includes(`${field}\u0000${detected.value}`)) continue
     out.push({ field, entered: entered.value, detected: detected.value, source: detected.source, seen_at: detected.seen_at })
   }
   return out
@@ -980,7 +986,7 @@ export const handlers = [
     return HttpResponse.json({ ok: true })
   }),
 
-  // Ignore a device that needs no watching (a staff phone), or stop ignoring it (back to To review).
+  // INV-47: use the detected value of a field (drops the entered one), or keep the entered one against it.
   http.post(`${API}/inventory/devices/:id/differs/:field/use`, async ({ params, request }) => {
     const denied = guard('operator'); if (denied) return denied
     const a = find(String(params.id))
@@ -1008,6 +1014,7 @@ export const handlers = [
     return HttpResponse.json({ ok: true })
   }),
 
+  // Ignore a device that needs no watching (a staff phone), or stop ignoring it (back to To review).
   http.post(`${API}/inventory/devices/:id/ignore`, async ({ params, request }) => {
     const denied = guard('operator'); if (denied) return denied
     const a = find(String(params.id))

@@ -63,30 +63,38 @@ func differences(list []obs, kept map[[2]string]bool) []Differs {
 			frameOS[o.seenAt] = o.value
 		}
 	}
+	var makers []string
+	for _, o := range list {
+		if o.field == "vendor" {
+			makers = append(makers, makerWords(o.value))
+		}
+	}
 	var out []Differs
 	for _, field := range detectedFields {
-		var entered, detected *obs
+		var entered *obs
+		var rest []obs // everything but the person's value of this field: what the page shows after Use detected
 		for i := range list {
-			o := &list[i]
-			if o.field != field {
+			o := list[i]
+			if o.field == field && o.source == "manual" {
+				if entered == nil || better(o, *entered) {
+					entered = &list[i]
+				}
 				continue
 			}
-			switch {
-			case o.source == "manual":
-				if entered == nil || better(*o, *entered) {
-					entered = o
-				}
-			case trustedRead(*o, frameOS, mac):
-				if detected == nil || better(*o, *detected) {
-					detected = o
-				}
-			}
+			rest = append(rest, o)
 		}
-		if entered == nil || detected == nil || sameValue(field, entered.value, detected.value) || kept[[2]string{field, detected.value}] {
+		if entered == nil {
 			continue
 		}
-		d := Differs{Field: field, Entered: entered.value, Detected: detected.value, Source: detected.source, SeenAt: detected.seenAt}
-		if detected.stated || (field == "model" && detected.source == "passive") {
+		best := winners(rest)
+		dropContradictedOS(rest, best)
+		w, ok := best[field]
+		// The notice names the value the page will show after Use detected: that winner must be a trusted reading.
+		if !ok || !trustedRead(w, frameOS, mac) || sameValue(field, entered.value, w.value, makers) || kept[[2]string{field, w.value}] {
+			continue
+		}
+		d := Differs{Field: field, Entered: entered.value, Detected: w.value, Source: w.source, SeenAt: w.seenAt}
+		if w.stated || (field == "model" && w.source == "passive") {
 			d.Basis = basisStated
 		}
 		out = append(out, d)
@@ -97,7 +105,7 @@ func differences(list []obs, kept map[[2]string]bool) []Differs {
 // sameValue says the two texts name the same thing, so there is nothing to tell the person: the same after trimming and case, a
 // host name with or without its domain, a maker with or without "Inc." and the like, a model with or without the maker in front
 // or a space where the other has a dash, an OS where one only adds a version after the other's name.
-func sameValue(field, a, b string) bool {
+func sameValue(field, a, b string, makers []string) bool {
 	switch field {
 	case "hostname":
 		a, b = strings.Trim(strings.ToLower(strings.TrimSpace(a)), "."), strings.Trim(strings.ToLower(strings.TrimSpace(b)), ".")
@@ -106,12 +114,32 @@ func sameValue(field, a, b string) bool {
 		return makerWords(a) == makerWords(b)
 	case "model":
 		x, y := fold(a), fold(b)
-		return x == y || strings.ReplaceAll(x, " ", "") == strings.ReplaceAll(y, " ", "")
+		for _, m := range makers {
+			x, y = strings.TrimPrefix(x, m+" "), strings.TrimPrefix(y, m+" ")
+		}
+		return strings.ReplaceAll(x, " ", "") == strings.ReplaceAll(y, " ", "")
 	case "os":
-		x, y := fold(strings.TrimPrefix(strings.ToLower(strings.TrimSpace(a)), "microsoft ")), fold(strings.TrimPrefix(strings.ToLower(strings.TrimSpace(b)), "microsoft "))
-		return sameOS(x, y)
+		return !osDiffers(a, b)
 	}
 	return strings.EqualFold(strings.TrimSpace(a), strings.TrimSpace(b))
+}
+
+// osDiffers says the person should be asked about two OS texts here. Not when they are the same, when one only adds a version to the
+// other ("Alpine Linux" and "Alpine Linux 3.23": a versioned reading already wins, INV-45), or when they plainly disagree: a
+// person's OS that the sources contradict already has its own "You set X; the scan reads Y" block (INV-41, osCorrection). What is
+// left is a detected name that extends the entered one without being a version ("Windows" and "Windows Server 2022").
+func osDiffers(entered, detected string) bool {
+	x := fold(strings.TrimPrefix(strings.ToLower(strings.TrimSpace(entered)), "microsoft "))
+	y := fold(strings.TrimPrefix(strings.ToLower(strings.TrimSpace(detected)), "microsoft "))
+	if x == y || !sameOS(x, y) || strings.HasPrefix(x, y+" ") {
+		return false
+	}
+	return !versionLike(strings.Fields(strings.TrimPrefix(y, x+" "))[0])
+}
+
+// versionLike says a word is a version or a build: it starts with a digit, with "v" and a digit, or is "build".
+func versionLike(w string) bool {
+	return w == "build" || (w != "" && (w[0] >= '0' && w[0] <= '9' || len(w) > 1 && w[0] == 'v' && w[1] >= '0' && w[1] <= '9'))
 }
 
 // makerSuffixes are the words that follow a maker's name without naming it: legal forms and generic words. "Fortinet, Inc." is

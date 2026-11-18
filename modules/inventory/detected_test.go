@@ -99,8 +99,8 @@ var fieldOf = map[string]observe.Field{"hostname": observe.Hostname, "vendor": o
 
 func TestINV47_EachFieldAgainstEachSource(t *testing.T) {
 	t.Parallel()
-	entered := map[string]string{"hostname": "front-fw", "vendor": "Acme", "model": "Box 1", "os": "Linux", "kind": "router"}
-	detected := map[string]string{"hostname": "fw-edge-01", "vendor": "Fortinet", "model": "FortiGate-500E", "os": "FortiOS 7.2.13", "kind": "firewall"}
+	entered := map[string]string{"hostname": "front-fw", "vendor": "Acme", "model": "Box 1", "os": "Windows", "kind": "router"}
+	detected := map[string]string{"hostname": "fw-edge-01", "vendor": "Fortinet", "model": "FortiGate-500E", "os": "Windows Server 2022", "kind": "firewall"}
 	trust := map[observe.Source]bool{observe.Agent: true, observe.SNMP: true, observe.Nmap: false, observe.Passive: false, observe.Scan: false}
 	for field := range entered {
 		for src, trusted := range trust {
@@ -130,14 +130,19 @@ func TestINV47_EachFieldAgainstEachSource(t *testing.T) {
 func TestINV47_AnNTLMAnswerIsTheDevicesOwnWord(t *testing.T) {
 	t.Parallel()
 	e := newDiffersEnv(t)
-	e.enter("os", "Windows 7")
-	e.read(observe.Nmap, observe.OS, "Linux 4.15 - 5.8") // a fingerprint guess
+	e.enter("os", "Windows")
+	e.read(observe.Nmap, observe.OS, "Microsoft Windows Server 2019 - 2022") // a fingerprint guess
 	if d := e.differs("os"); d != nil {
 		t.Fatalf("a guess raised a notice: %+v", d)
 	}
-	e.read(observe.Nmap, observe.OS, "Microsoft Windows 10 (build 19045)") // the device's own NTLM answer
-	if d := e.differs("os"); d == nil || d.Detected != "Microsoft Windows 10 (build 19045)" {
+	e.read(observe.Nmap, observe.OS, "Microsoft Windows Server 2022 (build 20348)") // the device's own NTLM answer
+	if d := e.differs("os"); d == nil || d.Detected != "Microsoft Windows Server 2022 (build 20348)" {
 		t.Fatalf("difference = %+v", d)
+	}
+	// The next scan's guess is newer and wins the OS once the entered one is gone: the notice would promise a value the page does not show.
+	e.read(observe.Nmap, observe.OS, "Microsoft Windows Server 2016 - 2019")
+	if d := e.differs("os"); d != nil {
+		t.Fatalf("a newer guess outranks the NTLM answer, so Use detected would show the guess: %+v", d)
 	}
 }
 
@@ -153,13 +158,20 @@ func TestINV47_NotADifference(t *testing.T) {
 		{"model dash and space", "model", "FortiGate 500E", "FortiGate-500E"},
 		{"model case", "model", "ex4200-48t", "EX4200-48T"},
 		{"OS the reading only adds a version to", "os", "Alpine Linux", "Alpine Linux 3.23"},
+		{"OS with a v-version added", "os", "Cisco IOS", "Cisco IOS v15.2"},
+		{"OS with a build added", "os", "Windows 10", "Microsoft Windows 10 (build 19045)"},
+		{"OS contradicted: the entered OS has its own block", "os", "Ubuntu", "Alpine Linux"},
+		{"model with the maker in front", "model", "Catalyst 9300", "Cisco Catalyst 9300"},
 		{"OS with a version where the reading has none", "os", "Alpine Linux 3.23", "Alpine Linux"},
-		{"OS with Microsoft in front", "os", "Windows 11", "Microsoft Windows 11 Pro"},
+		{"OS with Microsoft in front", "os", "Windows 11", "Microsoft Windows 11 22H2"},
 		{"type spelled the same", "kind", "router", "router"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			e := newDiffersEnv(t)
+			if c.name == "model with the maker in front" {
+				e.read(observe.SNMP, observe.Vendor, "Cisco Systems, Inc.") // the device's maker is known
+			}
 			e.enter(c.field, c.entered)
 			e.read(observe.SNMP, fieldOf[c.field], c.detected)
 			if d := e.differs(c.field); d != nil {
@@ -171,8 +183,8 @@ func TestINV47_NotADifference(t *testing.T) {
 	for _, c := range []struct{ field, entered, detected string }{
 		{"vendor", "Hewlett Packard", "Hewlett Packard Enterprise"},
 		{"hostname", "gateway", "gateway2"},
-		{"os", "Alpine Linux 3.22", "Alpine Linux 3.23"},
-		{"os", "Ubuntu", "Alpine Linux"},
+		{"os", "Windows", "Windows Server 2022"},
+		{"os", "Linux", "Linux Mint"},
 		{"model", "FortiGate-500E", "FortiGate-60F"},
 	} {
 		e := newDiffersEnv(t)
@@ -236,8 +248,8 @@ func TestINV47_UseDetectedSwitchesTheShownValueAndIsAudited(t *testing.T) {
 	e := newDiffersEnv(t)
 	e.enter("hostname", "edge-fw")
 	e.read(observe.SNMP, observe.Hostname, "fw-edge-01")
-	e.enter("os", "Linux")
-	e.read(observe.SNMP, observe.OS, "FortiOS 7.2.13")
+	e.enter("os", "Windows")
+	e.read(observe.SNMP, observe.OS, "Windows Server 2022")
 	e.ev.reset()
 	if err := e.svc.UseDetected(e.ctx(), "op@example.com", e.dev, "hostname", "fw-edge-01"); err != nil {
 		t.Fatal(err)
@@ -246,7 +258,7 @@ func TestINV47_UseDetectedSwitchesTheShownValueAndIsAudited(t *testing.T) {
 	if fieldShown(d, "hostname") != "fw-edge-01" || e.differs("hostname") != nil {
 		t.Fatalf("host name must now be the detected one: %q", fieldShown(d, "hostname"))
 	}
-	if fieldShown(d, "os") != "Linux" || e.differs("os") == nil {
+	if fieldShown(d, "os") != "Windows" || e.differs("os") == nil {
 		t.Fatal("the other field's entered value must stay")
 	}
 	if n := e.count(`SELECT count(*) FROM inv_observation WHERE asset_id = ? AND source = 'manual' AND field = 'hostname'`, e.dev); n != 0 {
@@ -258,10 +270,10 @@ func TestINV47_UseDetectedSwitchesTheShownValueAndIsAudited(t *testing.T) {
 	if ev := e.ev.named(inventory.EventAssetUpdated); len(ev) != 1 || !ev[0].Data.(inventory.AssetEvent).Match {
 		t.Fatalf("matching must run again: %+v", ev)
 	}
-	if err := e.svc.UseDetected(e.ctx(), "op@example.com", e.dev, "os", "FortiOS 7.2.13"); err != nil {
+	if err := e.svc.UseDetected(e.ctx(), "op@example.com", e.dev, "os", "Windows Server 2022"); err != nil {
 		t.Fatal(err)
 	}
-	if got := fieldShown(e.detail(), "os"); got != "FortiOS 7.2.13" {
+	if got := fieldShown(e.detail(), "os"); got != "Windows Server 2022" {
 		t.Fatalf("OS = %q", got)
 	}
 	// the type goes back to what the sources read, too
@@ -288,5 +300,64 @@ func TestINV47_ActionsRefuseAStaleOrUnknownChoice(t *testing.T) {
 	wantAPIError(t, e.svc.KeepEntered(e.ctx(), "op", "a-nope", "hostname", "x"), 404, "not_found")
 	if fieldShown(e.detail(), "hostname") != "edge-fw" {
 		t.Fatal("a refused action must change nothing")
+	}
+}
+
+// A person's OS that the sources contradict already has the "You set X; the scan reads Y" block (INV-41): no second prompt.
+func TestINV47_AContradictedOSHasItsOwnBlockNotASecondNotice(t *testing.T) {
+	t.Parallel()
+	e := newDiffersEnv(t)
+	if err := e.svc.PatchDevice(e.ctx(), "op@example.com", e.dev, inventory.Patch{OS: ptr("Ubuntu")}); err != nil {
+		t.Fatal(err)
+	}
+	e.read(observe.SNMP, observe.OS, "Alpine Linux")
+	d := e.detail()
+	if c := d.Asset.OSCorrection; c == nil || !c.Disagrees {
+		t.Fatalf("the OS block must say the sources disagree: %+v", c)
+	}
+	if e.differs("os") != nil {
+		t.Fatal("the OS must be asked about once")
+	}
+}
+
+// After Use detected the page shows what the notice named, also when a higher-ranked reading that is not trusted exists.
+func TestINV47_NoticeOnlyNamesWhatThePageWillShow(t *testing.T) {
+	t.Parallel()
+	e := newDiffersEnv(t)
+	e.enter("model", "Box")
+	e.read(observe.Scan, observe.Model, "Appliance X")  // not trusted, and it outranks a passive model
+	e.read(observe.Passive, observe.Model, "Gateway Z") // not trusted either
+	if d := e.differs("model"); d != nil {
+		t.Fatalf("untrusted readings raised a notice: %+v", d)
+	}
+	e.read(observe.SNMP, observe.Model, "Gateway Y")
+	d := e.differs("model")
+	if d == nil || d.Detected != "Gateway Y" {
+		t.Fatalf("difference = %+v", d)
+	}
+	if err := e.svc.UseDetected(e.ctx(), "op", e.dev, "model", d.Detected); err != nil {
+		t.Fatal(err)
+	}
+	if got := fieldShown(e.detail(), "model"); got != "Gateway Y" {
+		t.Fatalf("the page shows %q, not what the notice named", got)
+	}
+}
+
+// Merging two devices moves the kept choices of the one that goes: a notice a person dismissed does not come back.
+func TestINV47_AMergeKeepsTheChoicesOfTheDeviceThatGoes(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	old, newer := phonePair(e)
+	if err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(e.ctx(), `INSERT INTO inv_detected_keep (asset_id, field, detected, kept_at, kept_by) VALUES (?, 'hostname', 'fw-edge-01', '2026-11-09T10:00:00.000Z', 'op')`, newer)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.Merge(e.ctx(), admin, old, newer); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.count(`SELECT count(*) FROM inv_detected_keep WHERE asset_id = ?`, old); n != 1 {
+		t.Fatalf("kept rows on the device that stays: %d", n)
 	}
 }

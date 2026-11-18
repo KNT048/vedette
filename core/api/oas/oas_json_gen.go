@@ -210133,8 +210133,20 @@ func (s *LogsGetLogsSourcesOKSourcesItem) encodeFields(e *jx.Encoder) {
 		s.AssetID.Encode(e)
 	}
 	{
+		e.FieldStart("asset_matches")
+		e.ArrStart()
+		for _, elem := range s.AssetMatches {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+	{
 		e.FieldStart("asset_name")
 		s.AssetName.Encode(e)
+	}
+	{
+		e.FieldStart("asset_via")
+		s.AssetVia.Encode(e)
 	}
 	{
 		e.FieldStart("client_cert_sha256")
@@ -210182,20 +210194,22 @@ func (s *LogsGetLogsSourcesOKSourcesItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfLogsGetLogsSourcesOKSourcesItem = [13]string{
+var jsonFieldsNameOfLogsGetLogsSourcesOKSourcesItem = [15]string{
 	0:  "asset_id",
-	1:  "asset_name",
-	2:  "client_cert_sha256",
-	3:  "created_at",
-	4:  "id",
-	5:  "kind",
-	6:  "last_received",
-	7:  "lines_per_hour",
-	8:  "name",
-	9:  "port",
-	10: "proto",
-	11: "sender_ip",
-	12: "state",
+	1:  "asset_matches",
+	2:  "asset_name",
+	3:  "asset_via",
+	4:  "client_cert_sha256",
+	5:  "created_at",
+	6:  "id",
+	7:  "kind",
+	8:  "last_received",
+	9:  "lines_per_hour",
+	10: "name",
+	11: "port",
+	12: "proto",
+	13: "sender_ip",
+	14: "state",
 }
 
 // Decode decodes LogsGetLogsSourcesOKSourcesItem from json.
@@ -210217,8 +210231,26 @@ func (s *LogsGetLogsSourcesOKSourcesItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"asset_id\"")
 			}
-		case "asset_name":
+		case "asset_matches":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				s.AssetMatches = make([]LogsGetLogsSourcesOKSourcesItemAssetMatchesItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem LogsGetLogsSourcesOKSourcesItemAssetMatchesItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.AssetMatches = append(s.AssetMatches, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"asset_matches\"")
+			}
+		case "asset_name":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.AssetName.Decode(d); err != nil {
 					return err
@@ -210227,8 +210259,18 @@ func (s *LogsGetLogsSourcesOKSourcesItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"asset_name\"")
 			}
+		case "asset_via":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.AssetVia.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"asset_via\"")
+			}
 		case "client_cert_sha256":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.ClientCertSHA256.Decode(d); err != nil {
 					return err
@@ -210238,7 +210280,7 @@ func (s *LogsGetLogsSourcesOKSourcesItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"client_cert_sha256\"")
 			}
 		case "created_at":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.CreatedAt = v
@@ -210250,7 +210292,7 @@ func (s *LogsGetLogsSourcesOKSourcesItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"created_at\"")
 			}
 		case "id":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.ID = string(v)
@@ -210262,7 +210304,7 @@ func (s *LogsGetLogsSourcesOKSourcesItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
 		case "kind":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -210272,7 +210314,7 @@ func (s *LogsGetLogsSourcesOKSourcesItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "last_received":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.LastReceived.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -210282,7 +210324,7 @@ func (s *LogsGetLogsSourcesOKSourcesItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last_received\"")
 			}
 		case "lines_per_hour":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Int()
 				s.LinesPerHour = int(v)
@@ -210294,7 +210336,7 @@ func (s *LogsGetLogsSourcesOKSourcesItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"lines_per_hour\"")
 			}
 		case "name":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -210306,7 +210348,7 @@ func (s *LogsGetLogsSourcesOKSourcesItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"name\"")
 			}
 		case "port":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Int()
 				s.Port = int(v)
@@ -210318,7 +210360,7 @@ func (s *LogsGetLogsSourcesOKSourcesItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"port\"")
 			}
 		case "proto":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.Proto.Decode(d); err != nil {
 					return err
@@ -210328,7 +210370,7 @@ func (s *LogsGetLogsSourcesOKSourcesItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"proto\"")
 			}
 		case "sender_ip":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.SenderIP = string(v)
@@ -210340,7 +210382,7 @@ func (s *LogsGetLogsSourcesOKSourcesItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"sender_ip\"")
 			}
 		case "state":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 6
 			if err := func() error {
 				if err := s.State.Decode(d); err != nil {
 					return err
@@ -210360,7 +210402,7 @@ func (s *LogsGetLogsSourcesOKSourcesItem) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00011111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -210402,6 +210444,210 @@ func (s *LogsGetLogsSourcesOKSourcesItem) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *LogsGetLogsSourcesOKSourcesItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *LogsGetLogsSourcesOKSourcesItemAssetMatchesItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *LogsGetLogsSourcesOKSourcesItemAssetMatchesItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("id")
+		e.Str(s.ID)
+	}
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
+	{
+		e.FieldStart("via")
+		s.Via.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfLogsGetLogsSourcesOKSourcesItemAssetMatchesItem = [3]string{
+	0: "id",
+	1: "name",
+	2: "via",
+}
+
+// Decode decodes LogsGetLogsSourcesOKSourcesItemAssetMatchesItem from json.
+func (s *LogsGetLogsSourcesOKSourcesItemAssetMatchesItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode LogsGetLogsSourcesOKSourcesItemAssetMatchesItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "id":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.ID = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"id\"")
+			}
+		case "name":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		case "via":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.Via.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"via\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode LogsGetLogsSourcesOKSourcesItemAssetMatchesItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfLogsGetLogsSourcesOKSourcesItemAssetMatchesItem) {
+					name = jsonFieldsNameOfLogsGetLogsSourcesOKSourcesItemAssetMatchesItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *LogsGetLogsSourcesOKSourcesItemAssetMatchesItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *LogsGetLogsSourcesOKSourcesItemAssetMatchesItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia as json.
+func (s LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia from json.
+func (s *LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia(v) {
+	case LogsGetLogsSourcesOKSourcesItemAssetMatchesItemViaSnmpRead:
+		*s = LogsGetLogsSourcesOKSourcesItemAssetMatchesItemViaSnmpRead
+	default:
+		*s = LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes LogsGetLogsSourcesOKSourcesItemAssetVia as json.
+func (s LogsGetLogsSourcesOKSourcesItemAssetVia) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes LogsGetLogsSourcesOKSourcesItemAssetVia from json.
+func (s *LogsGetLogsSourcesOKSourcesItemAssetVia) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode LogsGetLogsSourcesOKSourcesItemAssetVia to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch LogsGetLogsSourcesOKSourcesItemAssetVia(v) {
+	case LogsGetLogsSourcesOKSourcesItemAssetViaSnmpRead:
+		*s = LogsGetLogsSourcesOKSourcesItemAssetViaSnmpRead
+	default:
+		*s = LogsGetLogsSourcesOKSourcesItemAssetVia(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s LogsGetLogsSourcesOKSourcesItemAssetVia) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *LogsGetLogsSourcesOKSourcesItemAssetVia) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -211059,8 +211305,20 @@ func (s *LogsPostLogsSourcesCreated) encodeFields(e *jx.Encoder) {
 		s.AssetID.Encode(e)
 	}
 	{
+		e.FieldStart("asset_matches")
+		e.ArrStart()
+		for _, elem := range s.AssetMatches {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+	{
 		e.FieldStart("asset_name")
 		s.AssetName.Encode(e)
+	}
+	{
+		e.FieldStart("asset_via")
+		s.AssetVia.Encode(e)
 	}
 	{
 		e.FieldStart("client_cert_sha256")
@@ -211108,20 +211366,22 @@ func (s *LogsPostLogsSourcesCreated) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfLogsPostLogsSourcesCreated = [13]string{
+var jsonFieldsNameOfLogsPostLogsSourcesCreated = [15]string{
 	0:  "asset_id",
-	1:  "asset_name",
-	2:  "client_cert_sha256",
-	3:  "created_at",
-	4:  "id",
-	5:  "kind",
-	6:  "last_received",
-	7:  "lines_per_hour",
-	8:  "name",
-	9:  "port",
-	10: "proto",
-	11: "sender_ip",
-	12: "state",
+	1:  "asset_matches",
+	2:  "asset_name",
+	3:  "asset_via",
+	4:  "client_cert_sha256",
+	5:  "created_at",
+	6:  "id",
+	7:  "kind",
+	8:  "last_received",
+	9:  "lines_per_hour",
+	10: "name",
+	11: "port",
+	12: "proto",
+	13: "sender_ip",
+	14: "state",
 }
 
 // Decode decodes LogsPostLogsSourcesCreated from json.
@@ -211143,8 +211403,26 @@ func (s *LogsPostLogsSourcesCreated) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"asset_id\"")
 			}
-		case "asset_name":
+		case "asset_matches":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				s.AssetMatches = make([]LogsPostLogsSourcesCreatedAssetMatchesItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem LogsPostLogsSourcesCreatedAssetMatchesItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.AssetMatches = append(s.AssetMatches, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"asset_matches\"")
+			}
+		case "asset_name":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.AssetName.Decode(d); err != nil {
 					return err
@@ -211153,8 +211431,18 @@ func (s *LogsPostLogsSourcesCreated) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"asset_name\"")
 			}
+		case "asset_via":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.AssetVia.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"asset_via\"")
+			}
 		case "client_cert_sha256":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.ClientCertSHA256.Decode(d); err != nil {
 					return err
@@ -211164,7 +211452,7 @@ func (s *LogsPostLogsSourcesCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"client_cert_sha256\"")
 			}
 		case "created_at":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.CreatedAt = v
@@ -211176,7 +211464,7 @@ func (s *LogsPostLogsSourcesCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"created_at\"")
 			}
 		case "id":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.ID = string(v)
@@ -211188,7 +211476,7 @@ func (s *LogsPostLogsSourcesCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
 		case "kind":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -211198,7 +211486,7 @@ func (s *LogsPostLogsSourcesCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "last_received":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.LastReceived.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -211208,7 +211496,7 @@ func (s *LogsPostLogsSourcesCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last_received\"")
 			}
 		case "lines_per_hour":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Int()
 				s.LinesPerHour = int(v)
@@ -211220,7 +211508,7 @@ func (s *LogsPostLogsSourcesCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"lines_per_hour\"")
 			}
 		case "name":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -211232,7 +211520,7 @@ func (s *LogsPostLogsSourcesCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"name\"")
 			}
 		case "port":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Int()
 				s.Port = int(v)
@@ -211244,7 +211532,7 @@ func (s *LogsPostLogsSourcesCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"port\"")
 			}
 		case "proto":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.Proto.Decode(d); err != nil {
 					return err
@@ -211254,7 +211542,7 @@ func (s *LogsPostLogsSourcesCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"proto\"")
 			}
 		case "sender_ip":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.SenderIP = string(v)
@@ -211266,7 +211554,7 @@ func (s *LogsPostLogsSourcesCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"sender_ip\"")
 			}
 		case "state":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 6
 			if err := func() error {
 				if err := s.State.Decode(d); err != nil {
 					return err
@@ -211286,7 +211574,7 @@ func (s *LogsPostLogsSourcesCreated) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00011111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -211328,6 +211616,210 @@ func (s *LogsPostLogsSourcesCreated) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *LogsPostLogsSourcesCreated) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *LogsPostLogsSourcesCreatedAssetMatchesItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *LogsPostLogsSourcesCreatedAssetMatchesItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("id")
+		e.Str(s.ID)
+	}
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
+	{
+		e.FieldStart("via")
+		s.Via.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfLogsPostLogsSourcesCreatedAssetMatchesItem = [3]string{
+	0: "id",
+	1: "name",
+	2: "via",
+}
+
+// Decode decodes LogsPostLogsSourcesCreatedAssetMatchesItem from json.
+func (s *LogsPostLogsSourcesCreatedAssetMatchesItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode LogsPostLogsSourcesCreatedAssetMatchesItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "id":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.ID = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"id\"")
+			}
+		case "name":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		case "via":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.Via.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"via\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode LogsPostLogsSourcesCreatedAssetMatchesItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfLogsPostLogsSourcesCreatedAssetMatchesItem) {
+					name = jsonFieldsNameOfLogsPostLogsSourcesCreatedAssetMatchesItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *LogsPostLogsSourcesCreatedAssetMatchesItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *LogsPostLogsSourcesCreatedAssetMatchesItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes LogsPostLogsSourcesCreatedAssetMatchesItemVia as json.
+func (s LogsPostLogsSourcesCreatedAssetMatchesItemVia) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes LogsPostLogsSourcesCreatedAssetMatchesItemVia from json.
+func (s *LogsPostLogsSourcesCreatedAssetMatchesItemVia) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode LogsPostLogsSourcesCreatedAssetMatchesItemVia to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch LogsPostLogsSourcesCreatedAssetMatchesItemVia(v) {
+	case LogsPostLogsSourcesCreatedAssetMatchesItemViaSnmpRead:
+		*s = LogsPostLogsSourcesCreatedAssetMatchesItemViaSnmpRead
+	default:
+		*s = LogsPostLogsSourcesCreatedAssetMatchesItemVia(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s LogsPostLogsSourcesCreatedAssetMatchesItemVia) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *LogsPostLogsSourcesCreatedAssetMatchesItemVia) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes LogsPostLogsSourcesCreatedAssetVia as json.
+func (s LogsPostLogsSourcesCreatedAssetVia) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes LogsPostLogsSourcesCreatedAssetVia from json.
+func (s *LogsPostLogsSourcesCreatedAssetVia) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode LogsPostLogsSourcesCreatedAssetVia to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch LogsPostLogsSourcesCreatedAssetVia(v) {
+	case LogsPostLogsSourcesCreatedAssetViaSnmpRead:
+		*s = LogsPostLogsSourcesCreatedAssetViaSnmpRead
+	default:
+		*s = LogsPostLogsSourcesCreatedAssetVia(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s LogsPostLogsSourcesCreatedAssetVia) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *LogsPostLogsSourcesCreatedAssetVia) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -212994,8 +213486,20 @@ func (s *LogsPutLogsSourcesIDOK) encodeFields(e *jx.Encoder) {
 		s.AssetID.Encode(e)
 	}
 	{
+		e.FieldStart("asset_matches")
+		e.ArrStart()
+		for _, elem := range s.AssetMatches {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+	{
 		e.FieldStart("asset_name")
 		s.AssetName.Encode(e)
+	}
+	{
+		e.FieldStart("asset_via")
+		s.AssetVia.Encode(e)
 	}
 	{
 		e.FieldStart("client_cert_sha256")
@@ -213043,20 +213547,22 @@ func (s *LogsPutLogsSourcesIDOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfLogsPutLogsSourcesIDOK = [13]string{
+var jsonFieldsNameOfLogsPutLogsSourcesIDOK = [15]string{
 	0:  "asset_id",
-	1:  "asset_name",
-	2:  "client_cert_sha256",
-	3:  "created_at",
-	4:  "id",
-	5:  "kind",
-	6:  "last_received",
-	7:  "lines_per_hour",
-	8:  "name",
-	9:  "port",
-	10: "proto",
-	11: "sender_ip",
-	12: "state",
+	1:  "asset_matches",
+	2:  "asset_name",
+	3:  "asset_via",
+	4:  "client_cert_sha256",
+	5:  "created_at",
+	6:  "id",
+	7:  "kind",
+	8:  "last_received",
+	9:  "lines_per_hour",
+	10: "name",
+	11: "port",
+	12: "proto",
+	13: "sender_ip",
+	14: "state",
 }
 
 // Decode decodes LogsPutLogsSourcesIDOK from json.
@@ -213078,8 +213584,26 @@ func (s *LogsPutLogsSourcesIDOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"asset_id\"")
 			}
-		case "asset_name":
+		case "asset_matches":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				s.AssetMatches = make([]LogsPutLogsSourcesIDOKAssetMatchesItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem LogsPutLogsSourcesIDOKAssetMatchesItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.AssetMatches = append(s.AssetMatches, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"asset_matches\"")
+			}
+		case "asset_name":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.AssetName.Decode(d); err != nil {
 					return err
@@ -213088,8 +213612,18 @@ func (s *LogsPutLogsSourcesIDOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"asset_name\"")
 			}
+		case "asset_via":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.AssetVia.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"asset_via\"")
+			}
 		case "client_cert_sha256":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.ClientCertSHA256.Decode(d); err != nil {
 					return err
@@ -213099,7 +213633,7 @@ func (s *LogsPutLogsSourcesIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"client_cert_sha256\"")
 			}
 		case "created_at":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.CreatedAt = v
@@ -213111,7 +213645,7 @@ func (s *LogsPutLogsSourcesIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"created_at\"")
 			}
 		case "id":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.ID = string(v)
@@ -213123,7 +213657,7 @@ func (s *LogsPutLogsSourcesIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
 		case "kind":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -213133,7 +213667,7 @@ func (s *LogsPutLogsSourcesIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "last_received":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.LastReceived.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -213143,7 +213677,7 @@ func (s *LogsPutLogsSourcesIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last_received\"")
 			}
 		case "lines_per_hour":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Int()
 				s.LinesPerHour = int(v)
@@ -213155,7 +213689,7 @@ func (s *LogsPutLogsSourcesIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"lines_per_hour\"")
 			}
 		case "name":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -213167,7 +213701,7 @@ func (s *LogsPutLogsSourcesIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"name\"")
 			}
 		case "port":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Int()
 				s.Port = int(v)
@@ -213179,7 +213713,7 @@ func (s *LogsPutLogsSourcesIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"port\"")
 			}
 		case "proto":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.Proto.Decode(d); err != nil {
 					return err
@@ -213189,7 +213723,7 @@ func (s *LogsPutLogsSourcesIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"proto\"")
 			}
 		case "sender_ip":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.SenderIP = string(v)
@@ -213201,7 +213735,7 @@ func (s *LogsPutLogsSourcesIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"sender_ip\"")
 			}
 		case "state":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 6
 			if err := func() error {
 				if err := s.State.Decode(d); err != nil {
 					return err
@@ -213221,7 +213755,7 @@ func (s *LogsPutLogsSourcesIDOK) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00011111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -213263,6 +213797,210 @@ func (s *LogsPutLogsSourcesIDOK) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *LogsPutLogsSourcesIDOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *LogsPutLogsSourcesIDOKAssetMatchesItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *LogsPutLogsSourcesIDOKAssetMatchesItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("id")
+		e.Str(s.ID)
+	}
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
+	{
+		e.FieldStart("via")
+		s.Via.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfLogsPutLogsSourcesIDOKAssetMatchesItem = [3]string{
+	0: "id",
+	1: "name",
+	2: "via",
+}
+
+// Decode decodes LogsPutLogsSourcesIDOKAssetMatchesItem from json.
+func (s *LogsPutLogsSourcesIDOKAssetMatchesItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode LogsPutLogsSourcesIDOKAssetMatchesItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "id":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.ID = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"id\"")
+			}
+		case "name":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		case "via":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.Via.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"via\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode LogsPutLogsSourcesIDOKAssetMatchesItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfLogsPutLogsSourcesIDOKAssetMatchesItem) {
+					name = jsonFieldsNameOfLogsPutLogsSourcesIDOKAssetMatchesItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *LogsPutLogsSourcesIDOKAssetMatchesItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *LogsPutLogsSourcesIDOKAssetMatchesItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes LogsPutLogsSourcesIDOKAssetMatchesItemVia as json.
+func (s LogsPutLogsSourcesIDOKAssetMatchesItemVia) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes LogsPutLogsSourcesIDOKAssetMatchesItemVia from json.
+func (s *LogsPutLogsSourcesIDOKAssetMatchesItemVia) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode LogsPutLogsSourcesIDOKAssetMatchesItemVia to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch LogsPutLogsSourcesIDOKAssetMatchesItemVia(v) {
+	case LogsPutLogsSourcesIDOKAssetMatchesItemViaSnmpRead:
+		*s = LogsPutLogsSourcesIDOKAssetMatchesItemViaSnmpRead
+	default:
+		*s = LogsPutLogsSourcesIDOKAssetMatchesItemVia(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s LogsPutLogsSourcesIDOKAssetMatchesItemVia) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *LogsPutLogsSourcesIDOKAssetMatchesItemVia) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes LogsPutLogsSourcesIDOKAssetVia as json.
+func (s LogsPutLogsSourcesIDOKAssetVia) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes LogsPutLogsSourcesIDOKAssetVia from json.
+func (s *LogsPutLogsSourcesIDOKAssetVia) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode LogsPutLogsSourcesIDOKAssetVia to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch LogsPutLogsSourcesIDOKAssetVia(v) {
+	case LogsPutLogsSourcesIDOKAssetViaSnmpRead:
+		*s = LogsPutLogsSourcesIDOKAssetViaSnmpRead
+	default:
+		*s = LogsPutLogsSourcesIDOKAssetVia(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s LogsPutLogsSourcesIDOKAssetVia) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *LogsPutLogsSourcesIDOKAssetVia) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -226472,6 +227210,182 @@ func (s *NilLogsGetLogsSiemOKLastTest) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode encodes LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia as json.
+func (o NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia from json.
+func (o *NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes LogsGetLogsSourcesOKSourcesItemAssetVia as json.
+func (o NilLogsGetLogsSourcesOKSourcesItemAssetVia) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes LogsGetLogsSourcesOKSourcesItemAssetVia from json.
+func (o *NilLogsGetLogsSourcesOKSourcesItemAssetVia) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilLogsGetLogsSourcesOKSourcesItemAssetVia to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v LogsGetLogsSourcesOKSourcesItemAssetVia
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilLogsGetLogsSourcesOKSourcesItemAssetVia) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilLogsGetLogsSourcesOKSourcesItemAssetVia) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes LogsPostLogsSourcesCreatedAssetMatchesItemVia as json.
+func (o NilLogsPostLogsSourcesCreatedAssetMatchesItemVia) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes LogsPostLogsSourcesCreatedAssetMatchesItemVia from json.
+func (o *NilLogsPostLogsSourcesCreatedAssetMatchesItemVia) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilLogsPostLogsSourcesCreatedAssetMatchesItemVia to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v LogsPostLogsSourcesCreatedAssetMatchesItemVia
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilLogsPostLogsSourcesCreatedAssetMatchesItemVia) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilLogsPostLogsSourcesCreatedAssetMatchesItemVia) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes LogsPostLogsSourcesCreatedAssetVia as json.
+func (o NilLogsPostLogsSourcesCreatedAssetVia) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes LogsPostLogsSourcesCreatedAssetVia from json.
+func (o *NilLogsPostLogsSourcesCreatedAssetVia) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilLogsPostLogsSourcesCreatedAssetVia to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v LogsPostLogsSourcesCreatedAssetVia
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilLogsPostLogsSourcesCreatedAssetVia) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilLogsPostLogsSourcesCreatedAssetVia) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes LogsPutLogsSiemOKLastTest as json.
 func (o NilLogsPutLogsSiemOKLastTest) Encode(e *jx.Encoder) {
 	if o.Null {
@@ -226512,6 +227426,94 @@ func (s NilLogsPutLogsSiemOKLastTest) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *NilLogsPutLogsSiemOKLastTest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes LogsPutLogsSourcesIDOKAssetMatchesItemVia as json.
+func (o NilLogsPutLogsSourcesIDOKAssetMatchesItemVia) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes LogsPutLogsSourcesIDOKAssetMatchesItemVia from json.
+func (o *NilLogsPutLogsSourcesIDOKAssetMatchesItemVia) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilLogsPutLogsSourcesIDOKAssetMatchesItemVia to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v LogsPutLogsSourcesIDOKAssetMatchesItemVia
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilLogsPutLogsSourcesIDOKAssetMatchesItemVia) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilLogsPutLogsSourcesIDOKAssetMatchesItemVia) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes LogsPutLogsSourcesIDOKAssetVia as json.
+func (o NilLogsPutLogsSourcesIDOKAssetVia) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes LogsPutLogsSourcesIDOKAssetVia from json.
+func (o *NilLogsPutLogsSourcesIDOKAssetVia) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilLogsPutLogsSourcesIDOKAssetVia to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v LogsPutLogsSourcesIDOKAssetVia
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilLogsPutLogsSourcesIDOKAssetVia) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilLogsPutLogsSourcesIDOKAssetVia) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

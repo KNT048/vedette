@@ -25,13 +25,23 @@ import (
 
 var t0 = time.Date(2026, 11, 9, 10, 0, 0, 0, time.UTC)
 
-type fakeInv struct{ byIP map[string]Device }
+// fakeInv: byIP are devices by their listed IP; at are the devices another kind of address belongs to (added to byIP's, by device id).
+type fakeInv struct {
+	byIP map[string]Device
+	at   map[string][]DeviceMatch
+}
 
-func (f fakeInv) DevicesByIP(_ context.Context, ips []string) (map[string]Device, error) {
-	out := map[string]Device{}
+func (f fakeInv) DevicesAt(_ context.Context, ips []string) (map[string][]DeviceMatch, error) {
+	out := map[string][]DeviceMatch{}
 	for _, ip := range ips {
+		var ms []DeviceMatch
 		if d, ok := f.byIP[ip]; ok {
-			out[ip] = d
+			ms = append(ms, DeviceMatch{Device: d, Via: ViaListedIP})
+		}
+		ms = append(ms, f.at[ip]...)
+		slices.SortFunc(ms, func(a, b DeviceMatch) int { return strings.Compare(a.ID, b.ID) })
+		if len(ms) > 0 {
+			out[ip] = ms
 		}
 	}
 	return out, nil

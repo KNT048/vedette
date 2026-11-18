@@ -112,7 +112,15 @@ function SourcesSection() {
             { id: 'device', header: t('sources.col.device'), accessorFn: (r) => r.name, cell: ({ row: { original: r } }) => (
               <div className="grid">
                 {r.asset_id ? <Link to={`/devices/${r.asset_id}`} className="font-medium text-accent underline-offset-4 hover:underline">{r.name}</Link> : <span className="font-medium">{r.name}</span>}
-                <span className="text-caption text-muted">{CATALOG[r.kind].name}{r.asset_id ? '' : `, ${t('sources.notInInventory')}`}</span>
+                <span className="text-caption text-muted">{CATALOG[r.kind].name}{r.asset_id || r.asset_matches.length ? '' : `, ${t('sources.notInInventory')}`}{r.asset_via === 'snmp_read' ? `, ${t('sources.viaSnmp')}` : ''}</span>
+                {r.asset_matches.length > 0 && (
+                  <span className="text-caption text-muted">
+                    {t('sources.matchesSeveral')}{' '}
+                    {r.asset_matches.map((m, i) => (
+                      <span key={m.id}>{i > 0 && ', '}<Link to={`/devices/${m.id}`} className="text-accent underline-offset-4 hover:underline">{m.name}</Link></span>
+                    ))}
+                  </span>
+                )}
               </div>
             ) },
             { id: 'ip', header: t('sources.col.ip'), accessorFn: (r) => r.sender_ip, cell: ({ row }) => <span className="whitespace-nowrap">{row.original.sender_ip}</span> },

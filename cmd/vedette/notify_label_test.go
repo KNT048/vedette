@@ -1,12 +1,15 @@
 package main
 
 import (
+	"context"
 	"net/netip"
 	"testing"
 
 	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/modules/inventory"
+	"github.com/knt048/vedette/modules/logs"
 	"github.com/knt048/vedette/modules/notify"
+	sensoractive "github.com/knt048/vedette/modules/sensor-active"
 )
 
 // A new-device incident names the device as the Devices page does (inventory's one naming rule: here the
@@ -82,8 +85,40 @@ func TestFindingAndLogIncidentsUseTheDevicesName(t *testing.T) {
 	if name, ok, err := (notifyDevices{s.d.Inventory}).DeviceName(ctx, id); err != nil || !ok || name != want {
 		t.Errorf("notice name %q %v %v, want %q", name, ok, err, want)
 	}
-	got, err := logsInventory{s.d.Inventory}.DevicesByIP(ctx, []string{ip, "192.168.18.9"})
-	if err != nil || len(got) != 1 || got[ip].ID != id || got[ip].Name != "Hon Hai Precision Ind. Co.,Ltd." {
+	got, err := logsInventory{inv: s.d.Inventory}.DevicesAt(ctx, []string{ip, "192.168.18.9"})
+	if err != nil || len(got) != 1 || len(got[ip]) != 1 || got[ip][0].ID != id || got[ip][0].Name != "Hon Hai Precision Ind. Co.,Ltd." || got[ip][0].Via != logs.ViaListedIP {
 		t.Errorf("log device %+v %v, want %s and the Devices name", got, err, id)
+	}
+	// The address the device's SNMP is read from is the device too, and says so; the same device at its listed IP is not said twice.
+	// An address two devices have returns both.
+	other := "192.168.18.182"
+	if err := s.d.Inventory.Record(ctx, []observe.Observation{
+		{AssetHint: observe.AssetHint{MAC: "aa:bb:cc:00:00:22", IP: netip.MustParseAddr(other)}, Field: observe.Vendor, Value: "Acme", Source: observe.Passive, Confidence: 0.4},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	l, err = s.d.Inventory.Devices(ctx)
+	if err != nil || len(l.Items) != 2 {
+		t.Fatalf("devices %+v %v", l, err)
+	}
+	otherID := l.Items[0].ID
+	if otherID == id {
+		otherID = l.Items[1].ID
+	}
+	mgmt := netip.MustParseAddr("10.9.9.1")
+	snmp := func(context.Context) ([]sensoractive.SNMPDevice, error) {
+		return []sensoractive.SNMPDevice{
+			{DeviceID: id, ReadFrom: mgmt},
+			{DeviceID: otherID, ReadFrom: mgmt},
+			{DeviceID: id, ReadFrom: netip.MustParseAddr(ip)},
+			{DeviceID: "gone", ReadFrom: netip.MustParseAddr("10.9.9.2")},
+		}, nil
+	}
+	got, err = logsInventory{inv: s.d.Inventory, snmp: snmp}.DevicesAt(ctx, []string{ip, "10.9.9.1", "10.9.9.2"})
+	if err != nil || len(got) != 2 || len(got[ip]) != 1 || got[ip][0].Via != logs.ViaListedIP {
+		t.Fatalf("by address %+v %v, want the listed IP once and no device for a deleted one", got, err)
+	}
+	if m := got["10.9.9.1"]; len(m) != 2 || m[0].Via != logs.ViaSNMPRead || m[1].Via != logs.ViaSNMPRead || m[0].ID == m[1].ID {
+		t.Errorf("read address %+v, want both devices, via snmp_read", m)
 	}
 }

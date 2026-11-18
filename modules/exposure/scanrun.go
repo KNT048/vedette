@@ -211,7 +211,7 @@ func (s *Service) execute(ctx context.Context, run *scanRun, r Runner, user stri
 	}()
 	s.setPhase(run, PhaseProbing)
 	run.prog.Report(progress.Phase(progress.PhasePorts, "")) // #830: the jobs below report their own phases as they run
-	st := ScanTarget{ID: t.ID, Kind: t.Kind, Value: t.Value, User: user, Mode: run.mode}
+	st := ScanTarget{ID: t.ID, Kind: t.Kind, Value: t.Value, User: user, Mode: run.mode, Typed: t.Typed}
 	if t.proofDomain != "" { // the domain whose token proved the target at the gate, and the name its record sits on when not that domain's own
 		st.Proof = &ProofOwner{Domain: t.proofDomain, Token: t.proofToken, ProofAt: t.proofAt}
 	}

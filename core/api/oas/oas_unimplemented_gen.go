@@ -1446,11 +1446,13 @@ func (UnimplementedHandler) ExposurePostExposureTargetsIDOutside(ctx context.Con
 // again once: it counts as missing (operators get 400 commitment_required "the confirmation text
 // changed"), a request without notice_version gets 409 notice_changed, and the administrator's press
 // replaces it. After those checks the scan module's runner does the scan (it follows this module's
-// switch, so the Vulnerability scans module may be off): ports are scanned only on the box's own
-// verified public IPs; a domain's names from certificate transparency, its MX and NS records and a
-// list of common names (looked up through the box's DNS resolver) are listed with the kind of each
-// address (INV-27) and get one GET of / by name on ports 80 and 443; only the box's own address is
-// scanned beyond that. 409 module_off while the External exposure module is off; 409 busy while
+// switch, so the Vulnerability scans module may be off): ports and pages are scanned on the box's own
+// verified public IPs and on a typed public IP while its proof is found (looked for again right
+// before, one live result reused for 5 minutes); a domain's names from certificate transparency, its
+// MX and NS records and a list of common names (looked up through the box's DNS resolver) are listed
+// with the kind of each address (INV-27) and get one GET of / by name on ports 80 and 443; the deep
+// steps beyond that go to the box's own address, and to a typed IP or an address of a domain through
+// the executors' own fence. 409 module_off while the External exposure module is off; 409 busy while
 // another scan runs on the box; 429 rate_limited within 10 minutes of the target's last scan. Failures
 // that come while the scan runs (400 too_many when the domain has more than 300 names in the logs; 502
 // unreachable when the certificate-transparency search (crt.sh) does not answer or the scan does not

@@ -280,14 +280,17 @@ func noneIfEmpty(ips []string) string {
 // allowed once every DomainCheckEvery per target and counts against the box-wide bound, like a domain's; the box's own re-check
 // (limited false) counts against the bound only. A pass renews the 30 days from now. "Not found" is verified:false with what was asked.
 func (s *Service) verifyTyped(ctx context.Context, user string, t Target, limited bool) (VerifyResult, error) {
-	if err := s.domainCheckAllowed(t.ID, limited); err != nil {
-		return VerifyResult{}, fmt.Errorf("exposure: verifying: %w", err)
+	if limited { // a person's check takes the per-target pause and the box-wide bound; the box's own re-check has its own schedule
+		if err := s.domainCheckAllowed(t.ID, true); err != nil {
+			return VerifyResult{}, fmt.Errorf("exposure: verifying: %w", err)
+		}
 	}
 	all, err := listTargets(ctx, s.cfg.DB.Reader())
 	if err != nil {
 		return VerifyResult{}, fmt.Errorf("exposure: verifying: reading the targets: %w", err)
 	}
 	pr := s.proveIP(ctx, t, all)
+	s.rememberLive(t.ID, pr)
 	err = s.write(ctx, func(tx *sql.Tx, emit func(string, any)) error {
 		cur, err := loadTarget(ctx, tx, t.ID) // the target may have been deleted, or seen as the box's own, meanwhile
 		if err != nil {
@@ -335,14 +338,61 @@ func orDefault(v, d string) string {
 	return v
 }
 
-// liveTypedProof is the proof of a typed IP right before something is sent to it (a scan, a question to Shodan): looked for now, and
-// kept as the target's last check; a pass also renews the 30 days. The target is read again afterwards.
+// liveFor is how long a live result of a typed IP's proof is reused (never past the proof's own expiry); a failure only lives liveFailFor,
+// so a person who fixed the file is not refused for minutes.
+const (
+	liveFor     = 5 * time.Minute
+	liveFailFor = DomainCheckEvery
+)
+
+type liveEntry struct {
+	at time.Time
+	pr ipProof
+}
+
+func (s *Service) rememberLive(id string, pr ipProof) {
+	s.liveMu.Lock()
+	defer s.liveMu.Unlock()
+	s.live[id] = liveEntry{at: s.clock(), pr: pr}
+}
+
+// liveResult is the live result of the last liveFor (liveFailFor for a failure) for a target, or false.
+func (s *Service) liveResult(t Target) (ipProof, bool) {
+	now := s.clock()
+	s.liveMu.Lock()
+	e, ok := s.live[t.ID]
+	s.liveMu.Unlock()
+	if !ok || e.at.After(now) {
+		return ipProof{}, false
+	}
+	window := liveFor
+	if !e.pr.ok {
+		window = liveFailFor
+	}
+	if exp := t.expiresAt(now); exp.IsZero() || !now.Before(exp) {
+		return ipProof{}, false
+	}
+	return e.pr, now.Sub(e.at) < window
+}
+
+// liveTypedProof is the proof of a typed IP right before something is sent to it (a scan, a step of it, a question to Shodan, OpenVAS):
+// one live result per target is looked for and reused for liveFor, so the gate, ScannableIP, every step and the terms of one scan ask the
+// third party once. A look that is not cached takes the per-target pause and the box-wide bound of a person's check; when they are used up
+// the last check stands (fail closed when it was not OK). A pass renews the 30 days. The target is read again afterwards.
 func (s *Service) liveTypedProof(ctx context.Context, actor string, t Target) (Target, error) {
+	reload := func() (Target, error) { return loadTarget(ctx, s.cfg.DB.Reader(), t.ID) }
+	if _, ok := s.liveResult(t); ok {
+		return reload()
+	}
+	if err := s.domainCheckAllowed(t.ID, true); err != nil {
+		return reload() // the last check stands
+	}
 	all, err := listTargets(ctx, s.cfg.DB.Reader())
 	if err != nil {
 		return Target{}, fmt.Errorf("reading the targets: %w", err)
 	}
 	pr := s.proveIP(ctx, t, all)
+	s.rememberLive(t.ID, pr)
 	err = s.write(ctx, func(tx *sql.Tx, _ func(string, any)) error {
 		cur, err := loadTarget(ctx, tx, t.ID)
 		if err != nil || !cur.Typed {
@@ -366,7 +416,7 @@ func (s *Service) liveTypedProof(ctx context.Context, actor string, t Target) (T
 	if err != nil {
 		return Target{}, fmt.Errorf("recording the proof check: %w", err)
 	}
-	return loadTarget(ctx, s.cfg.DB.Reader(), t.ID)
+	return reload()
 }
 
 // RunIPRecheck is the body of the ip-proof job (INV-35): every typed IP whose proof is still valid, and is within IPRecheckLeft of

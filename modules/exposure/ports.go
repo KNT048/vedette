@@ -55,6 +55,8 @@ type ScanTarget struct {
 	// Mode is what this scan may do: Full once the target's testing terms are accepted, else the basic scope. Every
 	// scanner seam reads it here, and only here.
 	Mode ScanMode
+	// Typed: the target is a public IP a person typed in (INV-35); its proof is looked for again before the steps that reach the address.
+	Typed bool
 	// Domain is set on a deep step of a domain's scan sent to a public address that is not the box's own verified IP:
 	// the domain, the name under it that resolved to the address at the core-side re-check right before the step, and the
 	// domain's box-bound token from DomainFence. The scanner then runs the job with scope domain_ip and its executor checks the fence

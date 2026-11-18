@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Input, Select } from '@/components/ui/input'
 import { Segmented } from '@/components/ui/segmented'
-import { fmtDateTime, fmtRelative } from '@/lib/format'
+import { dayOf, fmtDateTime, fmtRelative } from '@/lib/format'
 import { useInstallKind, useModuleEnabled } from '@/lib/modules'
 import { linuxOneLiner, OSQUERY_SCHEDULE, osquerySteps, windowsOneLiner, wazuhReaderSteps, type Platform } from './agentConfig'
 import { NO_BOX_ADDRESS } from './installScripts'
@@ -211,6 +211,7 @@ export function TokenError({ error, onRemoved }: { error: unknown; onRemoved: ()
   return (
     <Notice tone="danger" role="alert" className="mb-0" title={errMsg(error)}
       actions={full ? (
+        /* empty-guard: a toast after the action, not a link or button that leads anywhere */
         <Button size="sm" busy={removeUnused.isPending} busyLabel={t('common:busy.removing')}
           onClick={() => removeUnused.mutate(undefined, { onSuccess: (r) => { toast.success(t('agents.removeUnused.done', { count: r.removed })); onRemoved() }, onError: (e) => toast.error(errMsg(e)) })}>{t('agents.removeUnused.button')}</Button>
       ) : undefined} />
@@ -228,7 +229,7 @@ export function OsqueryEnrol({ data, tokenName, onCreated }: { data: AgentsRespo
   const [result, setResult] = useState<CreateTokenResult | null>(null)
   function make() {
     setError(null)
-    const name = (tokenName ?? t('agents.defaultTokenName', { day: new Date().toISOString().slice(0, 10) })).slice(0, 64)
+    const name = (tokenName ?? t('agents.defaultTokenName', { day: dayOf(new Date().toISOString()) })).slice(0, 64)
     create.mutate({ name, kind: 'osquery', expires_in_days: 7 }, { onSuccess: (r) => { setResult(r); onCreated?.(r) }, onError: setError })
   }
   if (result) {
@@ -483,6 +484,7 @@ export function AgentsSection() {
                       <p className="max-w-3xl text-meta text-muted">{t('agents.page.tokenBody')}</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
+                      {/* empty-guard: a toast after the action, not a link or button that leads anywhere */}
                       {d.tokens.some((k) => k.hosts === 0 && Date.now() - Date.parse(k.created_at) > 3_600_000) ? <Button busy={removeUnused.isPending} busyLabel={t('common:busy.removing')} title={t('agents.removeUnused.hint')}
                         onClick={() => removeUnused.mutate(undefined, { onSuccess: (r) => toast.success(t('agents.removeUnused.done', { count: r.removed })), onError: (e) => toast.error(errMsg(e)) })}>{t('agents.removeUnused.button')}</Button> : null}
                       <Button onClick={() => setCreating(true)}><Plus />{t('agents.create')}</Button>

@@ -13,10 +13,10 @@ import (
 // sentence of that version. Changing the text means a new version, so a page that shows the old one is refused (409 notice_changed)
 // instead of recording words nobody read. The mock's copy (web/src/features/exposure/contract.ts) is held equal by a test.
 const (
-	NoticeVersion  = "2026-11-14"
+	NoticeVersion  = "2026-11-18"
 	noticeTemplate = "By choosing Scan now I confirm that my company owns {value} and that I am authorized to scan it, including identifying its services and versions, " +
 		"safe checks for known exploited vulnerabilities and a passive web scan. " +
-		"Vedette is provided as is under the Apache-2.0 license; its author, Kien Nguyen, is not responsible for how you use it."
+		"Vedette is provided as is under the Apache-2.0 license; the Vedette authors are not responsible for how you use it."
 )
 
 // Notice is the sentence with its version (contract.ts Notice).

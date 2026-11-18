@@ -66,6 +66,20 @@ function hardwareLine(d: DeviceRow) {
   return [vendor, model].filter(Boolean).join(' ')
 }
 
+/** Under the name: maker and model on one line cut with an ellipsis, then the OS. The OS or firmware version decides the CVE match, so it
+ *  is never the part cut: it wraps in full ("Windows Server 2025 Standard Evaluation 10.0.26100.1742"). The whole text is also the title. */
+function HardwareLine({ d }: { d: DeviceRow }) {
+  const hw = hardwareLine(d)
+  const os = d.os?.value ?? ''
+  if (!hw && !os) return null
+  return (
+    <span className="flex flex-wrap items-baseline gap-x-1.5 text-meta text-muted" title={[hw, os].filter(Boolean).join(', ')}>
+      {hw ? <span className="min-w-0 max-w-full truncate">{hw}</span> : null}
+      {os ? <span className="min-w-0 max-w-full break-words">{os}</span> : null}
+    </span>
+  )
+}
+
 const FEED_ORDER = ['osquery', 'wazuh', 'snmp', 'scan', 'passive', 'manual'] as const
 /** Sources cell (#849): which feeds report on the device, in the order they win (agent, SNMP, scan, passive), and "low confidence"
  *  when the weakest value is a guess. The device page has every value with its own source and confidence. */
@@ -207,31 +221,25 @@ function DevicesList({ rows, now, query, same }: { rows: DeviceRow[]; now: numbe
       header: () => <Checkbox aria-label={t('select.all')} checked={groupState(shownIds, sel)} onCheckedChange={(v) => (v === true ? ops.add(shownIds) : ops.remove(shownIds))} />,
       cell: ({ row }) => <span onClick={(e) => e.stopPropagation()}><Checkbox aria-label={t('select.one', { name: nameOf(row.original, kindLabel(row.original.kind)) })} checked={sel.has(row.original.id)} onCheckedChange={(v) => ops.toggle(row.original.id, v === true)} /></span>,
     } satisfies ColumnDef<DeviceRow>] : []),
-    { id: 'name', header: t('col.name'), accessorFn: (d) => nameOf(d, kindLabel(d.kind)), cell: ({ row }) => (
-      <div className="flex items-center gap-x-2 whitespace-nowrap">{nameLink(row.original, 'whitespace-nowrap')}<NameChips d={row.original} dense /><SameChip id={row.original.id} others={same.others.get(row.original.id) ?? []} /></div>
-    ) },
+    // One cell for the name and what the device is: the name (cut with an ellipsis, in full on hover), and under it maker, model and OS.
+    // The cell takes the width the other columns leave (min-w-0: its text never widens the table), so the list fits a laptop window.
+    { id: 'name', header: t('col.name'), accessorFn: (d) => nameOf(d, kindLabel(d.kind)), cell: ({ row }) => {
+      const d = row.original
+      const name = nameOf(d, kindLabel(d.kind))
+      return (
+        <div className="min-w-0">
+          <div className="flex items-center gap-x-2">
+            <Link to={`/devices/${d.id}`} onClick={(e) => e.stopPropagation()} title={name} className="min-w-0 truncate font-medium text-accent underline-offset-4 hover:underline">{name}</Link>
+            <NameChips d={d} dense /><SameChip id={d.id} others={same.others.get(d.id) ?? []} />
+          </div>
+          <HardwareLine d={d} />
+        </div>
+      )
+    } },
     // The risk marker, sortable (worst first on the first click); empty for a clean device
     { id: 'risk', header: t('risk.column'), sortDescFirst: true, accessorFn: (d) => riskRank(d.risk), cell: ({ row }) => <RiskMarker id={row.original.id} risk={row.original.risk} /> },
     { id: 'ip', header: t('col.ip'), accessorFn: (d) => d.ip, cell: ({ row }) => <span className="whitespace-nowrap tabular-nums">{row.original.ip}</span> },
     { id: 'kind', header: t('col.kind'), accessorFn: (d) => { const k = shownKind(d).kind; return `${kindLabel(k)} ${categoryLabel(categoryOf(k))}` }, cell: ({ row }) => <TypeCell d={row.original} dense /> },
-    // #849 review: one line per row at 1280. Make, model and OS share a column, cut with an ellipsis (the whole text on hover, the
-    // device page has each value); the OS in muted text after the model.
-    { id: 'hw', header: t('col.device'), accessorFn: (d) => [d.vendor?.value, d.model?.value, d.os?.value].filter(Boolean).join(' '), cell: ({ row }) => {
-      // #849: the OS or firmware version decides the CVE match, so it is never the part cut. Maker and model and the OS
-      // sit on one line when they fit; otherwise the OS wraps to its own line(s) in full ("Windows Server 2025 Standard
-      // Evaluation 10.0.26100.1742" ran over Sources and Last seen; #888: a clamp would hide the version). The maker and
-      // model keep one line with an ellipsis. The whole text stays in the DOM (screen readers) and in the tooltip.
-      const d = row.original
-      const hw = hardwareLine(d)
-      const os = d.os?.value ?? ''
-      if (!hw && !os) return dash
-      return (
-        <span className="flex max-w-64 flex-wrap items-baseline gap-x-1.5 2xl:max-w-md" title={[hw, os].filter(Boolean).join(', ')}>
-          {hw ? <span className="min-w-0 max-w-full truncate">{hw}</span> : null}
-          {os ? <span className="min-w-0 max-w-full break-words text-muted">{os}</span> : null}
-        </span>
-      )
-    } },
     // M2: with software: in the search the list answers "which devices run it, at which version" (the old Software tab), as runZero does.
     ...(swWanted.length ? [{
       id: 'matched', header: t('col.matched'), accessorFn: (d: DeviceRow) => matchSoftware(d, swWanted).map((x) => x.display).join(' '),
@@ -256,7 +264,7 @@ function DevicesList({ rows, now, query, same }: { rows: DeviceRow[]; now: numbe
       <DeviceSearch rows={rows} now={now} query={query} same={same.ids} />
       <MatchLine q={q} shown={shown.length} total={rows.length} onClear={clear} />
       {selecting ? <div className="flex flex-wrap items-center gap-2"><Slot name={DEVICES_ACTIONS_SLOT} props={{ selectedIds: [...sel], selected: rows.filter((d) => sel.has(d.id)), clearSelection: ops.clear }} /></div> : null}
-      <DataTable caption={t('table.caption')} data={shown} columns={columns} initialSort={[{ id: 'seen', desc: true }]}
+      <DataTable caption={t('table.caption')} data={shown} columns={columns} initialSort={[{ id: 'seen', desc: true }]} fillColumn="name"
         onRowClick={(d) => void navigate(`/devices/${d.id}`)}
         empty={t('table.emptyApproved')} filtered={!!q} onClearFilters={clear}
         mobileRow={(d) => {

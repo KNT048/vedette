@@ -284,9 +284,11 @@ describe('honeypot: device.panels slot', () => {
     await expectNoA11yViolations()
   })
 
-  it('a device that never hit a trap says so', async () => {
-    panel('a-pc01')
-    expect(await screen.findByText('This device has not hit any trap.')).toBeInTheDocument()
+  it('a device that never hit a trap shows no trap hits section at all', async () => {
+    const { container } = panel('a-pc01')
+    await waitFor(() => expect(container).toBeEmptyDOMElement())
+    expect(screen.queryByRole('heading', { name: 'Internal trap hits' })).toBeNull()
+    expect(screen.queryByText('This device has not hit any trap.')).toBeNull()
   })
 
   it('module off renders nothing', async () => {

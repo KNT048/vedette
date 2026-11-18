@@ -118,6 +118,29 @@ type Inventory interface {
 	IgnoredIDs(ctx context.Context) ([]string, error)
 	// IsIgnored says whether a person ignored the device; false when it does not exist. Asked inside a write.
 	IsIgnored(ctx context.Context, assetID string) (bool, error)
+	// EffectiveSoftware returns the device's software as one row per software, the strongest source's reading (inventory INV-50):
+	// agent > a person's entry > SNMP > a scan banner, a weaker less precise form of the same release being the same release. Every
+	// reader that says what version a device runs reads this, never a single source's row.
+	EffectiveSoftware(ctx context.Context, assetID string) ([]EffectiveSoftware, error)
+}
+
+// EffectiveSoftware is one software of a device as inventory's effective row gives it (inventory.EffectiveSoftware).
+type EffectiveSoftware struct {
+	ID, Vendor, Product, Display string
+	Version, PkgVersion          string // "" when none
+	Packaged                     bool
+	CPE                          string
+	Source                       string
+	SetBy                        string // who entered it, for a person's entry
+	SeenAt                       string
+	AlsoSeen                     []AlsoSeen
+	Differs                      bool // a weaker source reads another release, newer than this row's source did
+}
+
+// AlsoSeen is another source's reading of an EffectiveSoftware.
+type AlsoSeen struct {
+	ID, Source, Version, PkgVersion, SeenAt string
+	SameRelease                             bool
 }
 
 // KevInfo is the KEV entry shown with a finding (FindingRow.kev, INV-8).

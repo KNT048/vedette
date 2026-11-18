@@ -262,19 +262,8 @@ func lowerRelease(a, b string) (lower, ok bool) {
 	return apkver.Compare(va, vb) < 0, true
 }
 
-// apkNVDVersion is the upstream version of an apk release in the form NVD writes it: "10.2_p1-r1" is 10.2p1 (apk's _p is a patch
-// letter suffix; the other suffixes keep their apk spelling and so are not read as a release).
-func apkNVDVersion(rel string) string {
-	return apkPatchRE.ReplaceAllStringFunc(apkver.Upstream(rel), func(m string) string {
-		d := m[2:]
-		if len(d) <= 3 {
-			return "p" + d // a short patch number: OpenSSH's "10.2_p1" is 10.2p1
-		}
-		return "+" + d // a date ("6.5_p20250503"): a build tail NVD's ranges cannot place, so the bounds stay unknown, as for Debian's "6.5+20250503"
-	})
-}
-
-var apkPatchRE = regexp.MustCompile(`_p[0-9]*`)
+// apkNVDVersion is the upstream version of an apk release in the form NVD writes it (apkver.NVDVersion).
+func apkNVDVersion(rel string) string { return apkver.NVDVersion(rel) }
 
 // pacmanVersionRE is the shape pacman prints (the reporter reads the same one): an optional epoch, the upstream version, "-", the release.
 var pacmanVersionRE = regexp.MustCompile(`^([0-9]+:)?[A-Za-z0-9._+~]+-[A-Za-z0-9._+]+$`)

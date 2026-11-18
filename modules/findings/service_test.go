@@ -71,6 +71,10 @@ func (f *fakeInv) IsIgnored(_ context.Context, id string) (bool, error) {
 	return f.ignored[id], nil
 }
 
+func (f *fakeInv) EffectiveSoftware(context.Context, string) ([]EffectiveSoftware, error) {
+	return []EffectiveSoftware{}, nil
+}
+
 func (f *fakeInv) AssetIDs(context.Context) ([]string, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()

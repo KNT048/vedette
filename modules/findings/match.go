@@ -1421,6 +1421,9 @@ func decide(in swInfo, v Vuln, key []identity) (t Tri, within VersionRange, ever
 	var yes *VersionRange // the widest range the version is inside: the one that explains the finding and names its fix
 	jv, isJ := junosParse(in.ver)
 	junosSeen := false // a Junos NVD row decided (junosEval): its exact rows say what a missing update means
+	// trainOnly: an exact row of a dotted network OS was ruled out only by its train (dottedListGuess); then only a version after
+	// every entry of the OS (beyond, dottedAfter) is a proof, as with Junos (junosListed)
+	trainOnly, beyond := false, true
 	var jl junosList
 	for _, af := range v.Affected {
 		c, err := af.cpe()
@@ -1468,6 +1471,8 @@ func decide(in swInfo, v Vuln, key []identity) (t Tri, within VersionRange, ever
 		case Unknown:
 			result = Unknown
 		case No:
+			trainOnly = trainOnly || dottedListGuess(c, af.Range, in.ver)
+			beyond = beyond && (osScheme(c) != schemeDotted || dottedAfter(c, af.Range, in.ver))
 		}
 	}
 	if yes != nil {
@@ -1504,6 +1509,9 @@ func decide(in swInfo, v Vuln, key []identity) (t Tri, within VersionRange, ever
 		return No, VersionRange{}, every, proofNone
 	}
 	if pv, ok := parseVersion(in.ver); result == No && ok && !isPlaceholder(in.ver) && pv.q.class >= 0 {
+		if trainOnly && !beyond { // an enumeration read partly by its trains, which leaves releases out: no finding, no proof
+			return No, VersionRange{}, every, proofNone
+		}
 		return No, VersionRange{}, every, proofRange // a pre-release ("2.0.0-rc1") near a bound proves nothing
 	}
 	return result, VersionRange{}, every, proofNone
@@ -1635,8 +1643,8 @@ func evalAffected(c CPE, r VersionRange, ver string, sw CPE, hasSW bool) (Tri, V
 		if t == No && exact {
 			t = looseExact(r, ver)
 		}
-		if t == Unknown && osScheme(c) == schemeDotted { // "up to 15.2(6)e0a" on IOS XE 17.3.1: decided by its numbers
-			t = dottedOutside(r, exact, ver)
+		if (t == Unknown || exact && t == No) && osScheme(c) == schemeDotted { // "up to 15.2(6)e0a" on IOS XE 17.3.1: by its numbers
+			t = dottedDecide(t, r, exact, ver)
 		}
 	} else {
 		t = evalUpdate(c, r, ver, sw, hasSW)

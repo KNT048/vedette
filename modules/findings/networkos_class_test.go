@@ -72,6 +72,9 @@ func networkOSOutcomes(a Asset, vulns []Vuln) map[string]string {
 	return out
 }
 
+// xeRebuilds are IOS XE rebuilds (a letter after the release) that NVD's enumerations of some exploited CVEs leave out.
+var xeRebuilds = []string{"17.5.1c", "17.5.1b", "16.5.1c", "16.9.4a", "17.12.1w", "17.6.6b", "17.9.5c", "16.12.3b"}
+
 // The class of "could not be checked: not_comparable" on network gear, measured over every exploited CVE NVD lists for the five
 // network OSes, at versions such devices really state. It prints each outcome per version (go test -v), holds a ceiling of
 // not_comparable per version (a change that makes more of them fails) and the exact number of findings (a change that loses one,
@@ -82,6 +85,9 @@ func networkOSOutcomes(a Asset, vulns []Vuln) map[string]string {
 //   - Junos 20.4R3-S8 (CVE-2023-36846, -36847) and 22.4R2-S1 (CVE-2023-36844 to -36847): a build after the last one NVD lists
 //     on the device's own branch (no finding, no proof: junosListed);
 //   - Junos 12.3X48-D10, CVE-2023-36851: NVD lists only releases from 21.2 on, so an older one is not proved outside;
+//   - IOS XE 17.9.4a and other rebuilds, CVE-2023-20273: NVD lists the release without the letter (17.9.4), and its enumerations
+//     leave rebuilds out, so the same numbers with another letter are not decided;
+//   - IOS XE 3.6.4e: IOS XE 3.x carries classic IOS numbers (3.6.4E is IOS 15.2(2)E4), so bounds written as 15.x are not ordered;
 //   - classic Cisco IOS: no order Vedette compares, every one of its CVEs, by design.
 func TestNetworkOS_TrainBoundsClass(t *testing.T) {
 	t.Parallel()
@@ -93,17 +99,19 @@ func TestNetworkOS_TrainBoundsClass(t *testing.T) {
 		{"o:juniper:junos", "Juniper", "Junos OS", "JUNOS %s",
 			[]string{"12.1R11", "12.3X48-D10", "15.1R7.9", "18.4R3-S1", "20.4R3-S8", "21.2R3", "22.4R2-S1", "23.2R1"}},
 		{"o:fortinet:fortios", "Fortinet", "FortiOS", "FortiOS %s", []string{"6.0.4", "6.4.9", "7.0.12", "7.2.13", "7.4.3"}},
-		{"o:cisco:ios_xe", "Cisco", "IOS XE Software", "Cisco IOS XE %s", []string{"16.9.4", "17.3.1", "17.9.4a"}},
+		{"o:cisco:ios_xe", "Cisco", "IOS XE Software", "Cisco IOS XE %s", append([]string{"16.9.4", "17.3.1", "17.9.4a", "3.6.4e"}, xeRebuilds...)},
 		{"o:mikrotik:routeros", "MikroTik", "RouterOS", "RouterOS %s", []string{"6.48", "7.12.1"}}, //nolint:misspell // RouterOS is the product name
 		{"o:cisco:ios", "Cisco", "IOS", "Cisco IOS %s", []string{"15.2(4)M3"}},
 	}
 	// Per stated OS: the findings (basis version) it must get, and the most not_comparable outcomes it may have. Before train
-	// bounds were decided the same versions had 63 not_comparable (Junos 13, IOS XE 13, IOS 37) and 33 no_nvd_versions.
+	// bounds were decided the same versions had 106 not_comparable (Junos 13, IOS XE 56, IOS 37) and 119 no_nvd_versions.
 	want := map[string]struct{ affected, notComparable int }{
 		"JUNOS 12.1R11": {6, 0}, "JUNOS 12.3X48-D10": {7, 1}, "JUNOS 15.1R7.9": {6, 1}, "JUNOS 18.4R3-S1": {5, 0},
 		"JUNOS 20.4R3-S8": {3, 2}, "JUNOS 21.2R3": {6, 0}, "JUNOS 22.4R2-S1": {2, 4}, "JUNOS 23.2R1": {4, 0},
 		"FortiOS 6.0.4": {11, 0}, "FortiOS 6.4.9": {7, 0}, "FortiOS 7.0.12": {9, 0}, "FortiOS 7.2.13": {2, 0}, "FortiOS 7.4.3": {5, 0},
-		"Cisco IOS XE 16.9.4": {4, 0}, "Cisco IOS XE 17.3.1": {5, 0}, "Cisco IOS XE 17.9.4a": {2, 0},
+		"Cisco IOS XE 16.9.4": {4, 0}, "Cisco IOS XE 17.3.1": {5, 0}, "Cisco IOS XE 17.9.4a": {2, 1}, "Cisco IOS XE 3.6.4e": {13, 6},
+		"Cisco IOS XE 17.5.1c": {3, 0}, "Cisco IOS XE 17.5.1b": {2, 0}, "Cisco IOS XE 16.5.1c": {1, 1}, "Cisco IOS XE 16.9.4a": {1, 1},
+		"Cisco IOS XE 17.12.1w": {2, 1}, "Cisco IOS XE 17.6.6b": {1, 1}, "Cisco IOS XE 17.9.5c": {1, 1}, "Cisco IOS XE 16.12.3b": {3, 0},
 		"RouterOS 6.48": {3, 0}, "RouterOS 7.12.1": {3, 0},
 		"Cisco IOS 15.2(4)M3": {0, 37}, // not orderable: every CVE that gives a version, by design
 	}
@@ -112,10 +120,20 @@ func TestNetworkOS_TrainBoundsClass(t *testing.T) {
 		{"JUNOS 15.1R7.9", "CVE-2015-5477"}:        "unchecked:not_comparable", // "15.1:r": the device's own release, no number
 		{"JUNOS 18.4R3-S1", "CVE-2015-5477"}:       "not_affected",             // after every release NVD lists ("12.1r" too)
 		{"JUNOS 23.2R1", "CVE-2015-5477"}:          "not_affected",
-		{"Cisco IOS XE 17.3.1", "CVE-2018-0167"}:   "not_affected", // "up to 15.2(6)e0a", "up to 15.6.3m1", "5.2.0.base"
-		{"Cisco IOS XE 17.9.4a", "CVE-2023-20273"}: "not_affected", // the fix itself; NVD lists 17.9.4, not 17.9.4a
+		{"Cisco IOS XE 17.3.1", "CVE-2018-0167"}:   "not_affected",             // "up to 15.2(6)e0a", "up to 15.6.3m1", "5.2.0.base"
+		{"Cisco IOS XE 17.9.4a", "CVE-2023-20273"}: "unchecked:not_comparable", // NVD lists 17.9.4: 17.9.4a may be a rebuild it left out
 		{"Cisco IOS XE 17.3.1", "CVE-2023-20273"}:  "affected",
 	}
+	// Versions NVD's list does not decide, which must never be proved outside: an IOS XE rebuild NVD's enumeration leaves out
+	// (it lists 17.5.1 and 17.5.1a for CVE-2025-20352, which affects all of 17.5, not 17.5.1c), and IOS XE 3.6.4E, which is IOS
+	// 15.2(2)E4 under another numbering (CVE-2018-0156 lists ios_xe 15.2(2)e4).
+	notProved := map[string][]string{"Cisco IOS XE 3.6.4e": {"CVE-2018-0156"}}
+	for _, v := range xeRebuilds {
+		notProved["Cisco IOS XE "+v] = []string{"CVE-2023-20109", "CVE-2023-20273", "CVE-2025-20352"}
+	}
+	// 17.12.1w is after every release NVD lists for CVE-2023-20109 (its last is 17.11.99sw): proved outside like any version after
+	// a whole enumeration (junosListed reads Junos the same way).
+	notProved["Cisco IOS XE 17.12.1w"] = []string{"CVE-2023-20273", "CVE-2025-20352"}
 	total := map[string]int{}
 	for _, p := range products {
 		vulns := networkOSVulns(rows, p.cpe, p.vendor, p.product)
@@ -146,6 +164,13 @@ func TestNetworkOS_TrainBoundsClass(t *testing.T) {
 			for k, o := range named {
 				if k[0] == stated && got[k[1]] != o {
 					t.Errorf("%s, %s: %s, want %s", stated, k[1], got[k[1]], o)
+				}
+			}
+			for k, cves := range notProved {
+				for _, cve := range cves {
+					if k == stated && got[cve] == "not_affected" {
+						t.Errorf("%s, %s: proved not affected, but NVD's list does not decide it", stated, cve)
+					}
 				}
 			}
 		}
@@ -230,8 +255,13 @@ func TestNetworkOS_DottedTrainBounds(t *testing.T) {
 		{xe, VersionRange{StartIncl: "3.2sg", EndIncl: "3.9e"}, "17.3.1", No},
 		{exact("5.2.0.base"), VersionRange{}, "17.3.1", No},
 		{exact("16.12.1z1"), VersionRange{}, "16.12.4", No},
-		{exact("16.12.1z1"), VersionRange{}, "16.12.1", Unknown}, // the same train
-		{exact("17.9.4"), VersionRange{}, "17.9.4a", No},         // NVD writes the rebuild as a row of its own
+		{exact("16.12.1z1"), VersionRange{}, "16.12.1", Unknown},  // the same train
+		{exact("17.9.4"), VersionRange{}, "17.9.4a", Unknown},     // a rebuild NVD's enumeration may leave out
+		{exact("17.5.1"), VersionRange{}, "17.5.1c", Unknown},     // CVE-2025-20352: 17.5.1, 17.5.1a listed, all of 17.5 affected
+		{exact("17.5.1"), VersionRange{}, "17.6.6b", No},          // another release
+		{exact(`15.2\(2\)e4`), VersionRange{}, "3.6.4e", Unknown}, // IOS XE 3.6.4E is IOS 15.2(2)E4: another numbering
+		{xe, VersionRange{StartIncl: `15.2\(1\)e`, EndIncl: `15.2\(6\)e0a`}, "3.6.4e", Unknown},
+		{xe, VersionRange{EndIncl: `12.2\(33\)sg`}, "3.2.1", Unknown},
 		{exact("17.9.4a"), VersionRange{}, "17.9.4a", Yes},
 		{exact(`15.2\(2\)e4`), VersionRange{}, "17.3.1", No},
 		{exact(`15.2\(2\)e4`), VersionRange{}, "15.2.2", Unknown},

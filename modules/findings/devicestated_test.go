@@ -28,10 +28,10 @@ func fortiSNMP(version string) Asset {
 	return a
 }
 
-// fortiRow is the firewall with one FortiOS row of version from source (nmap's banner, a person's entry) and no SNMP answer.
-func fortiRow(source, version string) Asset {
+// fortiRow is the firewall with one FortiOS 7.2.13 row from source (nmap's banner, a person's entry) and no SNMP answer.
+func fortiRow(source string) Asset {
 	return Asset{ID: "a-1", Name: "fw-edge", Software: []Software{{ID: "s-fos", Display: "FortiOS", Vendor: "Fortinet", Product: "FortiOS",
-		Version: version, Source: source, KevKeys: []string{"fortinet|fortios"}}}}
+		Version: "7.2.13", Source: source, KevKeys: []string{"fortinet|fortios"}}}}
 }
 
 func byCVE(ms []Match, cve string) (Match, bool) {
@@ -67,12 +67,12 @@ func TestMatchAsset_SNMPStatedVersionConfirms(t *testing.T) {
 // no end, and a version the scheme cannot order (no finding at all, a could-not-check row).
 func TestMatchAsset_OnlyTheDevicesOwnStatementConfirms(t *testing.T) {
 	t.Parallel()
-	corrected := fortiRow("manual", "7.2.13")
+	corrected := fortiRow("manual")
 	corrected.Software[0].ReportedSource = "snmp"
 	for name, a := range map[string]Asset{
-		"nmap banner":         fortiRow("nmap", "7.2.13"),
-		"scan":                fortiRow("scan", "7.2.13"),
-		"typed by a person":   fortiRow("manual", "7.2.13"),
+		"nmap banner":         fortiRow("nmap"),
+		"scan":                fortiRow("scan"),
+		"typed by a person":   fortiRow("manual"),
 		"a person's override": corrected,
 	} {
 		res := MatchAsset(a, fortiVulns(), nil, t0)
@@ -138,7 +138,7 @@ func TestUpsert_DeviceStatedVersionConfirmsAndReJudges(t *testing.T) {
 		return out
 	}
 
-	run(fortiRow("nmap", "7.2.13")) // a banner: suspected
+	run(fortiRow("nmap")) // a banner: suspected
 	if r := load("CVE-2025-61624"); r.Status != StatusSuspected || r.Basis != BasisVersion {
 		t.Fatalf("banner: %+v", r.Finding)
 	}
@@ -163,7 +163,7 @@ func TestUpsert_DeviceStatedVersionConfirmsAndReJudges(t *testing.T) {
 		t.Fatalf("a repeated match sent %+v", got)
 	}
 
-	run(fortiRow("nmap", "7.2.13")) // SNMP gone, only the banner: back to suspected
+	run(fortiRow("nmap")) // SNMP gone, only the banner: back to suspected
 	r = load("CVE-2025-61624")
 	if r.Status != StatusSuspected || r.Evidence.Source != "" || r.History[len(r.History)-1].Note != DeviceUnconfirmedNote {
 		t.Fatalf("banner again: %+v %+v", r.Finding, r.History[len(r.History)-1])
@@ -219,7 +219,7 @@ func TestUpsert_NewFindingFromTheDevicesStatementIsConfirmed(t *testing.T) {
 func TestUpsert_PersonConfirmedStaysWhateverTheVersionSource(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	res, err := e.svc.UpsertFromMatch(t.Context(), fortiRow("nmap", "7.2.13"), fortiVulns())
+	res, err := e.svc.UpsertFromMatch(t.Context(), fortiRow("nmap"), fortiVulns())
 	if err != nil || len(res.Created) != 2 {
 		t.Fatalf("%+v %v", res, err)
 	}
@@ -227,7 +227,7 @@ func TestUpsert_PersonConfirmedStaysWhateverTheVersionSource(t *testing.T) {
 	if _, err := e.svc.ConfirmByPerson(t.Context(), id, "checked the console", "it@acme.example"); err != nil {
 		t.Fatal(err)
 	}
-	for _, a := range []Asset{fortiSNMP("7.2.13"), fortiRow("nmap", "7.2.13")} {
+	for _, a := range []Asset{fortiSNMP("7.2.13"), fortiRow("nmap")} {
 		e.advance(time.Hour)
 		if _, err := e.svc.UpsertFromMatch(t.Context(), a, fortiVulns()); err != nil {
 			t.Fatal(err)

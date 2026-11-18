@@ -135620,6 +135620,10 @@ func (s *FindingsGetFindingsIDOKAsset) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *FindingsGetFindingsIDOKAsset) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("approved")
+		e.Bool(s.Approved)
+	}
+	{
 		e.FieldStart("display")
 		e.Str(s.Display)
 	}
@@ -135630,6 +135634,10 @@ func (s *FindingsGetFindingsIDOKAsset) encodeFields(e *jx.Encoder) {
 	{
 		e.FieldStart("id")
 		e.Str(s.ID)
+	}
+	{
+		e.FieldStart("ignored")
+		e.Bool(s.Ignored)
 	}
 	{
 		e.FieldStart("ip")
@@ -135645,13 +135653,15 @@ func (s *FindingsGetFindingsIDOKAsset) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsIDOKAsset = [6]string{
-	0: "display",
-	1: "hostname",
-	2: "id",
-	3: "ip",
-	4: "kind",
-	5: "name",
+var jsonFieldsNameOfFindingsGetFindingsIDOKAsset = [8]string{
+	0: "approved",
+	1: "display",
+	2: "hostname",
+	3: "id",
+	4: "ignored",
+	5: "ip",
+	6: "kind",
+	7: "name",
 }
 
 // Decode decodes FindingsGetFindingsIDOKAsset from json.
@@ -135663,8 +135673,20 @@ func (s *FindingsGetFindingsIDOKAsset) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "display":
+		case "approved":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Bool()
+				s.Approved = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"approved\"")
+			}
+		case "display":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Display = string(v)
@@ -135676,7 +135698,7 @@ func (s *FindingsGetFindingsIDOKAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"display\"")
 			}
 		case "hostname":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Hostname.Decode(d); err != nil {
 					return err
@@ -135686,7 +135708,7 @@ func (s *FindingsGetFindingsIDOKAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"hostname\"")
 			}
 		case "id":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.ID = string(v)
@@ -135697,8 +135719,20 @@ func (s *FindingsGetFindingsIDOKAsset) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
+		case "ignored":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.Ignored = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ignored\"")
+			}
 		case "ip":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.IP = string(v)
@@ -135710,7 +135744,7 @@ func (s *FindingsGetFindingsIDOKAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"ip\"")
 			}
 		case "kind":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -135720,7 +135754,7 @@ func (s *FindingsGetFindingsIDOKAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "name":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -135741,7 +135775,7 @@ func (s *FindingsGetFindingsIDOKAsset) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111111,
+		0b11111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -141590,6 +141624,10 @@ func (s *FindingsGetFindingsOKItemsItemAsset) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *FindingsGetFindingsOKItemsItemAsset) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("approved")
+		e.Bool(s.Approved)
+	}
+	{
 		e.FieldStart("display")
 		e.Str(s.Display)
 	}
@@ -141600,6 +141638,10 @@ func (s *FindingsGetFindingsOKItemsItemAsset) encodeFields(e *jx.Encoder) {
 	{
 		e.FieldStart("id")
 		e.Str(s.ID)
+	}
+	{
+		e.FieldStart("ignored")
+		e.Bool(s.Ignored)
 	}
 	{
 		e.FieldStart("ip")
@@ -141615,13 +141657,15 @@ func (s *FindingsGetFindingsOKItemsItemAsset) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsOKItemsItemAsset = [6]string{
-	0: "display",
-	1: "hostname",
-	2: "id",
-	3: "ip",
-	4: "kind",
-	5: "name",
+var jsonFieldsNameOfFindingsGetFindingsOKItemsItemAsset = [8]string{
+	0: "approved",
+	1: "display",
+	2: "hostname",
+	3: "id",
+	4: "ignored",
+	5: "ip",
+	6: "kind",
+	7: "name",
 }
 
 // Decode decodes FindingsGetFindingsOKItemsItemAsset from json.
@@ -141633,8 +141677,20 @@ func (s *FindingsGetFindingsOKItemsItemAsset) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "display":
+		case "approved":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Bool()
+				s.Approved = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"approved\"")
+			}
+		case "display":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Display = string(v)
@@ -141646,7 +141702,7 @@ func (s *FindingsGetFindingsOKItemsItemAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"display\"")
 			}
 		case "hostname":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Hostname.Decode(d); err != nil {
 					return err
@@ -141656,7 +141712,7 @@ func (s *FindingsGetFindingsOKItemsItemAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"hostname\"")
 			}
 		case "id":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.ID = string(v)
@@ -141667,8 +141723,20 @@ func (s *FindingsGetFindingsOKItemsItemAsset) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
+		case "ignored":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.Ignored = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ignored\"")
+			}
 		case "ip":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.IP = string(v)
@@ -141680,7 +141748,7 @@ func (s *FindingsGetFindingsOKItemsItemAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"ip\"")
 			}
 		case "kind":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -141690,7 +141758,7 @@ func (s *FindingsGetFindingsOKItemsItemAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "name":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -141711,7 +141779,7 @@ func (s *FindingsGetFindingsOKItemsItemAsset) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111111,
+		0b11111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -143570,6 +143638,10 @@ func (s *FindingsGetFindingsOKUncheckedItemAsset) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *FindingsGetFindingsOKUncheckedItemAsset) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("approved")
+		e.Bool(s.Approved)
+	}
+	{
 		e.FieldStart("display")
 		e.Str(s.Display)
 	}
@@ -143580,6 +143652,10 @@ func (s *FindingsGetFindingsOKUncheckedItemAsset) encodeFields(e *jx.Encoder) {
 	{
 		e.FieldStart("id")
 		e.Str(s.ID)
+	}
+	{
+		e.FieldStart("ignored")
+		e.Bool(s.Ignored)
 	}
 	{
 		e.FieldStart("ip")
@@ -143595,13 +143671,15 @@ func (s *FindingsGetFindingsOKUncheckedItemAsset) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsOKUncheckedItemAsset = [6]string{
-	0: "display",
-	1: "hostname",
-	2: "id",
-	3: "ip",
-	4: "kind",
-	5: "name",
+var jsonFieldsNameOfFindingsGetFindingsOKUncheckedItemAsset = [8]string{
+	0: "approved",
+	1: "display",
+	2: "hostname",
+	3: "id",
+	4: "ignored",
+	5: "ip",
+	6: "kind",
+	7: "name",
 }
 
 // Decode decodes FindingsGetFindingsOKUncheckedItemAsset from json.
@@ -143613,8 +143691,20 @@ func (s *FindingsGetFindingsOKUncheckedItemAsset) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "display":
+		case "approved":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Bool()
+				s.Approved = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"approved\"")
+			}
+		case "display":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Display = string(v)
@@ -143626,7 +143716,7 @@ func (s *FindingsGetFindingsOKUncheckedItemAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"display\"")
 			}
 		case "hostname":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Hostname.Decode(d); err != nil {
 					return err
@@ -143636,7 +143726,7 @@ func (s *FindingsGetFindingsOKUncheckedItemAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"hostname\"")
 			}
 		case "id":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.ID = string(v)
@@ -143647,8 +143737,20 @@ func (s *FindingsGetFindingsOKUncheckedItemAsset) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
+		case "ignored":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.Ignored = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ignored\"")
+			}
 		case "ip":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.IP = string(v)
@@ -143660,7 +143762,7 @@ func (s *FindingsGetFindingsOKUncheckedItemAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"ip\"")
 			}
 		case "kind":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -143670,7 +143772,7 @@ func (s *FindingsGetFindingsOKUncheckedItemAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "name":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -143691,7 +143793,7 @@ func (s *FindingsGetFindingsOKUncheckedItemAsset) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111111,
+		0b11111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -144701,6 +144803,10 @@ func (s *FindingsGetFindingsOKVersionNeededItemAsset) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *FindingsGetFindingsOKVersionNeededItemAsset) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("approved")
+		e.Bool(s.Approved)
+	}
+	{
 		e.FieldStart("display")
 		e.Str(s.Display)
 	}
@@ -144711,6 +144817,10 @@ func (s *FindingsGetFindingsOKVersionNeededItemAsset) encodeFields(e *jx.Encoder
 	{
 		e.FieldStart("id")
 		e.Str(s.ID)
+	}
+	{
+		e.FieldStart("ignored")
+		e.Bool(s.Ignored)
 	}
 	{
 		e.FieldStart("ip")
@@ -144726,13 +144836,15 @@ func (s *FindingsGetFindingsOKVersionNeededItemAsset) encodeFields(e *jx.Encoder
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsOKVersionNeededItemAsset = [6]string{
-	0: "display",
-	1: "hostname",
-	2: "id",
-	3: "ip",
-	4: "kind",
-	5: "name",
+var jsonFieldsNameOfFindingsGetFindingsOKVersionNeededItemAsset = [8]string{
+	0: "approved",
+	1: "display",
+	2: "hostname",
+	3: "id",
+	4: "ignored",
+	5: "ip",
+	6: "kind",
+	7: "name",
 }
 
 // Decode decodes FindingsGetFindingsOKVersionNeededItemAsset from json.
@@ -144744,8 +144856,20 @@ func (s *FindingsGetFindingsOKVersionNeededItemAsset) Decode(d *jx.Decoder) erro
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "display":
+		case "approved":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Bool()
+				s.Approved = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"approved\"")
+			}
+		case "display":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Display = string(v)
@@ -144757,7 +144881,7 @@ func (s *FindingsGetFindingsOKVersionNeededItemAsset) Decode(d *jx.Decoder) erro
 				return errors.Wrap(err, "decode field \"display\"")
 			}
 		case "hostname":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Hostname.Decode(d); err != nil {
 					return err
@@ -144767,7 +144891,7 @@ func (s *FindingsGetFindingsOKVersionNeededItemAsset) Decode(d *jx.Decoder) erro
 				return errors.Wrap(err, "decode field \"hostname\"")
 			}
 		case "id":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.ID = string(v)
@@ -144778,8 +144902,20 @@ func (s *FindingsGetFindingsOKVersionNeededItemAsset) Decode(d *jx.Decoder) erro
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
+		case "ignored":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.Ignored = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ignored\"")
+			}
 		case "ip":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.IP = string(v)
@@ -144791,7 +144927,7 @@ func (s *FindingsGetFindingsOKVersionNeededItemAsset) Decode(d *jx.Decoder) erro
 				return errors.Wrap(err, "decode field \"ip\"")
 			}
 		case "kind":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -144801,7 +144937,7 @@ func (s *FindingsGetFindingsOKVersionNeededItemAsset) Decode(d *jx.Decoder) erro
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "name":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -144822,7 +144958,7 @@ func (s *FindingsGetFindingsOKVersionNeededItemAsset) Decode(d *jx.Decoder) erro
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111111,
+		0b11111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -147635,6 +147771,10 @@ func (s *FindingsGetFindingsSummaryOKTopItemAsset) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *FindingsGetFindingsSummaryOKTopItemAsset) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("approved")
+		e.Bool(s.Approved)
+	}
+	{
 		e.FieldStart("display")
 		e.Str(s.Display)
 	}
@@ -147645,6 +147785,10 @@ func (s *FindingsGetFindingsSummaryOKTopItemAsset) encodeFields(e *jx.Encoder) {
 	{
 		e.FieldStart("id")
 		e.Str(s.ID)
+	}
+	{
+		e.FieldStart("ignored")
+		e.Bool(s.Ignored)
 	}
 	{
 		e.FieldStart("ip")
@@ -147660,13 +147804,15 @@ func (s *FindingsGetFindingsSummaryOKTopItemAsset) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsSummaryOKTopItemAsset = [6]string{
-	0: "display",
-	1: "hostname",
-	2: "id",
-	3: "ip",
-	4: "kind",
-	5: "name",
+var jsonFieldsNameOfFindingsGetFindingsSummaryOKTopItemAsset = [8]string{
+	0: "approved",
+	1: "display",
+	2: "hostname",
+	3: "id",
+	4: "ignored",
+	5: "ip",
+	6: "kind",
+	7: "name",
 }
 
 // Decode decodes FindingsGetFindingsSummaryOKTopItemAsset from json.
@@ -147678,8 +147824,20 @@ func (s *FindingsGetFindingsSummaryOKTopItemAsset) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "display":
+		case "approved":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Bool()
+				s.Approved = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"approved\"")
+			}
+		case "display":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Display = string(v)
@@ -147691,7 +147849,7 @@ func (s *FindingsGetFindingsSummaryOKTopItemAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"display\"")
 			}
 		case "hostname":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Hostname.Decode(d); err != nil {
 					return err
@@ -147701,7 +147859,7 @@ func (s *FindingsGetFindingsSummaryOKTopItemAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"hostname\"")
 			}
 		case "id":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.ID = string(v)
@@ -147712,8 +147870,20 @@ func (s *FindingsGetFindingsSummaryOKTopItemAsset) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
+		case "ignored":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.Ignored = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ignored\"")
+			}
 		case "ip":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.IP = string(v)
@@ -147725,7 +147895,7 @@ func (s *FindingsGetFindingsSummaryOKTopItemAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"ip\"")
 			}
 		case "kind":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -147735,7 +147905,7 @@ func (s *FindingsGetFindingsSummaryOKTopItemAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "name":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -147756,7 +147926,7 @@ func (s *FindingsGetFindingsSummaryOKTopItemAsset) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111111,
+		0b11111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -148888,6 +149058,10 @@ func (s *FindingsGetFindingsToFixOKDevicesItemAsset) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *FindingsGetFindingsToFixOKDevicesItemAsset) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("approved")
+		e.Bool(s.Approved)
+	}
+	{
 		e.FieldStart("display")
 		e.Str(s.Display)
 	}
@@ -148898,6 +149072,10 @@ func (s *FindingsGetFindingsToFixOKDevicesItemAsset) encodeFields(e *jx.Encoder)
 	{
 		e.FieldStart("id")
 		e.Str(s.ID)
+	}
+	{
+		e.FieldStart("ignored")
+		e.Bool(s.Ignored)
 	}
 	{
 		e.FieldStart("ip")
@@ -148913,13 +149091,15 @@ func (s *FindingsGetFindingsToFixOKDevicesItemAsset) encodeFields(e *jx.Encoder)
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsToFixOKDevicesItemAsset = [6]string{
-	0: "display",
-	1: "hostname",
-	2: "id",
-	3: "ip",
-	4: "kind",
-	5: "name",
+var jsonFieldsNameOfFindingsGetFindingsToFixOKDevicesItemAsset = [8]string{
+	0: "approved",
+	1: "display",
+	2: "hostname",
+	3: "id",
+	4: "ignored",
+	5: "ip",
+	6: "kind",
+	7: "name",
 }
 
 // Decode decodes FindingsGetFindingsToFixOKDevicesItemAsset from json.
@@ -148931,8 +149111,20 @@ func (s *FindingsGetFindingsToFixOKDevicesItemAsset) Decode(d *jx.Decoder) error
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "display":
+		case "approved":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Bool()
+				s.Approved = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"approved\"")
+			}
+		case "display":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Display = string(v)
@@ -148944,7 +149136,7 @@ func (s *FindingsGetFindingsToFixOKDevicesItemAsset) Decode(d *jx.Decoder) error
 				return errors.Wrap(err, "decode field \"display\"")
 			}
 		case "hostname":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Hostname.Decode(d); err != nil {
 					return err
@@ -148954,7 +149146,7 @@ func (s *FindingsGetFindingsToFixOKDevicesItemAsset) Decode(d *jx.Decoder) error
 				return errors.Wrap(err, "decode field \"hostname\"")
 			}
 		case "id":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.ID = string(v)
@@ -148965,8 +149157,20 @@ func (s *FindingsGetFindingsToFixOKDevicesItemAsset) Decode(d *jx.Decoder) error
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
+		case "ignored":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.Ignored = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ignored\"")
+			}
 		case "ip":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.IP = string(v)
@@ -148978,7 +149182,7 @@ func (s *FindingsGetFindingsToFixOKDevicesItemAsset) Decode(d *jx.Decoder) error
 				return errors.Wrap(err, "decode field \"ip\"")
 			}
 		case "kind":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -148988,7 +149192,7 @@ func (s *FindingsGetFindingsToFixOKDevicesItemAsset) Decode(d *jx.Decoder) error
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "name":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -149009,7 +149213,7 @@ func (s *FindingsGetFindingsToFixOKDevicesItemAsset) Decode(d *jx.Decoder) error
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111111,
+		0b11111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -153736,6 +153940,10 @@ func (s *FindingsPostFindingsIDAiOKAsset) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *FindingsPostFindingsIDAiOKAsset) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("approved")
+		e.Bool(s.Approved)
+	}
+	{
 		e.FieldStart("display")
 		e.Str(s.Display)
 	}
@@ -153746,6 +153954,10 @@ func (s *FindingsPostFindingsIDAiOKAsset) encodeFields(e *jx.Encoder) {
 	{
 		e.FieldStart("id")
 		e.Str(s.ID)
+	}
+	{
+		e.FieldStart("ignored")
+		e.Bool(s.Ignored)
 	}
 	{
 		e.FieldStart("ip")
@@ -153761,13 +153973,15 @@ func (s *FindingsPostFindingsIDAiOKAsset) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDAiOKAsset = [6]string{
-	0: "display",
-	1: "hostname",
-	2: "id",
-	3: "ip",
-	4: "kind",
-	5: "name",
+var jsonFieldsNameOfFindingsPostFindingsIDAiOKAsset = [8]string{
+	0: "approved",
+	1: "display",
+	2: "hostname",
+	3: "id",
+	4: "ignored",
+	5: "ip",
+	6: "kind",
+	7: "name",
 }
 
 // Decode decodes FindingsPostFindingsIDAiOKAsset from json.
@@ -153779,8 +153993,20 @@ func (s *FindingsPostFindingsIDAiOKAsset) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "display":
+		case "approved":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Bool()
+				s.Approved = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"approved\"")
+			}
+		case "display":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Display = string(v)
@@ -153792,7 +154018,7 @@ func (s *FindingsPostFindingsIDAiOKAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"display\"")
 			}
 		case "hostname":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Hostname.Decode(d); err != nil {
 					return err
@@ -153802,7 +154028,7 @@ func (s *FindingsPostFindingsIDAiOKAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"hostname\"")
 			}
 		case "id":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.ID = string(v)
@@ -153813,8 +154039,20 @@ func (s *FindingsPostFindingsIDAiOKAsset) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
+		case "ignored":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.Ignored = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ignored\"")
+			}
 		case "ip":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.IP = string(v)
@@ -153826,7 +154064,7 @@ func (s *FindingsPostFindingsIDAiOKAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"ip\"")
 			}
 		case "kind":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -153836,7 +154074,7 @@ func (s *FindingsPostFindingsIDAiOKAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "name":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -153857,7 +154095,7 @@ func (s *FindingsPostFindingsIDAiOKAsset) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111111,
+		0b11111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -161682,6 +161920,10 @@ func (s *FindingsPostFindingsIDAppliedOKAsset) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *FindingsPostFindingsIDAppliedOKAsset) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("approved")
+		e.Bool(s.Approved)
+	}
+	{
 		e.FieldStart("display")
 		e.Str(s.Display)
 	}
@@ -161692,6 +161934,10 @@ func (s *FindingsPostFindingsIDAppliedOKAsset) encodeFields(e *jx.Encoder) {
 	{
 		e.FieldStart("id")
 		e.Str(s.ID)
+	}
+	{
+		e.FieldStart("ignored")
+		e.Bool(s.Ignored)
 	}
 	{
 		e.FieldStart("ip")
@@ -161707,13 +161953,15 @@ func (s *FindingsPostFindingsIDAppliedOKAsset) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDAppliedOKAsset = [6]string{
-	0: "display",
-	1: "hostname",
-	2: "id",
-	3: "ip",
-	4: "kind",
-	5: "name",
+var jsonFieldsNameOfFindingsPostFindingsIDAppliedOKAsset = [8]string{
+	0: "approved",
+	1: "display",
+	2: "hostname",
+	3: "id",
+	4: "ignored",
+	5: "ip",
+	6: "kind",
+	7: "name",
 }
 
 // Decode decodes FindingsPostFindingsIDAppliedOKAsset from json.
@@ -161725,8 +161973,20 @@ func (s *FindingsPostFindingsIDAppliedOKAsset) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "display":
+		case "approved":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Bool()
+				s.Approved = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"approved\"")
+			}
+		case "display":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Display = string(v)
@@ -161738,7 +161998,7 @@ func (s *FindingsPostFindingsIDAppliedOKAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"display\"")
 			}
 		case "hostname":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Hostname.Decode(d); err != nil {
 					return err
@@ -161748,7 +162008,7 @@ func (s *FindingsPostFindingsIDAppliedOKAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"hostname\"")
 			}
 		case "id":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.ID = string(v)
@@ -161759,8 +162019,20 @@ func (s *FindingsPostFindingsIDAppliedOKAsset) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
+		case "ignored":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.Ignored = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ignored\"")
+			}
 		case "ip":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.IP = string(v)
@@ -161772,7 +162044,7 @@ func (s *FindingsPostFindingsIDAppliedOKAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"ip\"")
 			}
 		case "kind":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -161782,7 +162054,7 @@ func (s *FindingsPostFindingsIDAppliedOKAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "name":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -161803,7 +162075,7 @@ func (s *FindingsPostFindingsIDAppliedOKAsset) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111111,
+		0b11111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -169634,6 +169906,10 @@ func (s *FindingsPostFindingsIDStatusOKAsset) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *FindingsPostFindingsIDStatusOKAsset) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("approved")
+		e.Bool(s.Approved)
+	}
+	{
 		e.FieldStart("display")
 		e.Str(s.Display)
 	}
@@ -169644,6 +169920,10 @@ func (s *FindingsPostFindingsIDStatusOKAsset) encodeFields(e *jx.Encoder) {
 	{
 		e.FieldStart("id")
 		e.Str(s.ID)
+	}
+	{
+		e.FieldStart("ignored")
+		e.Bool(s.Ignored)
 	}
 	{
 		e.FieldStart("ip")
@@ -169659,13 +169939,15 @@ func (s *FindingsPostFindingsIDStatusOKAsset) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDStatusOKAsset = [6]string{
-	0: "display",
-	1: "hostname",
-	2: "id",
-	3: "ip",
-	4: "kind",
-	5: "name",
+var jsonFieldsNameOfFindingsPostFindingsIDStatusOKAsset = [8]string{
+	0: "approved",
+	1: "display",
+	2: "hostname",
+	3: "id",
+	4: "ignored",
+	5: "ip",
+	6: "kind",
+	7: "name",
 }
 
 // Decode decodes FindingsPostFindingsIDStatusOKAsset from json.
@@ -169677,8 +169959,20 @@ func (s *FindingsPostFindingsIDStatusOKAsset) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "display":
+		case "approved":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Bool()
+				s.Approved = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"approved\"")
+			}
+		case "display":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Display = string(v)
@@ -169690,7 +169984,7 @@ func (s *FindingsPostFindingsIDStatusOKAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"display\"")
 			}
 		case "hostname":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Hostname.Decode(d); err != nil {
 					return err
@@ -169700,7 +169994,7 @@ func (s *FindingsPostFindingsIDStatusOKAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"hostname\"")
 			}
 		case "id":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.ID = string(v)
@@ -169711,8 +170005,20 @@ func (s *FindingsPostFindingsIDStatusOKAsset) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
+		case "ignored":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.Ignored = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ignored\"")
+			}
 		case "ip":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.IP = string(v)
@@ -169724,7 +170030,7 @@ func (s *FindingsPostFindingsIDStatusOKAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"ip\"")
 			}
 		case "kind":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -169734,7 +170040,7 @@ func (s *FindingsPostFindingsIDStatusOKAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "name":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -169755,7 +170061,7 @@ func (s *FindingsPostFindingsIDStatusOKAsset) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111111,
+		0b11111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

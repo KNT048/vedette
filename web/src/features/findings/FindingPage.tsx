@@ -31,6 +31,7 @@ import { RiskChip } from './Risk'
 import { CvssScore } from './Cvss'
 import type { FindingDetail, StatusAction } from './types'
 import { IUpdatedFinding } from './Updated'
+import { NotAdded } from './NotAdded'
 
 const RESOLVE: StatusAction[] = ['patched', 'mitigated', 'false_positive', 'not_relevant', 'accept_risk']
 
@@ -251,6 +252,9 @@ function Detail({ f, crumbs }: { f: FindingDetail; crumbs: { label: string; to: 
           </>
         }
       />
+      {f.asset && !f.asset.approved && !f.asset.ignored ? (
+        <Notice tone="warn" title={t('notAdded.mark')} actions={<NotAdded asset={f.asset} />}>{t('notAdded.body')}</Notice>
+      ) : null}
       {open_ ? null : <ClosedNotice f={f} reopen={reopenButton} />}
       <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div>

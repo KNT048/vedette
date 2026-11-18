@@ -69550,15 +69550,26 @@ func (s *FindingsGetFindingsIDOKAppliedItem) SetUser(val string) {
 }
 
 type FindingsGetFindingsIDOKAsset struct {
+	// False = "Device not added yet": nobody approved the device; its findings offer Add device (approve)
+	// and Ignore.
+	Approved bool      `json:"approved"`
 	Display  string    `json:"display"`
 	Hostname NilString `json:"hostname"`
 	ID       string    `json:"id"`
+	// A person ignored the device: its findings are hidden from the other tabs and listed under Ignored,
+	// with Restore.
+	Ignored bool `json:"ignored"`
 	// "—" when the device has no IP address.
 	IP   string                           `json:"ip"`
 	Kind FindingsGetFindingsIDOKAssetKind `json:"kind"`
 	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
 	// never the internal id.
 	Name string `json:"name"`
+}
+
+// GetApproved returns the value of Approved.
+func (s *FindingsGetFindingsIDOKAsset) GetApproved() bool {
+	return s.Approved
 }
 
 // GetDisplay returns the value of Display.
@@ -69576,6 +69587,11 @@ func (s *FindingsGetFindingsIDOKAsset) GetID() string {
 	return s.ID
 }
 
+// GetIgnored returns the value of Ignored.
+func (s *FindingsGetFindingsIDOKAsset) GetIgnored() bool {
+	return s.Ignored
+}
+
 // GetIP returns the value of IP.
 func (s *FindingsGetFindingsIDOKAsset) GetIP() string {
 	return s.IP
@@ -69591,6 +69607,11 @@ func (s *FindingsGetFindingsIDOKAsset) GetName() string {
 	return s.Name
 }
 
+// SetApproved sets the value of Approved.
+func (s *FindingsGetFindingsIDOKAsset) SetApproved(val bool) {
+	s.Approved = val
+}
+
 // SetDisplay sets the value of Display.
 func (s *FindingsGetFindingsIDOKAsset) SetDisplay(val string) {
 	s.Display = val
@@ -69604,6 +69625,11 @@ func (s *FindingsGetFindingsIDOKAsset) SetHostname(val NilString) {
 // SetID sets the value of ID.
 func (s *FindingsGetFindingsIDOKAsset) SetID(val string) {
 	s.ID = val
+}
+
+// SetIgnored sets the value of Ignored.
+func (s *FindingsGetFindingsIDOKAsset) SetIgnored(val bool) {
+	s.Ignored = val
 }
 
 // SetIP sets the value of IP.
@@ -72843,15 +72869,26 @@ func (s *FindingsGetFindingsOKItemsItem) SetStatus(val FindingsGetFindingsOKItem
 }
 
 type FindingsGetFindingsOKItemsItemAsset struct {
+	// False = "Device not added yet": nobody approved the device; its findings offer Add device (approve)
+	// and Ignore.
+	Approved bool      `json:"approved"`
 	Display  string    `json:"display"`
 	Hostname NilString `json:"hostname"`
 	ID       string    `json:"id"`
+	// A person ignored the device: its findings are hidden from the other tabs and listed under Ignored,
+	// with Restore.
+	Ignored bool `json:"ignored"`
 	// "—" when the device has no IP address.
 	IP   string                                  `json:"ip"`
 	Kind FindingsGetFindingsOKItemsItemAssetKind `json:"kind"`
 	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
 	// never the internal id.
 	Name string `json:"name"`
+}
+
+// GetApproved returns the value of Approved.
+func (s *FindingsGetFindingsOKItemsItemAsset) GetApproved() bool {
+	return s.Approved
 }
 
 // GetDisplay returns the value of Display.
@@ -72869,6 +72906,11 @@ func (s *FindingsGetFindingsOKItemsItemAsset) GetID() string {
 	return s.ID
 }
 
+// GetIgnored returns the value of Ignored.
+func (s *FindingsGetFindingsOKItemsItemAsset) GetIgnored() bool {
+	return s.Ignored
+}
+
 // GetIP returns the value of IP.
 func (s *FindingsGetFindingsOKItemsItemAsset) GetIP() string {
 	return s.IP
@@ -72884,6 +72926,11 @@ func (s *FindingsGetFindingsOKItemsItemAsset) GetName() string {
 	return s.Name
 }
 
+// SetApproved sets the value of Approved.
+func (s *FindingsGetFindingsOKItemsItemAsset) SetApproved(val bool) {
+	s.Approved = val
+}
+
 // SetDisplay sets the value of Display.
 func (s *FindingsGetFindingsOKItemsItemAsset) SetDisplay(val string) {
 	s.Display = val
@@ -72897,6 +72944,11 @@ func (s *FindingsGetFindingsOKItemsItemAsset) SetHostname(val NilString) {
 // SetID sets the value of ID.
 func (s *FindingsGetFindingsOKItemsItemAsset) SetID(val string) {
 	s.ID = val
+}
+
+// SetIgnored sets the value of Ignored.
+func (s *FindingsGetFindingsOKItemsItemAsset) SetIgnored(val bool) {
+	s.Ignored = val
 }
 
 // SetIP sets the value of IP.
@@ -74558,15 +74610,26 @@ func (s *FindingsGetFindingsOKUncheckedItemAction) UnmarshalText(data []byte) er
 }
 
 type FindingsGetFindingsOKUncheckedItemAsset struct {
+	// False = "Device not added yet": nobody approved the device; its findings offer Add device (approve)
+	// and Ignore.
+	Approved bool      `json:"approved"`
 	Display  string    `json:"display"`
 	Hostname NilString `json:"hostname"`
 	ID       string    `json:"id"`
+	// A person ignored the device: its findings are hidden from the other tabs and listed under Ignored,
+	// with Restore.
+	Ignored bool `json:"ignored"`
 	// "—" when the device has no IP address.
 	IP   string                                      `json:"ip"`
 	Kind FindingsGetFindingsOKUncheckedItemAssetKind `json:"kind"`
 	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
 	// never the internal id.
 	Name string `json:"name"`
+}
+
+// GetApproved returns the value of Approved.
+func (s *FindingsGetFindingsOKUncheckedItemAsset) GetApproved() bool {
+	return s.Approved
 }
 
 // GetDisplay returns the value of Display.
@@ -74584,6 +74647,11 @@ func (s *FindingsGetFindingsOKUncheckedItemAsset) GetID() string {
 	return s.ID
 }
 
+// GetIgnored returns the value of Ignored.
+func (s *FindingsGetFindingsOKUncheckedItemAsset) GetIgnored() bool {
+	return s.Ignored
+}
+
 // GetIP returns the value of IP.
 func (s *FindingsGetFindingsOKUncheckedItemAsset) GetIP() string {
 	return s.IP
@@ -74599,6 +74667,11 @@ func (s *FindingsGetFindingsOKUncheckedItemAsset) GetName() string {
 	return s.Name
 }
 
+// SetApproved sets the value of Approved.
+func (s *FindingsGetFindingsOKUncheckedItemAsset) SetApproved(val bool) {
+	s.Approved = val
+}
+
 // SetDisplay sets the value of Display.
 func (s *FindingsGetFindingsOKUncheckedItemAsset) SetDisplay(val string) {
 	s.Display = val
@@ -74612,6 +74685,11 @@ func (s *FindingsGetFindingsOKUncheckedItemAsset) SetHostname(val NilString) {
 // SetID sets the value of ID.
 func (s *FindingsGetFindingsOKUncheckedItemAsset) SetID(val string) {
 	s.ID = val
+}
+
+// SetIgnored sets the value of Ignored.
+func (s *FindingsGetFindingsOKUncheckedItemAsset) SetIgnored(val bool) {
+	s.Ignored = val
 }
 
 // SetIP sets the value of IP.
@@ -75630,15 +75708,26 @@ func (s *FindingsGetFindingsOKVersionNeededItem) SetVersion(val NilString) {
 }
 
 type FindingsGetFindingsOKVersionNeededItemAsset struct {
+	// False = "Device not added yet": nobody approved the device; its findings offer Add device (approve)
+	// and Ignore.
+	Approved bool      `json:"approved"`
 	Display  string    `json:"display"`
 	Hostname NilString `json:"hostname"`
 	ID       string    `json:"id"`
+	// A person ignored the device: its findings are hidden from the other tabs and listed under Ignored,
+	// with Restore.
+	Ignored bool `json:"ignored"`
 	// "—" when the device has no IP address.
 	IP   string                                          `json:"ip"`
 	Kind FindingsGetFindingsOKVersionNeededItemAssetKind `json:"kind"`
 	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
 	// never the internal id.
 	Name string `json:"name"`
+}
+
+// GetApproved returns the value of Approved.
+func (s *FindingsGetFindingsOKVersionNeededItemAsset) GetApproved() bool {
+	return s.Approved
 }
 
 // GetDisplay returns the value of Display.
@@ -75656,6 +75745,11 @@ func (s *FindingsGetFindingsOKVersionNeededItemAsset) GetID() string {
 	return s.ID
 }
 
+// GetIgnored returns the value of Ignored.
+func (s *FindingsGetFindingsOKVersionNeededItemAsset) GetIgnored() bool {
+	return s.Ignored
+}
+
 // GetIP returns the value of IP.
 func (s *FindingsGetFindingsOKVersionNeededItemAsset) GetIP() string {
 	return s.IP
@@ -75671,6 +75765,11 @@ func (s *FindingsGetFindingsOKVersionNeededItemAsset) GetName() string {
 	return s.Name
 }
 
+// SetApproved sets the value of Approved.
+func (s *FindingsGetFindingsOKVersionNeededItemAsset) SetApproved(val bool) {
+	s.Approved = val
+}
+
 // SetDisplay sets the value of Display.
 func (s *FindingsGetFindingsOKVersionNeededItemAsset) SetDisplay(val string) {
 	s.Display = val
@@ -75684,6 +75783,11 @@ func (s *FindingsGetFindingsOKVersionNeededItemAsset) SetHostname(val NilString)
 // SetID sets the value of ID.
 func (s *FindingsGetFindingsOKVersionNeededItemAsset) SetID(val string) {
 	s.ID = val
+}
+
+// SetIgnored sets the value of Ignored.
+func (s *FindingsGetFindingsOKVersionNeededItemAsset) SetIgnored(val bool) {
+	s.Ignored = val
 }
 
 // SetIP sets the value of IP.
@@ -77692,15 +77796,26 @@ func (s *FindingsGetFindingsSummaryOKTopItem) SetStatus(val FindingsGetFindingsS
 }
 
 type FindingsGetFindingsSummaryOKTopItemAsset struct {
+	// False = "Device not added yet": nobody approved the device; its findings offer Add device (approve)
+	// and Ignore.
+	Approved bool      `json:"approved"`
 	Display  string    `json:"display"`
 	Hostname NilString `json:"hostname"`
 	ID       string    `json:"id"`
+	// A person ignored the device: its findings are hidden from the other tabs and listed under Ignored,
+	// with Restore.
+	Ignored bool `json:"ignored"`
 	// "—" when the device has no IP address.
 	IP   string                                       `json:"ip"`
 	Kind FindingsGetFindingsSummaryOKTopItemAssetKind `json:"kind"`
 	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
 	// never the internal id.
 	Name string `json:"name"`
+}
+
+// GetApproved returns the value of Approved.
+func (s *FindingsGetFindingsSummaryOKTopItemAsset) GetApproved() bool {
+	return s.Approved
 }
 
 // GetDisplay returns the value of Display.
@@ -77718,6 +77833,11 @@ func (s *FindingsGetFindingsSummaryOKTopItemAsset) GetID() string {
 	return s.ID
 }
 
+// GetIgnored returns the value of Ignored.
+func (s *FindingsGetFindingsSummaryOKTopItemAsset) GetIgnored() bool {
+	return s.Ignored
+}
+
 // GetIP returns the value of IP.
 func (s *FindingsGetFindingsSummaryOKTopItemAsset) GetIP() string {
 	return s.IP
@@ -77733,6 +77853,11 @@ func (s *FindingsGetFindingsSummaryOKTopItemAsset) GetName() string {
 	return s.Name
 }
 
+// SetApproved sets the value of Approved.
+func (s *FindingsGetFindingsSummaryOKTopItemAsset) SetApproved(val bool) {
+	s.Approved = val
+}
+
 // SetDisplay sets the value of Display.
 func (s *FindingsGetFindingsSummaryOKTopItemAsset) SetDisplay(val string) {
 	s.Display = val
@@ -77746,6 +77871,11 @@ func (s *FindingsGetFindingsSummaryOKTopItemAsset) SetHostname(val NilString) {
 // SetID sets the value of ID.
 func (s *FindingsGetFindingsSummaryOKTopItemAsset) SetID(val string) {
 	s.ID = val
+}
+
+// SetIgnored sets the value of Ignored.
+func (s *FindingsGetFindingsSummaryOKTopItemAsset) SetIgnored(val bool) {
+	s.Ignored = val
 }
 
 // SetIP sets the value of IP.
@@ -78899,15 +79029,26 @@ func (s *FindingsGetFindingsToFixOKDevicesItem) SetRisk(val NilFindingsGetFindin
 }
 
 type FindingsGetFindingsToFixOKDevicesItemAsset struct {
+	// False = "Device not added yet": nobody approved the device; its findings offer Add device (approve)
+	// and Ignore.
+	Approved bool      `json:"approved"`
 	Display  string    `json:"display"`
 	Hostname NilString `json:"hostname"`
 	ID       string    `json:"id"`
+	// A person ignored the device: its findings are hidden from the other tabs and listed under Ignored,
+	// with Restore.
+	Ignored bool `json:"ignored"`
 	// "—" when the device has no IP address.
 	IP   string                                         `json:"ip"`
 	Kind FindingsGetFindingsToFixOKDevicesItemAssetKind `json:"kind"`
 	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
 	// never the internal id.
 	Name string `json:"name"`
+}
+
+// GetApproved returns the value of Approved.
+func (s *FindingsGetFindingsToFixOKDevicesItemAsset) GetApproved() bool {
+	return s.Approved
 }
 
 // GetDisplay returns the value of Display.
@@ -78925,6 +79066,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemAsset) GetID() string {
 	return s.ID
 }
 
+// GetIgnored returns the value of Ignored.
+func (s *FindingsGetFindingsToFixOKDevicesItemAsset) GetIgnored() bool {
+	return s.Ignored
+}
+
 // GetIP returns the value of IP.
 func (s *FindingsGetFindingsToFixOKDevicesItemAsset) GetIP() string {
 	return s.IP
@@ -78940,6 +79086,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemAsset) GetName() string {
 	return s.Name
 }
 
+// SetApproved sets the value of Approved.
+func (s *FindingsGetFindingsToFixOKDevicesItemAsset) SetApproved(val bool) {
+	s.Approved = val
+}
+
 // SetDisplay sets the value of Display.
 func (s *FindingsGetFindingsToFixOKDevicesItemAsset) SetDisplay(val string) {
 	s.Display = val
@@ -78953,6 +79104,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemAsset) SetHostname(val NilString) 
 // SetID sets the value of ID.
 func (s *FindingsGetFindingsToFixOKDevicesItemAsset) SetID(val string) {
 	s.ID = val
+}
+
+// SetIgnored sets the value of Ignored.
+func (s *FindingsGetFindingsToFixOKDevicesItemAsset) SetIgnored(val bool) {
+	s.Ignored = val
 }
 
 // SetIP sets the value of IP.
@@ -81868,15 +82024,26 @@ func (s *FindingsPostFindingsIDAiOKAppliedItem) SetUser(val string) {
 }
 
 type FindingsPostFindingsIDAiOKAsset struct {
+	// False = "Device not added yet": nobody approved the device; its findings offer Add device (approve)
+	// and Ignore.
+	Approved bool      `json:"approved"`
 	Display  string    `json:"display"`
 	Hostname NilString `json:"hostname"`
 	ID       string    `json:"id"`
+	// A person ignored the device: its findings are hidden from the other tabs and listed under Ignored,
+	// with Restore.
+	Ignored bool `json:"ignored"`
 	// "—" when the device has no IP address.
 	IP   string                              `json:"ip"`
 	Kind FindingsPostFindingsIDAiOKAssetKind `json:"kind"`
 	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
 	// never the internal id.
 	Name string `json:"name"`
+}
+
+// GetApproved returns the value of Approved.
+func (s *FindingsPostFindingsIDAiOKAsset) GetApproved() bool {
+	return s.Approved
 }
 
 // GetDisplay returns the value of Display.
@@ -81894,6 +82061,11 @@ func (s *FindingsPostFindingsIDAiOKAsset) GetID() string {
 	return s.ID
 }
 
+// GetIgnored returns the value of Ignored.
+func (s *FindingsPostFindingsIDAiOKAsset) GetIgnored() bool {
+	return s.Ignored
+}
+
 // GetIP returns the value of IP.
 func (s *FindingsPostFindingsIDAiOKAsset) GetIP() string {
 	return s.IP
@@ -81909,6 +82081,11 @@ func (s *FindingsPostFindingsIDAiOKAsset) GetName() string {
 	return s.Name
 }
 
+// SetApproved sets the value of Approved.
+func (s *FindingsPostFindingsIDAiOKAsset) SetApproved(val bool) {
+	s.Approved = val
+}
+
 // SetDisplay sets the value of Display.
 func (s *FindingsPostFindingsIDAiOKAsset) SetDisplay(val string) {
 	s.Display = val
@@ -81922,6 +82099,11 @@ func (s *FindingsPostFindingsIDAiOKAsset) SetHostname(val NilString) {
 // SetID sets the value of ID.
 func (s *FindingsPostFindingsIDAiOKAsset) SetID(val string) {
 	s.ID = val
+}
+
+// SetIgnored sets the value of Ignored.
+func (s *FindingsPostFindingsIDAiOKAsset) SetIgnored(val bool) {
+	s.Ignored = val
 }
 
 // SetIP sets the value of IP.
@@ -85944,15 +86126,26 @@ func (s *FindingsPostFindingsIDAppliedOKAppliedItem) SetUser(val string) {
 }
 
 type FindingsPostFindingsIDAppliedOKAsset struct {
+	// False = "Device not added yet": nobody approved the device; its findings offer Add device (approve)
+	// and Ignore.
+	Approved bool      `json:"approved"`
 	Display  string    `json:"display"`
 	Hostname NilString `json:"hostname"`
 	ID       string    `json:"id"`
+	// A person ignored the device: its findings are hidden from the other tabs and listed under Ignored,
+	// with Restore.
+	Ignored bool `json:"ignored"`
 	// "—" when the device has no IP address.
 	IP   string                                   `json:"ip"`
 	Kind FindingsPostFindingsIDAppliedOKAssetKind `json:"kind"`
 	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
 	// never the internal id.
 	Name string `json:"name"`
+}
+
+// GetApproved returns the value of Approved.
+func (s *FindingsPostFindingsIDAppliedOKAsset) GetApproved() bool {
+	return s.Approved
 }
 
 // GetDisplay returns the value of Display.
@@ -85970,6 +86163,11 @@ func (s *FindingsPostFindingsIDAppliedOKAsset) GetID() string {
 	return s.ID
 }
 
+// GetIgnored returns the value of Ignored.
+func (s *FindingsPostFindingsIDAppliedOKAsset) GetIgnored() bool {
+	return s.Ignored
+}
+
 // GetIP returns the value of IP.
 func (s *FindingsPostFindingsIDAppliedOKAsset) GetIP() string {
 	return s.IP
@@ -85985,6 +86183,11 @@ func (s *FindingsPostFindingsIDAppliedOKAsset) GetName() string {
 	return s.Name
 }
 
+// SetApproved sets the value of Approved.
+func (s *FindingsPostFindingsIDAppliedOKAsset) SetApproved(val bool) {
+	s.Approved = val
+}
+
 // SetDisplay sets the value of Display.
 func (s *FindingsPostFindingsIDAppliedOKAsset) SetDisplay(val string) {
 	s.Display = val
@@ -85998,6 +86201,11 @@ func (s *FindingsPostFindingsIDAppliedOKAsset) SetHostname(val NilString) {
 // SetID sets the value of ID.
 func (s *FindingsPostFindingsIDAppliedOKAsset) SetID(val string) {
 	s.ID = val
+}
+
+// SetIgnored sets the value of Ignored.
+func (s *FindingsPostFindingsIDAppliedOKAsset) SetIgnored(val bool) {
+	s.Ignored = val
 }
 
 // SetIP sets the value of IP.
@@ -90041,15 +90249,26 @@ func (s *FindingsPostFindingsIDStatusOKAppliedItem) SetUser(val string) {
 }
 
 type FindingsPostFindingsIDStatusOKAsset struct {
+	// False = "Device not added yet": nobody approved the device; its findings offer Add device (approve)
+	// and Ignore.
+	Approved bool      `json:"approved"`
 	Display  string    `json:"display"`
 	Hostname NilString `json:"hostname"`
 	ID       string    `json:"id"`
+	// A person ignored the device: its findings are hidden from the other tabs and listed under Ignored,
+	// with Restore.
+	Ignored bool `json:"ignored"`
 	// "—" when the device has no IP address.
 	IP   string                                  `json:"ip"`
 	Kind FindingsPostFindingsIDStatusOKAssetKind `json:"kind"`
 	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
 	// never the internal id.
 	Name string `json:"name"`
+}
+
+// GetApproved returns the value of Approved.
+func (s *FindingsPostFindingsIDStatusOKAsset) GetApproved() bool {
+	return s.Approved
 }
 
 // GetDisplay returns the value of Display.
@@ -90067,6 +90286,11 @@ func (s *FindingsPostFindingsIDStatusOKAsset) GetID() string {
 	return s.ID
 }
 
+// GetIgnored returns the value of Ignored.
+func (s *FindingsPostFindingsIDStatusOKAsset) GetIgnored() bool {
+	return s.Ignored
+}
+
 // GetIP returns the value of IP.
 func (s *FindingsPostFindingsIDStatusOKAsset) GetIP() string {
 	return s.IP
@@ -90082,6 +90306,11 @@ func (s *FindingsPostFindingsIDStatusOKAsset) GetName() string {
 	return s.Name
 }
 
+// SetApproved sets the value of Approved.
+func (s *FindingsPostFindingsIDStatusOKAsset) SetApproved(val bool) {
+	s.Approved = val
+}
+
 // SetDisplay sets the value of Display.
 func (s *FindingsPostFindingsIDStatusOKAsset) SetDisplay(val string) {
 	s.Display = val
@@ -90095,6 +90324,11 @@ func (s *FindingsPostFindingsIDStatusOKAsset) SetHostname(val NilString) {
 // SetID sets the value of ID.
 func (s *FindingsPostFindingsIDStatusOKAsset) SetID(val string) {
 	s.ID = val
+}
+
+// SetIgnored sets the value of Ignored.
+func (s *FindingsPostFindingsIDStatusOKAsset) SetIgnored(val bool) {
+	s.Ignored = val
 }
 
 // SetIP sets the value of IP.

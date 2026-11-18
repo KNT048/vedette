@@ -45,7 +45,7 @@ const sourceOf = (a: Asset, which: 'scan_source' | 'snmp_source'): 'on' | 'off' 
   return 'on'
 }
 export type StoredObs = Omit<Observation, 'current'>
-const metaStore = collection<Record<string, Meta>>('inv_meta', () => ({}))
+export const metaStore = collection<Record<string, Meta>>('inv_meta', () => ({}))
 const obsStore = collection<Record<string, StoredObs[]>>('inv_obs', () => ({}))
 const notifyStore = collection<{ enabled: boolean }>('inv_notify', () => ({ enabled: true }))
 type StoredSettings = Omit<InventorySettings, 'version'>

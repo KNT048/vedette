@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
@@ -385,18 +385,18 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
   })
 
   it('S-INV-3: a To review row offers Approve, Ignore and Remove; the unknown mark lives on the device page', async () => {
-    const user = userEvent.setup()
     renderApp('/devices?tab=review')
     const list = await screen.findByRole('list', { name: '2 new devices not approved' }, T)
     const row = within(list).getAllByRole('listitem').find((li) => li.textContent?.includes('192.168.10.157'))!
     expect(within(row).getAllByRole('button').map((b) => b.textContent)).toEqual(['Approve', 'Ignore', 'Remove'])
     expect(within(list).queryByRole('button', { name: /unknown/ })).toBeNull()
-    // the device page keeps Mark unknown / Remove unknown mark next to Approve and Ignore
+    cleanup()
+    // the device page's notice has Approve, Ignore and Remove: no Mark unknown, and no second Remove from list beside it
     renderApp('/devices/a-unk01')
-    await user.click(await screen.findByRole('button', { name: 'Mark unknown' }, T))
-    expect(await screen.findByText(/as unknown\./, undefined, T)).toBeInTheDocument()
-    await user.click(await screen.findByRole('button', { name: 'Remove unknown mark' }, T))
-    expect(await screen.findByText(/Removed the unknown mark from/, undefined, T)).toBeInTheDocument()
+    await screen.findByText('This device is not approved yet', undefined, T)
+    for (const name of ['Approve', 'Ignore', 'Remove']) expect(await screen.findByRole('button', { name }, T)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /unknown/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Remove from list' })).toBeNull()
     expect(find('a-unk01').approved).toBe(false)
   })
 
@@ -444,6 +444,16 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     await waitFor(() => expect(find('a-nas02').approved).toBe(false), T) // back through review
   })
 
+  it('S-INV-3: Approve all approves every device in To review in one action', async () => {
+    const user = userEvent.setup()
+    renderApp('/devices?tab=review')
+    await screen.findByText('2 new devices not approved', undefined, T)
+    await user.click(await screen.findByRole('button', { name: /^Approve all \(\d+\)$/ }, T))
+    const dialog = await screen.findByRole('dialog', undefined, T)
+    await user.click(within(dialog).getByRole('button', { name: 'Approve' }))
+    expect(await screen.findByText('No new devices waiting', undefined, T)).toBeInTheDocument()
+  })
+
   it('S-INV-3: removing a pending device asks for confirmation', async () => {
     const user = userEvent.setup()
     const before = assetsStore.get().length
@@ -451,7 +461,10 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     await screen.findByText('2 new devices not approved', undefined, T)
     await user.click(screen.getAllByRole('button', { name: 'Remove' })[0]!)
     expect(assetsStore.get()).toHaveLength(before) // nothing removed before confirming
-    await user.click(await screen.findByRole('button', { name: 'Remove from list' }, T))
+    const dialog = await screen.findByRole('dialog', undefined, T)
+    // a device still on the network comes back to To review; Ignore is what keeps it out
+    expect(dialog).toHaveTextContent('If the device is still on your network, it comes back under To review. To keep it out, choose Ignore instead.')
+    await user.click(within(dialog).getByRole('button', { name: 'Remove from list' }))
     await waitFor(() => expect(assetsStore.get()).toHaveLength(before - 1), T)
     expect(auditStore.get().some((e) => e.action === 'inventory.delete')).toBe(true)
   })

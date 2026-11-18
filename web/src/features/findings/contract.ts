@@ -50,6 +50,8 @@ export const KevInfo = z.object({
 export const FindingAsset = z.object({
   id: z.string(), name: z.string().describe('The name the Devices page shows: hostname, else vendor and model, else the IP, else the software; never the internal id'),
   hostname: z.string().nullable(), ip: z.string().describe('"—" when the device has no IP address'), kind: AssetKind, display: z.string(),
+  approved: z.boolean().describe('false = "Device not added yet": nobody approved the device; its findings offer Add device (approve) and Ignore'),
+  ignored: z.boolean().describe('a person ignored the device: its findings are hidden from the other tabs and listed under Ignored, with Restore'),
 })
 export const RowFix = z.object({
   group: z.string().describe('"<device id>/<software id>": the open findings with the same group are fixed by the same update'),

@@ -419,7 +419,6 @@ function Approval({ d }: { d: DeviceDetail }) {
   return (
     <Notice tone="warn" title={d.suspicious ? t('approval.suspicious') : d.asset.quiet ? t('approval.quiet') : t('approval.pending')} info={t('approval.bodyInfo')} actions={<>
         <Button variant="primary" disabled={!can} busy={act.approve.isPending} busyLabel={t('common:busy.approving')} onClick={() => act.approve.mutate(undefined, { onSuccess: () => toast.success(t('pending.approved', { name }), { description: t('pending.findLater') }), onError: fail })}>{t('pending.approve')}</Button>
-        <Button disabled={!can} busy={act.suspicious.isPending} busyLabel={t('common:busy.saving')} onClick={() => act.suspicious.mutate(!d.suspicious, { onSuccess: () => toast.success(d.suspicious ? t('pending.unmarked', { name }) : t('pending.marked', { name })), onError: fail })}>{d.suspicious ? t('pending.unmark') : t('pending.mark')}</Button>
         <Button disabled={!can} busy={act.ignore.isPending} busyLabel={t('common:busy.saving')} onClick={() => setIgn(true)}>{t('pending.ignore')}</Button>
         <Button disabled={!can} onClick={() => setDel(true)}>{t('pending.delete')}</Button>
       </>}>
@@ -472,7 +471,8 @@ function Body() {
           <Slot name="device.actions" props={{ assetId: a.id, asset: a }} />
           {/* An approved device can be ignored here; a waiting one in its notice below, an ignored one is stopped there */}
           {a.approved && !a.ignored_at && !a.is_box ? <Button disabled={!can} busy={act.ignore.isPending} busyLabel={t('common:busy.saving')} title={needRole} onClick={() => setIgn(true)}><EyeOff />{t('pending.ignore')}</Button> : null}
-          <Button disabled={!can || a.is_box} title={a.is_box ? t('box.noDelete') : needRole} onClick={() => setDel(true)}><Trash2 />{t('detail.delete')}</Button>
+          {/* A waiting device has Remove in its notice below, so it is not offered twice */}
+          {a.approved || a.ignored_at || a.is_box ? <Button disabled={!can || a.is_box} title={a.is_box ? t('box.noDelete') : needRole} onClick={() => setDel(true)}><Trash2 />{t('detail.delete')}</Button> : null}
         </>} />
       {a.is_box ? <BoxNotice assetId={a.id} /> : null}
       {/* #829: before the approval, since merging a new row into the known device answers its approval too */}

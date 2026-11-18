@@ -8,7 +8,8 @@ import { Chip } from '@/components/common/StatusChip'
 import { Card } from '@/components/common/Card'
 import { fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
-import { useDeviceAction, useNotifyNew } from './api'
+import { useApproveAll, useDeviceAction, useNotifyNew } from './api'
+import { Dialog, DialogContent, DialogFooter, DialogClose } from '@/components/ui/dialog'
 import { TurnOnModule } from './Inline'
 import { DeleteDialog } from './DeleteDialog'
 import { IgnoreDialog } from './IgnoreDevice'
@@ -72,6 +73,10 @@ export function PendingPanel({ items, total, notifyNew, notifyAvailable, search,
   const admin = useCan('admin')
   const notify = useNotifyNew()
   const pending = [...items].sort((a, b) => b.first_seen.localeCompare(a.first_seen))
+  const approveAll = useApproveAll()
+  const [confirmAll, setConfirmAll] = useState(false)
+  // Devices marked unknown are left for a person to look at one by one
+  const ready = pending.filter((d) => !d.suspicious)
   return (
     <section aria-labelledby="pending-title" className="mb-8 grid min-w-0 gap-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -82,12 +87,26 @@ export function PendingPanel({ items, total, notifyNew, notifyAvailable, search,
           </div>
           <p className="max-w-3xl text-meta text-muted">{t('pending.description')}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {ready.length > 1 ? <Button size="sm" variant="primary" disabled={!can || approveAll.isPending} busy={approveAll.isPending} busyLabel={t('common:busy.approving')}
+            title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })} onClick={() => setConfirmAll(true)}>{t('pending.approveAll', { count: ready.length })}</Button> : null}
           <Switch id="notify-new" checked={notifyNew} disabled={!can || notify.isPending} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })}
             onCheckedChange={(v) => notify.mutate(v, { onSuccess: () => toast.success(v ? t('pending.notifyOn') : t('pending.notifyOff')), onError: (e) => toast.error(errMsg(e)) })} />
           <label htmlFor="notify-new" className="text-sm">{t('pending.notify')}</label>
         </div>
       </div>
+      <Dialog open={confirmAll} onOpenChange={setConfirmAll}>
+        <DialogContent title={t('pending.approveAllTitle', { count: ready.length })} description={t('pending.approveAllBody')}>
+          <DialogFooter>
+            <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
+            <Button variant="primary" busy={approveAll.isPending} busyLabel={t('common:busy.approving')}
+              onClick={() => approveAll.mutate(ready.map((d) => d.id), {
+                onSuccess: (n) => { setConfirmAll(false); toast.success(t('pending.approveAllDone', { count: n })) },
+                onError: (e) => { setConfirmAll(false); toast.error(t('pending.approveAllFailed', { done: (e as { done?: number }).done ?? 0, count: ready.length, error: errMsg(e) })) },
+              })}>{t('pending.approve')}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       {notifyNew && !notifyAvailable ? <TurnOnModule id="notify" reason={t('pending.notifyOff2')} /> : null}
       {/* The channels page is an administrator's: others get the sentence without a link they cannot open */}
       {notifyNew && notifyAvailable ? <p className="text-meta text-muted">{t('pending.notifyVia')}{admin ? <> <Link className="text-accent underline-offset-4 hover:underline" to="/settings/channels">{t('pending.openChannels')}</Link></> : null}</p> : null}

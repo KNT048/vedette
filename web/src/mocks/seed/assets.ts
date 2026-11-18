@@ -30,7 +30,14 @@ export function seedAssets(): Asset[] {
 
   return [
     a({ id: 'a-fw01', ip: '192.168.10.1', kind: 'firewall', hostname: 'FW-HQ', mac: '00:09:0f:aa:01:01', vendor: o('Fortinet', 'passive', 0.95), model: o('FortiGate 60F', 'snmp', 0.9), os: o('FortiOS 7.2', 'snmp', 0.6),
-      software: [sw('s-fw01', 'FortiGate firewall', 'Fortinet', 'FortiOS', '7.2', ['fortinet|fortios', 'fortinet|multiple products'], 'snmp', 0.6)],
+      software: [sw('s-fw01', 'FortiGate firewall', 'Fortinet', 'FortiOS', '7.2', ['fortinet|fortios', 'fortinet|multiple products'], 'snmp', 0.6),
+        // three sources of one software: the agent's package, a person's entry on the scan banner, the banner itself (one line, no notice)
+        { ...sw('s-fw01-ssh-agent', 'OpenSSH', 'OpenBSD', 'OpenSSH', '10.2p1', ['openbsd|openssh'], 'agent', 0.95), pkg_version: '10.2_p1-r1' },
+        { ...sw('s-fw01-ssh-entry', 'OpenSSH', 'OpenBSD', 'OpenSSH', '10.2', ['openbsd|openssh'], 'manual', 1), pkg_version: '10.2_p1-r1', corrects: 's-fw01-ssh-nmap', set_at: D(1) },
+        sw('s-fw01-ssh-nmap', 'OpenSSH', 'OpenBSD', 'OpenSSH', '10.2', ['openbsd|openssh'], 'nmap', 0.7),
+        // an entry and a newer banner of another release: one line, the one notice
+        { ...sw('s-fw01-web-entry', 'nginx', 'F5', 'nginx', '1.24.0', ['f5|nginx'], 'manual', 1), set_at: D(3) },
+        sw('s-fw01-web-nmap', 'nginx', 'F5', 'nginx', '1.26.1', ['f5|nginx'], 'nmap', 0.7)],
       services: [svc(443, 'https', 'nmap', 0.9, 'FortiGate SSL VPN'), svc(22, 'ssh', 'nmap', 0.9), svc(541, 'fgfm', 'nmap', 0.7)] }),
     a({ id: 'a-rt02', ip: '192.168.10.2', kind: 'router', hostname: 'RT-BACKUP', mac: '48:a9:8a:10:22:02', vendor: o('MikroTik', 'passive', 0.95), model: o('hAP ax²', 'snmp', 0.85), os: o('RouterOS 7.14', 'snmp', 0.8),
       software: [sw('s-rt02', 'MikroTik router', 'MikroTik', 'RouterOS', '7.14', ['mikrotik|routeros'], 'snmp', 0.8)], services: [svc(8291, 'winbox'), svc(80, 'http', 'nmap', 0.8, 'MikroTik WebFig')] }),

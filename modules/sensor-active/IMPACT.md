@@ -131,3 +131,8 @@
 
 ## Modifying: `owed.go` (INV-26)
 - It adds at most one queued normal scan per scannable device without a result, per window; the scan runs as any queued scan. A change of the policy's meaning of fragile or unclassified changes which devices owe one.
+
+## Modifying: first checks and waiting checks (INV-27, INV-28)
+- `owed.go` queues by what the policy allows and what the jobs show: a change of `ScanPolicy` (scope, switch, kinds) changes which devices owe a first check; `SettingsChanged` resets the memory so a changed range reaches them in the open window. The web row `web/src/features/inventory/DeviceSources.tsx` + `firstCheck.ts` words it from `GET /scanning` (window, scope, next opening): a change of the window shape or of `next_run_at` changes those words.
+- `drainQueue(firstReasons)` runs before the sweep in `Tick`: a new queue reason that should not wait behind a sweep is added to `firstReasons`; the history trigger of a reason is in `cmd/vedette/scanninghistory.go` (`check_now`, `check_wait` = person).
+- `lockWithin` is shared with `ScanExternal`; its `onWait` is the only hook. `running.view` is the exposure scan's progress for the waiting words; an exposure caller that wraps its context's sink without `View()` leaves the wait without a time.

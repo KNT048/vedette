@@ -50,7 +50,7 @@ describe('Device page: Sources', () => {
     renderApp('/devices/a-nas02', { role: 'admin' })
     const list = await sources()
     const scan = item(list, 'Network scan')
-    expect(await within(scan).findByText('last device check 3 days ago', {}, T)).toBeInTheDocument()
+    expect(await within(scan).findByText('last check 3 days ago', {}, T)).toBeInTheDocument()
     expect(within(scan).getByText('seen by a network scan 22 hours ago')).toBeInTheDocument()
     expect(within(scan).queryByText(/last report/)).toBeNull()
     const ident = await screen.findByRole('group', { name: 'Device check: ports, services, software' }, T)
@@ -64,7 +64,7 @@ describe('Device page: Sources', () => {
     assetsStore.update((l) => l.map((a) => (a.id === 'a-nas02' ? { ...a, os: { value: 'Linux 5.4 - 5.15', source: 'nmap', confidence: 0.9, seen_at: ago(1.99) } } : a)))
     renderApp('/devices/a-nas02', { role: 'admin' })
     const scan = item(await sources(), 'Network scan')
-    expect(await within(scan).findByText('last device check 2 hours ago', {}, T)).toBeInTheDocument()
+    expect(await within(scan).findByText('last check 2 hours ago', {}, T)).toBeInTheDocument()
     expect(within(scan).queryByText(/seen by a network scan/)).toBeNull()
   })
 

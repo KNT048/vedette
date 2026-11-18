@@ -50,6 +50,18 @@ func allPortsEnv(t *testing.T, mut ...func(*env)) *env {
 	e.inv.decision["a-printer"] = sa.Decision{Allowed: true, Rate: 100, Fragile: true, Reason: "ok"} // a fragile device the policy still lets discovery scan
 	e.inv.mu.Unlock()
 	sweptToday(e)
+	// both devices had their first check long ago (a device no check ever reached is checked first: INV-27)
+	err := e.db.Write(e.ctx(), func(tx dbTx) error {
+		for _, id := range []string{"a-web", "a-printer"} {
+			if _, err := tx.ExecContext(e.ctx(), `INSERT INTO sa_job (id, kind, started_at, finished_at, status, asset_id) VALUES (?, 'device', '2026-11-02T02:00:00.000Z', '2026-11-02T02:01:00.000Z', 'done', ?)`, "saj-first-"+id, id); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	return e
 }
 

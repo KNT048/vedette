@@ -111,3 +111,16 @@ export function rawProductLine(display: string, vendor: string, product: string)
   const raw = `${vendor} ${product}`.trim()
   return raw && raw.toLowerCase() !== display.trim().toLowerCase() ? raw : null
 }
+
+/** The weekday (1 = Monday … 7 = Sunday) and the minutes since midnight of a moment in a given IANA zone (a window is read in its own
+ *  zone); null for a zone this browser does not know. */
+export function clockIn(at: Date, timeZone: string): { weekday: number; minutes: number } | null {
+  try {
+    const parts = formatter({ timeZone, weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(at)
+    const part = (t: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === t)?.value ?? ''
+    const weekday = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].indexOf(part('weekday')) + 1
+    return weekday === 0 ? null : { weekday, minutes: Number(part('hour')) * 60 + Number(part('minute')) }
+  } catch {
+    return null
+  }
+}

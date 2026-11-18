@@ -10,6 +10,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/knt048/vedette/core/progress"
 	"github.com/knt048/vedette/core/sensorlink"
 	"github.com/knt048/vedette/modules/scan/commonports"
 	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
@@ -212,7 +213,7 @@ func (s *Service) scanExternal(ctx context.Context, ip netip.Addr, kind nmapargv
 		return External{}, ErrNoTime
 	}
 	stops := s.stops.Load()
-	if !s.lockWithin(ctx, wait) {
+	if !s.lockWithin(ctx, wait, nil) {
 		if ctx.Err() != nil {
 			return External{}, ErrStopped
 		}
@@ -224,7 +225,7 @@ func (s *Service) scanExternal(ctx context.Context, ip netip.Addr, kind nmapargv
 	}
 	jctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	s.setCur(&running{cancel: cancel, targets: targets, rate: nmapargv.ExternalRateOf(kind), kind: kind, external: true})
+	s.setCur(&running{cancel: cancel, targets: targets, rate: nmapargv.ExternalRateOf(kind), kind: kind, external: true, view: viewOf(ctx)})
 	defer s.setCur(nil)
 	if err := s.available(jctx); err != nil {
 		return External{}, err
@@ -455,4 +456,12 @@ func keepEnd(s string, n int) string {
 		return string(r[len(r)-max(n, 0):])
 	}
 	return "…" + string(r[len(r)-n+1:])
+}
+
+// viewOf is the progress of the job whose context this is, when its sink keeps one (the Tracker of an exposure scan); nil otherwise.
+func viewOf(ctx context.Context) func() *progress.View {
+	if t, ok := progress.SinkFrom(ctx).(interface{ View() *progress.View }); ok {
+		return t.View
+	}
+	return nil
 }

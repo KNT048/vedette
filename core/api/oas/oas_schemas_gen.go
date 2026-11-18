@@ -118764,9 +118764,9 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSnmpSource) UnmarshalText(data []b
 type InventoryGetInventoryDevicesIDOKAssetSoftwareItem struct {
 	// Guess on the row of nmap's OS fingerprint (no version, no match key); absent otherwise.
 	Basis OptInventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis `json:"basis"`
-	// False: the box refuses a person's correction of this row (PATCH), so the page does not offer it;
-	// absent or true: it is offered.
-	CanCorrect OptBool `json:"can_correct"`
+	// A person may correct this row's version (INV-52): PATCH /inventory/devices/{id}/software/{id} with {
+	// version }, whatever source reported it; true on every row.
+	CanCorrect bool    `json:"can_correct"`
 	Confidence float64 `json:"confidence"`
 	// On a row a sensor or agent reported: the id of the person's correction that replaces it for matching
 	// (INV-41). Show it as replaced; Clear on the correction brings it back.
@@ -118793,7 +118793,7 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) GetBasis() OptInvent
 }
 
 // GetCanCorrect returns the value of CanCorrect.
-func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) GetCanCorrect() OptBool {
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) GetCanCorrect() bool {
 	return s.CanCorrect
 }
 
@@ -118858,7 +118858,7 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) SetBasis(val OptInve
 }
 
 // SetCanCorrect sets the value of CanCorrect.
-func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) SetCanCorrect(val OptBool) {
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) SetCanCorrect(val bool) {
 	s.CanCorrect = val
 }
 
@@ -120856,11 +120856,18 @@ func (s *InventoryGetInventoryDevicesIDSoftwareOK) SetItems(val []InventoryGetIn
 type InventoryGetInventoryDevicesIDSoftwareOKItemsItem struct {
 	// The other rows of the same software, strongest source first.
 	AlsoSeen []InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItem `json:"also_seen"`
+	// A person may correct this line's version (INV-52): PATCH /inventory/devices/{id}/software/{id} with
+	// { version }, whatever source the line is read from; true on every line.
+	CanCorrect bool `json:"can_correct"`
+	// The value is a person's correction (source manual, set_by says who). It lapses by itself when a
+	// source later reads a newer version (the device history says so).
+	Corrected bool `json:"corrected"`
+	// What the source read when the person corrected it; null when the line is not a correction.
+	CorrectedFrom NilInventoryGetInventoryDevicesIDSoftwareOKItemsItemCorrectedFrom `json:"corrected_from"`
 	// "" when none.
 	Cpe string `json:"cpe"`
-	// A scan, SNMP or passive reading reads another release than this row (matching keeps that reading
-	// too); never the row a person's entry corrects: the first also_seen of such a source with
-	// same_release false.
+	// Another reading or another install reads another release than this row (matching keeps it too);
+	// never the row a person's correction replaces: the first such also_seen with same_release false.
 	Differs bool   `json:"differs"`
 	Display string `json:"display"`
 	// The software row the values are read from.
@@ -120882,6 +120889,21 @@ type InventoryGetInventoryDevicesIDSoftwareOKItemsItem struct {
 // GetAlsoSeen returns the value of AlsoSeen.
 func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) GetAlsoSeen() []InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItem {
 	return s.AlsoSeen
+}
+
+// GetCanCorrect returns the value of CanCorrect.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) GetCanCorrect() bool {
+	return s.CanCorrect
+}
+
+// GetCorrected returns the value of Corrected.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) GetCorrected() bool {
+	return s.Corrected
+}
+
+// GetCorrectedFrom returns the value of CorrectedFrom.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) GetCorrectedFrom() NilInventoryGetInventoryDevicesIDSoftwareOKItemsItemCorrectedFrom {
+	return s.CorrectedFrom
 }
 
 // GetCpe returns the value of Cpe.
@@ -120947,6 +120969,21 @@ func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) GetVersion() string 
 // SetAlsoSeen sets the value of AlsoSeen.
 func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) SetAlsoSeen(val []InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItem) {
 	s.AlsoSeen = val
+}
+
+// SetCanCorrect sets the value of CanCorrect.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) SetCanCorrect(val bool) {
+	s.CanCorrect = val
+}
+
+// SetCorrected sets the value of Corrected.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) SetCorrected(val bool) {
+	s.Corrected = val
+}
+
+// SetCorrectedFrom sets the value of CorrectedFrom.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) SetCorrectedFrom(val NilInventoryGetInventoryDevicesIDSoftwareOKItemsItemCorrectedFrom) {
+	s.CorrectedFrom = val
 }
 
 // SetCpe sets the value of Cpe.
@@ -121148,6 +121185,44 @@ func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSource) Un
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type InventoryGetInventoryDevicesIDSoftwareOKItemsItemCorrectedFrom struct {
+	// "" when none.
+	PkgVersion string `json:"pkg_version"`
+	Source     string `json:"source"`
+	// "" when none.
+	Version string `json:"version"`
+}
+
+// GetPkgVersion returns the value of PkgVersion.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItemCorrectedFrom) GetPkgVersion() string {
+	return s.PkgVersion
+}
+
+// GetSource returns the value of Source.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItemCorrectedFrom) GetSource() string {
+	return s.Source
+}
+
+// GetVersion returns the value of Version.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItemCorrectedFrom) GetVersion() string {
+	return s.Version
+}
+
+// SetPkgVersion sets the value of PkgVersion.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItemCorrectedFrom) SetPkgVersion(val string) {
+	s.PkgVersion = val
+}
+
+// SetSource sets the value of Source.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItemCorrectedFrom) SetSource(val string) {
+	s.Source = val
+}
+
+// SetVersion sets the value of Version.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItemCorrectedFrom) SetVersion(val string) {
+	s.Version = val
 }
 
 type InventoryGetInventoryDevicesIDSoftwareOKItemsItemSource string
@@ -153755,6 +153830,53 @@ func (o NilInventoryGetInventoryDevicesIDOKRisk) Get() (v InventoryGetInventoryD
 
 // Or returns value if set, or given parameter if does not.
 func (o NilInventoryGetInventoryDevicesIDOKRisk) Or(d InventoryGetInventoryDevicesIDOKRisk) InventoryGetInventoryDevicesIDOKRisk {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilInventoryGetInventoryDevicesIDSoftwareOKItemsItemCorrectedFrom returns new NilInventoryGetInventoryDevicesIDSoftwareOKItemsItemCorrectedFrom with value set to v.
+func NewNilInventoryGetInventoryDevicesIDSoftwareOKItemsItemCorrectedFrom(v InventoryGetInventoryDevicesIDSoftwareOKItemsItemCorrectedFrom) NilInventoryGetInventoryDevicesIDSoftwareOKItemsItemCorrectedFrom {
+	return NilInventoryGetInventoryDevicesIDSoftwareOKItemsItemCorrectedFrom{
+		Value: v,
+	}
+}
+
+// NilInventoryGetInventoryDevicesIDSoftwareOKItemsItemCorrectedFrom is nullable InventoryGetInventoryDevicesIDSoftwareOKItemsItemCorrectedFrom.
+type NilInventoryGetInventoryDevicesIDSoftwareOKItemsItemCorrectedFrom struct {
+	Value InventoryGetInventoryDevicesIDSoftwareOKItemsItemCorrectedFrom
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInventoryGetInventoryDevicesIDSoftwareOKItemsItemCorrectedFrom) SetTo(v InventoryGetInventoryDevicesIDSoftwareOKItemsItemCorrectedFrom) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInventoryGetInventoryDevicesIDSoftwareOKItemsItemCorrectedFrom) IsNull() bool {
+	return o.Null
+}
+
+// SetToNull sets value to null.
+func (o *NilInventoryGetInventoryDevicesIDSoftwareOKItemsItemCorrectedFrom) SetToNull() {
+	o.Null = true
+	var v InventoryGetInventoryDevicesIDSoftwareOKItemsItemCorrectedFrom
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInventoryGetInventoryDevicesIDSoftwareOKItemsItemCorrectedFrom) Get() (v InventoryGetInventoryDevicesIDSoftwareOKItemsItemCorrectedFrom, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInventoryGetInventoryDevicesIDSoftwareOKItemsItemCorrectedFrom) Or(d InventoryGetInventoryDevicesIDSoftwareOKItemsItemCorrectedFrom) InventoryGetInventoryDevicesIDSoftwareOKItemsItemCorrectedFrom {
 	if v, ok := o.Get(); ok {
 		return v
 	}

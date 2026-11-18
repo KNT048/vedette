@@ -428,7 +428,7 @@ func (s *Service) Detail(ctx context.Context, id string) (Detail, error) {
 		if err != nil {
 			return Detail{}, err
 		}
-		views = append(views, SoftwareView{ID: sw.ID, Display: sw.Display, Vendor: sw.Vendor, Product: sw.Product, Version: sw.Version, KevCVEs: cves, Source: sw.Source, Confidence: sw.Confidence, Basis: sw.Basis})
+		views = append(views, SoftwareView{ID: sw.ID, Display: sw.Display, Vendor: sw.Vendor, Product: sw.Product, Version: sw.Version, KevCVEs: cves, Source: sw.Source, Confidence: sw.Confidence, Basis: sw.Basis, CanCorrect: true})
 	}
 	if err := addCorrections(ctx, db, id, views); err != nil {
 		return Detail{}, err

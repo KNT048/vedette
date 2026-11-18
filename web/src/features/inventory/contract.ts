@@ -120,13 +120,15 @@ export const SoftwareView = Software.omit({ kev: true }).extend({
   pkg_version: z.string().optional().describe('The full package release: an agent\'s packaged row ("1:9.6p1-3ubuntu13.14") or a person\'s correction ("10.2_p1-r1"); absent when none'),
   corrected_by: z.string().optional().describe('On a row a sensor or agent reported: the id of the person\'s correction that replaces it for matching (INV-41). Show it as replaced; Clear on the correction brings it back'),
   correction: SoftwareCorrection.optional().describe('On a person\'s correction of a reported row (INV-41): when it was set and what the sources read now. Clear = DELETE the row'),
-  can_correct: z.boolean().optional().describe('false: the box refuses a person\'s correction of this row (PATCH), so the page does not offer it; absent or true: it is offered'),
+  can_correct: z.boolean().describe('A person may correct this row\'s version (INV-52): PATCH /inventory/devices/{id}/software/{id} with { version }, whatever source reported it; true on every row'),
 })
 /** INV-50: another source's reading of a software the device has one effective row for. */
 export const AlsoSeen = z.object({
   id: z.string(), source: ObsSource, version: z.string().describe('"" when the source gave none'), pkg_version: z.string().describe('"" when none'), seen_at: dt,
   same_release: z.boolean().describe('The effective row\'s release with more or less detail (10.2, 10.2p1, 10.2_p1-r1): not a disagreement'),
 })
+/** INV-52: the reading a person's correction replaced, as it was when they set it. */
+export const CorrectedFrom = z.object({ source: z.string(), version: z.string().describe('"" when none'), pkg_version: z.string().describe('"" when none') })
 /** INV-50: one software of a device, the strongest source\'s reading; every surface reads the device\'s software this way. */
 export const EffectiveSoftware = z.object({
   id: z.string().describe('The software row the values are read from'),
@@ -135,7 +137,10 @@ export const EffectiveSoftware = z.object({
   packaged: z.boolean().describe('Read from the operating system\'s package database'),
   cpe: z.string().describe('"" when none'), source: ObsSource, set_by: z.string().describe('Who entered it (a person\'s entry or correction); "" otherwise'), seen_at: dt,
   also_seen: z.array(AlsoSeen).describe('The other rows of the same software, strongest source first'),
-  differs: z.boolean().describe('A scan, SNMP or passive reading reads another release than this row (matching keeps that reading too); never the row a person\'s entry corrects: the first also_seen of such a source with same_release false'),
+  differs: z.boolean().describe('Another reading or another install reads another release than this row (matching keeps it too); never the row a person\'s correction replaces: the first such also_seen with same_release false'),
+  can_correct: z.boolean().describe('A person may correct this line\'s version (INV-52): PATCH /inventory/devices/{id}/software/{id} with { version }, whatever source the line is read from; true on every line'),
+  corrected: z.boolean().describe('The value is a person\'s correction (source manual, set_by says who). It lapses by itself when a source later reads a newer version (the device history says so)'),
+  corrected_from: CorrectedFrom.nullable().describe('What the source read when the person corrected it; null when the line is not a correction'),
 })
 /** INV-41: the OS a person set on the device; it wins over every source and drives matching while it stands. */
 export const OsCorrection = z.object({

@@ -54431,8 +54431,8 @@
                                 "additionalProperties": false
                               },
                               "can_correct": {
-                                "description": "false: the box refuses a person's correction of this row (PATCH), so the page does not offer it; absent or true: it is offered",
-                                "type": "boolean"
+                                "type": "boolean",
+                                "description": "A person may correct this row's version (INV-52): PATCH /inventory/devices/{id}/software/{id} with { version }, whatever source reported it; true on every row"
                               }
                             },
                             "required": [
@@ -54443,7 +54443,8 @@
                               "version",
                               "source",
                               "confidence",
-                              "kev_cves"
+                              "kev_cves",
+                              "can_correct"
                             ],
                             "additionalProperties": false
                           }
@@ -55721,7 +55722,45 @@
                           },
                           "differs": {
                             "type": "boolean",
-                            "description": "A scan, SNMP or passive reading reads another release than this row (matching keeps that reading too); never the row a person's entry corrects: the first also_seen of such a source with same_release false"
+                            "description": "Another reading or another install reads another release than this row (matching keeps it too); never the row a person's correction replaces: the first such also_seen with same_release false"
+                          },
+                          "can_correct": {
+                            "type": "boolean",
+                            "description": "A person may correct this line's version (INV-52): PATCH /inventory/devices/{id}/software/{id} with { version }, whatever source the line is read from; true on every line"
+                          },
+                          "corrected": {
+                            "type": "boolean",
+                            "description": "The value is a person's correction (source manual, set_by says who). It lapses by itself when a source later reads a newer version (the device history says so)"
+                          },
+                          "corrected_from": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "source": {
+                                    "type": "string"
+                                  },
+                                  "version": {
+                                    "type": "string",
+                                    "description": "\"\" when none"
+                                  },
+                                  "pkg_version": {
+                                    "type": "string",
+                                    "description": "\"\" when none"
+                                  }
+                                },
+                                "required": [
+                                  "source",
+                                  "version",
+                                  "pkg_version"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "What the source read when the person corrected it; null when the line is not a correction"
                           }
                         },
                         "required": [
@@ -55737,7 +55776,10 @@
                           "set_by",
                           "seen_at",
                           "also_seen",
-                          "differs"
+                          "differs",
+                          "can_correct",
+                          "corrected",
+                          "corrected_from"
                         ],
                         "additionalProperties": false
                       }

@@ -1108,9 +1108,9 @@ func confirmIP(ctx context.Context, tx *sql.Tx, id string, ip netip.Addr, seenAt
 // insertObs appends an observation. An exact repeat of (device, field, source, value) moves seen_at forward
 // and keeps the higher confidence; nothing else is ever changed (INV-1). Record alone deletes, by pruneObs (INV-16).
 func insertObs(ctx context.Context, tx *sql.Tx, assetID, field, value, source string, conf float64, seenAt string) error {
-	_, err := tx.ExecContext(ctx, `INSERT INTO inv_observation (id, asset_id, field, value, source, confidence, seen_at) VALUES (?, ?, ?, ?, ?, ?, ?)
+	_, err := tx.ExecContext(ctx, `INSERT INTO inv_observation (id, asset_id, field, value, source, confidence, seen_at, first_seen) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT (asset_id, field, source, value) DO UPDATE SET seen_at = max(seen_at, excluded.seen_at), confidence = max(confidence, excluded.confidence)`,
-		store.NewID("o"), assetID, field, value, source, conf, seenAt)
+		store.NewID("o"), assetID, field, value, source, conf, seenAt, seenAt)
 	if err != nil {
 		return fmt.Errorf("inventory: record observation: %w", err)
 	}
@@ -1141,6 +1141,9 @@ func pruneObs(ctx context.Context, tx *sql.Tx, assetID, field, source string) er
 // field the winner by source rank, confidence, seen_at, id. It is the only code that writes those columns, and
 // it runs in the transaction of the insert and the audit row. It reports whether anything changed.
 func (s *Service) RecomputeAsset(ctx context.Context, tx *sql.Tx, assetID string) (bool, error) {
+	if _, err := s.lapseOS(ctx, tx, assetID); err != nil { // a newer OS read after a person's correction ends it (INV-52)
+		return false, err
+	}
 	// The chassis MAC a join left is a mark, never the device's MAC.
 	rows, err := tx.QueryContext(ctx, `SELECT id, field, value, source, confidence, seen_at FROM inv_observation WHERE asset_id = ? AND NOT (field = 'mac' AND evidence IS ?)`, assetID, chassisEvidence)
 	if err != nil {

@@ -261,6 +261,8 @@ type SoftwareView struct {
 	CorrectedBy *string `json:"corrected_by,omitempty"`
 	// Correction, on a person's correction, says when it was set and what the sources read now (INV-41).
 	Correction *SoftwareCorrection `json:"correction,omitempty"`
+	// CanCorrect: a person may correct this row's version (PATCH, INV-52), whatever source reported it. true on every row.
+	CanCorrect bool `json:"can_correct"`
 }
 
 // ServiceRow is a service seen listening on a device (contract.ts Service).

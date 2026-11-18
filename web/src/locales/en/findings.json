@@ -559,7 +559,24 @@
     "hide_one": "Hide not relevant ({{count}})",
     "hide_other": "Hide not relevant ({{count}})"
   },
+  "notAdded": {
+    "mark": "Device not added yet",
+    "body": "Nobody approved this device yet. Add it to your devices to track it, or ignore it to hide it and all its findings for good.",
+    "add": "Add device",
+    "ignore": "Ignore",
+    "added": "Added {{name}}.",
+    "ignored": "Ignored {{name}}. Its findings are under Ignored."
+  },
+  "ignoredTab": {
+    "intro": "Findings of devices you ignored. They are hidden from the other lists and never come back, even when the device is seen on the network again. Restore a device to watch it again: it goes back to To review and its findings show again.",
+    "none": "No ignored device has findings.",
+    "restore": "Restore",
+    "restored": "Restored {{name}}. Its findings show again.",
+    "count_one": "{{count}} finding",
+    "count_other": "{{count}} findings"
+  },
   "tabs": {
+    "ignored": "Ignored",
     "label": "Findings lists",
     "fix": "To fix",
     "input": "Needs your input",

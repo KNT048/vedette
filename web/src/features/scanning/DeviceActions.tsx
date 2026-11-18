@@ -9,6 +9,7 @@ import { useTargets } from '@/features/scan/api'
 import { VulnChecksButton } from '@/features/scan/VulnChecksButton'
 import { useModuleEnabled } from '@/lib/modules'
 import { useScanning } from './api'
+import { useFindings } from '@/features/findings/api'
 import { ScanNowButton } from './ScanNow'
 
 // The rule moved to canScan.ts, shared with the finding page, To fix and the device page's fragile line
@@ -112,6 +113,8 @@ export function DeviceActions({ assetId, asset: d }: { assetId: string; /** The 
   const { t } = useTranslation('scanning')
   const hint = useId()
   const { identify: r, vuln } = useDeviceButtons(assetId, d)
+  // one cause is said once: a device that can be neither identified nor checked for the same reason (no address) gets one note
+  if (r && r !== 'manual' && r === vuln) return <p className="text-meta text-muted">{t(`selection.device.both.${r}`, { defaultValue: t(`selection.device.${r}`) })}</p>
   return (
     <div className="flex flex-wrap items-start gap-3">
       {r === 'manual' ? <p className="text-meta text-muted"><ScanOffSeeSources link={!d?.ignored_at} /></p>
@@ -132,12 +135,19 @@ export function DeviceActions({ assetId, asset: d }: { assetId: string; /** The 
 function DeviceVulnChecks({ assetId, vuln }: { assetId: string; vuln: VulnButton }) {
   const { t } = useTranslation('scanning')
   const hint = useId()
+  const findingsOn = useModuleEnabled('findings') === true
+  const list = useFindings(assetId, findingsOn)
   if (vuln === 'off') return null
   if (vuln) return <p className="text-meta text-muted">{t(`scan:reason.${vuln}`)}</p>
+  if (findingsOn && list.isPending) return null // the count decides whether a run is offered: wait for it
+  // How many of the device's suspected findings have a safe check (the KEV entry's has_template): the run can only confirm those
+  const suspected = (list.data?.items ?? []).filter((f) => f.status === 'suspected')
+  const checkable = suspected.filter((f) => f.kev?.has_template).length
+  if (suspected.length > 0 && checkable === 0) return <p className="max-w-xs text-meta text-muted">{t('hint.vulnNone', { count: suspected.length })}</p>
   return (
     <div className="grid max-w-xs gap-1">
       <VulnChecksButton targets={[assetId]} describedBy={hint} />
-      <p id={hint} className="text-meta text-muted">{t('hint.vuln')}</p>
+      <p id={hint} className="text-meta text-muted">{t('hint.vuln')}{suspected.length > 0 ? ` ${t('hint.vulnCount', { checkable, count: suspected.length })}` : ''}</p>
     </div>
   )
 }

@@ -7,7 +7,7 @@ export function DeleteDialog({ open, onOpenChange, name, findings, pending, onCo
   const { t } = useTranslation('inventory')
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent title={t('delete.title', { name })} description={<>{t('delete.body')}{findings > 0 ? <strong className="mt-2 block font-medium text-ink">{t('delete.findings', { count: findings })}</strong> : null}</>}
+      <DialogContent title={t('delete.title', { name })} description={<>{t('delete.body')} {t('delete.comesBack')}{findings > 0 ? <strong className="mt-2 block font-medium text-ink">{t('delete.findings', { count: findings })}</strong> : null}</>}
         info={<><p>{t('delete.bodyInfo')}</p>{findings > 0 ? <p>{t('delete.findingsInfo')}</p> : null}</>}>
         <DialogFooter>
           <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>

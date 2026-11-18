@@ -35,6 +35,7 @@ type DeviceRef struct {
 	OSSource string
 	OSBasis  string // how Vedette knows that OS, as the device page says it (osBasis): "stated" (its LLDP statement), "guess" (nmap's fingerprint), ""
 	Approved bool   // a person approved it, or osquery enrolment did (sensor-active sends SNMP credentials only to approved devices)
+	Ignored  bool   // a person ignored it (INV-38): its findings are hidden under Findings > Ignored
 	Model    string // the current model value, "" when none (notify names a device without inv.Device)
 	Origin   string // "discovered" or "manual"
 	// ApprovedAt is when a person or osquery enrolment approved it; nil when not approved, declared by hand, or approved before approval times were recorded.
@@ -51,7 +52,7 @@ func (s *Service) DeviceRefs(ctx context.Context, ids []string) (map[string]Devi
 		for i, id := range chunk {
 			args[i] = id
 		}
-		rows, err := s.db.Reader().QueryContext(ctx, `SELECT a.id, a.hostname, a.user_name, a.is_box, a.ip, a.mac, a.vendor, a.kind, a.approved, a.model, a.origin, a.approved_at, a.os,
+		rows, err := s.db.Reader().QueryContext(ctx, `SELECT a.id, a.hostname, a.user_name, a.is_box, a.ip, a.mac, a.vendor, a.kind, a.approved, a.model, a.origin, a.approved_at, a.os, a.ignored_at IS NOT NULL,
 			(SELECT o.source FROM inv_observation o WHERE o.id = a.os_obs_id),
 			`+firstSoftware+`
 			FROM inv_asset a WHERE a.id IN (?`+strings.Repeat(`, ?`, len(chunk)-1)+`)`, args...)
@@ -61,7 +62,7 @@ func (s *Service) DeviceRefs(ctx context.Context, ids []string) (map[string]Devi
 		for rows.Next() {
 			var d DeviceRef
 			var host, userName, ip, mac, vendor, model, approvedAt, osName, osSource, display sql.NullString
-			if err := rows.Scan(&d.ID, &host, &userName, &d.IsBox, &ip, &mac, &vendor, &d.Kind, &d.Approved, &model, &d.Origin, &approvedAt, &osName, &osSource, &display); err != nil {
+			if err := rows.Scan(&d.ID, &host, &userName, &d.IsBox, &ip, &mac, &vendor, &d.Kind, &d.Approved, &model, &d.Origin, &approvedAt, &osName, &d.Ignored, &osSource, &display); err != nil {
 				_ = rows.Close()
 				return nil, fmt.Errorf("inventory: read devices: %w", err)
 			}

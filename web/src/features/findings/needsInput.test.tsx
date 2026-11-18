@@ -10,7 +10,7 @@ import type { FindingAsset, ToFix, ToFixAction, ToFixDevice, UncheckedItem, Vers
 
 // S-MIT-1: Needs your input, one block per device, the worst first; every item says what to do and offers it there.
 const T = { timeout: 5000 }
-const asset = (id: string, name: string): FindingAsset => ({ id, name, hostname: name, ip: '192.168.18.20', kind: 'server', display: name })
+const asset = (id: string, name: string): FindingAsset => ({ id, name, hostname: name, ip: '192.168.18.20', kind: 'server', display: name, approved: true, ignored: false })
 const act = (o: Partial<ToFixAction>): ToFixAction => ({ group: 'g', software_id: '', software: '', version: '', product: '', source: '', fixed: '', kind: 'none', windows: false, distro: '', pro: false, action: '',
   cves: [], finding_ids: [], worst: 'medium', ransomware: 0, likely: 0, confirmed: 0, detected: 0, reported: 1, suspected: 0, nvd_lag: false, kb: '', ...o })
 const dev = (a: FindingAsset, o: Partial<ToFixDevice>): ToFixDevice => ({ asset: a, risk: null, open: 0, exploited: [], no_update: [], planned: [], plan_compared: true, ...o })

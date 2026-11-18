@@ -12,7 +12,9 @@ import (
 // owedRetry is how long a device that had a normal or versions scan (successful or not) is left alone before another is queued for it.
 const owedRetry = 7 * 24 * time.Hour
 
-// queueOwedNormal queues, once per window, a normal scan for every device the policy lets be scanned normally that had a gentle scan
+// queueOwedNormal queues, once per window, the scan every device is owed. First, a first check for every device the policy allows that
+// no check ever reached (INV-27): a device whose network scan a person turned on, or that a new or changed range now covers, was
+// refused (and left the queue) while it was out of scope or off, and nothing else asks for it before the weekly round. Then, a normal scan for every device the policy lets be scanned normally that had a gentle scan
 // and never a normal one (INV-26). A device is scanned once when it is found, gently while its kind is unknown or fragile; when it later becomes
 // scannable (a person or a scan gave it a type that is not fragile, the fragile or regular-scan kinds changed, regular_scan=allow)
 // nothing else asked for its normal scan before the weekly round (up to a week later), so its services kept no product or version
@@ -51,25 +53,36 @@ func (s *Service) queueOwedNormal(ctx context.Context, windowStart time.Time) er
 			}
 			return err
 		}
-		if !dec.Allowed || dec.Never || dec.Fragile || dec.Unclassified || dec.FirstGentle {
+		if !dec.Allowed || dec.Never {
 			continue
 		}
-		var busy, gentle int
+		var checked, queuedNow, busy, gentle int
 		err = s.db.Reader().QueryRowContext(ctx, `SELECT
 			(SELECT count(*) FROM sa_probe p JOIN sa_job j ON j.id = p.job_id WHERE j.asset_id = ?1 AND p.shape IN ('gentle', 'gentle_titles')),
 			(SELECT count(*) FROM sa_all_ports WHERE asset_id = ?1 AND normal_sw IS NOT NULL)
-			+ (SELECT count(*) FROM sa_queue WHERE asset_id = ?1)
-			+ (SELECT count(*) FROM sa_probe p JOIN sa_job j ON j.id = p.job_id WHERE j.asset_id = ?1 AND p.shape IN ('normal', 'versions') AND p.time >= ?2)`,
-			id, since).Scan(&gentle, &busy)
+			+ (SELECT count(*) FROM sa_probe p JOIN sa_job j ON j.id = p.job_id WHERE j.asset_id = ?1 AND p.shape IN ('normal', 'versions') AND p.time >= ?2),
+			(SELECT count(*) FROM sa_queue WHERE asset_id = ?1),
+			(SELECT count(*) FROM sa_job WHERE asset_id = ?1 AND kind = 'device' AND status IN ('done', 'failed'))
+			+ (SELECT count(*) FROM sa_all_ports WHERE asset_id = ?1 AND normal_sw IS NOT NULL)`,
+			id, since).Scan(&gentle, &busy, &queuedNow, &checked)
 		if err != nil {
 			return fmt.Errorf("sensoractive: read the scans of a device: %w", err)
 		}
-		if gentle > 0 && busy == 0 { // only a device whose look so far was gentle: any other device's scan is the queue's and the weekly round's
-			if err := s.Enqueue(ctx, id, "normal_owed"); err != nil {
+		reason := ""
+		switch {
+		case queuedNow > 0:
+		case checked == 0: // no check of this device yet, whatever made it scannable (INV-27): its first one is tonight's, not the weekly round's
+			reason = "first_check"
+		case !dec.Fragile && !dec.Unclassified && !dec.FirstGentle && gentle > 0 && busy == 0:
+			// only a device whose look so far was gentle: any other device's scan is the queue's and the weekly round's
+			reason = "normal_owed"
+		}
+		if reason != "" {
+			if err := s.Enqueue(ctx, id, reason); err != nil {
 				return err
 			}
 			s.mu.Lock()
-			s.owedTried[id] = true // queued once per device (until the process restarts): a scan the policy refuses at its turn is not queued again every window
+			s.owedTried[id] = true // queued once per device (until the process restarts or the settings change): a scan the policy refuses at its turn is not queued again every window
 			s.mu.Unlock()
 		}
 	}

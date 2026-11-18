@@ -27,7 +27,7 @@
     "feeds": "Reporting",
     "notYet": "Not set up",
     "lastSeen": "last report {{when}}",
-    "lastCheck": "last device check {{when}}",
+    "lastCheck": "last check {{when}}",
     "lastSeenScan": "seen by a network scan {{when}}",
     "added": "added {{when}}",
     "lastChanged": "last changed {{when}}",
@@ -55,6 +55,20 @@
       "gearHint": "Agents run on computers and servers. For this device, SNMP reads the firmware version.",
       "unknownHint": "Agents run on computers and servers. If this is network gear, SNMP reads its firmware version instead.",
       "how": "An agent is installed or uninstalled on the machine itself, not switched here."
+    },
+    "scan": {
+      "on": "On",
+      "firstTonight": "On · first check tonight at {{time}}, in the scan window",
+      "firstToday": "On · first check today at {{time}}, in the scan window",
+      "firstTomorrow": "On · first check tomorrow at {{time}}, in the scan window",
+      "firstDay": "On · first check on {{day}} at {{time}}, in the scan window",
+      "firstNow": "On · first check runs during this scan window",
+      "firstNext": "On · first check in the next scan window",
+      "waiting": {
+        "off": "On · first check waits: active discovery is off",
+        "scope": "On · first check waits: the scan ranges are not confirmed",
+        "outside": "On · first check waits: the device is outside the scan ranges"
+      }
     },
     "snmp": {
       "off": "Turn on active discovery in Settings to read devices with SNMP.",

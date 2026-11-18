@@ -25,6 +25,13 @@ type EffectiveSoftware struct {
 	Source     string `json:"source"`
 	SetBy      string `json:"set_by"` // who entered it (a person's entry or correction); "" otherwise
 	SeenAt     string `json:"seen_at"`
+	// CanCorrect: a person may correct this line's version (PATCH /inventory/devices/{id}/software/{id} with {"version": ...}),
+	// whatever source it was read from (INV-52). true on every line.
+	CanCorrect bool `json:"can_correct"`
+	// Corrected: the value is a person's correction (Source is "manual", SetBy says who); CorrectedFrom is what the source read
+	// when it was set. A correction that lapsed (a newer reading) is no longer on the device: it is in the device history.
+	Corrected     bool           `json:"corrected"`
+	CorrectedFrom *CorrectedFrom `json:"corrected_from"`
 	// AlsoSeen lists the other rows of the same software, strongest source first, never as rows of their own.
 	AlsoSeen []AlsoSeen `json:"also_seen"`
 	// Differs: a scan, SNMP or passive reading reads another release (not the same one with more or less detail) and is not the row
@@ -34,6 +41,13 @@ type EffectiveSoftware struct {
 	key, corrects string // the row's identity (rowKey) and, on a person's correction, the row it corrects
 }
 
+// CorrectedFrom is the reading a person's correction replaced: its source and version when the person set it.
+type CorrectedFrom struct {
+	Source     string `json:"source"`
+	Version    string `json:"version"`
+	PkgVersion string `json:"pkg_version"`
+}
+
 // AlsoSeen is another source's reading of an effective software.
 type AlsoSeen struct {
 	ID          string `json:"id"`
@@ -41,6 +55,7 @@ type AlsoSeen struct {
 	Version     string `json:"version"`
 	PkgVersion  string `json:"pkg_version"`
 	SeenAt      string `json:"seen_at"`
+	corrects    string // a person's correction of another row: matching keeps it unless it is the same release
 	SameRelease bool   `json:"same_release"` // the effective row's release with more or less detail (10.2, 10.2p1, 10.2_p1-r1)
 }
 
@@ -143,17 +158,11 @@ func effectiveOf(all []EffectiveSoftware) []EffectiveSoftware {
 				}
 			}
 		}
-		// an entry that corrects an agent's row is that agent install's own value: it ranks with the agent rows (another agent row of the
-		// product, a second kernel, does not hide it); once the corrected row is gone, it is an entry like any other
+		// a person's correction is the line's value whatever source it corrects (INV-52): it outranks the agent, and every reading,
+		// another agent row included, is listed under it
 		rank := func(i int) int {
-			for _, c := range corrected {
-				if c == i && all[i].Source == "manual" {
-					for r, cc := range corrected {
-						if cc == i && all[r].Source == "agent" {
-							return softwareRank("agent")
-						}
-					}
-				}
+			if all[i].corrects != "" && all[i].Source == "manual" {
+				return softwareRank("correction")
 			}
 			return softwareRank(all[i].Source)
 		}
@@ -168,7 +177,7 @@ func effectiveOf(all []EffectiveSoftware) []EffectiveSoftware {
 		var shown []EffectiveSoftware
 		var rest []int
 		for _, i := range cand {
-			if rank(i) == top {
+			if rank(i) == top && (top != softwareRank("correction") || len(shown) == 0) { // two corrections of one software: the newest is the line
 				r := all[i]
 				r.AlsoSeen = []AlsoSeen{}
 				shown = append(shown, r)
@@ -202,10 +211,25 @@ func effectiveOf(all []EffectiveSoftware) []EffectiveSoftware {
 			}
 			t := &shown[ti]
 			same := pkgrel.Same(t.Version, t.PkgVersion, all[w].Version, all[w].PkgVersion)
-			t.AlsoSeen = append(t.AlsoSeen, AlsoSeen{ID: all[w].ID, Source: all[w].Source, Version: all[w].Version, PkgVersion: all[w].PkgVersion, SeenAt: all[w].SeenAt, SameRelease: same})
+			t.AlsoSeen = append(t.AlsoSeen, AlsoSeen{ID: all[w].ID, Source: all[w].Source, Version: all[w].Version, PkgVersion: all[w].PkgVersion, SeenAt: all[w].SeenAt, corrects: all[w].corrects, SameRelease: same})
 			if _, isCorrected := corrected[w]; !same && all[w].Source != "manual" && !isCorrected { // a reading of another release, which matching keeps too; the row the entry corrects is the person's deliberate change, never a notice
 				t.Differs = true
 			}
+		}
+		for k := range shown {
+			shown[k].CanCorrect = true
+			if shown[k].corrects == "" || shown[k].Source != "manual" {
+				continue
+			}
+			shown[k].Corrected = true
+			src, _, _, ver := correctedFrom(shown[k].corrects)
+			from := &CorrectedFrom{Source: src, Version: ver}
+			for r, c := range corrected {
+				if all[c].ID == shown[k].ID && all[r].Source == src && all[r].Version == ver {
+					from.PkgVersion = all[r].PkgVersion
+				}
+			}
+			shown[k].CorrectedFrom = from
 		}
 		out = append(out, shown...)
 	}
@@ -216,6 +240,8 @@ func effectiveOf(all []EffectiveSoftware) []EffectiveSoftware {
 // typed; a person's entry outranks what the device announces over SNMP and a scan's banner.
 func softwareRank(source string) int {
 	switch source {
+	case "correction":
+		return 7
 	case "agent":
 		return 6
 	case "manual":
@@ -255,8 +281,8 @@ func markShadowed(ctx context.Context, q querier, assetID string, d *MatchDevice
 	shadowed := map[string]bool{}
 	for _, e := range eff {
 		for _, o := range e.AlsoSeen {
-			if o.Source != "manual" && !o.SameRelease {
-				continue
+			if o.Source != "manual" && !o.SameRelease || o.corrects != "" && !o.SameRelease {
+				continue // another release of a scan, SNMP or passive reading, or a second correction, still matches
 			}
 			shadowed[o.ID] = true
 		}

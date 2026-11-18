@@ -126,6 +126,8 @@ export const AlsoSeen = z.object({
   id: z.string(), source: ObsSource, version: z.string().describe('"" when the source gave none'), pkg_version: z.string().describe('"" when none'), seen_at: dt,
   same_release: z.boolean().describe('The effective row\'s release with more or less detail (10.2, 10.2p1, 10.2_p1-r1): not a disagreement'),
 })
+/** INV-52: the reading a person's correction replaced, as it was when they set it. */
+export const CorrectedFrom = z.object({ source: z.string(), version: z.string().describe('"" when none'), pkg_version: z.string().describe('"" when none') })
 /** INV-50: one software of a device, the strongest source\'s reading; every surface reads the device\'s software this way. */
 export const EffectiveSoftware = z.object({
   id: z.string().describe('The software row the values are read from'),
@@ -135,6 +137,9 @@ export const EffectiveSoftware = z.object({
   cpe: z.string().describe('"" when none'), source: ObsSource, set_by: z.string().describe('Who entered it (a person\'s entry or correction); "" otherwise'), seen_at: dt,
   also_seen: z.array(AlsoSeen).describe('The other rows of the same software, strongest source first'),
   differs: z.boolean().describe('A scan, SNMP or passive reading reads another release than this row (matching keeps that reading too); never the row a person\'s entry corrects: the first also_seen of such a source with same_release false'),
+  can_correct: z.boolean().describe('A person may correct this line\'s version (INV-52): PATCH /inventory/devices/{id}/software/{id} with { version }, whatever source the line is read from; true on every line'),
+  corrected: z.boolean().describe('The value is a person\'s correction (source manual, set_by says who). It lapses by itself when a source later reads a newer version (the device history says so)'),
+  corrected_from: CorrectedFrom.nullable().describe('What the source read when the person corrected it; null when the line is not a correction'),
 })
 /** INV-41: the OS a person set on the device; it wins over every source and drives matching while it stands. */
 export const OsCorrection = z.object({

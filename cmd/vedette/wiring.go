@@ -1157,12 +1157,16 @@ func scanReach(d *deps) findings.ScanReach {
 			return ""
 		}
 		switch r {
-		case scan.ReachCovered:
-			return findings.ScanCovered
 		case scan.ReachOutside:
 			return findings.ScanOutside
 		case scan.ReachOff:
 			return findings.ScanOff
+		case scan.ReachNoRanges:
+			return findings.ScanNoRanges
+		case scan.ReachByHand:
+			return findings.ScanByHand
+		case scan.ReachDeviceOff:
+			return findings.ScanDeviceOff
 		}
 		return ""
 	}

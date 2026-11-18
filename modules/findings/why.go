@@ -5,17 +5,26 @@ import (
 	"strings"
 )
 
-// ScanReach says how the vulnerability scan stands to a device: ScanCovered (its checks run on it), ScanOutside (outside the confirmed
-// scan ranges), ScanOff (network scanning is off, here or for the device) or "" (not known: the line then says nothing about
-// the scan). cmd/vedette sets it; without it the line does not mention the scan.
+// ScanReach says why the vulnerability scan does not reach a device: one of the Scan* values, or "" (not known or no reason: the line
+// then says nothing about the scan). cmd/vedette sets it; without it the line does not mention the scan.
 type ScanReach func(ctx context.Context, assetID string) string
 
 // The ScanReach answers.
 const (
-	ScanCovered = "covered"
-	ScanOutside = "outside"
-	ScanOff     = "off"
+	ScanOutside   = "outside"    // outside the confirmed scan ranges
+	ScanOff       = "off"        // network scanning is off
+	ScanNoRanges  = "no_ranges"  // no scan ranges are confirmed yet
+	ScanByHand    = "by_hand"    // the device was added by hand and is not scanned
+	ScanDeviceOff = "device_off" // this device's own scan setting is off
 )
+
+var reachText = map[string]string{
+	ScanOutside:   "the device is outside the confirmed scan ranges",
+	ScanOff:       "network scanning is off",
+	ScanNoRanges:  "no scan ranges are confirmed yet",
+	ScanByHand:    "the device was added by hand and is not scanned",
+	ScanDeviceOff: "scanning is turned off for this device",
+}
 
 // versionSourceText is who gave the version, as the sentence of WhySuspected says it ("<source> states ...").
 var versionSourceText = map[string]string{
@@ -46,12 +55,8 @@ func WhySuspected(basis Basis, known *KnownVersion, checkKnown, hasCheck bool, r
 	switch {
 	case checkKnown && !hasCheck:
 		b.WriteString(" A vulnerability check would confirm it, but none exists for this CVE, so only a person can.")
-	case checkKnown && reach == ScanOff:
-		b.WriteString(" A vulnerability check can confirm it, but none has run: network scanning is off for this device.")
-	case checkKnown && reach == ScanOutside:
-		b.WriteString(" A vulnerability check can confirm it, but none has run: the device is outside the confirmed scan ranges.")
-	case checkKnown && reach == ScanCovered:
-		b.WriteString(" A vulnerability check can confirm it: a scan of this device runs it.")
+	case checkKnown && reach != "":
+		b.WriteString(" A vulnerability check can confirm it, but none has run: " + reachText[reach] + ".")
 	case checkKnown:
 		b.WriteString(" A vulnerability check can confirm it.")
 	}

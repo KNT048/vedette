@@ -699,7 +699,7 @@ func (s *Service) closeAsked(ctx context.Context, tx *sql.Tx, assetID string, as
 		if err != nil {
 			return closed, err
 		}
-		if personKept(r.History) {
+		if personKept(r.History) || r.Basis == BasisPerson { // a platform answer is no version proof against a person's confirm
 			continue
 		}
 		was := r.Status
@@ -938,7 +938,7 @@ func (s *Service) setStatus(ctx context.Context, id string, action Action, note,
 }
 
 // ConfirmByPerson confirms a suspected finding on a person's word (Finding.ConfirmByPerson): the change, its history row
-// ("Confirmed by <user>: <note>"), the audit row findings.confirm and the status_changed event are one transaction. The caller has
+// ("Confirmed by <user>: <note>"), the audit row findings.confirm are one transaction; no status_changed event goes out, so no notice is sent and no response starts. The caller has
 // checked the person is an admin (the route's role).
 func (s *Service) ConfirmByPerson(ctx context.Context, id, note, user string) (Record, error) {
 	return s.confirmChange(ctx, id, user, "findings.confirm", func(f Finding, now time.Time) (Finding, HistoryEntry, error) {
@@ -959,12 +959,11 @@ func (s *Service) confirmChange(ctx context.Context, id, user, action string, ch
 		return Record{}, err
 	}
 	var out Record
-	err := s.write(ctx, func(tx *sql.Tx, now time.Time, emit func(string, any)) error {
+	err := s.write(ctx, func(tx *sql.Tx, now time.Time, _ func(string, any)) error {
 		r, err := loadByID(ctx, tx, id)
 		if err != nil {
 			return err
 		}
-		was := r.Status
 		f, h, err := change(r.Finding, now)
 		if err != nil {
 			return err
@@ -982,9 +981,7 @@ func (s *Service) confirmChange(ctx context.Context, id, user, action string, ch
 		if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: user, Action: action, Target: r.ID, Detail: r.CVE + ": " + h.Note}); err != nil {
 			return err
 		}
-		if was != r.Status {
-			emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: was, To: r.Status})
-		}
+		// No status_changed event: a person's own click sends no notice and starts no response; the history and the audit row are the record.
 		out, err = loadByID(ctx, tx, r.ID)
 		return err
 	})

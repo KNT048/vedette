@@ -103,6 +103,10 @@ func dayOf(t time.Time) time.Time {
 	return time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
 }
 
+// ActionConfirmUndone is the history action of Undo: it is not a person's reopen decision, so the matcher may close the finding
+// again when the version proves it not affected.
+const ActionConfirmUndone = "confirm_undone"
+
 // Confirmed reports whether the finding rests on evidence beyond a version match: a scan's, or a person's.
 func (f Finding) Confirmed() bool { return f.Basis == BasisScan || f.Basis == BasisPerson }
 
@@ -135,11 +139,15 @@ func (f Finding) AutoResolved() bool {
 	return f.Status == StatusNotRelevant && f.ResolutionReason == ReasonNotAffectedVersion
 }
 
-// AutoResolve closes a suspected finding (basis version or product) that the matcher proved not affected:
+// AutoResolve closes a suspected finding (basis version or product), or one a person confirmed (basis person), that the matcher
+// proved not affected (the version is outside every range, or the software is not installed): a person's confirm only keeps the
+// matcher from taking it back to suspected, it never outranks a newer version. A scan's confirmation is never closed here. It is
+// closed
 // not_relevant by the system user, with the matcher's sentence as note. ok is false for anything else: an open
 // finding a scan confirmed, or a closed one, is never touched.
 func (f Finding) AutoResolve(note string, now time.Time) (Finding, HistoryEntry, bool) {
-	if f.Status != StatusSuspected || f.Confirmed() {
+	suspected, byPerson := f.Status == StatusSuspected && f.Basis != BasisScan, f.Status == StatusConfirmed && f.Basis == BasisPerson
+	if !suspected && !byPerson {
 		return f, HistoryEntry{}, false
 	}
 	note = clipNote(note)
@@ -192,7 +200,7 @@ func (f Finding) ReopenOnMatch(now time.Time) (Finding, HistoryEntry, bool) {
 	if strings.HasPrefix(f.ResolutionNote, NotInstalledNote) { // INV-6c: the person cleared "Not installed", or the source reads a new install
 		note = "The device matches this entry again, so Vedette reopened it (it had closed it because a person said the software is not installed)."
 	}
-	f.Status, f.ResolvedBy, f.ResolvedAt, f.ResolutionNote, f.ResolutionReason = StatusSuspected, "", time.Time{}, "", ""
+	f.Status, f.ResolvedBy, f.ResolvedAt, f.ResolutionNote, f.ResolutionReason = f.OpenStatus(), "", time.Time{}, "", ""
 	return f, HistoryEntry{TS: now, User: SystemUser, Action: "matches_again", Note: note}, true
 }
 
@@ -264,7 +272,7 @@ func clipNote(s string) string {
 type HistoryEntry struct {
 	TS     time.Time
 	User   string
-	Action string // created, confirmed, rescanned, rescan_clear, no_longer_matches, matches_again, reopened, patched, mitigated, false_positive, not_relevant, risk_accepted
+	Action string // created, confirmed, confirm_undone, rescanned, rescan_clear, no_longer_matches, matches_again, reopened, patched, mitigated, false_positive, not_relevant, risk_accepted
 	Note   string
 }
 
@@ -476,10 +484,13 @@ func (f Finding) UnconfirmByPerson(user string, now time.Time) (Finding, History
 	if f.Evidence != nil && (f.Evidence.Prior == BasisProduct || f.Evidence.Prior == BasisVersion) {
 		prior = f.Evidence.Prior
 	}
-	ev := *f.Evidence
+	ev := Evidence{CheckedAt: now}
+	if f.Evidence != nil {
+		ev = *f.Evidence
+	}
 	ev.Prior = ""
 	f.Status, f.Basis, f.Evidence = StatusSuspected, prior, &ev
-	return f, HistoryEntry{TS: now, User: user, Action: "reopened", Note: "Confirmation undone by " + user + ": back to suspected."}, nil
+	return f, HistoryEntry{TS: now, User: user, Action: ActionConfirmUndone, Note: "Confirmation undone by " + user + ": back to suspected."}, nil
 }
 
 // ScanOutcome is the result of a scan confirmation.

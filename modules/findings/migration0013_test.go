@@ -101,6 +101,7 @@ func TestMigration0013_KeepsTheRowsAndAllowsABasisPerson(t *testing.T) {
 	}); err == nil {
 		t.Fatal("a confirmed finding with basis version was stored")
 	}
+	exec(`INSERT INTO fnd_finding_history (id, finding_id, ts, user, action, note) VALUES ('fh-2', 'f-2', '` + ts + `', 'it@acme.example', 'confirm_undone', 'x')`)
 	exec(`DELETE FROM fnd_finding WHERE id IN ('f-1', 'f-2')`)
 	if read(`SELECT count(*) || '/' || (SELECT count(*) FROM mit_applied) || '/' || (SELECT count(*) FROM mit_ai_output) FROM fnd_finding_history`) != "0/0/0" {
 		t.Fatal("foreign keys are off after the migration: deleting a finding left its rows")

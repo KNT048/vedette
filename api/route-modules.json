@@ -248,6 +248,7 @@
   "POST /intake/osquery/status": "agent-intake",
   "POST /inventory/agents/devices/{id}/report": "agent-intake",
   "POST /inventory/agents/tokens": "agent-intake",
+  "POST /inventory/agents/tokens/remove-unused": "agent-intake",
   "POST /inventory/agents/tokens/{id}/sample-data": "agent-intake",
   "POST /inventory/agents/wazuh/sample-data": "agent-intake",
   "POST /inventory/agents/wazuh/test": "agent-intake",

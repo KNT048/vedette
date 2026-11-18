@@ -15,7 +15,6 @@
   "filterLabel": "Filter by status",
   "filters": {
     "all": "All unresolved",
-    "confirmed": "Confirmed",
     "suspected": "Suspected or detected"
   },
   "unchecked": {
@@ -290,7 +289,7 @@
     "title": "History",
     "system": "system",
     "created": "Finding created",
-    "confirmed": "Scan confirmed a match",
+    "confirmed": "Confirmed",
     "rescanned": "Rescanned, still matches",
     "rescan_clear": "Rescanned, no longer matches",
     "no_longer_matches": "No longer matches this device",
@@ -300,6 +299,8 @@
     "false_positive": "Marked as false positive",
     "not_relevant": "Marked as not relevant",
     "reopened": "Reopened",
+    "confirmed": "Confirmed",
+    "confirm_undone": "Confirmation undone",
     "applied": "Applied: {{item}}",
     "item": {
       "patch": "patch",

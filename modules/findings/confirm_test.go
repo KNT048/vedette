@@ -27,8 +27,8 @@ func TestConfirmByPerson_WritesHistoryAuditAndEvent(t *testing.T) {
 	if got := e.auditActions(); got[len(got)-1] != "findings.confirm" {
 		t.Fatalf("audit = %v", got)
 	}
-	ev := e.pub.take()
-	if len(ev) != 1 || ev[0].Payload != (StatusChangedEvent{FindingID: id, From: StatusSuspected, To: StatusConfirmed}) {
+	// no status_changed: a person's own click sends no notice and starts no response
+	if ev := e.pub.take(); len(ev) != 0 {
 		t.Fatalf("events = %+v", ev)
 	}
 }
@@ -62,7 +62,7 @@ func TestConfirmByPerson_NeedsANoteAndASuspectedFinding(t *testing.T) {
 	}
 }
 
-// The matcher never takes the confirmation back: a re-run with version evidence, an agent's row or no match at all leaves the finding confirmed.
+// The matcher never takes the confirmation back: a re-run with version evidence leaves the finding confirmed and its basis person.
 func TestConfirmByPerson_MatcherRerunKeepsIt(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -75,16 +75,12 @@ func TestConfirmByPerson_MatcherRerunKeepsIt(t *testing.T) {
 	if _, err := e.svc.UpsertFromMatch(t.Context(), nas("6.1.1"), []Vuln{vuln}); err != nil {
 		t.Fatal(err)
 	}
-	// the same device now runs a version outside the range: a suspected finding would close, this one stays
-	if _, err := e.svc.UpsertFromMatch(t.Context(), nas("6.1.2"), []Vuln{vuln}); err != nil {
-		t.Fatal(err)
-	}
 	r, _ := e.svc.Get(t.Context(), id)
 	if r.Status != StatusConfirmed || r.Basis != BasisPerson {
 		t.Fatalf("the matcher changed a person's confirmation: %+v", r)
 	}
 	for _, a := range e.auditActions() {
-		if a == "findings.basis_raised" || a == "findings.auto_resolved" {
+		if a == "findings.basis_raised" {
 			t.Fatalf("audit has %s", a)
 		}
 	}
@@ -104,7 +100,7 @@ func TestUnconfirmByPerson_ReturnsToSuspectedWithItsOldBasis(t *testing.T) {
 	if r.Status != StatusSuspected || r.Basis != BasisProduct {
 		t.Fatalf("finding = %+v", r)
 	}
-	if h := r.History[len(r.History)-1]; h.Action != "reopened" || h.User != "it@acme.example" || !strings.Contains(h.Note, "Confirmation undone by it@acme.example") {
+	if h := r.History[len(r.History)-1]; h.Action != ActionConfirmUndone || h.User != "it@acme.example" || !strings.Contains(h.Note, "Confirmation undone by it@acme.example") {
 		t.Fatalf("history = %+v", h)
 	}
 	if got := e.auditActions(); got[len(got)-1] != "findings.unconfirm" {
@@ -208,11 +204,15 @@ func TestWhySuspected(t *testing.T) {
 		{"outside the ranges", BasisVersion, snmp, true, true, ScanOutside,
 			"Version match only: The device's own SNMP answer states edge firewall OS 7.2.13, inside NVD's affected range. A vulnerability check can confirm it, but none has run: the device is outside the confirmed scan ranges. Or confirm it yourself."},
 		{"scan off", BasisVersion, snmp, true, true, ScanOff,
-			"Version match only: The device's own SNMP answer states edge firewall OS 7.2.13, inside NVD's affected range. A vulnerability check can confirm it, but none has run: network scanning is off for this device. Or confirm it yourself."},
+			"Version match only: The device's own SNMP answer states edge firewall OS 7.2.13, inside NVD's affected range. A vulnerability check can confirm it, but none has run: network scanning is off. Or confirm it yourself."},
+		{"no ranges confirmed", BasisVersion, snmp, true, true, ScanNoRanges,
+			"Version match only: The device's own SNMP answer states edge firewall OS 7.2.13, inside NVD's affected range. A vulnerability check can confirm it, but none has run: no scan ranges are confirmed yet. Or confirm it yourself."},
+		{"added by hand", BasisVersion, snmp, true, true, ScanByHand,
+			"Version match only: The device's own SNMP answer states edge firewall OS 7.2.13, inside NVD's affected range. A vulnerability check can confirm it, but none has run: the device was added by hand and is not scanned. Or confirm it yourself."},
+		{"device scan off", BasisVersion, snmp, true, true, ScanDeviceOff,
+			"Version match only: The device's own SNMP answer states edge firewall OS 7.2.13, inside NVD's affected range. A vulnerability check can confirm it, but none has run: scanning is turned off for this device. Or confirm it yourself."},
 		{"no check", BasisVersion, snmp, true, false, ScanOutside,
 			"Version match only: The device's own SNMP answer states edge firewall OS 7.2.13, inside NVD's affected range. A vulnerability check would confirm it, but none exists for this CVE, so only a person can. Or confirm it yourself."},
-		{"covered", BasisVersion, &KnownVersion{Software: "web server", Version: "2.4.1", Source: VersionByScan}, true, true, ScanCovered,
-			"Version match only: A network scan (a guess from what a service answers) states web server 2.4.1, inside NVD's affected range. A vulnerability check can confirm it: a scan of this device runs it. Or confirm it yourself."},
 		{"not known: says less", BasisVersion, snmp, false, false, "",
 			"Version match only: The device's own SNMP answer states edge firewall OS 7.2.13, inside NVD's affected range. Or confirm it yourself."},
 		{"scan state not known", BasisVersion, snmp, true, true, "",
@@ -225,5 +225,61 @@ func TestWhySuspected(t *testing.T) {
 		if got := WhySuspected(c.basis, c.known, c.checkKnown, c.has, c.reach); got != c.want {
 			t.Errorf("%s:\n got %q\nwant %q", c.name, got, c.want)
 		}
+	}
+}
+
+// A person's confirm does not stop the matcher from closing the finding when the version proves it not affected.
+func TestConfirmByPerson_StillAutoResolvesWhenTheSoftwareIsUpdated(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	id := e.seed()
+	vuln := qnapVuln(Affected{CPE: qnapCPE, Range: VersionRange{StartIncl: "6.0", EndExcl: "6.1.2"}})
+	e.advance(time.Hour)
+	if _, err := e.svc.UpsertFromMatch(t.Context(), nas("6.1.1"), []Vuln{vuln}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.ConfirmByPerson(t.Context(), id, "checked", "it@acme.example"); err != nil {
+		t.Fatal(err)
+	}
+	e.advance(time.Hour)
+	if _, err := e.svc.UpsertFromMatch(t.Context(), nas("6.1.2"), []Vuln{vuln}); err != nil { // updated: outside the range
+		t.Fatal(err)
+	}
+	r, _ := e.svc.Get(t.Context(), id)
+	if r.Status != StatusNotRelevant || r.ResolvedBy != SystemUser || r.ResolutionReason != ReasonNotAffectedVersion {
+		t.Fatalf("a person-confirmed finding was not resolved by proof: %+v", r.Finding)
+	}
+	// and when the version is inside the range again, it reopens as confirmed (the person's word stands)
+	e.advance(time.Hour)
+	if _, err := e.svc.UpsertFromMatch(t.Context(), nas("6.1.1"), []Vuln{vuln}); err != nil {
+		t.Fatal(err)
+	}
+	if r, _ = e.svc.Get(t.Context(), id); r.Status != StatusConfirmed || r.Basis != BasisPerson {
+		t.Fatalf("after matching again: %+v", r.Finding)
+	}
+}
+
+// Confirm then Undo is not a person's reopen decision: the finding still auto-resolves when the version is fixed.
+func TestUnconfirmByPerson_DoesNotStopAutoResolve(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	id := e.seed()
+	vuln := qnapVuln(Affected{CPE: qnapCPE, Range: VersionRange{StartIncl: "6.0", EndExcl: "6.1.2"}})
+	e.advance(time.Hour)
+	if _, err := e.svc.UpsertFromMatch(t.Context(), nas("6.1.1"), []Vuln{vuln}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.ConfirmByPerson(t.Context(), id, "checked", "it@acme.example"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.UnconfirmByPerson(t.Context(), id, "it@acme.example"); err != nil {
+		t.Fatal(err)
+	}
+	e.advance(time.Hour)
+	if _, err := e.svc.UpsertFromMatch(t.Context(), nas("6.1.2"), []Vuln{vuln}); err != nil {
+		t.Fatal(err)
+	}
+	if r, _ := e.svc.Get(t.Context(), id); r.Status != StatusNotRelevant || r.ResolutionReason != ReasonNotAffectedVersion {
+		t.Fatalf("Undo stopped the matcher from closing the finding: %+v", r.Finding)
 	}
 }

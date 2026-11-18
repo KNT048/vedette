@@ -657,7 +657,7 @@ export const handlers = [
     if (f.status !== 'confirmed' || f.basis !== 'person') return fail(409, 'not_confirmed_by_person', 'Only a finding a person confirmed can be returned to suspected; a scan confirmed this one.')
     const user = who()
     const was = priorBasis.get(f.id) ?? 'version'
-    patch(f.id, (x) => ({ ...x, status: 'suspected', basis: was, history: [...x.history, { ts: nowIso(), user, action: 'reopened', note: `Confirmation undone by ${user}: back to suspected.` }] }))
+    patch(f.id, (x) => ({ ...x, status: 'suspected', basis: was, history: [...x.history, { ts: nowIso(), user, action: 'confirm_undone', note: `Confirmation undone by ${user}: back to suspected.` }] }))
     audit('findings.unconfirm', f.id, `${f.cve}: confirmation undone by ${user}`)
     return HttpResponse.json(detail(find(f.id)!))
   }),

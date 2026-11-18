@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/apierr"
@@ -432,6 +433,9 @@ func (h *FindingHandlers) FindingsPostFindingsIDConfirm(ctx context.Context, req
 		return nil, apierr.Unauthenticated()
 	}
 	if strings.ContainsRune(req.Note, 0) {
+		return nil, apierr.Invalid("The note contains a character that is not allowed.")
+	}
+	if strings.ContainsFunc(req.Note, func(r rune) bool { return unicode.IsControl(r) && r != '\n' && r != '\t' }) {
 		return nil, apierr.Invalid("The note contains a character that is not allowed.")
 	}
 	rec, err := h.svc.ConfirmByPerson(ctx, params.ID, req.Note, p.Email)

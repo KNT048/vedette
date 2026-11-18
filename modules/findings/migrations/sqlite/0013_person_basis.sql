@@ -1,6 +1,6 @@
 -- +goose NO TRANSACTION
 -- +goose Up
--- A person can confirm a suspected finding: basis 'person', and status confirmed now needs basis scan or person (with evidence).
+-- A person can confirm a suspected finding (and the history gains the action confirm_undone for Undo): basis 'person', and status confirmed now needs basis scan or person (with evidence).
 -- SQLite cannot change a CHECK, so fnd_finding is rebuilt with the same columns and indexes, the way migration 0005 does it:
 -- outside goose's transaction, foreign keys off on this connection, so the ON DELETE CASCADE children (history, not-installed
 -- marks, applied mitigations, AI output) keep their rows and point at the new table once it has the name. Forward-only
@@ -44,6 +44,28 @@ CREATE INDEX fnd_finding_status_idx ON fnd_finding (status);
 CREATE INDEX fnd_finding_cve_idx ON fnd_finding (cve);
 CREATE INDEX fnd_finding_asset_status_idx ON fnd_finding (asset_id, status);
 CREATE INDEX fnd_finding_status_resolved_idx ON fnd_finding (status, resolved_at);
+
+DROP TABLE IF EXISTS fnd_finding_history_new;
+CREATE TABLE fnd_finding_history_new (
+    id         TEXT NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 96),
+    finding_id TEXT NOT NULL REFERENCES fnd_finding (id) ON DELETE CASCADE,
+    ts         TEXT NOT NULL CHECK (ts GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    user       TEXT NOT NULL CHECK (length(user) BETWEEN 1 AND 320),
+    action     TEXT NOT NULL CHECK (action IN ('created', 'confirmed', 'rescanned', 'rescan_clear', 'no_longer_matches', 'matches_again', 'reopened', 'patched', 'mitigated', 'false_positive', 'not_relevant', 'risk_accepted', 'confirm_undone')),
+    note       TEXT CHECK (note IS NULL OR length(note) <= 600)
+);
+INSERT INTO fnd_finding_history_new (id, finding_id, ts, user, action, note)
+    SELECT id, finding_id, ts, user, action, note FROM fnd_finding_history ORDER BY rowid;
+DROP TABLE fnd_finding_history;
+ALTER TABLE fnd_finding_history_new RENAME TO fnd_finding_history;
+CREATE INDEX fnd_finding_history_finding_idx ON fnd_finding_history (finding_id, ts);
+
+-- +goose StatementBegin
+CREATE TRIGGER fnd_finding_history_no_update BEFORE UPDATE ON fnd_finding_history
+BEGIN
+    SELECT RAISE(ABORT, 'fnd_finding_history is append-only');
+END;
+-- +goose StatementEnd
 
 COMMIT;
 

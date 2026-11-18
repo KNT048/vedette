@@ -110069,8 +110069,11 @@ func (s *InventoryGetInventoryAgentsOKNodesItemState) UnmarshalText(data []byte)
 
 type InventoryGetInventoryAgentsOKTokensItem struct {
 	CreatedAt time.Time `json:"created_at"`
-	// Null = never expires; default 7 days. The token only enrolls osquery (it can read nothing) and can
-	// be revoked.
+	// Who made it (null for a token made before this was kept).
+	CreatedBy NilString `json:"created_by"`
+	// When it stops enrolling machines. null = never; default 7 days once a machine has enrolled; a token
+	// no machine enrolled with expires 24 hours after it was made. The token only enrolls osquery (it can
+	// read nothing) and can be revoked.
 	ExpiresAt    NilDateTime                                 `json:"expires_at"`
 	Hosts        int                                         `json:"hosts"`
 	ID           string                                      `json:"id"`
@@ -110083,6 +110086,11 @@ type InventoryGetInventoryAgentsOKTokensItem struct {
 // GetCreatedAt returns the value of CreatedAt.
 func (s *InventoryGetInventoryAgentsOKTokensItem) GetCreatedAt() time.Time {
 	return s.CreatedAt
+}
+
+// GetCreatedBy returns the value of CreatedBy.
+func (s *InventoryGetInventoryAgentsOKTokensItem) GetCreatedBy() NilString {
+	return s.CreatedBy
 }
 
 // GetExpiresAt returns the value of ExpiresAt.
@@ -110123,6 +110131,11 @@ func (s *InventoryGetInventoryAgentsOKTokensItem) GetName() string {
 // SetCreatedAt sets the value of CreatedAt.
 func (s *InventoryGetInventoryAgentsOKTokensItem) SetCreatedAt(val time.Time) {
 	s.CreatedAt = val
+}
+
+// SetCreatedBy sets the value of CreatedBy.
+func (s *InventoryGetInventoryAgentsOKTokensItem) SetCreatedBy(val NilString) {
+	s.CreatedBy = val
 }
 
 // SetExpiresAt sets the value of ExpiresAt.
@@ -125679,8 +125692,11 @@ func (s *InventoryPostInventoryAgentsTokensCreated) SetToken(val InventoryPostIn
 
 type InventoryPostInventoryAgentsTokensCreatedToken struct {
 	CreatedAt time.Time `json:"created_at"`
-	// Null = never expires; default 7 days. The token only enrolls osquery (it can read nothing) and can
-	// be revoked.
+	// Who made it (null for a token made before this was kept).
+	CreatedBy NilString `json:"created_by"`
+	// When it stops enrolling machines. null = never; default 7 days once a machine has enrolled; a token
+	// no machine enrolled with expires 24 hours after it was made. The token only enrolls osquery (it can
+	// read nothing) and can be revoked.
 	ExpiresAt    NilDateTime                                        `json:"expires_at"`
 	Hosts        int                                                `json:"hosts"`
 	ID           string                                             `json:"id"`
@@ -125693,6 +125709,11 @@ type InventoryPostInventoryAgentsTokensCreatedToken struct {
 // GetCreatedAt returns the value of CreatedAt.
 func (s *InventoryPostInventoryAgentsTokensCreatedToken) GetCreatedAt() time.Time {
 	return s.CreatedAt
+}
+
+// GetCreatedBy returns the value of CreatedBy.
+func (s *InventoryPostInventoryAgentsTokensCreatedToken) GetCreatedBy() NilString {
+	return s.CreatedBy
 }
 
 // GetExpiresAt returns the value of ExpiresAt.
@@ -125733,6 +125754,11 @@ func (s *InventoryPostInventoryAgentsTokensCreatedToken) GetName() string {
 // SetCreatedAt sets the value of CreatedAt.
 func (s *InventoryPostInventoryAgentsTokensCreatedToken) SetCreatedAt(val time.Time) {
 	s.CreatedAt = val
+}
+
+// SetCreatedBy sets the value of CreatedBy.
+func (s *InventoryPostInventoryAgentsTokensCreatedToken) SetCreatedBy(val NilString) {
+	s.CreatedBy = val
 }
 
 // SetExpiresAt sets the value of ExpiresAt.
@@ -125827,6 +125853,20 @@ func (s *InventoryPostInventoryAgentsTokensIDSampleDataOK) SetDevices(val int) {
 // SetSoftware sets the value of Software.
 func (s *InventoryPostInventoryAgentsTokensIDSampleDataOK) SetSoftware(val int) {
 	s.Software = val
+}
+
+type InventoryPostInventoryAgentsTokensRemoveUnusedOK struct {
+	Removed int `json:"removed"`
+}
+
+// GetRemoved returns the value of Removed.
+func (s *InventoryPostInventoryAgentsTokensRemoveUnusedOK) GetRemoved() int {
+	return s.Removed
+}
+
+// SetRemoved sets the value of Removed.
+func (s *InventoryPostInventoryAgentsTokensRemoveUnusedOK) SetRemoved(val int) {
+	s.Removed = val
 }
 
 type InventoryPostInventoryAgentsTokensReq struct {

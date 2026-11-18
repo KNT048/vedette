@@ -164,9 +164,9 @@ func NewTierScope(assets []Asset) *TierScope {
 		deb := debOS(a.OS)
 		for _, s := range deviceSoftware(a) {
 			in, pkg, ok := tierInfo(a, s)
-			// an Ubuntu or Debian package reads the distribution's data (Feeds.TierDistro), not NVD's; a source name guessed from the
-			// product may hold no data and fall back to NVD (byDistroData), so its product is in the scope too
-			if _, _, guessed, byDistro := debPkg(s); !ok || pkg && deb && byDistro && !guessed {
+			// an agent's Ubuntu or Debian package reads the distribution's data (Feeds.TierDistro), not NVD's; a person's release may
+			// fall back to NVD (byDistroData: another build, a guessed source name without rows), so its product is in the scope too
+			if _, _, _, byDistro := debPkg(s); !ok || pkg && deb && byDistro && s.Packaged && s.builtBy() == "agent" {
 				continue
 			}
 			if _, win := winDevice(in); win {
@@ -469,12 +469,18 @@ func (x *tierIndex) byDistroData(a Asset, s Software) bool {
 	if !debOS(a.OS) {
 		return false
 	}
-	_, src, guessed, ok := debPkg(s)
-	if !ok || !guessed {
-		return ok
+	ver, src, guessed, ok := debPkg(s)
+	if !ok || s.Packaged && s.builtBy() == "agent" {
+		return ok // an agent's deb row: the distribution's data, as before (a PPA build there gives nothing, distroTierItems)
 	}
 	d, rel := distroOf(newSWInfo(s, a.OS))
-	return d != "" && rel != "" && len(x.dby[d+"/"+rel+"/"+securitySource(d, src)]) > 0
+	if d == "" || rel == "" {
+		return false
+	}
+	pkg := securitySource(d, src)
+	// a person's release: the distribution's data speaks only for its own build of that release (a Debian build on Ubuntu, a PPA
+	// build fall back to NVD instead of vanishing at distroTierItems' ownBuild), and a guessed source name only when it holds rows
+	return ownBuild(d, pkg, ver, false) && (!guessed || len(x.dby[d+"/"+rel+"/"+pkg]) > 0)
 }
 
 // pkgTierItem is the item of a distribution's package whose distribution's data Vedette does not read (Alpine, Red Hat, SUSE, an

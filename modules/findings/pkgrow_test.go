@@ -109,6 +109,30 @@ func TestPackageRow_OnlyADistributionsReleaseIsAPackage(t *testing.T) {
 	}
 }
 
+// A person's release that is not the distribution's own build of it (a Debian build on Ubuntu, a PPA build) is not one the
+// distribution's data speaks for: it falls back to NVD with the distribution's security-update item, never vanishing while the device
+// counts as compared. Ubuntu's own build of the same release keeps Ubuntu's fixed version.
+func TestPackageRow_PersonsForeignBuildFallsBackToNVD(t *testing.T) {
+	t.Parallel()
+	x := newTierIndex([]TierVuln{sshTier}).withDistro([]TierVuln{distroV("CVE-2026-60002", "recent", 20, 0.01, noble("openssh", "1:10.2p1-2ubuntu3.9", false))},
+		map[string]bool{"ubuntu/24.04": true})
+	for _, tc := range []struct{ rel, fixed string }{
+		{"1:10.2p1-1+deb13u1", ""},                     // Debian's build on an Ubuntu host
+		{"1:10.2p1-2ubuntu3.8~ppa1", ""},               // a PPA build
+		{"1:10.2p1-2ubuntu3.8", "1:10.2p1-2ubuntu3.9"}, // Ubuntu's own build
+	} {
+		a := Asset{ID: "u", Name: "u", OS: "Ubuntu 24.04 LTS", Software: []Software{sshCorrection(tc.rel)}}
+		items, compared := matchTiers(a, x, nil, t0)
+		if !compared || len(items) != 1 || items[0].Kind != "distro" || items[0].Fixed != tc.fixed {
+			t.Errorf("%s: compared %v, items %+v; want one distro item fixed %q", tc.rel, compared, items, tc.fixed)
+			continue
+		}
+		if tc.fixed == "" && (items[0].Distro != "Ubuntu" || len(items[0].CVEs) != 1 || items[0].CVEs[0].CVE != sshTier.CVE) {
+			t.Errorf("%s: %+v, want NVD's CVE with Ubuntu's security updates", tc.rel, items[0])
+		}
+	}
+}
+
 // A person's Debian release names no source package; the product's own name is only a guess ("postgresql" is postgresql-16 in Ubuntu,
 // "bind" is bind9). The distribution's data decides only when the feeds hold rows under the guessed name; otherwise the row is compared
 // with NVD (an item "install Ubuntu's security updates"), never dropped while the device counts as compared. The guessed product is in

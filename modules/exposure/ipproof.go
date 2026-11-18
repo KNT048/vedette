@@ -2,18 +2,16 @@ package exposure
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
-	"io"
 	"net"
-	"net/http"
 	"net/netip"
-	"net/url"
 	"slices"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/knt048/vedette/core/domainfence"
 )
 
 // Ownership proof of a public IP a person typed in (CONTRACT INV-35). Two ways, either one is enough:
@@ -28,11 +26,11 @@ import (
 // address. A proof is stateless like a domain's: the answer now is the only fact used, and the scan gate asks again right before a scan.
 
 const (
-	ipProofPath = "/.well-known/vedette-verify.txt"
+	ipProofPath = domainfence.ProofPath
 	// ipProofMaxBody bounds what is read of the proof file; a token is 16 digits, so anything longer is not it.
-	ipProofMaxBody = 512
+	ipProofMaxBody = domainfence.ProofMaxBody
 	// ipProofTimeout bounds each request or lookup of a check; ipProofBudget the whole check.
-	ipProofTimeout = 5 * time.Second
+	ipProofTimeout = domainfence.ProofTimeout
 	ipProofBudget  = 20 * time.Second
 	// ipProofMaxRedirects bounds the redirects followed, all of them staying on the IP (http to https, a trailing slash).
 	ipProofMaxRedirects = 3
@@ -62,66 +60,9 @@ type ReverseResolver interface {
 	LookupNetIP(ctx context.Context, network, host string) ([]netip.Addr, error)
 }
 
-// httpIPFetcher is the real IPFetcher: it dials the IP whatever the URL says, never uses a proxy, takes no certificate as proof and
-// follows a redirect only to the same IP.
-type httpIPFetcher struct{}
-
-func (httpIPFetcher) Fetch(ctx context.Context, rawURL string, ip netip.Addr) ([]byte, error) {
-	tr := &http.Transport{
-		Proxy: nil,
-		DialContext: func(ctx context.Context, _, addr string) (net.Conn, error) {
-			_, port, err := net.SplitHostPort(addr)
-			if err != nil {
-				return nil, fmt.Errorf("address %q: %w", addr, err)
-			}
-			d := net.Dialer{Timeout: ipProofTimeout}
-			return d.DialContext(ctx, "tcp4", net.JoinHostPort(ip.String(), port)) // the IP, never what a name or a redirect says
-		},
-		TLSClientConfig:       &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS12}, //nolint:gosec // the token in the file is the proof, not the certificate of a bare IP
-		TLSHandshakeTimeout:   ipProofTimeout,
-		ResponseHeaderTimeout: ipProofTimeout,
-		DisableKeepAlives:     true,
-	}
-	defer tr.CloseIdleConnections()
-	c := &http.Client{
-		Transport: tr,
-		Timeout:   ipProofTimeout,
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			if len(via) > ipProofMaxRedirects {
-				return errors.New("too many redirects")
-			}
-			if req.URL.Hostname() != ip.String() {
-				return fmt.Errorf("redirected to another host (%s)", cleanDNS(req.URL.Hostname(), 80))
-			}
-			return nil
-		},
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, http.NoBody)
-	if err != nil {
-		return nil, fmt.Errorf("request: %w", err)
-	}
-	resp, err := c.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("request: %w", unwrapURLError(err))
-	}
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("answered %d", resp.StatusCode)
-	}
-	body, err := io.ReadAll(io.LimitReader(resp.Body, ipProofMaxBody+1))
-	if err != nil {
-		return nil, fmt.Errorf("reading the answer: %w", err)
-	}
-	return body, nil
-}
-
-func unwrapURLError(err error) error {
-	var ue *url.Error
-	if errors.As(err, &ue) {
-		return ue.Err
-	}
-	return err
-}
+// httpIPFetcher is the real IPFetcher, the executors' own (domainfence.HTTPFetcher): it dials the IP whatever the URL says, never uses a
+// proxy, takes no certificate as proof and follows a redirect only to the same IP.
+type httpIPFetcher = domainfence.HTTPFetcher
 
 // IPProofHint is where the token file of a typed IP goes and the names that could prove it by reverse DNS.
 type IPProofHint struct {
@@ -200,13 +141,7 @@ func (s *Service) proveIP(ctx context.Context, t Target, all []Target) ipProof {
 	return ipProof{message: fmt.Sprintf("Vedette found no proof of %s. Token file: put the token %s as the only content of %s on that address, over http or https. %s %s Reverse DNS: %s", t.Value, t.Token, ipProofPath, notes[0], notes[1], ptr)}
 }
 
-func tokenMatches(body []byte, token string) bool {
-	if len(body) > ipProofMaxBody {
-		return false
-	}
-	v := strings.TrimSpace(string(body))
-	return token != "" && (v == token || v == "vedette-verify="+token)
-}
+func tokenMatches(body []byte, token string) bool { return domainfence.TokenInFile(body, token) }
 
 // proveByPTR is forward-confirmed reverse DNS: ip has a PTR name under a domain of this box that is proved right now (its own proof
 // covers the names under it), and that name resolves back to ip. It answers the name and the domain that covers it, or, when nothing

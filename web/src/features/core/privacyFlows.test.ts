@@ -50,6 +50,11 @@ describe('Settings → Privacy flows match PRIVACY.md', () => {
     }
     for (const to of [plain(rows.get(9)![3]!), flows['9']!.to]) expect(to).toContain('with a domain\'s testing terms, every public address its names resolve to, including a hosting provider, CDN or proxy in front of them')
   })
+  it('flow 9: scheduled scans and how to turn them off, the same words in both (exposure INV-36)', () => {
+    const sentence = 'Each target is also scanned by itself on its schedule (daily, weekly by default, or monthly; Off scans it only when you select Scan now)'
+    for (const text of [plain(rows.get(9)![2]!), flows['9']!.what]) expect(text).toContain(sentence)
+    for (const text of [plain(rows.get(9)![4]!), flows['9']!.control]) expect(text).toContain("Set a target's scheduled scan to Off (on its page)")
+  })
   it('flow 9: the testing terms can be withdrawn per target, the same words in both', () => {
     const sentence = "Withdraw a target's testing terms (Ownership tab) to keep its scans to the Scan now scope"
     expect(plain(rows.get(9)![4]!)).toContain(sentence)

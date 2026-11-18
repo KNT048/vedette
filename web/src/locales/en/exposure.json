@@ -180,7 +180,8 @@
     "termsNotAccepted": "Terms not accepted",
     "proofUntil": "Proof until {{date}}",
     "openLabel_one": "{{count}} open exposure on {{value}}",
-    "openLabel_other": "{{count}} open exposures on {{value}}"
+    "openLabel_other": "{{count}} open exposures on {{value}}",
+    "queued": "Queued"
   },
   "add": {
     "button": "Add target",
@@ -656,7 +657,17 @@
     "stopped": "The scan of {{value}} was stopped. Nothing was saved.",
     "stoppedKept": "The OpenVAS part of the scan of {{value}} was stopped. The results of the other checks are saved below.",
     "stopReason": "The box stopped it because {{why}}.",
-    "failed": "The scan of {{value}} failed and nothing was saved. Try again."
+    "failed": "The scan of {{value}} failed and nothing was saved. Try again.",
+    "queuedAfter": "Queued: starts after {{value}}",
+    "queuedNext": "Queued: starts next",
+    "queuedTopic": "Scan queue",
+    "queuedInfo": "The box runs one external scan at a time. This scan starts by itself when the scans before it have ended; the ownership proof and the other checks run again right before it starts.",
+    "unqueue": "Remove from queue",
+    "unqueued": "The scan of {{value}} was removed from the queue.",
+    "queuedToast": "The scan of {{value}} is queued: it starts by itself when the scans before it have ended.",
+    "other": "Another target is being scanned ({{value}}). A scan of this target now waits in the queue until it ends.",
+    "waiting_one": "{{count}} more scan waits: {{list}}",
+    "waiting_other": "{{count}} more scans wait: {{list}}"
   },
   "vulns": {
     "title": "Exploited vulnerabilities",
@@ -978,5 +989,19 @@
     "scanDescription": "Scan speed and the addresses a scan never touches are shared by every scan of the box.",
     "scanReason": "They are set once for the whole box.",
     "scanLink": "Open Settings, Scanning"
+  },
+  "schedule": {
+    "label": "Scheduled scan",
+    "every": {
+      "off": "Off",
+      "daily": "Daily",
+      "weekly": "Weekly",
+      "monthly": "Monthly"
+    },
+    "next": "Next scan {{time}}",
+    "off": "Schedule off",
+    "offLong": "Scheduled scans are off: this target is scanned only when someone presses the scan button.",
+    "info": "The box scans this target by itself, counted from the start of its newest scan, only inside the scan window under Settings, Scanning, Safety and only while its ownership proof holds and its testing terms are accepted. It is the same scan as the scan button, except that a scheduled scan never includes the disruptive checks, even when they are accepted: those run only when a person presses the scan button. OpenVAS joins only when it is turned on under Settings. Anything new it finds (an open port, an admin page, a certificate expiring within 30 days, an exploited vulnerability) is sent to your alert channels; no change, no message.",
+    "saved": "Scheduled scan of {{value}}: {{every}}."
   }
 }

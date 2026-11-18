@@ -51,7 +51,7 @@ var correctionLive = `(CASE WHEN s.not_installed = 1
 
 // liveSW is the SQL condition on a software row (alias s) that counts for matching and the "Do you have it?" lists (INV-41): a row a
 // person declared; a correction in use (correctionLive) that is not a "not installed" one (INV-41 (6): it replaces its row with
-// nothing); a reported row no correction replaces (the one row a correction was set on; a later reading of another version of the product is a row of its own that matches too, and MatchSoftware.ShadowedBy says the entry outranks it, INV-50);
+// nothing); a reported row no correction replaces (the one row a correction was set on; a later reading of another version of the product is a row of its own that matches too, INV-50);
 // never an nmap OS guess the device does not use (hiddenGuess).
 var liveSW = `(NOT ` + hiddenGuess + ` AND (CASE WHEN s.corrects IS NOT NULL THEN s.not_installed = 0 AND ` + correctionLive + ` WHEN s.source = 'manual' THEN 1
 	ELSE NOT EXISTS (SELECT 1 FROM inv_software c WHERE c.asset_id = s.asset_id AND c.corrects = ` + rowKey("s") + `) END))`

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/netip"
 	"sync"
@@ -12,6 +13,8 @@ import (
 	"github.com/knt048/vedette/core/store"
 	hostclient "github.com/knt048/vedette/host/client"
 	"github.com/knt048/vedette/modules/exposure"
+	"github.com/knt048/vedette/modules/inventory"
+	"github.com/knt048/vedette/modules/notify"
 )
 
 // exposureTestConfig is a seam for the end-to-end box (cmd/vedette/e2eexposure_test.go, WP-30, #263): a test binary sets it to swap the
@@ -60,6 +63,30 @@ func exposureService(d deps) *exposure.Service {
 	}
 	if d.Bus != nil { // a nil *events.Bus inside the interface would not compare equal to nil
 		cfg.Publisher = d.Bus
+	}
+	// INV-36: a scheduled scan starts only inside the scan window of the shared safety block (the inventory stores it, Settings ›
+	// Scanning › Safety shows it), and what it finds new goes to the admins' alert channels through notify's system notice path, as
+	// the CISA-list alerts of feeds do (an incident-kind notice without a link). newNotify is read at send time.
+	if d.Inventory != nil {
+		cfg.Window = exposureWindow{inv: d.Inventory}
+	}
+	cfg.Alert = func(ctx context.Context, a exposure.Alert) error {
+		sev := notify.Medium
+		switch a.Severity {
+		case exposure.AlertCritical:
+			sev = notify.Critical
+		case exposure.AlertHigh:
+			sev = notify.High
+		}
+		clock := d.Clock
+		if clock == nil {
+			clock = time.Now
+		}
+		err := newNotify(&d).Publish(ctx, notify.Notice{ID: a.ID, Kind: notify.KindIncident, Severity: sev, Title: a.Title, What: a.Text, At: clock()})
+		if errors.Is(err, notify.ErrModuleOff) { // no channel to send to: the scan's results are on its page
+			return nil
+		}
+		return err
 	}
 	// S-EXP-2 (INV-19, INV-20): identified services are compared with exploited CVEs when a snapshot is read. cfg.Services is
 	// the scan container's nmap -sV on the box's own verified public IP (sensor-active ScanExternal). The commitment sentence of
@@ -121,6 +148,17 @@ func exposureAtStart(ctx context.Context, d deps) {
 		svc.StopsAtStart(ctx)  // An OpenVAS step an older version stored as stopped gets its stop time and the reason the audit log proves
 		svc.GreenboneAtStart(ctx)
 	}
+}
+
+// exposureWindow is the scan window of the shared safety block, read for each scheduled scan of a public target (INV-36).
+type exposureWindow struct{ inv *inventory.Service }
+
+func (w exposureWindow) ScanWindow(ctx context.Context) (exposure.Window, error) {
+	st, err := w.inv.Settings(ctx)
+	if err != nil {
+		return exposure.Window{}, err
+	}
+	return exposure.Window{Days: st.Active.Days, From: st.Active.From, To: st.Active.To}, nil
 }
 
 // exposureJobs is the Jobs func of the exposure entry in wiredModules.

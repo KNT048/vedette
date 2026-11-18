@@ -51469,6 +51469,42 @@ func (s *InventoryGetInventoryAgentsDevicesIDReportOK) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.Os.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "os",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.State.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "state",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if value, ok := s.WazuhIntervalMinutes.Get(); ok {
 			if err := func() error {
 				if err := (validate.Int{
@@ -51517,6 +51553,30 @@ func (s InventoryGetInventoryAgentsDevicesIDReportOKAgent) Validate() error {
 	}
 }
 
+func (s InventoryGetInventoryAgentsDevicesIDReportOKOs) Validate() error {
+	switch s {
+	case "windows":
+		return nil
+	case "linux":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s InventoryGetInventoryAgentsDevicesIDReportOKState) Validate() error {
+	switch s {
+	case "reporting":
+		return nil
+	case "quiet":
+		return nil
+	case "never_reported":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s *InventoryGetInventoryAgentsOK) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -51531,6 +51591,34 @@ func (s *InventoryGetInventoryAgentsOK) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "install",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.Nodes == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Nodes {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "nodes",
 			Error: err,
 		})
 	}
@@ -51721,6 +51809,64 @@ func (s InventoryGetInventoryAgentsOKInstallPackagesItemPlatform) Validate() err
 	case "linux":
 		return nil
 	case "windows":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *InventoryGetInventoryAgentsOKNodesItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Os.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "os",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.State.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "state",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s InventoryGetInventoryAgentsOKNodesItemOs) Validate() error {
+	switch s {
+	case "windows":
+		return nil
+	case "linux":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s InventoryGetInventoryAgentsOKNodesItemState) Validate() error {
+	switch s {
+	case "reporting":
+		return nil
+	case "quiet":
+		return nil
+	case "never_reported":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -58518,6 +58664,42 @@ func (s *InventoryPostInventoryAgentsDevicesIDReportOK) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.Os.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "os",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.State.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "state",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if value, ok := s.WazuhIntervalMinutes.Get(); ok {
 			if err := func() error {
 				if err := (validate.Int{
@@ -58560,6 +58742,30 @@ func (s InventoryPostInventoryAgentsDevicesIDReportOKAgent) Validate() error {
 	case "none":
 		return nil
 	case "box":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s InventoryPostInventoryAgentsDevicesIDReportOKOs) Validate() error {
+	switch s {
+	case "windows":
+		return nil
+	case "linux":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s InventoryPostInventoryAgentsDevicesIDReportOKState) Validate() error {
+	switch s {
+	case "reporting":
+		return nil
+	case "quiet":
+		return nil
+	case "never_reported":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

@@ -260,7 +260,16 @@ export const WazuhInput = z.object({
   interval_minutes: z.number().int().describe('5, 15, 60, 360 or 1440'),
 })
 export const WazuhTestResult = z.object({ ok: z.literal(true), version: z.string(), agents: z.number().int().describe('Number of Wazuh agents the API user can read') })
-export const AgentsResponse = z.object({ install: Installers, tokens: z.array(AgentToken), server_url: z.string().describe('https://<box IP>:8443, or https://<VEDETTE_BOX_IP>:8443 when the IP is unknown'), wazuh: WazuhConnection.nullable() })
+/** How an enrolled osquery agent is doing, from its own check-ins against its own schedule (it asks for its config every 5 minutes). */
+export const AgentState = z.enum(['reporting', 'quiet', 'never_reported'])
+export const AgentOs = z.enum(['windows', 'linux'])
+export const AgentNode = z.object({
+  id: z.string(), token_id: z.string(), host: z.string().describe('The name the machine enrolled under'), os: AgentOs,
+  state: AgentState.describe('reporting = it checked in within three of its 5-minute config calls; quiet = it did not (quiet_since is its last check-in); never_reported = it has checked in but delivered no result since it enrolled, after the first hour'),
+  enrolled_at: dt, last_seen: dt.describe('Its last call to the box (config or results)'), last_result_at: dt.nullable().describe('Its last delivered result log; null = none yet'),
+  quiet_since: dt.nullable().describe('state quiet: when it was last heard; null otherwise'),
+})
+export const AgentsResponse = z.object({ install: Installers, tokens: z.array(AgentToken), nodes: z.array(AgentNode).describe('Every enrolled osquery agent, the quiet ones first, then by name'), server_url: z.string().describe('https://<box IP>:8443, or https://<VEDETTE_BOX_IP>:8443 when the IP is unknown'), wazuh: WazuhConnection.nullable() })
 export const CreateTokenResult = z.object({ token: AgentToken, secret: z.string().describe('Full token, returned only at creation') })
 export const SampleResult = z.object({ devices: z.number().int(), software: z.number().int() })
 /** "I updated it" for software an agent reads (S-MIT-1): which agent of this box reads the device, and the open ask. */
@@ -269,6 +278,9 @@ export const AgentReport = z.object({
   asked_at: dt.nullable().describe('The open ask: when a person asked the osquery agent to send its software now, until its list (built with its OS answer: kernel_info, os_revision) arrives or 15 minutes pass; null when none is open'),
   ask_again_at: dt.nullable().describe('agent osquery: when a new ask is possible (10 minutes after the last one) while that is still ahead; null otherwise'),
   last_seen: dt.nullable().describe('agent osquery: when the agent last called the box (config or results); null otherwise'),
+  state: AgentState.nullable().describe('agent osquery: reporting, quiet (no call for three config refreshes: show "quiet since quiet_since" and the command to check the service) or never_reported; null for the other agents'),
+  quiet_since: dt.nullable().describe('state quiet: when the agent last called the box; null otherwise'),
+  os: AgentOs.nullable().describe('agent osquery: the machine\'s system, which picks the service commands to show; null otherwise'),
   stale: z.boolean().describe('agent osquery: the agent has not called for more than 10 minutes (twice its config refresh): an ask reaches it only when it is back; false otherwise'),
   wazuh_interval_minutes: z.number().int().nullable().describe('agent wazuh: how often Vedette pulls from the Wazuh server (5, 15, 60, 360 or 1440); null otherwise'),
 })

@@ -867,3 +867,30 @@ func TestMirror_StalledClientFreesItsSlot(t *testing.T) {
 		t.Fatalf("the stalled client still holds its slot after the write deadline: %d", code)
 	}
 }
+
+// The Windows service keeps itself running: restart after a failure with delays, a reset period, restart on a non-crash exit code, delayed
+// automatic start, and a read-back from the service's registry key that fails the run when any of it did not apply.
+// ponytail: text checks (no PowerShell in CI); the registry read-back is what proves the effect on the machine.
+func TestInstall_WindowsServiceRestartsItself(t *testing.T) {
+	ps1 := readFile(t, "scripts/osquery.ps1")
+	for _, want := range []string{
+		"sc.exe config osqueryd start= delayed-auto",
+		"sc.exe failure osqueryd reset= 86400 actions= restart/60000/restart/60000/restart/300000",
+		"sc.exe failureflag osqueryd 1",
+		`HKLM:\SYSTEM\CurrentControlSet\Services\osqueryd`,
+		"$svc.DelayedAutostart -ne 1", "$svc.FailureActionsOnNonCrashFailures -ne 1", "[BitConverter]::ToUInt32($fa, 0) -ne 86400", "$restarts -ne 3",
+		"did not take its recovery settings",
+	} {
+		if !strings.Contains(ps1, want) {
+			t.Errorf("the Windows script lacks %q", want)
+		}
+	}
+	// the settings are checked before the service is restarted and before success is announced
+	check, restart := strings.Index(ps1, "did not take its recovery settings"), strings.Index(ps1, "Restart-Service osqueryd")
+	if check < 0 || restart < 0 || check > restart {
+		t.Errorf("the read-back (%d) must come before the restart (%d)", check, restart)
+	}
+	if strings.Contains(ps1, "-StartupType Automatic") {
+		t.Error("the service must start delayed-auto, not plain Automatic")
+	}
+}

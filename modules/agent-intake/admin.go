@@ -69,6 +69,17 @@ func (h *AdminHandlers) InventoryGetInventoryAgents(ctx context.Context) (*oas.I
 			LastReceived: nilTime(t.LastReceived),
 		})
 	}
+	nodes, err := h.s.Nodes(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out.Nodes = make([]oas.InventoryGetInventoryAgentsOKNodesItem, 0, len(nodes))
+	for _, n := range nodes {
+		out.Nodes = append(out.Nodes, oas.InventoryGetInventoryAgentsOKNodesItem{
+			ID: n.ID, TokenID: n.TokenID, Host: n.Host, Os: oas.InventoryGetInventoryAgentsOKNodesItemOs(n.OS), State: oas.InventoryGetInventoryAgentsOKNodesItemState(n.State),
+			EnrolledAt: n.EnrolledAt, LastSeen: n.LastSeen, LastResultAt: nilTime(n.LastResult), QuietSince: nilTime(n.QuietSince),
+		})
+	}
 	w, err := h.s.Wazuh(ctx)
 	if err != nil {
 		return nil, err
@@ -126,12 +137,12 @@ func (h *AdminHandlers) InventoryDeleteInventoryAgentsTokensID(ctx context.Conte
 
 // reportWire is the wire form of a ReportState (GET and POST answer the same shape): a zero time and a zero interval are null.
 type reportWire struct {
-	asked, again, seen oas.NilDateTime
-	minutes            oas.NilInt
+	asked, again, seen, quiet oas.NilDateTime
+	minutes                   oas.NilInt
 }
 
 func toWire(st ReportState) reportWire {
-	w := reportWire{asked: nilTime(st.AskedAt), again: nilTime(st.AskAgainAt), seen: nilTime(st.LastSeen), minutes: oas.NilInt{Null: true}}
+	w := reportWire{asked: nilTime(st.AskedAt), again: nilTime(st.AskAgainAt), seen: nilTime(st.LastSeen), quiet: nilTime(st.QuietSince), minutes: oas.NilInt{Null: true}}
 	if st.WazuhMinutes > 0 {
 		w.minutes = oas.NewNilInt(st.WazuhMinutes)
 	}
@@ -155,8 +166,14 @@ func (h *AdminHandlers) InventoryGetInventoryAgentsDevicesIDReport(ctx context.C
 		return nil, err
 	}
 	w := toWire(st)
-	return &oas.InventoryGetInventoryAgentsDevicesIDReportOK{Agent: oas.InventoryGetInventoryAgentsDevicesIDReportOKAgent(st.Agent), AskedAt: w.asked, AskAgainAt: w.again,
-		LastSeen: w.seen, Stale: st.Stale, WazuhIntervalMinutes: w.minutes}, nil
+	out := &oas.InventoryGetInventoryAgentsDevicesIDReportOK{Agent: oas.InventoryGetInventoryAgentsDevicesIDReportOKAgent(st.Agent), AskedAt: w.asked, AskAgainAt: w.again,
+		LastSeen: w.seen, QuietSince: w.quiet, Stale: st.Stale, WazuhIntervalMinutes: w.minutes,
+		State: oas.NilInventoryGetInventoryAgentsDevicesIDReportOKState{Null: true}, Os: oas.NilInventoryGetInventoryAgentsDevicesIDReportOKOs{Null: true}}
+	if st.State != "" {
+		out.State = oas.NewNilInventoryGetInventoryAgentsDevicesIDReportOKState(oas.InventoryGetInventoryAgentsDevicesIDReportOKState(st.State))
+		out.Os = oas.NewNilInventoryGetInventoryAgentsDevicesIDReportOKOs(oas.InventoryGetInventoryAgentsDevicesIDReportOKOs(st.OS))
+	}
+	return out, nil
 }
 
 // InventoryPostInventoryAgentsDevicesIDReport implements POST /inventory/agents/devices/{id}/report (operator, audited): "I updated it:
@@ -177,6 +194,12 @@ func (h *AdminHandlers) InventoryPostInventoryAgentsDevicesIDReport(ctx context.
 		return nil, err
 	}
 	w := toWire(st)
-	return &oas.InventoryPostInventoryAgentsDevicesIDReportOK{Agent: oas.InventoryPostInventoryAgentsDevicesIDReportOKAgent(st.Agent), AskedAt: w.asked, AskAgainAt: w.again,
-		LastSeen: w.seen, Stale: st.Stale, WazuhIntervalMinutes: w.minutes}, nil
+	out := &oas.InventoryPostInventoryAgentsDevicesIDReportOK{Agent: oas.InventoryPostInventoryAgentsDevicesIDReportOKAgent(st.Agent), AskedAt: w.asked, AskAgainAt: w.again,
+		LastSeen: w.seen, QuietSince: w.quiet, Stale: st.Stale, WazuhIntervalMinutes: w.minutes,
+		State: oas.NilInventoryPostInventoryAgentsDevicesIDReportOKState{Null: true}, Os: oas.NilInventoryPostInventoryAgentsDevicesIDReportOKOs{Null: true}}
+	if st.State != "" {
+		out.State = oas.NewNilInventoryPostInventoryAgentsDevicesIDReportOKState(oas.InventoryPostInventoryAgentsDevicesIDReportOKState(st.State))
+		out.Os = oas.NewNilInventoryPostInventoryAgentsDevicesIDReportOKOs(oas.InventoryPostInventoryAgentsDevicesIDReportOKOs(st.OS))
+	}
+	return out, nil
 }

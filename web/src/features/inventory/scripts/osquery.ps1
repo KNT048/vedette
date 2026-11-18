@@ -3,7 +3,7 @@
 # What it does, in order:
 #   1. downloads osquery @@VERSION@@ (MSI) and SHA256SUMS from the box (the box mirrors the official osquery release),
 #      checks the SHA-256 of the MSI, installs it silently with msiexec /qn
-#   2. writes the Vedette box CA certificate (embedded below) to C:\Program Files\osquery\vedette-ca.pem, the enroll secret and osquery.flags, sets the osqueryd service to Automatic and starts it; with a token this machine does
+#   2. writes the Vedette box CA certificate (embedded below) to C:\Program Files\osquery\vedette-ca.pem, the enroll secret and osquery.flags, sets the osqueryd service to start automatically (delayed) and to restart itself after a failure, checks those settings, and starts it; with a token this machine does
 #      not hold yet, it first removes osquery's database (osquery.db: the old node key and unsent results) so that it enrols under the new token
 #   3. waits until this machine has enrolled (not for its first report, due within a few minutes) and exits 0
 # Every request to the box checks that its certificate chains to the CA embedded below. Nothing is added to the Windows certificate
@@ -244,7 +244,23 @@ try {
     .\manage-osqueryd.ps1 -install -startupArgs ('--flagfile="' + $Dir + '\osquery.flags"')
     Pop-Location
   }
-  Set-Service osqueryd -StartupType Automatic
+  # The agent keeps itself running: osqueryd restarts after a failure (1 minute, 1 minute, then 5 minutes every time; the failure count
+  # resets after a day without one), also when it exits with an error code instead of crashing (failureflag), and starts automatically,
+  # delayed until the boot is done. The settings are read back from the service's registry key (not from sc.exe's text, which is
+  # translated): a service Windows would not restart fails this run instead of going quiet some day.
+  sc.exe config osqueryd start= delayed-auto | Out-Null
+  sc.exe failure osqueryd reset= 86400 actions= restart/60000/restart/60000/restart/300000 | Out-Null
+  sc.exe failureflag osqueryd 1 | Out-Null
+  $svc = Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\osqueryd'
+  $fa = $svc.FailureActions
+  $restarts = 0
+  if ($fa -and $fa.Length -ge 28) {
+    $n = [BitConverter]::ToUInt32($fa, 12)
+    for ($k = 0; $k -lt $n -and (20 + 8 * $k + 8) -le $fa.Length; $k++) { if ([BitConverter]::ToUInt32($fa, 20 + 8 * $k) -eq 1) { $restarts++ } }
+  }
+  if ($svc.Start -ne 2 -or $svc.DelayedAutostart -ne 1 -or -not $fa -or $fa.Length -lt 28 -or [BitConverter]::ToUInt32($fa, 0) -ne 86400 -or $restarts -ne 3 -or $svc.FailureActionsOnNonCrashFailures -ne 1) {
+    throw 'The osqueryd service did not take its recovery settings (restart on failure, delayed automatic start). Nothing will restart the agent if it stops. Check them with: sc.exe qfailure osqueryd ; sc.exe qc osqueryd'
+  }
   # status for THIS machine: sent its name (the host_identifier set above), it returns host_last_seen, when the box last heard from a machine of
   # this token with that name (null = none yet). Success = osqueryd runs and that value appeared or moved since before the restart.
   function Get-Seen {

@@ -105,6 +105,10 @@ type ReportState struct {
 	// LastSeen is when the osquery node last called (config or log), zero when not osquery; Stale says it is older than reportStale.
 	LastSeen time.Time
 	Stale    bool
+	// State, QuietSince and OS are the agent's state (nodestate.go), set for an osquery agent only.
+	State      string
+	QuietSince time.Time
+	OS         string
 	// WazuhMinutes is the Wazuh pull's interval when Agent is ReportWazuh, else 0.
 	WazuhMinutes int
 }
@@ -137,8 +141,8 @@ func (s *Service) reportState(ctx context.Context, device string) (ReportState, 
 		return ReportState{Agent: ReportBox}, askNode{}, nil
 	}
 	if id, ok := strings.CutPrefix(d.Agent, "osquery:"); ok {
-		var asked, taken, seen string
-		err := s.db.Reader().QueryRowContext(ctx, `SELECT ifnull(report_asked_at, ''), ifnull(software_taken_at, ''), last_seen FROM intake_osquery_nodes WHERE id = ?`, id).Scan(&asked, &taken, &seen)
+		var asked, taken, seen, enrolled, result, platform string
+		err := s.db.Reader().QueryRowContext(ctx, `SELECT ifnull(report_asked_at, ''), ifnull(software_taken_at, ''), last_seen, enrolled_at, ifnull(last_result_at, ''), ifnull(platform, '') FROM intake_osquery_nodes WHERE id = ?`, id).Scan(&asked, &taken, &seen, &enrolled, &result, &platform)
 		switch {
 		case err == nil:
 			now := s.now()
@@ -148,6 +152,10 @@ func (s *Service) reportState(ctx context.Context, device string) (ReportState, 
 			st := ReportState{Agent: ReportOsquery}
 			st.LastSeen, _ = time.Parse(time.RFC3339Nano, seen)
 			st.Stale = now.Sub(st.LastSeen) > reportStale
+			en, _ := time.Parse(time.RFC3339Nano, enrolled)
+			res, _ := time.Parse(time.RFC3339Nano, result)
+			st.State, st.QuietSince = stateOf(now, en, st.LastSeen, res)
+			st.OS = osOf(platform)
 			if askOpen(nodeRow{askedAt: n.askedAt, softwareAt: n.softwareAt}, now) {
 				st.AskedAt = n.askedAt
 			}

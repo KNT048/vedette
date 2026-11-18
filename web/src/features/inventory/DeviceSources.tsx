@@ -12,7 +12,8 @@ import { cn } from '@/lib/utils'
 import { InstallOnDeviceDialog } from './InstallAgent'
 import { SnmpSourceActions, SnmpSourceBody, useSnmpSource } from './SnmpCard'
 import { TurnOnModule } from './Inline'
-import { useDeviceAction, useDeviceSources, useSettings } from './api'
+import { useAgentReport, useDeviceAction, useDeviceSources, useSettings } from './api'
+import { AgentQuietNote } from './AgentQuiet'
 import { useScanningHistory } from '@/features/scanning/api'
 import { inRanges } from './AddToScopeDialog'
 import { nameOf } from './nameOf'
@@ -123,6 +124,10 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
   const snmpSetUp = snmp.q.data ? snmp.q.data.state !== 'not_set_up' : null
   const silent = a.scan_source === 'off' && (a.snmp_source === 'off' || snmpSetUp === false)
 
+  // An osquery agent that stopped calling is said where the person looks: the report knows it from the agent's own schedule.
+  const agentReport = useAgentReport(a.id, agentsOn && feeds.has('agent')).data
+  const agentQuiet = agentReport?.agent === 'osquery' && agentReport.state && agentReport.state !== 'reporting' ? agentReport : null
+
   const ownState = snmpOn && admin && !!ip
   const action = (f: Feed): React.ReactNode => {
     if (f === 'snmp') {
@@ -164,7 +169,8 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
           // Sources that only report (passive listening, what a person entered) are one line: a mark, the name, the last time. Only a
           // source the person can act on (network scan, SNMP, agent) keeps a control, and with it a frame.
           const act = f === 'scan' || f === 'snmp' || f === 'agent'
-          const mark = <span aria-hidden className={cn('size-2 shrink-0 rounded-full', on ? 'bg-ok' : 'bg-off')} />
+          const quiet = f === 'agent' && agentQuiet !== null
+          const mark = <span aria-hidden className={cn('size-2 shrink-0 rounded-full', quiet ? 'bg-warn' : on ? 'bg-ok' : 'bg-off')} />
           const head = (
             <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
               {mark}
@@ -186,6 +192,8 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
               </div>
               {f === 'scan' || (f === 'snmp' && snmpOn && snmpSetUp) ? <SourceSwitch d={d} which={f} /> : null}
               {f === 'snmp' && ownState ? <SnmpSourceBody d={d} src={snmp} /> : null}
+              {f === 'agent' && agentQuiet && agentQuiet.state && agentQuiet.state !== 'reporting' && agentQuiet.os
+                ? <AgentQuietNote state={agentQuiet.state} since={agentQuiet.quiet_since} os={agentQuiet.os} /> : null}
               {f === 'agent' && agentsOn ? <p className="text-caption text-muted">{t('sources.agent.how')}</p> : null}
             </li>
           )

@@ -615,6 +615,39 @@
     "spanHint": "Vedette reads DNS queries, TLS server names, HTTP hosts and connection metadata from the mirrored traffic to learn devices and spot connections to known-bad addresses. It does not store packet contents. Without mirrored traffic the sensor only sees broadcast messages (DHCP, ARP, mDNS)."
   },
   "agents": {
+    "quiet": {
+      "since": "Agent quiet since {{when}} — check the service on the device",
+      "never": "Agent installed but it has not reported yet — check the service on the device",
+      "whereWindows": "On the Windows machine, in PowerShell as Administrator:",
+      "whereLinux": "On the machine, in a shell with root rights:",
+      "check": "Check the service",
+      "restart": "Restart the service",
+      "repair": "If it stops again, run the install command from Devices > Scope and sensors > Agents once more: the current script makes the service restart itself after a failure."
+    },
+    "state": {
+      "reporting": "Reporting",
+      "quiet": "Quiet",
+      "never_reported": "Never reported"
+    },
+    "machines": {
+      "title": "Machines with an agent",
+      "body": "Each agent is judged by its own schedule: it asks the box for its settings every 5 minutes, and is quiet after three missed calls.",
+      "caption": "Machines with an osquery agent",
+      "col": {
+        "host": "Machine",
+        "system": "System",
+        "state": "State",
+        "heard": "Last heard",
+        "todo": "What to do"
+      },
+      "system": {
+        "windows": "Windows",
+        "linux": "Linux"
+      },
+      "heard": "Last heard {{when}}",
+      "quietSince": "Quiet since {{when}}",
+      "none": "No machine has enrolled yet."
+    },
     "onDevice": {
       "title": "Install osquery on {{name}}",
       "body": "Run one command on this machine. It then reports its installed software with exact versions."

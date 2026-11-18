@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode, type RefObject } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -13,14 +13,11 @@ import { InfoTip } from '@/components/common/InfoTip'
 import { CodeBlock } from '@/components/common/CodeBlock'
 import { Slot } from '@/components/common/Slot'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
-import { Field, Textarea } from '@/components/ui/input'
-import { RadioGroup, RadioItem } from '@/components/ui/checkbox'
 import { fmtDate, fmtDateTime, fmtPercent } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { useModuleEnabled } from '@/lib/modules'
-import { AcceptUntil, FindingStatusChip } from './AcceptRisk'
-import { overdue, untilOk } from './accept'
+import { FindingStatusChip } from './AcceptRisk'
+import { overdue } from './accept'
 import { useFinding, useSetStatus } from './api'
 import { useFindingAgentGone } from './agentNow'
 import { basisLabel, deviceName, hasIp, isOpen, unverified } from './basis'
@@ -30,59 +27,10 @@ import { AskAi, NoPack, PackView } from './Recommendation'
 import { GeneralChecks } from './Hardening'
 import { RiskChip } from './Risk'
 import { CvssScore } from './Cvss'
-import type { FindingDetail, StatusAction } from './types'
+import type { FindingDetail } from './types'
 import { IUpdatedFinding } from './Updated'
 import { NotAdded } from './NotAdded'
-
-const RESOLVE: StatusAction[] = ['patched', 'mitigated', 'false_positive', 'not_relevant', 'accept_risk']
-
-function StatusDialog({ f, open, onOpenChange, opener }: { f: FindingDetail; open: boolean; onOpenChange: (v: boolean) => void; opener: RefObject<HTMLButtonElement | null> }) {
-  const { t } = useTranslation('findings')
-  const set = useSetStatus(f.id)
-  const [action, setAction] = useState<StatusAction>('patched')
-  const [note, setNote] = useState('')
-  const [until, setUntil] = useState('')
-  const [error, setError] = useState<string | undefined>()
-  const [untilError, setUntilError] = useState<string | undefined>()
-  // Every opening starts clean: Cancel or Esc drops the draft, and a saved status is not offered again the next time.
-  const [wasOpen, setWasOpen] = useState(open)
-  if (open !== wasOpen) { setWasOpen(open); if (open) { setAction('patched'); setNote(''); setUntil(''); setError(undefined); setUntilError(undefined) } }
-  const accept = action === 'accept_risk'
-  const needNote = action === 'false_positive' || action === 'not_relevant' || accept
-  function submit() {
-    const badUntil = accept && !untilOk(until)
-    setUntilError(badUntil ? t('accept.untilRequired') : undefined)
-    if (needNote && note.trim().length < 3) { setError(t(accept ? 'accept.noteRequired' : 'status.noteRequired')); return }
-    if (badUntil) return
-    setError(undefined)
-    set.mutate({ action, note: note.trim(), ...(accept ? { until } : {}) }, {
-      onSuccess: () => { toast.success(t('status.done')); onOpenChange(false); setNote('') },
-      onError: (e) => setError(errMsg(e)),
-    })
-  }
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent title={t('status.title')} description={t('status.description', { cve: f.cve })} info={t('status.descriptionInfo')} onCloseAutoFocus={(e) => { e.preventDefault(); opener.current?.focus() }}>
-        <RadioGroup value={action} onValueChange={(v) => { setAction(v as StatusAction); setError(undefined); setUntilError(undefined) }} aria-label={t('status.title')}>
-          {RESOLVE.map((a) => (
-            <div key={a} className="flex items-start gap-2.5">
-              <RadioItem id={`st-${a}`} value={a} className="mt-1" />
-              <label htmlFor={`st-${a}`} className="grid text-sm"><span className="font-medium">{t(`status.${a}`)}</span><span className="text-meta text-muted">{t(`status.${a}Hint`)}</span></label>
-            </div>
-          ))}
-        </RadioGroup>
-        {accept ? <AcceptUntil id="st-until" value={until} onChange={(v) => { setUntil(v); setUntilError(undefined) }} error={untilError} /> : null}
-        <Field htmlFor="st-note" label={needNote ? t('status.noteLabelRequired') : t('status.noteLabel')} error={error}>
-          <Textarea id="st-note" value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} aria-invalid={!!error} aria-describedby={error ? 'st-note-error' : undefined} />
-        </Field>
-        <DialogFooter>
-          <Button onClick={() => onOpenChange(false)}>{t('common:cancel')}</Button>
-          <Button variant="primary" busy={set.isPending} busyLabel={t('common:busy.saving')} onClick={submit}>{t('status.submit')}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
-}
+import { StatusDialog } from './Handle'
 
 function Evidence({ f, confirm }: { f: FindingDetail; confirm?: ReactNode }) {
   // #850 r2 N4: with the vulnerability checks on, the device page re-runs them; off, it only identifies the device again (said so)

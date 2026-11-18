@@ -358,3 +358,40 @@ func TestNoLongerMatching_DowngradeRewritesTheEvidence(t *testing.T) {
 		t.Fatalf("%+v %+v", r.Finding, r.Evidence)
 	}
 }
+
+// A finding the version the device reports confirmed is never shown below a scan's confirmation, and the API row carries the same
+// number; when the device no longer confirms it, the matcher's own value shows again. A person's confirmation follows the same rule.
+func TestShownConfidence_ConfirmedNeverBelowScan(t *testing.T) {
+	t.Parallel()
+	f := Finding{Status: StatusSuspected, Severity: SeverityHigh, Confidence: ConfVersion, Basis: BasisVersion,
+		Evidence: &Evidence{Summary: "s", Source: SourceSNMP, CheckedAt: t0}}
+	if got := f.ShownConfidence(); got != ConfVersion {
+		t.Fatalf("suspected: shown %v, want the match's %v", got, ConfVersion)
+	}
+	c, _, ok := f.SettleByDevice(t0)
+	if !ok || c.Status != StatusConfirmed || c.ShownConfidence() < ConfScan {
+		t.Fatalf("confirmed by the device: %s shown %v, want confirmed at least %v", c.Status, c.ShownConfidence(), ConfScan)
+	}
+	if got := newRow(Record{ID: "f-1", AssetID: "a-1", CVE: "CVE-2025-61624", Finding: c}, nil, nil, nil).Confidence; got < ConfScan {
+		t.Fatalf("API row of a confirmed finding: confidence %v, want at least %v", got, ConfScan)
+	}
+	c.Evidence = &Evidence{Summary: "s", CheckedAt: t0} // the device no longer states the version
+	s, _, ok := c.SettleByDevice(t0)
+	if !ok || s.Status != StatusSuspected || s.ShownConfidence() != ConfVersion {
+		t.Fatalf("suspected again: %s shown %v, want suspected at %v", s.Status, s.ShownConfidence(), ConfVersion)
+	}
+	p, _, err := Finding{Status: StatusSuspected, Confidence: ConfProduct, Basis: BasisProduct}.ConfirmByPerson("seen on the console", "it@acme.example", t0)
+	if err != nil || p.ShownConfidence() < ConfScan {
+		t.Fatalf("confirmed by a person: shown %v (%v), want at least %v", p.ShownConfidence(), err, ConfScan)
+	}
+	// the person's confirmation then mitigated: the evidence still confirms it
+	mt, _, err := p.Apply(ActionMitigated, "blocked at the firewall", "it@acme.example", t0)
+	if err != nil || mt.Status != StatusMitigated || mt.ShownConfidence() < ConfScan {
+		t.Fatalf("mitigated after a person's confirmation: %s shown %v (%v), want at least %v", mt.Status, mt.ShownConfidence(), err, ConfScan)
+	}
+	// Undo: what ConfirmByPerson left in the column
+	u, _, err := p.UnconfirmByPerson("it@acme.example", t0)
+	if err != nil || u.Status != StatusSuspected || u.ShownConfidence() != ConfVersion {
+		t.Fatalf("undone: %s shown %v (%v), want suspected at %v", u.Status, u.ShownConfidence(), err, ConfVersion)
+	}
+}

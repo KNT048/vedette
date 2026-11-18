@@ -20,6 +20,7 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/scan"
 	"github.com/knt048/vedette/modules/scan/nucleiout"
+	"github.com/knt048/vedette/modules/scan/pack"
 	"github.com/knt048/vedette/modules/scan/surface"
 	sensoractive "github.com/knt048/vedette/modules/sensor-active"
 )
@@ -28,6 +29,20 @@ var (
 	scanMu       sync.Mutex
 	scanServices = map[*store.DB]*scan.Service{}
 )
+
+// safePack is the index of the safe template pack baked into the scan image (content/nucleipack), parsed once.
+var safePack = sync.OnceValue(func() *pack.Index {
+	ix, err := nucleipack.Index()
+	if err != nil { // a test holds the committed index to pack.Parse: a programming error
+		panic("vedette: the embedded nuclei pack index: " + err.Error())
+	}
+	return ix
+})
+
+// safeCheckFor says whether a safe vulnerability check exists for the CVE: the pack the scan plans with has a template for it
+// (scan Service.plan, Pack.ForCVE). It is the one answer findings gives (KevInfo.HasTemplate, To fix's Checkable): never the
+// nuclei-templates feed flag, which is off on an offline box and lists templates the pack does not ship.
+func safeCheckFor(cve string) bool { return len(safePack().ForCVE(cve)) > 0 }
 
 // scanService builds the scan service once per database, so the handlers and (later) the jobs share it.
 // ponytail: no Engine and no template pack yet: the remote nuclei engine over the sensor protocol is slice S5 and the
@@ -56,11 +71,7 @@ func scanService(d deps) *scan.Service {
 	}
 	cfg.KEV = scanKEV{feedsKEV{&d}} // the catch-up of new_kev the bus did not bring (S4b)
 	if d.SensorDispatcher != nil {  // S5: the worker in the scan container, over the sensor link, against the pack of its image
-		ix, err := nucleipack.Index()
-		if err != nil { // a test holds the committed index to pack.Parse: a programming error
-			panic("vedette: the embedded nuclei pack index: " + err.Error())
-		}
-		cfg.Engine, cfg.Pack = scanEngine{d.SensorDispatcher}, ix
+		cfg.Engine, cfg.Pack = scanEngine{d.SensorDispatcher}, safePack()
 		cfg.Identify = scanIdentify{d} // Scan now identifies each device with sensor-active's nmap scan first
 	}
 	svc, err := scan.NewService(cfg)

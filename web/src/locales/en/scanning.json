@@ -403,6 +403,6 @@
     "vulnOff": "The vulnerability checks (Preview) are off, so none runs.",
     "vulnOffLink": "Turn them on: Settings, Scanning, Engines",
     "neverSnmp": "An SNMP read runs in the scan window once SNMP is set up on this device.",
-    "neverSnmpLink": "Set it up on the SNMP card"
+    "neverSnmpLink": "Set it up in Sources"
   }
 }

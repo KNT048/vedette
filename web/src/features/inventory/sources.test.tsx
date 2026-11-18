@@ -101,10 +101,10 @@ describe('Device page: Sources switches', () => {
   // SNMP reads go only to a device with SNMP settings of its own: without them there is no SNMP switch to claim "On", only what to do.
   const notSetUp = async (list: HTMLElement) => {
     const snmp = item(list, 'SNMP')
-    expect(await within(snmp).findByTestId('snmp-not-set-up', {}, T)).toHaveTextContent('Not set up: no SNMP read goes to this device. Setting SNMP up on it turns SNMP on.')
+    expect(await within(snmp).findByTestId('snmp-state', {}, T)).toHaveTextContent('Not set up')
     expect(within(snmp).queryByRole('switch')).toBeNull()
     expect(snmp).not.toHaveTextContent('read with the SNMP settings of this device')
-    expect(within(snmp).getByRole('link', { name: 'Set it up on the SNMP card' })).toHaveAttribute('href', expect.stringMatching(/#device-snmp$/))
+    expect(within(snmp).getByRole('button', { name: 'Set up' })).toBeInTheDocument()
     return snmp
   }
 
@@ -127,7 +127,7 @@ describe('Device page: Sources switches', () => {
     const after = await sources()
     await vi.waitFor(() => expect(sw(item(after, 'SNMP'))).toBeChecked(), T)
     expect(item(after, 'SNMP')).toHaveTextContent('On: read with the SNMP settings of this device')
-    expect(within(item(after, 'SNMP')).queryByTestId('snmp-not-set-up')).toBeNull()
+    expect(item(after, 'SNMP')).not.toHaveTextContent('Not set up')
     expect(sw(item(after, 'Network scan'))).not.toBeChecked() // that source only
     expect(screen.queryByText(/Vedette sends nothing to it until/)).toBeNull()
     const d = (await (await api('GET', `/devices/${id}`)).json()) as { asset: { scan_source: string; snmp_source: string } }

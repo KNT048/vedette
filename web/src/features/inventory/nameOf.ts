@@ -40,7 +40,7 @@ export const declaredSoftwareOnly = (a: Named) => a.origin === 'manual' && !a.ho
 export const neverSeen = (a: Pick<Asset, 'origin' | 'first_seen' | 'last_seen'>) => a.origin === 'manual' && Date.parse(a.last_seen) <= Date.parse(a.first_seen)
 
 /** Whether the device page shows this device's SNMP card: an admin, active discovery on, a real device (not the box, not ignored,
- *  not declared software only). Last checks reads it too, so its "Set it up on the SNMP card" link never points at no card. */
+ *  not declared software only). Last checks reads it too, so its "Set it up in Sources" link never points at no card. */
 /** Whether the device page shows this device's Sources card (where its network scan is switched on): not the box, not ignored,
  *  not declared software only. A pointer to Sources elsewhere on the page links there only when it is shown. */
 export const hasSourcesCard = (a: Named & { is_box: boolean; ignored_at?: string | null }) => !a.is_box && !a.ignored_at && !declaredSoftwareOnly(a)

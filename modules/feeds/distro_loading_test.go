@@ -1,0 +1,59 @@
+package feeds
+
+import (
+	"maps"
+	"testing"
+)
+
+// The plan waits for a distribution only while a feed it reads has never completed a pull: a pull that completed is loaded even if it
+// stored no row, a feed the plan does not read (ubuntu-vex) never holds the distribution back, and a feed that keeps failing without
+// ever succeeding is given up, so the plan says "Check <distro>'s security updates" instead of leaving its devices unchecked.
+func TestDistroPlanLoading(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	set := func(id, set string) {
+		t.Helper()
+		execSQL(t, e.db, `UPDATE feeds_source SET `+set+` WHERE id = '`+id+`'`)
+	}
+	loading := func() map[string]bool {
+		t.Helper()
+		l, err := e.svc.st.DistroPlanLoading(t.Context())
+		if err != nil {
+			t.Fatal(err)
+		}
+		return l
+	}
+	const ok = `last_success = '2026-11-05T11:00:00.000Z', status = 'ok', failures = 0`
+	for _, id := range []string{alpineOSVFeedID, debianTrackerFeedID, ubuntuOSVFeedID, ubuntuVEXFeedID} {
+		set(id, `enabled = 1`)
+	}
+	// never pulled: all three the plan reads are loading
+	if got := loading(); !maps.Equal(got, map[string]bool{DistroAlpine: true, DistroDebian: true, DistroUbuntu: true}) {
+		t.Fatalf("never pulled: %v", got)
+	}
+	// a pull that completed and stored zero rows: loaded, for good
+	set(alpineOSVFeedID, ok)
+	if rowsOf(t, e.db, "feeds_distro_fix") != 0 || loading()[DistroAlpine] {
+		t.Fatalf("zero-row successful pull is still loading: %v", loading())
+	}
+	// ubuntu-osv loaded, ubuntu-vex failing and never succeeded: Ubuntu is not held back by a feed the plan does not read
+	set(ubuntuOSVFeedID, ok)
+	set(ubuntuVEXFeedID, `failures = 3, status = 'error'`)
+	if loading()[DistroUbuntu] {
+		t.Fatalf("ubuntu-vex holds Ubuntu back: %v", loading())
+	}
+	// debian-tracker failing and never succeeded: loading while the failures are few, given up after DistroGiveUpFailures
+	set(debianTrackerFeedID, `failures = 2, status = 'error'`)
+	if !loading()[DistroDebian] {
+		t.Fatalf("a feed that failed twice is given up: %v", loading())
+	}
+	set(debianTrackerFeedID, `failures = 6, status = 'error'`)
+	if loading()[DistroDebian] {
+		t.Fatalf("a feed that failed %d times in a row is still waited for: %v", DistroGiveUpFailures, loading())
+	}
+	// a feed that is off is not loading
+	set(debianTrackerFeedID, `failures = 0, status = 'never', enabled = 0`)
+	if loading()[DistroDebian] {
+		t.Fatalf("a feed that is off is loading: %v", loading())
+	}
+}

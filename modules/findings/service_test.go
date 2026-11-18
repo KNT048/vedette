@@ -99,6 +99,7 @@ type fakeFeeds struct {
 	// distro: TierDistro keeps the rows of the packages asked for; covered: the releases it says the feeds hold rows for
 	distro  []TierVuln
 	covered map[string]bool
+	loading map[string]bool // TierDistro's Loading: the distributions the plan still waits for
 	stamp   string
 }
 
@@ -150,7 +151,7 @@ func (f *fakeFeeds) TierDistro(_ context.Context, pkgs []DistroPackage) (DistroT
 	for _, p := range pkgs {
 		asked[p] = true
 	}
-	out := DistroTier{Covered: f.covered, Known: map[string]bool{}}
+	out := DistroTier{Covered: f.covered, Known: map[string]bool{}, Loading: f.loading}
 	for _, t := range f.distro {
 		var kept []DistroFix
 		for _, d := range t.Distro {

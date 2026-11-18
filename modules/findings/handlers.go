@@ -543,7 +543,7 @@ func (h *FindingHandlers) FindingsGetFindingsPlan(ctx context.Context, params oa
 	tier := string(params.Tier.Or(oas.FindingsGetFindingsPlanTierAll))
 	asset := params.Asset.Or("")
 	wantDone := params.Done.Or(oas.FindingsGetFindingsPlanDoneFalse) == oas.FindingsGetFindingsPlanDoneTrue
-	doneN := 0
+	var doneDevices []string // the device of each done item the Done list shows (the same filters as the list), counted once the devices are read
 	cut := h.svc.now().Add(-AgeLimit).UTC().Format(time.DateOnly)
 	items, ids, old := []any{}, []string{}, 0
 	type shown struct {
@@ -558,10 +558,7 @@ func (h *FindingHandlers) FindingsGetFindingsPlan(ctx context.Context, params oa
 			continue
 		}
 		_, done := h.svc.doneOf(it) // a person's done mark: listed only under Done
-		if done {
-			doneN++
-		}
-		if done != wantDone {
+		if !done && wantDone {
 			continue
 		}
 		// Microsoft's newest Windows update with no CVE analysed yet: a recent item (its CVEs are this month's), never a likely one
@@ -580,6 +577,15 @@ func (h *FindingHandlers) FindingsGetFindingsPlan(ctx context.Context, params oa
 		if !k.likely && !k.recent {
 			continue
 		}
+		if done != wantDone {
+			if len(k.cves) > 0 || awaitsNVD(it) && tier != "likely" { // listed under Done with these filters: counted for the Done tab
+				doneDevices = append(doneDevices, it.AssetID)
+			}
+			if !slices.Contains(ids, it.AssetID) {
+				ids = append(ids, it.AssetID)
+			}
+			continue
+		}
 		keep = append(keep, k)
 		if !slices.Contains(ids, it.AssetID) {
 			ids = append(ids, it.AssetID)
@@ -593,7 +599,7 @@ func (h *FindingHandlers) FindingsGetFindingsPlan(ctx context.Context, params oa
 	if len(keep) > 0 {
 		risks = h.risks(ctx, feedsOn)
 	}
-	counts := map[string]int{"likely": 0, "recent": 0, "all": 0} // M2-9: every tab's number from one answer
+	counts := map[string]int{"likely": 0, "recent": 0, "all": 0, "done": 0} // M2-9: every tab's number from one answer
 	h.mu.RLock()
 	agents := h.agents
 	h.mu.RUnlock()
@@ -645,7 +651,15 @@ func (h *FindingHandlers) FindingsGetFindingsPlan(ctx context.Context, params oa
 			"version": k.it.Version, "fixed": k.it.Fixed, "kind": k.it.Kind, "distro": k.it.Distro, "pro": k.it.Pro, "nvd_lag": k.it.NVDLag, "kb": k.it.KB, "cves": cves, "likely": likely, "recent": len(k.cves) - likely,
 			"agent_gone": lastOnly, "agent_reported": reported, "distro_data": k.it.DistroData, "done": doneView(h.svc, k.it)})
 	}
-	counts["done"] = doneN
+	if wantDone {
+		counts["done"] = len(items) // the list itself
+	} else {
+		for _, id := range doneDevices {
+			if _, ok := names[id]; ok {
+				counts["done"]++
+			}
+		}
+	}
 	return Into[oas.FindingsGetFindingsPlanOK](map[string]any{
 		"items": items, "counts": counts, "compared": view.Ran, "compared_devices": view.Compared, "unchecked_devices": view.Unchecked, "old_evidence": old,
 		"data": map[string]any{"epss": state(st.EPSS), "recent": state(st.Recent), "epss_date": day(st.EPSSDate), "recent_since": day(st.RecentSince)},

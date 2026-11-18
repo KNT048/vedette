@@ -49,8 +49,11 @@ func sshFeeds(t *testing.T, s *stack) {
 				return err
 			}
 		}
-		// The distribution feeds are on and have been read: each holds a row, of a package no device here runs. A feed that is on and
-		// holds no row is still loading, and the plan compares no package of its distribution until it has loaded.
+		// The distribution feeds are on and have been read: each completed a pull and holds a row, of a package no device here runs. A
+		// feed that has never completed a pull is still loading, and the plan compares no package of its distribution until it has loaded.
+		if _, err := tx.ExecContext(ctx, `UPDATE feeds_source SET last_success = ?, status = 'ok' WHERE id IN ('alpine-osv', 'debian-tracker', 'ubuntu-osv', 'ubuntu-vex')`, store.FormatTS(now)); err != nil {
+			return err
+		}
 		for _, f := range []struct{ source, distro, release, status, fixed string }{
 			{"alpine-osv", "alpine", "3.20", "fixed", "1.0-r0"},
 			{"debian-tracker", "debian", "12", "fixed", "1.0-1"},

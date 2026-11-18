@@ -101,13 +101,15 @@ func (s *Service) loadMarks(ctx context.Context) error {
 }
 
 // pruneMarks deletes the marks that no longer hold on a device the last pass compared: its item is gone (the update was installed) or
-// changed (another version, a new CVE: the item is back on the plan). A device the pass could not read keeps its marks.
-func (s *Service) pruneMarks(ctx context.Context, compared map[string]planDevice) error {
+// changed (another version, a new CVE: the item is back on the plan). A device the pass could not read keeps its marks, and so does a
+// device the pass lacked data for (hadData false: nvd-recent not ready or switched off, a distribution feed loading, switched off or
+// re-pulling): an item missing for that reason is not an installed update, and the mark must still hold when the data is back.
+func (s *Service) pruneMarks(ctx context.Context, compared map[string]planDevice, hadData map[string]bool) error {
 	s.plan.mu.RLock()
 	var stale []string
 	for g, m := range s.plan.marks {
 		d, ok := compared[m.AssetID]
-		if !ok {
+		if !ok || !hadData[m.AssetID] {
 			continue
 		}
 		i := slices.IndexFunc(d.items, func(it PlanItem) bool { return it.Group == g })

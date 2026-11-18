@@ -212,7 +212,7 @@ type distroWord int
 
 const (
 	wordNone   distroWord = iota // no data for the package (or another build): NVD's upstream ranges and the fallback item
-	wordWait                     // the feed is loading, or the release is not covered yet: no item, the device not compared on it
+	wordWait                     // the feed the plan reads has never completed a pull: no item, the device not compared on it
 	wordJudged                   // the data decides
 )
 
@@ -236,7 +236,7 @@ func (x *tierIndex) word(d *distroData, rel string, r distroPkgRow) distroWord {
 		key = d.id + "/"
 	}
 	if !x.covered[key] {
-		return wordWait
+		return wordNone // the feed has pulled (it is not loading) and holds no row of this release: the honest fallback item
 	}
 	return wordJudged
 }

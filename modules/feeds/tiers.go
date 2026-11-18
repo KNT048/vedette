@@ -467,7 +467,7 @@ type TierDistro struct {
 	// Known holds the packages ("alpine/openssh") a feed that is on has any row of, for any CVE and release: a package the
 	// distribution's data never names has no word from it at all, and findings compares it with NVD's upstream ranges instead.
 	Known map[string]bool
-	// Loading holds the distributions one of whose feeds is on but holds no row yet (DistroLoading).
+	// Loading holds the distributions the plan still waits for (DistroPlanLoading): a feed it reads is on and has never completed a pull.
 	Loading map[string]bool
 }
 
@@ -476,7 +476,7 @@ type TierDistro struct {
 func (s *Store) TierDistroRecords(ctx context.Context, now time.Time, pkgs []DistroPackage) (TierDistro, error) {
 	out := TierDistro{Covered: map[string]bool{}, Known: map[string]bool{}}
 	var err error
-	if out.Loading, err = s.DistroLoading(ctx); err != nil {
+	if out.Loading, err = s.DistroPlanLoading(ctx); err != nil {
 		return out, err
 	}
 	st, err := s.TierStatus(ctx, now)

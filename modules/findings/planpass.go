@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 )
@@ -185,9 +186,15 @@ func (s *Service) RefreshPlan(ctx context.Context) error {
 		}
 	}
 	dx := (&tierIndex{}).withKnown(dt.Known, dt.Loading).withDistro(dt.Vulns, dt.Covered)
+	st, err := s.cfg.Feeds.TierStatus(ctx)
+	if err != nil {
+		return fmt.Errorf("findings: plan: reading the tier data's status: %w", err)
+	}
+	hadData := map[string]bool{}         // the devices whose items this pass could all compute: their done marks may be pruned (pruneMarks)
 	skip := map[string]map[string]bool{} // the packages the distribution's data alone decides: NVD's entries of them are not read
 	for _, a := range assets {
 		d, _, judged, wait := dx.distroWords(a)
+		hadData[a.ID] = st.Recent == "ready" && len(wait) == 0 && distroHasData(d, dt)
 		for id := range judged {
 			if !d.fixedOnly {
 				wait[id] = true
@@ -240,7 +247,7 @@ func (s *Service) RefreshPlan(ctx context.Context) error {
 	}
 	s.plan.mu.Unlock()
 	retry = unread
-	if err := s.pruneMarks(ctx, got); err != nil {
+	if err := s.pruneMarks(ctx, got, hadData); err != nil {
 		s.cfg.Log.WarnContext(ctx, "findings: plan: the done marks that no longer hold stay until the next pass", "error", err)
 	}
 	compared := 0
@@ -253,4 +260,19 @@ func (s *Service) RefreshPlan(ctx context.Context) error {
 		"distro_packages", len(pkgs), "distro_cves_read", len(dt.Vulns), "items", items, "items_fixed", kinds["fixed"], "items_windows", kinds["windows"],
 		"items_esu", kinds["esu"], "items_distro", kinds["distro"], "took", s.now().Sub(start))
 	return errors.Join(failed...)
+}
+
+// distroHasData says whether the plan pass holds data of distribution d for its devices: a device with no distribution package rows
+// needs none; otherwise a feed that is on has stored rows of a release (a feed that was switched off or is re-pulling leaves items out
+// that are not installed updates).
+func distroHasData(d *distroData, dt DistroTier) bool {
+	if d == nil {
+		return true
+	}
+	for k := range dt.Covered {
+		if strings.HasPrefix(k, d.id+"/") {
+			return true
+		}
+	}
+	return false
 }

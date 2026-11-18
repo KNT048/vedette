@@ -151,7 +151,7 @@ func TestParseDebianTracker(t *testing.T) {
 }
 
 // For a tier CVE of a package a device runs, the distribution's "affected, no fix yet" is kept as open (Debian's open entries, except
-// those it calls unimportant; an Ubuntu release with no fixed event, unless Ubuntu Pro has a fix), never for a CVE of the CISA list (the
+// those Debian will not fix in a security update; an Ubuntu release with no fixed event, unless Ubuntu Pro has a fix), never for a CVE of the CISA list (the
 // matcher reads fixed and not affected only).
 func TestDistroParsersKeepOpenRowsOfTierCVEs(t *testing.T) {
 	t.Parallel()
@@ -166,7 +166,7 @@ func TestDistroParsersKeepOpenRowsOfTierCVEs(t *testing.T) {
 			open[r.Package+"/"+r.Release] = r.Fixed == ""
 		}
 	}
-	if !maps.Equal(open, map[string]bool{"sudo/11": true, "openssh/12": true}) {
+	if !maps.Equal(open, map[string]bool{"openssh/12": true}) { // sudo on bullseye is nodsa (Debian will not publish an update): no row
 		t.Fatalf("debian open rows %v (%+v)", open, deb.Rows)
 	}
 	osv := `{"id":"UBUNTU-CVE-2026-10002","affected":[{"package":{"ecosystem":"Ubuntu:24.04:LTS","name":"openssh"},"ranges":[{"type":"ECOSYSTEM","events":[{"introduced":"0"}]}]}]}`
@@ -581,5 +581,29 @@ func TestDistroPullKeepsTierRowsOfTheDevicesPackages(t *testing.T) {
 	}
 	if kept, _ := e.svc.st.distroKept(t.Context(), debianTrackerFeedID); !slices.Equal(kept, []string{"curl", "sudo"}) {
 		t.Fatalf("kept %v", kept)
+	}
+}
+
+// Debian's open entries that Debian has decided not to fix in a security update (urgency unimportant or end-of-life, nodsa, a
+// nodsa reason such as ignored or postponed) are not kept: the plan would say "No fix from Debian yet" for them for good.
+func TestParseDebianTrackerSkipsEntriesDebianWillNotFix(t *testing.T) {
+	t.Parallel()
+	doc := `{"curl": {"CVE-2026-20001": {"releases": {
+   "bullseye": {"status": "open", "urgency": "end-of-life"},
+   "bookworm": {"status": "open", "nodsa": "Minor issue", "nodsa_reason": "ignored"},
+   "trixie": {"status": "open", "urgency": "low", "nodsa": "Minor issue"},
+   "forky": {"status": "open", "urgency": "unimportant"}}},
+  "CVE-2026-20002": {"releases": {"bookworm": {"status": "open", "urgency": "medium"}, "trixie": {"status": "open", "nodsa": false}}}}}`
+	want := DistroWant{Tier: map[string]bool{"CVE-2026-20001": true, "CVE-2026-20002": true}, Packages: map[string]bool{"curl": true}}
+	res, err := ParseDebianTracker(strings.NewReader(doc), want)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]string{}
+	for _, r := range res.Rows {
+		got[r.CVE+"/"+r.Release] = r.Status
+	}
+	if !maps.Equal(got, map[string]string{"CVE-2026-20002/12": DistroOpen, "CVE-2026-20002/13": DistroOpen}) {
+		t.Fatalf("rows %v", got)
 	}
 }

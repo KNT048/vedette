@@ -682,12 +682,28 @@ func sourcePurl(id string) (name, codename string, ok, bad bool) {
 	return name, codename, true, false
 }
 
+type debianRelease struct {
+	Status       string `json:"status"`
+	FixedVersion string `json:"fixed_version"`
+	Urgency      string `json:"urgency"`
+	// NoDSA and NoDSAReason are set when Debian will not publish a security update for the entry ("minor issue", "ignored",
+	// "postponed", "end-of-life"); the tracker writes them as strings, a boolean is read too
+	NoDSA       json.RawMessage `json:"nodsa"`
+	NoDSAReason json.RawMessage `json:"nodsa_reason"`
+}
+
 type debianEntry struct {
-	Releases map[string]struct {
-		Status       string `json:"status"`
-		FixedVersion string `json:"fixed_version"`
-		Urgency      string `json:"urgency"`
-	} `json:"releases"`
+	Releases map[string]debianRelease `json:"releases"`
+}
+
+// noSecurityUpdate says whether Debian has decided not to publish a security update for the entry: urgency unimportant or
+// end-of-life, or a nodsa / nodsa_reason mark.
+func (r debianRelease) noSecurityUpdate() bool {
+	set := func(m json.RawMessage) bool {
+		t := strings.TrimSpace(string(m))
+		return t != "" && t != "null" && t != "false" && t != `""`
+	}
+	return r.Urgency == "unimportant" || r.Urgency == "end-of-life" || set(r.NoDSA) || set(r.NoDSAReason)
 }
 
 // ParseDebianTracker reads the Debian Security Tracker JSON ({source: {CVE: {releases: {codename: {status,
@@ -740,8 +756,8 @@ func parseDebian(dec *json.Decoder, want DistroWant) (DistroResult, error) {
 			var rows []DistroFix
 			bad := false
 			for codename, rel := range e.Releases {
-				// open: affected, no fix yet; one Debian calls unimportant (it will not fix it in a security update) is left out
-				open := rel.Status == "open" && rel.Urgency != "unimportant"
+				// open: affected, no fix yet; one Debian will not fix in a security update (unimportant, end-of-life, nodsa, ignored) is left out
+				open := rel.Status == "open" && !rel.noSecurityUpdate()
 				if rel.Status != "resolved" && !open || codename == "sid" {
 					continue
 				}

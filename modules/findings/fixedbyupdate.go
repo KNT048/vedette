@@ -149,8 +149,8 @@ func fixedByUpdate(r Record, p Match, loc *time.Location) (string, bool) {
 		return "", false
 	}
 	later := *p.Evidence.Read
-	if prior.Software != "" && later.Software != "" && !strings.EqualFold(prior.Software, later.Software) && r.SoftwareID != p.SoftwareID {
-		return "", false // another software of the product (a second install)
+	if r.SoftwareID != "" && p.SoftwareID != "" && r.SoftwareID != p.SoftwareID {
+		return "", false // another software row (a second install of the same product, or another product)
 	}
 	from, to, ok := updateReadings(prior, later)
 	if !ok {

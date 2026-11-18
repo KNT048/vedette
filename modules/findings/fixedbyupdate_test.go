@@ -146,3 +146,26 @@ func TestReclassifyPatched_OnceAndQuiet(t *testing.T) {
 		t.Fatalf("history rows %d", n)
 	}
 }
+
+// Two installs of one product (the same name, different software rows) are not an update: the first install stops being reported and
+// the second, outside the range, must not close the finding as "Fixed by an update".
+func TestFixedByUpdate_SecondInstallOfTheSameNameIsNotAnUpdate(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	if _, err := e.svc.UpsertFromMatch(t.Context(), winrarPC("6.24", "agent", t0), winrarVulns()); err != nil {
+		t.Fatal(err)
+	}
+	r, err := loadByPair(t.Context(), e.db.Reader(), "a-1", winrarCVE)
+	if err != nil || r.SoftwareID == "" {
+		t.Fatalf("finding %+v %v", r.Finding, err)
+	}
+	proof := func(id string) Match {
+		return Match{SoftwareID: id, provedOn: "7.23.0", Evidence: Evidence{Summary: "Not affected: version 7.23.0", Read: &Reading{Software: "WinRAR", Source: "agent", Version: "7.23.0", At: t0}}}
+	}
+	if _, ok := fixedByUpdate(r, proof(r.SoftwareID+"-second"), time.UTC); ok {
+		t.Fatal("a second install of the same name closed the finding as an update")
+	}
+	if _, ok := fixedByUpdate(r, proof(r.SoftwareID), time.UTC); !ok {
+		t.Fatal("the same software row updated is no longer an update")
+	}
+}

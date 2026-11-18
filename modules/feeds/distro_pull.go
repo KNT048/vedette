@@ -350,6 +350,32 @@ AND NOT EXISTS (SELECT 1 FROM feeds_distro_fix d WHERE d.source_id = s.id)`)
 	return out, rows.Err()
 }
 
+// DistroGiveUpFailures is how many pulls in a row may fail, with none ever completed, before the plan stops waiting for a
+// distribution feed (KEVStaleChecks: the same count of checks after which the exploited list is called stale).
+const DistroGiveUpFailures = KEVStaleChecks
+
+// DistroPlanLoading lists the distributions the plan still waits for: a feed the plan reads (alpine-osv, debian-tracker, ubuntu-osv;
+// ubuntu-vex is not read by the plan) is on, has never completed a pull and has not failed DistroGiveUpFailures times in a row. A pull
+// that completed is loaded even if it stored no row; a feed that keeps failing is given up, so the plan falls back to "Check <distro>'s
+// security updates" for its devices instead of leaving them unchecked for good.
+func (s *Store) DistroPlanLoading(ctx context.Context) (map[string]bool, error) {
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT id FROM feeds_source WHERE enabled = 1 AND builtin = 1 AND id IN ('alpine-osv', 'debian-tracker', 'ubuntu-osv')
+AND last_success IS NULL AND failures < ?`, DistroGiveUpFailures)
+	if err != nil {
+		return nil, fmt.Errorf("feeds: distro plan loading: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	out := map[string]bool{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("feeds: distro plan loading: %w", err)
+		}
+		out[distroOfFeed[id]] = true
+	}
+	return out, rows.Err()
+}
+
 // DistroFixesOf is DistroFixes of one CVE (the CVE page's platform check); nil when none.
 func (s *Store) DistroFixesOf(ctx context.Context, cve string) ([]DistroFix, error) {
 	out, err := s.distroFixes(ctx, cve)

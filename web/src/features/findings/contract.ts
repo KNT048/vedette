@@ -26,7 +26,7 @@ export const Finding = z.object({
   status: FindingStatus,
   severity: Severity,
   confidence: z.number().min(0).max(1),
-  basis: z.enum(['scan', 'version', 'product']).describe('scan = confirmed by a scan template; version = suspected by version; product = only the product matches'),
+  basis: z.enum(['scan', 'version', 'product', 'person']).describe('scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version = suspected by version; product = only the product matches'),
   evidence: z.object({
     summary: z.string(), template: z.string().optional(), request: z.string().optional(), response: z.string().optional(), checked_at: iso,
     agent: z.boolean().optional().describe('the version compared is the one the device\'s own agent (osquery, Wazuh) reports installed: a detection, shown as "Detected by the agent", with nothing for the person to look up'),
@@ -137,6 +137,7 @@ export const KnownVersion = z.object({
 }).describe('The version the box has for the matched software; the page says it and how a newer one reaches Vedette, never "find which version"')
 export const FindingDetail = FindingRow.extend({
   known_version: KnownVersion.nullable().describe('Null when the matched software has no version or its source is not known'),
+  suspected_why: z.string().nullable().describe('A suspected finding only: why it is not confirmed and what would confirm it, in words (who stated the version, whether a vulnerability check exists for the CVE and whether the scan reaches the device); null for any other status'),
   fixed_in: FixedIn.nullable().describe('The release that fixes this finding on this device, from the NVD affected versions; null = NVD gives none, the page shows CISA and the vendor advisory only'),
   pack: MitigationPack.nullable().describe('null = no recommendation confirmed by Vedette maintainers yet'),
   compromise: CompromiseCheck.nullable(),
@@ -318,6 +319,10 @@ export const endpoints = defineEndpoints([
     params: idParams, response: FindingDetail, example: { params: { id: 'f-1' } } },
   { method: 'post', path: '/findings/{id}/status', summary: 'Change status (patched, mitigated, false positive, not relevant, accept risk until a day, reopen) with a note', stories: ['S-MIT-1'], role: 'operator',
     params: idParams, body: z.object({ action: StatusAction, note: z.string().max(500), until }), response: FindingDetail },
+  { method: 'post', path: '/findings/{id}/confirm', summary: 'Confirm a suspected finding on your own word (admin): basis person, status confirmed; a note is required and goes into the history as "Confirmed by <user>: <note>"', stories: ['S-MIT-1'], role: 'admin',
+    params: idParams, body: z.object({ note: z.string().max(500) }), response: FindingDetail },
+  { method: 'post', path: '/findings/{id}/unconfirm', summary: 'Undo a confirmation a person made (admin): the finding is suspected again; a finding a scan confirmed is refused', stories: ['S-MIT-1'], role: 'admin',
+    params: idParams, response: FindingDetail },
   { method: 'post', path: '/findings/status', summary: 'Change the status of the open findings among the ids (at most 500) with one note; one history and audit row per finding, all or nothing; closed findings are skipped', stories: ['S-MIT-1'], role: 'operator',
     body: z.object({ ids: z.array(findingId).min(1).max(MAX_BULK), action: BulkAction, note: z.string().max(500), until }),
     response: z.object({ updated: z.number().int().describe('Open findings changed'), skipped: z.number().int().describe('Findings already closed, left as they were') }) },

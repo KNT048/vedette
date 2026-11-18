@@ -15,6 +15,7 @@ import { fmtDateTime } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { useGeneratePdpl, usePdpl, usePdplAi, useSaveOrg } from './api'
 import { PdplDocument } from './PdplDocument'
+import { ReportFilterSwitches } from './filters'
 import { ActionError } from './parts'
 import { ApiError } from '@/lib/api'
 import type { DataVolume, OrgSize, PdplOrg, PdplState } from './types'
@@ -152,6 +153,8 @@ function ReportSection({ s }: { s: PdplState }) {
         {r ? (
           <>
             <p className="text-meta text-muted">{t('pdpl.report.at', { time: fmtDateTime(r.generated_at) })}</p>
+            {/* Its risks are open findings only: the not relevant choice would change nothing here */}
+            <ReportFilterSwitches idPrefix="pdpl-include" notRelevant={false} />
             <Card><PdplDocument report={r} aiAction={(
               <>
                 <div><Button onClick={() => ai.mutate(undefined, { onSuccess: () => toast.success(t('weekly.ai.done')) })} disabled={!operator || !s.ai_available} busy={ai.isPending} busyLabel={t('weekly.ai.working')} title={!operator ? reason : s.ai_available ? undefined : t('weekly.ai.unavailable')} aria-describedby="pdpl-ai-wait"><Sparkles aria-hidden />{t('weekly.ai.button')}</Button></div>

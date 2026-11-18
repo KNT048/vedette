@@ -225,6 +225,9 @@ describe('honeypot: hit detail', () => {
     expect(within(events).getAllByText('Firewall').length).toBeGreaterThan(0)
     expect(screen.getByRole('heading', { name: /Events in the 60 minutes around the hit/ })).toBeInTheDocument()
     expect(screen.getByText(/listed shares IPC\$ and ADMIN\$/)).toBeInTheDocument()
+    // Respond is the next step: in "What to do next", not in the header
+    expect(within(screen.getByRole('heading', { level: 1 }).closest('header')!).queryByRole('link', { name: /^Respond/ })).toBeNull()
+    expect(within(screen.getByRole('region', { name: 'What to do' })).getByRole('link', { name: /^Respond to the hit/ })).toHaveAttribute('href', '/response?tab=rules')
     await expectNoA11yViolations()
   })
 

@@ -37,20 +37,30 @@ type evidenceDoc struct {
 	CheckedAt time.Time `json:"checked_at"`
 	Agent     bool      `json:"agent,omitempty"`     // The version compared is the one the device's agent reports
 	AgentRow  bool      `json:"agent_row,omitempty"` // A product-only match on a row the agent reported with its version
+	Prior     string    `json:"prior,omitempty"`     // Stored only (Evidence.Prior); newRow leaves it out of the API
 }
 
 func newEvidenceDoc(e *Evidence) *evidenceDoc {
 	if e == nil {
 		return nil
 	}
-	return &evidenceDoc{Summary: e.Summary, Template: e.Template, Request: e.Request, Response: e.Response, CheckedAt: e.CheckedAt.UTC(), Agent: e.Agent, AgentRow: e.AgentRow}
+	return &evidenceDoc{Summary: e.Summary, Template: e.Template, Request: e.Request, Response: e.Response, CheckedAt: e.CheckedAt.UTC(), Agent: e.Agent, AgentRow: e.AgentRow, Prior: string(e.Prior)}
+}
+
+// apiEvidence is the evidence as the API shows it: without what is only stored.
+func apiEvidence(e *Evidence) *evidenceDoc {
+	d := newEvidenceDoc(e)
+	if d != nil {
+		d.Prior = ""
+	}
+	return d
 }
 
 func (d *evidenceDoc) evidence() *Evidence {
 	if d == nil {
 		return nil
 	}
-	return &Evidence{Summary: d.Summary, Template: d.Template, Request: d.Request, Response: d.Response, CheckedAt: d.CheckedAt, Agent: d.Agent, AgentRow: d.AgentRow}
+	return &Evidence{Summary: d.Summary, Template: d.Template, Request: d.Request, Response: d.Response, CheckedAt: d.CheckedAt, Agent: d.Agent, AgentRow: d.AgentRow, Prior: Basis(d.Prior)}
 }
 
 const findingColumns = `id, asset_id, cve, status, severity, confidence, basis, evidence, first_seen, last_seen, resolved_by, resolved_at, resolution_note, resolution_reason, accepted_until, software_id, proved_version`

@@ -66,7 +66,7 @@ export interface Finding {
   severity: Severity
   confidence: number
   /** scan = xác nhận bằng mẫu quét; version = nghi theo phiên bản; product = chỉ khớp sản phẩm, chưa biết phiên bản */
-  basis: 'scan' | 'version' | 'product'
+  basis: 'scan' | 'version' | 'product' | 'person'
   evidence: { summary: string; template?: string; request?: string; response?: string; checked_at: string; agent?: boolean; agent_row?: boolean } | null
   first_seen: string
   last_seen: string

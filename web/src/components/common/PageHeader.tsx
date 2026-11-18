@@ -12,6 +12,9 @@ import { Breadcrumbs, type Crumb } from './Breadcrumbs'
 /*  `breadcrumbs`: the parents of a detail page (docs/UI.md §3), drawn above the title. */
 /** `titleAction` sits right after the title, outside the heading (a Rename button); `editing` replaces the visible title with an
  *  edit-in-place field while the heading stays for screen readers. */
+/*  The header names the page: title, breadcrumbs, one meta line. An action sits next to what it acts on (a list's toolbar, a section's
+    `actions`, the notice it answers); a rare or destructive one on the whole page goes to `PageEnd`. `actions` is left for a page that
+    has nothing else to put it next to (a print preview's Print). */
 export function PageHeader({ title, meta, info, actions, stories, breadcrumbs, titleAction, editing }: { title: ReactNode; meta?: ReactNode; info?: ReactNode; actions?: ReactNode; stories?: string[]; breadcrumbs?: Crumb[]; titleAction?: ReactNode; editing?: ReactNode }) {
   const mod = useContext(PageModule) // A preview or leaving module's page says so under its title (#818, #819)
   return (
@@ -54,6 +57,11 @@ export function Section({ title, description, info, actions, children, id, stori
       {children}
     </section>
   )
+}
+
+/** The end of a page: the rare or destructive actions on the whole page (turn a module off), below its content, never in the header. */
+export function PageEnd({ children }: { children: ReactNode }) {
+  return <div data-testid="page-end" className="mt-10 flex flex-wrap items-center gap-3 border-t border-rule pt-4">{children}</div>
 }
 
 const NOTICE = {

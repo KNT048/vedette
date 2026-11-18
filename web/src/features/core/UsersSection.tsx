@@ -233,11 +233,8 @@ export default function UsersSection() {
 
   return (
     <>
-      <PageHeader
-        title={q.data ? t('users.title', { count: q.data.items.filter((u) => !u.disabled).length }) : t('settings.users')}
-        meta={t('users.meta')} info={t('users.metaInfo')} stories={['S-CORE-3']}
-        actions={<Button id="users-add" variant="primary" onClick={() => setAdding(true)}><Plus />{t('users.add.open')}</Button>}
-      />
+      {/* The title names the page; the count and Add user are the toolbar of the list they act on */}
+      <PageHeader title={t('settings.users')} meta={t('users.meta')} info={t('users.metaInfo')} stories={['S-CORE-3']} />
       <QueryState query={q}>
         {({ items }) => {
           const isMe = (u: AdminUser) => u.id === me?.id
@@ -266,6 +263,10 @@ export default function UsersSection() {
           ]
           return (
             <DataTable data={items} columns={columns} caption={t('users.caption')} filterPlaceholder={t('users.filter')}
+              toolbar={<>
+                <span className="text-meta text-muted tabular-nums">{t('users.count', { count: items.filter((u) => !u.disabled).length })}</span>
+                <Button id="users-add" variant="primary" className="ml-auto" onClick={() => setAdding(true)}><Plus />{t('users.add.open')}</Button>
+              </>}
               mobileRow={(u) => (
                 <div className="grid gap-2">
                   <div className="flex items-start justify-between gap-3">{nameCell(u)}{stateChip(u)}</div>

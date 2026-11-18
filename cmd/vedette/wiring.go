@@ -31,6 +31,7 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/mitigation"
 	"github.com/knt048/vedette/modules/notify"
+	"github.com/knt048/vedette/modules/scan"
 	sensoractive "github.com/knt048/vedette/modules/sensor-active"
 )
 
@@ -645,6 +646,7 @@ func buildServices(ctx context.Context, d *deps) error {
 	}
 	d.FindingHandlers.SetHome(home)
 	d.FindingHandlers.SetAgents(agentReports(d))
+	d.FindingHandlers.SetScanReach(scanReach(d))
 	// The ai service comes before mitigation: mitigation reaches the AI only through this door (mitigation.AI), and the door is
 	// unavailable while no profile is assigned, so the page offers no AI button then.
 	d.AIFacts = aiFacts{fs.Store(), d.Findings, inv, aiBoxID(d.Inventory)}
@@ -1156,6 +1158,33 @@ func agentReports(d *deps) findings.AgentReports {
 			return !st.Stale
 		}
 		return false
+	}
+}
+
+// scanReach is how the vulnerability scan stands to a device, for the finding page's "why only suspected" line: unknown (""
+// = the line says nothing about the scan) when the scan module cannot be read, off while its module is off.
+func scanReach(d *deps) findings.ScanReach {
+	return func(ctx context.Context, id string) string {
+		if d.Reg != nil && !d.Reg.Enabled("scan") {
+			return findings.ScanOff
+		}
+		r, err := scanService(*d).Reach(ctx, id)
+		if err != nil {
+			return ""
+		}
+		switch r {
+		case scan.ReachOutside:
+			return findings.ScanOutside
+		case scan.ReachOff:
+			return findings.ScanOff
+		case scan.ReachNoRanges:
+			return findings.ScanNoRanges
+		case scan.ReachByHand:
+			return findings.ScanByHand
+		case scan.ReachDeviceOff:
+			return findings.ScanDeviceOff
+		}
+		return ""
 	}
 }
 

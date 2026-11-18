@@ -19,8 +19,34 @@ export function regimeOf(o: Pick<PdplOrg, 'size' | 'processing_service' | 'sensi
 }
 
 export function buildPdpl(org: PdplOrg): PdplReport {
-  const assets = assetsStore.get()
+  const all = assetsStore.get()
   const open = findingsStore.get().filter((f) => f.status === 'confirmed' || f.status === 'suspected')
+  const full = view(all, open)
+  // As pdpl.go: the view without the devices not approved yet; its unapproved measure stays the full one.
+  const left = new Set(all.filter((a) => !a.approved).map((a) => a.id))
+  const a = left.size ? view(all.filter((x) => !left.has(x.id)), open.filter((f) => !left.has(f.asset_id))) : full
+  const approvedOnly = { ...a, measures: a.measures.map((x) => (x.id === 'unapproved' ? full.measures.find((y) => y.id === 'unapproved')! : x)) }
+  const regime = regimeOf(org)
+  const obligations: Obligation[] = [
+    { id: 'dpia', applies: true, regime, done: null },
+    { id: 'dpo', applies: true, regime, done: !!(org.contact_name && org.contact_email) },
+    { id: 'breach', applies: true, regime: 'required', done: null },
+    { id: 'consent', applies: true, regime: 'required', done: null },
+    { id: 'sensitive', applies: org.sensitive, regime: 'required', done: null },
+    { id: 'cross_border', applies: org.cross_border, regime: 'required', done: null },
+    { id: 'processors', applies: org.processors, regime: 'required', done: null },
+  ]
+  return {
+    id: newId('pdpl'), generated_at: nowIso(), org, ...full, obligations,
+    coverage: (['inventory', 'scan', 'logs', 'honeypot', 'exposure'] as const).map((module) => ({ module, on: isOn(module) })),
+    ai_summary: null, approved_only: approvedOnly,
+  }
+}
+
+type Asset = ReturnType<typeof assetsStore.get>[number]
+type OpenFinding = ReturnType<typeof findingsStore.get>[number]
+
+function view(assets: Asset[], open: OpenFinding[]): Pick<PdplReport, 'inventory' | 'measures' | 'risks'> {
   const label = (a: (typeof assets)[number]) => a.name ?? a.hostname ?? a.ip
   const by = new Map<string, number>()
   const src = new Map<string, number>()
@@ -45,26 +71,13 @@ export function buildPdpl(org: PdplOrg): PdplReport {
     m('scan', isOn('scan') ? 'ok' : 'unknown'),
     m('backup', 'unknown'),
   ]
-  const regime = regimeOf(org)
-  const obligations: Obligation[] = [
-    { id: 'dpia', applies: true, regime, done: null },
-    { id: 'dpo', applies: true, regime, done: !!(org.contact_name && org.contact_email) },
-    { id: 'breach', applies: true, regime: 'required', done: null },
-    { id: 'consent', applies: true, regime: 'required', done: null },
-    { id: 'sensitive', applies: org.sensitive, regime: 'required', done: null },
-    { id: 'cross_border', applies: org.cross_border, regime: 'required', done: null },
-    { id: 'processors', applies: org.processors, regime: 'required', done: null },
-  ]
   return {
-    id: newId('pdpl'), generated_at: nowIso(), org,
     inventory: {
       total: assets.length, approved: assets.length - unapproved.length, unapproved: unapproved.length, fragile: assets.filter((a) => a.fragile).length,
       by_kind: [...by.entries()].map(([kind, n]) => ({ kind, n })).sort((a, b) => b.n - a.n),
       key_systems: assets.filter((a) => ['server', 'nas', 'firewall'].includes(actsAs(a.kind))).map((a) => ({ id: a.id, name: label(a), ip: a.ip, kind: a.kind, os: a.os?.value ?? '–' })),
       sources: [...src.entries()].map(([source, n]) => ({ source, n })).sort((a, b) => b.n - a.n),
     },
-    measures, risks: open.map(rowOf), obligations,
-    coverage: (['inventory', 'scan', 'logs', 'honeypot', 'exposure'] as const).map((module) => ({ module, on: isOn(module) })),
-    ai_summary: null,
+    measures, risks: open.map(rowOf),
   }
 }

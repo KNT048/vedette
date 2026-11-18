@@ -49,7 +49,7 @@ export default function AuditSection() {
 
   return (
     <>
-      <PageHeader title={q.data ? t('audit.title', { count: q.data.total }) : t('settings.audit')} meta={t('audit.meta')} info={t('audit.metaInfo')} stories={['S-CORE-3']} actions={<DownloadButton path={auditExportPath(f)} filename="vedette-audit.csv" onError={(e) => toast.error(errMsg(e, t))}><Download />{t('audit.export')}</DownloadButton>} />
+      <PageHeader title={t('settings.audit')} meta={t('audit.meta')} info={t('audit.metaInfo')} stories={['S-CORE-3']} />
       <div role="search" aria-label={t('audit.filter.label')} className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <Field label={t('audit.filter.text')} htmlFor="au-q"><Input id="au-q" value={f.q} onChange={(e) => set({ q: e.target.value })} /></Field>
         <Field label={t('audit.filter.user')} htmlFor="au-user">
@@ -65,10 +65,16 @@ export default function AuditSection() {
         <Field label={t('audit.filter.from')} htmlFor="au-from"><Input id="au-from" type="date" value={f.from} onChange={(e) => set({ from: e.target.value })} /></Field>
         <Field label={t('audit.filter.to')} htmlFor="au-to"><Input id="au-to" type="date" value={f.to} onChange={(e) => set({ to: e.target.value })} /></Field>
       </div>
+      {/* The list's toolbar, under the filters it counts: how many lines match (one line, the cut-off said in it) and Export CSV of them */}
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <p role="status" className="text-meta text-muted tabular-nums">
+          {q.data ? (q.data.total > q.data.items.length ? t('audit.truncated', { shown: q.data.items.length, total: q.data.total }) : t('audit.count', { count: q.data.total })) : ''}
+        </p>
+        <DownloadButton variant="ghost" className="ml-auto" path={auditExportPath(f)} filename="vedette-audit.csv" onError={(e) => toast.error(errMsg(e, t))}><Download />{t('audit.export')}</DownloadButton>
+      </div>
       <QueryState query={q}>
         {(d) => (
           <>
-            {d.total > d.items.length ? <p className="mb-2 text-meta text-muted">{t('audit.truncated', { shown: d.items.length, total: d.total })}</p> : null}
             <DataTable data={d.items} columns={columns} caption={t('audit.caption')} pageSize={25}
               mobileRow={(r) => (
                 <div className="grid gap-0.5 text-meta">

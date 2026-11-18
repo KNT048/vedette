@@ -343,3 +343,44 @@ func TestINV50_MatchingKeepsAnotherReleaseUnderTheAgent(t *testing.T) {
 		t.Fatalf("the agent row and the other release match, the same release does not: %+v", m.Software)
 	}
 }
+
+// The row an entry corrects is the person's deliberate change: it is no notice. An entry that corrects an agent row ranks with the
+// agent rows, and an SNMP reading of another release next to it is a notice and matched.
+func TestINV50_CorrectedRowIsNoNotice(t *testing.T) {
+	t.Parallel()
+	edit := func(c *softwareCase, source, version, pkg string) {
+		t.Helper()
+		for _, s := range c.e.detail(c.dev).Asset.Software {
+			if s.Source == source {
+				e := inventory.SoftwareEdit{Version: &version, PkgVersion: &pkg}
+				c.e.tick(time.Minute)
+				if err := c.e.svc.EditSoftware(c.e.ctx(), "op@example.com", c.dev, s.ID, e); err != nil {
+					t.Fatal(err)
+				}
+				return
+			}
+		}
+		t.Fatalf("no %s row", source)
+	}
+	c := newSoftwareCase(t)
+	c.report(observe.Nmap, "OpenSSH", "10.2", "")
+	edit(c, "nmap", "9.9", "9.9_p1-r1") // the only other release is the row the entry corrects
+	if l := c.oneLine("manual", 1); l.Differs {
+		t.Fatalf("a deliberate correction is no notice: %+v", l)
+	}
+	c = newSoftwareCase(t)
+	c.report(observe.Agent, "OpenSSH", "10.2p1", "10.2_p1-r1")
+	edit(c, "agent", "10.2", "10.2_p1-r1")
+	c.report(observe.SNMP, "OpenSSH", "9.8", "")
+	l := c.oneLine("manual", 2)
+	if !l.Differs {
+		t.Fatalf("SNMP reads another release: %+v", l)
+	}
+	m, _, err := c.e.svc.MatchInput(c.e.ctx(), c.dev)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(m.Software) != 2 {
+		t.Fatalf("the entry and the SNMP reading match: %+v", m.Software)
+	}
+}

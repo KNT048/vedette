@@ -116968,7 +116968,8 @@ type InventoryGetInventoryDevicesIDSoftwareOKItemsItem struct {
 	// "" when none.
 	Cpe string `json:"cpe"`
 	// A scan, SNMP or passive reading reads another release than this row (matching keeps that reading
-	// too): the first also_seen of such a source with same_release false.
+	// too); never the row a person's entry corrects: the first also_seen of such a source with
+	// same_release false.
 	Differs bool   `json:"differs"`
 	Display string `json:"display"`
 	// The software row the values are read from.

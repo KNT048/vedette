@@ -27,8 +27,8 @@ type EffectiveSoftware struct {
 	SeenAt     string `json:"seen_at"`
 	// AlsoSeen lists the other rows of the same software, strongest source first, never as rows of their own.
 	AlsoSeen []AlsoSeen `json:"also_seen"`
-	// Differs: a scan, SNMP or passive reading reads another release (not the same one with more or less detail); matching keeps that
-	// reading too. The first AlsoSeen of such a source with SameRelease false is the one to name.
+	// Differs: a scan, SNMP or passive reading reads another release (not the same one with more or less detail) and is not the row
+	// the entry corrects; matching keeps that reading too. The first AlsoSeen of such a source with SameRelease false is the one to name.
 	Differs bool `json:"differs"`
 
 	key, corrects string // the row's identity (rowKey) and, on a person's correction, the row it corrects
@@ -203,7 +203,7 @@ func effectiveOf(all []EffectiveSoftware) []EffectiveSoftware {
 			t := &shown[ti]
 			same := pkgrel.Same(t.Version, t.PkgVersion, all[w].Version, all[w].PkgVersion)
 			t.AlsoSeen = append(t.AlsoSeen, AlsoSeen{ID: all[w].ID, Source: all[w].Source, Version: all[w].Version, PkgVersion: all[w].PkgVersion, SeenAt: all[w].SeenAt, SameRelease: same})
-			if !same && all[w].Source != "manual" { // a reading of another release, which matching keeps too
+			if _, isCorrected := corrected[w]; !same && all[w].Source != "manual" && !isCorrected { // a reading of another release, which matching keeps too; the row the entry corrects is the person's deliberate change, never a notice
 				t.Differs = true
 			}
 		}

@@ -64,6 +64,7 @@
   },
   "basis": {
     "scan": "Confirmed by scan",
+    "person": "Confirmed by a person",
     "version": "By version",
     "product": "Product match only"
   },
@@ -102,6 +103,22 @@
     "handleAll": "Select and handle these findings in the Findings list",
     "todo": "What to do on this device",
     "all": "Every finding of this device"
+  },
+  "confirm": {
+    "button": "Confirm",
+    "buttonFor": "Confirm {{cve}}",
+    "title": "Confirm this finding",
+    "description": "Say that {{cve}} really affects this device. It then counts as confirmed.",
+    "descriptionInfo": "Use it when you checked the device yourself. Your name and note go into the history. Vedette's matching never takes it back; Undo does.",
+    "noteLabel": "What did you check? (required)",
+    "noteRequired": "Say what you checked (at least 3 characters).",
+    "submit": "Confirm finding",
+    "done": "Finding confirmed",
+    "undo": "Undo confirm",
+    "undoFor": "Undo the confirmation of {{cve}}",
+    "undoing": "Undoing…",
+    "undone": "Back to suspected",
+    "col": "Confirm"
   },
   "status": {
     "mark": "Mark as handled",

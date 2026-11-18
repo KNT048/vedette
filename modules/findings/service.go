@@ -937,6 +937,60 @@ func (s *Service) setStatus(ctx context.Context, id string, action Action, note,
 	return out, err
 }
 
+// ConfirmByPerson confirms a suspected finding on a person's word (Finding.ConfirmByPerson): the change, its history row
+// ("Confirmed by <user>: <note>"), the audit row findings.confirm and the status_changed event are one transaction. The caller has
+// checked the person is an admin (the route's role).
+func (s *Service) ConfirmByPerson(ctx context.Context, id, note, user string) (Record, error) {
+	return s.confirmChange(ctx, id, user, "findings.confirm", func(f Finding, now time.Time) (Finding, HistoryEntry, error) {
+		return f.ConfirmByPerson(note, user, now)
+	})
+}
+
+// UnconfirmByPerson is Undo: a finding a person confirmed goes back to suspected, with a history row and the audit row
+// findings.unconfirm. A finding a scan confirmed is refused.
+func (s *Service) UnconfirmByPerson(ctx context.Context, id, user string) (Record, error) {
+	return s.confirmChange(ctx, id, user, "findings.unconfirm", func(f Finding, now time.Time) (Finding, HistoryEntry, error) {
+		return f.UnconfirmByPerson(user, now)
+	})
+}
+
+func (s *Service) confirmChange(ctx context.Context, id, user, action string, change func(Finding, time.Time) (Finding, HistoryEntry, error)) (Record, error) {
+	if err := ValidUser(user); err != nil {
+		return Record{}, err
+	}
+	var out Record
+	err := s.write(ctx, func(tx *sql.Tx, now time.Time, emit func(string, any)) error {
+		r, err := loadByID(ctx, tx, id)
+		if err != nil {
+			return err
+		}
+		was := r.Status
+		f, h, err := change(r.Finding, now)
+		if err != nil {
+			return err
+		}
+		r.Finding = f
+		if err := f.Validate(); err != nil {
+			return fmt.Errorf("findings: finding %s after %s: %w", r.ID, action, err)
+		}
+		if err := updateRecord(ctx, tx, r); err != nil {
+			return err
+		}
+		if err := insertHistory(ctx, tx, r.ID, h); err != nil {
+			return err
+		}
+		if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: user, Action: action, Target: r.ID, Detail: r.CVE + ": " + h.Note}); err != nil {
+			return err
+		}
+		if was != r.Status {
+			emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: was, To: r.Status})
+		}
+		out, err = loadByID(ctx, tx, r.ID)
+		return err
+	})
+	return out, err
+}
+
 // MaxBulk is how many findings one bulk status change may touch (INV-10): a filtered list of a few hundred findings
 // fits, and the one write transaction stays short.
 const MaxBulk = 500

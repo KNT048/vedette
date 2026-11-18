@@ -254,6 +254,20 @@ function recheckFor(f: Finding, k: KevInfo | null, a: FindingAsset | null, kv: K
   }
 }
 
+const SOURCE_TEXT: Record<KnownVersion['source'], string> = {
+  agent: 'The agent on the device', snmp: "The device's own SNMP answer", stated: "The device's own statement on the network",
+  scan: 'A network scan (a guess from what a service answers)', manual: 'A person (entered on the Devices page)',
+}
+
+/** findings.WhySuspected: from the version and who gave it, whether a check exists for the CVE; the scan's reach is not mocked (the sample box has the scan on). */
+function whySuspected(f: Finding, kv: KnownVersion | null, k: KevInfo | null): string {
+  const head = f.basis === 'version' && kv ? `Version match only: ${SOURCE_TEXT[kv.source]} states ${kv.software} ${kv.version}, inside NVD's affected range.`
+    : f.basis === 'version' ? "Version match only: the version of the software is inside NVD's affected range."
+    : "Product match only: the device runs the product, but its version is not known, so it could not be compared with NVD's affected range."
+  const check = !k ? '' : !k.has_template ? ' A vulnerability check would confirm it, but none exists for this CVE, so only a person can.' : ' A vulnerability check can confirm it.'
+  return `${head}${check} Or confirm it yourself.`
+}
+
 function detail(f: Finding): FindingDetail {
   const r = row(f)
   const pack = packs()[f.cve]
@@ -266,6 +280,7 @@ function detail(f: Finding): FindingDetail {
     ...r,
     fixed_in: null,
     known_version: kv,
+    suspected_why: f.status === 'suspected' ? whySuspected(f, kv, r.kev) : null,
     pack: pack ? renderPack(pack, r.asset) : null,
     compromise: check ? JSON.parse(fill(JSON.stringify(check), ip, host)) : null,
     recheck: recheckFor(f, r.kev, r.asset, kv),
@@ -283,6 +298,8 @@ function hardeningFor(f: Finding, r: FindingRow, _pack: MitigationPack | undefin
 }
 
 const who = () => currentUser()?.email ?? 'system'
+/** The basis a finding had before a person confirmed it (Undo returns to it). */
+const priorBasis = new Map<string, Finding['basis']>()
 const find = (id: unknown) => findingsStore.get().find((f) => f.id === String(id))
 const patch = (id: string, fn: (f: Finding) => Finding) => findingsStore.update((l) => l.map((f) => (f.id === id ? fn(f) : f)))
 
@@ -290,6 +307,7 @@ const BASIS: Record<Finding['basis'], string> = {
   scan: 'A safe scan template confirmed the flaw is still present on this device.',
   version: 'The device matches by version or operating system. No scan template has confirmed it yet, so this is only suspected.',
   product: 'The device only matches by product name; the version is unknown, so it may not be affected.',
+  person: 'A person confirmed the device is affected, beyond the version match.',
 }
 
 const HARDEN: Record<string, string[]> = {
@@ -607,11 +625,40 @@ export const handlers = [
       accepted.update((m) => ({ ...m, [f.id]: until }))
     } else if (b.action === 'reopen') {
       if (f.status === 'confirmed' || f.status === 'suspected') return fail(409, 'already_open', 'This finding is already open.')
-      patch(f.id, (x) => ({ ...x, status: x.basis === 'scan' ? 'confirmed' : 'suspected', resolved_by: null, resolved_at: null, resolution_note: null, history: [...x.history, { ts, user, action: 'reopened', note: note || undefined }] }))
+      patch(f.id, (x) => ({ ...x, status: x.basis === 'scan' || x.basis === 'person' ? 'confirmed' : 'suspected', resolved_by: null, resolved_at: null, resolution_note: null, history: [...x.history, { ts, user, action: 'reopened', note: note || undefined }] }))
     } else {
       patch(f.id, (x) => ({ ...x, status: b.action as Finding['status'], resolved_by: user, resolved_at: ts, resolution_note: note || null, history: [...x.history, { ts, user, action: b.action as string, note: note || undefined }] }))
     }
     audit('findings.status', f.id, `${f.cve} → ${b.action}${note ? `: ${note}` : ''}`)
+    return HttpResponse.json(detail(find(f.id)!))
+  }),
+
+  // A person confirms a suspected finding (admin): basis person, the note in the history; Undo goes back to the basis it had.
+  http.post(`${API}/findings/:id/confirm`, async ({ params, request }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const f = find(params.id)
+    if (!f) return fail(404, 'not_found', 'No such finding.')
+    const b = await body<{ note: string }>(request)
+    const note = typeof b.note === 'string' ? b.note.trim() : ''
+    if (note.length > 500) return fail(400, 'note_too_long', 'The note can be at most 500 characters. Shorten it.')
+    if (f.status !== 'suspected') return fail(409, 'not_suspected', 'Only a suspected finding can be confirmed.')
+    if (note.length < 3) return fail(400, 'confirm_note_required', 'Write what makes you sure (at least 3 characters) so the next person understands.')
+    const user = who()
+    priorBasis.set(f.id, f.basis)
+    patch(f.id, (x) => ({ ...x, status: 'confirmed', basis: 'person', history: [...x.history, { ts: nowIso(), user, action: 'confirmed', note: `Confirmed by ${user}: ${note}` }] }))
+    audit('findings.confirm', f.id, `${f.cve}: confirmed by ${user}: ${note}`)
+    return HttpResponse.json(detail(find(f.id)!))
+  }),
+
+  http.post(`${API}/findings/:id/unconfirm`, ({ params }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const f = find(params.id)
+    if (!f) return fail(404, 'not_found', 'No such finding.')
+    if (f.status !== 'confirmed' || f.basis !== 'person') return fail(409, 'not_confirmed_by_person', 'Only a finding a person confirmed can be returned to suspected; a scan confirmed this one.')
+    const user = who()
+    const was = priorBasis.get(f.id) ?? 'version'
+    patch(f.id, (x) => ({ ...x, status: 'suspected', basis: was, history: [...x.history, { ts: nowIso(), user, action: 'reopened', note: `Confirmation undone by ${user}: back to suspected.` }] }))
+    audit('findings.unconfirm', f.id, `${f.cve}: confirmation undone by ${user}`)
     return HttpResponse.json(detail(find(f.id)!))
   }),
 

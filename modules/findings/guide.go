@@ -323,12 +323,14 @@ type Detail struct {
 	FixedIn *FixedIn `json:"fixed_in"` // null when NVD's ranges do not say which release fixes it
 	// KnownVersion is Row.Known on the page: the version the box has for the matched software and who gave it (M2-3); null when none.
 	KnownVersion *KnownVersion `json:"known_version"`
+	// SuspectedWhy is, for a suspected finding, what would confirm it (WhySuspected); null for any other status.
+	SuspectedWhy *string `json:"suspected_why"`
 }
 
 func newRow(r Record, a *AssetView, k *KevInfo, c *CVSS) Row {
 	row := Row{
 		ID: r.ID, AssetID: r.AssetID, CVE: r.CVE, Status: r.Status, Severity: r.Severity, Confidence: r.Confidence, Basis: r.Basis,
-		Evidence: newEvidenceDoc(r.Evidence), FirstSeen: r.FirstSeen.UTC(), LastSeen: r.LastSeen.UTC(),
+		Evidence: apiEvidence(r.Evidence), FirstSeen: r.FirstSeen.UTC(), LastSeen: r.LastSeen.UTC(),
 		History: make([]historyDoc, 0, len(r.History)), Asset: a, Kev: k, CVSS: c,
 	}
 	if r.ResolvedBy != "" {

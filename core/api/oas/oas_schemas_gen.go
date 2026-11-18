@@ -68528,8 +68528,8 @@ type FindingsGetFindingsIDOK struct {
 	Applied     []FindingsGetFindingsIDOKAppliedItem `json:"applied"`
 	Asset       NilFindingsGetFindingsIDOKAsset      `json:"asset"`
 	AssetID     string                               `json:"asset_id"`
-	// Scan = confirmed by a scan template; version = suspected by version; product = only the product
-	// matches.
+	// Scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version
+	// = suspected by version; product = only the product matches.
 	Basis      FindingsGetFindingsIDOKBasis         `json:"basis"`
 	Compromise NilFindingsGetFindingsIDOKCompromise `json:"compromise"`
 	Confidence float64                              `json:"confidence"`
@@ -68578,6 +68578,10 @@ type FindingsGetFindingsIDOK struct {
 	// reaches an older finding. Never guessed from the product.
 	SoftwareID string                        `json:"software_id"`
 	Status     FindingsGetFindingsIDOKStatus `json:"status"`
+	// A suspected finding only: why it is not confirmed and what would confirm it, in words (who stated
+	// the version, whether a vulnerability check exists for the CVE and whether the scan reaches the
+	// device); null for any other status.
+	SuspectedWhy NilString `json:"suspected_why"`
 }
 
 // GetAcceptedUntil returns the value of AcceptedUntil.
@@ -68735,6 +68739,11 @@ func (s *FindingsGetFindingsIDOK) GetStatus() FindingsGetFindingsIDOKStatus {
 	return s.Status
 }
 
+// GetSuspectedWhy returns the value of SuspectedWhy.
+func (s *FindingsGetFindingsIDOK) GetSuspectedWhy() NilString {
+	return s.SuspectedWhy
+}
+
 // SetAcceptedUntil sets the value of AcceptedUntil.
 func (s *FindingsGetFindingsIDOK) SetAcceptedUntil(val NilDate) {
 	s.AcceptedUntil = val
@@ -68888,6 +68897,11 @@ func (s *FindingsGetFindingsIDOK) SetSoftwareID(val string) {
 // SetStatus sets the value of Status.
 func (s *FindingsGetFindingsIDOK) SetStatus(val FindingsGetFindingsIDOKStatus) {
 	s.Status = val
+}
+
+// SetSuspectedWhy sets the value of SuspectedWhy.
+func (s *FindingsGetFindingsIDOK) SetSuspectedWhy(val NilString) {
+	s.SuspectedWhy = val
 }
 
 type FindingsGetFindingsIDOKAi struct {
@@ -70271,14 +70285,15 @@ func (s *FindingsGetFindingsIDOKAssetKind) UnmarshalText(data []byte) error {
 	}
 }
 
-// Scan = confirmed by a scan template; version = suspected by version; product = only the product
-// matches.
+// Scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version
+// = suspected by version; product = only the product matches.
 type FindingsGetFindingsIDOKBasis string
 
 const (
 	FindingsGetFindingsIDOKBasisScan    FindingsGetFindingsIDOKBasis = "scan"
 	FindingsGetFindingsIDOKBasisVersion FindingsGetFindingsIDOKBasis = "version"
 	FindingsGetFindingsIDOKBasisProduct FindingsGetFindingsIDOKBasis = "product"
+	FindingsGetFindingsIDOKBasisPerson  FindingsGetFindingsIDOKBasis = "person"
 )
 
 // AllValues returns all FindingsGetFindingsIDOKBasis values.
@@ -70287,6 +70302,7 @@ func (FindingsGetFindingsIDOKBasis) AllValues() []FindingsGetFindingsIDOKBasis {
 		FindingsGetFindingsIDOKBasisScan,
 		FindingsGetFindingsIDOKBasisVersion,
 		FindingsGetFindingsIDOKBasisProduct,
+		FindingsGetFindingsIDOKBasisPerson,
 	}
 }
 
@@ -70298,6 +70314,8 @@ func (s FindingsGetFindingsIDOKBasis) MarshalText() ([]byte, error) {
 	case FindingsGetFindingsIDOKBasisVersion:
 		return []byte(s), nil
 	case FindingsGetFindingsIDOKBasisProduct:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKBasisPerson:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -70315,6 +70333,9 @@ func (s *FindingsGetFindingsIDOKBasis) UnmarshalText(data []byte) error {
 		return nil
 	case FindingsGetFindingsIDOKBasisProduct:
 		*s = FindingsGetFindingsIDOKBasisProduct
+		return nil
+	case FindingsGetFindingsIDOKBasisPerson:
+		*s = FindingsGetFindingsIDOKBasisPerson
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -72581,8 +72602,8 @@ type FindingsGetFindingsOKItemsItem struct {
 	AcceptedUntil NilDate                                `json:"accepted_until"`
 	Asset         NilFindingsGetFindingsOKItemsItemAsset `json:"asset"`
 	AssetID       string                                 `json:"asset_id"`
-	// Scan = confirmed by a scan template; version = suspected by version; product = only the product
-	// matches.
+	// Scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version
+	// = suspected by version; product = only the product matches.
 	Basis      FindingsGetFindingsOKItemsItemBasis `json:"basis"`
 	Confidence float64                             `json:"confidence"`
 	Cve        string                              `json:"cve"`
@@ -73564,14 +73585,15 @@ func (s *FindingsGetFindingsOKItemsItemAssetKind) UnmarshalText(data []byte) err
 	}
 }
 
-// Scan = confirmed by a scan template; version = suspected by version; product = only the product
-// matches.
+// Scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version
+// = suspected by version; product = only the product matches.
 type FindingsGetFindingsOKItemsItemBasis string
 
 const (
 	FindingsGetFindingsOKItemsItemBasisScan    FindingsGetFindingsOKItemsItemBasis = "scan"
 	FindingsGetFindingsOKItemsItemBasisVersion FindingsGetFindingsOKItemsItemBasis = "version"
 	FindingsGetFindingsOKItemsItemBasisProduct FindingsGetFindingsOKItemsItemBasis = "product"
+	FindingsGetFindingsOKItemsItemBasisPerson  FindingsGetFindingsOKItemsItemBasis = "person"
 )
 
 // AllValues returns all FindingsGetFindingsOKItemsItemBasis values.
@@ -73580,6 +73602,7 @@ func (FindingsGetFindingsOKItemsItemBasis) AllValues() []FindingsGetFindingsOKIt
 		FindingsGetFindingsOKItemsItemBasisScan,
 		FindingsGetFindingsOKItemsItemBasisVersion,
 		FindingsGetFindingsOKItemsItemBasisProduct,
+		FindingsGetFindingsOKItemsItemBasisPerson,
 	}
 }
 
@@ -73591,6 +73614,8 @@ func (s FindingsGetFindingsOKItemsItemBasis) MarshalText() ([]byte, error) {
 	case FindingsGetFindingsOKItemsItemBasisVersion:
 		return []byte(s), nil
 	case FindingsGetFindingsOKItemsItemBasisProduct:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemBasisPerson:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -73608,6 +73633,9 @@ func (s *FindingsGetFindingsOKItemsItemBasis) UnmarshalText(data []byte) error {
 		return nil
 	case FindingsGetFindingsOKItemsItemBasisProduct:
 		*s = FindingsGetFindingsOKItemsItemBasisProduct
+		return nil
+	case FindingsGetFindingsOKItemsItemBasisPerson:
+		*s = FindingsGetFindingsOKItemsItemBasisPerson
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -80846,8 +80874,8 @@ type FindingsPostFindingsIDAiOK struct {
 	Applied     []FindingsPostFindingsIDAiOKAppliedItem `json:"applied"`
 	Asset       NilFindingsPostFindingsIDAiOKAsset      `json:"asset"`
 	AssetID     string                                  `json:"asset_id"`
-	// Scan = confirmed by a scan template; version = suspected by version; product = only the product
-	// matches.
+	// Scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version
+	// = suspected by version; product = only the product matches.
 	Basis      FindingsPostFindingsIDAiOKBasis         `json:"basis"`
 	Compromise NilFindingsPostFindingsIDAiOKCompromise `json:"compromise"`
 	Confidence float64                                 `json:"confidence"`
@@ -80896,6 +80924,10 @@ type FindingsPostFindingsIDAiOK struct {
 	// reaches an older finding. Never guessed from the product.
 	SoftwareID string                           `json:"software_id"`
 	Status     FindingsPostFindingsIDAiOKStatus `json:"status"`
+	// A suspected finding only: why it is not confirmed and what would confirm it, in words (who stated
+	// the version, whether a vulnerability check exists for the CVE and whether the scan reaches the
+	// device); null for any other status.
+	SuspectedWhy NilString `json:"suspected_why"`
 }
 
 // GetAcceptedUntil returns the value of AcceptedUntil.
@@ -81053,6 +81085,11 @@ func (s *FindingsPostFindingsIDAiOK) GetStatus() FindingsPostFindingsIDAiOKStatu
 	return s.Status
 }
 
+// GetSuspectedWhy returns the value of SuspectedWhy.
+func (s *FindingsPostFindingsIDAiOK) GetSuspectedWhy() NilString {
+	return s.SuspectedWhy
+}
+
 // SetAcceptedUntil sets the value of AcceptedUntil.
 func (s *FindingsPostFindingsIDAiOK) SetAcceptedUntil(val NilDate) {
 	s.AcceptedUntil = val
@@ -81206,6 +81243,11 @@ func (s *FindingsPostFindingsIDAiOK) SetSoftwareID(val string) {
 // SetStatus sets the value of Status.
 func (s *FindingsPostFindingsIDAiOK) SetStatus(val FindingsPostFindingsIDAiOKStatus) {
 	s.Status = val
+}
+
+// SetSuspectedWhy sets the value of SuspectedWhy.
+func (s *FindingsPostFindingsIDAiOK) SetSuspectedWhy(val NilString) {
+	s.SuspectedWhy = val
 }
 
 type FindingsPostFindingsIDAiOKAi struct {
@@ -82589,14 +82631,15 @@ func (s *FindingsPostFindingsIDAiOKAssetKind) UnmarshalText(data []byte) error {
 	}
 }
 
-// Scan = confirmed by a scan template; version = suspected by version; product = only the product
-// matches.
+// Scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version
+// = suspected by version; product = only the product matches.
 type FindingsPostFindingsIDAiOKBasis string
 
 const (
 	FindingsPostFindingsIDAiOKBasisScan    FindingsPostFindingsIDAiOKBasis = "scan"
 	FindingsPostFindingsIDAiOKBasisVersion FindingsPostFindingsIDAiOKBasis = "version"
 	FindingsPostFindingsIDAiOKBasisProduct FindingsPostFindingsIDAiOKBasis = "product"
+	FindingsPostFindingsIDAiOKBasisPerson  FindingsPostFindingsIDAiOKBasis = "person"
 )
 
 // AllValues returns all FindingsPostFindingsIDAiOKBasis values.
@@ -82605,6 +82648,7 @@ func (FindingsPostFindingsIDAiOKBasis) AllValues() []FindingsPostFindingsIDAiOKB
 		FindingsPostFindingsIDAiOKBasisScan,
 		FindingsPostFindingsIDAiOKBasisVersion,
 		FindingsPostFindingsIDAiOKBasisProduct,
+		FindingsPostFindingsIDAiOKBasisPerson,
 	}
 }
 
@@ -82616,6 +82660,8 @@ func (s FindingsPostFindingsIDAiOKBasis) MarshalText() ([]byte, error) {
 	case FindingsPostFindingsIDAiOKBasisVersion:
 		return []byte(s), nil
 	case FindingsPostFindingsIDAiOKBasisProduct:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKBasisPerson:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -82633,6 +82679,9 @@ func (s *FindingsPostFindingsIDAiOKBasis) UnmarshalText(data []byte) error {
 		return nil
 	case FindingsPostFindingsIDAiOKBasisProduct:
 		*s = FindingsPostFindingsIDAiOKBasisProduct
+		return nil
+	case FindingsPostFindingsIDAiOKBasisPerson:
+		*s = FindingsPostFindingsIDAiOKBasisPerson
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -84922,8 +84971,8 @@ type FindingsPostFindingsIDAppliedOK struct {
 	Applied     []FindingsPostFindingsIDAppliedOKAppliedItem `json:"applied"`
 	Asset       NilFindingsPostFindingsIDAppliedOKAsset      `json:"asset"`
 	AssetID     string                                       `json:"asset_id"`
-	// Scan = confirmed by a scan template; version = suspected by version; product = only the product
-	// matches.
+	// Scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version
+	// = suspected by version; product = only the product matches.
 	Basis      FindingsPostFindingsIDAppliedOKBasis         `json:"basis"`
 	Compromise NilFindingsPostFindingsIDAppliedOKCompromise `json:"compromise"`
 	Confidence float64                                      `json:"confidence"`
@@ -84972,6 +85021,10 @@ type FindingsPostFindingsIDAppliedOK struct {
 	// reaches an older finding. Never guessed from the product.
 	SoftwareID string                                `json:"software_id"`
 	Status     FindingsPostFindingsIDAppliedOKStatus `json:"status"`
+	// A suspected finding only: why it is not confirmed and what would confirm it, in words (who stated
+	// the version, whether a vulnerability check exists for the CVE and whether the scan reaches the
+	// device); null for any other status.
+	SuspectedWhy NilString `json:"suspected_why"`
 }
 
 // GetAcceptedUntil returns the value of AcceptedUntil.
@@ -85129,6 +85182,11 @@ func (s *FindingsPostFindingsIDAppliedOK) GetStatus() FindingsPostFindingsIDAppl
 	return s.Status
 }
 
+// GetSuspectedWhy returns the value of SuspectedWhy.
+func (s *FindingsPostFindingsIDAppliedOK) GetSuspectedWhy() NilString {
+	return s.SuspectedWhy
+}
+
 // SetAcceptedUntil sets the value of AcceptedUntil.
 func (s *FindingsPostFindingsIDAppliedOK) SetAcceptedUntil(val NilDate) {
 	s.AcceptedUntil = val
@@ -85282,6 +85340,11 @@ func (s *FindingsPostFindingsIDAppliedOK) SetSoftwareID(val string) {
 // SetStatus sets the value of Status.
 func (s *FindingsPostFindingsIDAppliedOK) SetStatus(val FindingsPostFindingsIDAppliedOKStatus) {
 	s.Status = val
+}
+
+// SetSuspectedWhy sets the value of SuspectedWhy.
+func (s *FindingsPostFindingsIDAppliedOK) SetSuspectedWhy(val NilString) {
+	s.SuspectedWhy = val
 }
 
 type FindingsPostFindingsIDAppliedOKAi struct {
@@ -86665,14 +86728,15 @@ func (s *FindingsPostFindingsIDAppliedOKAssetKind) UnmarshalText(data []byte) er
 	}
 }
 
-// Scan = confirmed by a scan template; version = suspected by version; product = only the product
-// matches.
+// Scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version
+// = suspected by version; product = only the product matches.
 type FindingsPostFindingsIDAppliedOKBasis string
 
 const (
 	FindingsPostFindingsIDAppliedOKBasisScan    FindingsPostFindingsIDAppliedOKBasis = "scan"
 	FindingsPostFindingsIDAppliedOKBasisVersion FindingsPostFindingsIDAppliedOKBasis = "version"
 	FindingsPostFindingsIDAppliedOKBasisProduct FindingsPostFindingsIDAppliedOKBasis = "product"
+	FindingsPostFindingsIDAppliedOKBasisPerson  FindingsPostFindingsIDAppliedOKBasis = "person"
 )
 
 // AllValues returns all FindingsPostFindingsIDAppliedOKBasis values.
@@ -86681,6 +86745,7 @@ func (FindingsPostFindingsIDAppliedOKBasis) AllValues() []FindingsPostFindingsID
 		FindingsPostFindingsIDAppliedOKBasisScan,
 		FindingsPostFindingsIDAppliedOKBasisVersion,
 		FindingsPostFindingsIDAppliedOKBasisProduct,
+		FindingsPostFindingsIDAppliedOKBasisPerson,
 	}
 }
 
@@ -86692,6 +86757,8 @@ func (s FindingsPostFindingsIDAppliedOKBasis) MarshalText() ([]byte, error) {
 	case FindingsPostFindingsIDAppliedOKBasisVersion:
 		return []byte(s), nil
 	case FindingsPostFindingsIDAppliedOKBasisProduct:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKBasisPerson:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -86709,6 +86776,9 @@ func (s *FindingsPostFindingsIDAppliedOKBasis) UnmarshalText(data []byte) error 
 		return nil
 	case FindingsPostFindingsIDAppliedOKBasisProduct:
 		*s = FindingsPostFindingsIDAppliedOKBasisProduct
+		return nil
+	case FindingsPostFindingsIDAppliedOKBasisPerson:
+		*s = FindingsPostFindingsIDAppliedOKBasisPerson
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -89010,6 +89080,4062 @@ func (s *FindingsPostFindingsIDAppliedReqItem) UnmarshalText(data []byte) error 
 	}
 }
 
+type FindingsPostFindingsIDConfirmOK struct {
+	// Risk_accepted only: the last day of the acceptance (UTC); the finding reopens by itself after it.
+	AcceptedUntil NilDate                           `json:"accepted_until"`
+	Ai            FindingsPostFindingsIDConfirmOKAi `json:"ai"`
+	// Whether an AI profile is assigned and allowed for each job.
+	AiAvailable FindingsPostFindingsIDConfirmOKAiAvailable   `json:"ai_available"`
+	Applied     []FindingsPostFindingsIDConfirmOKAppliedItem `json:"applied"`
+	Asset       NilFindingsPostFindingsIDConfirmOKAsset      `json:"asset"`
+	AssetID     string                                       `json:"asset_id"`
+	// Scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version
+	// = suspected by version; product = only the product matches.
+	Basis      FindingsPostFindingsIDConfirmOKBasis         `json:"basis"`
+	Compromise NilFindingsPostFindingsIDConfirmOKCompromise `json:"compromise"`
+	Confidence float64                                      `json:"confidence"`
+	Cve        string                                       `json:"cve"`
+	// Null = no CVSS score known: the pages say "No score", never 0.
+	Cvss     NilFindingsPostFindingsIDConfirmOKCvss     `json:"cvss"`
+	Evidence NilFindingsPostFindingsIDConfirmOKEvidence `json:"evidence"`
+	// When Vedette first matched this vulnerability to the device.
+	FirstSeen time.Time `json:"first_seen"`
+	// GET /findings only, open findings: the update that fixes it with others; null when there is none to
+	// name.
+	Fix OptNilFindingsPostFindingsIDConfirmOKFix `json:"fix"`
+	// The release that fixes this finding on this device, from the NVD affected versions; null = NVD gives
+	// none, the page shows CISA and the vendor advisory only.
+	FixedIn NilFindingsPostFindingsIDConfirmOKFixedIn `json:"fixed_in"`
+	// Null when the confirmed pack has its own compromise signs, or mitigation is off.
+	Hardening NilFindingsPostFindingsIDConfirmOKHardening  `json:"hardening"`
+	History   []FindingsPostFindingsIDConfirmOKHistoryItem `json:"history"`
+	ID        string                                       `json:"id"`
+	// Read from KEV, not from the project recommendation pack.
+	Kev NilFindingsPostFindingsIDConfirmOKKev `json:"kev"`
+	// Null when the matched software has no version or its source is not known.
+	KnownVersion NilFindingsPostFindingsIDConfirmOKKnownVersion `json:"known_version"`
+	// When Vedette last matched it: each re-match (after a change to the device's software, and every
+	// hour) or scan that still finds it moves it. Not when the device or its software was last seen;
+	// known_version.seen_at says when the version was reported.
+	LastSeen time.Time `json:"last_seen"`
+	// Null = no recommendation confirmed by Vedette maintainers yet.
+	Pack NilFindingsPostFindingsIDConfirmOKPack `json:"pack"`
+	// A finding closed by proof (resolution_reason set): the version or package release the matcher
+	// compared to rule it out, as the device row gives it; null when the closure compared none (name only,
+	// age, an open platform question, another platform) or it is not closed by Vedette. An entry a person
+	// typed closed it only when this equals the entry.
+	ProvedVersion  NilString                              `json:"proved_version"`
+	Recheck        FindingsPostFindingsIDConfirmOKRecheck `json:"recheck"`
+	ResolutionNote NilString                              `json:"resolution_note"`
+	// Not_affected_version when Vedette closed the finding by itself (a matcher proof, or one of its rules
+	// that compares no version); null for a person's own action and for open findings. A string, not an
+	// enum: a new reason must not break the list.
+	ResolutionReason NilString                               `json:"resolution_reason"`
+	ResolvedAt       NilDateTime                             `json:"resolved_at"`
+	ResolvedBy       NilString                               `json:"resolved_by"`
+	Severity         FindingsPostFindingsIDConfirmOKSeverity `json:"severity"`
+	// The device's software row the matcher matched the finding on (the id FindingRow.fix.group and
+	// ToFixAction use), stored when it opens, touches or closes the finding; "" until the next match
+	// reaches an older finding. Never guessed from the product.
+	SoftwareID string                                `json:"software_id"`
+	Status     FindingsPostFindingsIDConfirmOKStatus `json:"status"`
+	// A suspected finding only: why it is not confirmed and what would confirm it, in words (who stated
+	// the version, whether a vulnerability check exists for the CVE and whether the scan reaches the
+	// device); null for any other status.
+	SuspectedWhy NilString `json:"suspected_why"`
+}
+
+// GetAcceptedUntil returns the value of AcceptedUntil.
+func (s *FindingsPostFindingsIDConfirmOK) GetAcceptedUntil() NilDate {
+	return s.AcceptedUntil
+}
+
+// GetAi returns the value of Ai.
+func (s *FindingsPostFindingsIDConfirmOK) GetAi() FindingsPostFindingsIDConfirmOKAi {
+	return s.Ai
+}
+
+// GetAiAvailable returns the value of AiAvailable.
+func (s *FindingsPostFindingsIDConfirmOK) GetAiAvailable() FindingsPostFindingsIDConfirmOKAiAvailable {
+	return s.AiAvailable
+}
+
+// GetApplied returns the value of Applied.
+func (s *FindingsPostFindingsIDConfirmOK) GetApplied() []FindingsPostFindingsIDConfirmOKAppliedItem {
+	return s.Applied
+}
+
+// GetAsset returns the value of Asset.
+func (s *FindingsPostFindingsIDConfirmOK) GetAsset() NilFindingsPostFindingsIDConfirmOKAsset {
+	return s.Asset
+}
+
+// GetAssetID returns the value of AssetID.
+func (s *FindingsPostFindingsIDConfirmOK) GetAssetID() string {
+	return s.AssetID
+}
+
+// GetBasis returns the value of Basis.
+func (s *FindingsPostFindingsIDConfirmOK) GetBasis() FindingsPostFindingsIDConfirmOKBasis {
+	return s.Basis
+}
+
+// GetCompromise returns the value of Compromise.
+func (s *FindingsPostFindingsIDConfirmOK) GetCompromise() NilFindingsPostFindingsIDConfirmOKCompromise {
+	return s.Compromise
+}
+
+// GetConfidence returns the value of Confidence.
+func (s *FindingsPostFindingsIDConfirmOK) GetConfidence() float64 {
+	return s.Confidence
+}
+
+// GetCve returns the value of Cve.
+func (s *FindingsPostFindingsIDConfirmOK) GetCve() string {
+	return s.Cve
+}
+
+// GetCvss returns the value of Cvss.
+func (s *FindingsPostFindingsIDConfirmOK) GetCvss() NilFindingsPostFindingsIDConfirmOKCvss {
+	return s.Cvss
+}
+
+// GetEvidence returns the value of Evidence.
+func (s *FindingsPostFindingsIDConfirmOK) GetEvidence() NilFindingsPostFindingsIDConfirmOKEvidence {
+	return s.Evidence
+}
+
+// GetFirstSeen returns the value of FirstSeen.
+func (s *FindingsPostFindingsIDConfirmOK) GetFirstSeen() time.Time {
+	return s.FirstSeen
+}
+
+// GetFix returns the value of Fix.
+func (s *FindingsPostFindingsIDConfirmOK) GetFix() OptNilFindingsPostFindingsIDConfirmOKFix {
+	return s.Fix
+}
+
+// GetFixedIn returns the value of FixedIn.
+func (s *FindingsPostFindingsIDConfirmOK) GetFixedIn() NilFindingsPostFindingsIDConfirmOKFixedIn {
+	return s.FixedIn
+}
+
+// GetHardening returns the value of Hardening.
+func (s *FindingsPostFindingsIDConfirmOK) GetHardening() NilFindingsPostFindingsIDConfirmOKHardening {
+	return s.Hardening
+}
+
+// GetHistory returns the value of History.
+func (s *FindingsPostFindingsIDConfirmOK) GetHistory() []FindingsPostFindingsIDConfirmOKHistoryItem {
+	return s.History
+}
+
+// GetID returns the value of ID.
+func (s *FindingsPostFindingsIDConfirmOK) GetID() string {
+	return s.ID
+}
+
+// GetKev returns the value of Kev.
+func (s *FindingsPostFindingsIDConfirmOK) GetKev() NilFindingsPostFindingsIDConfirmOKKev {
+	return s.Kev
+}
+
+// GetKnownVersion returns the value of KnownVersion.
+func (s *FindingsPostFindingsIDConfirmOK) GetKnownVersion() NilFindingsPostFindingsIDConfirmOKKnownVersion {
+	return s.KnownVersion
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *FindingsPostFindingsIDConfirmOK) GetLastSeen() time.Time {
+	return s.LastSeen
+}
+
+// GetPack returns the value of Pack.
+func (s *FindingsPostFindingsIDConfirmOK) GetPack() NilFindingsPostFindingsIDConfirmOKPack {
+	return s.Pack
+}
+
+// GetProvedVersion returns the value of ProvedVersion.
+func (s *FindingsPostFindingsIDConfirmOK) GetProvedVersion() NilString {
+	return s.ProvedVersion
+}
+
+// GetRecheck returns the value of Recheck.
+func (s *FindingsPostFindingsIDConfirmOK) GetRecheck() FindingsPostFindingsIDConfirmOKRecheck {
+	return s.Recheck
+}
+
+// GetResolutionNote returns the value of ResolutionNote.
+func (s *FindingsPostFindingsIDConfirmOK) GetResolutionNote() NilString {
+	return s.ResolutionNote
+}
+
+// GetResolutionReason returns the value of ResolutionReason.
+func (s *FindingsPostFindingsIDConfirmOK) GetResolutionReason() NilString {
+	return s.ResolutionReason
+}
+
+// GetResolvedAt returns the value of ResolvedAt.
+func (s *FindingsPostFindingsIDConfirmOK) GetResolvedAt() NilDateTime {
+	return s.ResolvedAt
+}
+
+// GetResolvedBy returns the value of ResolvedBy.
+func (s *FindingsPostFindingsIDConfirmOK) GetResolvedBy() NilString {
+	return s.ResolvedBy
+}
+
+// GetSeverity returns the value of Severity.
+func (s *FindingsPostFindingsIDConfirmOK) GetSeverity() FindingsPostFindingsIDConfirmOKSeverity {
+	return s.Severity
+}
+
+// GetSoftwareID returns the value of SoftwareID.
+func (s *FindingsPostFindingsIDConfirmOK) GetSoftwareID() string {
+	return s.SoftwareID
+}
+
+// GetStatus returns the value of Status.
+func (s *FindingsPostFindingsIDConfirmOK) GetStatus() FindingsPostFindingsIDConfirmOKStatus {
+	return s.Status
+}
+
+// GetSuspectedWhy returns the value of SuspectedWhy.
+func (s *FindingsPostFindingsIDConfirmOK) GetSuspectedWhy() NilString {
+	return s.SuspectedWhy
+}
+
+// SetAcceptedUntil sets the value of AcceptedUntil.
+func (s *FindingsPostFindingsIDConfirmOK) SetAcceptedUntil(val NilDate) {
+	s.AcceptedUntil = val
+}
+
+// SetAi sets the value of Ai.
+func (s *FindingsPostFindingsIDConfirmOK) SetAi(val FindingsPostFindingsIDConfirmOKAi) {
+	s.Ai = val
+}
+
+// SetAiAvailable sets the value of AiAvailable.
+func (s *FindingsPostFindingsIDConfirmOK) SetAiAvailable(val FindingsPostFindingsIDConfirmOKAiAvailable) {
+	s.AiAvailable = val
+}
+
+// SetApplied sets the value of Applied.
+func (s *FindingsPostFindingsIDConfirmOK) SetApplied(val []FindingsPostFindingsIDConfirmOKAppliedItem) {
+	s.Applied = val
+}
+
+// SetAsset sets the value of Asset.
+func (s *FindingsPostFindingsIDConfirmOK) SetAsset(val NilFindingsPostFindingsIDConfirmOKAsset) {
+	s.Asset = val
+}
+
+// SetAssetID sets the value of AssetID.
+func (s *FindingsPostFindingsIDConfirmOK) SetAssetID(val string) {
+	s.AssetID = val
+}
+
+// SetBasis sets the value of Basis.
+func (s *FindingsPostFindingsIDConfirmOK) SetBasis(val FindingsPostFindingsIDConfirmOKBasis) {
+	s.Basis = val
+}
+
+// SetCompromise sets the value of Compromise.
+func (s *FindingsPostFindingsIDConfirmOK) SetCompromise(val NilFindingsPostFindingsIDConfirmOKCompromise) {
+	s.Compromise = val
+}
+
+// SetConfidence sets the value of Confidence.
+func (s *FindingsPostFindingsIDConfirmOK) SetConfidence(val float64) {
+	s.Confidence = val
+}
+
+// SetCve sets the value of Cve.
+func (s *FindingsPostFindingsIDConfirmOK) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetCvss sets the value of Cvss.
+func (s *FindingsPostFindingsIDConfirmOK) SetCvss(val NilFindingsPostFindingsIDConfirmOKCvss) {
+	s.Cvss = val
+}
+
+// SetEvidence sets the value of Evidence.
+func (s *FindingsPostFindingsIDConfirmOK) SetEvidence(val NilFindingsPostFindingsIDConfirmOKEvidence) {
+	s.Evidence = val
+}
+
+// SetFirstSeen sets the value of FirstSeen.
+func (s *FindingsPostFindingsIDConfirmOK) SetFirstSeen(val time.Time) {
+	s.FirstSeen = val
+}
+
+// SetFix sets the value of Fix.
+func (s *FindingsPostFindingsIDConfirmOK) SetFix(val OptNilFindingsPostFindingsIDConfirmOKFix) {
+	s.Fix = val
+}
+
+// SetFixedIn sets the value of FixedIn.
+func (s *FindingsPostFindingsIDConfirmOK) SetFixedIn(val NilFindingsPostFindingsIDConfirmOKFixedIn) {
+	s.FixedIn = val
+}
+
+// SetHardening sets the value of Hardening.
+func (s *FindingsPostFindingsIDConfirmOK) SetHardening(val NilFindingsPostFindingsIDConfirmOKHardening) {
+	s.Hardening = val
+}
+
+// SetHistory sets the value of History.
+func (s *FindingsPostFindingsIDConfirmOK) SetHistory(val []FindingsPostFindingsIDConfirmOKHistoryItem) {
+	s.History = val
+}
+
+// SetID sets the value of ID.
+func (s *FindingsPostFindingsIDConfirmOK) SetID(val string) {
+	s.ID = val
+}
+
+// SetKev sets the value of Kev.
+func (s *FindingsPostFindingsIDConfirmOK) SetKev(val NilFindingsPostFindingsIDConfirmOKKev) {
+	s.Kev = val
+}
+
+// SetKnownVersion sets the value of KnownVersion.
+func (s *FindingsPostFindingsIDConfirmOK) SetKnownVersion(val NilFindingsPostFindingsIDConfirmOKKnownVersion) {
+	s.KnownVersion = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *FindingsPostFindingsIDConfirmOK) SetLastSeen(val time.Time) {
+	s.LastSeen = val
+}
+
+// SetPack sets the value of Pack.
+func (s *FindingsPostFindingsIDConfirmOK) SetPack(val NilFindingsPostFindingsIDConfirmOKPack) {
+	s.Pack = val
+}
+
+// SetProvedVersion sets the value of ProvedVersion.
+func (s *FindingsPostFindingsIDConfirmOK) SetProvedVersion(val NilString) {
+	s.ProvedVersion = val
+}
+
+// SetRecheck sets the value of Recheck.
+func (s *FindingsPostFindingsIDConfirmOK) SetRecheck(val FindingsPostFindingsIDConfirmOKRecheck) {
+	s.Recheck = val
+}
+
+// SetResolutionNote sets the value of ResolutionNote.
+func (s *FindingsPostFindingsIDConfirmOK) SetResolutionNote(val NilString) {
+	s.ResolutionNote = val
+}
+
+// SetResolutionReason sets the value of ResolutionReason.
+func (s *FindingsPostFindingsIDConfirmOK) SetResolutionReason(val NilString) {
+	s.ResolutionReason = val
+}
+
+// SetResolvedAt sets the value of ResolvedAt.
+func (s *FindingsPostFindingsIDConfirmOK) SetResolvedAt(val NilDateTime) {
+	s.ResolvedAt = val
+}
+
+// SetResolvedBy sets the value of ResolvedBy.
+func (s *FindingsPostFindingsIDConfirmOK) SetResolvedBy(val NilString) {
+	s.ResolvedBy = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *FindingsPostFindingsIDConfirmOK) SetSeverity(val FindingsPostFindingsIDConfirmOKSeverity) {
+	s.Severity = val
+}
+
+// SetSoftwareID sets the value of SoftwareID.
+func (s *FindingsPostFindingsIDConfirmOK) SetSoftwareID(val string) {
+	s.SoftwareID = val
+}
+
+// SetStatus sets the value of Status.
+func (s *FindingsPostFindingsIDConfirmOK) SetStatus(val FindingsPostFindingsIDConfirmOKStatus) {
+	s.Status = val
+}
+
+// SetSuspectedWhy sets the value of SuspectedWhy.
+func (s *FindingsPostFindingsIDConfirmOK) SetSuspectedWhy(val NilString) {
+	s.SuspectedWhy = val
+}
+
+type FindingsPostFindingsIDConfirmOKAi struct {
+	Config  NilFindingsPostFindingsIDConfirmOKAiConfig  `json:"config"`
+	Explain NilFindingsPostFindingsIDConfirmOKAiExplain `json:"explain"`
+}
+
+// GetConfig returns the value of Config.
+func (s *FindingsPostFindingsIDConfirmOKAi) GetConfig() NilFindingsPostFindingsIDConfirmOKAiConfig {
+	return s.Config
+}
+
+// GetExplain returns the value of Explain.
+func (s *FindingsPostFindingsIDConfirmOKAi) GetExplain() NilFindingsPostFindingsIDConfirmOKAiExplain {
+	return s.Explain
+}
+
+// SetConfig sets the value of Config.
+func (s *FindingsPostFindingsIDConfirmOKAi) SetConfig(val NilFindingsPostFindingsIDConfirmOKAiConfig) {
+	s.Config = val
+}
+
+// SetExplain sets the value of Explain.
+func (s *FindingsPostFindingsIDConfirmOKAi) SetExplain(val NilFindingsPostFindingsIDConfirmOKAiExplain) {
+	s.Explain = val
+}
+
+// Whether an AI profile is assigned and allowed for each job.
+type FindingsPostFindingsIDConfirmOKAiAvailable struct {
+	Config  bool `json:"config"`
+	Explain bool `json:"explain"`
+}
+
+// GetConfig returns the value of Config.
+func (s *FindingsPostFindingsIDConfirmOKAiAvailable) GetConfig() bool {
+	return s.Config
+}
+
+// GetExplain returns the value of Explain.
+func (s *FindingsPostFindingsIDConfirmOKAiAvailable) GetExplain() bool {
+	return s.Explain
+}
+
+// SetConfig sets the value of Config.
+func (s *FindingsPostFindingsIDConfirmOKAiAvailable) SetConfig(val bool) {
+	s.Config = val
+}
+
+// SetExplain sets the value of Explain.
+func (s *FindingsPostFindingsIDConfirmOKAiAvailable) SetExplain(val bool) {
+	s.Explain = val
+}
+
+type FindingsPostFindingsIDConfirmOKAiConfig struct {
+	Citations []FindingsPostFindingsIDConfirmOKAiConfigCitationsItem `json:"citations"`
+	// Mitigation-config: config blocks to paste as they are, the device's own workaround first, then a
+	// rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based
+	// on, `side_effect` what it can break. Absent for explain and for answers stored before.
+	Configs []FindingsPostFindingsIDConfirmOKAiConfigConfigsItem `json:"configs"`
+	Model   string                                               `json:"model"`
+	// #897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding
+	// (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's
+	// words; the page shows it where the configuration would be.
+	NoConfigReason OptString `json:"no_config_reason"`
+	Paragraphs     []string  `json:"paragraphs"`
+	// Name of the AI profile that answered.
+	Profile OptString `json:"profile"`
+	// A part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never
+	// in the middle of one) or a config block was left out whole.
+	Shortened OptBool                                       `json:"shortened"`
+	Skill     FindingsPostFindingsIDConfirmOKAiConfigSkill  `json:"skill"`
+	Steps     []string                                      `json:"steps"`
+	Tokens    FindingsPostFindingsIDConfirmOKAiConfigTokens `json:"tokens"`
+	Ts        time.Time                                     `json:"ts"`
+}
+
+// GetCitations returns the value of Citations.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) GetCitations() []FindingsPostFindingsIDConfirmOKAiConfigCitationsItem {
+	return s.Citations
+}
+
+// GetConfigs returns the value of Configs.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) GetConfigs() []FindingsPostFindingsIDConfirmOKAiConfigConfigsItem {
+	return s.Configs
+}
+
+// GetModel returns the value of Model.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) GetModel() string {
+	return s.Model
+}
+
+// GetNoConfigReason returns the value of NoConfigReason.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) GetNoConfigReason() OptString {
+	return s.NoConfigReason
+}
+
+// GetParagraphs returns the value of Paragraphs.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) GetParagraphs() []string {
+	return s.Paragraphs
+}
+
+// GetProfile returns the value of Profile.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) GetProfile() OptString {
+	return s.Profile
+}
+
+// GetShortened returns the value of Shortened.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) GetShortened() OptBool {
+	return s.Shortened
+}
+
+// GetSkill returns the value of Skill.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) GetSkill() FindingsPostFindingsIDConfirmOKAiConfigSkill {
+	return s.Skill
+}
+
+// GetSteps returns the value of Steps.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) GetSteps() []string {
+	return s.Steps
+}
+
+// GetTokens returns the value of Tokens.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) GetTokens() FindingsPostFindingsIDConfirmOKAiConfigTokens {
+	return s.Tokens
+}
+
+// GetTs returns the value of Ts.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) GetTs() time.Time {
+	return s.Ts
+}
+
+// SetCitations sets the value of Citations.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) SetCitations(val []FindingsPostFindingsIDConfirmOKAiConfigCitationsItem) {
+	s.Citations = val
+}
+
+// SetConfigs sets the value of Configs.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) SetConfigs(val []FindingsPostFindingsIDConfirmOKAiConfigConfigsItem) {
+	s.Configs = val
+}
+
+// SetModel sets the value of Model.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) SetModel(val string) {
+	s.Model = val
+}
+
+// SetNoConfigReason sets the value of NoConfigReason.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) SetNoConfigReason(val OptString) {
+	s.NoConfigReason = val
+}
+
+// SetParagraphs sets the value of Paragraphs.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) SetParagraphs(val []string) {
+	s.Paragraphs = val
+}
+
+// SetProfile sets the value of Profile.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) SetProfile(val OptString) {
+	s.Profile = val
+}
+
+// SetShortened sets the value of Shortened.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) SetShortened(val OptBool) {
+	s.Shortened = val
+}
+
+// SetSkill sets the value of Skill.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) SetSkill(val FindingsPostFindingsIDConfirmOKAiConfigSkill) {
+	s.Skill = val
+}
+
+// SetSteps sets the value of Steps.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) SetSteps(val []string) {
+	s.Steps = val
+}
+
+// SetTokens sets the value of Tokens.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) SetTokens(val FindingsPostFindingsIDConfirmOKAiConfigTokens) {
+	s.Tokens = val
+}
+
+// SetTs sets the value of Ts.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) SetTs(val time.Time) {
+	s.Ts = val
+}
+
+type FindingsPostFindingsIDConfirmOKAiConfigCitationsItem struct {
+	Title string    `json:"title"`
+	URL   OptString `json:"url"`
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigCitationsItem) GetTitle() string {
+	return s.Title
+}
+
+// GetURL returns the value of URL.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigCitationsItem) GetURL() OptString {
+	return s.URL
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigCitationsItem) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetURL sets the value of URL.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigCitationsItem) SetURL(val OptString) {
+	s.URL = val
+}
+
+type FindingsPostFindingsIDConfirmOKAiConfigConfigsItem struct {
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
+	// Side effect that must be stated before the user pastes the command.
+	SideEffect OptString `json:"side_effect"`
+	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigConfigsItem) GetCheck() []string {
+	return s.Check
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigConfigsItem) GetCode() string {
+	return s.Code
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigConfigsItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigConfigsItem) GetSideEffect() OptString {
+	return s.SideEffect
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigConfigsItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigConfigsItem) SetCheck(val []string) {
+	s.Check = val
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigConfigsItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigConfigsItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigConfigsItem) SetSideEffect(val OptString) {
+	s.SideEffect = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigConfigsItem) SetTitle(val string) {
+	s.Title = val
+}
+
+type FindingsPostFindingsIDConfirmOKAiConfigSkill string
+
+const (
+	FindingsPostFindingsIDConfirmOKAiConfigSkillExplain          FindingsPostFindingsIDConfirmOKAiConfigSkill = "explain"
+	FindingsPostFindingsIDConfirmOKAiConfigSkillMitigationConfig FindingsPostFindingsIDConfirmOKAiConfigSkill = "mitigation-config"
+)
+
+// AllValues returns all FindingsPostFindingsIDConfirmOKAiConfigSkill values.
+func (FindingsPostFindingsIDConfirmOKAiConfigSkill) AllValues() []FindingsPostFindingsIDConfirmOKAiConfigSkill {
+	return []FindingsPostFindingsIDConfirmOKAiConfigSkill{
+		FindingsPostFindingsIDConfirmOKAiConfigSkillExplain,
+		FindingsPostFindingsIDConfirmOKAiConfigSkillMitigationConfig,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDConfirmOKAiConfigSkill) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDConfirmOKAiConfigSkillExplain:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAiConfigSkillMitigationConfig:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigSkill) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDConfirmOKAiConfigSkill(data) {
+	case FindingsPostFindingsIDConfirmOKAiConfigSkillExplain:
+		*s = FindingsPostFindingsIDConfirmOKAiConfigSkillExplain
+		return nil
+	case FindingsPostFindingsIDConfirmOKAiConfigSkillMitigationConfig:
+		*s = FindingsPostFindingsIDConfirmOKAiConfigSkillMitigationConfig
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDConfirmOKAiConfigTokens struct {
+	Input  float64 `json:"input"`
+	Output float64 `json:"output"`
+}
+
+// GetInput returns the value of Input.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigTokens) GetInput() float64 {
+	return s.Input
+}
+
+// GetOutput returns the value of Output.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigTokens) GetOutput() float64 {
+	return s.Output
+}
+
+// SetInput sets the value of Input.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigTokens) SetInput(val float64) {
+	s.Input = val
+}
+
+// SetOutput sets the value of Output.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigTokens) SetOutput(val float64) {
+	s.Output = val
+}
+
+type FindingsPostFindingsIDConfirmOKAiExplain struct {
+	Citations []FindingsPostFindingsIDConfirmOKAiExplainCitationsItem `json:"citations"`
+	// Mitigation-config: config blocks to paste as they are, the device's own workaround first, then a
+	// rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based
+	// on, `side_effect` what it can break. Absent for explain and for answers stored before.
+	Configs []FindingsPostFindingsIDConfirmOKAiExplainConfigsItem `json:"configs"`
+	Model   string                                                `json:"model"`
+	// #897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding
+	// (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's
+	// words; the page shows it where the configuration would be.
+	NoConfigReason OptString `json:"no_config_reason"`
+	Paragraphs     []string  `json:"paragraphs"`
+	// Name of the AI profile that answered.
+	Profile OptString `json:"profile"`
+	// A part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never
+	// in the middle of one) or a config block was left out whole.
+	Shortened OptBool                                        `json:"shortened"`
+	Skill     FindingsPostFindingsIDConfirmOKAiExplainSkill  `json:"skill"`
+	Steps     []string                                       `json:"steps"`
+	Tokens    FindingsPostFindingsIDConfirmOKAiExplainTokens `json:"tokens"`
+	Ts        time.Time                                      `json:"ts"`
+}
+
+// GetCitations returns the value of Citations.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) GetCitations() []FindingsPostFindingsIDConfirmOKAiExplainCitationsItem {
+	return s.Citations
+}
+
+// GetConfigs returns the value of Configs.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) GetConfigs() []FindingsPostFindingsIDConfirmOKAiExplainConfigsItem {
+	return s.Configs
+}
+
+// GetModel returns the value of Model.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) GetModel() string {
+	return s.Model
+}
+
+// GetNoConfigReason returns the value of NoConfigReason.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) GetNoConfigReason() OptString {
+	return s.NoConfigReason
+}
+
+// GetParagraphs returns the value of Paragraphs.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) GetParagraphs() []string {
+	return s.Paragraphs
+}
+
+// GetProfile returns the value of Profile.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) GetProfile() OptString {
+	return s.Profile
+}
+
+// GetShortened returns the value of Shortened.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) GetShortened() OptBool {
+	return s.Shortened
+}
+
+// GetSkill returns the value of Skill.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) GetSkill() FindingsPostFindingsIDConfirmOKAiExplainSkill {
+	return s.Skill
+}
+
+// GetSteps returns the value of Steps.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) GetSteps() []string {
+	return s.Steps
+}
+
+// GetTokens returns the value of Tokens.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) GetTokens() FindingsPostFindingsIDConfirmOKAiExplainTokens {
+	return s.Tokens
+}
+
+// GetTs returns the value of Ts.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) GetTs() time.Time {
+	return s.Ts
+}
+
+// SetCitations sets the value of Citations.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) SetCitations(val []FindingsPostFindingsIDConfirmOKAiExplainCitationsItem) {
+	s.Citations = val
+}
+
+// SetConfigs sets the value of Configs.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) SetConfigs(val []FindingsPostFindingsIDConfirmOKAiExplainConfigsItem) {
+	s.Configs = val
+}
+
+// SetModel sets the value of Model.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) SetModel(val string) {
+	s.Model = val
+}
+
+// SetNoConfigReason sets the value of NoConfigReason.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) SetNoConfigReason(val OptString) {
+	s.NoConfigReason = val
+}
+
+// SetParagraphs sets the value of Paragraphs.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) SetParagraphs(val []string) {
+	s.Paragraphs = val
+}
+
+// SetProfile sets the value of Profile.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) SetProfile(val OptString) {
+	s.Profile = val
+}
+
+// SetShortened sets the value of Shortened.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) SetShortened(val OptBool) {
+	s.Shortened = val
+}
+
+// SetSkill sets the value of Skill.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) SetSkill(val FindingsPostFindingsIDConfirmOKAiExplainSkill) {
+	s.Skill = val
+}
+
+// SetSteps sets the value of Steps.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) SetSteps(val []string) {
+	s.Steps = val
+}
+
+// SetTokens sets the value of Tokens.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) SetTokens(val FindingsPostFindingsIDConfirmOKAiExplainTokens) {
+	s.Tokens = val
+}
+
+// SetTs sets the value of Ts.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) SetTs(val time.Time) {
+	s.Ts = val
+}
+
+type FindingsPostFindingsIDConfirmOKAiExplainCitationsItem struct {
+	Title string    `json:"title"`
+	URL   OptString `json:"url"`
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainCitationsItem) GetTitle() string {
+	return s.Title
+}
+
+// GetURL returns the value of URL.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainCitationsItem) GetURL() OptString {
+	return s.URL
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainCitationsItem) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetURL sets the value of URL.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainCitationsItem) SetURL(val OptString) {
+	s.URL = val
+}
+
+type FindingsPostFindingsIDConfirmOKAiExplainConfigsItem struct {
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
+	// Side effect that must be stated before the user pastes the command.
+	SideEffect OptString `json:"side_effect"`
+	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainConfigsItem) GetCheck() []string {
+	return s.Check
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainConfigsItem) GetCode() string {
+	return s.Code
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainConfigsItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainConfigsItem) GetSideEffect() OptString {
+	return s.SideEffect
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainConfigsItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainConfigsItem) SetCheck(val []string) {
+	s.Check = val
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainConfigsItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainConfigsItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainConfigsItem) SetSideEffect(val OptString) {
+	s.SideEffect = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainConfigsItem) SetTitle(val string) {
+	s.Title = val
+}
+
+type FindingsPostFindingsIDConfirmOKAiExplainSkill string
+
+const (
+	FindingsPostFindingsIDConfirmOKAiExplainSkillExplain          FindingsPostFindingsIDConfirmOKAiExplainSkill = "explain"
+	FindingsPostFindingsIDConfirmOKAiExplainSkillMitigationConfig FindingsPostFindingsIDConfirmOKAiExplainSkill = "mitigation-config"
+)
+
+// AllValues returns all FindingsPostFindingsIDConfirmOKAiExplainSkill values.
+func (FindingsPostFindingsIDConfirmOKAiExplainSkill) AllValues() []FindingsPostFindingsIDConfirmOKAiExplainSkill {
+	return []FindingsPostFindingsIDConfirmOKAiExplainSkill{
+		FindingsPostFindingsIDConfirmOKAiExplainSkillExplain,
+		FindingsPostFindingsIDConfirmOKAiExplainSkillMitigationConfig,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDConfirmOKAiExplainSkill) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDConfirmOKAiExplainSkillExplain:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAiExplainSkillMitigationConfig:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainSkill) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDConfirmOKAiExplainSkill(data) {
+	case FindingsPostFindingsIDConfirmOKAiExplainSkillExplain:
+		*s = FindingsPostFindingsIDConfirmOKAiExplainSkillExplain
+		return nil
+	case FindingsPostFindingsIDConfirmOKAiExplainSkillMitigationConfig:
+		*s = FindingsPostFindingsIDConfirmOKAiExplainSkillMitigationConfig
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDConfirmOKAiExplainTokens struct {
+	Input  float64 `json:"input"`
+	Output float64 `json:"output"`
+}
+
+// GetInput returns the value of Input.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainTokens) GetInput() float64 {
+	return s.Input
+}
+
+// GetOutput returns the value of Output.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainTokens) GetOutput() float64 {
+	return s.Output
+}
+
+// SetInput sets the value of Input.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainTokens) SetInput(val float64) {
+	s.Input = val
+}
+
+// SetOutput sets the value of Output.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainTokens) SetOutput(val float64) {
+	s.Output = val
+}
+
+type FindingsPostFindingsIDConfirmOKAppliedItem struct {
+	Item string    `json:"item"`
+	Ts   time.Time `json:"ts"`
+	User string    `json:"user"`
+}
+
+// GetItem returns the value of Item.
+func (s *FindingsPostFindingsIDConfirmOKAppliedItem) GetItem() string {
+	return s.Item
+}
+
+// GetTs returns the value of Ts.
+func (s *FindingsPostFindingsIDConfirmOKAppliedItem) GetTs() time.Time {
+	return s.Ts
+}
+
+// GetUser returns the value of User.
+func (s *FindingsPostFindingsIDConfirmOKAppliedItem) GetUser() string {
+	return s.User
+}
+
+// SetItem sets the value of Item.
+func (s *FindingsPostFindingsIDConfirmOKAppliedItem) SetItem(val string) {
+	s.Item = val
+}
+
+// SetTs sets the value of Ts.
+func (s *FindingsPostFindingsIDConfirmOKAppliedItem) SetTs(val time.Time) {
+	s.Ts = val
+}
+
+// SetUser sets the value of User.
+func (s *FindingsPostFindingsIDConfirmOKAppliedItem) SetUser(val string) {
+	s.User = val
+}
+
+type FindingsPostFindingsIDConfirmOKAsset struct {
+	Display  string    `json:"display"`
+	Hostname NilString `json:"hostname"`
+	ID       string    `json:"id"`
+	// "—" when the device has no IP address.
+	IP   string                                   `json:"ip"`
+	Kind FindingsPostFindingsIDConfirmOKAssetKind `json:"kind"`
+	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
+	// never the internal id.
+	Name string `json:"name"`
+}
+
+// GetDisplay returns the value of Display.
+func (s *FindingsPostFindingsIDConfirmOKAsset) GetDisplay() string {
+	return s.Display
+}
+
+// GetHostname returns the value of Hostname.
+func (s *FindingsPostFindingsIDConfirmOKAsset) GetHostname() NilString {
+	return s.Hostname
+}
+
+// GetID returns the value of ID.
+func (s *FindingsPostFindingsIDConfirmOKAsset) GetID() string {
+	return s.ID
+}
+
+// GetIP returns the value of IP.
+func (s *FindingsPostFindingsIDConfirmOKAsset) GetIP() string {
+	return s.IP
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsPostFindingsIDConfirmOKAsset) GetKind() FindingsPostFindingsIDConfirmOKAssetKind {
+	return s.Kind
+}
+
+// GetName returns the value of Name.
+func (s *FindingsPostFindingsIDConfirmOKAsset) GetName() string {
+	return s.Name
+}
+
+// SetDisplay sets the value of Display.
+func (s *FindingsPostFindingsIDConfirmOKAsset) SetDisplay(val string) {
+	s.Display = val
+}
+
+// SetHostname sets the value of Hostname.
+func (s *FindingsPostFindingsIDConfirmOKAsset) SetHostname(val NilString) {
+	s.Hostname = val
+}
+
+// SetID sets the value of ID.
+func (s *FindingsPostFindingsIDConfirmOKAsset) SetID(val string) {
+	s.ID = val
+}
+
+// SetIP sets the value of IP.
+func (s *FindingsPostFindingsIDConfirmOKAsset) SetIP(val string) {
+	s.IP = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsPostFindingsIDConfirmOKAsset) SetKind(val FindingsPostFindingsIDConfirmOKAssetKind) {
+	s.Kind = val
+}
+
+// SetName sets the value of Name.
+func (s *FindingsPostFindingsIDConfirmOKAsset) SetName(val string) {
+	s.Name = val
+}
+
+type FindingsPostFindingsIDConfirmOKAssetKind string
+
+const (
+	FindingsPostFindingsIDConfirmOKAssetKindRouter              FindingsPostFindingsIDConfirmOKAssetKind = "router"
+	FindingsPostFindingsIDConfirmOKAssetKindSwitch              FindingsPostFindingsIDConfirmOKAssetKind = "switch"
+	FindingsPostFindingsIDConfirmOKAssetKindModem               FindingsPostFindingsIDConfirmOKAssetKind = "modem"
+	FindingsPostFindingsIDConfirmOKAssetKindSdWan               FindingsPostFindingsIDConfirmOKAssetKind = "sd_wan"
+	FindingsPostFindingsIDConfirmOKAssetKindLoadBalancer        FindingsPostFindingsIDConfirmOKAssetKind = "load_balancer"
+	FindingsPostFindingsIDConfirmOKAssetKindNetworkController   FindingsPostFindingsIDConfirmOKAssetKind = "network_controller"
+	FindingsPostFindingsIDConfirmOKAssetKindFirewall            FindingsPostFindingsIDConfirmOKAssetKind = "firewall"
+	FindingsPostFindingsIDConfirmOKAssetKindVpnGateway          FindingsPostFindingsIDConfirmOKAssetKind = "vpn_gateway"
+	FindingsPostFindingsIDConfirmOKAssetKindIdsSensor           FindingsPostFindingsIDConfirmOKAssetKind = "ids_sensor"
+	FindingsPostFindingsIDConfirmOKAssetKindProxy               FindingsPostFindingsIDConfirmOKAssetKind = "proxy"
+	FindingsPostFindingsIDConfirmOKAssetKindAp                  FindingsPostFindingsIDConfirmOKAssetKind = "ap"
+	FindingsPostFindingsIDConfirmOKAssetKindWirelessController  FindingsPostFindingsIDConfirmOKAssetKind = "wireless_controller"
+	FindingsPostFindingsIDConfirmOKAssetKindWifiExtender        FindingsPostFindingsIDConfirmOKAssetKind = "wifi_extender"
+	FindingsPostFindingsIDConfirmOKAssetKindMeshNode            FindingsPostFindingsIDConfirmOKAssetKind = "mesh_node"
+	FindingsPostFindingsIDConfirmOKAssetKindServer              FindingsPostFindingsIDConfirmOKAssetKind = "server"
+	FindingsPostFindingsIDConfirmOKAssetKindVirtualMachine      FindingsPostFindingsIDConfirmOKAssetKind = "virtual_machine"
+	FindingsPostFindingsIDConfirmOKAssetKindHypervisor          FindingsPostFindingsIDConfirmOKAssetKind = "hypervisor"
+	FindingsPostFindingsIDConfirmOKAssetKindBmc                 FindingsPostFindingsIDConfirmOKAssetKind = "bmc"
+	FindingsPostFindingsIDConfirmOKAssetKindDomainController    FindingsPostFindingsIDConfirmOKAssetKind = "domain_controller"
+	FindingsPostFindingsIDConfirmOKAssetKindMailServer          FindingsPostFindingsIDConfirmOKAssetKind = "mail_server"
+	FindingsPostFindingsIDConfirmOKAssetKindDatabaseServer      FindingsPostFindingsIDConfirmOKAssetKind = "database_server"
+	FindingsPostFindingsIDConfirmOKAssetKindBackupServer        FindingsPostFindingsIDConfirmOKAssetKind = "backup_server"
+	FindingsPostFindingsIDConfirmOKAssetKindPc                  FindingsPostFindingsIDConfirmOKAssetKind = "pc"
+	FindingsPostFindingsIDConfirmOKAssetKindLaptop              FindingsPostFindingsIDConfirmOKAssetKind = "laptop"
+	FindingsPostFindingsIDConfirmOKAssetKindWorkstation         FindingsPostFindingsIDConfirmOKAssetKind = "workstation"
+	FindingsPostFindingsIDConfirmOKAssetKindThinClient          FindingsPostFindingsIDConfirmOKAssetKind = "thin_client"
+	FindingsPostFindingsIDConfirmOKAssetKindPosTerminal         FindingsPostFindingsIDConfirmOKAssetKind = "pos_terminal"
+	FindingsPostFindingsIDConfirmOKAssetKindKiosk               FindingsPostFindingsIDConfirmOKAssetKind = "kiosk"
+	FindingsPostFindingsIDConfirmOKAssetKindSmartphone          FindingsPostFindingsIDConfirmOKAssetKind = "smartphone"
+	FindingsPostFindingsIDConfirmOKAssetKindTablet              FindingsPostFindingsIDConfirmOKAssetKind = "tablet"
+	FindingsPostFindingsIDConfirmOKAssetKindSmartwatch          FindingsPostFindingsIDConfirmOKAssetKind = "smartwatch"
+	FindingsPostFindingsIDConfirmOKAssetKindPrinter             FindingsPostFindingsIDConfirmOKAssetKind = "printer"
+	FindingsPostFindingsIDConfirmOKAssetKindMfp                 FindingsPostFindingsIDConfirmOKAssetKind = "mfp"
+	FindingsPostFindingsIDConfirmOKAssetKindScanner             FindingsPostFindingsIDConfirmOKAssetKind = "scanner"
+	FindingsPostFindingsIDConfirmOKAssetKindLabelPrinter        FindingsPostFindingsIDConfirmOKAssetKind = "label_printer"
+	FindingsPostFindingsIDConfirmOKAssetKindReceiptPrinter      FindingsPostFindingsIDConfirmOKAssetKind = "receipt_printer"
+	FindingsPostFindingsIDConfirmOKAssetKindPlotter             FindingsPostFindingsIDConfirmOKAssetKind = "plotter"
+	FindingsPostFindingsIDConfirmOKAssetKind3dPrinter           FindingsPostFindingsIDConfirmOKAssetKind = "3d_printer"
+	FindingsPostFindingsIDConfirmOKAssetKindCamera              FindingsPostFindingsIDConfirmOKAssetKind = "camera"
+	FindingsPostFindingsIDConfirmOKAssetKindNvr                 FindingsPostFindingsIDConfirmOKAssetKind = "nvr"
+	FindingsPostFindingsIDConfirmOKAssetKindDvr                 FindingsPostFindingsIDConfirmOKAssetKind = "dvr"
+	FindingsPostFindingsIDConfirmOKAssetKindVideoEncoder        FindingsPostFindingsIDConfirmOKAssetKind = "video_encoder"
+	FindingsPostFindingsIDConfirmOKAssetKindDoorbell            FindingsPostFindingsIDConfirmOKAssetKind = "doorbell"
+	FindingsPostFindingsIDConfirmOKAssetKindVideoConferencing   FindingsPostFindingsIDConfirmOKAssetKind = "video_conferencing"
+	FindingsPostFindingsIDConfirmOKAssetKindIPPhone             FindingsPostFindingsIDConfirmOKAssetKind = "ip_phone"
+	FindingsPostFindingsIDConfirmOKAssetKindPbx                 FindingsPostFindingsIDConfirmOKAssetKind = "pbx"
+	FindingsPostFindingsIDConfirmOKAssetKindVoipAdapter         FindingsPostFindingsIDConfirmOKAssetKind = "voip_adapter"
+	FindingsPostFindingsIDConfirmOKAssetKindVoipGateway         FindingsPostFindingsIDConfirmOKAssetKind = "voip_gateway"
+	FindingsPostFindingsIDConfirmOKAssetKindConferencePhone     FindingsPostFindingsIDConfirmOKAssetKind = "conference_phone"
+	FindingsPostFindingsIDConfirmOKAssetKindIntercom            FindingsPostFindingsIDConfirmOKAssetKind = "intercom"
+	FindingsPostFindingsIDConfirmOKAssetKindNas                 FindingsPostFindingsIDConfirmOKAssetKind = "nas"
+	FindingsPostFindingsIDConfirmOKAssetKindSan                 FindingsPostFindingsIDConfirmOKAssetKind = "san"
+	FindingsPostFindingsIDConfirmOKAssetKindBackupAppliance     FindingsPostFindingsIDConfirmOKAssetKind = "backup_appliance"
+	FindingsPostFindingsIDConfirmOKAssetKindTapeLibrary         FindingsPostFindingsIDConfirmOKAssetKind = "tape_library"
+	FindingsPostFindingsIDConfirmOKAssetKindIot                 FindingsPostFindingsIDConfirmOKAssetKind = "iot"
+	FindingsPostFindingsIDConfirmOKAssetKindSmartTv             FindingsPostFindingsIDConfirmOKAssetKind = "smart_tv"
+	FindingsPostFindingsIDConfirmOKAssetKindMediaPlayer         FindingsPostFindingsIDConfirmOKAssetKind = "media_player"
+	FindingsPostFindingsIDConfirmOKAssetKindSmartSpeaker        FindingsPostFindingsIDConfirmOKAssetKind = "smart_speaker"
+	FindingsPostFindingsIDConfirmOKAssetKindGameConsole         FindingsPostFindingsIDConfirmOKAssetKind = "game_console"
+	FindingsPostFindingsIDConfirmOKAssetKindSmartPlug           FindingsPostFindingsIDConfirmOKAssetKind = "smart_plug"
+	FindingsPostFindingsIDConfirmOKAssetKindSmartLight          FindingsPostFindingsIDConfirmOKAssetKind = "smart_light"
+	FindingsPostFindingsIDConfirmOKAssetKindSmartHub            FindingsPostFindingsIDConfirmOKAssetKind = "smart_hub"
+	FindingsPostFindingsIDConfirmOKAssetKindThermostat          FindingsPostFindingsIDConfirmOKAssetKind = "thermostat"
+	FindingsPostFindingsIDConfirmOKAssetKindProjector           FindingsPostFindingsIDConfirmOKAssetKind = "projector"
+	FindingsPostFindingsIDConfirmOKAssetKindDigitalSignage      FindingsPostFindingsIDConfirmOKAssetKind = "digital_signage"
+	FindingsPostFindingsIDConfirmOKAssetKindSingleBoardComputer FindingsPostFindingsIDConfirmOKAssetKind = "single_board_computer"
+	FindingsPostFindingsIDConfirmOKAssetKindSmartAppliance      FindingsPostFindingsIDConfirmOKAssetKind = "smart_appliance"
+	FindingsPostFindingsIDConfirmOKAssetKindRobotVacuum         FindingsPostFindingsIDConfirmOKAssetKind = "robot_vacuum"
+	FindingsPostFindingsIDConfirmOKAssetKindWirelessBridge      FindingsPostFindingsIDConfirmOKAssetKind = "wireless_bridge"
+	FindingsPostFindingsIDConfirmOKAssetKindPlc                 FindingsPostFindingsIDConfirmOKAssetKind = "plc"
+	FindingsPostFindingsIDConfirmOKAssetKindHmi                 FindingsPostFindingsIDConfirmOKAssetKind = "hmi"
+	FindingsPostFindingsIDConfirmOKAssetKindRtu                 FindingsPostFindingsIDConfirmOKAssetKind = "rtu"
+	FindingsPostFindingsIDConfirmOKAssetKindScadaServer         FindingsPostFindingsIDConfirmOKAssetKind = "scada_server"
+	FindingsPostFindingsIDConfirmOKAssetKindIndustrialSwitch    FindingsPostFindingsIDConfirmOKAssetKind = "industrial_switch"
+	FindingsPostFindingsIDConfirmOKAssetKindUps                 FindingsPostFindingsIDConfirmOKAssetKind = "ups"
+	FindingsPostFindingsIDConfirmOKAssetKindPdu                 FindingsPostFindingsIDConfirmOKAssetKind = "pdu"
+	FindingsPostFindingsIDConfirmOKAssetKindAccessControl       FindingsPostFindingsIDConfirmOKAssetKind = "access_control"
+	FindingsPostFindingsIDConfirmOKAssetKindTimeClock           FindingsPostFindingsIDConfirmOKAssetKind = "time_clock"
+	FindingsPostFindingsIDConfirmOKAssetKindAlarmPanel          FindingsPostFindingsIDConfirmOKAssetKind = "alarm_panel"
+	FindingsPostFindingsIDConfirmOKAssetKindHvacController      FindingsPostFindingsIDConfirmOKAssetKind = "hvac_controller"
+	FindingsPostFindingsIDConfirmOKAssetKindBuildingController  FindingsPostFindingsIDConfirmOKAssetKind = "building_controller"
+	FindingsPostFindingsIDConfirmOKAssetKindPowerMeter          FindingsPostFindingsIDConfirmOKAssetKind = "power_meter"
+	FindingsPostFindingsIDConfirmOKAssetKindEnvironmentMonitor  FindingsPostFindingsIDConfirmOKAssetKind = "environment_monitor"
+	FindingsPostFindingsIDConfirmOKAssetKindEvCharger           FindingsPostFindingsIDConfirmOKAssetKind = "ev_charger"
+	FindingsPostFindingsIDConfirmOKAssetKindSolarInverter       FindingsPostFindingsIDConfirmOKAssetKind = "solar_inverter"
+	FindingsPostFindingsIDConfirmOKAssetKindMedicalDevice       FindingsPostFindingsIDConfirmOKAssetKind = "medical_device"
+	FindingsPostFindingsIDConfirmOKAssetKindWeb                 FindingsPostFindingsIDConfirmOKAssetKind = "web"
+	FindingsPostFindingsIDConfirmOKAssetKindCloudService        FindingsPostFindingsIDConfirmOKAssetKind = "cloud_service"
+	FindingsPostFindingsIDConfirmOKAssetKindUnknown             FindingsPostFindingsIDConfirmOKAssetKind = "unknown"
+)
+
+// AllValues returns all FindingsPostFindingsIDConfirmOKAssetKind values.
+func (FindingsPostFindingsIDConfirmOKAssetKind) AllValues() []FindingsPostFindingsIDConfirmOKAssetKind {
+	return []FindingsPostFindingsIDConfirmOKAssetKind{
+		FindingsPostFindingsIDConfirmOKAssetKindRouter,
+		FindingsPostFindingsIDConfirmOKAssetKindSwitch,
+		FindingsPostFindingsIDConfirmOKAssetKindModem,
+		FindingsPostFindingsIDConfirmOKAssetKindSdWan,
+		FindingsPostFindingsIDConfirmOKAssetKindLoadBalancer,
+		FindingsPostFindingsIDConfirmOKAssetKindNetworkController,
+		FindingsPostFindingsIDConfirmOKAssetKindFirewall,
+		FindingsPostFindingsIDConfirmOKAssetKindVpnGateway,
+		FindingsPostFindingsIDConfirmOKAssetKindIdsSensor,
+		FindingsPostFindingsIDConfirmOKAssetKindProxy,
+		FindingsPostFindingsIDConfirmOKAssetKindAp,
+		FindingsPostFindingsIDConfirmOKAssetKindWirelessController,
+		FindingsPostFindingsIDConfirmOKAssetKindWifiExtender,
+		FindingsPostFindingsIDConfirmOKAssetKindMeshNode,
+		FindingsPostFindingsIDConfirmOKAssetKindServer,
+		FindingsPostFindingsIDConfirmOKAssetKindVirtualMachine,
+		FindingsPostFindingsIDConfirmOKAssetKindHypervisor,
+		FindingsPostFindingsIDConfirmOKAssetKindBmc,
+		FindingsPostFindingsIDConfirmOKAssetKindDomainController,
+		FindingsPostFindingsIDConfirmOKAssetKindMailServer,
+		FindingsPostFindingsIDConfirmOKAssetKindDatabaseServer,
+		FindingsPostFindingsIDConfirmOKAssetKindBackupServer,
+		FindingsPostFindingsIDConfirmOKAssetKindPc,
+		FindingsPostFindingsIDConfirmOKAssetKindLaptop,
+		FindingsPostFindingsIDConfirmOKAssetKindWorkstation,
+		FindingsPostFindingsIDConfirmOKAssetKindThinClient,
+		FindingsPostFindingsIDConfirmOKAssetKindPosTerminal,
+		FindingsPostFindingsIDConfirmOKAssetKindKiosk,
+		FindingsPostFindingsIDConfirmOKAssetKindSmartphone,
+		FindingsPostFindingsIDConfirmOKAssetKindTablet,
+		FindingsPostFindingsIDConfirmOKAssetKindSmartwatch,
+		FindingsPostFindingsIDConfirmOKAssetKindPrinter,
+		FindingsPostFindingsIDConfirmOKAssetKindMfp,
+		FindingsPostFindingsIDConfirmOKAssetKindScanner,
+		FindingsPostFindingsIDConfirmOKAssetKindLabelPrinter,
+		FindingsPostFindingsIDConfirmOKAssetKindReceiptPrinter,
+		FindingsPostFindingsIDConfirmOKAssetKindPlotter,
+		FindingsPostFindingsIDConfirmOKAssetKind3dPrinter,
+		FindingsPostFindingsIDConfirmOKAssetKindCamera,
+		FindingsPostFindingsIDConfirmOKAssetKindNvr,
+		FindingsPostFindingsIDConfirmOKAssetKindDvr,
+		FindingsPostFindingsIDConfirmOKAssetKindVideoEncoder,
+		FindingsPostFindingsIDConfirmOKAssetKindDoorbell,
+		FindingsPostFindingsIDConfirmOKAssetKindVideoConferencing,
+		FindingsPostFindingsIDConfirmOKAssetKindIPPhone,
+		FindingsPostFindingsIDConfirmOKAssetKindPbx,
+		FindingsPostFindingsIDConfirmOKAssetKindVoipAdapter,
+		FindingsPostFindingsIDConfirmOKAssetKindVoipGateway,
+		FindingsPostFindingsIDConfirmOKAssetKindConferencePhone,
+		FindingsPostFindingsIDConfirmOKAssetKindIntercom,
+		FindingsPostFindingsIDConfirmOKAssetKindNas,
+		FindingsPostFindingsIDConfirmOKAssetKindSan,
+		FindingsPostFindingsIDConfirmOKAssetKindBackupAppliance,
+		FindingsPostFindingsIDConfirmOKAssetKindTapeLibrary,
+		FindingsPostFindingsIDConfirmOKAssetKindIot,
+		FindingsPostFindingsIDConfirmOKAssetKindSmartTv,
+		FindingsPostFindingsIDConfirmOKAssetKindMediaPlayer,
+		FindingsPostFindingsIDConfirmOKAssetKindSmartSpeaker,
+		FindingsPostFindingsIDConfirmOKAssetKindGameConsole,
+		FindingsPostFindingsIDConfirmOKAssetKindSmartPlug,
+		FindingsPostFindingsIDConfirmOKAssetKindSmartLight,
+		FindingsPostFindingsIDConfirmOKAssetKindSmartHub,
+		FindingsPostFindingsIDConfirmOKAssetKindThermostat,
+		FindingsPostFindingsIDConfirmOKAssetKindProjector,
+		FindingsPostFindingsIDConfirmOKAssetKindDigitalSignage,
+		FindingsPostFindingsIDConfirmOKAssetKindSingleBoardComputer,
+		FindingsPostFindingsIDConfirmOKAssetKindSmartAppliance,
+		FindingsPostFindingsIDConfirmOKAssetKindRobotVacuum,
+		FindingsPostFindingsIDConfirmOKAssetKindWirelessBridge,
+		FindingsPostFindingsIDConfirmOKAssetKindPlc,
+		FindingsPostFindingsIDConfirmOKAssetKindHmi,
+		FindingsPostFindingsIDConfirmOKAssetKindRtu,
+		FindingsPostFindingsIDConfirmOKAssetKindScadaServer,
+		FindingsPostFindingsIDConfirmOKAssetKindIndustrialSwitch,
+		FindingsPostFindingsIDConfirmOKAssetKindUps,
+		FindingsPostFindingsIDConfirmOKAssetKindPdu,
+		FindingsPostFindingsIDConfirmOKAssetKindAccessControl,
+		FindingsPostFindingsIDConfirmOKAssetKindTimeClock,
+		FindingsPostFindingsIDConfirmOKAssetKindAlarmPanel,
+		FindingsPostFindingsIDConfirmOKAssetKindHvacController,
+		FindingsPostFindingsIDConfirmOKAssetKindBuildingController,
+		FindingsPostFindingsIDConfirmOKAssetKindPowerMeter,
+		FindingsPostFindingsIDConfirmOKAssetKindEnvironmentMonitor,
+		FindingsPostFindingsIDConfirmOKAssetKindEvCharger,
+		FindingsPostFindingsIDConfirmOKAssetKindSolarInverter,
+		FindingsPostFindingsIDConfirmOKAssetKindMedicalDevice,
+		FindingsPostFindingsIDConfirmOKAssetKindWeb,
+		FindingsPostFindingsIDConfirmOKAssetKindCloudService,
+		FindingsPostFindingsIDConfirmOKAssetKindUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDConfirmOKAssetKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDConfirmOKAssetKindRouter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSwitch:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindModem:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSdWan:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindLoadBalancer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindNetworkController:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindFirewall:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindVpnGateway:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindIdsSensor:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindProxy:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindAp:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindWirelessController:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindWifiExtender:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindMeshNode:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindServer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindVirtualMachine:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindHypervisor:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindBmc:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindDomainController:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindMailServer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindDatabaseServer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindBackupServer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindPc:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindLaptop:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindWorkstation:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindThinClient:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindPosTerminal:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindKiosk:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSmartphone:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindTablet:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSmartwatch:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindPrinter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindMfp:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindScanner:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindLabelPrinter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindReceiptPrinter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindPlotter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKind3dPrinter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindCamera:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindNvr:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindDvr:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindVideoEncoder:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindDoorbell:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindVideoConferencing:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindIPPhone:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindPbx:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindVoipAdapter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindVoipGateway:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindConferencePhone:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindIntercom:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindNas:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSan:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindBackupAppliance:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindTapeLibrary:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindIot:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSmartTv:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindMediaPlayer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSmartSpeaker:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindGameConsole:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSmartPlug:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSmartLight:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSmartHub:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindThermostat:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindProjector:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindDigitalSignage:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSingleBoardComputer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSmartAppliance:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindRobotVacuum:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindWirelessBridge:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindPlc:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindHmi:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindRtu:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindScadaServer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindIndustrialSwitch:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindUps:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindPdu:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindAccessControl:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindTimeClock:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindAlarmPanel:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindHvacController:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindBuildingController:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindPowerMeter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindEnvironmentMonitor:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindEvCharger:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSolarInverter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindMedicalDevice:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindWeb:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindCloudService:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDConfirmOKAssetKind) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDConfirmOKAssetKind(data) {
+	case FindingsPostFindingsIDConfirmOKAssetKindRouter:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindRouter
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSwitch:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindSwitch
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindModem:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindModem
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSdWan:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindSdWan
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindLoadBalancer:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindLoadBalancer
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindNetworkController:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindNetworkController
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindFirewall:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindFirewall
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindVpnGateway:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindVpnGateway
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindIdsSensor:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindIdsSensor
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindProxy:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindProxy
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindAp:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindAp
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindWirelessController:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindWirelessController
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindWifiExtender:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindWifiExtender
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindMeshNode:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindMeshNode
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindServer:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindServer
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindVirtualMachine:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindVirtualMachine
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindHypervisor:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindHypervisor
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindBmc:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindBmc
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindDomainController:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindDomainController
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindMailServer:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindMailServer
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindDatabaseServer:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindDatabaseServer
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindBackupServer:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindBackupServer
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindPc:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindPc
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindLaptop:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindLaptop
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindWorkstation:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindWorkstation
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindThinClient:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindThinClient
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindPosTerminal:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindPosTerminal
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindKiosk:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindKiosk
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSmartphone:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindSmartphone
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindTablet:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindTablet
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSmartwatch:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindSmartwatch
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindPrinter:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindPrinter
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindMfp:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindMfp
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindScanner:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindScanner
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindLabelPrinter:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindLabelPrinter
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindReceiptPrinter:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindReceiptPrinter
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindPlotter:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindPlotter
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKind3dPrinter:
+		*s = FindingsPostFindingsIDConfirmOKAssetKind3dPrinter
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindCamera:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindCamera
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindNvr:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindNvr
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindDvr:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindDvr
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindVideoEncoder:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindVideoEncoder
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindDoorbell:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindDoorbell
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindVideoConferencing:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindVideoConferencing
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindIPPhone:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindIPPhone
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindPbx:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindPbx
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindVoipAdapter:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindVoipAdapter
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindVoipGateway:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindVoipGateway
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindConferencePhone:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindConferencePhone
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindIntercom:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindIntercom
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindNas:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindNas
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSan:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindSan
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindBackupAppliance:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindBackupAppliance
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindTapeLibrary:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindTapeLibrary
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindIot:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindIot
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSmartTv:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindSmartTv
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindMediaPlayer:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindMediaPlayer
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSmartSpeaker:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindSmartSpeaker
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindGameConsole:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindGameConsole
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSmartPlug:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindSmartPlug
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSmartLight:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindSmartLight
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSmartHub:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindSmartHub
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindThermostat:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindThermostat
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindProjector:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindProjector
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindDigitalSignage:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindDigitalSignage
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSingleBoardComputer:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindSingleBoardComputer
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSmartAppliance:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindSmartAppliance
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindRobotVacuum:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindRobotVacuum
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindWirelessBridge:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindWirelessBridge
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindPlc:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindPlc
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindHmi:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindHmi
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindRtu:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindRtu
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindScadaServer:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindScadaServer
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindIndustrialSwitch:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindIndustrialSwitch
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindUps:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindUps
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindPdu:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindPdu
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindAccessControl:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindAccessControl
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindTimeClock:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindTimeClock
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindAlarmPanel:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindAlarmPanel
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindHvacController:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindHvacController
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindBuildingController:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindBuildingController
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindPowerMeter:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindPowerMeter
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindEnvironmentMonitor:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindEnvironmentMonitor
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindEvCharger:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindEvCharger
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSolarInverter:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindSolarInverter
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindMedicalDevice:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindMedicalDevice
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindWeb:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindWeb
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindCloudService:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindCloudService
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindUnknown:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version
+// = suspected by version; product = only the product matches.
+type FindingsPostFindingsIDConfirmOKBasis string
+
+const (
+	FindingsPostFindingsIDConfirmOKBasisScan    FindingsPostFindingsIDConfirmOKBasis = "scan"
+	FindingsPostFindingsIDConfirmOKBasisVersion FindingsPostFindingsIDConfirmOKBasis = "version"
+	FindingsPostFindingsIDConfirmOKBasisProduct FindingsPostFindingsIDConfirmOKBasis = "product"
+	FindingsPostFindingsIDConfirmOKBasisPerson  FindingsPostFindingsIDConfirmOKBasis = "person"
+)
+
+// AllValues returns all FindingsPostFindingsIDConfirmOKBasis values.
+func (FindingsPostFindingsIDConfirmOKBasis) AllValues() []FindingsPostFindingsIDConfirmOKBasis {
+	return []FindingsPostFindingsIDConfirmOKBasis{
+		FindingsPostFindingsIDConfirmOKBasisScan,
+		FindingsPostFindingsIDConfirmOKBasisVersion,
+		FindingsPostFindingsIDConfirmOKBasisProduct,
+		FindingsPostFindingsIDConfirmOKBasisPerson,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDConfirmOKBasis) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDConfirmOKBasisScan:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKBasisVersion:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKBasisProduct:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKBasisPerson:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDConfirmOKBasis) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDConfirmOKBasis(data) {
+	case FindingsPostFindingsIDConfirmOKBasisScan:
+		*s = FindingsPostFindingsIDConfirmOKBasisScan
+		return nil
+	case FindingsPostFindingsIDConfirmOKBasisVersion:
+		*s = FindingsPostFindingsIDConfirmOKBasisVersion
+		return nil
+	case FindingsPostFindingsIDConfirmOKBasisProduct:
+		*s = FindingsPostFindingsIDConfirmOKBasisProduct
+		return nil
+	case FindingsPostFindingsIDConfirmOKBasisPerson:
+		*s = FindingsPostFindingsIDConfirmOKBasisPerson
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDConfirmOKCompromise struct {
+	IfFound    []string                                                  `json:"if_found"`
+	Indicators []FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItem `json:"indicators"`
+	Summary    string                                                    `json:"summary"`
+}
+
+// GetIfFound returns the value of IfFound.
+func (s *FindingsPostFindingsIDConfirmOKCompromise) GetIfFound() []string {
+	return s.IfFound
+}
+
+// GetIndicators returns the value of Indicators.
+func (s *FindingsPostFindingsIDConfirmOKCompromise) GetIndicators() []FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItem {
+	return s.Indicators
+}
+
+// GetSummary returns the value of Summary.
+func (s *FindingsPostFindingsIDConfirmOKCompromise) GetSummary() string {
+	return s.Summary
+}
+
+// SetIfFound sets the value of IfFound.
+func (s *FindingsPostFindingsIDConfirmOKCompromise) SetIfFound(val []string) {
+	s.IfFound = val
+}
+
+// SetIndicators sets the value of Indicators.
+func (s *FindingsPostFindingsIDConfirmOKCompromise) SetIndicators(val []FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItem) {
+	s.Indicators = val
+}
+
+// SetSummary sets the value of Summary.
+func (s *FindingsPostFindingsIDConfirmOKCompromise) SetSummary(val string) {
+	s.Summary = val
+}
+
+type FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItem struct {
+	Commands []FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemCommandsItem `json:"commands"`
+	Detail   string                                                                `json:"detail"`
+	Kind     FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKind           `json:"kind"`
+	Title    string                                                                `json:"title"`
+}
+
+// GetCommands returns the value of Commands.
+func (s *FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItem) GetCommands() []FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemCommandsItem {
+	return s.Commands
+}
+
+// GetDetail returns the value of Detail.
+func (s *FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItem) GetDetail() string {
+	return s.Detail
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItem) GetKind() FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKind {
+	return s.Kind
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCommands sets the value of Commands.
+func (s *FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItem) SetCommands(val []FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemCommandsItem) {
+	s.Commands = val
+}
+
+// SetDetail sets the value of Detail.
+func (s *FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItem) SetDetail(val string) {
+	s.Detail = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItem) SetKind(val FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKind) {
+	s.Kind = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItem) SetTitle(val string) {
+	s.Title = val
+}
+
+type FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemCommandsItem struct {
+	Code  string `json:"code"`
+	Label string `json:"label"`
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemCommandsItem) GetCode() string {
+	return s.Code
+}
+
+// GetLabel returns the value of Label.
+func (s *FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemCommandsItem) GetLabel() string {
+	return s.Label
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemCommandsItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetLabel sets the value of Label.
+func (s *FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemCommandsItem) SetLabel(val string) {
+	s.Label = val
+}
+
+type FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKind string
+
+const (
+	FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKindFile    FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKind = "file"
+	FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKindWeb     FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKind = "web"
+	FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKindLog     FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKind = "log"
+	FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKindProcess FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKind = "process"
+)
+
+// AllValues returns all FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKind values.
+func (FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKind) AllValues() []FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKind {
+	return []FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKind{
+		FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKindFile,
+		FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKindWeb,
+		FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKindLog,
+		FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKindProcess,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKindFile:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKindWeb:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKindLog:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKindProcess:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKind) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKind(data) {
+	case FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKindFile:
+		*s = FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKindFile
+		return nil
+	case FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKindWeb:
+		*s = FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKindWeb
+		return nil
+	case FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKindLog:
+		*s = FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKindLog
+		return nil
+	case FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKindProcess:
+		*s = FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKindProcess
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// #825 (findings INV-22, feeds INV-28): the CVSS base score from the same NVD records feeds already
+// reads (nvd-kev, else nvd-recent). Shown next to the exploited status, never instead of it.
+type FindingsPostFindingsIDConfirmOKCvss struct {
+	// The CVSS base score (0.0 to 10.0, one decimal); its band follows from FIRST's table (3.x, 4.0) or
+	// NVD's v2 table (2.0: Low, Medium, High; no Critical).
+	Score float64 `json:"score"`
+	// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+	// Authority or CISA's ADP), used only when NVD gives none for that version.
+	Source FindingsPostFindingsIDConfirmOKCvssSource `json:"source"`
+	// NVD's vector string of the score ("CVSS:3.1/AV:N/AC:L/…"; 2.0: "AV:N/AC:L/Au:N/…"): FIRST asks
+	// that a score be shown with its vector, so a score without a valid one is not shown.
+	Vector string `json:"vector"`
+	// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+	// nothing newer).
+	Version FindingsPostFindingsIDConfirmOKCvssVersion `json:"version"`
+}
+
+// GetScore returns the value of Score.
+func (s *FindingsPostFindingsIDConfirmOKCvss) GetScore() float64 {
+	return s.Score
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDConfirmOKCvss) GetSource() FindingsPostFindingsIDConfirmOKCvssSource {
+	return s.Source
+}
+
+// GetVector returns the value of Vector.
+func (s *FindingsPostFindingsIDConfirmOKCvss) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsPostFindingsIDConfirmOKCvss) GetVersion() FindingsPostFindingsIDConfirmOKCvssVersion {
+	return s.Version
+}
+
+// SetScore sets the value of Score.
+func (s *FindingsPostFindingsIDConfirmOKCvss) SetScore(val float64) {
+	s.Score = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDConfirmOKCvss) SetSource(val FindingsPostFindingsIDConfirmOKCvssSource) {
+	s.Source = val
+}
+
+// SetVector sets the value of Vector.
+func (s *FindingsPostFindingsIDConfirmOKCvss) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsPostFindingsIDConfirmOKCvss) SetVersion(val FindingsPostFindingsIDConfirmOKCvssVersion) {
+	s.Version = val
+}
+
+// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+// Authority or CISA's ADP), used only when NVD gives none for that version.
+type FindingsPostFindingsIDConfirmOKCvssSource string
+
+const (
+	FindingsPostFindingsIDConfirmOKCvssSourceNvd FindingsPostFindingsIDConfirmOKCvssSource = "nvd"
+	FindingsPostFindingsIDConfirmOKCvssSourceCna FindingsPostFindingsIDConfirmOKCvssSource = "cna"
+)
+
+// AllValues returns all FindingsPostFindingsIDConfirmOKCvssSource values.
+func (FindingsPostFindingsIDConfirmOKCvssSource) AllValues() []FindingsPostFindingsIDConfirmOKCvssSource {
+	return []FindingsPostFindingsIDConfirmOKCvssSource{
+		FindingsPostFindingsIDConfirmOKCvssSourceNvd,
+		FindingsPostFindingsIDConfirmOKCvssSourceCna,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDConfirmOKCvssSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDConfirmOKCvssSourceNvd:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKCvssSourceCna:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDConfirmOKCvssSource) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDConfirmOKCvssSource(data) {
+	case FindingsPostFindingsIDConfirmOKCvssSourceNvd:
+		*s = FindingsPostFindingsIDConfirmOKCvssSourceNvd
+		return nil
+	case FindingsPostFindingsIDConfirmOKCvssSourceCna:
+		*s = FindingsPostFindingsIDConfirmOKCvssSourceCna
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+// nothing newer).
+type FindingsPostFindingsIDConfirmOKCvssVersion string
+
+const (
+	FindingsPostFindingsIDConfirmOKCvssVersion40 FindingsPostFindingsIDConfirmOKCvssVersion = "4.0"
+	FindingsPostFindingsIDConfirmOKCvssVersion31 FindingsPostFindingsIDConfirmOKCvssVersion = "3.1"
+	FindingsPostFindingsIDConfirmOKCvssVersion30 FindingsPostFindingsIDConfirmOKCvssVersion = "3.0"
+	FindingsPostFindingsIDConfirmOKCvssVersion20 FindingsPostFindingsIDConfirmOKCvssVersion = "2.0"
+)
+
+// AllValues returns all FindingsPostFindingsIDConfirmOKCvssVersion values.
+func (FindingsPostFindingsIDConfirmOKCvssVersion) AllValues() []FindingsPostFindingsIDConfirmOKCvssVersion {
+	return []FindingsPostFindingsIDConfirmOKCvssVersion{
+		FindingsPostFindingsIDConfirmOKCvssVersion40,
+		FindingsPostFindingsIDConfirmOKCvssVersion31,
+		FindingsPostFindingsIDConfirmOKCvssVersion30,
+		FindingsPostFindingsIDConfirmOKCvssVersion20,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDConfirmOKCvssVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDConfirmOKCvssVersion40:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKCvssVersion31:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKCvssVersion30:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKCvssVersion20:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDConfirmOKCvssVersion) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDConfirmOKCvssVersion(data) {
+	case FindingsPostFindingsIDConfirmOKCvssVersion40:
+		*s = FindingsPostFindingsIDConfirmOKCvssVersion40
+		return nil
+	case FindingsPostFindingsIDConfirmOKCvssVersion31:
+		*s = FindingsPostFindingsIDConfirmOKCvssVersion31
+		return nil
+	case FindingsPostFindingsIDConfirmOKCvssVersion30:
+		*s = FindingsPostFindingsIDConfirmOKCvssVersion30
+		return nil
+	case FindingsPostFindingsIDConfirmOKCvssVersion20:
+		*s = FindingsPostFindingsIDConfirmOKCvssVersion20
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDConfirmOKEvidence struct {
+	// The version compared is the one the device's own agent (osquery, Wazuh) reports installed: a
+	// detection, shown as "Detected by the agent", with nothing for the person to look up.
+	Agent OptBool `json:"agent"`
+	// A product-only match on a software row the device's own agent reported with its installed version:
+	// Vedette could not compare that version with NVD's data, so the page does not ask to add the version.
+	AgentRow  OptBool   `json:"agent_row"`
+	CheckedAt time.Time `json:"checked_at"`
+	Request   OptString `json:"request"`
+	Response  OptString `json:"response"`
+	Summary   string    `json:"summary"`
+	Template  OptString `json:"template"`
+}
+
+// GetAgent returns the value of Agent.
+func (s *FindingsPostFindingsIDConfirmOKEvidence) GetAgent() OptBool {
+	return s.Agent
+}
+
+// GetAgentRow returns the value of AgentRow.
+func (s *FindingsPostFindingsIDConfirmOKEvidence) GetAgentRow() OptBool {
+	return s.AgentRow
+}
+
+// GetCheckedAt returns the value of CheckedAt.
+func (s *FindingsPostFindingsIDConfirmOKEvidence) GetCheckedAt() time.Time {
+	return s.CheckedAt
+}
+
+// GetRequest returns the value of Request.
+func (s *FindingsPostFindingsIDConfirmOKEvidence) GetRequest() OptString {
+	return s.Request
+}
+
+// GetResponse returns the value of Response.
+func (s *FindingsPostFindingsIDConfirmOKEvidence) GetResponse() OptString {
+	return s.Response
+}
+
+// GetSummary returns the value of Summary.
+func (s *FindingsPostFindingsIDConfirmOKEvidence) GetSummary() string {
+	return s.Summary
+}
+
+// GetTemplate returns the value of Template.
+func (s *FindingsPostFindingsIDConfirmOKEvidence) GetTemplate() OptString {
+	return s.Template
+}
+
+// SetAgent sets the value of Agent.
+func (s *FindingsPostFindingsIDConfirmOKEvidence) SetAgent(val OptBool) {
+	s.Agent = val
+}
+
+// SetAgentRow sets the value of AgentRow.
+func (s *FindingsPostFindingsIDConfirmOKEvidence) SetAgentRow(val OptBool) {
+	s.AgentRow = val
+}
+
+// SetCheckedAt sets the value of CheckedAt.
+func (s *FindingsPostFindingsIDConfirmOKEvidence) SetCheckedAt(val time.Time) {
+	s.CheckedAt = val
+}
+
+// SetRequest sets the value of Request.
+func (s *FindingsPostFindingsIDConfirmOKEvidence) SetRequest(val OptString) {
+	s.Request = val
+}
+
+// SetResponse sets the value of Response.
+func (s *FindingsPostFindingsIDConfirmOKEvidence) SetResponse(val OptString) {
+	s.Response = val
+}
+
+// SetSummary sets the value of Summary.
+func (s *FindingsPostFindingsIDConfirmOKEvidence) SetSummary(val string) {
+	s.Summary = val
+}
+
+// SetTemplate sets the value of Template.
+func (s *FindingsPostFindingsIDConfirmOKEvidence) SetTemplate(val OptString) {
+	s.Template = val
+}
+
+// One update fixes this finding together with the device's other open findings of the same software
+// (top-tier: one item per missing update).
+type FindingsPostFindingsIDConfirmOKFix struct {
+	// Distro: "Ubuntu" or "Debian", empty for the distribution's.
+	Distro string `json:"distro"`
+	// The release or build that fixes them all; feature_update: the release to move to; empty for distro.
+	Fixed string `json:"fixed"`
+	// "/": the open findings with the same group are fixed by the same update.
+	Group string `json:"group"`
+	// Fixed = upgrade to `fixed` (a Windows release: the monthly cumulative update with build `fixed` or
+	// later); esu = that build needs Extended Security Updates; feature_update = no update of this release
+	// fixes them, move to release `fixed`; distro = install the distribution's security updates for the
+	// package.
+	Kind FindingsPostFindingsIDConfirmOKFixKind `json:"kind"`
+	// Distro: the fix of at least one of them is in Ubuntu Pro (ESM) only.
+	Pro bool `json:"pro"`
+	// Display name of the software row.
+	Software string `json:"software"`
+	// The installed version.
+	Version string `json:"version"`
+	// A Windows release row: the update is the monthly cumulative update Windows Update offers.
+	Windows bool `json:"windows"`
+}
+
+// GetDistro returns the value of Distro.
+func (s *FindingsPostFindingsIDConfirmOKFix) GetDistro() string {
+	return s.Distro
+}
+
+// GetFixed returns the value of Fixed.
+func (s *FindingsPostFindingsIDConfirmOKFix) GetFixed() string {
+	return s.Fixed
+}
+
+// GetGroup returns the value of Group.
+func (s *FindingsPostFindingsIDConfirmOKFix) GetGroup() string {
+	return s.Group
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsPostFindingsIDConfirmOKFix) GetKind() FindingsPostFindingsIDConfirmOKFixKind {
+	return s.Kind
+}
+
+// GetPro returns the value of Pro.
+func (s *FindingsPostFindingsIDConfirmOKFix) GetPro() bool {
+	return s.Pro
+}
+
+// GetSoftware returns the value of Software.
+func (s *FindingsPostFindingsIDConfirmOKFix) GetSoftware() string {
+	return s.Software
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsPostFindingsIDConfirmOKFix) GetVersion() string {
+	return s.Version
+}
+
+// GetWindows returns the value of Windows.
+func (s *FindingsPostFindingsIDConfirmOKFix) GetWindows() bool {
+	return s.Windows
+}
+
+// SetDistro sets the value of Distro.
+func (s *FindingsPostFindingsIDConfirmOKFix) SetDistro(val string) {
+	s.Distro = val
+}
+
+// SetFixed sets the value of Fixed.
+func (s *FindingsPostFindingsIDConfirmOKFix) SetFixed(val string) {
+	s.Fixed = val
+}
+
+// SetGroup sets the value of Group.
+func (s *FindingsPostFindingsIDConfirmOKFix) SetGroup(val string) {
+	s.Group = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsPostFindingsIDConfirmOKFix) SetKind(val FindingsPostFindingsIDConfirmOKFixKind) {
+	s.Kind = val
+}
+
+// SetPro sets the value of Pro.
+func (s *FindingsPostFindingsIDConfirmOKFix) SetPro(val bool) {
+	s.Pro = val
+}
+
+// SetSoftware sets the value of Software.
+func (s *FindingsPostFindingsIDConfirmOKFix) SetSoftware(val string) {
+	s.Software = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsPostFindingsIDConfirmOKFix) SetVersion(val string) {
+	s.Version = val
+}
+
+// SetWindows sets the value of Windows.
+func (s *FindingsPostFindingsIDConfirmOKFix) SetWindows(val bool) {
+	s.Windows = val
+}
+
+// Fixed = upgrade to `fixed` (a Windows release: the monthly cumulative update with build `fixed` or
+// later); esu = that build needs Extended Security Updates; feature_update = no update of this release
+// fixes them, move to release `fixed`; distro = install the distribution's security updates for the
+// package.
+type FindingsPostFindingsIDConfirmOKFixKind string
+
+const (
+	FindingsPostFindingsIDConfirmOKFixKindFixed         FindingsPostFindingsIDConfirmOKFixKind = "fixed"
+	FindingsPostFindingsIDConfirmOKFixKindEsu           FindingsPostFindingsIDConfirmOKFixKind = "esu"
+	FindingsPostFindingsIDConfirmOKFixKindFeatureUpdate FindingsPostFindingsIDConfirmOKFixKind = "feature_update"
+	FindingsPostFindingsIDConfirmOKFixKindDistro        FindingsPostFindingsIDConfirmOKFixKind = "distro"
+)
+
+// AllValues returns all FindingsPostFindingsIDConfirmOKFixKind values.
+func (FindingsPostFindingsIDConfirmOKFixKind) AllValues() []FindingsPostFindingsIDConfirmOKFixKind {
+	return []FindingsPostFindingsIDConfirmOKFixKind{
+		FindingsPostFindingsIDConfirmOKFixKindFixed,
+		FindingsPostFindingsIDConfirmOKFixKindEsu,
+		FindingsPostFindingsIDConfirmOKFixKindFeatureUpdate,
+		FindingsPostFindingsIDConfirmOKFixKindDistro,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDConfirmOKFixKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDConfirmOKFixKindFixed:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKFixKindEsu:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKFixKindFeatureUpdate:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKFixKindDistro:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDConfirmOKFixKind) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDConfirmOKFixKind(data) {
+	case FindingsPostFindingsIDConfirmOKFixKindFixed:
+		*s = FindingsPostFindingsIDConfirmOKFixKindFixed
+		return nil
+	case FindingsPostFindingsIDConfirmOKFixKindEsu:
+		*s = FindingsPostFindingsIDConfirmOKFixKindEsu
+		return nil
+	case FindingsPostFindingsIDConfirmOKFixKindFeatureUpdate:
+		*s = FindingsPostFindingsIDConfirmOKFixKindFeatureUpdate
+		return nil
+	case FindingsPostFindingsIDConfirmOKFixKindDistro:
+		*s = FindingsPostFindingsIDConfirmOKFixKindDistro
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDConfirmOKFixedIn struct {
+	// At most 5, newest first.
+	Branches []FindingsPostFindingsIDConfirmOKFixedInBranchesItem `json:"branches"`
+	// "Ubuntu" or "Debian" when the device runs one, empty otherwise. distro: whose security updates to
+	// install (empty = the distribution). Other kinds: set only when the software is not known to come
+	// from the package database (typed by a person, read by a scan, or an agent row stored before
+	// inventory kept the flag); the page adds "if you installed it from the distribution's packages,
+	// install its security updates instead".
+	Distro string `json:"distro"`
+	// Kind distro only: the version of the distribution's package that fixes the CVE on the device's
+	// release (Ubuntu security data, Debian Security Tracker); `version` is then the device's full package
+	// version. Empty when the distribution's data does not say.
+	DistroFixed string `json:"distro_fixed"`
+	// Distro_fixed is in Ubuntu Pro (ESM) only.
+	DistroPro bool `json:"distro_pro"`
+	// The device's release with distro_fixed ("24.04", "12"); empty otherwise.
+	DistroRelease string `json:"distro_release"`
+	// The fixed release (fixed), the last affected release (up_to), the upstream fixed release as a
+	// reference when NVD names one (distro: the backport may keep the package's number below it); empty
+	// for branches.
+	Fixed string `json:"fixed"`
+	// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
+	// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
+	// named); end_listed = inside a range that ends before `fixed`, but NVD lists releases of `fixed`
+	// itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix, the
+	// vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the fix
+	// of each release line; distro = a package of the distribution, whose security updates carry the fix
+	// under their own numbers: an agent read it from the device's package database (deb/rpm), or the
+	// version carries a marker such as ubuntu, +deb12, .el9; feature_update = a Windows release NVD does
+	// not list for the fix, which only a later release of its line (`branches[0].branch`, from build
+	// `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu = the fixing Windows
+	// build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+	Kind FindingsPostFindingsIDConfirmOKFixedInKind `json:"kind"`
+	// Release lines with a fix left out of branches.
+	More int `json:"more"`
+	// Release lines NVD gives no fixed release for (a range that ends at an affected version).
+	NoFix int `json:"no_fix"`
+	// Where the versions come from: "NVD affected versions", "CVE.org affected versions (from the CVE
+	// record's CNA)" when NVD has none, or with distro_fixed "Ubuntu security data" / "Debian Security
+	// Tracker".
+	Source string `json:"source"`
+	// The device's version; for branches empty when it has none, else the text Vedette cannot read.
+	Version string `json:"version"`
+}
+
+// GetBranches returns the value of Branches.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) GetBranches() []FindingsPostFindingsIDConfirmOKFixedInBranchesItem {
+	return s.Branches
+}
+
+// GetDistro returns the value of Distro.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) GetDistro() string {
+	return s.Distro
+}
+
+// GetDistroFixed returns the value of DistroFixed.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) GetDistroFixed() string {
+	return s.DistroFixed
+}
+
+// GetDistroPro returns the value of DistroPro.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) GetDistroPro() bool {
+	return s.DistroPro
+}
+
+// GetDistroRelease returns the value of DistroRelease.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) GetDistroRelease() string {
+	return s.DistroRelease
+}
+
+// GetFixed returns the value of Fixed.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) GetFixed() string {
+	return s.Fixed
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) GetKind() FindingsPostFindingsIDConfirmOKFixedInKind {
+	return s.Kind
+}
+
+// GetMore returns the value of More.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) GetMore() int {
+	return s.More
+}
+
+// GetNoFix returns the value of NoFix.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) GetNoFix() int {
+	return s.NoFix
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) GetSource() string {
+	return s.Source
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) GetVersion() string {
+	return s.Version
+}
+
+// SetBranches sets the value of Branches.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) SetBranches(val []FindingsPostFindingsIDConfirmOKFixedInBranchesItem) {
+	s.Branches = val
+}
+
+// SetDistro sets the value of Distro.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) SetDistro(val string) {
+	s.Distro = val
+}
+
+// SetDistroFixed sets the value of DistroFixed.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) SetDistroFixed(val string) {
+	s.DistroFixed = val
+}
+
+// SetDistroPro sets the value of DistroPro.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) SetDistroPro(val bool) {
+	s.DistroPro = val
+}
+
+// SetDistroRelease sets the value of DistroRelease.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) SetDistroRelease(val string) {
+	s.DistroRelease = val
+}
+
+// SetFixed sets the value of Fixed.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) SetFixed(val string) {
+	s.Fixed = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) SetKind(val FindingsPostFindingsIDConfirmOKFixedInKind) {
+	s.Kind = val
+}
+
+// SetMore sets the value of More.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) SetMore(val int) {
+	s.More = val
+}
+
+// SetNoFix sets the value of NoFix.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) SetNoFix(val int) {
+	s.NoFix = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) SetSource(val string) {
+	s.Source = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) SetVersion(val string) {
+	s.Version = val
+}
+
+type FindingsPostFindingsIDConfirmOKFixedInBranchesItem struct {
+	// Release line such as 7.4; empty when it cannot be told.
+	Branch string `json:"branch"`
+	Fixed  string `json:"fixed"`
+}
+
+// GetBranch returns the value of Branch.
+func (s *FindingsPostFindingsIDConfirmOKFixedInBranchesItem) GetBranch() string {
+	return s.Branch
+}
+
+// GetFixed returns the value of Fixed.
+func (s *FindingsPostFindingsIDConfirmOKFixedInBranchesItem) GetFixed() string {
+	return s.Fixed
+}
+
+// SetBranch sets the value of Branch.
+func (s *FindingsPostFindingsIDConfirmOKFixedInBranchesItem) SetBranch(val string) {
+	s.Branch = val
+}
+
+// SetFixed sets the value of Fixed.
+func (s *FindingsPostFindingsIDConfirmOKFixedInBranchesItem) SetFixed(val string) {
+	s.Fixed = val
+}
+
+// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
+// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
+// named); end_listed = inside a range that ends before `fixed`, but NVD lists releases of `fixed`
+// itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix, the
+// vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the fix
+// of each release line; distro = a package of the distribution, whose security updates carry the fix
+// under their own numbers: an agent read it from the device's package database (deb/rpm), or the
+// version carries a marker such as ubuntu, +deb12, .el9; feature_update = a Windows release NVD does
+// not list for the fix, which only a later release of its line (`branches[0].branch`, from build
+// `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu = the fixing Windows
+// build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+type FindingsPostFindingsIDConfirmOKFixedInKind string
+
+const (
+	FindingsPostFindingsIDConfirmOKFixedInKindFixed         FindingsPostFindingsIDConfirmOKFixedInKind = "fixed"
+	FindingsPostFindingsIDConfirmOKFixedInKindUpTo          FindingsPostFindingsIDConfirmOKFixedInKind = "up_to"
+	FindingsPostFindingsIDConfirmOKFixedInKindEndListed     FindingsPostFindingsIDConfirmOKFixedInKind = "end_listed"
+	FindingsPostFindingsIDConfirmOKFixedInKindBranches      FindingsPostFindingsIDConfirmOKFixedInKind = "branches"
+	FindingsPostFindingsIDConfirmOKFixedInKindDistro        FindingsPostFindingsIDConfirmOKFixedInKind = "distro"
+	FindingsPostFindingsIDConfirmOKFixedInKindFeatureUpdate FindingsPostFindingsIDConfirmOKFixedInKind = "feature_update"
+	FindingsPostFindingsIDConfirmOKFixedInKindEsu           FindingsPostFindingsIDConfirmOKFixedInKind = "esu"
+)
+
+// AllValues returns all FindingsPostFindingsIDConfirmOKFixedInKind values.
+func (FindingsPostFindingsIDConfirmOKFixedInKind) AllValues() []FindingsPostFindingsIDConfirmOKFixedInKind {
+	return []FindingsPostFindingsIDConfirmOKFixedInKind{
+		FindingsPostFindingsIDConfirmOKFixedInKindFixed,
+		FindingsPostFindingsIDConfirmOKFixedInKindUpTo,
+		FindingsPostFindingsIDConfirmOKFixedInKindEndListed,
+		FindingsPostFindingsIDConfirmOKFixedInKindBranches,
+		FindingsPostFindingsIDConfirmOKFixedInKindDistro,
+		FindingsPostFindingsIDConfirmOKFixedInKindFeatureUpdate,
+		FindingsPostFindingsIDConfirmOKFixedInKindEsu,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDConfirmOKFixedInKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDConfirmOKFixedInKindFixed:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKFixedInKindUpTo:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKFixedInKindEndListed:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKFixedInKindBranches:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKFixedInKindDistro:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKFixedInKindFeatureUpdate:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKFixedInKindEsu:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDConfirmOKFixedInKind) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDConfirmOKFixedInKind(data) {
+	case FindingsPostFindingsIDConfirmOKFixedInKindFixed:
+		*s = FindingsPostFindingsIDConfirmOKFixedInKindFixed
+		return nil
+	case FindingsPostFindingsIDConfirmOKFixedInKindUpTo:
+		*s = FindingsPostFindingsIDConfirmOKFixedInKindUpTo
+		return nil
+	case FindingsPostFindingsIDConfirmOKFixedInKindEndListed:
+		*s = FindingsPostFindingsIDConfirmOKFixedInKindEndListed
+		return nil
+	case FindingsPostFindingsIDConfirmOKFixedInKindBranches:
+		*s = FindingsPostFindingsIDConfirmOKFixedInKindBranches
+		return nil
+	case FindingsPostFindingsIDConfirmOKFixedInKindDistro:
+		*s = FindingsPostFindingsIDConfirmOKFixedInKindDistro
+		return nil
+	case FindingsPostFindingsIDConfirmOKFixedInKindFeatureUpdate:
+		*s = FindingsPostFindingsIDConfirmOKFixedInKindFeatureUpdate
+		return nil
+	case FindingsPostFindingsIDConfirmOKFixedInKindEsu:
+		*s = FindingsPostFindingsIDConfirmOKFixedInKindEsu
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Mitigation INV-8: general compromise checks written by reviewed code, not a recommendation for the
+// CVE: never shown as "Vedette confirmed", never run by Vedette. The generated firewall configs and
+// the admin network field are gone.
+type FindingsPostFindingsIDConfirmOKHardening struct {
+	// General "Have I been hit?" checks for the software family.
+	Checks NilFindingsPostFindingsIDConfirmOKHardeningChecks `json:"checks"`
+	// The family the checks are written for ("Linux", "Network device", "General").
+	Family string `json:"family"`
+	// The software the checks are for, as the page names it.
+	Software string `json:"software"`
+}
+
+// GetChecks returns the value of Checks.
+func (s *FindingsPostFindingsIDConfirmOKHardening) GetChecks() NilFindingsPostFindingsIDConfirmOKHardeningChecks {
+	return s.Checks
+}
+
+// GetFamily returns the value of Family.
+func (s *FindingsPostFindingsIDConfirmOKHardening) GetFamily() string {
+	return s.Family
+}
+
+// GetSoftware returns the value of Software.
+func (s *FindingsPostFindingsIDConfirmOKHardening) GetSoftware() string {
+	return s.Software
+}
+
+// SetChecks sets the value of Checks.
+func (s *FindingsPostFindingsIDConfirmOKHardening) SetChecks(val NilFindingsPostFindingsIDConfirmOKHardeningChecks) {
+	s.Checks = val
+}
+
+// SetFamily sets the value of Family.
+func (s *FindingsPostFindingsIDConfirmOKHardening) SetFamily(val string) {
+	s.Family = val
+}
+
+// SetSoftware sets the value of Software.
+func (s *FindingsPostFindingsIDConfirmOKHardening) SetSoftware(val string) {
+	s.Software = val
+}
+
+type FindingsPostFindingsIDConfirmOKHardeningChecks struct {
+	IfFound    []string                                                       `json:"if_found"`
+	Indicators []FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItem `json:"indicators"`
+	Summary    string                                                         `json:"summary"`
+}
+
+// GetIfFound returns the value of IfFound.
+func (s *FindingsPostFindingsIDConfirmOKHardeningChecks) GetIfFound() []string {
+	return s.IfFound
+}
+
+// GetIndicators returns the value of Indicators.
+func (s *FindingsPostFindingsIDConfirmOKHardeningChecks) GetIndicators() []FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItem {
+	return s.Indicators
+}
+
+// GetSummary returns the value of Summary.
+func (s *FindingsPostFindingsIDConfirmOKHardeningChecks) GetSummary() string {
+	return s.Summary
+}
+
+// SetIfFound sets the value of IfFound.
+func (s *FindingsPostFindingsIDConfirmOKHardeningChecks) SetIfFound(val []string) {
+	s.IfFound = val
+}
+
+// SetIndicators sets the value of Indicators.
+func (s *FindingsPostFindingsIDConfirmOKHardeningChecks) SetIndicators(val []FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItem) {
+	s.Indicators = val
+}
+
+// SetSummary sets the value of Summary.
+func (s *FindingsPostFindingsIDConfirmOKHardeningChecks) SetSummary(val string) {
+	s.Summary = val
+}
+
+type FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItem struct {
+	Commands []FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemCommandsItem `json:"commands"`
+	Detail   string                                                                     `json:"detail"`
+	Kind     FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKind           `json:"kind"`
+	Title    string                                                                     `json:"title"`
+}
+
+// GetCommands returns the value of Commands.
+func (s *FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItem) GetCommands() []FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemCommandsItem {
+	return s.Commands
+}
+
+// GetDetail returns the value of Detail.
+func (s *FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItem) GetDetail() string {
+	return s.Detail
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItem) GetKind() FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKind {
+	return s.Kind
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCommands sets the value of Commands.
+func (s *FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItem) SetCommands(val []FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemCommandsItem) {
+	s.Commands = val
+}
+
+// SetDetail sets the value of Detail.
+func (s *FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItem) SetDetail(val string) {
+	s.Detail = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItem) SetKind(val FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKind) {
+	s.Kind = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItem) SetTitle(val string) {
+	s.Title = val
+}
+
+type FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemCommandsItem struct {
+	Code  string `json:"code"`
+	Label string `json:"label"`
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemCommandsItem) GetCode() string {
+	return s.Code
+}
+
+// GetLabel returns the value of Label.
+func (s *FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemCommandsItem) GetLabel() string {
+	return s.Label
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemCommandsItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetLabel sets the value of Label.
+func (s *FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemCommandsItem) SetLabel(val string) {
+	s.Label = val
+}
+
+type FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKind string
+
+const (
+	FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKindFile    FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKind = "file"
+	FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKindWeb     FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKind = "web"
+	FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKindLog     FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKind = "log"
+	FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKindProcess FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKind = "process"
+)
+
+// AllValues returns all FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKind values.
+func (FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKind) AllValues() []FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKind {
+	return []FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKind{
+		FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKindFile,
+		FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKindWeb,
+		FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKindLog,
+		FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKindProcess,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKindFile:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKindWeb:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKindLog:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKindProcess:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKind) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKind(data) {
+	case FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKindFile:
+		*s = FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKindFile
+		return nil
+	case FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKindWeb:
+		*s = FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKindWeb
+		return nil
+	case FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKindLog:
+		*s = FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKindLog
+		return nil
+	case FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKindProcess:
+		*s = FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKindProcess
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDConfirmOKHistoryItem struct {
+	Action string    `json:"action"`
+	Note   OptString `json:"note"`
+	Ts     time.Time `json:"ts"`
+	User   string    `json:"user"`
+}
+
+// GetAction returns the value of Action.
+func (s *FindingsPostFindingsIDConfirmOKHistoryItem) GetAction() string {
+	return s.Action
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDConfirmOKHistoryItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetTs returns the value of Ts.
+func (s *FindingsPostFindingsIDConfirmOKHistoryItem) GetTs() time.Time {
+	return s.Ts
+}
+
+// GetUser returns the value of User.
+func (s *FindingsPostFindingsIDConfirmOKHistoryItem) GetUser() string {
+	return s.User
+}
+
+// SetAction sets the value of Action.
+func (s *FindingsPostFindingsIDConfirmOKHistoryItem) SetAction(val string) {
+	s.Action = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDConfirmOKHistoryItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetTs sets the value of Ts.
+func (s *FindingsPostFindingsIDConfirmOKHistoryItem) SetTs(val time.Time) {
+	s.Ts = val
+}
+
+// SetUser sets the value of User.
+func (s *FindingsPostFindingsIDConfirmOKHistoryItem) SetUser(val string) {
+	s.User = val
+}
+
+type FindingsPostFindingsIDConfirmOKKev struct {
+	DateAdded   string     `json:"date_added"`
+	Display     string     `json:"display"`
+	DueDate     NilString  `json:"due_date"`
+	Epss        NilFloat64 `json:"epss"`
+	HasTemplate bool       `json:"has_template"`
+	Links       []string   `json:"links"`
+	Name        string     `json:"name"`
+	Product     string     `json:"product"`
+	// The day the CVE was published (NVD `published`), never the day CISA added it; null when NVD has not
+	// answered for it (then it counts as recent: an older CVE is not a finding on a product-only match,
+	// and a missing date never closes a finding).
+	Published      NilDate `json:"published"`
+	Ransomware     bool    `json:"ransomware"`
+	RequiredAction string  `json:"required_action"`
+	// Which list the entry is on: texts and the source badge name it; an entry of VulnCheck KEV is never
+	// called CISA's.
+	Source OptFindingsPostFindingsIDConfirmOKKevSource `json:"source"`
+	Vendor string                                      `json:"vendor"`
+}
+
+// GetDateAdded returns the value of DateAdded.
+func (s *FindingsPostFindingsIDConfirmOKKev) GetDateAdded() string {
+	return s.DateAdded
+}
+
+// GetDisplay returns the value of Display.
+func (s *FindingsPostFindingsIDConfirmOKKev) GetDisplay() string {
+	return s.Display
+}
+
+// GetDueDate returns the value of DueDate.
+func (s *FindingsPostFindingsIDConfirmOKKev) GetDueDate() NilString {
+	return s.DueDate
+}
+
+// GetEpss returns the value of Epss.
+func (s *FindingsPostFindingsIDConfirmOKKev) GetEpss() NilFloat64 {
+	return s.Epss
+}
+
+// GetHasTemplate returns the value of HasTemplate.
+func (s *FindingsPostFindingsIDConfirmOKKev) GetHasTemplate() bool {
+	return s.HasTemplate
+}
+
+// GetLinks returns the value of Links.
+func (s *FindingsPostFindingsIDConfirmOKKev) GetLinks() []string {
+	return s.Links
+}
+
+// GetName returns the value of Name.
+func (s *FindingsPostFindingsIDConfirmOKKev) GetName() string {
+	return s.Name
+}
+
+// GetProduct returns the value of Product.
+func (s *FindingsPostFindingsIDConfirmOKKev) GetProduct() string {
+	return s.Product
+}
+
+// GetPublished returns the value of Published.
+func (s *FindingsPostFindingsIDConfirmOKKev) GetPublished() NilDate {
+	return s.Published
+}
+
+// GetRansomware returns the value of Ransomware.
+func (s *FindingsPostFindingsIDConfirmOKKev) GetRansomware() bool {
+	return s.Ransomware
+}
+
+// GetRequiredAction returns the value of RequiredAction.
+func (s *FindingsPostFindingsIDConfirmOKKev) GetRequiredAction() string {
+	return s.RequiredAction
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDConfirmOKKev) GetSource() OptFindingsPostFindingsIDConfirmOKKevSource {
+	return s.Source
+}
+
+// GetVendor returns the value of Vendor.
+func (s *FindingsPostFindingsIDConfirmOKKev) GetVendor() string {
+	return s.Vendor
+}
+
+// SetDateAdded sets the value of DateAdded.
+func (s *FindingsPostFindingsIDConfirmOKKev) SetDateAdded(val string) {
+	s.DateAdded = val
+}
+
+// SetDisplay sets the value of Display.
+func (s *FindingsPostFindingsIDConfirmOKKev) SetDisplay(val string) {
+	s.Display = val
+}
+
+// SetDueDate sets the value of DueDate.
+func (s *FindingsPostFindingsIDConfirmOKKev) SetDueDate(val NilString) {
+	s.DueDate = val
+}
+
+// SetEpss sets the value of Epss.
+func (s *FindingsPostFindingsIDConfirmOKKev) SetEpss(val NilFloat64) {
+	s.Epss = val
+}
+
+// SetHasTemplate sets the value of HasTemplate.
+func (s *FindingsPostFindingsIDConfirmOKKev) SetHasTemplate(val bool) {
+	s.HasTemplate = val
+}
+
+// SetLinks sets the value of Links.
+func (s *FindingsPostFindingsIDConfirmOKKev) SetLinks(val []string) {
+	s.Links = val
+}
+
+// SetName sets the value of Name.
+func (s *FindingsPostFindingsIDConfirmOKKev) SetName(val string) {
+	s.Name = val
+}
+
+// SetProduct sets the value of Product.
+func (s *FindingsPostFindingsIDConfirmOKKev) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetPublished sets the value of Published.
+func (s *FindingsPostFindingsIDConfirmOKKev) SetPublished(val NilDate) {
+	s.Published = val
+}
+
+// SetRansomware sets the value of Ransomware.
+func (s *FindingsPostFindingsIDConfirmOKKev) SetRansomware(val bool) {
+	s.Ransomware = val
+}
+
+// SetRequiredAction sets the value of RequiredAction.
+func (s *FindingsPostFindingsIDConfirmOKKev) SetRequiredAction(val string) {
+	s.RequiredAction = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDConfirmOKKev) SetSource(val OptFindingsPostFindingsIDConfirmOKKevSource) {
+	s.Source = val
+}
+
+// SetVendor sets the value of Vendor.
+func (s *FindingsPostFindingsIDConfirmOKKev) SetVendor(val string) {
+	s.Vendor = val
+}
+
+// Which list the entry is on: texts and the source badge name it; an entry of VulnCheck KEV is never
+// called CISA's.
+type FindingsPostFindingsIDConfirmOKKevSource string
+
+const (
+	FindingsPostFindingsIDConfirmOKKevSourceCisaKev      FindingsPostFindingsIDConfirmOKKevSource = "cisa-kev"
+	FindingsPostFindingsIDConfirmOKKevSourceVulncheckKev FindingsPostFindingsIDConfirmOKKevSource = "vulncheck-kev"
+)
+
+// AllValues returns all FindingsPostFindingsIDConfirmOKKevSource values.
+func (FindingsPostFindingsIDConfirmOKKevSource) AllValues() []FindingsPostFindingsIDConfirmOKKevSource {
+	return []FindingsPostFindingsIDConfirmOKKevSource{
+		FindingsPostFindingsIDConfirmOKKevSourceCisaKev,
+		FindingsPostFindingsIDConfirmOKKevSourceVulncheckKev,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDConfirmOKKevSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDConfirmOKKevSourceCisaKev:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKKevSourceVulncheckKev:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDConfirmOKKevSource) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDConfirmOKKevSource(data) {
+	case FindingsPostFindingsIDConfirmOKKevSourceCisaKev:
+		*s = FindingsPostFindingsIDConfirmOKKevSourceCisaKev
+		return nil
+	case FindingsPostFindingsIDConfirmOKKevSourceVulncheckKev:
+		*s = FindingsPostFindingsIDConfirmOKKevSourceVulncheckKev
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The version the box has for the matched software; the page says it and how a newer one reaches
+// Vedette, never "find which version".
+type FindingsPostFindingsIDConfirmOKKnownVersion struct {
+	// When that source last gave the version: the agent's last list, the last scan or SNMP read that
+	// returned it, or when a person entered it; null when not known. Not the same as the finding's
+	// last_seen.
+	SeenAt NilDateTime `json:"seen_at"`
+	// Display name of the software the finding was matched on.
+	Software string `json:"software"`
+	// Who gave the version: the device's agent, its answer to Vedette's SNMP read, its own statement on
+	// the network (LLDP), a network scan, or a person on the Devices page.
+	Source  FindingsPostFindingsIDConfirmOKKnownVersionSource `json:"source"`
+	Version string                                            `json:"version"`
+}
+
+// GetSeenAt returns the value of SeenAt.
+func (s *FindingsPostFindingsIDConfirmOKKnownVersion) GetSeenAt() NilDateTime {
+	return s.SeenAt
+}
+
+// GetSoftware returns the value of Software.
+func (s *FindingsPostFindingsIDConfirmOKKnownVersion) GetSoftware() string {
+	return s.Software
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDConfirmOKKnownVersion) GetSource() FindingsPostFindingsIDConfirmOKKnownVersionSource {
+	return s.Source
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsPostFindingsIDConfirmOKKnownVersion) GetVersion() string {
+	return s.Version
+}
+
+// SetSeenAt sets the value of SeenAt.
+func (s *FindingsPostFindingsIDConfirmOKKnownVersion) SetSeenAt(val NilDateTime) {
+	s.SeenAt = val
+}
+
+// SetSoftware sets the value of Software.
+func (s *FindingsPostFindingsIDConfirmOKKnownVersion) SetSoftware(val string) {
+	s.Software = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDConfirmOKKnownVersion) SetSource(val FindingsPostFindingsIDConfirmOKKnownVersionSource) {
+	s.Source = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsPostFindingsIDConfirmOKKnownVersion) SetVersion(val string) {
+	s.Version = val
+}
+
+// Who gave the version: the device's agent, its answer to Vedette's SNMP read, its own statement on
+// the network (LLDP), a network scan, or a person on the Devices page.
+type FindingsPostFindingsIDConfirmOKKnownVersionSource string
+
+const (
+	FindingsPostFindingsIDConfirmOKKnownVersionSourceAgent  FindingsPostFindingsIDConfirmOKKnownVersionSource = "agent"
+	FindingsPostFindingsIDConfirmOKKnownVersionSourceSnmp   FindingsPostFindingsIDConfirmOKKnownVersionSource = "snmp"
+	FindingsPostFindingsIDConfirmOKKnownVersionSourceStated FindingsPostFindingsIDConfirmOKKnownVersionSource = "stated"
+	FindingsPostFindingsIDConfirmOKKnownVersionSourceScan   FindingsPostFindingsIDConfirmOKKnownVersionSource = "scan"
+	FindingsPostFindingsIDConfirmOKKnownVersionSourceManual FindingsPostFindingsIDConfirmOKKnownVersionSource = "manual"
+)
+
+// AllValues returns all FindingsPostFindingsIDConfirmOKKnownVersionSource values.
+func (FindingsPostFindingsIDConfirmOKKnownVersionSource) AllValues() []FindingsPostFindingsIDConfirmOKKnownVersionSource {
+	return []FindingsPostFindingsIDConfirmOKKnownVersionSource{
+		FindingsPostFindingsIDConfirmOKKnownVersionSourceAgent,
+		FindingsPostFindingsIDConfirmOKKnownVersionSourceSnmp,
+		FindingsPostFindingsIDConfirmOKKnownVersionSourceStated,
+		FindingsPostFindingsIDConfirmOKKnownVersionSourceScan,
+		FindingsPostFindingsIDConfirmOKKnownVersionSourceManual,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDConfirmOKKnownVersionSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDConfirmOKKnownVersionSourceAgent:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKKnownVersionSourceSnmp:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKKnownVersionSourceStated:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKKnownVersionSourceScan:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKKnownVersionSourceManual:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDConfirmOKKnownVersionSource) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDConfirmOKKnownVersionSource(data) {
+	case FindingsPostFindingsIDConfirmOKKnownVersionSourceAgent:
+		*s = FindingsPostFindingsIDConfirmOKKnownVersionSourceAgent
+		return nil
+	case FindingsPostFindingsIDConfirmOKKnownVersionSourceSnmp:
+		*s = FindingsPostFindingsIDConfirmOKKnownVersionSourceSnmp
+		return nil
+	case FindingsPostFindingsIDConfirmOKKnownVersionSourceStated:
+		*s = FindingsPostFindingsIDConfirmOKKnownVersionSourceStated
+		return nil
+	case FindingsPostFindingsIDConfirmOKKnownVersionSourceScan:
+		*s = FindingsPostFindingsIDConfirmOKKnownVersionSourceScan
+		return nil
+	case FindingsPostFindingsIDConfirmOKKnownVersionSourceManual:
+		*s = FindingsPostFindingsIDConfirmOKKnownVersionSourceManual
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDConfirmOKPack struct {
+	Checklist   []string                                          `json:"checklist"`
+	ConfirmedAt time.Time                                         `json:"confirmed_at"`
+	ConfirmedBy string                                            `json:"confirmed_by"`
+	Cve         string                                            `json:"cve"`
+	DraftedWith string                                            `json:"drafted_with"`
+	Firewall    []FindingsPostFindingsIDConfirmOKPackFirewallItem `json:"firewall"`
+	Patch       FindingsPostFindingsIDConfirmOKPackPatch          `json:"patch"`
+	Sources     []FindingsPostFindingsIDConfirmOKPackSourcesItem  `json:"sources"`
+	Workaround  FindingsPostFindingsIDConfirmOKPackWorkaround     `json:"workaround"`
+}
+
+// GetChecklist returns the value of Checklist.
+func (s *FindingsPostFindingsIDConfirmOKPack) GetChecklist() []string {
+	return s.Checklist
+}
+
+// GetConfirmedAt returns the value of ConfirmedAt.
+func (s *FindingsPostFindingsIDConfirmOKPack) GetConfirmedAt() time.Time {
+	return s.ConfirmedAt
+}
+
+// GetConfirmedBy returns the value of ConfirmedBy.
+func (s *FindingsPostFindingsIDConfirmOKPack) GetConfirmedBy() string {
+	return s.ConfirmedBy
+}
+
+// GetCve returns the value of Cve.
+func (s *FindingsPostFindingsIDConfirmOKPack) GetCve() string {
+	return s.Cve
+}
+
+// GetDraftedWith returns the value of DraftedWith.
+func (s *FindingsPostFindingsIDConfirmOKPack) GetDraftedWith() string {
+	return s.DraftedWith
+}
+
+// GetFirewall returns the value of Firewall.
+func (s *FindingsPostFindingsIDConfirmOKPack) GetFirewall() []FindingsPostFindingsIDConfirmOKPackFirewallItem {
+	return s.Firewall
+}
+
+// GetPatch returns the value of Patch.
+func (s *FindingsPostFindingsIDConfirmOKPack) GetPatch() FindingsPostFindingsIDConfirmOKPackPatch {
+	return s.Patch
+}
+
+// GetSources returns the value of Sources.
+func (s *FindingsPostFindingsIDConfirmOKPack) GetSources() []FindingsPostFindingsIDConfirmOKPackSourcesItem {
+	return s.Sources
+}
+
+// GetWorkaround returns the value of Workaround.
+func (s *FindingsPostFindingsIDConfirmOKPack) GetWorkaround() FindingsPostFindingsIDConfirmOKPackWorkaround {
+	return s.Workaround
+}
+
+// SetChecklist sets the value of Checklist.
+func (s *FindingsPostFindingsIDConfirmOKPack) SetChecklist(val []string) {
+	s.Checklist = val
+}
+
+// SetConfirmedAt sets the value of ConfirmedAt.
+func (s *FindingsPostFindingsIDConfirmOKPack) SetConfirmedAt(val time.Time) {
+	s.ConfirmedAt = val
+}
+
+// SetConfirmedBy sets the value of ConfirmedBy.
+func (s *FindingsPostFindingsIDConfirmOKPack) SetConfirmedBy(val string) {
+	s.ConfirmedBy = val
+}
+
+// SetCve sets the value of Cve.
+func (s *FindingsPostFindingsIDConfirmOKPack) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetDraftedWith sets the value of DraftedWith.
+func (s *FindingsPostFindingsIDConfirmOKPack) SetDraftedWith(val string) {
+	s.DraftedWith = val
+}
+
+// SetFirewall sets the value of Firewall.
+func (s *FindingsPostFindingsIDConfirmOKPack) SetFirewall(val []FindingsPostFindingsIDConfirmOKPackFirewallItem) {
+	s.Firewall = val
+}
+
+// SetPatch sets the value of Patch.
+func (s *FindingsPostFindingsIDConfirmOKPack) SetPatch(val FindingsPostFindingsIDConfirmOKPackPatch) {
+	s.Patch = val
+}
+
+// SetSources sets the value of Sources.
+func (s *FindingsPostFindingsIDConfirmOKPack) SetSources(val []FindingsPostFindingsIDConfirmOKPackSourcesItem) {
+	s.Sources = val
+}
+
+// SetWorkaround sets the value of Workaround.
+func (s *FindingsPostFindingsIDConfirmOKPack) SetWorkaround(val FindingsPostFindingsIDConfirmOKPackWorkaround) {
+	s.Workaround = val
+}
+
+type FindingsPostFindingsIDConfirmOKPackFirewallItem struct {
+	Alternative OptFindingsPostFindingsIDConfirmOKPackFirewallItemAlternative `json:"alternative"`
+	// The user declared a device of this vendor in the inventory.
+	Detected bool                                                        `json:"detected"`
+	Intro    string                                                      `json:"intro"`
+	Label    string                                                      `json:"label"`
+	Plain    []string                                                    `json:"plain"`
+	Steps    []FindingsPostFindingsIDConfirmOKPackFirewallItemStepsItem  `json:"steps"`
+	Undo     []FindingsPostFindingsIDConfirmOKPackFirewallItemUndoItem   `json:"undo"`
+	Vendor   FindingsPostFindingsIDConfirmOKPackFirewallItemVendor       `json:"vendor"`
+	Verify   []FindingsPostFindingsIDConfirmOKPackFirewallItemVerifyItem `json:"verify"`
+}
+
+// GetAlternative returns the value of Alternative.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItem) GetAlternative() OptFindingsPostFindingsIDConfirmOKPackFirewallItemAlternative {
+	return s.Alternative
+}
+
+// GetDetected returns the value of Detected.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItem) GetDetected() bool {
+	return s.Detected
+}
+
+// GetIntro returns the value of Intro.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItem) GetIntro() string {
+	return s.Intro
+}
+
+// GetLabel returns the value of Label.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItem) GetLabel() string {
+	return s.Label
+}
+
+// GetPlain returns the value of Plain.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItem) GetPlain() []string {
+	return s.Plain
+}
+
+// GetSteps returns the value of Steps.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItem) GetSteps() []FindingsPostFindingsIDConfirmOKPackFirewallItemStepsItem {
+	return s.Steps
+}
+
+// GetUndo returns the value of Undo.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItem) GetUndo() []FindingsPostFindingsIDConfirmOKPackFirewallItemUndoItem {
+	return s.Undo
+}
+
+// GetVendor returns the value of Vendor.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItem) GetVendor() FindingsPostFindingsIDConfirmOKPackFirewallItemVendor {
+	return s.Vendor
+}
+
+// GetVerify returns the value of Verify.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItem) GetVerify() []FindingsPostFindingsIDConfirmOKPackFirewallItemVerifyItem {
+	return s.Verify
+}
+
+// SetAlternative sets the value of Alternative.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItem) SetAlternative(val OptFindingsPostFindingsIDConfirmOKPackFirewallItemAlternative) {
+	s.Alternative = val
+}
+
+// SetDetected sets the value of Detected.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItem) SetDetected(val bool) {
+	s.Detected = val
+}
+
+// SetIntro sets the value of Intro.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItem) SetIntro(val string) {
+	s.Intro = val
+}
+
+// SetLabel sets the value of Label.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItem) SetLabel(val string) {
+	s.Label = val
+}
+
+// SetPlain sets the value of Plain.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItem) SetPlain(val []string) {
+	s.Plain = val
+}
+
+// SetSteps sets the value of Steps.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItem) SetSteps(val []FindingsPostFindingsIDConfirmOKPackFirewallItemStepsItem) {
+	s.Steps = val
+}
+
+// SetUndo sets the value of Undo.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItem) SetUndo(val []FindingsPostFindingsIDConfirmOKPackFirewallItemUndoItem) {
+	s.Undo = val
+}
+
+// SetVendor sets the value of Vendor.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItem) SetVendor(val FindingsPostFindingsIDConfirmOKPackFirewallItemVendor) {
+	s.Vendor = val
+}
+
+// SetVerify sets the value of Verify.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItem) SetVerify(val []FindingsPostFindingsIDConfirmOKPackFirewallItemVerifyItem) {
+	s.Verify = val
+}
+
+type FindingsPostFindingsIDConfirmOKPackFirewallItemAlternative struct {
+	Intro string                                                                `json:"intro"`
+	Steps []FindingsPostFindingsIDConfirmOKPackFirewallItemAlternativeStepsItem `json:"steps"`
+	Title string                                                                `json:"title"`
+}
+
+// GetIntro returns the value of Intro.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemAlternative) GetIntro() string {
+	return s.Intro
+}
+
+// GetSteps returns the value of Steps.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemAlternative) GetSteps() []FindingsPostFindingsIDConfirmOKPackFirewallItemAlternativeStepsItem {
+	return s.Steps
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemAlternative) GetTitle() string {
+	return s.Title
+}
+
+// SetIntro sets the value of Intro.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemAlternative) SetIntro(val string) {
+	s.Intro = val
+}
+
+// SetSteps sets the value of Steps.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemAlternative) SetSteps(val []FindingsPostFindingsIDConfirmOKPackFirewallItemAlternativeStepsItem) {
+	s.Steps = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemAlternative) SetTitle(val string) {
+	s.Title = val
+}
+
+type FindingsPostFindingsIDConfirmOKPackFirewallItemAlternativeStepsItem struct {
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
+	// Side effect that must be stated before the user pastes the command.
+	SideEffect OptString `json:"side_effect"`
+	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemAlternativeStepsItem) GetCheck() []string {
+	return s.Check
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemAlternativeStepsItem) GetCode() string {
+	return s.Code
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemAlternativeStepsItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemAlternativeStepsItem) GetSideEffect() OptString {
+	return s.SideEffect
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemAlternativeStepsItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemAlternativeStepsItem) SetCheck(val []string) {
+	s.Check = val
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemAlternativeStepsItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemAlternativeStepsItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemAlternativeStepsItem) SetSideEffect(val OptString) {
+	s.SideEffect = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemAlternativeStepsItem) SetTitle(val string) {
+	s.Title = val
+}
+
+type FindingsPostFindingsIDConfirmOKPackFirewallItemStepsItem struct {
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
+	// Side effect that must be stated before the user pastes the command.
+	SideEffect OptString `json:"side_effect"`
+	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemStepsItem) GetCheck() []string {
+	return s.Check
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemStepsItem) GetCode() string {
+	return s.Code
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemStepsItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemStepsItem) GetSideEffect() OptString {
+	return s.SideEffect
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemStepsItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemStepsItem) SetCheck(val []string) {
+	s.Check = val
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemStepsItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemStepsItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemStepsItem) SetSideEffect(val OptString) {
+	s.SideEffect = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemStepsItem) SetTitle(val string) {
+	s.Title = val
+}
+
+type FindingsPostFindingsIDConfirmOKPackFirewallItemUndoItem struct {
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
+	// Side effect that must be stated before the user pastes the command.
+	SideEffect OptString `json:"side_effect"`
+	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemUndoItem) GetCheck() []string {
+	return s.Check
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemUndoItem) GetCode() string {
+	return s.Code
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemUndoItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemUndoItem) GetSideEffect() OptString {
+	return s.SideEffect
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemUndoItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemUndoItem) SetCheck(val []string) {
+	s.Check = val
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemUndoItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemUndoItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemUndoItem) SetSideEffect(val OptString) {
+	s.SideEffect = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemUndoItem) SetTitle(val string) {
+	s.Title = val
+}
+
+type FindingsPostFindingsIDConfirmOKPackFirewallItemVendor string
+
+const (
+	FindingsPostFindingsIDConfirmOKPackFirewallItemVendorFortigate FindingsPostFindingsIDConfirmOKPackFirewallItemVendor = "fortigate"
+	FindingsPostFindingsIDConfirmOKPackFirewallItemVendorMikrotik  FindingsPostFindingsIDConfirmOKPackFirewallItemVendor = "mikrotik"
+	FindingsPostFindingsIDConfirmOKPackFirewallItemVendorGeneric   FindingsPostFindingsIDConfirmOKPackFirewallItemVendor = "generic"
+)
+
+// AllValues returns all FindingsPostFindingsIDConfirmOKPackFirewallItemVendor values.
+func (FindingsPostFindingsIDConfirmOKPackFirewallItemVendor) AllValues() []FindingsPostFindingsIDConfirmOKPackFirewallItemVendor {
+	return []FindingsPostFindingsIDConfirmOKPackFirewallItemVendor{
+		FindingsPostFindingsIDConfirmOKPackFirewallItemVendorFortigate,
+		FindingsPostFindingsIDConfirmOKPackFirewallItemVendorMikrotik,
+		FindingsPostFindingsIDConfirmOKPackFirewallItemVendorGeneric,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDConfirmOKPackFirewallItemVendor) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDConfirmOKPackFirewallItemVendorFortigate:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKPackFirewallItemVendorMikrotik:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKPackFirewallItemVendorGeneric:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemVendor) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDConfirmOKPackFirewallItemVendor(data) {
+	case FindingsPostFindingsIDConfirmOKPackFirewallItemVendorFortigate:
+		*s = FindingsPostFindingsIDConfirmOKPackFirewallItemVendorFortigate
+		return nil
+	case FindingsPostFindingsIDConfirmOKPackFirewallItemVendorMikrotik:
+		*s = FindingsPostFindingsIDConfirmOKPackFirewallItemVendorMikrotik
+		return nil
+	case FindingsPostFindingsIDConfirmOKPackFirewallItemVendorGeneric:
+		*s = FindingsPostFindingsIDConfirmOKPackFirewallItemVendorGeneric
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDConfirmOKPackFirewallItemVerifyItem struct {
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
+	// Side effect that must be stated before the user pastes the command.
+	SideEffect OptString `json:"side_effect"`
+	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemVerifyItem) GetCheck() []string {
+	return s.Check
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemVerifyItem) GetCode() string {
+	return s.Code
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemVerifyItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemVerifyItem) GetSideEffect() OptString {
+	return s.SideEffect
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemVerifyItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemVerifyItem) SetCheck(val []string) {
+	s.Check = val
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemVerifyItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemVerifyItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemVerifyItem) SetSideEffect(val OptString) {
+	s.SideEffect = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemVerifyItem) SetTitle(val string) {
+	s.Title = val
+}
+
+type FindingsPostFindingsIDConfirmOKPackPatch struct {
+	Fixed      string   `json:"fixed"`
+	SideEffect string   `json:"side_effect"`
+	Steps      []string `json:"steps"`
+	Summary    string   `json:"summary"`
+	URL        string   `json:"url"`
+}
+
+// GetFixed returns the value of Fixed.
+func (s *FindingsPostFindingsIDConfirmOKPackPatch) GetFixed() string {
+	return s.Fixed
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDConfirmOKPackPatch) GetSideEffect() string {
+	return s.SideEffect
+}
+
+// GetSteps returns the value of Steps.
+func (s *FindingsPostFindingsIDConfirmOKPackPatch) GetSteps() []string {
+	return s.Steps
+}
+
+// GetSummary returns the value of Summary.
+func (s *FindingsPostFindingsIDConfirmOKPackPatch) GetSummary() string {
+	return s.Summary
+}
+
+// GetURL returns the value of URL.
+func (s *FindingsPostFindingsIDConfirmOKPackPatch) GetURL() string {
+	return s.URL
+}
+
+// SetFixed sets the value of Fixed.
+func (s *FindingsPostFindingsIDConfirmOKPackPatch) SetFixed(val string) {
+	s.Fixed = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDConfirmOKPackPatch) SetSideEffect(val string) {
+	s.SideEffect = val
+}
+
+// SetSteps sets the value of Steps.
+func (s *FindingsPostFindingsIDConfirmOKPackPatch) SetSteps(val []string) {
+	s.Steps = val
+}
+
+// SetSummary sets the value of Summary.
+func (s *FindingsPostFindingsIDConfirmOKPackPatch) SetSummary(val string) {
+	s.Summary = val
+}
+
+// SetURL sets the value of URL.
+func (s *FindingsPostFindingsIDConfirmOKPackPatch) SetURL(val string) {
+	s.URL = val
+}
+
+type FindingsPostFindingsIDConfirmOKPackSourcesItem struct {
+	Title string `json:"title"`
+	URL   string `json:"url"`
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKPackSourcesItem) GetTitle() string {
+	return s.Title
+}
+
+// GetURL returns the value of URL.
+func (s *FindingsPostFindingsIDConfirmOKPackSourcesItem) GetURL() string {
+	return s.URL
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKPackSourcesItem) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetURL sets the value of URL.
+func (s *FindingsPostFindingsIDConfirmOKPackSourcesItem) SetURL(val string) {
+	s.URL = val
+}
+
+type FindingsPostFindingsIDConfirmOKPackWorkaround struct {
+	SideEffect string   `json:"side_effect"`
+	Steps      []string `json:"steps"`
+	Summary    string   `json:"summary"`
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDConfirmOKPackWorkaround) GetSideEffect() string {
+	return s.SideEffect
+}
+
+// GetSteps returns the value of Steps.
+func (s *FindingsPostFindingsIDConfirmOKPackWorkaround) GetSteps() []string {
+	return s.Steps
+}
+
+// GetSummary returns the value of Summary.
+func (s *FindingsPostFindingsIDConfirmOKPackWorkaround) GetSummary() string {
+	return s.Summary
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDConfirmOKPackWorkaround) SetSideEffect(val string) {
+	s.SideEffect = val
+}
+
+// SetSteps sets the value of Steps.
+func (s *FindingsPostFindingsIDConfirmOKPackWorkaround) SetSteps(val []string) {
+	s.Steps = val
+}
+
+// SetSummary sets the value of Summary.
+func (s *FindingsPostFindingsIDConfirmOKPackWorkaround) SetSummary(val string) {
+	s.Summary = val
+}
+
+type FindingsPostFindingsIDConfirmOKRecheck struct {
+	Code  OptString `json:"code"`
+	Steps []string  `json:"steps"`
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDConfirmOKRecheck) GetCode() OptString {
+	return s.Code
+}
+
+// GetSteps returns the value of Steps.
+func (s *FindingsPostFindingsIDConfirmOKRecheck) GetSteps() []string {
+	return s.Steps
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDConfirmOKRecheck) SetCode(val OptString) {
+	s.Code = val
+}
+
+// SetSteps sets the value of Steps.
+func (s *FindingsPostFindingsIDConfirmOKRecheck) SetSteps(val []string) {
+	s.Steps = val
+}
+
+type FindingsPostFindingsIDConfirmOKSeverity string
+
+const (
+	FindingsPostFindingsIDConfirmOKSeverityCritical FindingsPostFindingsIDConfirmOKSeverity = "critical"
+	FindingsPostFindingsIDConfirmOKSeverityHigh     FindingsPostFindingsIDConfirmOKSeverity = "high"
+	FindingsPostFindingsIDConfirmOKSeverityMedium   FindingsPostFindingsIDConfirmOKSeverity = "medium"
+	FindingsPostFindingsIDConfirmOKSeverityLow      FindingsPostFindingsIDConfirmOKSeverity = "low"
+	FindingsPostFindingsIDConfirmOKSeverityInfo     FindingsPostFindingsIDConfirmOKSeverity = "info"
+)
+
+// AllValues returns all FindingsPostFindingsIDConfirmOKSeverity values.
+func (FindingsPostFindingsIDConfirmOKSeverity) AllValues() []FindingsPostFindingsIDConfirmOKSeverity {
+	return []FindingsPostFindingsIDConfirmOKSeverity{
+		FindingsPostFindingsIDConfirmOKSeverityCritical,
+		FindingsPostFindingsIDConfirmOKSeverityHigh,
+		FindingsPostFindingsIDConfirmOKSeverityMedium,
+		FindingsPostFindingsIDConfirmOKSeverityLow,
+		FindingsPostFindingsIDConfirmOKSeverityInfo,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDConfirmOKSeverity) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDConfirmOKSeverityCritical:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKSeverityHigh:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKSeverityMedium:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKSeverityLow:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKSeverityInfo:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDConfirmOKSeverity) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDConfirmOKSeverity(data) {
+	case FindingsPostFindingsIDConfirmOKSeverityCritical:
+		*s = FindingsPostFindingsIDConfirmOKSeverityCritical
+		return nil
+	case FindingsPostFindingsIDConfirmOKSeverityHigh:
+		*s = FindingsPostFindingsIDConfirmOKSeverityHigh
+		return nil
+	case FindingsPostFindingsIDConfirmOKSeverityMedium:
+		*s = FindingsPostFindingsIDConfirmOKSeverityMedium
+		return nil
+	case FindingsPostFindingsIDConfirmOKSeverityLow:
+		*s = FindingsPostFindingsIDConfirmOKSeverityLow
+		return nil
+	case FindingsPostFindingsIDConfirmOKSeverityInfo:
+		*s = FindingsPostFindingsIDConfirmOKSeverityInfo
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDConfirmOKStatus string
+
+const (
+	FindingsPostFindingsIDConfirmOKStatusConfirmed     FindingsPostFindingsIDConfirmOKStatus = "confirmed"
+	FindingsPostFindingsIDConfirmOKStatusSuspected     FindingsPostFindingsIDConfirmOKStatus = "suspected"
+	FindingsPostFindingsIDConfirmOKStatusMitigated     FindingsPostFindingsIDConfirmOKStatus = "mitigated"
+	FindingsPostFindingsIDConfirmOKStatusPatched       FindingsPostFindingsIDConfirmOKStatus = "patched"
+	FindingsPostFindingsIDConfirmOKStatusFalsePositive FindingsPostFindingsIDConfirmOKStatus = "false_positive"
+	FindingsPostFindingsIDConfirmOKStatusNotRelevant   FindingsPostFindingsIDConfirmOKStatus = "not_relevant"
+	FindingsPostFindingsIDConfirmOKStatusRiskAccepted  FindingsPostFindingsIDConfirmOKStatus = "risk_accepted"
+)
+
+// AllValues returns all FindingsPostFindingsIDConfirmOKStatus values.
+func (FindingsPostFindingsIDConfirmOKStatus) AllValues() []FindingsPostFindingsIDConfirmOKStatus {
+	return []FindingsPostFindingsIDConfirmOKStatus{
+		FindingsPostFindingsIDConfirmOKStatusConfirmed,
+		FindingsPostFindingsIDConfirmOKStatusSuspected,
+		FindingsPostFindingsIDConfirmOKStatusMitigated,
+		FindingsPostFindingsIDConfirmOKStatusPatched,
+		FindingsPostFindingsIDConfirmOKStatusFalsePositive,
+		FindingsPostFindingsIDConfirmOKStatusNotRelevant,
+		FindingsPostFindingsIDConfirmOKStatusRiskAccepted,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDConfirmOKStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDConfirmOKStatusConfirmed:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKStatusSuspected:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKStatusMitigated:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKStatusPatched:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKStatusFalsePositive:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKStatusNotRelevant:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKStatusRiskAccepted:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDConfirmOKStatus) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDConfirmOKStatus(data) {
+	case FindingsPostFindingsIDConfirmOKStatusConfirmed:
+		*s = FindingsPostFindingsIDConfirmOKStatusConfirmed
+		return nil
+	case FindingsPostFindingsIDConfirmOKStatusSuspected:
+		*s = FindingsPostFindingsIDConfirmOKStatusSuspected
+		return nil
+	case FindingsPostFindingsIDConfirmOKStatusMitigated:
+		*s = FindingsPostFindingsIDConfirmOKStatusMitigated
+		return nil
+	case FindingsPostFindingsIDConfirmOKStatusPatched:
+		*s = FindingsPostFindingsIDConfirmOKStatusPatched
+		return nil
+	case FindingsPostFindingsIDConfirmOKStatusFalsePositive:
+		*s = FindingsPostFindingsIDConfirmOKStatusFalsePositive
+		return nil
+	case FindingsPostFindingsIDConfirmOKStatusNotRelevant:
+		*s = FindingsPostFindingsIDConfirmOKStatusNotRelevant
+		return nil
+	case FindingsPostFindingsIDConfirmOKStatusRiskAccepted:
+		*s = FindingsPostFindingsIDConfirmOKStatusRiskAccepted
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDConfirmReq struct {
+	Note string `json:"note"`
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDConfirmReq) GetNote() string {
+	return s.Note
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDConfirmReq) SetNote(val string) {
+	s.Note = val
+}
+
 type FindingsPostFindingsIDStatusOK struct {
 	// Risk_accepted only: the last day of the acceptance (UTC); the finding reopens by itself after it.
 	AcceptedUntil NilDate                          `json:"accepted_until"`
@@ -89019,8 +93145,8 @@ type FindingsPostFindingsIDStatusOK struct {
 	Applied     []FindingsPostFindingsIDStatusOKAppliedItem `json:"applied"`
 	Asset       NilFindingsPostFindingsIDStatusOKAsset      `json:"asset"`
 	AssetID     string                                      `json:"asset_id"`
-	// Scan = confirmed by a scan template; version = suspected by version; product = only the product
-	// matches.
+	// Scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version
+	// = suspected by version; product = only the product matches.
 	Basis      FindingsPostFindingsIDStatusOKBasis         `json:"basis"`
 	Compromise NilFindingsPostFindingsIDStatusOKCompromise `json:"compromise"`
 	Confidence float64                                     `json:"confidence"`
@@ -89069,6 +93195,10 @@ type FindingsPostFindingsIDStatusOK struct {
 	// reaches an older finding. Never guessed from the product.
 	SoftwareID string                               `json:"software_id"`
 	Status     FindingsPostFindingsIDStatusOKStatus `json:"status"`
+	// A suspected finding only: why it is not confirmed and what would confirm it, in words (who stated
+	// the version, whether a vulnerability check exists for the CVE and whether the scan reaches the
+	// device); null for any other status.
+	SuspectedWhy NilString `json:"suspected_why"`
 }
 
 // GetAcceptedUntil returns the value of AcceptedUntil.
@@ -89226,6 +93356,11 @@ func (s *FindingsPostFindingsIDStatusOK) GetStatus() FindingsPostFindingsIDStatu
 	return s.Status
 }
 
+// GetSuspectedWhy returns the value of SuspectedWhy.
+func (s *FindingsPostFindingsIDStatusOK) GetSuspectedWhy() NilString {
+	return s.SuspectedWhy
+}
+
 // SetAcceptedUntil sets the value of AcceptedUntil.
 func (s *FindingsPostFindingsIDStatusOK) SetAcceptedUntil(val NilDate) {
 	s.AcceptedUntil = val
@@ -89379,6 +93514,11 @@ func (s *FindingsPostFindingsIDStatusOK) SetSoftwareID(val string) {
 // SetStatus sets the value of Status.
 func (s *FindingsPostFindingsIDStatusOK) SetStatus(val FindingsPostFindingsIDStatusOKStatus) {
 	s.Status = val
+}
+
+// SetSuspectedWhy sets the value of SuspectedWhy.
+func (s *FindingsPostFindingsIDStatusOK) SetSuspectedWhy(val NilString) {
+	s.SuspectedWhy = val
 }
 
 type FindingsPostFindingsIDStatusOKAi struct {
@@ -90762,14 +94902,15 @@ func (s *FindingsPostFindingsIDStatusOKAssetKind) UnmarshalText(data []byte) err
 	}
 }
 
-// Scan = confirmed by a scan template; version = suspected by version; product = only the product
-// matches.
+// Scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version
+// = suspected by version; product = only the product matches.
 type FindingsPostFindingsIDStatusOKBasis string
 
 const (
 	FindingsPostFindingsIDStatusOKBasisScan    FindingsPostFindingsIDStatusOKBasis = "scan"
 	FindingsPostFindingsIDStatusOKBasisVersion FindingsPostFindingsIDStatusOKBasis = "version"
 	FindingsPostFindingsIDStatusOKBasisProduct FindingsPostFindingsIDStatusOKBasis = "product"
+	FindingsPostFindingsIDStatusOKBasisPerson  FindingsPostFindingsIDStatusOKBasis = "person"
 )
 
 // AllValues returns all FindingsPostFindingsIDStatusOKBasis values.
@@ -90778,6 +94919,7 @@ func (FindingsPostFindingsIDStatusOKBasis) AllValues() []FindingsPostFindingsIDS
 		FindingsPostFindingsIDStatusOKBasisScan,
 		FindingsPostFindingsIDStatusOKBasisVersion,
 		FindingsPostFindingsIDStatusOKBasisProduct,
+		FindingsPostFindingsIDStatusOKBasisPerson,
 	}
 }
 
@@ -90789,6 +94931,8 @@ func (s FindingsPostFindingsIDStatusOKBasis) MarshalText() ([]byte, error) {
 	case FindingsPostFindingsIDStatusOKBasisVersion:
 		return []byte(s), nil
 	case FindingsPostFindingsIDStatusOKBasisProduct:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKBasisPerson:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -90806,6 +94950,9 @@ func (s *FindingsPostFindingsIDStatusOKBasis) UnmarshalText(data []byte) error {
 		return nil
 	case FindingsPostFindingsIDStatusOKBasisProduct:
 		*s = FindingsPostFindingsIDStatusOKBasisProduct
+		return nil
+	case FindingsPostFindingsIDStatusOKBasisPerson:
+		*s = FindingsPostFindingsIDStatusOKBasisPerson
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -93132,6 +97279,4048 @@ func (s *FindingsPostFindingsIDStatusReqAction) UnmarshalText(data []byte) error
 		return nil
 	case FindingsPostFindingsIDStatusReqActionReopen:
 		*s = FindingsPostFindingsIDStatusReqActionReopen
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDUnconfirmOK struct {
+	// Risk_accepted only: the last day of the acceptance (UTC); the finding reopens by itself after it.
+	AcceptedUntil NilDate                             `json:"accepted_until"`
+	Ai            FindingsPostFindingsIDUnconfirmOKAi `json:"ai"`
+	// Whether an AI profile is assigned and allowed for each job.
+	AiAvailable FindingsPostFindingsIDUnconfirmOKAiAvailable   `json:"ai_available"`
+	Applied     []FindingsPostFindingsIDUnconfirmOKAppliedItem `json:"applied"`
+	Asset       NilFindingsPostFindingsIDUnconfirmOKAsset      `json:"asset"`
+	AssetID     string                                         `json:"asset_id"`
+	// Scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version
+	// = suspected by version; product = only the product matches.
+	Basis      FindingsPostFindingsIDUnconfirmOKBasis         `json:"basis"`
+	Compromise NilFindingsPostFindingsIDUnconfirmOKCompromise `json:"compromise"`
+	Confidence float64                                        `json:"confidence"`
+	Cve        string                                         `json:"cve"`
+	// Null = no CVSS score known: the pages say "No score", never 0.
+	Cvss     NilFindingsPostFindingsIDUnconfirmOKCvss     `json:"cvss"`
+	Evidence NilFindingsPostFindingsIDUnconfirmOKEvidence `json:"evidence"`
+	// When Vedette first matched this vulnerability to the device.
+	FirstSeen time.Time `json:"first_seen"`
+	// GET /findings only, open findings: the update that fixes it with others; null when there is none to
+	// name.
+	Fix OptNilFindingsPostFindingsIDUnconfirmOKFix `json:"fix"`
+	// The release that fixes this finding on this device, from the NVD affected versions; null = NVD gives
+	// none, the page shows CISA and the vendor advisory only.
+	FixedIn NilFindingsPostFindingsIDUnconfirmOKFixedIn `json:"fixed_in"`
+	// Null when the confirmed pack has its own compromise signs, or mitigation is off.
+	Hardening NilFindingsPostFindingsIDUnconfirmOKHardening  `json:"hardening"`
+	History   []FindingsPostFindingsIDUnconfirmOKHistoryItem `json:"history"`
+	ID        string                                         `json:"id"`
+	// Read from KEV, not from the project recommendation pack.
+	Kev NilFindingsPostFindingsIDUnconfirmOKKev `json:"kev"`
+	// Null when the matched software has no version or its source is not known.
+	KnownVersion NilFindingsPostFindingsIDUnconfirmOKKnownVersion `json:"known_version"`
+	// When Vedette last matched it: each re-match (after a change to the device's software, and every
+	// hour) or scan that still finds it moves it. Not when the device or its software was last seen;
+	// known_version.seen_at says when the version was reported.
+	LastSeen time.Time `json:"last_seen"`
+	// Null = no recommendation confirmed by Vedette maintainers yet.
+	Pack NilFindingsPostFindingsIDUnconfirmOKPack `json:"pack"`
+	// A finding closed by proof (resolution_reason set): the version or package release the matcher
+	// compared to rule it out, as the device row gives it; null when the closure compared none (name only,
+	// age, an open platform question, another platform) or it is not closed by Vedette. An entry a person
+	// typed closed it only when this equals the entry.
+	ProvedVersion  NilString                                `json:"proved_version"`
+	Recheck        FindingsPostFindingsIDUnconfirmOKRecheck `json:"recheck"`
+	ResolutionNote NilString                                `json:"resolution_note"`
+	// Not_affected_version when Vedette closed the finding by itself (a matcher proof, or one of its rules
+	// that compares no version); null for a person's own action and for open findings. A string, not an
+	// enum: a new reason must not break the list.
+	ResolutionReason NilString                                 `json:"resolution_reason"`
+	ResolvedAt       NilDateTime                               `json:"resolved_at"`
+	ResolvedBy       NilString                                 `json:"resolved_by"`
+	Severity         FindingsPostFindingsIDUnconfirmOKSeverity `json:"severity"`
+	// The device's software row the matcher matched the finding on (the id FindingRow.fix.group and
+	// ToFixAction use), stored when it opens, touches or closes the finding; "" until the next match
+	// reaches an older finding. Never guessed from the product.
+	SoftwareID string                                  `json:"software_id"`
+	Status     FindingsPostFindingsIDUnconfirmOKStatus `json:"status"`
+	// A suspected finding only: why it is not confirmed and what would confirm it, in words (who stated
+	// the version, whether a vulnerability check exists for the CVE and whether the scan reaches the
+	// device); null for any other status.
+	SuspectedWhy NilString `json:"suspected_why"`
+}
+
+// GetAcceptedUntil returns the value of AcceptedUntil.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetAcceptedUntil() NilDate {
+	return s.AcceptedUntil
+}
+
+// GetAi returns the value of Ai.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetAi() FindingsPostFindingsIDUnconfirmOKAi {
+	return s.Ai
+}
+
+// GetAiAvailable returns the value of AiAvailable.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetAiAvailable() FindingsPostFindingsIDUnconfirmOKAiAvailable {
+	return s.AiAvailable
+}
+
+// GetApplied returns the value of Applied.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetApplied() []FindingsPostFindingsIDUnconfirmOKAppliedItem {
+	return s.Applied
+}
+
+// GetAsset returns the value of Asset.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetAsset() NilFindingsPostFindingsIDUnconfirmOKAsset {
+	return s.Asset
+}
+
+// GetAssetID returns the value of AssetID.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetAssetID() string {
+	return s.AssetID
+}
+
+// GetBasis returns the value of Basis.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetBasis() FindingsPostFindingsIDUnconfirmOKBasis {
+	return s.Basis
+}
+
+// GetCompromise returns the value of Compromise.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetCompromise() NilFindingsPostFindingsIDUnconfirmOKCompromise {
+	return s.Compromise
+}
+
+// GetConfidence returns the value of Confidence.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetConfidence() float64 {
+	return s.Confidence
+}
+
+// GetCve returns the value of Cve.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetCve() string {
+	return s.Cve
+}
+
+// GetCvss returns the value of Cvss.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetCvss() NilFindingsPostFindingsIDUnconfirmOKCvss {
+	return s.Cvss
+}
+
+// GetEvidence returns the value of Evidence.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetEvidence() NilFindingsPostFindingsIDUnconfirmOKEvidence {
+	return s.Evidence
+}
+
+// GetFirstSeen returns the value of FirstSeen.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetFirstSeen() time.Time {
+	return s.FirstSeen
+}
+
+// GetFix returns the value of Fix.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetFix() OptNilFindingsPostFindingsIDUnconfirmOKFix {
+	return s.Fix
+}
+
+// GetFixedIn returns the value of FixedIn.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetFixedIn() NilFindingsPostFindingsIDUnconfirmOKFixedIn {
+	return s.FixedIn
+}
+
+// GetHardening returns the value of Hardening.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetHardening() NilFindingsPostFindingsIDUnconfirmOKHardening {
+	return s.Hardening
+}
+
+// GetHistory returns the value of History.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetHistory() []FindingsPostFindingsIDUnconfirmOKHistoryItem {
+	return s.History
+}
+
+// GetID returns the value of ID.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetID() string {
+	return s.ID
+}
+
+// GetKev returns the value of Kev.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetKev() NilFindingsPostFindingsIDUnconfirmOKKev {
+	return s.Kev
+}
+
+// GetKnownVersion returns the value of KnownVersion.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetKnownVersion() NilFindingsPostFindingsIDUnconfirmOKKnownVersion {
+	return s.KnownVersion
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetLastSeen() time.Time {
+	return s.LastSeen
+}
+
+// GetPack returns the value of Pack.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetPack() NilFindingsPostFindingsIDUnconfirmOKPack {
+	return s.Pack
+}
+
+// GetProvedVersion returns the value of ProvedVersion.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetProvedVersion() NilString {
+	return s.ProvedVersion
+}
+
+// GetRecheck returns the value of Recheck.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetRecheck() FindingsPostFindingsIDUnconfirmOKRecheck {
+	return s.Recheck
+}
+
+// GetResolutionNote returns the value of ResolutionNote.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetResolutionNote() NilString {
+	return s.ResolutionNote
+}
+
+// GetResolutionReason returns the value of ResolutionReason.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetResolutionReason() NilString {
+	return s.ResolutionReason
+}
+
+// GetResolvedAt returns the value of ResolvedAt.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetResolvedAt() NilDateTime {
+	return s.ResolvedAt
+}
+
+// GetResolvedBy returns the value of ResolvedBy.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetResolvedBy() NilString {
+	return s.ResolvedBy
+}
+
+// GetSeverity returns the value of Severity.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetSeverity() FindingsPostFindingsIDUnconfirmOKSeverity {
+	return s.Severity
+}
+
+// GetSoftwareID returns the value of SoftwareID.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetSoftwareID() string {
+	return s.SoftwareID
+}
+
+// GetStatus returns the value of Status.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetStatus() FindingsPostFindingsIDUnconfirmOKStatus {
+	return s.Status
+}
+
+// GetSuspectedWhy returns the value of SuspectedWhy.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetSuspectedWhy() NilString {
+	return s.SuspectedWhy
+}
+
+// SetAcceptedUntil sets the value of AcceptedUntil.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetAcceptedUntil(val NilDate) {
+	s.AcceptedUntil = val
+}
+
+// SetAi sets the value of Ai.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetAi(val FindingsPostFindingsIDUnconfirmOKAi) {
+	s.Ai = val
+}
+
+// SetAiAvailable sets the value of AiAvailable.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetAiAvailable(val FindingsPostFindingsIDUnconfirmOKAiAvailable) {
+	s.AiAvailable = val
+}
+
+// SetApplied sets the value of Applied.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetApplied(val []FindingsPostFindingsIDUnconfirmOKAppliedItem) {
+	s.Applied = val
+}
+
+// SetAsset sets the value of Asset.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetAsset(val NilFindingsPostFindingsIDUnconfirmOKAsset) {
+	s.Asset = val
+}
+
+// SetAssetID sets the value of AssetID.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetAssetID(val string) {
+	s.AssetID = val
+}
+
+// SetBasis sets the value of Basis.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetBasis(val FindingsPostFindingsIDUnconfirmOKBasis) {
+	s.Basis = val
+}
+
+// SetCompromise sets the value of Compromise.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetCompromise(val NilFindingsPostFindingsIDUnconfirmOKCompromise) {
+	s.Compromise = val
+}
+
+// SetConfidence sets the value of Confidence.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetConfidence(val float64) {
+	s.Confidence = val
+}
+
+// SetCve sets the value of Cve.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetCvss sets the value of Cvss.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetCvss(val NilFindingsPostFindingsIDUnconfirmOKCvss) {
+	s.Cvss = val
+}
+
+// SetEvidence sets the value of Evidence.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetEvidence(val NilFindingsPostFindingsIDUnconfirmOKEvidence) {
+	s.Evidence = val
+}
+
+// SetFirstSeen sets the value of FirstSeen.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetFirstSeen(val time.Time) {
+	s.FirstSeen = val
+}
+
+// SetFix sets the value of Fix.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetFix(val OptNilFindingsPostFindingsIDUnconfirmOKFix) {
+	s.Fix = val
+}
+
+// SetFixedIn sets the value of FixedIn.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetFixedIn(val NilFindingsPostFindingsIDUnconfirmOKFixedIn) {
+	s.FixedIn = val
+}
+
+// SetHardening sets the value of Hardening.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetHardening(val NilFindingsPostFindingsIDUnconfirmOKHardening) {
+	s.Hardening = val
+}
+
+// SetHistory sets the value of History.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetHistory(val []FindingsPostFindingsIDUnconfirmOKHistoryItem) {
+	s.History = val
+}
+
+// SetID sets the value of ID.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetID(val string) {
+	s.ID = val
+}
+
+// SetKev sets the value of Kev.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetKev(val NilFindingsPostFindingsIDUnconfirmOKKev) {
+	s.Kev = val
+}
+
+// SetKnownVersion sets the value of KnownVersion.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetKnownVersion(val NilFindingsPostFindingsIDUnconfirmOKKnownVersion) {
+	s.KnownVersion = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetLastSeen(val time.Time) {
+	s.LastSeen = val
+}
+
+// SetPack sets the value of Pack.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetPack(val NilFindingsPostFindingsIDUnconfirmOKPack) {
+	s.Pack = val
+}
+
+// SetProvedVersion sets the value of ProvedVersion.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetProvedVersion(val NilString) {
+	s.ProvedVersion = val
+}
+
+// SetRecheck sets the value of Recheck.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetRecheck(val FindingsPostFindingsIDUnconfirmOKRecheck) {
+	s.Recheck = val
+}
+
+// SetResolutionNote sets the value of ResolutionNote.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetResolutionNote(val NilString) {
+	s.ResolutionNote = val
+}
+
+// SetResolutionReason sets the value of ResolutionReason.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetResolutionReason(val NilString) {
+	s.ResolutionReason = val
+}
+
+// SetResolvedAt sets the value of ResolvedAt.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetResolvedAt(val NilDateTime) {
+	s.ResolvedAt = val
+}
+
+// SetResolvedBy sets the value of ResolvedBy.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetResolvedBy(val NilString) {
+	s.ResolvedBy = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetSeverity(val FindingsPostFindingsIDUnconfirmOKSeverity) {
+	s.Severity = val
+}
+
+// SetSoftwareID sets the value of SoftwareID.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetSoftwareID(val string) {
+	s.SoftwareID = val
+}
+
+// SetStatus sets the value of Status.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetStatus(val FindingsPostFindingsIDUnconfirmOKStatus) {
+	s.Status = val
+}
+
+// SetSuspectedWhy sets the value of SuspectedWhy.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetSuspectedWhy(val NilString) {
+	s.SuspectedWhy = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKAi struct {
+	Config  NilFindingsPostFindingsIDUnconfirmOKAiConfig  `json:"config"`
+	Explain NilFindingsPostFindingsIDUnconfirmOKAiExplain `json:"explain"`
+}
+
+// GetConfig returns the value of Config.
+func (s *FindingsPostFindingsIDUnconfirmOKAi) GetConfig() NilFindingsPostFindingsIDUnconfirmOKAiConfig {
+	return s.Config
+}
+
+// GetExplain returns the value of Explain.
+func (s *FindingsPostFindingsIDUnconfirmOKAi) GetExplain() NilFindingsPostFindingsIDUnconfirmOKAiExplain {
+	return s.Explain
+}
+
+// SetConfig sets the value of Config.
+func (s *FindingsPostFindingsIDUnconfirmOKAi) SetConfig(val NilFindingsPostFindingsIDUnconfirmOKAiConfig) {
+	s.Config = val
+}
+
+// SetExplain sets the value of Explain.
+func (s *FindingsPostFindingsIDUnconfirmOKAi) SetExplain(val NilFindingsPostFindingsIDUnconfirmOKAiExplain) {
+	s.Explain = val
+}
+
+// Whether an AI profile is assigned and allowed for each job.
+type FindingsPostFindingsIDUnconfirmOKAiAvailable struct {
+	Config  bool `json:"config"`
+	Explain bool `json:"explain"`
+}
+
+// GetConfig returns the value of Config.
+func (s *FindingsPostFindingsIDUnconfirmOKAiAvailable) GetConfig() bool {
+	return s.Config
+}
+
+// GetExplain returns the value of Explain.
+func (s *FindingsPostFindingsIDUnconfirmOKAiAvailable) GetExplain() bool {
+	return s.Explain
+}
+
+// SetConfig sets the value of Config.
+func (s *FindingsPostFindingsIDUnconfirmOKAiAvailable) SetConfig(val bool) {
+	s.Config = val
+}
+
+// SetExplain sets the value of Explain.
+func (s *FindingsPostFindingsIDUnconfirmOKAiAvailable) SetExplain(val bool) {
+	s.Explain = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKAiConfig struct {
+	Citations []FindingsPostFindingsIDUnconfirmOKAiConfigCitationsItem `json:"citations"`
+	// Mitigation-config: config blocks to paste as they are, the device's own workaround first, then a
+	// rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based
+	// on, `side_effect` what it can break. Absent for explain and for answers stored before.
+	Configs []FindingsPostFindingsIDUnconfirmOKAiConfigConfigsItem `json:"configs"`
+	Model   string                                                 `json:"model"`
+	// #897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding
+	// (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's
+	// words; the page shows it where the configuration would be.
+	NoConfigReason OptString `json:"no_config_reason"`
+	Paragraphs     []string  `json:"paragraphs"`
+	// Name of the AI profile that answered.
+	Profile OptString `json:"profile"`
+	// A part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never
+	// in the middle of one) or a config block was left out whole.
+	Shortened OptBool                                         `json:"shortened"`
+	Skill     FindingsPostFindingsIDUnconfirmOKAiConfigSkill  `json:"skill"`
+	Steps     []string                                        `json:"steps"`
+	Tokens    FindingsPostFindingsIDUnconfirmOKAiConfigTokens `json:"tokens"`
+	Ts        time.Time                                       `json:"ts"`
+}
+
+// GetCitations returns the value of Citations.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) GetCitations() []FindingsPostFindingsIDUnconfirmOKAiConfigCitationsItem {
+	return s.Citations
+}
+
+// GetConfigs returns the value of Configs.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) GetConfigs() []FindingsPostFindingsIDUnconfirmOKAiConfigConfigsItem {
+	return s.Configs
+}
+
+// GetModel returns the value of Model.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) GetModel() string {
+	return s.Model
+}
+
+// GetNoConfigReason returns the value of NoConfigReason.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) GetNoConfigReason() OptString {
+	return s.NoConfigReason
+}
+
+// GetParagraphs returns the value of Paragraphs.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) GetParagraphs() []string {
+	return s.Paragraphs
+}
+
+// GetProfile returns the value of Profile.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) GetProfile() OptString {
+	return s.Profile
+}
+
+// GetShortened returns the value of Shortened.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) GetShortened() OptBool {
+	return s.Shortened
+}
+
+// GetSkill returns the value of Skill.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) GetSkill() FindingsPostFindingsIDUnconfirmOKAiConfigSkill {
+	return s.Skill
+}
+
+// GetSteps returns the value of Steps.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) GetSteps() []string {
+	return s.Steps
+}
+
+// GetTokens returns the value of Tokens.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) GetTokens() FindingsPostFindingsIDUnconfirmOKAiConfigTokens {
+	return s.Tokens
+}
+
+// GetTs returns the value of Ts.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) GetTs() time.Time {
+	return s.Ts
+}
+
+// SetCitations sets the value of Citations.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) SetCitations(val []FindingsPostFindingsIDUnconfirmOKAiConfigCitationsItem) {
+	s.Citations = val
+}
+
+// SetConfigs sets the value of Configs.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) SetConfigs(val []FindingsPostFindingsIDUnconfirmOKAiConfigConfigsItem) {
+	s.Configs = val
+}
+
+// SetModel sets the value of Model.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) SetModel(val string) {
+	s.Model = val
+}
+
+// SetNoConfigReason sets the value of NoConfigReason.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) SetNoConfigReason(val OptString) {
+	s.NoConfigReason = val
+}
+
+// SetParagraphs sets the value of Paragraphs.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) SetParagraphs(val []string) {
+	s.Paragraphs = val
+}
+
+// SetProfile sets the value of Profile.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) SetProfile(val OptString) {
+	s.Profile = val
+}
+
+// SetShortened sets the value of Shortened.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) SetShortened(val OptBool) {
+	s.Shortened = val
+}
+
+// SetSkill sets the value of Skill.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) SetSkill(val FindingsPostFindingsIDUnconfirmOKAiConfigSkill) {
+	s.Skill = val
+}
+
+// SetSteps sets the value of Steps.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) SetSteps(val []string) {
+	s.Steps = val
+}
+
+// SetTokens sets the value of Tokens.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) SetTokens(val FindingsPostFindingsIDUnconfirmOKAiConfigTokens) {
+	s.Tokens = val
+}
+
+// SetTs sets the value of Ts.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) SetTs(val time.Time) {
+	s.Ts = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKAiConfigCitationsItem struct {
+	Title string    `json:"title"`
+	URL   OptString `json:"url"`
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigCitationsItem) GetTitle() string {
+	return s.Title
+}
+
+// GetURL returns the value of URL.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigCitationsItem) GetURL() OptString {
+	return s.URL
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigCitationsItem) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetURL sets the value of URL.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigCitationsItem) SetURL(val OptString) {
+	s.URL = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKAiConfigConfigsItem struct {
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
+	// Side effect that must be stated before the user pastes the command.
+	SideEffect OptString `json:"side_effect"`
+	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigConfigsItem) GetCheck() []string {
+	return s.Check
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigConfigsItem) GetCode() string {
+	return s.Code
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigConfigsItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigConfigsItem) GetSideEffect() OptString {
+	return s.SideEffect
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigConfigsItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigConfigsItem) SetCheck(val []string) {
+	s.Check = val
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigConfigsItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigConfigsItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigConfigsItem) SetSideEffect(val OptString) {
+	s.SideEffect = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigConfigsItem) SetTitle(val string) {
+	s.Title = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKAiConfigSkill string
+
+const (
+	FindingsPostFindingsIDUnconfirmOKAiConfigSkillExplain          FindingsPostFindingsIDUnconfirmOKAiConfigSkill = "explain"
+	FindingsPostFindingsIDUnconfirmOKAiConfigSkillMitigationConfig FindingsPostFindingsIDUnconfirmOKAiConfigSkill = "mitigation-config"
+)
+
+// AllValues returns all FindingsPostFindingsIDUnconfirmOKAiConfigSkill values.
+func (FindingsPostFindingsIDUnconfirmOKAiConfigSkill) AllValues() []FindingsPostFindingsIDUnconfirmOKAiConfigSkill {
+	return []FindingsPostFindingsIDUnconfirmOKAiConfigSkill{
+		FindingsPostFindingsIDUnconfirmOKAiConfigSkillExplain,
+		FindingsPostFindingsIDUnconfirmOKAiConfigSkillMitigationConfig,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDUnconfirmOKAiConfigSkill) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDUnconfirmOKAiConfigSkillExplain:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAiConfigSkillMitigationConfig:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigSkill) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDUnconfirmOKAiConfigSkill(data) {
+	case FindingsPostFindingsIDUnconfirmOKAiConfigSkillExplain:
+		*s = FindingsPostFindingsIDUnconfirmOKAiConfigSkillExplain
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAiConfigSkillMitigationConfig:
+		*s = FindingsPostFindingsIDUnconfirmOKAiConfigSkillMitigationConfig
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDUnconfirmOKAiConfigTokens struct {
+	Input  float64 `json:"input"`
+	Output float64 `json:"output"`
+}
+
+// GetInput returns the value of Input.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigTokens) GetInput() float64 {
+	return s.Input
+}
+
+// GetOutput returns the value of Output.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigTokens) GetOutput() float64 {
+	return s.Output
+}
+
+// SetInput sets the value of Input.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigTokens) SetInput(val float64) {
+	s.Input = val
+}
+
+// SetOutput sets the value of Output.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigTokens) SetOutput(val float64) {
+	s.Output = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKAiExplain struct {
+	Citations []FindingsPostFindingsIDUnconfirmOKAiExplainCitationsItem `json:"citations"`
+	// Mitigation-config: config blocks to paste as they are, the device's own workaround first, then a
+	// rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based
+	// on, `side_effect` what it can break. Absent for explain and for answers stored before.
+	Configs []FindingsPostFindingsIDUnconfirmOKAiExplainConfigsItem `json:"configs"`
+	Model   string                                                  `json:"model"`
+	// #897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding
+	// (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's
+	// words; the page shows it where the configuration would be.
+	NoConfigReason OptString `json:"no_config_reason"`
+	Paragraphs     []string  `json:"paragraphs"`
+	// Name of the AI profile that answered.
+	Profile OptString `json:"profile"`
+	// A part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never
+	// in the middle of one) or a config block was left out whole.
+	Shortened OptBool                                          `json:"shortened"`
+	Skill     FindingsPostFindingsIDUnconfirmOKAiExplainSkill  `json:"skill"`
+	Steps     []string                                         `json:"steps"`
+	Tokens    FindingsPostFindingsIDUnconfirmOKAiExplainTokens `json:"tokens"`
+	Ts        time.Time                                        `json:"ts"`
+}
+
+// GetCitations returns the value of Citations.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) GetCitations() []FindingsPostFindingsIDUnconfirmOKAiExplainCitationsItem {
+	return s.Citations
+}
+
+// GetConfigs returns the value of Configs.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) GetConfigs() []FindingsPostFindingsIDUnconfirmOKAiExplainConfigsItem {
+	return s.Configs
+}
+
+// GetModel returns the value of Model.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) GetModel() string {
+	return s.Model
+}
+
+// GetNoConfigReason returns the value of NoConfigReason.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) GetNoConfigReason() OptString {
+	return s.NoConfigReason
+}
+
+// GetParagraphs returns the value of Paragraphs.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) GetParagraphs() []string {
+	return s.Paragraphs
+}
+
+// GetProfile returns the value of Profile.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) GetProfile() OptString {
+	return s.Profile
+}
+
+// GetShortened returns the value of Shortened.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) GetShortened() OptBool {
+	return s.Shortened
+}
+
+// GetSkill returns the value of Skill.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) GetSkill() FindingsPostFindingsIDUnconfirmOKAiExplainSkill {
+	return s.Skill
+}
+
+// GetSteps returns the value of Steps.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) GetSteps() []string {
+	return s.Steps
+}
+
+// GetTokens returns the value of Tokens.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) GetTokens() FindingsPostFindingsIDUnconfirmOKAiExplainTokens {
+	return s.Tokens
+}
+
+// GetTs returns the value of Ts.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) GetTs() time.Time {
+	return s.Ts
+}
+
+// SetCitations sets the value of Citations.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) SetCitations(val []FindingsPostFindingsIDUnconfirmOKAiExplainCitationsItem) {
+	s.Citations = val
+}
+
+// SetConfigs sets the value of Configs.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) SetConfigs(val []FindingsPostFindingsIDUnconfirmOKAiExplainConfigsItem) {
+	s.Configs = val
+}
+
+// SetModel sets the value of Model.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) SetModel(val string) {
+	s.Model = val
+}
+
+// SetNoConfigReason sets the value of NoConfigReason.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) SetNoConfigReason(val OptString) {
+	s.NoConfigReason = val
+}
+
+// SetParagraphs sets the value of Paragraphs.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) SetParagraphs(val []string) {
+	s.Paragraphs = val
+}
+
+// SetProfile sets the value of Profile.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) SetProfile(val OptString) {
+	s.Profile = val
+}
+
+// SetShortened sets the value of Shortened.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) SetShortened(val OptBool) {
+	s.Shortened = val
+}
+
+// SetSkill sets the value of Skill.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) SetSkill(val FindingsPostFindingsIDUnconfirmOKAiExplainSkill) {
+	s.Skill = val
+}
+
+// SetSteps sets the value of Steps.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) SetSteps(val []string) {
+	s.Steps = val
+}
+
+// SetTokens sets the value of Tokens.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) SetTokens(val FindingsPostFindingsIDUnconfirmOKAiExplainTokens) {
+	s.Tokens = val
+}
+
+// SetTs sets the value of Ts.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) SetTs(val time.Time) {
+	s.Ts = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKAiExplainCitationsItem struct {
+	Title string    `json:"title"`
+	URL   OptString `json:"url"`
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainCitationsItem) GetTitle() string {
+	return s.Title
+}
+
+// GetURL returns the value of URL.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainCitationsItem) GetURL() OptString {
+	return s.URL
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainCitationsItem) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetURL sets the value of URL.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainCitationsItem) SetURL(val OptString) {
+	s.URL = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKAiExplainConfigsItem struct {
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
+	// Side effect that must be stated before the user pastes the command.
+	SideEffect OptString `json:"side_effect"`
+	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainConfigsItem) GetCheck() []string {
+	return s.Check
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainConfigsItem) GetCode() string {
+	return s.Code
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainConfigsItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainConfigsItem) GetSideEffect() OptString {
+	return s.SideEffect
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainConfigsItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainConfigsItem) SetCheck(val []string) {
+	s.Check = val
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainConfigsItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainConfigsItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainConfigsItem) SetSideEffect(val OptString) {
+	s.SideEffect = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainConfigsItem) SetTitle(val string) {
+	s.Title = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKAiExplainSkill string
+
+const (
+	FindingsPostFindingsIDUnconfirmOKAiExplainSkillExplain          FindingsPostFindingsIDUnconfirmOKAiExplainSkill = "explain"
+	FindingsPostFindingsIDUnconfirmOKAiExplainSkillMitigationConfig FindingsPostFindingsIDUnconfirmOKAiExplainSkill = "mitigation-config"
+)
+
+// AllValues returns all FindingsPostFindingsIDUnconfirmOKAiExplainSkill values.
+func (FindingsPostFindingsIDUnconfirmOKAiExplainSkill) AllValues() []FindingsPostFindingsIDUnconfirmOKAiExplainSkill {
+	return []FindingsPostFindingsIDUnconfirmOKAiExplainSkill{
+		FindingsPostFindingsIDUnconfirmOKAiExplainSkillExplain,
+		FindingsPostFindingsIDUnconfirmOKAiExplainSkillMitigationConfig,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDUnconfirmOKAiExplainSkill) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDUnconfirmOKAiExplainSkillExplain:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAiExplainSkillMitigationConfig:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainSkill) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDUnconfirmOKAiExplainSkill(data) {
+	case FindingsPostFindingsIDUnconfirmOKAiExplainSkillExplain:
+		*s = FindingsPostFindingsIDUnconfirmOKAiExplainSkillExplain
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAiExplainSkillMitigationConfig:
+		*s = FindingsPostFindingsIDUnconfirmOKAiExplainSkillMitigationConfig
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDUnconfirmOKAiExplainTokens struct {
+	Input  float64 `json:"input"`
+	Output float64 `json:"output"`
+}
+
+// GetInput returns the value of Input.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainTokens) GetInput() float64 {
+	return s.Input
+}
+
+// GetOutput returns the value of Output.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainTokens) GetOutput() float64 {
+	return s.Output
+}
+
+// SetInput sets the value of Input.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainTokens) SetInput(val float64) {
+	s.Input = val
+}
+
+// SetOutput sets the value of Output.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainTokens) SetOutput(val float64) {
+	s.Output = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKAppliedItem struct {
+	Item string    `json:"item"`
+	Ts   time.Time `json:"ts"`
+	User string    `json:"user"`
+}
+
+// GetItem returns the value of Item.
+func (s *FindingsPostFindingsIDUnconfirmOKAppliedItem) GetItem() string {
+	return s.Item
+}
+
+// GetTs returns the value of Ts.
+func (s *FindingsPostFindingsIDUnconfirmOKAppliedItem) GetTs() time.Time {
+	return s.Ts
+}
+
+// GetUser returns the value of User.
+func (s *FindingsPostFindingsIDUnconfirmOKAppliedItem) GetUser() string {
+	return s.User
+}
+
+// SetItem sets the value of Item.
+func (s *FindingsPostFindingsIDUnconfirmOKAppliedItem) SetItem(val string) {
+	s.Item = val
+}
+
+// SetTs sets the value of Ts.
+func (s *FindingsPostFindingsIDUnconfirmOKAppliedItem) SetTs(val time.Time) {
+	s.Ts = val
+}
+
+// SetUser sets the value of User.
+func (s *FindingsPostFindingsIDUnconfirmOKAppliedItem) SetUser(val string) {
+	s.User = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKAsset struct {
+	Display  string    `json:"display"`
+	Hostname NilString `json:"hostname"`
+	ID       string    `json:"id"`
+	// "—" when the device has no IP address.
+	IP   string                                     `json:"ip"`
+	Kind FindingsPostFindingsIDUnconfirmOKAssetKind `json:"kind"`
+	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
+	// never the internal id.
+	Name string `json:"name"`
+}
+
+// GetDisplay returns the value of Display.
+func (s *FindingsPostFindingsIDUnconfirmOKAsset) GetDisplay() string {
+	return s.Display
+}
+
+// GetHostname returns the value of Hostname.
+func (s *FindingsPostFindingsIDUnconfirmOKAsset) GetHostname() NilString {
+	return s.Hostname
+}
+
+// GetID returns the value of ID.
+func (s *FindingsPostFindingsIDUnconfirmOKAsset) GetID() string {
+	return s.ID
+}
+
+// GetIP returns the value of IP.
+func (s *FindingsPostFindingsIDUnconfirmOKAsset) GetIP() string {
+	return s.IP
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsPostFindingsIDUnconfirmOKAsset) GetKind() FindingsPostFindingsIDUnconfirmOKAssetKind {
+	return s.Kind
+}
+
+// GetName returns the value of Name.
+func (s *FindingsPostFindingsIDUnconfirmOKAsset) GetName() string {
+	return s.Name
+}
+
+// SetDisplay sets the value of Display.
+func (s *FindingsPostFindingsIDUnconfirmOKAsset) SetDisplay(val string) {
+	s.Display = val
+}
+
+// SetHostname sets the value of Hostname.
+func (s *FindingsPostFindingsIDUnconfirmOKAsset) SetHostname(val NilString) {
+	s.Hostname = val
+}
+
+// SetID sets the value of ID.
+func (s *FindingsPostFindingsIDUnconfirmOKAsset) SetID(val string) {
+	s.ID = val
+}
+
+// SetIP sets the value of IP.
+func (s *FindingsPostFindingsIDUnconfirmOKAsset) SetIP(val string) {
+	s.IP = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsPostFindingsIDUnconfirmOKAsset) SetKind(val FindingsPostFindingsIDUnconfirmOKAssetKind) {
+	s.Kind = val
+}
+
+// SetName sets the value of Name.
+func (s *FindingsPostFindingsIDUnconfirmOKAsset) SetName(val string) {
+	s.Name = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKAssetKind string
+
+const (
+	FindingsPostFindingsIDUnconfirmOKAssetKindRouter              FindingsPostFindingsIDUnconfirmOKAssetKind = "router"
+	FindingsPostFindingsIDUnconfirmOKAssetKindSwitch              FindingsPostFindingsIDUnconfirmOKAssetKind = "switch"
+	FindingsPostFindingsIDUnconfirmOKAssetKindModem               FindingsPostFindingsIDUnconfirmOKAssetKind = "modem"
+	FindingsPostFindingsIDUnconfirmOKAssetKindSdWan               FindingsPostFindingsIDUnconfirmOKAssetKind = "sd_wan"
+	FindingsPostFindingsIDUnconfirmOKAssetKindLoadBalancer        FindingsPostFindingsIDUnconfirmOKAssetKind = "load_balancer"
+	FindingsPostFindingsIDUnconfirmOKAssetKindNetworkController   FindingsPostFindingsIDUnconfirmOKAssetKind = "network_controller"
+	FindingsPostFindingsIDUnconfirmOKAssetKindFirewall            FindingsPostFindingsIDUnconfirmOKAssetKind = "firewall"
+	FindingsPostFindingsIDUnconfirmOKAssetKindVpnGateway          FindingsPostFindingsIDUnconfirmOKAssetKind = "vpn_gateway"
+	FindingsPostFindingsIDUnconfirmOKAssetKindIdsSensor           FindingsPostFindingsIDUnconfirmOKAssetKind = "ids_sensor"
+	FindingsPostFindingsIDUnconfirmOKAssetKindProxy               FindingsPostFindingsIDUnconfirmOKAssetKind = "proxy"
+	FindingsPostFindingsIDUnconfirmOKAssetKindAp                  FindingsPostFindingsIDUnconfirmOKAssetKind = "ap"
+	FindingsPostFindingsIDUnconfirmOKAssetKindWirelessController  FindingsPostFindingsIDUnconfirmOKAssetKind = "wireless_controller"
+	FindingsPostFindingsIDUnconfirmOKAssetKindWifiExtender        FindingsPostFindingsIDUnconfirmOKAssetKind = "wifi_extender"
+	FindingsPostFindingsIDUnconfirmOKAssetKindMeshNode            FindingsPostFindingsIDUnconfirmOKAssetKind = "mesh_node"
+	FindingsPostFindingsIDUnconfirmOKAssetKindServer              FindingsPostFindingsIDUnconfirmOKAssetKind = "server"
+	FindingsPostFindingsIDUnconfirmOKAssetKindVirtualMachine      FindingsPostFindingsIDUnconfirmOKAssetKind = "virtual_machine"
+	FindingsPostFindingsIDUnconfirmOKAssetKindHypervisor          FindingsPostFindingsIDUnconfirmOKAssetKind = "hypervisor"
+	FindingsPostFindingsIDUnconfirmOKAssetKindBmc                 FindingsPostFindingsIDUnconfirmOKAssetKind = "bmc"
+	FindingsPostFindingsIDUnconfirmOKAssetKindDomainController    FindingsPostFindingsIDUnconfirmOKAssetKind = "domain_controller"
+	FindingsPostFindingsIDUnconfirmOKAssetKindMailServer          FindingsPostFindingsIDUnconfirmOKAssetKind = "mail_server"
+	FindingsPostFindingsIDUnconfirmOKAssetKindDatabaseServer      FindingsPostFindingsIDUnconfirmOKAssetKind = "database_server"
+	FindingsPostFindingsIDUnconfirmOKAssetKindBackupServer        FindingsPostFindingsIDUnconfirmOKAssetKind = "backup_server"
+	FindingsPostFindingsIDUnconfirmOKAssetKindPc                  FindingsPostFindingsIDUnconfirmOKAssetKind = "pc"
+	FindingsPostFindingsIDUnconfirmOKAssetKindLaptop              FindingsPostFindingsIDUnconfirmOKAssetKind = "laptop"
+	FindingsPostFindingsIDUnconfirmOKAssetKindWorkstation         FindingsPostFindingsIDUnconfirmOKAssetKind = "workstation"
+	FindingsPostFindingsIDUnconfirmOKAssetKindThinClient          FindingsPostFindingsIDUnconfirmOKAssetKind = "thin_client"
+	FindingsPostFindingsIDUnconfirmOKAssetKindPosTerminal         FindingsPostFindingsIDUnconfirmOKAssetKind = "pos_terminal"
+	FindingsPostFindingsIDUnconfirmOKAssetKindKiosk               FindingsPostFindingsIDUnconfirmOKAssetKind = "kiosk"
+	FindingsPostFindingsIDUnconfirmOKAssetKindSmartphone          FindingsPostFindingsIDUnconfirmOKAssetKind = "smartphone"
+	FindingsPostFindingsIDUnconfirmOKAssetKindTablet              FindingsPostFindingsIDUnconfirmOKAssetKind = "tablet"
+	FindingsPostFindingsIDUnconfirmOKAssetKindSmartwatch          FindingsPostFindingsIDUnconfirmOKAssetKind = "smartwatch"
+	FindingsPostFindingsIDUnconfirmOKAssetKindPrinter             FindingsPostFindingsIDUnconfirmOKAssetKind = "printer"
+	FindingsPostFindingsIDUnconfirmOKAssetKindMfp                 FindingsPostFindingsIDUnconfirmOKAssetKind = "mfp"
+	FindingsPostFindingsIDUnconfirmOKAssetKindScanner             FindingsPostFindingsIDUnconfirmOKAssetKind = "scanner"
+	FindingsPostFindingsIDUnconfirmOKAssetKindLabelPrinter        FindingsPostFindingsIDUnconfirmOKAssetKind = "label_printer"
+	FindingsPostFindingsIDUnconfirmOKAssetKindReceiptPrinter      FindingsPostFindingsIDUnconfirmOKAssetKind = "receipt_printer"
+	FindingsPostFindingsIDUnconfirmOKAssetKindPlotter             FindingsPostFindingsIDUnconfirmOKAssetKind = "plotter"
+	FindingsPostFindingsIDUnconfirmOKAssetKind3dPrinter           FindingsPostFindingsIDUnconfirmOKAssetKind = "3d_printer"
+	FindingsPostFindingsIDUnconfirmOKAssetKindCamera              FindingsPostFindingsIDUnconfirmOKAssetKind = "camera"
+	FindingsPostFindingsIDUnconfirmOKAssetKindNvr                 FindingsPostFindingsIDUnconfirmOKAssetKind = "nvr"
+	FindingsPostFindingsIDUnconfirmOKAssetKindDvr                 FindingsPostFindingsIDUnconfirmOKAssetKind = "dvr"
+	FindingsPostFindingsIDUnconfirmOKAssetKindVideoEncoder        FindingsPostFindingsIDUnconfirmOKAssetKind = "video_encoder"
+	FindingsPostFindingsIDUnconfirmOKAssetKindDoorbell            FindingsPostFindingsIDUnconfirmOKAssetKind = "doorbell"
+	FindingsPostFindingsIDUnconfirmOKAssetKindVideoConferencing   FindingsPostFindingsIDUnconfirmOKAssetKind = "video_conferencing"
+	FindingsPostFindingsIDUnconfirmOKAssetKindIPPhone             FindingsPostFindingsIDUnconfirmOKAssetKind = "ip_phone"
+	FindingsPostFindingsIDUnconfirmOKAssetKindPbx                 FindingsPostFindingsIDUnconfirmOKAssetKind = "pbx"
+	FindingsPostFindingsIDUnconfirmOKAssetKindVoipAdapter         FindingsPostFindingsIDUnconfirmOKAssetKind = "voip_adapter"
+	FindingsPostFindingsIDUnconfirmOKAssetKindVoipGateway         FindingsPostFindingsIDUnconfirmOKAssetKind = "voip_gateway"
+	FindingsPostFindingsIDUnconfirmOKAssetKindConferencePhone     FindingsPostFindingsIDUnconfirmOKAssetKind = "conference_phone"
+	FindingsPostFindingsIDUnconfirmOKAssetKindIntercom            FindingsPostFindingsIDUnconfirmOKAssetKind = "intercom"
+	FindingsPostFindingsIDUnconfirmOKAssetKindNas                 FindingsPostFindingsIDUnconfirmOKAssetKind = "nas"
+	FindingsPostFindingsIDUnconfirmOKAssetKindSan                 FindingsPostFindingsIDUnconfirmOKAssetKind = "san"
+	FindingsPostFindingsIDUnconfirmOKAssetKindBackupAppliance     FindingsPostFindingsIDUnconfirmOKAssetKind = "backup_appliance"
+	FindingsPostFindingsIDUnconfirmOKAssetKindTapeLibrary         FindingsPostFindingsIDUnconfirmOKAssetKind = "tape_library"
+	FindingsPostFindingsIDUnconfirmOKAssetKindIot                 FindingsPostFindingsIDUnconfirmOKAssetKind = "iot"
+	FindingsPostFindingsIDUnconfirmOKAssetKindSmartTv             FindingsPostFindingsIDUnconfirmOKAssetKind = "smart_tv"
+	FindingsPostFindingsIDUnconfirmOKAssetKindMediaPlayer         FindingsPostFindingsIDUnconfirmOKAssetKind = "media_player"
+	FindingsPostFindingsIDUnconfirmOKAssetKindSmartSpeaker        FindingsPostFindingsIDUnconfirmOKAssetKind = "smart_speaker"
+	FindingsPostFindingsIDUnconfirmOKAssetKindGameConsole         FindingsPostFindingsIDUnconfirmOKAssetKind = "game_console"
+	FindingsPostFindingsIDUnconfirmOKAssetKindSmartPlug           FindingsPostFindingsIDUnconfirmOKAssetKind = "smart_plug"
+	FindingsPostFindingsIDUnconfirmOKAssetKindSmartLight          FindingsPostFindingsIDUnconfirmOKAssetKind = "smart_light"
+	FindingsPostFindingsIDUnconfirmOKAssetKindSmartHub            FindingsPostFindingsIDUnconfirmOKAssetKind = "smart_hub"
+	FindingsPostFindingsIDUnconfirmOKAssetKindThermostat          FindingsPostFindingsIDUnconfirmOKAssetKind = "thermostat"
+	FindingsPostFindingsIDUnconfirmOKAssetKindProjector           FindingsPostFindingsIDUnconfirmOKAssetKind = "projector"
+	FindingsPostFindingsIDUnconfirmOKAssetKindDigitalSignage      FindingsPostFindingsIDUnconfirmOKAssetKind = "digital_signage"
+	FindingsPostFindingsIDUnconfirmOKAssetKindSingleBoardComputer FindingsPostFindingsIDUnconfirmOKAssetKind = "single_board_computer"
+	FindingsPostFindingsIDUnconfirmOKAssetKindSmartAppliance      FindingsPostFindingsIDUnconfirmOKAssetKind = "smart_appliance"
+	FindingsPostFindingsIDUnconfirmOKAssetKindRobotVacuum         FindingsPostFindingsIDUnconfirmOKAssetKind = "robot_vacuum"
+	FindingsPostFindingsIDUnconfirmOKAssetKindWirelessBridge      FindingsPostFindingsIDUnconfirmOKAssetKind = "wireless_bridge"
+	FindingsPostFindingsIDUnconfirmOKAssetKindPlc                 FindingsPostFindingsIDUnconfirmOKAssetKind = "plc"
+	FindingsPostFindingsIDUnconfirmOKAssetKindHmi                 FindingsPostFindingsIDUnconfirmOKAssetKind = "hmi"
+	FindingsPostFindingsIDUnconfirmOKAssetKindRtu                 FindingsPostFindingsIDUnconfirmOKAssetKind = "rtu"
+	FindingsPostFindingsIDUnconfirmOKAssetKindScadaServer         FindingsPostFindingsIDUnconfirmOKAssetKind = "scada_server"
+	FindingsPostFindingsIDUnconfirmOKAssetKindIndustrialSwitch    FindingsPostFindingsIDUnconfirmOKAssetKind = "industrial_switch"
+	FindingsPostFindingsIDUnconfirmOKAssetKindUps                 FindingsPostFindingsIDUnconfirmOKAssetKind = "ups"
+	FindingsPostFindingsIDUnconfirmOKAssetKindPdu                 FindingsPostFindingsIDUnconfirmOKAssetKind = "pdu"
+	FindingsPostFindingsIDUnconfirmOKAssetKindAccessControl       FindingsPostFindingsIDUnconfirmOKAssetKind = "access_control"
+	FindingsPostFindingsIDUnconfirmOKAssetKindTimeClock           FindingsPostFindingsIDUnconfirmOKAssetKind = "time_clock"
+	FindingsPostFindingsIDUnconfirmOKAssetKindAlarmPanel          FindingsPostFindingsIDUnconfirmOKAssetKind = "alarm_panel"
+	FindingsPostFindingsIDUnconfirmOKAssetKindHvacController      FindingsPostFindingsIDUnconfirmOKAssetKind = "hvac_controller"
+	FindingsPostFindingsIDUnconfirmOKAssetKindBuildingController  FindingsPostFindingsIDUnconfirmOKAssetKind = "building_controller"
+	FindingsPostFindingsIDUnconfirmOKAssetKindPowerMeter          FindingsPostFindingsIDUnconfirmOKAssetKind = "power_meter"
+	FindingsPostFindingsIDUnconfirmOKAssetKindEnvironmentMonitor  FindingsPostFindingsIDUnconfirmOKAssetKind = "environment_monitor"
+	FindingsPostFindingsIDUnconfirmOKAssetKindEvCharger           FindingsPostFindingsIDUnconfirmOKAssetKind = "ev_charger"
+	FindingsPostFindingsIDUnconfirmOKAssetKindSolarInverter       FindingsPostFindingsIDUnconfirmOKAssetKind = "solar_inverter"
+	FindingsPostFindingsIDUnconfirmOKAssetKindMedicalDevice       FindingsPostFindingsIDUnconfirmOKAssetKind = "medical_device"
+	FindingsPostFindingsIDUnconfirmOKAssetKindWeb                 FindingsPostFindingsIDUnconfirmOKAssetKind = "web"
+	FindingsPostFindingsIDUnconfirmOKAssetKindCloudService        FindingsPostFindingsIDUnconfirmOKAssetKind = "cloud_service"
+	FindingsPostFindingsIDUnconfirmOKAssetKindUnknown             FindingsPostFindingsIDUnconfirmOKAssetKind = "unknown"
+)
+
+// AllValues returns all FindingsPostFindingsIDUnconfirmOKAssetKind values.
+func (FindingsPostFindingsIDUnconfirmOKAssetKind) AllValues() []FindingsPostFindingsIDUnconfirmOKAssetKind {
+	return []FindingsPostFindingsIDUnconfirmOKAssetKind{
+		FindingsPostFindingsIDUnconfirmOKAssetKindRouter,
+		FindingsPostFindingsIDUnconfirmOKAssetKindSwitch,
+		FindingsPostFindingsIDUnconfirmOKAssetKindModem,
+		FindingsPostFindingsIDUnconfirmOKAssetKindSdWan,
+		FindingsPostFindingsIDUnconfirmOKAssetKindLoadBalancer,
+		FindingsPostFindingsIDUnconfirmOKAssetKindNetworkController,
+		FindingsPostFindingsIDUnconfirmOKAssetKindFirewall,
+		FindingsPostFindingsIDUnconfirmOKAssetKindVpnGateway,
+		FindingsPostFindingsIDUnconfirmOKAssetKindIdsSensor,
+		FindingsPostFindingsIDUnconfirmOKAssetKindProxy,
+		FindingsPostFindingsIDUnconfirmOKAssetKindAp,
+		FindingsPostFindingsIDUnconfirmOKAssetKindWirelessController,
+		FindingsPostFindingsIDUnconfirmOKAssetKindWifiExtender,
+		FindingsPostFindingsIDUnconfirmOKAssetKindMeshNode,
+		FindingsPostFindingsIDUnconfirmOKAssetKindServer,
+		FindingsPostFindingsIDUnconfirmOKAssetKindVirtualMachine,
+		FindingsPostFindingsIDUnconfirmOKAssetKindHypervisor,
+		FindingsPostFindingsIDUnconfirmOKAssetKindBmc,
+		FindingsPostFindingsIDUnconfirmOKAssetKindDomainController,
+		FindingsPostFindingsIDUnconfirmOKAssetKindMailServer,
+		FindingsPostFindingsIDUnconfirmOKAssetKindDatabaseServer,
+		FindingsPostFindingsIDUnconfirmOKAssetKindBackupServer,
+		FindingsPostFindingsIDUnconfirmOKAssetKindPc,
+		FindingsPostFindingsIDUnconfirmOKAssetKindLaptop,
+		FindingsPostFindingsIDUnconfirmOKAssetKindWorkstation,
+		FindingsPostFindingsIDUnconfirmOKAssetKindThinClient,
+		FindingsPostFindingsIDUnconfirmOKAssetKindPosTerminal,
+		FindingsPostFindingsIDUnconfirmOKAssetKindKiosk,
+		FindingsPostFindingsIDUnconfirmOKAssetKindSmartphone,
+		FindingsPostFindingsIDUnconfirmOKAssetKindTablet,
+		FindingsPostFindingsIDUnconfirmOKAssetKindSmartwatch,
+		FindingsPostFindingsIDUnconfirmOKAssetKindPrinter,
+		FindingsPostFindingsIDUnconfirmOKAssetKindMfp,
+		FindingsPostFindingsIDUnconfirmOKAssetKindScanner,
+		FindingsPostFindingsIDUnconfirmOKAssetKindLabelPrinter,
+		FindingsPostFindingsIDUnconfirmOKAssetKindReceiptPrinter,
+		FindingsPostFindingsIDUnconfirmOKAssetKindPlotter,
+		FindingsPostFindingsIDUnconfirmOKAssetKind3dPrinter,
+		FindingsPostFindingsIDUnconfirmOKAssetKindCamera,
+		FindingsPostFindingsIDUnconfirmOKAssetKindNvr,
+		FindingsPostFindingsIDUnconfirmOKAssetKindDvr,
+		FindingsPostFindingsIDUnconfirmOKAssetKindVideoEncoder,
+		FindingsPostFindingsIDUnconfirmOKAssetKindDoorbell,
+		FindingsPostFindingsIDUnconfirmOKAssetKindVideoConferencing,
+		FindingsPostFindingsIDUnconfirmOKAssetKindIPPhone,
+		FindingsPostFindingsIDUnconfirmOKAssetKindPbx,
+		FindingsPostFindingsIDUnconfirmOKAssetKindVoipAdapter,
+		FindingsPostFindingsIDUnconfirmOKAssetKindVoipGateway,
+		FindingsPostFindingsIDUnconfirmOKAssetKindConferencePhone,
+		FindingsPostFindingsIDUnconfirmOKAssetKindIntercom,
+		FindingsPostFindingsIDUnconfirmOKAssetKindNas,
+		FindingsPostFindingsIDUnconfirmOKAssetKindSan,
+		FindingsPostFindingsIDUnconfirmOKAssetKindBackupAppliance,
+		FindingsPostFindingsIDUnconfirmOKAssetKindTapeLibrary,
+		FindingsPostFindingsIDUnconfirmOKAssetKindIot,
+		FindingsPostFindingsIDUnconfirmOKAssetKindSmartTv,
+		FindingsPostFindingsIDUnconfirmOKAssetKindMediaPlayer,
+		FindingsPostFindingsIDUnconfirmOKAssetKindSmartSpeaker,
+		FindingsPostFindingsIDUnconfirmOKAssetKindGameConsole,
+		FindingsPostFindingsIDUnconfirmOKAssetKindSmartPlug,
+		FindingsPostFindingsIDUnconfirmOKAssetKindSmartLight,
+		FindingsPostFindingsIDUnconfirmOKAssetKindSmartHub,
+		FindingsPostFindingsIDUnconfirmOKAssetKindThermostat,
+		FindingsPostFindingsIDUnconfirmOKAssetKindProjector,
+		FindingsPostFindingsIDUnconfirmOKAssetKindDigitalSignage,
+		FindingsPostFindingsIDUnconfirmOKAssetKindSingleBoardComputer,
+		FindingsPostFindingsIDUnconfirmOKAssetKindSmartAppliance,
+		FindingsPostFindingsIDUnconfirmOKAssetKindRobotVacuum,
+		FindingsPostFindingsIDUnconfirmOKAssetKindWirelessBridge,
+		FindingsPostFindingsIDUnconfirmOKAssetKindPlc,
+		FindingsPostFindingsIDUnconfirmOKAssetKindHmi,
+		FindingsPostFindingsIDUnconfirmOKAssetKindRtu,
+		FindingsPostFindingsIDUnconfirmOKAssetKindScadaServer,
+		FindingsPostFindingsIDUnconfirmOKAssetKindIndustrialSwitch,
+		FindingsPostFindingsIDUnconfirmOKAssetKindUps,
+		FindingsPostFindingsIDUnconfirmOKAssetKindPdu,
+		FindingsPostFindingsIDUnconfirmOKAssetKindAccessControl,
+		FindingsPostFindingsIDUnconfirmOKAssetKindTimeClock,
+		FindingsPostFindingsIDUnconfirmOKAssetKindAlarmPanel,
+		FindingsPostFindingsIDUnconfirmOKAssetKindHvacController,
+		FindingsPostFindingsIDUnconfirmOKAssetKindBuildingController,
+		FindingsPostFindingsIDUnconfirmOKAssetKindPowerMeter,
+		FindingsPostFindingsIDUnconfirmOKAssetKindEnvironmentMonitor,
+		FindingsPostFindingsIDUnconfirmOKAssetKindEvCharger,
+		FindingsPostFindingsIDUnconfirmOKAssetKindSolarInverter,
+		FindingsPostFindingsIDUnconfirmOKAssetKindMedicalDevice,
+		FindingsPostFindingsIDUnconfirmOKAssetKindWeb,
+		FindingsPostFindingsIDUnconfirmOKAssetKindCloudService,
+		FindingsPostFindingsIDUnconfirmOKAssetKindUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDUnconfirmOKAssetKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDUnconfirmOKAssetKindRouter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSwitch:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindModem:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSdWan:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindLoadBalancer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindNetworkController:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindFirewall:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindVpnGateway:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindIdsSensor:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindProxy:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindAp:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindWirelessController:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindWifiExtender:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindMeshNode:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindServer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindVirtualMachine:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindHypervisor:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindBmc:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindDomainController:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindMailServer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindDatabaseServer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindBackupServer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindPc:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindLaptop:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindWorkstation:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindThinClient:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindPosTerminal:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindKiosk:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSmartphone:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindTablet:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSmartwatch:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindPrinter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindMfp:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindScanner:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindLabelPrinter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindReceiptPrinter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindPlotter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKind3dPrinter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindCamera:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindNvr:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindDvr:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindVideoEncoder:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindDoorbell:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindVideoConferencing:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindIPPhone:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindPbx:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindVoipAdapter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindVoipGateway:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindConferencePhone:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindIntercom:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindNas:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSan:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindBackupAppliance:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindTapeLibrary:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindIot:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSmartTv:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindMediaPlayer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSmartSpeaker:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindGameConsole:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSmartPlug:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSmartLight:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSmartHub:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindThermostat:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindProjector:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindDigitalSignage:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSingleBoardComputer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSmartAppliance:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindRobotVacuum:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindWirelessBridge:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindPlc:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindHmi:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindRtu:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindScadaServer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindIndustrialSwitch:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindUps:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindPdu:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindAccessControl:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindTimeClock:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindAlarmPanel:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindHvacController:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindBuildingController:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindPowerMeter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindEnvironmentMonitor:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindEvCharger:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSolarInverter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindMedicalDevice:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindWeb:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindCloudService:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDUnconfirmOKAssetKind) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDUnconfirmOKAssetKind(data) {
+	case FindingsPostFindingsIDUnconfirmOKAssetKindRouter:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindRouter
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSwitch:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindSwitch
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindModem:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindModem
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSdWan:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindSdWan
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindLoadBalancer:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindLoadBalancer
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindNetworkController:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindNetworkController
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindFirewall:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindFirewall
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindVpnGateway:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindVpnGateway
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindIdsSensor:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindIdsSensor
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindProxy:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindProxy
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindAp:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindAp
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindWirelessController:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindWirelessController
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindWifiExtender:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindWifiExtender
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindMeshNode:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindMeshNode
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindServer:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindServer
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindVirtualMachine:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindVirtualMachine
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindHypervisor:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindHypervisor
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindBmc:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindBmc
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindDomainController:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindDomainController
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindMailServer:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindMailServer
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindDatabaseServer:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindDatabaseServer
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindBackupServer:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindBackupServer
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindPc:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindPc
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindLaptop:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindLaptop
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindWorkstation:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindWorkstation
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindThinClient:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindThinClient
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindPosTerminal:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindPosTerminal
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindKiosk:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindKiosk
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSmartphone:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindSmartphone
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindTablet:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindTablet
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSmartwatch:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindSmartwatch
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindPrinter:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindPrinter
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindMfp:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindMfp
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindScanner:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindScanner
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindLabelPrinter:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindLabelPrinter
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindReceiptPrinter:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindReceiptPrinter
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindPlotter:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindPlotter
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKind3dPrinter:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKind3dPrinter
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindCamera:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindCamera
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindNvr:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindNvr
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindDvr:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindDvr
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindVideoEncoder:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindVideoEncoder
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindDoorbell:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindDoorbell
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindVideoConferencing:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindVideoConferencing
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindIPPhone:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindIPPhone
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindPbx:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindPbx
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindVoipAdapter:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindVoipAdapter
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindVoipGateway:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindVoipGateway
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindConferencePhone:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindConferencePhone
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindIntercom:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindIntercom
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindNas:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindNas
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSan:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindSan
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindBackupAppliance:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindBackupAppliance
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindTapeLibrary:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindTapeLibrary
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindIot:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindIot
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSmartTv:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindSmartTv
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindMediaPlayer:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindMediaPlayer
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSmartSpeaker:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindSmartSpeaker
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindGameConsole:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindGameConsole
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSmartPlug:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindSmartPlug
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSmartLight:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindSmartLight
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSmartHub:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindSmartHub
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindThermostat:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindThermostat
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindProjector:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindProjector
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindDigitalSignage:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindDigitalSignage
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSingleBoardComputer:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindSingleBoardComputer
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSmartAppliance:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindSmartAppliance
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindRobotVacuum:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindRobotVacuum
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindWirelessBridge:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindWirelessBridge
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindPlc:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindPlc
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindHmi:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindHmi
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindRtu:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindRtu
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindScadaServer:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindScadaServer
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindIndustrialSwitch:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindIndustrialSwitch
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindUps:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindUps
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindPdu:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindPdu
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindAccessControl:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindAccessControl
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindTimeClock:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindTimeClock
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindAlarmPanel:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindAlarmPanel
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindHvacController:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindHvacController
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindBuildingController:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindBuildingController
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindPowerMeter:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindPowerMeter
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindEnvironmentMonitor:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindEnvironmentMonitor
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindEvCharger:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindEvCharger
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSolarInverter:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindSolarInverter
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindMedicalDevice:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindMedicalDevice
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindWeb:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindWeb
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindCloudService:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindCloudService
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindUnknown:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version
+// = suspected by version; product = only the product matches.
+type FindingsPostFindingsIDUnconfirmOKBasis string
+
+const (
+	FindingsPostFindingsIDUnconfirmOKBasisScan    FindingsPostFindingsIDUnconfirmOKBasis = "scan"
+	FindingsPostFindingsIDUnconfirmOKBasisVersion FindingsPostFindingsIDUnconfirmOKBasis = "version"
+	FindingsPostFindingsIDUnconfirmOKBasisProduct FindingsPostFindingsIDUnconfirmOKBasis = "product"
+	FindingsPostFindingsIDUnconfirmOKBasisPerson  FindingsPostFindingsIDUnconfirmOKBasis = "person"
+)
+
+// AllValues returns all FindingsPostFindingsIDUnconfirmOKBasis values.
+func (FindingsPostFindingsIDUnconfirmOKBasis) AllValues() []FindingsPostFindingsIDUnconfirmOKBasis {
+	return []FindingsPostFindingsIDUnconfirmOKBasis{
+		FindingsPostFindingsIDUnconfirmOKBasisScan,
+		FindingsPostFindingsIDUnconfirmOKBasisVersion,
+		FindingsPostFindingsIDUnconfirmOKBasisProduct,
+		FindingsPostFindingsIDUnconfirmOKBasisPerson,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDUnconfirmOKBasis) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDUnconfirmOKBasisScan:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKBasisVersion:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKBasisProduct:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKBasisPerson:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDUnconfirmOKBasis) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDUnconfirmOKBasis(data) {
+	case FindingsPostFindingsIDUnconfirmOKBasisScan:
+		*s = FindingsPostFindingsIDUnconfirmOKBasisScan
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKBasisVersion:
+		*s = FindingsPostFindingsIDUnconfirmOKBasisVersion
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKBasisProduct:
+		*s = FindingsPostFindingsIDUnconfirmOKBasisProduct
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKBasisPerson:
+		*s = FindingsPostFindingsIDUnconfirmOKBasisPerson
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDUnconfirmOKCompromise struct {
+	IfFound    []string                                                    `json:"if_found"`
+	Indicators []FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItem `json:"indicators"`
+	Summary    string                                                      `json:"summary"`
+}
+
+// GetIfFound returns the value of IfFound.
+func (s *FindingsPostFindingsIDUnconfirmOKCompromise) GetIfFound() []string {
+	return s.IfFound
+}
+
+// GetIndicators returns the value of Indicators.
+func (s *FindingsPostFindingsIDUnconfirmOKCompromise) GetIndicators() []FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItem {
+	return s.Indicators
+}
+
+// GetSummary returns the value of Summary.
+func (s *FindingsPostFindingsIDUnconfirmOKCompromise) GetSummary() string {
+	return s.Summary
+}
+
+// SetIfFound sets the value of IfFound.
+func (s *FindingsPostFindingsIDUnconfirmOKCompromise) SetIfFound(val []string) {
+	s.IfFound = val
+}
+
+// SetIndicators sets the value of Indicators.
+func (s *FindingsPostFindingsIDUnconfirmOKCompromise) SetIndicators(val []FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItem) {
+	s.Indicators = val
+}
+
+// SetSummary sets the value of Summary.
+func (s *FindingsPostFindingsIDUnconfirmOKCompromise) SetSummary(val string) {
+	s.Summary = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItem struct {
+	Commands []FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemCommandsItem `json:"commands"`
+	Detail   string                                                                  `json:"detail"`
+	Kind     FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKind           `json:"kind"`
+	Title    string                                                                  `json:"title"`
+}
+
+// GetCommands returns the value of Commands.
+func (s *FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItem) GetCommands() []FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemCommandsItem {
+	return s.Commands
+}
+
+// GetDetail returns the value of Detail.
+func (s *FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItem) GetDetail() string {
+	return s.Detail
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItem) GetKind() FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKind {
+	return s.Kind
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCommands sets the value of Commands.
+func (s *FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItem) SetCommands(val []FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemCommandsItem) {
+	s.Commands = val
+}
+
+// SetDetail sets the value of Detail.
+func (s *FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItem) SetDetail(val string) {
+	s.Detail = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItem) SetKind(val FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKind) {
+	s.Kind = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItem) SetTitle(val string) {
+	s.Title = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemCommandsItem struct {
+	Code  string `json:"code"`
+	Label string `json:"label"`
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemCommandsItem) GetCode() string {
+	return s.Code
+}
+
+// GetLabel returns the value of Label.
+func (s *FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemCommandsItem) GetLabel() string {
+	return s.Label
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemCommandsItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetLabel sets the value of Label.
+func (s *FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemCommandsItem) SetLabel(val string) {
+	s.Label = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKind string
+
+const (
+	FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKindFile    FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKind = "file"
+	FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKindWeb     FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKind = "web"
+	FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKindLog     FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKind = "log"
+	FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKindProcess FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKind = "process"
+)
+
+// AllValues returns all FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKind values.
+func (FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKind) AllValues() []FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKind {
+	return []FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKind{
+		FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKindFile,
+		FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKindWeb,
+		FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKindLog,
+		FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKindProcess,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKindFile:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKindWeb:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKindLog:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKindProcess:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKind) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKind(data) {
+	case FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKindFile:
+		*s = FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKindFile
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKindWeb:
+		*s = FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKindWeb
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKindLog:
+		*s = FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKindLog
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKindProcess:
+		*s = FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKindProcess
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// #825 (findings INV-22, feeds INV-28): the CVSS base score from the same NVD records feeds already
+// reads (nvd-kev, else nvd-recent). Shown next to the exploited status, never instead of it.
+type FindingsPostFindingsIDUnconfirmOKCvss struct {
+	// The CVSS base score (0.0 to 10.0, one decimal); its band follows from FIRST's table (3.x, 4.0) or
+	// NVD's v2 table (2.0: Low, Medium, High; no Critical).
+	Score float64 `json:"score"`
+	// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+	// Authority or CISA's ADP), used only when NVD gives none for that version.
+	Source FindingsPostFindingsIDUnconfirmOKCvssSource `json:"source"`
+	// NVD's vector string of the score ("CVSS:3.1/AV:N/AC:L/…"; 2.0: "AV:N/AC:L/Au:N/…"): FIRST asks
+	// that a score be shown with its vector, so a score without a valid one is not shown.
+	Vector string `json:"vector"`
+	// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+	// nothing newer).
+	Version FindingsPostFindingsIDUnconfirmOKCvssVersion `json:"version"`
+}
+
+// GetScore returns the value of Score.
+func (s *FindingsPostFindingsIDUnconfirmOKCvss) GetScore() float64 {
+	return s.Score
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDUnconfirmOKCvss) GetSource() FindingsPostFindingsIDUnconfirmOKCvssSource {
+	return s.Source
+}
+
+// GetVector returns the value of Vector.
+func (s *FindingsPostFindingsIDUnconfirmOKCvss) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsPostFindingsIDUnconfirmOKCvss) GetVersion() FindingsPostFindingsIDUnconfirmOKCvssVersion {
+	return s.Version
+}
+
+// SetScore sets the value of Score.
+func (s *FindingsPostFindingsIDUnconfirmOKCvss) SetScore(val float64) {
+	s.Score = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDUnconfirmOKCvss) SetSource(val FindingsPostFindingsIDUnconfirmOKCvssSource) {
+	s.Source = val
+}
+
+// SetVector sets the value of Vector.
+func (s *FindingsPostFindingsIDUnconfirmOKCvss) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsPostFindingsIDUnconfirmOKCvss) SetVersion(val FindingsPostFindingsIDUnconfirmOKCvssVersion) {
+	s.Version = val
+}
+
+// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+// Authority or CISA's ADP), used only when NVD gives none for that version.
+type FindingsPostFindingsIDUnconfirmOKCvssSource string
+
+const (
+	FindingsPostFindingsIDUnconfirmOKCvssSourceNvd FindingsPostFindingsIDUnconfirmOKCvssSource = "nvd"
+	FindingsPostFindingsIDUnconfirmOKCvssSourceCna FindingsPostFindingsIDUnconfirmOKCvssSource = "cna"
+)
+
+// AllValues returns all FindingsPostFindingsIDUnconfirmOKCvssSource values.
+func (FindingsPostFindingsIDUnconfirmOKCvssSource) AllValues() []FindingsPostFindingsIDUnconfirmOKCvssSource {
+	return []FindingsPostFindingsIDUnconfirmOKCvssSource{
+		FindingsPostFindingsIDUnconfirmOKCvssSourceNvd,
+		FindingsPostFindingsIDUnconfirmOKCvssSourceCna,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDUnconfirmOKCvssSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDUnconfirmOKCvssSourceNvd:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKCvssSourceCna:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDUnconfirmOKCvssSource) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDUnconfirmOKCvssSource(data) {
+	case FindingsPostFindingsIDUnconfirmOKCvssSourceNvd:
+		*s = FindingsPostFindingsIDUnconfirmOKCvssSourceNvd
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKCvssSourceCna:
+		*s = FindingsPostFindingsIDUnconfirmOKCvssSourceCna
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+// nothing newer).
+type FindingsPostFindingsIDUnconfirmOKCvssVersion string
+
+const (
+	FindingsPostFindingsIDUnconfirmOKCvssVersion40 FindingsPostFindingsIDUnconfirmOKCvssVersion = "4.0"
+	FindingsPostFindingsIDUnconfirmOKCvssVersion31 FindingsPostFindingsIDUnconfirmOKCvssVersion = "3.1"
+	FindingsPostFindingsIDUnconfirmOKCvssVersion30 FindingsPostFindingsIDUnconfirmOKCvssVersion = "3.0"
+	FindingsPostFindingsIDUnconfirmOKCvssVersion20 FindingsPostFindingsIDUnconfirmOKCvssVersion = "2.0"
+)
+
+// AllValues returns all FindingsPostFindingsIDUnconfirmOKCvssVersion values.
+func (FindingsPostFindingsIDUnconfirmOKCvssVersion) AllValues() []FindingsPostFindingsIDUnconfirmOKCvssVersion {
+	return []FindingsPostFindingsIDUnconfirmOKCvssVersion{
+		FindingsPostFindingsIDUnconfirmOKCvssVersion40,
+		FindingsPostFindingsIDUnconfirmOKCvssVersion31,
+		FindingsPostFindingsIDUnconfirmOKCvssVersion30,
+		FindingsPostFindingsIDUnconfirmOKCvssVersion20,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDUnconfirmOKCvssVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDUnconfirmOKCvssVersion40:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKCvssVersion31:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKCvssVersion30:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKCvssVersion20:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDUnconfirmOKCvssVersion) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDUnconfirmOKCvssVersion(data) {
+	case FindingsPostFindingsIDUnconfirmOKCvssVersion40:
+		*s = FindingsPostFindingsIDUnconfirmOKCvssVersion40
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKCvssVersion31:
+		*s = FindingsPostFindingsIDUnconfirmOKCvssVersion31
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKCvssVersion30:
+		*s = FindingsPostFindingsIDUnconfirmOKCvssVersion30
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKCvssVersion20:
+		*s = FindingsPostFindingsIDUnconfirmOKCvssVersion20
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDUnconfirmOKEvidence struct {
+	// The version compared is the one the device's own agent (osquery, Wazuh) reports installed: a
+	// detection, shown as "Detected by the agent", with nothing for the person to look up.
+	Agent OptBool `json:"agent"`
+	// A product-only match on a software row the device's own agent reported with its installed version:
+	// Vedette could not compare that version with NVD's data, so the page does not ask to add the version.
+	AgentRow  OptBool   `json:"agent_row"`
+	CheckedAt time.Time `json:"checked_at"`
+	Request   OptString `json:"request"`
+	Response  OptString `json:"response"`
+	Summary   string    `json:"summary"`
+	Template  OptString `json:"template"`
+}
+
+// GetAgent returns the value of Agent.
+func (s *FindingsPostFindingsIDUnconfirmOKEvidence) GetAgent() OptBool {
+	return s.Agent
+}
+
+// GetAgentRow returns the value of AgentRow.
+func (s *FindingsPostFindingsIDUnconfirmOKEvidence) GetAgentRow() OptBool {
+	return s.AgentRow
+}
+
+// GetCheckedAt returns the value of CheckedAt.
+func (s *FindingsPostFindingsIDUnconfirmOKEvidence) GetCheckedAt() time.Time {
+	return s.CheckedAt
+}
+
+// GetRequest returns the value of Request.
+func (s *FindingsPostFindingsIDUnconfirmOKEvidence) GetRequest() OptString {
+	return s.Request
+}
+
+// GetResponse returns the value of Response.
+func (s *FindingsPostFindingsIDUnconfirmOKEvidence) GetResponse() OptString {
+	return s.Response
+}
+
+// GetSummary returns the value of Summary.
+func (s *FindingsPostFindingsIDUnconfirmOKEvidence) GetSummary() string {
+	return s.Summary
+}
+
+// GetTemplate returns the value of Template.
+func (s *FindingsPostFindingsIDUnconfirmOKEvidence) GetTemplate() OptString {
+	return s.Template
+}
+
+// SetAgent sets the value of Agent.
+func (s *FindingsPostFindingsIDUnconfirmOKEvidence) SetAgent(val OptBool) {
+	s.Agent = val
+}
+
+// SetAgentRow sets the value of AgentRow.
+func (s *FindingsPostFindingsIDUnconfirmOKEvidence) SetAgentRow(val OptBool) {
+	s.AgentRow = val
+}
+
+// SetCheckedAt sets the value of CheckedAt.
+func (s *FindingsPostFindingsIDUnconfirmOKEvidence) SetCheckedAt(val time.Time) {
+	s.CheckedAt = val
+}
+
+// SetRequest sets the value of Request.
+func (s *FindingsPostFindingsIDUnconfirmOKEvidence) SetRequest(val OptString) {
+	s.Request = val
+}
+
+// SetResponse sets the value of Response.
+func (s *FindingsPostFindingsIDUnconfirmOKEvidence) SetResponse(val OptString) {
+	s.Response = val
+}
+
+// SetSummary sets the value of Summary.
+func (s *FindingsPostFindingsIDUnconfirmOKEvidence) SetSummary(val string) {
+	s.Summary = val
+}
+
+// SetTemplate sets the value of Template.
+func (s *FindingsPostFindingsIDUnconfirmOKEvidence) SetTemplate(val OptString) {
+	s.Template = val
+}
+
+// One update fixes this finding together with the device's other open findings of the same software
+// (top-tier: one item per missing update).
+type FindingsPostFindingsIDUnconfirmOKFix struct {
+	// Distro: "Ubuntu" or "Debian", empty for the distribution's.
+	Distro string `json:"distro"`
+	// The release or build that fixes them all; feature_update: the release to move to; empty for distro.
+	Fixed string `json:"fixed"`
+	// "/": the open findings with the same group are fixed by the same update.
+	Group string `json:"group"`
+	// Fixed = upgrade to `fixed` (a Windows release: the monthly cumulative update with build `fixed` or
+	// later); esu = that build needs Extended Security Updates; feature_update = no update of this release
+	// fixes them, move to release `fixed`; distro = install the distribution's security updates for the
+	// package.
+	Kind FindingsPostFindingsIDUnconfirmOKFixKind `json:"kind"`
+	// Distro: the fix of at least one of them is in Ubuntu Pro (ESM) only.
+	Pro bool `json:"pro"`
+	// Display name of the software row.
+	Software string `json:"software"`
+	// The installed version.
+	Version string `json:"version"`
+	// A Windows release row: the update is the monthly cumulative update Windows Update offers.
+	Windows bool `json:"windows"`
+}
+
+// GetDistro returns the value of Distro.
+func (s *FindingsPostFindingsIDUnconfirmOKFix) GetDistro() string {
+	return s.Distro
+}
+
+// GetFixed returns the value of Fixed.
+func (s *FindingsPostFindingsIDUnconfirmOKFix) GetFixed() string {
+	return s.Fixed
+}
+
+// GetGroup returns the value of Group.
+func (s *FindingsPostFindingsIDUnconfirmOKFix) GetGroup() string {
+	return s.Group
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsPostFindingsIDUnconfirmOKFix) GetKind() FindingsPostFindingsIDUnconfirmOKFixKind {
+	return s.Kind
+}
+
+// GetPro returns the value of Pro.
+func (s *FindingsPostFindingsIDUnconfirmOKFix) GetPro() bool {
+	return s.Pro
+}
+
+// GetSoftware returns the value of Software.
+func (s *FindingsPostFindingsIDUnconfirmOKFix) GetSoftware() string {
+	return s.Software
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsPostFindingsIDUnconfirmOKFix) GetVersion() string {
+	return s.Version
+}
+
+// GetWindows returns the value of Windows.
+func (s *FindingsPostFindingsIDUnconfirmOKFix) GetWindows() bool {
+	return s.Windows
+}
+
+// SetDistro sets the value of Distro.
+func (s *FindingsPostFindingsIDUnconfirmOKFix) SetDistro(val string) {
+	s.Distro = val
+}
+
+// SetFixed sets the value of Fixed.
+func (s *FindingsPostFindingsIDUnconfirmOKFix) SetFixed(val string) {
+	s.Fixed = val
+}
+
+// SetGroup sets the value of Group.
+func (s *FindingsPostFindingsIDUnconfirmOKFix) SetGroup(val string) {
+	s.Group = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsPostFindingsIDUnconfirmOKFix) SetKind(val FindingsPostFindingsIDUnconfirmOKFixKind) {
+	s.Kind = val
+}
+
+// SetPro sets the value of Pro.
+func (s *FindingsPostFindingsIDUnconfirmOKFix) SetPro(val bool) {
+	s.Pro = val
+}
+
+// SetSoftware sets the value of Software.
+func (s *FindingsPostFindingsIDUnconfirmOKFix) SetSoftware(val string) {
+	s.Software = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsPostFindingsIDUnconfirmOKFix) SetVersion(val string) {
+	s.Version = val
+}
+
+// SetWindows sets the value of Windows.
+func (s *FindingsPostFindingsIDUnconfirmOKFix) SetWindows(val bool) {
+	s.Windows = val
+}
+
+// Fixed = upgrade to `fixed` (a Windows release: the monthly cumulative update with build `fixed` or
+// later); esu = that build needs Extended Security Updates; feature_update = no update of this release
+// fixes them, move to release `fixed`; distro = install the distribution's security updates for the
+// package.
+type FindingsPostFindingsIDUnconfirmOKFixKind string
+
+const (
+	FindingsPostFindingsIDUnconfirmOKFixKindFixed         FindingsPostFindingsIDUnconfirmOKFixKind = "fixed"
+	FindingsPostFindingsIDUnconfirmOKFixKindEsu           FindingsPostFindingsIDUnconfirmOKFixKind = "esu"
+	FindingsPostFindingsIDUnconfirmOKFixKindFeatureUpdate FindingsPostFindingsIDUnconfirmOKFixKind = "feature_update"
+	FindingsPostFindingsIDUnconfirmOKFixKindDistro        FindingsPostFindingsIDUnconfirmOKFixKind = "distro"
+)
+
+// AllValues returns all FindingsPostFindingsIDUnconfirmOKFixKind values.
+func (FindingsPostFindingsIDUnconfirmOKFixKind) AllValues() []FindingsPostFindingsIDUnconfirmOKFixKind {
+	return []FindingsPostFindingsIDUnconfirmOKFixKind{
+		FindingsPostFindingsIDUnconfirmOKFixKindFixed,
+		FindingsPostFindingsIDUnconfirmOKFixKindEsu,
+		FindingsPostFindingsIDUnconfirmOKFixKindFeatureUpdate,
+		FindingsPostFindingsIDUnconfirmOKFixKindDistro,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDUnconfirmOKFixKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDUnconfirmOKFixKindFixed:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKFixKindEsu:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKFixKindFeatureUpdate:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKFixKindDistro:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDUnconfirmOKFixKind) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDUnconfirmOKFixKind(data) {
+	case FindingsPostFindingsIDUnconfirmOKFixKindFixed:
+		*s = FindingsPostFindingsIDUnconfirmOKFixKindFixed
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKFixKindEsu:
+		*s = FindingsPostFindingsIDUnconfirmOKFixKindEsu
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKFixKindFeatureUpdate:
+		*s = FindingsPostFindingsIDUnconfirmOKFixKindFeatureUpdate
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKFixKindDistro:
+		*s = FindingsPostFindingsIDUnconfirmOKFixKindDistro
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDUnconfirmOKFixedIn struct {
+	// At most 5, newest first.
+	Branches []FindingsPostFindingsIDUnconfirmOKFixedInBranchesItem `json:"branches"`
+	// "Ubuntu" or "Debian" when the device runs one, empty otherwise. distro: whose security updates to
+	// install (empty = the distribution). Other kinds: set only when the software is not known to come
+	// from the package database (typed by a person, read by a scan, or an agent row stored before
+	// inventory kept the flag); the page adds "if you installed it from the distribution's packages,
+	// install its security updates instead".
+	Distro string `json:"distro"`
+	// Kind distro only: the version of the distribution's package that fixes the CVE on the device's
+	// release (Ubuntu security data, Debian Security Tracker); `version` is then the device's full package
+	// version. Empty when the distribution's data does not say.
+	DistroFixed string `json:"distro_fixed"`
+	// Distro_fixed is in Ubuntu Pro (ESM) only.
+	DistroPro bool `json:"distro_pro"`
+	// The device's release with distro_fixed ("24.04", "12"); empty otherwise.
+	DistroRelease string `json:"distro_release"`
+	// The fixed release (fixed), the last affected release (up_to), the upstream fixed release as a
+	// reference when NVD names one (distro: the backport may keep the package's number below it); empty
+	// for branches.
+	Fixed string `json:"fixed"`
+	// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
+	// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
+	// named); end_listed = inside a range that ends before `fixed`, but NVD lists releases of `fixed`
+	// itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix, the
+	// vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the fix
+	// of each release line; distro = a package of the distribution, whose security updates carry the fix
+	// under their own numbers: an agent read it from the device's package database (deb/rpm), or the
+	// version carries a marker such as ubuntu, +deb12, .el9; feature_update = a Windows release NVD does
+	// not list for the fix, which only a later release of its line (`branches[0].branch`, from build
+	// `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu = the fixing Windows
+	// build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+	Kind FindingsPostFindingsIDUnconfirmOKFixedInKind `json:"kind"`
+	// Release lines with a fix left out of branches.
+	More int `json:"more"`
+	// Release lines NVD gives no fixed release for (a range that ends at an affected version).
+	NoFix int `json:"no_fix"`
+	// Where the versions come from: "NVD affected versions", "CVE.org affected versions (from the CVE
+	// record's CNA)" when NVD has none, or with distro_fixed "Ubuntu security data" / "Debian Security
+	// Tracker".
+	Source string `json:"source"`
+	// The device's version; for branches empty when it has none, else the text Vedette cannot read.
+	Version string `json:"version"`
+}
+
+// GetBranches returns the value of Branches.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) GetBranches() []FindingsPostFindingsIDUnconfirmOKFixedInBranchesItem {
+	return s.Branches
+}
+
+// GetDistro returns the value of Distro.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) GetDistro() string {
+	return s.Distro
+}
+
+// GetDistroFixed returns the value of DistroFixed.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) GetDistroFixed() string {
+	return s.DistroFixed
+}
+
+// GetDistroPro returns the value of DistroPro.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) GetDistroPro() bool {
+	return s.DistroPro
+}
+
+// GetDistroRelease returns the value of DistroRelease.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) GetDistroRelease() string {
+	return s.DistroRelease
+}
+
+// GetFixed returns the value of Fixed.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) GetFixed() string {
+	return s.Fixed
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) GetKind() FindingsPostFindingsIDUnconfirmOKFixedInKind {
+	return s.Kind
+}
+
+// GetMore returns the value of More.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) GetMore() int {
+	return s.More
+}
+
+// GetNoFix returns the value of NoFix.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) GetNoFix() int {
+	return s.NoFix
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) GetSource() string {
+	return s.Source
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) GetVersion() string {
+	return s.Version
+}
+
+// SetBranches sets the value of Branches.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) SetBranches(val []FindingsPostFindingsIDUnconfirmOKFixedInBranchesItem) {
+	s.Branches = val
+}
+
+// SetDistro sets the value of Distro.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) SetDistro(val string) {
+	s.Distro = val
+}
+
+// SetDistroFixed sets the value of DistroFixed.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) SetDistroFixed(val string) {
+	s.DistroFixed = val
+}
+
+// SetDistroPro sets the value of DistroPro.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) SetDistroPro(val bool) {
+	s.DistroPro = val
+}
+
+// SetDistroRelease sets the value of DistroRelease.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) SetDistroRelease(val string) {
+	s.DistroRelease = val
+}
+
+// SetFixed sets the value of Fixed.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) SetFixed(val string) {
+	s.Fixed = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) SetKind(val FindingsPostFindingsIDUnconfirmOKFixedInKind) {
+	s.Kind = val
+}
+
+// SetMore sets the value of More.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) SetMore(val int) {
+	s.More = val
+}
+
+// SetNoFix sets the value of NoFix.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) SetNoFix(val int) {
+	s.NoFix = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) SetSource(val string) {
+	s.Source = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) SetVersion(val string) {
+	s.Version = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKFixedInBranchesItem struct {
+	// Release line such as 7.4; empty when it cannot be told.
+	Branch string `json:"branch"`
+	Fixed  string `json:"fixed"`
+}
+
+// GetBranch returns the value of Branch.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedInBranchesItem) GetBranch() string {
+	return s.Branch
+}
+
+// GetFixed returns the value of Fixed.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedInBranchesItem) GetFixed() string {
+	return s.Fixed
+}
+
+// SetBranch sets the value of Branch.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedInBranchesItem) SetBranch(val string) {
+	s.Branch = val
+}
+
+// SetFixed sets the value of Fixed.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedInBranchesItem) SetFixed(val string) {
+	s.Fixed = val
+}
+
+// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
+// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
+// named); end_listed = inside a range that ends before `fixed`, but NVD lists releases of `fixed`
+// itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix, the
+// vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the fix
+// of each release line; distro = a package of the distribution, whose security updates carry the fix
+// under their own numbers: an agent read it from the device's package database (deb/rpm), or the
+// version carries a marker such as ubuntu, +deb12, .el9; feature_update = a Windows release NVD does
+// not list for the fix, which only a later release of its line (`branches[0].branch`, from build
+// `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu = the fixing Windows
+// build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+type FindingsPostFindingsIDUnconfirmOKFixedInKind string
+
+const (
+	FindingsPostFindingsIDUnconfirmOKFixedInKindFixed         FindingsPostFindingsIDUnconfirmOKFixedInKind = "fixed"
+	FindingsPostFindingsIDUnconfirmOKFixedInKindUpTo          FindingsPostFindingsIDUnconfirmOKFixedInKind = "up_to"
+	FindingsPostFindingsIDUnconfirmOKFixedInKindEndListed     FindingsPostFindingsIDUnconfirmOKFixedInKind = "end_listed"
+	FindingsPostFindingsIDUnconfirmOKFixedInKindBranches      FindingsPostFindingsIDUnconfirmOKFixedInKind = "branches"
+	FindingsPostFindingsIDUnconfirmOKFixedInKindDistro        FindingsPostFindingsIDUnconfirmOKFixedInKind = "distro"
+	FindingsPostFindingsIDUnconfirmOKFixedInKindFeatureUpdate FindingsPostFindingsIDUnconfirmOKFixedInKind = "feature_update"
+	FindingsPostFindingsIDUnconfirmOKFixedInKindEsu           FindingsPostFindingsIDUnconfirmOKFixedInKind = "esu"
+)
+
+// AllValues returns all FindingsPostFindingsIDUnconfirmOKFixedInKind values.
+func (FindingsPostFindingsIDUnconfirmOKFixedInKind) AllValues() []FindingsPostFindingsIDUnconfirmOKFixedInKind {
+	return []FindingsPostFindingsIDUnconfirmOKFixedInKind{
+		FindingsPostFindingsIDUnconfirmOKFixedInKindFixed,
+		FindingsPostFindingsIDUnconfirmOKFixedInKindUpTo,
+		FindingsPostFindingsIDUnconfirmOKFixedInKindEndListed,
+		FindingsPostFindingsIDUnconfirmOKFixedInKindBranches,
+		FindingsPostFindingsIDUnconfirmOKFixedInKindDistro,
+		FindingsPostFindingsIDUnconfirmOKFixedInKindFeatureUpdate,
+		FindingsPostFindingsIDUnconfirmOKFixedInKindEsu,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDUnconfirmOKFixedInKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDUnconfirmOKFixedInKindFixed:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKFixedInKindUpTo:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKFixedInKindEndListed:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKFixedInKindBranches:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKFixedInKindDistro:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKFixedInKindFeatureUpdate:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKFixedInKindEsu:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedInKind) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDUnconfirmOKFixedInKind(data) {
+	case FindingsPostFindingsIDUnconfirmOKFixedInKindFixed:
+		*s = FindingsPostFindingsIDUnconfirmOKFixedInKindFixed
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKFixedInKindUpTo:
+		*s = FindingsPostFindingsIDUnconfirmOKFixedInKindUpTo
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKFixedInKindEndListed:
+		*s = FindingsPostFindingsIDUnconfirmOKFixedInKindEndListed
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKFixedInKindBranches:
+		*s = FindingsPostFindingsIDUnconfirmOKFixedInKindBranches
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKFixedInKindDistro:
+		*s = FindingsPostFindingsIDUnconfirmOKFixedInKindDistro
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKFixedInKindFeatureUpdate:
+		*s = FindingsPostFindingsIDUnconfirmOKFixedInKindFeatureUpdate
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKFixedInKindEsu:
+		*s = FindingsPostFindingsIDUnconfirmOKFixedInKindEsu
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Mitigation INV-8: general compromise checks written by reviewed code, not a recommendation for the
+// CVE: never shown as "Vedette confirmed", never run by Vedette. The generated firewall configs and
+// the admin network field are gone.
+type FindingsPostFindingsIDUnconfirmOKHardening struct {
+	// General "Have I been hit?" checks for the software family.
+	Checks NilFindingsPostFindingsIDUnconfirmOKHardeningChecks `json:"checks"`
+	// The family the checks are written for ("Linux", "Network device", "General").
+	Family string `json:"family"`
+	// The software the checks are for, as the page names it.
+	Software string `json:"software"`
+}
+
+// GetChecks returns the value of Checks.
+func (s *FindingsPostFindingsIDUnconfirmOKHardening) GetChecks() NilFindingsPostFindingsIDUnconfirmOKHardeningChecks {
+	return s.Checks
+}
+
+// GetFamily returns the value of Family.
+func (s *FindingsPostFindingsIDUnconfirmOKHardening) GetFamily() string {
+	return s.Family
+}
+
+// GetSoftware returns the value of Software.
+func (s *FindingsPostFindingsIDUnconfirmOKHardening) GetSoftware() string {
+	return s.Software
+}
+
+// SetChecks sets the value of Checks.
+func (s *FindingsPostFindingsIDUnconfirmOKHardening) SetChecks(val NilFindingsPostFindingsIDUnconfirmOKHardeningChecks) {
+	s.Checks = val
+}
+
+// SetFamily sets the value of Family.
+func (s *FindingsPostFindingsIDUnconfirmOKHardening) SetFamily(val string) {
+	s.Family = val
+}
+
+// SetSoftware sets the value of Software.
+func (s *FindingsPostFindingsIDUnconfirmOKHardening) SetSoftware(val string) {
+	s.Software = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKHardeningChecks struct {
+	IfFound    []string                                                         `json:"if_found"`
+	Indicators []FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItem `json:"indicators"`
+	Summary    string                                                           `json:"summary"`
+}
+
+// GetIfFound returns the value of IfFound.
+func (s *FindingsPostFindingsIDUnconfirmOKHardeningChecks) GetIfFound() []string {
+	return s.IfFound
+}
+
+// GetIndicators returns the value of Indicators.
+func (s *FindingsPostFindingsIDUnconfirmOKHardeningChecks) GetIndicators() []FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItem {
+	return s.Indicators
+}
+
+// GetSummary returns the value of Summary.
+func (s *FindingsPostFindingsIDUnconfirmOKHardeningChecks) GetSummary() string {
+	return s.Summary
+}
+
+// SetIfFound sets the value of IfFound.
+func (s *FindingsPostFindingsIDUnconfirmOKHardeningChecks) SetIfFound(val []string) {
+	s.IfFound = val
+}
+
+// SetIndicators sets the value of Indicators.
+func (s *FindingsPostFindingsIDUnconfirmOKHardeningChecks) SetIndicators(val []FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItem) {
+	s.Indicators = val
+}
+
+// SetSummary sets the value of Summary.
+func (s *FindingsPostFindingsIDUnconfirmOKHardeningChecks) SetSummary(val string) {
+	s.Summary = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItem struct {
+	Commands []FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemCommandsItem `json:"commands"`
+	Detail   string                                                                       `json:"detail"`
+	Kind     FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKind           `json:"kind"`
+	Title    string                                                                       `json:"title"`
+}
+
+// GetCommands returns the value of Commands.
+func (s *FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItem) GetCommands() []FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemCommandsItem {
+	return s.Commands
+}
+
+// GetDetail returns the value of Detail.
+func (s *FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItem) GetDetail() string {
+	return s.Detail
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItem) GetKind() FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKind {
+	return s.Kind
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCommands sets the value of Commands.
+func (s *FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItem) SetCommands(val []FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemCommandsItem) {
+	s.Commands = val
+}
+
+// SetDetail sets the value of Detail.
+func (s *FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItem) SetDetail(val string) {
+	s.Detail = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItem) SetKind(val FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKind) {
+	s.Kind = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItem) SetTitle(val string) {
+	s.Title = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemCommandsItem struct {
+	Code  string `json:"code"`
+	Label string `json:"label"`
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemCommandsItem) GetCode() string {
+	return s.Code
+}
+
+// GetLabel returns the value of Label.
+func (s *FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemCommandsItem) GetLabel() string {
+	return s.Label
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemCommandsItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetLabel sets the value of Label.
+func (s *FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemCommandsItem) SetLabel(val string) {
+	s.Label = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKind string
+
+const (
+	FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKindFile    FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKind = "file"
+	FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKindWeb     FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKind = "web"
+	FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKindLog     FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKind = "log"
+	FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKindProcess FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKind = "process"
+)
+
+// AllValues returns all FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKind values.
+func (FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKind) AllValues() []FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKind {
+	return []FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKind{
+		FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKindFile,
+		FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKindWeb,
+		FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKindLog,
+		FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKindProcess,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKindFile:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKindWeb:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKindLog:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKindProcess:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKind) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKind(data) {
+	case FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKindFile:
+		*s = FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKindFile
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKindWeb:
+		*s = FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKindWeb
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKindLog:
+		*s = FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKindLog
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKindProcess:
+		*s = FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKindProcess
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDUnconfirmOKHistoryItem struct {
+	Action string    `json:"action"`
+	Note   OptString `json:"note"`
+	Ts     time.Time `json:"ts"`
+	User   string    `json:"user"`
+}
+
+// GetAction returns the value of Action.
+func (s *FindingsPostFindingsIDUnconfirmOKHistoryItem) GetAction() string {
+	return s.Action
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDUnconfirmOKHistoryItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetTs returns the value of Ts.
+func (s *FindingsPostFindingsIDUnconfirmOKHistoryItem) GetTs() time.Time {
+	return s.Ts
+}
+
+// GetUser returns the value of User.
+func (s *FindingsPostFindingsIDUnconfirmOKHistoryItem) GetUser() string {
+	return s.User
+}
+
+// SetAction sets the value of Action.
+func (s *FindingsPostFindingsIDUnconfirmOKHistoryItem) SetAction(val string) {
+	s.Action = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDUnconfirmOKHistoryItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetTs sets the value of Ts.
+func (s *FindingsPostFindingsIDUnconfirmOKHistoryItem) SetTs(val time.Time) {
+	s.Ts = val
+}
+
+// SetUser sets the value of User.
+func (s *FindingsPostFindingsIDUnconfirmOKHistoryItem) SetUser(val string) {
+	s.User = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKKev struct {
+	DateAdded   string     `json:"date_added"`
+	Display     string     `json:"display"`
+	DueDate     NilString  `json:"due_date"`
+	Epss        NilFloat64 `json:"epss"`
+	HasTemplate bool       `json:"has_template"`
+	Links       []string   `json:"links"`
+	Name        string     `json:"name"`
+	Product     string     `json:"product"`
+	// The day the CVE was published (NVD `published`), never the day CISA added it; null when NVD has not
+	// answered for it (then it counts as recent: an older CVE is not a finding on a product-only match,
+	// and a missing date never closes a finding).
+	Published      NilDate `json:"published"`
+	Ransomware     bool    `json:"ransomware"`
+	RequiredAction string  `json:"required_action"`
+	// Which list the entry is on: texts and the source badge name it; an entry of VulnCheck KEV is never
+	// called CISA's.
+	Source OptFindingsPostFindingsIDUnconfirmOKKevSource `json:"source"`
+	Vendor string                                        `json:"vendor"`
+}
+
+// GetDateAdded returns the value of DateAdded.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) GetDateAdded() string {
+	return s.DateAdded
+}
+
+// GetDisplay returns the value of Display.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) GetDisplay() string {
+	return s.Display
+}
+
+// GetDueDate returns the value of DueDate.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) GetDueDate() NilString {
+	return s.DueDate
+}
+
+// GetEpss returns the value of Epss.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) GetEpss() NilFloat64 {
+	return s.Epss
+}
+
+// GetHasTemplate returns the value of HasTemplate.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) GetHasTemplate() bool {
+	return s.HasTemplate
+}
+
+// GetLinks returns the value of Links.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) GetLinks() []string {
+	return s.Links
+}
+
+// GetName returns the value of Name.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) GetName() string {
+	return s.Name
+}
+
+// GetProduct returns the value of Product.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) GetProduct() string {
+	return s.Product
+}
+
+// GetPublished returns the value of Published.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) GetPublished() NilDate {
+	return s.Published
+}
+
+// GetRansomware returns the value of Ransomware.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) GetRansomware() bool {
+	return s.Ransomware
+}
+
+// GetRequiredAction returns the value of RequiredAction.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) GetRequiredAction() string {
+	return s.RequiredAction
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) GetSource() OptFindingsPostFindingsIDUnconfirmOKKevSource {
+	return s.Source
+}
+
+// GetVendor returns the value of Vendor.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) GetVendor() string {
+	return s.Vendor
+}
+
+// SetDateAdded sets the value of DateAdded.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) SetDateAdded(val string) {
+	s.DateAdded = val
+}
+
+// SetDisplay sets the value of Display.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) SetDisplay(val string) {
+	s.Display = val
+}
+
+// SetDueDate sets the value of DueDate.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) SetDueDate(val NilString) {
+	s.DueDate = val
+}
+
+// SetEpss sets the value of Epss.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) SetEpss(val NilFloat64) {
+	s.Epss = val
+}
+
+// SetHasTemplate sets the value of HasTemplate.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) SetHasTemplate(val bool) {
+	s.HasTemplate = val
+}
+
+// SetLinks sets the value of Links.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) SetLinks(val []string) {
+	s.Links = val
+}
+
+// SetName sets the value of Name.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) SetName(val string) {
+	s.Name = val
+}
+
+// SetProduct sets the value of Product.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetPublished sets the value of Published.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) SetPublished(val NilDate) {
+	s.Published = val
+}
+
+// SetRansomware sets the value of Ransomware.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) SetRansomware(val bool) {
+	s.Ransomware = val
+}
+
+// SetRequiredAction sets the value of RequiredAction.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) SetRequiredAction(val string) {
+	s.RequiredAction = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) SetSource(val OptFindingsPostFindingsIDUnconfirmOKKevSource) {
+	s.Source = val
+}
+
+// SetVendor sets the value of Vendor.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) SetVendor(val string) {
+	s.Vendor = val
+}
+
+// Which list the entry is on: texts and the source badge name it; an entry of VulnCheck KEV is never
+// called CISA's.
+type FindingsPostFindingsIDUnconfirmOKKevSource string
+
+const (
+	FindingsPostFindingsIDUnconfirmOKKevSourceCisaKev      FindingsPostFindingsIDUnconfirmOKKevSource = "cisa-kev"
+	FindingsPostFindingsIDUnconfirmOKKevSourceVulncheckKev FindingsPostFindingsIDUnconfirmOKKevSource = "vulncheck-kev"
+)
+
+// AllValues returns all FindingsPostFindingsIDUnconfirmOKKevSource values.
+func (FindingsPostFindingsIDUnconfirmOKKevSource) AllValues() []FindingsPostFindingsIDUnconfirmOKKevSource {
+	return []FindingsPostFindingsIDUnconfirmOKKevSource{
+		FindingsPostFindingsIDUnconfirmOKKevSourceCisaKev,
+		FindingsPostFindingsIDUnconfirmOKKevSourceVulncheckKev,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDUnconfirmOKKevSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDUnconfirmOKKevSourceCisaKev:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKKevSourceVulncheckKev:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDUnconfirmOKKevSource) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDUnconfirmOKKevSource(data) {
+	case FindingsPostFindingsIDUnconfirmOKKevSourceCisaKev:
+		*s = FindingsPostFindingsIDUnconfirmOKKevSourceCisaKev
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKKevSourceVulncheckKev:
+		*s = FindingsPostFindingsIDUnconfirmOKKevSourceVulncheckKev
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The version the box has for the matched software; the page says it and how a newer one reaches
+// Vedette, never "find which version".
+type FindingsPostFindingsIDUnconfirmOKKnownVersion struct {
+	// When that source last gave the version: the agent's last list, the last scan or SNMP read that
+	// returned it, or when a person entered it; null when not known. Not the same as the finding's
+	// last_seen.
+	SeenAt NilDateTime `json:"seen_at"`
+	// Display name of the software the finding was matched on.
+	Software string `json:"software"`
+	// Who gave the version: the device's agent, its answer to Vedette's SNMP read, its own statement on
+	// the network (LLDP), a network scan, or a person on the Devices page.
+	Source  FindingsPostFindingsIDUnconfirmOKKnownVersionSource `json:"source"`
+	Version string                                              `json:"version"`
+}
+
+// GetSeenAt returns the value of SeenAt.
+func (s *FindingsPostFindingsIDUnconfirmOKKnownVersion) GetSeenAt() NilDateTime {
+	return s.SeenAt
+}
+
+// GetSoftware returns the value of Software.
+func (s *FindingsPostFindingsIDUnconfirmOKKnownVersion) GetSoftware() string {
+	return s.Software
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDUnconfirmOKKnownVersion) GetSource() FindingsPostFindingsIDUnconfirmOKKnownVersionSource {
+	return s.Source
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsPostFindingsIDUnconfirmOKKnownVersion) GetVersion() string {
+	return s.Version
+}
+
+// SetSeenAt sets the value of SeenAt.
+func (s *FindingsPostFindingsIDUnconfirmOKKnownVersion) SetSeenAt(val NilDateTime) {
+	s.SeenAt = val
+}
+
+// SetSoftware sets the value of Software.
+func (s *FindingsPostFindingsIDUnconfirmOKKnownVersion) SetSoftware(val string) {
+	s.Software = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDUnconfirmOKKnownVersion) SetSource(val FindingsPostFindingsIDUnconfirmOKKnownVersionSource) {
+	s.Source = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsPostFindingsIDUnconfirmOKKnownVersion) SetVersion(val string) {
+	s.Version = val
+}
+
+// Who gave the version: the device's agent, its answer to Vedette's SNMP read, its own statement on
+// the network (LLDP), a network scan, or a person on the Devices page.
+type FindingsPostFindingsIDUnconfirmOKKnownVersionSource string
+
+const (
+	FindingsPostFindingsIDUnconfirmOKKnownVersionSourceAgent  FindingsPostFindingsIDUnconfirmOKKnownVersionSource = "agent"
+	FindingsPostFindingsIDUnconfirmOKKnownVersionSourceSnmp   FindingsPostFindingsIDUnconfirmOKKnownVersionSource = "snmp"
+	FindingsPostFindingsIDUnconfirmOKKnownVersionSourceStated FindingsPostFindingsIDUnconfirmOKKnownVersionSource = "stated"
+	FindingsPostFindingsIDUnconfirmOKKnownVersionSourceScan   FindingsPostFindingsIDUnconfirmOKKnownVersionSource = "scan"
+	FindingsPostFindingsIDUnconfirmOKKnownVersionSourceManual FindingsPostFindingsIDUnconfirmOKKnownVersionSource = "manual"
+)
+
+// AllValues returns all FindingsPostFindingsIDUnconfirmOKKnownVersionSource values.
+func (FindingsPostFindingsIDUnconfirmOKKnownVersionSource) AllValues() []FindingsPostFindingsIDUnconfirmOKKnownVersionSource {
+	return []FindingsPostFindingsIDUnconfirmOKKnownVersionSource{
+		FindingsPostFindingsIDUnconfirmOKKnownVersionSourceAgent,
+		FindingsPostFindingsIDUnconfirmOKKnownVersionSourceSnmp,
+		FindingsPostFindingsIDUnconfirmOKKnownVersionSourceStated,
+		FindingsPostFindingsIDUnconfirmOKKnownVersionSourceScan,
+		FindingsPostFindingsIDUnconfirmOKKnownVersionSourceManual,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDUnconfirmOKKnownVersionSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDUnconfirmOKKnownVersionSourceAgent:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKKnownVersionSourceSnmp:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKKnownVersionSourceStated:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKKnownVersionSourceScan:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKKnownVersionSourceManual:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDUnconfirmOKKnownVersionSource) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDUnconfirmOKKnownVersionSource(data) {
+	case FindingsPostFindingsIDUnconfirmOKKnownVersionSourceAgent:
+		*s = FindingsPostFindingsIDUnconfirmOKKnownVersionSourceAgent
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKKnownVersionSourceSnmp:
+		*s = FindingsPostFindingsIDUnconfirmOKKnownVersionSourceSnmp
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKKnownVersionSourceStated:
+		*s = FindingsPostFindingsIDUnconfirmOKKnownVersionSourceStated
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKKnownVersionSourceScan:
+		*s = FindingsPostFindingsIDUnconfirmOKKnownVersionSourceScan
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKKnownVersionSourceManual:
+		*s = FindingsPostFindingsIDUnconfirmOKKnownVersionSourceManual
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDUnconfirmOKPack struct {
+	Checklist   []string                                            `json:"checklist"`
+	ConfirmedAt time.Time                                           `json:"confirmed_at"`
+	ConfirmedBy string                                              `json:"confirmed_by"`
+	Cve         string                                              `json:"cve"`
+	DraftedWith string                                              `json:"drafted_with"`
+	Firewall    []FindingsPostFindingsIDUnconfirmOKPackFirewallItem `json:"firewall"`
+	Patch       FindingsPostFindingsIDUnconfirmOKPackPatch          `json:"patch"`
+	Sources     []FindingsPostFindingsIDUnconfirmOKPackSourcesItem  `json:"sources"`
+	Workaround  FindingsPostFindingsIDUnconfirmOKPackWorkaround     `json:"workaround"`
+}
+
+// GetChecklist returns the value of Checklist.
+func (s *FindingsPostFindingsIDUnconfirmOKPack) GetChecklist() []string {
+	return s.Checklist
+}
+
+// GetConfirmedAt returns the value of ConfirmedAt.
+func (s *FindingsPostFindingsIDUnconfirmOKPack) GetConfirmedAt() time.Time {
+	return s.ConfirmedAt
+}
+
+// GetConfirmedBy returns the value of ConfirmedBy.
+func (s *FindingsPostFindingsIDUnconfirmOKPack) GetConfirmedBy() string {
+	return s.ConfirmedBy
+}
+
+// GetCve returns the value of Cve.
+func (s *FindingsPostFindingsIDUnconfirmOKPack) GetCve() string {
+	return s.Cve
+}
+
+// GetDraftedWith returns the value of DraftedWith.
+func (s *FindingsPostFindingsIDUnconfirmOKPack) GetDraftedWith() string {
+	return s.DraftedWith
+}
+
+// GetFirewall returns the value of Firewall.
+func (s *FindingsPostFindingsIDUnconfirmOKPack) GetFirewall() []FindingsPostFindingsIDUnconfirmOKPackFirewallItem {
+	return s.Firewall
+}
+
+// GetPatch returns the value of Patch.
+func (s *FindingsPostFindingsIDUnconfirmOKPack) GetPatch() FindingsPostFindingsIDUnconfirmOKPackPatch {
+	return s.Patch
+}
+
+// GetSources returns the value of Sources.
+func (s *FindingsPostFindingsIDUnconfirmOKPack) GetSources() []FindingsPostFindingsIDUnconfirmOKPackSourcesItem {
+	return s.Sources
+}
+
+// GetWorkaround returns the value of Workaround.
+func (s *FindingsPostFindingsIDUnconfirmOKPack) GetWorkaround() FindingsPostFindingsIDUnconfirmOKPackWorkaround {
+	return s.Workaround
+}
+
+// SetChecklist sets the value of Checklist.
+func (s *FindingsPostFindingsIDUnconfirmOKPack) SetChecklist(val []string) {
+	s.Checklist = val
+}
+
+// SetConfirmedAt sets the value of ConfirmedAt.
+func (s *FindingsPostFindingsIDUnconfirmOKPack) SetConfirmedAt(val time.Time) {
+	s.ConfirmedAt = val
+}
+
+// SetConfirmedBy sets the value of ConfirmedBy.
+func (s *FindingsPostFindingsIDUnconfirmOKPack) SetConfirmedBy(val string) {
+	s.ConfirmedBy = val
+}
+
+// SetCve sets the value of Cve.
+func (s *FindingsPostFindingsIDUnconfirmOKPack) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetDraftedWith sets the value of DraftedWith.
+func (s *FindingsPostFindingsIDUnconfirmOKPack) SetDraftedWith(val string) {
+	s.DraftedWith = val
+}
+
+// SetFirewall sets the value of Firewall.
+func (s *FindingsPostFindingsIDUnconfirmOKPack) SetFirewall(val []FindingsPostFindingsIDUnconfirmOKPackFirewallItem) {
+	s.Firewall = val
+}
+
+// SetPatch sets the value of Patch.
+func (s *FindingsPostFindingsIDUnconfirmOKPack) SetPatch(val FindingsPostFindingsIDUnconfirmOKPackPatch) {
+	s.Patch = val
+}
+
+// SetSources sets the value of Sources.
+func (s *FindingsPostFindingsIDUnconfirmOKPack) SetSources(val []FindingsPostFindingsIDUnconfirmOKPackSourcesItem) {
+	s.Sources = val
+}
+
+// SetWorkaround sets the value of Workaround.
+func (s *FindingsPostFindingsIDUnconfirmOKPack) SetWorkaround(val FindingsPostFindingsIDUnconfirmOKPackWorkaround) {
+	s.Workaround = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKPackFirewallItem struct {
+	Alternative OptFindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative `json:"alternative"`
+	// The user declared a device of this vendor in the inventory.
+	Detected bool                                                          `json:"detected"`
+	Intro    string                                                        `json:"intro"`
+	Label    string                                                        `json:"label"`
+	Plain    []string                                                      `json:"plain"`
+	Steps    []FindingsPostFindingsIDUnconfirmOKPackFirewallItemStepsItem  `json:"steps"`
+	Undo     []FindingsPostFindingsIDUnconfirmOKPackFirewallItemUndoItem   `json:"undo"`
+	Vendor   FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendor       `json:"vendor"`
+	Verify   []FindingsPostFindingsIDUnconfirmOKPackFirewallItemVerifyItem `json:"verify"`
+}
+
+// GetAlternative returns the value of Alternative.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItem) GetAlternative() OptFindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative {
+	return s.Alternative
+}
+
+// GetDetected returns the value of Detected.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItem) GetDetected() bool {
+	return s.Detected
+}
+
+// GetIntro returns the value of Intro.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItem) GetIntro() string {
+	return s.Intro
+}
+
+// GetLabel returns the value of Label.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItem) GetLabel() string {
+	return s.Label
+}
+
+// GetPlain returns the value of Plain.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItem) GetPlain() []string {
+	return s.Plain
+}
+
+// GetSteps returns the value of Steps.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItem) GetSteps() []FindingsPostFindingsIDUnconfirmOKPackFirewallItemStepsItem {
+	return s.Steps
+}
+
+// GetUndo returns the value of Undo.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItem) GetUndo() []FindingsPostFindingsIDUnconfirmOKPackFirewallItemUndoItem {
+	return s.Undo
+}
+
+// GetVendor returns the value of Vendor.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItem) GetVendor() FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendor {
+	return s.Vendor
+}
+
+// GetVerify returns the value of Verify.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItem) GetVerify() []FindingsPostFindingsIDUnconfirmOKPackFirewallItemVerifyItem {
+	return s.Verify
+}
+
+// SetAlternative sets the value of Alternative.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItem) SetAlternative(val OptFindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative) {
+	s.Alternative = val
+}
+
+// SetDetected sets the value of Detected.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItem) SetDetected(val bool) {
+	s.Detected = val
+}
+
+// SetIntro sets the value of Intro.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItem) SetIntro(val string) {
+	s.Intro = val
+}
+
+// SetLabel sets the value of Label.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItem) SetLabel(val string) {
+	s.Label = val
+}
+
+// SetPlain sets the value of Plain.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItem) SetPlain(val []string) {
+	s.Plain = val
+}
+
+// SetSteps sets the value of Steps.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItem) SetSteps(val []FindingsPostFindingsIDUnconfirmOKPackFirewallItemStepsItem) {
+	s.Steps = val
+}
+
+// SetUndo sets the value of Undo.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItem) SetUndo(val []FindingsPostFindingsIDUnconfirmOKPackFirewallItemUndoItem) {
+	s.Undo = val
+}
+
+// SetVendor sets the value of Vendor.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItem) SetVendor(val FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendor) {
+	s.Vendor = val
+}
+
+// SetVerify sets the value of Verify.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItem) SetVerify(val []FindingsPostFindingsIDUnconfirmOKPackFirewallItemVerifyItem) {
+	s.Verify = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative struct {
+	Intro string                                                                  `json:"intro"`
+	Steps []FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternativeStepsItem `json:"steps"`
+	Title string                                                                  `json:"title"`
+}
+
+// GetIntro returns the value of Intro.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative) GetIntro() string {
+	return s.Intro
+}
+
+// GetSteps returns the value of Steps.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative) GetSteps() []FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternativeStepsItem {
+	return s.Steps
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative) GetTitle() string {
+	return s.Title
+}
+
+// SetIntro sets the value of Intro.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative) SetIntro(val string) {
+	s.Intro = val
+}
+
+// SetSteps sets the value of Steps.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative) SetSteps(val []FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternativeStepsItem) {
+	s.Steps = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative) SetTitle(val string) {
+	s.Title = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternativeStepsItem struct {
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
+	// Side effect that must be stated before the user pastes the command.
+	SideEffect OptString `json:"side_effect"`
+	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternativeStepsItem) GetCheck() []string {
+	return s.Check
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternativeStepsItem) GetCode() string {
+	return s.Code
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternativeStepsItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternativeStepsItem) GetSideEffect() OptString {
+	return s.SideEffect
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternativeStepsItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternativeStepsItem) SetCheck(val []string) {
+	s.Check = val
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternativeStepsItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternativeStepsItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternativeStepsItem) SetSideEffect(val OptString) {
+	s.SideEffect = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternativeStepsItem) SetTitle(val string) {
+	s.Title = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKPackFirewallItemStepsItem struct {
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
+	// Side effect that must be stated before the user pastes the command.
+	SideEffect OptString `json:"side_effect"`
+	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemStepsItem) GetCheck() []string {
+	return s.Check
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemStepsItem) GetCode() string {
+	return s.Code
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemStepsItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemStepsItem) GetSideEffect() OptString {
+	return s.SideEffect
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemStepsItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemStepsItem) SetCheck(val []string) {
+	s.Check = val
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemStepsItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemStepsItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemStepsItem) SetSideEffect(val OptString) {
+	s.SideEffect = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemStepsItem) SetTitle(val string) {
+	s.Title = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKPackFirewallItemUndoItem struct {
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
+	// Side effect that must be stated before the user pastes the command.
+	SideEffect OptString `json:"side_effect"`
+	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemUndoItem) GetCheck() []string {
+	return s.Check
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemUndoItem) GetCode() string {
+	return s.Code
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemUndoItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemUndoItem) GetSideEffect() OptString {
+	return s.SideEffect
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemUndoItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemUndoItem) SetCheck(val []string) {
+	s.Check = val
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemUndoItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemUndoItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemUndoItem) SetSideEffect(val OptString) {
+	s.SideEffect = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemUndoItem) SetTitle(val string) {
+	s.Title = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendor string
+
+const (
+	FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendorFortigate FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendor = "fortigate"
+	FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendorMikrotik  FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendor = "mikrotik"
+	FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendorGeneric   FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendor = "generic"
+)
+
+// AllValues returns all FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendor values.
+func (FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendor) AllValues() []FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendor {
+	return []FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendor{
+		FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendorFortigate,
+		FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendorMikrotik,
+		FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendorGeneric,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendor) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendorFortigate:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendorMikrotik:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendorGeneric:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendor) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendor(data) {
+	case FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendorFortigate:
+		*s = FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendorFortigate
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendorMikrotik:
+		*s = FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendorMikrotik
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendorGeneric:
+		*s = FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendorGeneric
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDUnconfirmOKPackFirewallItemVerifyItem struct {
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
+	// Side effect that must be stated before the user pastes the command.
+	SideEffect OptString `json:"side_effect"`
+	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemVerifyItem) GetCheck() []string {
+	return s.Check
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemVerifyItem) GetCode() string {
+	return s.Code
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemVerifyItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemVerifyItem) GetSideEffect() OptString {
+	return s.SideEffect
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemVerifyItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemVerifyItem) SetCheck(val []string) {
+	s.Check = val
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemVerifyItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemVerifyItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemVerifyItem) SetSideEffect(val OptString) {
+	s.SideEffect = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemVerifyItem) SetTitle(val string) {
+	s.Title = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKPackPatch struct {
+	Fixed      string   `json:"fixed"`
+	SideEffect string   `json:"side_effect"`
+	Steps      []string `json:"steps"`
+	Summary    string   `json:"summary"`
+	URL        string   `json:"url"`
+}
+
+// GetFixed returns the value of Fixed.
+func (s *FindingsPostFindingsIDUnconfirmOKPackPatch) GetFixed() string {
+	return s.Fixed
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDUnconfirmOKPackPatch) GetSideEffect() string {
+	return s.SideEffect
+}
+
+// GetSteps returns the value of Steps.
+func (s *FindingsPostFindingsIDUnconfirmOKPackPatch) GetSteps() []string {
+	return s.Steps
+}
+
+// GetSummary returns the value of Summary.
+func (s *FindingsPostFindingsIDUnconfirmOKPackPatch) GetSummary() string {
+	return s.Summary
+}
+
+// GetURL returns the value of URL.
+func (s *FindingsPostFindingsIDUnconfirmOKPackPatch) GetURL() string {
+	return s.URL
+}
+
+// SetFixed sets the value of Fixed.
+func (s *FindingsPostFindingsIDUnconfirmOKPackPatch) SetFixed(val string) {
+	s.Fixed = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDUnconfirmOKPackPatch) SetSideEffect(val string) {
+	s.SideEffect = val
+}
+
+// SetSteps sets the value of Steps.
+func (s *FindingsPostFindingsIDUnconfirmOKPackPatch) SetSteps(val []string) {
+	s.Steps = val
+}
+
+// SetSummary sets the value of Summary.
+func (s *FindingsPostFindingsIDUnconfirmOKPackPatch) SetSummary(val string) {
+	s.Summary = val
+}
+
+// SetURL sets the value of URL.
+func (s *FindingsPostFindingsIDUnconfirmOKPackPatch) SetURL(val string) {
+	s.URL = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKPackSourcesItem struct {
+	Title string `json:"title"`
+	URL   string `json:"url"`
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKPackSourcesItem) GetTitle() string {
+	return s.Title
+}
+
+// GetURL returns the value of URL.
+func (s *FindingsPostFindingsIDUnconfirmOKPackSourcesItem) GetURL() string {
+	return s.URL
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKPackSourcesItem) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetURL sets the value of URL.
+func (s *FindingsPostFindingsIDUnconfirmOKPackSourcesItem) SetURL(val string) {
+	s.URL = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKPackWorkaround struct {
+	SideEffect string   `json:"side_effect"`
+	Steps      []string `json:"steps"`
+	Summary    string   `json:"summary"`
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDUnconfirmOKPackWorkaround) GetSideEffect() string {
+	return s.SideEffect
+}
+
+// GetSteps returns the value of Steps.
+func (s *FindingsPostFindingsIDUnconfirmOKPackWorkaround) GetSteps() []string {
+	return s.Steps
+}
+
+// GetSummary returns the value of Summary.
+func (s *FindingsPostFindingsIDUnconfirmOKPackWorkaround) GetSummary() string {
+	return s.Summary
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDUnconfirmOKPackWorkaround) SetSideEffect(val string) {
+	s.SideEffect = val
+}
+
+// SetSteps sets the value of Steps.
+func (s *FindingsPostFindingsIDUnconfirmOKPackWorkaround) SetSteps(val []string) {
+	s.Steps = val
+}
+
+// SetSummary sets the value of Summary.
+func (s *FindingsPostFindingsIDUnconfirmOKPackWorkaround) SetSummary(val string) {
+	s.Summary = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKRecheck struct {
+	Code  OptString `json:"code"`
+	Steps []string  `json:"steps"`
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDUnconfirmOKRecheck) GetCode() OptString {
+	return s.Code
+}
+
+// GetSteps returns the value of Steps.
+func (s *FindingsPostFindingsIDUnconfirmOKRecheck) GetSteps() []string {
+	return s.Steps
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDUnconfirmOKRecheck) SetCode(val OptString) {
+	s.Code = val
+}
+
+// SetSteps sets the value of Steps.
+func (s *FindingsPostFindingsIDUnconfirmOKRecheck) SetSteps(val []string) {
+	s.Steps = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKSeverity string
+
+const (
+	FindingsPostFindingsIDUnconfirmOKSeverityCritical FindingsPostFindingsIDUnconfirmOKSeverity = "critical"
+	FindingsPostFindingsIDUnconfirmOKSeverityHigh     FindingsPostFindingsIDUnconfirmOKSeverity = "high"
+	FindingsPostFindingsIDUnconfirmOKSeverityMedium   FindingsPostFindingsIDUnconfirmOKSeverity = "medium"
+	FindingsPostFindingsIDUnconfirmOKSeverityLow      FindingsPostFindingsIDUnconfirmOKSeverity = "low"
+	FindingsPostFindingsIDUnconfirmOKSeverityInfo     FindingsPostFindingsIDUnconfirmOKSeverity = "info"
+)
+
+// AllValues returns all FindingsPostFindingsIDUnconfirmOKSeverity values.
+func (FindingsPostFindingsIDUnconfirmOKSeverity) AllValues() []FindingsPostFindingsIDUnconfirmOKSeverity {
+	return []FindingsPostFindingsIDUnconfirmOKSeverity{
+		FindingsPostFindingsIDUnconfirmOKSeverityCritical,
+		FindingsPostFindingsIDUnconfirmOKSeverityHigh,
+		FindingsPostFindingsIDUnconfirmOKSeverityMedium,
+		FindingsPostFindingsIDUnconfirmOKSeverityLow,
+		FindingsPostFindingsIDUnconfirmOKSeverityInfo,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDUnconfirmOKSeverity) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDUnconfirmOKSeverityCritical:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKSeverityHigh:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKSeverityMedium:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKSeverityLow:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKSeverityInfo:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDUnconfirmOKSeverity) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDUnconfirmOKSeverity(data) {
+	case FindingsPostFindingsIDUnconfirmOKSeverityCritical:
+		*s = FindingsPostFindingsIDUnconfirmOKSeverityCritical
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKSeverityHigh:
+		*s = FindingsPostFindingsIDUnconfirmOKSeverityHigh
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKSeverityMedium:
+		*s = FindingsPostFindingsIDUnconfirmOKSeverityMedium
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKSeverityLow:
+		*s = FindingsPostFindingsIDUnconfirmOKSeverityLow
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKSeverityInfo:
+		*s = FindingsPostFindingsIDUnconfirmOKSeverityInfo
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDUnconfirmOKStatus string
+
+const (
+	FindingsPostFindingsIDUnconfirmOKStatusConfirmed     FindingsPostFindingsIDUnconfirmOKStatus = "confirmed"
+	FindingsPostFindingsIDUnconfirmOKStatusSuspected     FindingsPostFindingsIDUnconfirmOKStatus = "suspected"
+	FindingsPostFindingsIDUnconfirmOKStatusMitigated     FindingsPostFindingsIDUnconfirmOKStatus = "mitigated"
+	FindingsPostFindingsIDUnconfirmOKStatusPatched       FindingsPostFindingsIDUnconfirmOKStatus = "patched"
+	FindingsPostFindingsIDUnconfirmOKStatusFalsePositive FindingsPostFindingsIDUnconfirmOKStatus = "false_positive"
+	FindingsPostFindingsIDUnconfirmOKStatusNotRelevant   FindingsPostFindingsIDUnconfirmOKStatus = "not_relevant"
+	FindingsPostFindingsIDUnconfirmOKStatusRiskAccepted  FindingsPostFindingsIDUnconfirmOKStatus = "risk_accepted"
+)
+
+// AllValues returns all FindingsPostFindingsIDUnconfirmOKStatus values.
+func (FindingsPostFindingsIDUnconfirmOKStatus) AllValues() []FindingsPostFindingsIDUnconfirmOKStatus {
+	return []FindingsPostFindingsIDUnconfirmOKStatus{
+		FindingsPostFindingsIDUnconfirmOKStatusConfirmed,
+		FindingsPostFindingsIDUnconfirmOKStatusSuspected,
+		FindingsPostFindingsIDUnconfirmOKStatusMitigated,
+		FindingsPostFindingsIDUnconfirmOKStatusPatched,
+		FindingsPostFindingsIDUnconfirmOKStatusFalsePositive,
+		FindingsPostFindingsIDUnconfirmOKStatusNotRelevant,
+		FindingsPostFindingsIDUnconfirmOKStatusRiskAccepted,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDUnconfirmOKStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDUnconfirmOKStatusConfirmed:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKStatusSuspected:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKStatusMitigated:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKStatusPatched:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKStatusFalsePositive:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKStatusNotRelevant:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKStatusRiskAccepted:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDUnconfirmOKStatus) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDUnconfirmOKStatus(data) {
+	case FindingsPostFindingsIDUnconfirmOKStatusConfirmed:
+		*s = FindingsPostFindingsIDUnconfirmOKStatusConfirmed
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKStatusSuspected:
+		*s = FindingsPostFindingsIDUnconfirmOKStatusSuspected
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKStatusMitigated:
+		*s = FindingsPostFindingsIDUnconfirmOKStatusMitigated
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKStatusPatched:
+		*s = FindingsPostFindingsIDUnconfirmOKStatusPatched
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKStatusFalsePositive:
+		*s = FindingsPostFindingsIDUnconfirmOKStatusFalsePositive
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKStatusNotRelevant:
+		*s = FindingsPostFindingsIDUnconfirmOKStatusNotRelevant
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKStatusRiskAccepted:
+		*s = FindingsPostFindingsIDUnconfirmOKStatusRiskAccepted
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -137499,6 +145688,546 @@ func (o NilFindingsPostFindingsIDAppliedOKPack) Or(d FindingsPostFindingsIDAppli
 	return d
 }
 
+// NewNilFindingsPostFindingsIDConfirmOKAiConfig returns new NilFindingsPostFindingsIDConfirmOKAiConfig with value set to v.
+func NewNilFindingsPostFindingsIDConfirmOKAiConfig(v FindingsPostFindingsIDConfirmOKAiConfig) NilFindingsPostFindingsIDConfirmOKAiConfig {
+	return NilFindingsPostFindingsIDConfirmOKAiConfig{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDConfirmOKAiConfig is nullable FindingsPostFindingsIDConfirmOKAiConfig.
+type NilFindingsPostFindingsIDConfirmOKAiConfig struct {
+	Value FindingsPostFindingsIDConfirmOKAiConfig
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDConfirmOKAiConfig) SetTo(v FindingsPostFindingsIDConfirmOKAiConfig) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDConfirmOKAiConfig) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDConfirmOKAiConfig) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDConfirmOKAiConfig
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDConfirmOKAiConfig) Get() (v FindingsPostFindingsIDConfirmOKAiConfig, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDConfirmOKAiConfig) Or(d FindingsPostFindingsIDConfirmOKAiConfig) FindingsPostFindingsIDConfirmOKAiConfig {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDConfirmOKAiExplain returns new NilFindingsPostFindingsIDConfirmOKAiExplain with value set to v.
+func NewNilFindingsPostFindingsIDConfirmOKAiExplain(v FindingsPostFindingsIDConfirmOKAiExplain) NilFindingsPostFindingsIDConfirmOKAiExplain {
+	return NilFindingsPostFindingsIDConfirmOKAiExplain{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDConfirmOKAiExplain is nullable FindingsPostFindingsIDConfirmOKAiExplain.
+type NilFindingsPostFindingsIDConfirmOKAiExplain struct {
+	Value FindingsPostFindingsIDConfirmOKAiExplain
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDConfirmOKAiExplain) SetTo(v FindingsPostFindingsIDConfirmOKAiExplain) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDConfirmOKAiExplain) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDConfirmOKAiExplain) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDConfirmOKAiExplain
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDConfirmOKAiExplain) Get() (v FindingsPostFindingsIDConfirmOKAiExplain, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDConfirmOKAiExplain) Or(d FindingsPostFindingsIDConfirmOKAiExplain) FindingsPostFindingsIDConfirmOKAiExplain {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDConfirmOKAsset returns new NilFindingsPostFindingsIDConfirmOKAsset with value set to v.
+func NewNilFindingsPostFindingsIDConfirmOKAsset(v FindingsPostFindingsIDConfirmOKAsset) NilFindingsPostFindingsIDConfirmOKAsset {
+	return NilFindingsPostFindingsIDConfirmOKAsset{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDConfirmOKAsset is nullable FindingsPostFindingsIDConfirmOKAsset.
+type NilFindingsPostFindingsIDConfirmOKAsset struct {
+	Value FindingsPostFindingsIDConfirmOKAsset
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDConfirmOKAsset) SetTo(v FindingsPostFindingsIDConfirmOKAsset) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDConfirmOKAsset) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDConfirmOKAsset) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDConfirmOKAsset
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDConfirmOKAsset) Get() (v FindingsPostFindingsIDConfirmOKAsset, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDConfirmOKAsset) Or(d FindingsPostFindingsIDConfirmOKAsset) FindingsPostFindingsIDConfirmOKAsset {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDConfirmOKCompromise returns new NilFindingsPostFindingsIDConfirmOKCompromise with value set to v.
+func NewNilFindingsPostFindingsIDConfirmOKCompromise(v FindingsPostFindingsIDConfirmOKCompromise) NilFindingsPostFindingsIDConfirmOKCompromise {
+	return NilFindingsPostFindingsIDConfirmOKCompromise{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDConfirmOKCompromise is nullable FindingsPostFindingsIDConfirmOKCompromise.
+type NilFindingsPostFindingsIDConfirmOKCompromise struct {
+	Value FindingsPostFindingsIDConfirmOKCompromise
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDConfirmOKCompromise) SetTo(v FindingsPostFindingsIDConfirmOKCompromise) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDConfirmOKCompromise) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDConfirmOKCompromise) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDConfirmOKCompromise
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDConfirmOKCompromise) Get() (v FindingsPostFindingsIDConfirmOKCompromise, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDConfirmOKCompromise) Or(d FindingsPostFindingsIDConfirmOKCompromise) FindingsPostFindingsIDConfirmOKCompromise {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDConfirmOKCvss returns new NilFindingsPostFindingsIDConfirmOKCvss with value set to v.
+func NewNilFindingsPostFindingsIDConfirmOKCvss(v FindingsPostFindingsIDConfirmOKCvss) NilFindingsPostFindingsIDConfirmOKCvss {
+	return NilFindingsPostFindingsIDConfirmOKCvss{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDConfirmOKCvss is nullable FindingsPostFindingsIDConfirmOKCvss.
+type NilFindingsPostFindingsIDConfirmOKCvss struct {
+	Value FindingsPostFindingsIDConfirmOKCvss
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDConfirmOKCvss) SetTo(v FindingsPostFindingsIDConfirmOKCvss) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDConfirmOKCvss) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDConfirmOKCvss) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDConfirmOKCvss
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDConfirmOKCvss) Get() (v FindingsPostFindingsIDConfirmOKCvss, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDConfirmOKCvss) Or(d FindingsPostFindingsIDConfirmOKCvss) FindingsPostFindingsIDConfirmOKCvss {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDConfirmOKEvidence returns new NilFindingsPostFindingsIDConfirmOKEvidence with value set to v.
+func NewNilFindingsPostFindingsIDConfirmOKEvidence(v FindingsPostFindingsIDConfirmOKEvidence) NilFindingsPostFindingsIDConfirmOKEvidence {
+	return NilFindingsPostFindingsIDConfirmOKEvidence{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDConfirmOKEvidence is nullable FindingsPostFindingsIDConfirmOKEvidence.
+type NilFindingsPostFindingsIDConfirmOKEvidence struct {
+	Value FindingsPostFindingsIDConfirmOKEvidence
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDConfirmOKEvidence) SetTo(v FindingsPostFindingsIDConfirmOKEvidence) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDConfirmOKEvidence) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDConfirmOKEvidence) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDConfirmOKEvidence
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDConfirmOKEvidence) Get() (v FindingsPostFindingsIDConfirmOKEvidence, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDConfirmOKEvidence) Or(d FindingsPostFindingsIDConfirmOKEvidence) FindingsPostFindingsIDConfirmOKEvidence {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDConfirmOKFixedIn returns new NilFindingsPostFindingsIDConfirmOKFixedIn with value set to v.
+func NewNilFindingsPostFindingsIDConfirmOKFixedIn(v FindingsPostFindingsIDConfirmOKFixedIn) NilFindingsPostFindingsIDConfirmOKFixedIn {
+	return NilFindingsPostFindingsIDConfirmOKFixedIn{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDConfirmOKFixedIn is nullable FindingsPostFindingsIDConfirmOKFixedIn.
+type NilFindingsPostFindingsIDConfirmOKFixedIn struct {
+	Value FindingsPostFindingsIDConfirmOKFixedIn
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDConfirmOKFixedIn) SetTo(v FindingsPostFindingsIDConfirmOKFixedIn) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDConfirmOKFixedIn) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDConfirmOKFixedIn) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDConfirmOKFixedIn
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDConfirmOKFixedIn) Get() (v FindingsPostFindingsIDConfirmOKFixedIn, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDConfirmOKFixedIn) Or(d FindingsPostFindingsIDConfirmOKFixedIn) FindingsPostFindingsIDConfirmOKFixedIn {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDConfirmOKHardening returns new NilFindingsPostFindingsIDConfirmOKHardening with value set to v.
+func NewNilFindingsPostFindingsIDConfirmOKHardening(v FindingsPostFindingsIDConfirmOKHardening) NilFindingsPostFindingsIDConfirmOKHardening {
+	return NilFindingsPostFindingsIDConfirmOKHardening{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDConfirmOKHardening is nullable FindingsPostFindingsIDConfirmOKHardening.
+type NilFindingsPostFindingsIDConfirmOKHardening struct {
+	Value FindingsPostFindingsIDConfirmOKHardening
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDConfirmOKHardening) SetTo(v FindingsPostFindingsIDConfirmOKHardening) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDConfirmOKHardening) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDConfirmOKHardening) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDConfirmOKHardening
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDConfirmOKHardening) Get() (v FindingsPostFindingsIDConfirmOKHardening, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDConfirmOKHardening) Or(d FindingsPostFindingsIDConfirmOKHardening) FindingsPostFindingsIDConfirmOKHardening {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDConfirmOKHardeningChecks returns new NilFindingsPostFindingsIDConfirmOKHardeningChecks with value set to v.
+func NewNilFindingsPostFindingsIDConfirmOKHardeningChecks(v FindingsPostFindingsIDConfirmOKHardeningChecks) NilFindingsPostFindingsIDConfirmOKHardeningChecks {
+	return NilFindingsPostFindingsIDConfirmOKHardeningChecks{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDConfirmOKHardeningChecks is nullable FindingsPostFindingsIDConfirmOKHardeningChecks.
+type NilFindingsPostFindingsIDConfirmOKHardeningChecks struct {
+	Value FindingsPostFindingsIDConfirmOKHardeningChecks
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDConfirmOKHardeningChecks) SetTo(v FindingsPostFindingsIDConfirmOKHardeningChecks) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDConfirmOKHardeningChecks) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDConfirmOKHardeningChecks) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDConfirmOKHardeningChecks
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDConfirmOKHardeningChecks) Get() (v FindingsPostFindingsIDConfirmOKHardeningChecks, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDConfirmOKHardeningChecks) Or(d FindingsPostFindingsIDConfirmOKHardeningChecks) FindingsPostFindingsIDConfirmOKHardeningChecks {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDConfirmOKKev returns new NilFindingsPostFindingsIDConfirmOKKev with value set to v.
+func NewNilFindingsPostFindingsIDConfirmOKKev(v FindingsPostFindingsIDConfirmOKKev) NilFindingsPostFindingsIDConfirmOKKev {
+	return NilFindingsPostFindingsIDConfirmOKKev{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDConfirmOKKev is nullable FindingsPostFindingsIDConfirmOKKev.
+type NilFindingsPostFindingsIDConfirmOKKev struct {
+	Value FindingsPostFindingsIDConfirmOKKev
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDConfirmOKKev) SetTo(v FindingsPostFindingsIDConfirmOKKev) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDConfirmOKKev) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDConfirmOKKev) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDConfirmOKKev
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDConfirmOKKev) Get() (v FindingsPostFindingsIDConfirmOKKev, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDConfirmOKKev) Or(d FindingsPostFindingsIDConfirmOKKev) FindingsPostFindingsIDConfirmOKKev {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDConfirmOKKnownVersion returns new NilFindingsPostFindingsIDConfirmOKKnownVersion with value set to v.
+func NewNilFindingsPostFindingsIDConfirmOKKnownVersion(v FindingsPostFindingsIDConfirmOKKnownVersion) NilFindingsPostFindingsIDConfirmOKKnownVersion {
+	return NilFindingsPostFindingsIDConfirmOKKnownVersion{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDConfirmOKKnownVersion is nullable FindingsPostFindingsIDConfirmOKKnownVersion.
+type NilFindingsPostFindingsIDConfirmOKKnownVersion struct {
+	Value FindingsPostFindingsIDConfirmOKKnownVersion
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDConfirmOKKnownVersion) SetTo(v FindingsPostFindingsIDConfirmOKKnownVersion) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDConfirmOKKnownVersion) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDConfirmOKKnownVersion) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDConfirmOKKnownVersion
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDConfirmOKKnownVersion) Get() (v FindingsPostFindingsIDConfirmOKKnownVersion, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDConfirmOKKnownVersion) Or(d FindingsPostFindingsIDConfirmOKKnownVersion) FindingsPostFindingsIDConfirmOKKnownVersion {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDConfirmOKPack returns new NilFindingsPostFindingsIDConfirmOKPack with value set to v.
+func NewNilFindingsPostFindingsIDConfirmOKPack(v FindingsPostFindingsIDConfirmOKPack) NilFindingsPostFindingsIDConfirmOKPack {
+	return NilFindingsPostFindingsIDConfirmOKPack{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDConfirmOKPack is nullable FindingsPostFindingsIDConfirmOKPack.
+type NilFindingsPostFindingsIDConfirmOKPack struct {
+	Value FindingsPostFindingsIDConfirmOKPack
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDConfirmOKPack) SetTo(v FindingsPostFindingsIDConfirmOKPack) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDConfirmOKPack) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDConfirmOKPack) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDConfirmOKPack
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDConfirmOKPack) Get() (v FindingsPostFindingsIDConfirmOKPack, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDConfirmOKPack) Or(d FindingsPostFindingsIDConfirmOKPack) FindingsPostFindingsIDConfirmOKPack {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilFindingsPostFindingsIDStatusOKAiConfig returns new NilFindingsPostFindingsIDStatusOKAiConfig with value set to v.
 func NewNilFindingsPostFindingsIDStatusOKAiConfig(v FindingsPostFindingsIDStatusOKAiConfig) NilFindingsPostFindingsIDStatusOKAiConfig {
 	return NilFindingsPostFindingsIDStatusOKAiConfig{
@@ -138033,6 +146762,546 @@ func (o NilFindingsPostFindingsIDStatusOKPack) Get() (v FindingsPostFindingsIDSt
 
 // Or returns value if set, or given parameter if does not.
 func (o NilFindingsPostFindingsIDStatusOKPack) Or(d FindingsPostFindingsIDStatusOKPack) FindingsPostFindingsIDStatusOKPack {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDUnconfirmOKAiConfig returns new NilFindingsPostFindingsIDUnconfirmOKAiConfig with value set to v.
+func NewNilFindingsPostFindingsIDUnconfirmOKAiConfig(v FindingsPostFindingsIDUnconfirmOKAiConfig) NilFindingsPostFindingsIDUnconfirmOKAiConfig {
+	return NilFindingsPostFindingsIDUnconfirmOKAiConfig{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDUnconfirmOKAiConfig is nullable FindingsPostFindingsIDUnconfirmOKAiConfig.
+type NilFindingsPostFindingsIDUnconfirmOKAiConfig struct {
+	Value FindingsPostFindingsIDUnconfirmOKAiConfig
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDUnconfirmOKAiConfig) SetTo(v FindingsPostFindingsIDUnconfirmOKAiConfig) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDUnconfirmOKAiConfig) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDUnconfirmOKAiConfig) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDUnconfirmOKAiConfig
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDUnconfirmOKAiConfig) Get() (v FindingsPostFindingsIDUnconfirmOKAiConfig, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDUnconfirmOKAiConfig) Or(d FindingsPostFindingsIDUnconfirmOKAiConfig) FindingsPostFindingsIDUnconfirmOKAiConfig {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDUnconfirmOKAiExplain returns new NilFindingsPostFindingsIDUnconfirmOKAiExplain with value set to v.
+func NewNilFindingsPostFindingsIDUnconfirmOKAiExplain(v FindingsPostFindingsIDUnconfirmOKAiExplain) NilFindingsPostFindingsIDUnconfirmOKAiExplain {
+	return NilFindingsPostFindingsIDUnconfirmOKAiExplain{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDUnconfirmOKAiExplain is nullable FindingsPostFindingsIDUnconfirmOKAiExplain.
+type NilFindingsPostFindingsIDUnconfirmOKAiExplain struct {
+	Value FindingsPostFindingsIDUnconfirmOKAiExplain
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDUnconfirmOKAiExplain) SetTo(v FindingsPostFindingsIDUnconfirmOKAiExplain) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDUnconfirmOKAiExplain) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDUnconfirmOKAiExplain) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDUnconfirmOKAiExplain
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDUnconfirmOKAiExplain) Get() (v FindingsPostFindingsIDUnconfirmOKAiExplain, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDUnconfirmOKAiExplain) Or(d FindingsPostFindingsIDUnconfirmOKAiExplain) FindingsPostFindingsIDUnconfirmOKAiExplain {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDUnconfirmOKAsset returns new NilFindingsPostFindingsIDUnconfirmOKAsset with value set to v.
+func NewNilFindingsPostFindingsIDUnconfirmOKAsset(v FindingsPostFindingsIDUnconfirmOKAsset) NilFindingsPostFindingsIDUnconfirmOKAsset {
+	return NilFindingsPostFindingsIDUnconfirmOKAsset{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDUnconfirmOKAsset is nullable FindingsPostFindingsIDUnconfirmOKAsset.
+type NilFindingsPostFindingsIDUnconfirmOKAsset struct {
+	Value FindingsPostFindingsIDUnconfirmOKAsset
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDUnconfirmOKAsset) SetTo(v FindingsPostFindingsIDUnconfirmOKAsset) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDUnconfirmOKAsset) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDUnconfirmOKAsset) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDUnconfirmOKAsset
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDUnconfirmOKAsset) Get() (v FindingsPostFindingsIDUnconfirmOKAsset, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDUnconfirmOKAsset) Or(d FindingsPostFindingsIDUnconfirmOKAsset) FindingsPostFindingsIDUnconfirmOKAsset {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDUnconfirmOKCompromise returns new NilFindingsPostFindingsIDUnconfirmOKCompromise with value set to v.
+func NewNilFindingsPostFindingsIDUnconfirmOKCompromise(v FindingsPostFindingsIDUnconfirmOKCompromise) NilFindingsPostFindingsIDUnconfirmOKCompromise {
+	return NilFindingsPostFindingsIDUnconfirmOKCompromise{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDUnconfirmOKCompromise is nullable FindingsPostFindingsIDUnconfirmOKCompromise.
+type NilFindingsPostFindingsIDUnconfirmOKCompromise struct {
+	Value FindingsPostFindingsIDUnconfirmOKCompromise
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDUnconfirmOKCompromise) SetTo(v FindingsPostFindingsIDUnconfirmOKCompromise) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDUnconfirmOKCompromise) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDUnconfirmOKCompromise) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDUnconfirmOKCompromise
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDUnconfirmOKCompromise) Get() (v FindingsPostFindingsIDUnconfirmOKCompromise, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDUnconfirmOKCompromise) Or(d FindingsPostFindingsIDUnconfirmOKCompromise) FindingsPostFindingsIDUnconfirmOKCompromise {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDUnconfirmOKCvss returns new NilFindingsPostFindingsIDUnconfirmOKCvss with value set to v.
+func NewNilFindingsPostFindingsIDUnconfirmOKCvss(v FindingsPostFindingsIDUnconfirmOKCvss) NilFindingsPostFindingsIDUnconfirmOKCvss {
+	return NilFindingsPostFindingsIDUnconfirmOKCvss{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDUnconfirmOKCvss is nullable FindingsPostFindingsIDUnconfirmOKCvss.
+type NilFindingsPostFindingsIDUnconfirmOKCvss struct {
+	Value FindingsPostFindingsIDUnconfirmOKCvss
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDUnconfirmOKCvss) SetTo(v FindingsPostFindingsIDUnconfirmOKCvss) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDUnconfirmOKCvss) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDUnconfirmOKCvss) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDUnconfirmOKCvss
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDUnconfirmOKCvss) Get() (v FindingsPostFindingsIDUnconfirmOKCvss, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDUnconfirmOKCvss) Or(d FindingsPostFindingsIDUnconfirmOKCvss) FindingsPostFindingsIDUnconfirmOKCvss {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDUnconfirmOKEvidence returns new NilFindingsPostFindingsIDUnconfirmOKEvidence with value set to v.
+func NewNilFindingsPostFindingsIDUnconfirmOKEvidence(v FindingsPostFindingsIDUnconfirmOKEvidence) NilFindingsPostFindingsIDUnconfirmOKEvidence {
+	return NilFindingsPostFindingsIDUnconfirmOKEvidence{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDUnconfirmOKEvidence is nullable FindingsPostFindingsIDUnconfirmOKEvidence.
+type NilFindingsPostFindingsIDUnconfirmOKEvidence struct {
+	Value FindingsPostFindingsIDUnconfirmOKEvidence
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDUnconfirmOKEvidence) SetTo(v FindingsPostFindingsIDUnconfirmOKEvidence) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDUnconfirmOKEvidence) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDUnconfirmOKEvidence) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDUnconfirmOKEvidence
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDUnconfirmOKEvidence) Get() (v FindingsPostFindingsIDUnconfirmOKEvidence, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDUnconfirmOKEvidence) Or(d FindingsPostFindingsIDUnconfirmOKEvidence) FindingsPostFindingsIDUnconfirmOKEvidence {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDUnconfirmOKFixedIn returns new NilFindingsPostFindingsIDUnconfirmOKFixedIn with value set to v.
+func NewNilFindingsPostFindingsIDUnconfirmOKFixedIn(v FindingsPostFindingsIDUnconfirmOKFixedIn) NilFindingsPostFindingsIDUnconfirmOKFixedIn {
+	return NilFindingsPostFindingsIDUnconfirmOKFixedIn{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDUnconfirmOKFixedIn is nullable FindingsPostFindingsIDUnconfirmOKFixedIn.
+type NilFindingsPostFindingsIDUnconfirmOKFixedIn struct {
+	Value FindingsPostFindingsIDUnconfirmOKFixedIn
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDUnconfirmOKFixedIn) SetTo(v FindingsPostFindingsIDUnconfirmOKFixedIn) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDUnconfirmOKFixedIn) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDUnconfirmOKFixedIn) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDUnconfirmOKFixedIn
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDUnconfirmOKFixedIn) Get() (v FindingsPostFindingsIDUnconfirmOKFixedIn, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDUnconfirmOKFixedIn) Or(d FindingsPostFindingsIDUnconfirmOKFixedIn) FindingsPostFindingsIDUnconfirmOKFixedIn {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDUnconfirmOKHardening returns new NilFindingsPostFindingsIDUnconfirmOKHardening with value set to v.
+func NewNilFindingsPostFindingsIDUnconfirmOKHardening(v FindingsPostFindingsIDUnconfirmOKHardening) NilFindingsPostFindingsIDUnconfirmOKHardening {
+	return NilFindingsPostFindingsIDUnconfirmOKHardening{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDUnconfirmOKHardening is nullable FindingsPostFindingsIDUnconfirmOKHardening.
+type NilFindingsPostFindingsIDUnconfirmOKHardening struct {
+	Value FindingsPostFindingsIDUnconfirmOKHardening
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDUnconfirmOKHardening) SetTo(v FindingsPostFindingsIDUnconfirmOKHardening) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDUnconfirmOKHardening) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDUnconfirmOKHardening) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDUnconfirmOKHardening
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDUnconfirmOKHardening) Get() (v FindingsPostFindingsIDUnconfirmOKHardening, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDUnconfirmOKHardening) Or(d FindingsPostFindingsIDUnconfirmOKHardening) FindingsPostFindingsIDUnconfirmOKHardening {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDUnconfirmOKHardeningChecks returns new NilFindingsPostFindingsIDUnconfirmOKHardeningChecks with value set to v.
+func NewNilFindingsPostFindingsIDUnconfirmOKHardeningChecks(v FindingsPostFindingsIDUnconfirmOKHardeningChecks) NilFindingsPostFindingsIDUnconfirmOKHardeningChecks {
+	return NilFindingsPostFindingsIDUnconfirmOKHardeningChecks{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDUnconfirmOKHardeningChecks is nullable FindingsPostFindingsIDUnconfirmOKHardeningChecks.
+type NilFindingsPostFindingsIDUnconfirmOKHardeningChecks struct {
+	Value FindingsPostFindingsIDUnconfirmOKHardeningChecks
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDUnconfirmOKHardeningChecks) SetTo(v FindingsPostFindingsIDUnconfirmOKHardeningChecks) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDUnconfirmOKHardeningChecks) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDUnconfirmOKHardeningChecks) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDUnconfirmOKHardeningChecks
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDUnconfirmOKHardeningChecks) Get() (v FindingsPostFindingsIDUnconfirmOKHardeningChecks, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDUnconfirmOKHardeningChecks) Or(d FindingsPostFindingsIDUnconfirmOKHardeningChecks) FindingsPostFindingsIDUnconfirmOKHardeningChecks {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDUnconfirmOKKev returns new NilFindingsPostFindingsIDUnconfirmOKKev with value set to v.
+func NewNilFindingsPostFindingsIDUnconfirmOKKev(v FindingsPostFindingsIDUnconfirmOKKev) NilFindingsPostFindingsIDUnconfirmOKKev {
+	return NilFindingsPostFindingsIDUnconfirmOKKev{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDUnconfirmOKKev is nullable FindingsPostFindingsIDUnconfirmOKKev.
+type NilFindingsPostFindingsIDUnconfirmOKKev struct {
+	Value FindingsPostFindingsIDUnconfirmOKKev
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDUnconfirmOKKev) SetTo(v FindingsPostFindingsIDUnconfirmOKKev) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDUnconfirmOKKev) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDUnconfirmOKKev) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDUnconfirmOKKev
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDUnconfirmOKKev) Get() (v FindingsPostFindingsIDUnconfirmOKKev, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDUnconfirmOKKev) Or(d FindingsPostFindingsIDUnconfirmOKKev) FindingsPostFindingsIDUnconfirmOKKev {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDUnconfirmOKKnownVersion returns new NilFindingsPostFindingsIDUnconfirmOKKnownVersion with value set to v.
+func NewNilFindingsPostFindingsIDUnconfirmOKKnownVersion(v FindingsPostFindingsIDUnconfirmOKKnownVersion) NilFindingsPostFindingsIDUnconfirmOKKnownVersion {
+	return NilFindingsPostFindingsIDUnconfirmOKKnownVersion{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDUnconfirmOKKnownVersion is nullable FindingsPostFindingsIDUnconfirmOKKnownVersion.
+type NilFindingsPostFindingsIDUnconfirmOKKnownVersion struct {
+	Value FindingsPostFindingsIDUnconfirmOKKnownVersion
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDUnconfirmOKKnownVersion) SetTo(v FindingsPostFindingsIDUnconfirmOKKnownVersion) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDUnconfirmOKKnownVersion) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDUnconfirmOKKnownVersion) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDUnconfirmOKKnownVersion
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDUnconfirmOKKnownVersion) Get() (v FindingsPostFindingsIDUnconfirmOKKnownVersion, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDUnconfirmOKKnownVersion) Or(d FindingsPostFindingsIDUnconfirmOKKnownVersion) FindingsPostFindingsIDUnconfirmOKKnownVersion {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDUnconfirmOKPack returns new NilFindingsPostFindingsIDUnconfirmOKPack with value set to v.
+func NewNilFindingsPostFindingsIDUnconfirmOKPack(v FindingsPostFindingsIDUnconfirmOKPack) NilFindingsPostFindingsIDUnconfirmOKPack {
+	return NilFindingsPostFindingsIDUnconfirmOKPack{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDUnconfirmOKPack is nullable FindingsPostFindingsIDUnconfirmOKPack.
+type NilFindingsPostFindingsIDUnconfirmOKPack struct {
+	Value FindingsPostFindingsIDUnconfirmOKPack
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDUnconfirmOKPack) SetTo(v FindingsPostFindingsIDUnconfirmOKPack) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDUnconfirmOKPack) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDUnconfirmOKPack) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDUnconfirmOKPack
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDUnconfirmOKPack) Get() (v FindingsPostFindingsIDUnconfirmOKPack, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDUnconfirmOKPack) Or(d FindingsPostFindingsIDUnconfirmOKPack) FindingsPostFindingsIDUnconfirmOKPack {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -155791,6 +165060,98 @@ func (o OptFindingsPostFindingsIDAppliedOKPackFirewallItemAlternative) Or(d Find
 	return d
 }
 
+// NewOptFindingsPostFindingsIDConfirmOKKevSource returns new OptFindingsPostFindingsIDConfirmOKKevSource with value set to v.
+func NewOptFindingsPostFindingsIDConfirmOKKevSource(v FindingsPostFindingsIDConfirmOKKevSource) OptFindingsPostFindingsIDConfirmOKKevSource {
+	return OptFindingsPostFindingsIDConfirmOKKevSource{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptFindingsPostFindingsIDConfirmOKKevSource is optional FindingsPostFindingsIDConfirmOKKevSource.
+type OptFindingsPostFindingsIDConfirmOKKevSource struct {
+	Value FindingsPostFindingsIDConfirmOKKevSource
+	Set   bool
+}
+
+// IsSet returns true if OptFindingsPostFindingsIDConfirmOKKevSource was set.
+func (o OptFindingsPostFindingsIDConfirmOKKevSource) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptFindingsPostFindingsIDConfirmOKKevSource) Reset() {
+	var v FindingsPostFindingsIDConfirmOKKevSource
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptFindingsPostFindingsIDConfirmOKKevSource) SetTo(v FindingsPostFindingsIDConfirmOKKevSource) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptFindingsPostFindingsIDConfirmOKKevSource) Get() (v FindingsPostFindingsIDConfirmOKKevSource, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptFindingsPostFindingsIDConfirmOKKevSource) Or(d FindingsPostFindingsIDConfirmOKKevSource) FindingsPostFindingsIDConfirmOKKevSource {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptFindingsPostFindingsIDConfirmOKPackFirewallItemAlternative returns new OptFindingsPostFindingsIDConfirmOKPackFirewallItemAlternative with value set to v.
+func NewOptFindingsPostFindingsIDConfirmOKPackFirewallItemAlternative(v FindingsPostFindingsIDConfirmOKPackFirewallItemAlternative) OptFindingsPostFindingsIDConfirmOKPackFirewallItemAlternative {
+	return OptFindingsPostFindingsIDConfirmOKPackFirewallItemAlternative{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptFindingsPostFindingsIDConfirmOKPackFirewallItemAlternative is optional FindingsPostFindingsIDConfirmOKPackFirewallItemAlternative.
+type OptFindingsPostFindingsIDConfirmOKPackFirewallItemAlternative struct {
+	Value FindingsPostFindingsIDConfirmOKPackFirewallItemAlternative
+	Set   bool
+}
+
+// IsSet returns true if OptFindingsPostFindingsIDConfirmOKPackFirewallItemAlternative was set.
+func (o OptFindingsPostFindingsIDConfirmOKPackFirewallItemAlternative) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptFindingsPostFindingsIDConfirmOKPackFirewallItemAlternative) Reset() {
+	var v FindingsPostFindingsIDConfirmOKPackFirewallItemAlternative
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptFindingsPostFindingsIDConfirmOKPackFirewallItemAlternative) SetTo(v FindingsPostFindingsIDConfirmOKPackFirewallItemAlternative) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptFindingsPostFindingsIDConfirmOKPackFirewallItemAlternative) Get() (v FindingsPostFindingsIDConfirmOKPackFirewallItemAlternative, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptFindingsPostFindingsIDConfirmOKPackFirewallItemAlternative) Or(d FindingsPostFindingsIDConfirmOKPackFirewallItemAlternative) FindingsPostFindingsIDConfirmOKPackFirewallItemAlternative {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptFindingsPostFindingsIDStatusOKKevSource returns new OptFindingsPostFindingsIDStatusOKKevSource with value set to v.
 func NewOptFindingsPostFindingsIDStatusOKKevSource(v FindingsPostFindingsIDStatusOKKevSource) OptFindingsPostFindingsIDStatusOKKevSource {
 	return OptFindingsPostFindingsIDStatusOKKevSource{
@@ -155877,6 +165238,98 @@ func (o OptFindingsPostFindingsIDStatusOKPackFirewallItemAlternative) Get() (v F
 
 // Or returns value if set, or given parameter if does not.
 func (o OptFindingsPostFindingsIDStatusOKPackFirewallItemAlternative) Or(d FindingsPostFindingsIDStatusOKPackFirewallItemAlternative) FindingsPostFindingsIDStatusOKPackFirewallItemAlternative {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptFindingsPostFindingsIDUnconfirmOKKevSource returns new OptFindingsPostFindingsIDUnconfirmOKKevSource with value set to v.
+func NewOptFindingsPostFindingsIDUnconfirmOKKevSource(v FindingsPostFindingsIDUnconfirmOKKevSource) OptFindingsPostFindingsIDUnconfirmOKKevSource {
+	return OptFindingsPostFindingsIDUnconfirmOKKevSource{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptFindingsPostFindingsIDUnconfirmOKKevSource is optional FindingsPostFindingsIDUnconfirmOKKevSource.
+type OptFindingsPostFindingsIDUnconfirmOKKevSource struct {
+	Value FindingsPostFindingsIDUnconfirmOKKevSource
+	Set   bool
+}
+
+// IsSet returns true if OptFindingsPostFindingsIDUnconfirmOKKevSource was set.
+func (o OptFindingsPostFindingsIDUnconfirmOKKevSource) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptFindingsPostFindingsIDUnconfirmOKKevSource) Reset() {
+	var v FindingsPostFindingsIDUnconfirmOKKevSource
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptFindingsPostFindingsIDUnconfirmOKKevSource) SetTo(v FindingsPostFindingsIDUnconfirmOKKevSource) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptFindingsPostFindingsIDUnconfirmOKKevSource) Get() (v FindingsPostFindingsIDUnconfirmOKKevSource, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptFindingsPostFindingsIDUnconfirmOKKevSource) Or(d FindingsPostFindingsIDUnconfirmOKKevSource) FindingsPostFindingsIDUnconfirmOKKevSource {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptFindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative returns new OptFindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative with value set to v.
+func NewOptFindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative(v FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative) OptFindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative {
+	return OptFindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptFindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative is optional FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative.
+type OptFindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative struct {
+	Value FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative
+	Set   bool
+}
+
+// IsSet returns true if OptFindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative was set.
+func (o OptFindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptFindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative) Reset() {
+	var v FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptFindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative) SetTo(v FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptFindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative) Get() (v FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptFindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative) Or(d FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative) FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -157903,6 +167356,74 @@ func (o OptNilFindingsPostFindingsIDAppliedOKFix) Or(d FindingsPostFindingsIDApp
 	return d
 }
 
+// NewOptNilFindingsPostFindingsIDConfirmOKFix returns new OptNilFindingsPostFindingsIDConfirmOKFix with value set to v.
+func NewOptNilFindingsPostFindingsIDConfirmOKFix(v FindingsPostFindingsIDConfirmOKFix) OptNilFindingsPostFindingsIDConfirmOKFix {
+	return OptNilFindingsPostFindingsIDConfirmOKFix{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilFindingsPostFindingsIDConfirmOKFix is optional nullable FindingsPostFindingsIDConfirmOKFix.
+type OptNilFindingsPostFindingsIDConfirmOKFix struct {
+	Value FindingsPostFindingsIDConfirmOKFix
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilFindingsPostFindingsIDConfirmOKFix was set.
+func (o OptNilFindingsPostFindingsIDConfirmOKFix) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilFindingsPostFindingsIDConfirmOKFix) Reset() {
+	var v FindingsPostFindingsIDConfirmOKFix
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilFindingsPostFindingsIDConfirmOKFix) SetTo(v FindingsPostFindingsIDConfirmOKFix) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilFindingsPostFindingsIDConfirmOKFix) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilFindingsPostFindingsIDConfirmOKFix) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v FindingsPostFindingsIDConfirmOKFix
+	o.Value = v
+}
+
+// IsEmpty returns true if the field was omitted from the payload (not Set and not Null).
+func (o OptNilFindingsPostFindingsIDConfirmOKFix) IsEmpty() bool {
+	return !o.Set && !o.Null
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilFindingsPostFindingsIDConfirmOKFix) Get() (v FindingsPostFindingsIDConfirmOKFix, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilFindingsPostFindingsIDConfirmOKFix) Or(d FindingsPostFindingsIDConfirmOKFix) FindingsPostFindingsIDConfirmOKFix {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptNilFindingsPostFindingsIDStatusOKFix returns new OptNilFindingsPostFindingsIDStatusOKFix with value set to v.
 func NewOptNilFindingsPostFindingsIDStatusOKFix(v FindingsPostFindingsIDStatusOKFix) OptNilFindingsPostFindingsIDStatusOKFix {
 	return OptNilFindingsPostFindingsIDStatusOKFix{
@@ -157965,6 +167486,74 @@ func (o OptNilFindingsPostFindingsIDStatusOKFix) Get() (v FindingsPostFindingsID
 
 // Or returns value if set, or given parameter if does not.
 func (o OptNilFindingsPostFindingsIDStatusOKFix) Or(d FindingsPostFindingsIDStatusOKFix) FindingsPostFindingsIDStatusOKFix {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilFindingsPostFindingsIDUnconfirmOKFix returns new OptNilFindingsPostFindingsIDUnconfirmOKFix with value set to v.
+func NewOptNilFindingsPostFindingsIDUnconfirmOKFix(v FindingsPostFindingsIDUnconfirmOKFix) OptNilFindingsPostFindingsIDUnconfirmOKFix {
+	return OptNilFindingsPostFindingsIDUnconfirmOKFix{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilFindingsPostFindingsIDUnconfirmOKFix is optional nullable FindingsPostFindingsIDUnconfirmOKFix.
+type OptNilFindingsPostFindingsIDUnconfirmOKFix struct {
+	Value FindingsPostFindingsIDUnconfirmOKFix
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilFindingsPostFindingsIDUnconfirmOKFix was set.
+func (o OptNilFindingsPostFindingsIDUnconfirmOKFix) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilFindingsPostFindingsIDUnconfirmOKFix) Reset() {
+	var v FindingsPostFindingsIDUnconfirmOKFix
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilFindingsPostFindingsIDUnconfirmOKFix) SetTo(v FindingsPostFindingsIDUnconfirmOKFix) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilFindingsPostFindingsIDUnconfirmOKFix) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilFindingsPostFindingsIDUnconfirmOKFix) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v FindingsPostFindingsIDUnconfirmOKFix
+	o.Value = v
+}
+
+// IsEmpty returns true if the field was omitted from the payload (not Set and not Null).
+func (o OptNilFindingsPostFindingsIDUnconfirmOKFix) IsEmpty() bool {
+	return !o.Set && !o.Null
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilFindingsPostFindingsIDUnconfirmOKFix) Get() (v FindingsPostFindingsIDUnconfirmOKFix, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilFindingsPostFindingsIDUnconfirmOKFix) Or(d FindingsPostFindingsIDUnconfirmOKFix) FindingsPostFindingsIDUnconfirmOKFix {
 	if v, ok := o.Get(); ok {
 		return v
 	}

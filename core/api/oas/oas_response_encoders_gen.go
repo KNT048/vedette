@@ -2149,7 +2149,33 @@ func encodeFindingsPostFindingsIDAppliedResponse(response *FindingsPostFindingsI
 	return nil
 }
 
+func encodeFindingsPostFindingsIDConfirmResponse(response *FindingsPostFindingsIDConfirmOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
 func encodeFindingsPostFindingsIDStatusResponse(response *FindingsPostFindingsIDStatusOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeFindingsPostFindingsIDUnconfirmResponse(response *FindingsPostFindingsIDUnconfirmOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
 

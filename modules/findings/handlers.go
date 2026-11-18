@@ -33,6 +33,7 @@ type FindingHandlers struct {
 	mu           sync.RWMutex
 	guide        Guidance
 	agents       AgentReports
+	scanReach    ScanReach
 	summaryState // GET /findings/summary (summary.go); sum and home under mu
 }
 
@@ -158,6 +159,9 @@ func (h *FindingHandlers) Detail(ctx context.Context, rec Record) (Detail, error
 	}
 	d.Normalize()
 	d.addAppliedToHistory()
+	if rec.Status == StatusSuspected {
+		d.SuspectedWhy = h.suspectedWhy(ctx, rec, d)
+	}
 	if !found {
 		return d, nil
 	}
@@ -170,6 +174,21 @@ func (h *FindingHandlers) Detail(ctx context.Context, rec Record) (Detail, error
 		d.FixedIn = FixedInFor(a, *v) // the release that fixes it on this device, from NVD's ranges; closed: nothing to upgrade
 	}
 	return d, nil
+}
+
+// suspectedWhy is WhySuspected with the facts of the box: whether a check exists comes from the KEV entry (known only with it), how the
+// scan stands to the device from the registered ScanReach.
+func (h *FindingHandlers) suspectedWhy(ctx context.Context, rec Record, d Detail) *string {
+	h.mu.RLock()
+	reach := h.scanReach
+	h.mu.RUnlock()
+	checkKnown, hasCheck := d.Kev != nil, d.Kev != nil && d.Kev.HasTemplate
+	where := ""
+	if reach != nil && checkKnown && hasCheck {
+		where = reach(ctx, rec.AssetID)
+	}
+	s := WhySuspected(rec.Basis, d.Known, checkKnown, hasCheck, where)
+	return &s
 }
 
 // matchedOn names the device's software row the finding's KEV entry is keyed to, as the matcher reads the device (its rows and the network
@@ -406,6 +425,43 @@ func (h *FindingHandlers) FindingsPostFindingsIDStatus(ctx context.Context, req 
 	return Into[oas.FindingsPostFindingsIDStatusOK](d)
 }
 
+// FindingsPostFindingsIDConfirm implements findings_post_findings_id_confirm (admin): a person confirms a suspected finding.
+func (h *FindingHandlers) FindingsPostFindingsIDConfirm(ctx context.Context, req *oas.FindingsPostFindingsIDConfirmReq, params oas.FindingsPostFindingsIDConfirmParams) (*oas.FindingsPostFindingsIDConfirmOK, error) {
+	p, ok := server.PrincipalFrom(ctx)
+	if !ok {
+		return nil, apierr.Unauthenticated()
+	}
+	if strings.ContainsRune(req.Note, 0) {
+		return nil, apierr.Invalid("The note contains a character that is not allowed.")
+	}
+	rec, err := h.svc.ConfirmByPerson(ctx, params.ID, req.Note, p.Email)
+	if err != nil {
+		return nil, ToAPIError(err)
+	}
+	d, err := h.Detail(ctx, rec)
+	if err != nil {
+		return nil, err
+	}
+	return Into[oas.FindingsPostFindingsIDConfirmOK](d)
+}
+
+// FindingsPostFindingsIDUnconfirm implements findings_post_findings_id_unconfirm (admin): Undo of a person's confirmation.
+func (h *FindingHandlers) FindingsPostFindingsIDUnconfirm(ctx context.Context, params oas.FindingsPostFindingsIDUnconfirmParams) (*oas.FindingsPostFindingsIDUnconfirmOK, error) {
+	p, ok := server.PrincipalFrom(ctx)
+	if !ok {
+		return nil, apierr.Unauthenticated()
+	}
+	rec, err := h.svc.UnconfirmByPerson(ctx, params.ID, p.Email)
+	if err != nil {
+		return nil, ToAPIError(err)
+	}
+	d, err := h.Detail(ctx, rec)
+	if err != nil {
+		return nil, err
+	}
+	return Into[oas.FindingsPostFindingsIDUnconfirmOK](d)
+}
+
 // FindingsPostFindingsStatus implements findings_post_findings_status (operator): one action and one note for the open
 // findings among up to MaxBulk ids, one history and audit row each, all or nothing; closed ones are skipped (INV-10).
 func (h *FindingHandlers) FindingsPostFindingsStatus(ctx context.Context, req *oas.FindingsPostFindingsStatusReq) (*oas.FindingsPostFindingsStatusOK, error) {
@@ -434,6 +490,14 @@ type Guidance interface {
 // device's state cannot be read: the same answer as the "No agent reports the software of <device> to Vedette now" line of the
 // finding page (agent-intake ReportState). cmd/vedette sets it; nil means unknown, and nothing is said.
 type AgentReports func(ctx context.Context, assetID string) bool
+
+// SetScanReach registers how the vulnerability scan stands to a device (the binary, at start-up): the "why only suspected" line of the
+// finding page says it. Nil: the line does not mention the scan.
+func (h *FindingHandlers) SetScanReach(f ScanReach) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.scanReach = f
+}
 
 // SetAgents registers the agent check of GET /findings/plan (the binary, at start-up).
 func (h *FindingHandlers) SetAgents(f AgentReports) {

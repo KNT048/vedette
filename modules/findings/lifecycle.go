@@ -61,6 +61,7 @@ const (
 	// SystemUser is the history user for automatic events.
 	SystemUser = "system"
 
+	maxHistoryNote   = 600 // the length of fnd_finding_history.note
 	maxEvidenceField = 4096
 	maxTemplate      = 128
 )
@@ -102,6 +103,17 @@ func dayOf(t time.Time) time.Time {
 	return time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
 }
 
+// Confirmed reports whether the finding rests on evidence beyond a version match: a scan's, or a person's.
+func (f Finding) Confirmed() bool { return f.Basis == BasisScan || f.Basis == BasisPerson }
+
+// OpenStatus is the open status the finding has when it is reopened: confirmed with a scan or person basis, else suspected.
+func (f Finding) OpenStatus() Status {
+	if f.Confirmed() {
+		return StatusConfirmed
+	}
+	return StatusSuspected
+}
+
 // ExpireAcceptance reopens a risk_accepted finding once AcceptanceEnds(its last day) (INV-13): to the open status a
 // fresh match would give (confirmed with a scan basis, else suspected), with a history row by the system user that names
 // who accepted it and until when. ok is false for anything else.
@@ -110,10 +122,7 @@ func (f Finding) ExpireAcceptance(now time.Time) (Finding, HistoryEntry, bool) {
 		return f, HistoryEntry{}, false
 	}
 	note := "Risk acceptance expired (accepted by " + f.ResolvedBy + " until " + orgtime.CalendarDay(f.AcceptedUntil) + ")."
-	f.Status = StatusSuspected
-	if f.Basis == BasisScan {
-		f.Status = StatusConfirmed
-	}
+	f.Status = f.OpenStatus()
 	f.ResolvedBy, f.ResolvedAt, f.ResolutionNote, f.ResolutionReason, f.AcceptedUntil = "", time.Time{}, "", "", time.Time{}
 	return f, HistoryEntry{TS: now, User: SystemUser, Action: "reopened", Note: note}, true
 }
@@ -130,7 +139,7 @@ func (f Finding) AutoResolved() bool {
 // not_relevant by the system user, with the matcher's sentence as note. ok is false for anything else: an open
 // finding a scan confirmed, or a closed one, is never touched.
 func (f Finding) AutoResolve(note string, now time.Time) (Finding, HistoryEntry, bool) {
-	if f.Status != StatusSuspected || f.Basis == BasisScan {
+	if f.Status != StatusSuspected || f.Confirmed() {
 		return f, HistoryEntry{}, false
 	}
 	note = clipNote(note)
@@ -230,10 +239,7 @@ func (f Finding) UnignoreReopen(by string, now time.Time) (Finding, HistoryEntry
 	if by != "" {
 		note = clipNote("The device is watched again (" + by + " stopped ignoring it), so Vedette reopened this finding it had closed when the device was ignored.")
 	}
-	f.Status = StatusSuspected
-	if f.Basis == BasisScan {
-		f.Status = StatusConfirmed
-	}
+	f.Status = f.OpenStatus()
 	f.ResolvedBy, f.ResolvedAt, f.ResolutionNote, f.ResolutionReason, f.AcceptedUntil = "", time.Time{}, "", "", time.Time{}
 	return f, HistoryEntry{TS: now, User: SystemUser, Action: "reopened", Note: note}, true
 }
@@ -263,7 +269,7 @@ type HistoryEntry struct {
 }
 
 // Validate checks INV-2: valid status and basis, confidence in [0,1], confirmed
-// only with basis scan plus evidence (template and checked_at), suspected only
+// only with basis scan plus evidence (template and checked_at) or basis person, suspected only
 // with basis version or product.
 func (f Finding) Validate() error {
 	if !f.Status.valid() {
@@ -276,12 +282,14 @@ func (f Finding) Validate() error {
 		return fmt.Errorf("findings: validating finding: confidence %v outside [0,1]", f.Confidence)
 	}
 	if f.Status == StatusConfirmed {
-		if f.Basis != BasisScan || f.Evidence == nil || f.Evidence.Template == "" || f.Evidence.CheckedAt.IsZero() {
-			return fmt.Errorf("findings: validating finding: confirmed needs basis scan and evidence with template and checked_at")
+		switch {
+		case f.Basis == BasisPerson && f.Evidence != nil:
+		case f.Basis != BasisScan || f.Evidence == nil || f.Evidence.Template == "" || f.Evidence.CheckedAt.IsZero():
+			return fmt.Errorf("findings: validating finding: confirmed needs basis scan (evidence with template and checked_at) or basis person")
 		}
 	}
-	if f.Status == StatusSuspected && f.Basis == BasisScan {
-		return fmt.Errorf("findings: validating finding: suspected cannot have basis scan")
+	if f.Status == StatusSuspected && f.Confirmed() {
+		return fmt.Errorf("findings: validating finding: suspected cannot have basis %s", f.Basis)
 	}
 	if (f.Status == StatusRiskAccepted) == f.AcceptedUntil.IsZero() {
 		return fmt.Errorf("findings: validating finding: an until date goes with risk_accepted and only with it")
@@ -324,10 +332,10 @@ func (f Finding) ApplyMatch(m Match) Finding {
 		return f
 	}
 	switch {
-	case m.Basis == f.Basis && f.Basis != BasisScan && m.Evidence.Summary != "":
+	case m.Basis == f.Basis && !f.Confirmed() && m.Evidence.Summary != "":
 		ev := m.Evidence
 		f.Evidence = &ev
-	case f.Basis != BasisScan && f.Evidence != nil && f.Evidence.Agent && !m.Evidence.Agent && m.Evidence.Summary != "" && rank(m.Basis) <= rank(f.Basis):
+	case !f.Confirmed() && f.Evidence != nil && f.Evidence.Agent && !m.Evidence.Agent && m.Evidence.Summary != "" && rank(m.Basis) <= rank(f.Basis):
 		// The agent's row is gone (or no longer decides it): drop "Detected by the agent" and take the sentence of
 		// what matches now; the basis never goes down.
 		ev := m.Evidence
@@ -417,10 +425,7 @@ func (f Finding) apply(action Action, note, user string, until, now time.Time) (
 		if f.Status.Open() {
 			return f, HistoryEntry{}, fmt.Errorf("findings: applying action %q: %w", action, ErrAlreadyOpen)
 		}
-		f.Status = StatusSuspected
-		if f.Basis == BasisScan {
-			f.Status = StatusConfirmed
-		}
+		f.Status = f.OpenStatus()
 		f.ResolvedBy, f.ResolvedAt, f.ResolutionNote, f.ResolutionReason, f.AcceptedUntil = "", time.Time{}, "", "", time.Time{}
 		return f, HistoryEntry{TS: now, User: user, Action: "reopened", Note: note}, nil
 	}
@@ -431,6 +436,50 @@ func (f Finding) apply(action Action, note, user string, until, now time.Time) (
 	}
 	f.Status = Status(action)
 	return f, HistoryEntry{TS: now, User: user, Action: string(action), Note: note}, nil
+}
+
+// ConfirmByPerson confirms a suspected finding on a person's word (INV-2): status confirmed, basis person, the version
+// evidence kept as it is (Evidence.Prior remembers the basis for Undo), a history row "Confirmed by <user>: <note>". The note is
+// required (MinReasonNote). Anything but a suspected finding is refused (ErrNotSuspected), a scan's confirmation included.
+func (f Finding) ConfirmByPerson(note, user string, now time.Time) (Finding, HistoryEntry, error) {
+	note = jsTrim(note)
+	n := jsLen(note)
+	switch {
+	case f.Status != StatusSuspected:
+		return f, HistoryEntry{}, fmt.Errorf("findings: confirming a %s finding: %w", f.Status, ErrNotSuspected)
+	case n > MaxNote:
+		return f, HistoryEntry{}, fmt.Errorf("findings: confirming: %w", ErrNoteTooLong)
+	case n < MinReasonNote:
+		return f, HistoryEntry{}, fmt.Errorf("findings: confirming: %w", ErrConfirmNoteRequired)
+	}
+	ev := Evidence{CheckedAt: now}
+	if f.Evidence != nil {
+		ev = *f.Evidence
+	}
+	ev.Prior = f.Basis
+	f.Status, f.Basis, f.Evidence = StatusConfirmed, BasisPerson, &ev
+	f.Confidence = math.Max(f.Confidence, ConfVersion)
+	line := "Confirmed by " + user + ": "
+	if room := maxHistoryNote - utf8.RuneCountInString(line); utf8.RuneCountInString(note) > room { // a very long address leaves less room in the column
+		note = string([]rune(note)[:max(room, 0)])
+	}
+	return f, HistoryEntry{TS: now, User: user, Action: "confirmed", Note: line + note}, nil
+}
+
+// UnconfirmByPerson is Undo: a finding a person confirmed (basis person, still confirmed) goes back to suspected with the basis it
+// had, a history row "reopened" by the person. Anything else is refused (ErrNotConfirmedByHand): a scan's proof is not undone.
+func (f Finding) UnconfirmByPerson(user string, now time.Time) (Finding, HistoryEntry, error) {
+	if f.Status != StatusConfirmed || f.Basis != BasisPerson {
+		return f, HistoryEntry{}, fmt.Errorf("findings: undoing a confirmation of a %s finding with basis %s: %w", f.Status, f.Basis, ErrNotConfirmedByHand)
+	}
+	prior := BasisVersion
+	if f.Evidence != nil && (f.Evidence.Prior == BasisProduct || f.Evidence.Prior == BasisVersion) {
+		prior = f.Evidence.Prior
+	}
+	ev := *f.Evidence
+	ev.Prior = ""
+	f.Status, f.Basis, f.Evidence = StatusSuspected, prior, &ev
+	return f, HistoryEntry{TS: now, User: user, Action: "reopened", Note: "Confirmation undone by " + user + ": back to suspected."}, nil
 }
 
 // ScanOutcome is the result of a scan confirmation.

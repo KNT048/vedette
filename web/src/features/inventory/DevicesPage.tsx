@@ -267,6 +267,7 @@ function DevicesList({ rows, now, query, same, bar }: { rows: DeviceRow[]; now: 
       <DeviceSearch rows={rows} now={now} query={query} same={same.ids} bar={bar} shown={shown.length} />
       {selecting ? <div className="flex flex-wrap items-center gap-2"><Slot name={DEVICES_ACTIONS_SLOT} props={{ selectedIds: [...sel], selected: rows.filter((d) => sel.has(d.id)), clearSelection: ops.clear }} /></div> : null}
       <DataTable caption={t('table.caption')} data={shown} columns={columns} initialSort={[{ id: 'seen', desc: true }]} fillColumn="name"
+        search={false} urlKey="devices" resetPageOn={deferred}
         onRowClick={(d) => void navigate(`/devices/${d.id}`)}
         empty={t('table.emptyApproved')} filtered={!!q} onClearFilters={clear}
         mobileRow={(d) => {

@@ -43,7 +43,20 @@
     "emptyFiltered": "No rows match these filters.",
     "clearFilters": "Clear filters",
     "sortBy": "Sort by",
-    "sortOption": "Sort by {{column}}"
+    "sortOption": "Sort by {{column}}",
+    "search": "Search this list",
+    "searchIn": "Search {{caption}}",
+    "range": "{{from}}–{{to}} of {{count}}",
+    "rangeFiltered": "{{from}}–{{to}} of {{count}} matching ({{total}} in all)",
+    "noneOf": "None of {{total}} match",
+    "first": "First page",
+    "last": "Last page",
+    "pageN": "Page {{page}}",
+    "goTo": "Go to page",
+    "go": "Go",
+    "size": "Rows per page",
+    "pagesTop": "Pages of {{caption}}, above the list",
+    "pagesBottom": "Pages of {{caption}}, below the list"
   },
   "status": {
     "confirmed": "Confirmed",

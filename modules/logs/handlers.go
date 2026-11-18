@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/apierr"
@@ -105,6 +106,16 @@ func (h *LogsHandlers) LogsGetLogsEvents(ctx context.Context, params oas.LogsGet
 		return nil, err
 	}
 	return into[oas.LogsGetLogsEventsOK](v)
+}
+
+// LogsGetLogsBadConnections implements logs_get_logs_bad_connections (viewer).
+func (h *LogsHandlers) LogsGetLogsBadConnections(ctx context.Context, params oas.LogsGetLogsBadConnectionsParams) (*oas.LogsGetLogsBadConnectionsOK, error) {
+	num := func(v oas.OptString) int { n, _ := strconv.Atoi(v.Or("0")); return n } // the contract allows digits only
+	v, err := h.svc.IocPairs(ctx, IocPairQuery{Window: string(params.Window), Q: params.Q.Or(""), Sort: string(params.Sort.Or("")), Offset: num(params.Offset), Limit: num(params.Limit)})
+	if err != nil {
+		return nil, err
+	}
+	return into[oas.LogsGetLogsBadConnectionsOK](v)
 }
 
 // LogsPutLogsRetention implements logs_put_logs_retention (admin).

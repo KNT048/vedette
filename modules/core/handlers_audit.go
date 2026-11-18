@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -156,12 +157,25 @@ func (h *APIHandlers) auditFilter(ctx context.Context, q, user, group, from, to 
 	return f, nil
 }
 
-func (f auditFilter) list(ctx context.Context, q *coredb.Queries, before, limit int64) ([]coredb.ListAuditFilteredRow, error) {
-	return q.ListAuditFiltered(ctx, coredb.ListAuditFilteredParams{BeforeSeq: before, FromTs: f.from, ToTs: f.to, Who: f.who, Grp: f.grp, People: f.people, Needle: f.needle, MaxRows: limit})
+func (f auditFilter) list(ctx context.Context, q *coredb.Queries, before, skip, limit int64) ([]coredb.ListAuditFilteredRow, error) {
+	return q.ListAuditFiltered(ctx, coredb.ListAuditFilteredParams{BeforeSeq: before, FromTs: f.from, ToTs: f.to, Who: f.who, Grp: f.grp, People: f.people, Needle: f.needle, SkipRows: skip, MaxRows: limit})
 }
 
-// CoreGetCoreAudit implements GET /core/audit (admin): the newest rows that match, at most 200, with the
-// total number of matches and the users and groups present in the log (for the filter lists).
+// auditPage reads offset and limit of GET /core/audit (the contract allows digits only): the rows to skip and the rows of the page,
+// at most auditPageRows (0 or more is auditPageRows).
+func auditPage(offset, limit oas.OptString) (skip, rows int64) {
+	rows = auditPageRows
+	if n, err := strconv.ParseInt(limit.Or(""), 10, 64); err == nil && n > 0 && n < auditPageRows {
+		rows = n
+	}
+	if n, err := strconv.ParseInt(offset.Or(""), 10, 64); err == nil && n > 0 {
+		skip = n
+	}
+	return skip, rows
+}
+
+// CoreGetCoreAudit implements GET /core/audit (admin): one page of the rows that match, newest first, at most 200 (offset and
+// limit), with the total number of matches and the users and groups present in the log (for the filter lists).
 func (h *APIHandlers) CoreGetCoreAudit(ctx context.Context, params oas.CoreGetCoreAuditParams) (*oas.CoreGetCoreAuditOK, error) {
 	f, err := h.auditFilter(ctx, params.Q, params.User, params.Group, params.From, params.To, params.Actor.Set && params.Actor.Value == oas.CoreGetCoreAuditActorPeople)
 	if err != nil {
@@ -178,7 +192,8 @@ func (h *APIHandlers) CoreGetCoreAudit(ctx context.Context, params oas.CoreGetCo
 	if err != nil {
 		return nil, fmt.Errorf("core: audit head: %w", err)
 	}
-	rows, err := f.list(ctx, q, top+1, auditPageRows)
+	skip, limit := auditPage(params.Offset, params.Limit)
+	rows, err := f.list(ctx, q, top+1, skip, limit)
 	if err != nil {
 		return nil, fmt.Errorf("core: list audit: %w", err)
 	}
@@ -264,7 +279,7 @@ func (a *auditCSV) Read(p []byte) (int, error) {
 		if a.done {
 			return 0, io.EOF
 		}
-		rows, err := a.f.list(a.ctx, a.q, a.next, auditExportPage)
+		rows, err := a.f.list(a.ctx, a.q, a.next, 0, auditExportPage)
 		if err != nil {
 			return 0, fmt.Errorf("core: read audit page: %w", err)
 		}

@@ -1,11 +1,18 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { Digest, EventsResponse, EventWindow, LogSource, SiemConfig, SiemInput, SourceInput, SourcesResponse, UnknownSendersResponse } from './types'
+import type { Digest, EventsResponse, EventWindow, IocPairs, LogSource, SiemConfig, SiemInput, SourceInput, SourcesResponse, UnknownSendersResponse } from './types'
 
 export const useSources = () => useQuery({ queryKey: ['logs', 'sources'], queryFn: () => api.get<SourcesResponse>('/logs/sources') })
 // Operator and up (the addresses of dropped senders); refreshed with the rest of the page (query key under 'logs').
 export const useUnknownSenders = (enabled: boolean) => useQuery({ queryKey: ['logs', 'unknown-senders'], queryFn: () => api.get<UnknownSendersResponse>('/logs/unknown-senders'), enabled })
 export const useDigest = () => useQuery({ queryKey: ['logs', 'digest'], queryFn: () => api.get<Digest>('/logs/digest') })
+
+/** One page of the connections to known-bad addresses, one row per device and destination; searched, ordered and paged by the box. */
+export type BadQuery = { window: '24h' | '7d'; q: string; sort: 'last' | 'hits'; offset: number; limit: number }
+export const badConnectionsUrl = (p: BadQuery) =>
+  `/logs/bad-connections?window=${p.window}&q=${encodeURIComponent(p.q)}&sort=${p.sort}&offset=${p.offset}&limit=${p.limit}`
+export const useBadConnections = (p: BadQuery) =>
+  useQuery({ queryKey: ['logs', 'bad-connections', p], queryFn: () => api.get<IocPairs>(badConnectionsUrl(p)), placeholderData: keepPreviousData })
 
 const eventsUrl = (p: { window: EventWindow; source: string; q: string }, cursor?: string) =>
   `/logs/events?window=${p.window}&source=${encodeURIComponent(p.source)}&q=${encodeURIComponent(p.q)}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`

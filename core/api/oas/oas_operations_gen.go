@@ -252,6 +252,7 @@ const (
 	InventoryPutInventorySettingsOperation                   OperationName = "InventoryPutInventorySettings"
 	InventoryPutInventorySnmpDevicesIDOperation              OperationName = "InventoryPutInventorySnmpDevicesID"
 	LogsDeleteLogsSourcesIDOperation                         OperationName = "LogsDeleteLogsSourcesID"
+	LogsGetLogsBadConnectionsOperation                       OperationName = "LogsGetLogsBadConnections"
 	LogsGetLogsDigestOperation                               OperationName = "LogsGetLogsDigest"
 	LogsGetLogsEventsOperation                               OperationName = "LogsGetLogsEvents"
 	LogsGetLogsSiemOperation                                 OperationName = "LogsGetLogsSiem"

@@ -118735,8 +118735,11 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSnmpSource) UnmarshalText(data []b
 
 type InventoryGetInventoryDevicesIDOKAssetSoftwareItem struct {
 	// Guess on the row of nmap's OS fingerprint (no version, no match key); absent otherwise.
-	Basis      OptInventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis `json:"basis"`
-	Confidence float64                                                   `json:"confidence"`
+	Basis OptInventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis `json:"basis"`
+	// False: the box refuses a person's correction of this row (PATCH), so the page does not offer it;
+	// absent or true: it is offered.
+	CanCorrect OptBool `json:"can_correct"`
+	Confidence float64 `json:"confidence"`
 	// On a row a sensor or agent reported: the id of the person's correction that replaces it for matching
 	// (INV-41). Show it as replaced; Clear on the correction brings it back.
 	CorrectedBy OptString `json:"corrected_by"`
@@ -118759,6 +118762,11 @@ type InventoryGetInventoryDevicesIDOKAssetSoftwareItem struct {
 // GetBasis returns the value of Basis.
 func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) GetBasis() OptInventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis {
 	return s.Basis
+}
+
+// GetCanCorrect returns the value of CanCorrect.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) GetCanCorrect() OptBool {
+	return s.CanCorrect
 }
 
 // GetConfidence returns the value of Confidence.
@@ -118819,6 +118827,11 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) GetVersion() NilStri
 // SetBasis sets the value of Basis.
 func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) SetBasis(val OptInventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis) {
 	s.Basis = val
+}
+
+// SetCanCorrect sets the value of CanCorrect.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) SetCanCorrect(val OptBool) {
+	s.CanCorrect = val
 }
 
 // SetConfidence sets the value of Confidence.
@@ -134751,6 +134764,346 @@ func (s *InventoryPutInventorySnmpDevicesIDReqVersion) UnmarshalText(data []byte
 
 // LogsDeleteLogsSourcesIDNoContent is response for LogsDeleteLogsSourcesID operation.
 type LogsDeleteLogsSourcesIDNoContent struct{}
+
+type LogsGetLogsBadConnectionsOK struct {
+	// Hits in the range, whatever the search.
+	Hits int `json:"hits"`
+	// As Digest.ioc_matching.
+	IocMatching bool                                   `json:"ioc_matching"`
+	Items       []LogsGetLogsBadConnectionsOKItemsItem `json:"items"`
+	// Rows that match the search, every page.
+	Total int `json:"total"`
+}
+
+// GetHits returns the value of Hits.
+func (s *LogsGetLogsBadConnectionsOK) GetHits() int {
+	return s.Hits
+}
+
+// GetIocMatching returns the value of IocMatching.
+func (s *LogsGetLogsBadConnectionsOK) GetIocMatching() bool {
+	return s.IocMatching
+}
+
+// GetItems returns the value of Items.
+func (s *LogsGetLogsBadConnectionsOK) GetItems() []LogsGetLogsBadConnectionsOKItemsItem {
+	return s.Items
+}
+
+// GetTotal returns the value of Total.
+func (s *LogsGetLogsBadConnectionsOK) GetTotal() int {
+	return s.Total
+}
+
+// SetHits sets the value of Hits.
+func (s *LogsGetLogsBadConnectionsOK) SetHits(val int) {
+	s.Hits = val
+}
+
+// SetIocMatching sets the value of IocMatching.
+func (s *LogsGetLogsBadConnectionsOK) SetIocMatching(val bool) {
+	s.IocMatching = val
+}
+
+// SetItems sets the value of Items.
+func (s *LogsGetLogsBadConnectionsOK) SetItems(val []LogsGetLogsBadConnectionsOKItemsItem) {
+	s.Items = val
+}
+
+// SetTotal sets the value of Total.
+func (s *LogsGetLogsBadConnectionsOK) SetTotal(val int) {
+	s.Total = val
+}
+
+type LogsGetLogsBadConnectionsOKItemsItem struct {
+	// Inventory device with this IP; null when it is not in the inventory.
+	AssetID   NilString `json:"asset_id"`
+	AssetName NilString `json:"asset_name"`
+	// How many of the hits the device that logged them blocked.
+	Blocked int `json:"blocked"`
+	// The highest confidence of the hits.
+	Confidence float64                                      `json:"confidence"`
+	Dest       string                                       `json:"dest"`
+	DestKind   LogsGetLogsBadConnectionsOKItemsItemDestKind `json:"dest_kind"`
+	// Every feed that listed the destination in one of the hits, sorted.
+	Feeds     []string  `json:"feeds"`
+	FirstSeen time.Time `json:"first_seen"`
+	// Hits of the pair in the range (one per pair per 24 hours, INV-7).
+	Hits     int       `json:"hits"`
+	LastSeen time.Time `json:"last_seen"`
+	// IocHit.listed_as of the hits (the name a feed lists with all of its subdomains); null when a feed
+	// lists dest itself.
+	ListedAs NilString `json:"listed_as"`
+	// Other source addresses with hits on the same destination in the range.
+	OtherDevices int `json:"other_devices"`
+	// IocHit.seen_via of the hits, distinct, sorted.
+	SeenVia []string `json:"seen_via"`
+	SrcIP   string   `json:"src_ip"`
+}
+
+// GetAssetID returns the value of AssetID.
+func (s *LogsGetLogsBadConnectionsOKItemsItem) GetAssetID() NilString {
+	return s.AssetID
+}
+
+// GetAssetName returns the value of AssetName.
+func (s *LogsGetLogsBadConnectionsOKItemsItem) GetAssetName() NilString {
+	return s.AssetName
+}
+
+// GetBlocked returns the value of Blocked.
+func (s *LogsGetLogsBadConnectionsOKItemsItem) GetBlocked() int {
+	return s.Blocked
+}
+
+// GetConfidence returns the value of Confidence.
+func (s *LogsGetLogsBadConnectionsOKItemsItem) GetConfidence() float64 {
+	return s.Confidence
+}
+
+// GetDest returns the value of Dest.
+func (s *LogsGetLogsBadConnectionsOKItemsItem) GetDest() string {
+	return s.Dest
+}
+
+// GetDestKind returns the value of DestKind.
+func (s *LogsGetLogsBadConnectionsOKItemsItem) GetDestKind() LogsGetLogsBadConnectionsOKItemsItemDestKind {
+	return s.DestKind
+}
+
+// GetFeeds returns the value of Feeds.
+func (s *LogsGetLogsBadConnectionsOKItemsItem) GetFeeds() []string {
+	return s.Feeds
+}
+
+// GetFirstSeen returns the value of FirstSeen.
+func (s *LogsGetLogsBadConnectionsOKItemsItem) GetFirstSeen() time.Time {
+	return s.FirstSeen
+}
+
+// GetHits returns the value of Hits.
+func (s *LogsGetLogsBadConnectionsOKItemsItem) GetHits() int {
+	return s.Hits
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *LogsGetLogsBadConnectionsOKItemsItem) GetLastSeen() time.Time {
+	return s.LastSeen
+}
+
+// GetListedAs returns the value of ListedAs.
+func (s *LogsGetLogsBadConnectionsOKItemsItem) GetListedAs() NilString {
+	return s.ListedAs
+}
+
+// GetOtherDevices returns the value of OtherDevices.
+func (s *LogsGetLogsBadConnectionsOKItemsItem) GetOtherDevices() int {
+	return s.OtherDevices
+}
+
+// GetSeenVia returns the value of SeenVia.
+func (s *LogsGetLogsBadConnectionsOKItemsItem) GetSeenVia() []string {
+	return s.SeenVia
+}
+
+// GetSrcIP returns the value of SrcIP.
+func (s *LogsGetLogsBadConnectionsOKItemsItem) GetSrcIP() string {
+	return s.SrcIP
+}
+
+// SetAssetID sets the value of AssetID.
+func (s *LogsGetLogsBadConnectionsOKItemsItem) SetAssetID(val NilString) {
+	s.AssetID = val
+}
+
+// SetAssetName sets the value of AssetName.
+func (s *LogsGetLogsBadConnectionsOKItemsItem) SetAssetName(val NilString) {
+	s.AssetName = val
+}
+
+// SetBlocked sets the value of Blocked.
+func (s *LogsGetLogsBadConnectionsOKItemsItem) SetBlocked(val int) {
+	s.Blocked = val
+}
+
+// SetConfidence sets the value of Confidence.
+func (s *LogsGetLogsBadConnectionsOKItemsItem) SetConfidence(val float64) {
+	s.Confidence = val
+}
+
+// SetDest sets the value of Dest.
+func (s *LogsGetLogsBadConnectionsOKItemsItem) SetDest(val string) {
+	s.Dest = val
+}
+
+// SetDestKind sets the value of DestKind.
+func (s *LogsGetLogsBadConnectionsOKItemsItem) SetDestKind(val LogsGetLogsBadConnectionsOKItemsItemDestKind) {
+	s.DestKind = val
+}
+
+// SetFeeds sets the value of Feeds.
+func (s *LogsGetLogsBadConnectionsOKItemsItem) SetFeeds(val []string) {
+	s.Feeds = val
+}
+
+// SetFirstSeen sets the value of FirstSeen.
+func (s *LogsGetLogsBadConnectionsOKItemsItem) SetFirstSeen(val time.Time) {
+	s.FirstSeen = val
+}
+
+// SetHits sets the value of Hits.
+func (s *LogsGetLogsBadConnectionsOKItemsItem) SetHits(val int) {
+	s.Hits = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *LogsGetLogsBadConnectionsOKItemsItem) SetLastSeen(val time.Time) {
+	s.LastSeen = val
+}
+
+// SetListedAs sets the value of ListedAs.
+func (s *LogsGetLogsBadConnectionsOKItemsItem) SetListedAs(val NilString) {
+	s.ListedAs = val
+}
+
+// SetOtherDevices sets the value of OtherDevices.
+func (s *LogsGetLogsBadConnectionsOKItemsItem) SetOtherDevices(val int) {
+	s.OtherDevices = val
+}
+
+// SetSeenVia sets the value of SeenVia.
+func (s *LogsGetLogsBadConnectionsOKItemsItem) SetSeenVia(val []string) {
+	s.SeenVia = val
+}
+
+// SetSrcIP sets the value of SrcIP.
+func (s *LogsGetLogsBadConnectionsOKItemsItem) SetSrcIP(val string) {
+	s.SrcIP = val
+}
+
+type LogsGetLogsBadConnectionsOKItemsItemDestKind string
+
+const (
+	LogsGetLogsBadConnectionsOKItemsItemDestKindIP     LogsGetLogsBadConnectionsOKItemsItemDestKind = "ip"
+	LogsGetLogsBadConnectionsOKItemsItemDestKindDomain LogsGetLogsBadConnectionsOKItemsItemDestKind = "domain"
+)
+
+// AllValues returns all LogsGetLogsBadConnectionsOKItemsItemDestKind values.
+func (LogsGetLogsBadConnectionsOKItemsItemDestKind) AllValues() []LogsGetLogsBadConnectionsOKItemsItemDestKind {
+	return []LogsGetLogsBadConnectionsOKItemsItemDestKind{
+		LogsGetLogsBadConnectionsOKItemsItemDestKindIP,
+		LogsGetLogsBadConnectionsOKItemsItemDestKindDomain,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s LogsGetLogsBadConnectionsOKItemsItemDestKind) MarshalText() ([]byte, error) {
+	switch s {
+	case LogsGetLogsBadConnectionsOKItemsItemDestKindIP:
+		return []byte(s), nil
+	case LogsGetLogsBadConnectionsOKItemsItemDestKindDomain:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *LogsGetLogsBadConnectionsOKItemsItemDestKind) UnmarshalText(data []byte) error {
+	switch LogsGetLogsBadConnectionsOKItemsItemDestKind(data) {
+	case LogsGetLogsBadConnectionsOKItemsItemDestKindIP:
+		*s = LogsGetLogsBadConnectionsOKItemsItemDestKindIP
+		return nil
+	case LogsGetLogsBadConnectionsOKItemsItemDestKindDomain:
+		*s = LogsGetLogsBadConnectionsOKItemsItemDestKindDomain
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Default last.
+type LogsGetLogsBadConnectionsSort string
+
+const (
+	LogsGetLogsBadConnectionsSortLast LogsGetLogsBadConnectionsSort = "last"
+	LogsGetLogsBadConnectionsSortHits LogsGetLogsBadConnectionsSort = "hits"
+)
+
+// AllValues returns all LogsGetLogsBadConnectionsSort values.
+func (LogsGetLogsBadConnectionsSort) AllValues() []LogsGetLogsBadConnectionsSort {
+	return []LogsGetLogsBadConnectionsSort{
+		LogsGetLogsBadConnectionsSortLast,
+		LogsGetLogsBadConnectionsSortHits,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s LogsGetLogsBadConnectionsSort) MarshalText() ([]byte, error) {
+	switch s {
+	case LogsGetLogsBadConnectionsSortLast:
+		return []byte(s), nil
+	case LogsGetLogsBadConnectionsSortHits:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *LogsGetLogsBadConnectionsSort) UnmarshalText(data []byte) error {
+	switch LogsGetLogsBadConnectionsSort(data) {
+	case LogsGetLogsBadConnectionsSortLast:
+		*s = LogsGetLogsBadConnectionsSortLast
+		return nil
+	case LogsGetLogsBadConnectionsSortHits:
+		*s = LogsGetLogsBadConnectionsSortHits
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type LogsGetLogsBadConnectionsWindow string
+
+const (
+	LogsGetLogsBadConnectionsWindow24h LogsGetLogsBadConnectionsWindow = "24h"
+	LogsGetLogsBadConnectionsWindow7d  LogsGetLogsBadConnectionsWindow = "7d"
+)
+
+// AllValues returns all LogsGetLogsBadConnectionsWindow values.
+func (LogsGetLogsBadConnectionsWindow) AllValues() []LogsGetLogsBadConnectionsWindow {
+	return []LogsGetLogsBadConnectionsWindow{
+		LogsGetLogsBadConnectionsWindow24h,
+		LogsGetLogsBadConnectionsWindow7d,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s LogsGetLogsBadConnectionsWindow) MarshalText() ([]byte, error) {
+	switch s {
+	case LogsGetLogsBadConnectionsWindow24h:
+		return []byte(s), nil
+	case LogsGetLogsBadConnectionsWindow7d:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *LogsGetLogsBadConnectionsWindow) UnmarshalText(data []byte) error {
+	switch LogsGetLogsBadConnectionsWindow(data) {
+	case LogsGetLogsBadConnectionsWindow24h:
+		*s = LogsGetLogsBadConnectionsWindow24h
+		return nil
+	case LogsGetLogsBadConnectionsWindow7d:
+		*s = LogsGetLogsBadConnectionsWindow7d
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
 
 type LogsGetLogsDigestOK struct {
 	BadConnections []LogsGetLogsDigestOKBadConnectionsItem `json:"bad_connections"`
@@ -172074,6 +172427,52 @@ func (o OptInventoryPutInventorySnmpDevicesIDReqVersion) Get() (v InventoryPutIn
 
 // Or returns value if set, or given parameter if does not.
 func (o OptInventoryPutInventorySnmpDevicesIDReqVersion) Or(d InventoryPutInventorySnmpDevicesIDReqVersion) InventoryPutInventorySnmpDevicesIDReqVersion {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptLogsGetLogsBadConnectionsSort returns new OptLogsGetLogsBadConnectionsSort with value set to v.
+func NewOptLogsGetLogsBadConnectionsSort(v LogsGetLogsBadConnectionsSort) OptLogsGetLogsBadConnectionsSort {
+	return OptLogsGetLogsBadConnectionsSort{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptLogsGetLogsBadConnectionsSort is optional LogsGetLogsBadConnectionsSort.
+type OptLogsGetLogsBadConnectionsSort struct {
+	Value LogsGetLogsBadConnectionsSort
+	Set   bool
+}
+
+// IsSet returns true if OptLogsGetLogsBadConnectionsSort was set.
+func (o OptLogsGetLogsBadConnectionsSort) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptLogsGetLogsBadConnectionsSort) Reset() {
+	var v LogsGetLogsBadConnectionsSort
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptLogsGetLogsBadConnectionsSort) SetTo(v LogsGetLogsBadConnectionsSort) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptLogsGetLogsBadConnectionsSort) Get() (v LogsGetLogsBadConnectionsSort, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptLogsGetLogsBadConnectionsSort) Or(d LogsGetLogsBadConnectionsSort) LogsGetLogsBadConnectionsSort {
 	if v, ok := o.Get(); ok {
 		return v
 	}

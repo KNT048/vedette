@@ -6,11 +6,13 @@ import { X } from 'lucide-react'
 import { PageHeader } from '@/components/common/PageHeader'
 import { KpiStrip, PageTabs } from '@/components/common/PageFrame'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
+import { ListSearch } from '@/components/common/Pager'
+import { useListParams } from '@/components/common/listParams'
 import { EmptyState, QueryState, RequireModule, SampleDataNote } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Checkbox, RadioGroup, RadioItem } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
-import { Field, Input, Select, Textarea } from '@/components/ui/input'
+import { Field, Select, Textarea } from '@/components/ui/input'
 import { Segmented } from '@/components/ui/segmented'
 import { dayOf, fmtDate, fmtDateTime, fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
@@ -122,7 +124,9 @@ function List() {
   const showNotRelevant = params.get('notrelevant') === 'show'
   const setParam = (k: string, v: string) => { if (v) params.set(k, v); else params.delete(k); setParams(params, { replace: true }) }
   const [certainty, setCertainty] = useState<Certainty>('all')
-  const [search, setSearch] = useState('')
+  // The search box is the list's (its text and page are in the URL, as findings.q and findings.page)
+  const list = useListParams('findings')
+  const search = list.q
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
   const [bulkOpen, setBulkOpen] = useState(false)
   const [confirming, setConfirming] = useState<FindingRow | null>(null)
@@ -157,7 +161,7 @@ function List() {
   const clearFilters = () => {
     for (const k of ['cve', 'device', 'product', 'severity', 'fix', 'status']) params.delete(k)
     setParams(params, { replace: true })
-    setSearch('')
+    list.set({ q: '', page: 0 })
     setCertainty('all')
   }
 
@@ -226,7 +230,7 @@ function List() {
         </div>
         {fixShown ? <p className="text-sm">{t('fix.filtered', { action: fixAction(fixShown) })}</p> : null}
         <div className="flex flex-wrap items-center gap-2">
-          <Input className="h-9 w-full sm:max-w-xs" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('filter')} aria-label={t('filter')} />
+          <ListSearch value={search} onChange={(v) => list.set({ q: v, page: 0 })} label={t('filter')} />
           <Select className="w-full sm:w-auto sm:max-w-64" value={device} onChange={(e) => setParam('device', e.target.value)} aria-label={t('deviceFilter')}>
             <option value="">{t('allDevices')}</option>
             {devices.map(([id, n]) => <option key={id} value={id}>{riskWord(t, risk(id)) ? `${n} (${riskWord(t, risk(id))})` : n}</option>)}
@@ -264,6 +268,7 @@ function List() {
             initialSort={[{ id: 'severity', desc: true }]}
             sortSelect
             hiddenColumns={['cvss']}
+            search={false} urlKey="findings" resetPageOn={[tabId, cve, device, product, severity, fixKey, status, certainty, showNotRelevant].join('|')}
             onRowClick={(r) => navigate(`/findings/${r.id}`)}
             mobileRow={(r) => (
               <div className="flex items-start gap-3">

@@ -9,7 +9,7 @@ import type {
   NetworkState, IfaceRole, ManagementBody, SpanConfig, SpanStatus, NtpConfig, Connector, ConnectorInput, ConnectorTestResult,
 } from './types'
 
-const qs = (q: Partial<AuditQuery>) => {
+const qs = (q: Partial<AuditQuery> & { offset?: string; limit?: string }) => {
   const p = new URLSearchParams()
   for (const [k, v] of Object.entries(q)) if (v) p.set(k, v)
   const s = p.toString()
@@ -114,7 +114,11 @@ export function useOidcMutations() {
 }
 
 // ---- audit ----
-export const useAudit = (q: AuditQuery) => useQuery({ queryKey: ['core', 'audit', q], queryFn: () => api.get<AuditResult>(`/core/audit${qs(q)}`), placeholderData: keepPreviousData })
+/** One page of the audit log (offset, limit: the box pages it), with the filters. */
+export const useAudit = (q: AuditQuery, page: { offset: number; limit: number }) => {
+  const path = `/core/audit${qs({ ...q, offset: page.offset ? String(page.offset) : '', limit: String(page.limit) })}`
+  return useQuery({ queryKey: ['core', 'audit', q, page], queryFn: () => api.get<AuditResult>(path), placeholderData: keepPreviousData })
+}
 export const auditExportPath = (q: AuditQuery) => `/core/audit/export${qs(q)}`
 
 // ---- cập nhật ----

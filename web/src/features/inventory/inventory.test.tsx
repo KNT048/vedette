@@ -873,10 +873,10 @@ describe('inventory: device detail (S-INV-1)', () => {
     findingsStore.update((l) => l.map((f) => (f.id === 'f-1' ? { ...f, status: 'suspected' as const, basis: 'version' as const } : f)))
     openSoftwareTab()
     await waitFor(() => expect(within(photoStation()).getByRole('link', { name: '1 exploited CVE' })).toBeInTheDocument(), T) // the row is settled: findings arrived
-    // an unmarked row offers the action as a button; no status text until a person marks it
-    expect(within(photoStation()).getByRole('button', { name: 'Mark not installed: QNAP Photo Station' })).toHaveTextContent('Mark not installed…')
+    // an unmarked row offers the action in its menu; no status text until a person marks it
     expect(within(photoStation()).queryByText(/^Not installed/)).toBeNull()
-    await user.click(within(photoStation()).getByRole('button', { name: 'Mark not installed: QNAP Photo Station' }))
+    await user.click(within(photoStation()).getByRole('button', { name: 'Actions for QNAP Photo Station' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Mark not installed…' }, T))
     const dialog = await screen.findByRole('dialog', undefined, T)
     expect(dialog).toHaveAccessibleName('Is QNAP Photo Station 6.0.20 not installed on NAS-PHOTOS?')
     expect(dialog).toHaveTextContent('Vedette stops matching it and closes the findings only it produced, as long as the scan or agent reads this same version.')
@@ -888,12 +888,12 @@ describe('inventory: device detail (S-INV-1)', () => {
     // one row: the person's word, with Clear; the reported row it replaces is not listed again
     await waitFor(() => expect(within(screen.getByRole('table', { name: 'Software on the device' })).getAllByText('QNAP Photo Station')).toHaveLength(1), T)
     expect(within(photoStation()).getByText(/^Not installed \(you said, .+\)$/)).toBeInTheDocument()
-    expect(within(photoStation()).queryByRole('button', { name: /Change the version/ })).toBeNull()
+    expect(within(photoStation()).queryByRole('button', { name: /^Actions for/ })).toBeNull()
     expect(auditStore.get().some((a) => a.action === 'inventory.mark_not_installed')).toBe(true)
     await expectNoA11yViolations()
     await user.click(within(photoStation()).getByRole('button', { name: 'Clear "not installed" for QNAP Photo Station' }))
     expect(await screen.findByText('QNAP Photo Station is back as the scan or agent reads it. Its findings are checked again.', undefined, T)).toBeInTheDocument()
-    await waitFor(() => expect(within(photoStation()).getByRole('button', { name: 'Mark not installed: QNAP Photo Station' })).toBeInTheDocument(), T)
+    await waitFor(() => expect(within(photoStation()).getByRole('button', { name: 'Actions for QNAP Photo Station' })).toBeInTheDocument(), T)
     expect(f1().status).toBe('suspected')
     expect(find('a-nas02').software.some((s) => s.corrects)).toBe(false)
   })
@@ -902,7 +902,8 @@ describe('inventory: device detail (S-INV-1)', () => {
     const user = userEvent.setup()
     openSoftwareTab() // f-1 on Photo Station is confirmed by a scan
     await waitFor(() => expect(within(photoStation()).getByRole('link', { name: '1 exploited CVE' })).toBeInTheDocument(), T)
-    await user.click(within(photoStation()).getByRole('button', { name: 'Mark not installed: QNAP Photo Station' }))
+    await user.click(within(photoStation()).getByRole('button', { name: 'Actions for QNAP Photo Station' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Mark not installed…' }, T))
     await user.click(within(await screen.findByRole('dialog', undefined, T)).getByRole('button', { name: 'Not installed' }))
     expect(await screen.findByText('QNAP Photo Station 6.0.20 is marked not installed on NAS-PHOTOS. 1 stays open: a scan confirmed it.', undefined, T)).toBeInTheDocument()
     expect(findingsStore.get().find((f) => f.id === 'f-1')!.status).toBe('confirmed')
@@ -910,7 +911,7 @@ describe('inventory: device detail (S-INV-1)', () => {
 
   it('INV-41 (6): a viewer sees Not installed locked; a row a person added is removed, never marked; the API refuses mixing it with a version', async () => {
     renderApp('/devices/a-nas02?tab=software', { role: 'viewer' })
-    await waitFor(() => expect(within(photoStation()).getByRole('button', { name: 'Mark not installed: QNAP Photo Station' })).toBeDisabled(), T)
+    await waitFor(() => expect(within(photoStation()).getByRole('button', { name: 'Actions for QNAP Photo Station' })).toBeDisabled(), T)
     asAdmin()
     expect((await call('PATCH', '/devices/a-nas02/software/s-nas02-ps', { not_installed: true, version: '6.1' })).json?.error.code).toBe('bad_edit')
     expect((await call('PATCH', '/devices/a-nas02/software/s-nas02-ps', { not_installed: true, vendor: 'QNAP', product: 'QTS' })).json?.error.code).toBe('bad_edit')
@@ -967,7 +968,8 @@ describe('inventory: device detail (S-INV-1)', () => {
     await waitFor(() => expect(find('a-pc01').software).toHaveLength(before + 1), T)
     expect(screen.queryByRole('button', { name: /Remove Windows from/ })).not.toBeInTheDocument()
     const added = find('a-pc01').software.find((s) => s.source === 'manual')!
-    await user.click((await screen.findAllByRole('button', { name: `Remove ${added.display} from the device` }, T))[0]!)
+    await user.click((await screen.findAllByRole('button', { name: `Actions for ${added.display}` }, T))[0]!)
+    await user.click(await screen.findByRole('menuitem', { name: 'Remove from the device' }, T))
     await waitFor(() => expect(find('a-pc01').software).toHaveLength(before), T)
     asAdmin()
     const r = await call('DELETE', `/devices/a-pc01/software/${find('a-pc01').software[0]!.id}`)

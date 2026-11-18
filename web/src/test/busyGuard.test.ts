@@ -45,6 +45,9 @@ type Rule = keyof typeof RULES
 const ALLOWED: { file: string; text: string; count: number; why: string }[] = [
   { file: 'components/ui/button.tsx', text: '<button className', count: 1, why: 'the Button itself: its native button is the one that draws the busy state' },
   { file: 'features/core/SetupPage.tsx', text: 'key="next"', count: 1, why: 'Continue only moves to the next step of the wizard; Finish (busy) is the step that calls the server' },
+  { file: 'features/inventory/DevicePage.tsx', text: "remove(sw, 'software.correctionUndone')", count: 1, why: 'Undo correction in a software line\'s menu: the line\'s More button shows the wait' },
+  { file: 'features/inventory/DevicePage.tsx', text: "remove(sw, 'software.removed')", count: 1, why: 'Remove in a software line\'s menu: the line\'s More button shows the wait' },
+  { file: 'features/inventory/DevicePage.tsx', text: 'ask.mutate(undefined', count: 1, why: 'Ask the agent now in an agent line\'s menu: the line\'s More button shows the wait' },
 ]
 
 function sources() {

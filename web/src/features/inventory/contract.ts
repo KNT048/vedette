@@ -120,6 +120,7 @@ export const SoftwareView = Software.omit({ kev: true }).extend({
   pkg_version: z.string().optional().describe('The full package release: an agent\'s packaged row ("1:9.6p1-3ubuntu13.14") or a person\'s correction ("10.2_p1-r1"); absent when none'),
   corrected_by: z.string().optional().describe('On a row a sensor or agent reported: the id of the person\'s correction that replaces it for matching (INV-41). Show it as replaced; Clear on the correction brings it back'),
   correction: SoftwareCorrection.optional().describe('On a person\'s correction of a reported row (INV-41): when it was set and what the sources read now. Clear = DELETE the row'),
+  can_correct: z.boolean().optional().describe('false: the box refuses a person\'s correction of this row (PATCH), so the page does not offer it; absent or true: it is offered'),
 })
 /** INV-50: another source's reading of a software the device has one effective row for. */
 export const AlsoSeen = z.object({

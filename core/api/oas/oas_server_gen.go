@@ -331,7 +331,8 @@ type Handler interface {
 	CoreGetCoreAccount(ctx context.Context) (*CoreGetCoreAccountOK, error)
 	// CoreGetCoreAudit implements core_get_core_audit operation.
 	//
-	// Audit log filtered by text, user, group and date (at most 200 rows).
+	// Audit log filtered by text, user, group and date, newest first, one page of at most 200 rows
+	// (offset, limit); total counts every matching row.
 	//
 	// GET /core/audit
 	CoreGetCoreAudit(ctx context.Context, params CoreGetCoreAuditParams) (*CoreGetCoreAuditOK, error)
@@ -1768,6 +1769,16 @@ type Handler interface {
 	//
 	// DELETE /logs/sources/{id}
 	LogsDeleteLogsSourcesID(ctx context.Context, params LogsDeleteLogsSourcesIDParams) error
+	// LogsGetLogsBadConnections implements logs_get_logs_bad_connections operation.
+	//
+	// Connections to known-bad addresses, one row per source address and destination over the range
+	// (grouped by the box): hits, first and last seen, feeds, highest confidence. Searched by the box over
+	// the device address and name, the destination, the listed name and the feed names; ordered by the
+	// newest last hit (sort=last) or the most hits (sort=hits); paged by offset and limit (at most 200).
+	// Empty while the Feeds module is off (PRE-3). 400 bad_window.
+	//
+	// GET /logs/bad-connections
+	LogsGetLogsBadConnections(ctx context.Context, params LogsGetLogsBadConnectionsParams) (*LogsGetLogsBadConnectionsOK, error)
 	// LogsGetLogsDigest implements logs_get_logs_digest operation.
 	//
 	// Digest: connections to known-bad addresses (from SPAN metadata and syslog), new log types, spikes.

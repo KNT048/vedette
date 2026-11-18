@@ -1,6 +1,8 @@
 package agentintake_test
 
 import (
+	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -129,7 +131,7 @@ func (w *world) nodeList() []map[string]any {
 	return out
 }
 
-// A machine installed again under another token: the older record never shows as quiet with restart commands. The device page and
+// A machine installed again under another token (same source address): the older record never shows as quiet with restart commands. The device page and
 // Settings show the live agent; the older record says it was replaced and sorts last.
 func TestAgentReEnrolledUnderAnotherTokenIsNotQuiet(t *testing.T) {
 	w := newWorld(t)
@@ -145,6 +147,7 @@ func TestAgentReEnrolledUnderAnotherTokenIsNotQuiet(t *testing.T) {
 
 	_, second := w.token("second", 7)
 	newKey := w.enroll(second, "srv-1", peerA)
+	w.report(newKey, peerA, macA) // the new agent's first report binds it to the same address
 	w.post("/intake/osquery/config", peerA, map[string]any{"node_key": newKey})
 	w.clock.Advance(10 * time.Minute)
 	w.post("/intake/osquery/config", peerA, map[string]any{"node_key": newKey})
@@ -163,20 +166,103 @@ func TestAgentReEnrolledUnderAnotherTokenIsNotQuiet(t *testing.T) {
 	}
 }
 
-// Two machines that share a name under different tokens are not one machine: the older one still calling keeps its own state.
-func TestAgentSameNameStillCallingIsNotReplaced(t *testing.T) {
+// report sends an agent's operating system and its card, from the address it connects from: the box binds the node to that address.
+func (w *world) report(key, peer, mac string) {
+	w.t.Helper()
+	w.post("/intake/osquery/log", peer, logBody(key,
+		snap("os_version", map[string]string{"name": "Ubuntu", "version": "24.04.1 LTS (Noble Numbat)", "major": "24", "minor": "4", "patch": "1", "build": "", "platform": "ubuntu", "arch": "x86_64"}),
+		snap("interfaces", ifaceRow(mac, peer))))
+}
+
+func (w *world) devicePage(ip string) map[string]any {
+	w.t.Helper()
+	d, ok := w.device(ip)
+	if !ok {
+		w.t.Fatalf("no device at %s", ip)
+	}
+	r := w.req("viewer", "GET", "/inventory/agents/devices/"+d.ID+"/report")
+	if r.code != 200 {
+		w.t.Fatalf("report of %s: %d %s", ip, r.code, r.raw)
+	}
+	return r.body
+}
+
+func stateOfHost(t *testing.T, nodes []map[string]any, host string) string {
+	t.Helper()
+	for _, n := range nodes {
+		if n["host"] == host {
+			s, _ := n["state"].(string)
+			return s
+		}
+	}
+	t.Fatalf("no node %s in %v", host, nodes)
+	return ""
+}
+
+// A holder of another token enrols under a live machine's name, even declaring that machine's MAC, but from its own address: it is
+// not the same machine. The victim keeps its own state and its device page says quiet once it stops, while the other node keeps calling.
+func TestAgentForgedNameDoesNotSupersede(t *testing.T) {
 	w := newWorld(t)
-	_, a := w.token("a", 7)
-	_, b := w.token("b", 7)
-	keyA := w.enroll(a, "srv-1", peerA)
-	w.clock.Advance(5 * time.Minute)
-	w.enroll(b, "srv-1", "192.0.2.11")
-	w.clock.Advance(5 * time.Minute)
-	w.post("/intake/osquery/config", peerA, map[string]any{"node_key": keyA}) // still calling
+	_, victimTok := w.token("servers", 7)
+	_, attackerTok := w.token("other", 7)
+	const peerB = "192.0.2.11"
+	victim := w.enroll(victimTok, "srv-1", peerA)
+	w.post("/intake/osquery/log", peerA, fullLog(victim))
+	forged := w.enroll(attackerTok, "srv-1", peerB)
+	w.report(forged, peerB, macA) // declares the victim's MAC from its own address
+	w.post("/intake/osquery/config", peerA, map[string]any{"node_key": victim})
+	if b := w.devicePage(peerA); b["state"] != "reporting" {
+		t.Fatalf("victim, calling: %v", b)
+	}
+
+	// the victim stops; the forged node keeps calling every 5 minutes
+	for range 4 {
+		w.clock.Advance(5 * time.Minute)
+		w.post("/intake/osquery/config", peerB, map[string]any{"node_key": forged})
+	}
+	if b := w.devicePage(peerA); b["state"] != "quiet" || b["quiet_since"] == nil {
+		t.Fatalf("the forged node hid the silent victim: %v", b)
+	}
+	nodes := w.nodeList()
+	for _, n := range nodes {
+		if n["state"] == "replaced" {
+			t.Fatalf("a node was marked replaced by a forged name: %v", nodes)
+		}
+	}
+	if len(nodes) != 2 || stateOfHost(t, nodes, "srv-1") == "" {
+		t.Fatalf("nodes: %v", nodes)
+	}
+}
+
+// Two honest machines that share a default name on different tokens keep their own state, whichever enrolled last.
+func TestAgentTwoMachinesWithTheSameNameKeepTheirState(t *testing.T) {
+	w := newWorld(t)
+	_, tokA := w.token("a", 7)
+	_, tokB := w.token("b", 7)
+	const peerB, macB = "192.0.2.11", "52:54:00:aa:bb:78"
+	keyA := w.enroll(tokA, "ubuntu", peerA)
+	w.report(keyA, peerA, macA)
+	w.post("/intake/osquery/log", peerA, fullLog(keyA))
+	w.clock.Advance(2 * time.Minute)
+	keyB := w.enroll(tokB, "ubuntu", peerB)
+	w.report(keyB, peerB, macB)
+	// A is off; B calls
+	for range 4 {
+		w.clock.Advance(5 * time.Minute)
+		w.post("/intake/osquery/config", peerB, map[string]any{"node_key": keyB})
+	}
+	if a, b := w.devicePage(peerA), w.devicePage(peerB); a["state"] != "quiet" || b["state"] != "reporting" {
+		t.Fatalf("A (off) %v, B (calling) %v", a["state"], b["state"])
+	}
 	for _, n := range w.nodeList() {
 		if n["state"] == "replaced" {
-			t.Fatalf("a record that is still calling is shown as replaced: %v", n)
+			t.Fatalf("honest machines with one name: %v", n)
 		}
+	}
+	// A comes back
+	w.post("/intake/osquery/config", peerA, map[string]any{"node_key": keyA})
+	if a := w.devicePage(peerA); a["state"] != "reporting" {
+		t.Fatalf("A back: %v", a)
 	}
 }
 
@@ -189,6 +275,10 @@ func TestAgentUninstalledIsRemovedFromSettings(t *testing.T) {
 	_, other := w.token("others", 7)
 	w.enroll(other, "srv-2", "192.0.2.11")
 	d, _ := w.device(peerA)
+	software := len(d.Software)
+	if software == 0 {
+		t.Fatal("the device has no software to keep")
+	}
 	w.clock.Advance(3 * time.Hour)
 	nodes := w.nodeList()
 	if nodes[0]["host"] != "srv-1" || nodes[0]["state"] != "quiet" {
@@ -196,8 +286,16 @@ func TestAgentUninstalledIsRemovedFromSettings(t *testing.T) {
 	}
 	id, _ := nodes[0]["id"].(string)
 
-	if r := w.as("viewer", "DELETE", "/inventory/agents/nodes/"+id, true); r.code != 403 {
-		t.Fatalf("remove as viewer: %d", r.code)
+	for _, role := range []string{"viewer", "operator"} {
+		if r := w.as(role, "DELETE", "/inventory/agents/nodes/"+id, true); r.code != 403 {
+			t.Fatalf("remove as %s: %d", role, r.code)
+		}
+	}
+	if r := w.admin("DELETE", "/inventory/agents/nodes/node_nope", nil); r.code != 404 {
+		t.Fatalf("remove an unknown id: %d", r.code)
+	}
+	if n := w.count(`SELECT count(*) FROM intake_osquery_nodes`); n != 2 {
+		t.Fatalf("a refused removal deleted a node: %d", n)
 	}
 	if r := w.admin("DELETE", "/inventory/agents/nodes/"+id, nil); r.code != 204 {
 		t.Fatalf("remove: %d %s", r.code, r.raw)
@@ -214,8 +312,11 @@ func TestAgentUninstalledIsRemovedFromSettings(t *testing.T) {
 	if r := w.req("viewer", "GET", "/inventory/agents/devices/"+d.ID+"/report"); r.code != 200 || r.body["agent"] != "none" || r.body["state"] != nil {
 		t.Fatalf("device page after removing: %s", r.raw)
 	}
-	if n := w.count(`SELECT count(*) FROM core_audit WHERE action = 'inventory.agent_node_remove' AND target = 'srv-1'`); n != 1 {
+	if n := w.count(`SELECT count(*) FROM core_audit WHERE action = 'inventory.agent_node_remove' AND target = 'srv-1' AND user = 'admin@acme.example' AND detail = 'token "servers"'`); n != 1 {
 		t.Fatalf("audit rows: %d", n)
+	}
+	if after, ok := w.device(peerA); !ok || len(after.Software) != software {
+		t.Fatalf("the device lost its software: %d of %d (found %v)", len(after.Software), software, ok)
 	}
 }
 
@@ -233,5 +334,34 @@ func TestAgentQuietSinceIgnoresThePruneClock(t *testing.T) {
 	since, _ := r.body["quiet_since"].(string)
 	if r.body["state"] != "quiet" || since == "" || !sameInstant(t, since, lastCall) {
 		t.Fatalf("quiet_since %v, want the last call %s: %s", since, lastCall, r.raw)
+	}
+}
+
+// Migration 0010: a node that existed before it has no last_call_at; the migration copies last_seen, and until then the read falls back to it.
+func TestAgentLastCallBackfill(t *testing.T) {
+	w := newWorld(t)
+	_, secret := w.token("servers", 7)
+	w.enroll(secret, "srv-1", peerA)
+	w.exec(`UPDATE intake_osquery_nodes SET last_call_at = NULL`)
+	w.clock.Advance(time.Hour)
+	if st := stateOfHost(t, w.nodeList(), "srv-1"); st != "quiet" {
+		t.Fatalf("a node without last_call_at reads quiet from last_seen: %s", st)
+	}
+	raw, err := os.ReadFile("migrations/sqlite/0010_last_call.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var backfill string
+	for _, line := range strings.Split(string(raw), "\n") {
+		if strings.HasPrefix(line, "UPDATE ") {
+			backfill = line
+		}
+	}
+	if backfill == "" {
+		t.Fatal("the migration has no backfill")
+	}
+	w.exec(backfill)
+	if n := w.count(`SELECT count(*) FROM intake_osquery_nodes WHERE last_call_at IS NOT NULL AND last_call_at = last_seen`); n != 1 {
+		t.Fatalf("backfilled nodes: %d", n)
 	}
 }

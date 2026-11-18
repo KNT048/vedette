@@ -10,7 +10,7 @@
 
 ## Modifying: the agent state (`nodestate.go` `stateOf`, `supersededBy`, `quietAfter`, `last_call_at`; `state`, `quiet_since`, `os` of the device report and `nodes` of GET /inventory/agents)
 - **web/features/inventory** (`DeviceSources.tsx` Agent row, `AgentsSection.tsx` machines table, `AgentQuiet.tsx` commands): quiet = no call for three config refreshes (`configRefresh` = the install scripts' `--config_refresh=300`); change that flag and `quietAfter` together or every healthy agent reads quiet. `os` picks the service commands (`windows` or `linux`).
-- **inventory** binds a device to the first node that read it and never rebinds: a machine enrolled again keeps `osquery:<old node>` on its device, so `reportState` reads the newest record of the same machine name (`newestOf`). `RemoveNode` and node-prune release the binding (`releaseNodes`).
+- **inventory** binds a device to the first node that read it and never rebinds: a machine enrolled again keeps `osquery:<old node>` on its device, so `reportState` reads the newest record bound to the same source address (`newestOf`; never matched by the name or MAC a node claims). `RemoveNode` and node-prune release the binding (`releaseNodes`).
 - **Windows script** (`scripts/osquery.ps1` and its web copy): sets delayed-auto start and restart-on-failure, then reads them from the service's registry key; when they did not apply the agent still starts and enrols, and the run ends with a warning and exit code 4 (`TestInstall_WindowsServiceRestartsItself` holds the lines; no PowerShell in CI).
 
 ## Modifying: `IssueToken(ctx, actor, name, ttlDays) (Token, secret string, error)` — 1 người gọi: `AdminHandlers.InventoryPostInventoryAgentsTokens` (lát 3)

@@ -141,7 +141,7 @@ func (s *Service) reportState(ctx context.Context, device string) (ReportState, 
 		var asked, taken string
 		var bound nodeStateRow
 		err := s.db.Reader().QueryRowContext(ctx, `SELECT ifnull(report_asked_at, ''), ifnull(software_taken_at, ''), `+nodeStateCols+` FROM intake_osquery_nodes WHERE id = ?`, id).
-			Scan(&asked, &taken, &bound.id, &bound.tokenID, &bound.host, &bound.hostID, &bound.platform, &enrolledS, &callS, &resultS)
+			Scan(&asked, &taken, &bound.id, &bound.tokenID, &bound.host, &bound.hostID, &bound.platform, &bound.boundIP, &enrolledS, &callS, &resultS)
 		switch {
 		case err == nil:
 			bound.enrolled, _ = time.Parse(time.RFC3339Nano, enrolledS)
@@ -152,7 +152,7 @@ func (s *Service) reportState(ctx context.Context, device string) (ReportState, 
 			n.askedAt, _ = time.Parse(time.RFC3339Nano, asked)
 			n.softwareAt, _ = time.Parse(time.RFC3339Nano, taken)
 			// The device stays bound to the first node that read it. When the machine was enrolled again (another token, a re-install),
-			// its state is the newest record's, never the old one's.
+			// its state is the newest record bound to the same source address (what the box saw, not a name a node claims).
 			live := bound
 			if top, found, err := s.newestOf(ctx, bound); err != nil {
 				return ReportState{}, askNode{}, err
@@ -254,9 +254,12 @@ func (s *Service) AskReport(ctx context.Context, actor, device string) (ReportSt
 	return st, nil
 }
 
-// newestOf is the newest record enrolled under the same machine name as n, any token; found is false when n is the newest.
+// newestOf is the newest record bound to the same source address as n; found is false when n has no binding or is the newest.
 func (s *Service) newestOf(ctx context.Context, n nodeStateRow) (nodeStateRow, bool, error) {
-	top, err := scanNodeState(s.db.Reader().QueryRowContext(ctx, `SELECT `+nodeStateCols+` FROM intake_osquery_nodes WHERE lower(host_identifier) = lower(?) AND id <> ? ORDER BY enrolled_at DESC LIMIT 1`, n.hostID, n.id))
+	if n.boundIP == "" {
+		return nodeStateRow{}, false, nil
+	}
+	top, err := scanNodeState(s.db.Reader().QueryRowContext(ctx, `SELECT `+nodeStateCols+` FROM intake_osquery_nodes WHERE bound_ip = ? AND id <> ? ORDER BY enrolled_at DESC LIMIT 1`, n.boundIP, n.id))
 	if errors.Is(err, sql.ErrNoRows) {
 		return nodeStateRow{}, false, nil
 	}

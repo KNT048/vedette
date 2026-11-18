@@ -48,25 +48,27 @@ func stateOf(now, enrolled, lastCall, lastResult time.Time) (string, time.Time) 
 	return StateReporting, time.Time{}
 }
 
-// supersededBy says whether a newer record of the same machine (same host identifier, any token) took over from this one: it was enrolled
-// later and the older agent did not call after it (a re-install under another token stops the old agent first). An older agent that still
-// calls after the newer one enrolled is another machine with the same name, and keeps its own state.
+// supersededBy says whether a newer record is the same machine as this one by what the box itself saw: both are bound to the same
+// source address (bound_ip is the TCP peer address of the node's own reports, set by the binding of INV-12, and an unbound node has
+// none). The name a node claims, its token and the MAC it declares are claims, not identity: a holder of any token can enrol under another
+// machine's name, and two honest machines may share a default name. A newer record that is not bound yet supersedes nothing.
 func supersededBy(older nodeStateRow, newer nodeStateRow) bool {
-	return newer.enrolled.After(older.enrolled) && !older.lastCall.After(newer.enrolled.Add(time.Minute))
+	return newer.enrolled.After(older.enrolled) && older.boundIP != "" && older.boundIP == newer.boundIP
 }
 
 // nodeStateRow is the stored times of a node.
 type nodeStateRow struct {
 	id, tokenID, host, hostID, platform string
+	boundIP                             string
 	enrolled, lastCall, lastResult      time.Time
 }
 
-const nodeStateCols = `id, token_id, ifnull(hostname, host_identifier), host_identifier, ifnull(platform, ''), enrolled_at, ifnull(last_call_at, last_seen), ifnull(last_result_at, '')`
+const nodeStateCols = `id, token_id, ifnull(hostname, host_identifier), host_identifier, ifnull(platform, ''), ifnull(bound_ip, ''), enrolled_at, ifnull(last_call_at, last_seen), ifnull(last_result_at, '')`
 
 func scanNodeState(sc interface{ Scan(...any) error }) (nodeStateRow, error) {
 	var r nodeStateRow
 	var enrolled, call, result string
-	if err := sc.Scan(&r.id, &r.tokenID, &r.host, &r.hostID, &r.platform, &enrolled, &call, &result); err != nil {
+	if err := sc.Scan(&r.id, &r.tokenID, &r.host, &r.hostID, &r.platform, &r.boundIP, &enrolled, &call, &result); err != nil {
 		return r, err
 	}
 	r.enrolled, _ = time.Parse(time.RFC3339Nano, enrolled)
@@ -108,17 +110,16 @@ func (s *Service) Nodes(ctx context.Context) ([]NodeState, error) {
 		return nil, err
 	}
 	now := s.now()
-	newest := map[string]nodeStateRow{} // the newest record of each machine name
+	newest := map[string]nodeStateRow{} // the newest record bound to each source address
 	for _, r := range all {
-		k := strings.ToLower(r.hostID)
-		if cur, ok := newest[k]; !ok || r.enrolled.After(cur.enrolled) {
-			newest[k] = r
+		if cur, ok := newest[r.boundIP]; r.boundIP != "" && (!ok || r.enrolled.After(cur.enrolled)) {
+			newest[r.boundIP] = r
 		}
 	}
 	var quiet, rest, replaced []NodeState
 	for _, r := range all {
 		n := r.state(now)
-		if top := newest[strings.ToLower(r.hostID)]; top.id != r.id && supersededBy(r, top) {
+		if top, ok := newest[r.boundIP]; ok && top.id != r.id && supersededBy(r, top) {
 			n.State, n.QuietSince, n.ReplacedBy = StateReplaced, time.Time{}, top.id
 			replaced = append(replaced, n)
 		} else if n.State == StateQuiet {

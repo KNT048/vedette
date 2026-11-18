@@ -252,6 +252,8 @@
       "done": "Done this week",
       "doneLine": "{{cve}} on {{device}} ({{product}}): {{status}}",
       "doneLineBy": "{{cve}} on {{device}} ({{product}}): {{status}}, by {{by}}",
+      "notRelevantHidden_one": "1 finding closed as not relevant is hidden from these totals and lists.",
+      "notRelevantHidden_other": "{{count}} findings closed as not relevant are hidden from these totals and lists.",
       "doneMore_one": "And 1 more, listed in the appendix.",
       "doneMore_other": "And {{count}} more, listed in the appendix.",
       "accepted": "Risk accepted: {{count}} (until {{date}})",

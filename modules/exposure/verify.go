@@ -3,6 +3,7 @@ package exposure
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -98,6 +99,9 @@ func (s *Service) verify(ctx context.Context, user, id string, limited bool) (Ve
 	t, err := loadTarget(ctx, s.cfg.DB.Reader(), id)
 	if err != nil {
 		return VerifyResult{}, fmt.Errorf("exposure: verifying: %w", err)
+	}
+	if t.Typed {
+		return s.verifyTyped(ctx, user, t, limited)
 	}
 	if t.Kind == KindIP {
 		// Like a detection, this probes the network and writes the sighting of an IP, so the two never run side by side (L4).
@@ -270,4 +274,174 @@ func noneIfEmpty(ips []string) string {
 		return "no public IP"
 	}
 	return strings.Join(ips, ", ")
+}
+
+// verifyTyped checks the proof of a public IP a person typed in (INV-35): the token file, then reverse DNS. A person's check is
+// allowed once every DomainCheckEvery per target and counts against the box-wide bound, like a domain's; the box's own re-check
+// (limited false) counts against the bound only. A pass renews the 30 days from now. "Not found" is verified:false with what was asked.
+func (s *Service) verifyTyped(ctx context.Context, user string, t Target, limited bool) (VerifyResult, error) {
+	if limited { // a person's check takes the per-target pause and the box-wide bound; the box's own re-check has its own schedule
+		if err := s.domainCheckAllowed(t.ID, true); err != nil {
+			return VerifyResult{}, fmt.Errorf("exposure: verifying: %w", err)
+		}
+	}
+	all, err := listTargets(ctx, s.cfg.DB.Reader())
+	if err != nil {
+		return VerifyResult{}, fmt.Errorf("exposure: verifying: reading the targets: %w", err)
+	}
+	pr := s.proveIP(ctx, t, all)
+	s.rememberLive(t.ID, pr)
+	err = s.write(ctx, func(tx *sql.Tx, emit func(string, any)) error {
+		cur, err := loadTarget(ctx, tx, t.ID) // the target may have been deleted, or seen as the box's own, meanwhile
+		if err != nil {
+			return err
+		}
+		if !cur.Typed {
+			return nil
+		}
+		now := s.clock()
+		wasOK := !cur.VerifiedAt.IsZero() && cur.LastCheck != nil && cur.LastCheck.OK && cur.validity(now) != validityExpired
+		msg, action, method := pr.message, "exposure.verify_fail", ""
+		var verifiedAt time.Time
+		if pr.ok {
+			msg = fmt.Sprintf("%s Verified until %s.", pr.message, s.dayText(now.Add(ValidDays*24*time.Hour)))
+			action, method, verifiedAt = "exposure.verify_ok", pr.method, now
+		}
+		if err := recordIPProof(ctx, tx, cur.ID, Check{At: store.FormatTS(now), OK: pr.ok, Message: msg}, verifiedAt, method); err != nil {
+			return err
+		}
+		if user == SystemUser && cur.LastCheck != nil && cur.LastCheck.OK == pr.ok && !pr.ok { // the box's own failing re-check is no row every time
+			return nil
+		}
+		if err := s.audit(ctx, tx, user, action, cur.Value, orDefault(method, "ip proof")); err != nil {
+			return err
+		}
+		if pr.ok && !wasOK {
+			emit(EventTargetVerified, TargetVerifiedEvent{TargetID: cur.ID})
+		}
+		return nil
+	})
+	if err != nil {
+		return VerifyResult{}, fmt.Errorf("exposure: verifying: %w", err)
+	}
+	v, err := s.Target(ctx, t.ID)
+	if err != nil {
+		return VerifyResult{}, err
+	}
+	return VerifyResult{Verified: pr.ok, Message: v.LastCheck.Message, Target: v}, nil
+}
+
+func orDefault(v, d string) string {
+	if v == "" {
+		return d
+	}
+	return v
+}
+
+// liveFor is how long a live result of a typed IP's proof is reused (never past the proof's own expiry); a failure only lives liveFailFor,
+// so a person who fixed the file is not refused for minutes.
+const (
+	liveFor     = 5 * time.Minute
+	liveFailFor = DomainCheckEvery
+)
+
+type liveEntry struct {
+	at time.Time
+	pr ipProof
+}
+
+func (s *Service) rememberLive(id string, pr ipProof) {
+	s.liveMu.Lock()
+	defer s.liveMu.Unlock()
+	s.live[id] = liveEntry{at: s.clock(), pr: pr}
+}
+
+// liveResult is the live result of the last liveFor (liveFailFor for a failure) for a target, or false.
+func (s *Service) liveResult(t Target) (ipProof, bool) {
+	now := s.clock()
+	s.liveMu.Lock()
+	e, ok := s.live[t.ID]
+	s.liveMu.Unlock()
+	if !ok || e.at.After(now) {
+		return ipProof{}, false
+	}
+	window := liveFor
+	if !e.pr.ok {
+		window = liveFailFor
+	}
+	if exp := t.expiresAt(now); exp.IsZero() || !now.Before(exp) {
+		return ipProof{}, false
+	}
+	return e.pr, now.Sub(e.at) < window
+}
+
+// liveTypedProof is the proof of a typed IP right before something is sent to it (a scan, a step of it, a question to Shodan, OpenVAS):
+// one live result per target is looked for and reused for liveFor, so the gate, ScannableIP, every step and the terms of one scan ask the
+// third party once. A look that is not cached takes the per-target pause and the box-wide bound of a person's check; when they are used up
+// the last check stands (fail closed when it was not OK). A pass renews the 30 days. The target is read again afterwards.
+func (s *Service) liveTypedProof(ctx context.Context, actor string, t Target) (Target, error) {
+	reload := func() (Target, error) { return loadTarget(ctx, s.cfg.DB.Reader(), t.ID) }
+	if _, ok := s.liveResult(t); ok {
+		return reload()
+	}
+	if err := s.domainCheckAllowed(t.ID, true); err != nil {
+		return reload() // the last check stands
+	}
+	all, err := listTargets(ctx, s.cfg.DB.Reader())
+	if err != nil {
+		return Target{}, fmt.Errorf("reading the targets: %w", err)
+	}
+	pr := s.proveIP(ctx, t, all)
+	s.rememberLive(t.ID, pr)
+	err = s.write(ctx, func(tx *sql.Tx, _ func(string, any)) error {
+		cur, err := loadTarget(ctx, tx, t.ID)
+		if err != nil || !cur.Typed {
+			return err
+		}
+		now := s.clock()
+		c, action, method := Check{At: store.FormatTS(now), OK: pr.ok, Message: pr.message}, "exposure.verify_fail", ""
+		var verifiedAt time.Time
+		if pr.ok {
+			c.Message = fmt.Sprintf("%s Verified until %s.", pr.message, s.dayText(now.Add(ValidDays*24*time.Hour)))
+			action, method, verifiedAt = "exposure.verify_ok", pr.method, now
+		}
+		if err := recordIPProof(ctx, tx, cur.ID, c, verifiedAt, method); err != nil {
+			return err
+		}
+		if cur.LastCheck != nil && cur.LastCheck.OK == pr.ok { // nothing changed: the check is not a row of its own
+			return nil
+		}
+		return s.audit(ctx, tx, actor, action, cur.Value, orDefault(method, "ip proof")+", right before use")
+	})
+	if err != nil {
+		return Target{}, fmt.Errorf("recording the proof check: %w", err)
+	}
+	return reload()
+}
+
+// RunIPRecheck is the body of the ip-proof job (INV-35): every typed IP whose proof is still valid, and is within IPRecheckLeft of
+// expiring, is checked again by itself (the proof is not found: tried again every IPRecheckRetry, until it expires). An expired proof is
+// proved again by a person.
+func (s *Service) RunIPRecheck(ctx context.Context) error {
+	all, err := listTargets(ctx, s.cfg.DB.Reader())
+	if err != nil {
+		return fmt.Errorf("exposure: listing targets: %w", err)
+	}
+	now := s.clock()
+	for _, t := range all {
+		if !t.Typed || t.validity(now) == "" || t.validity(now) == validityExpired || t.ipNext(now).After(now) {
+			continue
+		}
+		if _, err := s.verifyTyped(ctx, SystemUser, t, false); err != nil {
+			var ae *APIError
+			if errors.As(err, &ae) && ae.HTTP == 429 { // the box's bound of checks is used up: the next tick goes on
+				return nil
+			}
+			if ctx.Err() != nil {
+				return fmt.Errorf("exposure: re-checking typed IPs: %w", ctx.Err())
+			}
+			s.cfg.Log.WarnContext(ctx, "exposure: re-checking the proof of a typed IP failed", "ip", t.Value, "error", err)
+		}
+	}
+	return nil
 }

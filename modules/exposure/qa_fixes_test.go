@@ -126,7 +126,7 @@ func TestContract_INV2_IPv6IsNotTypedInEither(t *testing.T) {
 		_, err := e.svc.AddDomain(e.ctx(), "admin@acme.example", v)
 		wantAPI(t, err, 400, "ip_not_allowed")
 		var ae *APIError
-		if !errors.As(err, &ae) || !strings.HasPrefix(ae.Message, "Public IPs are not typed in") {
+		if !errors.As(err, &ae) || !strings.HasPrefix(ae.Message, "That is an IP address, not a domain") {
 			t.Fatalf("%q: %v", v, err)
 		}
 	}

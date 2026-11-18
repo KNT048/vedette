@@ -1379,7 +1379,15 @@ func (UnimplementedHandler) ExposurePostExposureScanStop(ctx context.Context) (r
 
 // ExposurePostExposureTargets implements exposure_post_exposure_targets operation.
 //
-// Add a domain (changes scan scope). Public IPs cannot be typed in: use /exposure/box-ip/verify.
+// Add a target (changes scan scope): a domain, or a public IPv4 address typed in. kind is domain or
+// ip; left out, an IPv4 address is an IP and anything else a domain. A typed IP is accepted into the
+// list at once and is never scanned, nor sent to Shodan, until it is proved: a token file at
+// /.well-known/vedette-verify.txt on the IP (http or https, no redirect off the IP, the ACME HTTP-01
+// model), or forward-confirmed reverse DNS (its PTR is a name under a domain this box has proved, and
+// that name resolves back to the IP). An A record of a proved domain pointing at the IP is not proof.
+// The proof lasts 30 days and the box checks it again by itself (expires_at, next_check_at). 400
+// ip_not_allowed for a private, reserved or IPv6 address, 400 bad_value for an address on the Ignored
+// list. The IP the box finds as its own egress address is added by detection, not here.
 //
 // POST /exposure/targets
 func (UnimplementedHandler) ExposurePostExposureTargets(ctx context.Context, req *ExposurePostExposureTargetsReq) (r *ExposurePostExposureTargetsCreated, _ error) {
@@ -1426,22 +1434,25 @@ func (UnimplementedHandler) ExposurePostExposureTargetsIDOutside(ctx context.Con
 // Scan now. Answers at once with 202 and the run (ScanRun, status running): the scan itself goes on in
 // the background and the page polls GET /exposure/scan. The checks below still answer synchronously.
 // 409 when not verified, verification expired or the DNS TXT record is gone (re-checked right before
-// the scan); 409 ip_not_current when an IP is no longer the one the box goes out through (the latest
-// check, or a fresh full check just before the scan, must see it); 400 commitment_required when the
-// commitment is missing and the caller is an operator (an administrator must run the first scan). For
-// an administrator that first scan IS the confirmation: it needs two-step sign-in on the account (403
-// twofa_required otherwise) and `notice_version` of the sentence shown next to the button (400
+// the scan); 409 proof_missing when the proof of a typed IP is not found now (looked for again right
+// before the scan); 409 ip_not_current when an IP is no longer the one the box goes out through (the
+// latest check, or a fresh full check just before the scan, must see it); 400 commitment_required when
+// the commitment is missing and the caller is an operator (an administrator must run the first scan).
+// For an administrator that first scan IS the confirmation: it needs two-step sign-in on the account
+// (403 twofa_required otherwise) and `notice_version` of the sentence shown next to the button (400
 // commitment_required when left out, 409 notice_changed when it is not the current one); the
 // commitment is then recorded with who, when and that exact sentence, and the scan goes on. A target
 // whose commitment is of the current sentence records nothing again; one of an older sentence is asked
 // again once: it counts as missing (operators get 400 commitment_required "the confirmation text
 // changed"), a request without notice_version gets 409 notice_changed, and the administrator's press
 // replaces it. After those checks the scan module's runner does the scan (it follows this module's
-// switch, so the Vulnerability scans module may be off): ports are scanned only on the box's own
-// verified public IPs; a domain's names from certificate transparency, its MX and NS records and a
-// list of common names (looked up through the box's DNS resolver) are listed with the kind of each
-// address (INV-27) and get one GET of / by name on ports 80 and 443; only the box's own address is
-// scanned beyond that. 409 module_off while the External exposure module is off; 409 busy while
+// switch, so the Vulnerability scans module may be off): ports and pages are scanned on the box's own
+// verified public IPs and on a typed public IP while its proof is found (looked for again right
+// before, one live result reused for 5 minutes); a domain's names from certificate transparency, its
+// MX and NS records and a list of common names (looked up through the box's DNS resolver) are listed
+// with the kind of each address (INV-27) and get one GET of / by name on ports 80 and 443; the deep
+// steps beyond that go to the box's own address, and to a typed IP or an address of a domain through
+// the executors' own fence. 409 module_off while the External exposure module is off; 409 busy while
 // another scan runs on the box; 429 rate_limited within 10 minutes of the target's last scan. Failures
 // that come while the scan runs (400 too_many when the domain has more than 300 names in the logs; 502
 // unreachable when the certificate-transparency search (crt.sh) does not answer or the scan does not
@@ -1455,14 +1466,16 @@ func (UnimplementedHandler) ExposurePostExposureTargetsIDScan(ctx context.Contex
 
 // ExposurePostExposureTargetsIDVerify implements exposure_post_exposure_targets_id_verify operation.
 //
-// Re-check ownership: domain = DNS TXT record; IP = the box must currently egress through this same IP
-// (renews it for 30 days). Not found is a normal answer (verified:false). Rate limited: a domain once
-// every 30 seconds per target, and a box-wide burst of 20 domain checks then one more every 10
-// seconds, the check of a name just added included (429 rate_limited says in how many seconds the next
-// check is allowed), an IP within the 10 attempts an hour of the box. A domain already covered by the
-// proof of another target of the box (a TXT record on its registered domain covers that name and the
-// names under it) is verified with the message "Ownership already proven by the TXT record at
-// example.com (checked 18 Nov 2026, 10:00)".
+// Re-check ownership: domain = DNS TXT record; typed IP = its token file, then reverse DNS (a pass
+// renews it for 30 days; once every 30 seconds per target, and inside the box-wide bound of domain
+// checks); IP the box found = the box must currently egress through this same IP (renews it for 30
+// days). Not found is a normal answer (verified:false). Rate limited: a domain once every 30 seconds
+// per target, and a box-wide burst of 20 domain checks then one more every 10 seconds, the check of a
+// name just added included (429 rate_limited says in how many seconds the next check is allowed), an
+// IP within the 10 attempts an hour of the box. A domain already covered by the proof of another
+// target of the box (a TXT record on its registered domain covers that name and the names under it) is
+// verified with the message "Ownership already proven by the TXT record at example.com (checked 18 Nov
+// 2026, 10:00)".
 //
 // POST /exposure/targets/{id}/verify
 func (UnimplementedHandler) ExposurePostExposureTargetsIDVerify(ctx context.Context, params ExposurePostExposureTargetsIDVerifyParams) (r *ExposurePostExposureTargetsIDVerifyOK, _ error) {

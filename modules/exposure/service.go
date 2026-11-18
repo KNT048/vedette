@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/netip"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -19,7 +20,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// Config is what NewService needs. Publisher, Runner, TwoStep, Gateway, Appliances, Services, Templates, Web, Greenbone, DomainFence, Probes, Matcher, Outside, Location and Clock may be nil.
+// Config is what NewService needs. IPFetch, Publisher, Runner, TwoStep, Gateway, Appliances, Services, Templates, Web, Greenbone, DomainFence, Probes, Matcher, Outside, Location and Clock may be nil.
 type Config struct {
 	DB        *store.DB
 	Audit     *audit.Log
@@ -38,12 +39,14 @@ type Config struct {
 	// DomainFence nil: a domain's deep scan reaches only the box's own verified IP; every other public address of its names
 	// gets a "needs the domain fence" line and nothing more than the by-name checks.
 	DomainFence DomainFence
-	DataDir     string         // the box data directory: Greenbone's preflight measures the free space of its filesystem (INV-25)
-	Probes      ProbeLog       // nil: the template and web steps do not run (nothing is sent without a probe log row, LEGAL §3)
-	Matcher     Matcher        // nil: identified services are not compared with exploited CVEs, and the page says so (INV-20)
-	Outside     *InternetDB    // nil: "Check what Shodan has seen" answers 501 (INV-21); cmd/vedette wires Shodan InternetDB
-	Safety      ScanSafety     // nil: the module's own rates and no exclusion; cmd/vedette wires the scan module's shared safety block (INV-31, #850)
-	Location    *time.Location // the day of a snapshot and the times of messages when Zone gives none (nil: time.Local)
+	// IPFetch gets the proof file of a typed IP (INV-35); nil: the real one (no proxy, no redirect off the IP, a capped body).
+	IPFetch  IPFetcher
+	DataDir  string         // the box data directory: Greenbone's preflight measures the free space of its filesystem (INV-25)
+	Probes   ProbeLog       // nil: the template and web steps do not run (nothing is sent without a probe log row, LEGAL §3)
+	Matcher  Matcher        // nil: identified services are not compared with exploited CVEs, and the page says so (INV-20)
+	Outside  *InternetDB    // nil: "Check what Shodan has seen" answers 501 (INV-21); cmd/vedette wires Shodan InternetDB
+	Safety   ScanSafety     // nil: the module's own rates and no exclusion; cmd/vedette wires the scan module's shared safety block (INV-31, #850)
+	Location *time.Location // the day of a snapshot and the times of messages when Zone gives none (nil: time.Local)
 	// Zone is the organization's time zone, read at every use (a change applies at once); nil, or a nil answer, is Location. The day of
 	// a snapshot is a day of the customer's calendar: two scans of one local day are one snapshot, never two that read as the same day.
 	Zone  func(ctx context.Context) *time.Location
@@ -75,6 +78,9 @@ type Service struct {
 	lastCheck  map[string]time.Time // when each domain target's ownership was last checked by a person (DomainCheckEvery; in memory, a restart forgets it)
 	bucketFull time.Time            // the box-wide bound of those checks: when the bucket would be full again (zero: it is), guarded by checkMu
 
+	liveMu sync.Mutex
+	live   map[string]liveEntry // the last live result of each typed IP's proof (liveFor), guarded by liveMu
+
 	gbOnce sync.Once
 	gbs    *gbState // Greenbone's state in memory (INV-25); made by gb()
 
@@ -95,7 +101,7 @@ func NewService(cfg Config) (*Service, error) {
 	if cfg.Location == nil {
 		cfg.Location = time.Local
 	}
-	return &Service{cfg: cfg, now: now, runner: cfg.Runner, lastScan: map[string]time.Time{}, lastCheck: map[string]time.Time{}, bg: context.Background()}, nil
+	return &Service{cfg: cfg, now: now, runner: cfg.Runner, lastScan: map[string]time.Time{}, lastCheck: map[string]time.Time{}, live: map[string]liveEntry{}, bg: context.Background()}, nil
 }
 
 // SetRunner registers the scanner (the scan module does it at start-up). Nil removes it.
@@ -231,6 +237,8 @@ func (t Target) blocked(now time.Time) BlockedReason {
 		return BlockedExpired
 	case t.Kind == KindDomain && (t.LastCheck == nil || !t.LastCheck.OK):
 		return BlockedTxtMissing
+	case t.Typed && (t.LastCheck == nil || !t.LastCheck.OK):
+		return BlockedProofMissing
 	case !t.Commitment.current():
 		return BlockedNoCommitment
 	}
@@ -258,13 +266,22 @@ func (s *Service) view(t Target, all []Target, latest map[string]latestResult, c
 		v.Validity = &val
 	}
 	if !t.Commitment.current() {
-		n := noticeFor(t.Value)
+		n := noticeOf(t)
 		v.CommitmentNotice = &n
 	}
-	v.Terms, v.TermsNotice, v.FullScan = t.Terms, termsFor(t.Kind, t.Value), t.mode().Full
+	v.Terms, v.TermsNotice, v.FullScan = t.Terms, termsOf(t), t.mode().Full
 	v.Proof = proofHint(t, all)
+	v.Origin = "person"
+	if t.Kind == KindIP && !t.Typed {
+		v.Origin = "box"
+	}
+	v.IPProof = ipProofHintOf(t, all)
+	if n := t.ipNext(now); !n.IsZero() {
+		x := store.FormatTS(n)
+		v.NextCheckAt = &x
+	}
 	b := t.blocked(now)
-	if b == "" && t.Kind == KindIP && c.paused(t) {
+	if b == "" && t.Kind == KindIP && !t.Typed && c.paused(t) {
 		b = BlockedNotCurrent // the latest full check did not see this IP (INV-13): the same answer the scan gate gives
 	}
 	if b != "" {
@@ -281,8 +298,34 @@ func (s *Service) view(t Target, all []Target, latest map[string]latestResult, c
 		if v.OpenPorts == nil {
 			v.OpenPorts = []PortRow{}
 		}
+		v.OpenExposures = r.Counts.Ports
 	}
+	v.ScanState = s.scanState(t, v)
 	return v
+}
+
+// scanState says where a target stands for scanning (TargetView.scan_state): scanning while a scan of it runs, then why it cannot be
+// scanned (unproved: no proof now, expired: its 30 days ran out, paused: the box no longer goes out through the IP, needs_terms: the
+// scan confirmation is missing), else ready.
+func (s *Service) scanState(t Target, v TargetView) string {
+	s.runMu.Lock()
+	running := s.run != nil && s.run.view.TargetID == t.ID && s.run.view.Status == RunRunning
+	s.runMu.Unlock()
+	switch {
+	case running:
+		return "scanning"
+	case v.BlockedReason == nil:
+		return "ready"
+	}
+	switch *v.BlockedReason {
+	case BlockedExpired:
+		return "expired"
+	case BlockedNotCurrent:
+		return "paused"
+	case BlockedNoCommitment:
+		return "needs_terms"
+	}
+	return "unproved"
 }
 
 // Targets returns every target, oldest first (GET /exposure/targets). The scan module reads the
@@ -412,7 +455,53 @@ func addChecks(ctx context.Context, q querier, value string) error {
 	return nil
 }
 
-// AddDomain adds a domain to prove (POST /exposure/targets, PRE-4). A public IP is never added here (INV-2).
+// AddTarget adds a target to prove (POST /exposure/targets, PRE-4): a domain, or a public IP typed in (INV-35). An empty kind is
+// taken from the value: an IPv4 address is an IP, anything else a domain. A typed IP is accepted into the list at once and is never
+// scanned until it is proved (token file or reverse DNS); the box does not look for the proof here, the person places it first.
+func (s *Service) AddTarget(ctx context.Context, user string, kind Kind, raw string) (TargetView, error) {
+	if kind == "" {
+		kind = KindDomain
+		if a, err := netip.ParseAddr(strings.TrimSpace(raw)); err == nil && a.Is4() {
+			kind = KindIP
+		}
+	}
+	switch kind {
+	case KindDomain:
+		return s.AddDomain(ctx, user, raw)
+	case KindIP:
+		return s.addIP(ctx, user, raw)
+	}
+	return TargetView{}, ErrKind
+}
+
+func (s *Service) addIP(ctx context.Context, user, raw string) (TargetView, error) {
+	value, err := normalizeIP(raw)
+	if err != nil {
+		return TargetView{}, err
+	}
+	var id string
+	err = s.write(ctx, func(tx *sql.Tx, _ func(string, any)) error {
+		if err := addChecks(ctx, tx, value); err != nil {
+			return err
+		}
+		if ign, err := ignoredSet(ctx, tx); err != nil {
+			return err
+		} else if ign[value] {
+			return apiErr(400, "bad_value", "%s is on your Ignored list. Restore it in Settings first.", value)
+		}
+		id = store.NewID("xt")
+		if err := insertTarget(ctx, tx, Target{ID: id, Kind: KindIP, Typed: true, Value: value, Token: newToken(), CreatedAt: s.clock()}); err != nil {
+			return err
+		}
+		return s.audit(ctx, tx, user, "exposure.target_add", value, "public IP, typed in; not scanned until proved")
+	})
+	if err != nil {
+		return TargetView{}, fmt.Errorf("exposure: adding public IP: %w", err)
+	}
+	return s.Target(ctx, id)
+}
+
+// AddDomain adds a domain to prove (PRE-4); AddTarget is the entry of the API.
 func (s *Service) AddDomain(ctx context.Context, user, raw string) (TargetView, error) {
 	value, err := normalizeDomain(raw)
 	if err != nil {

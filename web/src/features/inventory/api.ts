@@ -158,6 +158,8 @@ export function useAgentActions() {
   const inv = useInvalidate()
   return {
     create: useMutation({ mutationFn: (b: { name: string; kind?: AgentKind; expires_in_days?: number }) => api.post<CreateTokenResult>('/inventory/agents/tokens', b), onSuccess: inv }),
+    /** Every token no machine enrolled with goes; tokens with machines stay. */
+    removeUnused: useMutation({ mutationFn: () => api.post<{ removed: number }>('/inventory/agents/tokens/remove-unused'), onSuccess: inv }),
     revoke: useMutation({ mutationFn: (id: string) => api.del(`/inventory/agents/tokens/${encodeURIComponent(id)}`), onSuccess: inv }),
     /** One stale agent record goes (the token and the other machines stay); the device page reads the report again. */
     removeNode: useMutation({ mutationFn: (id: string) => api.del(`/inventory/agents/nodes/${encodeURIComponent(id)}`), onSuccess: inv }),

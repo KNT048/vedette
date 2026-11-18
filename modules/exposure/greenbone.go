@@ -13,7 +13,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	vprogress "github.com/knt048/vedette/core/progress"
@@ -290,7 +289,7 @@ type gbState struct {
 // gb returns the Greenbone state, made on first use.
 func (s *Service) gb() *gbState {
 	s.gbOnce.Do(func() {
-		s.gbs = &gbState{memInfo: memInfo, diskFree: diskFree, poll: gbPollDefault, cap: GreenboneTimeout}
+		s.gbs = &gbState{memInfo: memInfo, diskFree: store.DiskFree, poll: gbPollDefault, cap: GreenboneTimeout}
 	})
 	return s.gbs
 }
@@ -325,18 +324,6 @@ func parseMemInfo(meminfo string) (mem, swap int64, err error) {
 		return 0, 0, errors.New("no MemTotal line in /proc/meminfo")
 	}
 	return mem, swap, nil
-}
-
-// diskFree is the space an unprivileged writer may use on dir's filesystem, in bytes.
-func diskFree(dir string) (int64, error) {
-	if dir == "" {
-		return 0, errors.New("no data directory configured")
-	}
-	var st syscall.Statfs_t
-	if err := syscall.Statfs(dir, &st); err != nil {
-		return 0, fmt.Errorf("statfs %s: %w", dir, err)
-	}
-	return int64(st.Bavail) * int64(st.Bsize), nil //nolint:gosec,unconvert // block counts of a real filesystem fit; Bsize differs in type between Linux and macOS
 }
 
 // gbText is a byte count as the page says it: decimal GB with one decimal, rounded down ("7.1 GB"), so a number just under a

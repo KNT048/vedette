@@ -90,7 +90,7 @@ Trích **tĩnh** từ mọi lời gọi `fail(`/`refuse(`/hàm `bad(`/`{status, 
 
 Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCatalog`: `invalid`, `read_only`; `feeds/parsers.ts`: `too_large`, `bad_config`, `bad_sample`) đã được thêm tay.
 
-#### HTTP 400 (253 mã)
+#### HTTP 400 (254 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -287,6 +287,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `not_public` | 400 | The box reaches the Internet via ${ip}, which is a private, reserved or shared carrier (CGNAT) address. Scanning it coul | `POST /exposure/box-ip/verify` |
 | `not_server` | 400 | The target is not a server (credentialed scan is for servers only). | `POST /scans/credentialed` |
 | `note_required` | 400 | Write why this is a false positive, not relevant or an accepted risk (at least 3 characters) so the next person understands. | `POST /findings/{id}/status` |
+| `confirm_note_required` | 400 | Write what makes you sure (at least 3 characters) so the next person understands. | `POST /findings/{id}/confirm` |
 | `note_too_long` | 400 | The note can be at most 500 characters. Shorten it. | `PATCH /notify/incidents/{id}`; `POST /findings/{id}/status` |
 | `oidc_off` | 400 | SSO sign-in is not set up. Sign in with your email and password, or ask an administrator. | `POST /auth/oidc/start`; `POST /auth/oidc/callback` |
 | `out_of_scope` | 400 | The target is outside the approved scope. | `POST /scans/credentialed`; `POST /scans/runs`; `POST /scanning/engines/nmap-discovery/run` (#850); `POST /exposure/targets/{id}/scan` (on the exclusion list of the shared safety block, exposure INV-31) |
@@ -388,7 +389,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `unknown` | 404 | This link is not valid. | `POST /response/approve/{token}` |
 | `unknown_cve` | 404 | This CVE is not on the exploited list the box holds. The AI only explains CVEs the box has data for. | `POST /ai/cve/{id}/explain`; `POST /ai/cve/{id}/news` |
 
-#### HTTP 409 (107 mã)
+#### HTTP 409 (109 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -397,6 +398,8 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `blocked_by_hook` | 409 | The AI was not asked: a hook stopped the question. The text contains an ID number. It was not sent to the AI. Remove the number and ask again. Rephrase and try again; an administrator can adjust the hooks in Settings, AI assistant, Hooks. | `POST /findings/{id}/ai`, `POST /ai/cve/{id}/explain`, `POST /ai/cve/{id}/news`, `POST /ai/ask`, `POST /ai/logs/digest`, `POST /reports/weekly/ai-summary`, `POST /reports/pdpl/ai-summary`: hook `before_ai` chặn câu hỏi hay dữ liệu đi kèm (thông điệp nêu phần nào) hoặc hook `after_ai` chặn câu trả lời; `POST /ai/ask` trả 200 với hook trong `hooks[].step` thay vì mã này |
 | `already_on` | 409 | Two-step sign-in is already on. Turn it off first to set up the other method. | `POST /core/account/2fa/email/confirm`; `POST /core/account/2fa/email/start`; `POST /core/account/2fa/start` |
 | `already_open` | 409 | This finding is already open. | `POST /findings/{id}/status` |
+| `not_suspected` | 409 | Only a suspected finding can be confirmed. | `POST /findings/{id}/confirm` |
+| `not_confirmed_by_person` | 409 | Only a finding a person confirmed can be returned to suspected; a scan confirmed this one. | `POST /findings/{id}/unconfirm` |
 | `already_requested` | 409 | This action already has an open request or has already been carried out. | `POST /response/proposals/{id}/request`; `POST /response/incidents/{id}/request` |
 | `already_running` | 409 | A scan is already running. Wait for it to finish or press Stop now. | `POST /scans/runs`; `POST /scanning/engines/nmap-discovery/run` (#850) |
 | `already_setup` | 409 | This box is already set up. Sign in with the administrator account. | `POST /core/setup` |
@@ -491,7 +494,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `connectivity_check_failed` | 409 | The box could not reach the network with the new settings, so it went back to the old ones. Check the address, prefix length and gateway, then try again. Chỉ backend (run `reverted`). | `PUT /core/network/management` |
 | `reverted_by_reboot` | 409 | The box restarted before the change was confirmed, so it came back on the old address. Chỉ backend (run `reverted`). | `POST /core/network/management/confirm` |
 | `management_not_set` | 409 | Vedette has not set up this box's network yet. Save the management address first, then change the other settings. Chỉ backend: host chưa ghi cấu hình nào nên không có gì để gộp. | `PUT /core/network/span`; `PUT /core/network/ntp`; `PUT /core/network/interfaces` |
-| `too_many_tokens` | 409 | There are already 50 enrollment tokens. Revoke one you no longer use. | `POST /inventory/agents/tokens` (agent-intake INV-14) |
+| `too_many_tokens` | 409 | There are already 500 enrollment tokens, the most there can be. Use Remove unused tokens (every token with no machine, made over an hour ago) or revoke a token you no longer need, then create the install command again. | `POST /inventory/agents/tokens` (agent-intake INV-14) |
 | `wazuh_changed` | 409 | The Wazuh connection was changed or removed while this was checked. Enter the password and save again. | `PUT /inventory/agents/wazuh` with a blank password while another Save or Delete ran (agent-intake) |
 | `previous_revoked` | 409 | The previous version has been withdrawn by the project, so the box will not go back to it. Chỉ backend: host `previous_revoked`; cũng là `run.error` khi host từ chối lúc chạy. | `POST /core/updates/rollback` (`run.error`) |
 | `rollback_not_allowed` | 409 | The running version cannot go back that far: its database is not readable by the previous version. Check the release notes. Chỉ backend: host `rollback_not_allowed`. | `POST /core/updates/rollback` (`run.error`) |

@@ -1228,6 +1228,13 @@ type Handler interface {
 	//
 	// POST /findings/{id}/applied
 	FindingsPostFindingsIDApplied(ctx context.Context, req *FindingsPostFindingsIDAppliedReq, params FindingsPostFindingsIDAppliedParams) (*FindingsPostFindingsIDAppliedOK, error)
+	// FindingsPostFindingsIDConfirm implements findings_post_findings_id_confirm operation.
+	//
+	// Confirm a suspected finding on your own word (admin): basis person, status confirmed; a note is
+	// required and goes into the history as "Confirmed by : ".
+	//
+	// POST /findings/{id}/confirm
+	FindingsPostFindingsIDConfirm(ctx context.Context, req *FindingsPostFindingsIDConfirmReq, params FindingsPostFindingsIDConfirmParams) (*FindingsPostFindingsIDConfirmOK, error)
 	// FindingsPostFindingsIDStatus implements findings_post_findings_id_status operation.
 	//
 	// Change status (patched, mitigated, false positive, not relevant, accept risk until a day, reopen)
@@ -1235,6 +1242,13 @@ type Handler interface {
 	//
 	// POST /findings/{id}/status
 	FindingsPostFindingsIDStatus(ctx context.Context, req *FindingsPostFindingsIDStatusReq, params FindingsPostFindingsIDStatusParams) (*FindingsPostFindingsIDStatusOK, error)
+	// FindingsPostFindingsIDUnconfirm implements findings_post_findings_id_unconfirm operation.
+	//
+	// Undo a confirmation a person made (admin): the finding is suspected again; a finding a scan
+	// confirmed is refused.
+	//
+	// POST /findings/{id}/unconfirm
+	FindingsPostFindingsIDUnconfirm(ctx context.Context, params FindingsPostFindingsIDUnconfirmParams) (*FindingsPostFindingsIDUnconfirmOK, error)
 	// FindingsPostFindingsStatus implements findings_post_findings_status operation.
 	//
 	// Change the status of the open findings among the ids (at most 500) with one note; one history and
@@ -1570,6 +1584,14 @@ type Handler interface {
 	//
 	// POST /inventory/agents/tokens/{id}/sample-data
 	InventoryPostInventoryAgentsTokensIDSampleData(ctx context.Context, params InventoryPostInventoryAgentsTokensIDSampleDataParams) (*InventoryPostInventoryAgentsTokensIDSampleDataOK, error)
+	// InventoryPostInventoryAgentsTokensRemoveUnused implements inventory_post_inventory_agents_tokens_remove_unused operation.
+	//
+	// Remove every token with no machine enrolled now, made over an hour ago (tokens with machines and
+	// tokens made in the last hour stay). Audited. Also offered when 409 too_many_tokens says the limit of
+	// 500 is reached.
+	//
+	// POST /inventory/agents/tokens/remove-unused
+	InventoryPostInventoryAgentsTokensRemoveUnused(ctx context.Context) (*InventoryPostInventoryAgentsTokensRemoveUnusedOK, error)
 	// InventoryPostInventoryAgentsWazuhSampleData implements inventory_post_inventory_agents_wazuh_sample_data operation.
 	//
 	// PREVIEW ONLY (mock): sync sample data as if just pulled from Wazuh.

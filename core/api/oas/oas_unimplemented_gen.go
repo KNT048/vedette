@@ -1749,6 +1749,16 @@ func (UnimplementedHandler) FindingsPostFindingsIDApplied(ctx context.Context, r
 	return r, ht.ErrNotImplemented
 }
 
+// FindingsPostFindingsIDConfirm implements findings_post_findings_id_confirm operation.
+//
+// Confirm a suspected finding on your own word (admin): basis person, status confirmed; a note is
+// required and goes into the history as "Confirmed by : ".
+//
+// POST /findings/{id}/confirm
+func (UnimplementedHandler) FindingsPostFindingsIDConfirm(ctx context.Context, req *FindingsPostFindingsIDConfirmReq, params FindingsPostFindingsIDConfirmParams) (r *FindingsPostFindingsIDConfirmOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // FindingsPostFindingsIDStatus implements findings_post_findings_id_status operation.
 //
 // Change status (patched, mitigated, false positive, not relevant, accept risk until a day, reopen)
@@ -1756,6 +1766,16 @@ func (UnimplementedHandler) FindingsPostFindingsIDApplied(ctx context.Context, r
 //
 // POST /findings/{id}/status
 func (UnimplementedHandler) FindingsPostFindingsIDStatus(ctx context.Context, req *FindingsPostFindingsIDStatusReq, params FindingsPostFindingsIDStatusParams) (r *FindingsPostFindingsIDStatusOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// FindingsPostFindingsIDUnconfirm implements findings_post_findings_id_unconfirm operation.
+//
+// Undo a confirmation a person made (admin): the finding is suspected again; a finding a scan
+// confirmed is refused.
+//
+// POST /findings/{id}/unconfirm
+func (UnimplementedHandler) FindingsPostFindingsIDUnconfirm(ctx context.Context, params FindingsPostFindingsIDUnconfirmParams) (r *FindingsPostFindingsIDUnconfirmOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -2235,6 +2255,17 @@ func (UnimplementedHandler) InventoryPostInventoryAgentsTokens(ctx context.Conte
 //
 // POST /inventory/agents/tokens/{id}/sample-data
 func (UnimplementedHandler) InventoryPostInventoryAgentsTokensIDSampleData(ctx context.Context, params InventoryPostInventoryAgentsTokensIDSampleDataParams) (r *InventoryPostInventoryAgentsTokensIDSampleDataOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// InventoryPostInventoryAgentsTokensRemoveUnused implements inventory_post_inventory_agents_tokens_remove_unused operation.
+//
+// Remove every token with no machine enrolled now, made over an hour ago (tokens with machines and
+// tokens made in the last hour stay). Audited. Also offered when 409 too_many_tokens says the limit of
+// 500 is reached.
+//
+// POST /inventory/agents/tokens/remove-unused
+func (UnimplementedHandler) InventoryPostInventoryAgentsTokensRemoveUnused(ctx context.Context) (r *InventoryPostInventoryAgentsTokensRemoveUnusedOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

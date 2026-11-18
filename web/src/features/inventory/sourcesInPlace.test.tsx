@@ -76,6 +76,7 @@ describe('Device page: Install osquery goes straight to this device', () => {
     await user.click(within(agent).getByRole('button', { name: 'Install osquery' }))
     const dlg = await screen.findByRole('dialog', undefined, T)
     expect(dlg).toHaveAccessibleName(/^Install osquery on /)
+    await user.click(await within(dlg).findByRole('button', { name: 'Create install command' }, T))
     expect(await within(dlg).findByText(/sudo sh "\$f" --token vdt_osquery_/, undefined, T)).toBeInTheDocument()
     expect(within(dlg).getByText(/Operating system: Linux/)).toBeInTheDocument()
     expect(within(dlg).getAllByRole('button', { name: /^Copy/ }).length).toBeGreaterThan(0)
@@ -96,6 +97,7 @@ describe('Device page: Install osquery goes straight to this device', () => {
     renderApp('/devices/a-srvad', { role: 'admin' })
     await user.click(within(item(await sources(), 'Agent (osquery or Wazuh)')).getByRole('button', { name: 'Install osquery' }))
     const dlg = await screen.findByRole('dialog', undefined, T)
+    await user.click(await within(dlg).findByRole('button', { name: 'Create install command' }, T))
     expect(await within(dlg).findByText(/-Token 'vdt_osquery_/, undefined, T)).toBeInTheDocument()
   })
 
@@ -109,6 +111,8 @@ describe('Device page: Install osquery goes straight to this device', () => {
     expect(await within(dlg).findByRole('button', { name: 'Windows' }, T)).toBeInTheDocument()
     expect(within(dlg).queryByText(/--token/)).toBeNull()
     await user.click(within(dlg).getByRole('button', { name: 'Linux' }))
+    expect(within(dlg).queryByText(/--token/)).toBeNull() // choosing a system makes no token
+    await user.click(await within(dlg).findByRole('button', { name: 'Create install command' }, T))
     expect(await within(dlg).findByText(/sudo sh "\$f" --token vdt_osquery_/, undefined, T)).toBeInTheDocument()
   })
 })
@@ -170,6 +174,7 @@ describe('Add a device', () => {
     expect(within(dlg).queryByLabelText(/Token name/)).toBeNull()
     expect(within(dlg).queryByText(/--token|-Token/)).toBeNull()
     await user.click(within(dlg).getByRole('button', { name: 'Linux' }))
+    await user.click(await within(dlg).findByRole('button', { name: 'Create install command' }, T))
     expect(await within(dlg).findByText(/sudo sh "\$f" --token vdt_osquery_/, undefined, T)).toBeInTheDocument()
     const manual = within(dlg).getByText('Download and install manually').closest('details')!
     expect(manual).not.toHaveAttribute('open')

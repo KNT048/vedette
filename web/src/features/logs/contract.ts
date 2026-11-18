@@ -51,6 +51,8 @@ export const SourcesResponse = z.object({
   box: z.object({ ip: z.string().nullable().describe('Box address on the LAN; null when no LAN range is declared, or when the box has no address in it (a container cannot see the host\'s LAN address)'), hostname: z.string(), lan: z.string().nullable(), iface: z.string(), tls: BoxTls.nullable().optional().describe('The certificate of the syslog TLS port; null or absent when this box serves no TLS (plain HTTP)') }),
   sources: z.array(LogSource),
   retention_days: z.number().int(),
+  logs_bytes: z.number().int().nullable().describe('Disk space the kept logs take, in bytes (the log database and its write-ahead log); null when it cannot be read'),
+  disk_free_bytes: z.number().int().nullable().describe('Space still free on the filesystem of the box data directory, in bytes; null when it cannot be read'),
 })
 
 // A sender whose syslog the box dropped because no source declares it, or declares it with another protocol (FORBID-5). The address comes

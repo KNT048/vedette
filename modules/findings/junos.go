@@ -77,8 +77,8 @@ func (v junosVer) String() string {
 // junosBound orders version v against a range bound. A plain release bound ("20.4") is NVD's version alone: every
 // update of 20.4 equals it, so "before 20.4" leaves 20.4R1 out (NVD lists the 20.4 updates as entries of their own).
 // An X train is a branch of its release, neither before nor after it, so against a bound of its own release it is not
-// decidable; the same goes for a bound of another train type of the same release. ok is false when the bound is not
-// a Junos or plain two-part release.
+// decidable; the same goes for a bound of another train type of the same release. Any other bound decides only by its
+// release, when it starts with one of another release (junosRelOf); otherwise ok is false.
 func junosBound(v junosVer, bound string) (int, bool) {
 	if b, ok := junosParse(bound); ok {
 		if c := cmp.Or(cmp.Compare(v.major, b.major), cmp.Compare(v.minor, b.minor)); c != 0 {
@@ -91,12 +91,39 @@ func junosBound(v junosVer, bound string) (int, bool) {
 	}
 	pv, ok := parseVersion(bound)
 	if !ok || len(pv.rel) != 2 || pv.q != (qual{}) || pv.tail != "" {
+		// A bound in a form neither reads ("12.1r", "15.1r7.9.2") still names its release: a device on another release is
+		// before or after every version of it; on the same release it stays undecided.
+		if b, ok := junosRelOf(bound); ok {
+			if c := junosRelCmp(v, b); c != 0 {
+				return c, true
+			}
+		}
 		return 0, false
 	}
-	if c := cmp.Or(cmp.Compare(v.major, pv.rel[0]), cmp.Compare(v.minor, pv.rel[1])); c != 0 {
+	if c := junosRelCmp(v, junosVer{major: pv.rel[0], minor: pv.rel[1]}); c != 0 {
 		return c, true
 	}
 	return 0, v.train != 'x'
+}
+
+// junosRelPrefixRe is the release a Junos text starts with: two numbers, then anything but a digit or a dot ("12.1r",
+// "15.1r7.9.2", "12.1x46-d10.2-s1"). "12.1.3" is not one.
+var junosRelPrefixRe = regexp.MustCompile(`^(\d{1,2})\.(\d{1,2})(?:[^\d.]|$)`)
+
+// junosRelOf is the release (major and minor only) a Junos text starts with, when it starts with one.
+func junosRelOf(s string) (junosVer, bool) {
+	m := junosRelPrefixRe.FindStringSubmatch(strings.ToLower(strings.TrimSpace(s)))
+	if m == nil {
+		return junosVer{}, false
+	}
+	major, _ := strconv.ParseUint(m[1], 10, 64) // at most 2 digits, by the pattern
+	minor, _ := strconv.ParseUint(m[2], 10, 64)
+	return junosVer{major: major, minor: minor}, true
+}
+
+// junosRelCmp orders the releases of v and b: major and minor only, not their trains or updates.
+func junosRelCmp(v, b junosVer) int {
+	return cmp.Or(cmp.Compare(v.major, b.major), cmp.Compare(v.minor, b.minor))
 }
 
 // isJunos reports whether configuration c names Juniper Junos OS (not Junos OS Evolved, another NVD product with
@@ -152,6 +179,9 @@ func junosEval(c CPE, r VersionRange, ver string) (t Tri, within VersionRange, o
 	}
 	rel, okR := c.Version.Literal()
 	if rel = strings.ToLower(rel); !okR || !junosRelRe.MatchString(rel) {
+		if b, ok := junosRelOf(rel); okR && ok && junosRelCmp(v, b) != 0 {
+			return No, r, true // "12.1r" is not how NVD writes a release, but whatever it means it is of 12.1, not 15.1
+		}
 		return Unknown, r, true // "15.1r7" is not how NVD writes a release: unreadable, not a No (review L1 of #703)
 	}
 	if rel != v.release() {
@@ -218,6 +248,7 @@ func junosCmp(a, b junosVer) int { return cmp.Or(cmp.Compare(a.n1, b.n1), cmp.Co
 type junosList struct {
 	rows []junosVer // the exact rows junosRow reads ("junos:15.1:r7-s5")
 	ends []junosVer // the release of each range's end bound ("before 21.2"): the range lists the releases before it
+	rels []junosVer // the release of each exact row of another release junosRow does not read ("12.1r" beside 15.1R7)
 	// own and ownDash: a row of the device's own release in a form junosRow does not read ("15.1:-", "15.1:f", "15.1:a1");
 	// ownDash when one of them is the release with no update ("15.1:-").
 	own, ownDash bool
@@ -264,6 +295,14 @@ func junosListed(v junosVer, l junosList) (t Tri, within VersionRange, proof boo
 			}
 		}
 	}
+	for _, e := range l.rels {
+		switch c := junosRelCmp(v, e); {
+		case c > 0:
+			earlier = true
+		case c < 0:
+			later = true
+		}
+	}
 	for _, e := range l.ends {
 		switch c := cmp.Or(cmp.Compare(v.major, e.major), cmp.Compare(v.minor, e.minor)); {
 		case c > 0:
@@ -306,7 +345,7 @@ func junosEnd(r VersionRange) (junosVer, bool) {
 	}
 	pv, ok := parseVersion(b)
 	if !ok || len(pv.rel) != 2 {
-		return junosVer{}, false
+		return junosRelOf(b)
 	}
 	return junosVer{major: pv.rel[0], minor: pv.rel[1]}, true
 }

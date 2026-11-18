@@ -1,6 +1,6 @@
 import { Link, Navigate, useLocation } from 'react-router'
 import { useTranslation } from 'react-i18next'
-import { Notice, PageHeader } from '@/components/common/PageHeader'
+import { Notice, PageEnd, PageHeader } from '@/components/common/PageHeader'
 import { PageTabs } from '@/components/common/PageFrame'
 import { ErrorState, Loading, RequireModule, SampleDataNote } from '@/components/common/States'
 import { useCan } from '@/lib/session'
@@ -56,20 +56,22 @@ function Content() {
   const { execution } = plans.data
   const pending = actions.data.items.filter((a) => a.status === 'pending').length
   const s = settings.data
+  const paused = !!(s?.breaker_tripped_at || s?.stopped_at)
   const incident = new URLSearchParams(search).get('incident') // Respond on an incident
   return (
     <FrozenCtx.Provider value={leaving}>
       <PageHeader title={t('page.title')} stories={['S-RESP-1', 'S-RESP-2', 'S-RESP-3', 'S-RESP-4']}
-        meta={t('page.meta')} info={t('page.metaInfo')}
-        actions={<><SampleDataNote />{execution ? <EmergencyStop /> : null}{leaving ? <TurnOffResponse /> : null}</>} />
-      {s?.breaker_tripped_at || s?.stopped_at ? (
+        meta={<span className="inline-flex flex-wrap items-center gap-2">{t('page.meta')}<SampleDataNote /></span>} info={t('page.metaInfo')} />
+      {/* One note per cause: paused (breaker or Emergency stop) says it and links to Settings, so "Execution is off" is not repeated under it */}
+      {s && paused ? (
         <Notice tone="danger" role="alert" title={t('page.breakerTitle')} info={s.stopped_at ? t('page.stoppedBodyInfo') : t('page.breakerBodyInfo')}>
           {s.stopped_at ? t('page.stoppedBody') : t('page.breakerBody', { max: s.breaker_max_per_hour })} <Link className="text-accent underline underline-offset-4" to="/settings/response#resp-exec">{t('blocked.toSettings')}</Link>
         </Notice>
       ) : null}
       {execution ? (
-        <Notice tone="danger" role="status" title={t('page.onTitle')} info={t('page.onBodyInfo')}>{t('page.onBody', { count: pending })}</Notice>
-      ) : leaving ? null : ( // L2: no invitation to turn on what this build does not offer
+        // Emergency stop answers this notice ("Use Emergency stop if something looks wrong"), so it sits in it
+        <Notice tone="danger" role="status" title={t('page.onTitle')} info={t('page.onBodyInfo')} actions={<EmergencyStop />}>{t('page.onBody', { count: pending })}</Notice>
+      ) : leaving || paused ? null : ( // L2: no invitation to turn on what this build does not offer
         <Notice tone="off" title={<>{t('blocked.execution_off')} {admin ? <Link className="text-accent underline underline-offset-4" to="/settings/response#resp-exec">{t('blocked.toSettings')}</Link> : null}</>} />
       )}
       {incident ? <Frozen on={leaving}><IncidentRespond id={incident} /></Frozen> : null}
@@ -81,6 +83,8 @@ function Content() {
         { id: 'log', label: t('tabs.log'), panel: <>{operator ? <LogTab /> : null}<Frozen on={leaving}><MetricsTab /></Frozen></> },
         ...(admin ? [{ id: 'settings', label: t('tabs.settings'), panel: <ResponseSettings embedded /> }] : []),
       ]} />
+      {/* The way out of a module this build does not offer: rare and one-way, so at the end of the page, not in its header */}
+      {leaving ? <PageEnd><TurnOffResponse /></PageEnd> : null}
     </FrozenCtx.Provider>
   )
 }

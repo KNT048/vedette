@@ -34816,9 +34816,10 @@
                             "enum": [
                               "scan",
                               "version",
-                              "product"
+                              "product",
+                              "person"
                             ],
-                            "description": "scan = confirmed by a scan template; version = suspected by version; product = only the product matches"
+                            "description": "scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version = suspected by version; product = only the product matches"
                           },
                           "evidence": {
                             "anyOf": [
@@ -35899,9 +35900,10 @@
                       "enum": [
                         "scan",
                         "version",
-                        "product"
+                        "product",
+                        "person"
                       ],
-                      "description": "scan = confirmed by a scan template; version = suspected by version; product = only the product matches"
+                      "description": "scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version = suspected by version; product = only the product matches"
                     },
                     "evidence": {
                       "anyOf": [
@@ -36431,6 +36433,13 @@
                         }
                       ],
                       "description": "Null when the matched software has no version or its source is not known"
+                    },
+                    "suspected_why": {
+                      "description": "A suspected finding only: why it is not confirmed and what would confirm it, in words (who stated the version, whether a vulnerability check exists for the CVE and whether the scan reaches the device); null for any other status",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     },
                     "fixed_in": {
                       "anyOf": [
@@ -37373,6 +37382,7 @@
                     "proved_version",
                     "software_id",
                     "known_version",
+                    "suspected_why",
                     "fixed_in",
                     "pack",
                     "compromise",
@@ -37497,9 +37507,10 @@
                       "enum": [
                         "scan",
                         "version",
-                        "product"
+                        "product",
+                        "person"
                       ],
-                      "description": "scan = confirmed by a scan template; version = suspected by version; product = only the product matches"
+                      "description": "scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version = suspected by version; product = only the product matches"
                     },
                     "evidence": {
                       "anyOf": [
@@ -38029,6 +38040,13 @@
                         }
                       ],
                       "description": "Null when the matched software has no version or its source is not known"
+                    },
+                    "suspected_why": {
+                      "description": "A suspected finding only: why it is not confirmed and what would confirm it, in words (who stated the version, whether a vulnerability check exists for the CVE and whether the scan reaches the device); null for any other status",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     },
                     "fixed_in": {
                       "anyOf": [
@@ -38971,6 +38989,7 @@
                     "proved_version",
                     "software_id",
                     "known_version",
+                    "suspected_why",
                     "fixed_in",
                     "pack",
                     "compromise",
@@ -39097,9 +39116,10 @@
                       "enum": [
                         "scan",
                         "version",
-                        "product"
+                        "product",
+                        "person"
                       ],
-                      "description": "scan = confirmed by a scan template; version = suspected by version; product = only the product matches"
+                      "description": "scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version = suspected by version; product = only the product matches"
                     },
                     "evidence": {
                       "anyOf": [
@@ -39629,6 +39649,13 @@
                         }
                       ],
                       "description": "Null when the matched software has no version or its source is not known"
+                    },
+                    "suspected_why": {
+                      "description": "A suspected finding only: why it is not confirmed and what would confirm it, in words (who stated the version, whether a vulnerability check exists for the CVE and whether the scan reaches the device); null for any other status",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     },
                     "fixed_in": {
                       "anyOf": [
@@ -40571,6 +40598,1610 @@
                     "proved_version",
                     "software_id",
                     "known_version",
+                    "suspected_why",
+                    "fixed_in",
+                    "pack",
+                    "compromise",
+                    "recheck",
+                    "ai",
+                    "ai_available",
+                    "applied",
+                    "hardening"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/findings/{id}/confirm": {
+      "post": {
+        "operationId": "findings_post_findings_id_confirm",
+        "summary": "Confirm a suspected finding on your own word (admin): basis person, status confirmed; a note is required and goes into the history as \"Confirmed by <user>: <note>\"",
+        "tags": [
+          "findings"
+        ],
+        "x-stories": [
+          "S-MIT-1"
+        ],
+        "x-min-role": "admin",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "note": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "note"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "asset_id": {
+                      "type": "string"
+                    },
+                    "cve": {
+                      "type": "string",
+                      "pattern": "^CVE-\\d{4}-\\d{4,}$"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "confirmed",
+                        "suspected",
+                        "mitigated",
+                        "patched",
+                        "false_positive",
+                        "not_relevant",
+                        "risk_accepted"
+                      ]
+                    },
+                    "severity": {
+                      "type": "string",
+                      "enum": [
+                        "critical",
+                        "high",
+                        "medium",
+                        "low",
+                        "info"
+                      ]
+                    },
+                    "confidence": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "basis": {
+                      "type": "string",
+                      "enum": [
+                        "scan",
+                        "version",
+                        "product",
+                        "person"
+                      ],
+                      "description": "scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version = suspected by version; product = only the product matches"
+                    },
+                    "evidence": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "summary": {
+                              "type": "string"
+                            },
+                            "template": {
+                              "type": "string"
+                            },
+                            "request": {
+                              "type": "string"
+                            },
+                            "response": {
+                              "type": "string"
+                            },
+                            "checked_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "agent": {
+                              "description": "the version compared is the one the device's own agent (osquery, Wazuh) reports installed: a detection, shown as \"Detected by the agent\", with nothing for the person to look up",
+                              "type": "boolean"
+                            },
+                            "agent_row": {
+                              "description": "a product-only match on a software row the device's own agent reported with its installed version: Vedette could not compare that version with NVD's data, so the page does not ask to add the version",
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "summary",
+                            "checked_at"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "first_seen": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                      "description": "When Vedette first matched this vulnerability to the device"
+                    },
+                    "last_seen": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                      "description": "When Vedette last matched it: each re-match (after a change to the device's software, and every hour) or scan that still finds it moves it. Not when the device or its software was last seen; known_version.seen_at says when the version was reported"
+                    },
+                    "resolved_by": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "resolved_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "resolution_note": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "accepted_until": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "risk_accepted only: the last day of the acceptance (UTC); the finding reopens by itself after it"
+                    },
+                    "history": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ts": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "user": {
+                            "type": "string"
+                          },
+                          "action": {
+                            "type": "string"
+                          },
+                          "note": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "ts",
+                          "user",
+                          "action"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "asset": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string",
+                              "description": "The name the Devices page shows: hostname, else vendor and model, else the IP, else the software; never the internal id"
+                            },
+                            "hostname": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "ip": {
+                              "type": "string",
+                              "description": "\"—\" when the device has no IP address"
+                            },
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "router",
+                                "switch",
+                                "modem",
+                                "sd_wan",
+                                "load_balancer",
+                                "network_controller",
+                                "firewall",
+                                "vpn_gateway",
+                                "ids_sensor",
+                                "proxy",
+                                "ap",
+                                "wireless_controller",
+                                "wifi_extender",
+                                "mesh_node",
+                                "server",
+                                "virtual_machine",
+                                "hypervisor",
+                                "bmc",
+                                "domain_controller",
+                                "mail_server",
+                                "database_server",
+                                "backup_server",
+                                "pc",
+                                "laptop",
+                                "workstation",
+                                "thin_client",
+                                "pos_terminal",
+                                "kiosk",
+                                "smartphone",
+                                "tablet",
+                                "smartwatch",
+                                "printer",
+                                "mfp",
+                                "scanner",
+                                "label_printer",
+                                "receipt_printer",
+                                "plotter",
+                                "3d_printer",
+                                "camera",
+                                "nvr",
+                                "dvr",
+                                "video_encoder",
+                                "doorbell",
+                                "video_conferencing",
+                                "ip_phone",
+                                "pbx",
+                                "voip_adapter",
+                                "voip_gateway",
+                                "conference_phone",
+                                "intercom",
+                                "nas",
+                                "san",
+                                "backup_appliance",
+                                "tape_library",
+                                "iot",
+                                "smart_tv",
+                                "media_player",
+                                "smart_speaker",
+                                "game_console",
+                                "smart_plug",
+                                "smart_light",
+                                "smart_hub",
+                                "thermostat",
+                                "projector",
+                                "digital_signage",
+                                "single_board_computer",
+                                "smart_appliance",
+                                "robot_vacuum",
+                                "wireless_bridge",
+                                "plc",
+                                "hmi",
+                                "rtu",
+                                "scada_server",
+                                "industrial_switch",
+                                "ups",
+                                "pdu",
+                                "access_control",
+                                "time_clock",
+                                "alarm_panel",
+                                "hvac_controller",
+                                "building_controller",
+                                "power_meter",
+                                "environment_monitor",
+                                "ev_charger",
+                                "solar_inverter",
+                                "medical_device",
+                                "web",
+                                "cloud_service",
+                                "unknown"
+                              ]
+                            },
+                            "display": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "name",
+                            "hostname",
+                            "ip",
+                            "kind",
+                            "display"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "kev": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string"
+                            },
+                            "vendor": {
+                              "type": "string"
+                            },
+                            "product": {
+                              "type": "string"
+                            },
+                            "display": {
+                              "type": "string"
+                            },
+                            "required_action": {
+                              "type": "string"
+                            },
+                            "links": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "date_added": {
+                              "type": "string"
+                            },
+                            "due_date": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "ransomware": {
+                              "type": "boolean"
+                            },
+                            "epss": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "has_template": {
+                              "type": "boolean"
+                            },
+                            "source": {
+                              "description": "Which list the entry is on: texts and the source badge name it; an entry of VulnCheck KEV is never called CISA's",
+                              "type": "string",
+                              "enum": [
+                                "cisa-kev",
+                                "vulncheck-kev"
+                              ]
+                            },
+                            "published": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "format": "date",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "the day the CVE was published (NVD `published`), never the day CISA added it; null when NVD has not answered for it (then it counts as recent: an older CVE is not a finding on a product-only match, and a missing date never closes a finding)"
+                            }
+                          },
+                          "required": [
+                            "name",
+                            "vendor",
+                            "product",
+                            "display",
+                            "required_action",
+                            "links",
+                            "date_added",
+                            "due_date",
+                            "ransomware",
+                            "epss",
+                            "has_template",
+                            "published"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Read from KEV, not from the project recommendation pack"
+                    },
+                    "cvss": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "score": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 10,
+                              "description": "The CVSS base score (0.0 to 10.0, one decimal); its band follows from FIRST's table (3.x, 4.0) or NVD's v2 table (2.0: Low, Medium, High; no Critical)"
+                            },
+                            "version": {
+                              "type": "string",
+                              "enum": [
+                                "4.0",
+                                "3.1",
+                                "3.0",
+                                "2.0"
+                              ],
+                              "description": "The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has nothing newer)"
+                            },
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "nvd",
+                                "cna"
+                              ],
+                              "description": "nvd = NVD's own score (\"Primary\"); cna = another scorer NVD lists as \"Secondary\" (the CVE Numbering Authority or CISA's ADP), used only when NVD gives none for that version"
+                            },
+                            "vector": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200,
+                              "description": "NVD's vector string of the score (\"CVSS:3.1/AV:N/AC:L/…\"; 2.0: \"AV:N/AC:L/Au:N/…\"): FIRST asks that a score be shown with its vector, so a score without a valid one is not shown"
+                            }
+                          },
+                          "required": [
+                            "score",
+                            "version",
+                            "source",
+                            "vector"
+                          ],
+                          "additionalProperties": false,
+                          "description": "#825 (findings INV-22, feeds INV-28): the CVSS base score from the same NVD records feeds already reads (nvd-kev, else nvd-recent). Shown next to the exploited status, never instead of it"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "null = no CVSS score known: the pages say \"No score\", never 0"
+                    },
+                    "resolution_reason": {
+                      "description": "not_affected_version when Vedette closed the finding by itself (a matcher proof, or one of its rules that compares no version); null for a person's own action and for open findings. A string, not an enum: a new reason must not break the list",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "proved_version": {
+                      "description": "A finding closed by proof (resolution_reason set): the version or package release the matcher compared to rule it out, as the device row gives it; null when the closure compared none (name only, age, an open platform question, another platform) or it is not closed by Vedette. An entry a person typed closed it only when this equals the entry",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "software_id": {
+                      "type": "string",
+                      "description": "The device's software row the matcher matched the finding on (the id FindingRow.fix.group and ToFixAction use), stored when it opens, touches or closes the finding; \"\" until the next match reaches an older finding. Never guessed from the product"
+                    },
+                    "fix": {
+                      "description": "GET /findings only, open findings: the update that fixes it with others; null when there is none to name",
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "group": {
+                              "type": "string",
+                              "description": "\"<device id>/<software id>\": the open findings with the same group are fixed by the same update"
+                            },
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "fixed",
+                                "esu",
+                                "feature_update",
+                                "distro"
+                              ],
+                              "description": "fixed = upgrade to `fixed` (a Windows release: the monthly cumulative update with build `fixed` or later); esu = that build needs Extended Security Updates; feature_update = no update of this release fixes them, move to release `fixed`; distro = install the distribution's security updates for the package"
+                            },
+                            "windows": {
+                              "type": "boolean",
+                              "description": "A Windows release row: the update is the monthly cumulative update Windows Update offers"
+                            },
+                            "software": {
+                              "type": "string",
+                              "description": "Display name of the software row"
+                            },
+                            "version": {
+                              "type": "string",
+                              "description": "The installed version"
+                            },
+                            "fixed": {
+                              "type": "string",
+                              "description": "The release or build that fixes them all; feature_update: the release to move to; empty for distro"
+                            },
+                            "distro": {
+                              "type": "string",
+                              "description": "distro: \"Ubuntu\" or \"Debian\", empty for the distribution's"
+                            },
+                            "pro": {
+                              "type": "boolean",
+                              "description": "distro: the fix of at least one of them is in Ubuntu Pro (ESM) only"
+                            }
+                          },
+                          "required": [
+                            "group",
+                            "kind",
+                            "windows",
+                            "software",
+                            "version",
+                            "fixed",
+                            "distro",
+                            "pro"
+                          ],
+                          "additionalProperties": false,
+                          "description": "one update fixes this finding together with the device's other open findings of the same software (top-tier: one item per missing update)"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "known_version": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "software": {
+                              "type": "string",
+                              "description": "Display name of the software the finding was matched on"
+                            },
+                            "version": {
+                              "type": "string"
+                            },
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "agent",
+                                "snmp",
+                                "stated",
+                                "scan",
+                                "manual"
+                              ],
+                              "description": "Who gave the version: the device's agent, its answer to Vedette's SNMP read, its own statement on the network (LLDP), a network scan, or a person on the Devices page"
+                            },
+                            "seen_at": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "When that source last gave the version: the agent's last list, the last scan or SNMP read that returned it, or when a person entered it; null when not known. Not the same as the finding's last_seen"
+                            }
+                          },
+                          "required": [
+                            "software",
+                            "version",
+                            "source",
+                            "seen_at"
+                          ],
+                          "additionalProperties": false,
+                          "description": "The version the box has for the matched software; the page says it and how a newer one reaches Vedette, never \"find which version\""
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Null when the matched software has no version or its source is not known"
+                    },
+                    "suspected_why": {
+                      "description": "A suspected finding only: why it is not confirmed and what would confirm it, in words (who stated the version, whether a vulnerability check exists for the CVE and whether the scan reaches the device); null for any other status",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "fixed_in": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "fixed",
+                                "up_to",
+                                "end_listed",
+                                "branches",
+                                "distro",
+                                "feature_update",
+                                "esu"
+                              ],
+                              "description": "fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release named); end_listed = inside a range that ends before `fixed`, but NVD lists releases of `fixed` itself as affected (Junos: \"before 20.4\", then 20.4R1 … one by one): `fixed` is not a fix, the vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the fix of each release line; distro = a package of the distribution, whose security updates carry the fix under their own numbers: an agent read it from the device's package database (deb/rpm), or the version carries a marker such as ubuntu, +deb12, .el9; feature_update = a Windows release NVD does not list for the fix, which only a later release of its line (`branches[0].branch`, from build `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu = the fixing Windows build `fixed` comes only with Extended Security Updates for `branches[0].branch`"
+                            },
+                            "version": {
+                              "type": "string",
+                              "description": "The device's version; for branches empty when it has none, else the text Vedette cannot read"
+                            },
+                            "fixed": {
+                              "type": "string",
+                              "description": "The fixed release (fixed), the last affected release (up_to), the upstream fixed release as a reference when NVD names one (distro: the backport may keep the package's number below it); empty for branches"
+                            },
+                            "branches": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "branch": {
+                                    "type": "string",
+                                    "description": "Release line such as 7.4; empty when it cannot be told"
+                                  },
+                                  "fixed": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "branch",
+                                  "fixed"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "description": "At most 5, newest first"
+                            },
+                            "more": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991,
+                              "description": "Release lines with a fix left out of branches"
+                            },
+                            "no_fix": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991,
+                              "description": "Release lines NVD gives no fixed release for (a range that ends at an affected version)"
+                            },
+                            "distro": {
+                              "type": "string",
+                              "description": "\"Ubuntu\" or \"Debian\" when the device runs one, empty otherwise. distro: whose security updates to install (empty = the distribution). Other kinds: set only when the software is not known to come from the package database (typed by a person, read by a scan, or an agent row stored before inventory kept the flag); the page adds \"if you installed it from the distribution's packages, install its security updates instead\""
+                            },
+                            "distro_fixed": {
+                              "type": "string",
+                              "description": "Kind distro only: the version of the distribution's package that fixes the CVE on the device's release (Ubuntu security data, Debian Security Tracker); `version` is then the device's full package version. Empty when the distribution's data does not say"
+                            },
+                            "distro_release": {
+                              "type": "string",
+                              "description": "The device's release with distro_fixed (\"24.04\", \"12\"); empty otherwise"
+                            },
+                            "distro_pro": {
+                              "type": "boolean",
+                              "description": "distro_fixed is in Ubuntu Pro (ESM) only"
+                            },
+                            "source": {
+                              "type": "string",
+                              "description": "Where the versions come from: \"NVD affected versions\", \"CVE.org affected versions (from the CVE record's CNA)\" when NVD has none, or with distro_fixed \"Ubuntu security data\" / \"Debian Security Tracker\""
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "version",
+                            "fixed",
+                            "branches",
+                            "more",
+                            "no_fix",
+                            "distro",
+                            "distro_fixed",
+                            "distro_release",
+                            "distro_pro",
+                            "source"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The release that fixes this finding on this device, from the NVD affected versions; null = NVD gives none, the page shows CISA and the vendor advisory only"
+                    },
+                    "pack": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "cve": {
+                              "type": "string"
+                            },
+                            "confirmed_by": {
+                              "type": "string"
+                            },
+                            "confirmed_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "drafted_with": {
+                              "type": "string"
+                            },
+                            "sources": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "title": {
+                                    "type": "string"
+                                  },
+                                  "url": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "title",
+                                  "url"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "patch": {
+                              "type": "object",
+                              "properties": {
+                                "summary": {
+                                  "type": "string"
+                                },
+                                "fixed": {
+                                  "type": "string"
+                                },
+                                "steps": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "side_effect": {
+                                  "type": "string"
+                                },
+                                "url": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "summary",
+                                "fixed",
+                                "steps",
+                                "side_effect",
+                                "url"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "workaround": {
+                              "type": "object",
+                              "properties": {
+                                "summary": {
+                                  "type": "string"
+                                },
+                                "steps": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "side_effect": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "summary",
+                                "steps",
+                                "side_effect"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "firewall": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "vendor": {
+                                    "type": "string",
+                                    "enum": [
+                                      "fortigate",
+                                      "mikrotik",
+                                      "generic"
+                                    ]
+                                  },
+                                  "label": {
+                                    "type": "string"
+                                  },
+                                  "detected": {
+                                    "type": "boolean",
+                                    "description": "The user declared a device of this vendor in the inventory"
+                                  },
+                                  "intro": {
+                                    "type": "string"
+                                  },
+                                  "steps": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "title": {
+                                          "type": "string"
+                                        },
+                                        "code": {
+                                          "type": "string"
+                                        },
+                                        "note": {
+                                          "type": "string"
+                                        },
+                                        "side_effect": {
+                                          "description": "Side effect that must be stated before the user pastes the command",
+                                          "type": "string"
+                                        },
+                                        "check": {
+                                          "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "title",
+                                        "code"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "alternative": {
+                                    "type": "object",
+                                    "properties": {
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "intro": {
+                                        "type": "string"
+                                      },
+                                      "steps": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "title": {
+                                              "type": "string"
+                                            },
+                                            "code": {
+                                              "type": "string"
+                                            },
+                                            "note": {
+                                              "type": "string"
+                                            },
+                                            "side_effect": {
+                                              "description": "Side effect that must be stated before the user pastes the command",
+                                              "type": "string"
+                                            },
+                                            "check": {
+                                              "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          },
+                                          "required": [
+                                            "title",
+                                            "code"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "title",
+                                      "intro",
+                                      "steps"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "verify": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "title": {
+                                          "type": "string"
+                                        },
+                                        "code": {
+                                          "type": "string"
+                                        },
+                                        "note": {
+                                          "type": "string"
+                                        },
+                                        "side_effect": {
+                                          "description": "Side effect that must be stated before the user pastes the command",
+                                          "type": "string"
+                                        },
+                                        "check": {
+                                          "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "title",
+                                        "code"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "undo": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "title": {
+                                          "type": "string"
+                                        },
+                                        "code": {
+                                          "type": "string"
+                                        },
+                                        "note": {
+                                          "type": "string"
+                                        },
+                                        "side_effect": {
+                                          "description": "Side effect that must be stated before the user pastes the command",
+                                          "type": "string"
+                                        },
+                                        "check": {
+                                          "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "title",
+                                        "code"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "plain": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "vendor",
+                                  "label",
+                                  "detected",
+                                  "intro",
+                                  "steps",
+                                  "verify",
+                                  "undo"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "checklist": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "required": [
+                            "cve",
+                            "confirmed_by",
+                            "confirmed_at",
+                            "drafted_with",
+                            "sources",
+                            "patch",
+                            "workaround",
+                            "firewall",
+                            "checklist"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "null = no recommendation confirmed by Vedette maintainers yet"
+                    },
+                    "compromise": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "summary": {
+                              "type": "string"
+                            },
+                            "indicators": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "file",
+                                      "web",
+                                      "log",
+                                      "process"
+                                    ]
+                                  },
+                                  "title": {
+                                    "type": "string"
+                                  },
+                                  "detail": {
+                                    "type": "string"
+                                  },
+                                  "commands": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "label": {
+                                          "type": "string"
+                                        },
+                                        "code": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "label",
+                                        "code"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "title",
+                                  "detail"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "if_found": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "required": [
+                            "summary",
+                            "indicators",
+                            "if_found"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "recheck": {
+                      "type": "object",
+                      "properties": {
+                        "steps": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "code": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "steps"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "ai": {
+                      "type": "object",
+                      "properties": {
+                        "explain": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "skill": {
+                                  "type": "string",
+                                  "enum": [
+                                    "explain",
+                                    "mitigation-config"
+                                  ]
+                                },
+                                "ts": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                "model": {
+                                  "type": "string"
+                                },
+                                "profile": {
+                                  "description": "Name of the AI profile that answered",
+                                  "type": "string"
+                                },
+                                "tokens": {
+                                  "type": "object",
+                                  "properties": {
+                                    "input": {
+                                      "type": "number"
+                                    },
+                                    "output": {
+                                      "type": "number"
+                                    }
+                                  },
+                                  "required": [
+                                    "input",
+                                    "output"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                "paragraphs": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "steps": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "citations": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "url": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "title"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "configs": {
+                                  "description": "mitigation-config: config blocks to paste as they are, the device's own workaround first, then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based on, `side_effect` what it can break. Absent for explain and for answers stored before",
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "code": {
+                                        "type": "string"
+                                      },
+                                      "note": {
+                                        "type": "string"
+                                      },
+                                      "side_effect": {
+                                        "description": "Side effect that must be stated before the user pastes the command",
+                                        "type": "string"
+                                      },
+                                      "check": {
+                                        "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "title",
+                                      "code"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "no_config_reason": {
+                                  "description": "#897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's words; the page shows it where the configuration would be",
+                                  "type": "string"
+                                },
+                                "shortened": {
+                                  "description": "A part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never in the middle of one) or a config block was left out whole",
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "skill",
+                                "ts",
+                                "model",
+                                "tokens",
+                                "paragraphs",
+                                "steps",
+                                "citations"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "config": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "skill": {
+                                  "type": "string",
+                                  "enum": [
+                                    "explain",
+                                    "mitigation-config"
+                                  ]
+                                },
+                                "ts": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                "model": {
+                                  "type": "string"
+                                },
+                                "profile": {
+                                  "description": "Name of the AI profile that answered",
+                                  "type": "string"
+                                },
+                                "tokens": {
+                                  "type": "object",
+                                  "properties": {
+                                    "input": {
+                                      "type": "number"
+                                    },
+                                    "output": {
+                                      "type": "number"
+                                    }
+                                  },
+                                  "required": [
+                                    "input",
+                                    "output"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                "paragraphs": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "steps": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "citations": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "url": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "title"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "configs": {
+                                  "description": "mitigation-config: config blocks to paste as they are, the device's own workaround first, then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based on, `side_effect` what it can break. Absent for explain and for answers stored before",
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "code": {
+                                        "type": "string"
+                                      },
+                                      "note": {
+                                        "type": "string"
+                                      },
+                                      "side_effect": {
+                                        "description": "Side effect that must be stated before the user pastes the command",
+                                        "type": "string"
+                                      },
+                                      "check": {
+                                        "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "title",
+                                      "code"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "no_config_reason": {
+                                  "description": "#897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's words; the page shows it where the configuration would be",
+                                  "type": "string"
+                                },
+                                "shortened": {
+                                  "description": "A part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never in the middle of one) or a config block was left out whole",
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "skill",
+                                "ts",
+                                "model",
+                                "tokens",
+                                "paragraphs",
+                                "steps",
+                                "citations"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "explain",
+                        "config"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "ai_available": {
+                      "type": "object",
+                      "properties": {
+                        "explain": {
+                          "type": "boolean"
+                        },
+                        "config": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "explain",
+                        "config"
+                      ],
+                      "additionalProperties": false,
+                      "description": "Whether an AI profile is assigned and allowed for each job"
+                    },
+                    "applied": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "item": {
+                            "type": "string"
+                          },
+                          "ts": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "user": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "item",
+                          "ts",
+                          "user"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "hardening": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "software": {
+                              "type": "string",
+                              "description": "The software the checks are for, as the page names it"
+                            },
+                            "family": {
+                              "type": "string",
+                              "description": "The family the checks are written for (\"Linux\", \"Network device\", \"General\")"
+                            },
+                            "checks": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "summary": {
+                                      "type": "string"
+                                    },
+                                    "indicators": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "kind": {
+                                            "type": "string",
+                                            "enum": [
+                                              "file",
+                                              "web",
+                                              "log",
+                                              "process"
+                                            ]
+                                          },
+                                          "title": {
+                                            "type": "string"
+                                          },
+                                          "detail": {
+                                            "type": "string"
+                                          },
+                                          "commands": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "label": {
+                                                  "type": "string"
+                                                },
+                                                "code": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": [
+                                                "label",
+                                                "code"
+                                              ],
+                                              "additionalProperties": false
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "kind",
+                                          "title",
+                                          "detail"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "if_found": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "summary",
+                                    "indicators",
+                                    "if_found"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "General \"Have I been hit?\" checks for the software family"
+                            }
+                          },
+                          "required": [
+                            "software",
+                            "family",
+                            "checks"
+                          ],
+                          "additionalProperties": false,
+                          "description": "Mitigation INV-8: general compromise checks written by reviewed code, not a recommendation for the CVE: never shown as \"Vedette confirmed\", never run by Vedette. The generated firewall configs and the admin network field are gone"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "null when the confirmed pack has its own compromise signs, or mitigation is off"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "asset_id",
+                    "cve",
+                    "status",
+                    "severity",
+                    "confidence",
+                    "basis",
+                    "evidence",
+                    "first_seen",
+                    "last_seen",
+                    "resolved_by",
+                    "resolved_at",
+                    "resolution_note",
+                    "accepted_until",
+                    "history",
+                    "asset",
+                    "kev",
+                    "cvss",
+                    "resolution_reason",
+                    "proved_version",
+                    "software_id",
+                    "known_version",
+                    "suspected_why",
                     "fixed_in",
                     "pack",
                     "compromise",
@@ -40709,9 +42340,10 @@
                       "enum": [
                         "scan",
                         "version",
-                        "product"
+                        "product",
+                        "person"
                       ],
-                      "description": "scan = confirmed by a scan template; version = suspected by version; product = only the product matches"
+                      "description": "scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version = suspected by version; product = only the product matches"
                     },
                     "evidence": {
                       "anyOf": [
@@ -41241,6 +42873,13 @@
                         }
                       ],
                       "description": "Null when the matched software has no version or its source is not known"
+                    },
+                    "suspected_why": {
+                      "description": "A suspected finding only: why it is not confirmed and what would confirm it, in words (who stated the version, whether a vulnerability check exists for the CVE and whether the scan reaches the device); null for any other status",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     },
                     "fixed_in": {
                       "anyOf": [
@@ -42183,6 +43822,1590 @@
                     "proved_version",
                     "software_id",
                     "known_version",
+                    "suspected_why",
+                    "fixed_in",
+                    "pack",
+                    "compromise",
+                    "recheck",
+                    "ai",
+                    "ai_available",
+                    "applied",
+                    "hardening"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/findings/{id}/unconfirm": {
+      "post": {
+        "operationId": "findings_post_findings_id_unconfirm",
+        "summary": "Undo a confirmation a person made (admin): the finding is suspected again; a finding a scan confirmed is refused",
+        "tags": [
+          "findings"
+        ],
+        "x-stories": [
+          "S-MIT-1"
+        ],
+        "x-min-role": "admin",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "asset_id": {
+                      "type": "string"
+                    },
+                    "cve": {
+                      "type": "string",
+                      "pattern": "^CVE-\\d{4}-\\d{4,}$"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "confirmed",
+                        "suspected",
+                        "mitigated",
+                        "patched",
+                        "false_positive",
+                        "not_relevant",
+                        "risk_accepted"
+                      ]
+                    },
+                    "severity": {
+                      "type": "string",
+                      "enum": [
+                        "critical",
+                        "high",
+                        "medium",
+                        "low",
+                        "info"
+                      ]
+                    },
+                    "confidence": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "basis": {
+                      "type": "string",
+                      "enum": [
+                        "scan",
+                        "version",
+                        "product",
+                        "person"
+                      ],
+                      "description": "scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version = suspected by version; product = only the product matches"
+                    },
+                    "evidence": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "summary": {
+                              "type": "string"
+                            },
+                            "template": {
+                              "type": "string"
+                            },
+                            "request": {
+                              "type": "string"
+                            },
+                            "response": {
+                              "type": "string"
+                            },
+                            "checked_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "agent": {
+                              "description": "the version compared is the one the device's own agent (osquery, Wazuh) reports installed: a detection, shown as \"Detected by the agent\", with nothing for the person to look up",
+                              "type": "boolean"
+                            },
+                            "agent_row": {
+                              "description": "a product-only match on a software row the device's own agent reported with its installed version: Vedette could not compare that version with NVD's data, so the page does not ask to add the version",
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "summary",
+                            "checked_at"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "first_seen": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                      "description": "When Vedette first matched this vulnerability to the device"
+                    },
+                    "last_seen": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                      "description": "When Vedette last matched it: each re-match (after a change to the device's software, and every hour) or scan that still finds it moves it. Not when the device or its software was last seen; known_version.seen_at says when the version was reported"
+                    },
+                    "resolved_by": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "resolved_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "resolution_note": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "accepted_until": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "risk_accepted only: the last day of the acceptance (UTC); the finding reopens by itself after it"
+                    },
+                    "history": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ts": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "user": {
+                            "type": "string"
+                          },
+                          "action": {
+                            "type": "string"
+                          },
+                          "note": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "ts",
+                          "user",
+                          "action"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "asset": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string",
+                              "description": "The name the Devices page shows: hostname, else vendor and model, else the IP, else the software; never the internal id"
+                            },
+                            "hostname": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "ip": {
+                              "type": "string",
+                              "description": "\"—\" when the device has no IP address"
+                            },
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "router",
+                                "switch",
+                                "modem",
+                                "sd_wan",
+                                "load_balancer",
+                                "network_controller",
+                                "firewall",
+                                "vpn_gateway",
+                                "ids_sensor",
+                                "proxy",
+                                "ap",
+                                "wireless_controller",
+                                "wifi_extender",
+                                "mesh_node",
+                                "server",
+                                "virtual_machine",
+                                "hypervisor",
+                                "bmc",
+                                "domain_controller",
+                                "mail_server",
+                                "database_server",
+                                "backup_server",
+                                "pc",
+                                "laptop",
+                                "workstation",
+                                "thin_client",
+                                "pos_terminal",
+                                "kiosk",
+                                "smartphone",
+                                "tablet",
+                                "smartwatch",
+                                "printer",
+                                "mfp",
+                                "scanner",
+                                "label_printer",
+                                "receipt_printer",
+                                "plotter",
+                                "3d_printer",
+                                "camera",
+                                "nvr",
+                                "dvr",
+                                "video_encoder",
+                                "doorbell",
+                                "video_conferencing",
+                                "ip_phone",
+                                "pbx",
+                                "voip_adapter",
+                                "voip_gateway",
+                                "conference_phone",
+                                "intercom",
+                                "nas",
+                                "san",
+                                "backup_appliance",
+                                "tape_library",
+                                "iot",
+                                "smart_tv",
+                                "media_player",
+                                "smart_speaker",
+                                "game_console",
+                                "smart_plug",
+                                "smart_light",
+                                "smart_hub",
+                                "thermostat",
+                                "projector",
+                                "digital_signage",
+                                "single_board_computer",
+                                "smart_appliance",
+                                "robot_vacuum",
+                                "wireless_bridge",
+                                "plc",
+                                "hmi",
+                                "rtu",
+                                "scada_server",
+                                "industrial_switch",
+                                "ups",
+                                "pdu",
+                                "access_control",
+                                "time_clock",
+                                "alarm_panel",
+                                "hvac_controller",
+                                "building_controller",
+                                "power_meter",
+                                "environment_monitor",
+                                "ev_charger",
+                                "solar_inverter",
+                                "medical_device",
+                                "web",
+                                "cloud_service",
+                                "unknown"
+                              ]
+                            },
+                            "display": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "name",
+                            "hostname",
+                            "ip",
+                            "kind",
+                            "display"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "kev": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string"
+                            },
+                            "vendor": {
+                              "type": "string"
+                            },
+                            "product": {
+                              "type": "string"
+                            },
+                            "display": {
+                              "type": "string"
+                            },
+                            "required_action": {
+                              "type": "string"
+                            },
+                            "links": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "date_added": {
+                              "type": "string"
+                            },
+                            "due_date": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "ransomware": {
+                              "type": "boolean"
+                            },
+                            "epss": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "has_template": {
+                              "type": "boolean"
+                            },
+                            "source": {
+                              "description": "Which list the entry is on: texts and the source badge name it; an entry of VulnCheck KEV is never called CISA's",
+                              "type": "string",
+                              "enum": [
+                                "cisa-kev",
+                                "vulncheck-kev"
+                              ]
+                            },
+                            "published": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "format": "date",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "the day the CVE was published (NVD `published`), never the day CISA added it; null when NVD has not answered for it (then it counts as recent: an older CVE is not a finding on a product-only match, and a missing date never closes a finding)"
+                            }
+                          },
+                          "required": [
+                            "name",
+                            "vendor",
+                            "product",
+                            "display",
+                            "required_action",
+                            "links",
+                            "date_added",
+                            "due_date",
+                            "ransomware",
+                            "epss",
+                            "has_template",
+                            "published"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Read from KEV, not from the project recommendation pack"
+                    },
+                    "cvss": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "score": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 10,
+                              "description": "The CVSS base score (0.0 to 10.0, one decimal); its band follows from FIRST's table (3.x, 4.0) or NVD's v2 table (2.0: Low, Medium, High; no Critical)"
+                            },
+                            "version": {
+                              "type": "string",
+                              "enum": [
+                                "4.0",
+                                "3.1",
+                                "3.0",
+                                "2.0"
+                              ],
+                              "description": "The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has nothing newer)"
+                            },
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "nvd",
+                                "cna"
+                              ],
+                              "description": "nvd = NVD's own score (\"Primary\"); cna = another scorer NVD lists as \"Secondary\" (the CVE Numbering Authority or CISA's ADP), used only when NVD gives none for that version"
+                            },
+                            "vector": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200,
+                              "description": "NVD's vector string of the score (\"CVSS:3.1/AV:N/AC:L/…\"; 2.0: \"AV:N/AC:L/Au:N/…\"): FIRST asks that a score be shown with its vector, so a score without a valid one is not shown"
+                            }
+                          },
+                          "required": [
+                            "score",
+                            "version",
+                            "source",
+                            "vector"
+                          ],
+                          "additionalProperties": false,
+                          "description": "#825 (findings INV-22, feeds INV-28): the CVSS base score from the same NVD records feeds already reads (nvd-kev, else nvd-recent). Shown next to the exploited status, never instead of it"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "null = no CVSS score known: the pages say \"No score\", never 0"
+                    },
+                    "resolution_reason": {
+                      "description": "not_affected_version when Vedette closed the finding by itself (a matcher proof, or one of its rules that compares no version); null for a person's own action and for open findings. A string, not an enum: a new reason must not break the list",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "proved_version": {
+                      "description": "A finding closed by proof (resolution_reason set): the version or package release the matcher compared to rule it out, as the device row gives it; null when the closure compared none (name only, age, an open platform question, another platform) or it is not closed by Vedette. An entry a person typed closed it only when this equals the entry",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "software_id": {
+                      "type": "string",
+                      "description": "The device's software row the matcher matched the finding on (the id FindingRow.fix.group and ToFixAction use), stored when it opens, touches or closes the finding; \"\" until the next match reaches an older finding. Never guessed from the product"
+                    },
+                    "fix": {
+                      "description": "GET /findings only, open findings: the update that fixes it with others; null when there is none to name",
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "group": {
+                              "type": "string",
+                              "description": "\"<device id>/<software id>\": the open findings with the same group are fixed by the same update"
+                            },
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "fixed",
+                                "esu",
+                                "feature_update",
+                                "distro"
+                              ],
+                              "description": "fixed = upgrade to `fixed` (a Windows release: the monthly cumulative update with build `fixed` or later); esu = that build needs Extended Security Updates; feature_update = no update of this release fixes them, move to release `fixed`; distro = install the distribution's security updates for the package"
+                            },
+                            "windows": {
+                              "type": "boolean",
+                              "description": "A Windows release row: the update is the monthly cumulative update Windows Update offers"
+                            },
+                            "software": {
+                              "type": "string",
+                              "description": "Display name of the software row"
+                            },
+                            "version": {
+                              "type": "string",
+                              "description": "The installed version"
+                            },
+                            "fixed": {
+                              "type": "string",
+                              "description": "The release or build that fixes them all; feature_update: the release to move to; empty for distro"
+                            },
+                            "distro": {
+                              "type": "string",
+                              "description": "distro: \"Ubuntu\" or \"Debian\", empty for the distribution's"
+                            },
+                            "pro": {
+                              "type": "boolean",
+                              "description": "distro: the fix of at least one of them is in Ubuntu Pro (ESM) only"
+                            }
+                          },
+                          "required": [
+                            "group",
+                            "kind",
+                            "windows",
+                            "software",
+                            "version",
+                            "fixed",
+                            "distro",
+                            "pro"
+                          ],
+                          "additionalProperties": false,
+                          "description": "one update fixes this finding together with the device's other open findings of the same software (top-tier: one item per missing update)"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "known_version": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "software": {
+                              "type": "string",
+                              "description": "Display name of the software the finding was matched on"
+                            },
+                            "version": {
+                              "type": "string"
+                            },
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "agent",
+                                "snmp",
+                                "stated",
+                                "scan",
+                                "manual"
+                              ],
+                              "description": "Who gave the version: the device's agent, its answer to Vedette's SNMP read, its own statement on the network (LLDP), a network scan, or a person on the Devices page"
+                            },
+                            "seen_at": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "When that source last gave the version: the agent's last list, the last scan or SNMP read that returned it, or when a person entered it; null when not known. Not the same as the finding's last_seen"
+                            }
+                          },
+                          "required": [
+                            "software",
+                            "version",
+                            "source",
+                            "seen_at"
+                          ],
+                          "additionalProperties": false,
+                          "description": "The version the box has for the matched software; the page says it and how a newer one reaches Vedette, never \"find which version\""
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Null when the matched software has no version or its source is not known"
+                    },
+                    "suspected_why": {
+                      "description": "A suspected finding only: why it is not confirmed and what would confirm it, in words (who stated the version, whether a vulnerability check exists for the CVE and whether the scan reaches the device); null for any other status",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "fixed_in": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "fixed",
+                                "up_to",
+                                "end_listed",
+                                "branches",
+                                "distro",
+                                "feature_update",
+                                "esu"
+                              ],
+                              "description": "fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release named); end_listed = inside a range that ends before `fixed`, but NVD lists releases of `fixed` itself as affected (Junos: \"before 20.4\", then 20.4R1 … one by one): `fixed` is not a fix, the vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the fix of each release line; distro = a package of the distribution, whose security updates carry the fix under their own numbers: an agent read it from the device's package database (deb/rpm), or the version carries a marker such as ubuntu, +deb12, .el9; feature_update = a Windows release NVD does not list for the fix, which only a later release of its line (`branches[0].branch`, from build `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu = the fixing Windows build `fixed` comes only with Extended Security Updates for `branches[0].branch`"
+                            },
+                            "version": {
+                              "type": "string",
+                              "description": "The device's version; for branches empty when it has none, else the text Vedette cannot read"
+                            },
+                            "fixed": {
+                              "type": "string",
+                              "description": "The fixed release (fixed), the last affected release (up_to), the upstream fixed release as a reference when NVD names one (distro: the backport may keep the package's number below it); empty for branches"
+                            },
+                            "branches": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "branch": {
+                                    "type": "string",
+                                    "description": "Release line such as 7.4; empty when it cannot be told"
+                                  },
+                                  "fixed": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "branch",
+                                  "fixed"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "description": "At most 5, newest first"
+                            },
+                            "more": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991,
+                              "description": "Release lines with a fix left out of branches"
+                            },
+                            "no_fix": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991,
+                              "description": "Release lines NVD gives no fixed release for (a range that ends at an affected version)"
+                            },
+                            "distro": {
+                              "type": "string",
+                              "description": "\"Ubuntu\" or \"Debian\" when the device runs one, empty otherwise. distro: whose security updates to install (empty = the distribution). Other kinds: set only when the software is not known to come from the package database (typed by a person, read by a scan, or an agent row stored before inventory kept the flag); the page adds \"if you installed it from the distribution's packages, install its security updates instead\""
+                            },
+                            "distro_fixed": {
+                              "type": "string",
+                              "description": "Kind distro only: the version of the distribution's package that fixes the CVE on the device's release (Ubuntu security data, Debian Security Tracker); `version` is then the device's full package version. Empty when the distribution's data does not say"
+                            },
+                            "distro_release": {
+                              "type": "string",
+                              "description": "The device's release with distro_fixed (\"24.04\", \"12\"); empty otherwise"
+                            },
+                            "distro_pro": {
+                              "type": "boolean",
+                              "description": "distro_fixed is in Ubuntu Pro (ESM) only"
+                            },
+                            "source": {
+                              "type": "string",
+                              "description": "Where the versions come from: \"NVD affected versions\", \"CVE.org affected versions (from the CVE record's CNA)\" when NVD has none, or with distro_fixed \"Ubuntu security data\" / \"Debian Security Tracker\""
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "version",
+                            "fixed",
+                            "branches",
+                            "more",
+                            "no_fix",
+                            "distro",
+                            "distro_fixed",
+                            "distro_release",
+                            "distro_pro",
+                            "source"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The release that fixes this finding on this device, from the NVD affected versions; null = NVD gives none, the page shows CISA and the vendor advisory only"
+                    },
+                    "pack": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "cve": {
+                              "type": "string"
+                            },
+                            "confirmed_by": {
+                              "type": "string"
+                            },
+                            "confirmed_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "drafted_with": {
+                              "type": "string"
+                            },
+                            "sources": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "title": {
+                                    "type": "string"
+                                  },
+                                  "url": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "title",
+                                  "url"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "patch": {
+                              "type": "object",
+                              "properties": {
+                                "summary": {
+                                  "type": "string"
+                                },
+                                "fixed": {
+                                  "type": "string"
+                                },
+                                "steps": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "side_effect": {
+                                  "type": "string"
+                                },
+                                "url": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "summary",
+                                "fixed",
+                                "steps",
+                                "side_effect",
+                                "url"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "workaround": {
+                              "type": "object",
+                              "properties": {
+                                "summary": {
+                                  "type": "string"
+                                },
+                                "steps": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "side_effect": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "summary",
+                                "steps",
+                                "side_effect"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "firewall": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "vendor": {
+                                    "type": "string",
+                                    "enum": [
+                                      "fortigate",
+                                      "mikrotik",
+                                      "generic"
+                                    ]
+                                  },
+                                  "label": {
+                                    "type": "string"
+                                  },
+                                  "detected": {
+                                    "type": "boolean",
+                                    "description": "The user declared a device of this vendor in the inventory"
+                                  },
+                                  "intro": {
+                                    "type": "string"
+                                  },
+                                  "steps": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "title": {
+                                          "type": "string"
+                                        },
+                                        "code": {
+                                          "type": "string"
+                                        },
+                                        "note": {
+                                          "type": "string"
+                                        },
+                                        "side_effect": {
+                                          "description": "Side effect that must be stated before the user pastes the command",
+                                          "type": "string"
+                                        },
+                                        "check": {
+                                          "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "title",
+                                        "code"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "alternative": {
+                                    "type": "object",
+                                    "properties": {
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "intro": {
+                                        "type": "string"
+                                      },
+                                      "steps": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "title": {
+                                              "type": "string"
+                                            },
+                                            "code": {
+                                              "type": "string"
+                                            },
+                                            "note": {
+                                              "type": "string"
+                                            },
+                                            "side_effect": {
+                                              "description": "Side effect that must be stated before the user pastes the command",
+                                              "type": "string"
+                                            },
+                                            "check": {
+                                              "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          },
+                                          "required": [
+                                            "title",
+                                            "code"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "title",
+                                      "intro",
+                                      "steps"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "verify": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "title": {
+                                          "type": "string"
+                                        },
+                                        "code": {
+                                          "type": "string"
+                                        },
+                                        "note": {
+                                          "type": "string"
+                                        },
+                                        "side_effect": {
+                                          "description": "Side effect that must be stated before the user pastes the command",
+                                          "type": "string"
+                                        },
+                                        "check": {
+                                          "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "title",
+                                        "code"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "undo": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "title": {
+                                          "type": "string"
+                                        },
+                                        "code": {
+                                          "type": "string"
+                                        },
+                                        "note": {
+                                          "type": "string"
+                                        },
+                                        "side_effect": {
+                                          "description": "Side effect that must be stated before the user pastes the command",
+                                          "type": "string"
+                                        },
+                                        "check": {
+                                          "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "title",
+                                        "code"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "plain": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "vendor",
+                                  "label",
+                                  "detected",
+                                  "intro",
+                                  "steps",
+                                  "verify",
+                                  "undo"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "checklist": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "required": [
+                            "cve",
+                            "confirmed_by",
+                            "confirmed_at",
+                            "drafted_with",
+                            "sources",
+                            "patch",
+                            "workaround",
+                            "firewall",
+                            "checklist"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "null = no recommendation confirmed by Vedette maintainers yet"
+                    },
+                    "compromise": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "summary": {
+                              "type": "string"
+                            },
+                            "indicators": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "file",
+                                      "web",
+                                      "log",
+                                      "process"
+                                    ]
+                                  },
+                                  "title": {
+                                    "type": "string"
+                                  },
+                                  "detail": {
+                                    "type": "string"
+                                  },
+                                  "commands": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "label": {
+                                          "type": "string"
+                                        },
+                                        "code": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "label",
+                                        "code"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "title",
+                                  "detail"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "if_found": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "required": [
+                            "summary",
+                            "indicators",
+                            "if_found"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "recheck": {
+                      "type": "object",
+                      "properties": {
+                        "steps": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "code": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "steps"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "ai": {
+                      "type": "object",
+                      "properties": {
+                        "explain": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "skill": {
+                                  "type": "string",
+                                  "enum": [
+                                    "explain",
+                                    "mitigation-config"
+                                  ]
+                                },
+                                "ts": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                "model": {
+                                  "type": "string"
+                                },
+                                "profile": {
+                                  "description": "Name of the AI profile that answered",
+                                  "type": "string"
+                                },
+                                "tokens": {
+                                  "type": "object",
+                                  "properties": {
+                                    "input": {
+                                      "type": "number"
+                                    },
+                                    "output": {
+                                      "type": "number"
+                                    }
+                                  },
+                                  "required": [
+                                    "input",
+                                    "output"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                "paragraphs": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "steps": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "citations": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "url": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "title"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "configs": {
+                                  "description": "mitigation-config: config blocks to paste as they are, the device's own workaround first, then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based on, `side_effect` what it can break. Absent for explain and for answers stored before",
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "code": {
+                                        "type": "string"
+                                      },
+                                      "note": {
+                                        "type": "string"
+                                      },
+                                      "side_effect": {
+                                        "description": "Side effect that must be stated before the user pastes the command",
+                                        "type": "string"
+                                      },
+                                      "check": {
+                                        "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "title",
+                                      "code"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "no_config_reason": {
+                                  "description": "#897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's words; the page shows it where the configuration would be",
+                                  "type": "string"
+                                },
+                                "shortened": {
+                                  "description": "A part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never in the middle of one) or a config block was left out whole",
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "skill",
+                                "ts",
+                                "model",
+                                "tokens",
+                                "paragraphs",
+                                "steps",
+                                "citations"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "config": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "skill": {
+                                  "type": "string",
+                                  "enum": [
+                                    "explain",
+                                    "mitigation-config"
+                                  ]
+                                },
+                                "ts": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                "model": {
+                                  "type": "string"
+                                },
+                                "profile": {
+                                  "description": "Name of the AI profile that answered",
+                                  "type": "string"
+                                },
+                                "tokens": {
+                                  "type": "object",
+                                  "properties": {
+                                    "input": {
+                                      "type": "number"
+                                    },
+                                    "output": {
+                                      "type": "number"
+                                    }
+                                  },
+                                  "required": [
+                                    "input",
+                                    "output"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                "paragraphs": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "steps": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "citations": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "url": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "title"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "configs": {
+                                  "description": "mitigation-config: config blocks to paste as they are, the device's own workaround first, then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based on, `side_effect` what it can break. Absent for explain and for answers stored before",
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "code": {
+                                        "type": "string"
+                                      },
+                                      "note": {
+                                        "type": "string"
+                                      },
+                                      "side_effect": {
+                                        "description": "Side effect that must be stated before the user pastes the command",
+                                        "type": "string"
+                                      },
+                                      "check": {
+                                        "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "title",
+                                      "code"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "no_config_reason": {
+                                  "description": "#897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's words; the page shows it where the configuration would be",
+                                  "type": "string"
+                                },
+                                "shortened": {
+                                  "description": "A part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never in the middle of one) or a config block was left out whole",
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "skill",
+                                "ts",
+                                "model",
+                                "tokens",
+                                "paragraphs",
+                                "steps",
+                                "citations"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "explain",
+                        "config"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "ai_available": {
+                      "type": "object",
+                      "properties": {
+                        "explain": {
+                          "type": "boolean"
+                        },
+                        "config": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "explain",
+                        "config"
+                      ],
+                      "additionalProperties": false,
+                      "description": "Whether an AI profile is assigned and allowed for each job"
+                    },
+                    "applied": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "item": {
+                            "type": "string"
+                          },
+                          "ts": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "user": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "item",
+                          "ts",
+                          "user"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "hardening": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "software": {
+                              "type": "string",
+                              "description": "The software the checks are for, as the page names it"
+                            },
+                            "family": {
+                              "type": "string",
+                              "description": "The family the checks are written for (\"Linux\", \"Network device\", \"General\")"
+                            },
+                            "checks": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "summary": {
+                                      "type": "string"
+                                    },
+                                    "indicators": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "kind": {
+                                            "type": "string",
+                                            "enum": [
+                                              "file",
+                                              "web",
+                                              "log",
+                                              "process"
+                                            ]
+                                          },
+                                          "title": {
+                                            "type": "string"
+                                          },
+                                          "detail": {
+                                            "type": "string"
+                                          },
+                                          "commands": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "label": {
+                                                  "type": "string"
+                                                },
+                                                "code": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": [
+                                                "label",
+                                                "code"
+                                              ],
+                                              "additionalProperties": false
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "kind",
+                                          "title",
+                                          "detail"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "if_found": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "summary",
+                                    "indicators",
+                                    "if_found"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "General \"Have I been hit?\" checks for the software family"
+                            }
+                          },
+                          "required": [
+                            "software",
+                            "family",
+                            "checks"
+                          ],
+                          "additionalProperties": false,
+                          "description": "Mitigation INV-8: general compromise checks written by reviewed code, not a recommendation for the CVE: never shown as \"Vedette confirmed\", never run by Vedette. The generated firewall configs and the admin network field are gone"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "null when the confirmed pack has its own compromise signs, or mitigation is off"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "asset_id",
+                    "cve",
+                    "status",
+                    "severity",
+                    "confidence",
+                    "basis",
+                    "evidence",
+                    "first_seen",
+                    "last_seen",
+                    "resolved_by",
+                    "resolved_at",
+                    "resolution_note",
+                    "accepted_until",
+                    "history",
+                    "asset",
+                    "kev",
+                    "cvss",
+                    "resolution_reason",
+                    "proved_version",
+                    "software_id",
+                    "known_version",
+                    "suspected_why",
                     "fixed_in",
                     "pack",
                     "compromise",
@@ -47434,6 +50657,13 @@
                             "format": "date-time",
                             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                           },
+                          "created_by": {
+                            "description": "Who made it (null for a token made before this was kept)",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
                           "last_received": {
                             "anyOf": [
                               {
@@ -47462,7 +50692,7 @@
                                 "type": "null"
                               }
                             ],
-                            "description": "null = never expires; default 7 days. The token only enrolls osquery (it can read nothing) and can be revoked"
+                            "description": "When it stops enrolling machines. null = never; default 7 days once a machine has enrolled; a token no machine enrolled with expires 24 hours after it was made. The token only enrolls osquery (it can read nothing) and can be revoked"
                           }
                         },
                         "required": [
@@ -47471,6 +50701,7 @@
                           "kind",
                           "last4",
                           "created_at",
+                          "created_by",
                           "last_received",
                           "hosts",
                           "expires_at"
@@ -48121,6 +51352,13 @@
                           "format": "date-time",
                           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                         },
+                        "created_by": {
+                          "description": "Who made it (null for a token made before this was kept)",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
                         "last_received": {
                           "anyOf": [
                             {
@@ -48149,7 +51387,7 @@
                               "type": "null"
                             }
                           ],
-                          "description": "null = never expires; default 7 days. The token only enrolls osquery (it can read nothing) and can be revoked"
+                          "description": "When it stops enrolling machines. null = never; default 7 days once a machine has enrolled; a token no machine enrolled with expires 24 hours after it was made. The token only enrolls osquery (it can read nothing) and can be revoked"
                         }
                       },
                       "required": [
@@ -48158,6 +51396,7 @@
                         "kind",
                         "last4",
                         "created_at",
+                        "created_by",
                         "last_received",
                         "hosts",
                         "expires_at"
@@ -48272,6 +51511,52 @@
                   "required": [
                     "devices",
                     "software"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inventory/agents/tokens/remove-unused": {
+      "post": {
+        "operationId": "inventory_post_inventory_agents_tokens_remove_unused",
+        "summary": "Remove every token with no machine enrolled now, made over an hour ago (tokens with machines and tokens made in the last hour stay). Audited. Also offered when 409 too_many_tokens says the limit of 500 is reached",
+        "tags": [
+          "inventory"
+        ],
+        "x-stories": [
+          "S-INV-4"
+        ],
+        "x-min-role": "admin",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "removed": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "removed"
                   ],
                   "additionalProperties": false
                 }
@@ -56810,12 +60095,40 @@
                       "type": "integer",
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991
+                    },
+                    "logs_bytes": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Disk space the kept logs take, in bytes (the log database and its write-ahead log); null when it cannot be read"
+                    },
+                    "disk_free_bytes": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Space still free on the filesystem of the box data directory, in bytes; null when it cannot be read"
                     }
                   },
                   "required": [
                     "box",
                     "sources",
-                    "retention_days"
+                    "retention_days",
+                    "logs_bytes",
+                    "disk_free_bytes"
                   ],
                   "additionalProperties": false
                 }

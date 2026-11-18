@@ -32,6 +32,7 @@ var contractRoutes = map[string][]string{
 		"POST /intake/osquery/status",
 		"POST /inventory/agents/devices/{id}/report",
 		"POST /inventory/agents/tokens",
+		"POST /inventory/agents/tokens/remove-unused",
 		"POST /inventory/agents/tokens/{id}/sample-data",
 		"POST /inventory/agents/wazuh/sample-data",
 		"POST /inventory/agents/wazuh/test",
@@ -214,6 +215,8 @@ var contractRoutes = map[string][]string{
 		"GET /findings/summary",
 		"POST /findings/status",
 		"POST /findings/{id}/status",
+		"POST /findings/{id}/confirm",
+		"POST /findings/{id}/unconfirm",
 	},
 	"honeypot": {
 		"DELETE /honeypot/tokens/{id}",

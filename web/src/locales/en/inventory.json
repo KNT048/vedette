@@ -53,6 +53,7 @@
     },
     "snmp": {
       "off": "Turn on active discovery in Settings to read devices with SNMP.",
+      "setUp": "Set up",
       "approveHere": "Approve, then set up SNMP",
       "approveFirst": "Approve the device first: SNMP reads only approved devices."
     },
@@ -596,6 +597,10 @@
     "spanHint": "Vedette reads DNS queries, TLS server names, HTTP hosts and connection metadata from the mirrored traffic to learn devices and spot connections to known-bad addresses. It does not store packet contents. Without mirrored traffic the sensor only sees broadcast messages (DHCP, ARP, mDNS)."
   },
   "agents": {
+    "onDevice": {
+      "title": "Install osquery on {{name}}",
+      "body": "Run one command on this machine. It then reports its installed software with exact versions."
+    },
     "title": "Agents on servers",
     "description": "An agent tells Vedette exactly which software runs on a server.",
     "descriptionInfo": "With an agent, alerts say \"confirmed\" instead of \"suspected\".",
@@ -685,15 +690,21 @@
     "platform": {
       "label": "Operating system",
       "linux": "Linux",
-      "windows": "Windows"
+      "windows": "Windows",
+      "detected": "Operating system: {{os}}, as this device reports it.",
+      "change": "Not right? Choose another",
+      "pick": "Choose the operating system of the machine to get its install command."
     },
     "install": {
       "title": "Install with one command",
+      "preparing": "Preparing the install command…",
       "linuxHow": "Run as root, or with sudo, on the machine.",
       "linuxHowInfo": "Debian, Ubuntu, RHEL, Rocky, AlmaLinux; x86_64 or arm64.",
       "windowsHow": "Run in PowerShell as Administrator on the machine.",
       "windowsHowInfo": "Windows 10 or 11, or Windows Server 2019 or later; Windows PowerShell 5.1 or later. Not yet proven on a real Windows Server: its first run found a certificate problem, fixed since and to be run again.",
       "linuxLabel": "Linux shell",
+      "worksOn": "Works on Debian, Ubuntu, RHEL family, SUSE, Amazon Linux, Alpine and Arch. Run as root or with sudo.",
+      "otherDistros": "Other distributions: use the command above.",
       "windowsLabel": "PowerShell (Administrator)",
       "sha": "Expected SHA-256 of the script",
       "shaHint": "The box uses its own certificate, so the command first downloads the script without trusting it, then refuses to run unless the script's SHA-256 matches the value above. The script carries the box certificate and checks every later download against it. The servers need no Internet: the box serves the osquery package too, after checking its checksum.",
@@ -703,7 +714,7 @@
       "uninstall": "Remove osquery from the server again",
       "security": "The token only enrolls osquery and reads nothing from Vedette.",
       "securityInfo": "It is shown once, expires (7 days by default) and can be revoked. It is sent as an argument and in a header, never in a web address. Every install and enrollment is recorded in the audit log.",
-      "advanced": "Advanced: manual setup",
+      "advanced": "Download and install manually",
       "advancedBody": "The same result step by step, for locked-down servers or your own packaging.",
       "advancedBodyInfo": "The package comes from this box and is installed only when its SHA-256 matches the table above. For a file you copied over (USB stick), leave out the download line: on Linux run the first and last lines in the folder that holds the file; on Windows set $f to the file's path, then run the last line.",
       "queries": "What Vedette asks osquery for",
@@ -714,7 +725,7 @@
     "download": {
       "title": "Or download the package",
       "body": "For a server without network access, or to install it your own way.",
-      "bodyInfo": "Download the official osquery package from this box, copy it to the server (a USB stick works), check its SHA-256 and install it. Then follow the enrollment steps under Advanced: manual setup.",
+      "bodyInfo": "Download the official osquery package from this box, copy it to the server (a USB stick works), check its SHA-256 and install it. Then follow the enrollment steps under Download and install manually.",
       "caption": "osquery packages this box serves",
       "col": {
         "file": "File",
@@ -861,23 +872,34 @@
     },
     "title": {
       "manual": "Add a device manually",
-      "snmp": "Read a device with SNMP",
+      "snmp": "Add a device and read it with SNMP",
       "osquery": "Install the osquery agent",
       "wazuh": "Connect Wazuh",
       "csv": "Import a CSV file"
     },
     "info": {
       "manual": "Name the device by its IP address or host name and pick the product it runs, in three clicks. Vedette alerts you when an actively exploited vulnerability matches it. A device you add yourself is never scanned.",
-      "snmp": "Vedette reads a device's maker, model and firmware with read-only SNMP questions in every scan window. Set it up on the device's own page: its community or v3 user, and the address it answers on.",
+      "snmp": "Vedette reads a device's maker, model and firmware with read-only SNMP questions in every scan window. Enter its address and its community or v3 user here; the device is added with SNMP on. You can change them later on the device's own page.",
       "osquery": "Create a token, then run one command on the server. osquery reports installed software with exact versions, so alerts say confirmed instead of suspected.",
       "wazuh": "Vedette reads the agents and packages of your Wazuh server through its read-only API. Nothing is installed on the machines.",
       "csv": "Columns name, ip, product, version and kind; up to 500 rows. Wrong rows are reported by line, correct rows are still added."
     },
     "snmp": {
-      "perDevice": "SNMP is set up on each device's own page, with the address it answers on. Add the device first (Manual), or open it in Devices, then use its SNMP card: Set up SNMP."
+      "address": "Device IP address",
+      "addressHint": "The address the device answers SNMP on. Vedette reads only this address.",
+      "needAddress": "Enter the device's IP address.",
+      "product": "What the device is",
+      "productHint": "Pick its product, for example a FortiGate. SNMP then fills in the exact model and firmware.",
+      "needProduct": "Pick the product the device is.",
+      "submit": "Add device and turn SNMP on",
+      "done": "Added {{name}} with SNMP on.",
+      "addedNotSet": "{{name}} was added, but its SNMP settings were not saved",
+      "addedNotSetBody": "Fix the settings below and save again; the device is not added twice.",
+      "openDevice": "Open the device"
     },
     "osquery": {
       "noMac": "macOS is not supported: osquery runs on Linux and Windows servers.",
+      "tokenName": "osquery install {{day}}",
       "noMacTopic": "macOS",
       "noMacInfo": "Vedette reads servers. Laptops and Macs are seen by the network scan and passive listening."
     },
@@ -1108,6 +1130,7 @@
   },
   "deviceSnmp": {
     "title": "SNMP",
+    "detailsSummary": "Settings and what answered",
     "description": "Read-only SNMP questions to this device: maker, model, serial number and firmware, as it states them.",
     "descriptionInfo": "Vedette sends only read-only GET requests, in the scan window and when you press Check now, to one address: the device's IP, or the management address you set as Read from. The community or passwords are stored encrypted and shown only by their last 4 characters.",
     "state": {
@@ -1132,7 +1155,7 @@
       "pending": "Reading {{ip}} with SNMP… this takes up to 15 seconds.",
       "answered": "{{name}} answered SNMP.",
       "failed": "Nothing was sent",
-      "noAnswer": "{{name}} did not answer SNMP. The card says why."
+      "noAnswer": "{{name}} did not answer SNMP. The SNMP row says why."
     },
     "readFrom": "Read from",
     "readFromOwn": "(the device's IP)",

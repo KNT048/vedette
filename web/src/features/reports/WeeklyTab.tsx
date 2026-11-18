@@ -23,6 +23,7 @@ import { useNewChannel } from '@/features/notify/NewChannel'
 import { useModuleEnabled } from '@/lib/modules'
 import { useHistory, useSaveSchedule, useSchedule, useSendWeekly, useWeekly, useWeeklyAi } from './api'
 import { WeeklyDocument } from './WeeklyDocument'
+import { ReportFilterSwitches } from './filters'
 import { ActionError } from './parts'
 import type { HistoryEntry, Schedule, Weekday } from './types'
 
@@ -78,14 +79,14 @@ function Preview() {
           ? <EmptyState title={t('weekly.empty.title')} info={t('weekly.empty.bodyInfo')} action={<Link to="/devices" className={buttonVariants({ variant: 'primary' })}>{t('weekly.empty.cta')}</Link>}>
             {t('weekly.empty.body')}
           </EmptyState>
-          : <Card><WeeklyDocument report={w.report} org={me?.org ?? ''} aiAction={(
+          : <div className="grid gap-3"><ReportFilterSwitches idPrefix="weekly-include" /><Card><WeeklyDocument report={w.report} org={me?.org ?? ''} aiAction={(
             <>
               <div><Button onClick={() => ai.mutate(undefined, { onSuccess: () => toast.success(t('weekly.ai.done')) })} disabled={!operator || !w.ai_available} busy={ai.isPending} busyLabel={t('weekly.ai.working')} title={needRole ?? (w.ai_available ? undefined : t('weekly.ai.unavailable'))} aria-describedby="weekly-ai-wait"><Sparkles aria-hidden />{t('weekly.ai.button')}</Button></div>
               {/* An AI answer takes a while; say so while it runs */}
               <BusyNote id="weekly-ai-wait" busy={ai.isPending}>{t('weekly.ai.waiting')}</BusyNote>
               <ActionError error={ai.error} />
             </>
-          )} /></Card>}
+          )} /></Card></div>}
       </QueryState>
       <Dialog open={confirm} onOpenChange={setConfirm}>
         <DialogContent title={t('weekly.send.title')} description={recipients.length ? t('weekly.send.body', { count: recipients.length }) : t('weekly.send.noRecipients')}>

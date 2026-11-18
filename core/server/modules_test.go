@@ -214,6 +214,8 @@ var contractRoutes = map[string][]string{
 		"GET /findings/to-fix",
 		"GET /findings/summary",
 		"POST /findings/status",
+		"POST /findings/plan/done",
+		"POST /findings/plan/undone",
 		"POST /findings/{id}/status",
 		"POST /findings/{id}/confirm",
 		"POST /findings/{id}/unconfirm",

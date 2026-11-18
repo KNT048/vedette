@@ -215,7 +215,9 @@ func TestDeviceDistro(t *testing.T) {
 		{"Ubuntu with an agent's deb package", Asset{OS: "Ubuntu 24.04.1 LTS", Software: []Software{{Source: "scan"}, deb}}, "ubuntu"},
 		{"Debian with an agent's deb package", Asset{OS: "Debian GNU/Linux 12 (bookworm)", Software: []Software{deb}}, "debian"},
 		{"Ubuntu without packages", Asset{OS: "Ubuntu 24.04.1 LTS", Software: []Software{{Source: "scan", Version: "9.6p1"}}}, ""},
-		{"Ubuntu with a hand-entered package", Asset{OS: "Ubuntu 24.04.1 LTS", Software: []Software{manual}}, ""},
+		// a Debian release a person gave is decided by the distribution's data like an agent's row (the plan, DevicePackages)
+		{"Ubuntu with a person's Debian release", Asset{OS: "Ubuntu 24.04.1 LTS", Software: []Software{manual}}, "ubuntu"},
+		{"Ubuntu with a person's plain version", Asset{OS: "Ubuntu 24.04.1 LTS", Software: []Software{{Source: "manual", Product: "OpenSSH", Version: "9.6p1", PkgVersion: "9.6p1"}}}, ""},
 		{"another OS", Asset{OS: "Windows Server 2022", Software: []Software{deb}}, ""},
 		{"no OS", Asset{Software: []Software{deb}}, ""},
 	} {

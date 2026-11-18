@@ -170,26 +170,43 @@ describe('An entered package release › the result is the answer to this entry'
     expect(saved).not.toHaveTextContent(/Closed/)
   }, 30000)
 
-  it('after about 15 seconds without a new match it ends: no CVE changed, and the CVE still open is named', async () => {
+  it('after about 15 seconds without a new match it says the device is not matched again yet, never a result it does not have', async () => {
     box([F({})], () => [F({})])
     await enterRelease('10.2_p1-r1')
     const saved = await result()
-    expect(await within(saved).findByText('No CVE changed with this entry.', undefined, { timeout: 25000 })).toBeInTheDocument()
-    expect(saved).toHaveTextContent(/1 CVE is still affected:/)
-    expect(saved).not.toHaveTextContent(/Checking which CVEs/)
+    expect(await within(saved).findByText('Not matched again yet; this page updates when it is.', undefined, { timeout: 25000 })).toBeInTheDocument()
+    expect(saved).not.toHaveTextContent(/still affected|found no exploited CVE|Closed/)
   }, 40000)
 
-  it('ends with no CVE changed also when the device has no finding on the row at all', async () => {
-    box([], () => [])
+  it('keeps reading after that: the answer appears when the match lands', async () => {
+    let landed = false
+    box([F({})], () => (landed ? [closedOn('10.2_p1-r1', { last_seen: '2026-11-18T02:00:00.000Z' })] : [F({})]))
     await enterRelease('10.2_p1-r1')
     const saved = await result()
-    expect(await within(saved).findByText('No CVE changed with this entry.', undefined, { timeout: 25000 })).toBeInTheDocument()
-  }, 40000)
+    await within(saved).findByText('Not matched again yet; this page updates when it is.', undefined, { timeout: 25000 })
+    landed = true
+    expect(await within(saved).findByText(/Closed 1 CVE as not affected:/, undefined, SLOW)).toBeInTheDocument()
+  }, 60000)
 
-  it('a finding that moves to the row now describing the software (another source) counts as the match having run', async () => {
+  it('a change on another software of the device alone does not end the wait', async () => {
+    const other = F({ id: 'f-nginx', cve: 'CVE-2026-000009', software_id: 's-bn340-nginx' })
+    box([F({}), other], () => [F({}), { ...other, status: 'not_relevant' }])
+    await enterRelease('10.2_p1-r1')
+    const saved = await result()
+    await new Promise((r) => setTimeout(r, 4000))
+    expect(saved).toHaveTextContent('Checking which CVEs this closes…')
+    expect(saved).not.toHaveTextContent(/found no exploited CVE/)
+  }, 30000)
+
+  it('a CVE still open on the row that describes the software now (the agent\'s) is still affected, never "no CVE left"', async () => {
+    server.use(http.get('*/api/v1/inventory/devices/:id/software', () => HttpResponse.json({ items: [{ id: 's-bn340-agent', vendor: 'OpenBSD', product: 'OpenSSH', display: 'OpenSSH',
+      version: '10.2p1', pkg_version: '10.2_p1-r1', packaged: true, cpe: '', source: 'agent', set_by: '', seen_at: '2026-11-18T02:00:00.000Z', differs: false,
+      also_seen: [{ id: 's-bn340-ssh', source: 'nmap', version: '10.2', pkg_version: '', seen_at: '2026-11-18T01:00:00.000Z', same_release: true }] }] })))
     box([F({})], () => [F({ software_id: 's-bn340-agent', last_seen: '2026-11-18T02:00:00.000Z' })])
     await enterRelease('10.2_p1-r1')
     const saved = await result()
-    expect(await within(saved).findByText(/found no exploited CVE left/, undefined, SLOW)).toBeInTheDocument()
+    expect(await within(saved).findByText(/1 CVE is still affected:/, undefined, SLOW)).toBeInTheDocument()
+    expect(saved).not.toHaveTextContent(/found no exploited CVE/)
+    expect(within(saved).getByRole('link', { name: 'CVE-2026-123158' })).toBeInTheDocument()
   }, 30000)
 })

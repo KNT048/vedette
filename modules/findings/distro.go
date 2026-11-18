@@ -1,6 +1,7 @@
 package findings
 
 import (
+	"cmp"
 	"fmt"
 	"regexp"
 	"slices"
@@ -9,6 +10,86 @@ import (
 
 	"github.com/knt048/vedette/core/debver"
 )
+
+// linuxDistro is the Linux distribution an OS name names, as a platform id ("alpine", "ubuntu", "debian", "rhel", "suse"), "" for
+// none (Windows, a network OS, an unknown OS).
+func linuxDistro(osName string) string {
+	for _, id := range platformsIn(osName) {
+		switch id {
+		case "alpine", "ubuntu", "debian", "rhel", "suse":
+			return id
+		}
+	}
+	return ""
+}
+
+// distroLabel names a distribution in "Install <name>'s security updates"; "" for one the page calls "the distribution".
+func distroLabel(id string) string {
+	switch id {
+	case "alpine":
+		return "Alpine Linux"
+	case "ubuntu":
+		return "Ubuntu"
+	case "debian":
+		return "Debian"
+	}
+	return ""
+}
+
+var (
+	debEpoch   = regexp.MustCompile(`^[0-9]+:`)
+	debPkgName = regexp.MustCompile(`^[a-z0-9][a-z0-9+.-]+$`)
+)
+
+// personDeb says a package release a person gave is a full Debian version with a revision ("1:10.2p1-2ubuntu3.8", "9.2p1-2+deb12u3").
+func personDeb(p string) bool {
+	p = strings.TrimSpace(p)
+	if _, t := apkRelease(p); t != "" {
+		return false
+	}
+	return debver.Valid(p) && debver.Revision(p) != ""
+}
+
+// debPkg is the full Debian version and source package of a row the Ubuntu or Debian data can decide on the plan: an agent's deb row
+// (both read from the package database), or a Debian release a person gave (Needs your input, a correction), which the
+// distribution's word decides like an agent's row: its source package is the row's when inventory kept one, else the product's own
+// name as Debian and Ubuntu name most sources ("openssh"); a name the security data does not hold finds no row (nothing is guessed
+// affected).
+func debPkg(s Software) (version, source string, ok bool) {
+	switch {
+	case s.Packaged && s.builtBy() == "agent" && s.PkgVersion != "" && s.PkgSource != "":
+		return s.PkgVersion, s.PkgSource, true
+	case s.Source == "manual" && personDeb(s.PkgVersion):
+		if src := cmp.Or(s.PkgSource, debSourceName(s.Product)); src != "" {
+			return strings.TrimSpace(s.PkgVersion), src, true
+		}
+	}
+	return "", "", false
+}
+
+// debOS says the device's OS is Ubuntu or Debian: the distributions whose own data the plan reads for their packages.
+func debOS(osName string) bool {
+	os, _ := osIdentity(osName)
+	return os.vendor == "canonical" || os.vendor == "debian"
+}
+
+// debSourceName is a product's name as Debian names its source package ("OpenSSH" -> "openssh"), "" when it is not one.
+func debSourceName(product string) string {
+	if n := strings.ToLower(strings.TrimSpace(product)); debPkgName.MatchString(n) {
+		return n
+	}
+	return ""
+}
+
+// pkgReleaseText says a text is a distribution's package release: Alpine's apk ("10.2_p1-r1"), a release with a distribution's mark
+// ("2ubuntu3.8", "+deb12u3", ".el9"), or a Debian version with an epoch ("1:9.2p1-2"). A plain "7.2.13" or "v7.2.13" is not.
+func pkgReleaseText(p string) bool {
+	p = strings.TrimSpace(p)
+	if _, t := apkRelease(p); t != "" {
+		return true
+	}
+	return distroMarked(p) || debEpoch.MatchString(p) && debver.Valid(p)
+}
 
 // Distribution backports. Ubuntu and Debian fix a package without changing its upstream version, so NVD's
 // upstream ranges cannot tell a patched OpenSSH 9.6p1 from a vulnerable one. For a row an agent read from the device's
@@ -88,23 +169,25 @@ type distroPkgRow struct {
 	pkg string
 }
 
-// distroRows are the device's agent deb rows (full Debian version and source package) the plan compares with the distribution's
-// data, with the device's distribution and release (release "" when the OS names none; then no row). Packages of a kernel source
+// distroRows are the device's deb rows (debPkg: an agent's, with full Debian version and source package, or a Debian release a
+// person gave) the plan compares with the distribution's data, with the device's distribution and release (release "" when the OS names none; then no row). Packages of a kernel source
 // count only when they are the running kernel's (review r1 #1 of #808): apt keeps the previous kernel's linux-modules-*,
 // linux-headers-* and linux-tools-* installed, intake blanks only the image of a kernel that does not run, and those rows would
 // plan "Upgrade linux" on a box that already runs the fix. The running kernel is the Kernel row intake built from the running
 // image (its source and version); a device without one compares no kernel package (drop when unsure).
 func distroRows(a Asset) (distro, release string, rows []distroPkgRow) {
-	if os, _ := osIdentity(a.OS); os.vendor != "canonical" && os.vendor != "debian" {
+	if !debOS(a.OS) {
 		return "", "", nil
 	}
 	var ksrc, kver string
 	var all []distroPkgRow
 	for _, s := range a.Software {
-		if !s.Packaged || s.builtBy() != "agent" || s.PkgVersion == "" || s.PkgSource == "" {
+		ver, src, ok := debPkg(s)
+		if !ok {
 			continue
 		}
 		in := newSWInfo(s, a.OS)
+		in.pkgVer, in.pkgSrc = ver, src
 		d, rel := distroOf(in)
 		if d == "" {
 			continue

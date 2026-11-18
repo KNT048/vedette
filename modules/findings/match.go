@@ -1168,11 +1168,15 @@ type swInfo struct {
 	personPkg string
 }
 
-// pkgBuilt says the row is a distribution's package: an agent read it from the package database (packaged), or a person gave its
-// package release (personPkg: "10.2_p1-r1", "1:10.2p1-2ubuntu3.8"). The distribution's own updates fix it, under its own release
-// numbers, so an upstream release is never the update to name for it (fixedInSoftware, groupFixOf, the plan's tierInfo). It does not
-// change how the matcher compares the row: a person's release still goes by NVD's range unless the distribution's data decides.
-func (in swInfo) pkgBuilt() bool { return in.packaged || in.personPkg != "" }
+// pkgBuilt says the row is a distribution's package: an agent read it from the package database (packaged), or a person gave a
+// package release (personPkg) that is one: the device runs a Linux distribution, or the text is a distribution's release format
+// (pkgReleaseText: apk "10.2_p1-r1", Debian "1:10.2p1-2ubuntu3.8", RPM "8.7p1-38.el9"). A FortiGate's "v7.2.13" or a Windows build a
+// person corrected is not one and keeps its upstream wording. The distribution's own updates fix a package, under its own release
+// numbers, so an upstream release is never the update to name for it (fixedInSoftware, groupFixOf, the plan). It does not change how
+// the matcher compares the row: a person's release still goes by NVD's range unless the distribution's data decides.
+func (in swInfo) pkgBuilt() bool {
+	return in.packaged || in.personPkg != "" && (linuxDistro(in.osName) != "" || pkgReleaseText(in.personPkg))
+}
 
 func newSWInfo(s Software, osName string) swInfo {
 	var in swInfo

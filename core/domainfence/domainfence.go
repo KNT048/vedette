@@ -53,7 +53,7 @@ const (
 const (
 	InvalidJob   = "invalid_job"         // the job's fields are not of the grammar
 	TokenForeign = "token_foreign"       // the token is not this box's for the domain (another box's, or a token made before the fence)
-	NotOwned     = "target_not_owned"    // the domain's TXT records do not carry vedette-verify=<token> now
+	NotOwned     = "target_not_owned"    // the domain's TXT records do not carry vedette-verify=<token> now (a typed IP: its proof is not found now)
 	NameMoved    = "name_moved"          // the name does not resolve to the address now (that item only)
 	Unchecked    = "ownership_unchecked" // a DNS lookup failed or timed out: nothing is known, so nothing is sent
 	CNAMEOutside = "cname_outside"       // a disruptive job for a name whose CNAME leaves the domain (review r1 M4)
@@ -98,11 +98,17 @@ type Job struct {
 	// record of a sibling target, the domain being that target's). Whoever answers for ProofAt's DNS put this box's token there, and
 	// could as well have put the token of Name itself, so no name is covered that the same person could not have proved.
 	ProofAt string
+	// Typed, when set, makes this the job of a public IP a person typed in (typed.go): Domain and Name are the IP literal, Token the
+	// box-bound token of that literal, and the check is the IP's own proof instead of a domain's record.
+	Typed *TypedProof
 }
 
 // Valid is point 1 of the check, the grammar: the domain, a name that is the domain or under it, a public IPv4 address
 // (localnet.Public, the own_ip rule), a token of 16 lower-case hex digits.
 func (j Job) Valid() error {
+	if j.Typed != nil {
+		return j.validTyped()
+	}
 	switch {
 	case !ValidDomain(j.Domain):
 		return errors.New("the domain is not a domain name")
@@ -153,10 +159,11 @@ type cacheEntry struct {
 
 // Fence checks domain_ip jobs. Create it with New.
 type Fence struct {
-	key    []byte
-	r      Resolver
-	now    func() time.Time
-	listed func(domain string) bool
+	key     []byte
+	r       Resolver
+	now     func() time.Time
+	listed  func(domain string) bool
+	fetcher FileFetcher
 
 	mu    sync.Mutex
 	cache map[cacheKey]cacheEntry
@@ -220,6 +227,9 @@ func (f *Fence) Check(ctx context.Context, j Job, cached bool) Outcome {
 }
 
 func (f *Fence) check(ctx context.Context, j Job) (Outcome, cacheEntry) {
+	if j.Typed != nil {
+		return f.checkTyped(ctx, j), cacheEntry{}
+	}
 	lookup := func(fn func(context.Context) error) error {
 		lctx, cancel := context.WithTimeout(ctx, LookupTimeout)
 		defer cancel()
@@ -431,6 +441,24 @@ func ParseList(b []byte) (map[string]bool, error) {
 	return out, nil
 }
 
+// ParseIPList reads the typed-IP list: one canonical public IPv4 address per line, nothing else.
+func ParseIPList(b []byte) (map[string]bool, error) {
+	if len(b) > MaxListSize {
+		return nil, errors.New("domainfence: the IP list is too large")
+	}
+	out := map[string]bool{}
+	for _, l := range strings.Split(strings.TrimSuffix(string(b), "\n"), "\n") {
+		if l == "" && len(b) == 0 {
+			break
+		}
+		if !ValidIPLiteral(l) {
+			return nil, fmt.Errorf("domainfence: the IP list holds %.60q, not a public IPv4 address", l)
+		}
+		out[l] = true
+	}
+	return out, nil
+}
+
 // ListText is the file form of a domain list: sorted, one per line.
 func ListText(domains map[string]bool) []byte {
 	l := make([]string, 0, len(domains))
@@ -449,21 +477,34 @@ func ListText(domains map[string]bool) []byte {
 // second (review r2 L-2: the host replaces it by a rename, and a re-check of a running scan must not be killed by an instant of it),
 // and then lists nothing (fail closed).
 func FileList(path string) func(domain string) bool {
-	return fileList(path, func() { <-time.After(time.Second) })
+	return fileList(path, ParseList, func() { <-time.After(time.Second) })
 }
 
-func fileList(path string, wait func()) func(domain string) bool {
+// FileLists is a listed func over the domain list file and the typed-IP list file beside it (an IP literal is looked up in the second,
+// a domain in the first): the IPs have a file of their own so a scan container older than the typed-IP check keeps parsing the domain list.
+func FileLists(domains, ips string) func(domain string) bool {
+	d := FileList(domains)
+	i := fileList(ips, ParseIPList, func() { <-time.After(time.Second) })
+	return func(name string) bool {
+		if ValidIPLiteral(name) {
+			return i(name)
+		}
+		return d(name)
+	}
+}
+
+func fileList(path string, parse func([]byte) (map[string]bool, error), wait func()) func(domain string) bool {
 	return func(domain string) bool {
-		l, err := readList(path)
+		l, err := readList(path, parse)
 		if err != nil {
 			wait()
-			l, err = readList(path)
+			l, err = readList(path, parse)
 		}
 		return err == nil && l[domain]
 	}
 }
 
-func readList(path string) (map[string]bool, error) {
+func readList(path string, parse func([]byte) (map[string]bool, error)) (map[string]bool, error) {
 	fi, err := os.Lstat(path)
 	if err != nil {
 		return nil, err
@@ -475,7 +516,7 @@ func readList(path string) (map[string]bool, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ParseList(b)
+	return parse(b)
 }
 
 // NewKey is KeySize random bytes.

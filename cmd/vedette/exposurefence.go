@@ -47,6 +47,21 @@ func (f hostDomainFence) Token(ctx context.Context, domain string) (string, erro
 	return "", err // an older host (unknown_command), an unusable key or list: exposure falls back to a random token
 }
 
+// ListIP lists a proved typed IP on the host for the executors (exposure.token with proved).
+func (f hostDomainFence) ListIP(ctx context.Context, ip string) error {
+	l, ok := f.host.(interface {
+		ExposureListIP(ctx context.Context, ip, requestID, actor string) error
+	})
+	if !ok {
+		return nil
+	}
+	id, err := newUUID()
+	if err != nil {
+		return err
+	}
+	return l.ExposureListIP(ctx, ip, id, "exposure")
+}
+
 // Forget gives a domain's fence slot back to the host (exposure.token_forget, review r2 M-A).
 func (f hostDomainFence) Forget(ctx context.Context, domain string) error {
 	id, err := newUUID()
@@ -58,7 +73,11 @@ func (f hostDomainFence) Forget(ctx context.Context, domain string) error {
 
 // scopeOf is the wire form of exposure's domain scope.
 func scopeOf(d *exposure.DomainScope) sensorlink.DomainScope {
-	return sensorlink.DomainScope{Domain: d.Domain, Name: d.Name, Token: d.Token, ProofAt: d.ProofAt}
+	sc := sensorlink.DomainScope{Domain: d.Domain, Name: d.Name, Token: d.Token, ProofAt: d.ProofAt}
+	if t := d.Typed; t != nil {
+		sc.Typed = &sensorlink.TypedScope{Method: t.Method, PTRName: t.PTRName, CoverDomain: t.CoverDomain, CoverToken: t.CoverToken, CoverProofAt: t.CoverProofAt}
+	}
+	return sc
 }
 
 // chainText is the CNAME chain of a scope for a probe-log row.
@@ -101,6 +120,8 @@ const (
 	domainMoved     = "%s no longer points at %s (checked by the scan container right before the step), so nothing was sent there."
 	domainNoDNS     = "the scan container could not look up the domain's TXT record or the name's address (DNS did not answer), so nothing was sent."
 	domainOutside   = "%s points (CNAME) outside the domain, so the scan container refused the disruptive checks there."
+	typedNotProved  = "the proof of %s (its token file or reverse DNS name) is not found now by the scan container, so it sent nothing. Put it back, check the IP again, then scan."
+	typedOldBox     = "the scan container or the host is older than this version and does not check the proof of a public IP you typed in. Update the box, then scan again."
 	domainMid       = "the scan container's domain fence stopped it while it ran (%s), and its results were discarded."
 )
 
@@ -109,6 +130,9 @@ const (
 func domainErr(err error, d *exposure.DomainScope, ip string) (*exposure.Unavailable, bool) {
 	if errors.Is(err, sensoractive.ErrDomainUnsupported) {
 		return &exposure.Unavailable{Reason: domainNoKey}, true
+	}
+	if errors.Is(err, sensoractive.ErrTypedUnsupported) {
+		return &exposure.Unavailable{Reason: typedOldBox}, true
 	}
 	var r *sensoractive.DomainRefusedError
 	if d == nil || !errors.As(err, &r) {
@@ -123,6 +147,9 @@ func domainErr(err error, d *exposure.DomainScope, ip string) (*exposure.Unavail
 	case domainfence.TokenForeign:
 		return &exposure.Unavailable{Reason: domainForeign}, true
 	case domainfence.NotOwned:
+		if d.Typed != nil {
+			return &exposure.Unavailable{Reason: fmt.Sprintf(typedNotProved, ip)}, true
+		}
 		at := d.Domain
 		if d.ProofAt != "" { // The record the worker looked for is the target's own on the parent name
 			at = d.ProofAt

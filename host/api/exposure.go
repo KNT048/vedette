@@ -34,6 +34,9 @@ const (
 // ExposureTokenArgs are the args of exposure.token.
 type ExposureTokenArgs struct {
 	Domain string `json:"domain"`
+	// Proved, for a public IP a person typed in: core found its proof, so the host lists it (its own list, its own cap) for the executors.
+	// Without it the IP gets its token and no list place, so an IP nobody proved takes none.
+	Proved bool `json:"proved,omitempty"`
 }
 
 // ExposureTokenResult is its result.
@@ -53,6 +56,19 @@ type ExposureFenceCheckArgs struct {
 	ProofAt string `json:"proof_at,omitempty"`
 	// Recheck: the check of a task that runs (every 3 minutes): the host asks DNS again instead of answering from its 5-minute cache.
 	Recheck bool `json:"recheck,omitempty"`
+	// Typed makes this the check of a public IP a person typed in: Domain and Name are the IP literal, Token the box-bound token of that
+	// literal, and the host checks the IP's own proof (the token file, or reverse DNS) itself.
+	Typed *ExposureTyped `json:"typed,omitempty"`
+}
+
+// ExposureTyped is the proof of a typed IP (core/domainfence.TypedProof): Method "file" or "ptr"; for "ptr" the PTR name and the domain of
+// this box that proves it (its box-bound token, and the parent name its record sits on when it is not its own).
+type ExposureTyped struct {
+	Method       string `json:"method"`
+	PTRName      string `json:"ptr_name,omitempty"`
+	CoverDomain  string `json:"cover_domain,omitempty"`
+	CoverToken   string `json:"cover_token,omitempty"`
+	CoverProofAt string `json:"cover_proof_at,omitempty"`
 }
 
 // ExposureFenceCheckResult is the result of a check that said yes: the CNAME chain of the name ("a -> b"), for the probe log.

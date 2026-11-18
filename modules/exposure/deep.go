@@ -156,6 +156,19 @@ func (s *Service) deepGate(ctx context.Context, st ScanTarget, ip netip.Addr, na
 		s.cfg.Log.ErrorContext(ctx, "exposure: checking whether a domain's address is the box's own failed", "target", st.Value, "ip", ip, "error", err)
 		return st, deepUnchecked, nil
 	case box:
+		if tt, typed := s.typedAddr(ctx, ip); typed { // a typed IP of the box's list, not the box's own egress: its own proof goes to the executors
+			tm := tt.mode() // a separate asset with its own consent: the stricter of the two targets' terms and disruptive settings
+			if !tm.Full {
+				return st, deepTerms, nil
+			}
+			out.Mode.Disruptive = out.Mode.Disruptive && tm.Disruptive
+			scope, why := s.typedScope(ctx, tt)
+			if scope == nil {
+				return st, why, nil
+			}
+			out.Domain = scope
+			return out, "", nil
+		}
 		if out.Mode.Disruptive && len(names) > 0 { // r2-M1: the box's own IP reached through a name: the same CNAME rule
 			out.Mode.Disruptive = s.cnameInZone(ctx, names, st.Value)
 		}

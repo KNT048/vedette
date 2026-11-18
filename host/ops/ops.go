@@ -141,6 +141,9 @@ type Deps struct {
 	// FenceCNAME is the CNAME lookup of the domain fence (default: the system resolver).
 	FenceKey   []byte
 	FenceCNAME func(ctx context.Context, name string) (string, error)
+	// FenceFetcher gets the proof file of a typed IP and FenceAddr is the fence's reverse DNS lookup (default: the real ones).
+	FenceFetcher domainfence.FileFetcher
+	FenceAddr    func(ctx context.Context, addr string) ([]string, error)
 	// GreenboneUID owns gvmd's socket directory (default 1001, the user gvmd of Greenbone's image); tests give their own uid.
 	GreenboneUID int
 }
@@ -247,6 +250,9 @@ type Ops struct {
 	// fenceMu guards fenceList, the domains the host issued a fence token for (review r1 H1).
 	fenceMu   sync.Mutex
 	fenceList map[string]bool
+	// fenceIPs are the typed public IPs the host listed once core said they were proved (their own file and cap, so an older scan container
+	// keeps parsing the domain list), guarded by fenceMu like fenceList.
+	fenceIPs map[string]bool
 	// gbOnQueue, internal tests only, is called by an up or feed update once it has its generation, before it waits for the slot.
 	gbOnQueue func()
 }

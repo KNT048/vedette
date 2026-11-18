@@ -339,7 +339,7 @@ func TestDomainList(t *testing.T) {
 		t.Fatal("a line that is not a domain was accepted")
 	}
 	p := filepath.Join(t.TempDir(), "domains")
-	listed := fileList(p, func() {})
+	listed := fileList(p, ParseList, func() {})
 	if listed("a.example") {
 		t.Fatal("a missing list listed a domain")
 	}
@@ -358,7 +358,7 @@ func TestFileListReadsAMissingCopyAgain(t *testing.T) {
 	t.Parallel()
 	p := filepath.Join(t.TempDir(), "domains")
 	waited := 0
-	listed := fileList(p, func() { waited++; _ = writeFile(p, []byte("acme.example\n")) })
+	listed := fileList(p, ParseList, func() { waited++; _ = writeFile(p, []byte("acme.example\n")) })
 	if !listed("acme.example") || waited != 1 {
 		t.Fatalf("waited %d", waited)
 	}

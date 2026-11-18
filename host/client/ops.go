@@ -317,6 +317,12 @@ func (c *Client) ExposureToken(ctx context.Context, domain, requestID, actor str
 	return r.Token, err
 }
 
+// ExposureListIP runs exposure.token with proved set for a typed public IP: the host lists it for the executors (idempotent).
+func (c *Client) ExposureListIP(ctx context.Context, ip, requestID, actor string) error {
+	_, err := runQuick[api.ExposureTokenResult](ctx, c, api.CmdExposureToken, api.ExposureTokenArgs{Domain: ip, Proved: true}, requestID, actor)
+	return err
+}
+
 // ExposureFenceCheck runs exposure.fence_check: the host's own domain fence for an OpenVAS scan; nil error is a yes, with the
 // name's CNAME chain.
 func (c *Client) ExposureFenceCheck(ctx context.Context, args api.ExposureFenceCheckArgs, requestID, actor string) (string, error) {

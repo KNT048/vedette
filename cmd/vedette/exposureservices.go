@@ -94,6 +94,9 @@ func (a exposureServiceScan) ScanServices(ctx context.Context, t exposure.ScanTa
 	if a.on != nil && !a.on() {
 		return exposure.ServiceScan{}, &exposure.Unavailable{Reason: servicesOff}
 	}
+	if t.Typed && t.Domain == nil { // a typed IP goes only with its proof, never as the box's own address (the worker would refuse it)
+		return exposure.ServiceScan{}, &exposure.Unavailable{Reason: orText(t.TypedWhy, webTypedNoScope)}
+	}
 	kind, bound := shapeOf(t.Mode), exposure.ServicesTimeout
 	if kind.IsFull() {
 		bound = exposure.FullServicesTimeout

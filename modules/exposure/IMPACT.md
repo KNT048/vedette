@@ -186,6 +186,6 @@
 
 ## Modifying: IP công cộng gõ vào (`Target.Typed`, `proveIP`, `liveTypedProof`, `RunIPRecheck`, job `ip-proof`, `exp_target.typed|ip_token|proof_method`, `Config.IPFetch`, `POST /exposure/targets` `kind`) (INV-35)
 - **Mọi cổng dùng bằng chứng IP gõ vào phải qua `liveTypedProof`:** `gate` (scan, OpenVAS again, `ScannableIP` của quét domain), `CheckOutside` (Shodan). Thêm đường gửi IP đi đâu đó mà không qua một trong hai là hở. `stillCurrent` và `checks.paused` (INV-13) chỉ dành cho IP hộp tự dò: IP gõ vào không "tạm dừng".
-- **Rào của bộ thi hành** (worker nmap/nuclei: `not_own_ip`, ZAP và OpenVAS của host: `target_not_owned`) vẫn chỉ nhận IP ra Internet của hộp; IP gõ vào qua cổng của exposure nhưng bị rào đó từ chối cho tới khi có phạm vi IP riêng (`sensorlink`, `host/ops`), việc của nhóm sở hữu chúng.
+- **Rào của bộ thi hành:** IP gõ vào đi tới worker nmap/nuclei, ZAP và OpenVAS như một job `domain_ip` có `Typed` (`core/sensorlink` `DomainScope.Typed`, heartbeat `typed_ip`; host `exposure.token` nhận IP, `exposure.fence_check`/`zap.baseline` nhận `typed`; `core/domainfence` typed.go là luật chung). IP hộp tự dò giữ nguyên đường own-IP.
 - `TargetView` thêm `origin`, `ip_proof`, `next_check_at`, `scan_state`, `open_exposures`; `GatewayNote` chỉ nói về IP không phải `person`. `blocked_reason` thêm `proof_missing`; `method` thêm `ip_file`, `ip_ptr`.
 - Xuất dữ liệu (`modules/core/export_policy.go`): `typed`, `proof_method` xuất; `ip_token` bỏ qua như `token`.

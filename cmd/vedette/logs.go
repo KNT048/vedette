@@ -7,13 +7,13 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/store"
 	hostclient "github.com/knt048/vedette/host/client"
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/logs"
-	sensoractive "github.com/knt048/vedette/modules/sensor-active"
 )
 
 var (
@@ -128,11 +128,11 @@ func logsJobs(d deps) []jobs.Job {
 
 // logsInventory answers "which devices have this address" for the sources list, an incident and a bad connection. inventory has no
 // read by address, so it lists every device with DevicesOfKind (no row cap, a read error is an error) and indexes the addresses
-// the box knows for each: the listed IP, and the address a device's SNMP is read from (the SNMP settings of sensor-active, read
-// through its service; unavailable, they add nothing). The list is small.
+// the box knows for each: the listed IP, and the read address a person typed for the device's SNMP (sensor-active's ReadAddresses:
+// no secret is opened). The list is small.
 type logsInventory struct {
 	inv  *inventory.Service
-	snmp func(ctx context.Context) ([]sensoractive.SNMPDevice, error) // nil: no SNMP settings
+	snmp func(ctx context.Context) (map[string]netip.Addr, error) // device id -> typed read address; nil: no SNMP settings
 }
 
 func (a logsInventory) DevicesAt(ctx context.Context, ips []string) (map[string][]logs.DeviceMatch, error) {
@@ -157,19 +157,30 @@ func (a logsInventory) DevicesAt(ctx context.Context, ips []string) (map[string]
 		}
 	}
 	known := make(map[string]bool, len(devs))
+	approved := make(map[string]bool, len(devs))
 	for _, d := range devs {
 		known[d.ID] = true
+		approved[d.ID] = d.Approved
 		add(d.IP, d.ID, logs.ViaListedIP)
 	}
 	if a.snmp != nil {
-		list, err := a.snmp(ctx)
+		typed, err := a.snmp(ctx)
 		if err != nil {
 			return nil, err
 		}
-		for _, s := range list {
-			if s.ReadFrom.IsValid() && known[s.DeviceID] {
-				add(s.ReadFrom.String(), s.DeviceID, logs.ViaSNMPRead)
+		for id, ip := range typed {
+			if !known[id] || !want[ip.String()] {
+				continue
 			}
+			// A person typed this address as that device's SNMP read address: it is that device. A device found by a scan at the
+			// same address (a firewall's management interface is often scanned as a device of its own) is the same box seen
+			// twice, so it does not make the address ambiguous; a device a person approved at it still does.
+			for other := range via[ip.String()] {
+				if !approved[other] && other != id {
+					delete(via[ip.String()], other)
+				}
+			}
+			add(ip.String(), id, logs.ViaSNMPRead)
 		}
 	}
 	var ids []string
@@ -200,23 +211,28 @@ func (a logsInventory) DevicesAt(ctx context.Context, ips []string) (map[string]
 	return out, nil
 }
 
-// logsSNMP reads the SNMP settings of the devices from the sensor-active service when it has been built (the module's jobs or the
-// handlers build it at start-up; a request must never be the first to, see sensorActiveService). Not built, or SNMP off or not
-// readable: no settings, and a log source is still matched by its listed IP.
-func logsSNMP(d deps) func(ctx context.Context) ([]sensoractive.SNMPDevice, error) {
-	return func(ctx context.Context) ([]sensoractive.SNMPDevice, error) {
+// logsSNMP reads the read addresses people typed for their devices' SNMP from the sensor-active service when it has been built (the
+// module's jobs or the handlers build it at start-up; a request must never be the first to, see sensorActiveService). Not built, or
+// a read that fails: no addresses, and a log source is still matched by its listed IP. A failure is logged once per streak of
+// failures, not on every lookup.
+func logsSNMP(d deps) func(ctx context.Context) (map[string]netip.Addr, error) {
+	var failing atomic.Bool
+	return func(ctx context.Context) (map[string]netip.Addr, error) {
 		saMu.Lock()
 		s := saServices[d.DB]
 		saMu.Unlock()
 		if s == nil {
 			return nil, nil
 		}
-		list, err := s.SNMPDevices(ctx)
+		m, err := s.ReadAddresses(ctx)
 		if err != nil {
-			d.Log.WarnContext(ctx, "logs: the SNMP read addresses of the devices could not be read; sources are matched by listed IP only", "err", err)
+			if failing.CompareAndSwap(false, true) {
+				d.Log.WarnContext(ctx, "logs: the SNMP read addresses of the devices could not be read; sources are matched by listed IP only", "err", err)
+			}
 			return nil, nil
 		}
-		return list, nil
+		failing.Store(false)
+		return m, nil
 	}
 }
 

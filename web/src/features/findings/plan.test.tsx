@@ -208,7 +208,7 @@ describe('Updates to plan (S-TIER-1, S-TIER-2)', () => {
 
   it('a Windows device below Microsoft\'s newest update is named at once, with its build and KB, its CVEs not yet analysed by NVD', async () => {
     const item = { group: 'a-srv/s-w', asset: { id: 'a-srv', name: 'Windows Server 2025 host' }, risk: null, software: 'Windows Server 2025', version: '10.0.26100.33650', fixed: '10.0.26100.33822',
-      kind: 'windows', pro: false, nvd_lag: true, kb: 'KB5131080', cves: [], likely: 0, recent: 0, agent_gone: true, agent_reported: '2026-11-02' }
+      kind: 'windows', pro: false, distro: '', nvd_lag: true, kb: 'KB5131080', cves: [], likely: 0, recent: 0, agent_gone: true, agent_reported: '2026-11-02' }
     server.use(http.get('*/api/v1/findings/plan', () => HttpResponse.json({ items: [item], counts: { likely: 0, recent: 1, all: 1 }, compared: true, compared_devices: 1, unchecked_devices: 0, old_evidence: 0,
       data: { epss: 'ready', recent: 'ready', epss_date: '2026-11-17', recent_since: '2025-11-17' } })))
     renderApp('/plan?tier=all')

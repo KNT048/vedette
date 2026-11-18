@@ -6,7 +6,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { isOpen } from './basis'
 import { useFindings } from './api'
@@ -15,13 +15,16 @@ import type { FindingRow } from './types'
 /** Reads of the findings list after a save, and the pause between them: the box matches the device a moment after the save. */
 export const ENTRY_POLLS = 6
 export const ENTRY_POLL_MS = 2500
+/** Past those, while the device is not matched again yet, the list is read again this often, this many times (about 5 minutes). */
+export const ENTRY_SLOW_POLLS = 30
+export const ENTRY_SLOW_MS = 10000
 
 export type EnteredResult = { closed: FindingRow[]; open: FindingRow[]; otherProof: boolean; rows: FindingRow[]; unknown: boolean }
 
 const same = (a: string | null, b: string) => !!a && a.trim().toLowerCase() === b.trim().toLowerCase()
 const byProof = (f: FindingRow) => f.status === 'not_relevant' && f.resolution_reason === 'not_affected_version' && f.proved_version !== null
 
-/** The findings of one software row (the id of the row, and of the correction that replaces it for matching) against what a person
+/** The findings of one software (the ids of its rows: softwareRowIds) against what a person
  *  entered (`entered`: the release and/or the version on the row). `unknown`: some finding of the device names no row yet (an older one
  *  no match has reached), so an empty answer is not an answer. */
 export function enteredResult(items: FindingRow[], rowIds: readonly string[], entered: readonly string[]): EnteredResult {
@@ -38,13 +41,38 @@ export function enteredResult(items: FindingRow[], rowIds: readonly string[], en
 export const readDeviceFindings = (assetId: string) =>
   api.get<{ items: FindingRow[] }>(`/findings?asset=${encodeURIComponent(assetId)}`).then((d) => d.items, () => null)
 
-/** Whether the re-match after the save has run: a finding of the row is new or changed (status, last match, the version it was proved on). */
-export function rematched(before: FindingRow[], rows: FindingRow[]): boolean {
-  const old = new Map(before.map((f) => [f.id, f]))
-  return rows.some((f) => {
+/** One software of the device as inventory gives it (GET /inventory/devices/{id}/software, inventory INV-50): the effective row and the
+ *  other sources' rows of the same software. */
+type EffectiveRow = { id: string; vendor: string; product: string; also_seen: { id: string }[] }
+
+/** The ids of every row of the software the entry was made on: the edited row, its correction, and, from inventory's effective rows,
+ *  every row of that software: the row that describes it now, the other sources' rows of it, and any other install of the same vendor
+ *  and product (a second agent row at another version). The matcher matches the effective rows (the agent's package row on a device
+ *  that has one), so a finding of the software can be on any of them. */
+export function softwareRowIds(rowIds: readonly string[], effective: readonly EffectiveRow[] | undefined): string[] {
+  const ids = new Set(rowIds)
+  const rows = (e: EffectiveRow) => [e.id, ...e.also_seen.map((o) => o.id)]
+  const product = (e: EffectiveRow) => `${e.vendor}|${e.product}`.trim().toLowerCase()
+  const mine = new Set((effective ?? []).filter((e) => rows(e).some((id) => ids.has(id))).map(product))
+  for (const e of effective ?? []) if (mine.has(product(e))) rows(e).forEach((id) => ids.add(id))
+  return [...ids]
+}
+
+/** Whether the re-match after the save has run, as far as this software is concerned: one of its findings is new, gone or changed
+ *  (status, last match, the version it was proved on, the row it is on), or a match of the device started after the save (`since`:
+ *  when the save was done): every finding a match still makes gets that match's time, so a later last match than any before the save
+ *  is that match. A change on another software of the device alone does not end the wait. */
+export function rematched(before: FindingRow[], items: FindingRow[], ids: readonly string[], since: number): boolean {
+  const mine = (l: FindingRow[]) => l.filter((f) => ids.includes(f.software_id))
+  const was = mine(before), now = mine(items)
+  const old = new Map(was.map((f) => [f.id, f]))
+  if (was.length !== now.length || now.some((f) => {
     const b = old.get(f.id)
-    return !b || b.status !== f.status || b.last_seen !== f.last_seen || b.proved_version !== f.proved_version
-  })
+    return !b || b.status !== f.status || b.last_seen !== f.last_seen || b.proved_version !== f.proved_version || b.software_id !== f.software_id
+  })) return true
+  const last = (l: FindingRow[]) => l.reduce((m, f) => (f.last_seen > m ? f.last_seen : m), '')
+  const after = last(items)
+  return after !== '' && after > last(before) && Date.parse(after) >= since
 }
 
 function CveLinks({ items }: { items: FindingRow[] }) {
@@ -58,32 +86,44 @@ function CveLinks({ items }: { items: FindingRow[] }) {
 }
 
 /**
- * The one-line result: what the entry closed (with links to those findings) and what is still affected.
+ * The one-line result: what the entry closed (with links to those findings) and what is still affected, over every row of the
+ * software (softwareRowIds: the finding may sit on the agent's row that describes the software, not on the row the person edited).
  * `before` (right after a save): the device's findings read before it. Nothing is said until the box has matched the device again
- * (a finding of the row changed), read every few seconds for about 15 s, then "still checking, reload later". Mount it with a key that
- * changes with every save so a second entry starts over. Without `before` (the Software tab) it only reads.
+ * (rematched), read every few seconds for about 15 s; past that it says the device is not matched again yet and keeps reading, more
+ * slowly, so the answer appears when the match lands: it never claims a result it does not have. Mount it with a key that changes with
+ * every save so a second entry starts over. Without `before` (the Software tab) it only reads.
  * `always`: say so when nothing is closed or open too (a row that carries an entry).
  */
 export function EnteredOutcome({ assetId, rowIds, entered, before, always = false }: { assetId: string; rowIds: readonly string[]; entered: readonly string[]; before?: FindingRow[] | null; always?: boolean }) {
   const { t } = useTranslation('findings')
   const q = useFindings(assetId)
+  const eff = useQuery({
+    queryKey: ['inventory', 'effective-software', assetId],
+    queryFn: () => api.get<{ items: EffectiveRow[] }>(`/inventory/devices/${encodeURIComponent(assetId)}/software`).then((d) => d.items),
+    retry: false,
+  })
   const qc = useQueryClient()
+  const [since] = useState(() => Date.now())
   const waiting = before !== undefined
-  const r = enteredResult(q.data?.items ?? [], rowIds, entered)
-  const done = !waiting || (before ? rematched(before, r.rows) : false) || r.closed.length > 0
+  const items = q.data?.items ?? []
+  const ids = softwareRowIds(rowIds, eff.data)
+  const r = enteredResult(items, ids, entered)
+  const done = !waiting || (before ? rematched(before, items, ids, since) : false) || r.closed.length > 0
   const [tries, setTries] = useState(0)
+  const late = !done && tries >= ENTRY_POLLS
   useEffect(() => {
-    if (done || tries >= ENTRY_POLLS) return
-    const timer = setTimeout(() => { setTries((n) => n + 1); void qc.invalidateQueries({ queryKey: ['findings', 'list', assetId] }) }, ENTRY_POLL_MS)
+    if (done || tries >= ENTRY_POLLS + ENTRY_SLOW_POLLS) return
+    const timer = setTimeout(() => {
+      setTries((n) => n + 1)
+      void qc.invalidateQueries({ queryKey: ['findings', 'list', assetId] })
+      void qc.invalidateQueries({ queryKey: ['inventory', 'effective-software', assetId] })
+    }, tries < ENTRY_POLLS ? ENTRY_POLL_MS : ENTRY_SLOW_MS)
     return () => clearTimeout(timer)
   }, [done, tries, qc, assetId])
-  if (q.isError) return null
-  if (q.isPending) return waiting ? <p className="text-meta text-muted">{t('entered.checking')}</p> : null
-  if (!done) {
-    if (tries < ENTRY_POLLS) return <p className="text-meta text-muted">{t('entered.checking')}</p>
-    // out of time: with nothing on the row there is nothing to wait for; otherwise it has not been checked again yet
-    return r.rows.length || r.unknown ? <p className="text-meta text-muted">{t('entered.stillChecking')}</p> : <p className="text-meta">{t('entered.none')}</p>
-  }
+  if (q.isError || eff.isError) return null // either list unreadable: nothing is claimed, as for a failed read of the findings
+  if (q.isPending || eff.isPending) return waiting ? <p className="text-meta text-muted">{t('entered.checking')}</p> : null
+  if (late) return <p className="text-meta text-muted">{t('entered.notYet')}</p>
+  if (!done) return <p className="text-meta text-muted">{t('entered.checking')}</p>
   if (!r.closed.length && !r.open.length) {
     return (waiting || always) && !r.unknown && !r.otherProof ? <p className="text-meta">{t('entered.none')}</p> : null
   }

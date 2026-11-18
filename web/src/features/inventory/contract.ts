@@ -219,8 +219,8 @@ export const SensorPatch = z.object({
 /** Chỉ osquery dùng token (Vedette là máy chủ TLS của osquery). Wazuh là kết nối kéo qua API (WazuhConnection), không có token. Không hỗ trợ Trivy. */
 export const AgentKind = z.enum(['osquery'])
 export const AgentToken = z.object({
-  id: z.string(), name: z.string(), kind: AgentKind, last4: z.string(), created_at: dt, last_received: dt.nullable(), hosts: z.number().int(),
-  expires_at: dt.nullable().describe('null = never expires; default 7 days. The token only enrolls osquery (it can read nothing) and can be revoked'),
+  id: z.string(), name: z.string(), kind: AgentKind, last4: z.string(), created_at: dt, created_by: z.string().nullable().describe('Who made it (null for a token made before this was kept)'), last_received: dt.nullable(), hosts: z.number().int(),
+  expires_at: dt.nullable().describe('When it stops enrolling machines. null = never; default 7 days once a machine has enrolled; a token no machine enrolled with expires 24 hours after it was made. The token only enrolls osquery (it can read nothing) and can be revoked'),
 })
 const Installer = z.object({ url: z.string(), sha256: z.string().describe('SHA-256 (lowercase hex) of the script served by the box; users compare it before running'), script: z.string().describe('Full script text, for the admin to read first') })
 export const OsqueryPackage = z.object({
@@ -274,6 +274,7 @@ export const AgentNode = z.object({
 })
 export const AgentsResponse = z.object({ install: Installers, tokens: z.array(AgentToken), nodes: z.array(AgentNode).describe('Every enrolled osquery agent, the quiet ones first, then by name'), server_url: z.string().describe('https://<box IP>:8443, or https://<VEDETTE_BOX_IP>:8443 when the IP is unknown'), wazuh: WazuhConnection.nullable() })
 export const CreateTokenResult = z.object({ token: AgentToken, secret: z.string().describe('Full token, returned only at creation') })
+export const RemoveUnusedResult = z.object({ removed: z.number().int() })
 export const SampleResult = z.object({ devices: z.number().int(), software: z.number().int() })
 /** "I updated it" for software an agent reads (S-MIT-1): which agent of this box reads the device, and the open ask. */
 export const AgentReport = z.object({
@@ -417,6 +418,7 @@ export const endpoints = defineEndpoints([
   { method: 'patch', path: '/inventory/sensors/{id}', summary: 'Container-only install: choose the card the sensor reads (any card of its last heartbeat, with or without an address; null: back to the default card) and whether it is the SPAN card. 400 bad_interface: not a reported card, no heartbeat in 90 s, or a SPAN card with an address. 409 set_in_box_network on an appliance, where Settings → Box network sets it', stories: ['S-CORE-8', 'S-INV-1'], role: 'admin', params: id, body: SensorPatch, response: Sensor },
   { method: 'get', path: '/inventory/agents', summary: 'Issued osquery tokens and the Wazuh connection (if any)', stories: ['S-INV-4'], role: 'admin', response: AgentsResponse },
   { method: 'post', path: '/inventory/agents/tokens', status: 201, summary: 'Issue an osquery token, returning the full token once', stories: ['S-INV-4'], role: 'admin', body: z.object({ name: z.string().max(64), kind: AgentKind.optional(), expires_in_days: z.number().int().min(0).max(365).optional().describe('Default 7; 0 = never expires') }), response: CreateTokenResult },
+  { method: 'post', path: '/inventory/agents/tokens/remove-unused', summary: 'Remove every token no machine enrolled with (tokens with machines stay). Audited. Also offered when 409 too_many_tokens says the limit of 500 is reached', stories: ['S-INV-4'], role: 'admin', response: RemoveUnusedResult },
   { method: 'delete', path: '/inventory/agents/tokens/{id}', summary: 'Revoke an osquery token', stories: ['S-INV-4'], role: 'admin', params: id, response: null },
   { method: 'get', path: '/inventory/agents/devices/{id}/report', summary: 'Which agent of this box reads the device and whether an ask to send its software now is open ("I updated it", S-MIT-1). 404 not_found: no such device; 404 too while agent-intake is off', stories: ['S-MIT-1', 'S-INV-4'], role: 'viewer', params: id, response: AgentReport },
   { method: 'post', path: '/inventory/agents/devices/{id}/report', summary: 'I updated it: ask the device\'s osquery agent to send its software now. For 15 minutes, or until its list arrives, the box\'s config gives the agent\'s software queries (the same read-only queries, nothing else) a 60 s interval; osquery reads its config every 5 minutes. An open ask is answered as it is; a new ask within 10 minutes of the last: 429 rate_limited (retry_after). 409 cannot_ask: no osquery agent of this box reports on the device (Wazuh only, or none). 404 not_found. Audited', stories: ['S-MIT-1', 'S-INV-4'], role: 'operator', params: id, response: AgentReport },

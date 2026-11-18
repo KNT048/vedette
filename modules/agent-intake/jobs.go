@@ -80,8 +80,10 @@ func (s *Service) Prune(ctx context.Context) error {
 			return fmt.Errorf("agentintake: prune nodes: %w", err)
 		}
 		nodes, _ = r.RowsAffected()
-		r, err = tx.ExecContext(ctx, `DELETE FROM intake_agent_tokens WHERE expires_at IS NOT NULL AND expires_at < ?
-			AND NOT EXISTS (SELECT 1 FROM intake_osquery_nodes n WHERE n.token_id = intake_agent_tokens.id)`, expired)
+		// A token with no machine goes when it expired long ago, or a day after it was made if no machine ever enrolled with it. A token
+		// that has machines stays, whatever its expiry: their node_keys do not depend on it.
+		r, err = tx.ExecContext(ctx, `DELETE FROM intake_agent_tokens WHERE NOT EXISTS (SELECT 1 FROM intake_osquery_nodes n WHERE n.token_id = intake_agent_tokens.id)
+			AND ((expires_at IS NOT NULL AND expires_at < ?) OR (first_enrolled_at IS NULL AND created_at < ?))`, expired, store.FormatTS(now.Add(-unusedTokenLife)))
 		if err != nil {
 			return fmt.Errorf("agentintake: prune tokens: %w", err)
 		}

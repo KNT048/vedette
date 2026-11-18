@@ -2207,6 +2207,16 @@ func (UnimplementedHandler) InventoryPostInventoryAgentsTokensIDSampleData(ctx c
 	return r, ht.ErrNotImplemented
 }
 
+// InventoryPostInventoryAgentsTokensRemoveUnused implements inventory_post_inventory_agents_tokens_remove_unused operation.
+//
+// Remove every token no machine enrolled with (tokens with machines stay). Audited. Also offered when
+// 409 too_many_tokens says the limit of 50 is reached.
+//
+// POST /inventory/agents/tokens/remove-unused
+func (UnimplementedHandler) InventoryPostInventoryAgentsTokensRemoveUnused(ctx context.Context) (r *InventoryPostInventoryAgentsTokensRemoveUnusedOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // InventoryPostInventoryAgentsWazuhSampleData implements inventory_post_inventory_agents_wazuh_sample_data operation.
 //
 // PREVIEW ONLY (mock): sync sample data as if just pulled from Wazuh.

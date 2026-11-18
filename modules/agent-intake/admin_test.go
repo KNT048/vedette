@@ -1,7 +1,6 @@
 package agentintake_test
 
 import (
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
@@ -49,7 +48,7 @@ func TestAdmin_RoleCSRFAndModuleOff(t *testing.T) {
 	w := newWorld(t)
 	id, _ := w.token("srv", 7)
 	for _, c := range []struct{ method, path string }{
-		{"GET", "/inventory/agents"}, {"POST", "/inventory/agents/tokens"}, {"DELETE", "/inventory/agents/nodes/" + id}, {"DELETE", "/inventory/agents/tokens/" + id},
+		{"GET", "/inventory/agents"}, {"POST", "/inventory/agents/tokens"}, {"POST", "/inventory/agents/tokens/remove-unused"}, {"DELETE", "/inventory/agents/nodes/" + id}, {"DELETE", "/inventory/agents/tokens/" + id},
 	} {
 		csrf := c.method != "GET"
 		if r := w.as("", c.method, c.path, csrf); r.code != 401 {
@@ -72,7 +71,7 @@ func TestAdmin_RoleCSRFAndModuleOff(t *testing.T) {
 	w.gate.Set("agent-intake", false)
 	unknown := w.as("admin", "GET", "/inventory/nothing", true)
 	for _, c := range []struct{ method, path string }{
-		{"GET", "/inventory/agents"}, {"POST", "/inventory/agents/tokens"}, {"DELETE", "/inventory/agents/nodes/" + id}, {"DELETE", "/inventory/agents/tokens/" + id},
+		{"GET", "/inventory/agents"}, {"POST", "/inventory/agents/tokens"}, {"POST", "/inventory/agents/tokens/remove-unused"}, {"DELETE", "/inventory/agents/nodes/" + id}, {"DELETE", "/inventory/agents/tokens/" + id},
 	} {
 		if r := w.admin(c.method, c.path, map[string]any{"name": "x"}); r.code != 404 || r.raw != unknown.raw {
 			t.Errorf("%s %s while off: %d %s", c.method, c.path, r.code, r.raw)
@@ -149,13 +148,10 @@ func TestAdmin_CreateChecks(t *testing.T) {
 	if w.count(`SELECT count(*) FROM intake_agent_tokens`) != 0 {
 		t.Fatal("a refused create left a token")
 	}
-	for i := range 50 {
-		if r := w.admin("POST", "/inventory/agents/tokens", map[string]any{"name": fmt.Sprintf("t%d", i)}); r.code != 201 {
-			t.Fatalf("token %d: %d %s", i, r.code, r.raw)
-		}
-	}
+	w.exec(`WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 500)
+		INSERT INTO intake_agent_tokens (id, name, token_hash, last4, created_at) SELECT 'bulk' || i, 'bulk ' || i, printf('%064d', i), 'abcd', '2999-01-01T00:00:00.000Z' FROM n`)
 	if r := w.admin("POST", "/inventory/agents/tokens", map[string]any{"name": "one too many"}); r.code != 409 || r.errCode() != "too_many_tokens" {
-		t.Fatalf("51st token: %d %s", r.code, r.raw)
+		t.Fatalf("501st token: %d %s", r.code, r.raw)
 	}
 }
 
@@ -214,7 +210,8 @@ func TestAdmin_PageShape(t *testing.T) {
 		t.Fatalf("server_url %v", page.body["server_url"])
 	}
 	_, s1 := w.token("short", 1)
-	w.token("never", 0)
+	_, s2 := w.token("never", 0)
+	w.enroll(s2, "srv-1", peerA) // used: it keeps its (here: no) expiry; an unused token shows its one-day expiry
 	w.clock.Advance(2 * 24 * time.Hour)
 	page = w.admin("GET", "/inventory/agents", nil)
 	got := tokenList(t, page)
@@ -225,7 +222,7 @@ func TestAdmin_PageShape(t *testing.T) {
 	for _, tk := range got {
 		byName[tk["name"].(string)] = tk
 	}
-	if byName["never"]["expires_at"] != nil || byName["short"]["expires_at"] == nil || byName["short"]["last_received"] != nil || byName["short"]["hosts"] != float64(0) {
+	if byName["never"]["expires_at"] != nil || byName["short"]["expires_at"] == nil || byName["short"]["last_received"] != nil || byName["short"]["hosts"] != float64(0) || byName["never"]["hosts"] != float64(1) {
 		t.Fatalf("token fields: %v", byName)
 	}
 }

@@ -30,10 +30,12 @@ export default function AssistantPage() {
   const usage = useUsage(on)
   const cfg = useAiConfig(on)
   const u = usage.data
+  const [q, setQ] = useState('') // held here: switching tabs unmounts a tab, and a half-typed question must survive a look at History
   const title = gate.state === 'off' ? t('page.titleOff')
     : gate.state === 'unconfigured' ? t(gate.text === 'keyLost' ? 'page.titleKeyLost' : 'page.titleUnconfigured')
       : u ? t('page.title', { used: fmtNumber(u.month.total), cap: fmtNumber(u.monthly_budget) }) : t('page.titleLoading')
-  const tabs: PageTab[] = [{ id: 'ask', label: t('page.tabAsk'), panel: <Ask /> }]
+  const tabs: PageTab[] = [{ id: 'ask', label: t('page.tabAsk'), panel: <Ask q={q} setQ={setQ} /> }]
+  if (on) tabs.push({ id: 'history', label: t('page.tabHistory'), panel: <History /> })
   // Chưa nối AI và chưa từng chạy: đồng hồ 0/trần và nhật ký trống chỉ gây nhiễu; màn trống ở tab Ask đã nói việc cần làm.
   // Trong lúc tải vẫn có tab Usage: số tab đổi 1 → 2 sẽ dựng lại tab Ask và mất chữ người dùng đang gõ.
   if (gate.state !== 'off' && !(gate.state === 'unconfigured' && u && u.month.total === 0)) {
@@ -51,21 +53,18 @@ export default function AssistantPage() {
   )
 }
 
-function Ask() {
+function Ask({ q, setQ }: { q: string; setQ: (v: string) => void }) {
   const { t } = useTranslation('ai')
   const gate = useAiGate('operator', 'ask-my-data')
   const ask = useAsk()
   const asks = useAsks(gate.state !== 'off' && gate.state !== 'loading')
-  const [q, setQ] = useState('')
-  const [shown, setShown] = useState<AskResult | null>(null)
-  const result = shown ?? ask.data ?? asks.data?.items[0] ?? null
+  const result = ask.data ?? asks.data?.items[0] ?? null
   // A failed Ask is said where its answer would be, with the question, not above it with an older answer below.
-  const failed = !shown && !ask.isPending && ask.error ? ask.error : null
+  const failed = !ask.isPending && ask.error ? ask.error : null
   const long = q.length > ASK_MAX
 
   function run(text: string) {
     if (!text.trim() || text.length > ASK_MAX) return
-    setShown(null)
     ask.mutate(text)
   }
 
@@ -84,12 +83,15 @@ function Ask() {
               </div>
             </Field>
             {q.length >= ASK_MAX * 0.8 && !long ? <p id="ai-q-count" className="-mt-2 text-caption text-muted">{t('ask.count', { n: q.length, max: ASK_MAX })}</p> : null}
-            <div role="group" aria-label={t('ask.suggested')} className="flex flex-wrap items-center gap-2">
-              <span className="text-meta text-muted">{t('ask.suggested')}</span>
-              {SUGGESTED.map((k) => (
-                <Button key={k} size="sm" className="h-auto min-h-8 whitespace-normal py-1 text-left" disabled={!gate.canRun || ask.isPending} busy={ask.isPending && ask.variables === t(`ask.q.${k}`)} busyLabel={t('common:busy.asking')} title={gate.reason} onClick={() => { setQ(t(`ask.q.${k}`)); run(t(`ask.q.${k}`)) }}>{t(`ask.q.${k}`)}</Button>
-              ))}
-            </div>
+            {/* Folded: one line to open the suggestions, so the page starts with the question box. */}
+            <details className="group text-meta">
+              <summary className="w-fit cursor-pointer text-muted hover:text-ink">{t('ask.suggested')}</summary>
+              <div role="group" aria-label={t('ask.suggested')} className="mt-2 flex flex-wrap items-center gap-2">
+                {SUGGESTED.map((k) => (
+                  <Button key={k} size="sm" className="h-auto min-h-8 whitespace-normal py-1 text-left" disabled={!gate.canRun || ask.isPending} busy={ask.isPending && ask.variables === t(`ask.q.${k}`)} busyLabel={t('common:busy.asking')} title={gate.reason} onClick={() => { setQ(t(`ask.q.${k}`)); run(t(`ask.q.${k}`)) }}>{t(`ask.q.${k}`)}</Button>
+                ))}
+              </div>
+            </details>
           </form>
           {/* A question can take up to two minutes (modules/ai askDefaultTimeout); say so while it runs */}
           <BusyNote busy={ask.isPending}>{t('ask.working')}</BusyNote>
@@ -102,16 +104,51 @@ function Ask() {
           ) : null}
           {result && !ask.isPending && !failed ? <Answer r={result} /> : null}
           {!result && !ask.isPending && !failed ? <p className="text-sm text-muted">{t('ask.empty')}</p> : null}
-          {asks.data && asks.data.items.length > 1 ? (
-            <div className="text-meta">
-              <p className="mb-1 text-muted">{t('ask.history')}</p>
-              <ul className="flex flex-wrap gap-2">
-                {asks.data.items.map((a) => <li key={a.id}><button type="button" className="rounded-md border border-rule px-2 py-1 text-left hover:bg-sunken" onClick={() => setShown(a)}>{a.question}</button></li>)}
-              </ul>
-            </div>
-          ) : null}
         </div>
       )}
+    </Section>
+  )
+}
+
+/** Past questions, newest first, each opens with its answer; a text filter narrows the list (the box keeps the last few it answered). */
+function History() {
+  const { t } = useTranslation('ai')
+  const gate = useAiGate('operator', 'ask-my-data')
+  const asks = useAsks(gate.state !== 'off' && gate.state !== 'loading')
+  const [filter, setFilter] = useState('')
+  const [openId, setOpenId] = useState<string | null>(null)
+  return (
+    <Section title={t('history.title')} description={t('history.description')}>
+      <QueryState query={asks}>
+        {(d) => {
+          const items = [...d.items].sort((a, b) => b.asked_at.localeCompare(a.asked_at))
+          if (!items.length) return <p className="text-sm text-muted">{t('history.empty')}</p>
+          const needle = filter.trim().toLowerCase()
+          const rows = needle ? items.filter((a) => a.question.toLowerCase().includes(needle)) : items
+          return (
+            <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
+              <Field label={t('history.filter')} htmlFor="ai-history-filter">
+                <Input id="ai-history-filter" type="search" value={filter} onChange={(e) => setFilter(e.target.value)} />
+              </Field>
+              {rows.length ? (
+                <ul className="grid gap-2">
+                  {rows.map((a) => {
+                    const open = openId === a.id
+                    return (
+                      <li key={a.id} className="grid gap-3 rounded-md border border-rule p-2">
+                        <button type="button" aria-expanded={open} className="flex flex-wrap items-baseline justify-between gap-x-3 text-left text-sm" onClick={() => setOpenId(open ? null : a.id)}>
+                          <span className="font-medium">{a.question}</span><span className="text-meta text-muted">{fmtDateTime(a.asked_at)}</span>
+                        </button>
+                        {open ? <Answer r={a} /> : null}
+                      </li>
+                    )
+                  })}
+                </ul>
+              ) : <p className="text-sm text-muted">{t('history.noMatch', { q: filter.trim() })}</p>}
+            </div>
+          )
+        }}
+      </QueryState>
     </Section>
   )
 }

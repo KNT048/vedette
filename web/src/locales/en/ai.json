@@ -30,6 +30,7 @@
     "meta": "{{tier}} level. Every answer needs a person to confirm before acting on it.",
     "tabs": "Assistant sections",
     "tabAsk": "Ask",
+    "tabHistory": "Recent questions",
     "tabUsage": "Usage",
     "kpiLabel": "AI usage at a glance",
     "kpiTokens": "tokens used this month"
@@ -46,6 +47,13 @@
     "mitigation-config": "Mitigation config",
     "translate-advisory": "Translate advisory",
     "response-plan": "Response plan"
+  },
+  "history": {
+    "title": "Recent questions",
+    "description": "Questions you asked before, newest first. Open one to read its answer.",
+    "filter": "Search your questions",
+    "empty": "No questions asked yet.",
+    "noMatch": "No question contains \"{{q}}\"."
   },
   "ask": {
     "title": "Ask your data",
@@ -70,7 +78,6 @@
     "failed": "No answer: the question did not get through.",
     "tooLong": "A question has {{max}} characters at most; this one has {{n}}. Shorten it, then ask.",
     "count": "{{n}} of {{max}} characters",
-    "history": "Recent questions",
     "answerFor": "Answer to: {{q}}",
     "you": "You asked:",
     "tableTitle": "Result table ({{n}} rows)",

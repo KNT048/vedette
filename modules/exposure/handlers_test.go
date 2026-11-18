@@ -175,6 +175,7 @@ func TestHandlers_FlowAndShapes(t *testing.T) {
 		t.Fatalf("verify not found: %d %v", code, b)
 	}
 	e.dns.put("acme.example", "vedette-verify="+token)
+	e.advance(DomainCheckEvery)
 	if code, b = e.call("POST", "/exposure/targets/"+id+"/verify", "operator", ""); code != 200 || b["verified"] != true {
 		t.Fatalf("verify: %d %v", code, b)
 	}

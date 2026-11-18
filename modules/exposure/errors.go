@@ -91,6 +91,15 @@ func rateLimited(wait int) *APIError {
 	return apiErr(429, "rate_limited", "Too many verification attempts (limit %d per hour). Try again in about %d minute%s.", MaxAttemptsPerHour, wait, s)
 }
 
+// checkedTooSoon is the 429 of a domain target checked less than DomainCheckEvery ago: it says in seconds when the next check is allowed.
+func checkedTooSoon(wait int) *APIError {
+	s := "s"
+	if wait == 1 {
+		s = ""
+	}
+	return apiErr(429, "rate_limited", "This target was checked a moment ago. The next check is allowed in %d second%s.", wait, s)
+}
+
 func notPublic(ips []string) *APIError {
 	one := len(ips) == 1
 	is, kind, it := "are", "addresses", "them"

@@ -8,6 +8,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"time"
 	"unicode"
 
 	"github.com/knt048/vedette/core/domainfence"
@@ -33,6 +34,12 @@ import (
 //     bound to the box by the domain fence), so a record with it was put there by whoever runs that name's DNS for this box. A
 //     parent target removed from the box takes its token with it: names it covered are covered no more at their next check
 //     (before every scan, INV-1 (c)).
+//   - A proof already found is reused by the names it covers: a target whose own record was found on a name N (stored with its check:
+//     Check.ProofName) covers N when N is a target, and every name under N, down from the registered domain, so a TXT record on
+//     example.com that proved git.example.com proves example.com and www.example.com too, with no second record. A record on a
+//     subdomain covers that name and the names under it, never its parent or its siblings. The record is looked up again at every check
+//     (it must still be there), only a passing, unexpired check of a target of this box counts, and a check stored by an older release
+//     (no ProofName) counts for nothing. A box holds one organisation's targets: there is no other tenant's proof to meet.
 
 // verifyLabel is the label of the dedicated proof name: _vedette-verify.<name> (domainfence.VerifyLabel, the executors' copy).
 const verifyLabel = domainfence.VerifyLabel
@@ -125,6 +132,9 @@ type proof struct {
 	owner, token string
 	// own: the token is the checked target's own; with proven a parent name, its record on that parent.
 	own bool
+	// reused: the record is another target's own record on a name that covers the checked one (its stored ProofName), not a parent
+	// target's value and not the checked target's own token.
+	reused bool
 	// failure says, when nothing was found, which names were asked and what came back (cleaned, bounded).
 	failure string
 }
@@ -153,9 +163,38 @@ func (p proofResolver) LookupCNAME(ctx context.Context, name string) (string, er
 // candidate is a record that would prove the checked target: a token (the checked target's own, or a parent target's) on a name of
 // its chain (its own name, or a parent name down to its registered domain).
 type candidate struct {
-	name string
-	t    Target // whose token
-	got  domainfence.Proof
+	name   string
+	t      Target // whose token
+	reused bool   // t's own record on name, found by an earlier check of t (its stored ProofName)
+	got    domainfence.Proof
+}
+
+// recordName is the name the checked target's own record was found on, as stored with its check (Check.ProofName); "" when nothing was
+// found or another target's record proved it.
+func (p proof) recordName() string {
+	if p.found && p.own {
+		return p.proven
+	}
+	return ""
+}
+
+// reuses lists the targets whose earlier proof covers name: a domain target of the box that passed its last check, is not expired,
+// and found its own record on a name that is not itself (the apex or a parent name) and that name or a name under it is name's
+// registered domain or above name (proofat.Within, the one rule of the executors too). Nothing here proves anything alone: each is
+// looked up again by prove.
+func reuses(name string, all []Target, now time.Time) []candidate {
+	var out []candidate
+	for _, o := range all {
+		if o.Kind != KindDomain || o.Value == name || o.VerifiedAt.IsZero() || o.LastCheck == nil || !o.LastCheck.OK || o.validity(now) == validityExpired {
+			continue
+		}
+		at := o.LastCheck.ProofName
+		if at == "" || at == o.Value || !under(o.Value, at) || !proofat.Within(name, at) {
+			continue
+		}
+		out = append(out, candidate{name: at, t: o, reused: true})
+	}
+	return out
 }
 
 // prove looks for a record proving t with the one rule of core/domainfence.Owned, which the executors apply too: t's own
@@ -180,6 +219,7 @@ func (s *Service) prove(ctx context.Context, t Target, all []Target) proof {
 			cands = append(cands, candidate{name: n, t: o})
 		}
 	}
+	cands = append(cands, reuses(t.Value, all, s.clock())...) // after the nearest own and parent records
 	// One DNS budget for the whole check: every lookup, the explanation of a failure included, ends by one
 	// deadline, and the lookups still running stop as soon as the nearest valid record is known.
 	bctx, cancel := context.WithTimeout(ctx, dnsTimeout)
@@ -199,7 +239,7 @@ func (s *Service) prove(ctx context.Context, t Target, all []Target) proof {
 			continue
 		}
 		cancel()
-		p := proof{found: true, at: c.got.At, proven: c.name, owner: c.t.ID, token: c.t.Token, own: c.t.ID == t.ID}
+		p := proof{found: true, at: c.got.At, proven: c.name, owner: c.t.ID, token: c.t.Token, own: c.t.ID == t.ID, reused: c.reused}
 		if !p.own {
 			p.via = c.t.Value
 		}
@@ -223,7 +263,7 @@ func stillOwner(ctx context.Context, tx *sql.Tx, checked string, p proof) (proof
 	case errors.Is(err, ErrNotFound):
 	case err != nil:
 		return p, err
-	case o.Token == p.token && o.Value == p.proven:
+	case o.Token == p.token && o.Value == p.via:
 		return p, nil
 	}
 	return proof{failure: fmt.Sprintf("The record of %s covered this name, but %s was removed from the box while it was checked, so it covers it no more.", p.proven, p.proven)}, nil
@@ -280,7 +320,7 @@ func (s *Service) whyNot(ctx context.Context, t Target, cands []candidate) strin
 	}
 	var above []string
 	for _, c := range cands {
-		if c.t.ID != t.ID {
+		if c.t.ID != t.ID && !c.reused {
 			above = append(above, c.t.Value)
 		}
 	}
@@ -379,9 +419,16 @@ func cleanDNS(v string, n int) string {
 	return v
 }
 
+// reusedMessage is the check message of a name covered by a record that proved another target of the box.
+func reusedMessage(name, when string) string {
+	return fmt.Sprintf("Ownership already proven by the TXT record at %s (checked %s).", name, when)
+}
+
 // proofMessage is the check message of a found proof.
-func proofMessage(t Target, p proof) string {
+func proofMessage(t Target, p proof, when string) string {
 	switch {
+	case p.reused:
+		return reusedMessage(p.proven, when)
 	case p.own && p.proven != t.Value:
 		return fmt.Sprintf("Found the TXT record %s on %s: this target's own record on a parent name, which proves %s.", txtRecord(t.Token), p.at, t.Value)
 	case p.via != "":

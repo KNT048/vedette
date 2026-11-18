@@ -141,31 +141,6 @@ func TestContract_INV28_Deep_OwnTokenOnTheApexSetsProofAt(t *testing.T) {
 	}
 }
 
-// git proved by its own token at the apex covers nothing under it. ci.git gets no "covered by git" note, the
-// "@" instruction, and a failed Check that does not claim git has no record.
-func TestProof_AnApexProvedTargetCoversNothingBelow(t *testing.T) {
-	t.Parallel()
-	e, _ := newProofEnv(t)
-	git := e.add("admin@acme.example", "git.beyondnetglobal.com")
-	e.dns.put("beyondnetglobal.com", "v=spf1 -all", txtRecord(git.Token))
-	if r := e.verify(git.ID); !r.Verified {
-		t.Fatalf("%+v", r)
-	}
-	ci := e.add("admin@acme.example", "ci.git.beyondnetglobal.com")
-	if p := e.target(ci.ID).Proof; p == nil || p.CoveredBy != nil || p.Host != "@" || p.Zone != "beyondnetglobal.com" {
-		t.Fatalf("hint %+v", p)
-	}
-	r := e.verify(ci.ID)
-	if r.Verified || !strings.Contains(r.Message, "The box's git.beyondnetglobal.com would cover it only with its own record on that name itself") {
-		t.Fatalf("%+v", r)
-	}
-	// with ci's own token at the apex too, ci is proved by itself
-	e.dns.put("beyondnetglobal.com", "v=spf1 -all", txtRecord(git.Token), txtRecord(ci.Token))
-	if r := e.verify(ci.ID); !r.Verified {
-		t.Fatalf("%+v", r)
-	}
-}
-
 // deadlineDNS records the deadline of every lookup; names in block wait until their context ends and report how it ended.
 type deadlineDNS struct {
 	*cnameDNS

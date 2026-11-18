@@ -57,11 +57,11 @@ func (s *Service) gate(ctx context.Context, actor, id string) (Target, BlockedRe
 			}
 			found := pr.found
 			now := s.clock()
-			msg, action := proofMessage(t, pr), "exposure.verify_ok"
+			msg, action := proofMessage(t, pr, s.momentText(now)), "exposure.verify_ok"
 			if !found {
 				msg, action = pr.failure, "exposure.verify_fail"
 			}
-			if err := updateCheck(ctx, tx, id, Check{At: store.FormatTS(now), OK: found, Message: msg, Covers: pr.coversBelow(t.Value)}, time.Time{}, ""); err != nil {
+			if err := updateCheck(ctx, tx, id, Check{At: store.FormatTS(now), OK: found, Message: msg, Covers: pr.coversBelow(t.Value), ProofName: pr.recordName()}, time.Time{}, ""); err != nil {
 				return err
 			}
 			if t.LastCheck != nil && t.LastCheck.OK == found { // nothing changed: the check is not a row of its own (L5)
@@ -75,7 +75,7 @@ func (s *Service) gate(ctx context.Context, actor, id string) (Target, BlockedRe
 		if t, err = loadTarget(ctx, s.cfg.DB.Reader(), id); err != nil {
 			return Target{}, "", err
 		}
-		if pr.found { // the target whose record proved it now: the executors' fence checks that domain and token
+		if pr.found && !pr.reused { // the target whose record proved it now: the executors' fence checks that domain and token
 			t.proofDomain, t.proofToken, t.proofOwn = pr.proven, pr.token, pr.own
 		}
 	}

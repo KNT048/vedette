@@ -51,10 +51,34 @@ func (s *Service) attempt(ctx context.Context) error {
 	})
 }
 
-// Verify re-checks ownership of one target (POST …/verify, PRE-2). A domain: its TXT record. An IP:
-// the box must leave the Internet through it now; seeing it renews it for 30 days (INV-4). "Not found"
-// is verified:false, not an error.
+// domainCheckAllowed lets a person check one domain target once every DomainCheckEvery: a check is DNS lookups only, so the limit is
+// per target and short, and says in seconds when the next check is allowed.
+func (s *Service) domainCheckAllowed(id string) error {
+	now := s.clock()
+	s.checkMu.Lock()
+	defer s.checkMu.Unlock()
+	for k, at := range s.lastCheck { // bounded by the targets: forget what no longer limits anything
+		if d := now.Sub(at); d >= DomainCheckEvery || d < 0 {
+			delete(s.lastCheck, k)
+		}
+	}
+	if at, ok := s.lastCheck[id]; ok {
+		return checkedTooSoon(int((DomainCheckEvery - now.Sub(at) + time.Second - 1) / time.Second))
+	}
+	s.lastCheck[id] = now
+	return nil
+}
+
+// Verify re-checks ownership of one target (POST …/verify, PRE-2). A domain: its TXT record, at most once every DomainCheckEvery per
+// target. An IP: the box must leave the Internet through it now; seeing it renews it for 30 days (INV-4), and counts among the
+// MaxAttemptsPerHour of the box. "Not found" is verified:false, not an error.
 func (s *Service) Verify(ctx context.Context, user, id string) (VerifyResult, error) {
+	return s.verify(ctx, user, id, true)
+}
+
+// verify is Verify; limited false is the box's own check of a name a proof already covers (right after it is added), which is no
+// attempt of a person.
+func (s *Service) verify(ctx context.Context, user, id string, limited bool) (VerifyResult, error) {
 	t, err := loadTarget(ctx, s.cfg.DB.Reader(), id)
 	if err != nil {
 		return VerifyResult{}, fmt.Errorf("exposure: verifying: %w", err)
@@ -64,7 +88,14 @@ func (s *Service) Verify(ctx context.Context, user, id string) (VerifyResult, er
 		s.detectMu.Lock()
 		defer s.detectMu.Unlock()
 	}
-	if err := s.attempt(ctx); err != nil {
+	switch {
+	case !limited:
+	case t.Kind == KindDomain:
+		err = s.domainCheckAllowed(id)
+	default:
+		err = s.attempt(ctx)
+	}
+	if err != nil {
 		return VerifyResult{}, fmt.Errorf("exposure: verifying: %w", err)
 	}
 	var ok bool
@@ -112,7 +143,7 @@ func (s *Service) Verify(ctx context.Context, user, id string) (VerifyResult, er
 		case ok && cur.Kind == KindIP:
 			message, verifiedAt = fmt.Sprintf("The box reaches the Internet via %s. Verified until %s.", cur.Value, s.dayText(now.Add(ValidDays*24*time.Hour))), now
 		case ok:
-			message = proofMessage(cur, pr) + bound
+			message = proofMessage(cur, pr, s.momentText(now)) + bound
 			if cur.VerifiedAt.IsZero() {
 				verifiedAt = now
 			}
@@ -129,7 +160,7 @@ func (s *Service) Verify(ctx context.Context, user, id string) (VerifyResult, er
 		if ok {
 			setMethod = method
 		}
-		if err := updateCheck(ctx, tx, id, Check{At: store.FormatTS(now), OK: ok, Message: message, Covers: ok && pr.coversBelow(cur.Value)}, verifiedAt, setMethod); err != nil {
+		if err := updateCheck(ctx, tx, id, Check{At: store.FormatTS(now), OK: ok, Message: message, Covers: ok && pr.coversBelow(cur.Value), ProofName: pr.recordName()}, verifiedAt, setMethod); err != nil {
 			return err
 		}
 		action := "exposure.verify_fail"
@@ -178,8 +209,10 @@ func (s *Service) boundTokenNote(ctx context.Context, t Target, p proof) string 
 // message and audit row; one already verified and passing is left as it is. The record is checked again for each of them right
 // before each of their scans (INV-1 (c)), so a record removed, or the parent target removed with its token, covers them no more.
 func (s *Service) coverOthers(ctx context.Context, tx *sql.Tx, user string, t Target, p proof, now time.Time, emit func(string, any)) error {
-	if owner := map[bool]string{true: t.Value, false: p.via}[p.own]; p.proven != owner {
-		// T's own token on a parent name proves t only: the other targets under that parent need their own token there
+	if p.reused {
+		return nil // t is covered by another target's proof: the targets under it are covered by that proof, not by t
+	}
+	if owner := map[bool]string{true: t.Value, false: p.via}[p.own]; p.proven != owner && !p.own {
 		return nil
 	}
 	all, err := listTargets(ctx, tx)
@@ -195,6 +228,9 @@ func (s *Service) coverOthers(ctx context.Context, tx *sql.Tx, user string, t Ta
 			verifiedAt = now
 		}
 		msg := fmt.Sprintf("Covered by the TXT record on %s, found when %s was checked: it proves %s and every name under it.", p.at, t.Value, p.proven)
+		if p.own && p.proven != t.Value { // the record of t's own token on a parent name: the zone's, so it proves every name under that name
+			msg = reusedMessage(p.proven, s.momentText(now))
+		}
 		if err := updateCheck(ctx, tx, o.ID, Check{At: store.FormatTS(now), OK: true, Message: msg}, verifiedAt, methodDNS); err != nil {
 			return err
 		}

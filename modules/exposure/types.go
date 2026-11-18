@@ -12,7 +12,7 @@ const (
 	MaxIntervalMin     = 1440
 	DefaultIntervalMin = 60
 	MaxTargets         = 20
-	MaxAttemptsPerHour = 10
+	MaxAttemptsPerHour = 10 // Detect now and the check of an IP, which ask public services: shared, per box
 	CertWarnDays       = 30
 	DeepEvery          = time.Hour       // a full check runs at most this often by itself; shorter intervals do light checks
 	EnableGap          = 5 * time.Minute // turning auto-detect on checks at once, unless it checked within this time
@@ -20,6 +20,10 @@ const (
 	// SystemUser is the actor of everything the box does by itself (the audit trail of auto-detect).
 	SystemUser = "system"
 )
+
+// DomainCheckEvery is the least time between two ownership checks of one domain target: a check is a few DNS lookups, so a person
+// who just changed a record can check again soon, and a loop cannot hammer the resolver.
+const DomainCheckEvery = 30 * time.Second
 
 // Kind is what a target is: a domain or a public IP.
 type Kind string
@@ -68,6 +72,10 @@ type Check struct {
 	// name or its _vedette-verify name, which covers the names under it. A record of its own token on a parent name
 	// proves it only, so covered_by never names it.
 	Covers bool `json:"-"`
+	// ProofName (stored with the check, never in the API) is the name this domain target's own record was found on: the name itself or
+	// a parent name down to its registered domain (without the _vedette-verify label). Empty for a check that found nothing, for one that
+	// was proved by another target's record, and for a check stored by an older release: such a proof is reused by nobody.
+	ProofName string `json:"-"`
 }
 
 // Commitment is who ticked "my company owns it and I am authorized to scan it", and when.

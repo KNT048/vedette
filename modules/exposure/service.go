@@ -70,6 +70,9 @@ type Service struct {
 	lastScan    map[string]time.Time // when each target's last scan started (ScanEvery; kept in memory, a restart forgets it)
 	lastOutside time.Time            // when the box last asked Shodan (OutsideEvery; kept in memory, a restart forgets it)
 
+	checkMu   sync.Mutex           // guards lastCheck
+	lastCheck map[string]time.Time // when each domain target's ownership was last checked by a person (DomainCheckEvery; in memory, a restart forgets it)
+
 	gbOnce sync.Once
 	gbs    *gbState // Greenbone's state in memory (INV-25); made by gb()
 
@@ -90,7 +93,7 @@ func NewService(cfg Config) (*Service, error) {
 	if cfg.Location == nil {
 		cfg.Location = time.Local
 	}
-	return &Service{cfg: cfg, now: now, runner: cfg.Runner, lastScan: map[string]time.Time{}, bg: context.Background()}, nil
+	return &Service{cfg: cfg, now: now, runner: cfg.Runner, lastScan: map[string]time.Time{}, lastCheck: map[string]time.Time{}, bg: context.Background()}, nil
 }
 
 // SetRunner registers the scanner (the scan module does it at start-up). Nil removes it.
@@ -440,7 +443,21 @@ func (s *Service) AddDomain(ctx context.Context, user, raw string) (TargetView, 
 		}
 		return TargetView{}, fmt.Errorf("exposure: adding domain: %w", err)
 	}
+	s.coverAdded(ctx, user, id, value)
 	return s.Target(ctx, id)
+}
+
+// coverAdded checks a name just added when the proof of another target of the box already covers it (reuses): the person put no
+// record for it and is asked for none. The check looks the record up again (DNS only); if it is gone the target stays unverified with the
+// usual explanation. It is the box's own check, not an attempt of a person, and never fails the add.
+func (s *Service) coverAdded(ctx context.Context, user, id, value string) {
+	all, err := listTargets(ctx, s.cfg.DB.Reader())
+	if err == nil && len(reuses(value, all, s.clock())) > 0 {
+		_, err = s.verify(ctx, user, id, false)
+	}
+	if err != nil {
+		s.cfg.Log.WarnContext(ctx, "exposure: checking a name an earlier proof covers", "domain", value, "error", err)
+	}
 }
 
 // Delete removes a target with its snapshots and its commitment; the audit log stays (INV-7). For an

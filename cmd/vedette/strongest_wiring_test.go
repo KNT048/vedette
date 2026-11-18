@@ -197,8 +197,10 @@ func TestStrongestRow_EveryCombination(t *testing.T) {
 						switch {
 						case w.source == "nmap":
 							w.planItems = 0 // a banner's version is never planned
-						case o.name == "ubuntu" && w.pkg && (agent == "packaged" || agent == "" && manual == "pkg"):
-							w.planItems = 0 // Ubuntu's own data decides (none stored here: nothing to plan)
+						case o.name == "ubuntu" && agent == "packaged":
+							w.planItems = 0 // the agent's deb row: Ubuntu's own data decides (none stored here: nothing to plan)
+							// a person's Debian release names its source package only by a guess, which holds no Ubuntu rows here: NVD,
+							// with Ubuntu's security updates (TestWiringPersonsUbuntuReleaseUsesUbuntusData stores the rows)
 						}
 						w.id = addSSHDevice(t, s, fmt.Sprintf("10.77.%d.%d", n/200, n%200+1), r)
 						cases = append(cases, w)

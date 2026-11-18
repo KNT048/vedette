@@ -119,7 +119,8 @@ func (a feedsInventory) Distros(ctx context.Context) (map[string]map[string]bool
 		if !ok {
 			continue
 		}
-		fa := findingsAsset(d) // the same rows as the matcher's (vendor and product too: a person's Debian release names its source by them)
+		// the same rows as the matcher's (vendor and product too: a person's Debian release names its source package by them)
+		fa := findingsAsset(d)
 		if findings.StatesAlpine(fa) && out[findings.DistroAlpine] == nil { // Alpine's feed keeps no package rows
 			out[findings.DistroAlpine] = map[string]bool{}
 		}

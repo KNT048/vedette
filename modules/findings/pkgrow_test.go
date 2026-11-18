@@ -14,8 +14,8 @@ var (
 		{CPE: "cpe:2.3:a:openbsd:openssh:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: "10.6"}}}}
 )
 
-func sshAgentRow(version, pkg, src string) Software {
-	return Software{ID: "s-agent", Display: "OpenSSH", Vendor: "OpenBSD", Product: "OpenSSH", Version: version, Source: "agent", Packaged: true,
+func sshAgentRow(pkg, src string) Software {
+	return Software{ID: "s-agent", Display: "OpenSSH", Vendor: "OpenBSD", Product: "OpenSSH", Version: "10.2p1", Source: "agent", Packaged: true,
 		PkgVersion: pkg, PkgSource: src, KevKeys: []string{"openbsd|openssh"}}
 }
 
@@ -40,11 +40,11 @@ func TestPackageRow_NoUpstreamUpgradeForAPackage(t *testing.T) {
 		distro    string
 		toFixKind string
 	}{
-		{"Alpine, the agent's apk row", "Alpine Linux 3.23.0", sshAgentRow("10.2p1", "10.2_p1-r1", "openssh"), "distro", "", "Alpine Linux", "distro"},
+		{"Alpine, the agent's apk row", "Alpine Linux 3.23.0", sshAgentRow("10.2_p1-r1", "openssh"), "distro", "", "Alpine Linux", "distro"},
 		{"Alpine, a person's apk release", "Alpine Linux 3.23.0", sshCorrection("10.2_p1-r1"), "distro", "", "Alpine Linux", "distro"},
-		{"Rocky, the agent's rpm row", "Rocky Linux 9.6", sshAgentRow("10.2p1", "10.2p1-1.el9", "openssh"), "distro", "", "", "distro"},
-		{"Ubuntu, a Wazuh row without its source package", "Ubuntu 24.04 LTS", sshAgentRow("10.2p1", "", ""), "distro", "", "Ubuntu", "distro"},
-		{"Ubuntu, the agent's deb row: Ubuntu's data", "Ubuntu 24.04 LTS", sshAgentRow("10.2p1", "1:10.2p1-2ubuntu3.8", "openssh"), "distro", "1:10.2p1-2ubuntu3.9", "", "distro"},
+		{"Rocky, the agent's rpm row", "Rocky Linux 9.6", sshAgentRow("10.2p1-1.el9", "openssh"), "distro", "", "", "distro"},
+		{"Ubuntu, a Wazuh row without its source package", "Ubuntu 24.04 LTS", sshAgentRow("", ""), "distro", "", "Ubuntu", "distro"},
+		{"Ubuntu, the agent's deb row: Ubuntu's data", "Ubuntu 24.04 LTS", sshAgentRow("1:10.2p1-2ubuntu3.8", "openssh"), "distro", "1:10.2p1-2ubuntu3.9", "", "distro"},
 		{"Ubuntu, a person's Debian release: Ubuntu's data", "Ubuntu 24.04 LTS", sshCorrection("1:10.2p1-2ubuntu3.8"), "distro", "1:10.2p1-2ubuntu3.9", "", "distro"},
 		{"Alpine, a typed upstream version", "Alpine Linux 3.23.0", sshCorrection(""), "fixed", "10.6", "", "fixed"},
 	} {

@@ -117,7 +117,7 @@ function tierPlan(tier: string, asset: string | null): Omit<Plan, 'counts'> {
       // As the box: an agent row's version is the last list an agent sent once no agent reports the device (agent-intake off, or no
       // agent row: the inventory mock binds an osquery agent to a device with one; the box reads its own packages)
       const gone = cves.some((c) => c.basis === 'agent') && a.id !== 'a-box' && !(isOn('agent-intake') && a.software.some((s) => s.source === 'agent'))
-      items.push({ group: `${a.id}/${p.software_id}`, asset: { id: a.id, name: nameOf(a) }, risk: null, software: p.software, version: p.version, fixed: p.fixed, kind: p.kind, pro: p.pro ?? false, nvd_lag: p.nvd_lag ?? false, kb: p.kb ?? '',
+      items.push({ group: `${a.id}/${p.software_id}`, asset: { id: a.id, name: nameOf(a) }, risk: null, software: p.software, version: p.version, fixed: p.fixed, kind: p.kind, pro: p.pro ?? false, distro: p.distro ?? '', nvd_lag: p.nvd_lag ?? false, kb: p.kb ?? '',
         cves, likely: cves.filter((c) => c.tier === 'likely').length, recent: cves.filter((c) => c.tier === 'recent').length,
         agent_gone: gone, agent_reported: gone ? p.reported ?? null : null })
     }
@@ -547,7 +547,7 @@ function toFix(asset: string | null): ToFix {
     const planned: ToFixAction[] = planItems.filter((i) => i.asset.id === id).map((i) => {
       const worst = i.cves.reduce((w, c) => (c.severity && sevRank(c.severity) > sevRank(w) ? c.severity : w), '')
       const row = a.software.find((x) => x.id === (i.group.split('/')[1] ?? ''))
-      const u = { group: i.group, software_id: i.group.split('/')[1] ?? '', software: i.software, version: i.version, product: row ? `${row.vendor}|${row.product}`.toLowerCase() : '', source: row?.source ?? '', fixed: i.fixed, kind: i.kind, windows: i.kind === 'windows' || i.kind === 'esu', distro: '', pro: i.pro, action: '', cves: i.cves.map((c) => c.cve), finding_ids: [], worst, ransomware: 0, likely: i.likely, confirmed: 0, detected: 0, reported: 0, suspected: 0, nvd_lag: i.nvd_lag, kb: i.kb }
+      const u = { group: i.group, software_id: i.group.split('/')[1] ?? '', software: i.software, version: i.version, product: row ? `${row.vendor}|${row.product}`.toLowerCase() : '', source: row?.source ?? '', fixed: i.fixed, kind: i.kind, windows: i.kind === 'windows' || i.kind === 'esu', distro: i.distro, pro: i.pro, action: '', cves: i.cves.map((c) => c.cve), finding_ids: [], worst, ransomware: 0, likely: i.likely, confirmed: 0, detected: 0, reported: 0, suspected: 0, nvd_lag: i.nvd_lag, kb: i.kb }
       return { ...u, action: sentence(u) }
     })
     const card = { asset: view, open: rows.filter((x) => x.asset_id === id).length, exploited: acts.filter((x) => x.kind !== 'none').sort(order), no_update: acts.filter((x) => x.kind === 'none').sort(order), planned, plan_compared: true }

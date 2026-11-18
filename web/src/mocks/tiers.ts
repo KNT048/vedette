@@ -12,6 +12,8 @@ export type PlanBasis = 'scan' | 'agent' | 'distro' | 'version'
 export interface PlanSeed {
   asset_id: string; software_id: string; software: string; version: string; fixed: string; kind: 'fixed' | 'distro' | 'windows' | 'esu'
   pro?: boolean
+  /** distro without `fixed`: the distribution whose security updates to install ("Alpine Linux"). */
+  distro?: string
   /** windows, esu: `fixed` is Microsoft's newest monthly update, newer than every fix NVD names (the count is a floor). */
   nvd_lag?: boolean
   /** windows, esu: the KB number of `fixed` from Microsoft's release information. */

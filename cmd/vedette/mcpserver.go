@@ -145,7 +145,7 @@ func (s mcpSource) Assets(ctx context.Context) ([]mcpserver.Asset, error) {
 	}
 	out := make([]mcpserver.Asset, 0, len(list.Items))
 	for _, d := range list.Items {
-		out = append(out, mcpAsset(d))
+		out = append(out, mcpAsset(effectiveDevice(ctx, s.inv, d))) // one row per software (inventory INV-50)
 	}
 	return out, nil
 }
@@ -161,7 +161,7 @@ func (s mcpSource) Asset(ctx context.Context, id string) (mcpserver.Asset, bool,
 	if err != nil {
 		return mcpserver.Asset{}, false, err
 	}
-	return mcpAsset(d), true, nil
+	return mcpAsset(effectiveDevice(ctx, s.inv, d)), true, nil
 }
 
 const mcpTS = "2006-01-02T15:04:05.000Z"

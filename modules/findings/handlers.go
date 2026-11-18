@@ -633,7 +633,7 @@ func (h *FindingHandlers) FindingsGetFindingsPlan(ctx context.Context, params oa
 			reported = &d
 		}
 		items = append(items, map[string]any{"group": k.it.Group, "asset": map[string]any{"id": a.ID, "name": a.Name}, "risk": riskOfView(risks, a), "software": k.it.Software,
-			"version": k.it.Version, "fixed": k.it.Fixed, "kind": k.it.Kind, "pro": k.it.Pro, "nvd_lag": k.it.NVDLag, "kb": k.it.KB, "cves": cves, "likely": likely, "recent": len(k.cves) - likely,
+			"version": k.it.Version, "fixed": k.it.Fixed, "kind": k.it.Kind, "distro": k.it.Distro, "pro": k.it.Pro, "nvd_lag": k.it.NVDLag, "kb": k.it.KB, "cves": cves, "likely": likely, "recent": len(k.cves) - likely,
 			"agent_gone": lastOnly, "agent_reported": reported})
 	}
 	return Into[oas.FindingsGetFindingsPlanOK](map[string]any{

@@ -73979,11 +73979,13 @@ type FindingsGetFindingsIDOKFixedIn struct {
 	// itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix, the
 	// vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the fix
 	// of each release line; distro = a package of the distribution, whose security updates carry the fix
-	// under their own numbers: an agent read it from the device's package database (deb/rpm), or the
-	// version carries a marker such as ubuntu, +deb12, .el9; feature_update = a Windows release NVD does
-	// not list for the fix, which only a later release of its line (`branches[0].branch`, from build
-	// `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu = the fixing Windows
-	// build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+	// under their own numbers: an agent read it from the device's package database (deb, rpm or apk), a
+	// person gave its package release (an apk, Debian or RPM release, or any release on a device that runs
+	// a Linux distribution), or the version carries a marker such as ubuntu, +deb12, .el9; feature_update
+	// = a Windows release NVD does not list for the fix, which only a later release of its line
+	// (`branches[0].branch`, from build `fixed`) has: Microsoft no longer updates it, so it needs a
+	// feature update; esu = the fixing Windows build `fixed` comes only with Extended Security Updates for
+	// `branches[0].branch`.
 	Kind FindingsGetFindingsIDOKFixedInKind `json:"kind"`
 	// Release lines with a fix left out of branches.
 	More int `json:"more"`
@@ -74139,11 +74141,13 @@ func (s *FindingsGetFindingsIDOKFixedInBranchesItem) SetFixed(val string) {
 // itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix, the
 // vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the fix
 // of each release line; distro = a package of the distribution, whose security updates carry the fix
-// under their own numbers: an agent read it from the device's package database (deb/rpm), or the
-// version carries a marker such as ubuntu, +deb12, .el9; feature_update = a Windows release NVD does
-// not list for the fix, which only a later release of its line (`branches[0].branch`, from build
-// `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu = the fixing Windows
-// build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+// under their own numbers: an agent read it from the device's package database (deb, rpm or apk), a
+// person gave its package release (an apk, Debian or RPM release, or any release on a device that runs
+// a Linux distribution), or the version carries a marker such as ubuntu, +deb12, .el9; feature_update
+// = a Windows release NVD does not list for the fix, which only a later release of its line
+// (`branches[0].branch`, from build `fixed`) has: Microsoft no longer updates it, so it needs a
+// feature update; esu = the fixing Windows build `fixed` comes only with Extended Security Updates for
+// `branches[0].branch`.
 type FindingsGetFindingsIDOKFixedInKind string
 
 const (
@@ -79729,6 +79733,9 @@ type FindingsGetFindingsPlanOKItemsItem struct {
 	// old ("its CVEs are not yet analysed by NVD"), false after ("NVD lists no CVE of it for this release
 	// yet").
 	Cves []FindingsGetFindingsPlanOKItemsItemCvesItem `json:"cves"`
+	// Distro with `fixed` empty: the distribution whose security updates to install ("Alpine Linux",
+	// "Ubuntu", "Debian"); empty for "the distribution's" and for every other kind.
+	Distro string `json:"distro"`
 	// Fixed: the version that fixes every CVE of the item; windows, esu: the build of the cumulative
 	// update; distro: the distribution's package version that fixes every CVE of the item on the device's
 	// release.
@@ -79738,10 +79745,14 @@ type FindingsGetFindingsPlanOKItemsItem struct {
 	// Windows, esu: the KB number of `fixed` when Microsoft's release information lists that build
 	// ("KB5131080"), named next to the build; "" otherwise.
 	KB string `json:"kb"`
-	// Fixed = upgrade the software to `fixed`; distro = upgrade the Ubuntu or Debian source package
-	// `software` from `version` to `fixed` or later (the distribution's security update); windows = the
-	// monthly cumulative update with build `fixed` or later; esu = the same on a Windows release past its
-	// end of support: the update comes only with Extended Security Updates.
+	// Fixed = upgrade the software to `fixed`; distro = with `fixed`, upgrade the Ubuntu or Debian source
+	// package `software` from `version` to `fixed` or later (the distribution's security update); with
+	// `fixed` empty, a package of a distribution whose data Vedette does not read (Alpine, Red Hat, a
+	// package without its source name; an agent's package row or a package release a person gave): install
+	// `distro`'s security updates for `software` (`version` is the package release when known), never an
+	// upstream release; windows = the monthly cumulative update with build `fixed` or later; esu = the
+	// same on a Windows release past its end of support: the update comes only with Extended Security
+	// Updates.
 	Kind   FindingsGetFindingsPlanOKItemsItemKind `json:"kind"`
 	Likely int                                    `json:"likely"`
 	// Windows, esu: `fixed` is the newest monthly update Microsoft's release information lists for the
@@ -79780,6 +79791,11 @@ func (s *FindingsGetFindingsPlanOKItemsItem) GetAsset() FindingsGetFindingsPlanO
 // GetCves returns the value of Cves.
 func (s *FindingsGetFindingsPlanOKItemsItem) GetCves() []FindingsGetFindingsPlanOKItemsItemCvesItem {
 	return s.Cves
+}
+
+// GetDistro returns the value of Distro.
+func (s *FindingsGetFindingsPlanOKItemsItem) GetDistro() string {
+	return s.Distro
 }
 
 // GetFixed returns the value of Fixed.
@@ -79855,6 +79871,11 @@ func (s *FindingsGetFindingsPlanOKItemsItem) SetAsset(val FindingsGetFindingsPla
 // SetCves sets the value of Cves.
 func (s *FindingsGetFindingsPlanOKItemsItem) SetCves(val []FindingsGetFindingsPlanOKItemsItemCvesItem) {
 	s.Cves = val
+}
+
+// SetDistro sets the value of Distro.
+func (s *FindingsGetFindingsPlanOKItemsItem) SetDistro(val string) {
+	s.Distro = val
 }
 
 // SetFixed sets the value of Fixed.
@@ -80202,10 +80223,14 @@ func (s *FindingsGetFindingsPlanOKItemsItemCvesItemTier) UnmarshalText(data []by
 	}
 }
 
-// Fixed = upgrade the software to `fixed`; distro = upgrade the Ubuntu or Debian source package
-// `software` from `version` to `fixed` or later (the distribution's security update); windows = the
-// monthly cumulative update with build `fixed` or later; esu = the same on a Windows release past its
-// end of support: the update comes only with Extended Security Updates.
+// Fixed = upgrade the software to `fixed`; distro = with `fixed`, upgrade the Ubuntu or Debian source
+// package `software` from `version` to `fixed` or later (the distribution's security update); with
+// `fixed` empty, a package of a distribution whose data Vedette does not read (Alpine, Red Hat, a
+// package without its source name; an agent's package row or a package release a person gave): install
+// `distro`'s security updates for `software` (`version` is the package release when known), never an
+// upstream release; windows = the monthly cumulative update with build `fixed` or later; esu = the
+// same on a Windows release past its end of support: the update comes only with Extended Security
+// Updates.
 type FindingsGetFindingsPlanOKItemsItemKind string
 
 const (
@@ -86325,11 +86350,13 @@ type FindingsPostFindingsIDAiOKFixedIn struct {
 	// itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix, the
 	// vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the fix
 	// of each release line; distro = a package of the distribution, whose security updates carry the fix
-	// under their own numbers: an agent read it from the device's package database (deb/rpm), or the
-	// version carries a marker such as ubuntu, +deb12, .el9; feature_update = a Windows release NVD does
-	// not list for the fix, which only a later release of its line (`branches[0].branch`, from build
-	// `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu = the fixing Windows
-	// build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+	// under their own numbers: an agent read it from the device's package database (deb, rpm or apk), a
+	// person gave its package release (an apk, Debian or RPM release, or any release on a device that runs
+	// a Linux distribution), or the version carries a marker such as ubuntu, +deb12, .el9; feature_update
+	// = a Windows release NVD does not list for the fix, which only a later release of its line
+	// (`branches[0].branch`, from build `fixed`) has: Microsoft no longer updates it, so it needs a
+	// feature update; esu = the fixing Windows build `fixed` comes only with Extended Security Updates for
+	// `branches[0].branch`.
 	Kind FindingsPostFindingsIDAiOKFixedInKind `json:"kind"`
 	// Release lines with a fix left out of branches.
 	More int `json:"more"`
@@ -86485,11 +86512,13 @@ func (s *FindingsPostFindingsIDAiOKFixedInBranchesItem) SetFixed(val string) {
 // itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix, the
 // vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the fix
 // of each release line; distro = a package of the distribution, whose security updates carry the fix
-// under their own numbers: an agent read it from the device's package database (deb/rpm), or the
-// version carries a marker such as ubuntu, +deb12, .el9; feature_update = a Windows release NVD does
-// not list for the fix, which only a later release of its line (`branches[0].branch`, from build
-// `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu = the fixing Windows
-// build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+// under their own numbers: an agent read it from the device's package database (deb, rpm or apk), a
+// person gave its package release (an apk, Debian or RPM release, or any release on a device that runs
+// a Linux distribution), or the version carries a marker such as ubuntu, +deb12, .el9; feature_update
+// = a Windows release NVD does not list for the fix, which only a later release of its line
+// (`branches[0].branch`, from build `fixed`) has: Microsoft no longer updates it, so it needs a
+// feature update; esu = the fixing Windows build `fixed` comes only with Extended Security Updates for
+// `branches[0].branch`.
 type FindingsPostFindingsIDAiOKFixedInKind string
 
 const (
@@ -90422,11 +90451,13 @@ type FindingsPostFindingsIDAppliedOKFixedIn struct {
 	// itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix, the
 	// vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the fix
 	// of each release line; distro = a package of the distribution, whose security updates carry the fix
-	// under their own numbers: an agent read it from the device's package database (deb/rpm), or the
-	// version carries a marker such as ubuntu, +deb12, .el9; feature_update = a Windows release NVD does
-	// not list for the fix, which only a later release of its line (`branches[0].branch`, from build
-	// `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu = the fixing Windows
-	// build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+	// under their own numbers: an agent read it from the device's package database (deb, rpm or apk), a
+	// person gave its package release (an apk, Debian or RPM release, or any release on a device that runs
+	// a Linux distribution), or the version carries a marker such as ubuntu, +deb12, .el9; feature_update
+	// = a Windows release NVD does not list for the fix, which only a later release of its line
+	// (`branches[0].branch`, from build `fixed`) has: Microsoft no longer updates it, so it needs a
+	// feature update; esu = the fixing Windows build `fixed` comes only with Extended Security Updates for
+	// `branches[0].branch`.
 	Kind FindingsPostFindingsIDAppliedOKFixedInKind `json:"kind"`
 	// Release lines with a fix left out of branches.
 	More int `json:"more"`
@@ -90582,11 +90613,13 @@ func (s *FindingsPostFindingsIDAppliedOKFixedInBranchesItem) SetFixed(val string
 // itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix, the
 // vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the fix
 // of each release line; distro = a package of the distribution, whose security updates carry the fix
-// under their own numbers: an agent read it from the device's package database (deb/rpm), or the
-// version carries a marker such as ubuntu, +deb12, .el9; feature_update = a Windows release NVD does
-// not list for the fix, which only a later release of its line (`branches[0].branch`, from build
-// `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu = the fixing Windows
-// build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+// under their own numbers: an agent read it from the device's package database (deb, rpm or apk), a
+// person gave its package release (an apk, Debian or RPM release, or any release on a device that runs
+// a Linux distribution), or the version carries a marker such as ubuntu, +deb12, .el9; feature_update
+// = a Windows release NVD does not list for the fix, which only a later release of its line
+// (`branches[0].branch`, from build `fixed`) has: Microsoft no longer updates it, so it needs a
+// feature update; esu = the fixing Windows build `fixed` comes only with Extended Security Updates for
+// `branches[0].branch`.
 type FindingsPostFindingsIDAppliedOKFixedInKind string
 
 const (
@@ -94540,11 +94573,13 @@ type FindingsPostFindingsIDConfirmOKFixedIn struct {
 	// itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix, the
 	// vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the fix
 	// of each release line; distro = a package of the distribution, whose security updates carry the fix
-	// under their own numbers: an agent read it from the device's package database (deb/rpm), or the
-	// version carries a marker such as ubuntu, +deb12, .el9; feature_update = a Windows release NVD does
-	// not list for the fix, which only a later release of its line (`branches[0].branch`, from build
-	// `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu = the fixing Windows
-	// build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+	// under their own numbers: an agent read it from the device's package database (deb, rpm or apk), a
+	// person gave its package release (an apk, Debian or RPM release, or any release on a device that runs
+	// a Linux distribution), or the version carries a marker such as ubuntu, +deb12, .el9; feature_update
+	// = a Windows release NVD does not list for the fix, which only a later release of its line
+	// (`branches[0].branch`, from build `fixed`) has: Microsoft no longer updates it, so it needs a
+	// feature update; esu = the fixing Windows build `fixed` comes only with Extended Security Updates for
+	// `branches[0].branch`.
 	Kind FindingsPostFindingsIDConfirmOKFixedInKind `json:"kind"`
 	// Release lines with a fix left out of branches.
 	More int `json:"more"`
@@ -94700,11 +94735,13 @@ func (s *FindingsPostFindingsIDConfirmOKFixedInBranchesItem) SetFixed(val string
 // itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix, the
 // vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the fix
 // of each release line; distro = a package of the distribution, whose security updates carry the fix
-// under their own numbers: an agent read it from the device's package database (deb/rpm), or the
-// version carries a marker such as ubuntu, +deb12, .el9; feature_update = a Windows release NVD does
-// not list for the fix, which only a later release of its line (`branches[0].branch`, from build
-// `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu = the fixing Windows
-// build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+// under their own numbers: an agent read it from the device's package database (deb, rpm or apk), a
+// person gave its package release (an apk, Debian or RPM release, or any release on a device that runs
+// a Linux distribution), or the version carries a marker such as ubuntu, +deb12, .el9; feature_update
+// = a Windows release NVD does not list for the fix, which only a later release of its line
+// (`branches[0].branch`, from build `fixed`) has: Microsoft no longer updates it, so it needs a
+// feature update; esu = the fixing Windows build `fixed` comes only with Extended Security Updates for
+// `branches[0].branch`.
 type FindingsPostFindingsIDConfirmOKFixedInKind string
 
 const (
@@ -98596,11 +98633,13 @@ type FindingsPostFindingsIDStatusOKFixedIn struct {
 	// itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix, the
 	// vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the fix
 	// of each release line; distro = a package of the distribution, whose security updates carry the fix
-	// under their own numbers: an agent read it from the device's package database (deb/rpm), or the
-	// version carries a marker such as ubuntu, +deb12, .el9; feature_update = a Windows release NVD does
-	// not list for the fix, which only a later release of its line (`branches[0].branch`, from build
-	// `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu = the fixing Windows
-	// build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+	// under their own numbers: an agent read it from the device's package database (deb, rpm or apk), a
+	// person gave its package release (an apk, Debian or RPM release, or any release on a device that runs
+	// a Linux distribution), or the version carries a marker such as ubuntu, +deb12, .el9; feature_update
+	// = a Windows release NVD does not list for the fix, which only a later release of its line
+	// (`branches[0].branch`, from build `fixed`) has: Microsoft no longer updates it, so it needs a
+	// feature update; esu = the fixing Windows build `fixed` comes only with Extended Security Updates for
+	// `branches[0].branch`.
 	Kind FindingsPostFindingsIDStatusOKFixedInKind `json:"kind"`
 	// Release lines with a fix left out of branches.
 	More int `json:"more"`
@@ -98756,11 +98795,13 @@ func (s *FindingsPostFindingsIDStatusOKFixedInBranchesItem) SetFixed(val string)
 // itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix, the
 // vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the fix
 // of each release line; distro = a package of the distribution, whose security updates carry the fix
-// under their own numbers: an agent read it from the device's package database (deb/rpm), or the
-// version carries a marker such as ubuntu, +deb12, .el9; feature_update = a Windows release NVD does
-// not list for the fix, which only a later release of its line (`branches[0].branch`, from build
-// `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu = the fixing Windows
-// build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+// under their own numbers: an agent read it from the device's package database (deb, rpm or apk), a
+// person gave its package release (an apk, Debian or RPM release, or any release on a device that runs
+// a Linux distribution), or the version carries a marker such as ubuntu, +deb12, .el9; feature_update
+// = a Windows release NVD does not list for the fix, which only a later release of its line
+// (`branches[0].branch`, from build `fixed`) has: Microsoft no longer updates it, so it needs a
+// feature update; esu = the fixing Windows build `fixed` comes only with Extended Security Updates for
+// `branches[0].branch`.
 type FindingsPostFindingsIDStatusOKFixedInKind string
 
 const (
@@ -102745,11 +102786,13 @@ type FindingsPostFindingsIDUnconfirmOKFixedIn struct {
 	// itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix, the
 	// vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the fix
 	// of each release line; distro = a package of the distribution, whose security updates carry the fix
-	// under their own numbers: an agent read it from the device's package database (deb/rpm), or the
-	// version carries a marker such as ubuntu, +deb12, .el9; feature_update = a Windows release NVD does
-	// not list for the fix, which only a later release of its line (`branches[0].branch`, from build
-	// `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu = the fixing Windows
-	// build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+	// under their own numbers: an agent read it from the device's package database (deb, rpm or apk), a
+	// person gave its package release (an apk, Debian or RPM release, or any release on a device that runs
+	// a Linux distribution), or the version carries a marker such as ubuntu, +deb12, .el9; feature_update
+	// = a Windows release NVD does not list for the fix, which only a later release of its line
+	// (`branches[0].branch`, from build `fixed`) has: Microsoft no longer updates it, so it needs a
+	// feature update; esu = the fixing Windows build `fixed` comes only with Extended Security Updates for
+	// `branches[0].branch`.
 	Kind FindingsPostFindingsIDUnconfirmOKFixedInKind `json:"kind"`
 	// Release lines with a fix left out of branches.
 	More int `json:"more"`
@@ -102905,11 +102948,13 @@ func (s *FindingsPostFindingsIDUnconfirmOKFixedInBranchesItem) SetFixed(val stri
 // itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix, the
 // vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the fix
 // of each release line; distro = a package of the distribution, whose security updates carry the fix
-// under their own numbers: an agent read it from the device's package database (deb/rpm), or the
-// version carries a marker such as ubuntu, +deb12, .el9; feature_update = a Windows release NVD does
-// not list for the fix, which only a later release of its line (`branches[0].branch`, from build
-// `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu = the fixing Windows
-// build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+// under their own numbers: an agent read it from the device's package database (deb, rpm or apk), a
+// person gave its package release (an apk, Debian or RPM release, or any release on a device that runs
+// a Linux distribution), or the version carries a marker such as ubuntu, +deb12, .el9; feature_update
+// = a Windows release NVD does not list for the fix, which only a later release of its line
+// (`branches[0].branch`, from build `fixed`) has: Microsoft no longer updates it, so it needs a
+// feature update; esu = the fixing Windows build `fixed` comes only with Extended Security Updates for
+// `branches[0].branch`.
 type FindingsPostFindingsIDUnconfirmOKFixedInKind string
 
 const (

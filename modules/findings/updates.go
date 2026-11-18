@@ -328,7 +328,7 @@ func listedPlanItems(items []PlanItem, now time.Time) []PlanItem {
 // planAction is the action of one plan item (without its sentence): its CVEs, how many are likely, and the worst severity.
 func planAction(it PlanItem) UpdateAction {
 	u := UpdateAction{Group: it.Group, SoftwareID: it.SoftwareID, Software: it.Software, Version: it.Version, Fixed: it.Fixed, Kind: it.Kind,
-		Windows: it.Kind == "windows" || it.Kind == "esu", Pro: it.Pro, NVDLag: it.NVDLag, KB: it.KB}
+		Windows: it.Kind == "windows" || it.Kind == "esu", Distro: it.Distro, Pro: it.Pro, NVDLag: it.NVDLag, KB: it.KB}
 	worst := -1
 	for _, c := range it.CVEs {
 		u.CVEs = append(u.CVEs, c.CVE)

@@ -189,9 +189,9 @@ func fixedInSoftware(in swInfo, v Vuln, key []identity) *FixedIn {
 	}
 	p := fixedPartsOf(in, v, key)
 	usable, outside := p.usable, p.outside
-	// A package of the distribution: an agent read it from the package database, or its version says so. A row
-	// whose origin is not known keeps the upstream answer with the condition (Distro below).
-	distro := in.given && (in.packaged || distroMarked(in.ver) && distroName(in) != "")
+	// A package of the distribution: an agent read it from the package database, a person gave its package release, or its version
+	// says so. A row whose origin is not known keeps the upstream answer with the condition (Distro below).
+	distro := in.given && (in.pkgBuilt() || distroMarked(in.ver) && distroName(in) != "")
 	var f *FixedIn
 	if in.given && versionKnown(in.ver) {
 		f = fixedForVersion(in, usable, outside, distro)
@@ -495,7 +495,7 @@ func groupFixOf(in swInfo, vulns []Vuln, nvd map[string]bool) *GroupFix {
 		return nil
 	}
 	g := &GroupFix{Version: clean(in.ver), Distro: distroName(in), Closed: closed, Ranged: maps.Clone(closed)}
-	if in.packaged || distroMarked(in.ver) && g.Distro != "" {
+	if in.pkgBuilt() || distroMarked(in.ver) && g.Distro != "" {
 		g.Kind = "distro"
 		return g
 	}

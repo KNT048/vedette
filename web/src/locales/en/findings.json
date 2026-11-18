@@ -639,6 +639,7 @@
     "action": {
       "fixed": "Upgrade {{software}} from {{version}} to {{fixed}} or later",
       "distro": "Install the distribution's security updates for {{software}} ({{version}})",
+      "distroNamed": "Install {{distro}}'s security updates for {{software}} ({{version}})",
       "distroFixed": "Upgrade the {{software}} package from {{version}} to {{fixed}} or later",
       "distroPro": "Upgrade the {{software}} package from {{version}} to {{fixed}} or later (Ubuntu Pro)",
       "windows": "Install the latest cumulative update for {{software}} (from build {{version}} to {{fixed}} or later{{kb}})",
@@ -862,6 +863,6 @@
     "field_version": "version",
     "update": "Save and check",
     "openRow": "Open {{software}} on the device",
-    "stillChecking": "Still checking. Reload this page in a minute for the result."
+    "notYet": "Not matched again yet; this page updates when it is."
   }
 }

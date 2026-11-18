@@ -311,7 +311,8 @@ func deviceOS(a Asset) (os Software, orderable, ok bool) {
 	return Software{}, false, false
 }
 
-// deviceSoftware is the software the matcher reads for a device: its inventory rows and, when the device states a network OS
+// deviceSoftware is the software every surface reads for a device: its inventory rows (inventory's MatchInput gives only the
+// effective row of each software, inventory INV-50; findings never ranks sources itself) and, when the device states a network OS
 // with a version its scheme orders (deviceOS), one row for that OS. A recorded row of the OS without a readable version, all of
 // whose KEV keys are the OS row's, gives way to it: the device's own version decides instead of "add the version" (review M3 of
 // #703).

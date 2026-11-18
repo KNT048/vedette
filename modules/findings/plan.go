@@ -55,6 +55,9 @@ type PlanItem struct {
 	Fixed      string `json:"fixed"`
 	Kind       string `json:"kind"` // fixed, windows, esu, distro
 	Pro        bool   `json:"pro"`  // distro: the fixed version is in Ubuntu Pro (ESM) only
+	// Distro (distro without Fixed, pkgTierItem): the distribution whose security updates to install ("Alpine Linux"); "" for the
+	// distribution's.
+	Distro string `json:"distro"`
 	// NVDLag (windows, esu): Fixed is the newest monthly update Microsoft lists for the release, newer than the update that carries
 	// every fixed build NVD names (GroupFix.NVDLag): the item fixes at least its CVEs; the newest update's are not analysed by NVD yet.
 	NVDLag bool `json:"nvd_lag"`
@@ -91,19 +94,27 @@ func tierSource(s Software) bool {
 }
 
 // tierInfo is the swInfo of a row the plan compares with NVD's ranges, false when it compares none: a source tierSource refuses, no
-// readable version, or a distribution's package (an agent's deb/rpm row, or a version with a distribution's mark): the distributions
-// backport fixes, so NVD's upstream ranges would put a patched package inside. An agent's deb row on Ubuntu or Debian is
-// compared with the distribution's own data instead (distroTierItems).
-func tierInfo(a Asset, s Software) (swInfo, bool) {
+// readable version, or a version with a distribution's mark and no package release ("1.18.0-6ubuntu14.6" typed as the version).
+// pkg says the row is a distribution's package (pkgBuilt: an agent's deb/rpm/apk row, a package release a person gave): the
+// distributions backport fixes, so the update to name is the distribution's, never an upstream release. An Ubuntu or Debian
+// package is compared with the distribution's own data (distroTierItems, distroRows); any other package is compared by its
+// upstream version and, inside a range, gets one item "install <distribution>'s security updates" (pkgTierItem).
+func tierInfo(a Asset, s Software) (in swInfo, pkg, ok bool) {
 	if !tierSource(s) {
-		return swInfo{}, false
+		return swInfo{}, false, false
 	}
-	in := newSWInfo(s, a.OS)
+	in = newSWInfo(s, a.OS)
 	in.platformOS = platformOS(s, a)
-	if !in.given || !versionKnown(in.ver) || in.packaged || distroMarked(in.ver) || distroMarked(s.Version) {
-		return swInfo{}, false
+	if !in.given || !versionKnown(in.ver) {
+		return swInfo{}, false, false
 	}
-	return in, true
+	if in.pkgBuilt() {
+		return in, true, true
+	}
+	if distroMarked(in.ver) || distroMarked(s.Version) {
+		return swInfo{}, false, false
+	}
+	return in, false, true
 }
 
 // tierKey is the product key of an NVD CPE as the plan indexes it: norm(vendor) "|" norm(product), read without a full parse (an
@@ -150,9 +161,12 @@ type TierScope struct {
 func NewTierScope(assets []Asset) *TierScope {
 	t := &TierScope{keys: map[string]bool{}}
 	for _, a := range assets {
+		deb := debOS(a.OS)
 		for _, s := range deviceSoftware(a) {
-			in, ok := tierInfo(a, s)
-			if !ok {
+			in, pkg, ok := tierInfo(a, s)
+			// an agent's Ubuntu or Debian package reads the distribution's data (Feeds.TierDistro), not NVD's; a person's release may
+			// fall back to NVD (byDistroData: another build, a guessed source name without rows), so its product is in the scope too
+			if _, _, _, byDistro := debPkg(s); !ok || pkg && deb && byDistro && s.Packaged && s.builtBy() == "agent" {
 				continue
 			}
 			if _, win := winDevice(in); win {
@@ -385,9 +399,9 @@ func matchTiers(a Asset, x *tierIndex, kev map[string]bool, now time.Time) (item
 	listed := map[string]bool{}
 	winItem := map[string]bool{} // a Windows install (its version) that has an item: one row per install, never a second one
 	for _, s := range sws {
-		in, ok := tierInfo(a, s)
-		if !ok {
-			continue
+		in, pkg, ok := tierInfo(a, s)
+		if !ok || pkg && x.byDistroData(a, s) {
+			continue // an Ubuntu or Debian package: distroTierItems
 		}
 		compared = true
 		d, win := winDevice(in)
@@ -418,6 +432,15 @@ func matchTiers(a Asset, x *tierIndex, kev map[string]bool, now time.Time) (item
 			}
 			mine = append(mine, v)
 		}
+		if pkg { // a package of a distribution whose data Vedette does not read: its security updates, never an upstream release
+			if it, ok := pkgTierItem(a, s, in, x, mine); ok {
+				for _, c := range it.CVEs {
+					listed[c.CVE+"|"+clean(in.ver)] = true
+				}
+				items = append(items, it)
+			}
+			continue
+		}
 		its := tierItems(a, s, in, win, x, mine, now)
 		for _, it := range its { // the same install seen twice (the agent's and a typed row) folds; two installs at two versions do not (review r2 #2 of #804)
 			for _, c := range it.CVEs {
@@ -436,6 +459,54 @@ func matchTiers(a Asset, x *tierIndex, kev map[string]bool, now time.Time) (item
 	}
 	its, dc := distroTierItems(a, x, kev, cut)
 	return append(items, its...), compared || dc
+}
+
+// byDistroData says the distribution's own data decides the row on the plan (distroTierItems): an Ubuntu or Debian package with its
+// source package (debPkg). A source name guessed from the product (a person's release without one) decides only when the feeds hold
+// rows under that name for the device's release; otherwise the row is compared with NVD like any other package (pkgTierItem), never
+// left out: "postgresql" or "bind" are not Debian's source names (postgresql-16, bind9), and an empty answer is no answer.
+func (x *tierIndex) byDistroData(a Asset, s Software) bool {
+	if !debOS(a.OS) {
+		return false
+	}
+	ver, src, guessed, ok := debPkg(s)
+	if !ok || s.Packaged && s.builtBy() == "agent" {
+		return ok // an agent's deb row: the distribution's data, as before (a PPA build there gives nothing, distroTierItems)
+	}
+	d, rel := distroOf(newSWInfo(s, a.OS))
+	if d == "" || rel == "" {
+		return false
+	}
+	pkg := securitySource(d, src)
+	// a person's release: the distribution's data speaks only for its own build of that release (a Debian build on Ubuntu, a PPA
+	// build fall back to NVD instead of vanishing at distroTierItems' ownBuild), and a guessed source name only when it holds rows
+	return ownBuild(d, pkg, ver, false) && (!guessed || len(x.dby[d+"/"+rel+"/"+pkg]) > 0)
+}
+
+// pkgTierItem is the item of a distribution's package whose distribution's data Vedette does not read (Alpine, Red Hat, SUSE, an
+// Ubuntu or Debian package without a source package): its upstream version is inside a range with an end for these CVEs, but the
+// distribution backports fixes under its own release numbers, so the update to install is the distribution's security update for the
+// package, never the upstream release NVD names (kind distro, Fixed ""; Distro names the distribution when known). Version is the
+// package release when known (the one a person gave or the agent read), else the version. No item when no CVE is inside a range.
+func pkgTierItem(a Asset, s Software, in swInfo, x *tierIndex, vulns []Vuln) (PlanItem, bool) {
+	if len(vulns) == 0 {
+		return PlanItem{}, false
+	}
+	basis := planVersion
+	if s.Source == "agent" {
+		basis = planAgent
+	}
+	it := PlanItem{Group: a.ID + "/" + s.ID + "/distro", AssetID: a.ID, SoftwareID: s.ID, Software: clean(s.Display),
+		Version: clean(cmp.Or(strings.TrimSpace(s.PkgVersion), in.ver)), Kind: "distro",
+		Distro: distroLabel(linuxDistro(cmp.Or(a.ManualOS, a.AgentOS, a.SNMPOS, a.OS))), Basis: basis}
+	if s.Source == "agent" {
+		it.Reported = s.SeenAt
+	}
+	for _, v := range vulns {
+		it.CVEs = append(it.CVEs, planCVE(x.tier[x.byName[v.CVE]], basis))
+	}
+	sortPlanCVEs(it.CVEs)
+	return it, true
 }
 
 // newestUpdateItem is the item of a Windows release row below the newest monthly security update Microsoft lists for its release

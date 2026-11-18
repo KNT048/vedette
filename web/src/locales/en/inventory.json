@@ -73,7 +73,7 @@
         "off": "Off: no SNMP read goes to this device. What it read stays; values you entered still win.",
         "offOutside": "Off: this device is outside the LAN ranges, so SNMP reads it only once you turn it on here. Nothing is sent to it now.",
         "notSetUp": "Not set up: no SNMP read goes to this device. Setting SNMP up on it turns SNMP on.",
-        "setUpLink": "Set it up on the SNMP card"
+        "setUpLink": "Set it up in Sources"
       }
     },
     "saved": {

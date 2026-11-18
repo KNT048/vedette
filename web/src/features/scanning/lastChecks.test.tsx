@@ -72,7 +72,7 @@ describe('the device page says what each check does and when each last ran', () 
     expect(within(snmp).getByText('Never')).toBeInTheDocument()
     expect(within(snmp).getByText(/once SNMP is set up on this device/)).toBeInTheDocument()
     // the device's own SNMP card is on this page (admin)
-    expect(within(snmp).getByRole('link', { name: 'Set it up on the SNMP card' })).toHaveAttribute('href', '/devices/a-nas01#device-snmp')
+    expect(within(snmp).getByRole('link', { name: 'Set it up in Sources' })).toHaveAttribute('href', '/devices/a-nas01#device-snmp')
   })
 
   it('a viewer gets no link to the SNMP card, which only an admin sees', async () => {
@@ -80,7 +80,7 @@ describe('the device page says what each check does and when each last ran', () 
     renderApp('/devices/a-nas01', { role: 'viewer' })
     const snmp = await screen.findByRole('group', { name: SNMP }, T)
     expect(within(snmp).getByText(/once SNMP is set up on this device/)).toBeInTheDocument()
-    expect(within(snmp).queryByRole('link', { name: 'Set it up on the SNMP card' })).toBeNull()
+    expect(within(snmp).queryByRole('link', { name: 'Set it up in Sources' })).toBeNull()
   })
 
   it('the vulnerability checks module off: "Off", with where to turn it on', async () => {
@@ -176,7 +176,7 @@ describe('Last checks never points at a button the device page does not show', (
     const vuln = await within(section).findByRole('group', { name: VULN }, T)
     expect(within(vuln).getByText('No IP address yet, so no vulnerability check can run on it. Add its IP on this page.')).toBeInTheDocument()
     expect(within(screen.getByRole('group', { name: IDENT })).getByText(/^No IP address yet, so network discovery cannot check it/)).toBeInTheDocument()
-    expect(within(section).queryByRole('link', { name: 'Set it up on the SNMP card' })).toBeNull()
+    expect(within(section).queryByRole('link', { name: 'Set it up in Sources' })).toBeNull()
     expect(within(section).queryByText(/above/)).toBeNull()
   })
 

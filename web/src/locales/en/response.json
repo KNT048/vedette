@@ -3,9 +3,9 @@
     "response": "Response"
   },
   "risk": {
-    "statement": "This is a high-risk feature. Your AI can be wrong and can change your network devices. You carry the risk yourself. Vedette is provided as is under the Apache-2.0 license; its author, Kien Nguyen, is not responsible for actions your AI takes.",
+    "statement": "This is a high-risk feature. Your AI can be wrong and can change your network devices. You carry the risk yourself. Vedette is provided as is under the Apache-2.0 license; the Vedette authors are not responsible for actions your AI takes.",
     "banner": "High risk: your AI can be wrong and can change your network devices.",
-    "bannerInfo": "You carry the risk yourself. Vedette is provided as is under the Apache-2.0 license; its author, Kien Nguyen, is not responsible for actions your AI takes."
+    "bannerInfo": "You carry the risk yourself. Vedette is provided as is under the Apache-2.0 license; the Vedette authors are not responsible for actions your AI takes."
   },
   "page": {
     "title": "Response",

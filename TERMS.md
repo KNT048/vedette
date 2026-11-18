@@ -6,7 +6,7 @@ Vedette asks you to read and accept these terms once, when the box is first set 
 
 ## Free software, provided as-is
 
-Vedette is free, open-source software under the Apache License 2.0 (the LICENSE file). It is provided as-is, without warranty of any kind. Its author is not responsible for how you use it, nor for any damage, data loss, outage or legal claim that results from that use.
+Vedette is free, open-source software under the Apache License 2.0 (the LICENSE file). It is provided as-is, without warranty of any kind. Its authors are not responsible for how you use it, nor for any damage, data loss, outage or legal claim that results from that use.
 
 ## A security testing device: you are responsible for every scan
 

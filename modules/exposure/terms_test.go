@@ -169,6 +169,7 @@ func TestTermsTextIsPinnedToItsVersion(t *testing.T) {
 		"2026-11-14c": "82a9d549446ef21096cf7f035f83d30068bbc07c0f317b3fc48b164c508356e3", // The domain's own text, honest list
 		"2026-11-14d": "ec2a0df9ebbe6691d6b7b2ec0b4a7440289b25fdb027baab76287274b029e411", // OpenVAS test files, anonymous login, the tick as PRIVACY lists it
 		"2026-11-14e": "b105bdea7ef5cca8b936493a9bc1c6528ce62d517a421139f77a0a0d48a6221e", // The web line word for word as TERMS.md says it (ZAP active, not built)
+		"2026-11-18":  "ffec2d4a5e941b0ba409f61cca2e35ea16caa8a82a93ecdf927881a041c93929", // The disclaimer names the Vedette authors
 	}
 	sum := sha256.Sum256([]byte(termsTemplate + "\x00" + termsTemplateDomain + "\x00" + termsDisruptive))
 	if got := pinned[TermsVersion]; got != hex.EncodeToString(sum[:]) {

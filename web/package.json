@@ -1,6 +1,7 @@
 {
   "name": "vedette-web",
   "private": true,
+  "author": "The Vedette authors",
   "version": "0.0.0",
   "type": "module",
   "scripts": {

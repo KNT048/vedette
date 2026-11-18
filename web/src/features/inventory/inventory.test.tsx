@@ -1125,7 +1125,7 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
     const box = await screen.findByRole('checkbox', { name: 'I confirm these network ranges belong to my company and I am allowed to scan them.' }, T)
     expect(box).toBeChecked() // sample data: already confirmed
     expect(screen.getAllByRole('checkbox', { name: /I confirm/ })).toHaveLength(1)
-    expect(screen.getByText('Vedette is provided as is. Its author is not responsible for how you use it, including scanning.')).toBeInTheDocument()
+    expect(screen.getByText('Vedette is provided as is. Its authors are not responsible for how you use it, including scanning.')).toBeInTheDocument()
     expect(screen.queryByText(/consent/i)).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /consent/i })).not.toBeInTheDocument()
   })

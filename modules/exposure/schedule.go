@@ -35,7 +35,8 @@ func (e Every) valid() bool {
 	return slices.Contains([]Every{EveryOff, EveryDaily, EveryWeekly, EveryMonthly}, e)
 }
 
-// after is the time one period after base, counted in the calendar of loc (a month is a calendar month).
+// after is the time one period after base, counted in the calendar of loc: a month is a calendar month, and a day the next month
+// does not have is its last day (31 January is followed by 28 or 29 February, never by early March).
 func (e Every) after(base time.Time, loc *time.Location) time.Time {
 	b := base.In(loc)
 	switch e {
@@ -44,7 +45,9 @@ func (e Every) after(base time.Time, loc *time.Location) time.Time {
 	case EveryWeekly:
 		return b.AddDate(0, 0, 7)
 	case EveryMonthly:
-		return b.AddDate(0, 1, 0)
+		y, m, d := b.Date()
+		last := time.Date(y, m+2, 0, 0, 0, 0, 0, loc).Day() // the last day of the next month
+		return time.Date(y, m+1, min(d, last), b.Hour(), b.Minute(), b.Second(), b.Nanosecond(), loc)
 	}
 	return time.Time{}
 }
@@ -56,6 +59,10 @@ const ScheduleTick = time.Minute
 // (the TXT record or the proof not found, the box no longer going out through the IP, the address excluded): those checks ask the
 // network, so they are not repeated every minute.
 const ScheduleRetry = 6 * time.Hour
+
+// ScheduleFailRetry is how long the schedule waits after a scheduled scan that started and failed (the CT search or the box's DNS
+// did not answer, the scan ran out of time): such failures are usually short, so it tries again within the same day.
+const ScheduleFailRetry = time.Hour
 
 // ScheduleView is the schedule of a target as the page sees it (contract.ts ScanSchedule).
 type ScheduleView struct {
@@ -72,7 +79,7 @@ type schedState struct {
 	every   Every
 	skip    string    // why the last due scheduled scan was not run; "" none
 	skipAt  time.Time // when that was decided
-	retryAt time.Time // the earliest next try after a skip the gate decided; zero for none
+	retryAt time.Time // the earliest next try after a skip the gate decided, a failure or a removal from the queue; zero for none
 }
 
 func loadSchedules(ctx context.Context, q querier) (map[string]schedState, error) {
@@ -338,17 +345,17 @@ func (s *Service) SetSchedule(ctx context.Context, user, id string, every Every)
 	return s.Target(ctx, id)
 }
 
-// noteSkip stores why the due scheduled scan of t was not run, with its audit row: a reason judged from what is stored is looked at
-// every tick and written only when it is new since the target's newest scan; a refusal of the gate (retry) is written each time and
-// also sets when the schedule tries again.
-func (s *Service) noteSkip(ctx context.Context, t Target, st schedState, why string, retry bool) {
-	if !retry && st.skip == why && st.skipAt.After(t.LastScanAt) {
+// noteSkip stores why the due scheduled scan of t was not run, with its audit row: a reason judged from what is stored (retry zero) is
+// looked at every tick and written only when it is new since the target's newest scan; any other (a refusal of the gate, a failure,
+// a stop, a removal from the queue) is written each time with retry, the earliest time the schedule tries again.
+func (s *Service) noteSkip(ctx context.Context, t Target, st schedState, why string, retry time.Time) {
+	if retry.IsZero() && st.skip == why && st.skipAt.After(t.LastScanAt) {
 		return
 	}
 	now := s.clock()
 	var retryAt any
-	if retry {
-		retryAt = store.FormatTS(now.Add(ScheduleRetry))
+	if !retry.IsZero() {
+		retryAt = store.FormatTS(retry.UTC().Truncate(time.Millisecond))
 	}
 	wctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), saveTimeout)
 	defer cancel()
@@ -382,6 +389,7 @@ func (s *Service) RunSchedule(ctx context.Context) error {
 	}
 	now, loc := s.clock(), s.loc()
 	var win Window
+	var winErr error
 	read := false
 	for _, t := range ts {
 		st, ok := states[t.ID]
@@ -393,17 +401,17 @@ func (s *Service) RunSchedule(ctx context.Context) error {
 			continue
 		}
 		if why := scheduleWhy(t, now); why != "" {
-			s.noteSkip(ctx, t, st, why, false)
+			s.noteSkip(ctx, t, st, why, time.Time{})
 			continue
 		}
 		if !read {
-			if win, err = s.window(ctx); err != nil {
-				s.cfg.Log.WarnContext(ctx, "exposure: the scan window could not be read; no scheduled scan starts", "error", err)
-				return nil
-			}
+			win, winErr = s.window(ctx)
 			read = true
+			if winErr != nil {
+				s.cfg.Log.WarnContext(ctx, "exposure: the scan window could not be read; no scheduled scan starts", "error", winErr)
+			}
 		}
-		if !win.open(now, loc) {
+		if winErr != nil || !win.open(now, loc) {
 			continue
 		}
 		s.enqueue(&queuedScan{targetID: t.ID, value: t.Value, by: SystemUser, scheduled: true, state: st})

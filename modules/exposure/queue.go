@@ -168,8 +168,12 @@ func (s *Service) startQueued(q *queuedScan) {
 	s.dispatch()
 }
 
-// skipError is why a scheduled scan did not start, in the words of the target's note.
-type skipError struct{ why string }
+// skipError is why a scheduled scan did not start, in the words of the target's note; stored: judged from what is stored (the terms,
+// the proof's age), so the next tick looks again by itself and no retry time is set.
+type skipError struct {
+	why    string
+	stored bool
+}
 
 func (e *skipError) Error() string { return "exposure: not scanned on schedule: " + e.why }
 
@@ -177,6 +181,10 @@ func (e *skipError) Error() string { return "exposure: not scanned on schedule: 
 // and accepted testing terms of the current version; every one then reads the shared safety block (INV-31) and begins.
 func (s *Service) beginQueued(ctx context.Context, q *queuedScan) (Target, error) {
 	if q.scheduled {
+		var every string // the schedule may have been turned off since it was queued
+		if err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT scan_every FROM exp_target WHERE id = ?`, q.targetID).Scan(&every); err != nil || Every(every) == EveryOff {
+			return Target{}, errScheduleOff
+		}
 		win, err := s.window(ctx)
 		if err != nil || !win.open(s.clock(), s.loc()) {
 			return Target{}, errOutsideWindow
@@ -201,7 +209,7 @@ func (s *Service) beginQueued(ctx context.Context, q *queuedScan) (Target, error
 		return t, s.refusal(t, reason, now)
 	case q.scheduled:
 		if why := scheduleWhy(t, now); why != "" {
-			return t, &skipError{why: why}
+			return t, &skipError{why: why, stored: true}
 		}
 	}
 	if err := s.checkSafety(ctx, t); err != nil {
@@ -213,8 +221,8 @@ func (s *Service) beginQueued(ctx context.Context, q *queuedScan) (Target, error
 
 // queuedFailed records a queued scan that could not start.
 func (s *Service) queuedFailed(ctx context.Context, q *queuedScan, t Target, err error) {
-	if errors.Is(err, errOutsideWindow) || errors.Is(err, ErrNotFound) {
-		return // left for the next opening of the window; or deleted meanwhile
+	if errors.Is(err, errOutsideWindow) || errors.Is(err, errScheduleOff) || errors.Is(err, ErrNotFound) || errors.Is(err, ErrModuleOff) {
+		return // left for the next opening of the window; the schedule turned off; deleted meanwhile; the module off or the box stopping
 	}
 	if t.ID == "" {
 		t = Target{ID: q.targetID, Value: q.value}
@@ -222,11 +230,13 @@ func (s *Service) queuedFailed(ctx context.Context, q *queuedScan, t Target, err
 	if q.scheduled {
 		var se *skipError
 		var ae *APIError
-		if errors.As(err, &ae) && ae.Code == "busy" { // OpenVAS's feed update took the slot first: the next tick queues it again
-			return
+		if errors.As(err, &ae) && (ae.Code == "busy" || ae.Code == "rate_limited") {
+			return // OpenVAS's feed update took the slot first, or the target was scanned minutes ago: the next tick queues it again
 		}
-		why := "an error on the box stopped it"
+		why, retry := "an error on the box stopped it", s.clock().Add(ScheduleRetry)
 		switch {
+		case errors.As(err, &se) && se.stored:
+			why, retry = se.why, time.Time{}
 		case errors.As(err, &se):
 			why = se.why
 		case errors.As(err, &ae):
@@ -234,7 +244,7 @@ func (s *Service) queuedFailed(ctx context.Context, q *queuedScan, t Target, err
 		default:
 			s.cfg.Log.ErrorContext(ctx, "exposure: a scheduled scan could not start", "target", q.value, "error", err)
 		}
-		s.noteSkip(ctx, t, q.state, why, true)
+		s.noteSkip(ctx, t, q.state, why, retry)
 		return
 	}
 	s.auditScanRow(ctx, q.by, q.value, failedDetail(err))
@@ -258,21 +268,58 @@ func (s *Service) queuedFailed(ctx context.Context, q *queuedScan, t Target, err
 }
 
 // Unqueue takes the Scan now or the scheduled scan of target id out of the queue (DELETE /exposure/targets/{id}/queue, operator),
-// audited as exposure.scan. 409 not_queued when no scan of it waits (or its checks have started: Stop it once it runs).
+// audited as exposure.scan. 409 not_queued when no scan of it waits (or its checks have started: Stop it once it runs). A scheduled
+// scan taken out skips its period: the schedule tries again one period from now, and the target says who removed it.
 func (s *Service) Unqueue(ctx context.Context, by, id string) error {
 	t, err := loadTarget(ctx, s.cfg.DB.Reader(), id)
 	if err != nil {
 		return err
 	}
 	s.runMu.Lock()
-	i := slices.IndexFunc(s.queue, func(q *queuedScan) bool { return q.targetID == id && !q.starting })
-	if i >= 0 {
+	var removed *queuedScan
+	if i := slices.IndexFunc(s.queue, func(q *queuedScan) bool { return q.targetID == id && !q.starting }); i >= 0 {
+		removed = s.queue[i]
 		s.queue = slices.Delete(s.queue, i, i+1)
 	}
 	s.runMu.Unlock()
-	if i < 0 {
+	if removed == nil {
 		return apiErr(409, "not_queued", "%s is not waiting in the scan queue.", t.Value)
 	}
-	s.auditScanRow(ctx, by, t.Value, "removed from the queue by "+by)
+	why := "removed from the queue by " + by
+	if !removed.scheduled {
+		s.auditScanRow(ctx, by, t.Value, why)
+		return nil
+	}
+	s.noteSkip(ctx, t, removed.state, "the scheduled scan was "+why, removed.state.every.after(s.clock(), s.loc())) // audited there
 	return nil
 }
+
+// noteRunEnd stores why a scheduled scan that started ended without a snapshot (finish): stopped by a person skips its period, failed
+// tries again after ScheduleFailRetry, stopped because the terms were withdrawn waits for them (the stored state stops it anyway);
+// stopped by the box (a shutdown, the module switched off) stores nothing, the next tick queues it again.
+func (s *Service) noteRunEnd(ctx context.Context, q *queuedScan, t Target, err error) {
+	var sb *stoppedBy
+	var ae *APIError
+	now := s.clock()
+	switch {
+	case errors.As(err, &sb) && (sb.reason == StopShutdown || sb.reason == StopModule || sb.reason == StopRestart):
+	case errors.As(err, &sb) && sb.reason == StopPerson:
+		s.noteSkip(ctx, t, q.state, "the scheduled scan was stopped by "+sb.by, q.state.every.after(now, s.loc()))
+	case errors.As(err, &sb):
+		s.noteSkip(ctx, t, q.state, "the scheduled scan was stopped: "+orWhy(sb.why, sb.by), time.Time{})
+	case errors.As(err, &ae):
+		s.noteSkip(ctx, t, q.state, "the scheduled scan failed: "+ae.Message, now.Add(ScheduleFailRetry))
+	default:
+		s.noteSkip(ctx, t, q.state, "the scheduled scan failed because of an error on the box", now.Add(ScheduleFailRetry))
+	}
+}
+
+func orWhy(why, by string) string {
+	if why != "" {
+		return why
+	}
+	return "by " + by
+}
+
+// errScheduleOff: the schedule of a queued scheduled scan was turned off before it started; it is dropped, with no note.
+var errScheduleOff = errors.New("exposure: the scan schedule is off")

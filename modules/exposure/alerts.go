@@ -32,20 +32,70 @@ type change struct {
 	line string
 }
 
+// where names an address of a snapshot for the comparison: the address itself for an IP target; for a domain, the names under it
+// that point at the address (a CDN or a load balancer rotates the addresses of a name, which alone is not news), else the address.
+type where func(ip string) []string
+
+func whereOf(snap Snapshot, domain bool) where {
+	if !domain {
+		return func(ip string) []string { return []string{ip} }
+	}
+	names := map[string][]string{}
+	for _, h := range snap.Hosts {
+		if h.IP != "" {
+			names[h.IP] = append(names[h.IP], h.Name)
+		}
+		for _, a := range h.IPs {
+			if a.IP != "" && a.IP != h.IP {
+				names[a.IP] = append(names[a.IP], h.Name)
+			}
+		}
+	}
+	return func(ip string) []string {
+		if n := names[ip]; len(n) > 0 {
+			return n
+		}
+		return []string{ip}
+	}
+}
+
+// keys are the comparison keys of something on ip with the rest of its key (":443", ":443:CVE-…").
+func (w where) keys(ip, rest string) []string {
+	var out []string
+	for _, n := range w(ip) {
+		out = append(out, n+rest)
+	}
+	return out
+}
+
+// seen says whether any of keys is in set.
+func seen(set map[string]bool, keys []string) bool {
+	for _, k := range keys {
+		if set[k] {
+			return true
+		}
+	}
+	return false
+}
+
 // changes is what is new in now compared with prev, the newest snapshot before the scan: an open port no earlier scan had, an admin page
 // newly exposed, a certificate that now expires within CertWarnDays (and did not at the scan before), an exploited CVE newly matched on
-// a service. Both snapshots are read against today's exploited list (withVulns), so a CVE comes only with what the scan saw.
-func (s *Service) changes(ctx context.Context, prev, now Snapshot, at time.Time) []change {
+// a service. Both snapshots are read against today's exploited list (withVulns), so a CVE comes only with what the scan saw. A domain's
+// ports, admin pages and CVEs are compared by the names that point at their address (whereOf), not by the address.
+func (s *Service) changes(ctx context.Context, prev, now Snapshot, at time.Time, domain bool) []change {
 	s.withVulns(ctx, &prev)
 	s.withVulns(ctx, &now)
+	wPrev, wNow := whereOf(prev, domain), whereOf(now, domain)
 	var out []change
 	ports := map[string]bool{}
 	for _, p := range prev.Ports {
-		ports[fmt.Sprintf("%s:%d", p.IP, p.Port)] = true
+		for _, k := range wPrev.keys(p.IP, fmt.Sprintf(":%d", p.Port)) {
+			ports[k] = true
+		}
 	}
 	for _, p := range now.Ports {
 		key := fmt.Sprintf("%s:%d", p.IP, p.Port)
-		if ports[key] || p.LastSeen != "" { // a port kept from an earlier scan is not new
+		if seen(ports, wNow.keys(p.IP, fmt.Sprintf(":%d", p.Port))) || p.LastSeen != "" { // a port kept from an earlier scan is not new
 			continue
 		}
 		what := ServiceLabel(p)
@@ -61,9 +111,12 @@ func (s *Service) changes(ctx context.Context, prev, now Snapshot, at time.Time)
 	admin := map[string]bool{}
 	for _, a := range prev.AdminPanels {
 		admin[a.URL] = true
+		for _, k := range wPrev.keys(a.IP, fmt.Sprintf(":%d", a.Port)) {
+			admin[k] = true
+		}
 	}
 	for _, a := range now.AdminPanels {
-		if admin[a.URL] {
+		if admin[a.URL] || (domain && seen(admin, wNow.keys(a.IP, fmt.Sprintf(":%d", a.Port)))) {
 			continue
 		}
 		line := "Newly exposed admin page: " + a.URL
@@ -95,10 +148,12 @@ func (s *Service) changes(ctx context.Context, prev, now Snapshot, at time.Time)
 	}
 	cves := map[string]bool{}
 	for _, v := range prev.Vulns {
-		cves[fmt.Sprintf("%s:%d:%s", v.IP, v.Port, v.CVE)] = true
+		for _, k := range wPrev.keys(v.IP, fmt.Sprintf(":%d:%s", v.Port, v.CVE)) {
+			cves[k] = true
+		}
 	}
 	for _, v := range now.Vulns {
-		if cves[fmt.Sprintf("%s:%d:%s", v.IP, v.Port, v.CVE)] {
+		if seen(cves, wNow.keys(v.IP, fmt.Sprintf(":%d:%s", v.Port, v.CVE))) {
 			continue
 		}
 		line := fmt.Sprintf("Newly matched exploited vulnerability: %s on %s:%d", v.CVE, v.IP, v.Port)
@@ -145,7 +200,7 @@ func (s *Service) alertChanges(ctx context.Context, t Target, prev *Snapshot, no
 	}
 	actx, cancel := context.WithTimeout(context.WithoutCancel(ctx), saveTimeout)
 	defer cancel()
-	a, ok := alertOf(t.Value, now.ID, s.changes(actx, *prev, now, s.clock()))
+	a, ok := alertOf(t.Value, now.ID, s.changes(actx, *prev, now, s.clock(), t.Kind == KindDomain))
 	if !ok {
 		return
 	}

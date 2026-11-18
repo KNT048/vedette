@@ -179,11 +179,18 @@ func (s *Service) begin(ctx context.Context, user string, t Target, reason Block
 	if err != nil {
 		return nil, fmt.Errorf("exposure: reading the testing terms before the scan: %w", err)
 	}
+	mode := fresh.mode()
+	if q != nil && q.scheduled { // INV-36: decided under runMu, so terms withdrawn while the checks ran are seen here
+		if why := scheduleWhy(fresh, now); why != "" {
+			return nil, &skipError{why: why, stored: true}
+		}
+		mode.Disruptive = false // a scan the box starts by itself never runs the disruptive checks
+	}
 	s.lastScan[t.ID] = now
 	rctx, cancel := context.WithCancelCause(context.WithoutCancel(ctx)) // the request's values, never its cancellation
 	run := &scanRun{
 		view:   ScanRun{ID: store.NewID("sr"), TargetID: t.ID, TargetValue: t.Value, By: user, StartedAt: store.FormatTS(now), Status: RunRunning, Phase: PhaseQueued},
-		cancel: cancel, done: make(chan struct{}), prevLast: last, hadPrevLast: had, mode: fresh.mode(), prog: progress.NewTracker(s.clock),
+		cancel: cancel, done: make(chan struct{}), prevLast: last, hadPrevLast: had, mode: mode, prog: progress.NewTracker(s.clock),
 		steps: &stepLog{},
 	}
 	rctx = withSteps(progress.WithSink(rctx, run.prog), run.steps)
@@ -467,11 +474,15 @@ func (s *Service) finish(ctx context.Context, run *scanRun, user string, t Targe
 		}
 	}
 	s.runMu.Unlock()
-	if q := run.queued; q != nil && q.scheduled && err == nil { // INV-36: what is new since the scan before goes to the alert channels
-		s.alertChanges(ctx, t, q.prev, run.snap)
+	if q := run.queued; q != nil && q.scheduled { // INV-36
+		if run.snap.ID != "" { // a snapshot was stored (OpenVAS may have failed or been stopped after it): what is new is alerted
+			s.alertChanges(ctx, t, q.prev, run.snap)
+		} else if err != nil { // nothing stored: the target says why, and when the schedule tries again
+			s.noteRunEnd(ctx, q, t, err)
+		}
 	}
-	close(run.done)
 	s.dispatch() //nolint:contextcheck // the next queued scan runs on the service's own context, not on this run's
+	close(run.done)
 }
 
 func (s *Service) runView(run *scanRun) ScanRun {
@@ -494,7 +505,11 @@ func (s *Service) CurrentScan() *ScanRun {
 	s.runMu.Lock()
 	defer s.runMu.Unlock()
 	if s.run == nil {
-		return nil
+		if len(s.queue) == 0 {
+			return nil
+		}
+		v := s.queuedViewLocked(s.queue[0]) // nothing ran since the box started, and scans wait: the first is about to start
+		return &v
 	}
 	v := s.run.withProgress()
 	v.Queue = s.queueViewsLocked()

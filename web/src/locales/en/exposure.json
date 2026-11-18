@@ -1001,7 +1001,7 @@
     "next": "Next scan {{time}}",
     "off": "Schedule off",
     "offLong": "Scheduled scans are off: this target is scanned only when someone presses the scan button.",
-    "info": "The box scans this target by itself, counted from the start of its newest scan, only inside the scan window under Settings, Scanning, Safety and only while its ownership proof holds and its testing terms are accepted. It is the same scan as the scan button; OpenVAS joins only when it is turned on under Settings. Anything new it finds (an open port, an admin page, a certificate expiring within 30 days, an exploited vulnerability) is sent to your alert channels; no change, no message.",
+    "info": "The box scans this target by itself, counted from the start of its newest scan, only inside the scan window under Settings, Scanning, Safety and only while its ownership proof holds and its testing terms are accepted. It is the same scan as the scan button, except that a scheduled scan never includes the disruptive checks, even when they are accepted: those run only when a person presses the scan button. OpenVAS joins only when it is turned on under Settings. Anything new it finds (an open port, an admin page, a certificate expiring within 30 days, an exploited vulnerability) is sent to your alert channels; no change, no message.",
     "saved": "Scheduled scan of {{value}}: {{every}}."
   }
 }

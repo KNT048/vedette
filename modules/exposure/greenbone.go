@@ -1725,6 +1725,7 @@ func (s *Service) RunGreenboneSync(ctx context.Context) error {
 		s.runMu.Lock()
 		s.feedSync = false
 		s.runMu.Unlock()
+		s.dispatch() //nolint:contextcheck // INV-36: the scans that waited for the feed update start on the service's own context
 	}()
 	g := s.gb()
 	free, derr := g.diskFree(s.cfg.DataDir)

@@ -116,8 +116,11 @@ func TestSchedule_Window(t *testing.T) {
 		t.Fatal("a window with no day opened")
 	}
 	month := EveryMonthly.after(time.Date(2026, 1, 31, 10, 0, 0, 0, utc), utc)
-	if !month.Equal(time.Date(2026, 3, 3, 10, 0, 0, 0, utc)) { // Go's calendar month: 31 Jan + 1 month
+	if !month.Equal(time.Date(2026, 2, 28, 10, 0, 0, 0, utc)) { // the last day of February, never early March
 		t.Fatalf("monthly = %v", month)
+	}
+	if m := EveryMonthly.after(time.Date(2026, 12, 31, 10, 0, 0, 0, utc), utc); !m.Equal(time.Date(2027, 1, 31, 10, 0, 0, 0, utc)) {
+		t.Fatalf("monthly over the year's end = %v", m)
 	}
 }
 
@@ -387,11 +390,11 @@ func TestSchedule_NewExploitedCVEIsCritical(t *testing.T) {
 	prev.Services = []ServiceRow{{IP: ipA, Port: 443, Name: "https", Product: "nginx", Version: "1.18"}}
 	now := Snapshot{ID: "sn-2", StartedAt: "2026-11-09T10:00:00.000Z"}
 	now.Services = []ServiceRow{{IP: ipA, Port: 443, Name: "https", Product: "nginx", Version: "1.18"}, {IP: ipA, Port: 8443, Name: "https", Product: "Exchange", Version: "15.1"}}
-	a, ok := alertOf("acme.example", now.ID, e.svc.changes(e.ctx(), prev, now, t0))
+	a, ok := alertOf("acme.example", now.ID, e.svc.changes(e.ctx(), prev, now, t0, false))
 	if !ok || a.Severity != AlertCritical || !strings.Contains(a.Text, "Newly matched exploited vulnerability: CVE-2021-26855 on "+ipA+":8443") || strings.Contains(a.Text, "CVE-2021-23017") || a.ID != "exp-sn-2" {
 		t.Fatalf("alert = %+v %v", a, ok)
 	}
-	if _, ok := alertOf("acme.example", "sn-3", e.svc.changes(e.ctx(), now, now, t0)); ok {
+	if _, ok := alertOf("acme.example", "sn-3", e.svc.changes(e.ctx(), now, now, t0, false)); ok {
 		t.Fatal("no change sent a message")
 	}
 }

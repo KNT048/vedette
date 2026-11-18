@@ -2,7 +2,8 @@ import { useRef, useState, type RefObject } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { EyeOff, Pencil, Plus, Trash2 } from 'lucide-react'
+import { EyeOff, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Breadcrumbs } from '@/components/common/Breadcrumbs'
 import { Card } from '@/components/common/Card'
 import { Notice, PageHeader, Section } from '@/components/common/PageHeader'
@@ -190,8 +191,8 @@ function RenameDevice({ d, editing, setEditing, button }: { d: DeviceDetail; edi
   }
   if (!editing) {
     return (
-      <Button ref={button} size="sm" variant="ghost" className="ml-1" disabled={!can} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })}
-        onClick={() => setEditing(true)}><Pencil />{t('detail.rename')}</Button>
+      <Button ref={button} size="icon" variant="ghost" className="ml-1" disabled={!can} aria-label={t('detail.renameDevice')} title={can ? t('detail.renameDevice') : t('common:needRole', { role: t('common:role.operator') })}
+        onClick={() => setEditing(true)}><Pencil /></Button>
     )
   }
   return (
@@ -464,16 +465,7 @@ function Body() {
           ? <span id="device-name-hint" className="max-w-xl">{t('detail.renameHint', { name: nameOf({ ...a, name: null }, kindLabel(a.kind)) })}</span>
           : <span className="inline-flex flex-wrap items-center gap-2">{a.is_box ? <Chip tone="accent">{t('box.badge')}</Chip> : null}<RiskMarker id={a.id} risk={d.risk} />{d.risk_unavailable ? <span>{t('risk.unavailableOne')}</span> : null}<span>{neverSeen(a) ? t('detail.metaLineNeverSeen', { kind: kindLabel(a.kind), when: fmtRelative(a.first_seen) }) : t('detail.metaLine', { kind: kindLabel(a.kind), when: fmtRelative(a.last_seen) })}</span><SampleDataNote /></span>}
         titleAction={<RenameDevice key="rename" d={d} editing={false} setEditing={setRenaming} button={renameButton} />}
-        editing={renaming ? <RenameDevice key="edit" d={d} editing setEditing={setRenaming} button={renameButton} /> : undefined}
-        actions={<>
-          {/* #850: "Check this device now" plugs in here (slot device.actions, props { assetId, asset }: the facts that say whether
-              it can be checked, from this page's own read, #877 r1 L6). */}
-          <Slot name="device.actions" props={{ assetId: a.id, asset: a }} />
-          {/* An approved device can be ignored here; a waiting one in its notice below, an ignored one is stopped there */}
-          {a.approved && !a.ignored_at && !a.is_box ? <Button disabled={!can} busy={act.ignore.isPending} busyLabel={t('common:busy.saving')} title={needRole} onClick={() => setIgn(true)}><EyeOff />{t('pending.ignore')}</Button> : null}
-          {/* A waiting device has Remove in its notice below, so it is not offered twice */}
-          {a.approved || a.ignored_at || a.is_box ? <Button disabled={!can || a.is_box} title={a.is_box ? t('box.noDelete') : needRole} onClick={() => setDel(true)}><Trash2 />{t('detail.delete')}</Button> : null}
-        </>} />
+        editing={renaming ? <RenameDevice key="edit" d={d} editing setEditing={setRenaming} button={renameButton} /> : undefined} />
       {a.is_box ? <BoxNotice assetId={a.id} /> : null}
       {/* #829: before the approval, since merging a new row into the known device answers its approval too */}
       <PossibleSameNotice me={{ id: a.id, name, approved: a.approved, ignored: a.ignored_at != null }} list={d.possible_same ?? []} />
@@ -486,7 +478,8 @@ function Body() {
           <>
             <Section id="overview" title={t('detail.overview')}><Card><Overview d={d} /></Card></Section>
             {hasSourcesCard(a) ? <DeviceSources d={d} /> : null}
-            <Slot name="device.panels" props={{ assetId: a.id }} />
+            {/* "Last checks" (scanning) carries the check buttons; it reads the device from this page's own data */}
+            <Slot name="device.panels" props={{ assetId: a.id, asset: a }} />
             <Section id="notes" title={t('notes.title')}><Notes key={a.notes ?? ''} d={d} /></Section>
           </>
         ) },
@@ -505,6 +498,18 @@ function Body() {
           </Section>
         ) },
       ]} />
+      {/* Ignore and Remove live in one place: a waiting device has them in its notice above, every other device here */}
+      {a.approved || a.ignored_at || a.is_box ? (
+        <div className="mt-8 flex justify-end">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild><Button><MoreHorizontal />{t('detail.more')}</Button></DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {a.approved && !a.ignored_at && !a.is_box ? <DropdownMenuItem disabled={!can} onSelect={() => setIgn(true)}><EyeOff />{t('pending.ignore')}</DropdownMenuItem> : null}
+              <DropdownMenuItem disabled={!can || a.is_box} title={a.is_box ? t('box.noDelete') : undefined} onSelect={() => setDel(true)}><Trash2 />{t('detail.delete')}</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      ) : null}
       <AddDeviceDialog open={adding} onOpenChange={setAdding} deviceId={a.id} />
       <DeleteDialog open={del} onOpenChange={setDel} name={name} findings={d.findings_count} pending={act.remove.isPending}
         onConfirm={() => act.remove.mutate(undefined, { onSuccess: () => { toast.success(t('delete.done', { name })); void navigate('/devices') }, onError: (e) => toast.error(errMsg(e)) })} />

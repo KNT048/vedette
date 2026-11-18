@@ -49,6 +49,12 @@ const scopeSaved = () => waitFor(() => {
 const clickUntil = (user: ReturnType<typeof userEvent.setup>, get: () => HTMLElement, done: () => unknown) =>
   waitFor(async () => { await user.click(get()); done() }, { timeout: 8000 })
 
+/** Ignore and Remove from list of an approved device live in the "More" menu at the bottom of its page. */
+async function moreItem(user: ReturnType<typeof userEvent.setup>, name: string) {
+  await user.click(await screen.findByRole('button', { name: 'More' }, { timeout: 5000 }))
+  return screen.findByRole('menuitem', { name })
+}
+
 describe('inventory: device list (S-INV-1, S-INV-3)', () => {
   it('the first sentence says "N devices, 2 not yet approved", with a table and no a11y violations', async () => {
     renderApp('/devices')
@@ -543,7 +549,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     const n = findingsStore.get().filter((f) => f.asset_id === 'a-nas02').length
     expect(n).toBeGreaterThan(0)
     renderApp('/devices/a-nas02')
-    await user.click(await screen.findByRole('button', { name: 'Remove from list' }, T))
+    await user.click(await moreItem(user, 'Remove from list'))
     const dialog = await screen.findByRole('dialog', undefined, T)
     expect(dialog).toHaveTextContent(n === 1 ? 'This device has 1 finding; removing the device removes it too.' : `This device has ${n} findings; removing the device removes them too.`)
     await user.click(within(dialog).getByRole('button', { name: 'Remove from list' }))
@@ -555,7 +561,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     const user = userEvent.setup()
     expect(findingsStore.get().some((f) => f.asset_id === 'a-pc02')).toBe(false)
     renderApp('/devices/a-pc02')
-    await user.click(await screen.findByRole('button', { name: 'Remove from list' }, T))
+    await user.click(await moreItem(user, 'Remove from list'))
     const dialog = await screen.findByRole('dialog', undefined, T)
     expect(dialog).not.toHaveTextContent(/This device has \d+ finding/)
   })
@@ -976,11 +982,31 @@ describe('inventory: device detail (S-INV-1)', () => {
     expect(find('a-prn03').approved).toBe(true)
   })
 
+  it('the page header has the name, a Rename device icon and the type line; Ignore and Remove are under More, the checks under Last checks', async () => {
+    const user = userEvent.setup()
+    renderApp('/devices/a-nas02')
+    const title = await screen.findByRole('heading', { level: 1 }, T)
+    const header = title.parentElement!.parentElement!
+    expect(within(header).getAllByRole('button').map((b) => b.getAttribute('aria-label') ?? b.textContent)).toContain('Rename device')
+    for (const name of ['Ignore', 'Remove from list', 'Check this device now']) expect(within(header).queryByRole('button', { name })).toBeNull()
+    expect(screen.queryByRole('menuitem')).toBeNull()
+    await user.click(await moreItem(user, 'Ignore'))
+    expect(await screen.findByRole('dialog', undefined, T)).toBeInTheDocument()
+  })
+
+  it('a device not approved yet has Ignore and Remove in its notice and no More menu', async () => {
+    renderApp('/devices/a-unk01')
+    await screen.findByText('This device is not approved yet', undefined, T)
+    expect(screen.queryByRole('button', { name: 'More' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Ignore' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Remove' })).toBeInTheDocument()
+  })
+
   it('removing from the detail page goes back to the list', async () => {
     const user = userEvent.setup()
     renderApp('/devices/a-pc02')
     await screen.findByRole('switch', { name: 'Fragile device' }, T)
-    await user.click(screen.getByRole('button', { name: 'Remove from list' }))
+    await user.click(await moreItem(user, 'Remove from list'))
     await user.click(await screen.findByRole('button', { name: 'Remove from list' }, T))
     expect(await screen.findByText(/devices, 2 not yet approved/, undefined, T)).toBeInTheDocument()
     expect(assetsStore.get().find((a) => a.id === 'a-pc02')).toBeUndefined()
@@ -997,7 +1023,8 @@ describe('inventory: device detail (S-INV-1)', () => {
     expect(await screen.findByRole('combobox', { name: 'Device type' }, T)).toBeDisabled()
     expect(screen.getByRole('switch', { name: 'Fragile device' })).toBeDisabled()
     expect(screen.getByRole('textbox', { name: 'Notes about the device' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Remove from list' })).toBeDisabled()
+    expect(await moreItem(userEvent.setup(), 'Remove from list')).toHaveAttribute('aria-disabled', 'true')
+    await userEvent.keyboard('{Escape}')
     await userEvent.click(screen.getByRole('tab', { name: 'Software' }))
     expect(await screen.findByRole('button', { name: 'Add software' }, T)).toBeDisabled()
   })
@@ -2304,8 +2331,8 @@ describe('inventory: the box is the first device (S-INV-5)', () => {
   it('it cannot be deleted: the button is disabled with the reason and the server refuses', async () => {
     asAdmin()
     renderApp(`/devices/${BOX_ID}`)
-    const btn = await screen.findByRole('button', { name: 'Remove from list' }, T)
-    expect(btn).toBeDisabled()
+    const btn = await moreItem(userEvent.setup(), 'Remove from list')
+    expect(btn).toHaveAttribute('aria-disabled', 'true')
     expect(btn).toHaveAttribute('title', 'The box cannot be removed from the list: Vedette runs on it.')
     const r = await call('DELETE', `/devices/${BOX_ID}`)
     expect(r.status).toBe(409)
@@ -2516,7 +2543,7 @@ describe('inventory: rename a device (S-INV-1)', () => {
     renderApp('/devices/a-nas02', { role: 'operator' })
     expect(await screen.findByRole('heading', { level: 1, name: 'NAS-PHOTOS' }, T)).toBeInTheDocument()
     expect(screen.getByTestId('device-hostname')).toHaveTextContent('NAS-PHOTOS')
-    await user.click(screen.getByRole('button', { name: 'Rename' }))
+    await user.click(screen.getByRole('button', { name: 'Rename device' }))
     const field = screen.getByRole('textbox', { name: 'Name in Vedette' })
     expect(field).toHaveFocus()
     expect(field).toHaveValue('')
@@ -2528,18 +2555,18 @@ describe('inventory: rename a device (S-INV-1)', () => {
     expect(nas().name).toBe('Photo NAS')
     expect(nas().hostname).toBe('NAS-PHOTOS') // the observed host name is not changed
     expect(screen.getByTestId('device-hostname')).toHaveTextContent('NAS-PHOTOS')
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Rename' })).toHaveFocus(), T)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Rename device' })).toHaveFocus(), T)
     expect(auditStore.get().find((e) => e.action === 'inventory.rename')).toMatchObject({ target: 'Photo NAS' })
 
     // Escape cancels without saving
-    await user.click(screen.getByRole('button', { name: 'Rename' }))
+    await user.click(screen.getByRole('button', { name: 'Rename device' }))
     expect(screen.getByRole('textbox', { name: 'Name in Vedette' })).toHaveValue('Photo NAS')
     await user.type(screen.getByRole('textbox', { name: 'Name in Vedette' }), 'xyz{Escape}')
     expect(screen.queryByRole('textbox', { name: 'Name in Vedette' })).toBeNull()
     expect(nas().name).toBe('Photo NAS')
 
     // empty + Save: the default name again
-    await user.click(screen.getByRole('button', { name: 'Rename' }))
+    await user.click(screen.getByRole('button', { name: 'Rename device' }))
     await user.clear(screen.getByRole('textbox', { name: 'Name in Vedette' }))
     await user.click(screen.getByRole('button', { name: 'Save' }))
     expect(await screen.findByRole('heading', { level: 1, name: 'NAS-PHOTOS' }, T)).toBeInTheDocument()
@@ -2549,7 +2576,7 @@ describe('inventory: rename a device (S-INV-1)', () => {
   it('a name with < or > is refused before it is sent', async () => {
     const user = userEvent.setup()
     renderApp('/devices/a-nas02', { role: 'operator' })
-    await user.click(await screen.findByRole('button', { name: 'Rename' }, T))
+    await user.click(await screen.findByRole('button', { name: 'Rename device' }, T))
     await user.type(screen.getByRole('textbox', { name: 'Name in Vedette' }), 'a<b')
     expect(screen.getByRole('alert')).toHaveTextContent('A name cannot contain < or >, control characters or invisible characters.')
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
@@ -2558,7 +2585,7 @@ describe('inventory: rename a device (S-INV-1)', () => {
   it('#929: invisible and bidi characters are refused like < >; a refused save keeps the focus and says why next to the field', async () => {
     const user = userEvent.setup()
     renderApp('/devices/a-nas02', { role: 'operator' })
-    await user.click(await screen.findByRole('button', { name: 'Rename' }, T))
+    await user.click(await screen.findByRole('button', { name: 'Rename device' }, T))
     const field = screen.getByRole('textbox', { name: 'Name in Vedette' })
     fireEvent.change(field, { target: { value: '\u202eresu-lawerif' } })
     expect(screen.getByRole('alert')).toHaveTextContent('invisible characters')
@@ -2588,7 +2615,7 @@ describe('inventory: rename a device (S-INV-1)', () => {
 
   it('a viewer cannot rename', async () => {
     renderApp('/devices/a-nas02', { role: 'viewer' })
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Rename' })).toBeDisabled(), T)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Rename device' })).toBeDisabled(), T)
   })
 
   it('the Devices list shows the name in Vedette and the search finds it', async () => {

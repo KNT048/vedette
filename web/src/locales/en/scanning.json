@@ -324,6 +324,9 @@
     "device": {
       "box": "The Vedette box itself is never part of a network scan.",
       "no_ip": "No IP address yet, so network discovery cannot check it. Add its IP on this page.",
+      "both": {
+        "no_ip": "No IP address yet, so Vedette can neither identify this device nor run vulnerability checks on it. Add its IP on this page."
+      },
       "manual": "Added by hand: network discovery checks it only once you turn its network scan on under Sources on its device page.",
       "manualSee": "Network scan off:",
       "manualSeeLink": "see Sources",
@@ -374,6 +377,9 @@
     "emptyDevice": "No device check or SNMP read has reached this device yet."
   },
   "hint": {
+    "vulnNone_one": "No safe check exists for the suspected CVE on this device, so a run would confirm nothing. Its installed version, read by SNMP or an agent, decides it, or use Confirm on the finding.",
+    "vulnNone_other": "No safe check exists for these {{count}} suspected CVEs, so a run would confirm nothing. The installed version, read by SNMP or an agent, decides them, or use Confirm on each finding.",
+    "vulnCount": "{{checkable}} of {{count}} suspected findings can be checked.",
     "identify": "Finds its open ports, services, operating system and software versions. Does not test whether a flaw can be exploited. Usually 1 to 5 minutes.",
     "vuln": "Tries Vedette’s checks for the exploited flaws this device may have, to confirm or rule them out. Identifies it first; patches nothing. Usually 5 to 15 minutes."
   },
@@ -402,6 +408,7 @@
     },
     "vulnOff": "The vulnerability checks (Preview) are off, so none runs.",
     "vulnOffLink": "Turn them on: Settings, Scanning, Engines",
+    "notRun": "Not run yet.",
     "neverSnmp": "An SNMP read runs in the scan window once SNMP is set up on this device.",
     "neverSnmpLink": "Set it up in Sources"
   }

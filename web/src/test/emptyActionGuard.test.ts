@@ -21,6 +21,7 @@ const ALLOWED: { file: string; text: string; count: number; why: string }[] = [
   { file: 'features/notify/IncidentsPage.tsx', text: 'ids.length', count: 1, why: 'the bulk dialog opens only from the selection bar, which shows only with a selection' },
   { file: 'features/findings/FindingsPage.tsx', text: 'all', count: 1, why: 'PlanLine returns null when the plan has no item, so all is at least 1' },
   { file: 'features/feeds/HomeDashboard.tsx', text: 's.open.total', count: 1, why: 'the Fix first card is drawn only when it lists open findings (an empty one returns earlier)' },
+  { file: 'features/inventory/AgentsSection.tsx', text: 'r.removed', count: 2, why: 'the count is in the toast after Remove unused tokens, not on a link or button' },
 ]
 
 function sources() {

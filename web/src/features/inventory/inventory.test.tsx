@@ -325,6 +325,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     expect(within(dlg).getByRole('radio', { name: /^osquery/, checked: true })).toBeInTheDocument()
     expect(within(dlg).getByText(/macOS is not supported/)).toBeInTheDocument()
     await user.click(await within(dlg).findByRole('button', { name: 'Linux' }, T))
+    await user.click(await within(dlg).findByRole('button', { name: 'Create install command' }, T))
     expect(await within(dlg).findByText(/^vdt_osquery_/, undefined, T)).toBeInTheDocument()
     expect(within(dlg).queryByRole('radiogroup', { name: 'How to add it' })).toBeNull() // the only copy of the secret stays on screen
     expect(within(dlg).getByRole('button', { name: 'Windows' })).toBeInTheDocument()
@@ -1669,7 +1670,7 @@ describe('inventory: agents (S-INV-4)', () => {
     expect(screen.getByRole('button', { name: 'Create agent token' })).toBeInTheDocument()
   })
 
-  it('creates a token: name + lifetime, token and install command shown once; the API never returns the full token again', async () => {
+  it('creates a token on one click: token and install command shown once; the API never returns the full token again', async () => {
     enableModule('agent-intake', true)
     const user = userEvent.setup()
     renderApp('/devices/setup?tab=agents')
@@ -1677,13 +1678,9 @@ describe('inventory: agents (S-INV-4)', () => {
     await clickUntil(user, () => screen.getByRole('button', { name: 'Create agent token' }), () => screen.getByRole('dialog'))
     const form = await screen.findByRole('dialog', undefined, T)
     expect(within(form).queryByRole('button', { name: 'Wazuh' })).not.toBeInTheDocument() // no agent type choice any more
-    const life = within(form).getByRole('combobox', { name: 'Token lifetime' }) as HTMLSelectElement
-    expect(life.value).toBe('7') // default 7 days
-    expect([...life.options].map((o) => o.textContent)).toEqual(['1 day', '7 days (recommended)', '30 days', '90 days', 'No expiry (not recommended)'])
-    await user.type(within(form).getByLabelText('Token name'), 'osquery accounting PC')
-    await user.selectOptions(life, '30')
-    await user.click(within(form).getByRole('button', { name: 'Create token' }))
-    const dialog = await screen.findByRole('dialog', { name: 'Token for osquery accounting PC' }, T)
+    expect(within(form).queryByLabelText('Token name')).toBeNull() // one button, no form
+    await user.click(await within(form).findByRole('button', { name: 'Create install command' }, T))
+    const dialog = await screen.findByRole('dialog', { name: /^Token for osquery install \d{4}-\d{2}-\d{2}$/ }, T)
     const secret = (await within(dialog).findByText(/^vdt_osquery_[a-z0-9]{32}$/, undefined, T)).textContent!
     expect(within(dialog).getByText(/The token is shown once/)).toBeInTheDocument()
     // Linux is the default platform: one line, hash check, token as an argument, expected SHA-256 shown
@@ -1716,9 +1713,9 @@ describe('inventory: agents (S-INV-4)', () => {
     await user.click(within(dialog).getByRole('button', { name: 'I copied the token' }))
     const listed = await call('GET', '/agents')
     expect(listed.text).not.toContain(secret)
-    const t = (listed.json!.tokens as Record<string, any>[]).find((x) => x.name === 'osquery accounting PC')! // eslint-disable-line @typescript-eslint/no-explicit-any
+    const t = (listed.json!.tokens as Record<string, any>[]).find((x) => /^osquery install \d{4}-\d{2}-\d{2}$/.test(x.name))! // eslint-disable-line @typescript-eslint/no-explicit-any
     expect(t).toMatchObject({ kind: 'osquery', last4: secret.slice(-4), hosts: 0, last_received: null })
-    expect(new Date(t.expires_at).getTime() - Date.now()).toBeGreaterThan(29 * 864e5)
+    expect(new Date(t.expires_at).getTime() - Date.now()).toBeGreaterThan(6 * 864e5)
     expect((await screen.findAllByText(`••••${secret.slice(-4)}`, undefined, T)).length).toBeGreaterThan(0)
   })
 
@@ -1770,7 +1767,8 @@ describe('inventory: agents (S-INV-4)', () => {
     await user.click(within(dialog).getAllByRole('button', { name: 'Close' })[0]!)
     await clickUntil(user, () => screen.getAllByRole('button', { name: `Revoke token ${OSQ}` })[0]!, () => screen.getByRole('dialog'))
     await user.click(await screen.findByRole('button', { name: 'Revoke' }, T))
-    expect(await screen.findByText('No enrollment tokens yet', undefined, T)).toBeInTheDocument()
+    const table = await screen.findByRole('table', { name: 'Enrollment tokens' }, T)
+    await waitFor(() => expect(within(table).queryByText(OSQ)).toBeNull(), T)
   })
 
   it('token API: only osquery uses a token; name and lifetime are validated; default 7 days, 0 means never', async () => {
@@ -1833,9 +1831,8 @@ describe('inventory: agents (S-INV-4)', () => {
       renderApp('/devices/setup?tab=agents')
       await clickUntil(user, () => screen.getByRole('button', { name: 'Create agent token' }), () => screen.getByRole('dialog'))
       const form = await screen.findByRole('dialog', undefined, T)
-      await user.type(within(form).getByLabelText('Token name'), 'osquery lab')
-      await user.click(within(form).getByRole('button', { name: 'Create token' }))
-      const dialog = await screen.findByRole('dialog', { name: 'Token for osquery lab' }, T)
+      await user.click(await within(form).findByRole('button', { name: 'Create install command' }, T))
+      const dialog = await screen.findByRole('dialog', { name: /^Token for osquery install / }, T)
       expect(await within(dialog).findByText('Servers cannot reach this box at the address you opened it with', undefined, T)).toBeInTheDocument()
       expect(within(dialog).getByText(/Open Vedette at the box's network address/)).toBeInTheDocument()
       expect(dialog.textContent).not.toMatch(/VEDETTE_BOX_IP|curl -fsSLk|Get-FileHash/)

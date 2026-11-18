@@ -14,10 +14,11 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Input, Select } from '@/components/ui/input'
 import { Segmented } from '@/components/ui/segmented'
-import { fmtDateTime, fmtRelative } from '@/lib/format'
+import { dayOf, fmtDateTime, fmtRelative } from '@/lib/format'
 import { useInstallKind, useModuleEnabled } from '@/lib/modules'
 import { linuxOneLiner, OSQUERY_SCHEDULE, osquerySteps, windowsOneLiner, wazuhReaderSteps, type Platform } from './agentConfig'
 import { NO_BOX_ADDRESS } from './installScripts'
+import { ApiError } from '@/lib/api'
 import { useAgentActions, useAgents, useWazuhActions } from './api'
 import { errMsg } from './kinds'
 import { AGENT_COMMANDS, boxHostPort } from './AgentQuiet'
@@ -202,18 +203,34 @@ export function InstallPanel({ data, token, platform: fixed }: { data: AgentsRes
   )
 }
 
-/** Name and expiry of an osquery enrolment token, then the token once and the install commands (S-INV-4). Inside CreateDialog and the
- *  Add a device dialog's osquery method (#849); `onCreated` lets the dialog widen and retitle itself once the token exists. */
-export function OsqueryEnrol({ data, onCreated }: { data: AgentsResponse; onCreated?: (r: CreateTokenResult) => void }) {
+/** The error of making a token. At the token limit it says so and offers, right there, to remove the tokens nobody used. */
+export function TokenError({ error, onRemoved }: { error: unknown; onRemoved: () => void }) {
+  const { t } = useTranslation('inventory')
+  const { removeUnused } = useAgentActions()
+  const full = error instanceof ApiError && error.code === 'too_many_tokens'
+  return (
+    <Notice tone="danger" role="alert" className="mb-0" title={errMsg(error)}
+      actions={full ? (
+        /* empty-guard: a toast after the action, not a link or button that leads anywhere */
+        <Button size="sm" busy={removeUnused.isPending} busyLabel={t('common:busy.removing')}
+          onClick={() => removeUnused.mutate(undefined, { onSuccess: (r) => { toast.success(t('agents.removeUnused.done', { count: r.removed })); onRemoved() }, onError: (e) => toast.error(errMsg(e)) })}>{t('agents.removeUnused.button')}</Button>
+      ) : undefined} />
+  )
+}
+
+/** The osquery install dialog's content: one button, "Create install command", makes ONE token (named after the device, or "osquery
+ *  install <date>") and shows the command with the token; opening the dialog makes nothing, and the same command stays until it is
+ *  closed. Inside CreateDialog, Settings > Engines and the Add a device dialog's osquery method; `onCreated` lets the dialog widen and
+ *  retitle itself once the token exists. */
+export function OsqueryEnrol({ data, tokenName, onCreated }: { data: AgentsResponse; tokenName?: string; onCreated?: (r: CreateTokenResult) => void }) {
   const { t } = useTranslation('inventory')
   const { create } = useAgentActions()
-  const [name, setName] = useState('')
-  const [days, setDays] = useState(7)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<unknown>(null)
   const [result, setResult] = useState<CreateTokenResult | null>(null)
-  function submit(e: FormEvent) {
-    e.preventDefault(); setError(null)
-    create.mutate({ name, kind: 'osquery', expires_in_days: days }, { onSuccess: (r) => { setResult(r); onCreated?.(r) }, onError: (er) => setError(errMsg(er)) })
+  function make() {
+    setError(null)
+    const name = (tokenName ?? t('agents.defaultTokenName', { day: dayOf(new Date().toISOString()) })).slice(0, 64)
+    create.mutate({ name, kind: 'osquery', expires_in_days: 7 }, { onSuccess: (r) => { setResult(r); onCreated?.(r) }, onError: setError })
   }
   if (result) {
     return (
@@ -226,20 +243,15 @@ export function OsqueryEnrol({ data, onCreated }: { data: AgentsResponse; onCrea
     )
   }
   return (
-    <form onSubmit={submit} className="grid gap-4" noValidate>
+    <div className="grid gap-4">
       <p className="text-meta text-muted">{t('agents.serverOnly')}</p>
-      <Field label={t('agents.name')} htmlFor="agent-name" hint={t('agents.nameHint')}><Input id="agent-name" value={name} maxLength={64} onChange={(e) => setName(e.target.value)} aria-describedby="agent-name-hint" /></Field>
-      <Field label={t('agents.expiry')} htmlFor="agent-expiry" hint={t('agents.expiryHint')}>
-        <Select id="agent-expiry" className="max-w-xs" value={days} onChange={(e) => setDays(Number(e.target.value))} aria-describedby="agent-expiry-hint">
-          {[1, 7, 30, 90, 0].map((d) => <option key={d} value={d}>{t(`agents.expiryOption.${d}`)}</option>)}
-        </Select>
-      </Field>
-      {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
+      <p className="text-meta text-muted">{t('agents.createNote')}</p>
+      {error ? <TokenError error={error} onRemoved={() => setError(null)} /> : null}
       <DialogFooter>
         <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
-        <Button type="submit" variant="primary" disabled={!name.trim()} busy={create.isPending} busyLabel={t('common:busy.creating')}>{t('agents.createSubmit')}</Button>
+        <Button variant="primary" busy={create.isPending} busyLabel={t('common:busy.creating')} onClick={make}>{t('agents.createCommand')}</Button>
       </DialogFooter>
-    </form>
+    </div>
   )
 }
 
@@ -412,7 +424,7 @@ function MachinesTable({ nodes, box }: { nodes: AgentNode[]; box: string }) {
 /** S-INV-4: osquery (token + một dòng lệnh cài cho Linux và Windows Server) và Wazuh (Vedette kéo qua API). Cần module agent-intake. */
 export function AgentsSection() {
   const { t } = useTranslation('inventory')
-  const { revoke, sampleToken } = useAgentActions()
+  const { revoke, sampleToken, removeUnused } = useAgentActions()
   const on = useModuleEnabled('agent-intake') === true
   const q = useAgents(on)
   const [creating, setCreating] = useState(false)
@@ -421,6 +433,8 @@ export function AgentsSection() {
   const isExpired = (a: AgentToken) => a.expires_at !== null && new Date(a.expires_at).getTime() < Date.now()
   const columns: ColumnDef<AgentToken>[] = [
     { id: 'name', header: t('agents.col.name'), accessorFn: (a) => a.name, cell: ({ row }) => <span className="font-medium">{row.original.name}</span> },
+    { id: 'madeBy', header: t('agents.col.madeBy'), accessorFn: (a) => a.created_by ?? '', cell: ({ row }) => row.original.created_by ?? <span className="text-muted">{t('agents.unknownMaker')}</span> },
+    { id: 'madeAt', header: t('agents.col.madeAt'), accessorFn: (a) => Date.parse(a.created_at), cell: ({ row }) => <time dateTime={row.original.created_at} title={fmtDateTime(row.original.created_at)}>{fmtRelative(row.original.created_at)}</time> },
     { id: 'token', header: t('agents.col.token'), enableSorting: false, accessorFn: (a) => a.last4, cell: ({ row }) => <span className="whitespace-nowrap">{t('agents.tokenMask', { last4: row.original.last4 })}</span> },
     { id: 'expires', header: t('agents.col.expires'), accessorFn: (a) => a.expires_at ?? '9999', cell: ({ row }) => isExpired(row.original)
       ? <Chip tone="danger">{t('agents.expired')}</Chip>
@@ -469,7 +483,12 @@ export function AgentsSection() {
                       <div className="flex items-center gap-1"><h4 className="text-sm font-medium">{t('agents.page.tokenTitle')}</h4><InfoTip topic={t('agents.page.tokenTitle')}>{t('agents.page.tokenBodyInfo')}</InfoTip></div>
                       <p className="max-w-3xl text-meta text-muted">{t('agents.page.tokenBody')}</p>
                     </div>
-                    <Button onClick={() => setCreating(true)}><Plus />{t('agents.create')}</Button>
+                    <div className="flex flex-wrap gap-2">
+                      {/* empty-guard: a toast after the action, not a link or button that leads anywhere */}
+                      {d.tokens.some((k) => k.hosts === 0 && Date.now() - Date.parse(k.created_at) > 3_600_000) ? <Button busy={removeUnused.isPending} busyLabel={t('common:busy.removing')} title={t('agents.removeUnused.hint')}
+                        onClick={() => removeUnused.mutate(undefined, { onSuccess: (r) => toast.success(t('agents.removeUnused.done', { count: r.removed })), onError: (e) => toast.error(errMsg(e)) })}>{t('agents.removeUnused.button')}</Button> : null}
+                      <Button onClick={() => setCreating(true)}><Plus />{t('agents.create')}</Button>
+                    </div>
                   </div>
                   {d.tokens.length ? <DataTable caption={t('agents.caption')} data={d.tokens} columns={columns} /> : <EmptyState title={t('agents.empty')}>{t('agents.emptyBody')}</EmptyState>}
                 </div>

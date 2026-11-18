@@ -64,7 +64,7 @@ func (h *AdminHandlers) InventoryGetInventoryAgents(ctx context.Context) (*oas.I
 	out.Install.Packages = h.s.packages(ctx)
 	for _, t := range list {
 		out.Tokens = append(out.Tokens, oas.InventoryGetInventoryAgentsOKTokensItem{
-			ID: t.ID, Name: t.Name, Kind: oas.InventoryGetInventoryAgentsOKTokensItemKindOsquery, Last4: t.Last4, CreatedAt: t.CreatedAt, Hosts: t.Hosts,
+			ID: t.ID, Name: t.Name, Kind: oas.InventoryGetInventoryAgentsOKTokensItemKindOsquery, Last4: t.Last4, CreatedAt: t.CreatedAt, Hosts: t.Hosts, CreatedBy: nilStr(t.CreatedBy),
 			ExpiresAt:    nilTime(t.ExpiresAt),
 			LastReceived: nilTime(t.LastReceived),
 		})
@@ -214,4 +214,29 @@ func (h *AdminHandlers) InventoryPostInventoryAgentsDevicesIDReport(ctx context.
 		out.Os = oas.NewNilInventoryPostInventoryAgentsDevicesIDReportOKOs(oas.InventoryPostInventoryAgentsDevicesIDReportOKOs(st.OS))
 	}
 	return out, nil
+}
+
+// InventoryPostInventoryAgentsTokensRemoveUnused implements POST /inventory/agents/tokens/remove-unused: every token no machine enrolled with
+// goes (audited); tokens with machines stay.
+func (h *AdminHandlers) InventoryPostInventoryAgentsTokensRemoveUnused(ctx context.Context) (*oas.InventoryPostInventoryAgentsTokensRemoveUnusedOK, error) {
+	if h.s == nil {
+		return nil, apierr.NotImplemented()
+	}
+	who, err := adminActor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	n, err := h.s.RemoveUnusedTokens(ctx, who)
+	if err != nil {
+		return nil, err
+	}
+	return &oas.InventoryPostInventoryAgentsTokensRemoveUnusedOK{Removed: n}, nil
+}
+
+// nilStr is a string as the contract has it: empty is null.
+func nilStr(s string) oas.NilString {
+	if s == "" {
+		return oas.NilString{Null: true}
+	}
+	return oas.NewNilString(s)
 }

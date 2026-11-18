@@ -545,6 +545,7 @@
       "inventory.approve_enrolled": "Device approved by its agent enrolment",
       "inventory.agent_token_create": "Create agent enrolment token",
       "inventory.agent_token_revoke": "Revoke agent enrolment token",
+      "inventory.agent_tokens_remove_unused": "Remove unused agent enrolment tokens",
       "inventory.agent_report_now": "Ask a device's agent to send its software now",
       "inventory.agent_node_remove": "Remove a machine's agent entry",
       "inventory.wazuh_connect": "Connect Wazuh",

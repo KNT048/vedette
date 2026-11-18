@@ -46,9 +46,11 @@ type BlockedReason string
 
 // The values of Target.blocked_reason.
 const (
-	BlockedUnverified   BlockedReason = "unverified"
-	BlockedExpired      BlockedReason = "expired"
-	BlockedTxtMissing   BlockedReason = "txt_missing"
+	BlockedUnverified BlockedReason = "unverified"
+	BlockedExpired    BlockedReason = "expired"
+	BlockedTxtMissing BlockedReason = "txt_missing"
+	// BlockedProofMissing: a typed public IP's proof (the token file, or the reverse DNS name) is not found now (INV-35).
+	BlockedProofMissing BlockedReason = "proof_missing"
 	BlockedNoCommitment BlockedReason = "no_commitment"
 	// BlockedNotCurrent: the latest full check did not see this IP, so the box no longer
 	// reaches the Internet through this IP (INV-13).
@@ -58,6 +60,8 @@ const (
 const (
 	methodDNS        = "dns_txt"
 	methodBoxEgress  = "box_egress"
+	methodIPFile     = "ip_file" // a typed IP, proved by the token file served on it (INV-35)
+	methodIPPTR      = "ip_ptr"  // a typed IP, proved by forward-confirmed reverse DNS (INV-35)
 	validityValid    = "valid"
 	validityExpiring = "expiring"
 	validityExpired  = "expired"
@@ -122,6 +126,9 @@ type Target struct {
 	LastCheck  *Check
 	Commitment *Commitment
 	Terms      *Terms // the testing terms; nil when not accepted
+	// Typed: a public IP a person typed in (INV-35), proved by a token file on it or by reverse DNS. false for a domain and for an IP
+	// the box found as its own egress address. Its Token is the one the proof file carries.
+	Typed      bool
 	CreatedAt  time.Time
 	LastScanAt time.Time // zero when never scanned
 	// proofDomain and proofToken are, after the scan gate, the domain target whose token proved this one now (itself, a parent target
@@ -168,6 +175,17 @@ type TargetView struct {
 	OpenPorts []PortRow `json:"open_ports"`
 	// Proof says where a domain's TXT record goes and which verified domain of the box covers it already; nil for an IP.
 	Proof *ProofHint `json:"proof"`
+	// Origin says who added the target: "person" (typed in) or "box" (a public IP the box found as its own egress address).
+	Origin string `json:"origin"`
+	// IPProof tells a typed IP's person where the token file goes and which reverse DNS names would prove it; nil for a domain and for
+	// an IP the box found.
+	IPProof *IPProofHint `json:"ip_proof"`
+	// NextCheckAt is when a typed IP's proof is looked at again by itself (INV-35); nil for any other target and while unproved.
+	NextCheckAt *string `json:"next_check_at"`
+	// ScanState is where the target stands for scanning: unproved, expired, paused, needs_terms, ready or scanning.
+	ScanState string `json:"scan_state"`
+	// OpenExposures is the number of open ports of the newest scan (0 when never scanned): the count the target row shows.
+	OpenExposures int `json:"open_exposures"`
 }
 
 // MaxOpenPorts bounds TargetView.OpenPorts (a domain can have hundreds of names on 80 and 443).

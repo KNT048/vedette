@@ -119,7 +119,7 @@ var cgnat = netip.MustParsePrefix("100.64.0.0/10")
 // known here (a home router whose WAN side is CGNAT is not seen); upgrade: the host reports the router's WAN address (UPnP or the
 // second hop of a traceroute). "" when not known to be shared (no Gateway wired, or the lookup failed).
 func (s *Service) sharedAddress(ctx context.Context, t Target) string {
-	if t.Kind != KindIP || s.cfg.Gateway == nil {
+	if t.Kind != KindIP || t.Typed || s.cfg.Gateway == nil { // a typed IP is not the address the box goes out through
 		return ""
 	}
 	g, err := s.cfg.Gateway.Gateway(ctx)
@@ -184,7 +184,7 @@ func (s *Service) AcceptTerms(ctx context.Context, who Actor, id, version string
 		case statusExpired:
 			return apiErr(409, "expired", "Verification of %s has expired. Verify it again first.", t.Value)
 		}
-		if t.Kind == KindIP { // paused: the box no longer goes out through it, so it is not shown to be the box's own now
+		if t.Kind == KindIP && !t.Typed { // paused: the box no longer goes out through it, so it is not shown to be the box's own now
 			c, err := s.loadChecks(ctx, tx)
 			if err != nil {
 				return err

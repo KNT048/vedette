@@ -23,7 +23,7 @@ type querier interface {
 
 type scanner interface{ Scan(dest ...any) error }
 
-const targetColumns = `id, kind, value, coalesce(method, ''), token, verified_at, last_check, commitment_by, commitment_at, commitment_version, commitment_sentence, commitment_user_id, commitment_method, created_at, last_scan_at, terms_version, terms_by, terms_at, terms_text, terms_user_id, terms_method, terms_disruptive`
+const targetColumns = `id, kind, value, coalesce(method, proof_method, ''), CASE WHEN typed = 1 THEN coalesce(ip_token, '') ELSE token END, verified_at, last_check, commitment_by, commitment_at, commitment_version, commitment_sentence, commitment_user_id, commitment_method, created_at, last_scan_at, terms_version, terms_by, terms_at, terms_text, terms_user_id, terms_method, terms_disruptive, typed`
 
 func parseTS(s string) (time.Time, error) {
 	t, err := time.Parse("2006-01-02T15:04:05.000Z", s)
@@ -62,13 +62,13 @@ func scanTarget(s scanner) (Target, error) {
 		kind                                                                   string
 		verified, check, by, byAt, noticeVer, noticeText, uid, method, scanned sql.NullString
 		tVer, tBy, tAt, tText, tUID, tMethod                                   sql.NullString
-		tDisruptive                                                            int
+		tDisruptive, typed                                                     int
 		created                                                                string
 	)
-	if err := s.Scan(&t.ID, &kind, &t.Value, &t.Method, &t.Token, &verified, &check, &by, &byAt, &noticeVer, &noticeText, &uid, &method, &created, &scanned, &tVer, &tBy, &tAt, &tText, &tUID, &tMethod, &tDisruptive); err != nil {
+	if err := s.Scan(&t.ID, &kind, &t.Value, &t.Method, &t.Token, &verified, &check, &by, &byAt, &noticeVer, &noticeText, &uid, &method, &created, &scanned, &tVer, &tBy, &tAt, &tText, &tUID, &tMethod, &tDisruptive, &typed); err != nil {
 		return Target{}, err
 	}
-	t.Kind = Kind(kind)
+	t.Kind, t.Typed = Kind(kind), typed == 1
 	var err error
 	if t.VerifiedAt, err = optTS(verified); err != nil {
 		return Target{}, err
@@ -194,8 +194,16 @@ func insertTarget(ctx context.Context, tx *sql.Tx, t Target) error {
 	if err != nil {
 		return err
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO exp_target (id, kind, value, method, token, verified_at, last_check, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		t.ID, string(t.Kind), t.Value, nullString(t.Method), t.Token, tsOrNil(t.VerifiedAt), check, store.FormatTS(t.CreatedAt))
+	token, ipToken, typed := t.Token, any(nil), 0
+	if t.Typed { // a typed IP keeps its token in its own column: the token column of an IP stays empty
+		token, ipToken, typed = "", t.Token, 1
+	}
+	method, proofMethod := t.Method, ""
+	if t.Typed {
+		method, proofMethod = "", t.Method
+	}
+	_, err = tx.ExecContext(ctx, `INSERT INTO exp_target (id, kind, value, method, token, verified_at, last_check, created_at, typed, ip_token, proof_method) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		t.ID, string(t.Kind), t.Value, nullString(method), token, tsOrNil(t.VerifiedAt), check, store.FormatTS(t.CreatedAt), typed, ipToken, nullString(proofMethod))
 	if err != nil {
 		return fmt.Errorf("inserting target %s: %w", t.Value, err)
 	}
@@ -241,9 +249,28 @@ func nullString(s string) any {
 	return s
 }
 
-// renewIP sets the last sighting of an IP: verified_at is the time, and with it the 30 days (INV-4).
+// renewIP sets the last sighting of an IP: verified_at is the time, and with it the 30 days (INV-4). An IP a person typed in that the
+// box sees as its own egress address becomes the box's: that proof is the stronger one.
 func renewIP(ctx context.Context, tx *sql.Tx, id string, now time.Time, msg string) error {
+	if _, err := tx.ExecContext(ctx, `UPDATE exp_target SET typed = 0, ip_token = NULL, proof_method = NULL WHERE id = ? AND typed = 1`, id); err != nil {
+		return fmt.Errorf("renewing target %s: %w", id, err)
+	}
 	return updateCheck(ctx, tx, id, Check{At: store.FormatTS(now), OK: true, Message: msg}, now, methodBoxEgress)
+}
+
+// recordIPProof records a check of a typed IP's proof: the check, and when it passed (verifiedAt not zero) the time the 30 days run
+// from and how it was proved.
+func recordIPProof(ctx context.Context, tx *sql.Tx, id string, c Check, verifiedAt time.Time, method string) error {
+	doc, err := checkDoc(&c)
+	if err != nil {
+		return err
+	}
+	_, err = tx.ExecContext(ctx, `UPDATE exp_target SET last_check = ?, verified_at = coalesce(?, verified_at), proof_method = coalesce(?, proof_method) WHERE id = ? AND typed = 1`,
+		doc, tsOrNil(verifiedAt), nullString(method), id)
+	if err != nil {
+		return fmt.Errorf("recording the proof of target %s: %w", id, err)
+	}
+	return nil
 }
 
 func deleteTarget(ctx context.Context, tx *sql.Tx, id string) error {

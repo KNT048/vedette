@@ -86398,6 +86398,10 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) encodeFields(e *jx.Encoder) {
 		e.Str(s.ID)
 	}
 	{
+		e.FieldStart("ip_proof")
+		s.IPProof.Encode(e)
+	}
+	{
 		e.FieldStart("kind")
 		s.Kind.Encode(e)
 	}
@@ -86424,6 +86428,14 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) encodeFields(e *jx.Encoder) {
 		s.Method.Encode(e)
 	}
 	{
+		e.FieldStart("next_check_at")
+		s.NextCheckAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("open_exposures")
+		e.Int(s.OpenExposures)
+	}
+	{
 		e.FieldStart("open_ports")
 		if s.OpenPorts == nil {
 			e.Null()
@@ -86436,8 +86448,16 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		e.FieldStart("origin")
+		s.Origin.Encode(e)
+	}
+	{
 		e.FieldStart("proof")
 		s.Proof.Encode(e)
+	}
+	{
+		e.FieldStart("scan_state")
+		s.ScanState.Encode(e)
 	}
 	{
 		e.FieldStart("scannable")
@@ -86479,7 +86499,7 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfExposureDeleteExposureTargetsIDTermsOK = [24]string{
+var jsonFieldsNameOfExposureDeleteExposureTargetsIDTermsOK = [29]string{
 	0:  "blocked_reason",
 	1:  "commitment",
 	2:  "commitment_notice",
@@ -86487,23 +86507,28 @@ var jsonFieldsNameOfExposureDeleteExposureTargetsIDTermsOK = [24]string{
 	4:  "expires_at",
 	5:  "full_scan",
 	6:  "id",
-	7:  "kind",
-	8:  "last_check",
-	9:  "last_scan_at",
-	10: "last_scan_finished_at",
-	11: "latest",
-	12: "method",
-	13: "open_ports",
-	14: "proof",
-	15: "scannable",
-	16: "status",
-	17: "terms",
-	18: "terms_notice",
-	19: "terms_warning",
-	20: "token",
-	21: "validity",
-	22: "value",
-	23: "verified_at",
+	7:  "ip_proof",
+	8:  "kind",
+	9:  "last_check",
+	10: "last_scan_at",
+	11: "last_scan_finished_at",
+	12: "latest",
+	13: "method",
+	14: "next_check_at",
+	15: "open_exposures",
+	16: "open_ports",
+	17: "origin",
+	18: "proof",
+	19: "scan_state",
+	20: "scannable",
+	21: "status",
+	22: "terms",
+	23: "terms_notice",
+	24: "terms_warning",
+	25: "token",
+	26: "validity",
+	27: "value",
+	28: "verified_at",
 }
 
 // Decode decodes ExposureDeleteExposureTargetsIDTermsOK from json.
@@ -86511,7 +86536,7 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode ExposureDeleteExposureTargetsIDTermsOK to nil")
 	}
-	var requiredBitSet [3]uint8
+	var requiredBitSet [4]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -86591,8 +86616,18 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
-		case "kind":
+		case "ip_proof":
 			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				if err := s.IPProof.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ip_proof\"")
+			}
+		case "kind":
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -86602,7 +86637,7 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "last_check":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.LastCheck.Decode(d); err != nil {
 					return err
@@ -86612,7 +86647,7 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last_check\"")
 			}
 		case "last_scan_at":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				if err := s.LastScanAt.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -86632,7 +86667,7 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last_scan_finished_at\"")
 			}
 		case "latest":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.Latest.Decode(d); err != nil {
 					return err
@@ -86642,7 +86677,7 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"latest\"")
 			}
 		case "method":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -86651,8 +86686,30 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"method\"")
 			}
+		case "next_check_at":
+			requiredBitSet[1] |= 1 << 6
+			if err := func() error {
+				if err := s.NextCheckAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"next_check_at\"")
+			}
+		case "open_exposures":
+			requiredBitSet[1] |= 1 << 7
+			if err := func() error {
+				v, err := d.Int()
+				s.OpenExposures = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"open_exposures\"")
+			}
 		case "open_ports":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[2] |= 1 << 0
 			if err := func() error {
 				switch tt := d.Next(); tt {
 				case jx.Null:
@@ -86676,8 +86733,18 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"open_ports\"")
 			}
+		case "origin":
+			requiredBitSet[2] |= 1 << 1
+			if err := func() error {
+				if err := s.Origin.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"origin\"")
+			}
 		case "proof":
-			requiredBitSet[1] |= 1 << 6
+			requiredBitSet[2] |= 1 << 2
 			if err := func() error {
 				if err := s.Proof.Decode(d); err != nil {
 					return err
@@ -86686,8 +86753,18 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"proof\"")
 			}
+		case "scan_state":
+			requiredBitSet[2] |= 1 << 3
+			if err := func() error {
+				if err := s.ScanState.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"scan_state\"")
+			}
 		case "scannable":
-			requiredBitSet[1] |= 1 << 7
+			requiredBitSet[2] |= 1 << 4
 			if err := func() error {
 				v, err := d.Bool()
 				s.Scannable = bool(v)
@@ -86699,7 +86776,7 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"scannable\"")
 			}
 		case "status":
-			requiredBitSet[2] |= 1 << 0
+			requiredBitSet[2] |= 1 << 5
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -86709,7 +86786,7 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"status\"")
 			}
 		case "terms":
-			requiredBitSet[2] |= 1 << 1
+			requiredBitSet[2] |= 1 << 6
 			if err := func() error {
 				if err := s.Terms.Decode(d); err != nil {
 					return err
@@ -86719,7 +86796,7 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"terms\"")
 			}
 		case "terms_notice":
-			requiredBitSet[2] |= 1 << 2
+			requiredBitSet[2] |= 1 << 7
 			if err := func() error {
 				if err := s.TermsNotice.Decode(d); err != nil {
 					return err
@@ -86739,7 +86816,7 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"terms_warning\"")
 			}
 		case "token":
-			requiredBitSet[2] |= 1 << 4
+			requiredBitSet[3] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Token = string(v)
@@ -86751,7 +86828,7 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"token\"")
 			}
 		case "validity":
-			requiredBitSet[2] |= 1 << 5
+			requiredBitSet[3] |= 1 << 2
 			if err := func() error {
 				if err := s.Validity.Decode(d); err != nil {
 					return err
@@ -86761,7 +86838,7 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"validity\"")
 			}
 		case "value":
-			requiredBitSet[2] |= 1 << 6
+			requiredBitSet[3] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Value = string(v)
@@ -86773,7 +86850,7 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"value\"")
 			}
 		case "verified_at":
-			requiredBitSet[2] |= 1 << 7
+			requiredBitSet[3] |= 1 << 4
 			if err := func() error {
 				if err := s.VerifiedAt.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -86791,10 +86868,11 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [3]uint8{
+	for i, mask := range [4]uint8{
 		0b11111111,
-		0b11111011,
 		0b11110111,
+		0b11111111,
+		0b00011110,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -86862,6 +86940,8 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKBlockedReason) Decode(d *jx.Decod
 		*s = ExposureDeleteExposureTargetsIDTermsOKBlockedReasonExpired
 	case ExposureDeleteExposureTargetsIDTermsOKBlockedReasonTxtMissing:
 		*s = ExposureDeleteExposureTargetsIDTermsOKBlockedReasonTxtMissing
+	case ExposureDeleteExposureTargetsIDTermsOKBlockedReasonProofMissing:
+		*s = ExposureDeleteExposureTargetsIDTermsOKBlockedReasonProofMissing
 	case ExposureDeleteExposureTargetsIDTermsOKBlockedReasonNoCommitment:
 		*s = ExposureDeleteExposureTargetsIDTermsOKBlockedReasonNoCommitment
 	case ExposureDeleteExposureTargetsIDTermsOKBlockedReasonIPNotCurrent:
@@ -87138,6 +87218,177 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKCommitmentNotice) MarshalJSON() (
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ExposureDeleteExposureTargetsIDTermsOKCommitmentNotice) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *ExposureDeleteExposureTargetsIDTermsOKIPProof) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ExposureDeleteExposureTargetsIDTermsOKIPProof) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("content")
+		e.Str(s.Content)
+	}
+	{
+		e.FieldStart("path")
+		e.Str(s.Path)
+	}
+	{
+		e.FieldStart("ptr_domains")
+		e.ArrStart()
+		for _, elem := range s.PtrDomains {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("urls")
+		e.ArrStart()
+		for _, elem := range s.Urls {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+}
+
+var jsonFieldsNameOfExposureDeleteExposureTargetsIDTermsOKIPProof = [4]string{
+	0: "content",
+	1: "path",
+	2: "ptr_domains",
+	3: "urls",
+}
+
+// Decode decodes ExposureDeleteExposureTargetsIDTermsOKIPProof from json.
+func (s *ExposureDeleteExposureTargetsIDTermsOKIPProof) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposureDeleteExposureTargetsIDTermsOKIPProof to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "content":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Content = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"content\"")
+			}
+		case "path":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Path = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"path\"")
+			}
+		case "ptr_domains":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				s.PtrDomains = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.PtrDomains = append(s.PtrDomains, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ptr_domains\"")
+			}
+		case "urls":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				s.Urls = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Urls = append(s.Urls, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"urls\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ExposureDeleteExposureTargetsIDTermsOKIPProof")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00001111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfExposureDeleteExposureTargetsIDTermsOKIPProof) {
+					name = jsonFieldsNameOfExposureDeleteExposureTargetsIDTermsOKIPProof[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ExposureDeleteExposureTargetsIDTermsOKIPProof) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposureDeleteExposureTargetsIDTermsOKIPProof) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -87496,6 +87747,10 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKMethod) Decode(d *jx.Decoder) err
 		*s = ExposureDeleteExposureTargetsIDTermsOKMethodDNSTxt
 	case ExposureDeleteExposureTargetsIDTermsOKMethodBoxEgress:
 		*s = ExposureDeleteExposureTargetsIDTermsOKMethodBoxEgress
+	case ExposureDeleteExposureTargetsIDTermsOKMethodIPFile:
+		*s = ExposureDeleteExposureTargetsIDTermsOKMethodIPFile
+	case ExposureDeleteExposureTargetsIDTermsOKMethodIPPtr:
+		*s = ExposureDeleteExposureTargetsIDTermsOKMethodIPPtr
 	default:
 		*s = ExposureDeleteExposureTargetsIDTermsOKMethod(v)
 	}
@@ -88288,6 +88543,46 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent) UnmarshalJSON
 	return s.Decode(d)
 }
 
+// Encode encodes ExposureDeleteExposureTargetsIDTermsOKOrigin as json.
+func (s ExposureDeleteExposureTargetsIDTermsOKOrigin) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ExposureDeleteExposureTargetsIDTermsOKOrigin from json.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOrigin) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposureDeleteExposureTargetsIDTermsOKOrigin to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ExposureDeleteExposureTargetsIDTermsOKOrigin(v) {
+	case ExposureDeleteExposureTargetsIDTermsOKOriginPerson:
+		*s = ExposureDeleteExposureTargetsIDTermsOKOriginPerson
+	case ExposureDeleteExposureTargetsIDTermsOKOriginBox:
+		*s = ExposureDeleteExposureTargetsIDTermsOKOriginBox
+	default:
+		*s = ExposureDeleteExposureTargetsIDTermsOKOrigin(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ExposureDeleteExposureTargetsIDTermsOKOrigin) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOrigin) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode implements json.Marshaler.
 func (s *ExposureDeleteExposureTargetsIDTermsOKProof) Encode(e *jx.Encoder) {
 	e.ObjStart()
@@ -88427,6 +88722,54 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKProof) MarshalJSON() ([]byte, err
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ExposureDeleteExposureTargetsIDTermsOKProof) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ExposureDeleteExposureTargetsIDTermsOKScanState as json.
+func (s ExposureDeleteExposureTargetsIDTermsOKScanState) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ExposureDeleteExposureTargetsIDTermsOKScanState from json.
+func (s *ExposureDeleteExposureTargetsIDTermsOKScanState) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposureDeleteExposureTargetsIDTermsOKScanState to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ExposureDeleteExposureTargetsIDTermsOKScanState(v) {
+	case ExposureDeleteExposureTargetsIDTermsOKScanStateUnproved:
+		*s = ExposureDeleteExposureTargetsIDTermsOKScanStateUnproved
+	case ExposureDeleteExposureTargetsIDTermsOKScanStateExpired:
+		*s = ExposureDeleteExposureTargetsIDTermsOKScanStateExpired
+	case ExposureDeleteExposureTargetsIDTermsOKScanStatePaused:
+		*s = ExposureDeleteExposureTargetsIDTermsOKScanStatePaused
+	case ExposureDeleteExposureTargetsIDTermsOKScanStateNeedsTerms:
+		*s = ExposureDeleteExposureTargetsIDTermsOKScanStateNeedsTerms
+	case ExposureDeleteExposureTargetsIDTermsOKScanStateReady:
+		*s = ExposureDeleteExposureTargetsIDTermsOKScanStateReady
+	case ExposureDeleteExposureTargetsIDTermsOKScanStateScanning:
+		*s = ExposureDeleteExposureTargetsIDTermsOKScanStateScanning
+	default:
+		*s = ExposureDeleteExposureTargetsIDTermsOKScanState(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ExposureDeleteExposureTargetsIDTermsOKScanState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposureDeleteExposureTargetsIDTermsOKScanState) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -91144,6 +91487,10 @@ func (s *ExposureGetExposureTargetsIDOK) encodeFields(e *jx.Encoder) {
 		e.Str(s.ID)
 	}
 	{
+		e.FieldStart("ip_proof")
+		s.IPProof.Encode(e)
+	}
+	{
 		e.FieldStart("kind")
 		s.Kind.Encode(e)
 	}
@@ -91170,6 +91517,14 @@ func (s *ExposureGetExposureTargetsIDOK) encodeFields(e *jx.Encoder) {
 		s.Method.Encode(e)
 	}
 	{
+		e.FieldStart("next_check_at")
+		s.NextCheckAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("open_exposures")
+		e.Int(s.OpenExposures)
+	}
+	{
 		e.FieldStart("open_ports")
 		if s.OpenPorts == nil {
 			e.Null()
@@ -91182,8 +91537,16 @@ func (s *ExposureGetExposureTargetsIDOK) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		e.FieldStart("origin")
+		s.Origin.Encode(e)
+	}
+	{
 		e.FieldStart("proof")
 		s.Proof.Encode(e)
+	}
+	{
+		e.FieldStart("scan_state")
+		s.ScanState.Encode(e)
 	}
 	{
 		e.FieldStart("scannable")
@@ -91225,7 +91588,7 @@ func (s *ExposureGetExposureTargetsIDOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfExposureGetExposureTargetsIDOK = [24]string{
+var jsonFieldsNameOfExposureGetExposureTargetsIDOK = [29]string{
 	0:  "blocked_reason",
 	1:  "commitment",
 	2:  "commitment_notice",
@@ -91233,23 +91596,28 @@ var jsonFieldsNameOfExposureGetExposureTargetsIDOK = [24]string{
 	4:  "expires_at",
 	5:  "full_scan",
 	6:  "id",
-	7:  "kind",
-	8:  "last_check",
-	9:  "last_scan_at",
-	10: "last_scan_finished_at",
-	11: "latest",
-	12: "method",
-	13: "open_ports",
-	14: "proof",
-	15: "scannable",
-	16: "status",
-	17: "terms",
-	18: "terms_notice",
-	19: "terms_warning",
-	20: "token",
-	21: "validity",
-	22: "value",
-	23: "verified_at",
+	7:  "ip_proof",
+	8:  "kind",
+	9:  "last_check",
+	10: "last_scan_at",
+	11: "last_scan_finished_at",
+	12: "latest",
+	13: "method",
+	14: "next_check_at",
+	15: "open_exposures",
+	16: "open_ports",
+	17: "origin",
+	18: "proof",
+	19: "scan_state",
+	20: "scannable",
+	21: "status",
+	22: "terms",
+	23: "terms_notice",
+	24: "terms_warning",
+	25: "token",
+	26: "validity",
+	27: "value",
+	28: "verified_at",
 }
 
 // Decode decodes ExposureGetExposureTargetsIDOK from json.
@@ -91257,7 +91625,7 @@ func (s *ExposureGetExposureTargetsIDOK) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode ExposureGetExposureTargetsIDOK to nil")
 	}
-	var requiredBitSet [3]uint8
+	var requiredBitSet [4]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -91337,8 +91705,18 @@ func (s *ExposureGetExposureTargetsIDOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
-		case "kind":
+		case "ip_proof":
 			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				if err := s.IPProof.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ip_proof\"")
+			}
+		case "kind":
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -91348,7 +91726,7 @@ func (s *ExposureGetExposureTargetsIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "last_check":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.LastCheck.Decode(d); err != nil {
 					return err
@@ -91358,7 +91736,7 @@ func (s *ExposureGetExposureTargetsIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last_check\"")
 			}
 		case "last_scan_at":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				if err := s.LastScanAt.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -91378,7 +91756,7 @@ func (s *ExposureGetExposureTargetsIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last_scan_finished_at\"")
 			}
 		case "latest":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.Latest.Decode(d); err != nil {
 					return err
@@ -91388,7 +91766,7 @@ func (s *ExposureGetExposureTargetsIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"latest\"")
 			}
 		case "method":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -91397,8 +91775,30 @@ func (s *ExposureGetExposureTargetsIDOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"method\"")
 			}
+		case "next_check_at":
+			requiredBitSet[1] |= 1 << 6
+			if err := func() error {
+				if err := s.NextCheckAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"next_check_at\"")
+			}
+		case "open_exposures":
+			requiredBitSet[1] |= 1 << 7
+			if err := func() error {
+				v, err := d.Int()
+				s.OpenExposures = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"open_exposures\"")
+			}
 		case "open_ports":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[2] |= 1 << 0
 			if err := func() error {
 				switch tt := d.Next(); tt {
 				case jx.Null:
@@ -91422,8 +91822,18 @@ func (s *ExposureGetExposureTargetsIDOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"open_ports\"")
 			}
+		case "origin":
+			requiredBitSet[2] |= 1 << 1
+			if err := func() error {
+				if err := s.Origin.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"origin\"")
+			}
 		case "proof":
-			requiredBitSet[1] |= 1 << 6
+			requiredBitSet[2] |= 1 << 2
 			if err := func() error {
 				if err := s.Proof.Decode(d); err != nil {
 					return err
@@ -91432,8 +91842,18 @@ func (s *ExposureGetExposureTargetsIDOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"proof\"")
 			}
+		case "scan_state":
+			requiredBitSet[2] |= 1 << 3
+			if err := func() error {
+				if err := s.ScanState.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"scan_state\"")
+			}
 		case "scannable":
-			requiredBitSet[1] |= 1 << 7
+			requiredBitSet[2] |= 1 << 4
 			if err := func() error {
 				v, err := d.Bool()
 				s.Scannable = bool(v)
@@ -91445,7 +91865,7 @@ func (s *ExposureGetExposureTargetsIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"scannable\"")
 			}
 		case "status":
-			requiredBitSet[2] |= 1 << 0
+			requiredBitSet[2] |= 1 << 5
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -91455,7 +91875,7 @@ func (s *ExposureGetExposureTargetsIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"status\"")
 			}
 		case "terms":
-			requiredBitSet[2] |= 1 << 1
+			requiredBitSet[2] |= 1 << 6
 			if err := func() error {
 				if err := s.Terms.Decode(d); err != nil {
 					return err
@@ -91465,7 +91885,7 @@ func (s *ExposureGetExposureTargetsIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"terms\"")
 			}
 		case "terms_notice":
-			requiredBitSet[2] |= 1 << 2
+			requiredBitSet[2] |= 1 << 7
 			if err := func() error {
 				if err := s.TermsNotice.Decode(d); err != nil {
 					return err
@@ -91485,7 +91905,7 @@ func (s *ExposureGetExposureTargetsIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"terms_warning\"")
 			}
 		case "token":
-			requiredBitSet[2] |= 1 << 4
+			requiredBitSet[3] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Token = string(v)
@@ -91497,7 +91917,7 @@ func (s *ExposureGetExposureTargetsIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"token\"")
 			}
 		case "validity":
-			requiredBitSet[2] |= 1 << 5
+			requiredBitSet[3] |= 1 << 2
 			if err := func() error {
 				if err := s.Validity.Decode(d); err != nil {
 					return err
@@ -91507,7 +91927,7 @@ func (s *ExposureGetExposureTargetsIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"validity\"")
 			}
 		case "value":
-			requiredBitSet[2] |= 1 << 6
+			requiredBitSet[3] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Value = string(v)
@@ -91519,7 +91939,7 @@ func (s *ExposureGetExposureTargetsIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"value\"")
 			}
 		case "verified_at":
-			requiredBitSet[2] |= 1 << 7
+			requiredBitSet[3] |= 1 << 4
 			if err := func() error {
 				if err := s.VerifiedAt.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -91537,10 +91957,11 @@ func (s *ExposureGetExposureTargetsIDOK) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [3]uint8{
+	for i, mask := range [4]uint8{
 		0b11111111,
-		0b11111011,
 		0b11110111,
+		0b11111111,
+		0b00011110,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -91608,6 +92029,8 @@ func (s *ExposureGetExposureTargetsIDOKBlockedReason) Decode(d *jx.Decoder) erro
 		*s = ExposureGetExposureTargetsIDOKBlockedReasonExpired
 	case ExposureGetExposureTargetsIDOKBlockedReasonTxtMissing:
 		*s = ExposureGetExposureTargetsIDOKBlockedReasonTxtMissing
+	case ExposureGetExposureTargetsIDOKBlockedReasonProofMissing:
+		*s = ExposureGetExposureTargetsIDOKBlockedReasonProofMissing
 	case ExposureGetExposureTargetsIDOKBlockedReasonNoCommitment:
 		*s = ExposureGetExposureTargetsIDOKBlockedReasonNoCommitment
 	case ExposureGetExposureTargetsIDOKBlockedReasonIPNotCurrent:
@@ -91884,6 +92307,177 @@ func (s *ExposureGetExposureTargetsIDOKCommitmentNotice) MarshalJSON() ([]byte, 
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ExposureGetExposureTargetsIDOKCommitmentNotice) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *ExposureGetExposureTargetsIDOKIPProof) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ExposureGetExposureTargetsIDOKIPProof) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("content")
+		e.Str(s.Content)
+	}
+	{
+		e.FieldStart("path")
+		e.Str(s.Path)
+	}
+	{
+		e.FieldStart("ptr_domains")
+		e.ArrStart()
+		for _, elem := range s.PtrDomains {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("urls")
+		e.ArrStart()
+		for _, elem := range s.Urls {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+}
+
+var jsonFieldsNameOfExposureGetExposureTargetsIDOKIPProof = [4]string{
+	0: "content",
+	1: "path",
+	2: "ptr_domains",
+	3: "urls",
+}
+
+// Decode decodes ExposureGetExposureTargetsIDOKIPProof from json.
+func (s *ExposureGetExposureTargetsIDOKIPProof) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposureGetExposureTargetsIDOKIPProof to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "content":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Content = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"content\"")
+			}
+		case "path":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Path = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"path\"")
+			}
+		case "ptr_domains":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				s.PtrDomains = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.PtrDomains = append(s.PtrDomains, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ptr_domains\"")
+			}
+		case "urls":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				s.Urls = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Urls = append(s.Urls, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"urls\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ExposureGetExposureTargetsIDOKIPProof")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00001111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfExposureGetExposureTargetsIDOKIPProof) {
+					name = jsonFieldsNameOfExposureGetExposureTargetsIDOKIPProof[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ExposureGetExposureTargetsIDOKIPProof) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposureGetExposureTargetsIDOKIPProof) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -92242,6 +92836,10 @@ func (s *ExposureGetExposureTargetsIDOKMethod) Decode(d *jx.Decoder) error {
 		*s = ExposureGetExposureTargetsIDOKMethodDNSTxt
 	case ExposureGetExposureTargetsIDOKMethodBoxEgress:
 		*s = ExposureGetExposureTargetsIDOKMethodBoxEgress
+	case ExposureGetExposureTargetsIDOKMethodIPFile:
+		*s = ExposureGetExposureTargetsIDOKMethodIPFile
+	case ExposureGetExposureTargetsIDOKMethodIPPtr:
+		*s = ExposureGetExposureTargetsIDOKMethodIPPtr
 	default:
 		*s = ExposureGetExposureTargetsIDOKMethod(v)
 	}
@@ -93034,6 +93632,46 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItemIdent) UnmarshalJSON(data []
 	return s.Decode(d)
 }
 
+// Encode encodes ExposureGetExposureTargetsIDOKOrigin as json.
+func (s ExposureGetExposureTargetsIDOKOrigin) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ExposureGetExposureTargetsIDOKOrigin from json.
+func (s *ExposureGetExposureTargetsIDOKOrigin) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposureGetExposureTargetsIDOKOrigin to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ExposureGetExposureTargetsIDOKOrigin(v) {
+	case ExposureGetExposureTargetsIDOKOriginPerson:
+		*s = ExposureGetExposureTargetsIDOKOriginPerson
+	case ExposureGetExposureTargetsIDOKOriginBox:
+		*s = ExposureGetExposureTargetsIDOKOriginBox
+	default:
+		*s = ExposureGetExposureTargetsIDOKOrigin(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ExposureGetExposureTargetsIDOKOrigin) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposureGetExposureTargetsIDOKOrigin) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode implements json.Marshaler.
 func (s *ExposureGetExposureTargetsIDOKProof) Encode(e *jx.Encoder) {
 	e.ObjStart()
@@ -93173,6 +93811,54 @@ func (s *ExposureGetExposureTargetsIDOKProof) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ExposureGetExposureTargetsIDOKProof) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ExposureGetExposureTargetsIDOKScanState as json.
+func (s ExposureGetExposureTargetsIDOKScanState) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ExposureGetExposureTargetsIDOKScanState from json.
+func (s *ExposureGetExposureTargetsIDOKScanState) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposureGetExposureTargetsIDOKScanState to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ExposureGetExposureTargetsIDOKScanState(v) {
+	case ExposureGetExposureTargetsIDOKScanStateUnproved:
+		*s = ExposureGetExposureTargetsIDOKScanStateUnproved
+	case ExposureGetExposureTargetsIDOKScanStateExpired:
+		*s = ExposureGetExposureTargetsIDOKScanStateExpired
+	case ExposureGetExposureTargetsIDOKScanStatePaused:
+		*s = ExposureGetExposureTargetsIDOKScanStatePaused
+	case ExposureGetExposureTargetsIDOKScanStateNeedsTerms:
+		*s = ExposureGetExposureTargetsIDOKScanStateNeedsTerms
+	case ExposureGetExposureTargetsIDOKScanStateReady:
+		*s = ExposureGetExposureTargetsIDOKScanStateReady
+	case ExposureGetExposureTargetsIDOKScanStateScanning:
+		*s = ExposureGetExposureTargetsIDOKScanStateScanning
+	default:
+		*s = ExposureGetExposureTargetsIDOKScanState(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ExposureGetExposureTargetsIDOKScanState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposureGetExposureTargetsIDOKScanState) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -100587,6 +101273,10 @@ func (s *ExposureGetExposureTargetsOKItemsItem) encodeFields(e *jx.Encoder) {
 		e.Str(s.ID)
 	}
 	{
+		e.FieldStart("ip_proof")
+		s.IPProof.Encode(e)
+	}
+	{
 		e.FieldStart("kind")
 		s.Kind.Encode(e)
 	}
@@ -100613,6 +101303,14 @@ func (s *ExposureGetExposureTargetsOKItemsItem) encodeFields(e *jx.Encoder) {
 		s.Method.Encode(e)
 	}
 	{
+		e.FieldStart("next_check_at")
+		s.NextCheckAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("open_exposures")
+		e.Int(s.OpenExposures)
+	}
+	{
 		e.FieldStart("open_ports")
 		if s.OpenPorts == nil {
 			e.Null()
@@ -100625,8 +101323,16 @@ func (s *ExposureGetExposureTargetsOKItemsItem) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		e.FieldStart("origin")
+		s.Origin.Encode(e)
+	}
+	{
 		e.FieldStart("proof")
 		s.Proof.Encode(e)
+	}
+	{
+		e.FieldStart("scan_state")
+		s.ScanState.Encode(e)
 	}
 	{
 		e.FieldStart("scannable")
@@ -100668,7 +101374,7 @@ func (s *ExposureGetExposureTargetsOKItemsItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfExposureGetExposureTargetsOKItemsItem = [24]string{
+var jsonFieldsNameOfExposureGetExposureTargetsOKItemsItem = [29]string{
 	0:  "blocked_reason",
 	1:  "commitment",
 	2:  "commitment_notice",
@@ -100676,23 +101382,28 @@ var jsonFieldsNameOfExposureGetExposureTargetsOKItemsItem = [24]string{
 	4:  "expires_at",
 	5:  "full_scan",
 	6:  "id",
-	7:  "kind",
-	8:  "last_check",
-	9:  "last_scan_at",
-	10: "last_scan_finished_at",
-	11: "latest",
-	12: "method",
-	13: "open_ports",
-	14: "proof",
-	15: "scannable",
-	16: "status",
-	17: "terms",
-	18: "terms_notice",
-	19: "terms_warning",
-	20: "token",
-	21: "validity",
-	22: "value",
-	23: "verified_at",
+	7:  "ip_proof",
+	8:  "kind",
+	9:  "last_check",
+	10: "last_scan_at",
+	11: "last_scan_finished_at",
+	12: "latest",
+	13: "method",
+	14: "next_check_at",
+	15: "open_exposures",
+	16: "open_ports",
+	17: "origin",
+	18: "proof",
+	19: "scan_state",
+	20: "scannable",
+	21: "status",
+	22: "terms",
+	23: "terms_notice",
+	24: "terms_warning",
+	25: "token",
+	26: "validity",
+	27: "value",
+	28: "verified_at",
 }
 
 // Decode decodes ExposureGetExposureTargetsOKItemsItem from json.
@@ -100700,7 +101411,7 @@ func (s *ExposureGetExposureTargetsOKItemsItem) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode ExposureGetExposureTargetsOKItemsItem to nil")
 	}
-	var requiredBitSet [3]uint8
+	var requiredBitSet [4]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -100780,8 +101491,18 @@ func (s *ExposureGetExposureTargetsOKItemsItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
-		case "kind":
+		case "ip_proof":
 			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				if err := s.IPProof.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ip_proof\"")
+			}
+		case "kind":
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -100791,7 +101512,7 @@ func (s *ExposureGetExposureTargetsOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "last_check":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.LastCheck.Decode(d); err != nil {
 					return err
@@ -100801,7 +101522,7 @@ func (s *ExposureGetExposureTargetsOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last_check\"")
 			}
 		case "last_scan_at":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				if err := s.LastScanAt.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -100821,7 +101542,7 @@ func (s *ExposureGetExposureTargetsOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last_scan_finished_at\"")
 			}
 		case "latest":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.Latest.Decode(d); err != nil {
 					return err
@@ -100831,7 +101552,7 @@ func (s *ExposureGetExposureTargetsOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"latest\"")
 			}
 		case "method":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -100840,8 +101561,30 @@ func (s *ExposureGetExposureTargetsOKItemsItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"method\"")
 			}
+		case "next_check_at":
+			requiredBitSet[1] |= 1 << 6
+			if err := func() error {
+				if err := s.NextCheckAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"next_check_at\"")
+			}
+		case "open_exposures":
+			requiredBitSet[1] |= 1 << 7
+			if err := func() error {
+				v, err := d.Int()
+				s.OpenExposures = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"open_exposures\"")
+			}
 		case "open_ports":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[2] |= 1 << 0
 			if err := func() error {
 				switch tt := d.Next(); tt {
 				case jx.Null:
@@ -100865,8 +101608,18 @@ func (s *ExposureGetExposureTargetsOKItemsItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"open_ports\"")
 			}
+		case "origin":
+			requiredBitSet[2] |= 1 << 1
+			if err := func() error {
+				if err := s.Origin.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"origin\"")
+			}
 		case "proof":
-			requiredBitSet[1] |= 1 << 6
+			requiredBitSet[2] |= 1 << 2
 			if err := func() error {
 				if err := s.Proof.Decode(d); err != nil {
 					return err
@@ -100875,8 +101628,18 @@ func (s *ExposureGetExposureTargetsOKItemsItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"proof\"")
 			}
+		case "scan_state":
+			requiredBitSet[2] |= 1 << 3
+			if err := func() error {
+				if err := s.ScanState.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"scan_state\"")
+			}
 		case "scannable":
-			requiredBitSet[1] |= 1 << 7
+			requiredBitSet[2] |= 1 << 4
 			if err := func() error {
 				v, err := d.Bool()
 				s.Scannable = bool(v)
@@ -100888,7 +101651,7 @@ func (s *ExposureGetExposureTargetsOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"scannable\"")
 			}
 		case "status":
-			requiredBitSet[2] |= 1 << 0
+			requiredBitSet[2] |= 1 << 5
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -100898,7 +101661,7 @@ func (s *ExposureGetExposureTargetsOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"status\"")
 			}
 		case "terms":
-			requiredBitSet[2] |= 1 << 1
+			requiredBitSet[2] |= 1 << 6
 			if err := func() error {
 				if err := s.Terms.Decode(d); err != nil {
 					return err
@@ -100908,7 +101671,7 @@ func (s *ExposureGetExposureTargetsOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"terms\"")
 			}
 		case "terms_notice":
-			requiredBitSet[2] |= 1 << 2
+			requiredBitSet[2] |= 1 << 7
 			if err := func() error {
 				if err := s.TermsNotice.Decode(d); err != nil {
 					return err
@@ -100928,7 +101691,7 @@ func (s *ExposureGetExposureTargetsOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"terms_warning\"")
 			}
 		case "token":
-			requiredBitSet[2] |= 1 << 4
+			requiredBitSet[3] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Token = string(v)
@@ -100940,7 +101703,7 @@ func (s *ExposureGetExposureTargetsOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"token\"")
 			}
 		case "validity":
-			requiredBitSet[2] |= 1 << 5
+			requiredBitSet[3] |= 1 << 2
 			if err := func() error {
 				if err := s.Validity.Decode(d); err != nil {
 					return err
@@ -100950,7 +101713,7 @@ func (s *ExposureGetExposureTargetsOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"validity\"")
 			}
 		case "value":
-			requiredBitSet[2] |= 1 << 6
+			requiredBitSet[3] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Value = string(v)
@@ -100962,7 +101725,7 @@ func (s *ExposureGetExposureTargetsOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"value\"")
 			}
 		case "verified_at":
-			requiredBitSet[2] |= 1 << 7
+			requiredBitSet[3] |= 1 << 4
 			if err := func() error {
 				if err := s.VerifiedAt.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -100980,10 +101743,11 @@ func (s *ExposureGetExposureTargetsOKItemsItem) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [3]uint8{
+	for i, mask := range [4]uint8{
 		0b11111111,
-		0b11111011,
 		0b11110111,
+		0b11111111,
+		0b00011110,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -101051,6 +101815,8 @@ func (s *ExposureGetExposureTargetsOKItemsItemBlockedReason) Decode(d *jx.Decode
 		*s = ExposureGetExposureTargetsOKItemsItemBlockedReasonExpired
 	case ExposureGetExposureTargetsOKItemsItemBlockedReasonTxtMissing:
 		*s = ExposureGetExposureTargetsOKItemsItemBlockedReasonTxtMissing
+	case ExposureGetExposureTargetsOKItemsItemBlockedReasonProofMissing:
+		*s = ExposureGetExposureTargetsOKItemsItemBlockedReasonProofMissing
 	case ExposureGetExposureTargetsOKItemsItemBlockedReasonNoCommitment:
 		*s = ExposureGetExposureTargetsOKItemsItemBlockedReasonNoCommitment
 	case ExposureGetExposureTargetsOKItemsItemBlockedReasonIPNotCurrent:
@@ -101327,6 +102093,177 @@ func (s *ExposureGetExposureTargetsOKItemsItemCommitmentNotice) MarshalJSON() ([
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ExposureGetExposureTargetsOKItemsItemCommitmentNotice) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *ExposureGetExposureTargetsOKItemsItemIPProof) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ExposureGetExposureTargetsOKItemsItemIPProof) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("content")
+		e.Str(s.Content)
+	}
+	{
+		e.FieldStart("path")
+		e.Str(s.Path)
+	}
+	{
+		e.FieldStart("ptr_domains")
+		e.ArrStart()
+		for _, elem := range s.PtrDomains {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("urls")
+		e.ArrStart()
+		for _, elem := range s.Urls {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+}
+
+var jsonFieldsNameOfExposureGetExposureTargetsOKItemsItemIPProof = [4]string{
+	0: "content",
+	1: "path",
+	2: "ptr_domains",
+	3: "urls",
+}
+
+// Decode decodes ExposureGetExposureTargetsOKItemsItemIPProof from json.
+func (s *ExposureGetExposureTargetsOKItemsItemIPProof) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposureGetExposureTargetsOKItemsItemIPProof to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "content":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Content = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"content\"")
+			}
+		case "path":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Path = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"path\"")
+			}
+		case "ptr_domains":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				s.PtrDomains = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.PtrDomains = append(s.PtrDomains, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ptr_domains\"")
+			}
+		case "urls":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				s.Urls = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Urls = append(s.Urls, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"urls\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ExposureGetExposureTargetsOKItemsItemIPProof")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00001111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfExposureGetExposureTargetsOKItemsItemIPProof) {
+					name = jsonFieldsNameOfExposureGetExposureTargetsOKItemsItemIPProof[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ExposureGetExposureTargetsOKItemsItemIPProof) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposureGetExposureTargetsOKItemsItemIPProof) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -101685,6 +102622,10 @@ func (s *ExposureGetExposureTargetsOKItemsItemMethod) Decode(d *jx.Decoder) erro
 		*s = ExposureGetExposureTargetsOKItemsItemMethodDNSTxt
 	case ExposureGetExposureTargetsOKItemsItemMethodBoxEgress:
 		*s = ExposureGetExposureTargetsOKItemsItemMethodBoxEgress
+	case ExposureGetExposureTargetsOKItemsItemMethodIPFile:
+		*s = ExposureGetExposureTargetsOKItemsItemMethodIPFile
+	case ExposureGetExposureTargetsOKItemsItemMethodIPPtr:
+		*s = ExposureGetExposureTargetsOKItemsItemMethodIPPtr
 	default:
 		*s = ExposureGetExposureTargetsOKItemsItemMethod(v)
 	}
@@ -102477,6 +103418,46 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent) UnmarshalJSON(
 	return s.Decode(d)
 }
 
+// Encode encodes ExposureGetExposureTargetsOKItemsItemOrigin as json.
+func (s ExposureGetExposureTargetsOKItemsItemOrigin) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ExposureGetExposureTargetsOKItemsItemOrigin from json.
+func (s *ExposureGetExposureTargetsOKItemsItemOrigin) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposureGetExposureTargetsOKItemsItemOrigin to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ExposureGetExposureTargetsOKItemsItemOrigin(v) {
+	case ExposureGetExposureTargetsOKItemsItemOriginPerson:
+		*s = ExposureGetExposureTargetsOKItemsItemOriginPerson
+	case ExposureGetExposureTargetsOKItemsItemOriginBox:
+		*s = ExposureGetExposureTargetsOKItemsItemOriginBox
+	default:
+		*s = ExposureGetExposureTargetsOKItemsItemOrigin(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ExposureGetExposureTargetsOKItemsItemOrigin) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposureGetExposureTargetsOKItemsItemOrigin) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode implements json.Marshaler.
 func (s *ExposureGetExposureTargetsOKItemsItemProof) Encode(e *jx.Encoder) {
 	e.ObjStart()
@@ -102616,6 +103597,54 @@ func (s *ExposureGetExposureTargetsOKItemsItemProof) MarshalJSON() ([]byte, erro
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ExposureGetExposureTargetsOKItemsItemProof) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ExposureGetExposureTargetsOKItemsItemScanState as json.
+func (s ExposureGetExposureTargetsOKItemsItemScanState) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ExposureGetExposureTargetsOKItemsItemScanState from json.
+func (s *ExposureGetExposureTargetsOKItemsItemScanState) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposureGetExposureTargetsOKItemsItemScanState to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ExposureGetExposureTargetsOKItemsItemScanState(v) {
+	case ExposureGetExposureTargetsOKItemsItemScanStateUnproved:
+		*s = ExposureGetExposureTargetsOKItemsItemScanStateUnproved
+	case ExposureGetExposureTargetsOKItemsItemScanStateExpired:
+		*s = ExposureGetExposureTargetsOKItemsItemScanStateExpired
+	case ExposureGetExposureTargetsOKItemsItemScanStatePaused:
+		*s = ExposureGetExposureTargetsOKItemsItemScanStatePaused
+	case ExposureGetExposureTargetsOKItemsItemScanStateNeedsTerms:
+		*s = ExposureGetExposureTargetsOKItemsItemScanStateNeedsTerms
+	case ExposureGetExposureTargetsOKItemsItemScanStateReady:
+		*s = ExposureGetExposureTargetsOKItemsItemScanStateReady
+	case ExposureGetExposureTargetsOKItemsItemScanStateScanning:
+		*s = ExposureGetExposureTargetsOKItemsItemScanStateScanning
+	default:
+		*s = ExposureGetExposureTargetsOKItemsItemScanState(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ExposureGetExposureTargetsOKItemsItemScanState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposureGetExposureTargetsOKItemsItemScanState) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -103159,6 +104188,10 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) encodeFields(e *jx.Encoder)
 		e.Str(s.ID)
 	}
 	{
+		e.FieldStart("ip_proof")
+		s.IPProof.Encode(e)
+	}
+	{
 		e.FieldStart("kind")
 		s.Kind.Encode(e)
 	}
@@ -103185,6 +104218,14 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) encodeFields(e *jx.Encoder)
 		s.Method.Encode(e)
 	}
 	{
+		e.FieldStart("next_check_at")
+		s.NextCheckAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("open_exposures")
+		e.Int(s.OpenExposures)
+	}
+	{
 		e.FieldStart("open_ports")
 		if s.OpenPorts == nil {
 			e.Null()
@@ -103197,8 +104238,16 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) encodeFields(e *jx.Encoder)
 		}
 	}
 	{
+		e.FieldStart("origin")
+		s.Origin.Encode(e)
+	}
+	{
 		e.FieldStart("proof")
 		s.Proof.Encode(e)
+	}
+	{
+		e.FieldStart("scan_state")
+		s.ScanState.Encode(e)
 	}
 	{
 		e.FieldStart("scannable")
@@ -103240,7 +104289,7 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) encodeFields(e *jx.Encoder)
 	}
 }
 
-var jsonFieldsNameOfExposurePostExposureBoxIPVerifyOKItemsItem = [24]string{
+var jsonFieldsNameOfExposurePostExposureBoxIPVerifyOKItemsItem = [29]string{
 	0:  "blocked_reason",
 	1:  "commitment",
 	2:  "commitment_notice",
@@ -103248,23 +104297,28 @@ var jsonFieldsNameOfExposurePostExposureBoxIPVerifyOKItemsItem = [24]string{
 	4:  "expires_at",
 	5:  "full_scan",
 	6:  "id",
-	7:  "kind",
-	8:  "last_check",
-	9:  "last_scan_at",
-	10: "last_scan_finished_at",
-	11: "latest",
-	12: "method",
-	13: "open_ports",
-	14: "proof",
-	15: "scannable",
-	16: "status",
-	17: "terms",
-	18: "terms_notice",
-	19: "terms_warning",
-	20: "token",
-	21: "validity",
-	22: "value",
-	23: "verified_at",
+	7:  "ip_proof",
+	8:  "kind",
+	9:  "last_check",
+	10: "last_scan_at",
+	11: "last_scan_finished_at",
+	12: "latest",
+	13: "method",
+	14: "next_check_at",
+	15: "open_exposures",
+	16: "open_ports",
+	17: "origin",
+	18: "proof",
+	19: "scan_state",
+	20: "scannable",
+	21: "status",
+	22: "terms",
+	23: "terms_notice",
+	24: "terms_warning",
+	25: "token",
+	26: "validity",
+	27: "value",
+	28: "verified_at",
 }
 
 // Decode decodes ExposurePostExposureBoxIPVerifyOKItemsItem from json.
@@ -103272,7 +104326,7 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) Decode(d *jx.Decoder) error
 	if s == nil {
 		return errors.New("invalid: unable to decode ExposurePostExposureBoxIPVerifyOKItemsItem to nil")
 	}
-	var requiredBitSet [3]uint8
+	var requiredBitSet [4]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -103352,8 +104406,18 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) Decode(d *jx.Decoder) error
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
-		case "kind":
+		case "ip_proof":
 			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				if err := s.IPProof.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ip_proof\"")
+			}
+		case "kind":
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -103363,7 +104427,7 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) Decode(d *jx.Decoder) error
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "last_check":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.LastCheck.Decode(d); err != nil {
 					return err
@@ -103373,7 +104437,7 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) Decode(d *jx.Decoder) error
 				return errors.Wrap(err, "decode field \"last_check\"")
 			}
 		case "last_scan_at":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				if err := s.LastScanAt.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -103393,7 +104457,7 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) Decode(d *jx.Decoder) error
 				return errors.Wrap(err, "decode field \"last_scan_finished_at\"")
 			}
 		case "latest":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.Latest.Decode(d); err != nil {
 					return err
@@ -103403,7 +104467,7 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) Decode(d *jx.Decoder) error
 				return errors.Wrap(err, "decode field \"latest\"")
 			}
 		case "method":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -103412,8 +104476,30 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) Decode(d *jx.Decoder) error
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"method\"")
 			}
+		case "next_check_at":
+			requiredBitSet[1] |= 1 << 6
+			if err := func() error {
+				if err := s.NextCheckAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"next_check_at\"")
+			}
+		case "open_exposures":
+			requiredBitSet[1] |= 1 << 7
+			if err := func() error {
+				v, err := d.Int()
+				s.OpenExposures = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"open_exposures\"")
+			}
 		case "open_ports":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[2] |= 1 << 0
 			if err := func() error {
 				switch tt := d.Next(); tt {
 				case jx.Null:
@@ -103437,8 +104523,18 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) Decode(d *jx.Decoder) error
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"open_ports\"")
 			}
+		case "origin":
+			requiredBitSet[2] |= 1 << 1
+			if err := func() error {
+				if err := s.Origin.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"origin\"")
+			}
 		case "proof":
-			requiredBitSet[1] |= 1 << 6
+			requiredBitSet[2] |= 1 << 2
 			if err := func() error {
 				if err := s.Proof.Decode(d); err != nil {
 					return err
@@ -103447,8 +104543,18 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) Decode(d *jx.Decoder) error
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"proof\"")
 			}
+		case "scan_state":
+			requiredBitSet[2] |= 1 << 3
+			if err := func() error {
+				if err := s.ScanState.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"scan_state\"")
+			}
 		case "scannable":
-			requiredBitSet[1] |= 1 << 7
+			requiredBitSet[2] |= 1 << 4
 			if err := func() error {
 				v, err := d.Bool()
 				s.Scannable = bool(v)
@@ -103460,7 +104566,7 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) Decode(d *jx.Decoder) error
 				return errors.Wrap(err, "decode field \"scannable\"")
 			}
 		case "status":
-			requiredBitSet[2] |= 1 << 0
+			requiredBitSet[2] |= 1 << 5
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -103470,7 +104576,7 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) Decode(d *jx.Decoder) error
 				return errors.Wrap(err, "decode field \"status\"")
 			}
 		case "terms":
-			requiredBitSet[2] |= 1 << 1
+			requiredBitSet[2] |= 1 << 6
 			if err := func() error {
 				if err := s.Terms.Decode(d); err != nil {
 					return err
@@ -103480,7 +104586,7 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) Decode(d *jx.Decoder) error
 				return errors.Wrap(err, "decode field \"terms\"")
 			}
 		case "terms_notice":
-			requiredBitSet[2] |= 1 << 2
+			requiredBitSet[2] |= 1 << 7
 			if err := func() error {
 				if err := s.TermsNotice.Decode(d); err != nil {
 					return err
@@ -103500,7 +104606,7 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) Decode(d *jx.Decoder) error
 				return errors.Wrap(err, "decode field \"terms_warning\"")
 			}
 		case "token":
-			requiredBitSet[2] |= 1 << 4
+			requiredBitSet[3] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Token = string(v)
@@ -103512,7 +104618,7 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) Decode(d *jx.Decoder) error
 				return errors.Wrap(err, "decode field \"token\"")
 			}
 		case "validity":
-			requiredBitSet[2] |= 1 << 5
+			requiredBitSet[3] |= 1 << 2
 			if err := func() error {
 				if err := s.Validity.Decode(d); err != nil {
 					return err
@@ -103522,7 +104628,7 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) Decode(d *jx.Decoder) error
 				return errors.Wrap(err, "decode field \"validity\"")
 			}
 		case "value":
-			requiredBitSet[2] |= 1 << 6
+			requiredBitSet[3] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Value = string(v)
@@ -103534,7 +104640,7 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) Decode(d *jx.Decoder) error
 				return errors.Wrap(err, "decode field \"value\"")
 			}
 		case "verified_at":
-			requiredBitSet[2] |= 1 << 7
+			requiredBitSet[3] |= 1 << 4
 			if err := func() error {
 				if err := s.VerifiedAt.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -103552,10 +104658,11 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) Decode(d *jx.Decoder) error
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [3]uint8{
+	for i, mask := range [4]uint8{
 		0b11111111,
-		0b11111011,
 		0b11110111,
+		0b11111111,
+		0b00011110,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -103623,6 +104730,8 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason) Decode(d *jx.D
 		*s = ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonExpired
 	case ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonTxtMissing:
 		*s = ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonTxtMissing
+	case ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonProofMissing:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonProofMissing
 	case ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonNoCommitment:
 		*s = ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonNoCommitment
 	case ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonIPNotCurrent:
@@ -103899,6 +105008,177 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemCommitmentNotice) MarshalJSON
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItemCommitmentNotice) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemIPProof) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemIPProof) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("content")
+		e.Str(s.Content)
+	}
+	{
+		e.FieldStart("path")
+		e.Str(s.Path)
+	}
+	{
+		e.FieldStart("ptr_domains")
+		e.ArrStart()
+		for _, elem := range s.PtrDomains {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("urls")
+		e.ArrStart()
+		for _, elem := range s.Urls {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+}
+
+var jsonFieldsNameOfExposurePostExposureBoxIPVerifyOKItemsItemIPProof = [4]string{
+	0: "content",
+	1: "path",
+	2: "ptr_domains",
+	3: "urls",
+}
+
+// Decode decodes ExposurePostExposureBoxIPVerifyOKItemsItemIPProof from json.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemIPProof) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposurePostExposureBoxIPVerifyOKItemsItemIPProof to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "content":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Content = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"content\"")
+			}
+		case "path":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Path = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"path\"")
+			}
+		case "ptr_domains":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				s.PtrDomains = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.PtrDomains = append(s.PtrDomains, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ptr_domains\"")
+			}
+		case "urls":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				s.Urls = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Urls = append(s.Urls, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"urls\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ExposurePostExposureBoxIPVerifyOKItemsItemIPProof")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00001111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfExposurePostExposureBoxIPVerifyOKItemsItemIPProof) {
+					name = jsonFieldsNameOfExposurePostExposureBoxIPVerifyOKItemsItemIPProof[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemIPProof) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemIPProof) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -104257,6 +105537,10 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemMethod) Decode(d *jx.Decoder)
 		*s = ExposurePostExposureBoxIPVerifyOKItemsItemMethodDNSTxt
 	case ExposurePostExposureBoxIPVerifyOKItemsItemMethodBoxEgress:
 		*s = ExposurePostExposureBoxIPVerifyOKItemsItemMethodBoxEgress
+	case ExposurePostExposureBoxIPVerifyOKItemsItemMethodIPFile:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemMethodIPFile
+	case ExposurePostExposureBoxIPVerifyOKItemsItemMethodIPPtr:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemMethodIPPtr
 	default:
 		*s = ExposurePostExposureBoxIPVerifyOKItemsItemMethod(v)
 	}
@@ -105049,6 +106333,46 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent) Unmarshal
 	return s.Decode(d)
 }
 
+// Encode encodes ExposurePostExposureBoxIPVerifyOKItemsItemOrigin as json.
+func (s ExposurePostExposureBoxIPVerifyOKItemsItemOrigin) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ExposurePostExposureBoxIPVerifyOKItemsItemOrigin from json.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOrigin) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposurePostExposureBoxIPVerifyOKItemsItemOrigin to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ExposurePostExposureBoxIPVerifyOKItemsItemOrigin(v) {
+	case ExposurePostExposureBoxIPVerifyOKItemsItemOriginPerson:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemOriginPerson
+	case ExposurePostExposureBoxIPVerifyOKItemsItemOriginBox:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemOriginBox
+	default:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemOrigin(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ExposurePostExposureBoxIPVerifyOKItemsItemOrigin) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOrigin) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode implements json.Marshaler.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItemProof) Encode(e *jx.Encoder) {
 	e.ObjStart()
@@ -105188,6 +106512,54 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemProof) MarshalJSON() ([]byte,
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItemProof) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ExposurePostExposureBoxIPVerifyOKItemsItemScanState as json.
+func (s ExposurePostExposureBoxIPVerifyOKItemsItemScanState) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ExposurePostExposureBoxIPVerifyOKItemsItemScanState from json.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemScanState) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposurePostExposureBoxIPVerifyOKItemsItemScanState to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ExposurePostExposureBoxIPVerifyOKItemsItemScanState(v) {
+	case ExposurePostExposureBoxIPVerifyOKItemsItemScanStateUnproved:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemScanStateUnproved
+	case ExposurePostExposureBoxIPVerifyOKItemsItemScanStateExpired:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemScanStateExpired
+	case ExposurePostExposureBoxIPVerifyOKItemsItemScanStatePaused:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemScanStatePaused
+	case ExposurePostExposureBoxIPVerifyOKItemsItemScanStateNeedsTerms:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemScanStateNeedsTerms
+	case ExposurePostExposureBoxIPVerifyOKItemsItemScanStateReady:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemScanStateReady
+	case ExposurePostExposureBoxIPVerifyOKItemsItemScanStateScanning:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemScanStateScanning
+	default:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemScanState(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ExposurePostExposureBoxIPVerifyOKItemsItemScanState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemScanState) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -106443,6 +107815,10 @@ func (s *ExposurePostExposureTargetsCreated) encodeFields(e *jx.Encoder) {
 		e.Str(s.ID)
 	}
 	{
+		e.FieldStart("ip_proof")
+		s.IPProof.Encode(e)
+	}
+	{
 		e.FieldStart("kind")
 		s.Kind.Encode(e)
 	}
@@ -106469,6 +107845,14 @@ func (s *ExposurePostExposureTargetsCreated) encodeFields(e *jx.Encoder) {
 		s.Method.Encode(e)
 	}
 	{
+		e.FieldStart("next_check_at")
+		s.NextCheckAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("open_exposures")
+		e.Int(s.OpenExposures)
+	}
+	{
 		e.FieldStart("open_ports")
 		if s.OpenPorts == nil {
 			e.Null()
@@ -106481,8 +107865,16 @@ func (s *ExposurePostExposureTargetsCreated) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		e.FieldStart("origin")
+		s.Origin.Encode(e)
+	}
+	{
 		e.FieldStart("proof")
 		s.Proof.Encode(e)
+	}
+	{
+		e.FieldStart("scan_state")
+		s.ScanState.Encode(e)
 	}
 	{
 		e.FieldStart("scannable")
@@ -106524,7 +107916,7 @@ func (s *ExposurePostExposureTargetsCreated) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfExposurePostExposureTargetsCreated = [24]string{
+var jsonFieldsNameOfExposurePostExposureTargetsCreated = [29]string{
 	0:  "blocked_reason",
 	1:  "commitment",
 	2:  "commitment_notice",
@@ -106532,23 +107924,28 @@ var jsonFieldsNameOfExposurePostExposureTargetsCreated = [24]string{
 	4:  "expires_at",
 	5:  "full_scan",
 	6:  "id",
-	7:  "kind",
-	8:  "last_check",
-	9:  "last_scan_at",
-	10: "last_scan_finished_at",
-	11: "latest",
-	12: "method",
-	13: "open_ports",
-	14: "proof",
-	15: "scannable",
-	16: "status",
-	17: "terms",
-	18: "terms_notice",
-	19: "terms_warning",
-	20: "token",
-	21: "validity",
-	22: "value",
-	23: "verified_at",
+	7:  "ip_proof",
+	8:  "kind",
+	9:  "last_check",
+	10: "last_scan_at",
+	11: "last_scan_finished_at",
+	12: "latest",
+	13: "method",
+	14: "next_check_at",
+	15: "open_exposures",
+	16: "open_ports",
+	17: "origin",
+	18: "proof",
+	19: "scan_state",
+	20: "scannable",
+	21: "status",
+	22: "terms",
+	23: "terms_notice",
+	24: "terms_warning",
+	25: "token",
+	26: "validity",
+	27: "value",
+	28: "verified_at",
 }
 
 // Decode decodes ExposurePostExposureTargetsCreated from json.
@@ -106556,7 +107953,7 @@ func (s *ExposurePostExposureTargetsCreated) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode ExposurePostExposureTargetsCreated to nil")
 	}
-	var requiredBitSet [3]uint8
+	var requiredBitSet [4]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -106636,8 +108033,18 @@ func (s *ExposurePostExposureTargetsCreated) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
-		case "kind":
+		case "ip_proof":
 			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				if err := s.IPProof.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ip_proof\"")
+			}
+		case "kind":
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -106647,7 +108054,7 @@ func (s *ExposurePostExposureTargetsCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "last_check":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.LastCheck.Decode(d); err != nil {
 					return err
@@ -106657,7 +108064,7 @@ func (s *ExposurePostExposureTargetsCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last_check\"")
 			}
 		case "last_scan_at":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				if err := s.LastScanAt.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -106677,7 +108084,7 @@ func (s *ExposurePostExposureTargetsCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last_scan_finished_at\"")
 			}
 		case "latest":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.Latest.Decode(d); err != nil {
 					return err
@@ -106687,7 +108094,7 @@ func (s *ExposurePostExposureTargetsCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"latest\"")
 			}
 		case "method":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -106696,8 +108103,30 @@ func (s *ExposurePostExposureTargetsCreated) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"method\"")
 			}
+		case "next_check_at":
+			requiredBitSet[1] |= 1 << 6
+			if err := func() error {
+				if err := s.NextCheckAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"next_check_at\"")
+			}
+		case "open_exposures":
+			requiredBitSet[1] |= 1 << 7
+			if err := func() error {
+				v, err := d.Int()
+				s.OpenExposures = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"open_exposures\"")
+			}
 		case "open_ports":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[2] |= 1 << 0
 			if err := func() error {
 				switch tt := d.Next(); tt {
 				case jx.Null:
@@ -106721,8 +108150,18 @@ func (s *ExposurePostExposureTargetsCreated) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"open_ports\"")
 			}
+		case "origin":
+			requiredBitSet[2] |= 1 << 1
+			if err := func() error {
+				if err := s.Origin.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"origin\"")
+			}
 		case "proof":
-			requiredBitSet[1] |= 1 << 6
+			requiredBitSet[2] |= 1 << 2
 			if err := func() error {
 				if err := s.Proof.Decode(d); err != nil {
 					return err
@@ -106731,8 +108170,18 @@ func (s *ExposurePostExposureTargetsCreated) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"proof\"")
 			}
+		case "scan_state":
+			requiredBitSet[2] |= 1 << 3
+			if err := func() error {
+				if err := s.ScanState.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"scan_state\"")
+			}
 		case "scannable":
-			requiredBitSet[1] |= 1 << 7
+			requiredBitSet[2] |= 1 << 4
 			if err := func() error {
 				v, err := d.Bool()
 				s.Scannable = bool(v)
@@ -106744,7 +108193,7 @@ func (s *ExposurePostExposureTargetsCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"scannable\"")
 			}
 		case "status":
-			requiredBitSet[2] |= 1 << 0
+			requiredBitSet[2] |= 1 << 5
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -106754,7 +108203,7 @@ func (s *ExposurePostExposureTargetsCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"status\"")
 			}
 		case "terms":
-			requiredBitSet[2] |= 1 << 1
+			requiredBitSet[2] |= 1 << 6
 			if err := func() error {
 				if err := s.Terms.Decode(d); err != nil {
 					return err
@@ -106764,7 +108213,7 @@ func (s *ExposurePostExposureTargetsCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"terms\"")
 			}
 		case "terms_notice":
-			requiredBitSet[2] |= 1 << 2
+			requiredBitSet[2] |= 1 << 7
 			if err := func() error {
 				if err := s.TermsNotice.Decode(d); err != nil {
 					return err
@@ -106784,7 +108233,7 @@ func (s *ExposurePostExposureTargetsCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"terms_warning\"")
 			}
 		case "token":
-			requiredBitSet[2] |= 1 << 4
+			requiredBitSet[3] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Token = string(v)
@@ -106796,7 +108245,7 @@ func (s *ExposurePostExposureTargetsCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"token\"")
 			}
 		case "validity":
-			requiredBitSet[2] |= 1 << 5
+			requiredBitSet[3] |= 1 << 2
 			if err := func() error {
 				if err := s.Validity.Decode(d); err != nil {
 					return err
@@ -106806,7 +108255,7 @@ func (s *ExposurePostExposureTargetsCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"validity\"")
 			}
 		case "value":
-			requiredBitSet[2] |= 1 << 6
+			requiredBitSet[3] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Value = string(v)
@@ -106818,7 +108267,7 @@ func (s *ExposurePostExposureTargetsCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"value\"")
 			}
 		case "verified_at":
-			requiredBitSet[2] |= 1 << 7
+			requiredBitSet[3] |= 1 << 4
 			if err := func() error {
 				if err := s.VerifiedAt.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -106836,10 +108285,11 @@ func (s *ExposurePostExposureTargetsCreated) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [3]uint8{
+	for i, mask := range [4]uint8{
 		0b11111111,
-		0b11111011,
 		0b11110111,
+		0b11111111,
+		0b00011110,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -106907,6 +108357,8 @@ func (s *ExposurePostExposureTargetsCreatedBlockedReason) Decode(d *jx.Decoder) 
 		*s = ExposurePostExposureTargetsCreatedBlockedReasonExpired
 	case ExposurePostExposureTargetsCreatedBlockedReasonTxtMissing:
 		*s = ExposurePostExposureTargetsCreatedBlockedReasonTxtMissing
+	case ExposurePostExposureTargetsCreatedBlockedReasonProofMissing:
+		*s = ExposurePostExposureTargetsCreatedBlockedReasonProofMissing
 	case ExposurePostExposureTargetsCreatedBlockedReasonNoCommitment:
 		*s = ExposurePostExposureTargetsCreatedBlockedReasonNoCommitment
 	case ExposurePostExposureTargetsCreatedBlockedReasonIPNotCurrent:
@@ -107183,6 +108635,177 @@ func (s *ExposurePostExposureTargetsCreatedCommitmentNotice) MarshalJSON() ([]by
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ExposurePostExposureTargetsCreatedCommitmentNotice) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *ExposurePostExposureTargetsCreatedIPProof) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ExposurePostExposureTargetsCreatedIPProof) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("content")
+		e.Str(s.Content)
+	}
+	{
+		e.FieldStart("path")
+		e.Str(s.Path)
+	}
+	{
+		e.FieldStart("ptr_domains")
+		e.ArrStart()
+		for _, elem := range s.PtrDomains {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("urls")
+		e.ArrStart()
+		for _, elem := range s.Urls {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+}
+
+var jsonFieldsNameOfExposurePostExposureTargetsCreatedIPProof = [4]string{
+	0: "content",
+	1: "path",
+	2: "ptr_domains",
+	3: "urls",
+}
+
+// Decode decodes ExposurePostExposureTargetsCreatedIPProof from json.
+func (s *ExposurePostExposureTargetsCreatedIPProof) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposurePostExposureTargetsCreatedIPProof to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "content":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Content = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"content\"")
+			}
+		case "path":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Path = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"path\"")
+			}
+		case "ptr_domains":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				s.PtrDomains = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.PtrDomains = append(s.PtrDomains, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ptr_domains\"")
+			}
+		case "urls":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				s.Urls = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Urls = append(s.Urls, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"urls\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ExposurePostExposureTargetsCreatedIPProof")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00001111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfExposurePostExposureTargetsCreatedIPProof) {
+					name = jsonFieldsNameOfExposurePostExposureTargetsCreatedIPProof[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ExposurePostExposureTargetsCreatedIPProof) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposurePostExposureTargetsCreatedIPProof) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -107541,6 +109164,10 @@ func (s *ExposurePostExposureTargetsCreatedMethod) Decode(d *jx.Decoder) error {
 		*s = ExposurePostExposureTargetsCreatedMethodDNSTxt
 	case ExposurePostExposureTargetsCreatedMethodBoxEgress:
 		*s = ExposurePostExposureTargetsCreatedMethodBoxEgress
+	case ExposurePostExposureTargetsCreatedMethodIPFile:
+		*s = ExposurePostExposureTargetsCreatedMethodIPFile
+	case ExposurePostExposureTargetsCreatedMethodIPPtr:
+		*s = ExposurePostExposureTargetsCreatedMethodIPPtr
 	default:
 		*s = ExposurePostExposureTargetsCreatedMethod(v)
 	}
@@ -108333,6 +109960,46 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItemIdent) UnmarshalJSON(dat
 	return s.Decode(d)
 }
 
+// Encode encodes ExposurePostExposureTargetsCreatedOrigin as json.
+func (s ExposurePostExposureTargetsCreatedOrigin) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ExposurePostExposureTargetsCreatedOrigin from json.
+func (s *ExposurePostExposureTargetsCreatedOrigin) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposurePostExposureTargetsCreatedOrigin to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ExposurePostExposureTargetsCreatedOrigin(v) {
+	case ExposurePostExposureTargetsCreatedOriginPerson:
+		*s = ExposurePostExposureTargetsCreatedOriginPerson
+	case ExposurePostExposureTargetsCreatedOriginBox:
+		*s = ExposurePostExposureTargetsCreatedOriginBox
+	default:
+		*s = ExposurePostExposureTargetsCreatedOrigin(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ExposurePostExposureTargetsCreatedOrigin) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposurePostExposureTargetsCreatedOrigin) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode implements json.Marshaler.
 func (s *ExposurePostExposureTargetsCreatedProof) Encode(e *jx.Encoder) {
 	e.ObjStart()
@@ -108472,6 +110139,54 @@ func (s *ExposurePostExposureTargetsCreatedProof) MarshalJSON() ([]byte, error) 
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ExposurePostExposureTargetsCreatedProof) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ExposurePostExposureTargetsCreatedScanState as json.
+func (s ExposurePostExposureTargetsCreatedScanState) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ExposurePostExposureTargetsCreatedScanState from json.
+func (s *ExposurePostExposureTargetsCreatedScanState) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposurePostExposureTargetsCreatedScanState to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ExposurePostExposureTargetsCreatedScanState(v) {
+	case ExposurePostExposureTargetsCreatedScanStateUnproved:
+		*s = ExposurePostExposureTargetsCreatedScanStateUnproved
+	case ExposurePostExposureTargetsCreatedScanStateExpired:
+		*s = ExposurePostExposureTargetsCreatedScanStateExpired
+	case ExposurePostExposureTargetsCreatedScanStatePaused:
+		*s = ExposurePostExposureTargetsCreatedScanStatePaused
+	case ExposurePostExposureTargetsCreatedScanStateNeedsTerms:
+		*s = ExposurePostExposureTargetsCreatedScanStateNeedsTerms
+	case ExposurePostExposureTargetsCreatedScanStateReady:
+		*s = ExposurePostExposureTargetsCreatedScanStateReady
+	case ExposurePostExposureTargetsCreatedScanStateScanning:
+		*s = ExposurePostExposureTargetsCreatedScanStateScanning
+	default:
+		*s = ExposurePostExposureTargetsCreatedScanState(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ExposurePostExposureTargetsCreatedScanState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposurePostExposureTargetsCreatedScanState) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -111101,6 +112816,10 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) encodeFields(e *jx.Encoder
 		e.Str(s.ID)
 	}
 	{
+		e.FieldStart("ip_proof")
+		s.IPProof.Encode(e)
+	}
+	{
 		e.FieldStart("kind")
 		s.Kind.Encode(e)
 	}
@@ -111127,6 +112846,14 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) encodeFields(e *jx.Encoder
 		s.Method.Encode(e)
 	}
 	{
+		e.FieldStart("next_check_at")
+		s.NextCheckAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("open_exposures")
+		e.Int(s.OpenExposures)
+	}
+	{
 		e.FieldStart("open_ports")
 		if s.OpenPorts == nil {
 			e.Null()
@@ -111139,8 +112866,16 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) encodeFields(e *jx.Encoder
 		}
 	}
 	{
+		e.FieldStart("origin")
+		s.Origin.Encode(e)
+	}
+	{
 		e.FieldStart("proof")
 		s.Proof.Encode(e)
+	}
+	{
+		e.FieldStart("scan_state")
+		s.ScanState.Encode(e)
 	}
 	{
 		e.FieldStart("scannable")
@@ -111182,7 +112917,7 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) encodeFields(e *jx.Encoder
 	}
 }
 
-var jsonFieldsNameOfExposurePostExposureTargetsIDVerifyOKTarget = [24]string{
+var jsonFieldsNameOfExposurePostExposureTargetsIDVerifyOKTarget = [29]string{
 	0:  "blocked_reason",
 	1:  "commitment",
 	2:  "commitment_notice",
@@ -111190,23 +112925,28 @@ var jsonFieldsNameOfExposurePostExposureTargetsIDVerifyOKTarget = [24]string{
 	4:  "expires_at",
 	5:  "full_scan",
 	6:  "id",
-	7:  "kind",
-	8:  "last_check",
-	9:  "last_scan_at",
-	10: "last_scan_finished_at",
-	11: "latest",
-	12: "method",
-	13: "open_ports",
-	14: "proof",
-	15: "scannable",
-	16: "status",
-	17: "terms",
-	18: "terms_notice",
-	19: "terms_warning",
-	20: "token",
-	21: "validity",
-	22: "value",
-	23: "verified_at",
+	7:  "ip_proof",
+	8:  "kind",
+	9:  "last_check",
+	10: "last_scan_at",
+	11: "last_scan_finished_at",
+	12: "latest",
+	13: "method",
+	14: "next_check_at",
+	15: "open_exposures",
+	16: "open_ports",
+	17: "origin",
+	18: "proof",
+	19: "scan_state",
+	20: "scannable",
+	21: "status",
+	22: "terms",
+	23: "terms_notice",
+	24: "terms_warning",
+	25: "token",
+	26: "validity",
+	27: "value",
+	28: "verified_at",
 }
 
 // Decode decodes ExposurePostExposureTargetsIDVerifyOKTarget from json.
@@ -111214,7 +112954,7 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) Decode(d *jx.Decoder) erro
 	if s == nil {
 		return errors.New("invalid: unable to decode ExposurePostExposureTargetsIDVerifyOKTarget to nil")
 	}
-	var requiredBitSet [3]uint8
+	var requiredBitSet [4]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -111294,8 +113034,18 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) Decode(d *jx.Decoder) erro
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
-		case "kind":
+		case "ip_proof":
 			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				if err := s.IPProof.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ip_proof\"")
+			}
+		case "kind":
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -111305,7 +113055,7 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) Decode(d *jx.Decoder) erro
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "last_check":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.LastCheck.Decode(d); err != nil {
 					return err
@@ -111315,7 +113065,7 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) Decode(d *jx.Decoder) erro
 				return errors.Wrap(err, "decode field \"last_check\"")
 			}
 		case "last_scan_at":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				if err := s.LastScanAt.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -111335,7 +113085,7 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) Decode(d *jx.Decoder) erro
 				return errors.Wrap(err, "decode field \"last_scan_finished_at\"")
 			}
 		case "latest":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.Latest.Decode(d); err != nil {
 					return err
@@ -111345,7 +113095,7 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) Decode(d *jx.Decoder) erro
 				return errors.Wrap(err, "decode field \"latest\"")
 			}
 		case "method":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -111354,8 +113104,30 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) Decode(d *jx.Decoder) erro
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"method\"")
 			}
+		case "next_check_at":
+			requiredBitSet[1] |= 1 << 6
+			if err := func() error {
+				if err := s.NextCheckAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"next_check_at\"")
+			}
+		case "open_exposures":
+			requiredBitSet[1] |= 1 << 7
+			if err := func() error {
+				v, err := d.Int()
+				s.OpenExposures = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"open_exposures\"")
+			}
 		case "open_ports":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[2] |= 1 << 0
 			if err := func() error {
 				switch tt := d.Next(); tt {
 				case jx.Null:
@@ -111379,8 +113151,18 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) Decode(d *jx.Decoder) erro
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"open_ports\"")
 			}
+		case "origin":
+			requiredBitSet[2] |= 1 << 1
+			if err := func() error {
+				if err := s.Origin.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"origin\"")
+			}
 		case "proof":
-			requiredBitSet[1] |= 1 << 6
+			requiredBitSet[2] |= 1 << 2
 			if err := func() error {
 				if err := s.Proof.Decode(d); err != nil {
 					return err
@@ -111389,8 +113171,18 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) Decode(d *jx.Decoder) erro
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"proof\"")
 			}
+		case "scan_state":
+			requiredBitSet[2] |= 1 << 3
+			if err := func() error {
+				if err := s.ScanState.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"scan_state\"")
+			}
 		case "scannable":
-			requiredBitSet[1] |= 1 << 7
+			requiredBitSet[2] |= 1 << 4
 			if err := func() error {
 				v, err := d.Bool()
 				s.Scannable = bool(v)
@@ -111402,7 +113194,7 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) Decode(d *jx.Decoder) erro
 				return errors.Wrap(err, "decode field \"scannable\"")
 			}
 		case "status":
-			requiredBitSet[2] |= 1 << 0
+			requiredBitSet[2] |= 1 << 5
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -111412,7 +113204,7 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) Decode(d *jx.Decoder) erro
 				return errors.Wrap(err, "decode field \"status\"")
 			}
 		case "terms":
-			requiredBitSet[2] |= 1 << 1
+			requiredBitSet[2] |= 1 << 6
 			if err := func() error {
 				if err := s.Terms.Decode(d); err != nil {
 					return err
@@ -111422,7 +113214,7 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) Decode(d *jx.Decoder) erro
 				return errors.Wrap(err, "decode field \"terms\"")
 			}
 		case "terms_notice":
-			requiredBitSet[2] |= 1 << 2
+			requiredBitSet[2] |= 1 << 7
 			if err := func() error {
 				if err := s.TermsNotice.Decode(d); err != nil {
 					return err
@@ -111442,7 +113234,7 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) Decode(d *jx.Decoder) erro
 				return errors.Wrap(err, "decode field \"terms_warning\"")
 			}
 		case "token":
-			requiredBitSet[2] |= 1 << 4
+			requiredBitSet[3] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Token = string(v)
@@ -111454,7 +113246,7 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) Decode(d *jx.Decoder) erro
 				return errors.Wrap(err, "decode field \"token\"")
 			}
 		case "validity":
-			requiredBitSet[2] |= 1 << 5
+			requiredBitSet[3] |= 1 << 2
 			if err := func() error {
 				if err := s.Validity.Decode(d); err != nil {
 					return err
@@ -111464,7 +113256,7 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) Decode(d *jx.Decoder) erro
 				return errors.Wrap(err, "decode field \"validity\"")
 			}
 		case "value":
-			requiredBitSet[2] |= 1 << 6
+			requiredBitSet[3] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Value = string(v)
@@ -111476,7 +113268,7 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) Decode(d *jx.Decoder) erro
 				return errors.Wrap(err, "decode field \"value\"")
 			}
 		case "verified_at":
-			requiredBitSet[2] |= 1 << 7
+			requiredBitSet[3] |= 1 << 4
 			if err := func() error {
 				if err := s.VerifiedAt.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -111494,10 +113286,11 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) Decode(d *jx.Decoder) erro
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [3]uint8{
+	for i, mask := range [4]uint8{
 		0b11111111,
-		0b11111011,
 		0b11110111,
+		0b11111111,
+		0b00011110,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -111565,6 +113358,8 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetBlockedReason) Decode(d *jx.
 		*s = ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonExpired
 	case ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonTxtMissing:
 		*s = ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonTxtMissing
+	case ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonProofMissing:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonProofMissing
 	case ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonNoCommitment:
 		*s = ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonNoCommitment
 	case ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonIPNotCurrent:
@@ -111841,6 +113636,177 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetCommitmentNotice) MarshalJSO
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ExposurePostExposureTargetsIDVerifyOKTargetCommitmentNotice) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetIPProof) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetIPProof) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("content")
+		e.Str(s.Content)
+	}
+	{
+		e.FieldStart("path")
+		e.Str(s.Path)
+	}
+	{
+		e.FieldStart("ptr_domains")
+		e.ArrStart()
+		for _, elem := range s.PtrDomains {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("urls")
+		e.ArrStart()
+		for _, elem := range s.Urls {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+}
+
+var jsonFieldsNameOfExposurePostExposureTargetsIDVerifyOKTargetIPProof = [4]string{
+	0: "content",
+	1: "path",
+	2: "ptr_domains",
+	3: "urls",
+}
+
+// Decode decodes ExposurePostExposureTargetsIDVerifyOKTargetIPProof from json.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetIPProof) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposurePostExposureTargetsIDVerifyOKTargetIPProof to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "content":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Content = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"content\"")
+			}
+		case "path":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Path = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"path\"")
+			}
+		case "ptr_domains":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				s.PtrDomains = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.PtrDomains = append(s.PtrDomains, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ptr_domains\"")
+			}
+		case "urls":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				s.Urls = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Urls = append(s.Urls, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"urls\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ExposurePostExposureTargetsIDVerifyOKTargetIPProof")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00001111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfExposurePostExposureTargetsIDVerifyOKTargetIPProof) {
+					name = jsonFieldsNameOfExposurePostExposureTargetsIDVerifyOKTargetIPProof[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetIPProof) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetIPProof) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -112199,6 +114165,10 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetMethod) Decode(d *jx.Decoder
 		*s = ExposurePostExposureTargetsIDVerifyOKTargetMethodDNSTxt
 	case ExposurePostExposureTargetsIDVerifyOKTargetMethodBoxEgress:
 		*s = ExposurePostExposureTargetsIDVerifyOKTargetMethodBoxEgress
+	case ExposurePostExposureTargetsIDVerifyOKTargetMethodIPFile:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetMethodIPFile
+	case ExposurePostExposureTargetsIDVerifyOKTargetMethodIPPtr:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetMethodIPPtr
 	default:
 		*s = ExposurePostExposureTargetsIDVerifyOKTargetMethod(v)
 	}
@@ -112991,6 +114961,46 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent) Unmarsha
 	return s.Decode(d)
 }
 
+// Encode encodes ExposurePostExposureTargetsIDVerifyOKTargetOrigin as json.
+func (s ExposurePostExposureTargetsIDVerifyOKTargetOrigin) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ExposurePostExposureTargetsIDVerifyOKTargetOrigin from json.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOrigin) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposurePostExposureTargetsIDVerifyOKTargetOrigin to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ExposurePostExposureTargetsIDVerifyOKTargetOrigin(v) {
+	case ExposurePostExposureTargetsIDVerifyOKTargetOriginPerson:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetOriginPerson
+	case ExposurePostExposureTargetsIDVerifyOKTargetOriginBox:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetOriginBox
+	default:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetOrigin(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ExposurePostExposureTargetsIDVerifyOKTargetOrigin) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOrigin) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode implements json.Marshaler.
 func (s *ExposurePostExposureTargetsIDVerifyOKTargetProof) Encode(e *jx.Encoder) {
 	e.ObjStart()
@@ -113130,6 +115140,54 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetProof) MarshalJSON() ([]byte
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ExposurePostExposureTargetsIDVerifyOKTargetProof) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ExposurePostExposureTargetsIDVerifyOKTargetScanState as json.
+func (s ExposurePostExposureTargetsIDVerifyOKTargetScanState) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ExposurePostExposureTargetsIDVerifyOKTargetScanState from json.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetScanState) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposurePostExposureTargetsIDVerifyOKTargetScanState to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ExposurePostExposureTargetsIDVerifyOKTargetScanState(v) {
+	case ExposurePostExposureTargetsIDVerifyOKTargetScanStateUnproved:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetScanStateUnproved
+	case ExposurePostExposureTargetsIDVerifyOKTargetScanStateExpired:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetScanStateExpired
+	case ExposurePostExposureTargetsIDVerifyOKTargetScanStatePaused:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetScanStatePaused
+	case ExposurePostExposureTargetsIDVerifyOKTargetScanStateNeedsTerms:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetScanStateNeedsTerms
+	case ExposurePostExposureTargetsIDVerifyOKTargetScanStateReady:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetScanStateReady
+	case ExposurePostExposureTargetsIDVerifyOKTargetScanStateScanning:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetScanStateScanning
+	default:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetScanState(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ExposurePostExposureTargetsIDVerifyOKTargetScanState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetScanState) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -113522,13 +115580,20 @@ func (s *ExposurePostExposureTargetsReq) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *ExposurePostExposureTargetsReq) encodeFields(e *jx.Encoder) {
 	{
+		if s.Kind.Set {
+			e.FieldStart("kind")
+			s.Kind.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("value")
 		e.Str(s.Value)
 	}
 }
 
-var jsonFieldsNameOfExposurePostExposureTargetsReq = [1]string{
-	0: "value",
+var jsonFieldsNameOfExposurePostExposureTargetsReq = [2]string{
+	0: "kind",
+	1: "value",
 }
 
 // Decode decodes ExposurePostExposureTargetsReq from json.
@@ -113540,8 +115605,18 @@ func (s *ExposurePostExposureTargetsReq) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "kind":
+			if err := func() error {
+				s.Kind.Reset()
+				if err := s.Kind.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"kind\"")
+			}
 		case "value":
-			requiredBitSet[0] |= 1 << 0
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Value = string(v)
@@ -113562,7 +115637,7 @@ func (s *ExposurePostExposureTargetsReq) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000001,
+		0b00000010,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -113604,6 +115679,46 @@ func (s *ExposurePostExposureTargetsReq) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ExposurePostExposureTargetsReq) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ExposurePostExposureTargetsReqKind as json.
+func (s ExposurePostExposureTargetsReqKind) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ExposurePostExposureTargetsReqKind from json.
+func (s *ExposurePostExposureTargetsReqKind) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposurePostExposureTargetsReqKind to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ExposurePostExposureTargetsReqKind(v) {
+	case ExposurePostExposureTargetsReqKindDomain:
+		*s = ExposurePostExposureTargetsReqKindDomain
+	case ExposurePostExposureTargetsReqKindIP:
+		*s = ExposurePostExposureTargetsReqKindIP
+	default:
+		*s = ExposurePostExposureTargetsReqKind(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ExposurePostExposureTargetsReqKind) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposurePostExposureTargetsReqKind) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -114783,6 +116898,10 @@ func (s *ExposurePutExposureTargetsIDTermsOK) encodeFields(e *jx.Encoder) {
 		e.Str(s.ID)
 	}
 	{
+		e.FieldStart("ip_proof")
+		s.IPProof.Encode(e)
+	}
+	{
 		e.FieldStart("kind")
 		s.Kind.Encode(e)
 	}
@@ -114809,6 +116928,14 @@ func (s *ExposurePutExposureTargetsIDTermsOK) encodeFields(e *jx.Encoder) {
 		s.Method.Encode(e)
 	}
 	{
+		e.FieldStart("next_check_at")
+		s.NextCheckAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("open_exposures")
+		e.Int(s.OpenExposures)
+	}
+	{
 		e.FieldStart("open_ports")
 		if s.OpenPorts == nil {
 			e.Null()
@@ -114821,8 +116948,16 @@ func (s *ExposurePutExposureTargetsIDTermsOK) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		e.FieldStart("origin")
+		s.Origin.Encode(e)
+	}
+	{
 		e.FieldStart("proof")
 		s.Proof.Encode(e)
+	}
+	{
+		e.FieldStart("scan_state")
+		s.ScanState.Encode(e)
 	}
 	{
 		e.FieldStart("scannable")
@@ -114864,7 +116999,7 @@ func (s *ExposurePutExposureTargetsIDTermsOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfExposurePutExposureTargetsIDTermsOK = [24]string{
+var jsonFieldsNameOfExposurePutExposureTargetsIDTermsOK = [29]string{
 	0:  "blocked_reason",
 	1:  "commitment",
 	2:  "commitment_notice",
@@ -114872,23 +117007,28 @@ var jsonFieldsNameOfExposurePutExposureTargetsIDTermsOK = [24]string{
 	4:  "expires_at",
 	5:  "full_scan",
 	6:  "id",
-	7:  "kind",
-	8:  "last_check",
-	9:  "last_scan_at",
-	10: "last_scan_finished_at",
-	11: "latest",
-	12: "method",
-	13: "open_ports",
-	14: "proof",
-	15: "scannable",
-	16: "status",
-	17: "terms",
-	18: "terms_notice",
-	19: "terms_warning",
-	20: "token",
-	21: "validity",
-	22: "value",
-	23: "verified_at",
+	7:  "ip_proof",
+	8:  "kind",
+	9:  "last_check",
+	10: "last_scan_at",
+	11: "last_scan_finished_at",
+	12: "latest",
+	13: "method",
+	14: "next_check_at",
+	15: "open_exposures",
+	16: "open_ports",
+	17: "origin",
+	18: "proof",
+	19: "scan_state",
+	20: "scannable",
+	21: "status",
+	22: "terms",
+	23: "terms_notice",
+	24: "terms_warning",
+	25: "token",
+	26: "validity",
+	27: "value",
+	28: "verified_at",
 }
 
 // Decode decodes ExposurePutExposureTargetsIDTermsOK from json.
@@ -114896,7 +117036,7 @@ func (s *ExposurePutExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode ExposurePutExposureTargetsIDTermsOK to nil")
 	}
-	var requiredBitSet [3]uint8
+	var requiredBitSet [4]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -114976,8 +117116,18 @@ func (s *ExposurePutExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
-		case "kind":
+		case "ip_proof":
 			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				if err := s.IPProof.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ip_proof\"")
+			}
+		case "kind":
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -114987,7 +117137,7 @@ func (s *ExposurePutExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "last_check":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.LastCheck.Decode(d); err != nil {
 					return err
@@ -114997,7 +117147,7 @@ func (s *ExposurePutExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last_check\"")
 			}
 		case "last_scan_at":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				if err := s.LastScanAt.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -115017,7 +117167,7 @@ func (s *ExposurePutExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last_scan_finished_at\"")
 			}
 		case "latest":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.Latest.Decode(d); err != nil {
 					return err
@@ -115027,7 +117177,7 @@ func (s *ExposurePutExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"latest\"")
 			}
 		case "method":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				if err := s.Method.Decode(d); err != nil {
 					return err
@@ -115036,8 +117186,30 @@ func (s *ExposurePutExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"method\"")
 			}
+		case "next_check_at":
+			requiredBitSet[1] |= 1 << 6
+			if err := func() error {
+				if err := s.NextCheckAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"next_check_at\"")
+			}
+		case "open_exposures":
+			requiredBitSet[1] |= 1 << 7
+			if err := func() error {
+				v, err := d.Int()
+				s.OpenExposures = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"open_exposures\"")
+			}
 		case "open_ports":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[2] |= 1 << 0
 			if err := func() error {
 				switch tt := d.Next(); tt {
 				case jx.Null:
@@ -115061,8 +117233,18 @@ func (s *ExposurePutExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"open_ports\"")
 			}
+		case "origin":
+			requiredBitSet[2] |= 1 << 1
+			if err := func() error {
+				if err := s.Origin.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"origin\"")
+			}
 		case "proof":
-			requiredBitSet[1] |= 1 << 6
+			requiredBitSet[2] |= 1 << 2
 			if err := func() error {
 				if err := s.Proof.Decode(d); err != nil {
 					return err
@@ -115071,8 +117253,18 @@ func (s *ExposurePutExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"proof\"")
 			}
+		case "scan_state":
+			requiredBitSet[2] |= 1 << 3
+			if err := func() error {
+				if err := s.ScanState.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"scan_state\"")
+			}
 		case "scannable":
-			requiredBitSet[1] |= 1 << 7
+			requiredBitSet[2] |= 1 << 4
 			if err := func() error {
 				v, err := d.Bool()
 				s.Scannable = bool(v)
@@ -115084,7 +117276,7 @@ func (s *ExposurePutExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"scannable\"")
 			}
 		case "status":
-			requiredBitSet[2] |= 1 << 0
+			requiredBitSet[2] |= 1 << 5
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -115094,7 +117286,7 @@ func (s *ExposurePutExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"status\"")
 			}
 		case "terms":
-			requiredBitSet[2] |= 1 << 1
+			requiredBitSet[2] |= 1 << 6
 			if err := func() error {
 				if err := s.Terms.Decode(d); err != nil {
 					return err
@@ -115104,7 +117296,7 @@ func (s *ExposurePutExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"terms\"")
 			}
 		case "terms_notice":
-			requiredBitSet[2] |= 1 << 2
+			requiredBitSet[2] |= 1 << 7
 			if err := func() error {
 				if err := s.TermsNotice.Decode(d); err != nil {
 					return err
@@ -115124,7 +117316,7 @@ func (s *ExposurePutExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"terms_warning\"")
 			}
 		case "token":
-			requiredBitSet[2] |= 1 << 4
+			requiredBitSet[3] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Token = string(v)
@@ -115136,7 +117328,7 @@ func (s *ExposurePutExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"token\"")
 			}
 		case "validity":
-			requiredBitSet[2] |= 1 << 5
+			requiredBitSet[3] |= 1 << 2
 			if err := func() error {
 				if err := s.Validity.Decode(d); err != nil {
 					return err
@@ -115146,7 +117338,7 @@ func (s *ExposurePutExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"validity\"")
 			}
 		case "value":
-			requiredBitSet[2] |= 1 << 6
+			requiredBitSet[3] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Value = string(v)
@@ -115158,7 +117350,7 @@ func (s *ExposurePutExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"value\"")
 			}
 		case "verified_at":
-			requiredBitSet[2] |= 1 << 7
+			requiredBitSet[3] |= 1 << 4
 			if err := func() error {
 				if err := s.VerifiedAt.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -115176,10 +117368,11 @@ func (s *ExposurePutExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [3]uint8{
+	for i, mask := range [4]uint8{
 		0b11111111,
-		0b11111011,
 		0b11110111,
+		0b11111111,
+		0b00011110,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -115247,6 +117440,8 @@ func (s *ExposurePutExposureTargetsIDTermsOKBlockedReason) Decode(d *jx.Decoder)
 		*s = ExposurePutExposureTargetsIDTermsOKBlockedReasonExpired
 	case ExposurePutExposureTargetsIDTermsOKBlockedReasonTxtMissing:
 		*s = ExposurePutExposureTargetsIDTermsOKBlockedReasonTxtMissing
+	case ExposurePutExposureTargetsIDTermsOKBlockedReasonProofMissing:
+		*s = ExposurePutExposureTargetsIDTermsOKBlockedReasonProofMissing
 	case ExposurePutExposureTargetsIDTermsOKBlockedReasonNoCommitment:
 		*s = ExposurePutExposureTargetsIDTermsOKBlockedReasonNoCommitment
 	case ExposurePutExposureTargetsIDTermsOKBlockedReasonIPNotCurrent:
@@ -115523,6 +117718,177 @@ func (s *ExposurePutExposureTargetsIDTermsOKCommitmentNotice) MarshalJSON() ([]b
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ExposurePutExposureTargetsIDTermsOKCommitmentNotice) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *ExposurePutExposureTargetsIDTermsOKIPProof) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ExposurePutExposureTargetsIDTermsOKIPProof) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("content")
+		e.Str(s.Content)
+	}
+	{
+		e.FieldStart("path")
+		e.Str(s.Path)
+	}
+	{
+		e.FieldStart("ptr_domains")
+		e.ArrStart()
+		for _, elem := range s.PtrDomains {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("urls")
+		e.ArrStart()
+		for _, elem := range s.Urls {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+}
+
+var jsonFieldsNameOfExposurePutExposureTargetsIDTermsOKIPProof = [4]string{
+	0: "content",
+	1: "path",
+	2: "ptr_domains",
+	3: "urls",
+}
+
+// Decode decodes ExposurePutExposureTargetsIDTermsOKIPProof from json.
+func (s *ExposurePutExposureTargetsIDTermsOKIPProof) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposurePutExposureTargetsIDTermsOKIPProof to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "content":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Content = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"content\"")
+			}
+		case "path":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Path = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"path\"")
+			}
+		case "ptr_domains":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				s.PtrDomains = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.PtrDomains = append(s.PtrDomains, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ptr_domains\"")
+			}
+		case "urls":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				s.Urls = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Urls = append(s.Urls, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"urls\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ExposurePutExposureTargetsIDTermsOKIPProof")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00001111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfExposurePutExposureTargetsIDTermsOKIPProof) {
+					name = jsonFieldsNameOfExposurePutExposureTargetsIDTermsOKIPProof[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ExposurePutExposureTargetsIDTermsOKIPProof) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposurePutExposureTargetsIDTermsOKIPProof) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -115881,6 +118247,10 @@ func (s *ExposurePutExposureTargetsIDTermsOKMethod) Decode(d *jx.Decoder) error 
 		*s = ExposurePutExposureTargetsIDTermsOKMethodDNSTxt
 	case ExposurePutExposureTargetsIDTermsOKMethodBoxEgress:
 		*s = ExposurePutExposureTargetsIDTermsOKMethodBoxEgress
+	case ExposurePutExposureTargetsIDTermsOKMethodIPFile:
+		*s = ExposurePutExposureTargetsIDTermsOKMethodIPFile
+	case ExposurePutExposureTargetsIDTermsOKMethodIPPtr:
+		*s = ExposurePutExposureTargetsIDTermsOKMethodIPPtr
 	default:
 		*s = ExposurePutExposureTargetsIDTermsOKMethod(v)
 	}
@@ -116673,6 +119043,46 @@ func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent) UnmarshalJSON(da
 	return s.Decode(d)
 }
 
+// Encode encodes ExposurePutExposureTargetsIDTermsOKOrigin as json.
+func (s ExposurePutExposureTargetsIDTermsOKOrigin) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ExposurePutExposureTargetsIDTermsOKOrigin from json.
+func (s *ExposurePutExposureTargetsIDTermsOKOrigin) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposurePutExposureTargetsIDTermsOKOrigin to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ExposurePutExposureTargetsIDTermsOKOrigin(v) {
+	case ExposurePutExposureTargetsIDTermsOKOriginPerson:
+		*s = ExposurePutExposureTargetsIDTermsOKOriginPerson
+	case ExposurePutExposureTargetsIDTermsOKOriginBox:
+		*s = ExposurePutExposureTargetsIDTermsOKOriginBox
+	default:
+		*s = ExposurePutExposureTargetsIDTermsOKOrigin(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ExposurePutExposureTargetsIDTermsOKOrigin) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposurePutExposureTargetsIDTermsOKOrigin) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode implements json.Marshaler.
 func (s *ExposurePutExposureTargetsIDTermsOKProof) Encode(e *jx.Encoder) {
 	e.ObjStart()
@@ -116812,6 +119222,54 @@ func (s *ExposurePutExposureTargetsIDTermsOKProof) MarshalJSON() ([]byte, error)
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ExposurePutExposureTargetsIDTermsOKProof) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ExposurePutExposureTargetsIDTermsOKScanState as json.
+func (s ExposurePutExposureTargetsIDTermsOKScanState) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ExposurePutExposureTargetsIDTermsOKScanState from json.
+func (s *ExposurePutExposureTargetsIDTermsOKScanState) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposurePutExposureTargetsIDTermsOKScanState to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ExposurePutExposureTargetsIDTermsOKScanState(v) {
+	case ExposurePutExposureTargetsIDTermsOKScanStateUnproved:
+		*s = ExposurePutExposureTargetsIDTermsOKScanStateUnproved
+	case ExposurePutExposureTargetsIDTermsOKScanStateExpired:
+		*s = ExposurePutExposureTargetsIDTermsOKScanStateExpired
+	case ExposurePutExposureTargetsIDTermsOKScanStatePaused:
+		*s = ExposurePutExposureTargetsIDTermsOKScanStatePaused
+	case ExposurePutExposureTargetsIDTermsOKScanStateNeedsTerms:
+		*s = ExposurePutExposureTargetsIDTermsOKScanStateNeedsTerms
+	case ExposurePutExposureTargetsIDTermsOKScanStateReady:
+		*s = ExposurePutExposureTargetsIDTermsOKScanStateReady
+	case ExposurePutExposureTargetsIDTermsOKScanStateScanning:
+		*s = ExposurePutExposureTargetsIDTermsOKScanStateScanning
+	default:
+		*s = ExposurePutExposureTargetsIDTermsOKScanState(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ExposurePutExposureTargetsIDTermsOKScanState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposurePutExposureTargetsIDTermsOKScanState) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -218948,6 +221406,50 @@ func (s *NilExposureDeleteExposureTargetsIDTermsOKCommitmentNotice) UnmarshalJSO
 	return s.Decode(d)
 }
 
+// Encode encodes ExposureDeleteExposureTargetsIDTermsOKIPProof as json.
+func (o NilExposureDeleteExposureTargetsIDTermsOKIPProof) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes ExposureDeleteExposureTargetsIDTermsOKIPProof from json.
+func (o *NilExposureDeleteExposureTargetsIDTermsOKIPProof) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilExposureDeleteExposureTargetsIDTermsOKIPProof to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v ExposureDeleteExposureTargetsIDTermsOKIPProof
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilExposureDeleteExposureTargetsIDTermsOKIPProof) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilExposureDeleteExposureTargetsIDTermsOKIPProof) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes ExposureDeleteExposureTargetsIDTermsOKLastCheck as json.
 func (o NilExposureDeleteExposureTargetsIDTermsOKLastCheck) Encode(e *jx.Encoder) {
 	if o.Null {
@@ -219564,6 +222066,50 @@ func (s *NilExposureGetExposureTargetsIDOKCommitmentNotice) UnmarshalJSON(data [
 	return s.Decode(d)
 }
 
+// Encode encodes ExposureGetExposureTargetsIDOKIPProof as json.
+func (o NilExposureGetExposureTargetsIDOKIPProof) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes ExposureGetExposureTargetsIDOKIPProof from json.
+func (o *NilExposureGetExposureTargetsIDOKIPProof) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilExposureGetExposureTargetsIDOKIPProof to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v ExposureGetExposureTargetsIDOKIPProof
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilExposureGetExposureTargetsIDOKIPProof) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilExposureGetExposureTargetsIDOKIPProof) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes ExposureGetExposureTargetsIDOKLastCheck as json.
 func (o NilExposureGetExposureTargetsIDOKLastCheck) Encode(e *jx.Encoder) {
 	if o.Null {
@@ -220092,6 +222638,50 @@ func (s *NilExposureGetExposureTargetsOKItemsItemCommitmentNotice) UnmarshalJSON
 	return s.Decode(d)
 }
 
+// Encode encodes ExposureGetExposureTargetsOKItemsItemIPProof as json.
+func (o NilExposureGetExposureTargetsOKItemsItemIPProof) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes ExposureGetExposureTargetsOKItemsItemIPProof from json.
+func (o *NilExposureGetExposureTargetsOKItemsItemIPProof) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilExposureGetExposureTargetsOKItemsItemIPProof to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v ExposureGetExposureTargetsOKItemsItemIPProof
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilExposureGetExposureTargetsOKItemsItemIPProof) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilExposureGetExposureTargetsOKItemsItemIPProof) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes ExposureGetExposureTargetsOKItemsItemLastCheck as json.
 func (o NilExposureGetExposureTargetsOKItemsItemLastCheck) Encode(e *jx.Encoder) {
 	if o.Null {
@@ -220484,6 +223074,50 @@ func (s NilExposurePostExposureBoxIPVerifyOKItemsItemCommitmentNotice) MarshalJS
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *NilExposurePostExposureBoxIPVerifyOKItemsItemCommitmentNotice) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ExposurePostExposureBoxIPVerifyOKItemsItemIPProof as json.
+func (o NilExposurePostExposureBoxIPVerifyOKItemsItemIPProof) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes ExposurePostExposureBoxIPVerifyOKItemsItemIPProof from json.
+func (o *NilExposurePostExposureBoxIPVerifyOKItemsItemIPProof) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilExposurePostExposureBoxIPVerifyOKItemsItemIPProof to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v ExposurePostExposureBoxIPVerifyOKItemsItemIPProof
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilExposurePostExposureBoxIPVerifyOKItemsItemIPProof) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilExposurePostExposureBoxIPVerifyOKItemsItemIPProof) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -221012,6 +223646,50 @@ func (s NilExposurePostExposureTargetsCreatedCommitmentNotice) MarshalJSON() ([]
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *NilExposurePostExposureTargetsCreatedCommitmentNotice) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ExposurePostExposureTargetsCreatedIPProof as json.
+func (o NilExposurePostExposureTargetsCreatedIPProof) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes ExposurePostExposureTargetsCreatedIPProof from json.
+func (o *NilExposurePostExposureTargetsCreatedIPProof) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilExposurePostExposureTargetsCreatedIPProof to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v ExposurePostExposureTargetsCreatedIPProof
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilExposurePostExposureTargetsCreatedIPProof) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilExposurePostExposureTargetsCreatedIPProof) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -221676,6 +224354,50 @@ func (s *NilExposurePostExposureTargetsIDVerifyOKTargetCommitmentNotice) Unmarsh
 	return s.Decode(d)
 }
 
+// Encode encodes ExposurePostExposureTargetsIDVerifyOKTargetIPProof as json.
+func (o NilExposurePostExposureTargetsIDVerifyOKTargetIPProof) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes ExposurePostExposureTargetsIDVerifyOKTargetIPProof from json.
+func (o *NilExposurePostExposureTargetsIDVerifyOKTargetIPProof) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilExposurePostExposureTargetsIDVerifyOKTargetIPProof to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v ExposurePostExposureTargetsIDVerifyOKTargetIPProof
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilExposurePostExposureTargetsIDVerifyOKTargetIPProof) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilExposurePostExposureTargetsIDVerifyOKTargetIPProof) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes ExposurePostExposureTargetsIDVerifyOKTargetLastCheck as json.
 func (o NilExposurePostExposureTargetsIDVerifyOKTargetLastCheck) Encode(e *jx.Encoder) {
 	if o.Null {
@@ -222156,6 +224878,50 @@ func (s NilExposurePutExposureTargetsIDTermsOKCommitmentNotice) MarshalJSON() ([
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *NilExposurePutExposureTargetsIDTermsOKCommitmentNotice) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ExposurePutExposureTargetsIDTermsOKIPProof as json.
+func (o NilExposurePutExposureTargetsIDTermsOKIPProof) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes ExposurePutExposureTargetsIDTermsOKIPProof from json.
+func (o *NilExposurePutExposureTargetsIDTermsOKIPProof) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilExposurePutExposureTargetsIDTermsOKIPProof to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v ExposurePutExposureTargetsIDTermsOKIPProof
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilExposurePutExposureTargetsIDTermsOKIPProof) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilExposurePutExposureTargetsIDTermsOKIPProof) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -248096,6 +250862,39 @@ func (s OptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent) Marsha
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ExposurePostExposureTargetsReqKind as json.
+func (o OptExposurePostExposureTargetsReqKind) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes ExposurePostExposureTargetsReqKind from json.
+func (o *OptExposurePostExposureTargetsReqKind) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptExposurePostExposureTargetsReqKind to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptExposurePostExposureTargetsReqKind) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptExposurePostExposureTargetsReqKind) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

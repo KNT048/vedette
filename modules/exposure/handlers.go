@@ -71,13 +71,13 @@ func (h *ExposureHandlers) ExposureGetExposureTargets(ctx context.Context) (*oas
 	}{items, box, ignored, h.svc.GatewayNote(ctx, items)})
 }
 
-// ExposurePostExposureTargets implements exposure_post_exposure_targets: add a domain (admin).
+// ExposurePostExposureTargets implements exposure_post_exposure_targets: add a domain or a public IP (admin).
 func (h *ExposureHandlers) ExposurePostExposureTargets(ctx context.Context, req *oas.ExposurePostExposureTargetsReq) (*oas.ExposurePostExposureTargetsCreated, error) {
 	user, err := actor(ctx)
 	if err != nil {
 		return nil, err
 	}
-	v, err := h.svc.AddDomain(ctx, user, req.Value)
+	v, err := h.svc.AddTarget(ctx, user, Kind(req.Kind.Value), req.Value)
 	if err != nil {
 		return nil, ToAPIError(err)
 	}

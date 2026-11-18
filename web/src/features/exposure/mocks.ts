@@ -227,6 +227,8 @@ function view(t: StoredTarget): Target {
     terms, terms_notice: { version: TERMS_VERSION, text: (t.kind === 'domain' ? TERMS_TEMPLATE_DOMAIN : TERMS_TEMPLATE).replaceAll('{value}', t.value), disruptive: TERMS_DISRUPTIVE }, full_scan: terms?.version === TERMS_VERSION,
     scannable: blocked === null, blocked_reason: blocked, created_at: t.created_at, last_scan_at: t.last_scan_at, last_scan_finished_at: last?.finished_at ?? null, latest: last ? last.counts : null, open_ports: last ? last.ports.slice(0, 20) : null,
     proof: proofOf(t),
+    origin: ip ? 'box' : 'person', ip_proof: null, next_check_at: null, open_exposures: last?.counts.ports ?? 0,
+    scan_state: blocked === null ? 'ready' : blocked === 'expired' ? 'expired' : blocked === 'ip_not_current' ? 'paused' : blocked === 'no_commitment' ? 'needs_terms' : 'unproved',
   }
 }
 

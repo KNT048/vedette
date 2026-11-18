@@ -317,9 +317,19 @@ func (s *Service) CheckOutside(ctx context.Context, user, id string) (OutsideVie
 	if r := t.blocked(s.clock()); r == BlockedUnverified || r == BlockedExpired {
 		return OutsideView{}, s.outsideRefusal(t, r, s.clock())
 	}
-	current, err := s.stillCurrent(ctx, user, t)
-	if err != nil {
-		return OutsideView{}, fmt.Errorf("exposure: checking with Shodan: %w", err)
+	if t.Typed { // a typed IP is sent only with its proof found now (INV-35)
+		if t, err = s.liveTypedProof(ctx, user, t); err != nil {
+			return OutsideView{}, fmt.Errorf("exposure: checking with Shodan: %w", err)
+		}
+		if t.LastCheck == nil || !t.LastCheck.OK {
+			return OutsideView{}, apiErr(409, "proof_missing", "The proof of %s is not found now, so it is not sent to Shodan. %s", t.Value, proofRetry)
+		}
+	}
+	current := t.Typed
+	if !current {
+		if current, err = s.stillCurrent(ctx, user, t); err != nil {
+			return OutsideView{}, fmt.Errorf("exposure: checking with Shodan: %w", err)
+		}
 	}
 	if !current {
 		if t, err = loadTarget(ctx, s.cfg.DB.Reader(), id); err != nil {

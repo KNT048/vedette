@@ -34,7 +34,10 @@ var (
 	// ErrPublicSuffix: a public suffix (co.uk, ddns.net, github.io) is where many owners register their names; no record there can
 	// prove one of them.
 	ErrPublicSuffix   = apiErr(400, "bad_value", "That is a public suffix, under which many owners register their own names: add your own domain (for example yourcompany.co.uk or yourname.ddns.net).")
-	ErrIPNotAllowed   = apiErr(400, "ip_not_allowed", "Public IPs are not typed in. The box finds its own public IPs: turn on auto-detect or select \"Detect now\" under Public IPs of this box.")
+	ErrIPNotAllowed   = apiErr(400, "ip_not_allowed", "That is an IP address, not a domain. Choose Public IP to add an address.")
+	ErrIPNotPublic    = apiErr(400, "ip_not_allowed", "Enter a public IPv4 address, for example 203.0.113.10. Private, reserved, carrier-grade NAT and IPv6 addresses cannot be scanned from the Internet.")
+	ErrNotAnIP        = apiErr(400, "bad_value", "Not an IP address. Example: 203.0.113.10.")
+	ErrKind           = apiErr(400, "bad_value", "Choose Domain or Public IP.")
 	ErrTooMany        = apiErr(400, "too_many", "At most %d targets. Delete ones you no longer use.", MaxTargets)
 	ErrBadInterval    = apiErr(400, "bad_interval", "Choose how often to check: every minute up to every 24 hours (%d minutes).", MaxIntervalMin)
 	ErrUnreachable    = apiErr(502, "unreachable", "%s", msgOffline)

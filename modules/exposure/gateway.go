@@ -18,7 +18,7 @@ func (s *Service) GatewayNote(ctx context.Context, items []TargetView) *GatewayV
 	}
 	open := false
 	for _, t := range items {
-		if t.Kind == KindIP && len(t.OpenPorts) > 0 {
+		if t.Kind == KindIP && t.Origin != "person" && len(t.OpenPorts) > 0 {
 			open = true
 			break
 		}

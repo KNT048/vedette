@@ -17,7 +17,7 @@ const long = (i: number) => ({
 async function seed(page: Page) {
   await sampleStart(page)
   await page.goto('/devices')
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/^\d+ devices?,/)
+  await expect(page.getByText(/^\d+ devices?, /)).toBeVisible()
   await page.evaluate(([k, rows]) => {
     const db = JSON.parse(localStorage.getItem(k as string) ?? '{}')
     db.inv_assets = [...(db.inv_assets ?? []), ...(rows as unknown[])]

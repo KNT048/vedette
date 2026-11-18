@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
+import { toggleFilter } from '@/test/filters'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { server } from '@/test/server'
 import { api } from '@/lib/api'
@@ -51,7 +52,8 @@ const clickUntil = (user: ReturnType<typeof userEvent.setup>, get: () => HTMLEle
 describe('inventory: device list (S-INV-1, S-INV-3)', () => {
   it('the first sentence says "N devices, 2 not yet approved", with a table and no a11y violations', async () => {
     renderApp('/devices')
-    expect(await screen.findByRole('heading', { level: 1, name: new RegExp(`^${assetsStore.get().length} devices, 2 not yet approved$`) }, T)).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Devices' }, T)).toBeInTheDocument()
+    expect(await screen.findByText(`${assetsStore.get().length} devices, 2 not yet approved`, undefined, T)).toBeInTheDocument() // the toolbar's small line
     const table = await deviceTable()
     expect(within(table).getAllByRole('row').length).toBeGreaterThan(10)
     expect(within(table).getByText('NAS-PHOTOS')).toBeInTheDocument()
@@ -68,13 +70,15 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     expect(await within(table).findByText('No rows match these filters.', undefined, T)).toBeInTheDocument() // the list filters a deferred value
     await user.click(within(table).getByRole('button', { name: 'Clear filters' }))
     await waitFor(() => expect(box).toHaveValue(''), T)
-    expect(screen.queryByRole('button', { name: /^Manual 0$/ })).toBeNull() // a chip that would show 0 is left out
+    await user.click(screen.getByRole('button', { name: /^Filters/ }))
+    expect(screen.queryByRole('menuitemcheckbox', { name: /^Manual/ })).toBeNull() // a filter that would show 0 is left out
+    await user.keyboard('{Escape}')
     await user.type(box, 'source:manual ')
     table = screen.getByRole('table', { name: DEVICE_TABLE })
     expect(await within(table).findByText('No rows match these filters.', undefined, T)).toBeInTheDocument() // the list filters a deferred value
-    await user.click(screen.getByRole('button', { name: /^Manual 0/, pressed: true })) // shown while it is on, so it can be turned off
+    await user.click(screen.getByRole('button', { name: 'Remove filter Manual' })) // shown while it is on, so it can be turned off
     const fragile = assetsStore.get().filter((a) => a.fragile && a.approved).length
-    await user.click(screen.getByRole('button', { name: new RegExp(`^Fragile ${fragile}$`) }))
+    await toggleFilter(user, new RegExp(`^Fragile ${fragile}$`))
     table = screen.getByRole('table', { name: DEVICE_TABLE })
     expect(within(table).getAllByRole('row')).toHaveLength(fragile + 1)
     expect(screen.getByRole('status')).toHaveTextContent(`${fragile} of `)
@@ -344,9 +348,74 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
   it('the admin gets a link to the setup page (agents included) next to "Add a device" (item 26b)', async () => {
     renderApp('/devices')
     await deviceTable()
-    const link = screen.getByRole('link', { name: 'Scope, sensors and agents' })
+    const link = screen.getByRole('link', { name: 'Device discovery settings' })
+    expect(link).toHaveTextContent('Settings')
     expect(link).toHaveAttribute('href', '/devices/setup')
     expect(link.nextElementSibling).toBe(screen.getByRole('button', { name: 'Add a device' }))
+  })
+
+  it('one toolbar over the list holds the count, Export CSV, Settings and Add a device; Add is the only primary button; the header has no buttons', async () => {
+    renderApp('/devices')
+    await deviceTable()
+    const header = screen.getByRole('heading', { level: 1 }).closest('header')!
+    expect(within(header).queryAllByRole('button', { name: /Add a device|Export CSV|Filters/ })).toHaveLength(0)
+    expect(within(header).queryAllByRole('link', { name: /settings/i })).toHaveLength(0)
+    const add = screen.getByRole('button', { name: 'Add a device' })
+    const bar = add.parentElement!.parentElement!.parentElement!
+    expect(within(bar).getByRole('combobox', { name: 'Search devices' })).toBeInTheDocument()
+    expect(within(bar).getByRole('button', { name: 'Export CSV' })).toBeInTheDocument()
+    expect(within(bar).getByRole('link', { name: 'Device discovery settings' })).toBeInTheDocument()
+    expect(within(bar).getByText(/not yet approved/)).toBeInTheDocument()
+    // primary = the accent-filled button; Export, Filters and Settings are quiet or outlined
+    const primary = within(bar).getAllByRole('button').filter((b) => b.className.includes('bg-accent text-accent-ink'))
+    expect(primary).toEqual([add])
+  })
+
+  it('Filters opens the options; picking one adds a removable chip and filters the list; removing the chip clears it', async () => {
+    const user = userEvent.setup()
+    renderApp('/devices')
+    const table = await deviceTable()
+    const all = within(table).getAllByRole('row').length
+    const filters = screen.getByRole('button', { name: 'Filters' })
+    expect(screen.queryByRole('menuitemcheckbox')).toBeNull()
+    await user.click(filters)
+    const names = (await screen.findAllByRole('menuitemcheckbox')).map((x) => x.textContent)
+    expect(names).toEqual(expect.arrayContaining([expect.stringMatching(/^Fragile/), expect.stringMatching(/^SNMP/)]))
+    await user.keyboard('{Escape}')
+    expect(filters).toHaveFocus()
+    await toggleFilter(user, /^Fragile/)
+    expect(screen.getByRole('combobox', { name: 'Search devices' })).toHaveValue('fragile')
+    const fragile = assetsStore.get().filter((a) => a.fragile && a.approved).length
+    await waitFor(() => expect(within(screen.getByRole('table', { name: DEVICE_TABLE })).getAllByRole('row')).toHaveLength(fragile + 1), T)
+    expect(screen.getByRole('button', { name: 'Filters 1' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Remove filter Fragile' }))
+    await waitFor(() => expect(within(screen.getByRole('table', { name: DEVICE_TABLE })).getAllByRole('row')).toHaveLength(all), T)
+    expect(screen.getByRole('combobox', { name: 'Search devices' })).toHaveValue('')
+  })
+
+  it('one count line: every device without a search, "N of M shown" for this list with one; one Clear filters clears the whole query', async () => {
+    const user = userEvent.setup()
+    renderApp('/devices')
+    await deviceTable()
+    const total = assetsStore.get().length
+    const approved = assetsStore.get().filter((a) => a.approved).length
+    expect(await screen.findByRole('status')).toHaveTextContent(`${total} devices, 2 not yet approved`)
+    await toggleFilter(user, /^Fragile/)
+    const fragile = assetsStore.get().filter((a) => a.fragile && a.approved).length
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(`${fragile} of ${approved} devices shown · 2 not yet approved`), T)
+    expect(screen.getAllByRole('status')).toHaveLength(1)
+    await user.type(screen.getByRole('combobox', { name: 'Search devices' }), 'zzz')
+    await user.click(await screen.findByRole('button', { name: 'Clear filters' }, T))
+    expect(screen.getByRole('combobox', { name: 'Search devices' })).toHaveValue('')
+    expect(screen.queryByRole('button', { name: /^Remove filter/ })).toBeNull()
+  })
+
+  it('the Settings button opens the settings page', async () => {
+    const user = userEvent.setup()
+    renderApp('/devices')
+    await deviceTable()
+    await user.click(screen.getByRole('link', { name: 'Device discovery settings' }))
+    expect(await screen.findByRole('tab', { name: /^Scope/ }, T)).toBeInTheDocument()
   })
 
   it('the viewer role is refused writes by the API (403), and anonymous gets 401', async () => {
@@ -369,7 +438,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     // the toast's title (its description also says "Approved in the last 24 h"); other tests leave their toasts behind
     const toast = (await screen.findByText(/^Approved .+\.$/, undefined, T)).closest<HTMLElement>('[data-sonner-toast]')!
     expect(assetsStore.get().filter((a) => !a.approved)).toHaveLength(1)
-    expect(await screen.findByRole('heading', { level: 1, name: /1 not yet approved/ }, T)).toBeInTheDocument()
+    expect(await screen.findByText(/1 not yet approved/, undefined, T)).toBeInTheDocument()
     // The toast says where to find it again and opens the device
     expect(within(toast).getByText('Find it later in Devices.')).toBeInTheDocument()
     const approved = pending.find((id) => find(id).approved)!
@@ -900,7 +969,7 @@ describe('inventory: device detail (S-INV-1)', () => {
     await screen.findByRole('switch', { name: 'Fragile device' }, T)
     await user.click(screen.getByRole('button', { name: 'Remove from list' }))
     await user.click(await screen.findByRole('button', { name: 'Remove from list' }, T))
-    expect(await screen.findByRole('heading', { level: 1, name: /devices, 2 not yet approved/ }, T)).toBeInTheDocument()
+    expect(await screen.findByText(/devices, 2 not yet approved/, undefined, T)).toBeInTheDocument()
     expect(assetsStore.get().find((a) => a.id === 'a-pc02')).toBeUndefined()
   })
 

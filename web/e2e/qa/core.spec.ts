@@ -666,7 +666,7 @@ test.describe('data', () => {
     await expect(h1(page)).toContainText('Today')
     await page.goto('/devices')
     // the box itself is a sample device too: 31 + 1
-    await expect(h1(page)).toContainText('32 devices')
+    await expect(page.getByText(/^32 devices, /)).toBeVisible()
     await page.goto('/settings/data')
     await page.getByRole('button', { name: 'Restore sample data', exact: true }).click()
     await page.getByRole('button', { name: 'Restore and reload' }).click()

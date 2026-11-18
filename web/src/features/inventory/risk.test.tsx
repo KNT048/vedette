@@ -3,6 +3,7 @@ import { http, HttpResponse } from 'msw'
 import { server } from '@/test/server'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { toggleFilter } from '@/test/filters'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { sessionStore } from '@/mocks/stores'
 import { BOX_ID, ensureBox } from './mocks'
@@ -64,7 +65,7 @@ describe('inventory: risk marker', () => {
     await user.click(within(table).getByRole('button', { name: /Risk/ }))
     await waitFor(() => expect(within(within(table).getAllByRole('row')[1]!).getByRole('link', { name: /open exploited finding/ })).toBeInTheDocument(), T)
     // the Exploited chip keeps the red devices only
-    await user.click(screen.getByRole('button', { name: /^Exploited/ }))
+    await toggleFilter(user, /^Exploited/)
     await waitFor(() => expect(within(table).getAllByRole('row').length - 1).toBe(list.filter((d) => d.approved && d.risk?.level === 'exploited').length), T)
   })
 

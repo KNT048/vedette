@@ -10,7 +10,7 @@ import (
 // whose agent reports the version are ONE action ("Upgrade Photo Station from 6.1.1 to 6.3.0 or later", 4 CVEs, worst critical), all
 // detected, none "suspected"; a banner-read version on another device is suspected; the plan's items of the device come in the same
 // answer with their software row.
-func TestDeviceUpdates_OneActionPerUpdateAgentIsDetected(t *testing.T) {
+func TestDeviceUpdates_OneActionPerUpdateAgentIsConfirmed(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	ranged := func(cve, end string, ransom bool) Vuln {
@@ -50,8 +50,8 @@ func TestDeviceUpdates_OneActionPerUpdateAgentIsDetected(t *testing.T) {
 		x.CVEs[0] != "CVE-2099-0002" || x.Ransomware != 1 || x.SoftwareID != "s-1" || x.Version != "6.1.1" {
 		t.Fatalf("action %+v", x)
 	}
-	if x.Detected != 4 || x.Suspected != 0 || x.Confirmed != 0 {
-		t.Fatalf("the agent reported the version: detected, never suspected: %+v", x)
+	if x.Confirmed != 4 || x.Suspected != 0 || x.Detected != 0 { // the finding page says confirmed: To fix counts it the same
+		t.Fatalf("the agent reported the version inside the range: confirmed, never suspected: %+v", x)
 	}
 	if !u.PlanRan || !u.PlanCompared || u.PlanOff || len(u.Planned) != 1 || u.Planned[0].SoftwareID != "s-ng" || u.Planned[0].Fixed != "1.26.0" || len(u.Planned[0].CVEs) != 2 ||
 		u.Planned[0].Likely != 1 || u.Planned[0].Worst != "high" || u.Planned[0].Action != "Upgrade nginx from 1.18.0 to 1.26.0 or later" {

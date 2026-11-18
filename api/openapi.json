@@ -34819,7 +34819,7 @@
                               "product",
                               "person"
                             ],
-                            "description": "scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version = suspected by version; product = only the product matches"
+                            "description": "scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version = the version is inside the affected range (confirmed when evidence.source says the device itself stated it, suspected otherwise); product = only the product matches"
                           },
                           "evidence": {
                             "anyOf": [
@@ -34850,6 +34850,14 @@
                                   "agent_row": {
                                     "description": "a product-only match on a software row the device's own agent reported with its installed version: Vedette could not compare that version with NVD's data, so the page does not ask to add the version",
                                     "type": "boolean"
+                                  },
+                                  "source": {
+                                    "description": "basis version only: the device itself stated the exact version (snmp: its answer to Vedette's SNMP read; agent: its own agent's OS or package list) and it is inside an affected range with an end, so the finding is confirmed by the version the device reports. Absent for a banner, an OS guess or a version a person typed",
+                                    "type": "string",
+                                    "enum": [
+                                      "snmp",
+                                      "agent"
+                                    ]
                                   }
                                 },
                                 "required": [
@@ -35933,7 +35941,7 @@
                         "product",
                         "person"
                       ],
-                      "description": "scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version = suspected by version; product = only the product matches"
+                      "description": "scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version = the version is inside the affected range (confirmed when evidence.source says the device itself stated it, suspected otherwise); product = only the product matches"
                     },
                     "evidence": {
                       "anyOf": [
@@ -35964,6 +35972,14 @@
                             "agent_row": {
                               "description": "a product-only match on a software row the device's own agent reported with its installed version: Vedette could not compare that version with NVD's data, so the page does not ask to add the version",
                               "type": "boolean"
+                            },
+                            "source": {
+                              "description": "basis version only: the device itself stated the exact version (snmp: its answer to Vedette's SNMP read; agent: its own agent's OS or package list) and it is inside an affected range with an end, so the finding is confirmed by the version the device reports. Absent for a banner, an OS guess or a version a person typed",
+                              "type": "string",
+                              "enum": [
+                                "snmp",
+                                "agent"
+                              ]
                             }
                           },
                           "required": [
@@ -37550,7 +37566,7 @@
                         "product",
                         "person"
                       ],
-                      "description": "scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version = suspected by version; product = only the product matches"
+                      "description": "scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version = the version is inside the affected range (confirmed when evidence.source says the device itself stated it, suspected otherwise); product = only the product matches"
                     },
                     "evidence": {
                       "anyOf": [
@@ -37581,6 +37597,14 @@
                             "agent_row": {
                               "description": "a product-only match on a software row the device's own agent reported with its installed version: Vedette could not compare that version with NVD's data, so the page does not ask to add the version",
                               "type": "boolean"
+                            },
+                            "source": {
+                              "description": "basis version only: the device itself stated the exact version (snmp: its answer to Vedette's SNMP read; agent: its own agent's OS or package list) and it is inside an affected range with an end, so the finding is confirmed by the version the device reports. Absent for a banner, an OS guess or a version a person typed",
+                              "type": "string",
+                              "enum": [
+                                "snmp",
+                                "agent"
+                              ]
                             }
                           },
                           "required": [
@@ -39169,7 +39193,7 @@
                         "product",
                         "person"
                       ],
-                      "description": "scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version = suspected by version; product = only the product matches"
+                      "description": "scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version = the version is inside the affected range (confirmed when evidence.source says the device itself stated it, suspected otherwise); product = only the product matches"
                     },
                     "evidence": {
                       "anyOf": [
@@ -39200,6 +39224,14 @@
                             "agent_row": {
                               "description": "a product-only match on a software row the device's own agent reported with its installed version: Vedette could not compare that version with NVD's data, so the page does not ask to add the version",
                               "type": "boolean"
+                            },
+                            "source": {
+                              "description": "basis version only: the device itself stated the exact version (snmp: its answer to Vedette's SNMP read; agent: its own agent's OS or package list) and it is inside an affected range with an end, so the finding is confirmed by the version the device reports. Absent for a banner, an OS guess or a version a person typed",
+                              "type": "string",
+                              "enum": [
+                                "snmp",
+                                "agent"
+                              ]
                             }
                           },
                           "required": [
@@ -40782,7 +40814,7 @@
                         "product",
                         "person"
                       ],
-                      "description": "scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version = suspected by version; product = only the product matches"
+                      "description": "scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version = the version is inside the affected range (confirmed when evidence.source says the device itself stated it, suspected otherwise); product = only the product matches"
                     },
                     "evidence": {
                       "anyOf": [
@@ -40813,6 +40845,14 @@
                             "agent_row": {
                               "description": "a product-only match on a software row the device's own agent reported with its installed version: Vedette could not compare that version with NVD's data, so the page does not ask to add the version",
                               "type": "boolean"
+                            },
+                            "source": {
+                              "description": "basis version only: the device itself stated the exact version (snmp: its answer to Vedette's SNMP read; agent: its own agent's OS or package list) and it is inside an affected range with an end, so the finding is confirmed by the version the device reports. Absent for a banner, an OS guess or a version a person typed",
+                              "type": "string",
+                              "enum": [
+                                "snmp",
+                                "agent"
+                              ]
                             }
                           },
                           "required": [
@@ -42413,7 +42453,7 @@
                         "product",
                         "person"
                       ],
-                      "description": "scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version = suspected by version; product = only the product matches"
+                      "description": "scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version = the version is inside the affected range (confirmed when evidence.source says the device itself stated it, suspected otherwise); product = only the product matches"
                     },
                     "evidence": {
                       "anyOf": [
@@ -42444,6 +42484,14 @@
                             "agent_row": {
                               "description": "a product-only match on a software row the device's own agent reported with its installed version: Vedette could not compare that version with NVD's data, so the page does not ask to add the version",
                               "type": "boolean"
+                            },
+                            "source": {
+                              "description": "basis version only: the device itself stated the exact version (snmp: its answer to Vedette's SNMP read; agent: its own agent's OS or package list) and it is inside an affected range with an end, so the finding is confirmed by the version the device reports. Absent for a banner, an OS guess or a version a person typed",
+                              "type": "string",
+                              "enum": [
+                                "snmp",
+                                "agent"
+                              ]
                             }
                           },
                           "required": [
@@ -44006,7 +44054,7 @@
                         "product",
                         "person"
                       ],
-                      "description": "scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version = suspected by version; product = only the product matches"
+                      "description": "scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version = the version is inside the affected range (confirmed when evidence.source says the device itself stated it, suspected otherwise); product = only the product matches"
                     },
                     "evidence": {
                       "anyOf": [
@@ -44037,6 +44085,14 @@
                             "agent_row": {
                               "description": "a product-only match on a software row the device's own agent reported with its installed version: Vedette could not compare that version with NVD's data, so the page does not ask to add the version",
                               "type": "boolean"
+                            },
+                            "source": {
+                              "description": "basis version only: the device itself stated the exact version (snmp: its answer to Vedette's SNMP read; agent: its own agent's OS or package list) and it is inside an affected range with an end, so the finding is confirmed by the version the device reports. Absent for a banner, an OS guess or a version a person typed",
+                              "type": "string",
+                              "enum": [
+                                "snmp",
+                                "agent"
+                              ]
                             }
                           },
                           "required": [
@@ -46095,7 +46151,7 @@
                           "type": "integer",
                           "minimum": -9007199254740991,
                           "maximum": 9007199254740991,
-                          "description": "Of them, confirmed by a scan"
+                          "description": "Of them, confirmed: by a scan, a person or the version the device itself reports"
                         },
                         "devices": {
                           "type": "integer",
@@ -46871,7 +46927,13 @@
                                   "type": "integer",
                                   "minimum": -9007199254740991,
                                   "maximum": 9007199254740991,
-                                  "description": "How each exploited finding is known: confirmed by a scan, detected from a version the device reported, reported but not compared, suspected from the network"
+                                  "description": "How each exploited finding is known: confirmed (a scan, a person, or a version the device itself reports inside a range with an end; the finding's status says confirmed), detected from a version the device reported that does not confirm it, reported but not compared, suspected from the network"
+                                },
+                                "checkable": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991,
+                                  "description": "Exploited: how many of the CVEs a safe vulnerability check exists for; \"Run the check\" is offered only when it is above 0. 0 for planned ones"
                                 },
                                 "kb": {
                                   "type": "string",
@@ -46904,6 +46966,7 @@
                                 "detected",
                                 "reported",
                                 "suspected",
+                                "checkable",
                                 "kb",
                                 "nvd_lag"
                               ],
@@ -47017,7 +47080,13 @@
                                   "type": "integer",
                                   "minimum": -9007199254740991,
                                   "maximum": 9007199254740991,
-                                  "description": "How each exploited finding is known: confirmed by a scan, detected from a version the device reported, reported but not compared, suspected from the network"
+                                  "description": "How each exploited finding is known: confirmed (a scan, a person, or a version the device itself reports inside a range with an end; the finding's status says confirmed), detected from a version the device reported that does not confirm it, reported but not compared, suspected from the network"
+                                },
+                                "checkable": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991,
+                                  "description": "Exploited: how many of the CVEs a safe vulnerability check exists for; \"Run the check\" is offered only when it is above 0. 0 for planned ones"
                                 },
                                 "kb": {
                                   "type": "string",
@@ -47050,6 +47119,7 @@
                                 "detected",
                                 "reported",
                                 "suspected",
+                                "checkable",
                                 "kb",
                                 "nvd_lag"
                               ],
@@ -47163,7 +47233,13 @@
                                   "type": "integer",
                                   "minimum": -9007199254740991,
                                   "maximum": 9007199254740991,
-                                  "description": "How each exploited finding is known: confirmed by a scan, detected from a version the device reported, reported but not compared, suspected from the network"
+                                  "description": "How each exploited finding is known: confirmed (a scan, a person, or a version the device itself reports inside a range with an end; the finding's status says confirmed), detected from a version the device reported that does not confirm it, reported but not compared, suspected from the network"
+                                },
+                                "checkable": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991,
+                                  "description": "Exploited: how many of the CVEs a safe vulnerability check exists for; \"Run the check\" is offered only when it is above 0. 0 for planned ones"
                                 },
                                 "kb": {
                                   "type": "string",
@@ -47196,6 +47272,7 @@
                                 "detected",
                                 "reported",
                                 "suspected",
+                                "checkable",
                                 "kb",
                                 "nvd_lag"
                               ],

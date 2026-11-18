@@ -68,7 +68,7 @@ func TestDistroFixReachesFindings(t *testing.T) {
 		return recs[0]
 	}
 	install("1:9.6p1-3ubuntu13.4")
-	if f := finding(); f.Status != findings.StatusSuspected || f.Basis != findings.BasisVersion || !strings.Contains(f.Evidence.Summary, "Ubuntu fixed "+cve+" in openssh 1:9.6p1-3ubuntu13.5") {
+	if f := finding(); f.Status != findings.StatusConfirmed || f.Basis != findings.BasisVersion || !strings.Contains(f.Evidence.Summary, "Ubuntu fixed "+cve+" in openssh 1:9.6p1-3ubuntu13.5") {
 		t.Fatalf("below the fix: %+v", f)
 	}
 	install("1:9.6p1-3ubuntu13.14")
@@ -135,14 +135,14 @@ func TestDistroKernelFollowsTheRunningKernel(t *testing.T) {
 	meta := agentintake.DebPackage{Name: "linux-image-generic", Version: "7.0.0-43.43", Source: "linux-meta"}
 	install("7.0.0-30-generic", old, meta)
 	got := status()
-	if f, ok := got["CVE-2026-53266"]; !ok || f.Status != findings.StatusSuspected || !strings.Contains(f.Evidence.Summary, "Ubuntu fixed CVE-2026-53266 in linux 7.0.0-31.31") {
+	if f, ok := got["CVE-2026-53266"]; !ok || f.Status != findings.StatusConfirmed || !strings.Contains(f.Evidence.Summary, "Ubuntu fixed CVE-2026-53266 in linux 7.0.0-31.31") {
 		t.Fatalf("7.0.0-30 below the fix: %+v", got)
 	}
 	if _, ok := got["CVE-2026-46300"]; ok {
 		t.Fatalf("7.0.0-30 is past the fix of CVE-2026-46300, yet it is a finding: %+v", got["CVE-2026-46300"])
 	}
 	install("7.0.0-30-generic", old, updated, meta) // installed, not rebooted
-	if f := status()["CVE-2026-53266"]; f.Status != findings.StatusSuspected {
+	if f := status()["CVE-2026-53266"]; f.Status != findings.StatusConfirmed {
 		t.Fatalf("the new kernel is installed but does not run yet, and the finding closed: %+v", f)
 	}
 	install("7.0.0-43-generic", old, updated, meta) // rebooted

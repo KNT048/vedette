@@ -442,7 +442,7 @@ func findingMap(f FindingRow) map[string]any {
 	return m
 }
 
-// riskRank orders findings riskiest first: confirmed, then suspected, then closed ones (status=any), then severity, then how the match was made (a scan or a person, the version, the
+// riskRank orders findings riskiest first: confirmed, then suspected, then closed ones (status=any), then severity, then how the match was made (confirmed: a scan, a person or the version the device reports; the version, the
 // product name only), then confidence. Equal ones keep the box's order (newest first).
 func riskRank(f FindingRow) [4]int {
 	sev := map[string]int{"critical": 0, "high": 1, "medium": 2, "low": 3}
@@ -454,6 +454,9 @@ func riskRank(f FindingRow) [4]int {
 	b, ok := basis[f.Basis]
 	if !ok {
 		b = 2
+	}
+	if f.Status == "confirmed" { // a scan, a person or the version the device itself reports (basis version): confirmed all the same
+		b = 0
 	}
 	st := map[string]int{"confirmed": 0, "suspected": 1}[f.Status] // open ones first: a closed critical one is not the risk now
 	if f.Status != "confirmed" && f.Status != "suspected" {

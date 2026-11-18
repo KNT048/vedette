@@ -225,7 +225,7 @@ func TestContract_INV6c_ANewReadingReopensWithItsNotice(t *testing.T) {
 	agent.Software = []Software{scanned.Software[0]}
 	agent.Software[0].ID, agent.Software[0].Source, agent.Software[0].Key = "s-agent", "agent", nasKey("agent", "6.1.1")
 	run(agent)
-	if r := load(); r.Status != StatusSuspected {
+	if r := load(); r.Status != StatusConfirmed { // the device's own agent states the version inside the range
 		t.Fatalf("the agent's row reopens it: %+v", r.Finding)
 	}
 	if got := reason(); got != ReasonMatchesAgain {

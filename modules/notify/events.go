@@ -24,16 +24,19 @@ const (
 	EventFindingCreated       = "findings.finding.created"
 	EventFindingStatusChanged = "findings.finding.status_changed"
 	EventFindingRaised        = "findings.finding.severity_raised"
-	EventAssetDiscovered      = "inventory.asset.discovered"
-	EventAssetDeleted         = "inventory.asset.deleted"
-	EventAssetApproved        = "inventory.asset.approved" // B9: {asset_id, actor}
-	EventAssetIgnored         = "inventory.asset.ignored"  // {asset_id, actor}: a person said the device needs no watching
-	EventAssetUpdated         = "inventory.asset.updated"  // {asset_id}: also what a person's Approve publishes today
-	EventAssetMerged          = "inventory.asset.merged"   // {from, into}: inventory joined two rows of one device
-	EventNewKEV               = "feeds.vuln.new_kev"
-	EventHoneypotHit          = "honeypot.hit.created"
-	EventLogAnomaly           = "logs.anomaly.detected"
-	EventLogBadAddress        = "logs.bad_address.detected"
+	// EventDeviceBackfill: one summary of the open findings the first match pass after the device-version rule arrived confirmed
+	// {findings, devices, cves, severity, finding_ids, cve_list}; each of them sent no notice of its own.
+	EventDeviceBackfill  = "findings.device_version.backfilled"
+	EventAssetDiscovered = "inventory.asset.discovered"
+	EventAssetDeleted    = "inventory.asset.deleted"
+	EventAssetApproved   = "inventory.asset.approved" // B9: {asset_id, actor}
+	EventAssetIgnored    = "inventory.asset.ignored"  // {asset_id, actor}: a person said the device needs no watching
+	EventAssetUpdated    = "inventory.asset.updated"  // {asset_id}: also what a person's Approve publishes today
+	EventAssetMerged     = "inventory.asset.merged"   // {from, into}: inventory joined two rows of one device
+	EventNewKEV          = "feeds.vuln.new_kev"
+	EventHoneypotHit     = "honeypot.hit.created"
+	EventLogAnomaly      = "logs.anomaly.detected"
+	EventLogBadAddress   = "logs.bad_address.detected"
 )
 
 // decode reads event data, whatever Go type the producer used, through its JSON form: notify does not
@@ -65,6 +68,7 @@ func (s *Service) Subscribe(bus Bus) (unsubscribe func()) {
 	on(EventFindingCreated, func(ctx context.Context, d any) error { return s.findingEvent(ctx, d, false) })
 	on(EventFindingStatusChanged, func(ctx context.Context, d any) error { return s.findingEvent(ctx, d, true) })
 	on(EventFindingRaised, s.findingRaised)
+	on(EventDeviceBackfill, s.deviceBackfill)
 	on(EventNewKEV, s.kevEvent)
 	on(EventAssetDiscovered, s.assetEvent)
 	on(EventAssetDeleted, s.assetDeleted)
@@ -98,7 +102,7 @@ func (s *Service) kevEvent(ctx context.Context, data any) error {
 	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error { return markKEV(ctx, tx, []string{e.CVE}, s.now(), false) })
 }
 
-// findingEvent turns findings.finding.created, and a finding that a scan has confirmed
+// findingEvent turns findings.finding.created, and a finding that a scan or the version the device itself reports has confirmed
 // (status_changed to "confirmed"), into a vulnerability notice. A notice for a finding that matched
 // no device is counted, not sent (INV-2).
 func (s *Service) findingEvent(ctx context.Context, data any, statusChange bool) error {
@@ -179,6 +183,9 @@ func (s *Service) findingEvent(ctx context.Context, data any, statusChange bool)
 	if statusChange {
 		n.ID += "-confirmed"
 		n.What = "A scan confirmed that this flaw is present. " + n.What
+		if e.Reason == "device_version" { // the device itself states a version inside the affected range (its SNMP answer or its agent)
+			n.What = "The version the device itself reports confirms that this flaw is present. " + f.What
+		}
 	}
 	return s.Publish(ctx, n)
 }
@@ -219,6 +226,66 @@ func (s *Service) findingRaised(ctx context.Context, data any) error {
 		}
 		n.What = why + " " + f.What
 	})
+}
+
+// deviceBackfill turns the one summary of the findings the first pass after the device-version rule confirmed into one notice
+// ("3 findings are now confirmed by the version their device reports"), sent once (fixed id). The device names come from the
+// findings it lists (FindingDirectory), so a notice that names no device is not sent (INV-2). Silent in the baseline.
+func (s *Service) deviceBackfill(ctx context.Context, data any) error {
+	var e struct {
+		Findings   int      `json:"findings"`
+		Devices    int      `json:"devices"`
+		CVEs       int      `json:"cves"`
+		Severity   string   `json:"severity"`
+		FindingIDs []string `json:"finding_ids"`
+		CVEList    []string `json:"cve_list"`
+	}
+	if err := decode(data, &e); err != nil {
+		return err
+	}
+	if e.Findings <= 0 || IsBaseline(ctx) {
+		return nil
+	}
+	if s.cfg.Findings == nil {
+		s.cfg.Log.WarnContext(ctx, "finding summary skipped: no finding directory is wired")
+		return nil
+	}
+	sev := Severity(e.Severity)
+	if !sev.Valid() {
+		sev = High
+	}
+	n := Notice{ID: "nt-device-version-confirmed", Kind: KindVuln, Severity: sev, Link: s.link("/findings?tab=open"), At: s.now(),
+		Title: plural(e.Findings, "finding is", "findings are") + " now confirmed by the version their device reports",
+		What: fmt.Sprintf("Vedette now counts a version a device states itself (its SNMP answer or its own agent) inside an affected range as confirmed. "+
+			"That confirmed %s on %s (%s) that were already open; nothing new was found, and each finding's history says so.",
+			plural(e.Findings, "open finding", "open findings"), plural(e.Devices, "device", "devices"), plural(e.CVEs, "CVE", "CVEs")),
+		Action: "Fix the confirmed findings first: open Findings and filter on Confirmed."}
+	seen := map[string]bool{}
+	for _, id := range e.FindingIDs {
+		if len(n.FindingIDs) == maxNoticeItems {
+			break
+		}
+		f, ok, err := s.cfg.Findings.Finding(ctx, id)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			continue
+		}
+		n.FindingIDs = append(n.FindingIDs, id)
+		for _, d := range f.Devices {
+			if d = strings.TrimSpace(d); d != "" && !seen[d] && len(n.Devices) < maxNoticeItems {
+				seen[d] = true
+				n.Devices = append(n.Devices, d)
+			}
+		}
+	}
+	for _, c := range e.CVEList {
+		if len(n.CVEs) < maxNoticeItems {
+			n.CVEs = append(n.CVEs, c)
+		}
+	}
+	return s.Publish(ctx, n)
 }
 
 // acceptedText is "<who> accepted this risk until <12 Feb 2027>" from the event's fields, each optional.

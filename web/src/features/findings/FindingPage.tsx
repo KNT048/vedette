@@ -23,9 +23,9 @@ import { AcceptUntil, FindingStatusChip } from './AcceptRisk'
 import { overdue, untilOk } from './accept'
 import { useFinding, useSetStatus } from './api'
 import { useFindingAgentGone } from './agentNow'
-import { basisKey, deviceName, hasIp, isOpen, unverified } from './basis'
+import { basisLabel, deviceName, hasIp, isOpen, unverified } from './basis'
 import { errMsg } from './errors'
-import { canConfirm, canUndo, ConfirmButton, ConfirmDialog, UndoButton } from './Confirm'
+import { canConfirm, canUndo, ConfirmButton, ConfirmDialog, ConfirmWays, UndoButton } from './Confirm'
 import { AskAi, NoPack, PackView } from './Recommendation'
 import { GeneralChecks } from './Hardening'
 import { RiskChip } from './Risk'
@@ -84,7 +84,7 @@ function StatusDialog({ f, open, onOpenChange, opener }: { f: FindingDetail; ope
   )
 }
 
-function Evidence({ f }: { f: FindingDetail }) {
+function Evidence({ f, confirm }: { f: FindingDetail; confirm?: ReactNode }) {
   // #850 r2 N4: with the vulnerability checks on, the device page re-runs them; off, it only identifies the device again (said so)
   const scanOn = useModuleEnabled('scan') === true
   const { t } = useTranslation('findings')
@@ -93,11 +93,16 @@ function Evidence({ f }: { f: FindingDetail }) {
     <Section id="evidence" title={t('evidence.title')} description={t('evidence.description')} stories={['S-SCAN-3']}>
       <Card className="grid gap-4">
         {f.suspected_why ? <p className="max-w-3xl text-sm text-muted" data-testid="suspected-why">{f.suspected_why}</p> : null}
+        {canConfirm(f) && f.asset ? (
+          <ConfirmWays assetId={f.asset.id} deviceStated={f.known_version?.source === 'snmp' || f.known_version?.source === 'agent'} checkable={!!f.kev?.has_template && hasIp(f.asset)}>
+            {confirm}
+          </ConfirmWays>
+        ) : null}
         {ev ? (
           <>
             <p className="max-w-3xl text-sm">{ev.summary}</p>
             <KeyValue items={[
-              { label: t('evidence.basis'), value: t(basisKey(f.basis)) },
+              { label: t('evidence.basis'), value: t(basisLabel(f)) },
               { label: t('evidence.confidence'), value: fmtPercent(f.confidence, 0) },
               { label: t('evidence.template'), value: ev.template ?? <span className="text-muted">{f.kev?.has_template ? t('evidence.noTemplateRun') : t('evidence.noTemplate')}</span> },
               { label: t('evidence.source'), value: <SourceBadge source={f.basis === 'scan' ? 'scan' : f.kev?.source === 'vulncheck-kev' ? 'vulncheck-kev' : 'kev'} confidence={f.confidence} at={ev.checked_at} /> },
@@ -213,7 +218,7 @@ function Detail({ f, crumbs }: { f: FindingDetail; crumbs: { label: string; to: 
   const confirmOpener = useRef<HTMLButtonElement>(null)
   const name = deviceName(f.asset, t('removedDevice'))
   // the agent's build is a detection; once no agent reports the device it is the last list one sent (as Updates to plan says it)
-  const agentHeadline = f.status === 'suspected' && !!f.evidence?.agent
+  const agentHeadline = (f.status === 'suspected' || f.status === 'confirmed') && f.basis === 'version' && !!f.evidence?.agent
   const agentGone = useFindingAgentGone(f)
   const needRole = can ? undefined : t('common:needRole', { role: t('common:role.operator') })
   const reopenButton = (
@@ -222,7 +227,7 @@ function Detail({ f, crumbs }: { f: FindingDetail; crumbs: { label: string; to: 
   const open_ = isOpen(f.status)
   const body = (
     <>
-      <Evidence f={f} />
+      <Evidence f={f} confirm={<ConfirmButton f={f} buttonRef={confirmOpener} onClick={() => setConfirming(true)} />} />
       <Section id="mitigation" title={t('rec.title')} description={t('rec.description')} info={t('rec.descriptionInfo')} stories={['S-MIT-1']}>
         <RequireModule module="mitigation">{f.pack ? <PackView finding={f} /> : <NoPack finding={f} />}</RequireModule>
       </Section>
@@ -252,7 +257,7 @@ function Detail({ f, crumbs }: { f: FindingDetail; crumbs: { label: string; to: 
           <>
             <SampleDataNote />
             <IUpdatedFinding f={f} />
-            {canConfirm(f) ? <ConfirmButton f={f} buttonRef={confirmOpener} onClick={() => setConfirming(true)} /> : null}
+            {canConfirm(f) && !f.asset ? <ConfirmButton f={f} buttonRef={confirmOpener} onClick={() => setConfirming(true)} /> : null}
             {canUndo(f) ? <UndoButton f={f} /> : null}
             {open_ ? <Button ref={opener} variant="primary" disabled={!can} title={needRole} onClick={() => setOpen(true)}>{t('status.mark')}</Button> : null}
           </>

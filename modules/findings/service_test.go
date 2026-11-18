@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"maps"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -29,6 +30,8 @@ type fakeInv struct {
 	ignoredErr error // IgnoredIDs fails with it (review r2 N1 of #945)
 	// onMatch runs (without the lock) when MatchInput reads a device: a test can change the world while a pass reads it.
 	onMatch func(id string)
+	// matchErr makes MatchInput of a device fail (a device that cannot be read).
+	matchErr map[string]error
 }
 
 func (f *fakeInv) Assets(_ context.Context, ids []string) (map[string]AssetView, error) {
@@ -47,9 +50,13 @@ func (f *fakeInv) MatchInput(_ context.Context, id string) (Asset, bool, error) 
 	f.mu.Lock()
 	a, ok := f.match[id]
 	hook := f.onMatch
+	err := f.matchErr[id]
 	f.mu.Unlock()
 	if hook != nil {
 		hook(id)
+	}
+	if err != nil {
+		return Asset{}, false, err
 	}
 	return a, ok, nil
 }
@@ -572,6 +579,19 @@ func TestContract_INV1_DatabaseRefusesWhatTheLibraryNeverBuilds(t *testing.T) {
 	}
 	if err := insert("confirmed", "version", `{"summary":"x","checked_at":"`+ts+`"}`, "CVE-2022-0001"); err == nil {
 		t.Error("confirmed with basis version accepted")
+	}
+	for _, src := range []string{"scan", "manual", "nmap", ""} { // only the device's own statement confirms a version
+		if err := insert("confirmed", "version", `{"summary":"x","source":"`+src+`","checked_at":"`+ts+`"}`, "CVE-2022-0011"); err == nil {
+			t.Errorf("confirmed with basis version from source %q accepted", src)
+		}
+	}
+	if err := insert("confirmed", "product", `{"summary":"x","source":"snmp","checked_at":"`+ts+`"}`, "CVE-2022-0012"); err == nil {
+		t.Error("confirmed with basis product accepted")
+	}
+	for i, src := range []string{"snmp", "agent"} {
+		if err := insert("confirmed", "version", `{"summary":"x","source":"`+src+`","checked_at":"`+ts+`"}`, "CVE-2022-002"+strconv.Itoa(i)); err != nil {
+			t.Errorf("confirmed with basis version stated by the device (%s) refused: %v", src, err)
+		}
 	}
 	if err := insert("confirmed", "scan", nil, "CVE-2022-0002"); err == nil {
 		t.Error("confirmed without evidence accepted")

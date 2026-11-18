@@ -182,7 +182,7 @@ func hasKeys(text string, keys ...string) bool {
 	return true
 }
 
-// affectedOf is the box's own answer to "does it affect me": no matching device, no; a finding confirmed by a scan or a person, yes; a match
+// affectedOf is the box's own answer to "does it affect me": no matching device, no; a confirmed finding (a scan, a person, or the version the device itself reports), yes; a match
 // that nobody confirmed, unknown.
 func affectedOf(assets []AssetFact) string {
 	if len(assets) == 0 {

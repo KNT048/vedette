@@ -200,7 +200,7 @@ func TestContract_ReconcileClosesNameOnlyFindings(t *testing.T) {
 	if p.Status != StatusSuspected || !strings.Contains(p.History[len(p.History)-1].Note, "Vedette now matches CVE-2004-0210 by the product name only (Windows build 26300 is newer") {
 		t.Errorf("person's reopen: %+v %+v", p.Finding, p.History[len(p.History)-1])
 	}
-	if v := load(inRange.CVE); v.Status != StatusSuspected || v.Basis != BasisVersion {
+	if v := load(inRange.CVE); v.Status != StatusConfirmed || v.Basis != BasisVersion || !v.ByDevice() { // the agent's build is inside the range
 		t.Errorf("version finding: %+v", v.Finding)
 	}
 	rows, err := e.svc.ListUnchecked(t.Context(), dev.ID)
@@ -231,9 +231,11 @@ func TestContract_ReconcileClosesNameOnlyFindings(t *testing.T) {
 	if _, err := e.svc.UpsertFromMatch(t.Context(), dev, e.feeds.vulns); err != nil {
 		t.Fatal(err)
 	}
-	if r := load(cve0367.CVE); r.Status != StatusSuspected || r.Basis != BasisVersion ||
-		!strings.Contains(r.History[len(r.History)-1].Note, "it had closed it because only the product name matched") {
-		t.Fatalf("not reopened: %+v %+v", r.Finding, r.History[len(r.History)-1])
+	// reopened, and confirmed at once: the device's agent states a build inside the range (two rows: the reopen, then why confirmed)
+	if r := load(cve0367.CVE); r.Status != StatusConfirmed || r.Basis != BasisVersion || len(r.History) < 2 ||
+		!strings.Contains(r.History[len(r.History)-2].Note, "it had closed it because only the product name matched") ||
+		r.History[len(r.History)-1].Note != DeviceConfirmedNote {
+		t.Fatalf("not reopened: %+v %+v", r.Finding, r.History)
 	}
 }
 

@@ -21,6 +21,7 @@ import { useScanning } from '@/features/scanning/api'
 import { fmtDateTime } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { useBulkStatus } from './api'
+import { ConfirmWays } from './Confirm'
 import { deviceName, hasIp } from './basis'
 import { MAX_BULK } from './contract'
 import { errMsg } from './errors'
@@ -243,6 +244,11 @@ function UnprovedItem({ a, asset }: { a: ToFixAction; asset: FindingAsset | null
         </details>
       </div>
       <NextStep assetId={asset?.id ?? ''} asset={asset} softwareId={a.software_id} software={a.software || t('toFix.theSoftware')} need="proof" sourceHint={a.source} findingIds={a.finding_ids} />
+      {asset ? (
+        <div className="pl-4">
+          <ConfirmWays assetId={asset.id} deviceStated={a.source === 'agent' || a.source === 'snmp'} checkable={a.checkable > 0 && hasIp(asset)} list />
+        </div>
+      ) : null}
     </li>
   )
 }

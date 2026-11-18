@@ -155,7 +155,7 @@ function expireAccepted() {
     const f = find(id)
     clearAccepted(id)
     if (!f) continue
-    patch(id, (x) => ({ ...x, status: x.basis === 'scan' ? 'confirmed' : 'suspected', resolved_at: null, resolved_by: null, resolution_note: null,
+    patch(id, (x) => ({ ...x, status: x.basis === 'scan' || x.basis === 'person' || (x.basis === 'version' && !!x.evidence?.source) ? 'confirmed' : 'suspected', resolved_at: null, resolved_by: null, resolution_note: null,
       history: [...x.history, { ts: nowIso(), user: 'system', action: 'reopened', note: `Risk acceptance expired (accepted by ${f.resolved_by ?? 'someone'} until ${fmtDate(until)}).` }] }))
   }
 }
@@ -260,13 +260,17 @@ const SOURCE_TEXT: Record<KnownVersion['source'], string> = {
   scan: 'A network scan (a guess from what a service answers)', manual: 'A person (entered on the Devices page)',
 }
 
-/** findings.WhySuspected: from the version and who gave it, whether a check exists for the CVE; the scan's reach is not mocked (the sample box has the scan on). */
+/** findings.WhySuspected: from the version and who gave it, whether a check exists for the CVE; the scan's reach is not mocked (the sample box
+ *  has the scan on). The ways to confirm come in order: the device reports its version itself, a safe check (only when one exists), last a person. */
 function whySuspected(f: Finding, kv: KnownVersion | null, k: KevInfo | null): string {
-  const head = f.basis === 'version' && kv ? `Version match only: ${SOURCE_TEXT[kv.source]} states ${kv.software} ${kv.version}, inside NVD's affected range.`
+  const byDevice = !!kv && (kv.source === 'snmp' || kv.source === 'agent')
+  const head = f.basis === 'version' && kv && byDevice ? `Version match only: ${SOURCE_TEXT[kv.source]} states ${kv.software} ${kv.version}, inside NVD's affected range, but that range does not clearly cover this release (no end, or listed for another edition or release), so the version alone does not confirm it.`
+    : f.basis === 'version' && kv ? `Version match only: ${SOURCE_TEXT[kv.source]} states ${kv.software} ${kv.version}, inside NVD's affected range.`
     : f.basis === 'version' ? "Version match only: the version of the software is inside NVD's affected range."
     : "Product match only: the device runs the product, but its version is not known, so it could not be compared with NVD's affected range."
-  const check = !k ? '' : !k.has_template ? ' A vulnerability check would confirm it, but none exists for this CVE, so only a person can.' : ' A vulnerability check can confirm it.'
-  return `${head}${check} Or confirm it yourself.`
+  const device = byDevice ? '' : ' It is confirmed by itself once the device reports its version: turn on SNMP for the device, or install the agent on it.'
+  const check = !k ? '' : !k.has_template ? ' No safe vulnerability check exists for this CVE.' : ' A safe vulnerability check exists for this CVE: run the check to confirm it.'
+  return `${head}${device}${check} Last, confirm it yourself.`
 }
 
 function detail(f: Finding): FindingDetail {
@@ -531,15 +535,16 @@ function toFix(asset: string | null): ToFix {
       let g = groups.get(key)
       if (!g) {
         g = f
-          ? { group: f.group, software_id: '', software: f.software, version: f.version, product: kevKey, source: a.software.find((x) => `${id}/${x.id}` === f.group)?.source ?? '', fixed: f.fixed, kind: f.kind, windows: f.windows, distro: f.distro, pro: f.pro, action: '', cves: [], finding_ids: [], worst: '', ransomware: 0, likely: 0, confirmed: 0, detected: 0, reported: 0, suspected: 0, nvd_lag: false, kb: '' }
-          : { group: `${id}/${swRow?.id ?? ''}`, software_id: swRow?.id ?? '', software: sw, version: swRow?.version ?? '', product: swRow ? `${swRow.vendor}|${swRow.product}`.toLowerCase() : '', source: swRow?.source ?? '', fixed: '', kind: 'none', windows: false, distro: '', pro: false, action: '', cves: [], finding_ids: [], worst: '', ransomware: 0, likely: 0, confirmed: 0, detected: 0, reported: 0, suspected: 0, nvd_lag: false, kb: '' }
+          ? { group: f.group, software_id: '', software: f.software, version: f.version, product: kevKey, source: a.software.find((x) => `${id}/${x.id}` === f.group)?.source ?? '', fixed: f.fixed, kind: f.kind, windows: f.windows, distro: f.distro, pro: f.pro, action: '', cves: [], finding_ids: [], worst: '', ransomware: 0, likely: 0, confirmed: 0, detected: 0, reported: 0, suspected: 0, checkable: 0, nvd_lag: false, kb: '' }
+          : { group: `${id}/${swRow?.id ?? ''}`, software_id: swRow?.id ?? '', software: sw, version: swRow?.version ?? '', product: swRow ? `${swRow.vendor}|${swRow.product}`.toLowerCase() : '', source: swRow?.source ?? '', fixed: '', kind: 'none', windows: false, distro: '', pro: false, action: '', cves: [], finding_ids: [], worst: '', ransomware: 0, likely: 0, confirmed: 0, detected: 0, reported: 0, suspected: 0, checkable: 0, nvd_lag: false, kb: '' }
         if (f) g.software_id = a.software.find((s) => `${id}/${s.id}` === f.group)?.id ?? ''
         groups.set(key, g)
       }
       g.cves.push(r.cve); g.finding_ids.push(r.id)
       if (!g.worst) g.worst = r.severity
       if (r.kev?.ransomware) g.ransomware++
-      if (r.basis === 'scan') g.confirmed++
+      if (r.kev?.has_template) g.checkable++
+      if (r.status === 'confirmed') g.confirmed++ // a scan, a person or the version the device reports (findings proofOf)
       else if (r.basis === 'version') g.detected++
       else g.reported++
     }
@@ -548,7 +553,7 @@ function toFix(asset: string | null): ToFix {
     const planned: ToFixAction[] = planItems.filter((i) => i.asset.id === id).map((i) => {
       const worst = i.cves.reduce((w, c) => (c.severity && sevRank(c.severity) > sevRank(w) ? c.severity : w), '')
       const row = a.software.find((x) => x.id === (i.group.split('/')[1] ?? ''))
-      const u = { group: i.group, software_id: i.group.split('/')[1] ?? '', software: i.software, version: i.version, product: row ? `${row.vendor}|${row.product}`.toLowerCase() : '', source: row?.source ?? '', fixed: i.fixed, kind: i.kind, windows: i.kind === 'windows' || i.kind === 'esu', distro: i.distro, pro: i.pro, action: '', cves: i.cves.map((c) => c.cve), finding_ids: [], worst, ransomware: 0, likely: i.likely, confirmed: 0, detected: 0, reported: 0, suspected: 0, nvd_lag: i.nvd_lag, kb: i.kb }
+      const u = { group: i.group, software_id: i.group.split('/')[1] ?? '', software: i.software, version: i.version, product: row ? `${row.vendor}|${row.product}`.toLowerCase() : '', source: row?.source ?? '', fixed: i.fixed, kind: i.kind, windows: i.kind === 'windows' || i.kind === 'esu', distro: i.distro, pro: i.pro, action: '', cves: i.cves.map((c) => c.cve), finding_ids: [], worst, ransomware: 0, likely: i.likely, confirmed: 0, detected: 0, reported: 0, suspected: 0, checkable: 0, nvd_lag: i.nvd_lag, kb: i.kb }
       return { ...u, action: sentence(u) }
     })
     const card = { asset: view, open: rows.filter((x) => x.asset_id === id).length, exploited: acts.filter((x) => x.kind !== 'none').sort(order), no_update: acts.filter((x) => x.kind === 'none').sort(order), planned, plan_compared: true }
@@ -626,7 +631,7 @@ export const handlers = [
       accepted.update((m) => ({ ...m, [f.id]: until }))
     } else if (b.action === 'reopen') {
       if (f.status === 'confirmed' || f.status === 'suspected') return fail(409, 'already_open', 'This finding is already open.')
-      patch(f.id, (x) => ({ ...x, status: x.basis === 'scan' || x.basis === 'person' ? 'confirmed' : 'suspected', resolved_by: null, resolved_at: null, resolution_note: null, history: [...x.history, { ts, user, action: 'reopened', note: note || undefined }] }))
+      patch(f.id, (x) => ({ ...x, status: x.basis === 'scan' || x.basis === 'person' || (x.basis === 'version' && !!x.evidence?.source) ? 'confirmed' : 'suspected', resolved_by: null, resolved_at: null, resolution_note: null, history: [...x.history, { ts, user, action: 'reopened', note: note || undefined }] }))
     } else {
       patch(f.id, (x) => ({ ...x, status: b.action as Finding['status'], resolved_by: user, resolved_at: ts, resolution_note: note || null, history: [...x.history, { ts, user, action: b.action as string, note: note || undefined }] }))
     }
@@ -655,7 +660,7 @@ export const handlers = [
     const denied = guard('admin'); if (denied) return denied
     const f = find(params.id)
     if (!f) return fail(404, 'not_found', 'No such finding.')
-    if (f.status !== 'confirmed' || f.basis !== 'person') return fail(409, 'not_confirmed_by_person', 'Only a finding a person confirmed can be returned to suspected; a scan confirmed this one.')
+    if (f.status !== 'confirmed' || f.basis !== 'person') return fail(409, 'not_confirmed_by_person', 'Only a finding a person confirmed can be returned to suspected; a scan or the version the device reports confirmed this one.')
     const user = who()
     const was = priorBasis.get(f.id) ?? 'version'
     patch(f.id, (x) => ({ ...x, status: 'suspected', basis: was, history: [...x.history, { ts: nowIso(), user, action: 'confirm_undone', note: `Confirmation undone by ${user}: back to suspected.` }] }))

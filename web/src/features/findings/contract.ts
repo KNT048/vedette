@@ -26,11 +26,12 @@ export const Finding = z.object({
   status: FindingStatus,
   severity: Severity,
   confidence: z.number().min(0).max(1),
-  basis: z.enum(['scan', 'version', 'product', 'person']).describe('scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version = suspected by version; product = only the product matches'),
+  basis: z.enum(['scan', 'version', 'product', 'person']).describe('scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version = the version is inside the affected range (confirmed when evidence.source says the device itself stated it, suspected otherwise); product = only the product matches'),
   evidence: z.object({
     summary: z.string(), template: z.string().optional(), request: z.string().optional(), response: z.string().optional(), checked_at: iso,
     agent: z.boolean().optional().describe('the version compared is the one the device\'s own agent (osquery, Wazuh) reports installed: a detection, shown as "Detected by the agent", with nothing for the person to look up'),
     agent_row: z.boolean().optional().describe('a product-only match on a software row the device\'s own agent reported with its installed version: Vedette could not compare that version with NVD\'s data, so the page does not ask to add the version'),
+    source: z.enum(['snmp', 'agent']).optional().describe('basis version only: the device itself stated the exact version (snmp: its answer to Vedette\'s SNMP read; agent: its own agent\'s OS or package list) and it is inside an affected range with an end, so the finding is confirmed by the version the device reports. Absent for a banner, an OS guess or a version a person typed'),
   }).nullable(),
   first_seen: iso.describe('When Vedette first matched this vulnerability to the device'),
   last_seen: iso.describe('When Vedette last matched it: each re-match (after a change to the device\'s software, and every hour) or scan that still finds it moves it. Not when the device or its software was last seen; known_version.seen_at says when the version was reported'),
@@ -262,7 +263,7 @@ export const SummaryItem = z.object({
 export const HomeSummary = z.object({
   open: z.object({
     total: z.number().int().describe('Open findings (confirmed + suspected): a device runs software on an exploited list'),
-    confirmed: z.number().int().describe('Of them, confirmed by a scan'),
+    confirmed: z.number().int().describe('Of them, confirmed: by a scan, a person or the version the device itself reports'),
     devices: z.number().int().describe('Devices with at least one open finding'),
     ransomware: z.number().int().describe('Open findings whose CVE ransomware campaigns use'),
   }),
@@ -292,7 +293,8 @@ export const ToFixAction = z.object({
   finding_ids: z.array(z.string()).describe('The open findings of the CVEs, same order (exploited only; empty for planned)'),
   worst: z.string().describe('The finding\'s severity (critical, high, medium, low) for exploited ones; NVD\'s for planned ones; "" when none'),
   ransomware: z.number().int(), likely: z.number().int().describe('Planned: CVEs EPSS says are likely to be exploited soon'),
-  confirmed: z.number().int(), detected: z.number().int(), reported: z.number().int(), suspected: z.number().int().describe('How each exploited finding is known: confirmed by a scan, detected from a version the device reported, reported but not compared, suspected from the network'),
+  confirmed: z.number().int(), detected: z.number().int(), reported: z.number().int(), suspected: z.number().int().describe('How each exploited finding is known: confirmed (a scan, a person, or a version the device itself reports inside a range with an end; the finding\'s status says confirmed), detected from a version the device reported that does not confirm it, reported but not compared, suspected from the network'),
+  checkable: z.number().int().describe('Exploited: how many of the CVEs a safe vulnerability check exists for; "Run the check" is offered only when it is above 0. 0 for planned ones'),
   kb: z.string().describe('A Windows update: the KB number of `fixed` when Microsoft\'s release information lists that build; "" otherwise'),
   nvd_lag: z.boolean().describe('Planned Windows updates: PlanItem.nvd_lag (it fixes at least `cves`; the newest update\'s CVEs are not yet analysed by NVD); false otherwise'),
 })

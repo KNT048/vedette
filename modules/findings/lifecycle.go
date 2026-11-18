@@ -107,15 +107,48 @@ func dayOf(t time.Time) time.Time {
 // again when the version proves it not affected.
 const ActionConfirmUndone = "confirm_undone"
 
-// Confirmed reports whether the finding rests on evidence beyond a version match: a scan's, or a person's.
+// Confirmed reports whether the finding rests on evidence the matcher never takes back: a scan's, or a person's.
 func (f Finding) Confirmed() bool { return f.Basis == BasisScan || f.Basis == BasisPerson }
 
-// OpenStatus is the open status the finding has when it is reopened: confirmed with a scan or person basis, else suspected.
+// ByDevice reports whether the finding is a version match on a version the device itself stated (its SNMP answer or its own
+// agent) inside an affected range with an end (Evidence.Source): confirmed while that holds. Unlike Confirmed, the matcher re-judges
+// it at every match: it goes back to suspected, or closes, when the stated version leaves the range.
+func (f Finding) ByDevice() bool { return f.Basis == BasisVersion && f.Evidence.deviceStated() }
+
+// OpenStatus is the open status the finding has when it is reopened: confirmed with a scan or person basis or a version the device
+// stated, else suspected.
 func (f Finding) OpenStatus() Status {
-	if f.Confirmed() {
+	if f.Confirmed() || f.ByDevice() {
 		return StatusConfirmed
 	}
 	return StatusSuspected
+}
+
+// DeviceConfirmedNote is the history note of a finding the version the device reports confirmed (ByDevice); DeviceUnconfirmedNote
+// that of one it no longer confirms.
+const (
+	DeviceConfirmedNote   = "Confirmed by the version the device reports."
+	DeviceUnconfirmedNote = "The device no longer reports a version inside the affected range, so this is suspected again."
+)
+
+// SettleByDevice gives an open finding that rests on the matcher alone (basis version or product) the status its evidence gives:
+// confirmed when the device itself stated a version inside the range (ByDevice), else suspected. A scan's or a person's confirmation
+// and a closed finding are never touched. ok says the status changed; h is its history row by the system user: "confirmed" with
+// DeviceConfirmedNote, or "confirm_undone" with DeviceUnconfirmedNote.
+func (f Finding) SettleByDevice(now time.Time) (Finding, HistoryEntry, bool) {
+	if !f.Status.Open() || f.Confirmed() {
+		return f, HistoryEntry{}, false
+	}
+	to := f.OpenStatus()
+	if to == f.Status {
+		return f, HistoryEntry{}, false
+	}
+	f.Status = to
+	if to == StatusConfirmed {
+		f.Confidence = math.Max(f.Confidence, ConfVersion)
+		return f, HistoryEntry{TS: now, User: SystemUser, Action: "confirmed", Note: DeviceConfirmedNote}, true
+	}
+	return f, HistoryEntry{TS: now, User: SystemUser, Action: ActionConfirmUndone, Note: DeviceUnconfirmedNote}, true
 }
 
 // ExpireAcceptance reopens a risk_accepted finding once AcceptanceEnds(its last day) (INV-13): to the open status a
@@ -139,14 +172,14 @@ func (f Finding) AutoResolved() bool {
 	return f.Status == StatusNotRelevant && f.ResolutionReason == ReasonNotAffectedVersion
 }
 
-// AutoResolve closes a suspected finding (basis version or product), or one a person confirmed (basis person), that the matcher
-// proved not affected (the version is outside every range, or the software is not installed): a person's confirm only keeps the
-// matcher from taking it back to suspected, it never outranks a newer version. A scan's confirmation is never closed here. It is
-// closed not_relevant by the system user, with the matcher's sentence as note. ok is false for anything else: an open finding a
-// scan confirmed, or a closed one, is never touched.
+// AutoResolve closes an open finding that the matcher proved not affected (the version is outside every range, or the software is
+// not installed): a suspected one (basis version or product), one the version the device reports confirmed (ByDevice: a newer stated
+// version takes it back), or one a person confirmed (basis person): a person's confirm only keeps the matcher from taking it back to
+// suspected, it never outranks a newer version. A scan's confirmation is never closed here. It is closed not_relevant by the system
+// user, with the matcher's sentence as note. ok is false for anything else: an open finding a scan confirmed, or a closed one, is
+// never touched.
 func (f Finding) AutoResolve(note string, now time.Time) (Finding, HistoryEntry, bool) {
-	suspected, byPerson := f.Status == StatusSuspected && f.Basis != BasisScan, f.Status == StatusConfirmed && f.Basis == BasisPerson
-	if !suspected && !byPerson {
+	if !f.Status.Open() || f.Basis == BasisScan {
 		return f, HistoryEntry{}, false
 	}
 	note = clipNote(note)
@@ -276,8 +309,8 @@ type HistoryEntry struct {
 }
 
 // Validate checks INV-2: valid status and basis, confidence in [0,1], confirmed
-// only with basis scan plus evidence (template and checked_at) or basis person, suspected only
-// with basis version or product.
+// only with basis scan plus evidence (template and checked_at), basis person, or basis version on a version the device
+// stated (ByDevice); suspected only with basis version or product.
 func (f Finding) Validate() error {
 	if !f.Status.valid() {
 		return fmt.Errorf("findings: validating finding: unknown status %q", f.Status)
@@ -291,8 +324,9 @@ func (f Finding) Validate() error {
 	if f.Status == StatusConfirmed {
 		switch {
 		case f.Basis == BasisPerson && f.Evidence != nil:
+		case f.ByDevice():
 		case f.Basis != BasisScan || f.Evidence == nil || f.Evidence.Template == "" || f.Evidence.CheckedAt.IsZero():
-			return fmt.Errorf("findings: validating finding: confirmed needs basis scan (evidence with template and checked_at) or basis person")
+			return fmt.Errorf("findings: validating finding: confirmed needs basis scan (evidence with template and checked_at), basis person, or basis version on a version the device stated")
 		}
 	}
 	if f.Status == StatusSuspected && f.Confirmed() {
@@ -304,8 +338,9 @@ func (f Finding) Validate() error {
 	return nil
 }
 
-// NewFinding builds the finding for a match: suspected, with the matcher's
-// basis, confidence, severity and evidence, plus its "created" history row.
+// NewFinding builds the finding for a match: suspected, or confirmed when the device itself stated the version (ByDevice; the
+// caller adds the "confirmed" row, SettleByDevice's), with the matcher's basis, confidence, severity and evidence, plus its
+// "created" history row.
 func NewFinding(m Match, now time.Time) (Finding, HistoryEntry) {
 	ev := m.Evidence
 	if ev.CheckedAt.IsZero() {
@@ -315,12 +350,14 @@ func NewFinding(m Match, now time.Time) (Finding, HistoryEntry) {
 	if m.Basis == BasisVersion {
 		note = "Matched version of " + m.SoftwareDisplay
 	}
-	return Finding{Status: StatusSuspected, Severity: m.Severity, Confidence: m.Confidence, Basis: m.Basis, Evidence: &ev, SoftwareID: m.SoftwareID},
-		HistoryEntry{TS: now, User: SystemUser, Action: "created", Note: note}
+	f := Finding{Status: StatusSuspected, Severity: m.Severity, Confidence: m.Confidence, Basis: m.Basis, Evidence: &ev, SoftwareID: m.SoftwareID}
+	f.Status = f.OpenStatus()
+	return f, HistoryEntry{TS: now, User: SystemUser, Action: "created", Note: note}
 }
 
 // ApplyMatch merges a repeated match into an existing finding. Only an open
-// finding changes; the basis never goes down, the status never changes and a
+// finding changes; the basis never goes down, the status never changes (SettleByDevice
+// then re-judges a finding the device's stated version confirms) and a
 // closed finding is left alone. A stronger basis (product to version) brings the
 // match's evidence and severity when it is higher (a ransomware CVE
 // first matched by product becomes critical once its NVD ranges arrive). A
@@ -342,9 +379,10 @@ func (f Finding) ApplyMatch(m Match) Finding {
 	case m.Basis == f.Basis && !f.Confirmed() && m.Evidence.Summary != "":
 		ev := m.Evidence
 		f.Evidence = &ev
-	case !f.Confirmed() && f.Evidence != nil && f.Evidence.Agent && !m.Evidence.Agent && m.Evidence.Summary != "" && rank(m.Basis) <= rank(f.Basis):
-		// The agent's row is gone (or no longer decides it): drop "Detected by the agent" and take the sentence of
-		// what matches now; the basis never goes down.
+	case !f.Confirmed() && f.Evidence != nil && (f.Evidence.Agent && !m.Evidence.Agent || f.Evidence.deviceStated() && !m.Evidence.deviceStated()) &&
+		m.Evidence.Summary != "" && rank(m.Basis) <= rank(f.Basis):
+		// The agent's row (or the device's stated version) is gone or no longer decides it: drop "Detected by the agent" and the
+		// device's confirmation, and take the sentence of what matches now; the basis never goes down.
 		ev := m.Evidence
 		ev.AgentRow = ev.AgentRow && f.Basis == BasisProduct // It says what a product-only finding is; a version finding stays one (#801)
 		f.Evidence = &ev

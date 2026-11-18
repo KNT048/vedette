@@ -26,7 +26,7 @@ export const lastReportOnly = (n: AgentNow | undefined) => n === 'none' || n ===
 /** Whether the version an agent reported for this finding's device is only its last list (agentNow), asked only when the finding rests
  *  on an agent's reading; false while unknown. */
 export function useFindingAgentGone(f: FindingDetail): boolean {
-  const agent = !!f.asset && ((f.status === 'suspected' && !!f.evidence?.agent) || f.known_version?.source === 'agent')
+  const agent = !!f.asset && (((f.status === 'suspected' || f.status === 'confirmed') && !!f.evidence?.agent) || f.known_version?.source === 'agent')
   const dev = useDeviceSoftware(agent ? f.asset?.id : undefined)
   const on = useModuleEnabled('agent-intake')
   const q = useAgentReport(f.asset?.id ?? '', agent && on === true)

@@ -3,6 +3,9 @@ package findings
 import (
 	"context"
 	"strings"
+	"time"
+
+	"github.com/knt048/vedette/core/orgtime"
 )
 
 // ScanReach says why the vulnerability scan does not reach a device: one of the Scan* values, or "" (not known or no reason: the line
@@ -35,12 +38,30 @@ var versionSourceText = map[string]string{
 	VersionByManual: "A person (entered on the Devices page)",
 }
 
+// deviceStatedSource says whether a version source is the device itself over a channel that answers for it (INV-2): its own agent,
+// or its answer to Vedette's SNMP read. An LLDP statement, a scan's banner or a person's entry is not.
+func deviceStatedSource(src string) bool { return src == VersionByAgent || src == VersionBySNMP }
+
 // WhySuspected is the sentence under a suspected finding that says why it is not confirmed and what would confirm it, built only from
 // facts the box has: the version and who gave it, whether a check exists for the CVE (checkKnown, hasCheck) and how the scan
-// stands to the device (reach, "" = not known). A fact that is not known is left out, never guessed.
-func WhySuspected(basis Basis, known *KnownVersion, checkKnown, hasCheck bool, reach string) string {
+// stands to the device (reach, "" = not known). A fact that is not known is left out, never guessed. The ways to confirm come in
+// order: first the automatic ones (the device reports its version itself over SNMP or through the agent; a safe vulnerability
+// check, named only when one exists for the CVE), last a person. now dates an SNMP answer that is too old to confirm (SNMPFresh).
+func WhySuspected(basis Basis, known *KnownVersion, checkKnown, hasCheck bool, reach string, now time.Time) string {
 	var b strings.Builder
+	byDevice := known != nil && deviceStatedSource(known.Source)
+	stale := byDevice && known.Source == VersionBySNMP && (known.SeenAt == nil || !snmpFresh(*known.SeenAt, now))
 	switch {
+	case basis == BasisVersion && stale:
+		since := "a while"
+		if known.SeenAt != nil {
+			since = orgtime.CalendarDay(*known.SeenAt)
+		}
+		b.WriteString("Version match only: " + versionSourceText[known.Source] + " stated " + clean(known.Software) + " " + clean(known.Version) +
+			", inside NVD's affected range, but the device has not answered SNMP since " + since + ", so that version no longer confirms it.")
+	case basis == BasisVersion && byDevice:
+		b.WriteString("Version match only: " + versionSourceText[known.Source] + " states " + clean(known.Software) + " " + clean(known.Version) +
+			", inside NVD's affected range, but that range does not clearly cover this release (no end, or listed for another edition or release), so the version alone does not confirm it.")
 	case basis == BasisVersion && known != nil:
 		src := versionSourceText[known.Source]
 		if src == "" {
@@ -53,13 +74,19 @@ func WhySuspected(basis Basis, known *KnownVersion, checkKnown, hasCheck bool, r
 		b.WriteString("Product match only: the device runs the product, but its version is not known, so it could not be compared with NVD's affected range.")
 	}
 	switch {
-	case checkKnown && !hasCheck:
-		b.WriteString(" A vulnerability check would confirm it, but none exists for this CVE, so only a person can.")
-	case checkKnown && reach != "":
-		b.WriteString(" A vulnerability check can confirm it, but none has run: " + reachText[reach] + ".")
-	case checkKnown:
-		b.WriteString(" A vulnerability check can confirm it.")
+	case stale:
+		b.WriteString(" It is confirmed by itself once the device answers SNMP again: check that SNMP is on and reachable for it.")
+	case !byDevice:
+		b.WriteString(" It is confirmed by itself once the device reports its version: turn on SNMP for the device, or install the agent on it.")
 	}
-	b.WriteString(" Or confirm it yourself.")
+	switch {
+	case checkKnown && !hasCheck:
+		b.WriteString(" No safe vulnerability check exists for this CVE.")
+	case checkKnown && reach != "":
+		b.WriteString(" A safe vulnerability check exists for this CVE: run the check to confirm it (none has run: " + reachText[reach] + ").")
+	case checkKnown:
+		b.WriteString(" A safe vulnerability check exists for this CVE: run the check to confirm it.")
+	}
+	b.WriteString(" Last, confirm it yourself.")
 	return b.String()
 }

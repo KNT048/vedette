@@ -16,7 +16,24 @@ const (
 	// (#939): one event per device and match write, listing them; never again for the same device and CVE, never for a CVE the device
 	// has or had a finding for. Published under the Backlog mark from Reconcile's backlog write, like findings.finding.created.
 	EventUncheckedAdded = "findings.unchecked.added"
+	// EventDeviceBackfill: the one summary of the open findings the first full match pass after the device-version rule arrived
+	// confirmed only because of that rule (they were already open; each was recorded in its history, none sent its own notice).
+	EventDeviceBackfill = "findings.device_version.backfilled"
 )
+
+// DeviceBackfillEvent is the payload of findings.device_version.backfilled: how many findings, devices and CVEs, and up to
+// MaxBackfillListed of the findings and CVEs, worst first.
+type DeviceBackfillEvent struct {
+	Findings   int      `json:"findings"`
+	Devices    int      `json:"devices"`
+	CVEs       int      `json:"cves"`
+	Severity   Severity `json:"severity"` // the worst of them
+	FindingIDs []string `json:"finding_ids"`
+	CVEList    []string `json:"cve_list"`
+}
+
+// MaxBackfillListed caps the lists of a DeviceBackfillEvent.
+const MaxBackfillListed = 50
 
 // UncheckedAddedEvent is the payload of findings.unchecked.added.
 type UncheckedAddedEvent struct {
@@ -51,13 +68,18 @@ type StatusChangedEvent struct {
 	From      Status `json:"from"`
 	To        Status `json:"to"`
 	// Reason is set when Vedette changed the status by itself: ReasonNotAffectedVersion when it closed the
-	// finding, ReasonMatchesAgain when it reopened one it had closed, ReasonRiskExpired when a risk acceptance ran out.
-	// Empty for a person's action or a scan.
+	// finding, ReasonMatchesAgain when it reopened one it had closed, ReasonRiskExpired when a risk acceptance ran out,
+	// ReasonDeviceVersion when the version the device reports confirmed it or no longer does. Empty for a person's action or a scan.
 	Reason string `json:"reason,omitempty"`
 	// AcceptedBy and AcceptedUntil (YYYY-MM-DD) are set only with ReasonRiskExpired: who accepted the risk and its last day.
 	AcceptedBy    string `json:"accepted_by,omitempty"`
 	AcceptedUntil string `json:"accepted_until,omitempty"`
 }
+
+// ReasonDeviceVersion is the StatusChangedEvent reason of a finding the version the device itself reports (its SNMP answer or its
+// own agent) confirmed (to confirmed), or no longer confirms (back to suspected): Finding.SettleByDevice. Alerts and response
+// rules treat a change to confirmed like a scan's confirmation.
+const ReasonDeviceVersion = "device_version"
 
 // ReasonMatchesAgain is the StatusChangedEvent reason of a finding Vedette reopened because the device matches the
 // entry again after Vedette had closed it as not affected.

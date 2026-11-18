@@ -64,6 +64,7 @@
   "basis": {
     "scan": "Confirmed by scan",
     "person": "Confirmed by a person",
+    "device": "Confirmed by the version the device reports",
     "version": "By version",
     "product": "Product match only"
   },
@@ -117,7 +118,17 @@
     "undoFor": "Undo the confirmation of {{cve}}",
     "undoing": "Undoing…",
     "undone": "Back to suspected",
-    "col": "Confirm"
+    "col": "Confirm",
+    "ways": {
+      "title": "How to confirm it",
+      "device": "Let the device report its version itself, and Vedette confirms it on its own:",
+      "snmp": "turn on SNMP on the device page",
+      "agent": "or install the agent",
+      "check": "A safe vulnerability check exists for this CVE:",
+      "runCheck": "run the check on the device page",
+      "person": "Last, if you checked the device yourself, confirm it.",
+      "personList": "Last, if you checked the device yourself, open a CVE above and confirm it."
+    }
   },
   "status": {
     "mark": "Mark as handled",

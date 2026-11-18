@@ -351,6 +351,9 @@ func distroMatch(a Asset, s Software, in swInfo, v Vuln, d distroAnswer, now tim
 		clean(a.Name), softwareName(s.Display, in.pkgVer), clean(in.pkgVer), d.name, d.release, d.name, v.CVE, clean(d.pkg), clean(d.fixed), pro, src)}
 	if s.Source == "agent" { // The agent read the installed package; a detection
 		m.Evidence.Agent = true
+		if deviceSays(a) { // a person's OS correction is not the device's word
+			m.Evidence.Source = SourceAgent
+		}
 		m.Evidence.Summary = fmt.Sprintf("The agent on %s reports %s %s installed from %s %s's packages. %s fixed %s in %s %s%s (%s), so this device has the flaw until it installs %s's security updates.",
 			clean(a.Name), softwareName(s.Display, in.pkgVer), clean(in.pkgVer), d.name, d.release, d.name, v.CVE, clean(d.pkg), clean(d.fixed), pro, src, d.name)
 	}

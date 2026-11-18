@@ -40,7 +40,7 @@ type product struct {
 	devs            []*deviceRisk
 }
 
-// topRisks ranks products (confirmed by a scan first, then the worst severity, then the most open findings across all
+// topRisks ranks products (confirmed first: by a scan, a person or the version the device reports, then the worst severity, then the most open findings across all
 // devices, then the name), takes the TopRiskCount biggest and writes each one action sentence. A product whose devices need
 // different steps gets the biggest step in the sentence and says how many more devices need another. open is ordered by severity,
 // newest first. kinds is "fix" or "verify" for each risk. fixes says the release for each finding (may be nil).
@@ -119,7 +119,7 @@ func topRisks(open []FindingRow, fixes map[string]Fix) (out []TopRisk, kinds []s
 		}
 		lines := p.lines()
 		w := open[p.first]
-		if p.firstC >= 0 { // the finding named is one a scan confirmed; severity stays the worst of the product
+		if p.firstC >= 0 { // the finding named is a confirmed one; severity stays the worst of the product
 			w = open[p.firstC]
 		}
 		lead := lines[0]
@@ -318,7 +318,7 @@ func (l *line) sentence(product string) string {
 		return fmt.Sprintf("Check the vendor advisory for %s%s: NVD names no fixed release, so use the vendor's temporary fix (%s)", product, on, plural(l.open, "open finding", "open findings"))
 	}
 	if l.confirmed > 0 {
-		return fmt.Sprintf("Update %s%s, or apply the vendor's temporary fix: a scan confirmed it (%s)", product, on, plural(l.open, "open finding", "open findings"))
+		return fmt.Sprintf("Update %s%s, or apply the vendor's temporary fix: it is confirmed (%s)", product, on, plural(l.open, "open finding", "open findings"))
 	}
 	return fmt.Sprintf("Check the version of %s%s to confirm or rule out %s", product, on, plural(l.open, "suspected finding", "suspected findings"))
 }

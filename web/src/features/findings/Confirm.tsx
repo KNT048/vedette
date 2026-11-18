@@ -1,4 +1,5 @@
-import { useState, type RefObject } from 'react'
+import { useState, type ReactNode, type RefObject } from 'react'
+import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -51,6 +52,44 @@ export function UndoButton({ f, size }: { f: Target; size?: 'sm' }) {
     <Button size={size} disabled={!can} title={can ? undefined : t('common:needRole', { role: t('common:role.admin') })} busy={undo.isPending} busyLabel={t('confirm.undoing')}
       aria-label={size ? t('confirm.undoFor', { cve: f.cve }) : undefined}
       onClick={() => undo.mutate(undefined, { onSuccess: () => toast.success(t('confirm.undone')), onError: (e) => toast.error(errMsg(e)) })}>{t('confirm.undo')}</Button>
+  )
+}
+
+/**
+ * The ways to confirm a suspected finding, in order (as Qualys confirms from an authenticated version check and keeps "potential" for
+ * the rest): first the automatic ones, the device reporting its version itself (SNMP, or the agent: skipped when it already does) and a
+ * safe vulnerability check (only when one exists for the CVE and the device can be scanned), last a person (children: Confirm on the
+ * finding page, the CVE links in Needs your input). The device page holds SNMP and "Run vulnerability checks now"; agents are set up
+ * in Devices › Set up.
+ */
+export function ConfirmWays({ assetId, deviceStated, checkable, children, list = false }: { assetId: string; deviceStated: boolean; checkable: boolean; children?: ReactNode; list?: boolean }) {
+  const { t } = useTranslation('findings')
+  const device = `/devices/${encodeURIComponent(assetId)}`
+  const link = 'text-accent underline underline-offset-4'
+  return (
+    <div className="grid gap-1" data-testid="confirm-ways">
+      <h3 className="text-sm font-semibold">{t('confirm.ways.title')}</h3>
+      <ol className="grid list-decimal gap-2 pl-5 text-sm">
+        {deviceStated ? null : (
+          <li>
+            {t('confirm.ways.device')}{' '}
+            <span className="inline-flex flex-wrap gap-x-3">
+              <Link to={device} className={link}>{t('confirm.ways.snmp')}</Link>
+              <Link to="/devices/setup?tab=agents" className={link}>{t('confirm.ways.agent')}</Link>
+            </span>
+          </li>
+        )}
+        {checkable ? (
+          <li>
+            {t('confirm.ways.check')}{' '}
+            <Link to={device} className={link}>{t('confirm.ways.runCheck')}</Link>
+          </li>
+        ) : null}
+        <li>
+          <span className="inline-flex flex-wrap items-center gap-2">{t(list ? 'confirm.ways.personList' : 'confirm.ways.person')}{children}</span>
+        </li>
+      </ol>
+    </div>
   )
 }
 

@@ -94,13 +94,14 @@ func keepEnd(s string, n int) string {
 
 // The reasons exposure shows when the scan container's domain fence refused or stopped a step (after "… did not run: ").
 const (
-	domainNoKey   = "the scan container has no domain fence key (an older box, or a sensor that is not the box's own), so nothing was sent to an address that is not this box's. Update the box."
-	domainForeign = "the scan container did not recognise this box's token for the domain (its copy of the box's fence key or domain list differs from the host's), so nothing was sent. Restart or update the box."
-	domainNotOwn  = "%s does not have its TXT record vedette-verify=%s now, so the scan container sent nothing. Add it (keep the current one), then scan again."
-	domainMoved   = "%s no longer points at %s (checked by the scan container right before the step), so nothing was sent there."
-	domainNoDNS   = "the scan container could not look up the domain's TXT record or the name's address (DNS did not answer), so nothing was sent."
-	domainOutside = "%s points (CNAME) outside the domain, so the scan container refused the disruptive checks there."
-	domainMid     = "the scan container's domain fence stopped it while it ran (%s), and its results were discarded."
+	domainNoKey     = "the scan container has no domain fence key (an older box, or a sensor that is not the box's own), so nothing was sent to an address that is not this box's. Update the box."
+	domainForeign   = "the scan container did not recognise this box's token for the domain (its copy of the box's fence key or domain list differs from the host's), so nothing was sent. Restart or update the box."
+	domainOldWorker = "the scan container refused the job's ownership fields, which an older scan container does not know (a name proved by the record of another domain of this box). Update the box, then scan again."
+	domainNotOwn    = "%s does not have its TXT record vedette-verify=%s now, so the scan container sent nothing. Add it (keep the current one), then scan again."
+	domainMoved     = "%s no longer points at %s (checked by the scan container right before the step), so nothing was sent there."
+	domainNoDNS     = "the scan container could not look up the domain's TXT record or the name's address (DNS did not answer), so nothing was sent."
+	domainOutside   = "%s points (CNAME) outside the domain, so the scan container refused the disruptive checks there."
+	domainMid       = "the scan container's domain fence stopped it while it ran (%s), and its results were discarded."
 )
 
 // domainErr maps a refusal of the worker's domain fence (or a worker without the key) to the line exposure shows; ok false for any
@@ -117,6 +118,8 @@ func domainErr(err error, d *exposure.DomainScope, ip string) (*exposure.Unavail
 		return &exposure.Unavailable{Reason: fmt.Sprintf(domainMid, r.Reason)}, true
 	}
 	switch r.Reason {
+	case domainfence.InvalidJob: // a worker older than this version refuses the proof-name shape of a job as invalid
+		return &exposure.Unavailable{Reason: domainOldWorker}, true
 	case domainfence.TokenForeign:
 		return &exposure.Unavailable{Reason: domainForeign}, true
 	case domainfence.NotOwned:

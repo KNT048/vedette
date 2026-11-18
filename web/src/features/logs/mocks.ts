@@ -11,7 +11,7 @@ import { syslogHeader } from './syslog'
 import { SIEM_EVENTS } from './types'
 import type { Digest, IocHit, EventWindow, LogEvent, LogSource, NewItem, Proto, SiemConfig, SiemInput, SourceInput, SourceKind, SpikeItem, UnknownSender } from './types'
 
-type Stored = Omit<LogSource, 'asset_id' | 'asset_name' | 'state'>
+type Stored = Omit<LogSource, 'asset_id' | 'asset_name' | 'asset_via' | 'asset_matches' | 'state'>
 
 const sources = collection<Stored[]>('logs_sources', () => [
   { id: 'ls-1', kind: 'fortigate', name: 'FW-HQ', sender_ip: '192.168.10.1', proto: 'udp', port: 514, last_received: new Date(Date.now() - 20e3).toISOString(), lines_per_hour: 1840, created_at: daysAgo(30), client_cert_sha256: null },
@@ -50,7 +50,7 @@ const BOX_TLS = {
 const toSource = (s: Stored): LogSource => {
   const a = assetsStore.get().find((x) => x.ip === s.sender_ip)
   const age = s.last_received ? Date.now() - new Date(s.last_received).getTime() : Infinity
-  return { ...s, asset_id: a?.id ?? null, asset_name: a ? (a.hostname ?? a.ip) : null, state: !s.last_received ? 'never' : age > 3600e3 ? 'silent' : 'receiving' }
+  return { ...s, asset_id: a?.id ?? null, asset_name: a ? (a.hostname ?? a.ip) : null, asset_via: null, asset_matches: [], state: !s.last_received ? 'never' : age > 3600e3 ? 'silent' : 'receiving' }
 }
 const nameOf = (id: string) => sources.get().find((s) => s.id === id)?.name ?? id
 

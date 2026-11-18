@@ -88,7 +88,9 @@ func (w exposureWebScan) Baseline(ctx context.Context, t exposure.ScanTarget, pa
 		switch {
 		case ctx.Err() != nil: // exposure's 8 minutes, or the run was stopped: exposure tells them apart
 			return exposure.WebScan{}, ctx.Err()
-		case errors.As(err, &he) && he.Code == api.CodeUnknownCommand:
+		case errors.As(err, &he) && (he.Code == api.CodeUnknownCommand ||
+			he.Code == api.CodeInvalidArgs && t.Proof != nil && t.Proof.ProofAt != ""): // an older host refuses a proof name it does not know
+
 			return exposure.WebScan{}, &exposure.Unavailable{Reason: webOldHost}
 		}
 		return exposure.WebScan{}, err
@@ -141,7 +143,7 @@ func webReason(code string, t exposure.ScanTarget, page exposure.WebPage) string
 	case api.CodeTargetNotOwned:
 		if t.Kind == exposure.KindDomain {
 			if p := t.Proof; p != nil && p.ProofAt != "" { // Its record on the parent name is the one that went
-				return fmt.Sprintf(webNotOwnAt, p.ProofAt, t.Value)
+				return fmt.Sprintf(webNotOwnAt, p.ProofAt, p.Domain)
 			}
 			return fmt.Sprintf(webNotOwnDom, t.Value)
 		}
@@ -150,7 +152,7 @@ func webReason(code string, t exposure.ScanTarget, page exposure.WebPage) string
 		return webUnchecked
 	case api.CodeTokenForeign:
 		if p := t.Proof; p != nil && p.ProofAt != "" { // An older target's own token cannot prove pages through a parent name
-			return fmt.Sprintf(webForeignAt, t.Value, p.ProofAt)
+			return fmt.Sprintf(webForeignAt, p.Domain, p.ProofAt)
 		}
 		return webForeign
 	case api.CodeFenceUnavailable:

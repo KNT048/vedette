@@ -2031,8 +2031,9 @@ describe('inventory: agents (S-INV-4)', () => {
     const lin = linuxOneLiner(BOX, sha, 'vdt_osquery_x')
     expect(lin).toContain(`curl -fsSLk ${BOX}/api/v1/install/osquery.sh`) // -k exactly once, for the script itself
     // A new mktemp file every run (a fixed /tmp name left by another user cannot be overwritten), removed afterwards
-    expect(lin).toMatch(/^\(f=\$\(mktemp\) && curl /) // a subshell: the install's exit status survives the cleanup
-    expect(lin).toContain(`-o "$f" && echo "${sha}  $f" | sha256sum -c -`)
+    expect(lin).toMatch(/^\(command -v sudo >\/dev\/null 2>&1 \|\| sudo\(\) \{ "\$@"; \}; f=\$\(mktemp\) && \{ curl /) // a subshell: the install's exit status survives the cleanup; root without sudo (Alpine) runs the script itself
+    // no curl (Alpine): busybox wget downloads the same file, and its checksum is checked all the same
+    expect(lin).toContain(`-o "$f" || wget -qO "$f" --no-check-certificate ${BOX}/api/v1/install/osquery.sh; } && echo "${sha}  $f" | sha256sum -c -`)
     expect(lin).toContain('sudo sh "$f" --token vdt_osquery_x; r=$?; rm -f "$f"; exit $r)')
     expect(lin).not.toContain('/tmp/')
     expect(lin.match(/curl/g)).toHaveLength(1)

@@ -268,6 +268,7 @@ func (s *Service) joinAs(ctx context.Context, tx *sql.Tx, from, into, why string
 				ELSE coalesce(snmp_source, (SELECT snmp_source FROM inv_asset WHERE id = ?2)) END,
 			fragile = CASE WHEN fragile_manual = 0 AND (SELECT fragile_manual FROM inv_asset WHERE id = ?2) = 1 THEN (SELECT fragile FROM inv_asset WHERE id = ?2) ELSE fragile END,
 			fragile_manual = max(fragile_manual, (SELECT fragile_manual FROM inv_asset WHERE id = ?2)),
+			review_earned_at = coalesce(review_earned_at, (SELECT review_earned_at FROM inv_asset WHERE id = ?2)),
 			first_seen = min(first_seen, (SELECT first_seen FROM inv_asset WHERE id = ?2)),
 			last_seen = max(last_seen, (SELECT last_seen FROM inv_asset WHERE id = ?2))
 			WHERE id = ?1`,

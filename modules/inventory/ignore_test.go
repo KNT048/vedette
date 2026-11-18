@@ -48,6 +48,10 @@ func TestContract_AnIgnoredDeviceIsKnownButNotWatched(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
+	// A private-address phone is in To review once it shows a reason to look: an open port (INV-49).
+	if err := e.svc.AddServices(e.ctx(), observe.AssetHint{IP: ip, MAC: phoneMAC}, observe.Nmap, []observe.Service{{Port: 22, Proto: "tcp", Name: "ssh", Confidence: 0.9}}); err != nil {
+		t.Fatal(err)
+	}
 	if l := e.list("", "false"); !slices.Contains(ids(l), id) || l.Counts.Pending != 1 {
 		t.Fatalf("before: To review = %v, counts %+v", ids(l), l.Counts)
 	}

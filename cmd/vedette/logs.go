@@ -4,8 +4,10 @@ import (
 	"context"
 	"crypto/tls"
 	"net/netip"
+	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/store"
@@ -40,7 +42,7 @@ func logsService(d deps) *logs.Service {
 	if s := logsServices[d.DB]; s != nil {
 		return s
 	}
-	cfg := logs.Config{Config: d.DB, Volume: d.LogsDB, Audit: d.Audit, Inventory: logsInventory{d.Inventory}, Box: logsBox{d}, Log: d.Log, Clock: d.Clock, Zone: orgTimeZone(&d),
+	cfg := logs.Config{Config: d.DB, Volume: d.LogsDB, Audit: d.Audit, Inventory: logsInventory{inv: d.Inventory, snmp: logsSNMP(d)}, Box: logsBox{d}, Log: d.Log, Clock: d.Clock, Zone: orgTimeZone(&d),
 		Secrets: d.Secrets, BoxAddrs: machineAddrs(&d), SelfAddrs: vedetteSelf(&d)} // the SIEM key is sealed; no SIEM on Vedette itself
 	if d.Bus != nil { // logs.anomaly.detected, which notify opens an incident from (a nil *events.Bus in the interface would not be nil)
 		cfg.Events = d.Bus
@@ -124,12 +126,16 @@ func logsJobs(d deps) []jobs.Job {
 	return logs.Jobs(svc)
 }
 
-// logsInventory answers "which device has this IP" for the sources list. inventory has no read by IP, so it lists every
-// device with DevicesOfKind (no row cap, a read error is an error) and picks the addresses asked for; the list is small.
-// A by-IP read in inventory would replace this (deferred).
-type logsInventory struct{ inv *inventory.Service }
+// logsInventory answers "which devices have this address" for the sources list, an incident and a bad connection. inventory has no
+// read by address, so it lists every device with DevicesOfKind (no row cap, a read error is an error) and indexes the addresses
+// the box knows for each: the listed IP, and the read address a person typed for the device's SNMP (sensor-active's ReadAddresses:
+// no secret is opened). The list is small.
+type logsInventory struct {
+	inv  *inventory.Service
+	snmp func(ctx context.Context) (map[string]netip.Addr, error) // device id -> typed read address; nil: no SNMP settings
+}
 
-func (a logsInventory) DevicesByIP(ctx context.Context, ips []string) (map[string]logs.Device, error) {
+func (a logsInventory) DevicesAt(ctx context.Context, ips []string) (map[string][]logs.DeviceMatch, error) {
 	devs, err := a.inv.DevicesOfKind(ctx, inventory.Kinds)
 	if err != nil {
 		return nil, err
@@ -138,29 +144,96 @@ func (a logsInventory) DevicesByIP(ctx context.Context, ips []string) (map[strin
 	for _, ip := range ips {
 		want[ip] = true
 	}
-	ipOf := map[string]string{}
-	var ids []string
-	for _, d := range devs {
-		if want[d.IP] {
-			ipOf[d.ID] = d.IP
-			ids = append(ids, d.ID)
+	via := map[string]map[string]string{} // address -> device id -> how
+	add := func(ip, id, how string) {
+		if !want[ip] {
+			return
+		}
+		if via[ip] == nil {
+			via[ip] = map[string]string{}
+		}
+		if via[ip][id] == "" { // the listed IP, added first, wins over a read address of the same device
+			via[ip][id] = how
 		}
 	}
+	known := make(map[string]bool, len(devs))
+	approved := make(map[string]bool, len(devs))
+	for _, d := range devs {
+		known[d.ID] = true
+		approved[d.ID] = d.Approved
+		add(d.IP, d.ID, logs.ViaListedIP)
+	}
+	if a.snmp != nil {
+		typed, err := a.snmp(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for id, ip := range typed {
+			if !known[id] || !want[ip.String()] {
+				continue
+			}
+			// A person typed this address as that device's SNMP read address: it is that device. A device found by a scan at the
+			// same address (a firewall's management interface is often scanned as a device of its own) is the same box seen
+			// twice, so it does not make the address ambiguous; a device a person approved at it still does.
+			for other := range via[ip.String()] {
+				if !approved[other] && other != id {
+					delete(via[ip.String()], other)
+				}
+			}
+			add(ip.String(), id, logs.ViaSNMPRead)
+		}
+	}
+	var ids []string
+	for _, byID := range via {
+		for id := range byID {
+			ids = append(ids, id)
+		}
+	}
+	slices.Sort(ids)
+	ids = slices.Compact(ids)
 	// The name is the Devices page's: one light read of the matches. No address beside it: the sources list and a log
 	// incident already show the sender's IP.
-	st, err := notifyDevices(a).DeviceStates(ctx, ids)
+	st, err := notifyDevices{a.inv}.DeviceStates(ctx, ids)
 	if err != nil {
 		return nil, err
 	}
-	out := map[string]logs.Device{}
-	for id, ip := range ipOf {
-		name := ip
-		if d, ok := st[id]; ok && d.Name != "" {
-			name = d.Name
+	out := map[string][]logs.DeviceMatch{}
+	for ip, byID := range via {
+		for id, how := range byID {
+			name := ip
+			if d, ok := st[id]; ok && d.Name != "" {
+				name = d.Name
+			}
+			out[ip] = append(out[ip], logs.DeviceMatch{Device: logs.Device{ID: id, Name: name}, Via: how})
 		}
-		out[ip] = logs.Device{ID: id, Name: name}
+		slices.SortFunc(out[ip], func(x, y logs.DeviceMatch) int { return strings.Compare(x.ID, y.ID) })
 	}
 	return out, nil
+}
+
+// logsSNMP reads the read addresses people typed for their devices' SNMP from the sensor-active service when it has been built (the
+// module's jobs or the handlers build it at start-up; a request must never be the first to, see sensorActiveService). Not built, or
+// a read that fails: no addresses, and a log source is still matched by its listed IP. A failure is logged once per streak of
+// failures, not on every lookup.
+func logsSNMP(d deps) func(ctx context.Context) (map[string]netip.Addr, error) {
+	var failing atomic.Bool
+	return func(ctx context.Context) (map[string]netip.Addr, error) {
+		saMu.Lock()
+		s := saServices[d.DB]
+		saMu.Unlock()
+		if s == nil {
+			return nil, nil
+		}
+		m, err := s.ReadAddresses(ctx)
+		if err != nil {
+			if failing.CompareAndSwap(false, true) {
+				d.Log.WarnContext(ctx, "logs: the SNMP read addresses of the devices could not be read; sources are matched by listed IP only", "err", err)
+			}
+			return nil, nil
+		}
+		failing.Store(false)
+		return m, nil
+	}
 }
 
 // logsBox says where the box listens: its own address inside the first declared LAN range (nil when no range is declared,

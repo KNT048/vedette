@@ -319,8 +319,8 @@ func TestInstall_NewTokenEnrolsAgain(t *testing.T) {
 }
 
 // The Linux script decides by what the machine has, not by the name of its distribution: the package format from dpkg or rpm (so SUSE and
-// Amazon Linux work like RHEL), the service manager from the running init, and it refuses early, in one line naming the missing thing,
-// when the machine cannot run osquery: no glibc (Alpine and other musl systems: the official build is dynamically linked against glibc;
+// Amazon Linux work like RHEL), the service manager from the running init, and it names the missing thing in one line,
+// when the machine cannot run osquery: it then installs the package reporter instead of stopping (TestInstall_ReporterIsSafe). No glibc (Alpine and other musl systems: the official build is dynamically linked against glibc;
 // checked with gcompat on alpine:3.20, it fails on missing glibc symbols; with gcompat installed the loader file exists and the refusal comes at the dpkg/rpm check), no dpkg or rpm, no service manager, no curl.
 // ponytail: text checks (module tests may not run a shell, SYS-1); the detection was run under busybox ash and dash in alpine:3.20, debian:12,
 // rockylinux:9, opensuse/leap:15.6, amazonlinux:2023 and archlinux for the PR; the SysV calls were run against the real .deb and .rpm
@@ -335,10 +335,10 @@ func TestInstall_LinuxScriptDetectsByCapability(t *testing.T) {
 	at := 0
 	for _, step := range []string{
 		`GLIBC_LOADER=/lib64/ld-linux-x86-64.so.2`, `GLIBC_LOADER=/lib/ld-linux-aarch64.so.1`,
-		`[ -e "$GLIBC_LOADER" ] || { echo "Cannot install osquery on ${OS_NAME}: its official build needs glibc`,
+		`[ ! -e "$GLIBC_LOADER" ]; then WHY="its official build needs glibc`,
 		`command -v dpkg >/dev/null 2>&1 && [ -e /var/lib/dpkg/status ]; then FMT=deb`, `elif command -v rpm >/dev/null 2>&1; then FMT=rpm`,
-		`neither dpkg nor rpm is present`, `no service manager found`, `for NEED in curl sha256sum mktemp`,
-		`mkdir -p "$DIR"`, `curl -fsS --cacert "$CA" "$BOX/api/v1/install/osquery/SHA256SUMS"`,
+		`neither dpkg nor rpm is present`, `no service manager found`, `install_reporter`, `for NEED in curl sha256sum mktemp`,
+		`mkdir -p "$DIR"`, `curl -fsS --cacert "$CA" --capath "$TMP/capath" "$BOX/api/v1/install/osquery/SHA256SUMS"`,
 	} {
 		i := strings.Index(sh[at:], step)
 		if i < 0 {
@@ -896,5 +896,75 @@ func TestInstall_WindowsServiceRestartsItself(t *testing.T) {
 	}
 	if strings.Contains(ps1, "-StartupType Automatic") {
 		t.Error("the service must start delayed-auto, not plain Automatic")
+	}
+}
+
+// The package reporter the same script installs where osquery cannot run (Alpine and other musl systems, Arch, other architectures) runs as root
+// on a schedule and talks to the box with the enrol secret, so its text is pinned: the secret is read from a 0600 file and never given to curl
+// as an argument, the box's certificate is pinned, every list line is read by a strict pattern, nothing is evaluated, and it uses the same endpoints
+// as osquery (no new port or credential). The behaviour was run on alpine:3.23 (as root, no sudo, no curl: through the one-line command, twice,
+// then --uninstall) and archlinux against a local HTTPS stand-in for the box; os/exec is not allowed in this module's tests (SYS-1).
+func TestInstall_ReporterIsSafe(t *testing.T) {
+	sh := readFile(t, "scripts/osquery.sh")
+	i := strings.Index(sh, "<<'VEDETTE_REPORTER'\n")
+	j := strings.Index(sh, "\nVEDETTE_REPORTER\n")
+	if i < 0 || j < i {
+		t.Fatal("the reporter is not embedded in the install script")
+	}
+	rep := sh[i:j]
+	for _, bad := range []string{"eval ", "eval\t", "| sh", "| bash", "source ", "--insecure", " -k ", "curl -k", "-sk", "-fsSLk", "/dev/tcp", "--data @", "-d \"", "--header \"Authorization", "--user", "bash -c", "sh -c"} {
+		if strings.Contains(rep, bad) {
+			t.Errorf("the reporter contains %q", bad)
+		}
+	}
+	for _, want := range []string{
+		"umask 077", `read -r TOKEN < "$D/enroll.secret"`, `--cacert "$D/ca.pem"`, `--proto '=https'`, `--data-binary @"$TMP/req"`,
+		`/api/v1/intake/osquery/$1`, `post enroll`, `post log`, `'^vdt_[a-z]+_[a-z0-9]{32}$'`, `'^[A-Za-z0-9_-]{43}$'`, "exit 4",
+		"apk list -I", "pacman -Q", "dpkg-query -W", "rpm -qa",
+		// the pin is real: --cacert alone leaves the system CA directory trusted (Debian and Ubuntu curl)
+		`--cacert "$D/ca.pem" --capath "$D/capath"`, `PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin`,
+		// the node key is kept with a newline and read back whatever its ending, so a second run does not enrol again (reporter_test.sh runs it twice)
+		`printf '%s\n' "$NODEKEY" > "$KEYF"`, `read -r NODEKEY < "$KEYF" || [ -n "$NODEKEY" ]`,
+		`$1 !~ /^[hi]i/`, // a held package is installed
+	} {
+		if !strings.Contains(rep, want) {
+			t.Errorf("the reporter lost %q", want)
+		}
+	}
+	for _, line := range strings.Split(rep, "\n") {
+		if strings.Contains(line, "curl ") && !strings.HasPrefix(strings.TrimSpace(line), "post()") && !strings.Contains(line, "command -v") && !strings.HasPrefix(strings.TrimSpace(line), "#") &&
+			(strings.Contains(line, "$TOKEN") || strings.Contains(line, "$NODEKEY")) {
+			t.Errorf("a secret on a curl command line: %s", line)
+		}
+	}
+	if strings.Count(sh, `--capath "$TMP/capath"`) != 3 || strings.Contains(sh, `curl -fsS --cacert "$CA" "`) || strings.Contains(sh, `curl -fsS --cacert "$CA" -X`) {
+		t.Error("every curl of the osquery path must pass --capath next to --cacert (SHA256SUMS, the package and the status call)")
+	}
+	// the dpkg source keeps its version ("openssl (3.0.13-0ubuntu3)"): the mapper compares it with the binary's release
+	if strings.Contains(rep, `sub(/ .*/, "", src)`) {
+		t.Error("the reporter strips the version from the dpkg source")
+	}
+	// root-script guarantees of the review: the binary is replaced through an exclusive temp file, the busybox crontab is rewritten only after
+	// grep ran, a customer's own osqueryd is left alone, and the restart drop-in is read back and cleaned up
+	for _, want := range []string{
+		`mktemp "$RBIN.XXXXXX"`, `mv -f "$RTMP" "$RBIN"`, `rc=0; grep -v '# vedette-reporter$' "$BB_CRON"`, `if [ "$rc" -le 1 ]; then cat`,
+		`if osq_ours; then svc_disable_stop; else echo "osqueryd is installed here and is not managed by Vedette`,
+		`[ "$(systemctl show -p Restart osqueryd 2>/dev/null)" = Restart=on-failure ]`, "osquery is installed but was not started",
+		`rmdir /etc/systemd/system/osqueryd.service.d`, `--capath "$D/capath"`,
+	} {
+		if !strings.Contains(sh, want) {
+			t.Errorf("the script lost %q", want)
+		}
+	}
+	if strings.Contains(sh, `$RBIN.new`) {
+		t.Error("the reporter is written to a fixed name")
+	}
+	// the reporter is removed only after the package's checksum matched
+	if c, r := strings.Index(sh, `sha256sum -c -`), strings.LastIndex(sh, "\nreporter_remove\n"); c < 0 || r < c {
+		t.Error("the osquery path removes the reporter before its download is verified")
+	}
+	// the endpoints are the osquery ones the box already serves
+	if !strings.Contains(sh, "--enroll_tls_endpoint=/api/v1/intake/osquery/enroll") || !strings.Contains(sh, "--logger_tls_endpoint=/api/v1/intake/osquery/log") {
+		t.Error("the endpoints of the osquery path changed: the reporter must use the same ones")
 	}
 }

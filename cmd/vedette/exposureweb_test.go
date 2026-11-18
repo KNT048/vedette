@@ -10,9 +10,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/knt048/vedette/core/domainfence"
 	"github.com/knt048/vedette/host/api"
 	hostclient "github.com/knt048/vedette/host/client"
 	"github.com/knt048/vedette/modules/exposure"
+	sensoractive "github.com/knt048/vedette/modules/sensor-active"
 )
 
 // exposureWebScan over a fake host: what goes to zap.baseline, and how each way a run ends reaches exposure.
@@ -94,6 +96,19 @@ func TestExposureWeb_AReportComesBack(t *testing.T) {
 	}
 	if ho.got.Domain != "git.example.com" || ho.got.ProofAt != "example.com" || ho.got.TXTToken != "0123456789abcdef" {
 		t.Fatalf("own record on the apex: %+v", ho.got)
+	}
+	// A name proved by the token of another target on the name above both: the host gets that target's domain and token, the shared
+	// name as proof_at, and the page's own name; a refusal names the donor, not the scanned name
+	sib := exposure.ScanTarget{ID: "t4", Kind: exposure.KindDomain, Value: "example.com", User: "us_admin", Proof: &exposure.ProofOwner{Domain: "git.example.com", Token: "0123456789abcdef", ProofAt: "example.com"}}
+	hs := &fakeZapHost{run: zapRun(t, api.StatusSucceeded, "", &api.ZapBaselineResult{ReportID: rid}), report: []byte(`{}`)}
+	if _, err := (exposureWebScan{host: hs}).Baseline(t.Context(), sib, exposure.WebPage{URL: "https://example.com/", Host: "example.com", IP: netip.MustParseAddr("93.184.216.34"), Port: 443}); err != nil {
+		t.Fatal(err)
+	}
+	if hs.got.Domain != "git.example.com" || hs.got.ProofAt != "example.com" || hs.got.Host != "example.com" || hs.got.TXTToken != "0123456789abcdef" {
+		t.Fatalf("a name proved by another target's token: %+v", hs.got)
+	}
+	if why := webReason(api.CodeTargetNotOwned, sib, childPage); !strings.Contains(why, "example.com no longer has the vedette-verify TXT record of git.example.com") {
+		t.Fatalf("refusal text: %q", why)
 	}
 	h := &fakeZapHost{run: zapRun(t, api.StatusSucceeded, "", &api.ZapBaselineResult{ReportID: rid}), report: []byte(`{}`)}
 	if _, err := (exposureWebScan{host: h}).Baseline(t.Context(), webIPTarget, webIPPage); err != nil {
@@ -221,5 +236,16 @@ func TestExposureWeb_AMovedNameSkipsThatPageOnly(t *testing.T) {
 	var un *exposure.Unavailable
 	if !errors.As(err, &skip) || errors.As(err, &un) || !strings.HasPrefix(skip.Reason, "www.example.com now points at other addresses than 93.184.216.34") || strings.Contains(skip.Reason, "TXT") {
 		t.Fatalf("%v", err)
+	}
+}
+
+// A scan container older than this version refuses the proof-name shape of a job as invalid: the customer reads that the box needs an
+// update, not that DNS did not answer.
+func TestDomainErr_AnOlderScanContainerSaysUpdateTheBox(t *testing.T) {
+	t.Parallel()
+	d := &exposure.DomainScope{Domain: "git.example.com", Name: "example.com", Token: "0123456789abcdef", ProofAt: "example.com"}
+	u, ok := domainErr(&sensoractive.DomainRefusedError{Reason: domainfence.InvalidJob}, d, "93.184.216.34")
+	if !ok || !strings.Contains(u.Reason, "Update the box") {
+		t.Fatalf("%+v %v", u, ok)
 	}
 }

@@ -110,6 +110,28 @@ func termsFor(k Kind, value string) TermsNotice {
 	return TermsNotice{Version: TermsVersion, Text: strings.ReplaceAll(tmpl, "{value}", value), Disruptive: termsDisruptive}
 }
 
+// noticeOf and termsOf are the sentences of one target. A public IP a person typed in is not proved to be the company's, only
+// controlled (a token file, a reverse DNS name), so the person says "I own it or am authorised to have it tested".
+func noticeOf(t Target) Notice {
+	n := noticeFor(t.Value)
+	if t.Typed {
+		n.Text = strings.Replace(n.Text, "that my company owns "+t.Value+" and that I am authorized to scan it", "that I own "+t.Value+" or am authorised to have it tested", 1)
+	}
+	return n
+}
+
+func termsOf(t Target) TermsNotice {
+	n := termsFor(t.Kind, t.Value)
+	if t.Typed {
+		n.Text = strings.Replace(n.Text, "that my company owns "+t.Value+" and that I am authorized to test it in depth", "that I own "+t.Value+" or am authorised to have it tested in depth", 1)
+	}
+	return n
+}
+
+// typedWarning is the shared-address warning of a typed IP: a token file proves control of a web port, and the address may be shared
+// hosting, a CDN or a provider's NAT, whose other tenants are not the person's to test.
+const typedWarning = "The proof shows control of this address's web service only. If it is shared hosting, a CDN, a hosting provider's NAT or an address your provider shares with other customers, the other tenants are not yours to test: accept the deep scan only if the address is yours alone, and tick the disruptive checks only for a system you can afford to break."
+
 // cgnat is the shared address space of carrier-grade NAT (RFC 6598).
 var cgnat = netip.MustParsePrefix("100.64.0.0/10")
 
@@ -119,6 +141,9 @@ var cgnat = netip.MustParsePrefix("100.64.0.0/10")
 // known here (a home router whose WAN side is CGNAT is not seen); upgrade: the host reports the router's WAN address (UPnP or the
 // second hop of a traceroute). "" when not known to be shared (no Gateway wired, or the lookup failed).
 func (s *Service) sharedAddress(ctx context.Context, t Target) string {
+	if t.Typed { // not the address the box goes out through: its own warning, always shown
+		return typedWarning
+	}
 	if t.Kind != KindIP || s.cfg.Gateway == nil {
 		return ""
 	}
@@ -166,7 +191,7 @@ func (s *Service) AcceptTerms(ctx context.Context, who Actor, id, version string
 		if err != nil {
 			return TargetView{}, err
 		}
-		if w := s.sharedAddress(ctx, t); w != "" {
+		if w := s.sharedAddress(ctx, t); w != "" && !t.Typed { // a typed IP shows its warning and takes the tick when it is ticked on purpose
 			return TargetView{}, apiErr(409, "shared_address", "%s", w)
 		}
 	}
@@ -184,7 +209,7 @@ func (s *Service) AcceptTerms(ctx context.Context, who Actor, id, version string
 		case statusExpired:
 			return apiErr(409, "expired", "Verification of %s has expired. Verify it again first.", t.Value)
 		}
-		if t.Kind == KindIP { // paused: the box no longer goes out through it, so it is not shown to be the box's own now
+		if t.Kind == KindIP && !t.Typed { // paused: the box no longer goes out through it, so it is not shown to be the box's own now
 			c, err := s.loadChecks(ctx, tx)
 			if err != nil {
 				return err
@@ -197,7 +222,7 @@ func (s *Service) AcceptTerms(ctx context.Context, who Actor, id, version string
 			return nil
 		}
 		if !t.Commitment.current() {
-			n := noticeFor(t.Value)
+			n := noticeOf(t)
 			if err := setCommitment(ctx, tx, id, who.Email, now, n, who.ID, method); err != nil {
 				return err
 			}
@@ -205,7 +230,7 @@ func (s *Service) AcceptTerms(ctx context.Context, who Actor, id, version string
 				return err
 			}
 		}
-		n := termsFor(t.Kind, t.Value)
+		n := termsOf(t)
 		text, flag := n.Text, "disruptive checks: no"
 		if disruptive {
 			text, flag = n.Text+"\n"+n.Disruptive, "disruptive checks: yes"

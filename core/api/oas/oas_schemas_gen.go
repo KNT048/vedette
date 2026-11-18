@@ -42929,12 +42929,16 @@ type ExposureDeleteExposureTargetsIDTermsOK struct {
 	// a commitment can carry it too.
 	CommitmentNotice NilExposureDeleteExposureTargetsIDTermsOKCommitmentNotice `json:"commitment_notice"`
 	CreatedAt        time.Time                                                 `json:"created_at"`
-	// IP: verified_at + 30 days. Domain: null (the TXT record is re-checked right before every scan).
+	// IP: verified_at + 30 days (the proof expiry of a typed IP). Domain: null (the TXT record is
+	// re-checked right before every scan).
 	ExpiresAt NilDateTime `json:"expires_at"`
 	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the scope of
 	// the Scan now sentence.
-	FullScan  bool                                               `json:"full_scan"`
-	ID        string                                             `json:"id"`
+	FullScan bool   `json:"full_scan"`
+	ID       string `json:"id"`
+	// Typed IP: where the proof file goes and which domains of this box can carry a reverse DNS name that
+	// proves it; null for a domain and for an IP the box found.
+	IPProof   NilExposureDeleteExposureTargetsIDTermsOKIPProof   `json:"ip_proof"`
 	Kind      ExposureDeleteExposureTargetsIDTermsOKKind         `json:"kind"`
 	LastCheck NilExposureDeleteExposureTargetsIDTermsOKLastCheck `json:"last_check"`
 	// When the newest scan started: every page names a scan by its start.
@@ -42944,12 +42948,24 @@ type ExposureDeleteExposureTargetsIDTermsOK struct {
 	LastScanFinishedAt OptNilDateTime                                  `json:"last_scan_finished_at"`
 	Latest             NilExposureDeleteExposureTargetsIDTermsOKLatest `json:"latest"`
 	Method             NilExposureDeleteExposureTargetsIDTermsOKMethod `json:"method"`
+	// Typed IP with a proof: when the box checks the proof again by itself (7 days before it expires, then
+	// every 6 hours while it is not found); null otherwise.
+	NextCheckAt NilDateTime `json:"next_check_at"`
+	// Open ports of the newest scan (0 when never scanned): the number the target row shows.
+	OpenExposures int `json:"open_exposures"`
 	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
 	// can say what is open; null when never scanned.
 	OpenPorts []ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem `json:"open_ports"`
+	// Who added the target: person (a domain or a public IP typed in) or box (a public IP the box found as
+	// its own egress address, neutral until its testing terms are accepted).
+	Origin ExposureDeleteExposureTargetsIDTermsOKOrigin `json:"origin"`
 	// Domains: where the TXT record goes and which verified domain covers this one already; null for an IP.
-	Proof     NilExposureDeleteExposureTargetsIDTermsOKProof `json:"proof"`
-	Scannable bool                                           `json:"scannable"`
+	Proof NilExposureDeleteExposureTargetsIDTermsOKProof `json:"proof"`
+	// Where the target stands for scanning: scanning (a scan of it runs now), ready, or why not: unproved
+	// (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes
+	// out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet).
+	ScanState ExposureDeleteExposureTargetsIDTermsOKScanState `json:"scan_state"`
+	Scannable bool                                            `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposureDeleteExposureTargetsIDTermsOKStatus `json:"status"`
 	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
@@ -42961,14 +42977,14 @@ type ExposureDeleteExposureTargetsIDTermsOK struct {
 	// 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409
 	// shared_address) while it shows.
 	TermsWarning OptNilString `json:"terms_warning"`
-	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
-	// string.
+	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). Typed IP: the
+	// token the proof file carries (ip_proof). IP the box found: empty string.
 	Token string `json:"token"`
 	// IPs only: expiring = 5 days or less left.
 	Validity NilExposureDeleteExposureTargetsIDTermsOKValidity `json:"validity"`
 	Value    string                                            `json:"value"`
-	// Domain: first successful verification. IP: the last time the box saw this IP (every sighting renews
-	// it).
+	// Domain: first successful verification. IP the box found: the last time the box saw this IP (every
+	// sighting renews it). Typed IP: the last time its proof was found.
 	VerifiedAt NilDateTime `json:"verified_at"`
 }
 
@@ -43007,6 +43023,11 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) GetID() string {
 	return s.ID
 }
 
+// GetIPProof returns the value of IPProof.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) GetIPProof() NilExposureDeleteExposureTargetsIDTermsOKIPProof {
+	return s.IPProof
+}
+
 // GetKind returns the value of Kind.
 func (s *ExposureDeleteExposureTargetsIDTermsOK) GetKind() ExposureDeleteExposureTargetsIDTermsOKKind {
 	return s.Kind
@@ -43037,14 +43058,34 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) GetMethod() NilExposureDeleteEx
 	return s.Method
 }
 
+// GetNextCheckAt returns the value of NextCheckAt.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) GetNextCheckAt() NilDateTime {
+	return s.NextCheckAt
+}
+
+// GetOpenExposures returns the value of OpenExposures.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) GetOpenExposures() int {
+	return s.OpenExposures
+}
+
 // GetOpenPorts returns the value of OpenPorts.
 func (s *ExposureDeleteExposureTargetsIDTermsOK) GetOpenPorts() []ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem {
 	return s.OpenPorts
 }
 
+// GetOrigin returns the value of Origin.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) GetOrigin() ExposureDeleteExposureTargetsIDTermsOKOrigin {
+	return s.Origin
+}
+
 // GetProof returns the value of Proof.
 func (s *ExposureDeleteExposureTargetsIDTermsOK) GetProof() NilExposureDeleteExposureTargetsIDTermsOKProof {
 	return s.Proof
+}
+
+// GetScanState returns the value of ScanState.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) GetScanState() ExposureDeleteExposureTargetsIDTermsOKScanState {
+	return s.ScanState
 }
 
 // GetScannable returns the value of Scannable.
@@ -43127,6 +43168,11 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) SetID(val string) {
 	s.ID = val
 }
 
+// SetIPProof sets the value of IPProof.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) SetIPProof(val NilExposureDeleteExposureTargetsIDTermsOKIPProof) {
+	s.IPProof = val
+}
+
 // SetKind sets the value of Kind.
 func (s *ExposureDeleteExposureTargetsIDTermsOK) SetKind(val ExposureDeleteExposureTargetsIDTermsOKKind) {
 	s.Kind = val
@@ -43157,14 +43203,34 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) SetMethod(val NilExposureDelete
 	s.Method = val
 }
 
+// SetNextCheckAt sets the value of NextCheckAt.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) SetNextCheckAt(val NilDateTime) {
+	s.NextCheckAt = val
+}
+
+// SetOpenExposures sets the value of OpenExposures.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) SetOpenExposures(val int) {
+	s.OpenExposures = val
+}
+
 // SetOpenPorts sets the value of OpenPorts.
 func (s *ExposureDeleteExposureTargetsIDTermsOK) SetOpenPorts(val []ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) {
 	s.OpenPorts = val
 }
 
+// SetOrigin sets the value of Origin.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) SetOrigin(val ExposureDeleteExposureTargetsIDTermsOKOrigin) {
+	s.Origin = val
+}
+
 // SetProof sets the value of Proof.
 func (s *ExposureDeleteExposureTargetsIDTermsOK) SetProof(val NilExposureDeleteExposureTargetsIDTermsOKProof) {
 	s.Proof = val
+}
+
+// SetScanState sets the value of ScanState.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) SetScanState(val ExposureDeleteExposureTargetsIDTermsOKScanState) {
+	s.ScanState = val
 }
 
 // SetScannable sets the value of Scannable.
@@ -43218,6 +43284,7 @@ const (
 	ExposureDeleteExposureTargetsIDTermsOKBlockedReasonUnverified   ExposureDeleteExposureTargetsIDTermsOKBlockedReason = "unverified"
 	ExposureDeleteExposureTargetsIDTermsOKBlockedReasonExpired      ExposureDeleteExposureTargetsIDTermsOKBlockedReason = "expired"
 	ExposureDeleteExposureTargetsIDTermsOKBlockedReasonTxtMissing   ExposureDeleteExposureTargetsIDTermsOKBlockedReason = "txt_missing"
+	ExposureDeleteExposureTargetsIDTermsOKBlockedReasonProofMissing ExposureDeleteExposureTargetsIDTermsOKBlockedReason = "proof_missing"
 	ExposureDeleteExposureTargetsIDTermsOKBlockedReasonNoCommitment ExposureDeleteExposureTargetsIDTermsOKBlockedReason = "no_commitment"
 	ExposureDeleteExposureTargetsIDTermsOKBlockedReasonIPNotCurrent ExposureDeleteExposureTargetsIDTermsOKBlockedReason = "ip_not_current"
 )
@@ -43228,6 +43295,7 @@ func (ExposureDeleteExposureTargetsIDTermsOKBlockedReason) AllValues() []Exposur
 		ExposureDeleteExposureTargetsIDTermsOKBlockedReasonUnverified,
 		ExposureDeleteExposureTargetsIDTermsOKBlockedReasonExpired,
 		ExposureDeleteExposureTargetsIDTermsOKBlockedReasonTxtMissing,
+		ExposureDeleteExposureTargetsIDTermsOKBlockedReasonProofMissing,
 		ExposureDeleteExposureTargetsIDTermsOKBlockedReasonNoCommitment,
 		ExposureDeleteExposureTargetsIDTermsOKBlockedReasonIPNotCurrent,
 	}
@@ -43241,6 +43309,8 @@ func (s ExposureDeleteExposureTargetsIDTermsOKBlockedReason) MarshalText() ([]by
 	case ExposureDeleteExposureTargetsIDTermsOKBlockedReasonExpired:
 		return []byte(s), nil
 	case ExposureDeleteExposureTargetsIDTermsOKBlockedReasonTxtMissing:
+		return []byte(s), nil
+	case ExposureDeleteExposureTargetsIDTermsOKBlockedReasonProofMissing:
 		return []byte(s), nil
 	case ExposureDeleteExposureTargetsIDTermsOKBlockedReasonNoCommitment:
 		return []byte(s), nil
@@ -43262,6 +43332,9 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKBlockedReason) UnmarshalText(data
 		return nil
 	case ExposureDeleteExposureTargetsIDTermsOKBlockedReasonTxtMissing:
 		*s = ExposureDeleteExposureTargetsIDTermsOKBlockedReasonTxtMissing
+		return nil
+	case ExposureDeleteExposureTargetsIDTermsOKBlockedReasonProofMissing:
+		*s = ExposureDeleteExposureTargetsIDTermsOKBlockedReasonProofMissing
 		return nil
 	case ExposureDeleteExposureTargetsIDTermsOKBlockedReasonNoCommitment:
 		*s = ExposureDeleteExposureTargetsIDTermsOKBlockedReasonNoCommitment
@@ -43348,6 +43421,58 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKCommitmentNotice) SetText(val str
 // SetVersion sets the value of Version.
 func (s *ExposureDeleteExposureTargetsIDTermsOKCommitmentNotice) SetVersion(val string) {
 	s.Version = val
+}
+
+type ExposureDeleteExposureTargetsIDTermsOKIPProof struct {
+	// The token: the whole content of the file.
+	Content string `json:"content"`
+	// /.well-known/vedette-verify.txt.
+	Path string `json:"path"`
+	// Domains of this box that are proved as far as the last check knows: a reverse DNS (PTR) name of the
+	// IP under one of them, resolving back to the IP, proves it.
+	PtrDomains []string `json:"ptr_domains"`
+	// The two addresses the box asks, http and https, on the IP.
+	Urls []string `json:"urls"`
+}
+
+// GetContent returns the value of Content.
+func (s *ExposureDeleteExposureTargetsIDTermsOKIPProof) GetContent() string {
+	return s.Content
+}
+
+// GetPath returns the value of Path.
+func (s *ExposureDeleteExposureTargetsIDTermsOKIPProof) GetPath() string {
+	return s.Path
+}
+
+// GetPtrDomains returns the value of PtrDomains.
+func (s *ExposureDeleteExposureTargetsIDTermsOKIPProof) GetPtrDomains() []string {
+	return s.PtrDomains
+}
+
+// GetUrls returns the value of Urls.
+func (s *ExposureDeleteExposureTargetsIDTermsOKIPProof) GetUrls() []string {
+	return s.Urls
+}
+
+// SetContent sets the value of Content.
+func (s *ExposureDeleteExposureTargetsIDTermsOKIPProof) SetContent(val string) {
+	s.Content = val
+}
+
+// SetPath sets the value of Path.
+func (s *ExposureDeleteExposureTargetsIDTermsOKIPProof) SetPath(val string) {
+	s.Path = val
+}
+
+// SetPtrDomains sets the value of PtrDomains.
+func (s *ExposureDeleteExposureTargetsIDTermsOKIPProof) SetPtrDomains(val []string) {
+	s.PtrDomains = val
+}
+
+// SetUrls sets the value of Urls.
+func (s *ExposureDeleteExposureTargetsIDTermsOKIPProof) SetUrls(val []string) {
+	s.Urls = val
 }
 
 type ExposureDeleteExposureTargetsIDTermsOKKind string
@@ -43490,6 +43615,8 @@ type ExposureDeleteExposureTargetsIDTermsOKMethod string
 const (
 	ExposureDeleteExposureTargetsIDTermsOKMethodDNSTxt    ExposureDeleteExposureTargetsIDTermsOKMethod = "dns_txt"
 	ExposureDeleteExposureTargetsIDTermsOKMethodBoxEgress ExposureDeleteExposureTargetsIDTermsOKMethod = "box_egress"
+	ExposureDeleteExposureTargetsIDTermsOKMethodIPFile    ExposureDeleteExposureTargetsIDTermsOKMethod = "ip_file"
+	ExposureDeleteExposureTargetsIDTermsOKMethodIPPtr     ExposureDeleteExposureTargetsIDTermsOKMethod = "ip_ptr"
 )
 
 // AllValues returns all ExposureDeleteExposureTargetsIDTermsOKMethod values.
@@ -43497,6 +43624,8 @@ func (ExposureDeleteExposureTargetsIDTermsOKMethod) AllValues() []ExposureDelete
 	return []ExposureDeleteExposureTargetsIDTermsOKMethod{
 		ExposureDeleteExposureTargetsIDTermsOKMethodDNSTxt,
 		ExposureDeleteExposureTargetsIDTermsOKMethodBoxEgress,
+		ExposureDeleteExposureTargetsIDTermsOKMethodIPFile,
+		ExposureDeleteExposureTargetsIDTermsOKMethodIPPtr,
 	}
 }
 
@@ -43506,6 +43635,10 @@ func (s ExposureDeleteExposureTargetsIDTermsOKMethod) MarshalText() ([]byte, err
 	case ExposureDeleteExposureTargetsIDTermsOKMethodDNSTxt:
 		return []byte(s), nil
 	case ExposureDeleteExposureTargetsIDTermsOKMethodBoxEgress:
+		return []byte(s), nil
+	case ExposureDeleteExposureTargetsIDTermsOKMethodIPFile:
+		return []byte(s), nil
+	case ExposureDeleteExposureTargetsIDTermsOKMethodIPPtr:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -43520,6 +43653,12 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKMethod) UnmarshalText(data []byte
 		return nil
 	case ExposureDeleteExposureTargetsIDTermsOKMethodBoxEgress:
 		*s = ExposureDeleteExposureTargetsIDTermsOKMethodBoxEgress
+		return nil
+	case ExposureDeleteExposureTargetsIDTermsOKMethodIPFile:
+		*s = ExposureDeleteExposureTargetsIDTermsOKMethodIPFile
+		return nil
+	case ExposureDeleteExposureTargetsIDTermsOKMethodIPPtr:
+		*s = ExposureDeleteExposureTargetsIDTermsOKMethodIPPtr
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -43969,6 +44108,49 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent) UnmarshalText
 	}
 }
 
+// Who added the target: person (a domain or a public IP typed in) or box (a public IP the box found as
+// its own egress address, neutral until its testing terms are accepted).
+type ExposureDeleteExposureTargetsIDTermsOKOrigin string
+
+const (
+	ExposureDeleteExposureTargetsIDTermsOKOriginPerson ExposureDeleteExposureTargetsIDTermsOKOrigin = "person"
+	ExposureDeleteExposureTargetsIDTermsOKOriginBox    ExposureDeleteExposureTargetsIDTermsOKOrigin = "box"
+)
+
+// AllValues returns all ExposureDeleteExposureTargetsIDTermsOKOrigin values.
+func (ExposureDeleteExposureTargetsIDTermsOKOrigin) AllValues() []ExposureDeleteExposureTargetsIDTermsOKOrigin {
+	return []ExposureDeleteExposureTargetsIDTermsOKOrigin{
+		ExposureDeleteExposureTargetsIDTermsOKOriginPerson,
+		ExposureDeleteExposureTargetsIDTermsOKOriginBox,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureDeleteExposureTargetsIDTermsOKOrigin) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureDeleteExposureTargetsIDTermsOKOriginPerson:
+		return []byte(s), nil
+	case ExposureDeleteExposureTargetsIDTermsOKOriginBox:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOrigin) UnmarshalText(data []byte) error {
+	switch ExposureDeleteExposureTargetsIDTermsOKOrigin(data) {
+	case ExposureDeleteExposureTargetsIDTermsOKOriginPerson:
+		*s = ExposureDeleteExposureTargetsIDTermsOKOriginPerson
+		return nil
+	case ExposureDeleteExposureTargetsIDTermsOKOriginBox:
+		*s = ExposureDeleteExposureTargetsIDTermsOKOriginBox
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ExposureDeleteExposureTargetsIDTermsOKProof struct {
 	// The alternative Name: "_vedette-verify" or "_vedette-verify.git", which proves the target only
 	// (never the name itself when it is a CNAME: no TXT may sit beside a CNAME); null when
@@ -44022,6 +44204,78 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKProof) SetHost(val string) {
 // SetZone sets the value of Zone.
 func (s *ExposureDeleteExposureTargetsIDTermsOKProof) SetZone(val string) {
 	s.Zone = val
+}
+
+// Where the target stands for scanning: scanning (a scan of it runs now), ready, or why not: unproved
+// (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes
+// out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet).
+type ExposureDeleteExposureTargetsIDTermsOKScanState string
+
+const (
+	ExposureDeleteExposureTargetsIDTermsOKScanStateUnproved   ExposureDeleteExposureTargetsIDTermsOKScanState = "unproved"
+	ExposureDeleteExposureTargetsIDTermsOKScanStateExpired    ExposureDeleteExposureTargetsIDTermsOKScanState = "expired"
+	ExposureDeleteExposureTargetsIDTermsOKScanStatePaused     ExposureDeleteExposureTargetsIDTermsOKScanState = "paused"
+	ExposureDeleteExposureTargetsIDTermsOKScanStateNeedsTerms ExposureDeleteExposureTargetsIDTermsOKScanState = "needs_terms"
+	ExposureDeleteExposureTargetsIDTermsOKScanStateReady      ExposureDeleteExposureTargetsIDTermsOKScanState = "ready"
+	ExposureDeleteExposureTargetsIDTermsOKScanStateScanning   ExposureDeleteExposureTargetsIDTermsOKScanState = "scanning"
+)
+
+// AllValues returns all ExposureDeleteExposureTargetsIDTermsOKScanState values.
+func (ExposureDeleteExposureTargetsIDTermsOKScanState) AllValues() []ExposureDeleteExposureTargetsIDTermsOKScanState {
+	return []ExposureDeleteExposureTargetsIDTermsOKScanState{
+		ExposureDeleteExposureTargetsIDTermsOKScanStateUnproved,
+		ExposureDeleteExposureTargetsIDTermsOKScanStateExpired,
+		ExposureDeleteExposureTargetsIDTermsOKScanStatePaused,
+		ExposureDeleteExposureTargetsIDTermsOKScanStateNeedsTerms,
+		ExposureDeleteExposureTargetsIDTermsOKScanStateReady,
+		ExposureDeleteExposureTargetsIDTermsOKScanStateScanning,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureDeleteExposureTargetsIDTermsOKScanState) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureDeleteExposureTargetsIDTermsOKScanStateUnproved:
+		return []byte(s), nil
+	case ExposureDeleteExposureTargetsIDTermsOKScanStateExpired:
+		return []byte(s), nil
+	case ExposureDeleteExposureTargetsIDTermsOKScanStatePaused:
+		return []byte(s), nil
+	case ExposureDeleteExposureTargetsIDTermsOKScanStateNeedsTerms:
+		return []byte(s), nil
+	case ExposureDeleteExposureTargetsIDTermsOKScanStateReady:
+		return []byte(s), nil
+	case ExposureDeleteExposureTargetsIDTermsOKScanStateScanning:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureDeleteExposureTargetsIDTermsOKScanState) UnmarshalText(data []byte) error {
+	switch ExposureDeleteExposureTargetsIDTermsOKScanState(data) {
+	case ExposureDeleteExposureTargetsIDTermsOKScanStateUnproved:
+		*s = ExposureDeleteExposureTargetsIDTermsOKScanStateUnproved
+		return nil
+	case ExposureDeleteExposureTargetsIDTermsOKScanStateExpired:
+		*s = ExposureDeleteExposureTargetsIDTermsOKScanStateExpired
+		return nil
+	case ExposureDeleteExposureTargetsIDTermsOKScanStatePaused:
+		*s = ExposureDeleteExposureTargetsIDTermsOKScanStatePaused
+		return nil
+	case ExposureDeleteExposureTargetsIDTermsOKScanStateNeedsTerms:
+		*s = ExposureDeleteExposureTargetsIDTermsOKScanStateNeedsTerms
+		return nil
+	case ExposureDeleteExposureTargetsIDTermsOKScanStateReady:
+		*s = ExposureDeleteExposureTargetsIDTermsOKScanStateReady
+		return nil
+	case ExposureDeleteExposureTargetsIDTermsOKScanStateScanning:
+		*s = ExposureDeleteExposureTargetsIDTermsOKScanStateScanning
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -45560,12 +45814,16 @@ type ExposureGetExposureTargetsIDOK struct {
 	// a commitment can carry it too.
 	CommitmentNotice NilExposureGetExposureTargetsIDOKCommitmentNotice `json:"commitment_notice"`
 	CreatedAt        time.Time                                         `json:"created_at"`
-	// IP: verified_at + 30 days. Domain: null (the TXT record is re-checked right before every scan).
+	// IP: verified_at + 30 days (the proof expiry of a typed IP). Domain: null (the TXT record is
+	// re-checked right before every scan).
 	ExpiresAt NilDateTime `json:"expires_at"`
 	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the scope of
 	// the Scan now sentence.
-	FullScan  bool                                       `json:"full_scan"`
-	ID        string                                     `json:"id"`
+	FullScan bool   `json:"full_scan"`
+	ID       string `json:"id"`
+	// Typed IP: where the proof file goes and which domains of this box can carry a reverse DNS name that
+	// proves it; null for a domain and for an IP the box found.
+	IPProof   NilExposureGetExposureTargetsIDOKIPProof   `json:"ip_proof"`
 	Kind      ExposureGetExposureTargetsIDOKKind         `json:"kind"`
 	LastCheck NilExposureGetExposureTargetsIDOKLastCheck `json:"last_check"`
 	// When the newest scan started: every page names a scan by its start.
@@ -45575,12 +45833,24 @@ type ExposureGetExposureTargetsIDOK struct {
 	LastScanFinishedAt OptNilDateTime                          `json:"last_scan_finished_at"`
 	Latest             NilExposureGetExposureTargetsIDOKLatest `json:"latest"`
 	Method             NilExposureGetExposureTargetsIDOKMethod `json:"method"`
+	// Typed IP with a proof: when the box checks the proof again by itself (7 days before it expires, then
+	// every 6 hours while it is not found); null otherwise.
+	NextCheckAt NilDateTime `json:"next_check_at"`
+	// Open ports of the newest scan (0 when never scanned): the number the target row shows.
+	OpenExposures int `json:"open_exposures"`
 	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
 	// can say what is open; null when never scanned.
 	OpenPorts []ExposureGetExposureTargetsIDOKOpenPortsItem `json:"open_ports"`
+	// Who added the target: person (a domain or a public IP typed in) or box (a public IP the box found as
+	// its own egress address, neutral until its testing terms are accepted).
+	Origin ExposureGetExposureTargetsIDOKOrigin `json:"origin"`
 	// Domains: where the TXT record goes and which verified domain covers this one already; null for an IP.
-	Proof     NilExposureGetExposureTargetsIDOKProof `json:"proof"`
-	Scannable bool                                   `json:"scannable"`
+	Proof NilExposureGetExposureTargetsIDOKProof `json:"proof"`
+	// Where the target stands for scanning: scanning (a scan of it runs now), ready, or why not: unproved
+	// (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes
+	// out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet).
+	ScanState ExposureGetExposureTargetsIDOKScanState `json:"scan_state"`
+	Scannable bool                                    `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposureGetExposureTargetsIDOKStatus `json:"status"`
 	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
@@ -45592,14 +45862,14 @@ type ExposureGetExposureTargetsIDOK struct {
 	// 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409
 	// shared_address) while it shows.
 	TermsWarning OptNilString `json:"terms_warning"`
-	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
-	// string.
+	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). Typed IP: the
+	// token the proof file carries (ip_proof). IP the box found: empty string.
 	Token string `json:"token"`
 	// IPs only: expiring = 5 days or less left.
 	Validity NilExposureGetExposureTargetsIDOKValidity `json:"validity"`
 	Value    string                                    `json:"value"`
-	// Domain: first successful verification. IP: the last time the box saw this IP (every sighting renews
-	// it).
+	// Domain: first successful verification. IP the box found: the last time the box saw this IP (every
+	// sighting renews it). Typed IP: the last time its proof was found.
 	VerifiedAt NilDateTime `json:"verified_at"`
 }
 
@@ -45638,6 +45908,11 @@ func (s *ExposureGetExposureTargetsIDOK) GetID() string {
 	return s.ID
 }
 
+// GetIPProof returns the value of IPProof.
+func (s *ExposureGetExposureTargetsIDOK) GetIPProof() NilExposureGetExposureTargetsIDOKIPProof {
+	return s.IPProof
+}
+
 // GetKind returns the value of Kind.
 func (s *ExposureGetExposureTargetsIDOK) GetKind() ExposureGetExposureTargetsIDOKKind {
 	return s.Kind
@@ -45668,14 +45943,34 @@ func (s *ExposureGetExposureTargetsIDOK) GetMethod() NilExposureGetExposureTarge
 	return s.Method
 }
 
+// GetNextCheckAt returns the value of NextCheckAt.
+func (s *ExposureGetExposureTargetsIDOK) GetNextCheckAt() NilDateTime {
+	return s.NextCheckAt
+}
+
+// GetOpenExposures returns the value of OpenExposures.
+func (s *ExposureGetExposureTargetsIDOK) GetOpenExposures() int {
+	return s.OpenExposures
+}
+
 // GetOpenPorts returns the value of OpenPorts.
 func (s *ExposureGetExposureTargetsIDOK) GetOpenPorts() []ExposureGetExposureTargetsIDOKOpenPortsItem {
 	return s.OpenPorts
 }
 
+// GetOrigin returns the value of Origin.
+func (s *ExposureGetExposureTargetsIDOK) GetOrigin() ExposureGetExposureTargetsIDOKOrigin {
+	return s.Origin
+}
+
 // GetProof returns the value of Proof.
 func (s *ExposureGetExposureTargetsIDOK) GetProof() NilExposureGetExposureTargetsIDOKProof {
 	return s.Proof
+}
+
+// GetScanState returns the value of ScanState.
+func (s *ExposureGetExposureTargetsIDOK) GetScanState() ExposureGetExposureTargetsIDOKScanState {
+	return s.ScanState
 }
 
 // GetScannable returns the value of Scannable.
@@ -45758,6 +46053,11 @@ func (s *ExposureGetExposureTargetsIDOK) SetID(val string) {
 	s.ID = val
 }
 
+// SetIPProof sets the value of IPProof.
+func (s *ExposureGetExposureTargetsIDOK) SetIPProof(val NilExposureGetExposureTargetsIDOKIPProof) {
+	s.IPProof = val
+}
+
 // SetKind sets the value of Kind.
 func (s *ExposureGetExposureTargetsIDOK) SetKind(val ExposureGetExposureTargetsIDOKKind) {
 	s.Kind = val
@@ -45788,14 +46088,34 @@ func (s *ExposureGetExposureTargetsIDOK) SetMethod(val NilExposureGetExposureTar
 	s.Method = val
 }
 
+// SetNextCheckAt sets the value of NextCheckAt.
+func (s *ExposureGetExposureTargetsIDOK) SetNextCheckAt(val NilDateTime) {
+	s.NextCheckAt = val
+}
+
+// SetOpenExposures sets the value of OpenExposures.
+func (s *ExposureGetExposureTargetsIDOK) SetOpenExposures(val int) {
+	s.OpenExposures = val
+}
+
 // SetOpenPorts sets the value of OpenPorts.
 func (s *ExposureGetExposureTargetsIDOK) SetOpenPorts(val []ExposureGetExposureTargetsIDOKOpenPortsItem) {
 	s.OpenPorts = val
 }
 
+// SetOrigin sets the value of Origin.
+func (s *ExposureGetExposureTargetsIDOK) SetOrigin(val ExposureGetExposureTargetsIDOKOrigin) {
+	s.Origin = val
+}
+
 // SetProof sets the value of Proof.
 func (s *ExposureGetExposureTargetsIDOK) SetProof(val NilExposureGetExposureTargetsIDOKProof) {
 	s.Proof = val
+}
+
+// SetScanState sets the value of ScanState.
+func (s *ExposureGetExposureTargetsIDOK) SetScanState(val ExposureGetExposureTargetsIDOKScanState) {
+	s.ScanState = val
 }
 
 // SetScannable sets the value of Scannable.
@@ -45849,6 +46169,7 @@ const (
 	ExposureGetExposureTargetsIDOKBlockedReasonUnverified   ExposureGetExposureTargetsIDOKBlockedReason = "unverified"
 	ExposureGetExposureTargetsIDOKBlockedReasonExpired      ExposureGetExposureTargetsIDOKBlockedReason = "expired"
 	ExposureGetExposureTargetsIDOKBlockedReasonTxtMissing   ExposureGetExposureTargetsIDOKBlockedReason = "txt_missing"
+	ExposureGetExposureTargetsIDOKBlockedReasonProofMissing ExposureGetExposureTargetsIDOKBlockedReason = "proof_missing"
 	ExposureGetExposureTargetsIDOKBlockedReasonNoCommitment ExposureGetExposureTargetsIDOKBlockedReason = "no_commitment"
 	ExposureGetExposureTargetsIDOKBlockedReasonIPNotCurrent ExposureGetExposureTargetsIDOKBlockedReason = "ip_not_current"
 )
@@ -45859,6 +46180,7 @@ func (ExposureGetExposureTargetsIDOKBlockedReason) AllValues() []ExposureGetExpo
 		ExposureGetExposureTargetsIDOKBlockedReasonUnverified,
 		ExposureGetExposureTargetsIDOKBlockedReasonExpired,
 		ExposureGetExposureTargetsIDOKBlockedReasonTxtMissing,
+		ExposureGetExposureTargetsIDOKBlockedReasonProofMissing,
 		ExposureGetExposureTargetsIDOKBlockedReasonNoCommitment,
 		ExposureGetExposureTargetsIDOKBlockedReasonIPNotCurrent,
 	}
@@ -45872,6 +46194,8 @@ func (s ExposureGetExposureTargetsIDOKBlockedReason) MarshalText() ([]byte, erro
 	case ExposureGetExposureTargetsIDOKBlockedReasonExpired:
 		return []byte(s), nil
 	case ExposureGetExposureTargetsIDOKBlockedReasonTxtMissing:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDOKBlockedReasonProofMissing:
 		return []byte(s), nil
 	case ExposureGetExposureTargetsIDOKBlockedReasonNoCommitment:
 		return []byte(s), nil
@@ -45893,6 +46217,9 @@ func (s *ExposureGetExposureTargetsIDOKBlockedReason) UnmarshalText(data []byte)
 		return nil
 	case ExposureGetExposureTargetsIDOKBlockedReasonTxtMissing:
 		*s = ExposureGetExposureTargetsIDOKBlockedReasonTxtMissing
+		return nil
+	case ExposureGetExposureTargetsIDOKBlockedReasonProofMissing:
+		*s = ExposureGetExposureTargetsIDOKBlockedReasonProofMissing
 		return nil
 	case ExposureGetExposureTargetsIDOKBlockedReasonNoCommitment:
 		*s = ExposureGetExposureTargetsIDOKBlockedReasonNoCommitment
@@ -45979,6 +46306,58 @@ func (s *ExposureGetExposureTargetsIDOKCommitmentNotice) SetText(val string) {
 // SetVersion sets the value of Version.
 func (s *ExposureGetExposureTargetsIDOKCommitmentNotice) SetVersion(val string) {
 	s.Version = val
+}
+
+type ExposureGetExposureTargetsIDOKIPProof struct {
+	// The token: the whole content of the file.
+	Content string `json:"content"`
+	// /.well-known/vedette-verify.txt.
+	Path string `json:"path"`
+	// Domains of this box that are proved as far as the last check knows: a reverse DNS (PTR) name of the
+	// IP under one of them, resolving back to the IP, proves it.
+	PtrDomains []string `json:"ptr_domains"`
+	// The two addresses the box asks, http and https, on the IP.
+	Urls []string `json:"urls"`
+}
+
+// GetContent returns the value of Content.
+func (s *ExposureGetExposureTargetsIDOKIPProof) GetContent() string {
+	return s.Content
+}
+
+// GetPath returns the value of Path.
+func (s *ExposureGetExposureTargetsIDOKIPProof) GetPath() string {
+	return s.Path
+}
+
+// GetPtrDomains returns the value of PtrDomains.
+func (s *ExposureGetExposureTargetsIDOKIPProof) GetPtrDomains() []string {
+	return s.PtrDomains
+}
+
+// GetUrls returns the value of Urls.
+func (s *ExposureGetExposureTargetsIDOKIPProof) GetUrls() []string {
+	return s.Urls
+}
+
+// SetContent sets the value of Content.
+func (s *ExposureGetExposureTargetsIDOKIPProof) SetContent(val string) {
+	s.Content = val
+}
+
+// SetPath sets the value of Path.
+func (s *ExposureGetExposureTargetsIDOKIPProof) SetPath(val string) {
+	s.Path = val
+}
+
+// SetPtrDomains sets the value of PtrDomains.
+func (s *ExposureGetExposureTargetsIDOKIPProof) SetPtrDomains(val []string) {
+	s.PtrDomains = val
+}
+
+// SetUrls sets the value of Urls.
+func (s *ExposureGetExposureTargetsIDOKIPProof) SetUrls(val []string) {
+	s.Urls = val
 }
 
 type ExposureGetExposureTargetsIDOKKind string
@@ -46121,6 +46500,8 @@ type ExposureGetExposureTargetsIDOKMethod string
 const (
 	ExposureGetExposureTargetsIDOKMethodDNSTxt    ExposureGetExposureTargetsIDOKMethod = "dns_txt"
 	ExposureGetExposureTargetsIDOKMethodBoxEgress ExposureGetExposureTargetsIDOKMethod = "box_egress"
+	ExposureGetExposureTargetsIDOKMethodIPFile    ExposureGetExposureTargetsIDOKMethod = "ip_file"
+	ExposureGetExposureTargetsIDOKMethodIPPtr     ExposureGetExposureTargetsIDOKMethod = "ip_ptr"
 )
 
 // AllValues returns all ExposureGetExposureTargetsIDOKMethod values.
@@ -46128,6 +46509,8 @@ func (ExposureGetExposureTargetsIDOKMethod) AllValues() []ExposureGetExposureTar
 	return []ExposureGetExposureTargetsIDOKMethod{
 		ExposureGetExposureTargetsIDOKMethodDNSTxt,
 		ExposureGetExposureTargetsIDOKMethodBoxEgress,
+		ExposureGetExposureTargetsIDOKMethodIPFile,
+		ExposureGetExposureTargetsIDOKMethodIPPtr,
 	}
 }
 
@@ -46137,6 +46520,10 @@ func (s ExposureGetExposureTargetsIDOKMethod) MarshalText() ([]byte, error) {
 	case ExposureGetExposureTargetsIDOKMethodDNSTxt:
 		return []byte(s), nil
 	case ExposureGetExposureTargetsIDOKMethodBoxEgress:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDOKMethodIPFile:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDOKMethodIPPtr:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -46151,6 +46538,12 @@ func (s *ExposureGetExposureTargetsIDOKMethod) UnmarshalText(data []byte) error 
 		return nil
 	case ExposureGetExposureTargetsIDOKMethodBoxEgress:
 		*s = ExposureGetExposureTargetsIDOKMethodBoxEgress
+		return nil
+	case ExposureGetExposureTargetsIDOKMethodIPFile:
+		*s = ExposureGetExposureTargetsIDOKMethodIPFile
+		return nil
+	case ExposureGetExposureTargetsIDOKMethodIPPtr:
+		*s = ExposureGetExposureTargetsIDOKMethodIPPtr
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -46600,6 +46993,49 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItemIdent) UnmarshalText(data []
 	}
 }
 
+// Who added the target: person (a domain or a public IP typed in) or box (a public IP the box found as
+// its own egress address, neutral until its testing terms are accepted).
+type ExposureGetExposureTargetsIDOKOrigin string
+
+const (
+	ExposureGetExposureTargetsIDOKOriginPerson ExposureGetExposureTargetsIDOKOrigin = "person"
+	ExposureGetExposureTargetsIDOKOriginBox    ExposureGetExposureTargetsIDOKOrigin = "box"
+)
+
+// AllValues returns all ExposureGetExposureTargetsIDOKOrigin values.
+func (ExposureGetExposureTargetsIDOKOrigin) AllValues() []ExposureGetExposureTargetsIDOKOrigin {
+	return []ExposureGetExposureTargetsIDOKOrigin{
+		ExposureGetExposureTargetsIDOKOriginPerson,
+		ExposureGetExposureTargetsIDOKOriginBox,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTargetsIDOKOrigin) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTargetsIDOKOriginPerson:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDOKOriginBox:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTargetsIDOKOrigin) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTargetsIDOKOrigin(data) {
+	case ExposureGetExposureTargetsIDOKOriginPerson:
+		*s = ExposureGetExposureTargetsIDOKOriginPerson
+		return nil
+	case ExposureGetExposureTargetsIDOKOriginBox:
+		*s = ExposureGetExposureTargetsIDOKOriginBox
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ExposureGetExposureTargetsIDOKProof struct {
 	// The alternative Name: "_vedette-verify" or "_vedette-verify.git", which proves the target only
 	// (never the name itself when it is a CNAME: no TXT may sit beside a CNAME); null when
@@ -46653,6 +47089,78 @@ func (s *ExposureGetExposureTargetsIDOKProof) SetHost(val string) {
 // SetZone sets the value of Zone.
 func (s *ExposureGetExposureTargetsIDOKProof) SetZone(val string) {
 	s.Zone = val
+}
+
+// Where the target stands for scanning: scanning (a scan of it runs now), ready, or why not: unproved
+// (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes
+// out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet).
+type ExposureGetExposureTargetsIDOKScanState string
+
+const (
+	ExposureGetExposureTargetsIDOKScanStateUnproved   ExposureGetExposureTargetsIDOKScanState = "unproved"
+	ExposureGetExposureTargetsIDOKScanStateExpired    ExposureGetExposureTargetsIDOKScanState = "expired"
+	ExposureGetExposureTargetsIDOKScanStatePaused     ExposureGetExposureTargetsIDOKScanState = "paused"
+	ExposureGetExposureTargetsIDOKScanStateNeedsTerms ExposureGetExposureTargetsIDOKScanState = "needs_terms"
+	ExposureGetExposureTargetsIDOKScanStateReady      ExposureGetExposureTargetsIDOKScanState = "ready"
+	ExposureGetExposureTargetsIDOKScanStateScanning   ExposureGetExposureTargetsIDOKScanState = "scanning"
+)
+
+// AllValues returns all ExposureGetExposureTargetsIDOKScanState values.
+func (ExposureGetExposureTargetsIDOKScanState) AllValues() []ExposureGetExposureTargetsIDOKScanState {
+	return []ExposureGetExposureTargetsIDOKScanState{
+		ExposureGetExposureTargetsIDOKScanStateUnproved,
+		ExposureGetExposureTargetsIDOKScanStateExpired,
+		ExposureGetExposureTargetsIDOKScanStatePaused,
+		ExposureGetExposureTargetsIDOKScanStateNeedsTerms,
+		ExposureGetExposureTargetsIDOKScanStateReady,
+		ExposureGetExposureTargetsIDOKScanStateScanning,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTargetsIDOKScanState) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTargetsIDOKScanStateUnproved:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDOKScanStateExpired:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDOKScanStatePaused:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDOKScanStateNeedsTerms:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDOKScanStateReady:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDOKScanStateScanning:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTargetsIDOKScanState) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTargetsIDOKScanState(data) {
+	case ExposureGetExposureTargetsIDOKScanStateUnproved:
+		*s = ExposureGetExposureTargetsIDOKScanStateUnproved
+		return nil
+	case ExposureGetExposureTargetsIDOKScanStateExpired:
+		*s = ExposureGetExposureTargetsIDOKScanStateExpired
+		return nil
+	case ExposureGetExposureTargetsIDOKScanStatePaused:
+		*s = ExposureGetExposureTargetsIDOKScanStatePaused
+		return nil
+	case ExposureGetExposureTargetsIDOKScanStateNeedsTerms:
+		*s = ExposureGetExposureTargetsIDOKScanStateNeedsTerms
+		return nil
+	case ExposureGetExposureTargetsIDOKScanStateReady:
+		*s = ExposureGetExposureTargetsIDOKScanStateReady
+		return nil
+	case ExposureGetExposureTargetsIDOKScanStateScanning:
+		*s = ExposureGetExposureTargetsIDOKScanStateScanning
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -50243,8 +50751,9 @@ type ExposureGetExposureTargetsOKBoxIP struct {
 	IntervalMin int `json:"interval_min"`
 	// The last automatic or manual detection; null before the first one.
 	LastRun NilExposureGetExposureTargetsOKBoxIPLastRun `json:"last_run"`
-	// Null while attempts are left. When the 10 attempts an hour (shared by Detect now, Verify again and
-	// the DNS Check of a domain) are used up: minutes until the next one is possible, 1 or more.
+	// Null while attempts are left. When the 10 attempts an hour (shared by Detect now and the Verify
+	// again of an IP; the DNS Check of a domain has its own limit of one per 30 seconds per target) are
+	// used up: minutes until the next one is possible, 1 or more.
 	RetryInMin NilInt `json:"retry_in_min"`
 }
 
@@ -50427,12 +50936,16 @@ type ExposureGetExposureTargetsOKItemsItem struct {
 	// a commitment can carry it too.
 	CommitmentNotice NilExposureGetExposureTargetsOKItemsItemCommitmentNotice `json:"commitment_notice"`
 	CreatedAt        time.Time                                                `json:"created_at"`
-	// IP: verified_at + 30 days. Domain: null (the TXT record is re-checked right before every scan).
+	// IP: verified_at + 30 days (the proof expiry of a typed IP). Domain: null (the TXT record is
+	// re-checked right before every scan).
 	ExpiresAt NilDateTime `json:"expires_at"`
 	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the scope of
 	// the Scan now sentence.
-	FullScan  bool                                              `json:"full_scan"`
-	ID        string                                            `json:"id"`
+	FullScan bool   `json:"full_scan"`
+	ID       string `json:"id"`
+	// Typed IP: where the proof file goes and which domains of this box can carry a reverse DNS name that
+	// proves it; null for a domain and for an IP the box found.
+	IPProof   NilExposureGetExposureTargetsOKItemsItemIPProof   `json:"ip_proof"`
 	Kind      ExposureGetExposureTargetsOKItemsItemKind         `json:"kind"`
 	LastCheck NilExposureGetExposureTargetsOKItemsItemLastCheck `json:"last_check"`
 	// When the newest scan started: every page names a scan by its start.
@@ -50442,12 +50955,24 @@ type ExposureGetExposureTargetsOKItemsItem struct {
 	LastScanFinishedAt OptNilDateTime                                 `json:"last_scan_finished_at"`
 	Latest             NilExposureGetExposureTargetsOKItemsItemLatest `json:"latest"`
 	Method             NilExposureGetExposureTargetsOKItemsItemMethod `json:"method"`
+	// Typed IP with a proof: when the box checks the proof again by itself (7 days before it expires, then
+	// every 6 hours while it is not found); null otherwise.
+	NextCheckAt NilDateTime `json:"next_check_at"`
+	// Open ports of the newest scan (0 when never scanned): the number the target row shows.
+	OpenExposures int `json:"open_exposures"`
 	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
 	// can say what is open; null when never scanned.
 	OpenPorts []ExposureGetExposureTargetsOKItemsItemOpenPortsItem `json:"open_ports"`
+	// Who added the target: person (a domain or a public IP typed in) or box (a public IP the box found as
+	// its own egress address, neutral until its testing terms are accepted).
+	Origin ExposureGetExposureTargetsOKItemsItemOrigin `json:"origin"`
 	// Domains: where the TXT record goes and which verified domain covers this one already; null for an IP.
-	Proof     NilExposureGetExposureTargetsOKItemsItemProof `json:"proof"`
-	Scannable bool                                          `json:"scannable"`
+	Proof NilExposureGetExposureTargetsOKItemsItemProof `json:"proof"`
+	// Where the target stands for scanning: scanning (a scan of it runs now), ready, or why not: unproved
+	// (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes
+	// out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet).
+	ScanState ExposureGetExposureTargetsOKItemsItemScanState `json:"scan_state"`
+	Scannable bool                                           `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposureGetExposureTargetsOKItemsItemStatus `json:"status"`
 	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
@@ -50459,14 +50984,14 @@ type ExposureGetExposureTargetsOKItemsItem struct {
 	// 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409
 	// shared_address) while it shows.
 	TermsWarning OptNilString `json:"terms_warning"`
-	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
-	// string.
+	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). Typed IP: the
+	// token the proof file carries (ip_proof). IP the box found: empty string.
 	Token string `json:"token"`
 	// IPs only: expiring = 5 days or less left.
 	Validity NilExposureGetExposureTargetsOKItemsItemValidity `json:"validity"`
 	Value    string                                           `json:"value"`
-	// Domain: first successful verification. IP: the last time the box saw this IP (every sighting renews
-	// it).
+	// Domain: first successful verification. IP the box found: the last time the box saw this IP (every
+	// sighting renews it). Typed IP: the last time its proof was found.
 	VerifiedAt NilDateTime `json:"verified_at"`
 }
 
@@ -50505,6 +51030,11 @@ func (s *ExposureGetExposureTargetsOKItemsItem) GetID() string {
 	return s.ID
 }
 
+// GetIPProof returns the value of IPProof.
+func (s *ExposureGetExposureTargetsOKItemsItem) GetIPProof() NilExposureGetExposureTargetsOKItemsItemIPProof {
+	return s.IPProof
+}
+
 // GetKind returns the value of Kind.
 func (s *ExposureGetExposureTargetsOKItemsItem) GetKind() ExposureGetExposureTargetsOKItemsItemKind {
 	return s.Kind
@@ -50535,14 +51065,34 @@ func (s *ExposureGetExposureTargetsOKItemsItem) GetMethod() NilExposureGetExposu
 	return s.Method
 }
 
+// GetNextCheckAt returns the value of NextCheckAt.
+func (s *ExposureGetExposureTargetsOKItemsItem) GetNextCheckAt() NilDateTime {
+	return s.NextCheckAt
+}
+
+// GetOpenExposures returns the value of OpenExposures.
+func (s *ExposureGetExposureTargetsOKItemsItem) GetOpenExposures() int {
+	return s.OpenExposures
+}
+
 // GetOpenPorts returns the value of OpenPorts.
 func (s *ExposureGetExposureTargetsOKItemsItem) GetOpenPorts() []ExposureGetExposureTargetsOKItemsItemOpenPortsItem {
 	return s.OpenPorts
 }
 
+// GetOrigin returns the value of Origin.
+func (s *ExposureGetExposureTargetsOKItemsItem) GetOrigin() ExposureGetExposureTargetsOKItemsItemOrigin {
+	return s.Origin
+}
+
 // GetProof returns the value of Proof.
 func (s *ExposureGetExposureTargetsOKItemsItem) GetProof() NilExposureGetExposureTargetsOKItemsItemProof {
 	return s.Proof
+}
+
+// GetScanState returns the value of ScanState.
+func (s *ExposureGetExposureTargetsOKItemsItem) GetScanState() ExposureGetExposureTargetsOKItemsItemScanState {
+	return s.ScanState
 }
 
 // GetScannable returns the value of Scannable.
@@ -50625,6 +51175,11 @@ func (s *ExposureGetExposureTargetsOKItemsItem) SetID(val string) {
 	s.ID = val
 }
 
+// SetIPProof sets the value of IPProof.
+func (s *ExposureGetExposureTargetsOKItemsItem) SetIPProof(val NilExposureGetExposureTargetsOKItemsItemIPProof) {
+	s.IPProof = val
+}
+
 // SetKind sets the value of Kind.
 func (s *ExposureGetExposureTargetsOKItemsItem) SetKind(val ExposureGetExposureTargetsOKItemsItemKind) {
 	s.Kind = val
@@ -50655,14 +51210,34 @@ func (s *ExposureGetExposureTargetsOKItemsItem) SetMethod(val NilExposureGetExpo
 	s.Method = val
 }
 
+// SetNextCheckAt sets the value of NextCheckAt.
+func (s *ExposureGetExposureTargetsOKItemsItem) SetNextCheckAt(val NilDateTime) {
+	s.NextCheckAt = val
+}
+
+// SetOpenExposures sets the value of OpenExposures.
+func (s *ExposureGetExposureTargetsOKItemsItem) SetOpenExposures(val int) {
+	s.OpenExposures = val
+}
+
 // SetOpenPorts sets the value of OpenPorts.
 func (s *ExposureGetExposureTargetsOKItemsItem) SetOpenPorts(val []ExposureGetExposureTargetsOKItemsItemOpenPortsItem) {
 	s.OpenPorts = val
 }
 
+// SetOrigin sets the value of Origin.
+func (s *ExposureGetExposureTargetsOKItemsItem) SetOrigin(val ExposureGetExposureTargetsOKItemsItemOrigin) {
+	s.Origin = val
+}
+
 // SetProof sets the value of Proof.
 func (s *ExposureGetExposureTargetsOKItemsItem) SetProof(val NilExposureGetExposureTargetsOKItemsItemProof) {
 	s.Proof = val
+}
+
+// SetScanState sets the value of ScanState.
+func (s *ExposureGetExposureTargetsOKItemsItem) SetScanState(val ExposureGetExposureTargetsOKItemsItemScanState) {
+	s.ScanState = val
 }
 
 // SetScannable sets the value of Scannable.
@@ -50716,6 +51291,7 @@ const (
 	ExposureGetExposureTargetsOKItemsItemBlockedReasonUnverified   ExposureGetExposureTargetsOKItemsItemBlockedReason = "unverified"
 	ExposureGetExposureTargetsOKItemsItemBlockedReasonExpired      ExposureGetExposureTargetsOKItemsItemBlockedReason = "expired"
 	ExposureGetExposureTargetsOKItemsItemBlockedReasonTxtMissing   ExposureGetExposureTargetsOKItemsItemBlockedReason = "txt_missing"
+	ExposureGetExposureTargetsOKItemsItemBlockedReasonProofMissing ExposureGetExposureTargetsOKItemsItemBlockedReason = "proof_missing"
 	ExposureGetExposureTargetsOKItemsItemBlockedReasonNoCommitment ExposureGetExposureTargetsOKItemsItemBlockedReason = "no_commitment"
 	ExposureGetExposureTargetsOKItemsItemBlockedReasonIPNotCurrent ExposureGetExposureTargetsOKItemsItemBlockedReason = "ip_not_current"
 )
@@ -50726,6 +51302,7 @@ func (ExposureGetExposureTargetsOKItemsItemBlockedReason) AllValues() []Exposure
 		ExposureGetExposureTargetsOKItemsItemBlockedReasonUnverified,
 		ExposureGetExposureTargetsOKItemsItemBlockedReasonExpired,
 		ExposureGetExposureTargetsOKItemsItemBlockedReasonTxtMissing,
+		ExposureGetExposureTargetsOKItemsItemBlockedReasonProofMissing,
 		ExposureGetExposureTargetsOKItemsItemBlockedReasonNoCommitment,
 		ExposureGetExposureTargetsOKItemsItemBlockedReasonIPNotCurrent,
 	}
@@ -50739,6 +51316,8 @@ func (s ExposureGetExposureTargetsOKItemsItemBlockedReason) MarshalText() ([]byt
 	case ExposureGetExposureTargetsOKItemsItemBlockedReasonExpired:
 		return []byte(s), nil
 	case ExposureGetExposureTargetsOKItemsItemBlockedReasonTxtMissing:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsOKItemsItemBlockedReasonProofMissing:
 		return []byte(s), nil
 	case ExposureGetExposureTargetsOKItemsItemBlockedReasonNoCommitment:
 		return []byte(s), nil
@@ -50760,6 +51339,9 @@ func (s *ExposureGetExposureTargetsOKItemsItemBlockedReason) UnmarshalText(data 
 		return nil
 	case ExposureGetExposureTargetsOKItemsItemBlockedReasonTxtMissing:
 		*s = ExposureGetExposureTargetsOKItemsItemBlockedReasonTxtMissing
+		return nil
+	case ExposureGetExposureTargetsOKItemsItemBlockedReasonProofMissing:
+		*s = ExposureGetExposureTargetsOKItemsItemBlockedReasonProofMissing
 		return nil
 	case ExposureGetExposureTargetsOKItemsItemBlockedReasonNoCommitment:
 		*s = ExposureGetExposureTargetsOKItemsItemBlockedReasonNoCommitment
@@ -50846,6 +51428,58 @@ func (s *ExposureGetExposureTargetsOKItemsItemCommitmentNotice) SetText(val stri
 // SetVersion sets the value of Version.
 func (s *ExposureGetExposureTargetsOKItemsItemCommitmentNotice) SetVersion(val string) {
 	s.Version = val
+}
+
+type ExposureGetExposureTargetsOKItemsItemIPProof struct {
+	// The token: the whole content of the file.
+	Content string `json:"content"`
+	// /.well-known/vedette-verify.txt.
+	Path string `json:"path"`
+	// Domains of this box that are proved as far as the last check knows: a reverse DNS (PTR) name of the
+	// IP under one of them, resolving back to the IP, proves it.
+	PtrDomains []string `json:"ptr_domains"`
+	// The two addresses the box asks, http and https, on the IP.
+	Urls []string `json:"urls"`
+}
+
+// GetContent returns the value of Content.
+func (s *ExposureGetExposureTargetsOKItemsItemIPProof) GetContent() string {
+	return s.Content
+}
+
+// GetPath returns the value of Path.
+func (s *ExposureGetExposureTargetsOKItemsItemIPProof) GetPath() string {
+	return s.Path
+}
+
+// GetPtrDomains returns the value of PtrDomains.
+func (s *ExposureGetExposureTargetsOKItemsItemIPProof) GetPtrDomains() []string {
+	return s.PtrDomains
+}
+
+// GetUrls returns the value of Urls.
+func (s *ExposureGetExposureTargetsOKItemsItemIPProof) GetUrls() []string {
+	return s.Urls
+}
+
+// SetContent sets the value of Content.
+func (s *ExposureGetExposureTargetsOKItemsItemIPProof) SetContent(val string) {
+	s.Content = val
+}
+
+// SetPath sets the value of Path.
+func (s *ExposureGetExposureTargetsOKItemsItemIPProof) SetPath(val string) {
+	s.Path = val
+}
+
+// SetPtrDomains sets the value of PtrDomains.
+func (s *ExposureGetExposureTargetsOKItemsItemIPProof) SetPtrDomains(val []string) {
+	s.PtrDomains = val
+}
+
+// SetUrls sets the value of Urls.
+func (s *ExposureGetExposureTargetsOKItemsItemIPProof) SetUrls(val []string) {
+	s.Urls = val
 }
 
 type ExposureGetExposureTargetsOKItemsItemKind string
@@ -50988,6 +51622,8 @@ type ExposureGetExposureTargetsOKItemsItemMethod string
 const (
 	ExposureGetExposureTargetsOKItemsItemMethodDNSTxt    ExposureGetExposureTargetsOKItemsItemMethod = "dns_txt"
 	ExposureGetExposureTargetsOKItemsItemMethodBoxEgress ExposureGetExposureTargetsOKItemsItemMethod = "box_egress"
+	ExposureGetExposureTargetsOKItemsItemMethodIPFile    ExposureGetExposureTargetsOKItemsItemMethod = "ip_file"
+	ExposureGetExposureTargetsOKItemsItemMethodIPPtr     ExposureGetExposureTargetsOKItemsItemMethod = "ip_ptr"
 )
 
 // AllValues returns all ExposureGetExposureTargetsOKItemsItemMethod values.
@@ -50995,6 +51631,8 @@ func (ExposureGetExposureTargetsOKItemsItemMethod) AllValues() []ExposureGetExpo
 	return []ExposureGetExposureTargetsOKItemsItemMethod{
 		ExposureGetExposureTargetsOKItemsItemMethodDNSTxt,
 		ExposureGetExposureTargetsOKItemsItemMethodBoxEgress,
+		ExposureGetExposureTargetsOKItemsItemMethodIPFile,
+		ExposureGetExposureTargetsOKItemsItemMethodIPPtr,
 	}
 }
 
@@ -51004,6 +51642,10 @@ func (s ExposureGetExposureTargetsOKItemsItemMethod) MarshalText() ([]byte, erro
 	case ExposureGetExposureTargetsOKItemsItemMethodDNSTxt:
 		return []byte(s), nil
 	case ExposureGetExposureTargetsOKItemsItemMethodBoxEgress:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsOKItemsItemMethodIPFile:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsOKItemsItemMethodIPPtr:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -51018,6 +51660,12 @@ func (s *ExposureGetExposureTargetsOKItemsItemMethod) UnmarshalText(data []byte)
 		return nil
 	case ExposureGetExposureTargetsOKItemsItemMethodBoxEgress:
 		*s = ExposureGetExposureTargetsOKItemsItemMethodBoxEgress
+		return nil
+	case ExposureGetExposureTargetsOKItemsItemMethodIPFile:
+		*s = ExposureGetExposureTargetsOKItemsItemMethodIPFile
+		return nil
+	case ExposureGetExposureTargetsOKItemsItemMethodIPPtr:
+		*s = ExposureGetExposureTargetsOKItemsItemMethodIPPtr
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -51467,6 +52115,49 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent) UnmarshalText(
 	}
 }
 
+// Who added the target: person (a domain or a public IP typed in) or box (a public IP the box found as
+// its own egress address, neutral until its testing terms are accepted).
+type ExposureGetExposureTargetsOKItemsItemOrigin string
+
+const (
+	ExposureGetExposureTargetsOKItemsItemOriginPerson ExposureGetExposureTargetsOKItemsItemOrigin = "person"
+	ExposureGetExposureTargetsOKItemsItemOriginBox    ExposureGetExposureTargetsOKItemsItemOrigin = "box"
+)
+
+// AllValues returns all ExposureGetExposureTargetsOKItemsItemOrigin values.
+func (ExposureGetExposureTargetsOKItemsItemOrigin) AllValues() []ExposureGetExposureTargetsOKItemsItemOrigin {
+	return []ExposureGetExposureTargetsOKItemsItemOrigin{
+		ExposureGetExposureTargetsOKItemsItemOriginPerson,
+		ExposureGetExposureTargetsOKItemsItemOriginBox,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTargetsOKItemsItemOrigin) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTargetsOKItemsItemOriginPerson:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsOKItemsItemOriginBox:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTargetsOKItemsItemOrigin) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTargetsOKItemsItemOrigin(data) {
+	case ExposureGetExposureTargetsOKItemsItemOriginPerson:
+		*s = ExposureGetExposureTargetsOKItemsItemOriginPerson
+		return nil
+	case ExposureGetExposureTargetsOKItemsItemOriginBox:
+		*s = ExposureGetExposureTargetsOKItemsItemOriginBox
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ExposureGetExposureTargetsOKItemsItemProof struct {
 	// The alternative Name: "_vedette-verify" or "_vedette-verify.git", which proves the target only
 	// (never the name itself when it is a CNAME: no TXT may sit beside a CNAME); null when
@@ -51520,6 +52211,78 @@ func (s *ExposureGetExposureTargetsOKItemsItemProof) SetHost(val string) {
 // SetZone sets the value of Zone.
 func (s *ExposureGetExposureTargetsOKItemsItemProof) SetZone(val string) {
 	s.Zone = val
+}
+
+// Where the target stands for scanning: scanning (a scan of it runs now), ready, or why not: unproved
+// (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes
+// out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet).
+type ExposureGetExposureTargetsOKItemsItemScanState string
+
+const (
+	ExposureGetExposureTargetsOKItemsItemScanStateUnproved   ExposureGetExposureTargetsOKItemsItemScanState = "unproved"
+	ExposureGetExposureTargetsOKItemsItemScanStateExpired    ExposureGetExposureTargetsOKItemsItemScanState = "expired"
+	ExposureGetExposureTargetsOKItemsItemScanStatePaused     ExposureGetExposureTargetsOKItemsItemScanState = "paused"
+	ExposureGetExposureTargetsOKItemsItemScanStateNeedsTerms ExposureGetExposureTargetsOKItemsItemScanState = "needs_terms"
+	ExposureGetExposureTargetsOKItemsItemScanStateReady      ExposureGetExposureTargetsOKItemsItemScanState = "ready"
+	ExposureGetExposureTargetsOKItemsItemScanStateScanning   ExposureGetExposureTargetsOKItemsItemScanState = "scanning"
+)
+
+// AllValues returns all ExposureGetExposureTargetsOKItemsItemScanState values.
+func (ExposureGetExposureTargetsOKItemsItemScanState) AllValues() []ExposureGetExposureTargetsOKItemsItemScanState {
+	return []ExposureGetExposureTargetsOKItemsItemScanState{
+		ExposureGetExposureTargetsOKItemsItemScanStateUnproved,
+		ExposureGetExposureTargetsOKItemsItemScanStateExpired,
+		ExposureGetExposureTargetsOKItemsItemScanStatePaused,
+		ExposureGetExposureTargetsOKItemsItemScanStateNeedsTerms,
+		ExposureGetExposureTargetsOKItemsItemScanStateReady,
+		ExposureGetExposureTargetsOKItemsItemScanStateScanning,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTargetsOKItemsItemScanState) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTargetsOKItemsItemScanStateUnproved:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsOKItemsItemScanStateExpired:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsOKItemsItemScanStatePaused:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsOKItemsItemScanStateNeedsTerms:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsOKItemsItemScanStateReady:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsOKItemsItemScanStateScanning:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTargetsOKItemsItemScanState) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTargetsOKItemsItemScanState(data) {
+	case ExposureGetExposureTargetsOKItemsItemScanStateUnproved:
+		*s = ExposureGetExposureTargetsOKItemsItemScanStateUnproved
+		return nil
+	case ExposureGetExposureTargetsOKItemsItemScanStateExpired:
+		*s = ExposureGetExposureTargetsOKItemsItemScanStateExpired
+		return nil
+	case ExposureGetExposureTargetsOKItemsItemScanStatePaused:
+		*s = ExposureGetExposureTargetsOKItemsItemScanStatePaused
+		return nil
+	case ExposureGetExposureTargetsOKItemsItemScanStateNeedsTerms:
+		*s = ExposureGetExposureTargetsOKItemsItemScanStateNeedsTerms
+		return nil
+	case ExposureGetExposureTargetsOKItemsItemScanStateReady:
+		*s = ExposureGetExposureTargetsOKItemsItemScanStateReady
+		return nil
+	case ExposureGetExposureTargetsOKItemsItemScanStateScanning:
+		*s = ExposureGetExposureTargetsOKItemsItemScanStateScanning
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -51758,12 +52521,16 @@ type ExposurePostExposureBoxIPVerifyOKItemsItem struct {
 	// a commitment can carry it too.
 	CommitmentNotice NilExposurePostExposureBoxIPVerifyOKItemsItemCommitmentNotice `json:"commitment_notice"`
 	CreatedAt        time.Time                                                     `json:"created_at"`
-	// IP: verified_at + 30 days. Domain: null (the TXT record is re-checked right before every scan).
+	// IP: verified_at + 30 days (the proof expiry of a typed IP). Domain: null (the TXT record is
+	// re-checked right before every scan).
 	ExpiresAt NilDateTime `json:"expires_at"`
 	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the scope of
 	// the Scan now sentence.
-	FullScan  bool                                                   `json:"full_scan"`
-	ID        string                                                 `json:"id"`
+	FullScan bool   `json:"full_scan"`
+	ID       string `json:"id"`
+	// Typed IP: where the proof file goes and which domains of this box can carry a reverse DNS name that
+	// proves it; null for a domain and for an IP the box found.
+	IPProof   NilExposurePostExposureBoxIPVerifyOKItemsItemIPProof   `json:"ip_proof"`
 	Kind      ExposurePostExposureBoxIPVerifyOKItemsItemKind         `json:"kind"`
 	LastCheck NilExposurePostExposureBoxIPVerifyOKItemsItemLastCheck `json:"last_check"`
 	// When the newest scan started: every page names a scan by its start.
@@ -51773,12 +52540,24 @@ type ExposurePostExposureBoxIPVerifyOKItemsItem struct {
 	LastScanFinishedAt OptNilDateTime                                      `json:"last_scan_finished_at"`
 	Latest             NilExposurePostExposureBoxIPVerifyOKItemsItemLatest `json:"latest"`
 	Method             NilExposurePostExposureBoxIPVerifyOKItemsItemMethod `json:"method"`
+	// Typed IP with a proof: when the box checks the proof again by itself (7 days before it expires, then
+	// every 6 hours while it is not found); null otherwise.
+	NextCheckAt NilDateTime `json:"next_check_at"`
+	// Open ports of the newest scan (0 when never scanned): the number the target row shows.
+	OpenExposures int `json:"open_exposures"`
 	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
 	// can say what is open; null when never scanned.
 	OpenPorts []ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem `json:"open_ports"`
+	// Who added the target: person (a domain or a public IP typed in) or box (a public IP the box found as
+	// its own egress address, neutral until its testing terms are accepted).
+	Origin ExposurePostExposureBoxIPVerifyOKItemsItemOrigin `json:"origin"`
 	// Domains: where the TXT record goes and which verified domain covers this one already; null for an IP.
-	Proof     NilExposurePostExposureBoxIPVerifyOKItemsItemProof `json:"proof"`
-	Scannable bool                                               `json:"scannable"`
+	Proof NilExposurePostExposureBoxIPVerifyOKItemsItemProof `json:"proof"`
+	// Where the target stands for scanning: scanning (a scan of it runs now), ready, or why not: unproved
+	// (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes
+	// out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet).
+	ScanState ExposurePostExposureBoxIPVerifyOKItemsItemScanState `json:"scan_state"`
+	Scannable bool                                                `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposurePostExposureBoxIPVerifyOKItemsItemStatus `json:"status"`
 	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
@@ -51790,14 +52569,14 @@ type ExposurePostExposureBoxIPVerifyOKItemsItem struct {
 	// 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409
 	// shared_address) while it shows.
 	TermsWarning OptNilString `json:"terms_warning"`
-	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
-	// string.
+	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). Typed IP: the
+	// token the proof file carries (ip_proof). IP the box found: empty string.
 	Token string `json:"token"`
 	// IPs only: expiring = 5 days or less left.
 	Validity NilExposurePostExposureBoxIPVerifyOKItemsItemValidity `json:"validity"`
 	Value    string                                                `json:"value"`
-	// Domain: first successful verification. IP: the last time the box saw this IP (every sighting renews
-	// it).
+	// Domain: first successful verification. IP the box found: the last time the box saw this IP (every
+	// sighting renews it). Typed IP: the last time its proof was found.
 	VerifiedAt NilDateTime `json:"verified_at"`
 }
 
@@ -51836,6 +52615,11 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetID() string {
 	return s.ID
 }
 
+// GetIPProof returns the value of IPProof.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetIPProof() NilExposurePostExposureBoxIPVerifyOKItemsItemIPProof {
+	return s.IPProof
+}
+
 // GetKind returns the value of Kind.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetKind() ExposurePostExposureBoxIPVerifyOKItemsItemKind {
 	return s.Kind
@@ -51866,14 +52650,34 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetMethod() NilExposurePost
 	return s.Method
 }
 
+// GetNextCheckAt returns the value of NextCheckAt.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetNextCheckAt() NilDateTime {
+	return s.NextCheckAt
+}
+
+// GetOpenExposures returns the value of OpenExposures.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetOpenExposures() int {
+	return s.OpenExposures
+}
+
 // GetOpenPorts returns the value of OpenPorts.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetOpenPorts() []ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem {
 	return s.OpenPorts
 }
 
+// GetOrigin returns the value of Origin.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetOrigin() ExposurePostExposureBoxIPVerifyOKItemsItemOrigin {
+	return s.Origin
+}
+
 // GetProof returns the value of Proof.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetProof() NilExposurePostExposureBoxIPVerifyOKItemsItemProof {
 	return s.Proof
+}
+
+// GetScanState returns the value of ScanState.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetScanState() ExposurePostExposureBoxIPVerifyOKItemsItemScanState {
+	return s.ScanState
 }
 
 // GetScannable returns the value of Scannable.
@@ -51956,6 +52760,11 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetID(val string) {
 	s.ID = val
 }
 
+// SetIPProof sets the value of IPProof.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetIPProof(val NilExposurePostExposureBoxIPVerifyOKItemsItemIPProof) {
+	s.IPProof = val
+}
+
 // SetKind sets the value of Kind.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetKind(val ExposurePostExposureBoxIPVerifyOKItemsItemKind) {
 	s.Kind = val
@@ -51986,14 +52795,34 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetMethod(val NilExposurePo
 	s.Method = val
 }
 
+// SetNextCheckAt sets the value of NextCheckAt.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetNextCheckAt(val NilDateTime) {
+	s.NextCheckAt = val
+}
+
+// SetOpenExposures sets the value of OpenExposures.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetOpenExposures(val int) {
+	s.OpenExposures = val
+}
+
 // SetOpenPorts sets the value of OpenPorts.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetOpenPorts(val []ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) {
 	s.OpenPorts = val
 }
 
+// SetOrigin sets the value of Origin.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetOrigin(val ExposurePostExposureBoxIPVerifyOKItemsItemOrigin) {
+	s.Origin = val
+}
+
 // SetProof sets the value of Proof.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetProof(val NilExposurePostExposureBoxIPVerifyOKItemsItemProof) {
 	s.Proof = val
+}
+
+// SetScanState sets the value of ScanState.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetScanState(val ExposurePostExposureBoxIPVerifyOKItemsItemScanState) {
+	s.ScanState = val
 }
 
 // SetScannable sets the value of Scannable.
@@ -52047,6 +52876,7 @@ const (
 	ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonUnverified   ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason = "unverified"
 	ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonExpired      ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason = "expired"
 	ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonTxtMissing   ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason = "txt_missing"
+	ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonProofMissing ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason = "proof_missing"
 	ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonNoCommitment ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason = "no_commitment"
 	ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonIPNotCurrent ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason = "ip_not_current"
 )
@@ -52057,6 +52887,7 @@ func (ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason) AllValues() []Exp
 		ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonUnverified,
 		ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonExpired,
 		ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonTxtMissing,
+		ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonProofMissing,
 		ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonNoCommitment,
 		ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonIPNotCurrent,
 	}
@@ -52070,6 +52901,8 @@ func (s ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason) MarshalText() (
 	case ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonExpired:
 		return []byte(s), nil
 	case ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonTxtMissing:
+		return []byte(s), nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonProofMissing:
 		return []byte(s), nil
 	case ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonNoCommitment:
 		return []byte(s), nil
@@ -52091,6 +52924,9 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason) UnmarshalText(
 		return nil
 	case ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonTxtMissing:
 		*s = ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonTxtMissing
+		return nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonProofMissing:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonProofMissing
 		return nil
 	case ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonNoCommitment:
 		*s = ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReasonNoCommitment
@@ -52177,6 +53013,58 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemCommitmentNotice) SetText(val
 // SetVersion sets the value of Version.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItemCommitmentNotice) SetVersion(val string) {
 	s.Version = val
+}
+
+type ExposurePostExposureBoxIPVerifyOKItemsItemIPProof struct {
+	// The token: the whole content of the file.
+	Content string `json:"content"`
+	// /.well-known/vedette-verify.txt.
+	Path string `json:"path"`
+	// Domains of this box that are proved as far as the last check knows: a reverse DNS (PTR) name of the
+	// IP under one of them, resolving back to the IP, proves it.
+	PtrDomains []string `json:"ptr_domains"`
+	// The two addresses the box asks, http and https, on the IP.
+	Urls []string `json:"urls"`
+}
+
+// GetContent returns the value of Content.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemIPProof) GetContent() string {
+	return s.Content
+}
+
+// GetPath returns the value of Path.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemIPProof) GetPath() string {
+	return s.Path
+}
+
+// GetPtrDomains returns the value of PtrDomains.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemIPProof) GetPtrDomains() []string {
+	return s.PtrDomains
+}
+
+// GetUrls returns the value of Urls.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemIPProof) GetUrls() []string {
+	return s.Urls
+}
+
+// SetContent sets the value of Content.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemIPProof) SetContent(val string) {
+	s.Content = val
+}
+
+// SetPath sets the value of Path.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemIPProof) SetPath(val string) {
+	s.Path = val
+}
+
+// SetPtrDomains sets the value of PtrDomains.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemIPProof) SetPtrDomains(val []string) {
+	s.PtrDomains = val
+}
+
+// SetUrls sets the value of Urls.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemIPProof) SetUrls(val []string) {
+	s.Urls = val
 }
 
 type ExposurePostExposureBoxIPVerifyOKItemsItemKind string
@@ -52319,6 +53207,8 @@ type ExposurePostExposureBoxIPVerifyOKItemsItemMethod string
 const (
 	ExposurePostExposureBoxIPVerifyOKItemsItemMethodDNSTxt    ExposurePostExposureBoxIPVerifyOKItemsItemMethod = "dns_txt"
 	ExposurePostExposureBoxIPVerifyOKItemsItemMethodBoxEgress ExposurePostExposureBoxIPVerifyOKItemsItemMethod = "box_egress"
+	ExposurePostExposureBoxIPVerifyOKItemsItemMethodIPFile    ExposurePostExposureBoxIPVerifyOKItemsItemMethod = "ip_file"
+	ExposurePostExposureBoxIPVerifyOKItemsItemMethodIPPtr     ExposurePostExposureBoxIPVerifyOKItemsItemMethod = "ip_ptr"
 )
 
 // AllValues returns all ExposurePostExposureBoxIPVerifyOKItemsItemMethod values.
@@ -52326,6 +53216,8 @@ func (ExposurePostExposureBoxIPVerifyOKItemsItemMethod) AllValues() []ExposurePo
 	return []ExposurePostExposureBoxIPVerifyOKItemsItemMethod{
 		ExposurePostExposureBoxIPVerifyOKItemsItemMethodDNSTxt,
 		ExposurePostExposureBoxIPVerifyOKItemsItemMethodBoxEgress,
+		ExposurePostExposureBoxIPVerifyOKItemsItemMethodIPFile,
+		ExposurePostExposureBoxIPVerifyOKItemsItemMethodIPPtr,
 	}
 }
 
@@ -52335,6 +53227,10 @@ func (s ExposurePostExposureBoxIPVerifyOKItemsItemMethod) MarshalText() ([]byte,
 	case ExposurePostExposureBoxIPVerifyOKItemsItemMethodDNSTxt:
 		return []byte(s), nil
 	case ExposurePostExposureBoxIPVerifyOKItemsItemMethodBoxEgress:
+		return []byte(s), nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemMethodIPFile:
+		return []byte(s), nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemMethodIPPtr:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -52349,6 +53245,12 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemMethod) UnmarshalText(data []
 		return nil
 	case ExposurePostExposureBoxIPVerifyOKItemsItemMethodBoxEgress:
 		*s = ExposurePostExposureBoxIPVerifyOKItemsItemMethodBoxEgress
+		return nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemMethodIPFile:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemMethodIPFile
+		return nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemMethodIPPtr:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemMethodIPPtr
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -52798,6 +53700,49 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent) Unmarshal
 	}
 }
 
+// Who added the target: person (a domain or a public IP typed in) or box (a public IP the box found as
+// its own egress address, neutral until its testing terms are accepted).
+type ExposurePostExposureBoxIPVerifyOKItemsItemOrigin string
+
+const (
+	ExposurePostExposureBoxIPVerifyOKItemsItemOriginPerson ExposurePostExposureBoxIPVerifyOKItemsItemOrigin = "person"
+	ExposurePostExposureBoxIPVerifyOKItemsItemOriginBox    ExposurePostExposureBoxIPVerifyOKItemsItemOrigin = "box"
+)
+
+// AllValues returns all ExposurePostExposureBoxIPVerifyOKItemsItemOrigin values.
+func (ExposurePostExposureBoxIPVerifyOKItemsItemOrigin) AllValues() []ExposurePostExposureBoxIPVerifyOKItemsItemOrigin {
+	return []ExposurePostExposureBoxIPVerifyOKItemsItemOrigin{
+		ExposurePostExposureBoxIPVerifyOKItemsItemOriginPerson,
+		ExposurePostExposureBoxIPVerifyOKItemsItemOriginBox,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureBoxIPVerifyOKItemsItemOrigin) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureBoxIPVerifyOKItemsItemOriginPerson:
+		return []byte(s), nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemOriginBox:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOrigin) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureBoxIPVerifyOKItemsItemOrigin(data) {
+	case ExposurePostExposureBoxIPVerifyOKItemsItemOriginPerson:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemOriginPerson
+		return nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemOriginBox:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemOriginBox
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ExposurePostExposureBoxIPVerifyOKItemsItemProof struct {
 	// The alternative Name: "_vedette-verify" or "_vedette-verify.git", which proves the target only
 	// (never the name itself when it is a CNAME: no TXT may sit beside a CNAME); null when
@@ -52851,6 +53796,78 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemProof) SetHost(val string) {
 // SetZone sets the value of Zone.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItemProof) SetZone(val string) {
 	s.Zone = val
+}
+
+// Where the target stands for scanning: scanning (a scan of it runs now), ready, or why not: unproved
+// (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes
+// out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet).
+type ExposurePostExposureBoxIPVerifyOKItemsItemScanState string
+
+const (
+	ExposurePostExposureBoxIPVerifyOKItemsItemScanStateUnproved   ExposurePostExposureBoxIPVerifyOKItemsItemScanState = "unproved"
+	ExposurePostExposureBoxIPVerifyOKItemsItemScanStateExpired    ExposurePostExposureBoxIPVerifyOKItemsItemScanState = "expired"
+	ExposurePostExposureBoxIPVerifyOKItemsItemScanStatePaused     ExposurePostExposureBoxIPVerifyOKItemsItemScanState = "paused"
+	ExposurePostExposureBoxIPVerifyOKItemsItemScanStateNeedsTerms ExposurePostExposureBoxIPVerifyOKItemsItemScanState = "needs_terms"
+	ExposurePostExposureBoxIPVerifyOKItemsItemScanStateReady      ExposurePostExposureBoxIPVerifyOKItemsItemScanState = "ready"
+	ExposurePostExposureBoxIPVerifyOKItemsItemScanStateScanning   ExposurePostExposureBoxIPVerifyOKItemsItemScanState = "scanning"
+)
+
+// AllValues returns all ExposurePostExposureBoxIPVerifyOKItemsItemScanState values.
+func (ExposurePostExposureBoxIPVerifyOKItemsItemScanState) AllValues() []ExposurePostExposureBoxIPVerifyOKItemsItemScanState {
+	return []ExposurePostExposureBoxIPVerifyOKItemsItemScanState{
+		ExposurePostExposureBoxIPVerifyOKItemsItemScanStateUnproved,
+		ExposurePostExposureBoxIPVerifyOKItemsItemScanStateExpired,
+		ExposurePostExposureBoxIPVerifyOKItemsItemScanStatePaused,
+		ExposurePostExposureBoxIPVerifyOKItemsItemScanStateNeedsTerms,
+		ExposurePostExposureBoxIPVerifyOKItemsItemScanStateReady,
+		ExposurePostExposureBoxIPVerifyOKItemsItemScanStateScanning,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureBoxIPVerifyOKItemsItemScanState) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureBoxIPVerifyOKItemsItemScanStateUnproved:
+		return []byte(s), nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemScanStateExpired:
+		return []byte(s), nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemScanStatePaused:
+		return []byte(s), nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemScanStateNeedsTerms:
+		return []byte(s), nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemScanStateReady:
+		return []byte(s), nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemScanStateScanning:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemScanState) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureBoxIPVerifyOKItemsItemScanState(data) {
+	case ExposurePostExposureBoxIPVerifyOKItemsItemScanStateUnproved:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemScanStateUnproved
+		return nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemScanStateExpired:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemScanStateExpired
+		return nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemScanStatePaused:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemScanStatePaused
+		return nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemScanStateNeedsTerms:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemScanStateNeedsTerms
+		return nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemScanStateReady:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemScanStateReady
+		return nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemScanStateScanning:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemScanStateScanning
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -53642,12 +54659,16 @@ type ExposurePostExposureTargetsCreated struct {
 	// a commitment can carry it too.
 	CommitmentNotice NilExposurePostExposureTargetsCreatedCommitmentNotice `json:"commitment_notice"`
 	CreatedAt        time.Time                                             `json:"created_at"`
-	// IP: verified_at + 30 days. Domain: null (the TXT record is re-checked right before every scan).
+	// IP: verified_at + 30 days (the proof expiry of a typed IP). Domain: null (the TXT record is
+	// re-checked right before every scan).
 	ExpiresAt NilDateTime `json:"expires_at"`
 	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the scope of
 	// the Scan now sentence.
-	FullScan  bool                                           `json:"full_scan"`
-	ID        string                                         `json:"id"`
+	FullScan bool   `json:"full_scan"`
+	ID       string `json:"id"`
+	// Typed IP: where the proof file goes and which domains of this box can carry a reverse DNS name that
+	// proves it; null for a domain and for an IP the box found.
+	IPProof   NilExposurePostExposureTargetsCreatedIPProof   `json:"ip_proof"`
 	Kind      ExposurePostExposureTargetsCreatedKind         `json:"kind"`
 	LastCheck NilExposurePostExposureTargetsCreatedLastCheck `json:"last_check"`
 	// When the newest scan started: every page names a scan by its start.
@@ -53657,12 +54678,24 @@ type ExposurePostExposureTargetsCreated struct {
 	LastScanFinishedAt OptNilDateTime                              `json:"last_scan_finished_at"`
 	Latest             NilExposurePostExposureTargetsCreatedLatest `json:"latest"`
 	Method             NilExposurePostExposureTargetsCreatedMethod `json:"method"`
+	// Typed IP with a proof: when the box checks the proof again by itself (7 days before it expires, then
+	// every 6 hours while it is not found); null otherwise.
+	NextCheckAt NilDateTime `json:"next_check_at"`
+	// Open ports of the newest scan (0 when never scanned): the number the target row shows.
+	OpenExposures int `json:"open_exposures"`
 	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
 	// can say what is open; null when never scanned.
 	OpenPorts []ExposurePostExposureTargetsCreatedOpenPortsItem `json:"open_ports"`
+	// Who added the target: person (a domain or a public IP typed in) or box (a public IP the box found as
+	// its own egress address, neutral until its testing terms are accepted).
+	Origin ExposurePostExposureTargetsCreatedOrigin `json:"origin"`
 	// Domains: where the TXT record goes and which verified domain covers this one already; null for an IP.
-	Proof     NilExposurePostExposureTargetsCreatedProof `json:"proof"`
-	Scannable bool                                       `json:"scannable"`
+	Proof NilExposurePostExposureTargetsCreatedProof `json:"proof"`
+	// Where the target stands for scanning: scanning (a scan of it runs now), ready, or why not: unproved
+	// (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes
+	// out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet).
+	ScanState ExposurePostExposureTargetsCreatedScanState `json:"scan_state"`
+	Scannable bool                                        `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposurePostExposureTargetsCreatedStatus `json:"status"`
 	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
@@ -53674,14 +54707,14 @@ type ExposurePostExposureTargetsCreated struct {
 	// 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409
 	// shared_address) while it shows.
 	TermsWarning OptNilString `json:"terms_warning"`
-	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
-	// string.
+	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). Typed IP: the
+	// token the proof file carries (ip_proof). IP the box found: empty string.
 	Token string `json:"token"`
 	// IPs only: expiring = 5 days or less left.
 	Validity NilExposurePostExposureTargetsCreatedValidity `json:"validity"`
 	Value    string                                        `json:"value"`
-	// Domain: first successful verification. IP: the last time the box saw this IP (every sighting renews
-	// it).
+	// Domain: first successful verification. IP the box found: the last time the box saw this IP (every
+	// sighting renews it). Typed IP: the last time its proof was found.
 	VerifiedAt NilDateTime `json:"verified_at"`
 }
 
@@ -53720,6 +54753,11 @@ func (s *ExposurePostExposureTargetsCreated) GetID() string {
 	return s.ID
 }
 
+// GetIPProof returns the value of IPProof.
+func (s *ExposurePostExposureTargetsCreated) GetIPProof() NilExposurePostExposureTargetsCreatedIPProof {
+	return s.IPProof
+}
+
 // GetKind returns the value of Kind.
 func (s *ExposurePostExposureTargetsCreated) GetKind() ExposurePostExposureTargetsCreatedKind {
 	return s.Kind
@@ -53750,14 +54788,34 @@ func (s *ExposurePostExposureTargetsCreated) GetMethod() NilExposurePostExposure
 	return s.Method
 }
 
+// GetNextCheckAt returns the value of NextCheckAt.
+func (s *ExposurePostExposureTargetsCreated) GetNextCheckAt() NilDateTime {
+	return s.NextCheckAt
+}
+
+// GetOpenExposures returns the value of OpenExposures.
+func (s *ExposurePostExposureTargetsCreated) GetOpenExposures() int {
+	return s.OpenExposures
+}
+
 // GetOpenPorts returns the value of OpenPorts.
 func (s *ExposurePostExposureTargetsCreated) GetOpenPorts() []ExposurePostExposureTargetsCreatedOpenPortsItem {
 	return s.OpenPorts
 }
 
+// GetOrigin returns the value of Origin.
+func (s *ExposurePostExposureTargetsCreated) GetOrigin() ExposurePostExposureTargetsCreatedOrigin {
+	return s.Origin
+}
+
 // GetProof returns the value of Proof.
 func (s *ExposurePostExposureTargetsCreated) GetProof() NilExposurePostExposureTargetsCreatedProof {
 	return s.Proof
+}
+
+// GetScanState returns the value of ScanState.
+func (s *ExposurePostExposureTargetsCreated) GetScanState() ExposurePostExposureTargetsCreatedScanState {
+	return s.ScanState
 }
 
 // GetScannable returns the value of Scannable.
@@ -53840,6 +54898,11 @@ func (s *ExposurePostExposureTargetsCreated) SetID(val string) {
 	s.ID = val
 }
 
+// SetIPProof sets the value of IPProof.
+func (s *ExposurePostExposureTargetsCreated) SetIPProof(val NilExposurePostExposureTargetsCreatedIPProof) {
+	s.IPProof = val
+}
+
 // SetKind sets the value of Kind.
 func (s *ExposurePostExposureTargetsCreated) SetKind(val ExposurePostExposureTargetsCreatedKind) {
 	s.Kind = val
@@ -53870,14 +54933,34 @@ func (s *ExposurePostExposureTargetsCreated) SetMethod(val NilExposurePostExposu
 	s.Method = val
 }
 
+// SetNextCheckAt sets the value of NextCheckAt.
+func (s *ExposurePostExposureTargetsCreated) SetNextCheckAt(val NilDateTime) {
+	s.NextCheckAt = val
+}
+
+// SetOpenExposures sets the value of OpenExposures.
+func (s *ExposurePostExposureTargetsCreated) SetOpenExposures(val int) {
+	s.OpenExposures = val
+}
+
 // SetOpenPorts sets the value of OpenPorts.
 func (s *ExposurePostExposureTargetsCreated) SetOpenPorts(val []ExposurePostExposureTargetsCreatedOpenPortsItem) {
 	s.OpenPorts = val
 }
 
+// SetOrigin sets the value of Origin.
+func (s *ExposurePostExposureTargetsCreated) SetOrigin(val ExposurePostExposureTargetsCreatedOrigin) {
+	s.Origin = val
+}
+
 // SetProof sets the value of Proof.
 func (s *ExposurePostExposureTargetsCreated) SetProof(val NilExposurePostExposureTargetsCreatedProof) {
 	s.Proof = val
+}
+
+// SetScanState sets the value of ScanState.
+func (s *ExposurePostExposureTargetsCreated) SetScanState(val ExposurePostExposureTargetsCreatedScanState) {
+	s.ScanState = val
 }
 
 // SetScannable sets the value of Scannable.
@@ -53931,6 +55014,7 @@ const (
 	ExposurePostExposureTargetsCreatedBlockedReasonUnverified   ExposurePostExposureTargetsCreatedBlockedReason = "unverified"
 	ExposurePostExposureTargetsCreatedBlockedReasonExpired      ExposurePostExposureTargetsCreatedBlockedReason = "expired"
 	ExposurePostExposureTargetsCreatedBlockedReasonTxtMissing   ExposurePostExposureTargetsCreatedBlockedReason = "txt_missing"
+	ExposurePostExposureTargetsCreatedBlockedReasonProofMissing ExposurePostExposureTargetsCreatedBlockedReason = "proof_missing"
 	ExposurePostExposureTargetsCreatedBlockedReasonNoCommitment ExposurePostExposureTargetsCreatedBlockedReason = "no_commitment"
 	ExposurePostExposureTargetsCreatedBlockedReasonIPNotCurrent ExposurePostExposureTargetsCreatedBlockedReason = "ip_not_current"
 )
@@ -53941,6 +55025,7 @@ func (ExposurePostExposureTargetsCreatedBlockedReason) AllValues() []ExposurePos
 		ExposurePostExposureTargetsCreatedBlockedReasonUnverified,
 		ExposurePostExposureTargetsCreatedBlockedReasonExpired,
 		ExposurePostExposureTargetsCreatedBlockedReasonTxtMissing,
+		ExposurePostExposureTargetsCreatedBlockedReasonProofMissing,
 		ExposurePostExposureTargetsCreatedBlockedReasonNoCommitment,
 		ExposurePostExposureTargetsCreatedBlockedReasonIPNotCurrent,
 	}
@@ -53954,6 +55039,8 @@ func (s ExposurePostExposureTargetsCreatedBlockedReason) MarshalText() ([]byte, 
 	case ExposurePostExposureTargetsCreatedBlockedReasonExpired:
 		return []byte(s), nil
 	case ExposurePostExposureTargetsCreatedBlockedReasonTxtMissing:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsCreatedBlockedReasonProofMissing:
 		return []byte(s), nil
 	case ExposurePostExposureTargetsCreatedBlockedReasonNoCommitment:
 		return []byte(s), nil
@@ -53975,6 +55062,9 @@ func (s *ExposurePostExposureTargetsCreatedBlockedReason) UnmarshalText(data []b
 		return nil
 	case ExposurePostExposureTargetsCreatedBlockedReasonTxtMissing:
 		*s = ExposurePostExposureTargetsCreatedBlockedReasonTxtMissing
+		return nil
+	case ExposurePostExposureTargetsCreatedBlockedReasonProofMissing:
+		*s = ExposurePostExposureTargetsCreatedBlockedReasonProofMissing
 		return nil
 	case ExposurePostExposureTargetsCreatedBlockedReasonNoCommitment:
 		*s = ExposurePostExposureTargetsCreatedBlockedReasonNoCommitment
@@ -54061,6 +55151,58 @@ func (s *ExposurePostExposureTargetsCreatedCommitmentNotice) SetText(val string)
 // SetVersion sets the value of Version.
 func (s *ExposurePostExposureTargetsCreatedCommitmentNotice) SetVersion(val string) {
 	s.Version = val
+}
+
+type ExposurePostExposureTargetsCreatedIPProof struct {
+	// The token: the whole content of the file.
+	Content string `json:"content"`
+	// /.well-known/vedette-verify.txt.
+	Path string `json:"path"`
+	// Domains of this box that are proved as far as the last check knows: a reverse DNS (PTR) name of the
+	// IP under one of them, resolving back to the IP, proves it.
+	PtrDomains []string `json:"ptr_domains"`
+	// The two addresses the box asks, http and https, on the IP.
+	Urls []string `json:"urls"`
+}
+
+// GetContent returns the value of Content.
+func (s *ExposurePostExposureTargetsCreatedIPProof) GetContent() string {
+	return s.Content
+}
+
+// GetPath returns the value of Path.
+func (s *ExposurePostExposureTargetsCreatedIPProof) GetPath() string {
+	return s.Path
+}
+
+// GetPtrDomains returns the value of PtrDomains.
+func (s *ExposurePostExposureTargetsCreatedIPProof) GetPtrDomains() []string {
+	return s.PtrDomains
+}
+
+// GetUrls returns the value of Urls.
+func (s *ExposurePostExposureTargetsCreatedIPProof) GetUrls() []string {
+	return s.Urls
+}
+
+// SetContent sets the value of Content.
+func (s *ExposurePostExposureTargetsCreatedIPProof) SetContent(val string) {
+	s.Content = val
+}
+
+// SetPath sets the value of Path.
+func (s *ExposurePostExposureTargetsCreatedIPProof) SetPath(val string) {
+	s.Path = val
+}
+
+// SetPtrDomains sets the value of PtrDomains.
+func (s *ExposurePostExposureTargetsCreatedIPProof) SetPtrDomains(val []string) {
+	s.PtrDomains = val
+}
+
+// SetUrls sets the value of Urls.
+func (s *ExposurePostExposureTargetsCreatedIPProof) SetUrls(val []string) {
+	s.Urls = val
 }
 
 type ExposurePostExposureTargetsCreatedKind string
@@ -54203,6 +55345,8 @@ type ExposurePostExposureTargetsCreatedMethod string
 const (
 	ExposurePostExposureTargetsCreatedMethodDNSTxt    ExposurePostExposureTargetsCreatedMethod = "dns_txt"
 	ExposurePostExposureTargetsCreatedMethodBoxEgress ExposurePostExposureTargetsCreatedMethod = "box_egress"
+	ExposurePostExposureTargetsCreatedMethodIPFile    ExposurePostExposureTargetsCreatedMethod = "ip_file"
+	ExposurePostExposureTargetsCreatedMethodIPPtr     ExposurePostExposureTargetsCreatedMethod = "ip_ptr"
 )
 
 // AllValues returns all ExposurePostExposureTargetsCreatedMethod values.
@@ -54210,6 +55354,8 @@ func (ExposurePostExposureTargetsCreatedMethod) AllValues() []ExposurePostExposu
 	return []ExposurePostExposureTargetsCreatedMethod{
 		ExposurePostExposureTargetsCreatedMethodDNSTxt,
 		ExposurePostExposureTargetsCreatedMethodBoxEgress,
+		ExposurePostExposureTargetsCreatedMethodIPFile,
+		ExposurePostExposureTargetsCreatedMethodIPPtr,
 	}
 }
 
@@ -54219,6 +55365,10 @@ func (s ExposurePostExposureTargetsCreatedMethod) MarshalText() ([]byte, error) 
 	case ExposurePostExposureTargetsCreatedMethodDNSTxt:
 		return []byte(s), nil
 	case ExposurePostExposureTargetsCreatedMethodBoxEgress:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsCreatedMethodIPFile:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsCreatedMethodIPPtr:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -54233,6 +55383,12 @@ func (s *ExposurePostExposureTargetsCreatedMethod) UnmarshalText(data []byte) er
 		return nil
 	case ExposurePostExposureTargetsCreatedMethodBoxEgress:
 		*s = ExposurePostExposureTargetsCreatedMethodBoxEgress
+		return nil
+	case ExposurePostExposureTargetsCreatedMethodIPFile:
+		*s = ExposurePostExposureTargetsCreatedMethodIPFile
+		return nil
+	case ExposurePostExposureTargetsCreatedMethodIPPtr:
+		*s = ExposurePostExposureTargetsCreatedMethodIPPtr
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -54682,6 +55838,49 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItemIdent) UnmarshalText(dat
 	}
 }
 
+// Who added the target: person (a domain or a public IP typed in) or box (a public IP the box found as
+// its own egress address, neutral until its testing terms are accepted).
+type ExposurePostExposureTargetsCreatedOrigin string
+
+const (
+	ExposurePostExposureTargetsCreatedOriginPerson ExposurePostExposureTargetsCreatedOrigin = "person"
+	ExposurePostExposureTargetsCreatedOriginBox    ExposurePostExposureTargetsCreatedOrigin = "box"
+)
+
+// AllValues returns all ExposurePostExposureTargetsCreatedOrigin values.
+func (ExposurePostExposureTargetsCreatedOrigin) AllValues() []ExposurePostExposureTargetsCreatedOrigin {
+	return []ExposurePostExposureTargetsCreatedOrigin{
+		ExposurePostExposureTargetsCreatedOriginPerson,
+		ExposurePostExposureTargetsCreatedOriginBox,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTargetsCreatedOrigin) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTargetsCreatedOriginPerson:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsCreatedOriginBox:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTargetsCreatedOrigin) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTargetsCreatedOrigin(data) {
+	case ExposurePostExposureTargetsCreatedOriginPerson:
+		*s = ExposurePostExposureTargetsCreatedOriginPerson
+		return nil
+	case ExposurePostExposureTargetsCreatedOriginBox:
+		*s = ExposurePostExposureTargetsCreatedOriginBox
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ExposurePostExposureTargetsCreatedProof struct {
 	// The alternative Name: "_vedette-verify" or "_vedette-verify.git", which proves the target only
 	// (never the name itself when it is a CNAME: no TXT may sit beside a CNAME); null when
@@ -54735,6 +55934,78 @@ func (s *ExposurePostExposureTargetsCreatedProof) SetHost(val string) {
 // SetZone sets the value of Zone.
 func (s *ExposurePostExposureTargetsCreatedProof) SetZone(val string) {
 	s.Zone = val
+}
+
+// Where the target stands for scanning: scanning (a scan of it runs now), ready, or why not: unproved
+// (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes
+// out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet).
+type ExposurePostExposureTargetsCreatedScanState string
+
+const (
+	ExposurePostExposureTargetsCreatedScanStateUnproved   ExposurePostExposureTargetsCreatedScanState = "unproved"
+	ExposurePostExposureTargetsCreatedScanStateExpired    ExposurePostExposureTargetsCreatedScanState = "expired"
+	ExposurePostExposureTargetsCreatedScanStatePaused     ExposurePostExposureTargetsCreatedScanState = "paused"
+	ExposurePostExposureTargetsCreatedScanStateNeedsTerms ExposurePostExposureTargetsCreatedScanState = "needs_terms"
+	ExposurePostExposureTargetsCreatedScanStateReady      ExposurePostExposureTargetsCreatedScanState = "ready"
+	ExposurePostExposureTargetsCreatedScanStateScanning   ExposurePostExposureTargetsCreatedScanState = "scanning"
+)
+
+// AllValues returns all ExposurePostExposureTargetsCreatedScanState values.
+func (ExposurePostExposureTargetsCreatedScanState) AllValues() []ExposurePostExposureTargetsCreatedScanState {
+	return []ExposurePostExposureTargetsCreatedScanState{
+		ExposurePostExposureTargetsCreatedScanStateUnproved,
+		ExposurePostExposureTargetsCreatedScanStateExpired,
+		ExposurePostExposureTargetsCreatedScanStatePaused,
+		ExposurePostExposureTargetsCreatedScanStateNeedsTerms,
+		ExposurePostExposureTargetsCreatedScanStateReady,
+		ExposurePostExposureTargetsCreatedScanStateScanning,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTargetsCreatedScanState) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTargetsCreatedScanStateUnproved:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsCreatedScanStateExpired:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsCreatedScanStatePaused:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsCreatedScanStateNeedsTerms:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsCreatedScanStateReady:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsCreatedScanStateScanning:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTargetsCreatedScanState) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTargetsCreatedScanState(data) {
+	case ExposurePostExposureTargetsCreatedScanStateUnproved:
+		*s = ExposurePostExposureTargetsCreatedScanStateUnproved
+		return nil
+	case ExposurePostExposureTargetsCreatedScanStateExpired:
+		*s = ExposurePostExposureTargetsCreatedScanStateExpired
+		return nil
+	case ExposurePostExposureTargetsCreatedScanStatePaused:
+		*s = ExposurePostExposureTargetsCreatedScanStatePaused
+		return nil
+	case ExposurePostExposureTargetsCreatedScanStateNeedsTerms:
+		*s = ExposurePostExposureTargetsCreatedScanStateNeedsTerms
+		return nil
+	case ExposurePostExposureTargetsCreatedScanStateReady:
+		*s = ExposurePostExposureTargetsCreatedScanStateReady
+		return nil
+	case ExposurePostExposureTargetsCreatedScanStateScanning:
+		*s = ExposurePostExposureTargetsCreatedScanStateScanning
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -56291,12 +57562,16 @@ type ExposurePostExposureTargetsIDVerifyOKTarget struct {
 	// a commitment can carry it too.
 	CommitmentNotice NilExposurePostExposureTargetsIDVerifyOKTargetCommitmentNotice `json:"commitment_notice"`
 	CreatedAt        time.Time                                                      `json:"created_at"`
-	// IP: verified_at + 30 days. Domain: null (the TXT record is re-checked right before every scan).
+	// IP: verified_at + 30 days (the proof expiry of a typed IP). Domain: null (the TXT record is
+	// re-checked right before every scan).
 	ExpiresAt NilDateTime `json:"expires_at"`
 	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the scope of
 	// the Scan now sentence.
-	FullScan  bool                                                    `json:"full_scan"`
-	ID        string                                                  `json:"id"`
+	FullScan bool   `json:"full_scan"`
+	ID       string `json:"id"`
+	// Typed IP: where the proof file goes and which domains of this box can carry a reverse DNS name that
+	// proves it; null for a domain and for an IP the box found.
+	IPProof   NilExposurePostExposureTargetsIDVerifyOKTargetIPProof   `json:"ip_proof"`
 	Kind      ExposurePostExposureTargetsIDVerifyOKTargetKind         `json:"kind"`
 	LastCheck NilExposurePostExposureTargetsIDVerifyOKTargetLastCheck `json:"last_check"`
 	// When the newest scan started: every page names a scan by its start.
@@ -56306,12 +57581,24 @@ type ExposurePostExposureTargetsIDVerifyOKTarget struct {
 	LastScanFinishedAt OptNilDateTime                                       `json:"last_scan_finished_at"`
 	Latest             NilExposurePostExposureTargetsIDVerifyOKTargetLatest `json:"latest"`
 	Method             NilExposurePostExposureTargetsIDVerifyOKTargetMethod `json:"method"`
+	// Typed IP with a proof: when the box checks the proof again by itself (7 days before it expires, then
+	// every 6 hours while it is not found); null otherwise.
+	NextCheckAt NilDateTime `json:"next_check_at"`
+	// Open ports of the newest scan (0 when never scanned): the number the target row shows.
+	OpenExposures int `json:"open_exposures"`
 	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
 	// can say what is open; null when never scanned.
 	OpenPorts []ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem `json:"open_ports"`
+	// Who added the target: person (a domain or a public IP typed in) or box (a public IP the box found as
+	// its own egress address, neutral until its testing terms are accepted).
+	Origin ExposurePostExposureTargetsIDVerifyOKTargetOrigin `json:"origin"`
 	// Domains: where the TXT record goes and which verified domain covers this one already; null for an IP.
-	Proof     NilExposurePostExposureTargetsIDVerifyOKTargetProof `json:"proof"`
-	Scannable bool                                                `json:"scannable"`
+	Proof NilExposurePostExposureTargetsIDVerifyOKTargetProof `json:"proof"`
+	// Where the target stands for scanning: scanning (a scan of it runs now), ready, or why not: unproved
+	// (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes
+	// out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet).
+	ScanState ExposurePostExposureTargetsIDVerifyOKTargetScanState `json:"scan_state"`
+	Scannable bool                                                 `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposurePostExposureTargetsIDVerifyOKTargetStatus `json:"status"`
 	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
@@ -56323,14 +57610,14 @@ type ExposurePostExposureTargetsIDVerifyOKTarget struct {
 	// 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409
 	// shared_address) while it shows.
 	TermsWarning OptNilString `json:"terms_warning"`
-	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
-	// string.
+	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). Typed IP: the
+	// token the proof file carries (ip_proof). IP the box found: empty string.
 	Token string `json:"token"`
 	// IPs only: expiring = 5 days or less left.
 	Validity NilExposurePostExposureTargetsIDVerifyOKTargetValidity `json:"validity"`
 	Value    string                                                 `json:"value"`
-	// Domain: first successful verification. IP: the last time the box saw this IP (every sighting renews
-	// it).
+	// Domain: first successful verification. IP the box found: the last time the box saw this IP (every
+	// sighting renews it). Typed IP: the last time its proof was found.
 	VerifiedAt NilDateTime `json:"verified_at"`
 }
 
@@ -56369,6 +57656,11 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetID() string {
 	return s.ID
 }
 
+// GetIPProof returns the value of IPProof.
+func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetIPProof() NilExposurePostExposureTargetsIDVerifyOKTargetIPProof {
+	return s.IPProof
+}
+
 // GetKind returns the value of Kind.
 func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetKind() ExposurePostExposureTargetsIDVerifyOKTargetKind {
 	return s.Kind
@@ -56399,14 +57691,34 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetMethod() NilExposurePos
 	return s.Method
 }
 
+// GetNextCheckAt returns the value of NextCheckAt.
+func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetNextCheckAt() NilDateTime {
+	return s.NextCheckAt
+}
+
+// GetOpenExposures returns the value of OpenExposures.
+func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetOpenExposures() int {
+	return s.OpenExposures
+}
+
 // GetOpenPorts returns the value of OpenPorts.
 func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetOpenPorts() []ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem {
 	return s.OpenPorts
 }
 
+// GetOrigin returns the value of Origin.
+func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetOrigin() ExposurePostExposureTargetsIDVerifyOKTargetOrigin {
+	return s.Origin
+}
+
 // GetProof returns the value of Proof.
 func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetProof() NilExposurePostExposureTargetsIDVerifyOKTargetProof {
 	return s.Proof
+}
+
+// GetScanState returns the value of ScanState.
+func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetScanState() ExposurePostExposureTargetsIDVerifyOKTargetScanState {
+	return s.ScanState
 }
 
 // GetScannable returns the value of Scannable.
@@ -56489,6 +57801,11 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetID(val string) {
 	s.ID = val
 }
 
+// SetIPProof sets the value of IPProof.
+func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetIPProof(val NilExposurePostExposureTargetsIDVerifyOKTargetIPProof) {
+	s.IPProof = val
+}
+
 // SetKind sets the value of Kind.
 func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetKind(val ExposurePostExposureTargetsIDVerifyOKTargetKind) {
 	s.Kind = val
@@ -56519,14 +57836,34 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetMethod(val NilExposureP
 	s.Method = val
 }
 
+// SetNextCheckAt sets the value of NextCheckAt.
+func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetNextCheckAt(val NilDateTime) {
+	s.NextCheckAt = val
+}
+
+// SetOpenExposures sets the value of OpenExposures.
+func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetOpenExposures(val int) {
+	s.OpenExposures = val
+}
+
 // SetOpenPorts sets the value of OpenPorts.
 func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetOpenPorts(val []ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) {
 	s.OpenPorts = val
 }
 
+// SetOrigin sets the value of Origin.
+func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetOrigin(val ExposurePostExposureTargetsIDVerifyOKTargetOrigin) {
+	s.Origin = val
+}
+
 // SetProof sets the value of Proof.
 func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetProof(val NilExposurePostExposureTargetsIDVerifyOKTargetProof) {
 	s.Proof = val
+}
+
+// SetScanState sets the value of ScanState.
+func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetScanState(val ExposurePostExposureTargetsIDVerifyOKTargetScanState) {
+	s.ScanState = val
 }
 
 // SetScannable sets the value of Scannable.
@@ -56580,6 +57917,7 @@ const (
 	ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonUnverified   ExposurePostExposureTargetsIDVerifyOKTargetBlockedReason = "unverified"
 	ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonExpired      ExposurePostExposureTargetsIDVerifyOKTargetBlockedReason = "expired"
 	ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonTxtMissing   ExposurePostExposureTargetsIDVerifyOKTargetBlockedReason = "txt_missing"
+	ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonProofMissing ExposurePostExposureTargetsIDVerifyOKTargetBlockedReason = "proof_missing"
 	ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonNoCommitment ExposurePostExposureTargetsIDVerifyOKTargetBlockedReason = "no_commitment"
 	ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonIPNotCurrent ExposurePostExposureTargetsIDVerifyOKTargetBlockedReason = "ip_not_current"
 )
@@ -56590,6 +57928,7 @@ func (ExposurePostExposureTargetsIDVerifyOKTargetBlockedReason) AllValues() []Ex
 		ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonUnverified,
 		ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonExpired,
 		ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonTxtMissing,
+		ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonProofMissing,
 		ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonNoCommitment,
 		ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonIPNotCurrent,
 	}
@@ -56603,6 +57942,8 @@ func (s ExposurePostExposureTargetsIDVerifyOKTargetBlockedReason) MarshalText() 
 	case ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonExpired:
 		return []byte(s), nil
 	case ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonTxtMissing:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonProofMissing:
 		return []byte(s), nil
 	case ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonNoCommitment:
 		return []byte(s), nil
@@ -56624,6 +57965,9 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetBlockedReason) UnmarshalText
 		return nil
 	case ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonTxtMissing:
 		*s = ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonTxtMissing
+		return nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonProofMissing:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonProofMissing
 		return nil
 	case ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonNoCommitment:
 		*s = ExposurePostExposureTargetsIDVerifyOKTargetBlockedReasonNoCommitment
@@ -56710,6 +58054,58 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetCommitmentNotice) SetText(va
 // SetVersion sets the value of Version.
 func (s *ExposurePostExposureTargetsIDVerifyOKTargetCommitmentNotice) SetVersion(val string) {
 	s.Version = val
+}
+
+type ExposurePostExposureTargetsIDVerifyOKTargetIPProof struct {
+	// The token: the whole content of the file.
+	Content string `json:"content"`
+	// /.well-known/vedette-verify.txt.
+	Path string `json:"path"`
+	// Domains of this box that are proved as far as the last check knows: a reverse DNS (PTR) name of the
+	// IP under one of them, resolving back to the IP, proves it.
+	PtrDomains []string `json:"ptr_domains"`
+	// The two addresses the box asks, http and https, on the IP.
+	Urls []string `json:"urls"`
+}
+
+// GetContent returns the value of Content.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetIPProof) GetContent() string {
+	return s.Content
+}
+
+// GetPath returns the value of Path.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetIPProof) GetPath() string {
+	return s.Path
+}
+
+// GetPtrDomains returns the value of PtrDomains.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetIPProof) GetPtrDomains() []string {
+	return s.PtrDomains
+}
+
+// GetUrls returns the value of Urls.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetIPProof) GetUrls() []string {
+	return s.Urls
+}
+
+// SetContent sets the value of Content.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetIPProof) SetContent(val string) {
+	s.Content = val
+}
+
+// SetPath sets the value of Path.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetIPProof) SetPath(val string) {
+	s.Path = val
+}
+
+// SetPtrDomains sets the value of PtrDomains.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetIPProof) SetPtrDomains(val []string) {
+	s.PtrDomains = val
+}
+
+// SetUrls sets the value of Urls.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetIPProof) SetUrls(val []string) {
+	s.Urls = val
 }
 
 type ExposurePostExposureTargetsIDVerifyOKTargetKind string
@@ -56852,6 +58248,8 @@ type ExposurePostExposureTargetsIDVerifyOKTargetMethod string
 const (
 	ExposurePostExposureTargetsIDVerifyOKTargetMethodDNSTxt    ExposurePostExposureTargetsIDVerifyOKTargetMethod = "dns_txt"
 	ExposurePostExposureTargetsIDVerifyOKTargetMethodBoxEgress ExposurePostExposureTargetsIDVerifyOKTargetMethod = "box_egress"
+	ExposurePostExposureTargetsIDVerifyOKTargetMethodIPFile    ExposurePostExposureTargetsIDVerifyOKTargetMethod = "ip_file"
+	ExposurePostExposureTargetsIDVerifyOKTargetMethodIPPtr     ExposurePostExposureTargetsIDVerifyOKTargetMethod = "ip_ptr"
 )
 
 // AllValues returns all ExposurePostExposureTargetsIDVerifyOKTargetMethod values.
@@ -56859,6 +58257,8 @@ func (ExposurePostExposureTargetsIDVerifyOKTargetMethod) AllValues() []ExposureP
 	return []ExposurePostExposureTargetsIDVerifyOKTargetMethod{
 		ExposurePostExposureTargetsIDVerifyOKTargetMethodDNSTxt,
 		ExposurePostExposureTargetsIDVerifyOKTargetMethodBoxEgress,
+		ExposurePostExposureTargetsIDVerifyOKTargetMethodIPFile,
+		ExposurePostExposureTargetsIDVerifyOKTargetMethodIPPtr,
 	}
 }
 
@@ -56868,6 +58268,10 @@ func (s ExposurePostExposureTargetsIDVerifyOKTargetMethod) MarshalText() ([]byte
 	case ExposurePostExposureTargetsIDVerifyOKTargetMethodDNSTxt:
 		return []byte(s), nil
 	case ExposurePostExposureTargetsIDVerifyOKTargetMethodBoxEgress:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetMethodIPFile:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetMethodIPPtr:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -56882,6 +58286,12 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetMethod) UnmarshalText(data [
 		return nil
 	case ExposurePostExposureTargetsIDVerifyOKTargetMethodBoxEgress:
 		*s = ExposurePostExposureTargetsIDVerifyOKTargetMethodBoxEgress
+		return nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetMethodIPFile:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetMethodIPFile
+		return nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetMethodIPPtr:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetMethodIPPtr
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -57331,6 +58741,49 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent) Unmarsha
 	}
 }
 
+// Who added the target: person (a domain or a public IP typed in) or box (a public IP the box found as
+// its own egress address, neutral until its testing terms are accepted).
+type ExposurePostExposureTargetsIDVerifyOKTargetOrigin string
+
+const (
+	ExposurePostExposureTargetsIDVerifyOKTargetOriginPerson ExposurePostExposureTargetsIDVerifyOKTargetOrigin = "person"
+	ExposurePostExposureTargetsIDVerifyOKTargetOriginBox    ExposurePostExposureTargetsIDVerifyOKTargetOrigin = "box"
+)
+
+// AllValues returns all ExposurePostExposureTargetsIDVerifyOKTargetOrigin values.
+func (ExposurePostExposureTargetsIDVerifyOKTargetOrigin) AllValues() []ExposurePostExposureTargetsIDVerifyOKTargetOrigin {
+	return []ExposurePostExposureTargetsIDVerifyOKTargetOrigin{
+		ExposurePostExposureTargetsIDVerifyOKTargetOriginPerson,
+		ExposurePostExposureTargetsIDVerifyOKTargetOriginBox,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTargetsIDVerifyOKTargetOrigin) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTargetsIDVerifyOKTargetOriginPerson:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetOriginBox:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOrigin) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTargetsIDVerifyOKTargetOrigin(data) {
+	case ExposurePostExposureTargetsIDVerifyOKTargetOriginPerson:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetOriginPerson
+		return nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetOriginBox:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetOriginBox
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ExposurePostExposureTargetsIDVerifyOKTargetProof struct {
 	// The alternative Name: "_vedette-verify" or "_vedette-verify.git", which proves the target only
 	// (never the name itself when it is a CNAME: no TXT may sit beside a CNAME); null when
@@ -57384,6 +58837,78 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetProof) SetHost(val string) {
 // SetZone sets the value of Zone.
 func (s *ExposurePostExposureTargetsIDVerifyOKTargetProof) SetZone(val string) {
 	s.Zone = val
+}
+
+// Where the target stands for scanning: scanning (a scan of it runs now), ready, or why not: unproved
+// (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes
+// out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet).
+type ExposurePostExposureTargetsIDVerifyOKTargetScanState string
+
+const (
+	ExposurePostExposureTargetsIDVerifyOKTargetScanStateUnproved   ExposurePostExposureTargetsIDVerifyOKTargetScanState = "unproved"
+	ExposurePostExposureTargetsIDVerifyOKTargetScanStateExpired    ExposurePostExposureTargetsIDVerifyOKTargetScanState = "expired"
+	ExposurePostExposureTargetsIDVerifyOKTargetScanStatePaused     ExposurePostExposureTargetsIDVerifyOKTargetScanState = "paused"
+	ExposurePostExposureTargetsIDVerifyOKTargetScanStateNeedsTerms ExposurePostExposureTargetsIDVerifyOKTargetScanState = "needs_terms"
+	ExposurePostExposureTargetsIDVerifyOKTargetScanStateReady      ExposurePostExposureTargetsIDVerifyOKTargetScanState = "ready"
+	ExposurePostExposureTargetsIDVerifyOKTargetScanStateScanning   ExposurePostExposureTargetsIDVerifyOKTargetScanState = "scanning"
+)
+
+// AllValues returns all ExposurePostExposureTargetsIDVerifyOKTargetScanState values.
+func (ExposurePostExposureTargetsIDVerifyOKTargetScanState) AllValues() []ExposurePostExposureTargetsIDVerifyOKTargetScanState {
+	return []ExposurePostExposureTargetsIDVerifyOKTargetScanState{
+		ExposurePostExposureTargetsIDVerifyOKTargetScanStateUnproved,
+		ExposurePostExposureTargetsIDVerifyOKTargetScanStateExpired,
+		ExposurePostExposureTargetsIDVerifyOKTargetScanStatePaused,
+		ExposurePostExposureTargetsIDVerifyOKTargetScanStateNeedsTerms,
+		ExposurePostExposureTargetsIDVerifyOKTargetScanStateReady,
+		ExposurePostExposureTargetsIDVerifyOKTargetScanStateScanning,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTargetsIDVerifyOKTargetScanState) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTargetsIDVerifyOKTargetScanStateUnproved:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetScanStateExpired:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetScanStatePaused:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetScanStateNeedsTerms:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetScanStateReady:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetScanStateScanning:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetScanState) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTargetsIDVerifyOKTargetScanState(data) {
+	case ExposurePostExposureTargetsIDVerifyOKTargetScanStateUnproved:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetScanStateUnproved
+		return nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetScanStateExpired:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetScanStateExpired
+		return nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetScanStatePaused:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetScanStatePaused
+		return nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetScanStateNeedsTerms:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetScanStateNeedsTerms
+		return nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetScanStateReady:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetScanStateReady
+		return nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetScanStateScanning:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetScanStateScanning
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -57584,7 +59109,13 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetValidity) UnmarshalText(data
 }
 
 type ExposurePostExposureTargetsReq struct {
-	Value string `json:"value"`
+	Kind  OptExposurePostExposureTargetsReqKind `json:"kind"`
+	Value string                                `json:"value"`
+}
+
+// GetKind returns the value of Kind.
+func (s *ExposurePostExposureTargetsReq) GetKind() OptExposurePostExposureTargetsReqKind {
+	return s.Kind
 }
 
 // GetValue returns the value of Value.
@@ -57592,9 +59123,55 @@ func (s *ExposurePostExposureTargetsReq) GetValue() string {
 	return s.Value
 }
 
+// SetKind sets the value of Kind.
+func (s *ExposurePostExposureTargetsReq) SetKind(val OptExposurePostExposureTargetsReqKind) {
+	s.Kind = val
+}
+
 // SetValue sets the value of Value.
 func (s *ExposurePostExposureTargetsReq) SetValue(val string) {
 	s.Value = val
+}
+
+type ExposurePostExposureTargetsReqKind string
+
+const (
+	ExposurePostExposureTargetsReqKindDomain ExposurePostExposureTargetsReqKind = "domain"
+	ExposurePostExposureTargetsReqKindIP     ExposurePostExposureTargetsReqKind = "ip"
+)
+
+// AllValues returns all ExposurePostExposureTargetsReqKind values.
+func (ExposurePostExposureTargetsReqKind) AllValues() []ExposurePostExposureTargetsReqKind {
+	return []ExposurePostExposureTargetsReqKind{
+		ExposurePostExposureTargetsReqKindDomain,
+		ExposurePostExposureTargetsReqKindIP,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTargetsReqKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTargetsReqKindDomain:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsReqKindIP:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTargetsReqKind) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTargetsReqKind(data) {
+	case ExposurePostExposureTargetsReqKindDomain:
+		*s = ExposurePostExposureTargetsReqKindDomain
+		return nil
+	case ExposurePostExposureTargetsReqKindIP:
+		*s = ExposurePostExposureTargetsReqKindIP
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ExposurePutExposureBoxIPSettingsOK struct {
@@ -57605,8 +59182,9 @@ type ExposurePutExposureBoxIPSettingsOK struct {
 	IntervalMin int `json:"interval_min"`
 	// The last automatic or manual detection; null before the first one.
 	LastRun NilExposurePutExposureBoxIPSettingsOKLastRun `json:"last_run"`
-	// Null while attempts are left. When the 10 attempts an hour (shared by Detect now, Verify again and
-	// the DNS Check of a domain) are used up: minutes until the next one is possible, 1 or more.
+	// Null while attempts are left. When the 10 attempts an hour (shared by Detect now and the Verify
+	// again of an IP; the DNS Check of a domain has its own limit of one per 30 seconds per target) are
+	// used up: minutes until the next one is possible, 1 or more.
 	RetryInMin NilInt `json:"retry_in_min"`
 }
 
@@ -58058,12 +59636,16 @@ type ExposurePutExposureTargetsIDTermsOK struct {
 	// a commitment can carry it too.
 	CommitmentNotice NilExposurePutExposureTargetsIDTermsOKCommitmentNotice `json:"commitment_notice"`
 	CreatedAt        time.Time                                              `json:"created_at"`
-	// IP: verified_at + 30 days. Domain: null (the TXT record is re-checked right before every scan).
+	// IP: verified_at + 30 days (the proof expiry of a typed IP). Domain: null (the TXT record is
+	// re-checked right before every scan).
 	ExpiresAt NilDateTime `json:"expires_at"`
 	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the scope of
 	// the Scan now sentence.
-	FullScan  bool                                            `json:"full_scan"`
-	ID        string                                          `json:"id"`
+	FullScan bool   `json:"full_scan"`
+	ID       string `json:"id"`
+	// Typed IP: where the proof file goes and which domains of this box can carry a reverse DNS name that
+	// proves it; null for a domain and for an IP the box found.
+	IPProof   NilExposurePutExposureTargetsIDTermsOKIPProof   `json:"ip_proof"`
 	Kind      ExposurePutExposureTargetsIDTermsOKKind         `json:"kind"`
 	LastCheck NilExposurePutExposureTargetsIDTermsOKLastCheck `json:"last_check"`
 	// When the newest scan started: every page names a scan by its start.
@@ -58073,12 +59655,24 @@ type ExposurePutExposureTargetsIDTermsOK struct {
 	LastScanFinishedAt OptNilDateTime                               `json:"last_scan_finished_at"`
 	Latest             NilExposurePutExposureTargetsIDTermsOKLatest `json:"latest"`
 	Method             NilExposurePutExposureTargetsIDTermsOKMethod `json:"method"`
+	// Typed IP with a proof: when the box checks the proof again by itself (7 days before it expires, then
+	// every 6 hours while it is not found); null otherwise.
+	NextCheckAt NilDateTime `json:"next_check_at"`
+	// Open ports of the newest scan (0 when never scanned): the number the target row shows.
+	OpenExposures int `json:"open_exposures"`
 	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
 	// can say what is open; null when never scanned.
 	OpenPorts []ExposurePutExposureTargetsIDTermsOKOpenPortsItem `json:"open_ports"`
+	// Who added the target: person (a domain or a public IP typed in) or box (a public IP the box found as
+	// its own egress address, neutral until its testing terms are accepted).
+	Origin ExposurePutExposureTargetsIDTermsOKOrigin `json:"origin"`
 	// Domains: where the TXT record goes and which verified domain covers this one already; null for an IP.
-	Proof     NilExposurePutExposureTargetsIDTermsOKProof `json:"proof"`
-	Scannable bool                                        `json:"scannable"`
+	Proof NilExposurePutExposureTargetsIDTermsOKProof `json:"proof"`
+	// Where the target stands for scanning: scanning (a scan of it runs now), ready, or why not: unproved
+	// (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes
+	// out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet).
+	ScanState ExposurePutExposureTargetsIDTermsOKScanState `json:"scan_state"`
+	Scannable bool                                         `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposurePutExposureTargetsIDTermsOKStatus `json:"status"`
 	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
@@ -58090,14 +59684,14 @@ type ExposurePutExposureTargetsIDTermsOK struct {
 	// 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409
 	// shared_address) while it shows.
 	TermsWarning OptNilString `json:"terms_warning"`
-	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
-	// string.
+	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). Typed IP: the
+	// token the proof file carries (ip_proof). IP the box found: empty string.
 	Token string `json:"token"`
 	// IPs only: expiring = 5 days or less left.
 	Validity NilExposurePutExposureTargetsIDTermsOKValidity `json:"validity"`
 	Value    string                                         `json:"value"`
-	// Domain: first successful verification. IP: the last time the box saw this IP (every sighting renews
-	// it).
+	// Domain: first successful verification. IP the box found: the last time the box saw this IP (every
+	// sighting renews it). Typed IP: the last time its proof was found.
 	VerifiedAt NilDateTime `json:"verified_at"`
 }
 
@@ -58136,6 +59730,11 @@ func (s *ExposurePutExposureTargetsIDTermsOK) GetID() string {
 	return s.ID
 }
 
+// GetIPProof returns the value of IPProof.
+func (s *ExposurePutExposureTargetsIDTermsOK) GetIPProof() NilExposurePutExposureTargetsIDTermsOKIPProof {
+	return s.IPProof
+}
+
 // GetKind returns the value of Kind.
 func (s *ExposurePutExposureTargetsIDTermsOK) GetKind() ExposurePutExposureTargetsIDTermsOKKind {
 	return s.Kind
@@ -58166,14 +59765,34 @@ func (s *ExposurePutExposureTargetsIDTermsOK) GetMethod() NilExposurePutExposure
 	return s.Method
 }
 
+// GetNextCheckAt returns the value of NextCheckAt.
+func (s *ExposurePutExposureTargetsIDTermsOK) GetNextCheckAt() NilDateTime {
+	return s.NextCheckAt
+}
+
+// GetOpenExposures returns the value of OpenExposures.
+func (s *ExposurePutExposureTargetsIDTermsOK) GetOpenExposures() int {
+	return s.OpenExposures
+}
+
 // GetOpenPorts returns the value of OpenPorts.
 func (s *ExposurePutExposureTargetsIDTermsOK) GetOpenPorts() []ExposurePutExposureTargetsIDTermsOKOpenPortsItem {
 	return s.OpenPorts
 }
 
+// GetOrigin returns the value of Origin.
+func (s *ExposurePutExposureTargetsIDTermsOK) GetOrigin() ExposurePutExposureTargetsIDTermsOKOrigin {
+	return s.Origin
+}
+
 // GetProof returns the value of Proof.
 func (s *ExposurePutExposureTargetsIDTermsOK) GetProof() NilExposurePutExposureTargetsIDTermsOKProof {
 	return s.Proof
+}
+
+// GetScanState returns the value of ScanState.
+func (s *ExposurePutExposureTargetsIDTermsOK) GetScanState() ExposurePutExposureTargetsIDTermsOKScanState {
+	return s.ScanState
 }
 
 // GetScannable returns the value of Scannable.
@@ -58256,6 +59875,11 @@ func (s *ExposurePutExposureTargetsIDTermsOK) SetID(val string) {
 	s.ID = val
 }
 
+// SetIPProof sets the value of IPProof.
+func (s *ExposurePutExposureTargetsIDTermsOK) SetIPProof(val NilExposurePutExposureTargetsIDTermsOKIPProof) {
+	s.IPProof = val
+}
+
 // SetKind sets the value of Kind.
 func (s *ExposurePutExposureTargetsIDTermsOK) SetKind(val ExposurePutExposureTargetsIDTermsOKKind) {
 	s.Kind = val
@@ -58286,14 +59910,34 @@ func (s *ExposurePutExposureTargetsIDTermsOK) SetMethod(val NilExposurePutExposu
 	s.Method = val
 }
 
+// SetNextCheckAt sets the value of NextCheckAt.
+func (s *ExposurePutExposureTargetsIDTermsOK) SetNextCheckAt(val NilDateTime) {
+	s.NextCheckAt = val
+}
+
+// SetOpenExposures sets the value of OpenExposures.
+func (s *ExposurePutExposureTargetsIDTermsOK) SetOpenExposures(val int) {
+	s.OpenExposures = val
+}
+
 // SetOpenPorts sets the value of OpenPorts.
 func (s *ExposurePutExposureTargetsIDTermsOK) SetOpenPorts(val []ExposurePutExposureTargetsIDTermsOKOpenPortsItem) {
 	s.OpenPorts = val
 }
 
+// SetOrigin sets the value of Origin.
+func (s *ExposurePutExposureTargetsIDTermsOK) SetOrigin(val ExposurePutExposureTargetsIDTermsOKOrigin) {
+	s.Origin = val
+}
+
 // SetProof sets the value of Proof.
 func (s *ExposurePutExposureTargetsIDTermsOK) SetProof(val NilExposurePutExposureTargetsIDTermsOKProof) {
 	s.Proof = val
+}
+
+// SetScanState sets the value of ScanState.
+func (s *ExposurePutExposureTargetsIDTermsOK) SetScanState(val ExposurePutExposureTargetsIDTermsOKScanState) {
+	s.ScanState = val
 }
 
 // SetScannable sets the value of Scannable.
@@ -58347,6 +59991,7 @@ const (
 	ExposurePutExposureTargetsIDTermsOKBlockedReasonUnverified   ExposurePutExposureTargetsIDTermsOKBlockedReason = "unverified"
 	ExposurePutExposureTargetsIDTermsOKBlockedReasonExpired      ExposurePutExposureTargetsIDTermsOKBlockedReason = "expired"
 	ExposurePutExposureTargetsIDTermsOKBlockedReasonTxtMissing   ExposurePutExposureTargetsIDTermsOKBlockedReason = "txt_missing"
+	ExposurePutExposureTargetsIDTermsOKBlockedReasonProofMissing ExposurePutExposureTargetsIDTermsOKBlockedReason = "proof_missing"
 	ExposurePutExposureTargetsIDTermsOKBlockedReasonNoCommitment ExposurePutExposureTargetsIDTermsOKBlockedReason = "no_commitment"
 	ExposurePutExposureTargetsIDTermsOKBlockedReasonIPNotCurrent ExposurePutExposureTargetsIDTermsOKBlockedReason = "ip_not_current"
 )
@@ -58357,6 +60002,7 @@ func (ExposurePutExposureTargetsIDTermsOKBlockedReason) AllValues() []ExposurePu
 		ExposurePutExposureTargetsIDTermsOKBlockedReasonUnverified,
 		ExposurePutExposureTargetsIDTermsOKBlockedReasonExpired,
 		ExposurePutExposureTargetsIDTermsOKBlockedReasonTxtMissing,
+		ExposurePutExposureTargetsIDTermsOKBlockedReasonProofMissing,
 		ExposurePutExposureTargetsIDTermsOKBlockedReasonNoCommitment,
 		ExposurePutExposureTargetsIDTermsOKBlockedReasonIPNotCurrent,
 	}
@@ -58370,6 +60016,8 @@ func (s ExposurePutExposureTargetsIDTermsOKBlockedReason) MarshalText() ([]byte,
 	case ExposurePutExposureTargetsIDTermsOKBlockedReasonExpired:
 		return []byte(s), nil
 	case ExposurePutExposureTargetsIDTermsOKBlockedReasonTxtMissing:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDTermsOKBlockedReasonProofMissing:
 		return []byte(s), nil
 	case ExposurePutExposureTargetsIDTermsOKBlockedReasonNoCommitment:
 		return []byte(s), nil
@@ -58391,6 +60039,9 @@ func (s *ExposurePutExposureTargetsIDTermsOKBlockedReason) UnmarshalText(data []
 		return nil
 	case ExposurePutExposureTargetsIDTermsOKBlockedReasonTxtMissing:
 		*s = ExposurePutExposureTargetsIDTermsOKBlockedReasonTxtMissing
+		return nil
+	case ExposurePutExposureTargetsIDTermsOKBlockedReasonProofMissing:
+		*s = ExposurePutExposureTargetsIDTermsOKBlockedReasonProofMissing
 		return nil
 	case ExposurePutExposureTargetsIDTermsOKBlockedReasonNoCommitment:
 		*s = ExposurePutExposureTargetsIDTermsOKBlockedReasonNoCommitment
@@ -58477,6 +60128,58 @@ func (s *ExposurePutExposureTargetsIDTermsOKCommitmentNotice) SetText(val string
 // SetVersion sets the value of Version.
 func (s *ExposurePutExposureTargetsIDTermsOKCommitmentNotice) SetVersion(val string) {
 	s.Version = val
+}
+
+type ExposurePutExposureTargetsIDTermsOKIPProof struct {
+	// The token: the whole content of the file.
+	Content string `json:"content"`
+	// /.well-known/vedette-verify.txt.
+	Path string `json:"path"`
+	// Domains of this box that are proved as far as the last check knows: a reverse DNS (PTR) name of the
+	// IP under one of them, resolving back to the IP, proves it.
+	PtrDomains []string `json:"ptr_domains"`
+	// The two addresses the box asks, http and https, on the IP.
+	Urls []string `json:"urls"`
+}
+
+// GetContent returns the value of Content.
+func (s *ExposurePutExposureTargetsIDTermsOKIPProof) GetContent() string {
+	return s.Content
+}
+
+// GetPath returns the value of Path.
+func (s *ExposurePutExposureTargetsIDTermsOKIPProof) GetPath() string {
+	return s.Path
+}
+
+// GetPtrDomains returns the value of PtrDomains.
+func (s *ExposurePutExposureTargetsIDTermsOKIPProof) GetPtrDomains() []string {
+	return s.PtrDomains
+}
+
+// GetUrls returns the value of Urls.
+func (s *ExposurePutExposureTargetsIDTermsOKIPProof) GetUrls() []string {
+	return s.Urls
+}
+
+// SetContent sets the value of Content.
+func (s *ExposurePutExposureTargetsIDTermsOKIPProof) SetContent(val string) {
+	s.Content = val
+}
+
+// SetPath sets the value of Path.
+func (s *ExposurePutExposureTargetsIDTermsOKIPProof) SetPath(val string) {
+	s.Path = val
+}
+
+// SetPtrDomains sets the value of PtrDomains.
+func (s *ExposurePutExposureTargetsIDTermsOKIPProof) SetPtrDomains(val []string) {
+	s.PtrDomains = val
+}
+
+// SetUrls sets the value of Urls.
+func (s *ExposurePutExposureTargetsIDTermsOKIPProof) SetUrls(val []string) {
+	s.Urls = val
 }
 
 type ExposurePutExposureTargetsIDTermsOKKind string
@@ -58619,6 +60322,8 @@ type ExposurePutExposureTargetsIDTermsOKMethod string
 const (
 	ExposurePutExposureTargetsIDTermsOKMethodDNSTxt    ExposurePutExposureTargetsIDTermsOKMethod = "dns_txt"
 	ExposurePutExposureTargetsIDTermsOKMethodBoxEgress ExposurePutExposureTargetsIDTermsOKMethod = "box_egress"
+	ExposurePutExposureTargetsIDTermsOKMethodIPFile    ExposurePutExposureTargetsIDTermsOKMethod = "ip_file"
+	ExposurePutExposureTargetsIDTermsOKMethodIPPtr     ExposurePutExposureTargetsIDTermsOKMethod = "ip_ptr"
 )
 
 // AllValues returns all ExposurePutExposureTargetsIDTermsOKMethod values.
@@ -58626,6 +60331,8 @@ func (ExposurePutExposureTargetsIDTermsOKMethod) AllValues() []ExposurePutExposu
 	return []ExposurePutExposureTargetsIDTermsOKMethod{
 		ExposurePutExposureTargetsIDTermsOKMethodDNSTxt,
 		ExposurePutExposureTargetsIDTermsOKMethodBoxEgress,
+		ExposurePutExposureTargetsIDTermsOKMethodIPFile,
+		ExposurePutExposureTargetsIDTermsOKMethodIPPtr,
 	}
 }
 
@@ -58635,6 +60342,10 @@ func (s ExposurePutExposureTargetsIDTermsOKMethod) MarshalText() ([]byte, error)
 	case ExposurePutExposureTargetsIDTermsOKMethodDNSTxt:
 		return []byte(s), nil
 	case ExposurePutExposureTargetsIDTermsOKMethodBoxEgress:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDTermsOKMethodIPFile:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDTermsOKMethodIPPtr:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -58649,6 +60360,12 @@ func (s *ExposurePutExposureTargetsIDTermsOKMethod) UnmarshalText(data []byte) e
 		return nil
 	case ExposurePutExposureTargetsIDTermsOKMethodBoxEgress:
 		*s = ExposurePutExposureTargetsIDTermsOKMethodBoxEgress
+		return nil
+	case ExposurePutExposureTargetsIDTermsOKMethodIPFile:
+		*s = ExposurePutExposureTargetsIDTermsOKMethodIPFile
+		return nil
+	case ExposurePutExposureTargetsIDTermsOKMethodIPPtr:
+		*s = ExposurePutExposureTargetsIDTermsOKMethodIPPtr
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -59098,6 +60815,49 @@ func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent) UnmarshalText(da
 	}
 }
 
+// Who added the target: person (a domain or a public IP typed in) or box (a public IP the box found as
+// its own egress address, neutral until its testing terms are accepted).
+type ExposurePutExposureTargetsIDTermsOKOrigin string
+
+const (
+	ExposurePutExposureTargetsIDTermsOKOriginPerson ExposurePutExposureTargetsIDTermsOKOrigin = "person"
+	ExposurePutExposureTargetsIDTermsOKOriginBox    ExposurePutExposureTargetsIDTermsOKOrigin = "box"
+)
+
+// AllValues returns all ExposurePutExposureTargetsIDTermsOKOrigin values.
+func (ExposurePutExposureTargetsIDTermsOKOrigin) AllValues() []ExposurePutExposureTargetsIDTermsOKOrigin {
+	return []ExposurePutExposureTargetsIDTermsOKOrigin{
+		ExposurePutExposureTargetsIDTermsOKOriginPerson,
+		ExposurePutExposureTargetsIDTermsOKOriginBox,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTargetsIDTermsOKOrigin) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTargetsIDTermsOKOriginPerson:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDTermsOKOriginBox:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTargetsIDTermsOKOrigin) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTargetsIDTermsOKOrigin(data) {
+	case ExposurePutExposureTargetsIDTermsOKOriginPerson:
+		*s = ExposurePutExposureTargetsIDTermsOKOriginPerson
+		return nil
+	case ExposurePutExposureTargetsIDTermsOKOriginBox:
+		*s = ExposurePutExposureTargetsIDTermsOKOriginBox
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ExposurePutExposureTargetsIDTermsOKProof struct {
 	// The alternative Name: "_vedette-verify" or "_vedette-verify.git", which proves the target only
 	// (never the name itself when it is a CNAME: no TXT may sit beside a CNAME); null when
@@ -59151,6 +60911,78 @@ func (s *ExposurePutExposureTargetsIDTermsOKProof) SetHost(val string) {
 // SetZone sets the value of Zone.
 func (s *ExposurePutExposureTargetsIDTermsOKProof) SetZone(val string) {
 	s.Zone = val
+}
+
+// Where the target stands for scanning: scanning (a scan of it runs now), ready, or why not: unproved
+// (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes
+// out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet).
+type ExposurePutExposureTargetsIDTermsOKScanState string
+
+const (
+	ExposurePutExposureTargetsIDTermsOKScanStateUnproved   ExposurePutExposureTargetsIDTermsOKScanState = "unproved"
+	ExposurePutExposureTargetsIDTermsOKScanStateExpired    ExposurePutExposureTargetsIDTermsOKScanState = "expired"
+	ExposurePutExposureTargetsIDTermsOKScanStatePaused     ExposurePutExposureTargetsIDTermsOKScanState = "paused"
+	ExposurePutExposureTargetsIDTermsOKScanStateNeedsTerms ExposurePutExposureTargetsIDTermsOKScanState = "needs_terms"
+	ExposurePutExposureTargetsIDTermsOKScanStateReady      ExposurePutExposureTargetsIDTermsOKScanState = "ready"
+	ExposurePutExposureTargetsIDTermsOKScanStateScanning   ExposurePutExposureTargetsIDTermsOKScanState = "scanning"
+)
+
+// AllValues returns all ExposurePutExposureTargetsIDTermsOKScanState values.
+func (ExposurePutExposureTargetsIDTermsOKScanState) AllValues() []ExposurePutExposureTargetsIDTermsOKScanState {
+	return []ExposurePutExposureTargetsIDTermsOKScanState{
+		ExposurePutExposureTargetsIDTermsOKScanStateUnproved,
+		ExposurePutExposureTargetsIDTermsOKScanStateExpired,
+		ExposurePutExposureTargetsIDTermsOKScanStatePaused,
+		ExposurePutExposureTargetsIDTermsOKScanStateNeedsTerms,
+		ExposurePutExposureTargetsIDTermsOKScanStateReady,
+		ExposurePutExposureTargetsIDTermsOKScanStateScanning,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTargetsIDTermsOKScanState) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTargetsIDTermsOKScanStateUnproved:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDTermsOKScanStateExpired:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDTermsOKScanStatePaused:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDTermsOKScanStateNeedsTerms:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDTermsOKScanStateReady:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDTermsOKScanStateScanning:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTargetsIDTermsOKScanState) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTargetsIDTermsOKScanState(data) {
+	case ExposurePutExposureTargetsIDTermsOKScanStateUnproved:
+		*s = ExposurePutExposureTargetsIDTermsOKScanStateUnproved
+		return nil
+	case ExposurePutExposureTargetsIDTermsOKScanStateExpired:
+		*s = ExposurePutExposureTargetsIDTermsOKScanStateExpired
+		return nil
+	case ExposurePutExposureTargetsIDTermsOKScanStatePaused:
+		*s = ExposurePutExposureTargetsIDTermsOKScanStatePaused
+		return nil
+	case ExposurePutExposureTargetsIDTermsOKScanStateNeedsTerms:
+		*s = ExposurePutExposureTargetsIDTermsOKScanStateNeedsTerms
+		return nil
+	case ExposurePutExposureTargetsIDTermsOKScanStateReady:
+		*s = ExposurePutExposureTargetsIDTermsOKScanStateReady
+		return nil
+	case ExposurePutExposureTargetsIDTermsOKScanStateScanning:
+		*s = ExposurePutExposureTargetsIDTermsOKScanStateScanning
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -101108,7 +102940,8 @@ func (s *InventoryGetInventoryCatalogOKItemsItemKind) UnmarshalText(data []byte)
 	}
 }
 
-// True: the Devices list (approved); false: To review.
+// True: the Devices list (approved, and quiet private-address devices); false: To review (not
+// approved, not quiet).
 type InventoryGetInventoryDevicesApproved string
 
 const (
@@ -101400,6 +103233,13 @@ type InventoryGetInventoryDevicesIDOKAsset struct {
 	Os     NilInventoryGetInventoryDevicesIDOKAssetOs  `json:"os"`
 	// The OS a person set (PATCH os, INV-41); absent when none: os is then what the sources read.
 	OsCorrection OptInventoryGetInventoryDevicesIDOKAssetOsCorrection `json:"os_correction"`
+	// The MAC is a private (randomised) address the device picks for itself and changes (locally
+	// administered, not a stable virtual prefix such as QEMU/KVM, Docker or VirtualBox).
+	PrivateMAC bool `json:"private_mac"`
+	// Not approved, but held out of To review and of the new-device notice: a private-address device with
+	// no open service that has not stayed past a day. It is listed with the approved devices and moves to
+	// To review when it earns a look; false for every approved device.
+	Quiet bool `json:"quiet"`
 	// Per-device override of the type setting for regular scans after the one gentle scan; never = never
 	// actively scanned again, for every kind of device.
 	RegularScan InventoryGetInventoryDevicesIDOKAssetRegularScan `json:"regular_scan"`
@@ -101520,6 +103360,16 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) GetOs() NilInventoryGetInventory
 // GetOsCorrection returns the value of OsCorrection.
 func (s *InventoryGetInventoryDevicesIDOKAsset) GetOsCorrection() OptInventoryGetInventoryDevicesIDOKAssetOsCorrection {
 	return s.OsCorrection
+}
+
+// GetPrivateMAC returns the value of PrivateMAC.
+func (s *InventoryGetInventoryDevicesIDOKAsset) GetPrivateMAC() bool {
+	return s.PrivateMAC
+}
+
+// GetQuiet returns the value of Quiet.
+func (s *InventoryGetInventoryDevicesIDOKAsset) GetQuiet() bool {
+	return s.Quiet
 }
 
 // GetRegularScan returns the value of RegularScan.
@@ -101660,6 +103510,16 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) SetOs(val NilInventoryGetInvento
 // SetOsCorrection sets the value of OsCorrection.
 func (s *InventoryGetInventoryDevicesIDOKAsset) SetOsCorrection(val OptInventoryGetInventoryDevicesIDOKAssetOsCorrection) {
 	s.OsCorrection = val
+}
+
+// SetPrivateMAC sets the value of PrivateMAC.
+func (s *InventoryGetInventoryDevicesIDOKAsset) SetPrivateMAC(val bool) {
+	s.PrivateMAC = val
+}
+
+// SetQuiet sets the value of Quiet.
+func (s *InventoryGetInventoryDevicesIDOKAsset) SetQuiet(val bool) {
+	s.Quiet = val
 }
 
 // SetRegularScan sets the value of RegularScan.
@@ -106990,6 +108850,13 @@ type InventoryGetInventoryDevicesOKItemsItem struct {
 	Notes  OptString                                     `json:"notes"`
 	Origin InventoryGetInventoryDevicesOKItemsItemOrigin `json:"origin"`
 	Os     NilInventoryGetInventoryDevicesOKItemsItemOs  `json:"os"`
+	// The MAC is a private (randomised) address the device picks for itself and changes (locally
+	// administered, not a stable virtual prefix such as QEMU/KVM, Docker or VirtualBox).
+	PrivateMAC bool `json:"private_mac"`
+	// Not approved, but held out of To review and of the new-device notice: a private-address device with
+	// no open service that has not stayed past a day. It is listed with the approved devices and moves to
+	// To review when it earns a look; false for every approved device.
+	Quiet bool `json:"quiet"`
 	// Per-device override of the type setting for regular scans after the one gentle scan; never = never
 	// actively scanned again, for every kind of device.
 	RegularScan InventoryGetInventoryDevicesOKItemsItemRegularScan `json:"regular_scan"`
@@ -107118,6 +108985,16 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) GetOrigin() InventoryGetInvent
 // GetOs returns the value of Os.
 func (s *InventoryGetInventoryDevicesOKItemsItem) GetOs() NilInventoryGetInventoryDevicesOKItemsItemOs {
 	return s.Os
+}
+
+// GetPrivateMAC returns the value of PrivateMAC.
+func (s *InventoryGetInventoryDevicesOKItemsItem) GetPrivateMAC() bool {
+	return s.PrivateMAC
+}
+
+// GetQuiet returns the value of Quiet.
+func (s *InventoryGetInventoryDevicesOKItemsItem) GetQuiet() bool {
+	return s.Quiet
 }
 
 // GetRegularScan returns the value of RegularScan.
@@ -107278,6 +109155,16 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) SetOrigin(val InventoryGetInve
 // SetOs sets the value of Os.
 func (s *InventoryGetInventoryDevicesOKItemsItem) SetOs(val NilInventoryGetInventoryDevicesOKItemsItemOs) {
 	s.Os = val
+}
+
+// SetPrivateMAC sets the value of PrivateMAC.
+func (s *InventoryGetInventoryDevicesOKItemsItem) SetPrivateMAC(val bool) {
+	s.PrivateMAC = val
+}
+
+// SetQuiet sets the value of Quiet.
+func (s *InventoryGetInventoryDevicesOKItemsItem) SetQuiet(val bool) {
+	s.Quiet = val
 }
 
 // SetRegularScan sets the value of RegularScan.
@@ -110829,7 +112716,8 @@ func (s *InventoryGetInventoryDevicesOKItemsItemVendorSource) UnmarshalText(data
 	}
 }
 
-// True: the Devices list (approved); false: To review.
+// True: the Devices list (approved, and quiet private-address devices); false: To review (not
+// approved, not quiet).
 type InventoryGetInventoryExportCsvApproved string
 
 const (
@@ -121224,9 +123112,15 @@ func (s *LogsGetLogsSourcesOKBoxTLSKind) UnmarshalText(data []byte) error {
 }
 
 type LogsGetLogsSourcesOKSourcesItem struct {
-	// Inventory device with the same IP; null when none.
-	AssetID   NilString `json:"asset_id"`
-	AssetName NilString `json:"asset_name"`
+	// The one inventory device that has this address (its listed IP, or the address its SNMP is read
+	// from); null when none, or when two do (see asset_matches).
+	AssetID NilString `json:"asset_id"`
+	// Every device that has the address when more than one does (asset_id and asset_name are then null);
+	// empty otherwise.
+	AssetMatches []LogsGetLogsSourcesOKSourcesItemAssetMatchesItem `json:"asset_matches"`
+	AssetName    NilString                                         `json:"asset_name"`
+	// How the device was found when it is not by its listed IP; null for a listed IP or no device.
+	AssetVia NilLogsGetLogsSourcesOKSourcesItemAssetVia `json:"asset_via"`
 	// TLS sources only: the SHA-256 of the client certificate the device must present (64 lowercase hex
 	// characters); null = the sender is known by its IP address alone.
 	ClientCertSHA256 NilString                            `json:"client_cert_sha256"`
@@ -121247,9 +123141,19 @@ func (s *LogsGetLogsSourcesOKSourcesItem) GetAssetID() NilString {
 	return s.AssetID
 }
 
+// GetAssetMatches returns the value of AssetMatches.
+func (s *LogsGetLogsSourcesOKSourcesItem) GetAssetMatches() []LogsGetLogsSourcesOKSourcesItemAssetMatchesItem {
+	return s.AssetMatches
+}
+
 // GetAssetName returns the value of AssetName.
 func (s *LogsGetLogsSourcesOKSourcesItem) GetAssetName() NilString {
 	return s.AssetName
+}
+
+// GetAssetVia returns the value of AssetVia.
+func (s *LogsGetLogsSourcesOKSourcesItem) GetAssetVia() NilLogsGetLogsSourcesOKSourcesItemAssetVia {
+	return s.AssetVia
 }
 
 // GetClientCertSHA256 returns the value of ClientCertSHA256.
@@ -121312,9 +123216,19 @@ func (s *LogsGetLogsSourcesOKSourcesItem) SetAssetID(val NilString) {
 	s.AssetID = val
 }
 
+// SetAssetMatches sets the value of AssetMatches.
+func (s *LogsGetLogsSourcesOKSourcesItem) SetAssetMatches(val []LogsGetLogsSourcesOKSourcesItemAssetMatchesItem) {
+	s.AssetMatches = val
+}
+
 // SetAssetName sets the value of AssetName.
 func (s *LogsGetLogsSourcesOKSourcesItem) SetAssetName(val NilString) {
 	s.AssetName = val
+}
+
+// SetAssetVia sets the value of AssetVia.
+func (s *LogsGetLogsSourcesOKSourcesItem) SetAssetVia(val NilLogsGetLogsSourcesOKSourcesItemAssetVia) {
+	s.AssetVia = val
 }
 
 // SetClientCertSHA256 sets the value of ClientCertSHA256.
@@ -121370,6 +123284,110 @@ func (s *LogsGetLogsSourcesOKSourcesItem) SetSenderIP(val string) {
 // SetState sets the value of State.
 func (s *LogsGetLogsSourcesOKSourcesItem) SetState(val LogsGetLogsSourcesOKSourcesItemState) {
 	s.State = val
+}
+
+type LogsGetLogsSourcesOKSourcesItemAssetMatchesItem struct {
+	ID   string                                                `json:"id"`
+	Name string                                                `json:"name"`
+	Via  NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia `json:"via"`
+}
+
+// GetID returns the value of ID.
+func (s *LogsGetLogsSourcesOKSourcesItemAssetMatchesItem) GetID() string {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *LogsGetLogsSourcesOKSourcesItemAssetMatchesItem) GetName() string {
+	return s.Name
+}
+
+// GetVia returns the value of Via.
+func (s *LogsGetLogsSourcesOKSourcesItemAssetMatchesItem) GetVia() NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia {
+	return s.Via
+}
+
+// SetID sets the value of ID.
+func (s *LogsGetLogsSourcesOKSourcesItemAssetMatchesItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *LogsGetLogsSourcesOKSourcesItemAssetMatchesItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetVia sets the value of Via.
+func (s *LogsGetLogsSourcesOKSourcesItemAssetMatchesItem) SetVia(val NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) {
+	s.Via = val
+}
+
+type LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia string
+
+const (
+	LogsGetLogsSourcesOKSourcesItemAssetMatchesItemViaSnmpRead LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia = "snmp_read"
+)
+
+// AllValues returns all LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia values.
+func (LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) AllValues() []LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia {
+	return []LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia{
+		LogsGetLogsSourcesOKSourcesItemAssetMatchesItemViaSnmpRead,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) MarshalText() ([]byte, error) {
+	switch s {
+	case LogsGetLogsSourcesOKSourcesItemAssetMatchesItemViaSnmpRead:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) UnmarshalText(data []byte) error {
+	switch LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia(data) {
+	case LogsGetLogsSourcesOKSourcesItemAssetMatchesItemViaSnmpRead:
+		*s = LogsGetLogsSourcesOKSourcesItemAssetMatchesItemViaSnmpRead
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type LogsGetLogsSourcesOKSourcesItemAssetVia string
+
+const (
+	LogsGetLogsSourcesOKSourcesItemAssetViaSnmpRead LogsGetLogsSourcesOKSourcesItemAssetVia = "snmp_read"
+)
+
+// AllValues returns all LogsGetLogsSourcesOKSourcesItemAssetVia values.
+func (LogsGetLogsSourcesOKSourcesItemAssetVia) AllValues() []LogsGetLogsSourcesOKSourcesItemAssetVia {
+	return []LogsGetLogsSourcesOKSourcesItemAssetVia{
+		LogsGetLogsSourcesOKSourcesItemAssetViaSnmpRead,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s LogsGetLogsSourcesOKSourcesItemAssetVia) MarshalText() ([]byte, error) {
+	switch s {
+	case LogsGetLogsSourcesOKSourcesItemAssetViaSnmpRead:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *LogsGetLogsSourcesOKSourcesItemAssetVia) UnmarshalText(data []byte) error {
+	switch LogsGetLogsSourcesOKSourcesItemAssetVia(data) {
+	case LogsGetLogsSourcesOKSourcesItemAssetViaSnmpRead:
+		*s = LogsGetLogsSourcesOKSourcesItemAssetViaSnmpRead
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type LogsGetLogsSourcesOKSourcesItemKind string
@@ -121983,9 +124001,15 @@ func (s *LogsPostLogsSiemTestOK) SetOk(val bool) {
 }
 
 type LogsPostLogsSourcesCreated struct {
-	// Inventory device with the same IP; null when none.
-	AssetID   NilString `json:"asset_id"`
-	AssetName NilString `json:"asset_name"`
+	// The one inventory device that has this address (its listed IP, or the address its SNMP is read
+	// from); null when none, or when two do (see asset_matches).
+	AssetID NilString `json:"asset_id"`
+	// Every device that has the address when more than one does (asset_id and asset_name are then null);
+	// empty otherwise.
+	AssetMatches []LogsPostLogsSourcesCreatedAssetMatchesItem `json:"asset_matches"`
+	AssetName    NilString                                    `json:"asset_name"`
+	// How the device was found when it is not by its listed IP; null for a listed IP or no device.
+	AssetVia NilLogsPostLogsSourcesCreatedAssetVia `json:"asset_via"`
 	// TLS sources only: the SHA-256 of the client certificate the device must present (64 lowercase hex
 	// characters); null = the sender is known by its IP address alone.
 	ClientCertSHA256 NilString                       `json:"client_cert_sha256"`
@@ -122006,9 +124030,19 @@ func (s *LogsPostLogsSourcesCreated) GetAssetID() NilString {
 	return s.AssetID
 }
 
+// GetAssetMatches returns the value of AssetMatches.
+func (s *LogsPostLogsSourcesCreated) GetAssetMatches() []LogsPostLogsSourcesCreatedAssetMatchesItem {
+	return s.AssetMatches
+}
+
 // GetAssetName returns the value of AssetName.
 func (s *LogsPostLogsSourcesCreated) GetAssetName() NilString {
 	return s.AssetName
+}
+
+// GetAssetVia returns the value of AssetVia.
+func (s *LogsPostLogsSourcesCreated) GetAssetVia() NilLogsPostLogsSourcesCreatedAssetVia {
+	return s.AssetVia
 }
 
 // GetClientCertSHA256 returns the value of ClientCertSHA256.
@@ -122071,9 +124105,19 @@ func (s *LogsPostLogsSourcesCreated) SetAssetID(val NilString) {
 	s.AssetID = val
 }
 
+// SetAssetMatches sets the value of AssetMatches.
+func (s *LogsPostLogsSourcesCreated) SetAssetMatches(val []LogsPostLogsSourcesCreatedAssetMatchesItem) {
+	s.AssetMatches = val
+}
+
 // SetAssetName sets the value of AssetName.
 func (s *LogsPostLogsSourcesCreated) SetAssetName(val NilString) {
 	s.AssetName = val
+}
+
+// SetAssetVia sets the value of AssetVia.
+func (s *LogsPostLogsSourcesCreated) SetAssetVia(val NilLogsPostLogsSourcesCreatedAssetVia) {
+	s.AssetVia = val
 }
 
 // SetClientCertSHA256 sets the value of ClientCertSHA256.
@@ -122129,6 +124173,110 @@ func (s *LogsPostLogsSourcesCreated) SetSenderIP(val string) {
 // SetState sets the value of State.
 func (s *LogsPostLogsSourcesCreated) SetState(val LogsPostLogsSourcesCreatedState) {
 	s.State = val
+}
+
+type LogsPostLogsSourcesCreatedAssetMatchesItem struct {
+	ID   string                                           `json:"id"`
+	Name string                                           `json:"name"`
+	Via  NilLogsPostLogsSourcesCreatedAssetMatchesItemVia `json:"via"`
+}
+
+// GetID returns the value of ID.
+func (s *LogsPostLogsSourcesCreatedAssetMatchesItem) GetID() string {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *LogsPostLogsSourcesCreatedAssetMatchesItem) GetName() string {
+	return s.Name
+}
+
+// GetVia returns the value of Via.
+func (s *LogsPostLogsSourcesCreatedAssetMatchesItem) GetVia() NilLogsPostLogsSourcesCreatedAssetMatchesItemVia {
+	return s.Via
+}
+
+// SetID sets the value of ID.
+func (s *LogsPostLogsSourcesCreatedAssetMatchesItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *LogsPostLogsSourcesCreatedAssetMatchesItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetVia sets the value of Via.
+func (s *LogsPostLogsSourcesCreatedAssetMatchesItem) SetVia(val NilLogsPostLogsSourcesCreatedAssetMatchesItemVia) {
+	s.Via = val
+}
+
+type LogsPostLogsSourcesCreatedAssetMatchesItemVia string
+
+const (
+	LogsPostLogsSourcesCreatedAssetMatchesItemViaSnmpRead LogsPostLogsSourcesCreatedAssetMatchesItemVia = "snmp_read"
+)
+
+// AllValues returns all LogsPostLogsSourcesCreatedAssetMatchesItemVia values.
+func (LogsPostLogsSourcesCreatedAssetMatchesItemVia) AllValues() []LogsPostLogsSourcesCreatedAssetMatchesItemVia {
+	return []LogsPostLogsSourcesCreatedAssetMatchesItemVia{
+		LogsPostLogsSourcesCreatedAssetMatchesItemViaSnmpRead,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s LogsPostLogsSourcesCreatedAssetMatchesItemVia) MarshalText() ([]byte, error) {
+	switch s {
+	case LogsPostLogsSourcesCreatedAssetMatchesItemViaSnmpRead:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *LogsPostLogsSourcesCreatedAssetMatchesItemVia) UnmarshalText(data []byte) error {
+	switch LogsPostLogsSourcesCreatedAssetMatchesItemVia(data) {
+	case LogsPostLogsSourcesCreatedAssetMatchesItemViaSnmpRead:
+		*s = LogsPostLogsSourcesCreatedAssetMatchesItemViaSnmpRead
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type LogsPostLogsSourcesCreatedAssetVia string
+
+const (
+	LogsPostLogsSourcesCreatedAssetViaSnmpRead LogsPostLogsSourcesCreatedAssetVia = "snmp_read"
+)
+
+// AllValues returns all LogsPostLogsSourcesCreatedAssetVia values.
+func (LogsPostLogsSourcesCreatedAssetVia) AllValues() []LogsPostLogsSourcesCreatedAssetVia {
+	return []LogsPostLogsSourcesCreatedAssetVia{
+		LogsPostLogsSourcesCreatedAssetViaSnmpRead,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s LogsPostLogsSourcesCreatedAssetVia) MarshalText() ([]byte, error) {
+	switch s {
+	case LogsPostLogsSourcesCreatedAssetViaSnmpRead:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *LogsPostLogsSourcesCreatedAssetVia) UnmarshalText(data []byte) error {
+	switch LogsPostLogsSourcesCreatedAssetVia(data) {
+	case LogsPostLogsSourcesCreatedAssetViaSnmpRead:
+		*s = LogsPostLogsSourcesCreatedAssetViaSnmpRead
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type LogsPostLogsSourcesCreatedKind string
@@ -123667,9 +125815,15 @@ func (s *LogsPutLogsSiemReqProto) UnmarshalText(data []byte) error {
 }
 
 type LogsPutLogsSourcesIDOK struct {
-	// Inventory device with the same IP; null when none.
-	AssetID   NilString `json:"asset_id"`
-	AssetName NilString `json:"asset_name"`
+	// The one inventory device that has this address (its listed IP, or the address its SNMP is read
+	// from); null when none, or when two do (see asset_matches).
+	AssetID NilString `json:"asset_id"`
+	// Every device that has the address when more than one does (asset_id and asset_name are then null);
+	// empty otherwise.
+	AssetMatches []LogsPutLogsSourcesIDOKAssetMatchesItem `json:"asset_matches"`
+	AssetName    NilString                                `json:"asset_name"`
+	// How the device was found when it is not by its listed IP; null for a listed IP or no device.
+	AssetVia NilLogsPutLogsSourcesIDOKAssetVia `json:"asset_via"`
 	// TLS sources only: the SHA-256 of the client certificate the device must present (64 lowercase hex
 	// characters); null = the sender is known by its IP address alone.
 	ClientCertSHA256 NilString                   `json:"client_cert_sha256"`
@@ -123690,9 +125844,19 @@ func (s *LogsPutLogsSourcesIDOK) GetAssetID() NilString {
 	return s.AssetID
 }
 
+// GetAssetMatches returns the value of AssetMatches.
+func (s *LogsPutLogsSourcesIDOK) GetAssetMatches() []LogsPutLogsSourcesIDOKAssetMatchesItem {
+	return s.AssetMatches
+}
+
 // GetAssetName returns the value of AssetName.
 func (s *LogsPutLogsSourcesIDOK) GetAssetName() NilString {
 	return s.AssetName
+}
+
+// GetAssetVia returns the value of AssetVia.
+func (s *LogsPutLogsSourcesIDOK) GetAssetVia() NilLogsPutLogsSourcesIDOKAssetVia {
+	return s.AssetVia
 }
 
 // GetClientCertSHA256 returns the value of ClientCertSHA256.
@@ -123755,9 +125919,19 @@ func (s *LogsPutLogsSourcesIDOK) SetAssetID(val NilString) {
 	s.AssetID = val
 }
 
+// SetAssetMatches sets the value of AssetMatches.
+func (s *LogsPutLogsSourcesIDOK) SetAssetMatches(val []LogsPutLogsSourcesIDOKAssetMatchesItem) {
+	s.AssetMatches = val
+}
+
 // SetAssetName sets the value of AssetName.
 func (s *LogsPutLogsSourcesIDOK) SetAssetName(val NilString) {
 	s.AssetName = val
+}
+
+// SetAssetVia sets the value of AssetVia.
+func (s *LogsPutLogsSourcesIDOK) SetAssetVia(val NilLogsPutLogsSourcesIDOKAssetVia) {
+	s.AssetVia = val
 }
 
 // SetClientCertSHA256 sets the value of ClientCertSHA256.
@@ -123813,6 +125987,110 @@ func (s *LogsPutLogsSourcesIDOK) SetSenderIP(val string) {
 // SetState sets the value of State.
 func (s *LogsPutLogsSourcesIDOK) SetState(val LogsPutLogsSourcesIDOKState) {
 	s.State = val
+}
+
+type LogsPutLogsSourcesIDOKAssetMatchesItem struct {
+	ID   string                                       `json:"id"`
+	Name string                                       `json:"name"`
+	Via  NilLogsPutLogsSourcesIDOKAssetMatchesItemVia `json:"via"`
+}
+
+// GetID returns the value of ID.
+func (s *LogsPutLogsSourcesIDOKAssetMatchesItem) GetID() string {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *LogsPutLogsSourcesIDOKAssetMatchesItem) GetName() string {
+	return s.Name
+}
+
+// GetVia returns the value of Via.
+func (s *LogsPutLogsSourcesIDOKAssetMatchesItem) GetVia() NilLogsPutLogsSourcesIDOKAssetMatchesItemVia {
+	return s.Via
+}
+
+// SetID sets the value of ID.
+func (s *LogsPutLogsSourcesIDOKAssetMatchesItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *LogsPutLogsSourcesIDOKAssetMatchesItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetVia sets the value of Via.
+func (s *LogsPutLogsSourcesIDOKAssetMatchesItem) SetVia(val NilLogsPutLogsSourcesIDOKAssetMatchesItemVia) {
+	s.Via = val
+}
+
+type LogsPutLogsSourcesIDOKAssetMatchesItemVia string
+
+const (
+	LogsPutLogsSourcesIDOKAssetMatchesItemViaSnmpRead LogsPutLogsSourcesIDOKAssetMatchesItemVia = "snmp_read"
+)
+
+// AllValues returns all LogsPutLogsSourcesIDOKAssetMatchesItemVia values.
+func (LogsPutLogsSourcesIDOKAssetMatchesItemVia) AllValues() []LogsPutLogsSourcesIDOKAssetMatchesItemVia {
+	return []LogsPutLogsSourcesIDOKAssetMatchesItemVia{
+		LogsPutLogsSourcesIDOKAssetMatchesItemViaSnmpRead,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s LogsPutLogsSourcesIDOKAssetMatchesItemVia) MarshalText() ([]byte, error) {
+	switch s {
+	case LogsPutLogsSourcesIDOKAssetMatchesItemViaSnmpRead:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *LogsPutLogsSourcesIDOKAssetMatchesItemVia) UnmarshalText(data []byte) error {
+	switch LogsPutLogsSourcesIDOKAssetMatchesItemVia(data) {
+	case LogsPutLogsSourcesIDOKAssetMatchesItemViaSnmpRead:
+		*s = LogsPutLogsSourcesIDOKAssetMatchesItemViaSnmpRead
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type LogsPutLogsSourcesIDOKAssetVia string
+
+const (
+	LogsPutLogsSourcesIDOKAssetViaSnmpRead LogsPutLogsSourcesIDOKAssetVia = "snmp_read"
+)
+
+// AllValues returns all LogsPutLogsSourcesIDOKAssetVia values.
+func (LogsPutLogsSourcesIDOKAssetVia) AllValues() []LogsPutLogsSourcesIDOKAssetVia {
+	return []LogsPutLogsSourcesIDOKAssetVia{
+		LogsPutLogsSourcesIDOKAssetViaSnmpRead,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s LogsPutLogsSourcesIDOKAssetVia) MarshalText() ([]byte, error) {
+	switch s {
+	case LogsPutLogsSourcesIDOKAssetViaSnmpRead:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *LogsPutLogsSourcesIDOKAssetVia) UnmarshalText(data []byte) error {
+	switch LogsPutLogsSourcesIDOKAssetVia(data) {
+	case LogsPutLogsSourcesIDOKAssetViaSnmpRead:
+		*s = LogsPutLogsSourcesIDOKAssetViaSnmpRead
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type LogsPutLogsSourcesIDOKKind string
@@ -128175,6 +130453,51 @@ func (o NilExposureDeleteExposureTargetsIDTermsOKCommitmentNotice) Or(d Exposure
 	return d
 }
 
+// NewNilExposureDeleteExposureTargetsIDTermsOKIPProof returns new NilExposureDeleteExposureTargetsIDTermsOKIPProof with value set to v.
+func NewNilExposureDeleteExposureTargetsIDTermsOKIPProof(v ExposureDeleteExposureTargetsIDTermsOKIPProof) NilExposureDeleteExposureTargetsIDTermsOKIPProof {
+	return NilExposureDeleteExposureTargetsIDTermsOKIPProof{
+		Value: v,
+	}
+}
+
+// NilExposureDeleteExposureTargetsIDTermsOKIPProof is nullable ExposureDeleteExposureTargetsIDTermsOKIPProof.
+type NilExposureDeleteExposureTargetsIDTermsOKIPProof struct {
+	Value ExposureDeleteExposureTargetsIDTermsOKIPProof
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureDeleteExposureTargetsIDTermsOKIPProof) SetTo(v ExposureDeleteExposureTargetsIDTermsOKIPProof) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureDeleteExposureTargetsIDTermsOKIPProof) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureDeleteExposureTargetsIDTermsOKIPProof) SetToNull() {
+	o.Null = true
+	var v ExposureDeleteExposureTargetsIDTermsOKIPProof
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureDeleteExposureTargetsIDTermsOKIPProof) Get() (v ExposureDeleteExposureTargetsIDTermsOKIPProof, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureDeleteExposureTargetsIDTermsOKIPProof) Or(d ExposureDeleteExposureTargetsIDTermsOKIPProof) ExposureDeleteExposureTargetsIDTermsOKIPProof {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilExposureDeleteExposureTargetsIDTermsOKLastCheck returns new NilExposureDeleteExposureTargetsIDTermsOKLastCheck with value set to v.
 func NewNilExposureDeleteExposureTargetsIDTermsOKLastCheck(v ExposureDeleteExposureTargetsIDTermsOKLastCheck) NilExposureDeleteExposureTargetsIDTermsOKLastCheck {
 	return NilExposureDeleteExposureTargetsIDTermsOKLastCheck{
@@ -128805,6 +131128,51 @@ func (o NilExposureGetExposureTargetsIDOKCommitmentNotice) Or(d ExposureGetExpos
 	return d
 }
 
+// NewNilExposureGetExposureTargetsIDOKIPProof returns new NilExposureGetExposureTargetsIDOKIPProof with value set to v.
+func NewNilExposureGetExposureTargetsIDOKIPProof(v ExposureGetExposureTargetsIDOKIPProof) NilExposureGetExposureTargetsIDOKIPProof {
+	return NilExposureGetExposureTargetsIDOKIPProof{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTargetsIDOKIPProof is nullable ExposureGetExposureTargetsIDOKIPProof.
+type NilExposureGetExposureTargetsIDOKIPProof struct {
+	Value ExposureGetExposureTargetsIDOKIPProof
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTargetsIDOKIPProof) SetTo(v ExposureGetExposureTargetsIDOKIPProof) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTargetsIDOKIPProof) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTargetsIDOKIPProof) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTargetsIDOKIPProof
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTargetsIDOKIPProof) Get() (v ExposureGetExposureTargetsIDOKIPProof, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTargetsIDOKIPProof) Or(d ExposureGetExposureTargetsIDOKIPProof) ExposureGetExposureTargetsIDOKIPProof {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilExposureGetExposureTargetsIDOKLastCheck returns new NilExposureGetExposureTargetsIDOKLastCheck with value set to v.
 func NewNilExposureGetExposureTargetsIDOKLastCheck(v ExposureGetExposureTargetsIDOKLastCheck) NilExposureGetExposureTargetsIDOKLastCheck {
 	return NilExposureGetExposureTargetsIDOKLastCheck{
@@ -129345,6 +131713,51 @@ func (o NilExposureGetExposureTargetsOKItemsItemCommitmentNotice) Or(d ExposureG
 	return d
 }
 
+// NewNilExposureGetExposureTargetsOKItemsItemIPProof returns new NilExposureGetExposureTargetsOKItemsItemIPProof with value set to v.
+func NewNilExposureGetExposureTargetsOKItemsItemIPProof(v ExposureGetExposureTargetsOKItemsItemIPProof) NilExposureGetExposureTargetsOKItemsItemIPProof {
+	return NilExposureGetExposureTargetsOKItemsItemIPProof{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTargetsOKItemsItemIPProof is nullable ExposureGetExposureTargetsOKItemsItemIPProof.
+type NilExposureGetExposureTargetsOKItemsItemIPProof struct {
+	Value ExposureGetExposureTargetsOKItemsItemIPProof
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTargetsOKItemsItemIPProof) SetTo(v ExposureGetExposureTargetsOKItemsItemIPProof) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTargetsOKItemsItemIPProof) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTargetsOKItemsItemIPProof) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTargetsOKItemsItemIPProof
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTargetsOKItemsItemIPProof) Get() (v ExposureGetExposureTargetsOKItemsItemIPProof, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTargetsOKItemsItemIPProof) Or(d ExposureGetExposureTargetsOKItemsItemIPProof) ExposureGetExposureTargetsOKItemsItemIPProof {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilExposureGetExposureTargetsOKItemsItemLastCheck returns new NilExposureGetExposureTargetsOKItemsItemLastCheck with value set to v.
 func NewNilExposureGetExposureTargetsOKItemsItemLastCheck(v ExposureGetExposureTargetsOKItemsItemLastCheck) NilExposureGetExposureTargetsOKItemsItemLastCheck {
 	return NilExposureGetExposureTargetsOKItemsItemLastCheck{
@@ -129744,6 +132157,51 @@ func (o NilExposurePostExposureBoxIPVerifyOKItemsItemCommitmentNotice) Get() (v 
 
 // Or returns value if set, or given parameter if does not.
 func (o NilExposurePostExposureBoxIPVerifyOKItemsItemCommitmentNotice) Or(d ExposurePostExposureBoxIPVerifyOKItemsItemCommitmentNotice) ExposurePostExposureBoxIPVerifyOKItemsItemCommitmentNotice {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePostExposureBoxIPVerifyOKItemsItemIPProof returns new NilExposurePostExposureBoxIPVerifyOKItemsItemIPProof with value set to v.
+func NewNilExposurePostExposureBoxIPVerifyOKItemsItemIPProof(v ExposurePostExposureBoxIPVerifyOKItemsItemIPProof) NilExposurePostExposureBoxIPVerifyOKItemsItemIPProof {
+	return NilExposurePostExposureBoxIPVerifyOKItemsItemIPProof{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureBoxIPVerifyOKItemsItemIPProof is nullable ExposurePostExposureBoxIPVerifyOKItemsItemIPProof.
+type NilExposurePostExposureBoxIPVerifyOKItemsItemIPProof struct {
+	Value ExposurePostExposureBoxIPVerifyOKItemsItemIPProof
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureBoxIPVerifyOKItemsItemIPProof) SetTo(v ExposurePostExposureBoxIPVerifyOKItemsItemIPProof) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureBoxIPVerifyOKItemsItemIPProof) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureBoxIPVerifyOKItemsItemIPProof) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureBoxIPVerifyOKItemsItemIPProof
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureBoxIPVerifyOKItemsItemIPProof) Get() (v ExposurePostExposureBoxIPVerifyOKItemsItemIPProof, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureBoxIPVerifyOKItemsItemIPProof) Or(d ExposurePostExposureBoxIPVerifyOKItemsItemIPProof) ExposurePostExposureBoxIPVerifyOKItemsItemIPProof {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -130284,6 +132742,51 @@ func (o NilExposurePostExposureTargetsCreatedCommitmentNotice) Get() (v Exposure
 
 // Or returns value if set, or given parameter if does not.
 func (o NilExposurePostExposureTargetsCreatedCommitmentNotice) Or(d ExposurePostExposureTargetsCreatedCommitmentNotice) ExposurePostExposureTargetsCreatedCommitmentNotice {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePostExposureTargetsCreatedIPProof returns new NilExposurePostExposureTargetsCreatedIPProof with value set to v.
+func NewNilExposurePostExposureTargetsCreatedIPProof(v ExposurePostExposureTargetsCreatedIPProof) NilExposurePostExposureTargetsCreatedIPProof {
+	return NilExposurePostExposureTargetsCreatedIPProof{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTargetsCreatedIPProof is nullable ExposurePostExposureTargetsCreatedIPProof.
+type NilExposurePostExposureTargetsCreatedIPProof struct {
+	Value ExposurePostExposureTargetsCreatedIPProof
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTargetsCreatedIPProof) SetTo(v ExposurePostExposureTargetsCreatedIPProof) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTargetsCreatedIPProof) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTargetsCreatedIPProof) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTargetsCreatedIPProof
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTargetsCreatedIPProof) Get() (v ExposurePostExposureTargetsCreatedIPProof, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTargetsCreatedIPProof) Or(d ExposurePostExposureTargetsCreatedIPProof) ExposurePostExposureTargetsCreatedIPProof {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -130965,6 +133468,51 @@ func (o NilExposurePostExposureTargetsIDVerifyOKTargetCommitmentNotice) Or(d Exp
 	return d
 }
 
+// NewNilExposurePostExposureTargetsIDVerifyOKTargetIPProof returns new NilExposurePostExposureTargetsIDVerifyOKTargetIPProof with value set to v.
+func NewNilExposurePostExposureTargetsIDVerifyOKTargetIPProof(v ExposurePostExposureTargetsIDVerifyOKTargetIPProof) NilExposurePostExposureTargetsIDVerifyOKTargetIPProof {
+	return NilExposurePostExposureTargetsIDVerifyOKTargetIPProof{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTargetsIDVerifyOKTargetIPProof is nullable ExposurePostExposureTargetsIDVerifyOKTargetIPProof.
+type NilExposurePostExposureTargetsIDVerifyOKTargetIPProof struct {
+	Value ExposurePostExposureTargetsIDVerifyOKTargetIPProof
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTargetsIDVerifyOKTargetIPProof) SetTo(v ExposurePostExposureTargetsIDVerifyOKTargetIPProof) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTargetsIDVerifyOKTargetIPProof) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTargetsIDVerifyOKTargetIPProof) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTargetsIDVerifyOKTargetIPProof
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTargetsIDVerifyOKTargetIPProof) Get() (v ExposurePostExposureTargetsIDVerifyOKTargetIPProof, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTargetsIDVerifyOKTargetIPProof) Or(d ExposurePostExposureTargetsIDVerifyOKTargetIPProof) ExposurePostExposureTargetsIDVerifyOKTargetIPProof {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilExposurePostExposureTargetsIDVerifyOKTargetLastCheck returns new NilExposurePostExposureTargetsIDVerifyOKTargetLastCheck with value set to v.
 func NewNilExposurePostExposureTargetsIDVerifyOKTargetLastCheck(v ExposurePostExposureTargetsIDVerifyOKTargetLastCheck) NilExposurePostExposureTargetsIDVerifyOKTargetLastCheck {
 	return NilExposurePostExposureTargetsIDVerifyOKTargetLastCheck{
@@ -131454,6 +134002,51 @@ func (o NilExposurePutExposureTargetsIDTermsOKCommitmentNotice) Get() (v Exposur
 
 // Or returns value if set, or given parameter if does not.
 func (o NilExposurePutExposureTargetsIDTermsOKCommitmentNotice) Or(d ExposurePutExposureTargetsIDTermsOKCommitmentNotice) ExposurePutExposureTargetsIDTermsOKCommitmentNotice {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTargetsIDTermsOKIPProof returns new NilExposurePutExposureTargetsIDTermsOKIPProof with value set to v.
+func NewNilExposurePutExposureTargetsIDTermsOKIPProof(v ExposurePutExposureTargetsIDTermsOKIPProof) NilExposurePutExposureTargetsIDTermsOKIPProof {
+	return NilExposurePutExposureTargetsIDTermsOKIPProof{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTargetsIDTermsOKIPProof is nullable ExposurePutExposureTargetsIDTermsOKIPProof.
+type NilExposurePutExposureTargetsIDTermsOKIPProof struct {
+	Value ExposurePutExposureTargetsIDTermsOKIPProof
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTargetsIDTermsOKIPProof) SetTo(v ExposurePutExposureTargetsIDTermsOKIPProof) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTargetsIDTermsOKIPProof) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTargetsIDTermsOKIPProof) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTargetsIDTermsOKIPProof
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTargetsIDTermsOKIPProof) Get() (v ExposurePutExposureTargetsIDTermsOKIPProof, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTargetsIDTermsOKIPProof) Or(d ExposurePutExposureTargetsIDTermsOKIPProof) ExposurePutExposureTargetsIDTermsOKIPProof {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -137852,6 +140445,186 @@ func (o NilLogsGetLogsSiemOKLastTest) Or(d LogsGetLogsSiemOKLastTest) LogsGetLog
 	return d
 }
 
+// NewNilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia returns new NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia with value set to v.
+func NewNilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia(v LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia {
+	return NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia{
+		Value: v,
+	}
+}
+
+// NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia is nullable LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia.
+type NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia struct {
+	Value LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) SetTo(v LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) SetToNull() {
+	o.Null = true
+	var v LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) Get() (v LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) Or(d LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilLogsGetLogsSourcesOKSourcesItemAssetVia returns new NilLogsGetLogsSourcesOKSourcesItemAssetVia with value set to v.
+func NewNilLogsGetLogsSourcesOKSourcesItemAssetVia(v LogsGetLogsSourcesOKSourcesItemAssetVia) NilLogsGetLogsSourcesOKSourcesItemAssetVia {
+	return NilLogsGetLogsSourcesOKSourcesItemAssetVia{
+		Value: v,
+	}
+}
+
+// NilLogsGetLogsSourcesOKSourcesItemAssetVia is nullable LogsGetLogsSourcesOKSourcesItemAssetVia.
+type NilLogsGetLogsSourcesOKSourcesItemAssetVia struct {
+	Value LogsGetLogsSourcesOKSourcesItemAssetVia
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilLogsGetLogsSourcesOKSourcesItemAssetVia) SetTo(v LogsGetLogsSourcesOKSourcesItemAssetVia) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilLogsGetLogsSourcesOKSourcesItemAssetVia) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilLogsGetLogsSourcesOKSourcesItemAssetVia) SetToNull() {
+	o.Null = true
+	var v LogsGetLogsSourcesOKSourcesItemAssetVia
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilLogsGetLogsSourcesOKSourcesItemAssetVia) Get() (v LogsGetLogsSourcesOKSourcesItemAssetVia, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilLogsGetLogsSourcesOKSourcesItemAssetVia) Or(d LogsGetLogsSourcesOKSourcesItemAssetVia) LogsGetLogsSourcesOKSourcesItemAssetVia {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilLogsPostLogsSourcesCreatedAssetMatchesItemVia returns new NilLogsPostLogsSourcesCreatedAssetMatchesItemVia with value set to v.
+func NewNilLogsPostLogsSourcesCreatedAssetMatchesItemVia(v LogsPostLogsSourcesCreatedAssetMatchesItemVia) NilLogsPostLogsSourcesCreatedAssetMatchesItemVia {
+	return NilLogsPostLogsSourcesCreatedAssetMatchesItemVia{
+		Value: v,
+	}
+}
+
+// NilLogsPostLogsSourcesCreatedAssetMatchesItemVia is nullable LogsPostLogsSourcesCreatedAssetMatchesItemVia.
+type NilLogsPostLogsSourcesCreatedAssetMatchesItemVia struct {
+	Value LogsPostLogsSourcesCreatedAssetMatchesItemVia
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilLogsPostLogsSourcesCreatedAssetMatchesItemVia) SetTo(v LogsPostLogsSourcesCreatedAssetMatchesItemVia) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilLogsPostLogsSourcesCreatedAssetMatchesItemVia) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilLogsPostLogsSourcesCreatedAssetMatchesItemVia) SetToNull() {
+	o.Null = true
+	var v LogsPostLogsSourcesCreatedAssetMatchesItemVia
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilLogsPostLogsSourcesCreatedAssetMatchesItemVia) Get() (v LogsPostLogsSourcesCreatedAssetMatchesItemVia, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilLogsPostLogsSourcesCreatedAssetMatchesItemVia) Or(d LogsPostLogsSourcesCreatedAssetMatchesItemVia) LogsPostLogsSourcesCreatedAssetMatchesItemVia {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilLogsPostLogsSourcesCreatedAssetVia returns new NilLogsPostLogsSourcesCreatedAssetVia with value set to v.
+func NewNilLogsPostLogsSourcesCreatedAssetVia(v LogsPostLogsSourcesCreatedAssetVia) NilLogsPostLogsSourcesCreatedAssetVia {
+	return NilLogsPostLogsSourcesCreatedAssetVia{
+		Value: v,
+	}
+}
+
+// NilLogsPostLogsSourcesCreatedAssetVia is nullable LogsPostLogsSourcesCreatedAssetVia.
+type NilLogsPostLogsSourcesCreatedAssetVia struct {
+	Value LogsPostLogsSourcesCreatedAssetVia
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilLogsPostLogsSourcesCreatedAssetVia) SetTo(v LogsPostLogsSourcesCreatedAssetVia) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilLogsPostLogsSourcesCreatedAssetVia) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilLogsPostLogsSourcesCreatedAssetVia) SetToNull() {
+	o.Null = true
+	var v LogsPostLogsSourcesCreatedAssetVia
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilLogsPostLogsSourcesCreatedAssetVia) Get() (v LogsPostLogsSourcesCreatedAssetVia, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilLogsPostLogsSourcesCreatedAssetVia) Or(d LogsPostLogsSourcesCreatedAssetVia) LogsPostLogsSourcesCreatedAssetVia {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilLogsPutLogsSiemOKLastTest returns new NilLogsPutLogsSiemOKLastTest with value set to v.
 func NewNilLogsPutLogsSiemOKLastTest(v LogsPutLogsSiemOKLastTest) NilLogsPutLogsSiemOKLastTest {
 	return NilLogsPutLogsSiemOKLastTest{
@@ -137891,6 +140664,96 @@ func (o NilLogsPutLogsSiemOKLastTest) Get() (v LogsPutLogsSiemOKLastTest, ok boo
 
 // Or returns value if set, or given parameter if does not.
 func (o NilLogsPutLogsSiemOKLastTest) Or(d LogsPutLogsSiemOKLastTest) LogsPutLogsSiemOKLastTest {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilLogsPutLogsSourcesIDOKAssetMatchesItemVia returns new NilLogsPutLogsSourcesIDOKAssetMatchesItemVia with value set to v.
+func NewNilLogsPutLogsSourcesIDOKAssetMatchesItemVia(v LogsPutLogsSourcesIDOKAssetMatchesItemVia) NilLogsPutLogsSourcesIDOKAssetMatchesItemVia {
+	return NilLogsPutLogsSourcesIDOKAssetMatchesItemVia{
+		Value: v,
+	}
+}
+
+// NilLogsPutLogsSourcesIDOKAssetMatchesItemVia is nullable LogsPutLogsSourcesIDOKAssetMatchesItemVia.
+type NilLogsPutLogsSourcesIDOKAssetMatchesItemVia struct {
+	Value LogsPutLogsSourcesIDOKAssetMatchesItemVia
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilLogsPutLogsSourcesIDOKAssetMatchesItemVia) SetTo(v LogsPutLogsSourcesIDOKAssetMatchesItemVia) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilLogsPutLogsSourcesIDOKAssetMatchesItemVia) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilLogsPutLogsSourcesIDOKAssetMatchesItemVia) SetToNull() {
+	o.Null = true
+	var v LogsPutLogsSourcesIDOKAssetMatchesItemVia
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilLogsPutLogsSourcesIDOKAssetMatchesItemVia) Get() (v LogsPutLogsSourcesIDOKAssetMatchesItemVia, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilLogsPutLogsSourcesIDOKAssetMatchesItemVia) Or(d LogsPutLogsSourcesIDOKAssetMatchesItemVia) LogsPutLogsSourcesIDOKAssetMatchesItemVia {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilLogsPutLogsSourcesIDOKAssetVia returns new NilLogsPutLogsSourcesIDOKAssetVia with value set to v.
+func NewNilLogsPutLogsSourcesIDOKAssetVia(v LogsPutLogsSourcesIDOKAssetVia) NilLogsPutLogsSourcesIDOKAssetVia {
+	return NilLogsPutLogsSourcesIDOKAssetVia{
+		Value: v,
+	}
+}
+
+// NilLogsPutLogsSourcesIDOKAssetVia is nullable LogsPutLogsSourcesIDOKAssetVia.
+type NilLogsPutLogsSourcesIDOKAssetVia struct {
+	Value LogsPutLogsSourcesIDOKAssetVia
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilLogsPutLogsSourcesIDOKAssetVia) SetTo(v LogsPutLogsSourcesIDOKAssetVia) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilLogsPutLogsSourcesIDOKAssetVia) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilLogsPutLogsSourcesIDOKAssetVia) SetToNull() {
+	o.Null = true
+	var v LogsPutLogsSourcesIDOKAssetVia
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilLogsPutLogsSourcesIDOKAssetVia) Get() (v LogsPutLogsSourcesIDOKAssetVia, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilLogsPutLogsSourcesIDOKAssetVia) Or(d LogsPutLogsSourcesIDOKAssetVia) LogsPutLogsSourcesIDOKAssetVia {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -151984,6 +154847,52 @@ func (o OptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent) Get() 
 
 // Or returns value if set, or given parameter if does not.
 func (o OptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent) Or(d ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent) ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptExposurePostExposureTargetsReqKind returns new OptExposurePostExposureTargetsReqKind with value set to v.
+func NewOptExposurePostExposureTargetsReqKind(v ExposurePostExposureTargetsReqKind) OptExposurePostExposureTargetsReqKind {
+	return OptExposurePostExposureTargetsReqKind{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExposurePostExposureTargetsReqKind is optional ExposurePostExposureTargetsReqKind.
+type OptExposurePostExposureTargetsReqKind struct {
+	Value ExposurePostExposureTargetsReqKind
+	Set   bool
+}
+
+// IsSet returns true if OptExposurePostExposureTargetsReqKind was set.
+func (o OptExposurePostExposureTargetsReqKind) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptExposurePostExposureTargetsReqKind) Reset() {
+	var v ExposurePostExposureTargetsReqKind
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExposurePostExposureTargetsReqKind) SetTo(v ExposurePostExposureTargetsReqKind) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExposurePostExposureTargetsReqKind) Get() (v ExposurePostExposureTargetsReqKind, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExposurePostExposureTargetsReqKind) Or(d ExposurePostExposureTargetsReqKind) ExposurePostExposureTargetsReqKind {
 	if v, ok := o.Get(); ok {
 		return v
 	}

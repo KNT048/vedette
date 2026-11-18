@@ -163,6 +163,7 @@ const (
 const (
 	NotAvailableGreenbone = "OpenVAS is not available on this box."
 	notGBOff              = "Optional deep scan with OpenVAS is off. An administrator can turn it on under Settings on the External exposure page."
+	notGBProof            = "OpenVAS did not scan: the proof of this IP (its token file or reverse DNS name) was not found just now."
 	notGBDomain           = "OpenVAS runs on the box's own verified public IP only, never on the names of a domain."
 	// notGBNoDeep: a domain with accepted terms whose deep scan reached no address this run.
 	notGBNoDeep   = "OpenVAS did not scan: no address of this domain's names got the deep scan this run."
@@ -828,6 +829,18 @@ func (s *Service) greenbonePlan(ctx context.Context, st ScanTarget) (run bool, l
 	}
 	if !st.Mode.Full { // Greenbone's checks are covered by the testing terms only
 		return false, notGBTerms, nil
+	}
+	if st.Kind == KindIP && st.Typed { // a typed IP: the proof is looked for again (the cached live result of this scan) before OpenVAS starts
+		t, err := loadTarget(ctx, s.cfg.DB.Reader(), st.ID)
+		if err != nil {
+			return false, "", err
+		}
+		if t, err = s.liveTypedProof(ctx, st.User, t); err != nil {
+			return false, "", err
+		}
+		if t.LastCheck == nil || !t.LastCheck.OK || t.validity(s.clock()) == validityExpired {
+			return false, notGBProof, nil
+		}
 	}
 	switch state, reason := s.gbStatus(ctx, true); state {
 	case GBReady:

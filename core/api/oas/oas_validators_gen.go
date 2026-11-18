@@ -23169,6 +23169,24 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.IPProof.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "ip_proof",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.Kind.Validate(); err != nil {
 			return err
 		}
@@ -23216,6 +23234,27 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) Validate() error {
 		})
 	}
 	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.OpenExposures)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "open_exposures",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		var failures []validate.FieldError
 		for i, elem := range s.OpenPorts {
 			if err := func() error {
@@ -23237,6 +23276,28 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "open_ports",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Origin.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "origin",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.ScanState.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "scan_state",
 			Error: err,
 		})
 	}
@@ -23283,6 +23344,8 @@ func (s ExposureDeleteExposureTargetsIDTermsOKBlockedReason) Validate() error {
 		return nil
 	case "txt_missing":
 		return nil
+	case "proof_missing":
+		return nil
 	case "no_commitment":
 		return nil
 	case "ip_not_current":
@@ -23290,6 +23353,40 @@ func (s ExposureDeleteExposureTargetsIDTermsOKBlockedReason) Validate() error {
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
+}
+
+func (s *ExposureDeleteExposureTargetsIDTermsOKIPProof) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.PtrDomains == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "ptr_domains",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.Urls == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "urls",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
 }
 
 func (s ExposureDeleteExposureTargetsIDTermsOKKind) Validate() error {
@@ -23425,6 +23522,10 @@ func (s ExposureDeleteExposureTargetsIDTermsOKMethod) Validate() error {
 	case "dns_txt":
 		return nil
 	case "box_egress":
+		return nil
+	case "ip_file":
+		return nil
+	case "ip_ptr":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -23715,6 +23816,36 @@ func (s ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent) Validate() err
 	case "port":
 		return nil
 	case "none":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ExposureDeleteExposureTargetsIDTermsOKOrigin) Validate() error {
+	switch s {
+	case "person":
+		return nil
+	case "box":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ExposureDeleteExposureTargetsIDTermsOKScanState) Validate() error {
+	switch s {
+	case "unproved":
+		return nil
+	case "expired":
+		return nil
+	case "paused":
+		return nil
+	case "needs_terms":
+		return nil
+	case "ready":
+		return nil
+	case "scanning":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -24434,6 +24565,24 @@ func (s *ExposureGetExposureTargetsIDOK) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.IPProof.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "ip_proof",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.Kind.Validate(); err != nil {
 			return err
 		}
@@ -24481,6 +24630,27 @@ func (s *ExposureGetExposureTargetsIDOK) Validate() error {
 		})
 	}
 	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.OpenExposures)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "open_exposures",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		var failures []validate.FieldError
 		for i, elem := range s.OpenPorts {
 			if err := func() error {
@@ -24502,6 +24672,28 @@ func (s *ExposureGetExposureTargetsIDOK) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "open_ports",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Origin.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "origin",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.ScanState.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "scan_state",
 			Error: err,
 		})
 	}
@@ -24548,6 +24740,8 @@ func (s ExposureGetExposureTargetsIDOKBlockedReason) Validate() error {
 		return nil
 	case "txt_missing":
 		return nil
+	case "proof_missing":
+		return nil
 	case "no_commitment":
 		return nil
 	case "ip_not_current":
@@ -24555,6 +24749,40 @@ func (s ExposureGetExposureTargetsIDOKBlockedReason) Validate() error {
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
+}
+
+func (s *ExposureGetExposureTargetsIDOKIPProof) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.PtrDomains == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "ptr_domains",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.Urls == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "urls",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
 }
 
 func (s ExposureGetExposureTargetsIDOKKind) Validate() error {
@@ -24690,6 +24918,10 @@ func (s ExposureGetExposureTargetsIDOKMethod) Validate() error {
 	case "dns_txt":
 		return nil
 	case "box_egress":
+		return nil
+	case "ip_file":
+		return nil
+	case "ip_ptr":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -24980,6 +25212,36 @@ func (s ExposureGetExposureTargetsIDOKOpenPortsItemIdent) Validate() error {
 	case "port":
 		return nil
 	case "none":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ExposureGetExposureTargetsIDOKOrigin) Validate() error {
+	switch s {
+	case "person":
+		return nil
+	case "box":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ExposureGetExposureTargetsIDOKScanState) Validate() error {
+	switch s {
+	case "unproved":
+		return nil
+	case "expired":
+		return nil
+	case "paused":
+		return nil
+	case "needs_terms":
+		return nil
+	case "ready":
+		return nil
+	case "scanning":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -27500,6 +27762,24 @@ func (s *ExposureGetExposureTargetsOKItemsItem) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.IPProof.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "ip_proof",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.Kind.Validate(); err != nil {
 			return err
 		}
@@ -27547,6 +27827,27 @@ func (s *ExposureGetExposureTargetsOKItemsItem) Validate() error {
 		})
 	}
 	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.OpenExposures)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "open_exposures",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		var failures []validate.FieldError
 		for i, elem := range s.OpenPorts {
 			if err := func() error {
@@ -27568,6 +27869,28 @@ func (s *ExposureGetExposureTargetsOKItemsItem) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "open_ports",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Origin.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "origin",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.ScanState.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "scan_state",
 			Error: err,
 		})
 	}
@@ -27614,6 +27937,8 @@ func (s ExposureGetExposureTargetsOKItemsItemBlockedReason) Validate() error {
 		return nil
 	case "txt_missing":
 		return nil
+	case "proof_missing":
+		return nil
 	case "no_commitment":
 		return nil
 	case "ip_not_current":
@@ -27621,6 +27946,40 @@ func (s ExposureGetExposureTargetsOKItemsItemBlockedReason) Validate() error {
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
+}
+
+func (s *ExposureGetExposureTargetsOKItemsItemIPProof) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.PtrDomains == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "ptr_domains",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.Urls == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "urls",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
 }
 
 func (s ExposureGetExposureTargetsOKItemsItemKind) Validate() error {
@@ -27756,6 +28115,10 @@ func (s ExposureGetExposureTargetsOKItemsItemMethod) Validate() error {
 	case "dns_txt":
 		return nil
 	case "box_egress":
+		return nil
+	case "ip_file":
+		return nil
+	case "ip_ptr":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -28052,6 +28415,36 @@ func (s ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent) Validate() erro
 	}
 }
 
+func (s ExposureGetExposureTargetsOKItemsItemOrigin) Validate() error {
+	switch s {
+	case "person":
+		return nil
+	case "box":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ExposureGetExposureTargetsOKItemsItemScanState) Validate() error {
+	switch s {
+	case "unproved":
+		return nil
+	case "expired":
+		return nil
+	case "paused":
+		return nil
+	case "needs_terms":
+		return nil
+	case "ready":
+		return nil
+	case "scanning":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s ExposureGetExposureTargetsOKItemsItemStatus) Validate() error {
 	switch s {
 	case "unverified":
@@ -28143,6 +28536,24 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.IPProof.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "ip_proof",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.Kind.Validate(); err != nil {
 			return err
 		}
@@ -28190,6 +28601,27 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) Validate() error {
 		})
 	}
 	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.OpenExposures)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "open_exposures",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		var failures []validate.FieldError
 		for i, elem := range s.OpenPorts {
 			if err := func() error {
@@ -28211,6 +28643,28 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "open_ports",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Origin.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "origin",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.ScanState.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "scan_state",
 			Error: err,
 		})
 	}
@@ -28257,6 +28711,8 @@ func (s ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason) Validate() erro
 		return nil
 	case "txt_missing":
 		return nil
+	case "proof_missing":
+		return nil
 	case "no_commitment":
 		return nil
 	case "ip_not_current":
@@ -28264,6 +28720,40 @@ func (s ExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason) Validate() erro
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
+}
+
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemIPProof) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.PtrDomains == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "ptr_domains",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.Urls == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "urls",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
 }
 
 func (s ExposurePostExposureBoxIPVerifyOKItemsItemKind) Validate() error {
@@ -28399,6 +28889,10 @@ func (s ExposurePostExposureBoxIPVerifyOKItemsItemMethod) Validate() error {
 	case "dns_txt":
 		return nil
 	case "box_egress":
+		return nil
+	case "ip_file":
+		return nil
+	case "ip_ptr":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -28689,6 +29183,36 @@ func (s ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent) Validate()
 	case "port":
 		return nil
 	case "none":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ExposurePostExposureBoxIPVerifyOKItemsItemOrigin) Validate() error {
+	switch s {
+	case "person":
+		return nil
+	case "box":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ExposurePostExposureBoxIPVerifyOKItemsItemScanState) Validate() error {
+	switch s {
+	case "unproved":
+		return nil
+	case "expired":
+		return nil
+	case "paused":
+		return nil
+	case "needs_terms":
+		return nil
+	case "ready":
+		return nil
+	case "scanning":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -29019,6 +29543,24 @@ func (s *ExposurePostExposureTargetsCreated) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.IPProof.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "ip_proof",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.Kind.Validate(); err != nil {
 			return err
 		}
@@ -29066,6 +29608,27 @@ func (s *ExposurePostExposureTargetsCreated) Validate() error {
 		})
 	}
 	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.OpenExposures)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "open_exposures",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		var failures []validate.FieldError
 		for i, elem := range s.OpenPorts {
 			if err := func() error {
@@ -29087,6 +29650,28 @@ func (s *ExposurePostExposureTargetsCreated) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "open_ports",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Origin.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "origin",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.ScanState.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "scan_state",
 			Error: err,
 		})
 	}
@@ -29133,6 +29718,8 @@ func (s ExposurePostExposureTargetsCreatedBlockedReason) Validate() error {
 		return nil
 	case "txt_missing":
 		return nil
+	case "proof_missing":
+		return nil
 	case "no_commitment":
 		return nil
 	case "ip_not_current":
@@ -29140,6 +29727,40 @@ func (s ExposurePostExposureTargetsCreatedBlockedReason) Validate() error {
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
+}
+
+func (s *ExposurePostExposureTargetsCreatedIPProof) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.PtrDomains == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "ptr_domains",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.Urls == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "urls",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
 }
 
 func (s ExposurePostExposureTargetsCreatedKind) Validate() error {
@@ -29275,6 +29896,10 @@ func (s ExposurePostExposureTargetsCreatedMethod) Validate() error {
 	case "dns_txt":
 		return nil
 	case "box_egress":
+		return nil
+	case "ip_file":
+		return nil
+	case "ip_ptr":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -29565,6 +30190,36 @@ func (s ExposurePostExposureTargetsCreatedOpenPortsItemIdent) Validate() error {
 	case "port":
 		return nil
 	case "none":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ExposurePostExposureTargetsCreatedOrigin) Validate() error {
+	switch s {
+	case "person":
+		return nil
+	case "box":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ExposurePostExposureTargetsCreatedScanState) Validate() error {
+	switch s {
+	case "unproved":
+		return nil
+	case "expired":
+		return nil
+	case "paused":
+		return nil
+	case "needs_terms":
+		return nil
+	case "ready":
+		return nil
+	case "scanning":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -30320,6 +30975,24 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.IPProof.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "ip_proof",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.Kind.Validate(); err != nil {
 			return err
 		}
@@ -30367,6 +31040,27 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) Validate() error {
 		})
 	}
 	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.OpenExposures)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "open_exposures",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		var failures []validate.FieldError
 		for i, elem := range s.OpenPorts {
 			if err := func() error {
@@ -30388,6 +31082,28 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "open_ports",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Origin.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "origin",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.ScanState.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "scan_state",
 			Error: err,
 		})
 	}
@@ -30434,6 +31150,8 @@ func (s ExposurePostExposureTargetsIDVerifyOKTargetBlockedReason) Validate() err
 		return nil
 	case "txt_missing":
 		return nil
+	case "proof_missing":
+		return nil
 	case "no_commitment":
 		return nil
 	case "ip_not_current":
@@ -30441,6 +31159,40 @@ func (s ExposurePostExposureTargetsIDVerifyOKTargetBlockedReason) Validate() err
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
+}
+
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetIPProof) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.PtrDomains == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "ptr_domains",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.Urls == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "urls",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
 }
 
 func (s ExposurePostExposureTargetsIDVerifyOKTargetKind) Validate() error {
@@ -30576,6 +31328,10 @@ func (s ExposurePostExposureTargetsIDVerifyOKTargetMethod) Validate() error {
 	case "dns_txt":
 		return nil
 	case "box_egress":
+		return nil
+	case "ip_file":
+		return nil
+	case "ip_ptr":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -30872,6 +31628,36 @@ func (s ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent) Validate(
 	}
 }
 
+func (s ExposurePostExposureTargetsIDVerifyOKTargetOrigin) Validate() error {
+	switch s {
+	case "person":
+		return nil
+	case "box":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ExposurePostExposureTargetsIDVerifyOKTargetScanState) Validate() error {
+	switch s {
+	case "unproved":
+		return nil
+	case "expired":
+		return nil
+	case "paused":
+		return nil
+	case "needs_terms":
+		return nil
+	case "ready":
+		return nil
+	case "scanning":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s ExposurePostExposureTargetsIDVerifyOKTargetStatus) Validate() error {
 	switch s {
 	case "unverified":
@@ -30892,6 +31678,47 @@ func (s ExposurePostExposureTargetsIDVerifyOKTargetValidity) Validate() error {
 	case "expiring":
 		return nil
 	case "expired":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *ExposurePostExposureTargetsReq) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.Kind.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "kind",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s ExposurePostExposureTargetsReqKind) Validate() error {
+	switch s {
+	case "domain":
+		return nil
+	case "ip":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -31138,6 +31965,24 @@ func (s *ExposurePutExposureTargetsIDTermsOK) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.IPProof.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "ip_proof",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.Kind.Validate(); err != nil {
 			return err
 		}
@@ -31185,6 +32030,27 @@ func (s *ExposurePutExposureTargetsIDTermsOK) Validate() error {
 		})
 	}
 	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.OpenExposures)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "open_exposures",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		var failures []validate.FieldError
 		for i, elem := range s.OpenPorts {
 			if err := func() error {
@@ -31206,6 +32072,28 @@ func (s *ExposurePutExposureTargetsIDTermsOK) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "open_ports",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Origin.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "origin",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.ScanState.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "scan_state",
 			Error: err,
 		})
 	}
@@ -31252,6 +32140,8 @@ func (s ExposurePutExposureTargetsIDTermsOKBlockedReason) Validate() error {
 		return nil
 	case "txt_missing":
 		return nil
+	case "proof_missing":
+		return nil
 	case "no_commitment":
 		return nil
 	case "ip_not_current":
@@ -31259,6 +32149,40 @@ func (s ExposurePutExposureTargetsIDTermsOKBlockedReason) Validate() error {
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
+}
+
+func (s *ExposurePutExposureTargetsIDTermsOKIPProof) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.PtrDomains == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "ptr_domains",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.Urls == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "urls",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
 }
 
 func (s ExposurePutExposureTargetsIDTermsOKKind) Validate() error {
@@ -31394,6 +32318,10 @@ func (s ExposurePutExposureTargetsIDTermsOKMethod) Validate() error {
 	case "dns_txt":
 		return nil
 	case "box_egress":
+		return nil
+	case "ip_file":
+		return nil
+	case "ip_ptr":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -31684,6 +32612,36 @@ func (s ExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent) Validate() error 
 	case "port":
 		return nil
 	case "none":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ExposurePutExposureTargetsIDTermsOKOrigin) Validate() error {
+	switch s {
+	case "person":
+		return nil
+	case "box":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ExposurePutExposureTargetsIDTermsOKScanState) Validate() error {
+	switch s {
+	case "unproved":
+		return nil
+	case "expired":
+		return nil
+	case "paused":
+		return nil
+	case "needs_terms":
+		return nil
+	case "ready":
+		return nil
+	case "scanning":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -62508,6 +63466,52 @@ func (s *LogsGetLogsSourcesOKSourcesItem) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if s.AssetMatches == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.AssetMatches {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "asset_matches",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.AssetVia.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "asset_via",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.Kind.Validate(); err != nil {
 			return err
 		}
@@ -62609,6 +63613,54 @@ func (s *LogsGetLogsSourcesOKSourcesItem) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s *LogsGetLogsSourcesOKSourcesItemAssetMatchesItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.Via.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "via",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) Validate() error {
+	switch s {
+	case "snmp_read":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s LogsGetLogsSourcesOKSourcesItemAssetVia) Validate() error {
+	switch s {
+	case "snmp_read":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s LogsGetLogsSourcesOKSourcesItemKind) Validate() error {
@@ -62875,6 +63927,52 @@ func (s *LogsPostLogsSourcesCreated) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if s.AssetMatches == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.AssetMatches {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "asset_matches",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.AssetVia.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "asset_via",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.Kind.Validate(); err != nil {
 			return err
 		}
@@ -62976,6 +64074,54 @@ func (s *LogsPostLogsSourcesCreated) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s *LogsPostLogsSourcesCreatedAssetMatchesItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.Via.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "via",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s LogsPostLogsSourcesCreatedAssetMatchesItemVia) Validate() error {
+	switch s {
+	case "snmp_read":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s LogsPostLogsSourcesCreatedAssetVia) Validate() error {
+	switch s {
+	case "snmp_read":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s LogsPostLogsSourcesCreatedKind) Validate() error {
@@ -63718,6 +64864,52 @@ func (s *LogsPutLogsSourcesIDOK) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if s.AssetMatches == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.AssetMatches {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "asset_matches",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.AssetVia.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "asset_via",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.Kind.Validate(); err != nil {
 			return err
 		}
@@ -63819,6 +65011,54 @@ func (s *LogsPutLogsSourcesIDOK) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s *LogsPutLogsSourcesIDOKAssetMatchesItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.Via.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "via",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s LogsPutLogsSourcesIDOKAssetMatchesItemVia) Validate() error {
+	switch s {
+	case "snmp_read":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s LogsPutLogsSourcesIDOKAssetVia) Validate() error {
+	switch s {
+	case "snmp_read":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s LogsPutLogsSourcesIDOKKind) Validate() error {

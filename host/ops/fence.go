@@ -370,8 +370,8 @@ func fenceJob(a api.ExposureFenceCheckArgs) (domainfence.Job, error) {
 	}
 	// The host trusts no core: the parent name a record is looked for on lies between the domain and its registered domain,
 	// never on or above a public suffix (co.uk, ddns.net, github.io, s3.amazonaws.com; review r1 L1 of #960)
-	if j.ProofAt != "" && !proofat.Within(j.Domain, j.ProofAt) {
-		return domainfence.Job{}, server.Invalid("proof_at", "must be a parent name of the domain, down to its registered domain")
+	if j.ProofAt != "" && (!proofat.Within(j.Domain, j.ProofAt) || !proofat.Within(j.Name, j.ProofAt)) {
+		return domainfence.Job{}, server.Invalid("proof_at", "must be a parent name of the domain and of the name, down to its registered domain")
 	}
 	return j, nil
 }

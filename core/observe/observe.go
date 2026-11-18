@@ -141,12 +141,13 @@ type Software struct {
 	// keys, so it raises no finding until a person adds it with its version. A Windows release a device named in its NTLM answer is
 	// one too, with a version but no patch level.
 	Guess bool
-	// Packaged marks an agent's row read from the operating system's package database (osquery deb_packages or rpm_packages, Wazuh's
+	// Packaged marks an agent's row read from the operating system's package database (osquery deb_packages or rpm_packages, the package reporter's apk, dpkg and rpm lists, Wazuh's
 	// deb and rpm packages, the box's dpkg list): the distribution ships its fixes, so findings can say "install your distribution's
 	// security updates". Programs and apps from other lists are false.
 	Packaged bool
-	// PkgVersion and PkgSource are a deb row's full Debian version ("1:9.6p1-3ubuntu13.14") and source package ("openssh"), so
-	// findings can compare it with the version Ubuntu or Debian fixed a CVE in. "" for every other row.
+	// PkgVersion and PkgSource are a deb row's full Debian version ("1:9.6p1-3ubuntu13.14") or an apk row's Alpine release
+	// ("10.2_p1-r1") and its source package ("openssh"), so findings can compare it with the version the distribution fixed a CVE in.
+	// "" for every other row.
 	PkgVersion, PkgSource string
 }
 

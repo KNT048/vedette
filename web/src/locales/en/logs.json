@@ -56,6 +56,8 @@
     "delete": "Delete",
     "deleteFor": "Delete {{name}}",
     "notInInventory": "Not in the inventory",
+    "viaSnmp": "found by the address its SNMP is read from",
+    "matchesSeveral": "More than one device has this address:",
     "emptyTitle": "No log sources yet",
     "emptyBody": "Add the first device or program that sends logs.",
     "emptyBodyInfo": "Such as a firewall, NAS, Windows server or web server. Vedette then shows the exact settings to enter on it.",

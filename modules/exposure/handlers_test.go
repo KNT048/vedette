@@ -162,8 +162,11 @@ func TestHandlers_FlowAndShapes(t *testing.T) {
 	if len(token) != 16 || !strings.HasPrefix(id, "xt-") {
 		t.Fatalf("id %q token %q", id, token)
 	}
-	if code, b = e.call("POST", "/exposure/targets", "admin", `{"value":"8.8.8.8"}`); code != 400 || errCode(b) != "ip_not_allowed" {
-		t.Fatalf("typed IP: %d %v", code, b)
+	if code, b = e.call("POST", "/exposure/targets", "admin", `{"value":"8.8.8.8","kind":"domain"}`); code != 400 || errCode(b) != "ip_not_allowed" {
+		t.Fatalf("an IP typed as a domain: %d %v", code, b)
+	}
+	if code, b = e.call("POST", "/exposure/targets", "admin", `{"value":"10.0.0.1","kind":"ip"}`); code != 400 || errCode(b) != "ip_not_allowed" {
+		t.Fatalf("a private IP: %d %v", code, b)
 	}
 	if code, b = e.call("POST", "/exposure/targets", "admin", `{"value":"acme.example"}`); code != 409 || errCode(b) != "duplicate" {
 		t.Fatalf("duplicate: %d %v", code, b)
@@ -175,6 +178,7 @@ func TestHandlers_FlowAndShapes(t *testing.T) {
 		t.Fatalf("verify not found: %d %v", code, b)
 	}
 	e.dns.put("acme.example", "vedette-verify="+token)
+	e.advance(DomainCheckEvery)
 	if code, b = e.call("POST", "/exposure/targets/"+id+"/verify", "operator", ""); code != 200 || b["verified"] != true {
 		t.Fatalf("verify: %d %v", code, b)
 	}
@@ -353,4 +357,24 @@ func (e *httpEnv) waitScan() {
 		e.t.Fatal("no scan run")
 	}
 	<-run.done
+}
+
+// Add target takes a public IP over the API: it is in the list at once, unproved, with where its proof goes; the list row says what it is.
+func TestHandlers_AddTargetTakesAPublicIP(t *testing.T) {
+	t.Parallel()
+	e := newHTTPEnv(t)
+	code, b := e.call("POST", "/exposure/targets", "admin", `{"value":"9.9.9.9","kind":"ip"}`)
+	if code != 201 || b["kind"] != "ip" || b["origin"] != "person" || b["scan_state"] != "unproved" || b["blocked_reason"] != "unverified" || b["open_exposures"] != float64(0) {
+		t.Fatalf("add a public IP: %d %v", code, b)
+	}
+	hint, _ := b["ip_proof"].(map[string]any)
+	if hint["content"] != b["token"] || hint["path"] != "/.well-known/vedette-verify.txt" {
+		t.Fatalf("where the proof goes: %v", hint)
+	}
+	if code, b = e.call("POST", "/exposure/targets", "operator", `{"value":"1.1.1.1","kind":"ip"}`); code != 403 {
+		t.Fatalf("an operator adds nothing: %d %v", code, b)
+	}
+	if code, b = e.call("GET", "/exposure/targets", "viewer", ""); code != 200 || len(list(b, "items")) != 1 {
+		t.Fatalf("the list: %d %v", code, b)
+	}
 }

@@ -75,7 +75,7 @@ var exportPolicy = map[string]tablePolicy{
 	"exp_outside":            {export: "target_id ip checked_at checked_by found", json: "answer"},
 	"exp_setting":            {export: "id auto interval_min last_run_at last_run_ok last_run_message last_deep_at last_full_ok_at greenbone greenbone_by greenbone_at greenbone_sync_at greenbone_sync_ok greenbone_sync_note"},
 	"exp_snapshot":           {export: "id target_id date scanned_at started_at finished_at", json: "hosts ports admin_panels certs counts services checks not_checked web_findings greenbone scripts greenbone_run"},
-	"exp_target":             {export: "id kind value method verified_at commitment_by commitment_at commitment_version commitment_sentence commitment_user_id commitment_method created_at last_scan_at terms_version terms_by terms_at terms_text terms_user_id terms_method terms_disruptive", json: "last_check", skip: "token"},
+	"exp_target":             {export: "id kind value method verified_at commitment_by commitment_at commitment_version commitment_sentence commitment_user_id commitment_method created_at last_scan_at terms_version terms_by terms_at terms_text terms_user_id terms_method terms_disruptive typed proof_method", json: "last_check", skip: "token ip_token"},
 	"feeds_affected":         {export: "cve cpe start_incl start_excl end_incl end_excl"}, // Public NVD data
 	"feeds_affected_cve":     {export: "cve updated_at source"},
 	"feeds_cveorg_checked":   {export: "cve checked_at"},                                                                                                 // When each CVE.org record was read
@@ -108,7 +108,7 @@ var exportPolicy = map[string]tablePolicy{
 	"hp_ignored_day":         {export: "day count"},
 	"hp_tokens":              {export: "id type name value plant_at created_at", skip: "secret_id"},
 	"hp_trap_ips":            {export: "id name ip preset vendor enabled mac created_at enabled_at", json: "services"},
-	"inv_asset":              {export: "id ip mac hostname kind vendor model os vendor_obs_id model_obs_id os_obs_id kind_obs_id hostname_obs_id mac_obs_id origin approved approved_at fragile fragile_manual regular_scan first_scan_at suspicious is_box notes first_seen last_seen agent_key agent_ip ip_confirmed_at user_name scan_source snmp_source ignored_at"},
+	"inv_asset":              {export: "id ip mac hostname kind vendor model os vendor_obs_id model_obs_id os_obs_id kind_obs_id hostname_obs_id mac_obs_id origin approved approved_at fragile fragile_manual regular_scan first_scan_at suspicious is_box notes first_seen last_seen agent_key agent_ip ip_confirmed_at user_name scan_source snmp_source ignored_at review_earned_at"},
 	"inv_observation":        {export: "id asset_id field value source confidence seen_at evidence"},
 	"inv_service":            {export: "id asset_id port proto name product version detail source confidence seen_at"},
 	"inv_setting":            {export: "key updated_at updated_by", json: "value"},

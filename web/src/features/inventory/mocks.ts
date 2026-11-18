@@ -316,8 +316,13 @@ const scanInfo = (a: Asset) => ({
   ignored_at: metaStore.get()[a.id]?.ignored_at ?? null, // A person ignored it (known, not watched)
 })
 // Hộp luôn "vừa thấy": nó là máy đang chạy Vedette.
+/** INV-49: a private (randomised) Wi-Fi address: the locally administered bit is set and the prefix is not a stable virtual one (QEMU/KVM, Docker, VirtualBox). */
+export const isPrivateMac = (mac: string | null) => !!mac && mac.length === 17 && (parseInt(mac.slice(0, 2), 16) & 2) !== 0 && !['52:54:00', '02:42', '0a:00:27'].some((p) => mac.toLowerCase().startsWith(p))
+/** INV-49: not approved but held out of To review: a private-address device with no open service that has not stayed past a day. */
+const isQuiet = (a: Asset) => !a.approved && a.origin === 'discovered' && a.id !== BOX_ID && !metaStore.get()[a.id]?.suspicious && !metaStore.get()[a.id]?.ignored_at && isPrivateMac(a.mac)
+  && a.services.length === 0 && new Date(a.last_seen).getTime() - new Date(a.first_seen).getTime() <= 24 * 3600_000
 /** The wire shape adds the source of the kind and the rules' guess, only while the kind is unknown. */
-const live = (a: Asset) => ({ ...a, name: a.name ?? null, ...(a.id === BOX_ID ? { last_seen: nowIso() } : {}), kind_source: a.kind_source ?? (a.kind === 'unknown' ? null : a.origin === 'manual' ? 'manual' as const : 'nmap' as const), guess: a.kind === 'unknown' ? a.guess ?? null : null, os: a.os && osGuess(a.os) ? { ...a.os, basis: 'guess' as const } : a.os })
+const live = (a: Asset) => ({ ...a, private_mac: isPrivateMac(a.mac), quiet: isQuiet(a), name: a.name ?? null, ...(a.id === BOX_ID ? { last_seen: nowIso() } : {}), kind_source: a.kind_source ?? (a.kind === 'unknown' ? null : a.origin === 'manual' ? 'manual' as const : 'nmap' as const), guess: a.kind === 'unknown' ? a.guess ?? null : null, os: a.os && osGuess(a.os) ? { ...a.os, basis: 'guess' as const } : a.os })
 /** #849: what feeds a device, in the words of the Devices search. Agent data is osquery's when osquery reports the device (its node is
  * bound to it) and Wazuh's when the saved Wazuh connection delivered it (both when both do); not Wazuh's once that connection is gone. */
 const DEVICE_SOURCES: readonly DeviceSource[] = ['manual', 'passive', 'scan', 'snmp', 'osquery', 'wazuh']
@@ -397,7 +402,7 @@ function deviceFilter(url: string): ((r: DeviceRow) => boolean) | Response {
   const macBytes = (q.replace(/[:.-]/g, '').match(/../g) ?? []).join(':')
   return (r) =>
     (r.ignored_at !== null) === (ignored === true) // An ignored device only when asked for
-    && (approved === null || r.approved === approved)
+    && (approved === null || (approved ? r.approved || r.quiet : !r.approved && !r.quiet))
     && (fragile === null || r.fragile === fragile)
     && (hasFindings === null || (r.findings_count > 0) === hasFindings)
     && (!types.length || types.includes(r.kind) || types.includes(actsAs(r.kind)))
@@ -816,7 +821,7 @@ export const handlers = [
     const all = rows.filter((a) => a.ignored_at === null) // An ignored device is in no count but its own
     return HttpResponse.json({
       items: rows.filter(keep),
-      counts: { all: all.length, pending: all.filter((a) => !a.approved).length, fragile: all.filter((a) => a.fragile).length, manual: all.filter((a) => a.origin === 'manual').length, ignored: rows.length - all.length },
+      counts: { all: all.length, pending: all.filter((a) => !a.approved && !isQuiet(a)).length, fragile: all.filter((a) => a.fragile).length, manual: all.filter((a) => a.origin === 'manual').length, ignored: rows.length - all.length },
       notify_new: notifyStore.get().enabled,
       notify_available: isOn('notify'),
       risk_unavailable: false,

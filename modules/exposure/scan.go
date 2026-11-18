@@ -34,6 +34,10 @@ func (s *Service) gate(ctx context.Context, actor, id string) (Target, BlockedRe
 	switch r := t.blocked(s.clock()); {
 	case r == BlockedUnverified || r == BlockedExpired:
 		return t, r, nil
+	case t.Typed && r != BlockedNoCommitment: // a typed IP: its proof is looked for now, right before the scan, like a domain's record (INV-1, INV-35); not before the confirmation is there
+		if t, err = s.liveTypedProof(ctx, actor, t); err != nil {
+			return Target{}, "", err
+		}
 	case t.Kind == KindIP && r == "":
 		current, err := s.stillCurrent(ctx, actor, t)
 		if err != nil {
@@ -57,11 +61,11 @@ func (s *Service) gate(ctx context.Context, actor, id string) (Target, BlockedRe
 			}
 			found := pr.found
 			now := s.clock()
-			msg, action := proofMessage(t, pr), "exposure.verify_ok"
+			msg, action := proofMessage(t, pr, s.momentText(now)), "exposure.verify_ok"
 			if !found {
 				msg, action = pr.failure, "exposure.verify_fail"
 			}
-			if err := updateCheck(ctx, tx, id, Check{At: store.FormatTS(now), OK: found, Message: msg, Covers: pr.coversBelow(t.Value)}, time.Time{}, ""); err != nil {
+			if err := updateCheck(ctx, tx, id, Check{At: store.FormatTS(now), OK: found, Message: msg, Covers: pr.coversBelow(t.Value), Via: pr.via}, time.Time{}, ""); err != nil {
 				return err
 			}
 			if t.LastCheck != nil && t.LastCheck.OK == found { // nothing changed: the check is not a row of its own (L5)
@@ -75,9 +79,8 @@ func (s *Service) gate(ctx context.Context, actor, id string) (Target, BlockedRe
 		if t, err = loadTarget(ctx, s.cfg.DB.Reader(), id); err != nil {
 			return Target{}, "", err
 		}
-		if pr.found { // the target whose record proved it now: the executors' fence checks that domain and token
-			t.proofDomain, t.proofToken, t.proofOwn = pr.proven, pr.token, pr.own
-		}
+		// the target whose token proved it now, and the name the record sits on: what the executors' fence checks
+		t.proofDomain, t.proofToken, t.proofAt = pr.gate(t)
 	}
 	return t, t.blocked(s.clock()), nil
 }
@@ -193,6 +196,8 @@ func (s *Service) refusal(t Target, r BlockedReason, now time.Time) error {
 			return apiErr(409, "txt_missing", "%s", publicSuffixText(t.Value))
 		}
 		return apiErr(409, "txt_missing", "The DNS TXT record %s is no longer found on %s, on %s.%s or on a parent domain of this box that covers it, so it cannot be scanned. Add the record back, then check again.", txtRecord(t.Token), t.Value, verifyLabel, t.Value)
+	case BlockedProofMissing:
+		return apiErr(409, "proof_missing", "The proof of %s is not found now, so it cannot be scanned. %s", t.Value, proofRetry)
 	case BlockedNoCommitment:
 		if t.Commitment != nil {
 			return errNeedAdminReconfirm(t.Value)
@@ -203,6 +208,9 @@ func (s *Service) refusal(t Target, r BlockedReason, now time.Time) error {
 	}
 	return nil
 }
+
+// proofRetry ends the refusal of a typed IP whose proof is not found.
+const proofRetry = "Put the token file back (or set the reverse DNS name), then check again."
 
 // ScanEvery is the least time between two scans of one target: a scan asks crt.sh and probes the target, so a click
 // that repeats is answered 429 rather than sent again.

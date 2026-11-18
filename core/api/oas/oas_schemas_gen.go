@@ -93376,15 +93376,26 @@ func (s *FindingsPostFindingsIDConfirmOKAppliedItem) SetUser(val string) {
 }
 
 type FindingsPostFindingsIDConfirmOKAsset struct {
+	// False = "Device not added yet": nobody approved the device; its findings offer Add device (approve)
+	// and Ignore.
+	Approved bool      `json:"approved"`
 	Display  string    `json:"display"`
 	Hostname NilString `json:"hostname"`
 	ID       string    `json:"id"`
+	// A person ignored the device: its findings are hidden from the other tabs and listed under Ignored,
+	// with Restore.
+	Ignored bool `json:"ignored"`
 	// "—" when the device has no IP address.
 	IP   string                                   `json:"ip"`
 	Kind FindingsPostFindingsIDConfirmOKAssetKind `json:"kind"`
 	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
 	// never the internal id.
 	Name string `json:"name"`
+}
+
+// GetApproved returns the value of Approved.
+func (s *FindingsPostFindingsIDConfirmOKAsset) GetApproved() bool {
+	return s.Approved
 }
 
 // GetDisplay returns the value of Display.
@@ -93402,6 +93413,11 @@ func (s *FindingsPostFindingsIDConfirmOKAsset) GetID() string {
 	return s.ID
 }
 
+// GetIgnored returns the value of Ignored.
+func (s *FindingsPostFindingsIDConfirmOKAsset) GetIgnored() bool {
+	return s.Ignored
+}
+
 // GetIP returns the value of IP.
 func (s *FindingsPostFindingsIDConfirmOKAsset) GetIP() string {
 	return s.IP
@@ -93417,6 +93433,11 @@ func (s *FindingsPostFindingsIDConfirmOKAsset) GetName() string {
 	return s.Name
 }
 
+// SetApproved sets the value of Approved.
+func (s *FindingsPostFindingsIDConfirmOKAsset) SetApproved(val bool) {
+	s.Approved = val
+}
+
 // SetDisplay sets the value of Display.
 func (s *FindingsPostFindingsIDConfirmOKAsset) SetDisplay(val string) {
 	s.Display = val
@@ -93430,6 +93451,11 @@ func (s *FindingsPostFindingsIDConfirmOKAsset) SetHostname(val NilString) {
 // SetID sets the value of ID.
 func (s *FindingsPostFindingsIDConfirmOKAsset) SetID(val string) {
 	s.ID = val
+}
+
+// SetIgnored sets the value of Ignored.
+func (s *FindingsPostFindingsIDConfirmOKAsset) SetIgnored(val bool) {
+	s.Ignored = val
 }
 
 // SetIP sets the value of IP.
@@ -101607,15 +101633,26 @@ func (s *FindingsPostFindingsIDUnconfirmOKAppliedItem) SetUser(val string) {
 }
 
 type FindingsPostFindingsIDUnconfirmOKAsset struct {
+	// False = "Device not added yet": nobody approved the device; its findings offer Add device (approve)
+	// and Ignore.
+	Approved bool      `json:"approved"`
 	Display  string    `json:"display"`
 	Hostname NilString `json:"hostname"`
 	ID       string    `json:"id"`
+	// A person ignored the device: its findings are hidden from the other tabs and listed under Ignored,
+	// with Restore.
+	Ignored bool `json:"ignored"`
 	// "—" when the device has no IP address.
 	IP   string                                     `json:"ip"`
 	Kind FindingsPostFindingsIDUnconfirmOKAssetKind `json:"kind"`
 	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
 	// never the internal id.
 	Name string `json:"name"`
+}
+
+// GetApproved returns the value of Approved.
+func (s *FindingsPostFindingsIDUnconfirmOKAsset) GetApproved() bool {
+	return s.Approved
 }
 
 // GetDisplay returns the value of Display.
@@ -101633,6 +101670,11 @@ func (s *FindingsPostFindingsIDUnconfirmOKAsset) GetID() string {
 	return s.ID
 }
 
+// GetIgnored returns the value of Ignored.
+func (s *FindingsPostFindingsIDUnconfirmOKAsset) GetIgnored() bool {
+	return s.Ignored
+}
+
 // GetIP returns the value of IP.
 func (s *FindingsPostFindingsIDUnconfirmOKAsset) GetIP() string {
 	return s.IP
@@ -101648,6 +101690,11 @@ func (s *FindingsPostFindingsIDUnconfirmOKAsset) GetName() string {
 	return s.Name
 }
 
+// SetApproved sets the value of Approved.
+func (s *FindingsPostFindingsIDUnconfirmOKAsset) SetApproved(val bool) {
+	s.Approved = val
+}
+
 // SetDisplay sets the value of Display.
 func (s *FindingsPostFindingsIDUnconfirmOKAsset) SetDisplay(val string) {
 	s.Display = val
@@ -101661,6 +101708,11 @@ func (s *FindingsPostFindingsIDUnconfirmOKAsset) SetHostname(val NilString) {
 // SetID sets the value of ID.
 func (s *FindingsPostFindingsIDUnconfirmOKAsset) SetID(val string) {
 	s.ID = val
+}
+
+// SetIgnored sets the value of Ignored.
+func (s *FindingsPostFindingsIDUnconfirmOKAsset) SetIgnored(val bool) {
+	s.Ignored = val
 }
 
 // SetIP sets the value of IP.

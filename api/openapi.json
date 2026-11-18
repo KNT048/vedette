@@ -41021,6 +41021,14 @@
                             },
                             "display": {
                               "type": "string"
+                            },
+                            "approved": {
+                              "type": "boolean",
+                              "description": "false = \"Device not added yet\": nobody approved the device; its findings offer Add device (approve) and Ignore"
+                            },
+                            "ignored": {
+                              "type": "boolean",
+                              "description": "a person ignored the device: its findings are hidden from the other tabs and listed under Ignored, with Restore"
                             }
                           },
                           "required": [
@@ -41029,7 +41037,9 @@
                             "hostname",
                             "ip",
                             "kind",
-                            "display"
+                            "display",
+                            "approved",
+                            "ignored"
                           ],
                           "additionalProperties": false
                         },
@@ -44235,6 +44245,14 @@
                             },
                             "display": {
                               "type": "string"
+                            },
+                            "approved": {
+                              "type": "boolean",
+                              "description": "false = \"Device not added yet\": nobody approved the device; its findings offer Add device (approve) and Ignore"
+                            },
+                            "ignored": {
+                              "type": "boolean",
+                              "description": "a person ignored the device: its findings are hidden from the other tabs and listed under Ignored, with Restore"
                             }
                           },
                           "required": [
@@ -44243,7 +44261,9 @@
                             "hostname",
                             "ip",
                             "kind",
-                            "display"
+                            "display",
+                            "approved",
+                            "ignored"
                           ],
                           "additionalProperties": false
                         },

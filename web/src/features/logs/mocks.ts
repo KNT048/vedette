@@ -192,7 +192,7 @@ const publicSiem = (c: ReturnType<typeof siem.get>): SiemConfig => { const { sec
 export const handlers = [
   http.get(`${API}/logs/sources`, () => {
     const denied = guard('viewer'); if (denied) return denied
-    return HttpResponse.json({ box: { ...boxInfo(), tls: BOX_TLS }, sources: sources.get().map(toSource), retention_days: retention.get().days })
+    return HttpResponse.json({ box: { ...boxInfo(), tls: BOX_TLS }, sources: sources.get().map(toSource), retention_days: retention.get().days, logs_bytes: 48_300_000, disk_free_bytes: 212_000_000_000 })
   }),
 
   http.post(`${API}/logs/sources`, async ({ request }) => {

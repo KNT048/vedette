@@ -42,7 +42,7 @@ func logsService(d deps) *logs.Service {
 	if s := logsServices[d.DB]; s != nil {
 		return s
 	}
-	cfg := logs.Config{Config: d.DB, Volume: d.LogsDB, Audit: d.Audit, Inventory: logsInventory{inv: d.Inventory, snmp: logsSNMP(d)}, Box: logsBox{d}, Log: d.Log, Clock: d.Clock, Zone: orgTimeZone(&d),
+	cfg := logs.Config{Config: d.DB, Volume: d.LogsDB, DataDir: d.DataDir, Audit: d.Audit, Inventory: logsInventory{inv: d.Inventory, snmp: logsSNMP(d)}, Box: logsBox{d}, Log: d.Log, Clock: d.Clock, Zone: orgTimeZone(&d),
 		Secrets: d.Secrets, BoxAddrs: machineAddrs(&d), SelfAddrs: vedetteSelf(&d)} // the SIEM key is sealed; no SIEM on Vedette itself
 	if d.Bus != nil { // logs.anomaly.detected, which notify opens an incident from (a nil *events.Bus in the interface would not be nil)
 		cfg.Events = d.Bus

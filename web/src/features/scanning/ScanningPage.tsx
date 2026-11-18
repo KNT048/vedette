@@ -56,7 +56,7 @@ function Page({ d }: { d: Scanning }) {
   const meta = d.running.length ? t('page.metaRunning', { count: d.running.length }) : next ? t('page.meta', { on, total: d.engines.length, time: fmtDateTime(next) }) : t('page.metaNoNext', { on, total: d.engines.length })
   return (
     <>
-      <PageHeader title={t('page.title')} meta={meta} info={<><p>{t('page.info')}</p><p>{t('page.infoContext')}</p></>} actions={<SampleDataNote />} stories={['S-SCAN-1', 'S-SCAN-2', 'S-SCAN-3', 'S-SCAN-4', 'S-INV-1']} />
+      <PageHeader title={t('page.title')} meta={<span className="inline-flex flex-wrap items-center gap-2">{meta}<SampleDataNote /></span>} info={<><p>{t('page.info')}</p><p>{t('page.infoContext')}</p></>} stories={['S-SCAN-1', 'S-SCAN-2', 'S-SCAN-3', 'S-SCAN-4', 'S-INV-1']} />
       <PageTabs label={t('page.tabs')} tabs={[
         { id: 'engines', label: t('page.tab.engines'), panel: <EnginesTab d={d} /> },
         { id: 'safety', label: t('page.tab.safety'), panel: <SafetyTab s={d.safety} /> },

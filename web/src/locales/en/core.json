@@ -91,8 +91,8 @@
     }
   },
   "users": {
-    "title_one": "{{count}} active user",
-    "title_other": "{{count}} active users",
+    "count_one": "{{count}} active user",
+    "count_other": "{{count}} active users",
     "meta": "Three roles: viewer, operator and admin.",
     "metaInfo": "Viewer reads, operator does the daily handling, admin changes system settings. Every change is written to the audit log.",
     "caption": "Users",
@@ -236,8 +236,8 @@
     "redirectInfo": "It is set from the address you use now when you save."
   },
   "audit": {
-    "title_one": "{{count}} log line matches the filters",
-    "title_other": "{{count}} log lines match the filters",
+    "count_one": "{{count}} log line matches the filters",
+    "count_other": "{{count}} log lines match the filters",
     "meta": "Who did what, when, and to what.",
     "metaInfo": "Every configuration change has a line. The box keeps the lines of the last 365 days, at most 200,000; the oldest go first.",
     "caption": "Audit log",
@@ -1999,6 +1999,8 @@
   "connections": {
     "title": "Connections",
     "add": "Add connection",
+    "count_one": "{{count}} connection",
+    "count_other": "{{count}} connections",
     "writeNoteLead": "Write tools never run from a chat answer.",
     "writeNote": "Tools that change something are used only through actions you approve in the AI response module.",
     "getMayChange": "Some devices change state on a GET (reboot, config). Turn this on only for read-only endpoints.",

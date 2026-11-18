@@ -804,6 +804,10 @@ describe('core: người dùng, OIDC, nhật ký (S-CORE-3)', () => {
   it('thêm người dùng cho mật khẩu tạm một lần', async () => {
     const u = user()
     renderApp('/settings/users')
+    // The title names the page; the count and Add user are the list's toolbar
+    const h1 = await screen.findByRole('heading', { level: 1, name: 'Users' })
+    expect(within(h1.closest('header')!).queryByRole('button', { name: 'Add user' })).toBeNull()
+    expect(await screen.findByText(/^\d+ active users?$/)).toBeInTheDocument()
     await u.click(await screen.findByRole('button', { name: 'Add user' }))
     await u.type(screen.getByLabelText('Display name'), 'Hoa')
     await u.type(screen.getByLabelText('Sign-in email'), 'hana@acme.example')
@@ -1123,8 +1127,11 @@ describe('core: nhật ký (S-CORE-3)', () => {
     ])
     renderApp('/settings/audit')
     expect(await screen.findByText('2 log lines match the filters', { exact: false })).toBeInTheDocument()
+    const header = screen.getByRole('heading', { level: 1, name: 'Audit log' }).closest('header')!
+    expect(within(header).queryByRole('button', { name: 'Export CSV' })).toBeNull() // in the list's toolbar, next to the count
+    expect(screen.getByRole('button', { name: 'Export CSV' })).toBeInTheDocument()
     await u.selectOptions(screen.getByLabelText('Kind of action'), 'user')
-    expect(await screen.findByRole('heading', { level: 1, name: /^1 log line matches/ })).toBeInTheDocument()
+    expect(await screen.findByText('1 log line matches the filters')).toBeInTheDocument() // the list's toolbar line; the title names the page
     const table = screen.getByRole('table', { name: 'Audit log' })
     expect(within(table).getByText('Create user')).toBeInTheDocument()
     await u.type(screen.getByLabelText('Search text'), 'khong-co-gi')
@@ -1148,7 +1155,7 @@ describe('core: nhật ký (S-CORE-3)', () => {
     expect(within(table).getByText(`CVE-2026-0001 on ${asset.hostname}, basis product, high`)).toBeInTheDocument()
     expect(within(table).getByText('f-gone')).toBeInTheDocument() // an id the box no longer has stays as it is
     await u.selectOptions(screen.getByLabelText('Who'), 'Not the system (people and tools)')
-    expect(await screen.findByRole('heading', { level: 1, name: /^1 log line matches/ })).toBeInTheDocument()
+    expect(await screen.findByText('1 log line matches the filters')).toBeInTheDocument() // the list's toolbar line; the title names the page
     expect(within(screen.getByRole('table', { name: 'Audit log' })).queryByText('Finding created')).toBeNull()
     await expectNoA11yViolations()
   })

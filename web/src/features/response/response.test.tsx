@@ -1417,6 +1417,14 @@ describe('response: screens', () => {
     expect(banner).toHaveTextContent(pending === 1 ? '1 request is waiting.' : `${pending} requests are waiting.`)
   })
 
+  it('after Emergency stop the page says it once: the paused notice, not a second "Execution is off" under it', async () => {
+    settingsStore.update((x) => ({ ...x, execution: false, stopped_at: new Date().toISOString(), breaker_tripped_at: new Date().toISOString() }))
+    renderApp('/response')
+    expect(await screen.findByText('Circuit breaker is open: all response is paused')).toBeInTheDocument()
+    expect(screen.getByText(/Emergency stop was pressed/)).toBeInTheDocument()
+    expect(screen.queryByText(/^Execution is off\. Turn it on/, { selector: 'p.font-medium' })).toBeNull() // the page notice; a request may still say why it cannot run
+  })
+
   it('Requests tab: pending bundled request with pick boxes, AI request with evidence, and the AI plan with its off-state message', async () => {
     renderApp('/response#requests')
     expect(await screen.findByText('Block 91.92.240.12 and tell the team')).toBeInTheDocument()
@@ -2102,15 +2110,18 @@ describe('a box that had AI response on before this release left it out', () => 
     } finally { postV1.POST_V1_IN_UI = true }
   })
 
-  it('with execution on, Emergency stop stays next to Turn off; the turn-off dialog lists what stays in force and offers to roll back first', async () => {
+  it('with execution on, Emergency stop stays in the high-risk notice and Turn off at the page end; the turn-off dialog lists what stays in force and offers to roll back first', async () => {
     postV1.POST_V1_IN_UI = false
     settingsStore.update((x) => ({ ...x, execution: true, accepted_by: 'admin@acme.example', accepted_at: new Date().toISOString() }))
     try {
       const u = userEvent.setup()
       renderApp('/response')
       const header = (await screen.findByRole('heading', { level: 1, name: 'Response' })).closest('header')!
-      expect(await within(header).findByRole('button', { name: 'Emergency stop' })).toBeEnabled()
-      await u.click(within(header).getByRole('button', { name: 'Turn off AI response' }))
+      // Emergency stop sits in the high-risk notice it answers; the way out at the end of the page; neither in the header
+      const on = (await screen.findByText('High-risk mode is on')).closest('[role="status"]') as HTMLElement
+      expect(await within(on).findByRole('button', { name: 'Emergency stop' })).toBeEnabled()
+      for (const name of ['Emergency stop', 'Turn off AI response']) expect(within(header).queryByRole('button', { name })).toBeNull()
+      await u.click(within(screen.getByTestId('page-end')).getByRole('button', { name: 'Turn off AI response' }))
       const dlg = await screen.findByRole('dialog', { name: 'Turn off AI response?' })
       const list = await within(dlg).findByRole('list', { name: 'Changes still in force' })
       expect(within(list).getAllByRole('listitem').length).toBeGreaterThan(0)

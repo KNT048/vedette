@@ -1,7 +1,6 @@
 @import "tailwindcss";
-@import "@fontsource/be-vietnam-pro/400.css";
-@import "@fontsource/be-vietnam-pro/500.css";
-@import "@fontsource/be-vietnam-pro/600.css";
+/* Inter 4 as one variable file (weights 100-900 plus optical size: text cuts at 13-14 px, display cuts at page titles), self-hosted. */
+@import "@fontsource-variable/inter/opsz.css";
 @import "@fontsource/jetbrains-mono/400.css";
 
 /* Design tokens — docs/FRONTEND.md §3. Một màu nhấn (xanh lục đậm), bốn màu trạng thái nghĩa cố định, luôn kèm chữ. */
@@ -82,8 +81,13 @@
   --color-off-soft: var(--off-soft);
   --color-focus: var(--focus);
   --color-control: var(--control);
-  --font-sans: "Be Vietnam Pro", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  /* Open 4, 6 and 9 (told apart from A, 8 and g at 12-13 px) and the single-storey a. Numbers stay tabular where the app asks
+     (tables, counters) through font-variant-numeric, which these settings do not touch. */
+  --font-sans--font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
+  /* The sans settings are inherited from body; JetBrains Mono gives cv02-cv11 other glyphs, so a font-mono span turns them off. */
+  --font-mono--font-feature-settings: normal;
 }
 
 /* docs/UI.md §1: six named sizes and no others (text-xs, text-2xl… stop existing); the style guard (src/test/styleGuard.test.ts)
@@ -109,7 +113,8 @@
   body { background: var(--paper); color: var(--ink); font-family: var(--font-sans); font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
   :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
   ::selection { background: var(--accent-soft); }
-  table { font-variant-numeric: tabular-nums; }
+  /* No table-wide tabular-nums: Inter's tnum also gives the hyphen a figure width, so names and models in a cell ("NAS-PHOTOS",
+     "TS-453D") read with gaps. A numeric column that must line up sets tabular-nums on its own cells (Plan's EPSS, Counter, KPIs). */
   a { color: inherit; text-underline-offset: 3px; }
   /* Link nằm trong đoạn văn/ô bảng phải nhận ra được không chỉ nhờ màu (WCAG 1.4.1). */
   :where(p, li, dd, td, label) a[href] { text-decoration-line: underline; }

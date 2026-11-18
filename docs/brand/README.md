@@ -27,7 +27,7 @@ What we took from leading security brands, and where Vedette differs:
 <img src="logo-horizontal.svg" alt="Vedette horizontal logo" height="40">&nbsp;&nbsp;&nbsp;<img src="logo-stacked.svg" alt="Vedette stacked logo" height="80">&nbsp;&nbsp;&nbsp;<img src="app-icon.svg" alt="Vedette app icon" height="48">
 </p>
 
-- **Wordmark:** "Vedette" set in Be Vietnam Pro SemiBold (the app's own typeface, OFL-1.1) with −1.5 % tracking. The two t's share one crossbar, the one custom detail. The text is converted to outlined paths, so the logo looks the same everywhere and never loads a font.
+- **Wordmark:** "Vedette" set in Be Vietnam Pro SemiBold (OFL-1.1) with −1.5 % tracking. The two t's share one crossbar, the one custom detail. The text is converted to outlined paths, so the logo looks the same everywhere and never loads a font.
 - **Clear space:** keep a margin of at least **X** around the logo on every side, where X is the diameter of the signal dot. Nothing else goes inside that margin, including text, edges and other logos.
 - **Minimum size:**
 
@@ -97,5 +97,5 @@ The web interface has no Open Graph image. The box runs on a private network, so
 ## Changing and re-rendering
 
 - **PNG and ICO files:** after changing an SVG, run `make brand`. This runs `scripts/brand/render.mjs` with the repo's pinned Playwright Chromium and writes every PNG plus `favicon.ico`. Commit the output. `make brand PREVIEW=1` also refreshes `preview/` (the icon grid, the tab mock, the README hero and the illustrations).
-- **Logo geometry or taglines:** edit `scripts/brand/outline.py` and run it in a throwaway Python venv. The pinned packages are listed at the top of the script. It rewrites the logo, icon, hero and social SVGs, converting the text to outlines from the app's own Be Vietnam Pro files. Then run `make brand`.
+- **Logo geometry or taglines:** edit `scripts/brand/outline.py` and run it in a throwaway Python venv. The pinned packages are listed at the top of the script. It rewrites the logo, icon, hero and social SVGs, converting the text to outlines from Be Vietnam Pro files fetched with `npm pack` (the exact command is at the top of the script; the app's interface font is Inter, which the logo does not use). Then run `make brand`.
 - **Illustrations:** these are hand-written. Edit the SVG directly and keep to the rules above.

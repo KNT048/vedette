@@ -2,6 +2,7 @@ package findings
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -319,5 +320,37 @@ func TestAcceptRiskEndpoint(t *testing.T) {
 	code, b := e.call("POST", "/findings/"+id+"/status", "operator", `{"action":"accept_risk","note":"March window","until":"`+day(90)+`"}`)
 	if code != 200 || b["status"] != "risk_accepted" || b["accepted_until"] != day(90) || b["resolution_note"] != "March window" {
 		t.Fatalf("accept: %d %v", code, b)
+	}
+}
+
+// A device's list says which software row each finding rests on and whether Vedette closed it by itself, so a page can say
+// which findings a person's entered release closed. The all-devices list leaves the row empty (it would match every device).
+func TestContract_ListNamesSoftwareRowAndSelfClosedReason(t *testing.T) {
+	t.Parallel()
+	e := newHTTPEnv(t)
+	id := e.seed()
+	if err := e.db.Write(t.Context(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `UPDATE fnd_finding SET status = 'not_relevant', resolved_by = ?, resolved_at = last_seen,
+		resolution_note = 'Not affected: version 10.2 is outside every range.', resolution_reason = ? WHERE id = ?`, SystemUser, ReasonNotAffectedVersion, id)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	row := func(path string) map[string]any {
+		t.Helper()
+		code, b := e.call("GET", path, "viewer", "")
+		items, _ := b["items"].([]any)
+		if code != 200 || len(items) != 1 {
+			t.Fatalf("%s: %d %v", path, code, b)
+		}
+		return items[0].(map[string]any)
+	}
+	mine := row("/findings?asset=a-1")
+	if mine["software_id"] != "s-1" || mine["resolution_reason"] != ReasonNotAffectedVersion || mine["status"] != "not_relevant" {
+		t.Fatalf("device list row = %v", mine)
+	}
+	all := row("/findings")
+	if all["software_id"] != "" || all["resolution_reason"] != ReasonNotAffectedVersion {
+		t.Fatalf("all-devices row = %v", all)
 	}
 }

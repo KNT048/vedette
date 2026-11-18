@@ -140,7 +140,7 @@ function assetView(a: Asset | undefined): FindingAsset | null {
 function row(f: Finding): FindingRow {
   const until = accepted.get()[f.id] ?? null
   const status = until ? 'risk_accepted' : f.status
-  return { ...f, status, accepted_until: until, asset: assetView(assetsStore.get().find((a) => a.id === f.asset_id)), kev: kevInfo(f.cve), cvss: cvssOf(f.cve),
+  return { ...f, status, accepted_until: until, resolution_reason: null, software_id: '', asset: assetView(assetsStore.get().find((a) => a.id === f.asset_id)), kev: kevInfo(f.cve), cvss: cvssOf(f.cve),
     fix: status === 'confirmed' || status === 'suspected' ? fixes.get()[f.id] ?? null : null }
 }
 
@@ -395,6 +395,27 @@ function versionSeed(asset?: string | null) {
   })
 }
 const seedVersions = new Map<string, string | null>()
+/** GET /findings?asset=: the software row each finding rests on (the row keyed to its KEV entry), as the box names it. */
+function withSoftware(r: FindingRow): FindingRow {
+  if (r.software_id) return r
+  const a = assetsStore.get().find((x) => x.id === r.asset_id)
+  const key = r.kev ? `${r.kev.vendor}|${r.kev.product}`.toLowerCase() : ''
+  return { ...r, software_id: (a ? liveSoftware(a).find((x) => key && x.kev.includes(key))?.id : undefined) ?? '' }
+}
+
+/** The finding the box closes by itself once a release it can read is entered (the BN340 question below): not relevant, reason
+ *  not_affected_version, on the row that carries the release. */
+function enteredClosed(asset: string): FindingRow[] {
+  const a = assetsStore.get().find((x) => x.id === asset)
+  const sw = a && asset === BN340.asset ? liveSoftware(a).find((x) => x.display === BN340.software) : undefined
+  if (!a || !sw?.pkg_version || !releaseOf(sw.pkg_version)) return []
+  const at = sw.set_at ?? nowIso()
+  const note = `Not affected: OpenSSH ${sw.pkg_version} is outside the range Alpine lists for ${BN340.cve.cve}. Vedette closed this by itself and reopens it if a later match says the device is affected.`
+  const f: Finding = { id: `f-${BN340.cve.cve}-${a.id}`, asset_id: a.id, cve: BN340.cve.cve, status: 'not_relevant', severity: 'high', confidence: 0.6, basis: 'version', evidence: null,
+    first_seen: at, last_seen: at, resolved_by: 'system', resolved_at: at, resolution_note: note, history: [{ ts: at, user: 'system', action: 'not_relevant', note }] }
+  return [{ ...row(f), resolution_reason: 'not_affected_version', software_id: sw.id }]
+}
+
 /** #910 phase 1 mock: the unchecked list; an item leaves it once its software's version changes (the real box re-checks), a person's
  *  correction included (INV-41: the rows matching reads). */
 export function unchecked(asset?: string | null): UncheckedItem[] {
@@ -533,7 +554,7 @@ export const handlers = [
     const version_needed = [...versionNeeded(asset), ...versionSeed(asset)].map(({ asset: a, software: s, cves }) => ({
       asset: assetView(a), asset_id: a.id, software_id: s.id, software: s.display, version: s.version || null, cves,
     }))
-    return HttpResponse.json({ items: list.map(row), version_needed, unchecked: unchecked(asset) })
+    return HttpResponse.json({ items: [...list.map(row), ...(asset ? enteredClosed(asset) : [])].map((r) => (asset ? withSoftware(r) : r)), version_needed, unchecked: unchecked(asset) })
   }),
 
   // Before /findings/:id: "summary" is not a finding id.

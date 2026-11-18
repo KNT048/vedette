@@ -304,6 +304,39 @@ func (h *FindingHandlers) addFixes(ctx context.Context, rows []Row) {
 	}
 }
 
+// addSoftware sets Row.SoftwareID, open or closed, for the findings of one device: the row findingRow names (the one the matcher
+// matches the finding on now, else the keyed row with the most trusted version). Like addFixes it only informs the page: a device
+// or a feed it cannot read leaves the rows without one. One device only: the all-devices list would match every device.
+func (h *FindingHandlers) addSoftware(ctx context.Context, assetID string, rows []Row) {
+	if len(rows) == 0 {
+		return
+	}
+	a, ok, err := h.inv.MatchInput(ctx, assetID)
+	if err != nil || !ok {
+		return
+	}
+	vulns, err := h.feed.Vulns(ctx)
+	if err != nil {
+		return
+	}
+	byCVE := make(map[string]Vuln, len(vulns))
+	for _, v := range vulns {
+		byCVE[v.CVE] = v
+	}
+	for i := range rows {
+		if rows[i].Kev == nil || rows[i].AssetID != assetID {
+			continue
+		}
+		var v *Vuln
+		if x, ok := byCVE[rows[i].CVE]; ok {
+			v = &x
+		}
+		if s, ok := findingRow(a, *rows[i].Kev, v); ok && s.ID != "" {
+			rows[i].SoftwareID = s.ID
+		}
+	}
+}
+
 // DetailByID is Detail for a finding id; an unknown id is a 404 API error.
 func (h *FindingHandlers) DetailByID(ctx context.Context, id string) (Detail, error) {
 	rec, err := h.svc.Get(ctx, id)
@@ -325,6 +358,9 @@ func (h *FindingHandlers) FindingsGetFindings(ctx context.Context, params oas.Fi
 		return nil, err
 	}
 	h.addFixes(ctx, rows)
+	if id := params.Asset.Or(""); id != "" {
+		h.addSoftware(ctx, id, rows)
+	}
 	need, err := h.versionNeeded(ctx, params.Asset.Or(""))
 	if err != nil {
 		return nil, err

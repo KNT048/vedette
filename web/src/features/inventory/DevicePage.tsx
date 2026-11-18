@@ -31,6 +31,7 @@ import { OsNeeds, SoftwareNeeds, useSoftwareNeeds } from '@/features/findings/So
 import { useDeviceFindingCounts } from '@/features/findings/notRelevant'
 import { DeleteDialog } from './DeleteDialog'
 import { VersionDialog } from './VersionDialog'
+import { EnteredNote } from './EnteredNote'
 import { NotInstalledDialog } from './NotInstalledDialog'
 import { errMsg } from './kinds'
 import { badUserName, declaredSoftwareOnly, hasSourcesCard, nameOf, neverSeen } from './nameOf'
@@ -330,6 +331,7 @@ function SoftwareList({ d }: { d: DeviceDetail }) {
     return (
       <div className="grid gap-1">
         <span>{sw.version || <span className="text-muted">{t(sw.basis === 'guess' ? 'software.guessNoVersion' : 'software.noVersion')}</span>}</span>
+        <EnteredNote assetId={d.asset.id} sw={sw} />
         {seen ? (
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-caption text-warn">
             {t('software.seen', { version: v, source: t(`common:source.${seen.source}`) })}

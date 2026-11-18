@@ -66726,13 +66726,21 @@ type FindingsGetFindingsIDOK struct {
 	// known_version.seen_at says when the version was reported.
 	LastSeen time.Time `json:"last_seen"`
 	// Null = no recommendation confirmed by Vedette maintainers yet.
-	Pack           NilFindingsGetFindingsIDOKPack  `json:"pack"`
-	Recheck        FindingsGetFindingsIDOKRecheck  `json:"recheck"`
-	ResolutionNote NilString                       `json:"resolution_note"`
-	ResolvedAt     NilDateTime                     `json:"resolved_at"`
-	ResolvedBy     NilString                       `json:"resolved_by"`
-	Severity       FindingsGetFindingsIDOKSeverity `json:"severity"`
-	Status         FindingsGetFindingsIDOKStatus   `json:"status"`
+	Pack           NilFindingsGetFindingsIDOKPack `json:"pack"`
+	Recheck        FindingsGetFindingsIDOKRecheck `json:"recheck"`
+	ResolutionNote NilString                      `json:"resolution_note"`
+	// Not_affected_version when Vedette closed the finding by itself (the matcher proved the device's
+	// version or package release is outside the affected range, e.g. after a person entered the release);
+	// null for a person's own action and for open findings.
+	ResolutionReason NilString                       `json:"resolution_reason"`
+	ResolvedAt       NilDateTime                     `json:"resolved_at"`
+	ResolvedBy       NilString                       `json:"resolved_by"`
+	Severity         FindingsGetFindingsIDOKSeverity `json:"severity"`
+	// GET /findings?asset= only: the device's software row the finding rests on, the id
+	// FindingRow.fix.group and ToFixAction use, open or closed; "" when none is known and on the
+	// all-devices list.
+	SoftwareID string                        `json:"software_id"`
+	Status     FindingsGetFindingsIDOKStatus `json:"status"`
 }
 
 // GetAcceptedUntil returns the value of AcceptedUntil.
@@ -66855,6 +66863,11 @@ func (s *FindingsGetFindingsIDOK) GetResolutionNote() NilString {
 	return s.ResolutionNote
 }
 
+// GetResolutionReason returns the value of ResolutionReason.
+func (s *FindingsGetFindingsIDOK) GetResolutionReason() NilString {
+	return s.ResolutionReason
+}
+
 // GetResolvedAt returns the value of ResolvedAt.
 func (s *FindingsGetFindingsIDOK) GetResolvedAt() NilDateTime {
 	return s.ResolvedAt
@@ -66868,6 +66881,11 @@ func (s *FindingsGetFindingsIDOK) GetResolvedBy() NilString {
 // GetSeverity returns the value of Severity.
 func (s *FindingsGetFindingsIDOK) GetSeverity() FindingsGetFindingsIDOKSeverity {
 	return s.Severity
+}
+
+// GetSoftwareID returns the value of SoftwareID.
+func (s *FindingsGetFindingsIDOK) GetSoftwareID() string {
+	return s.SoftwareID
 }
 
 // GetStatus returns the value of Status.
@@ -66995,6 +67013,11 @@ func (s *FindingsGetFindingsIDOK) SetResolutionNote(val NilString) {
 	s.ResolutionNote = val
 }
 
+// SetResolutionReason sets the value of ResolutionReason.
+func (s *FindingsGetFindingsIDOK) SetResolutionReason(val NilString) {
+	s.ResolutionReason = val
+}
+
 // SetResolvedAt sets the value of ResolvedAt.
 func (s *FindingsGetFindingsIDOK) SetResolvedAt(val NilDateTime) {
 	s.ResolvedAt = val
@@ -67008,6 +67031,11 @@ func (s *FindingsGetFindingsIDOK) SetResolvedBy(val NilString) {
 // SetSeverity sets the value of Severity.
 func (s *FindingsGetFindingsIDOK) SetSeverity(val FindingsGetFindingsIDOKSeverity) {
 	s.Severity = val
+}
+
+// SetSoftwareID sets the value of SoftwareID.
+func (s *FindingsGetFindingsIDOK) SetSoftwareID(val string) {
+	s.SoftwareID = val
 }
 
 // SetStatus sets the value of Status.
@@ -70726,12 +70754,20 @@ type FindingsGetFindingsOKItemsItem struct {
 	// When Vedette last matched it: each re-match (after a change to the device's software, and every
 	// hour) or scan that still finds it moves it. Not when the device or its software was last seen;
 	// known_version.seen_at says when the version was reported.
-	LastSeen       time.Time                              `json:"last_seen"`
-	ResolutionNote NilString                              `json:"resolution_note"`
-	ResolvedAt     NilDateTime                            `json:"resolved_at"`
-	ResolvedBy     NilString                              `json:"resolved_by"`
-	Severity       FindingsGetFindingsOKItemsItemSeverity `json:"severity"`
-	Status         FindingsGetFindingsOKItemsItemStatus   `json:"status"`
+	LastSeen       time.Time `json:"last_seen"`
+	ResolutionNote NilString `json:"resolution_note"`
+	// Not_affected_version when Vedette closed the finding by itself (the matcher proved the device's
+	// version or package release is outside the affected range, e.g. after a person entered the release);
+	// null for a person's own action and for open findings.
+	ResolutionReason NilString                              `json:"resolution_reason"`
+	ResolvedAt       NilDateTime                            `json:"resolved_at"`
+	ResolvedBy       NilString                              `json:"resolved_by"`
+	Severity         FindingsGetFindingsOKItemsItemSeverity `json:"severity"`
+	// GET /findings?asset= only: the device's software row the finding rests on, the id
+	// FindingRow.fix.group and ToFixAction use, open or closed; "" when none is known and on the
+	// all-devices list.
+	SoftwareID string                               `json:"software_id"`
+	Status     FindingsGetFindingsOKItemsItemStatus `json:"status"`
 }
 
 // GetAcceptedUntil returns the value of AcceptedUntil.
@@ -70809,6 +70845,11 @@ func (s *FindingsGetFindingsOKItemsItem) GetResolutionNote() NilString {
 	return s.ResolutionNote
 }
 
+// GetResolutionReason returns the value of ResolutionReason.
+func (s *FindingsGetFindingsOKItemsItem) GetResolutionReason() NilString {
+	return s.ResolutionReason
+}
+
 // GetResolvedAt returns the value of ResolvedAt.
 func (s *FindingsGetFindingsOKItemsItem) GetResolvedAt() NilDateTime {
 	return s.ResolvedAt
@@ -70822,6 +70863,11 @@ func (s *FindingsGetFindingsOKItemsItem) GetResolvedBy() NilString {
 // GetSeverity returns the value of Severity.
 func (s *FindingsGetFindingsOKItemsItem) GetSeverity() FindingsGetFindingsOKItemsItemSeverity {
 	return s.Severity
+}
+
+// GetSoftwareID returns the value of SoftwareID.
+func (s *FindingsGetFindingsOKItemsItem) GetSoftwareID() string {
+	return s.SoftwareID
 }
 
 // GetStatus returns the value of Status.
@@ -70904,6 +70950,11 @@ func (s *FindingsGetFindingsOKItemsItem) SetResolutionNote(val NilString) {
 	s.ResolutionNote = val
 }
 
+// SetResolutionReason sets the value of ResolutionReason.
+func (s *FindingsGetFindingsOKItemsItem) SetResolutionReason(val NilString) {
+	s.ResolutionReason = val
+}
+
 // SetResolvedAt sets the value of ResolvedAt.
 func (s *FindingsGetFindingsOKItemsItem) SetResolvedAt(val NilDateTime) {
 	s.ResolvedAt = val
@@ -70917,6 +70968,11 @@ func (s *FindingsGetFindingsOKItemsItem) SetResolvedBy(val NilString) {
 // SetSeverity sets the value of Severity.
 func (s *FindingsGetFindingsOKItemsItem) SetSeverity(val FindingsGetFindingsOKItemsItemSeverity) {
 	s.Severity = val
+}
+
+// SetSoftwareID sets the value of SoftwareID.
+func (s *FindingsGetFindingsOKItemsItem) SetSoftwareID(val string) {
+	s.SoftwareID = val
 }
 
 // SetStatus sets the value of Status.
@@ -78958,13 +79014,21 @@ type FindingsPostFindingsIDAiOK struct {
 	// known_version.seen_at says when the version was reported.
 	LastSeen time.Time `json:"last_seen"`
 	// Null = no recommendation confirmed by Vedette maintainers yet.
-	Pack           NilFindingsPostFindingsIDAiOKPack  `json:"pack"`
-	Recheck        FindingsPostFindingsIDAiOKRecheck  `json:"recheck"`
-	ResolutionNote NilString                          `json:"resolution_note"`
-	ResolvedAt     NilDateTime                        `json:"resolved_at"`
-	ResolvedBy     NilString                          `json:"resolved_by"`
-	Severity       FindingsPostFindingsIDAiOKSeverity `json:"severity"`
-	Status         FindingsPostFindingsIDAiOKStatus   `json:"status"`
+	Pack           NilFindingsPostFindingsIDAiOKPack `json:"pack"`
+	Recheck        FindingsPostFindingsIDAiOKRecheck `json:"recheck"`
+	ResolutionNote NilString                         `json:"resolution_note"`
+	// Not_affected_version when Vedette closed the finding by itself (the matcher proved the device's
+	// version or package release is outside the affected range, e.g. after a person entered the release);
+	// null for a person's own action and for open findings.
+	ResolutionReason NilString                          `json:"resolution_reason"`
+	ResolvedAt       NilDateTime                        `json:"resolved_at"`
+	ResolvedBy       NilString                          `json:"resolved_by"`
+	Severity         FindingsPostFindingsIDAiOKSeverity `json:"severity"`
+	// GET /findings?asset= only: the device's software row the finding rests on, the id
+	// FindingRow.fix.group and ToFixAction use, open or closed; "" when none is known and on the
+	// all-devices list.
+	SoftwareID string                           `json:"software_id"`
+	Status     FindingsPostFindingsIDAiOKStatus `json:"status"`
 }
 
 // GetAcceptedUntil returns the value of AcceptedUntil.
@@ -79087,6 +79151,11 @@ func (s *FindingsPostFindingsIDAiOK) GetResolutionNote() NilString {
 	return s.ResolutionNote
 }
 
+// GetResolutionReason returns the value of ResolutionReason.
+func (s *FindingsPostFindingsIDAiOK) GetResolutionReason() NilString {
+	return s.ResolutionReason
+}
+
 // GetResolvedAt returns the value of ResolvedAt.
 func (s *FindingsPostFindingsIDAiOK) GetResolvedAt() NilDateTime {
 	return s.ResolvedAt
@@ -79100,6 +79169,11 @@ func (s *FindingsPostFindingsIDAiOK) GetResolvedBy() NilString {
 // GetSeverity returns the value of Severity.
 func (s *FindingsPostFindingsIDAiOK) GetSeverity() FindingsPostFindingsIDAiOKSeverity {
 	return s.Severity
+}
+
+// GetSoftwareID returns the value of SoftwareID.
+func (s *FindingsPostFindingsIDAiOK) GetSoftwareID() string {
+	return s.SoftwareID
 }
 
 // GetStatus returns the value of Status.
@@ -79227,6 +79301,11 @@ func (s *FindingsPostFindingsIDAiOK) SetResolutionNote(val NilString) {
 	s.ResolutionNote = val
 }
 
+// SetResolutionReason sets the value of ResolutionReason.
+func (s *FindingsPostFindingsIDAiOK) SetResolutionReason(val NilString) {
+	s.ResolutionReason = val
+}
+
 // SetResolvedAt sets the value of ResolvedAt.
 func (s *FindingsPostFindingsIDAiOK) SetResolvedAt(val NilDateTime) {
 	s.ResolvedAt = val
@@ -79240,6 +79319,11 @@ func (s *FindingsPostFindingsIDAiOK) SetResolvedBy(val NilString) {
 // SetSeverity sets the value of Severity.
 func (s *FindingsPostFindingsIDAiOK) SetSeverity(val FindingsPostFindingsIDAiOKSeverity) {
 	s.Severity = val
+}
+
+// SetSoftwareID sets the value of SoftwareID.
+func (s *FindingsPostFindingsIDAiOK) SetSoftwareID(val string) {
+	s.SoftwareID = val
 }
 
 // SetStatus sets the value of Status.
@@ -82991,13 +83075,21 @@ type FindingsPostFindingsIDAppliedOK struct {
 	// known_version.seen_at says when the version was reported.
 	LastSeen time.Time `json:"last_seen"`
 	// Null = no recommendation confirmed by Vedette maintainers yet.
-	Pack           NilFindingsPostFindingsIDAppliedOKPack  `json:"pack"`
-	Recheck        FindingsPostFindingsIDAppliedOKRecheck  `json:"recheck"`
-	ResolutionNote NilString                               `json:"resolution_note"`
-	ResolvedAt     NilDateTime                             `json:"resolved_at"`
-	ResolvedBy     NilString                               `json:"resolved_by"`
-	Severity       FindingsPostFindingsIDAppliedOKSeverity `json:"severity"`
-	Status         FindingsPostFindingsIDAppliedOKStatus   `json:"status"`
+	Pack           NilFindingsPostFindingsIDAppliedOKPack `json:"pack"`
+	Recheck        FindingsPostFindingsIDAppliedOKRecheck `json:"recheck"`
+	ResolutionNote NilString                              `json:"resolution_note"`
+	// Not_affected_version when Vedette closed the finding by itself (the matcher proved the device's
+	// version or package release is outside the affected range, e.g. after a person entered the release);
+	// null for a person's own action and for open findings.
+	ResolutionReason NilString                               `json:"resolution_reason"`
+	ResolvedAt       NilDateTime                             `json:"resolved_at"`
+	ResolvedBy       NilString                               `json:"resolved_by"`
+	Severity         FindingsPostFindingsIDAppliedOKSeverity `json:"severity"`
+	// GET /findings?asset= only: the device's software row the finding rests on, the id
+	// FindingRow.fix.group and ToFixAction use, open or closed; "" when none is known and on the
+	// all-devices list.
+	SoftwareID string                                `json:"software_id"`
+	Status     FindingsPostFindingsIDAppliedOKStatus `json:"status"`
 }
 
 // GetAcceptedUntil returns the value of AcceptedUntil.
@@ -83120,6 +83212,11 @@ func (s *FindingsPostFindingsIDAppliedOK) GetResolutionNote() NilString {
 	return s.ResolutionNote
 }
 
+// GetResolutionReason returns the value of ResolutionReason.
+func (s *FindingsPostFindingsIDAppliedOK) GetResolutionReason() NilString {
+	return s.ResolutionReason
+}
+
 // GetResolvedAt returns the value of ResolvedAt.
 func (s *FindingsPostFindingsIDAppliedOK) GetResolvedAt() NilDateTime {
 	return s.ResolvedAt
@@ -83133,6 +83230,11 @@ func (s *FindingsPostFindingsIDAppliedOK) GetResolvedBy() NilString {
 // GetSeverity returns the value of Severity.
 func (s *FindingsPostFindingsIDAppliedOK) GetSeverity() FindingsPostFindingsIDAppliedOKSeverity {
 	return s.Severity
+}
+
+// GetSoftwareID returns the value of SoftwareID.
+func (s *FindingsPostFindingsIDAppliedOK) GetSoftwareID() string {
+	return s.SoftwareID
 }
 
 // GetStatus returns the value of Status.
@@ -83260,6 +83362,11 @@ func (s *FindingsPostFindingsIDAppliedOK) SetResolutionNote(val NilString) {
 	s.ResolutionNote = val
 }
 
+// SetResolutionReason sets the value of ResolutionReason.
+func (s *FindingsPostFindingsIDAppliedOK) SetResolutionReason(val NilString) {
+	s.ResolutionReason = val
+}
+
 // SetResolvedAt sets the value of ResolvedAt.
 func (s *FindingsPostFindingsIDAppliedOK) SetResolvedAt(val NilDateTime) {
 	s.ResolvedAt = val
@@ -83273,6 +83380,11 @@ func (s *FindingsPostFindingsIDAppliedOK) SetResolvedBy(val NilString) {
 // SetSeverity sets the value of Severity.
 func (s *FindingsPostFindingsIDAppliedOK) SetSeverity(val FindingsPostFindingsIDAppliedOKSeverity) {
 	s.Severity = val
+}
+
+// SetSoftwareID sets the value of SoftwareID.
+func (s *FindingsPostFindingsIDAppliedOK) SetSoftwareID(val string) {
+	s.SoftwareID = val
 }
 
 // SetStatus sets the value of Status.
@@ -87045,13 +87157,21 @@ type FindingsPostFindingsIDStatusOK struct {
 	// known_version.seen_at says when the version was reported.
 	LastSeen time.Time `json:"last_seen"`
 	// Null = no recommendation confirmed by Vedette maintainers yet.
-	Pack           NilFindingsPostFindingsIDStatusOKPack  `json:"pack"`
-	Recheck        FindingsPostFindingsIDStatusOKRecheck  `json:"recheck"`
-	ResolutionNote NilString                              `json:"resolution_note"`
-	ResolvedAt     NilDateTime                            `json:"resolved_at"`
-	ResolvedBy     NilString                              `json:"resolved_by"`
-	Severity       FindingsPostFindingsIDStatusOKSeverity `json:"severity"`
-	Status         FindingsPostFindingsIDStatusOKStatus   `json:"status"`
+	Pack           NilFindingsPostFindingsIDStatusOKPack `json:"pack"`
+	Recheck        FindingsPostFindingsIDStatusOKRecheck `json:"recheck"`
+	ResolutionNote NilString                             `json:"resolution_note"`
+	// Not_affected_version when Vedette closed the finding by itself (the matcher proved the device's
+	// version or package release is outside the affected range, e.g. after a person entered the release);
+	// null for a person's own action and for open findings.
+	ResolutionReason NilString                              `json:"resolution_reason"`
+	ResolvedAt       NilDateTime                            `json:"resolved_at"`
+	ResolvedBy       NilString                              `json:"resolved_by"`
+	Severity         FindingsPostFindingsIDStatusOKSeverity `json:"severity"`
+	// GET /findings?asset= only: the device's software row the finding rests on, the id
+	// FindingRow.fix.group and ToFixAction use, open or closed; "" when none is known and on the
+	// all-devices list.
+	SoftwareID string                               `json:"software_id"`
+	Status     FindingsPostFindingsIDStatusOKStatus `json:"status"`
 }
 
 // GetAcceptedUntil returns the value of AcceptedUntil.
@@ -87174,6 +87294,11 @@ func (s *FindingsPostFindingsIDStatusOK) GetResolutionNote() NilString {
 	return s.ResolutionNote
 }
 
+// GetResolutionReason returns the value of ResolutionReason.
+func (s *FindingsPostFindingsIDStatusOK) GetResolutionReason() NilString {
+	return s.ResolutionReason
+}
+
 // GetResolvedAt returns the value of ResolvedAt.
 func (s *FindingsPostFindingsIDStatusOK) GetResolvedAt() NilDateTime {
 	return s.ResolvedAt
@@ -87187,6 +87312,11 @@ func (s *FindingsPostFindingsIDStatusOK) GetResolvedBy() NilString {
 // GetSeverity returns the value of Severity.
 func (s *FindingsPostFindingsIDStatusOK) GetSeverity() FindingsPostFindingsIDStatusOKSeverity {
 	return s.Severity
+}
+
+// GetSoftwareID returns the value of SoftwareID.
+func (s *FindingsPostFindingsIDStatusOK) GetSoftwareID() string {
+	return s.SoftwareID
 }
 
 // GetStatus returns the value of Status.
@@ -87314,6 +87444,11 @@ func (s *FindingsPostFindingsIDStatusOK) SetResolutionNote(val NilString) {
 	s.ResolutionNote = val
 }
 
+// SetResolutionReason sets the value of ResolutionReason.
+func (s *FindingsPostFindingsIDStatusOK) SetResolutionReason(val NilString) {
+	s.ResolutionReason = val
+}
+
 // SetResolvedAt sets the value of ResolvedAt.
 func (s *FindingsPostFindingsIDStatusOK) SetResolvedAt(val NilDateTime) {
 	s.ResolvedAt = val
@@ -87327,6 +87462,11 @@ func (s *FindingsPostFindingsIDStatusOK) SetResolvedBy(val NilString) {
 // SetSeverity sets the value of Severity.
 func (s *FindingsPostFindingsIDStatusOK) SetSeverity(val FindingsPostFindingsIDStatusOKSeverity) {
 	s.Severity = val
+}
+
+// SetSoftwareID sets the value of SoftwareID.
+func (s *FindingsPostFindingsIDStatusOK) SetSoftwareID(val string) {
+	s.SoftwareID = val
 }
 
 // SetStatus sets the value of Status.

@@ -33275,6 +33275,22 @@
                             ],
                             "description": "null = no CVSS score known: the pages say \"No score\", never 0"
                           },
+                          "resolution_reason": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "const": "not_affected_version"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "not_affected_version when Vedette closed the finding by itself (the matcher proved the device's version or package release is outside the affected range, e.g. after a person entered the release); null for a person's own action and for open findings"
+                          },
+                          "software_id": {
+                            "type": "string",
+                            "description": "GET /findings?asset= only: the device's software row the finding rests on, the id FindingRow.fix.group and ToFixAction use, open or closed; \"\" when none is known and on the all-devices list"
+                          },
                           "fix": {
                             "description": "GET /findings only, open findings: the update that fixes it with others; null when there is none to name",
                             "anyOf": [
@@ -33357,7 +33373,9 @@
                           "history",
                           "asset",
                           "kev",
-                          "cvss"
+                          "cvss",
+                          "resolution_reason",
+                          "software_id"
                         ],
                         "additionalProperties": false
                       }
@@ -34337,6 +34355,22 @@
                       ],
                       "description": "null = no CVSS score known: the pages say \"No score\", never 0"
                     },
+                    "resolution_reason": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "const": "not_affected_version"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "not_affected_version when Vedette closed the finding by itself (the matcher proved the device's version or package release is outside the affected range, e.g. after a person entered the release); null for a person's own action and for open findings"
+                    },
+                    "software_id": {
+                      "type": "string",
+                      "description": "GET /findings?asset= only: the device's software row the finding rests on, the id FindingRow.fix.group and ToFixAction use, open or closed; \"\" when none is known and on the all-devices list"
+                    },
                     "fix": {
                       "description": "GET /findings only, open findings: the update that fixes it with others; null when there is none to name",
                       "anyOf": [
@@ -35389,6 +35423,8 @@
                     "asset",
                     "kev",
                     "cvss",
+                    "resolution_reason",
+                    "software_id",
                     "known_version",
                     "fixed_in",
                     "pack",
@@ -35914,6 +35950,22 @@
                       ],
                       "description": "null = no CVSS score known: the pages say \"No score\", never 0"
                     },
+                    "resolution_reason": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "const": "not_affected_version"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "not_affected_version when Vedette closed the finding by itself (the matcher proved the device's version or package release is outside the affected range, e.g. after a person entered the release); null for a person's own action and for open findings"
+                    },
+                    "software_id": {
+                      "type": "string",
+                      "description": "GET /findings?asset= only: the device's software row the finding rests on, the id FindingRow.fix.group and ToFixAction use, open or closed; \"\" when none is known and on the all-devices list"
+                    },
                     "fix": {
                       "description": "GET /findings only, open findings: the update that fixes it with others; null when there is none to name",
                       "anyOf": [
@@ -36966,6 +37018,8 @@
                     "asset",
                     "kev",
                     "cvss",
+                    "resolution_reason",
+                    "software_id",
                     "known_version",
                     "fixed_in",
                     "pack",
@@ -37493,6 +37547,22 @@
                       ],
                       "description": "null = no CVSS score known: the pages say \"No score\", never 0"
                     },
+                    "resolution_reason": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "const": "not_affected_version"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "not_affected_version when Vedette closed the finding by itself (the matcher proved the device's version or package release is outside the affected range, e.g. after a person entered the release); null for a person's own action and for open findings"
+                    },
+                    "software_id": {
+                      "type": "string",
+                      "description": "GET /findings?asset= only: the device's software row the finding rests on, the id FindingRow.fix.group and ToFixAction use, open or closed; \"\" when none is known and on the all-devices list"
+                    },
                     "fix": {
                       "description": "GET /findings only, open findings: the update that fixes it with others; null when there is none to name",
                       "anyOf": [
@@ -38545,6 +38615,8 @@
                     "asset",
                     "kev",
                     "cvss",
+                    "resolution_reason",
+                    "software_id",
                     "known_version",
                     "fixed_in",
                     "pack",
@@ -39084,6 +39156,22 @@
                       ],
                       "description": "null = no CVSS score known: the pages say \"No score\", never 0"
                     },
+                    "resolution_reason": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "const": "not_affected_version"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "not_affected_version when Vedette closed the finding by itself (the matcher proved the device's version or package release is outside the affected range, e.g. after a person entered the release); null for a person's own action and for open findings"
+                    },
+                    "software_id": {
+                      "type": "string",
+                      "description": "GET /findings?asset= only: the device's software row the finding rests on, the id FindingRow.fix.group and ToFixAction use, open or closed; \"\" when none is known and on the all-devices list"
+                    },
                     "fix": {
                       "description": "GET /findings only, open findings: the update that fixes it with others; null when there is none to name",
                       "anyOf": [
@@ -40136,6 +40224,8 @@
                     "asset",
                     "kev",
                     "cvss",
+                    "resolution_reason",
+                    "software_id",
                     "known_version",
                     "fixed_in",
                     "pack",

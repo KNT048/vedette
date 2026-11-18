@@ -235,11 +235,17 @@ type Row struct {
 	ResolvedBy     *string      `json:"resolved_by"`
 	ResolvedAt     *time.Time   `json:"resolved_at"`
 	ResolutionNote *string      `json:"resolution_note"`
-	AcceptedUntil  *string      `json:"accepted_until"` // YYYY-MM-DD, the last day of a risk acceptance
-	History        []historyDoc `json:"history"`
-	Asset          *AssetView   `json:"asset"`
-	Kev            *KevInfo     `json:"kev"`
-	CVSS           *CVSS        `json:"cvss"` // nil: no score known ("No score", never 0; INV-22)
+	// ResolutionReason is ReasonNotAffectedVersion when Vedette closed the finding by itself (a person's entered release or a
+	// matcher proof); null for a person's own action and for open findings.
+	ResolutionReason *string `json:"resolution_reason"`
+	// SoftwareID is the device's software row the finding rests on, as FindingRow.fix.group names it ("<device>/<software id>");
+	// "" when unknown. Set only on a device's list (GET /findings?asset=), never on the all-devices list.
+	SoftwareID    string       `json:"software_id"`
+	AcceptedUntil *string      `json:"accepted_until"` // YYYY-MM-DD, the last day of a risk acceptance
+	History       []historyDoc `json:"history"`
+	Asset         *AssetView   `json:"asset"`
+	Kev           *KevInfo     `json:"kev"`
+	CVSS          *CVSS        `json:"cvss"` // nil: no score known ("No score", never 0; INV-22)
 	// Fix is the one update that fixes this finding together with the device's other open findings of the same software:
 	// set on the list only, for an open finding; nil when Vedette cannot name one.
 	Fix *RowFix `json:"fix"`
@@ -333,6 +339,9 @@ func newRow(r Record, a *AssetView, k *KevInfo, c *CVSS) Row {
 	}
 	if r.ResolutionNote != "" {
 		row.ResolutionNote = &r.ResolutionNote
+	}
+	if r.ResolutionReason != "" {
+		row.ResolutionReason = &r.ResolutionReason
 	}
 	if !r.AcceptedUntil.IsZero() {
 		d := r.AcceptedUntil.UTC().Format(time.DateOnly)

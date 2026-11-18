@@ -70,6 +70,8 @@ export const Cvss = z.object({
 export const FindingRow = Finding.extend({
   asset: FindingAsset.nullable(), kev: KevInfo.nullable().describe('Read from KEV, not from the project recommendation pack'),
   cvss: Cvss.nullable().describe('null = no CVSS score known: the pages say "No score", never 0'),
+  resolution_reason: z.literal('not_affected_version').nullable().describe('not_affected_version when Vedette closed the finding by itself (the matcher proved the device\'s version or package release is outside the affected range, e.g. after a person entered the release); null for a person\'s own action and for open findings'),
+  software_id: z.string().describe('GET /findings?asset= only: the device\'s software row the finding rests on, the id FindingRow.fix.group and ToFixAction use, open or closed; "" when none is known and on the all-devices list'),
   fix: RowFix.nullable().optional().describe('GET /findings only, open findings: the update that fixes it with others; null when there is none to name'),
 })
 

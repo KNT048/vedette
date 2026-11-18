@@ -130827,6 +130827,10 @@ func (s *FindingsGetFindingsIDOK) encodeFields(e *jx.Encoder) {
 		s.ResolutionNote.Encode(e)
 	}
 	{
+		e.FieldStart("resolution_reason")
+		s.ResolutionReason.Encode(e)
+	}
+	{
 		e.FieldStart("resolved_at")
 		s.ResolvedAt.Encode(e, json.EncodeDateTime)
 	}
@@ -130839,12 +130843,16 @@ func (s *FindingsGetFindingsIDOK) encodeFields(e *jx.Encoder) {
 		s.Severity.Encode(e)
 	}
 	{
+		e.FieldStart("software_id")
+		e.Str(s.SoftwareID)
+	}
+	{
 		e.FieldStart("status")
 		s.Status.Encode(e)
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsIDOK = [28]string{
+var jsonFieldsNameOfFindingsGetFindingsIDOK = [30]string{
 	0:  "accepted_until",
 	1:  "ai",
 	2:  "ai_available",
@@ -130869,10 +130877,12 @@ var jsonFieldsNameOfFindingsGetFindingsIDOK = [28]string{
 	21: "pack",
 	22: "recheck",
 	23: "resolution_note",
-	24: "resolved_at",
-	25: "resolved_by",
-	26: "severity",
-	27: "status",
+	24: "resolution_reason",
+	25: "resolved_at",
+	26: "resolved_by",
+	27: "severity",
+	28: "software_id",
+	29: "status",
 }
 
 // Decode decodes FindingsGetFindingsIDOK from json.
@@ -131152,8 +131162,18 @@ func (s *FindingsGetFindingsIDOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"resolution_note\"")
 			}
-		case "resolved_at":
+		case "resolution_reason":
 			requiredBitSet[3] |= 1 << 0
+			if err := func() error {
+				if err := s.ResolutionReason.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"resolution_reason\"")
+			}
+		case "resolved_at":
+			requiredBitSet[3] |= 1 << 1
 			if err := func() error {
 				if err := s.ResolvedAt.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -131163,7 +131183,7 @@ func (s *FindingsGetFindingsIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"resolved_at\"")
 			}
 		case "resolved_by":
-			requiredBitSet[3] |= 1 << 1
+			requiredBitSet[3] |= 1 << 2
 			if err := func() error {
 				if err := s.ResolvedBy.Decode(d); err != nil {
 					return err
@@ -131173,7 +131193,7 @@ func (s *FindingsGetFindingsIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"resolved_by\"")
 			}
 		case "severity":
-			requiredBitSet[3] |= 1 << 2
+			requiredBitSet[3] |= 1 << 3
 			if err := func() error {
 				if err := s.Severity.Decode(d); err != nil {
 					return err
@@ -131182,8 +131202,20 @@ func (s *FindingsGetFindingsIDOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"severity\"")
 			}
+		case "software_id":
+			requiredBitSet[3] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.SoftwareID = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"software_id\"")
+			}
 		case "status":
-			requiredBitSet[3] |= 1 << 3
+			requiredBitSet[3] |= 1 << 5
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -131205,7 +131237,7 @@ func (s *FindingsGetFindingsIDOK) Decode(d *jx.Decoder) error {
 		0b11111111,
 		0b11011111,
 		0b11111111,
-		0b00001111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -138712,6 +138744,10 @@ func (s *FindingsGetFindingsOKItemsItem) encodeFields(e *jx.Encoder) {
 		s.ResolutionNote.Encode(e)
 	}
 	{
+		e.FieldStart("resolution_reason")
+		s.ResolutionReason.Encode(e)
+	}
+	{
 		e.FieldStart("resolved_at")
 		s.ResolvedAt.Encode(e, json.EncodeDateTime)
 	}
@@ -138724,12 +138760,16 @@ func (s *FindingsGetFindingsOKItemsItem) encodeFields(e *jx.Encoder) {
 		s.Severity.Encode(e)
 	}
 	{
+		e.FieldStart("software_id")
+		e.Str(s.SoftwareID)
+	}
+	{
 		e.FieldStart("status")
 		s.Status.Encode(e)
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsOKItemsItem = [19]string{
+var jsonFieldsNameOfFindingsGetFindingsOKItemsItem = [21]string{
 	0:  "accepted_until",
 	1:  "asset",
 	2:  "asset_id",
@@ -138745,10 +138785,12 @@ var jsonFieldsNameOfFindingsGetFindingsOKItemsItem = [19]string{
 	12: "kev",
 	13: "last_seen",
 	14: "resolution_note",
-	15: "resolved_at",
-	16: "resolved_by",
-	17: "severity",
-	18: "status",
+	15: "resolution_reason",
+	16: "resolved_at",
+	17: "resolved_by",
+	18: "severity",
+	19: "software_id",
+	20: "status",
 }
 
 // Decode decodes FindingsGetFindingsOKItemsItem from json.
@@ -138930,8 +138972,18 @@ func (s *FindingsGetFindingsOKItemsItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"resolution_note\"")
 			}
-		case "resolved_at":
+		case "resolution_reason":
 			requiredBitSet[1] |= 1 << 7
+			if err := func() error {
+				if err := s.ResolutionReason.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"resolution_reason\"")
+			}
+		case "resolved_at":
+			requiredBitSet[2] |= 1 << 0
 			if err := func() error {
 				if err := s.ResolvedAt.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -138941,7 +138993,7 @@ func (s *FindingsGetFindingsOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"resolved_at\"")
 			}
 		case "resolved_by":
-			requiredBitSet[2] |= 1 << 0
+			requiredBitSet[2] |= 1 << 1
 			if err := func() error {
 				if err := s.ResolvedBy.Decode(d); err != nil {
 					return err
@@ -138951,7 +139003,7 @@ func (s *FindingsGetFindingsOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"resolved_by\"")
 			}
 		case "severity":
-			requiredBitSet[2] |= 1 << 1
+			requiredBitSet[2] |= 1 << 2
 			if err := func() error {
 				if err := s.Severity.Decode(d); err != nil {
 					return err
@@ -138960,8 +139012,20 @@ func (s *FindingsGetFindingsOKItemsItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"severity\"")
 			}
+		case "software_id":
+			requiredBitSet[2] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.SoftwareID = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"software_id\"")
+			}
 		case "status":
-			requiredBitSet[2] |= 1 << 2
+			requiredBitSet[2] |= 1 << 4
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -138982,7 +139046,7 @@ func (s *FindingsGetFindingsOKItemsItem) Decode(d *jx.Decoder) error {
 	for i, mask := range [3]uint8{
 		0b11111111,
 		0b11111101,
-		0b00000111,
+		0b00011111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -148849,6 +148913,10 @@ func (s *FindingsPostFindingsIDAiOK) encodeFields(e *jx.Encoder) {
 		s.ResolutionNote.Encode(e)
 	}
 	{
+		e.FieldStart("resolution_reason")
+		s.ResolutionReason.Encode(e)
+	}
+	{
 		e.FieldStart("resolved_at")
 		s.ResolvedAt.Encode(e, json.EncodeDateTime)
 	}
@@ -148861,12 +148929,16 @@ func (s *FindingsPostFindingsIDAiOK) encodeFields(e *jx.Encoder) {
 		s.Severity.Encode(e)
 	}
 	{
+		e.FieldStart("software_id")
+		e.Str(s.SoftwareID)
+	}
+	{
 		e.FieldStart("status")
 		s.Status.Encode(e)
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDAiOK = [28]string{
+var jsonFieldsNameOfFindingsPostFindingsIDAiOK = [30]string{
 	0:  "accepted_until",
 	1:  "ai",
 	2:  "ai_available",
@@ -148891,10 +148963,12 @@ var jsonFieldsNameOfFindingsPostFindingsIDAiOK = [28]string{
 	21: "pack",
 	22: "recheck",
 	23: "resolution_note",
-	24: "resolved_at",
-	25: "resolved_by",
-	26: "severity",
-	27: "status",
+	24: "resolution_reason",
+	25: "resolved_at",
+	26: "resolved_by",
+	27: "severity",
+	28: "software_id",
+	29: "status",
 }
 
 // Decode decodes FindingsPostFindingsIDAiOK from json.
@@ -149174,8 +149248,18 @@ func (s *FindingsPostFindingsIDAiOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"resolution_note\"")
 			}
-		case "resolved_at":
+		case "resolution_reason":
 			requiredBitSet[3] |= 1 << 0
+			if err := func() error {
+				if err := s.ResolutionReason.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"resolution_reason\"")
+			}
+		case "resolved_at":
+			requiredBitSet[3] |= 1 << 1
 			if err := func() error {
 				if err := s.ResolvedAt.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -149185,7 +149269,7 @@ func (s *FindingsPostFindingsIDAiOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"resolved_at\"")
 			}
 		case "resolved_by":
-			requiredBitSet[3] |= 1 << 1
+			requiredBitSet[3] |= 1 << 2
 			if err := func() error {
 				if err := s.ResolvedBy.Decode(d); err != nil {
 					return err
@@ -149195,7 +149279,7 @@ func (s *FindingsPostFindingsIDAiOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"resolved_by\"")
 			}
 		case "severity":
-			requiredBitSet[3] |= 1 << 2
+			requiredBitSet[3] |= 1 << 3
 			if err := func() error {
 				if err := s.Severity.Decode(d); err != nil {
 					return err
@@ -149204,8 +149288,20 @@ func (s *FindingsPostFindingsIDAiOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"severity\"")
 			}
+		case "software_id":
+			requiredBitSet[3] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.SoftwareID = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"software_id\"")
+			}
 		case "status":
-			requiredBitSet[3] |= 1 << 3
+			requiredBitSet[3] |= 1 << 5
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -149227,7 +149323,7 @@ func (s *FindingsPostFindingsIDAiOK) Decode(d *jx.Decoder) error {
 		0b11111111,
 		0b11011111,
 		0b11111111,
-		0b00001111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -156748,6 +156844,10 @@ func (s *FindingsPostFindingsIDAppliedOK) encodeFields(e *jx.Encoder) {
 		s.ResolutionNote.Encode(e)
 	}
 	{
+		e.FieldStart("resolution_reason")
+		s.ResolutionReason.Encode(e)
+	}
+	{
 		e.FieldStart("resolved_at")
 		s.ResolvedAt.Encode(e, json.EncodeDateTime)
 	}
@@ -156760,12 +156860,16 @@ func (s *FindingsPostFindingsIDAppliedOK) encodeFields(e *jx.Encoder) {
 		s.Severity.Encode(e)
 	}
 	{
+		e.FieldStart("software_id")
+		e.Str(s.SoftwareID)
+	}
+	{
 		e.FieldStart("status")
 		s.Status.Encode(e)
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDAppliedOK = [28]string{
+var jsonFieldsNameOfFindingsPostFindingsIDAppliedOK = [30]string{
 	0:  "accepted_until",
 	1:  "ai",
 	2:  "ai_available",
@@ -156790,10 +156894,12 @@ var jsonFieldsNameOfFindingsPostFindingsIDAppliedOK = [28]string{
 	21: "pack",
 	22: "recheck",
 	23: "resolution_note",
-	24: "resolved_at",
-	25: "resolved_by",
-	26: "severity",
-	27: "status",
+	24: "resolution_reason",
+	25: "resolved_at",
+	26: "resolved_by",
+	27: "severity",
+	28: "software_id",
+	29: "status",
 }
 
 // Decode decodes FindingsPostFindingsIDAppliedOK from json.
@@ -157073,8 +157179,18 @@ func (s *FindingsPostFindingsIDAppliedOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"resolution_note\"")
 			}
-		case "resolved_at":
+		case "resolution_reason":
 			requiredBitSet[3] |= 1 << 0
+			if err := func() error {
+				if err := s.ResolutionReason.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"resolution_reason\"")
+			}
+		case "resolved_at":
+			requiredBitSet[3] |= 1 << 1
 			if err := func() error {
 				if err := s.ResolvedAt.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -157084,7 +157200,7 @@ func (s *FindingsPostFindingsIDAppliedOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"resolved_at\"")
 			}
 		case "resolved_by":
-			requiredBitSet[3] |= 1 << 1
+			requiredBitSet[3] |= 1 << 2
 			if err := func() error {
 				if err := s.ResolvedBy.Decode(d); err != nil {
 					return err
@@ -157094,7 +157210,7 @@ func (s *FindingsPostFindingsIDAppliedOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"resolved_by\"")
 			}
 		case "severity":
-			requiredBitSet[3] |= 1 << 2
+			requiredBitSet[3] |= 1 << 3
 			if err := func() error {
 				if err := s.Severity.Decode(d); err != nil {
 					return err
@@ -157103,8 +157219,20 @@ func (s *FindingsPostFindingsIDAppliedOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"severity\"")
 			}
+		case "software_id":
+			requiredBitSet[3] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.SoftwareID = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"software_id\"")
+			}
 		case "status":
-			requiredBitSet[3] |= 1 << 3
+			requiredBitSet[3] |= 1 << 5
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -157126,7 +157254,7 @@ func (s *FindingsPostFindingsIDAppliedOK) Decode(d *jx.Decoder) error {
 		0b11111111,
 		0b11011111,
 		0b11111111,
-		0b00001111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -164653,6 +164781,10 @@ func (s *FindingsPostFindingsIDStatusOK) encodeFields(e *jx.Encoder) {
 		s.ResolutionNote.Encode(e)
 	}
 	{
+		e.FieldStart("resolution_reason")
+		s.ResolutionReason.Encode(e)
+	}
+	{
 		e.FieldStart("resolved_at")
 		s.ResolvedAt.Encode(e, json.EncodeDateTime)
 	}
@@ -164665,12 +164797,16 @@ func (s *FindingsPostFindingsIDStatusOK) encodeFields(e *jx.Encoder) {
 		s.Severity.Encode(e)
 	}
 	{
+		e.FieldStart("software_id")
+		e.Str(s.SoftwareID)
+	}
+	{
 		e.FieldStart("status")
 		s.Status.Encode(e)
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDStatusOK = [28]string{
+var jsonFieldsNameOfFindingsPostFindingsIDStatusOK = [30]string{
 	0:  "accepted_until",
 	1:  "ai",
 	2:  "ai_available",
@@ -164695,10 +164831,12 @@ var jsonFieldsNameOfFindingsPostFindingsIDStatusOK = [28]string{
 	21: "pack",
 	22: "recheck",
 	23: "resolution_note",
-	24: "resolved_at",
-	25: "resolved_by",
-	26: "severity",
-	27: "status",
+	24: "resolution_reason",
+	25: "resolved_at",
+	26: "resolved_by",
+	27: "severity",
+	28: "software_id",
+	29: "status",
 }
 
 // Decode decodes FindingsPostFindingsIDStatusOK from json.
@@ -164978,8 +165116,18 @@ func (s *FindingsPostFindingsIDStatusOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"resolution_note\"")
 			}
-		case "resolved_at":
+		case "resolution_reason":
 			requiredBitSet[3] |= 1 << 0
+			if err := func() error {
+				if err := s.ResolutionReason.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"resolution_reason\"")
+			}
+		case "resolved_at":
+			requiredBitSet[3] |= 1 << 1
 			if err := func() error {
 				if err := s.ResolvedAt.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -164989,7 +165137,7 @@ func (s *FindingsPostFindingsIDStatusOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"resolved_at\"")
 			}
 		case "resolved_by":
-			requiredBitSet[3] |= 1 << 1
+			requiredBitSet[3] |= 1 << 2
 			if err := func() error {
 				if err := s.ResolvedBy.Decode(d); err != nil {
 					return err
@@ -164999,7 +165147,7 @@ func (s *FindingsPostFindingsIDStatusOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"resolved_by\"")
 			}
 		case "severity":
-			requiredBitSet[3] |= 1 << 2
+			requiredBitSet[3] |= 1 << 3
 			if err := func() error {
 				if err := s.Severity.Decode(d); err != nil {
 					return err
@@ -165008,8 +165156,20 @@ func (s *FindingsPostFindingsIDStatusOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"severity\"")
 			}
+		case "software_id":
+			requiredBitSet[3] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.SoftwareID = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"software_id\"")
+			}
 		case "status":
-			requiredBitSet[3] |= 1 << 3
+			requiredBitSet[3] |= 1 << 5
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -165031,7 +165191,7 @@ func (s *FindingsPostFindingsIDStatusOK) Decode(d *jx.Decoder) error {
 		0b11111111,
 		0b11011111,
 		0b11111111,
-		0b00001111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

@@ -96,6 +96,7 @@
 
 ## Modifying: `findings.FindingHandlers.SetGuidance(Guidance)` và `Guide`/`Row`/`Detail`
 - **mitigation** (đăng ký nhà cung cấp, dựng `Guide`; gọi `Detail` để trả lời `applied|ai`). Đổi hình `Guide` = đổi `FindingDetail` trong `contract.ts`; `findings.Into` giải mã vào kiểu sinh của ogen nên lệch schema báo lỗi ngay trong test.
+- **`Row.ResolutionReason`, `Row.SoftwareID`** (INV-27): `contract.ts` `FindingRow` gains `resolution_reason` and `software_id`; web pages that show what an entered package release closed read them from `GET /findings?asset=`. `software_id` is derived by `addSoftware` (device list only), so a change to `findingRow` changes it.
 
 ## Modifying: `findings.Service.SetStatus(ctx, id, action, note, user)`
 - **SPA** (`POST /findings/{id}/status`, mã lỗi `note_required`, `already_open`, `bad_action`, `note_too_long`, `bad_until`), **notify** (sự kiện `status_changed`), **response**/**reports** (đếm finding mở). Đổi bảng chuyển trạng thái = đổi hành vi nút trên trang finding.

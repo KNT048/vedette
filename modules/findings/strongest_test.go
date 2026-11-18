@@ -11,6 +11,9 @@ import (
 // may differ in case only ("openbsd" from nmap's CPE, "OpenBSD" from the agent's map), the CPE may be on one row only, and the banner
 // may give a less precise form of the same release ("10.2" for the agent's 10.2p1 and Alpine's 10.2_p1-r1). Every surface must
 // describe the software by its strongest row: the agent's, else a person's, else the device's SNMP answer, else the scan banner.
+// Inventory decides that row (inventory INV-50) and its MatchInput gives findings only the effective row of each software; the
+// cases stand in for it the same way (the device's Software is the strongest row alone), so the measure checks what findings does
+// with inventory's answer on every surface, and that a distribution's package never gets an upstream upgrade.
 //
 // strongestCase is one combination of rows on one device.
 type strongestCase struct {
@@ -106,10 +109,13 @@ func strongestCases() []strongestCase {
 						default:
 							c.strong = rows[0]
 						}
-						for i := range sws { // inventory's resolver: every other row of the software is shadowed
-							sws[i].Shadowed = sws[i].ID != c.strong
+						var eff []Software // inventory's MatchInput: the other rows of the software are left out
+						for _, s := range sws {
+							if s.ID == c.strong {
+								eff = append(eff, s)
+							}
 						}
-						a.Software = sws
+						a.Software = eff
 						c.a = a
 						out = append(out, c)
 					}
@@ -194,7 +200,8 @@ func TestStrongestRow_EveryCombination(t *testing.T) {
 	t.Logf("%d of %d combinations describe the software by a weaker row or plan an upstream upgrade for a package; by surface %v", failed, total, bySurface)
 }
 
-// The rows of an Alpine router and an Ubuntu host as a box held them, without inventory's marks: a person's package release (or an
+// The rows of an Alpine router and an Ubuntu host as every source reported them (not through inventory's MatchInput, which would
+// keep the agent's row alone): even then a person's package release (or an
 // agent's package row) is a distribution's package, so the plan names no upstream "upgrade to 10.6" for it and the exploited
 // finding's update is the distribution's. A person's entry with no package release keeps its upstream item.
 func TestStrongestRow_EnteredPackageReleaseIsNoUpstreamUpgrade(t *testing.T) {

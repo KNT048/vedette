@@ -78,9 +78,6 @@ type Software struct {
 	// SeenAt is when the row's source last reported it (zero when unknown): for an agent's row, the day of the list its version
 	// comes from, which the plan names once no agent reports the device (PlanItem.Reported).
 	SeenAt time.Time
-	// Shadowed: inventory's effective-row resolver says another row of the device describes this software (a stronger source, or the
-	// same release given more precisely). Every surface reads the device without it (effectiveSoftware).
-	Shadowed bool
 }
 
 // builtBy is the source whose build rules the row follows: the reported row's for a person's correction of it, else its own.

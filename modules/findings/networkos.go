@@ -294,7 +294,7 @@ func deviceOS(a Asset) (os Software, orderable, ok bool) {
 			return Software{}, false, false
 		}
 		orderable = d.reads(m[1])
-		for _, s := range effectiveSoftware(a) {
+		for _, s := range a.Software {
 			if slices.ContainsFunc(s.KevKeys, d.own) && versionGiven(s.Version) && (!orderable || d.reads(s.Version)) {
 				return Software{}, false, false // "15.1" or "JUNOS 15.1R7.9" typed by a person is not a Junos version: the stated one decides (review L2)
 			}
@@ -311,8 +311,8 @@ func deviceOS(a Asset) (os Software, orderable, ok bool) {
 	return Software{}, false, false
 }
 
-// deviceSoftware is the software every surface reads for a device: its inventory rows that describe their software
-// (effectiveSoftware: inventory's effective rows) and, when the device states a network OS
+// deviceSoftware is the software every surface reads for a device: its inventory rows (inventory's MatchInput gives only the
+// effective row of each software, inventory INV-50; findings never ranks sources itself) and, when the device states a network OS
 // with a version its scheme orders (deviceOS), one row for that OS. A recorded row of the OS without a readable version, all of
 // whose KEV keys are the OS row's, gives way to it: the device's own version decides instead of "add the version" (review M3 of
 // #703).
@@ -321,13 +321,12 @@ func deviceSoftware(a Asset) []Software {
 }
 
 func deviceOSSoftware(a Asset) []Software {
-	sws := effectiveSoftware(a)
 	os, orderable, ok := deviceOS(a)
 	if !ok {
-		return sws
+		return a.Software
 	}
-	out := make([]Software, 0, len(sws)+1)
-	for _, s := range sws {
+	out := make([]Software, 0, len(a.Software)+1)
+	for _, s := range a.Software {
 		covered, own := len(s.KevKeys) > 0, false
 		for _, k := range s.KevKeys {
 			k = NormalizeKevKey(k)

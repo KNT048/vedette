@@ -13,7 +13,7 @@ import { linuxInstallScript, NO_BOX_ADDRESS, OSQUERY_VERSION, windowsInstallScri
 import { sha256Hex } from './kinds'
 import { customEntry, findById, findCatalog, searchCatalog, type CatalogEntry } from './catalog'
 import type {
-  AddDeviceInput, AddDeviceResult, AgentReport, AgentToken, DeviceDetail, DeviceRow, DeviceSource, DevicesResponse, ImportResult,
+  AddDeviceInput, AddDeviceResult, AgentNode, AgentReport, AgentToken, DeviceDetail, DeviceRow, DeviceSource, DevicesResponse, ImportResult,
   InventorySettings, KeepSeparateInput, MergeInput, ObsField, Observation, OsqueryPackage, PossibleSame, RegularScan, SamePairs, Sensor, SettingsInput,
   DeviceSnmp, DeviceSnmpInput, SnmpAnswer, SnmpAuth, SnmpCheckResult, SnmpNotice, SnmpPriv, SnmpReason, SnmpResponse, SnmpVersion,
   SoftwareView, WazuhConnection, WazuhInput,
@@ -346,15 +346,30 @@ const csvRisk = (r: DeviceRow['risk']) => (!r ? '' : r.level === 'exploited' ? `
 const reportAsks = new Map<string, number>()
 const REPORT_WINDOW_MS = 15 * 60_000
 const REPORT_COOLDOWN_MS = 10 * 60_000
+/** The box's rule (agent-intake nodestate.go): quiet after three missed 5-minute config calls, never reported when nothing was ever delivered. */
+const QUIET_AFTER_MS = 15 * 60_000
+const agentOs = (a: Asset): 'windows' | 'linux' => (/windows/i.test(a.os?.value ?? '') || /windows/i.test(a.hostname ?? '') ? 'windows' : 'linux')
+function agentStateOf(a: Asset): { state: 'reporting' | 'quiet'; quiet_since: string | null } {
+  const quiet = Date.now() - Date.parse(a.last_seen) > QUIET_AFTER_MS
+  return { state: quiet ? 'quiet' : 'reporting', quiet_since: quiet ? a.last_seen : null }
+}
+/** Agent records a person removed in Settings > Agents (by device id; the mock has one record per device). */
+const removedNodes = collection<string[]>('agent_nodes_removed', () => [], () => [])
+function agentNodes(): AgentNode[] {
+  return allAssets().filter((a) => a.id !== BOX_ID && sourcesOf(a).includes('osquery') && !removedNodes.get().includes(a.id)).map((a) => ({
+    id: `node-${a.id}`, token_id: 'tk-osquery', host: a.hostname ?? a.ip, os: agentOs(a), ...agentStateOf(a),
+    enrolled_at: a.first_seen, last_seen: a.last_seen, last_result_at: a.last_seen,
+  })).sort((x, y) => Number(y.state === 'quiet') - Number(x.state === 'quiet') || x.host.localeCompare(y.host))
+}
 function agentReport(id: string): AgentReport | null {
   const a = allAssets().find((x) => x.id === id)
   if (!a) return null
-  const none = { asked_at: null, ask_again_at: null, last_seen: null, stale: false, wazuh_interval_minutes: null }
+  const none = { asked_at: null, ask_again_at: null, last_seen: null, stale: false, wazuh_interval_minutes: null, state: null, quiet_since: null, os: null }
   if (a.id === BOX_ID) return { ...none, agent: 'box' }
   const src = sourcesOf(a)
   const asked = reportAsks.get(id)
-  if (src.includes('osquery')) {
-    return { ...none, agent: 'osquery', last_seen: a.last_seen, stale: false,
+  if (src.includes('osquery') && !removedNodes.get().includes(a.id)) {
+    return { ...none, agent: 'osquery', last_seen: a.last_seen, ...agentStateOf(a), os: agentOs(a), stale: agentStateOf(a).state === 'quiet',
       asked_at: asked !== undefined && Date.now() - asked < REPORT_WINDOW_MS ? new Date(asked).toISOString() : null,
       ask_again_at: asked !== undefined && Date.now() - asked < REPORT_COOLDOWN_MS ? new Date(asked + REPORT_COOLDOWN_MS).toISOString() : null }
   }
@@ -1295,7 +1310,7 @@ export const handlers = [
   http.get(`${API}/inventory/agents`, async () => {
     const denied = guard('admin'); if (denied) return denied
     const w = wazuhStore.get()
-    return HttpResponse.json({ install: await installers(), tokens: agentsStore.get(), server_url: serverUrl(), wazuh: w ? publicWazuh(w) : null })
+    return HttpResponse.json({ install: await installers(), tokens: agentsStore.get(), nodes: agentNodes(), server_url: serverUrl(), wazuh: w ? publicWazuh(w) : null })
   }),
 
   // Công khai (không bí mật): script do hộp phục vụ; SHA-256 hiện trong giao diện tính đúng trên nội dung này.
@@ -1356,6 +1371,14 @@ export const handlers = [
     return HttpResponse.json({ token, secret }, { status: 201 })
   }),
 
+  http.delete(`${API}/inventory/agents/nodes/:id`, ({ params }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const n = agentNodes().find((x) => x.id === params.id)
+    if (!n) return fail(404, 'not_found', 'No such agent.')
+    removedNodes.update((l) => [...l, n.id.replace(/^node-/, '')])
+    audit('inventory.agent_node_remove', n.host)
+    return new HttpResponse(null, { status: 204 })
+  }),
   http.delete(`${API}/inventory/agents/tokens/:id`, ({ params }) => {
     const denied = guard('admin'); if (denied) return denied
     const t = agentsStore.get().find((x) => x.id === params.id)

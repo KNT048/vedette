@@ -20,7 +20,8 @@ import { linuxOneLiner, OSQUERY_SCHEDULE, osquerySteps, windowsOneLiner, wazuhRe
 import { NO_BOX_ADDRESS } from './installScripts'
 import { useAgentActions, useAgents, useWazuhActions } from './api'
 import { errMsg } from './kinds'
-import type { AgentToken, AgentsResponse, CreateTokenResult, OsqueryPackage, WazuhConnection } from './types'
+import { AGENT_COMMANDS, boxHostPort } from './AgentQuiet'
+import type { AgentNode, AgentToken, AgentsResponse, CreateTokenResult, OsqueryPackage, WazuhConnection } from './types'
 
 /** Chỉ bản xem thử có mock API: nút "Send sample data" giả lập một lần agent báo về (bản thật không có). */
 const MOCK_BUILD = import.meta.env.DEV || import.meta.env.VITE_API_MOCK !== 'off'
@@ -364,6 +365,50 @@ function WazuhCard({ w }: { w: WazuhConnection | null }) {
   )
 }
 
+/** Every enrolled agent with its state from its own check-ins; a quiet or never-reporting one says what to run on the machine. */
+function MachinesTable({ nodes, box }: { nodes: AgentNode[]; box: string }) {
+  const { t } = useTranslation('inventory')
+  const { removeNode } = useAgentActions()
+  const hp = boxHostPort(box)
+  const columns: ColumnDef<AgentNode>[] = [
+    { id: 'host', header: t('agents.machines.col.host'), accessorFn: (n) => n.host, cell: ({ row }) => <span className="font-medium">{row.original.host}</span> },
+    { id: 'system', header: t('agents.machines.col.system'), accessorFn: (n) => n.os, cell: ({ row }) => t(`agents.machines.system.${row.original.os}`) },
+    { id: 'state', header: t('agents.machines.col.state'), accessorFn: (n) => n.state, cell: ({ row }) => (
+      <span className="grid gap-0.5">
+        <Chip tone={row.original.state === 'reporting' ? 'ok' : row.original.state === 'replaced' ? 'off' : 'warn'}>{t(`agents.state.${row.original.state}`)}</Chip>
+        {row.original.state === 'quiet' && row.original.quiet_since ? <span className="text-caption text-muted">{t('agents.machines.quietSince', { when: fmtDateTime(row.original.quiet_since) })}</span> : null}
+      </span>
+    ) },
+    { id: 'heard', header: t('agents.machines.col.heard'), accessorFn: (n) => Date.parse(n.last_seen), cell: ({ row }) => <time dateTime={row.original.last_seen} title={fmtDateTime(row.original.last_seen)}>{fmtRelative(row.original.last_seen)}</time> },
+    { id: 'todo', header: t('agents.machines.col.todo'), enableSorting: false, cell: ({ row }) => {
+      const n = row.original
+      const remove = (
+        <Button size="sm" aria-label={t('agents.machines.removeLabel', { host: n.host })} busy={removeNode.isPending && removeNode.variables === n.id} busyLabel={t('common:busy.removing')}
+          onClick={() => removeNode.mutate(n.id, { onSuccess: () => toast.success(t('agents.machines.removed', { host: n.host })), onError: (e) => toast.error(errMsg(e)) })}>{t('agents.machines.remove')}</Button>
+      )
+      if (n.state === 'reporting') return remove
+      if (n.state === 'replaced') return <span className="grid justify-items-start gap-1"><span className="text-caption text-muted">{t('agents.machines.replacedNote')}</span>{remove}</span>
+      if (n.state === 'never_reported') return <span className="grid justify-items-start gap-1"><span className="text-caption text-muted">{t('agents.machines.neverNote')}</span>{remove}</span>
+      const cmd = AGENT_COMMANDS[n.os]
+      return (
+        <span className="grid justify-items-start gap-0.5 text-caption">
+          <span className="text-muted">{t('agents.quiet.stopped')}</span>
+          <code className="break-all font-mono">{cmd.check}</code><code className="break-all font-mono">{cmd.restart}</code>
+          {hp ? <><span className="text-muted">{t('agents.quiet.running')}</span><code className="break-all font-mono">{cmd.reach(hp.host, hp.port)}</code></> : null}
+          {remove}
+        </span>
+      )
+    } },
+  ]
+  return (
+    <div className="grid gap-1.5">
+      <h4 className="text-sm font-medium">{t('agents.machines.title')}</h4>
+      <p className="max-w-3xl text-meta text-muted">{t('agents.machines.body')}</p>
+      {nodes.length ? <DataTable caption={t('agents.machines.caption')} data={nodes} columns={columns} /> : <p className="text-meta text-muted">{t('agents.machines.none')}</p>}
+    </div>
+  )
+}
+
 /** S-INV-4: osquery (token + một dòng lệnh cài cho Linux và Windows Server) và Wazuh (Vedette kéo qua API). Cần module agent-intake. */
 export function AgentsSection() {
   const { t } = useTranslation('inventory')
@@ -428,6 +473,7 @@ export function AgentsSection() {
                   </div>
                   {d.tokens.length ? <DataTable caption={t('agents.caption')} data={d.tokens} columns={columns} /> : <EmptyState title={t('agents.empty')}>{t('agents.emptyBody')}</EmptyState>}
                 </div>
+                {d.tokens.length ? <MachinesTable nodes={d.nodes} box={d.server_url} /> : null}
               </div>
               <WazuhCard w={d.wazuh} />
               <CreateDialog open={creating} onOpenChange={setCreating} data={d} />

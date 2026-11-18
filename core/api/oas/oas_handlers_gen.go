@@ -25342,6 +25342,149 @@ func (s *Server) handleHoneypotPutHoneypotTrapIpsIDRequest(args [1]string, argsE
 	}
 }
 
+// handleInventoryDeleteInventoryAgentsNodesIDRequest handles inventory_delete_inventory_agents_nodes_id operation.
+//
+// Remove one agent record (an uninstalled agent, a decommissioned machine, or the older record of a
+// machine enrolled again) without revoking the token the other machines use. The device it was bound
+// to is released. The agent, if it still runs, enrols again with its token. 404 not_found. Audited.
+//
+// DELETE /inventory/agents/nodes/{id}
+func (s *Server) handleInventoryDeleteInventoryAgentsNodesIDRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: InventoryDeleteInventoryAgentsNodesIDOperation,
+			ID:   "inventory_delete_inventory_agents_nodes_id",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, InventoryDeleteInventoryAgentsNodesIDOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+	params, err := decodeInventoryDeleteInventoryAgentsNodesIDParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response *InventoryDeleteInventoryAgentsNodesIDNoContent
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    InventoryDeleteInventoryAgentsNodesIDOperation,
+			OperationSummary: "Remove one agent record (an uninstalled agent, a decommissioned machine, or the older record of a machine enrolled again) without revoking the token the other machines use. The device it was bound to is released. The agent, if it still runs, enrols again with its token. 404 not_found. Audited",
+			OperationID:      "inventory_delete_inventory_agents_nodes_id",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = InventoryDeleteInventoryAgentsNodesIDParams
+			Response = *InventoryDeleteInventoryAgentsNodesIDNoContent
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackInventoryDeleteInventoryAgentsNodesIDParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				err = s.h.InventoryDeleteInventoryAgentsNodesID(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		err = s.h.InventoryDeleteInventoryAgentsNodesID(ctx, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeInventoryDeleteInventoryAgentsNodesIDResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleInventoryDeleteInventoryAgentsTokensIDRequest handles inventory_delete_inventory_agents_tokens_id operation.
 //
 // Revoke an osquery token.

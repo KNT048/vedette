@@ -868,6 +868,37 @@ func TestMirror_StalledClientFreesItsSlot(t *testing.T) {
 	}
 }
 
+// The Windows service keeps itself running: restart after a failure with delays, a reset period, restart on a non-crash exit code, delayed
+// automatic start, and a read-back from the service's registry key that fails the run when any of it did not apply.
+// ponytail: text checks (no PowerShell in CI); the registry read-back is what proves the effect on the machine.
+func TestInstall_WindowsServiceRestartsItself(t *testing.T) {
+	ps1 := readFile(t, "scripts/osquery.ps1")
+	for _, want := range []string{
+		"sc.exe config osqueryd start= delayed-auto",
+		"sc.exe failure osqueryd reset= 86400 actions= restart/60000/restart/60000/restart/300000",
+		"sc.exe failureflag osqueryd 1",
+		`HKLM:\SYSTEM\CurrentControlSet\Services\osqueryd`,
+		"$svc.DelayedAutostart -ne 1", "$svc.FailureActionsOnNonCrashFailures -ne 1", "[BitConverter]::ToUInt32($fa, 0) -ne 86400", "$restarts -ne 3",
+		"did not take its recovery settings", "exit 4", "will NOT restart itself", "sc.exe said:",
+	} {
+		if !strings.Contains(ps1, want) {
+			t.Errorf("the Windows script lacks %q", want)
+		}
+	}
+	// the settings are checked before the service is restarted and before success is announced
+	check, restart := strings.Index(ps1, "did not take its recovery settings"), strings.Index(ps1, "Restart-Service osqueryd")
+	if check < 0 || restart < 0 || check > restart {
+		t.Errorf("the read-back (%d) must come before the restart (%d)", check, restart)
+	}
+	// a failed read-back never leaves the agent stopped: it is a warning and an exit code after the agent enrolled, not a throw
+	if strings.Contains(ps1[strings.Index(ps1, "$recoveryProblem = ''"):], "throw 'The osqueryd service") {
+		t.Error("a failed read-back must not throw before the service is restarted")
+	}
+	if strings.Contains(ps1, "-StartupType Automatic") {
+		t.Error("the service must start delayed-auto, not plain Automatic")
+	}
+}
+
 // The package reporter the same script installs where osquery cannot run (Alpine and other musl systems, Arch, other architectures) runs as root
 // on a schedule and talks to the box with the enrol secret, so its text is pinned: the secret is read from a 0600 file and never given to curl
 // as an argument, the box's certificate is pinned, every list line is read by a strict pattern, nothing is evaluated, and it uses the same endpoints

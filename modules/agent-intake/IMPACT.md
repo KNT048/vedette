@@ -8,6 +8,11 @@
 ## Modifying: the device hint of a report (`hint` in `Log`, `nodeAgent`, INV-12)
 - **inventory** binds `AssetHint.Agent` to a device (INV-31) and finds the device by it before the address: a key that changes per report (or names something other than this box's node id) makes every report a candidate for a second device; never put a value the machine sends (host_identifier, MAC) in it.
 
+## Modifying: the agent state (`nodestate.go` `stateOf`, `supersededBy`, `quietAfter`, `last_call_at`; `state`, `quiet_since`, `os` of the device report and `nodes` of GET /inventory/agents)
+- **web/features/inventory** (`DeviceSources.tsx` Agent row, `AgentsSection.tsx` machines table, `AgentQuiet.tsx` commands): quiet = no call for three config refreshes (`configRefresh` = the install scripts' `--config_refresh=300`); change that flag and `quietAfter` together or every healthy agent reads quiet. `os` picks the service commands (`windows` or `linux`).
+- **inventory** binds a device to the first node that read it and never rebinds: a machine enrolled again keeps `osquery:<old node>` on its device, so `reportState` reads the newest record bound to the same source address (`newestOf`; never matched by the name or MAC a node claims). `RemoveNode` and node-prune release the binding (`releaseNodes`).
+- **Windows script** (`scripts/osquery.ps1` and its web copy): sets delayed-auto start and restart-on-failure, then reads them from the service's registry key; when they did not apply the agent still starts and enrols, and the run ends with a warning and exit code 4 (`TestInstall_WindowsServiceRestartsItself` holds the lines; no PowerShell in CI).
+
 ## Modifying: `IssueToken(ctx, actor, name, ttlDays) (Token, secret string, error)` — 1 người gọi: `AdminHandlers.InventoryPostInventoryAgentsTokens` (lát 3)
 - **web/features/inventory/AgentsSection**: `CreateTokenResult` hiện secret một lần; đổi định dạng token (`vdt_osquery_` + 32 ký tự) → regex trong `parse.go`, script cài và `/intake/osquery/status` vỡ.
 - Mã lỗi `bad_name`, `bad_expiry`, `too_many_tokens` (409) là của GUI tạo token.

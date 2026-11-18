@@ -46167,6 +46167,91 @@
                         "additionalProperties": false
                       }
                     },
+                    "nodes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "token_id": {
+                            "type": "string"
+                          },
+                          "host": {
+                            "type": "string",
+                            "description": "The name the machine enrolled under"
+                          },
+                          "os": {
+                            "type": "string",
+                            "enum": [
+                              "windows",
+                              "linux"
+                            ]
+                          },
+                          "state": {
+                            "type": "string",
+                            "enum": [
+                              "reporting",
+                              "quiet",
+                              "never_reported",
+                              "replaced"
+                            ],
+                            "description": "reporting = it checked in within three of its 5-minute config calls; quiet = it did not (quiet_since is its last check-in); never_reported = it calls but has delivered no result since it enrolled, after the first hour; replaced = a newer agent of the same machine (same name, any token) took over, so this record is only left to remove"
+                          },
+                          "enrolled_at": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "last_seen": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                            "description": "Its last call to the box (config or results)"
+                          },
+                          "last_result_at": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "Its last delivered result log; null = none yet"
+                          },
+                          "quiet_since": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "state quiet: when it was last heard; null otherwise"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "token_id",
+                          "host",
+                          "os",
+                          "state",
+                          "enrolled_at",
+                          "last_seen",
+                          "last_result_at",
+                          "quiet_since"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Every enrolled osquery agent, the quiet ones first, then by name"
+                    },
                     "server_url": {
                       "type": "string",
                       "description": "https://<box IP>:8443, or https://<VEDETTE_BOX_IP>:8443 when the IP is unknown"
@@ -46251,6 +46336,7 @@
                   "required": [
                     "install",
                     "tokens",
+                    "nodes",
                     "server_url",
                     "wazuh"
                   ],
@@ -46351,6 +46437,51 @@
                       ],
                       "description": "agent osquery: when the agent last called the box (config or results); null otherwise"
                     },
+                    "state": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "reporting",
+                            "quiet",
+                            "never_reported",
+                            "replaced"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "agent osquery: reporting, quiet (no call for three config refreshes: show \"quiet since quiet_since\" and the command to check the service) or never_reported; null for the other agents"
+                    },
+                    "quiet_since": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "state quiet: when the agent last called the box; null otherwise"
+                    },
+                    "os": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "windows",
+                            "linux"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "agent osquery: the machine's system, which picks the service commands to show; null otherwise"
+                    },
                     "stale": {
                       "type": "boolean",
                       "description": "agent osquery: the agent has not called for more than 10 minutes (twice its config refresh): an ask reaches it only when it is back; false otherwise"
@@ -46374,6 +46505,9 @@
                     "asked_at",
                     "ask_again_at",
                     "last_seen",
+                    "state",
+                    "quiet_since",
+                    "os",
                     "stale",
                     "wazuh_interval_minutes"
                   ],
@@ -46472,6 +46606,51 @@
                       ],
                       "description": "agent osquery: when the agent last called the box (config or results); null otherwise"
                     },
+                    "state": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "reporting",
+                            "quiet",
+                            "never_reported",
+                            "replaced"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "agent osquery: reporting, quiet (no call for three config refreshes: show \"quiet since quiet_since\" and the command to check the service) or never_reported; null for the other agents"
+                    },
+                    "quiet_since": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "state quiet: when the agent last called the box; null otherwise"
+                    },
+                    "os": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "windows",
+                            "linux"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "agent osquery: the machine's system, which picks the service commands to show; null otherwise"
+                    },
                     "stale": {
                       "type": "boolean",
                       "description": "agent osquery: the agent has not called for more than 10 minutes (twice its config refresh): an ask reaches it only when it is back; false otherwise"
@@ -46495,6 +46674,9 @@
                     "asked_at",
                     "ask_again_at",
                     "last_seen",
+                    "state",
+                    "quiet_since",
+                    "os",
                     "stale",
                     "wazuh_interval_minutes"
                   ],
@@ -46502,6 +46684,44 @@
                 }
               }
             }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inventory/agents/nodes/{id}": {
+      "delete": {
+        "operationId": "inventory_delete_inventory_agents_nodes_id",
+        "summary": "Remove one agent record (an uninstalled agent, a decommissioned machine, or the older record of a machine enrolled again) without revoking the token the other machines use. The device it was bound to is released. The agent, if it still runs, enrols again with its token. 404 not_found. Audited",
+        "tags": [
+          "inventory"
+        ],
+        "x-stories": [
+          "S-INV-4"
+        ],
+        "x-min-role": "admin",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done, no content"
           },
           "default": {
             "description": "Error",

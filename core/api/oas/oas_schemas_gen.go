@@ -100933,6 +100933,9 @@ func (s *HoneypotPutHoneypotTrapIpsIDReqVendor) UnmarshalText(data []byte) error
 	}
 }
 
+// InventoryDeleteInventoryAgentsNodesIDNoContent is response for InventoryDeleteInventoryAgentsNodesID operation.
+type InventoryDeleteInventoryAgentsNodesIDNoContent struct{}
+
 // InventoryDeleteInventoryAgentsTokensIDNoContent is response for InventoryDeleteInventoryAgentsTokensID operation.
 type InventoryDeleteInventoryAgentsTokensIDNoContent struct{}
 
@@ -101018,9 +101021,16 @@ type InventoryGetInventoryAgentsDevicesIDReportOK struct {
 	AskedAt NilDateTime `json:"asked_at"`
 	// Agent osquery: when the agent last called the box (config or results); null otherwise.
 	LastSeen NilDateTime `json:"last_seen"`
+	// Agent osquery: the machine's system, which picks the service commands to show; null otherwise.
+	Os NilInventoryGetInventoryAgentsDevicesIDReportOKOs `json:"os"`
+	// State quiet: when the agent last called the box; null otherwise.
+	QuietSince NilDateTime `json:"quiet_since"`
 	// Agent osquery: the agent has not called for more than 10 minutes (twice its config refresh): an ask
 	// reaches it only when it is back; false otherwise.
 	Stale bool `json:"stale"`
+	// Agent osquery: reporting, quiet (no call for three config refreshes: show "quiet since quiet_since"
+	// and the command to check the service) or never_reported; null for the other agents.
+	State NilInventoryGetInventoryAgentsDevicesIDReportOKState `json:"state"`
 	// Agent wazuh: how often Vedette pulls from the Wazuh server (5, 15, 60, 360 or 1440); null otherwise.
 	WazuhIntervalMinutes NilInt `json:"wazuh_interval_minutes"`
 }
@@ -101045,9 +101055,24 @@ func (s *InventoryGetInventoryAgentsDevicesIDReportOK) GetLastSeen() NilDateTime
 	return s.LastSeen
 }
 
+// GetOs returns the value of Os.
+func (s *InventoryGetInventoryAgentsDevicesIDReportOK) GetOs() NilInventoryGetInventoryAgentsDevicesIDReportOKOs {
+	return s.Os
+}
+
+// GetQuietSince returns the value of QuietSince.
+func (s *InventoryGetInventoryAgentsDevicesIDReportOK) GetQuietSince() NilDateTime {
+	return s.QuietSince
+}
+
 // GetStale returns the value of Stale.
 func (s *InventoryGetInventoryAgentsDevicesIDReportOK) GetStale() bool {
 	return s.Stale
+}
+
+// GetState returns the value of State.
+func (s *InventoryGetInventoryAgentsDevicesIDReportOK) GetState() NilInventoryGetInventoryAgentsDevicesIDReportOKState {
+	return s.State
 }
 
 // GetWazuhIntervalMinutes returns the value of WazuhIntervalMinutes.
@@ -101075,9 +101100,24 @@ func (s *InventoryGetInventoryAgentsDevicesIDReportOK) SetLastSeen(val NilDateTi
 	s.LastSeen = val
 }
 
+// SetOs sets the value of Os.
+func (s *InventoryGetInventoryAgentsDevicesIDReportOK) SetOs(val NilInventoryGetInventoryAgentsDevicesIDReportOKOs) {
+	s.Os = val
+}
+
+// SetQuietSince sets the value of QuietSince.
+func (s *InventoryGetInventoryAgentsDevicesIDReportOK) SetQuietSince(val NilDateTime) {
+	s.QuietSince = val
+}
+
 // SetStale sets the value of Stale.
 func (s *InventoryGetInventoryAgentsDevicesIDReportOK) SetStale(val bool) {
 	s.Stale = val
+}
+
+// SetState sets the value of State.
+func (s *InventoryGetInventoryAgentsDevicesIDReportOK) SetState(val NilInventoryGetInventoryAgentsDevicesIDReportOKState) {
+	s.State = val
 }
 
 // SetWazuhIntervalMinutes sets the value of WazuhIntervalMinutes.
@@ -101144,8 +101184,106 @@ func (s *InventoryGetInventoryAgentsDevicesIDReportOKAgent) UnmarshalText(data [
 	}
 }
 
+type InventoryGetInventoryAgentsDevicesIDReportOKOs string
+
+const (
+	InventoryGetInventoryAgentsDevicesIDReportOKOsWindows InventoryGetInventoryAgentsDevicesIDReportOKOs = "windows"
+	InventoryGetInventoryAgentsDevicesIDReportOKOsLinux   InventoryGetInventoryAgentsDevicesIDReportOKOs = "linux"
+)
+
+// AllValues returns all InventoryGetInventoryAgentsDevicesIDReportOKOs values.
+func (InventoryGetInventoryAgentsDevicesIDReportOKOs) AllValues() []InventoryGetInventoryAgentsDevicesIDReportOKOs {
+	return []InventoryGetInventoryAgentsDevicesIDReportOKOs{
+		InventoryGetInventoryAgentsDevicesIDReportOKOsWindows,
+		InventoryGetInventoryAgentsDevicesIDReportOKOsLinux,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryAgentsDevicesIDReportOKOs) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryAgentsDevicesIDReportOKOsWindows:
+		return []byte(s), nil
+	case InventoryGetInventoryAgentsDevicesIDReportOKOsLinux:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryAgentsDevicesIDReportOKOs) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryAgentsDevicesIDReportOKOs(data) {
+	case InventoryGetInventoryAgentsDevicesIDReportOKOsWindows:
+		*s = InventoryGetInventoryAgentsDevicesIDReportOKOsWindows
+		return nil
+	case InventoryGetInventoryAgentsDevicesIDReportOKOsLinux:
+		*s = InventoryGetInventoryAgentsDevicesIDReportOKOsLinux
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryGetInventoryAgentsDevicesIDReportOKState string
+
+const (
+	InventoryGetInventoryAgentsDevicesIDReportOKStateReporting     InventoryGetInventoryAgentsDevicesIDReportOKState = "reporting"
+	InventoryGetInventoryAgentsDevicesIDReportOKStateQuiet         InventoryGetInventoryAgentsDevicesIDReportOKState = "quiet"
+	InventoryGetInventoryAgentsDevicesIDReportOKStateNeverReported InventoryGetInventoryAgentsDevicesIDReportOKState = "never_reported"
+	InventoryGetInventoryAgentsDevicesIDReportOKStateReplaced      InventoryGetInventoryAgentsDevicesIDReportOKState = "replaced"
+)
+
+// AllValues returns all InventoryGetInventoryAgentsDevicesIDReportOKState values.
+func (InventoryGetInventoryAgentsDevicesIDReportOKState) AllValues() []InventoryGetInventoryAgentsDevicesIDReportOKState {
+	return []InventoryGetInventoryAgentsDevicesIDReportOKState{
+		InventoryGetInventoryAgentsDevicesIDReportOKStateReporting,
+		InventoryGetInventoryAgentsDevicesIDReportOKStateQuiet,
+		InventoryGetInventoryAgentsDevicesIDReportOKStateNeverReported,
+		InventoryGetInventoryAgentsDevicesIDReportOKStateReplaced,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryAgentsDevicesIDReportOKState) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryAgentsDevicesIDReportOKStateReporting:
+		return []byte(s), nil
+	case InventoryGetInventoryAgentsDevicesIDReportOKStateQuiet:
+		return []byte(s), nil
+	case InventoryGetInventoryAgentsDevicesIDReportOKStateNeverReported:
+		return []byte(s), nil
+	case InventoryGetInventoryAgentsDevicesIDReportOKStateReplaced:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryAgentsDevicesIDReportOKState) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryAgentsDevicesIDReportOKState(data) {
+	case InventoryGetInventoryAgentsDevicesIDReportOKStateReporting:
+		*s = InventoryGetInventoryAgentsDevicesIDReportOKStateReporting
+		return nil
+	case InventoryGetInventoryAgentsDevicesIDReportOKStateQuiet:
+		*s = InventoryGetInventoryAgentsDevicesIDReportOKStateQuiet
+		return nil
+	case InventoryGetInventoryAgentsDevicesIDReportOKStateNeverReported:
+		*s = InventoryGetInventoryAgentsDevicesIDReportOKStateNeverReported
+		return nil
+	case InventoryGetInventoryAgentsDevicesIDReportOKStateReplaced:
+		*s = InventoryGetInventoryAgentsDevicesIDReportOKStateReplaced
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type InventoryGetInventoryAgentsOK struct {
 	Install InventoryGetInventoryAgentsOKInstall `json:"install"`
+	// Every enrolled osquery agent, the quiet ones first, then by name.
+	Nodes []InventoryGetInventoryAgentsOKNodesItem `json:"nodes"`
 	// Https://:8443, or https://<VEDETTE_BOX_IP>:8443 when the IP is unknown.
 	ServerURL string                                    `json:"server_url"`
 	Tokens    []InventoryGetInventoryAgentsOKTokensItem `json:"tokens"`
@@ -101155,6 +101293,11 @@ type InventoryGetInventoryAgentsOK struct {
 // GetInstall returns the value of Install.
 func (s *InventoryGetInventoryAgentsOK) GetInstall() InventoryGetInventoryAgentsOKInstall {
 	return s.Install
+}
+
+// GetNodes returns the value of Nodes.
+func (s *InventoryGetInventoryAgentsOK) GetNodes() []InventoryGetInventoryAgentsOKNodesItem {
+	return s.Nodes
 }
 
 // GetServerURL returns the value of ServerURL.
@@ -101175,6 +101318,11 @@ func (s *InventoryGetInventoryAgentsOK) GetWazuh() NilInventoryGetInventoryAgent
 // SetInstall sets the value of Install.
 func (s *InventoryGetInventoryAgentsOK) SetInstall(val InventoryGetInventoryAgentsOKInstall) {
 	s.Install = val
+}
+
+// SetNodes sets the value of Nodes.
+func (s *InventoryGetInventoryAgentsOK) SetNodes(val []InventoryGetInventoryAgentsOKNodesItem) {
+	s.Nodes = val
 }
 
 // SetServerURL sets the value of ServerURL.
@@ -101518,6 +101666,216 @@ func (s *InventoryGetInventoryAgentsOKInstallWindows) SetSHA256(val string) {
 // SetURL sets the value of URL.
 func (s *InventoryGetInventoryAgentsOKInstallWindows) SetURL(val string) {
 	s.URL = val
+}
+
+type InventoryGetInventoryAgentsOKNodesItem struct {
+	EnrolledAt time.Time `json:"enrolled_at"`
+	// The name the machine enrolled under.
+	Host string `json:"host"`
+	ID   string `json:"id"`
+	// Its last delivered result log; null = none yet.
+	LastResultAt NilDateTime `json:"last_result_at"`
+	// Its last call to the box (config or results).
+	LastSeen time.Time                                `json:"last_seen"`
+	Os       InventoryGetInventoryAgentsOKNodesItemOs `json:"os"`
+	// State quiet: when it was last heard; null otherwise.
+	QuietSince NilDateTime `json:"quiet_since"`
+	// Reporting = it checked in within three of its 5-minute config calls; quiet = it did not (quiet_since
+	// is its last check-in); never_reported = it calls but has delivered no result since it enrolled,
+	// after the first hour; replaced = a newer agent of the same machine (same name, any token) took over,
+	// so this record is only left to remove.
+	State   InventoryGetInventoryAgentsOKNodesItemState `json:"state"`
+	TokenID string                                      `json:"token_id"`
+}
+
+// GetEnrolledAt returns the value of EnrolledAt.
+func (s *InventoryGetInventoryAgentsOKNodesItem) GetEnrolledAt() time.Time {
+	return s.EnrolledAt
+}
+
+// GetHost returns the value of Host.
+func (s *InventoryGetInventoryAgentsOKNodesItem) GetHost() string {
+	return s.Host
+}
+
+// GetID returns the value of ID.
+func (s *InventoryGetInventoryAgentsOKNodesItem) GetID() string {
+	return s.ID
+}
+
+// GetLastResultAt returns the value of LastResultAt.
+func (s *InventoryGetInventoryAgentsOKNodesItem) GetLastResultAt() NilDateTime {
+	return s.LastResultAt
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *InventoryGetInventoryAgentsOKNodesItem) GetLastSeen() time.Time {
+	return s.LastSeen
+}
+
+// GetOs returns the value of Os.
+func (s *InventoryGetInventoryAgentsOKNodesItem) GetOs() InventoryGetInventoryAgentsOKNodesItemOs {
+	return s.Os
+}
+
+// GetQuietSince returns the value of QuietSince.
+func (s *InventoryGetInventoryAgentsOKNodesItem) GetQuietSince() NilDateTime {
+	return s.QuietSince
+}
+
+// GetState returns the value of State.
+func (s *InventoryGetInventoryAgentsOKNodesItem) GetState() InventoryGetInventoryAgentsOKNodesItemState {
+	return s.State
+}
+
+// GetTokenID returns the value of TokenID.
+func (s *InventoryGetInventoryAgentsOKNodesItem) GetTokenID() string {
+	return s.TokenID
+}
+
+// SetEnrolledAt sets the value of EnrolledAt.
+func (s *InventoryGetInventoryAgentsOKNodesItem) SetEnrolledAt(val time.Time) {
+	s.EnrolledAt = val
+}
+
+// SetHost sets the value of Host.
+func (s *InventoryGetInventoryAgentsOKNodesItem) SetHost(val string) {
+	s.Host = val
+}
+
+// SetID sets the value of ID.
+func (s *InventoryGetInventoryAgentsOKNodesItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetLastResultAt sets the value of LastResultAt.
+func (s *InventoryGetInventoryAgentsOKNodesItem) SetLastResultAt(val NilDateTime) {
+	s.LastResultAt = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *InventoryGetInventoryAgentsOKNodesItem) SetLastSeen(val time.Time) {
+	s.LastSeen = val
+}
+
+// SetOs sets the value of Os.
+func (s *InventoryGetInventoryAgentsOKNodesItem) SetOs(val InventoryGetInventoryAgentsOKNodesItemOs) {
+	s.Os = val
+}
+
+// SetQuietSince sets the value of QuietSince.
+func (s *InventoryGetInventoryAgentsOKNodesItem) SetQuietSince(val NilDateTime) {
+	s.QuietSince = val
+}
+
+// SetState sets the value of State.
+func (s *InventoryGetInventoryAgentsOKNodesItem) SetState(val InventoryGetInventoryAgentsOKNodesItemState) {
+	s.State = val
+}
+
+// SetTokenID sets the value of TokenID.
+func (s *InventoryGetInventoryAgentsOKNodesItem) SetTokenID(val string) {
+	s.TokenID = val
+}
+
+type InventoryGetInventoryAgentsOKNodesItemOs string
+
+const (
+	InventoryGetInventoryAgentsOKNodesItemOsWindows InventoryGetInventoryAgentsOKNodesItemOs = "windows"
+	InventoryGetInventoryAgentsOKNodesItemOsLinux   InventoryGetInventoryAgentsOKNodesItemOs = "linux"
+)
+
+// AllValues returns all InventoryGetInventoryAgentsOKNodesItemOs values.
+func (InventoryGetInventoryAgentsOKNodesItemOs) AllValues() []InventoryGetInventoryAgentsOKNodesItemOs {
+	return []InventoryGetInventoryAgentsOKNodesItemOs{
+		InventoryGetInventoryAgentsOKNodesItemOsWindows,
+		InventoryGetInventoryAgentsOKNodesItemOsLinux,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryAgentsOKNodesItemOs) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryAgentsOKNodesItemOsWindows:
+		return []byte(s), nil
+	case InventoryGetInventoryAgentsOKNodesItemOsLinux:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryAgentsOKNodesItemOs) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryAgentsOKNodesItemOs(data) {
+	case InventoryGetInventoryAgentsOKNodesItemOsWindows:
+		*s = InventoryGetInventoryAgentsOKNodesItemOsWindows
+		return nil
+	case InventoryGetInventoryAgentsOKNodesItemOsLinux:
+		*s = InventoryGetInventoryAgentsOKNodesItemOsLinux
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Reporting = it checked in within three of its 5-minute config calls; quiet = it did not (quiet_since
+// is its last check-in); never_reported = it calls but has delivered no result since it enrolled,
+// after the first hour; replaced = a newer agent of the same machine (same name, any token) took over,
+// so this record is only left to remove.
+type InventoryGetInventoryAgentsOKNodesItemState string
+
+const (
+	InventoryGetInventoryAgentsOKNodesItemStateReporting     InventoryGetInventoryAgentsOKNodesItemState = "reporting"
+	InventoryGetInventoryAgentsOKNodesItemStateQuiet         InventoryGetInventoryAgentsOKNodesItemState = "quiet"
+	InventoryGetInventoryAgentsOKNodesItemStateNeverReported InventoryGetInventoryAgentsOKNodesItemState = "never_reported"
+	InventoryGetInventoryAgentsOKNodesItemStateReplaced      InventoryGetInventoryAgentsOKNodesItemState = "replaced"
+)
+
+// AllValues returns all InventoryGetInventoryAgentsOKNodesItemState values.
+func (InventoryGetInventoryAgentsOKNodesItemState) AllValues() []InventoryGetInventoryAgentsOKNodesItemState {
+	return []InventoryGetInventoryAgentsOKNodesItemState{
+		InventoryGetInventoryAgentsOKNodesItemStateReporting,
+		InventoryGetInventoryAgentsOKNodesItemStateQuiet,
+		InventoryGetInventoryAgentsOKNodesItemStateNeverReported,
+		InventoryGetInventoryAgentsOKNodesItemStateReplaced,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryAgentsOKNodesItemState) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryAgentsOKNodesItemStateReporting:
+		return []byte(s), nil
+	case InventoryGetInventoryAgentsOKNodesItemStateQuiet:
+		return []byte(s), nil
+	case InventoryGetInventoryAgentsOKNodesItemStateNeverReported:
+		return []byte(s), nil
+	case InventoryGetInventoryAgentsOKNodesItemStateReplaced:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryAgentsOKNodesItemState) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryAgentsOKNodesItemState(data) {
+	case InventoryGetInventoryAgentsOKNodesItemStateReporting:
+		*s = InventoryGetInventoryAgentsOKNodesItemStateReporting
+		return nil
+	case InventoryGetInventoryAgentsOKNodesItemStateQuiet:
+		*s = InventoryGetInventoryAgentsOKNodesItemStateQuiet
+		return nil
+	case InventoryGetInventoryAgentsOKNodesItemStateNeverReported:
+		*s = InventoryGetInventoryAgentsOKNodesItemStateNeverReported
+		return nil
+	case InventoryGetInventoryAgentsOKNodesItemStateReplaced:
+		*s = InventoryGetInventoryAgentsOKNodesItemStateReplaced
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type InventoryGetInventoryAgentsOKTokensItem struct {
@@ -116577,9 +116935,16 @@ type InventoryPostInventoryAgentsDevicesIDReportOK struct {
 	AskedAt NilDateTime `json:"asked_at"`
 	// Agent osquery: when the agent last called the box (config or results); null otherwise.
 	LastSeen NilDateTime `json:"last_seen"`
+	// Agent osquery: the machine's system, which picks the service commands to show; null otherwise.
+	Os NilInventoryPostInventoryAgentsDevicesIDReportOKOs `json:"os"`
+	// State quiet: when the agent last called the box; null otherwise.
+	QuietSince NilDateTime `json:"quiet_since"`
 	// Agent osquery: the agent has not called for more than 10 minutes (twice its config refresh): an ask
 	// reaches it only when it is back; false otherwise.
 	Stale bool `json:"stale"`
+	// Agent osquery: reporting, quiet (no call for three config refreshes: show "quiet since quiet_since"
+	// and the command to check the service) or never_reported; null for the other agents.
+	State NilInventoryPostInventoryAgentsDevicesIDReportOKState `json:"state"`
 	// Agent wazuh: how often Vedette pulls from the Wazuh server (5, 15, 60, 360 or 1440); null otherwise.
 	WazuhIntervalMinutes NilInt `json:"wazuh_interval_minutes"`
 }
@@ -116604,9 +116969,24 @@ func (s *InventoryPostInventoryAgentsDevicesIDReportOK) GetLastSeen() NilDateTim
 	return s.LastSeen
 }
 
+// GetOs returns the value of Os.
+func (s *InventoryPostInventoryAgentsDevicesIDReportOK) GetOs() NilInventoryPostInventoryAgentsDevicesIDReportOKOs {
+	return s.Os
+}
+
+// GetQuietSince returns the value of QuietSince.
+func (s *InventoryPostInventoryAgentsDevicesIDReportOK) GetQuietSince() NilDateTime {
+	return s.QuietSince
+}
+
 // GetStale returns the value of Stale.
 func (s *InventoryPostInventoryAgentsDevicesIDReportOK) GetStale() bool {
 	return s.Stale
+}
+
+// GetState returns the value of State.
+func (s *InventoryPostInventoryAgentsDevicesIDReportOK) GetState() NilInventoryPostInventoryAgentsDevicesIDReportOKState {
+	return s.State
 }
 
 // GetWazuhIntervalMinutes returns the value of WazuhIntervalMinutes.
@@ -116634,9 +117014,24 @@ func (s *InventoryPostInventoryAgentsDevicesIDReportOK) SetLastSeen(val NilDateT
 	s.LastSeen = val
 }
 
+// SetOs sets the value of Os.
+func (s *InventoryPostInventoryAgentsDevicesIDReportOK) SetOs(val NilInventoryPostInventoryAgentsDevicesIDReportOKOs) {
+	s.Os = val
+}
+
+// SetQuietSince sets the value of QuietSince.
+func (s *InventoryPostInventoryAgentsDevicesIDReportOK) SetQuietSince(val NilDateTime) {
+	s.QuietSince = val
+}
+
 // SetStale sets the value of Stale.
 func (s *InventoryPostInventoryAgentsDevicesIDReportOK) SetStale(val bool) {
 	s.Stale = val
+}
+
+// SetState sets the value of State.
+func (s *InventoryPostInventoryAgentsDevicesIDReportOK) SetState(val NilInventoryPostInventoryAgentsDevicesIDReportOKState) {
+	s.State = val
 }
 
 // SetWazuhIntervalMinutes sets the value of WazuhIntervalMinutes.
@@ -116697,6 +117092,102 @@ func (s *InventoryPostInventoryAgentsDevicesIDReportOKAgent) UnmarshalText(data 
 		return nil
 	case InventoryPostInventoryAgentsDevicesIDReportOKAgentBox:
 		*s = InventoryPostInventoryAgentsDevicesIDReportOKAgentBox
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryPostInventoryAgentsDevicesIDReportOKOs string
+
+const (
+	InventoryPostInventoryAgentsDevicesIDReportOKOsWindows InventoryPostInventoryAgentsDevicesIDReportOKOs = "windows"
+	InventoryPostInventoryAgentsDevicesIDReportOKOsLinux   InventoryPostInventoryAgentsDevicesIDReportOKOs = "linux"
+)
+
+// AllValues returns all InventoryPostInventoryAgentsDevicesIDReportOKOs values.
+func (InventoryPostInventoryAgentsDevicesIDReportOKOs) AllValues() []InventoryPostInventoryAgentsDevicesIDReportOKOs {
+	return []InventoryPostInventoryAgentsDevicesIDReportOKOs{
+		InventoryPostInventoryAgentsDevicesIDReportOKOsWindows,
+		InventoryPostInventoryAgentsDevicesIDReportOKOsLinux,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPostInventoryAgentsDevicesIDReportOKOs) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPostInventoryAgentsDevicesIDReportOKOsWindows:
+		return []byte(s), nil
+	case InventoryPostInventoryAgentsDevicesIDReportOKOsLinux:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPostInventoryAgentsDevicesIDReportOKOs) UnmarshalText(data []byte) error {
+	switch InventoryPostInventoryAgentsDevicesIDReportOKOs(data) {
+	case InventoryPostInventoryAgentsDevicesIDReportOKOsWindows:
+		*s = InventoryPostInventoryAgentsDevicesIDReportOKOsWindows
+		return nil
+	case InventoryPostInventoryAgentsDevicesIDReportOKOsLinux:
+		*s = InventoryPostInventoryAgentsDevicesIDReportOKOsLinux
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryPostInventoryAgentsDevicesIDReportOKState string
+
+const (
+	InventoryPostInventoryAgentsDevicesIDReportOKStateReporting     InventoryPostInventoryAgentsDevicesIDReportOKState = "reporting"
+	InventoryPostInventoryAgentsDevicesIDReportOKStateQuiet         InventoryPostInventoryAgentsDevicesIDReportOKState = "quiet"
+	InventoryPostInventoryAgentsDevicesIDReportOKStateNeverReported InventoryPostInventoryAgentsDevicesIDReportOKState = "never_reported"
+	InventoryPostInventoryAgentsDevicesIDReportOKStateReplaced      InventoryPostInventoryAgentsDevicesIDReportOKState = "replaced"
+)
+
+// AllValues returns all InventoryPostInventoryAgentsDevicesIDReportOKState values.
+func (InventoryPostInventoryAgentsDevicesIDReportOKState) AllValues() []InventoryPostInventoryAgentsDevicesIDReportOKState {
+	return []InventoryPostInventoryAgentsDevicesIDReportOKState{
+		InventoryPostInventoryAgentsDevicesIDReportOKStateReporting,
+		InventoryPostInventoryAgentsDevicesIDReportOKStateQuiet,
+		InventoryPostInventoryAgentsDevicesIDReportOKStateNeverReported,
+		InventoryPostInventoryAgentsDevicesIDReportOKStateReplaced,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPostInventoryAgentsDevicesIDReportOKState) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPostInventoryAgentsDevicesIDReportOKStateReporting:
+		return []byte(s), nil
+	case InventoryPostInventoryAgentsDevicesIDReportOKStateQuiet:
+		return []byte(s), nil
+	case InventoryPostInventoryAgentsDevicesIDReportOKStateNeverReported:
+		return []byte(s), nil
+	case InventoryPostInventoryAgentsDevicesIDReportOKStateReplaced:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPostInventoryAgentsDevicesIDReportOKState) UnmarshalText(data []byte) error {
+	switch InventoryPostInventoryAgentsDevicesIDReportOKState(data) {
+	case InventoryPostInventoryAgentsDevicesIDReportOKStateReporting:
+		*s = InventoryPostInventoryAgentsDevicesIDReportOKStateReporting
+		return nil
+	case InventoryPostInventoryAgentsDevicesIDReportOKStateQuiet:
+		*s = InventoryPostInventoryAgentsDevicesIDReportOKStateQuiet
+		return nil
+	case InventoryPostInventoryAgentsDevicesIDReportOKStateNeverReported:
+		*s = InventoryPostInventoryAgentsDevicesIDReportOKStateNeverReported
+		return nil
+	case InventoryPostInventoryAgentsDevicesIDReportOKStateReplaced:
+		*s = InventoryPostInventoryAgentsDevicesIDReportOKStateReplaced
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -138017,6 +138508,96 @@ func (o NilInt) Or(d int) int {
 	return d
 }
 
+// NewNilInventoryGetInventoryAgentsDevicesIDReportOKOs returns new NilInventoryGetInventoryAgentsDevicesIDReportOKOs with value set to v.
+func NewNilInventoryGetInventoryAgentsDevicesIDReportOKOs(v InventoryGetInventoryAgentsDevicesIDReportOKOs) NilInventoryGetInventoryAgentsDevicesIDReportOKOs {
+	return NilInventoryGetInventoryAgentsDevicesIDReportOKOs{
+		Value: v,
+	}
+}
+
+// NilInventoryGetInventoryAgentsDevicesIDReportOKOs is nullable InventoryGetInventoryAgentsDevicesIDReportOKOs.
+type NilInventoryGetInventoryAgentsDevicesIDReportOKOs struct {
+	Value InventoryGetInventoryAgentsDevicesIDReportOKOs
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInventoryGetInventoryAgentsDevicesIDReportOKOs) SetTo(v InventoryGetInventoryAgentsDevicesIDReportOKOs) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInventoryGetInventoryAgentsDevicesIDReportOKOs) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilInventoryGetInventoryAgentsDevicesIDReportOKOs) SetToNull() {
+	o.Null = true
+	var v InventoryGetInventoryAgentsDevicesIDReportOKOs
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInventoryGetInventoryAgentsDevicesIDReportOKOs) Get() (v InventoryGetInventoryAgentsDevicesIDReportOKOs, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInventoryGetInventoryAgentsDevicesIDReportOKOs) Or(d InventoryGetInventoryAgentsDevicesIDReportOKOs) InventoryGetInventoryAgentsDevicesIDReportOKOs {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilInventoryGetInventoryAgentsDevicesIDReportOKState returns new NilInventoryGetInventoryAgentsDevicesIDReportOKState with value set to v.
+func NewNilInventoryGetInventoryAgentsDevicesIDReportOKState(v InventoryGetInventoryAgentsDevicesIDReportOKState) NilInventoryGetInventoryAgentsDevicesIDReportOKState {
+	return NilInventoryGetInventoryAgentsDevicesIDReportOKState{
+		Value: v,
+	}
+}
+
+// NilInventoryGetInventoryAgentsDevicesIDReportOKState is nullable InventoryGetInventoryAgentsDevicesIDReportOKState.
+type NilInventoryGetInventoryAgentsDevicesIDReportOKState struct {
+	Value InventoryGetInventoryAgentsDevicesIDReportOKState
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInventoryGetInventoryAgentsDevicesIDReportOKState) SetTo(v InventoryGetInventoryAgentsDevicesIDReportOKState) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInventoryGetInventoryAgentsDevicesIDReportOKState) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilInventoryGetInventoryAgentsDevicesIDReportOKState) SetToNull() {
+	o.Null = true
+	var v InventoryGetInventoryAgentsDevicesIDReportOKState
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInventoryGetInventoryAgentsDevicesIDReportOKState) Get() (v InventoryGetInventoryAgentsDevicesIDReportOKState, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInventoryGetInventoryAgentsDevicesIDReportOKState) Or(d InventoryGetInventoryAgentsDevicesIDReportOKState) InventoryGetInventoryAgentsDevicesIDReportOKState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilInventoryGetInventoryAgentsOKWazuh returns new NilInventoryGetInventoryAgentsOKWazuh with value set to v.
 func NewNilInventoryGetInventoryAgentsOKWazuh(v InventoryGetInventoryAgentsOKWazuh) NilInventoryGetInventoryAgentsOKWazuh {
 	return NilInventoryGetInventoryAgentsOKWazuh{
@@ -139138,6 +139719,96 @@ func (o NilInventoryPatchInventorySensorsIDOKCaptureError) Get() (v InventoryPat
 
 // Or returns value if set, or given parameter if does not.
 func (o NilInventoryPatchInventorySensorsIDOKCaptureError) Or(d InventoryPatchInventorySensorsIDOKCaptureError) InventoryPatchInventorySensorsIDOKCaptureError {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilInventoryPostInventoryAgentsDevicesIDReportOKOs returns new NilInventoryPostInventoryAgentsDevicesIDReportOKOs with value set to v.
+func NewNilInventoryPostInventoryAgentsDevicesIDReportOKOs(v InventoryPostInventoryAgentsDevicesIDReportOKOs) NilInventoryPostInventoryAgentsDevicesIDReportOKOs {
+	return NilInventoryPostInventoryAgentsDevicesIDReportOKOs{
+		Value: v,
+	}
+}
+
+// NilInventoryPostInventoryAgentsDevicesIDReportOKOs is nullable InventoryPostInventoryAgentsDevicesIDReportOKOs.
+type NilInventoryPostInventoryAgentsDevicesIDReportOKOs struct {
+	Value InventoryPostInventoryAgentsDevicesIDReportOKOs
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInventoryPostInventoryAgentsDevicesIDReportOKOs) SetTo(v InventoryPostInventoryAgentsDevicesIDReportOKOs) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInventoryPostInventoryAgentsDevicesIDReportOKOs) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilInventoryPostInventoryAgentsDevicesIDReportOKOs) SetToNull() {
+	o.Null = true
+	var v InventoryPostInventoryAgentsDevicesIDReportOKOs
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInventoryPostInventoryAgentsDevicesIDReportOKOs) Get() (v InventoryPostInventoryAgentsDevicesIDReportOKOs, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInventoryPostInventoryAgentsDevicesIDReportOKOs) Or(d InventoryPostInventoryAgentsDevicesIDReportOKOs) InventoryPostInventoryAgentsDevicesIDReportOKOs {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilInventoryPostInventoryAgentsDevicesIDReportOKState returns new NilInventoryPostInventoryAgentsDevicesIDReportOKState with value set to v.
+func NewNilInventoryPostInventoryAgentsDevicesIDReportOKState(v InventoryPostInventoryAgentsDevicesIDReportOKState) NilInventoryPostInventoryAgentsDevicesIDReportOKState {
+	return NilInventoryPostInventoryAgentsDevicesIDReportOKState{
+		Value: v,
+	}
+}
+
+// NilInventoryPostInventoryAgentsDevicesIDReportOKState is nullable InventoryPostInventoryAgentsDevicesIDReportOKState.
+type NilInventoryPostInventoryAgentsDevicesIDReportOKState struct {
+	Value InventoryPostInventoryAgentsDevicesIDReportOKState
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInventoryPostInventoryAgentsDevicesIDReportOKState) SetTo(v InventoryPostInventoryAgentsDevicesIDReportOKState) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInventoryPostInventoryAgentsDevicesIDReportOKState) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilInventoryPostInventoryAgentsDevicesIDReportOKState) SetToNull() {
+	o.Null = true
+	var v InventoryPostInventoryAgentsDevicesIDReportOKState
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInventoryPostInventoryAgentsDevicesIDReportOKState) Get() (v InventoryPostInventoryAgentsDevicesIDReportOKState, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInventoryPostInventoryAgentsDevicesIDReportOKState) Or(d InventoryPostInventoryAgentsDevicesIDReportOKState) InventoryPostInventoryAgentsDevicesIDReportOKState {
 	if v, ok := o.Get(); ok {
 		return v
 	}

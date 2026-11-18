@@ -46660,7 +46660,7 @@
             "in": "query",
             "required": false,
             "schema": {
-              "description": "true: the Devices list (approved); false: To review",
+              "description": "true: the Devices list (approved, and quiet private-address devices); false: To review (not approved, not quiet)",
               "type": "string",
               "enum": [
                 "true",
@@ -47447,6 +47447,14 @@
                           "notes": {
                             "type": "string"
                           },
+                          "private_mac": {
+                            "type": "boolean",
+                            "description": "The MAC is a private (randomised) address the device picks for itself and changes (locally administered, not a stable virtual prefix such as QEMU/KVM, Docker or VirtualBox)"
+                          },
+                          "quiet": {
+                            "type": "boolean",
+                            "description": "Not approved, but held out of To review and of the new-device notice: a private-address device with no open service that has not stayed past a day. It is listed with the approved devices and moves to To review when it earns a look; false for every approved device"
+                          },
                           "is_box": {
                             "type": "boolean",
                             "description": "true for the Vedette box itself: the first device, always present, cannot be deleted (409)"
@@ -47632,6 +47640,8 @@
                           "approved",
                           "fragile",
                           "origin",
+                          "private_mac",
+                          "quiet",
                           "is_box",
                           "first_scan_at",
                           "regular_scan",
@@ -48502,6 +48512,14 @@
                         "notes": {
                           "type": "string"
                         },
+                        "private_mac": {
+                          "type": "boolean",
+                          "description": "The MAC is a private (randomised) address the device picks for itself and changes (locally administered, not a stable virtual prefix such as QEMU/KVM, Docker or VirtualBox)"
+                        },
+                        "quiet": {
+                          "type": "boolean",
+                          "description": "Not approved, but held out of To review and of the new-device notice: a private-address device with no open service that has not stayed past a day. It is listed with the approved devices and moves to To review when it earns a look; false for every approved device"
+                        },
                         "is_box": {
                           "type": "boolean",
                           "description": "true for the Vedette box itself: the first device, always present, cannot be deleted (409)"
@@ -48839,6 +48857,8 @@
                         "approved",
                         "fragile",
                         "origin",
+                        "private_mac",
+                        "quiet",
                         "is_box",
                         "first_scan_at",
                         "regular_scan",
@@ -50290,7 +50310,7 @@
             "in": "query",
             "required": false,
             "schema": {
-              "description": "true: the Devices list (approved); false: To review",
+              "description": "true: the Devices list (approved, and quiet private-address devices); false: To review (not approved, not quiet)",
               "type": "string",
               "enum": [
                 "true",

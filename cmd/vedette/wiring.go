@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/netip"
@@ -770,6 +771,29 @@ func subscribe(d deps) {
 		_, err := d.Findings.OnAssetIgnored(ctx, ev.AssetID, ev.Actor)
 		return err
 	}))
+	// A finding on a device, or a honeypot hit from it, is a reason to look at a private-address device that was held out of To review:
+	// it joins To review with its one new-device notice (inventory INV-49).
+	d.Bus.Subscribe(findings.EventCreated, on("inventory", func(ctx context.Context, data any) error {
+		var ev struct {
+			AssetID string `json:"asset_id"`
+		}
+		if err := eventInto(data, &ev); err != nil {
+			return err
+		}
+		return d.Inventory.EarnReview(ctx, ev.AssetID)
+	}))
+	d.Bus.Subscribe(honeypot.EventHitCreated, on("inventory", func(ctx context.Context, data any) error {
+		var ev struct {
+			SrcAssetID string `json:"src_asset_id"`
+		}
+		if err := eventInto(data, &ev); err != nil {
+			return err
+		}
+		if ev.SrcAssetID == "" {
+			return nil
+		}
+		return d.Inventory.EarnReview(ctx, ev.SrcAssetID)
+	}))
 	d.Bus.Subscribe(inventory.EventAssetUnignored, on("findings", func(ctx context.Context, data any) error {
 		ev, ok := data.(inventory.AssetEvent)
 		if !ok {
@@ -1117,4 +1141,13 @@ func agentReports(d *deps) findings.AgentReports {
 		}
 		return false
 	}
+}
+
+// eventInto reads an event's data, whatever type the publisher gave it, through its JSON form.
+func eventInto(data, into any) error {
+	raw, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("read event data: %w", err)
+	}
+	return json.Unmarshal(raw, into)
 }

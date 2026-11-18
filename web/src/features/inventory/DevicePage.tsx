@@ -417,13 +417,13 @@ function Approval({ d }: { d: DeviceDetail }) {
   const name = nameOf(d.asset, kindLabel(d.asset.kind))
   const fail = (e: unknown) => toast.error(errMsg(e))
   return (
-    <Notice tone="warn" title={d.suspicious ? t('approval.suspicious') : t('approval.pending')} info={t('approval.bodyInfo')} actions={<>
+    <Notice tone="warn" title={d.suspicious ? t('approval.suspicious') : d.asset.quiet ? t('approval.quiet') : t('approval.pending')} info={t('approval.bodyInfo')} actions={<>
         <Button variant="primary" disabled={!can} busy={act.approve.isPending} busyLabel={t('common:busy.approving')} onClick={() => act.approve.mutate(undefined, { onSuccess: () => toast.success(t('pending.approved', { name }), { description: t('pending.findLater') }), onError: fail })}>{t('pending.approve')}</Button>
         <Button disabled={!can} busy={act.suspicious.isPending} busyLabel={t('common:busy.saving')} onClick={() => act.suspicious.mutate(!d.suspicious, { onSuccess: () => toast.success(d.suspicious ? t('pending.unmarked', { name }) : t('pending.marked', { name })), onError: fail })}>{d.suspicious ? t('pending.unmark') : t('pending.mark')}</Button>
         <Button disabled={!can} busy={act.ignore.isPending} busyLabel={t('common:busy.saving')} onClick={() => setIgn(true)}>{t('pending.ignore')}</Button>
         <Button disabled={!can} onClick={() => setDel(true)}>{t('pending.delete')}</Button>
       </>}>
-      {t('approval.body')}
+      {d.asset.quiet ? t('approval.quietBody') : t('approval.body')}
       <IgnoreDialog open={ign} onOpenChange={setIgn} name={name} mac={d.asset.mac} findings={d.findings_count} pending={act.ignore.isPending}
         onConfirm={() => act.ignore.mutate(true, { onSuccess: () => { setIgn(false); toast.success(t('pending.ignored', { name }), { description: t('pending.ignoredLater') }) }, onError: fail })} />
       <DeleteDialog open={del} onOpenChange={setDel} name={name} findings={d.findings_count} pending={act.remove.isPending}
@@ -478,6 +478,7 @@ function Body() {
       {/* #829: before the approval, since merging a new row into the known device answers its approval too */}
       <PossibleSameNotice me={{ id: a.id, name, approved: a.approved, ignored: a.ignored_at != null }} list={d.possible_same ?? []} />
       {a.ignored_at ? <IgnoredNotice d={d} /> : !a.approved ? <Approval d={d} /> : null}
+      {a.private_mac ? <p className="text-meta text-muted" data-testid="private-mac-note">{t('privateMac.note')}</p> : null}
       {declaredSoftwareOnly(a) ? <Notice tone="accent" title={t('declared.title')}>{t('declared.body')}</Notice> : null}
       <DeviceKpis d={d} />
       <PageTabs label={t('detail.tabs.label')} tabs={[

@@ -381,9 +381,18 @@ func (s *Service) Record(ctx context.Context, batch []observe.Observation) error
 			match := after != before[id] || slices.Contains(joined, id) // findings matches the device again only when its OS or model changed; or another device joined it
 			switch {
 			case created[id] != "":
-				o.add(EventAssetDiscovered, AssetEvent{AssetID: id, Notify: notify, Match: match, Learning: learn[created[id]]})
+				quiet, err := isQuiet(ctx, tx, id) // a rotating private address is announced only once it earns a look (INV-49)
+				if err != nil {
+					return err
+				}
+				o.add(EventAssetDiscovered, AssetEvent{AssetID: id, Notify: notify && !quiet, Match: match, Learning: learn[created[id]]})
 			case changed || match:
 				o.add(EventAssetUpdated, AssetEvent{AssetID: id, Match: match})
+			}
+			if created[id] == "" { // a stay past a day, also of the device a fold kept (INV-49)
+				if err := s.earnReview(ctx, tx, o, id, false); err != nil {
+					return err
+				}
 			}
 		}
 		return nil

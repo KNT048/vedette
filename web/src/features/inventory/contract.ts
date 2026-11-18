@@ -41,6 +41,8 @@ export const Asset = z.object({
   kind_source: ObsSource.nullable().describe('Source of the kind; null for the default unknown'), guess: KindGuess.nullable(),
   vendor: Observed.nullable(), model: Observed.nullable(), os: Observed.nullable(), software: z.array(Software), services: z.array(Service),
   first_seen: dt, last_seen: dt, approved: z.boolean(), fragile: z.boolean(), origin: z.enum(['discovered', 'manual']), notes: z.string().optional(),
+  private_mac: z.boolean().describe('The MAC is a private (randomised) address the device picks for itself and changes (locally administered, not a stable virtual prefix such as QEMU/KVM, Docker or VirtualBox)'),
+  quiet: z.boolean().describe('Not approved, but held out of To review and of the new-device notice: a private-address device with no open service that has not stayed past a day. It is listed with the approved devices and moves to To review when it earns a look; false for every approved device'),
 })
 
 /** Một lần quan sát một trường. Không bao giờ bị ghi đè: giá trị mới thêm vào, "đang dùng" chọn theo khai tay > tin cậy cao > mới hơn (ARCHITECTURE §4). */
@@ -85,7 +87,7 @@ export const DeviceRow = Asset.extend(ScanInfo.shape).extend({
 })
 /** #849: the filters of the Devices search; all optional, ANDed; each list ORs its values. counts stay over the whole inventory. */
 export const DevicesQuery = z.object({
-  approved: z.enum(['true', 'false']).optional().describe('true: the Devices list (approved); false: To review'),
+  approved: z.enum(['true', 'false']).optional().describe('true: the Devices list (approved, and quiet private-address devices); false: To review (not approved, not quiet)'),
   ignored: z.enum(['true', 'false']).optional().describe('true lists only the ignored devices; false or absent leaves them out'),
   type: z.string().max(400).optional().describe('Comma-separated device type ids; a value also matches the types that act as it (type=server finds a hypervisor). Unknown id: 400 bad_filter'),
   source: z.string().max(200).optional().describe(`Comma-separated: ${DeviceSource.options.join(', ')}. Unknown value: 400 bad_filter`),

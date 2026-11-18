@@ -18,6 +18,7 @@ import type { ToFix, ToFixAction, ToFixDevice } from './types'
 import type { SoftwareView } from '@/features/inventory/types'
 import { isOsSoftware, IUpdated, TypedVersionDialog, type UpdatedSoftware } from './Updated'
 import { RiskMarker } from '@/features/inventory/RiskMarker'
+import { NotAdded, NotAddedChip, notAdded } from './NotAdded'
 
 /** An action that updates the operating system itself (its new build shows only after a restart): Windows' cumulative update, or a
  *  row that is the OS or the kernel (its "vendor|product"). */
@@ -153,10 +154,12 @@ export function DeviceCard({ d, box, showName = true, typed = true }: { d: ToFix
   return (
     <li className="rounded-md border border-rule bg-surface px-4 py-3" aria-label={name}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        {showName ? <><Link to={`/devices/${encodeURIComponent(d.asset.id)}`} className="text-base font-semibold text-accent underline-offset-4 hover:underline">{name}</Link><RiskMarker id={d.asset.id} risk={d.risk} /></> : null}
+        {showName ? <><Link to={`/devices/${encodeURIComponent(d.asset.id)}`} className="text-base font-semibold text-accent underline-offset-4 hover:underline">{name}</Link><NotAddedChip asset={d.asset} /><RiskMarker id={d.asset.id} risk={d.risk} /></> : null}
         {d.asset.ip && d.asset.ip !== '—' ? <span className="text-meta text-muted">{d.asset.ip}</span> : null}
         {acts.length ? <><Worst worst={worst} /><span className="text-meta text-muted">{t('toFix.deviceCount', { count: acts.reduce((n, a) => n + a.cves.length, 0) })}</span></> : null}
       </div>
+      {/* a device nobody approved yet: Add device or Ignore right here (the device page has its own) */}
+      {showName && notAdded(d.asset) ? <div className="mt-1"><NotAdded asset={d.asset} findings={acts.reduce((n, a) => n + a.cves.length, 0) + check} /></div> : null}
       {acts.length ? <ul aria-label={t('toFix.actionsOf', { device: name })} className="divide-y divide-rule">{acts.map((a) => <Action key={`${a.kind}:${a.group}`} a={a} planned={false} box={box} asset={d.asset} typed={typedOf(a)} />)}</ul> : null}
       {d.planned.length ? (
         <>
@@ -225,7 +228,7 @@ function ByFix({ devices }: { devices: ToFixDevice[] }) {
                 {r.devices.map(({ d, a }) => (
                   <li key={d.asset.id}>
                     <Link to={`/devices/${encodeURIComponent(d.asset.id)}`} className="font-medium text-accent underline-offset-4 hover:underline">{deviceName(d.asset, t('removedDevice'))}</Link>
-                    {' '}<RiskMarker id={d.asset.id} risk={d.risk} className="align-middle" />
+                    {' '}<NotAddedChip asset={d.asset} />{' '}<RiskMarker id={d.asset.id} risk={d.risk} className="align-middle" />
                     <span className="text-muted">{': '}{a.action}, {a.cves.length === 0 ? t(noCvesKey(a.nvd_lag)) : <>{t(a.nvd_lag ? 'toFix.cveCountAtLeast' : 'toFix.cveCount', { count: a.cves.length })}{a.nvd_lag ? t('plan.nvdLag') : null}</>}</span>
                   </li>
                 ))}

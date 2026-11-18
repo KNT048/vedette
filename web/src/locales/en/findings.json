@@ -572,6 +572,7 @@
   },
   "notAdded": {
     "mark": "Device not added yet",
+    "chip": "Not added yet",
     "body": "Nobody approved this device yet. Add it to your devices to track it, or ignore it to hide it and all its findings for good.",
     "add": "Add device",
     "ignore": "Ignore",
@@ -677,6 +678,10 @@
     "lastReportedNoDate": "Based on the version an agent last reported: no agent reports this device now.",
     "fixes_one": "fixes {{count}} CVE",
     "fixes_other": "fixes {{count}} CVEs",
+    "upstreamFixes_one": "upstream fixed {{count}} CVE in later releases",
+    "upstreamFixes_other": "upstream fixed {{count}} CVEs in later releases",
+    "noDistroData": "{{distro}} publishes no fix data Vedette can check this package against, so confirm with {{command}}.",
+    "noDistroDataAny": "The distribution publishes no fix data Vedette can check this package against, so confirm with its package manager.",
     "fixesAtLeast_one": "fixes at least {{count}} CVE",
     "fixesAtLeast_other": "fixes at least {{count}} CVEs",
     "nvdLag": "; the newest update's CVEs are not yet analysed by NVD",

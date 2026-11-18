@@ -115,6 +115,17 @@ func (f Finding) Confirmed() bool { return f.Basis == BasisScan || f.Basis == Ba
 // it at every match: it goes back to suspected, or closes, when the stated version leaves the range.
 func (f Finding) ByDevice() bool { return f.Basis == BasisVersion && f.Evidence.deviceStated() }
 
+// ShownConfidence is the confidence every reader is given (the API's lists, page and export, the AI context, MCP): a confirmed
+// finding, whether a scan, the version the device itself reports or a person confirmed it, is never shown below a scan's
+// confirmation (ConfScan); any other status shows the matcher's own value. The stored Confidence keeps the match's value, so a
+// confirmation that is undone, or a device that no longer reports an affected version, shows it again.
+func (f Finding) ShownConfidence() float64 {
+	if f.Status == StatusConfirmed {
+		return math.Max(f.Confidence, ConfScan)
+	}
+	return f.Confidence
+}
+
 // OpenStatus is the open status the finding has when it is reopened: confirmed with a scan or person basis or a version the device
 // stated, else suspected.
 func (f Finding) OpenStatus() Status {

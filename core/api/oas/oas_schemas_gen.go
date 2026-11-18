@@ -71576,8 +71576,10 @@ type FindingsGetFindingsIDOK struct {
 	// stated it, suspected otherwise); product = only the product matches.
 	Basis      FindingsGetFindingsIDOKBasis         `json:"basis"`
 	Compromise NilFindingsGetFindingsIDOKCompromise `json:"compromise"`
-	Confidence float64                              `json:"confidence"`
-	Cve        string                               `json:"cve"`
+	// How sure the match is, 0 to 1. A confirmed finding (by a scan, the version the device itself
+	// reports, or a person) is at least 0.95, never below a scan's confirmation.
+	Confidence float64 `json:"confidence"`
+	Cve        string  `json:"cve"`
 	// Null = no CVSS score known: the pages say "No score", never 0.
 	Cvss     NilFindingsGetFindingsIDOKCvss     `json:"cvss"`
 	Evidence NilFindingsGetFindingsIDOKEvidence `json:"evidence"`
@@ -75740,9 +75742,11 @@ type FindingsGetFindingsOKItemsItem struct {
 	// Scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version
 	// = the version is inside the affected range (confirmed when evidence.source says the device itself
 	// stated it, suspected otherwise); product = only the product matches.
-	Basis      FindingsGetFindingsOKItemsItemBasis `json:"basis"`
-	Confidence float64                             `json:"confidence"`
-	Cve        string                              `json:"cve"`
+	Basis FindingsGetFindingsOKItemsItemBasis `json:"basis"`
+	// How sure the match is, 0 to 1. A confirmed finding (by a scan, the version the device itself
+	// reports, or a person) is at least 0.95, never below a scan's confirmation.
+	Confidence float64 `json:"confidence"`
+	Cve        string  `json:"cve"`
 	// Null = no CVSS score known: the pages say "No score", never 0.
 	Cvss     NilFindingsGetFindingsOKItemsItemCvss     `json:"cvss"`
 	Evidence NilFindingsGetFindingsOKItemsItemEvidence `json:"evidence"`
@@ -84269,8 +84273,10 @@ type FindingsPostFindingsIDAiOK struct {
 	// stated it, suspected otherwise); product = only the product matches.
 	Basis      FindingsPostFindingsIDAiOKBasis         `json:"basis"`
 	Compromise NilFindingsPostFindingsIDAiOKCompromise `json:"compromise"`
-	Confidence float64                                 `json:"confidence"`
-	Cve        string                                  `json:"cve"`
+	// How sure the match is, 0 to 1. A confirmed finding (by a scan, the version the device itself
+	// reports, or a person) is at least 0.95, never below a scan's confirmation.
+	Confidence float64 `json:"confidence"`
+	Cve        string  `json:"cve"`
 	// Null = no CVSS score known: the pages say "No score", never 0.
 	Cvss     NilFindingsPostFindingsIDAiOKCvss     `json:"cvss"`
 	Evidence NilFindingsPostFindingsIDAiOKEvidence `json:"evidence"`
@@ -88458,8 +88464,10 @@ type FindingsPostFindingsIDAppliedOK struct {
 	// stated it, suspected otherwise); product = only the product matches.
 	Basis      FindingsPostFindingsIDAppliedOKBasis         `json:"basis"`
 	Compromise NilFindingsPostFindingsIDAppliedOKCompromise `json:"compromise"`
-	Confidence float64                                      `json:"confidence"`
-	Cve        string                                       `json:"cve"`
+	// How sure the match is, 0 to 1. A confirmed finding (by a scan, the version the device itself
+	// reports, or a person) is at least 0.95, never below a scan's confirmation.
+	Confidence float64 `json:"confidence"`
+	Cve        string  `json:"cve"`
 	// Null = no CVSS score known: the pages say "No score", never 0.
 	Cvss     NilFindingsPostFindingsIDAppliedOKCvss     `json:"cvss"`
 	Evidence NilFindingsPostFindingsIDAppliedOKEvidence `json:"evidence"`
@@ -92668,8 +92676,10 @@ type FindingsPostFindingsIDConfirmOK struct {
 	// stated it, suspected otherwise); product = only the product matches.
 	Basis      FindingsPostFindingsIDConfirmOKBasis         `json:"basis"`
 	Compromise NilFindingsPostFindingsIDConfirmOKCompromise `json:"compromise"`
-	Confidence float64                                      `json:"confidence"`
-	Cve        string                                       `json:"cve"`
+	// How sure the match is, 0 to 1. A confirmed finding (by a scan, the version the device itself
+	// reports, or a person) is at least 0.95, never below a scan's confirmation.
+	Confidence float64 `json:"confidence"`
+	Cve        string  `json:"cve"`
 	// Null = no CVSS score known: the pages say "No score", never 0.
 	Cvss     NilFindingsPostFindingsIDConfirmOKCvss     `json:"cvss"`
 	Evidence NilFindingsPostFindingsIDConfirmOKEvidence `json:"evidence"`
@@ -96816,8 +96826,10 @@ type FindingsPostFindingsIDStatusOK struct {
 	// stated it, suspected otherwise); product = only the product matches.
 	Basis      FindingsPostFindingsIDStatusOKBasis         `json:"basis"`
 	Compromise NilFindingsPostFindingsIDStatusOKCompromise `json:"compromise"`
-	Confidence float64                                     `json:"confidence"`
-	Cve        string                                      `json:"cve"`
+	// How sure the match is, 0 to 1. A confirmed finding (by a scan, the version the device itself
+	// reports, or a person) is at least 0.95, never below a scan's confirmation.
+	Confidence float64 `json:"confidence"`
+	Cve        string  `json:"cve"`
 	// Null = no CVSS score known: the pages say "No score", never 0.
 	Cvss     NilFindingsPostFindingsIDStatusOKCvss     `json:"cvss"`
 	Evidence NilFindingsPostFindingsIDStatusOKEvidence `json:"evidence"`
@@ -101057,8 +101069,10 @@ type FindingsPostFindingsIDUnconfirmOK struct {
 	// stated it, suspected otherwise); product = only the product matches.
 	Basis      FindingsPostFindingsIDUnconfirmOKBasis         `json:"basis"`
 	Compromise NilFindingsPostFindingsIDUnconfirmOKCompromise `json:"compromise"`
-	Confidence float64                                        `json:"confidence"`
-	Cve        string                                         `json:"cve"`
+	// How sure the match is, 0 to 1. A confirmed finding (by a scan, the version the device itself
+	// reports, or a person) is at least 0.95, never below a scan's confirmation.
+	Confidence float64 `json:"confidence"`
+	Cve        string  `json:"cve"`
 	// Null = no CVSS score known: the pages say "No score", never 0.
 	Cvss     NilFindingsPostFindingsIDUnconfirmOKCvss     `json:"cvss"`
 	Evidence NilFindingsPostFindingsIDUnconfirmOKEvidence `json:"evidence"`

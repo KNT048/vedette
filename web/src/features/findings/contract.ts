@@ -25,7 +25,7 @@ export const Finding = z.object({
   cve: z.string().regex(/^CVE-\d{4}-\d{4,}$/),
   status: FindingStatus,
   severity: Severity,
-  confidence: z.number().min(0).max(1),
+  confidence: z.number().min(0).max(1).describe('How sure the match is, 0 to 1. A confirmed finding (by a scan, the version the device itself reports, or a person) is at least 0.95, never below a scan\'s confirmation'),
   basis: z.enum(['scan', 'version', 'product', 'person']).describe('scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version = the version is inside the affected range (confirmed when evidence.source says the device itself stated it, suspected otherwise); product = only the product matches'),
   evidence: z.object({
     summary: z.string(), template: z.string().optional(), request: z.string().optional(), response: z.string().optional(), checked_at: iso,

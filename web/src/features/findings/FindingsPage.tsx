@@ -27,7 +27,7 @@ import { useFixAction } from './fix'
 import { canConfirm, canUndo, ConfirmButton, ConfirmDialog, UndoButton } from './Confirm'
 import type { BulkAction, FindingRow } from './types'
 import { NotRelevantToggle, isNotRelevant } from './notRelevant'
-import { NotAdded } from './NotAdded'
+import { NotAddedChip } from './NotAdded'
 import { IgnoredTab } from './IgnoredTab'
 import { RiskMarker, riskWord } from '@/features/inventory/RiskMarker'
 
@@ -180,9 +180,8 @@ function List() {
     ...(can && rows.length > 0 ? [{ id: 'select', enableSorting: false, header: () => <Checkbox checked={allShown ? true : shown.length > 0 ? 'indeterminate' : false} onCheckedChange={(v) => toggleAll(v === true)} aria-label={t('bulk.selectAll', { count: rows.length })} />, cell: ({ row: { original: r } }) => pick(r) } satisfies ColumnDef<FindingRow>] : []),
     { id: 'device', header: t('col.device'), accessorFn: (r) => name(r), cell: ({ row: { original: r } }) => (
       <div className="grid">
-        {r.asset ? <span className="flex flex-wrap items-center gap-x-2 gap-y-1"><Link to={`/devices/${r.asset.id}`} title={name(r)} className="line-clamp-2 max-w-64 font-medium text-accent underline-offset-4 [overflow-wrap:anywhere] hover:underline">{name(r)}</Link><RiskMarker id={r.asset.id} risk={risk(r.asset.id)} /></span> : <span className="font-medium">{name(r)}</span>}
+        {r.asset ? <span className="flex flex-wrap items-center gap-x-2 gap-y-1"><Link to={`/devices/${r.asset.id}`} title={name(r)} className="line-clamp-2 max-w-64 font-medium text-accent underline-offset-4 [overflow-wrap:anywhere] hover:underline">{name(r)}</Link><NotAddedChip asset={r.asset} /><RiskMarker id={r.asset.id} risk={risk(r.asset.id)} /></span> : <span className="font-medium">{name(r)}</span>}
         <span className="text-caption text-muted">{hasIp(r.asset) ? r.asset?.ip : r.asset ? t('noIp') : ''}</span>
-        <NotAdded asset={r.asset} />
       </div>
     ) },
     { id: 'cve', header: t('col.cve'), accessorFn: (r) => r.cve, cell: ({ row: { original: r } }) => <Link to={`/findings/${r.id}`} className="whitespace-nowrap font-medium text-accent underline-offset-4 hover:underline">{r.cve}</Link> },
@@ -275,7 +274,7 @@ function List() {
                   </div>
                   <span className="text-sm [overflow-wrap:anywhere]">{name(r)}<span className="text-muted">{hasIp(r.asset) ? ` (${r.asset?.ip})` : r.asset ? ` (${t('noIp')})` : ''}</span></span>
                   <span className="text-meta text-muted">{r.kev?.display ?? '–'}</span>
-                  <NotAdded asset={r.asset} />
+                  <NotAddedChip asset={r.asset} />
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-meta">
                     <RiskChip f={r} />
                     <span>{t(basisLabel(r))}</span>

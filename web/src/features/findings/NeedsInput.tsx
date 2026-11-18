@@ -26,6 +26,7 @@ import { deviceName, hasIp } from './basis'
 import { MAX_BULK } from './contract'
 import { errMsg } from './errors'
 import { notInstalledText, useNotInstalled } from './notInstalled'
+import { NotAdded, NotAddedChip } from './NotAdded'
 import { useDeviceSoftware } from './rematch'
 import { Worst, unproved } from './ToFix'
 import { nameWithVersion, UNCHECKED_ANCHOR, UncheckedLine } from './UncheckedList'
@@ -178,8 +179,11 @@ function DeviceBlock({ g, open, onToggle, risk }: { g: InputGroup; open: boolean
           {settleText ? <span className="whitespace-nowrap font-normal text-warn"><span className="sr-only">,</span> {settleText}</span> : null}
           {cvesText ? <span className="whitespace-nowrap font-normal text-muted"><span className="sr-only">,</span> {cvesText}</span> : null}
         </Button>
+        <NotAddedChip asset={g.asset} />
         {g.asset ? <RiskMarker id={g.id} risk={risk} /> : null}
         {hasIp(g.asset) ? <span className="text-meta text-muted">{g.asset?.ip}</span> : null}
+        {/* a device nobody approved yet: Add device or Ignore right here, without opening the block */}
+        <NotAdded asset={g.asset} findings={settle + cves} />
       </div>
       {open ? (
         <div id={panel} className="grid gap-3 border-t border-rule px-4 py-3">

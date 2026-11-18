@@ -34809,7 +34809,8 @@
                           "confidence": {
                             "type": "number",
                             "minimum": 0,
-                            "maximum": 1
+                            "maximum": 1,
+                            "description": "How sure the match is, 0 to 1. A confirmed finding (by a scan, the version the device itself reports, or a person) is at least 0.95, never below a scan's confirmation"
                           },
                           "basis": {
                             "type": "string",
@@ -35931,7 +35932,8 @@
                     "confidence": {
                       "type": "number",
                       "minimum": 0,
-                      "maximum": 1
+                      "maximum": 1,
+                      "description": "How sure the match is, 0 to 1. A confirmed finding (by a scan, the version the device itself reports, or a person) is at least 0.95, never below a scan's confirmation"
                     },
                     "basis": {
                       "type": "string",
@@ -37556,7 +37558,8 @@
                     "confidence": {
                       "type": "number",
                       "minimum": 0,
-                      "maximum": 1
+                      "maximum": 1,
+                      "description": "How sure the match is, 0 to 1. A confirmed finding (by a scan, the version the device itself reports, or a person) is at least 0.95, never below a scan's confirmation"
                     },
                     "basis": {
                       "type": "string",
@@ -39183,7 +39186,8 @@
                     "confidence": {
                       "type": "number",
                       "minimum": 0,
-                      "maximum": 1
+                      "maximum": 1,
+                      "description": "How sure the match is, 0 to 1. A confirmed finding (by a scan, the version the device itself reports, or a person) is at least 0.95, never below a scan's confirmation"
                     },
                     "basis": {
                       "type": "string",
@@ -40804,7 +40808,8 @@
                     "confidence": {
                       "type": "number",
                       "minimum": 0,
-                      "maximum": 1
+                      "maximum": 1,
+                      "description": "How sure the match is, 0 to 1. A confirmed finding (by a scan, the version the device itself reports, or a person) is at least 0.95, never below a scan's confirmation"
                     },
                     "basis": {
                       "type": "string",
@@ -42443,7 +42448,8 @@
                     "confidence": {
                       "type": "number",
                       "minimum": 0,
-                      "maximum": 1
+                      "maximum": 1,
+                      "description": "How sure the match is, 0 to 1. A confirmed finding (by a scan, the version the device itself reports, or a person) is at least 0.95, never below a scan's confirmation"
                     },
                     "basis": {
                       "type": "string",
@@ -44044,7 +44050,8 @@
                     "confidence": {
                       "type": "number",
                       "minimum": 0,
-                      "maximum": 1
+                      "maximum": 1,
+                      "description": "How sure the match is, 0 to 1. A confirmed finding (by a scan, the version the device itself reports, or a person) is at least 0.95, never below a scan's confirmation"
                     },
                     "basis": {
                       "type": "string",

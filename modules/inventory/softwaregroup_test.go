@@ -257,3 +257,38 @@ func TestINV50_EntryBeatsTheAgentRowItCorrects(t *testing.T) {
 		t.Fatalf("matching rows: %+v", m.Software)
 	}
 }
+
+// A scan reading of another release next to the agent's row is matched too (another install, such as a container on another port);
+// the same release is not a second row.
+func TestINV50_MatchingKeepsAnotherReleaseUnderTheAgent(t *testing.T) {
+	t.Parallel()
+	c := newSoftwareCase(t)
+	c.e.tick(time.Minute)
+	if err := c.e.svc.ReplaceSoftware(c.e.ctx(), c.hint, observe.Nmap, []observe.Software{
+		{Display: "OpenSSH", Vendor: "OpenBSD", Product: "OpenSSH", Version: "8.9p1", Confidence: 0.9},
+		{Display: "OpenSSH", Vendor: "OpenBSD", Product: "OpenSSH", Version: "10.2", Confidence: 0.9},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	c.e.tick(time.Minute)
+	if err := c.e.svc.ReplaceSoftware(c.e.ctx(), c.hint, observe.Agent, []observe.Software{
+		{Display: "OpenSSH", Vendor: "OpenBSD", Product: "OpenSSH", Version: "10.2p1", Confidence: 0.95, Packaged: true, PkgVersion: "1:10.2p1-2ubuntu3.8", PkgSource: "openssh"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	c.dev = deviceAt(t, c.e, c.hint.IP)
+	if l := c.oneLine("agent", 2); !l.Differs && l.AlsoSeen[0].SameRelease == l.AlsoSeen[1].SameRelease {
+		t.Fatalf("%+v", l)
+	}
+	m, _, err := c.e.svc.MatchInput(c.e.ctx(), c.dev)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]bool{}
+	for _, sw := range m.Software {
+		got[sw.Source+" "+sw.Version] = true
+	}
+	if len(m.Software) != 2 || !got["agent 10.2p1"] || !got["nmap 8.9p1"] {
+		t.Fatalf("the agent row and the other release match, the same release does not: %+v", m.Software)
+	}
+}

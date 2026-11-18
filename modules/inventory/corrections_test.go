@@ -257,7 +257,7 @@ func TestINV41_ACorrectionReplacesOnlyItsRow(t *testing.T) {
 		got = append(got, r.Source+" "+r.Version)
 	}
 	slices.Sort(got)
-	want := []string{"agent 10.2p1", "agent 6.12.117", "manual 6.12.116"}
+	want := []string{"agent 10.2p1", "agent 6.12.117", "manual 6.12.116", "nmap 8.9p1"}
 	if !slices.Equal(got, want) {
 		t.Fatalf("rows matched %v, want %v (only the two corrected rows go)", got, want)
 	}

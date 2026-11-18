@@ -243,10 +243,12 @@ func (s *Service) EffectiveSoftware(ctx context.Context, assetID string) ([]Effe
 	return out, err
 }
 
-// markShadowed makes matching follow the effective rows (INV-50): a row another row of the same software outranks (it is listed
-// under that row's AlsoSeen) is left out of what MatchInput returns, so findings matches the effective row of each software and every
-// row of another product or install as before. ShadowedBy is therefore "" on every returned row; it names the effective row only
-// while the row is in the list.
+// markShadowed makes matching follow the effective rows (INV-50): a row another row of the same software outranks (it is listed under
+// that row's AlsoSeen) is left out of what MatchInput returns, so findings matches the effective row of each software and every row
+// of another product or install as before. A missed CVE is worse than a duplicate, so a row stays when it is a scan, SNMP or passive
+// reading of another release under an agent's row (an install on another port next to the agent's package): both are matched. It goes
+// when it is the same release as the effective row, when the effective row is a person's entry (the entry holds), or when it is itself a
+// person's entry (the agent outranks it). ShadowedBy is "" on every row returned.
 func markShadowed(ctx context.Context, q querier, assetID string, d *MatchDevice) error {
 	eff, err := effectiveSoftware(ctx, q, assetID)
 	if err != nil {
@@ -255,6 +257,9 @@ func markShadowed(ctx context.Context, q querier, assetID string, d *MatchDevice
 	shadowed := map[string]bool{}
 	for _, e := range eff {
 		for _, o := range e.AlsoSeen {
+			if e.Source == "agent" && o.Source != "manual" && !o.SameRelease {
+				continue
+			}
 			shadowed[o.ID] = true
 		}
 	}

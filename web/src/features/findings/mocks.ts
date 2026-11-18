@@ -13,6 +13,7 @@ import { mockHardening } from './hardeningMock'
 import type { AiResult, ApplyItem, Cvss, FindingAsset, FindingDetail, FindingRow, FirewallGuide, HomeSummary, KevInfo, KnownVersion, MitigationPack, Plan, PlanCve, PlanItem, RowFix, StatusAction, ToFix, ToFixAction, ToFixDevice, UncheckedItem } from './types'
 import { fmtDate } from '@/lib/format'
 import { displayName } from '@/features/inventory/nameOf'
+import { metaStore } from '@/features/inventory/mocks'
 import { openIncidents, sentSince } from '@/features/notify/mocks'
 import { SUMMARY_DAYS, SUMMARY_TOP } from './contract'
 
@@ -134,7 +135,7 @@ function nameOf(a: Asset): string {
 }
 
 function assetView(a: Asset | undefined): FindingAsset | null {
-  return a ? { id: a.id, name: nameOf(a), hostname: a.hostname, ip: a.ip || '—', kind: a.kind, display: a.software[0]?.display ?? a.kind } : null
+  return a ? { id: a.id, name: nameOf(a), hostname: a.hostname, ip: a.ip || '—', kind: a.kind, display: a.software[0]?.display ?? a.kind, approved: a.approved, ignored: !!metaStore.get()[a.id]?.ignored_at } : null
 }
 
 function row(f: Finding): FindingRow {

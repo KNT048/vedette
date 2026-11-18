@@ -2,7 +2,7 @@ import { lazy, Suspense, type ComponentType } from 'react'
 import type { Feature } from '@/app/feature'
 import { Loading } from '@/components/common/States'
 import { ScansRunningIndicator } from './ScanNow'
-import { DeviceActions, DevicesActions } from './DeviceActions'
+import { DevicesActions } from './DeviceActions'
 import { LastChecks } from './LastChecks'
 
 const ScanningPage = lazy(() => import('./ScanningPage'))
@@ -13,11 +13,10 @@ export const feature: Feature = {
   id: 'scanning',
   routes: [],
   // "1 scan running" in the shell (phone top bar, sidebar foot): every engine's runs, the public scans included
-  // the scan buttons of the Devices list and the device page (#850 H3; slots of features/inventory, #849)
+  // the scan buttons of the Devices list (#850 H3; slot of features/inventory, #849); the device page's buttons are in Last checks
   slots: {
     'shell.status': ScansRunningIndicator as ComponentType<Record<string, unknown>>,
     'devices.actions': DevicesActions as unknown as ComponentType<Record<string, unknown>>,
-    'device.actions': DeviceActions as unknown as ComponentType<Record<string, unknown>>,
     // The last device check, vulnerability check and SNMP read of the device, on its Overview tab
     'device.panels': LastChecks as ComponentType<Record<string, unknown>>,
   },

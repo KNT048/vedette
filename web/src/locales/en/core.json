@@ -404,6 +404,7 @@
       "honeypot.decoy_disable": "Turn decoy off",
       "inventory.mark_suspicious": "Mark device suspicious",
       "inventory.unmark_suspicious": "Clear suspicious mark",
+      "inventory.approve": "Approve a device",
       "inventory.ignore": "Ignore a device (not watched)",
       "inventory.unignore": "Stop ignoring a device",
       "logs.export_refused": "Log download refused",

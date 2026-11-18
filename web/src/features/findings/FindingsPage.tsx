@@ -27,14 +27,18 @@ import { useFixAction } from './fix'
 import { canConfirm, canUndo, ConfirmButton, ConfirmDialog, UndoButton } from './Confirm'
 import type { BulkAction, FindingRow } from './types'
 import { NotRelevantToggle, isNotRelevant } from './notRelevant'
+import { NotAdded } from './NotAdded'
+import { IgnoredTab } from './IgnoredTab'
 import { RiskMarker, riskWord } from '@/features/inventory/RiskMarker'
 
 /** The three lists: Open = confirmed + suspected, Accepted risk, Handled = patched / mitigated / false positive / not relevant. */
 type Tab = 'open' | 'accepted' | 'handled'
+// The findings of an ignored device are in none of them: they are under Ignored
+const shownHere = (f: FindingRow) => !f.asset?.ignored
 const inTab: Record<Tab, (f: FindingRow) => boolean> = {
-  open: (f) => isOpen(f.status),
-  accepted: (f) => f.status === 'risk_accepted',
-  handled: (f) => !isOpen(f.status) && f.status !== 'risk_accepted',
+  open: (f) => shownHere(f) && isOpen(f.status),
+  accepted: (f) => shownHere(f) && f.status === 'risk_accepted',
+  handled: (f) => shownHere(f) && !isOpen(f.status) && f.status !== 'risk_accepted',
 }
 /** Inside Open: `?status=confirmed|suspected` narrows it (the KPI "confirmed" cell links there). */
 type OpenStatus = 'all' | 'confirmed' | 'suspected'
@@ -125,11 +129,12 @@ function List() {
   const opener = useRef<HTMLButtonElement>(null)
   const q = useFindings()
   const items = q.data?.items
-  const open = items?.filter((f) => isOpen(f.status)).length ?? 0
-  const confirmed = items?.filter((f) => f.status === 'confirmed').length ?? 0
+  const open = items?.filter((f) => shownHere(f) && isOpen(f.status)).length ?? 0
+  const confirmed = items?.filter((f) => shownHere(f) && f.status === 'confirmed').length ?? 0
   const name = (r: FindingRow) => deviceName(r.asset, t('removedDevice'))
-  const devices = [...new Map((items ?? []).map((f) => [f.asset_id, name(f)])).entries()].sort((a, b) => a[1].localeCompare(b[1]))
-  const products = [...new Set((items ?? []).map((f) => f.kev?.display ?? '').filter(Boolean))].sort()
+  const here = (items ?? []).filter(shownHere) // an ignored device is offered nowhere but under Ignored
+  const devices = [...new Map(here.map((f) => [f.asset_id, name(f)])).entries()].sort((a, b) => a[1].localeCompare(b[1]))
+  const products = [...new Set(here.map((f) => f.kev?.display ?? '').filter(Boolean))].sort()
   const s = search.trim().toLowerCase()
   const rowsFor = (tab: Tab, notRelevant = showNotRelevant) => (items ?? []).filter(inTab[tab]).filter((f) => notRelevant || !isNotRelevant(f)).filter(certain[certainty])
     .filter((f) => tab !== 'open' || status === 'all' || f.status === status)
@@ -160,8 +165,8 @@ function List() {
   const kpis = items ? [
     { value: open, label: t('kpi.open'), to: '?tab=open' },
     { value: confirmed, label: t('kpi.confirmed'), to: '?tab=open&status=confirmed' },
-    { value: items.filter((f) => isOpen(f.status) && f.severity === 'critical').length, label: t('kpi.critical'), to: '?tab=open&severity=critical' },
-    { value: items.filter((f) => f.status === 'risk_accepted' && f.accepted_until && f.accepted_until <= week).length, label: t('kpi.ending'), to: '?tab=accepted' },
+    { value: items.filter((f) => shownHere(f) && isOpen(f.status) && f.severity === 'critical').length, label: t('kpi.critical'), to: '?tab=open&severity=critical' },
+    { value: items.filter((f) => shownHere(f) && f.status === 'risk_accepted' && f.accepted_until && f.accepted_until <= week).length, label: t('kpi.ending'), to: '?tab=accepted' },
   ] : []
 
   const pick = (r: FindingRow) => (
@@ -177,6 +182,7 @@ function List() {
       <div className="grid">
         {r.asset ? <span className="flex flex-wrap items-center gap-x-2 gap-y-1"><Link to={`/devices/${r.asset.id}`} title={name(r)} className="line-clamp-2 max-w-64 font-medium text-accent underline-offset-4 [overflow-wrap:anywhere] hover:underline">{name(r)}</Link><RiskMarker id={r.asset.id} risk={risk(r.asset.id)} /></span> : <span className="font-medium">{name(r)}</span>}
         <span className="text-caption text-muted">{hasIp(r.asset) ? r.asset?.ip : r.asset ? t('noIp') : ''}</span>
+        <NotAdded asset={r.asset} />
       </div>
     ) },
     { id: 'cve', header: t('col.cve'), accessorFn: (r) => r.cve, cell: ({ row: { original: r } }) => <Link to={`/findings/${r.id}`} className="whitespace-nowrap font-medium text-accent underline-offset-4 hover:underline">{r.cve}</Link> },
@@ -269,6 +275,7 @@ function List() {
                   </div>
                   <span className="text-sm [overflow-wrap:anywhere]">{name(r)}<span className="text-muted">{hasIp(r.asset) ? ` (${r.asset?.ip})` : r.asset ? ` (${t('noIp')})` : ''}</span></span>
                   <span className="text-meta text-muted">{r.kev?.display ?? '–'}</span>
+                  <NotAdded asset={r.asset} />
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-meta">
                     <RiskChip f={r} />
                     <span>{t(basisLabel(r))}</span>
@@ -347,6 +354,7 @@ function List() {
         { id: 'open', label: t('tabs.open'), panel: panel('open'), badge: { count: confirmed, label: t('tabs.openBadge') } },
         { id: 'accepted', label: t('tabs.accepted'), panel: panel('accepted') },
         { id: 'handled', label: t('tabs.handled'), panel: panel('handled') },
+        { id: 'ignored', label: t('tabs.ignored'), panel: <IgnoredTab q={q} /> },
       ]} />
       <BulkDialog ids={shown} open={bulkOpen} onOpenChange={setBulkOpen} opener={opener} onDone={() => setSelected(new Set())} />
       {confirming ? <ConfirmDialog key={confirming.id} f={confirming} onClose={() => setConfirming(null)} /> : null}

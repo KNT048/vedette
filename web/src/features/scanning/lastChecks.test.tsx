@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { renderApp } from '@/test/render'
 import { server } from '@/test/server'
-import { assetsStore, modulesStore, sessionStore } from '@/mocks/stores'
+import { assetsStore, findingsStore, modulesStore, sessionStore } from '@/mocks/stores'
 import { scannerStore } from '@/features/scan/mocks'
 import type { ScanRun } from '@/features/scan/types'
 import { historyStore, markReached } from './mocks'
@@ -164,20 +164,55 @@ describe('Last checks never points at a button the device page does not show', (
     addDevice({})
     renderApp('/devices/a-man1?tab=services')
     const tip = await screen.findByRole('button', { name: 'About No open port seen yet' }, T)
-    expect(tip).toHaveAccessibleDescription(/press Check this device now at the top of this page/)
-    expect(screen.getAllByRole('button', { name: 'Check this device now' }).length).toBeGreaterThan(0)
+    expect(tip).toHaveAccessibleDescription(/press Check this device now under Last checks on the Overview tab/)
   })
 
-  it('a product declared without an address: no button, no SNMP card link, and the hints ask for its IP', async () => {
+  it('a device without an address: one note says the cause once and what it blocks; the rows only say nothing ran', async () => {
+    noRuns()
+    addDevice({ ip: '—', hostname: null })
+    renderApp('/devices/a-man1')
+    const section = await lastChecks()
+    expect(await within(section).findByText(/can neither identify this device nor run vulnerability checks/, undefined, T)).toBeInTheDocument()
+    expect(within(section).getAllByText(/No IP address yet/)).toHaveLength(1)
+    expect(within(screen.getByRole('group', { name: IDENT })).getByText('Not run yet.')).toBeInTheDocument()
+    expect(within(screen.getByRole('group', { name: VULN })).getByText('Not run yet.')).toBeInTheDocument()
+  })
+
+  it('a product declared without an address: no button, no SNMP card link', async () => {
     noRuns()
     addDevice({ origin: 'manual', ip: '—', hostname: null })
     renderApp('/devices/a-man1')
     const section = await lastChecks()
-    const vuln = await within(section).findByRole('group', { name: VULN }, T)
-    expect(within(vuln).getByText('No IP address yet, so no vulnerability check can run on it. Add its IP on this page.')).toBeInTheDocument()
-    expect(within(screen.getByRole('group', { name: IDENT })).getByText(/^No IP address yet, so network discovery cannot check it/)).toBeInTheDocument()
+    await within(section).findByRole('group', { name: VULN }, T)
+    expect(within(screen.getByRole('group', { name: IDENT })).getByText('Not run yet.')).toBeInTheDocument()
     expect(within(section).queryByRole('link', { name: 'Set it up in Sources' })).toBeNull()
     expect(within(section).queryByText(/above/)).toBeNull()
+  })
+
+  // The run can only confirm the findings whose CVE has a safe check (the KEV entry's has_template)
+  const suspect = (cves: string[]) => {
+    const tpl = findingsStore.get()[0]!
+    findingsStore.update((l) => [...l, ...cves.map((cve, i) => ({ ...tpl, id: `f-man-${i}`, asset_id: 'a-man1', cve, status: 'suspected' as const }))])
+  }
+
+  it('0 of 2 suspected findings have a safe check: no run is offered, and the note says why and what decides them', async () => {
+    noRuns()
+    addDevice({ ip: '192.168.10.241' })
+    suspect(['CVE-2024-27834', 'CVE-2026-119977'])
+    renderApp('/devices/a-man1')
+    const section = await lastChecks()
+    expect(await within(section).findByText(/No safe check exists for these 2 suspected CVEs/, undefined, T)).toBeInTheDocument()
+    expect(within(section).queryByRole('button', { name: 'Run vulnerability checks now' })).toBeNull()
+  })
+
+  it('1 of 2 suspected findings has a safe check: the run is offered and the note says 1 of 2', async () => {
+    noRuns()
+    addDevice({ ip: '192.168.10.241' })
+    suspect(['CVE-2024-27834', 'CVE-2026-97229'])
+    renderApp('/devices/a-man1')
+    const section = await lastChecks()
+    expect(await within(section).findByText(/1 of 2 suspected findings can be checked\./, undefined, T)).toBeInTheDocument()
+    expect(within(section).getByRole('button', { name: 'Run vulnerability checks now' })).toBeInTheDocument()
   })
 
   it('a device not approved yet: the device check button is there and named, the vulnerability check says to approve it', async () => {
@@ -185,8 +220,8 @@ describe('Last checks never points at a button the device page does not show', (
     addDevice({ approved: false })
     renderApp('/devices/a-man1')
     const section = await lastChecks()
-    const vuln = await within(section).findByRole('group', { name: VULN }, T)
-    expect(within(vuln).getByText('Not approved yet: vulnerability checks run on it only once you approve it on this page.')).toBeInTheDocument()
+    await within(section).findByRole('group', { name: VULN }, T)
+    expect(await within(section).findAllByText('Not approved in the inventory, so not scanned', undefined, T)).toHaveLength(1)
     expect(screen.queryAllByRole('button', { name: 'Run vulnerability checks now' })).toHaveLength(0)
     expect(screen.getAllByRole('button', { name: 'Check this device now' }).length).toBeGreaterThan(0)
     expect(within(screen.getByRole('group', { name: IDENT })).getByText(/Check this device now” above runs it/)).toBeInTheDocument()

@@ -12,7 +12,7 @@ import type { ToFix, ToFixAction, ToFixDevice } from './types'
 const T = { timeout: 5000 }
 const act = (o: Partial<ToFixAction>): ToFixAction => ({ group: 'g', software_id: '', software: '', version: '', product: '', source: '', fixed: '', kind: 'fixed', windows: false, distro: '', pro: false, action: '',
   cves: [], finding_ids: [], worst: 'high', ransomware: 0, likely: 0, confirmed: 0, detected: 1, reported: 0, suspected: 0, checkable: 0, nvd_lag: false, kb: '', ...o })
-const dev = (id: string, name: string, o: Partial<ToFixDevice>): ToFixDevice => ({ asset: { id, name, hostname: name, ip: '192.168.18.10', kind: 'pc', display: 'Windows 11' }, risk: null, open: 0, exploited: [], no_update: [], planned: [], plan_compared: true, ...o })
+const dev = (id: string, name: string, o: Partial<ToFixDevice>): ToFixDevice => ({ asset: { id, name, hostname: name, ip: '192.168.18.10', kind: 'pc', display: 'Windows 11', approved: true, ignored: false }, risk: null, open: 0, exploited: [], no_update: [], planned: [], plan_compared: true, ...o })
 const winUpdate = act({ group: 'a-pc/s-win', software_id: 's-win', software: 'Windows 11 Pro', version: '10.0.26100.1742', fixed: '10.0.26100.33650', windows: true,
   action: 'Install the latest cumulative update for Windows 11 Pro (build 26100.33650 or later)', cves: ['CVE-2026-1001', 'CVE-2026-1002', 'CVE-2026-1003'], finding_ids: ['f-a', 'f-b', 'f-c'], worst: 'critical', ransomware: 1, detected: 3 })
 const winrar = (devId: string, name = 'RARLAB WinRAR') => act({ group: `${devId}/s-rar`, software_id: 's-rar', software: name, product: 'rarlab|winrar', version: '7.01', fixed: '7.13', action: 'Upgrade RARLAB WinRAR from 7.01 to 7.13 or later', cves: ['CVE-2025-6218', 'CVE-2025-8088'], finding_ids: ['f-r1', 'f-r2'], worst: 'high', detected: 2 })
@@ -143,7 +143,7 @@ describe('Findings › To fix', () => {
   it('"Needs your input (N)" counts what only a person can settle and lists the unproved matches', async () => {
     serve()
     server.use(http.get('*/api/v1/findings', () => HttpResponse.json({ items: [], unchecked: [], version_needed: [
-      { asset: { id: 'a-pc', name: 'PC-A', hostname: 'PC-A', ip: '192.168.18.10', kind: 'pc', display: 'Windows 11' }, asset_id: 'a-pc', software_id: 's-1', software: 'Microsoft Office', version: null, cves: 32 },
+      { asset: { id: 'a-pc', name: 'PC-A', hostname: 'PC-A', ip: '192.168.18.10', kind: 'pc', display: 'Windows 11', approved: true, ignored: false }, asset_id: 'a-pc', software_id: 's-1', software: 'Microsoft Office', version: null, cves: 32 },
     ] })))
     renderApp('/findings')
     const tab = await screen.findByRole('tab', { name: /Needs your input/ }, T)
@@ -299,7 +299,7 @@ describe('Findings › To fix', () => {
     modulesStore.update((l) => l.map((m) => (m.id === 'sensor-active' ? { ...m, enabled: true } : m)))
     inventorySettingsStore.update((st) => ({ ...st, active: { ...st.active, enabled: true }, scope_confirmed_at: st.scope_confirmed_at ?? '2026-11-01T00:00:00.000Z' }))
     const scanRow = (g: string, sw: string) => act({ group: `a-srvad/${g}`, software_id: g, software: sw, version: '1.0', fixed: '2.0', source: 'nmap', action: `Upgrade ${sw} from 1.0 to 2.0 or later`, cves: [`CVE-2026-${g.length}0`], finding_ids: [`f-${g}`] })
-    serve({ ...sample, devices: [{ ...dev('a-srvad', 'SRV-AD', { open: 2, exploited: [scanRow('s-a', 'Apache'), scanRow('s-bb', 'OpenSSH')] }), asset: { id: 'a-srvad', name: 'SRV-AD', hostname: 'SRV-AD', ip: '192.168.10.10', kind: 'server', display: 'Windows Server 2016' } }] })
+    serve({ ...sample, devices: [{ ...dev('a-srvad', 'SRV-AD', { open: 2, exploited: [scanRow('s-a', 'Apache'), scanRow('s-bb', 'OpenSSH')] }), asset: { id: 'a-srvad', name: 'SRV-AD', hostname: 'SRV-AD', ip: '192.168.10.10', kind: 'server', display: 'Windows Server 2016', approved: true, ignored: false } }] })
     renderApp('/findings')
     await screen.findByRole('list', { name: 'What to do on SRV-AD' }, T)
     const card = screen.getByRole('listitem', { name: 'SRV-AD' })

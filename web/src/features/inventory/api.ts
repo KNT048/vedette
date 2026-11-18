@@ -13,7 +13,7 @@ import type {
 export const useDevices = () => useQuery({ queryKey: ['inventory', 'devices'], queryFn: () => api.get<DevicesResponse>('/inventory/devices') })
 /** The devices a person ignored (the Ignored tab), read only while that tab is open. */
 export const useIgnoredDevices = (enabled = true) => useQuery({ queryKey: ['inventory', 'devices', 'ignored'], queryFn: () => api.get<DevicesResponse>('/inventory/devices?ignored=true'), enabled })
-export const useDevice = (id: string) => useQuery({ queryKey: ['inventory', 'device', id], queryFn: () => api.get<DeviceDetail>(`/inventory/devices/${encodeURIComponent(id)}`), retry: false })
+export const useDevice = (id: string, enabled = true) => useQuery({ queryKey: ['inventory', 'device', id], queryFn: () => api.get<DeviceDetail>(`/inventory/devices/${encodeURIComponent(id)}`), retry: false, enabled: enabled && id !== '' })
 /** The device's software as one row per software (inventory INV-50), the strongest source's reading with the other sources listed. */
 export const useEffectiveSoftware = (id: string) =>
   useQuery({ queryKey: ['inventory', 'device', id, 'software'], queryFn: () => api.get<{ items: EffectiveSoftware[] }>(`/inventory/devices/${encodeURIComponent(id)}/software`), retry: false })
@@ -66,6 +66,25 @@ export function useAddDevice() {
 export function useImportDevices() {
   const inv = useInvalidate()
   return useMutation({ mutationFn: (b: { filename: string; size: number; sha256: string; text: string }) => api.post<ImportResult>('/inventory/import', b), onSuccess: inv })
+}
+/** Approve every given device, one after the other (one POST each); it stops at the first failure and says how many it did. */
+export function useApproveAll() {
+  const inv = useInvalidate()
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      let done = 0
+      try {
+        for (const id of ids) {
+          await api.post(`/inventory/devices/${encodeURIComponent(id)}/approve`)
+          done++
+        }
+      } catch (e) {
+        throw Object.assign(e instanceof Error ? e : new Error(String(e)), { done })
+      }
+      return done
+    },
+    onSettled: inv,
+  })
 }
 export function useDeviceAction(id: string) {
   const inv = useInvalidate()

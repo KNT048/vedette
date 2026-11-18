@@ -18,7 +18,7 @@ import { scanRefusal, useDeviceButtons, type DeviceRefusal } from './canScan'
 import { historyRowHref } from './places'
 import { HistoryOutcome } from './RunHistory'
 import { hasSnmpCard, hasSourcesCard } from '@/features/inventory/nameOf'
-import { ScanOffSeeSources } from './DeviceActions'
+import { DeviceActions, ScanOffSeeSources } from './DeviceActions'
 
 const link = 'text-accent underline-offset-4 hover:underline'
 
@@ -94,10 +94,11 @@ export function LastChecks(props: Record<string, unknown>) {
   const refusal = a ? scanRefusal(a, scanning.data) : null
   // a device added by hand with its network scan off: the note is on its Sources card; here only a pointer to it
   const seeSources = <ScanOffSeeSources link={!!a && hasSourcesCard(a)} />
-  const neverIdentify = refusal === 'manual' ? seeSources : refusal ? t(`selection.device.${refusal}`) : admin ? t('lastChecks.neverIdentify') : t('lastChecks.neverIdentifyRole')
+  // the cause is the note above the rows (DeviceActions): the rows say only that nothing ran
+  const neverIdentify = refusal === 'manual' ? seeSources : refusal ? t('lastChecks.notRun') : admin ? t('lastChecks.neverIdentify') : t('lastChecks.neverIdentifyRole')
   const vulnReason = buttons.vuln && buttons.vuln !== 'off' ? vulnWhy(buttons.vuln, a?.origin, buttons.identify) : null
   const neverVuln = vulnReason === 'manual' ? seeSources
-    : vulnReason ? t(`lastChecks.vulnWhy.${vulnReason}`)
+    : vulnReason ? t('lastChecks.notRun')
     : !operator ? t('lastChecks.neverVulnRole')
     : cfg.data && !cfg.data.can_scan && cfg.data.block_reason ? cfg.data.block_reason
     : t('lastChecks.neverVuln')
@@ -105,6 +106,8 @@ export function LastChecks(props: Record<string, unknown>) {
   const snmpCard = !!a && hasSnmpCard(a, admin, modules.data?.modules.find((m) => m.id === 'sensor-active')?.enabled === true)
   return (
     <Section id="last-checks" title={t('lastChecks.title')} description={t('lastChecks.description')} stories={['S-INV-1', 'S-SCAN-4']}>
+      {/* "Check this device now" and "Run vulnerability checks now" (or why neither is offered) sit here, with the checks they start */}
+      {a ? <div className="mb-3"><DeviceActions assetId={assetId} asset={a} /></div> : null}
       {failed ? <ErrorState error={failed.error} onRetry={() => { for (const q of [history, modules, device]) if (q.isError) void q.refetch() }} /> : (
         <Card className="divide-y divide-rule">
           {loading ? <p className="text-meta text-muted">{t('common:loading')}</p> : (

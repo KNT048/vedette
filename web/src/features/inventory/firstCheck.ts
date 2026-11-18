@@ -1,4 +1,4 @@
-import { dayOf, fmtDayMonth, fmtTime } from '@/lib/format'
+import { clockIn, dayOf, fmtDayMonth, fmtTime } from '@/lib/format'
 import { inRanges } from './AddToScopeDialog'
 
 /** The scan window as GET /scanning gives it (safety.window, scope and the discovery engine's next opening). */
@@ -22,23 +22,15 @@ export type FirstCheck =
   | { when: 'waiting'; why: 'off' | 'scope' | 'outside' }
 
 const minutesOf = (hhmm: string) => { const [h, m] = hhmm.split(':').map(Number); return (h ?? 0) * 60 + (m ?? 0) }
-const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 /** Whether a scan window is open at `now`, read in the window's own time zone (as the box reads it: a window that crosses midnight
  *  belongs to the day it starts on). */
 export function windowOpen(w: FirstCheckInput['window'], now: Date): boolean {
   const from = minutesOf(w.from), to = minutesOf(w.to)
   if (from === to) return false
-  let parts: Intl.DateTimeFormatPart[]
-  try {
-    parts = new Intl.DateTimeFormat('en-GB', { timeZone: w.time_zone, weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(now)
-  } catch {
-    return false
-  }
-  const part = (t: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === t)?.value ?? ''
-  const wd = WEEKDAYS.indexOf(part('weekday')) + 1
-  if (wd === 0) return false
-  const at = Number(part('hour')) * 60 + Number(part('minute'))
+  const c = clockIn(now, w.time_zone)
+  if (!c) return false
+  const wd = c.weekday, at = c.minutes
   const has = (d: number) => w.days.includes(((d + 6) % 7) + 1)
   if (has(wd) && at >= from && (to > from ? at < to : true)) return true
   return to < from && has(wd - 1) && at < to

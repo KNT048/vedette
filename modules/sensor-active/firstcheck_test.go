@@ -171,14 +171,14 @@ func holdExternal(t *testing.T, d *driven, report *progress.Update) (release fun
 
 func waitingText(t *testing.T, d *driven) string {
 	t.Helper()
-	for range 200 {
+	var got string
+	waitFor(t, "the check a person started to say what it waits for", func() bool {
 		if m := d.svc.Manual(); m != nil && m.Progress != nil && m.Progress.Message != nil && strings.HasPrefix(*m.Progress.Message, "Waiting") {
-			return *m.Progress.Message
+			got = *m.Progress.Message
 		}
-		time.Sleep(50 * time.Millisecond)
-	}
-	t.Fatal("the check a person started says nothing about what it waits for")
-	return ""
+		return got != ""
+	})
+	return got
 }
 
 // A check a person starts that meets an exposure scan holding nmap waits right behind it, says what it waits for (with the scan's

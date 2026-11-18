@@ -575,7 +575,7 @@
     "doneBody": "Confirmed by {{user}} on {{time}}, by pressing Scan now.",
     "sentence": "The sentence shown next to the button:",
     "older": "Confirmed with a tick box before the first scan.",
-    "olderInfo": "Vedette is provided as is under the Apache-2.0 license; its author, Kien Nguyen, is not responsible for how you use it."
+    "olderInfo": "Vedette is provided as is under the Apache-2.0 license; the Vedette authors are not responsible for how you use it."
   },
   "progress": {
     "running": "Scanning {{value}}",

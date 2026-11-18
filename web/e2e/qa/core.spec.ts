@@ -187,7 +187,7 @@ test.describe('first-run setup', () => {
     // the single commitment checkbox and the license line replace the consent upload
     await expect(page.getByLabel(/Upload/)).toHaveCount(0)
     await expect(page.locator('input[type=file]')).toHaveCount(0)
-    await expect(page.getByText('Vedette is provided as is under the Apache-2.0 license; its author, Kien Nguyen, is not responsible for how you use it.')).toBeVisible()
+    await expect(page.getByText('Vedette is provided as is under the Apache-2.0 license; the Vedette authors are not responsible for how you use it.')).toBeVisible()
     await page.getByRole('checkbox', { name: 'I confirm these ranges belong to my company and I am allowed to scan them.' }).check()
     await shot(page, 'core', 'setup-2')
     await next(page)

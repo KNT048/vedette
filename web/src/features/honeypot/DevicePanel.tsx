@@ -8,7 +8,7 @@ import { fmtDateTime } from '@/lib/format'
 import { useHits } from './api'
 import { hitName } from './hitName'
 
-/** Slot device.panels: trap hits from this device (S-HP-1). Renders nothing when the module is off. */
+/** Slot device.panels: trap hits from this device (S-HP-1). Renders nothing when the module is off or the device has no hits. */
 export default function DevicePanel(props: Record<string, unknown>) {
   const assetId = String(props.assetId ?? '')
   const on = useModuleEnabled('honeypot')
@@ -19,11 +19,12 @@ export default function DevicePanel(props: Record<string, unknown>) {
 function Inner({ assetId }: { assetId: string }) {
   const { t } = useTranslation('honeypot')
   const q = useHits(assetId)
+  // A device with no hits has nothing to show here: no empty section (an error still says so).
+  if (q.data && q.data.items.length === 0) return null
   return (
     <Section id="device-hp" title={t('device.title')} description={t('device.description')} info={t('device.descriptionInfo')}>
       {q.isPending ? <p className="text-sm text-muted">{t('common:loading')}</p>
         : q.error ? <p role="alert" className="text-sm text-danger">{q.error instanceof Error ? q.error.message : String(q.error)}</p>
-        : q.data.items.length === 0 ? <p className="text-sm text-muted">{t('device.none')}</p>
         : (
           <Card flush>
           <ul className="grid divide-y divide-rule">

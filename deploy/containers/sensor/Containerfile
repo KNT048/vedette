@@ -23,7 +23,7 @@ RUN set -eu; \
 
 FROM ${DISTROLESS_IMAGE}
 ARG VERSION
-LABEL org.opencontainers.image.title="vedette-sensor" org.opencontainers.image.version="${VERSION}" org.opencontainers.image.source="https://github.com/KNT048/vedette" org.opencontainers.image.licenses="Apache-2.0"
+LABEL org.opencontainers.image.authors="The Vedette authors" org.opencontainers.image.vendor="The Vedette authors" org.opencontainers.image.title="vedette-sensor" org.opencontainers.image.version="${VERSION}" org.opencontainers.image.source="https://github.com/KNT048/vedette" org.opencontainers.image.licenses="Apache-2.0"
 COPY --from=build /out/vedette-sensor /vedette-sensor
 # Third-party licenses of the Go modules linked into the binary (scripts/hostlicenses).
 COPY --from=build /out/licenses/ /usr/share/doc/vedette/

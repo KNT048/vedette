@@ -26,7 +26,7 @@ function useNarrow() {
  * Bảng là thành phần chính (FRONTEND §3): 40px/dòng, header dính, sắp xếp, lọc chữ, phân trang 50.
  * `rowTone` tô viền trái cho dòng cần chú ý (ví dụ "Anh có" + đang bị khai thác).
  */
-export function DataTable<T>({ data, columns, filterPlaceholder, onRowClick, rowTone, empty, emptyFiltered, filtered, onClearFilters, toolbar, pageSize = 50, initialSort, caption, mobileRow, sortSelect, hiddenColumns }: {
+export function DataTable<T>({ data, columns, filterPlaceholder, onRowClick, rowTone, empty, emptyFiltered, filtered, onClearFilters, toolbar, pageSize = 50, initialSort, caption, mobileRow, sortSelect, hiddenColumns, fillColumn }: {
   data: T[]
   columns: ColumnDef<T, any>[] // eslint-disable-line @typescript-eslint/no-explicit-any
   filterPlaceholder?: string
@@ -51,6 +51,9 @@ export function DataTable<T>({ data, columns, filterPlaceholder, onRowClick, row
   sortSelect?: boolean
   /** Cột chỉ để sắp xếp (qua `sortSelect`), không hiện: giá trị của nó đã nằm trong ô của cột khác (#825: CVSS dưới mức rủi ro). */
   hiddenColumns?: string[]
+  /** The column that takes the width the others leave and cuts its content to it (the cell must truncate or wrap), so a long value
+   *  never widens the table past its container. */
+  fillColumn?: string
 }) {
   const { t } = useTranslation()
   const [sorting, setSorting] = useState<SortingState>(initialSort ?? [])
@@ -134,7 +137,7 @@ export function DataTable<T>({ data, columns, filterPlaceholder, onRowClick, row
                   onClick={onRowClick ? () => onRowClick(r.original) : undefined}
                   className={cn('h-10 border-b border-rule last:border-b-0', onRowClick && 'cursor-pointer hover:bg-sunken', tone && TONE_BAR[tone])}
                 >
-                  {r.getVisibleCells().map((c) => <td key={c.id} className="px-3 py-2 align-middle">{flexRender(c.column.columnDef.cell, c.getContext())}</td>)}
+                  {r.getVisibleCells().map((c) => <td key={c.id} className={cn('px-3 py-2 align-middle', c.column.id === fillColumn && 'w-full max-w-0')}>{flexRender(c.column.columnDef.cell, c.getContext())}</td>)}
                 </tr>
               )
             })}

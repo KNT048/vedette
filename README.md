@@ -15,8 +15,8 @@ Vedette is free, open-source software that tells a business, within an hour, whe
 |---|---|
 | Status | Web interface complete on a mock API; backend not started |
 | License | Apache-2.0 for Vedette's own code; third-party components keep their own licenses (`THIRD_PARTY_NOTICES.md`) |
-| Author | Kien Nguyen, as a personal project |
-| Disclaimer | Provided as is, without warranty (Apache-2.0 §7–8). The author is not responsible for how you use it — only scan systems you own and are authorised to scan |
+| Authors | The Vedette authors |
+| Disclaimer | Provided as is, without warranty (Apache-2.0 §7–8). The authors are not responsible for how you use it — only scan systems you own and are authorised to scan |
 
 ## Try it
 

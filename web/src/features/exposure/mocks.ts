@@ -36,7 +36,7 @@ const commitments = collection<Record<string, Commitment>>('exp_commitments', ()
     'xt-1': { by: 'admin@acme.example', at: at(20), version: NOTICE_VERSION, sentence: NOTICE_TEMPLATE.replace('{value}', 'acme.example') },
     'xt-2': { by: 'admin@acme.example', at: at(20), version: NOTICE_VERSION, sentence: NOTICE_TEMPLATE.replace('{value}', BOX_EGRESS_IP) },
     // Confirmed under an older sentence: the first Scan now after the upgrade asks again.
-    'xt-6': { by: 'admin@acme.example', at: at(20), version: '2026-11-13', sentence: 'By choosing Scan now I confirm that my company owns ' + BOX_EGRESS_IP_2 + ' and that I am authorized to scan it. Vedette is provided as is under the Apache-2.0 license; its author, Kien Nguyen, is not responsible for how you use it.' },
+    'xt-6': { by: 'admin@acme.example', at: at(20), version: '2026-11-13', sentence: 'By choosing Scan now I confirm that my company owns ' + BOX_EGRESS_IP_2 + ' and that I am authorized to scan it. Vedette is provided as is under the Apache-2.0 license; the Vedette authors are not responsible for how you use it.' },
     'xt-4': { by: 'admin@acme.example', at: at(60), version: null, sentence: null },
     'xt-5': { by: 'admin@acme.example', at: at(39), version: null, sentence: null },
   }

@@ -18,7 +18,7 @@ import (
 // TermsVersion asks again. The texts are the only copy: the API sends them with the target in it and the page shows what it got;
 // the mock's copy (contract.ts TERMS_TEMPLATE, TERMS_TEMPLATE_DOMAIN, TERMS_DISRUPTIVE) is held equal by a test, and each version's text is pinned.
 const (
-	TermsVersion = "2026-11-14e"
+	TermsVersion = "2026-11-18"
 	// termsTemplate is an IP target's text, termsTemplateDomain a domain's: the "yours alone"
 	// sentence becomes what reaches every address a name under the domain resolves to and who answers for a provider's permission.
 	// Both share the head and the tail, so the list of tools is the same. They say what the deep scan sends without
@@ -28,6 +28,7 @@ const (
 	// 2026-11-14d: revised texts (an acceptance of a 2026-11-14c text is asked again).
 	// 2026-11-14e: the web line says what TERMS.md says, word for word (follows links, may submit forms), while
 	// the active ZAP scan is not built; the domain's list names "the web scan (ZAP)".
+	// 2026-11-18: the disclaimer names the Vedette authors instead of a person (an acceptance of an older text is asked again).
 	termsTemplate       = termsHead + termsOwnIP + termsTail
 	termsTemplateDomain = termsHead + termsDomain + termsTail
 	termsHead           = "I confirm that my company owns {value} and that I am authorized to test it in depth. Once I accept, every scan of {value} is a deep scan, and Vedette's tools may send it:\n" +
@@ -47,7 +48,7 @@ const (
 		"Vedette does not check who owns those addresses. " +
 		"A name that points (CNAME) to a name outside {value} is scanned at whatever address the owner of that other name sets, so the disruptive checks never run on an address reached only that way. "
 	termsTail = "The deep scan can load or slow the services on {value} and may create, change or delete data. Run scans when you can accept that, and keep a backup. " +
-		"An administrator can withdraw this acceptance at any time. Vedette is provided as is under the Apache-2.0 license; its author, Kien Nguyen, is not responsible for how you use it."
+		"An administrator can withdraw this acceptance at any time. Vedette is provided as is under the Apache-2.0 license; the Vedette authors are not responsible for how you use it."
 	// termsDisruptive is the one extra tick, off by default: what it adds to the deep scan.
 	termsDisruptive = "Include disruptive checks (denial of service, password guessing, sign-in attempts with default or well-known passwords, and exploit checks that send more than a harmless read, such as nuclei's POST exploit requests that may create or change data and nmap's SQL injection probes): these can crash a service, lock accounts, change data or take a device offline."
 )

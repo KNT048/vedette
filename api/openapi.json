@@ -55589,12 +55589,40 @@
                       "type": "integer",
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991
+                    },
+                    "logs_bytes": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Disk space the kept logs take, in bytes (the log database and its write-ahead log); null when it cannot be read"
+                    },
+                    "disk_free_bytes": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Space still free on the filesystem of the box data directory, in bytes; null when it cannot be read"
                     }
                   },
                   "required": [
                     "box",
                     "sources",
-                    "retention_days"
+                    "retention_days",
+                    "logs_bytes",
+                    "disk_free_bytes"
                   ],
                   "additionalProperties": false
                 }

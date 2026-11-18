@@ -38,8 +38,10 @@ type Publisher interface {
 // counters): they must be two different databases, each with its own writer. Inventory and Box may be nil (no device
 // names, no box address).
 type Config struct {
-	Config    *store.DB
-	Volume    *store.DB
+	Config *store.DB
+	Volume *store.DB
+	// DataDir is the box data directory: the Retention card shows the free space of its filesystem. Empty: not shown.
+	DataDir   string
 	Audit     *audit.Log
 	Inventory Inventory
 	Box       Box
@@ -242,6 +244,13 @@ func (s *Service) Sources(ctx context.Context) (SourcesView, error) {
 	}
 	if out.Box, err = s.box(ctx); err != nil {
 		return SourcesView{}, err
+	}
+	// Two file-system reads, no row scan; an unreadable value is null, never a failed page.
+	if n, err := s.cfg.Volume.Size(); err == nil {
+		out.LogsBytes = &n
+	}
+	if n, err := store.DiskFree(s.cfg.DataDir); err == nil {
+		out.DiskFreeBytes = &n
 	}
 	seen, err := s.lastReceived(ctx)
 	if err != nil {

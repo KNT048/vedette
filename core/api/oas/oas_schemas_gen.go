@@ -123468,7 +123468,12 @@ func (s *LogsGetLogsSiemOKProto) UnmarshalText(data []byte) error {
 }
 
 type LogsGetLogsSourcesOK struct {
-	Box           LogsGetLogsSourcesOKBox           `json:"box"`
+	Box LogsGetLogsSourcesOKBox `json:"box"`
+	// Space still free on the filesystem of the box data directory, in bytes; null when it cannot be read.
+	DiskFreeBytes NilInt `json:"disk_free_bytes"`
+	// Disk space the kept logs take, in bytes (the log database and its write-ahead log); null when it
+	// cannot be read.
+	LogsBytes     NilInt                            `json:"logs_bytes"`
 	RetentionDays int                               `json:"retention_days"`
 	Sources       []LogsGetLogsSourcesOKSourcesItem `json:"sources"`
 }
@@ -123476,6 +123481,16 @@ type LogsGetLogsSourcesOK struct {
 // GetBox returns the value of Box.
 func (s *LogsGetLogsSourcesOK) GetBox() LogsGetLogsSourcesOKBox {
 	return s.Box
+}
+
+// GetDiskFreeBytes returns the value of DiskFreeBytes.
+func (s *LogsGetLogsSourcesOK) GetDiskFreeBytes() NilInt {
+	return s.DiskFreeBytes
+}
+
+// GetLogsBytes returns the value of LogsBytes.
+func (s *LogsGetLogsSourcesOK) GetLogsBytes() NilInt {
+	return s.LogsBytes
 }
 
 // GetRetentionDays returns the value of RetentionDays.
@@ -123491,6 +123506,16 @@ func (s *LogsGetLogsSourcesOK) GetSources() []LogsGetLogsSourcesOKSourcesItem {
 // SetBox sets the value of Box.
 func (s *LogsGetLogsSourcesOK) SetBox(val LogsGetLogsSourcesOKBox) {
 	s.Box = val
+}
+
+// SetDiskFreeBytes sets the value of DiskFreeBytes.
+func (s *LogsGetLogsSourcesOK) SetDiskFreeBytes(val NilInt) {
+	s.DiskFreeBytes = val
+}
+
+// SetLogsBytes sets the value of LogsBytes.
+func (s *LogsGetLogsSourcesOK) SetLogsBytes(val NilInt) {
+	s.LogsBytes = val
 }
 
 // SetRetentionDays sets the value of RetentionDays.

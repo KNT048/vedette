@@ -28,7 +28,7 @@ describe('reports: weekly report (S-REP-1)', () => {
     expect(within(doc).getByText(/Update or apply the vendor's temporary fix to .+ on NAS-PHOTOS: a scan confirmed it \(CVE-2022-27593\)/)).toBeInTheDocument()
     expect(within(doc).queryByText(/Honeypot touches$/)).toBeNull() // không bịa số bẫy/log
     expect(within(doc).getByText(/are not part of this report yet/)).toBeInTheDocument()
-    expect(within(doc).queryByText('AI-generated, needs human review')).toBeNull()
+    expect(within(doc).getByText('No AI commentary yet. Write it here.')).toBeInTheDocument() // the empty AI block holds only the button, no model or text
     expect(document.body.textContent).not.toMatch(DIACRITICS)
     await expectNoA11yViolations()
   })
@@ -232,9 +232,17 @@ describe('reports: weekly report (S-REP-1)', () => {
     renderApp('/reports')
     const btn = await screen.findByRole('button', { name: 'Write AI commentary' })
     await enabled(btn)
+    // no commentary yet: the button sits in the AI block, beside a short empty line
+    const block = btn.closest('[data-ai="true"]') as HTMLElement
+    expect(block).not.toBeNull()
+    expect(within(block).getByText('No AI commentary yet. Write it here.')).toBeInTheDocument()
     await userEvent.click(btn)
     const doc = await screen.findByRole('article', { name: 'Weekly security report' })
     expect(await within(doc).findByText('AI-generated, needs human review')).toBeInTheDocument()
+    // the same block now holds the text, and the button to write it again
+    const filled = await within(doc).findByText(/Last week had \d+ new findings/)
+    expect(filled.closest('[data-ai="true"]')).toBe(block)
+    expect(within(block).getByRole('button', { name: 'Write AI commentary' })).toBeInTheDocument()
     expect(within(doc).getByText(/Last week had \d+ new findings/)).toBeInTheDocument()
     expect(within(doc).getByText(/Model claude-haiku-5-5 \(Claude Haiku\)/)).toBeInTheDocument() // hồ sơ chính của "Weekly report comments"
     expect(aiRunsStore.get().filter((r) => r.skill === 'weekly-report')).toHaveLength(1)
@@ -403,9 +411,12 @@ describe('reports: data protection assessment under Vietnam\'s Law 91/2025/QH15 
     renderApp('/reports?tab=pdpl')
     await fillOrg()
     const doc = await generate()
-    await userEvent.click(screen.getByRole('button', { name: 'Write AI commentary' }))
+    const aiBtn = screen.getByRole('button', { name: 'Write AI commentary' })
+    const aiBlock = aiBtn.closest('[data-ai="true"]') as HTMLElement
+    expect(aiBlock).not.toBeNull()
+    await userEvent.click(aiBtn)
     expect(await within(doc).findByText('AI-generated, needs human review')).toBeInTheDocument()
-    expect(within(doc).getByText(/Model claude-sonnet-5-5 \(Claude Sonnet\)/)).toBeInTheDocument()
+    expect(within(aiBlock).getByText(/Model claude-sonnet-5-5 \(Claude Sonnet\)/)).toBeInTheDocument()
     expect(aiRunsStore.get().some((r) => r.skill === 'pdpl-assessment')).toBe(true)
     expect(screen.getByRole('link', { name: 'Print / Save PDF' })).toHaveAttribute('href', '/reports/print/pdpl')
   })

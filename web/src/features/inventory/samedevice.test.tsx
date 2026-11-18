@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
+import { toggleFilter } from '@/test/filters'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { server } from '@/test/server'
 import { assetsStore, sessionStore } from '@/mocks/stores'
@@ -148,7 +149,7 @@ describe('Devices › To review: the possibly-same hint', () => {
     expect(hint).toHaveAttribute('href', '/devices/a-ph2#possible-same')
     const pending = screen.getByRole('list', { name: /new devices? not approved/ })
     expect(within(pending).getAllByRole('link', { name: /^Possibly the same/ })).toHaveLength(1)
-    await user.click(screen.getByRole('button', { name: /^Possibly the same 1/ }))
+    await toggleFilter(user, /^Possibly the same 1/)
     await waitFor(() => expect(screen.getByRole('combobox', { name: 'Search devices' })).toHaveValue('possible:same'), T)
     await waitFor(() => expect(within(screen.getByRole('list', { name: /new devices? not approved/ })).getAllByRole('listitem')).toHaveLength(1), T)
   })

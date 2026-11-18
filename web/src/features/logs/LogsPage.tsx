@@ -320,7 +320,16 @@ function Message({ e }: { e: LogEvent }) {
   return <span className="break-all font-mono text-caption" title={e.line}>{e.app ? <span className="text-muted">{e.app}: </span> : null}{e.message}</span>
 }
 
-function RetentionSection({ days, linesPerHour }: { days: number; linesPerHour: number }) {
+/** Bytes as the page says them: decimal units, one decimal from MB up. */
+function sizeText(n: number) {
+  if (n >= 1e12) return `${(n / 1e12).toFixed(1)} TB`
+  if (n >= 1e9) return `${(n / 1e9).toFixed(1)} GB`
+  if (n >= 1e6) return `${(n / 1e6).toFixed(1)} MB`
+  if (n >= 1e3) return `${Math.round(n / 1e3)} kB`
+  return `${n} B`
+}
+
+function RetentionSection({ days, linesPerHour, logsBytes, freeBytes }: { days: number; linesPerHour: number; logsBytes: number | null; freeBytes: number | null }) {
   const { t } = useTranslation('logs')
   const set = useSetRetention()
   const isAdmin = useCan('admin')
@@ -336,6 +345,10 @@ function RetentionSection({ days, linesPerHour }: { days: number; linesPerHour: 
           {[7, 30, 90, 180].map((n) => <option key={n} value={n}>{t('retention.option', { n })}</option>)}
         </Select>
       </Field>
+      <dl className="mt-4 grid max-w-xs grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm">
+        <dt className="text-muted">{t('retention.usedLabel')}</dt><dd className="text-right">{logsBytes === null ? t('retention.unknown') : sizeText(logsBytes)}</dd>
+        <dt className="text-muted">{t('retention.freeLabel')}</dt><dd className="text-right">{freeBytes === null ? t('retention.unknown') : sizeText(freeBytes)}</dd>
+      </dl>
       </Card>
       <Dialog open={pending !== null} onOpenChange={(o) => { if (!o && !set.isPending) setPending(null) }}>
         {pending !== null ? (
@@ -402,7 +415,7 @@ function Content() {
     { value: `${receiving} / ${sourceList.length}`, label: t('kpi.sources'), to: '?tab=sources' },
     { value: fmtNumber(sourceList.reduce((n, x) => n + x.lines_per_hour, 0)), label: t('kpi.lines'), to: '?tab=events' },
   ] : []
-  const retention = sources.data ? [{ id: 'retention', label: t('tabs.retention'), panel: <RetentionSection days={sources.data.retention_days} linesPerHour={sourceList.reduce((n, x) => n + x.lines_per_hour, 0)} /> }] : []
+  const retention = sources.data ? [{ id: 'retention', label: t('tabs.retention'), panel: <RetentionSection days={sources.data.retention_days} linesPerHour={sourceList.reduce((n, x) => n + x.lines_per_hour, 0)} logsBytes={sources.data.logs_bytes ?? null} freeBytes={sources.data.disk_free_bytes ?? null} /> }] : []
   const sourcesTab = { id: 'sources', label: t('tabs.sources'), panel: <SourcesSection /> }
   return (
     <>

@@ -446,6 +446,7 @@
       "honeypot": "Internal honeypot",
       "exposure": "External exposure"
     },
+    "aiNone": "No AI commentary yet. Write it here.",
     "aiAt": "AI comment written at {{time}}; the figures above may have changed since."
   }
 }

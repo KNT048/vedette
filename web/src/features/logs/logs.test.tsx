@@ -419,6 +419,18 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     expect(screen.queryByRole('button', { name: 'Search older lines' })).not.toBeInTheDocument()
   })
 
+  it('the retention card shows the space the kept logs use and the space free on the box; an unreadable value says so', async () => {
+    const a = renderApp('/logs?tab=retention')
+    const used = (await screen.findByText('Used by kept logs')).nextElementSibling
+    expect(used).toHaveTextContent('48.3 MB')
+    expect(screen.getByText('Free on the box').nextElementSibling).toHaveTextContent('212.0 GB')
+    a.unmount()
+    server.use(http.get('*/api/v1/logs/sources', () => HttpResponse.json({ box: { ip: '192.168.10.250', hostname: 'vedette-hq' }, sources: [], retention_days: 30, logs_bytes: null, disk_free_bytes: null })))
+    renderApp('/logs?tab=retention')
+    expect((await screen.findByText('Free on the box')).nextElementSibling).toHaveTextContent('Not available')
+    expect(screen.getByText('Used by kept logs').nextElementSibling).toHaveTextContent('Not available')
+  })
+
   it('changing the retention period', async () => {
     renderApp('/logs?tab=retention')
     await userEvent.selectOptions(await screen.findByLabelText('Keep logs for'), '90')

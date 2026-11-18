@@ -1,5 +1,6 @@
 import type { ComponentProps } from 'react'
 import { DropdownMenu as Menu } from 'radix-ui'
+import { Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export const DropdownMenu = Menu.Root
@@ -29,5 +30,14 @@ export function DropdownMenuRadioItem({ className, children, ...props }: Compone
       <span className="grid size-4 place-items-center"><Menu.ItemIndicator><span className="block size-1.5 rounded-full bg-accent" /></Menu.ItemIndicator></span>
       {children}
     </Menu.RadioItem>
+  )
+}
+
+export function DropdownMenuCheckboxItem({ className, children, ...props }: ComponentProps<typeof Menu.CheckboxItem>) {
+  return (
+    <Menu.CheckboxItem className={cn('flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none data-[highlighted]:bg-sunken', className)} {...props}>
+      <span className="grid size-4 place-items-center"><Menu.ItemIndicator><Check className="size-4" aria-hidden /></Menu.ItemIndicator></span>
+      {children}
+    </Menu.CheckboxItem>
   )
 }

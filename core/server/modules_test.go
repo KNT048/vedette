@@ -255,6 +255,8 @@ var contractRoutes = map[string][]string{
 		"POST /inventory/devices",
 		"POST /inventory/devices/{id}/approve",
 		"POST /inventory/devices/{id}/keep-separate",
+		"POST /inventory/devices/{id}/differs/{field}/use",
+		"POST /inventory/devices/{id}/differs/{field}/keep",
 		"POST /inventory/devices/{id}/merge",
 		"POST /inventory/devices/{id}/software",
 		"POST /inventory/devices/{id}/suspicious",

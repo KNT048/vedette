@@ -263,6 +263,9 @@ type Match struct {
 	answer string
 	// pkgFixed: a proof from the distribution's fixed package release, not from another platform.
 	pkgFixed bool
+	// provedOn: for a proof from a version, the version or package release the matcher compared ("" when none: another platform, a
+	// distribution's blanket word); stored on the finding it closes (Finding.ProvedVersion).
+	provedOn string
 	// bounded: a version match inside a range with an end (a fix to install) or below the distribution's fixed package; not an
 	// exact version NVD lists, a range with only a start, or every version (#910: the only match a row NVD alone ties to the entry
 	// may give, viaNVD; #913).
@@ -973,7 +976,7 @@ func judge(a Asset, s Software, in swInfo, v Vuln, key []identity, now time.Time
 	ps := platformCheck(a, s, in, v.CVE, v.Distro, v.DistroLoading) // what a platform-limited CVE still needs on this row
 	if ps.fixed {
 		note := "Not affected: " + ps.note + " Vedette closed this by itself and reopens it if a later match says the device is affected."
-		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}, why: ps.note, pkgFixed: true}, outNotAffected
+		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}, why: ps.note, pkgFixed: true, provedOn: strings.TrimSpace(s.PkgVersion)}, outNotAffected
 	}
 	if why, out := edgeLegacyOnly(s, in, v); out { // An Edge Legacy (EdgeHTML) CVE on the Chromium-based Edge
 		note := "Not affected: " + why + " Vedette closed this by itself and reopens it if a later match says the device is affected."
@@ -1014,7 +1017,11 @@ func judge(a Asset, s Software, in swInfo, v Vuln, key []identity, now time.Time
 		if hn, ok := winHotpatchNote(in, v.CVE); ok && isWin && proof != proofOS { // the build read at its month's update, not as written
 			note = hn
 		}
-		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}}, outNotAffected
+		m := Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}}
+		if proof != proofOS { // the operating system's release, not the row's version, ruled it out
+			m.provedOn = strings.TrimSpace(in.ver)
+		}
+		return m, outNotAffected
 	case tri == Unknown && !in.given && !every && versionDecides(in, v, key):
 		return Match{}, outNeedVersion // One "add the version" item per software, not one finding per CVE
 		// #939: no NVD entry for the row gives a version, so adding one would decide nothing: a product match, which

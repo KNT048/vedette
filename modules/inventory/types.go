@@ -373,6 +373,8 @@ type Detail struct {
 	PossibleSame    []PossibleSame   `json:"possible_same"` // devices that may be the same machine
 	// ManualAt is when a person last entered or changed something on the device (INV-46, manualAt); nil when nothing was.
 	ManualAt *string `json:"manual_at"`
+	// DetectedDiffers are the fields where a trusted source reads something other than what a person entered (INV-47); empty when none.
+	DetectedDiffers []Differs `json:"detected_differs"`
 }
 
 // Counts are the numbers behind the filter chips of the device list.

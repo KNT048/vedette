@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { AiBlock } from '@/components/common/AiBlock'
 import { SeverityChip } from '@/components/common/StatusChip'
 import { FindingStatusChip } from '@/features/findings/AcceptRisk'
+import { isNotRelevant, NotRelevantToggle } from '@/features/findings/notRelevant'
 import { fmtDate, fmtDateTime } from '@/lib/format'
 import { Scroll } from './parts'
 import type { ActionItem, FindingRow, TopRisk, WeeklyReport } from './types'
@@ -53,8 +55,18 @@ function Risk({ r }: { r: TopRisk }) {
  * Báo cáo tuần (S-REP-1). Trang đầu cho lãnh đạo: số liệu cùng định nghĩa với Home/Devices, 3 rủi ro lớn nhất, đã làm gì, tuần sau làm
  * gì; danh sách đầy đủ ở phụ lục (in: sang trang mới). Dùng cho xem trước, lịch sử và bản in.
  */
-export function WeeklyDocument({ report: r, org }: { report: WeeklyReport; org: string }) {
+export function WeeklyDocument({ report: full, org }: { report: WeeklyReport; org: string }) {
   const { t } = useTranslation('reports')
+  // Findings closed as not relevant are noise: left out of the lists and of the totals until the toggle (a report lists 100 rows at
+  // most, so a not relevant row past that cut is not known here and stays in the totals).
+  const [showNR, setShowNR] = useState(false)
+  const nrNew = full.new_findings.filter(isNotRelevant).length
+  const nrDone = full.resolved.filter(isNotRelevant).length
+  const nrIds = new Set([...full.new_findings, ...full.resolved].filter(isNotRelevant).map((f) => f.id))
+  const hide = !showNR && nrIds.size > 0
+  const r: WeeklyReport = hide
+    ? { ...full, new_findings: full.new_findings.filter((f) => !isNotRelevant(f)), resolved: full.resolved.filter((f) => !isNotRelevant(f)), counts: { ...full.counts, new_findings: full.counts.new_findings - nrNew, resolved: full.counts.resolved - nrDone } }
+    : full
   const c = r.counts
   const open = c.open_confirmed + c.open_suspected
   // A finding new this week and still open is listed once, under What is new; Remaining lists the older ones. New is
@@ -80,6 +92,7 @@ export function WeeklyDocument({ report: r, org }: { report: WeeklyReport; org: 
           {stat(t('doc.weekly.stat.devices'), t('doc.weekly.stat.devicesValue', { total: c.devices, unapproved: c.devices_unapproved }))}
           {stat(t('doc.weekly.stat.kev'), t(r.top_risks ? 'doc.weekly.stat.kevValueHome' : 'doc.weekly.stat.kevValue', { matched: c.kev_matched, n: c.kev_new }))}
         </dl>
+        {hide ? <p className="-mt-3 text-meta text-muted">{t('doc.weekly.notRelevantHidden', { count: nrIds.size })}</p> : null}
         {r.top_risks ? (
           <>
             <section aria-labelledby="wk-risks"><h3 id="wk-risks" className="mb-1 font-semibold">{t('doc.weekly.risks')}</h3>
@@ -119,7 +132,8 @@ export function WeeklyDocument({ report: r, org }: { report: WeeklyReport; org: 
       {/* A block outside the grid: browsers (Firefox) ignore a page break on a grid item, so the appendix starts a new printed page. */}
       <section aria-labelledby="wk-appendix" className="mt-5 block border-t border-rule pt-4 print:break-before-page">
         <div className="grid gap-4">
-          <div className="grid gap-0.5"><h3 id="wk-appendix" className="font-semibold">{t('doc.weekly.appendix')}</h3><p className="text-meta text-muted">{t('doc.weekly.appendixNote')}</p></div>
+          <div className="grid gap-0.5"><h3 id="wk-appendix" className="font-semibold">{t('doc.weekly.appendix')}</h3><p className="text-meta text-muted">{t('doc.weekly.appendixNote')}</p>
+            <div className="print:hidden"><NotRelevantToggle count={nrIds.size} shown={showNR} onChange={setShowNR} /></div></div>
           <section aria-labelledby="wk-new"><h4 id="wk-new" className="mb-1 font-semibold">{t('doc.weekly.new')}</h4>{r.new_findings.length ? <Rows rows={r.new_findings} caption={t('doc.weekly.new')} /> : <p className="text-muted">{t('doc.weekly.noneNew')}</p>}{c.new_findings > r.new_findings.length ? <p className="mt-1 text-meta text-muted">{t('doc.weekly.notListedNew', { count: c.new_findings - r.new_findings.length })}</p> : null}</section>
           <section aria-labelledby="wk-done"><h4 id="wk-done" className="mb-1 font-semibold">{t('doc.weekly.handled')}</h4>{r.resolved.length ? <Rows rows={r.resolved} caption={t('doc.weekly.handled')} /> : <p className="text-muted">{t('doc.weekly.noneDone')}</p>}</section>
           <section aria-labelledby="wk-open"><h4 id="wk-open" className="mb-1 font-semibold">{t('doc.weekly.remaining')}</h4>

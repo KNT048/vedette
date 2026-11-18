@@ -33275,6 +33275,24 @@
                             ],
                             "description": "null = no CVSS score known: the pages say \"No score\", never 0"
                           },
+                          "resolution_reason": {
+                            "description": "not_affected_version when Vedette closed the finding by itself (a matcher proof, or one of its rules that compares no version); null for a person's own action and for open findings. A string, not an enum: a new reason must not break the list",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "proved_version": {
+                            "description": "A finding closed by proof (resolution_reason set): the version or package release the matcher compared to rule it out, as the device row gives it; null when the closure compared none (name only, age, an open platform question, another platform) or it is not closed by Vedette. An entry a person typed closed it only when this equals the entry",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "software_id": {
+                            "type": "string",
+                            "description": "The device's software row the matcher matched the finding on (the id FindingRow.fix.group and ToFixAction use), stored when it opens, touches or closes the finding; \"\" until the next match reaches an older finding. Never guessed from the product"
+                          },
                           "fix": {
                             "description": "GET /findings only, open findings: the update that fixes it with others; null when there is none to name",
                             "anyOf": [
@@ -33357,7 +33375,10 @@
                           "history",
                           "asset",
                           "kev",
-                          "cvss"
+                          "cvss",
+                          "resolution_reason",
+                          "proved_version",
+                          "software_id"
                         ],
                         "additionalProperties": false
                       }
@@ -34337,6 +34358,24 @@
                       ],
                       "description": "null = no CVSS score known: the pages say \"No score\", never 0"
                     },
+                    "resolution_reason": {
+                      "description": "not_affected_version when Vedette closed the finding by itself (a matcher proof, or one of its rules that compares no version); null for a person's own action and for open findings. A string, not an enum: a new reason must not break the list",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "proved_version": {
+                      "description": "A finding closed by proof (resolution_reason set): the version or package release the matcher compared to rule it out, as the device row gives it; null when the closure compared none (name only, age, an open platform question, another platform) or it is not closed by Vedette. An entry a person typed closed it only when this equals the entry",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "software_id": {
+                      "type": "string",
+                      "description": "The device's software row the matcher matched the finding on (the id FindingRow.fix.group and ToFixAction use), stored when it opens, touches or closes the finding; \"\" until the next match reaches an older finding. Never guessed from the product"
+                    },
                     "fix": {
                       "description": "GET /findings only, open findings: the update that fixes it with others; null when there is none to name",
                       "anyOf": [
@@ -35389,6 +35428,9 @@
                     "asset",
                     "kev",
                     "cvss",
+                    "resolution_reason",
+                    "proved_version",
+                    "software_id",
                     "known_version",
                     "fixed_in",
                     "pack",
@@ -35914,6 +35956,24 @@
                       ],
                       "description": "null = no CVSS score known: the pages say \"No score\", never 0"
                     },
+                    "resolution_reason": {
+                      "description": "not_affected_version when Vedette closed the finding by itself (a matcher proof, or one of its rules that compares no version); null for a person's own action and for open findings. A string, not an enum: a new reason must not break the list",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "proved_version": {
+                      "description": "A finding closed by proof (resolution_reason set): the version or package release the matcher compared to rule it out, as the device row gives it; null when the closure compared none (name only, age, an open platform question, another platform) or it is not closed by Vedette. An entry a person typed closed it only when this equals the entry",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "software_id": {
+                      "type": "string",
+                      "description": "The device's software row the matcher matched the finding on (the id FindingRow.fix.group and ToFixAction use), stored when it opens, touches or closes the finding; \"\" until the next match reaches an older finding. Never guessed from the product"
+                    },
                     "fix": {
                       "description": "GET /findings only, open findings: the update that fixes it with others; null when there is none to name",
                       "anyOf": [
@@ -36966,6 +37026,9 @@
                     "asset",
                     "kev",
                     "cvss",
+                    "resolution_reason",
+                    "proved_version",
+                    "software_id",
                     "known_version",
                     "fixed_in",
                     "pack",
@@ -37493,6 +37556,24 @@
                       ],
                       "description": "null = no CVSS score known: the pages say \"No score\", never 0"
                     },
+                    "resolution_reason": {
+                      "description": "not_affected_version when Vedette closed the finding by itself (a matcher proof, or one of its rules that compares no version); null for a person's own action and for open findings. A string, not an enum: a new reason must not break the list",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "proved_version": {
+                      "description": "A finding closed by proof (resolution_reason set): the version or package release the matcher compared to rule it out, as the device row gives it; null when the closure compared none (name only, age, an open platform question, another platform) or it is not closed by Vedette. An entry a person typed closed it only when this equals the entry",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "software_id": {
+                      "type": "string",
+                      "description": "The device's software row the matcher matched the finding on (the id FindingRow.fix.group and ToFixAction use), stored when it opens, touches or closes the finding; \"\" until the next match reaches an older finding. Never guessed from the product"
+                    },
                     "fix": {
                       "description": "GET /findings only, open findings: the update that fixes it with others; null when there is none to name",
                       "anyOf": [
@@ -38545,6 +38626,9 @@
                     "asset",
                     "kev",
                     "cvss",
+                    "resolution_reason",
+                    "proved_version",
+                    "software_id",
                     "known_version",
                     "fixed_in",
                     "pack",
@@ -39084,6 +39168,24 @@
                       ],
                       "description": "null = no CVSS score known: the pages say \"No score\", never 0"
                     },
+                    "resolution_reason": {
+                      "description": "not_affected_version when Vedette closed the finding by itself (a matcher proof, or one of its rules that compares no version); null for a person's own action and for open findings. A string, not an enum: a new reason must not break the list",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "proved_version": {
+                      "description": "A finding closed by proof (resolution_reason set): the version or package release the matcher compared to rule it out, as the device row gives it; null when the closure compared none (name only, age, an open platform question, another platform) or it is not closed by Vedette. An entry a person typed closed it only when this equals the entry",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "software_id": {
+                      "type": "string",
+                      "description": "The device's software row the matcher matched the finding on (the id FindingRow.fix.group and ToFixAction use), stored when it opens, touches or closes the finding; \"\" until the next match reaches an older finding. Never guessed from the product"
+                    },
                     "fix": {
                       "description": "GET /findings only, open findings: the update that fixes it with others; null when there is none to name",
                       "anyOf": [
@@ -40136,6 +40238,9 @@
                     "asset",
                     "kev",
                     "cvss",
+                    "resolution_reason",
+                    "proved_version",
+                    "software_id",
                     "known_version",
                     "fixed_in",
                     "pack",
@@ -48887,6 +48992,67 @@
                         "additionalProperties": false
                       }
                     },
+                    "detected_differs": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "field": {
+                            "type": "string",
+                            "enum": [
+                              "hostname",
+                              "vendor",
+                              "model",
+                              "os",
+                              "kind"
+                            ]
+                          },
+                          "entered": {
+                            "type": "string",
+                            "description": "What the person entered: the value in use"
+                          },
+                          "detected": {
+                            "type": "string",
+                            "description": "What the trusted source reads now"
+                          },
+                          "source": {
+                            "type": "string",
+                            "enum": [
+                              "manual",
+                              "agent",
+                              "snmp",
+                              "nmap",
+                              "passive",
+                              "scan"
+                            ],
+                            "description": "agent, snmp, or passive (the device's own LLDP statement: basis stated)"
+                          },
+                          "basis": {
+                            "type": "string",
+                            "enum": [
+                              "stated",
+                              "guess"
+                            ]
+                          },
+                          "seen_at": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                            "description": "When the source last read that value"
+                          }
+                        },
+                        "required": [
+                          "field",
+                          "entered",
+                          "detected",
+                          "source",
+                          "seen_at"
+                        ],
+                        "additionalProperties": false,
+                        "description": "Never raised against a scan guess or a passive hint, nor when the two only differ by case, a domain, a legal suffix such as Inc., or a version the entered OS leaves out"
+                      },
+                      "description": "INV-47: fields where a trusted source reads another value than the one a person entered, which still wins. The page offers Use detected / Keep mine next to each; empty when none or when the person kept their value for the value now detected"
+                    },
                     "manual_at": {
                       "anyOf": [
                         {
@@ -49047,6 +49213,7 @@
                     "risk",
                     "risk_unavailable",
                     "observations",
+                    "detected_differs",
                     "manual_at",
                     "kinds",
                     "possible_same"
@@ -49277,6 +49444,190 @@
             }
           }
         ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inventory/devices/{id}/differs/{field}/keep": {
+      "post": {
+        "operationId": "inventory_post_inventory_devices_id_differs_field_keep",
+        "summary": "Keep the person's value against the detected one (INV-47): the notice stays hidden until the sources read another value. Nothing else changes. One audit row. 400 bad_field. 404 not_found. 409 detected_changed",
+        "tags": [
+          "inventory"
+        ],
+        "x-stories": [
+          "S-INV-1"
+        ],
+        "x-min-role": "operator",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "field",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "hostname",
+                "vendor",
+                "model",
+                "os",
+                "kind"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "detected": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 253,
+                    "description": "The detected value the person saw. 409 detected_changed when the sources read another value now or it no longer differs: reload"
+                  }
+                },
+                "required": [
+                  "detected"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inventory/devices/{id}/differs/{field}/use": {
+      "post": {
+        "operationId": "inventory_post_inventory_devices_id_differs_field_use",
+        "summary": "Use the detected value: the person's own value of that field is removed, so the sources' reading is the one shown and used (INV-47). One audit row with the person. 400 bad_field. 404 not_found. 409 detected_changed",
+        "tags": [
+          "inventory"
+        ],
+        "x-stories": [
+          "S-INV-1"
+        ],
+        "x-min-role": "operator",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "field",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "hostname",
+                "vendor",
+                "model",
+                "os",
+                "kind"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "detected": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 253,
+                    "description": "The detected value the person saw. 409 detected_changed when the sources read another value now or it no longer differs: reload"
+                  }
+                },
+                "required": [
+                  "detected"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "OK",

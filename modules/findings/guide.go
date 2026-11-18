@@ -235,11 +235,18 @@ type Row struct {
 	ResolvedBy     *string      `json:"resolved_by"`
 	ResolvedAt     *time.Time   `json:"resolved_at"`
 	ResolutionNote *string      `json:"resolution_note"`
-	AcceptedUntil  *string      `json:"accepted_until"` // YYYY-MM-DD, the last day of a risk acceptance
-	History        []historyDoc `json:"history"`
-	Asset          *AssetView   `json:"asset"`
-	Kev            *KevInfo     `json:"kev"`
-	CVSS           *CVSS        `json:"cvss"` // nil: no score known ("No score", never 0; INV-22)
+	// ResolutionReason is ReasonNotAffectedVersion when Vedette closed the finding by itself; null for a person's own action and for open
+	// findings. ProvedVersion says, for such a closure by proof, the version or package release the matcher compared: null when the closure
+	// compared none (name only, age, an open platform question, another platform) or the finding is not closed by proof.
+	ResolutionReason *string `json:"resolution_reason"`
+	ProvedVersion    *string `json:"proved_version"`
+	// SoftwareID is the device's software row the matcher matched the finding on, from the stored column ("" until a match reaches it).
+	SoftwareID    string       `json:"software_id"`
+	AcceptedUntil *string      `json:"accepted_until"` // YYYY-MM-DD, the last day of a risk acceptance
+	History       []historyDoc `json:"history"`
+	Asset         *AssetView   `json:"asset"`
+	Kev           *KevInfo     `json:"kev"`
+	CVSS          *CVSS        `json:"cvss"` // nil: no score known ("No score", never 0; INV-22)
 	// Fix is the one update that fixes this finding together with the device's other open findings of the same software:
 	// set on the list only, for an open finding; nil when Vedette cannot name one.
 	Fix *RowFix `json:"fix"`
@@ -333,6 +340,13 @@ func newRow(r Record, a *AssetView, k *KevInfo, c *CVSS) Row {
 	}
 	if r.ResolutionNote != "" {
 		row.ResolutionNote = &r.ResolutionNote
+	}
+	row.SoftwareID = r.SoftwareID
+	if r.ResolutionReason != "" {
+		row.ResolutionReason = &r.ResolutionReason
+		if r.ProvedVersion != "" {
+			row.ProvedVersion = &r.ProvedVersion
+		}
 	}
 	if !r.AcceptedUntil.IsZero() {
 		d := r.AcceptedUntil.UTC().Format(time.DateOnly)

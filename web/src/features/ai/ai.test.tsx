@@ -60,6 +60,7 @@ describe('ai: assistant (S-AI-5, S-AI-6)', () => {
 
   it('suggested question: the AI block is labelled with model and profile, the table is computed from inventory, tools are read-only', async () => {
     renderApp('/assistant')
+    await userEvent.click(await screen.findByText('Suggested questions')) // folded until opened
     await enabled(await screen.findByRole('button', { name: 'Which machines still expose RDP?' }))
     await userEvent.click(screen.getByRole('button', { name: 'Which machines still expose RDP?' }))
     const region = await screen.findByRole('region', { name: /Answer to: Which machines still expose RDP/ })

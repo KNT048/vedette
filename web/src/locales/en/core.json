@@ -573,6 +573,8 @@
       "inventory.set_software_version": "Change the version of software on a device",
       "inventory.correct_os": "Correct the operating system of a device",
       "inventory.clear_os": "Clear a corrected operating system",
+      "inventory.use_detected": "Use a detected value instead of the one entered",
+      "inventory.keep_entered": "Keep an entered value against a detected one",
       "inventory.correct_software": "Correct software a scan or agent reported",
       "inventory.clear_software_correction": "Clear a software correction",
       "inventory.mark_not_installed": "Say software a scan or agent reported is not installed",

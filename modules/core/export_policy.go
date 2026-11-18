@@ -96,7 +96,7 @@ var exportPolicy = map[string]tablePolicy{
 	"feeds_template":         {export: "cve"},
 	"feeds_vuln":             {export: "cve vendor product product_key name description required_action date_added due_date ransomware epss epss_7d_ago has_template source_id updated_at kev_announced_at", json: "links"},
 	"feeds_weekly_answer":    {export: "key answer user_id answered_at device_added device_id have_since"},
-	"fnd_finding":            {export: "id asset_id cve status severity confidence basis first_seen last_seen resolved_by resolved_at resolution_note resolution_reason accepted_until", json: "evidence"}, // accepted_until: the end of an accepted risk
+	"fnd_finding":            {export: "id asset_id cve status severity confidence basis first_seen last_seen resolved_by resolved_at resolution_note resolution_reason accepted_until software_id proved_version", json: "evidence"}, // accepted_until: the end of an accepted risk
 	"fnd_finding_history":    {export: "id finding_id ts user action note"},
 	"fnd_version_needed":     {export: "asset_id software_id software version cves updated_at"},
 	"fnd_unchecked":          {export: "asset_id software_id software version source reason cve updated_at nvd_pending answer"}, // INV-4d, #910
@@ -114,8 +114,9 @@ var exportPolicy = map[string]tablePolicy{
 	"inv_setting":            {export: "key updated_at updated_by", json: "value"},
 	"inv_software":           {export: "id asset_id display vendor product version cpe source confidence seen_at packaged pkg_version pkg_source corrects set_by not_installed"},
 	"inv_source":             {export: "source first_seen"},
-	"inv_separate":           {export: "a b decided_by decided_at"},         // pairs a person kept separate
-	"inv_hand_seen":          {export: "asset_id mac first_seen last_seen"}, // #829: MACs seen at a hand-added device's address
+	"inv_detected_keep":      {export: "asset_id field detected kept_at kept_by"}, // detected values a person chose not to switch to
+	"inv_separate":           {export: "a b decided_by decided_at"},               // pairs a person kept separate
+	"inv_hand_seen":          {export: "asset_id mac first_seen last_seen"},       // #829: MACs seen at a hand-added device's address
 	"inv_software_kev":       {export: "software_id kev_key"},
 	"mit_ai_output":          {export: "finding_id skill model profile created_at activity_id", json: "payload"},
 	"mit_applied":            {export: "finding_id item ts user"},

@@ -16,6 +16,7 @@ import { AgentInstall } from './InstallAgent'
 import { useAgents } from './api'
 import { TurnOnModule } from './Inline'
 import { ImportForm } from './ImportDialog'
+import { dayOf } from '@/lib/format'
 
 // "Add a device" (#849): ONE dialog with every way a device gets into the list. Manual is first and chosen on open, so the S-INV-2
 // "three clicks" path stays three clicks; ?add=<method> opens it on a method (old ?tab=add, the device page's "Add SNMP / osquery").
@@ -46,7 +47,7 @@ function useNeeds(): Record<Method, Need> {
 /** osquery (S-INV-4): the person picks the operating system first, then sees the one install command; the manual way stays folded. */
 function OsqueryMethod({ onCreated }: { onCreated: (on: boolean) => void }) {
   const { t } = useTranslation('inventory')
-  const day = new Date().toISOString().slice(0, 10)
+  const day = dayOf(new Date().toISOString())
   return (
     <div className="grid min-w-0 gap-3">
       <AgentInstall tokenName={t('addDialog.osquery.tokenName', { day })} onCreated={onCreated} />

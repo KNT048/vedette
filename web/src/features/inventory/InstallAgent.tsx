@@ -87,7 +87,7 @@ function InstallFlow({ data, tokenName, known, onCreated }: { data: AgentsRespon
         </p>
       ) : <OsPicker platform={platform} onChange={setPlatform} />}
       {run ? <p className="text-meta text-muted">{t('agents.serverOnly')}</p> : null}
-      {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} actions={<Button size="sm" onClick={() => { asked.current = true; make() }}>{t('common:retry')}</Button>} /> : null}
+      {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} actions={<Button size="sm" busy={create.isPending} busyLabel={t('common:busy.creating')} onClick={() => { asked.current = true; make() }}>{t('common:retry')}</Button>} /> : null}
       <BusyNote busy={create.isPending}>{t('agents.install.preparing')}</BusyNote>
       {token && run ? (
         <>

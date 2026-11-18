@@ -114,7 +114,7 @@ export function SnmpSourceBody({ d, src }: { d: DeviceDetail; src: SnmpSource })
           <div className="grid min-w-0 gap-3 [&>*]:min-w-0" data-testid="snmp-state">
             {list.data && !list.data.ready ? <Notice tone="warn" role="status" className="mb-0" title={t('deviceSnmp.notReady')}>{list.data.message}</Notice> : null}
             <StateView d={d} s={q.data} onEdit={() => src.setEditing(true)} compact />
-            <BusyNote busy={act.check.isPending}>{t('deviceSnmp.check.pending', { ip: q.data.read_from ?? ip })}</BusyNote>
+            <BusyNote busy={act.check.isPending}>{(q.data.read_from ?? ip) ? t('deviceSnmp.check.pending', { ip: q.data.read_from ?? ip }) : t('deviceSnmp.check.pendingNoIp')}</BusyNote>
             {checked && !act.check.isPending ? <Notice tone="danger" role="alert" className="mb-0" title={t('deviceSnmp.check.failed')}>{checked.message}</Notice> : null}
           </div>
         )}
@@ -323,7 +323,7 @@ export function SnmpForm({ ip, s, others, switchOff, saving, save, onCancel, onL
       else if (!isPrivateCidr(`${rf}/32`)) e.read_from = t('deviceSnmp.error.readFromNotLocal', { ip: rf, ranges: LOCAL_RANGE_NAMES })
     }
     if (copying) {
-      if (target !== ip) e.copy = t('deviceSnmp.form.copyOwnIpOnly', { ip, target })
+      if (target !== ip) e.copy = t(ip ? 'deviceSnmp.form.copyOwnIpOnly' : 'deviceSnmp.form.copyOwnIpOnlyNoIp', { ip, target })
       return e
     }
     const pw = (v: string, keep: boolean) => (!v ? (keep ? undefined : moved ? t('deviceSnmp.error.secretAgain') : t('deviceSnmp.error.passwordRequired'))
@@ -378,13 +378,13 @@ export function SnmpForm({ ip, s, others, switchOff, saving, save, onCancel, onL
   return (
     <form onSubmit={submit} className="grid gap-4" noValidate>
       {lead}
-      <Field label={t('deviceSnmp.form.readFrom')} htmlFor="snmp-read-from" hint={rich('read_from') ? undefined : t('deviceSnmp.form.readFromHint', { ip })} info={t('deviceSnmp.form.readFromInfo')} error={fieldErr('read_from')}>
+      <Field label={t('deviceSnmp.form.readFrom')} htmlFor="snmp-read-from" hint={rich('read_from') ? undefined : ip ? t('deviceSnmp.form.readFromHint', { ip }) : t('deviceSnmp.form.readFromHintNoIp')} info={t('deviceSnmp.form.readFromInfo')} error={fieldErr('read_from')}>
         <Input id="snmp-read-from" value={readFrom} maxLength={15} inputMode="decimal" autoComplete="off" placeholder={ip} className="max-w-60 tabular-nums"
           onChange={(e) => { setReadFrom(e.target.value); set('read_from')(); set('copy')() }} aria-invalid={invalid('read_from') || undefined} aria-describedby={rich('read_from') ? 'snmp-read-from-error' : undefined} />
       </Field>
       {richErr('read_from', 'snmp-read-from')}
       {others.length ? (
-        <Field label={t('deviceSnmp.form.copy')} htmlFor="snmp-copy" hint={rich('copy') ? undefined : copying ? t('deviceSnmp.form.copyHint', { ip }) : t('deviceSnmp.form.copyNone')} error={fieldErr('copy')}>
+        <Field label={t('deviceSnmp.form.copy')} htmlFor="snmp-copy" hint={rich('copy') ? undefined : copying ? ip ? t('deviceSnmp.form.copyHint', { ip }) : t('deviceSnmp.form.copyHintNoIp') : t('deviceSnmp.form.copyNone')} error={fieldErr('copy')}>
           <Select id="snmp-copy" value={copy} onChange={(e) => { setCopy(e.target.value); setErrors({}) }} aria-invalid={invalid('copy') || undefined} aria-describedby={rich('copy') ? 'snmp-copy-error' : undefined}>
             <option value="">{t('deviceSnmp.form.copyType')}</option>
             {others.map((o) => <option key={o.device_id} value={o.device_id}>{t('deviceSnmp.form.copyOption', { name: o.name || o.read_from, ip: o.read_from, version: o.version })}</option>)}
@@ -443,7 +443,7 @@ export function SnmpForm({ ip, s, others, switchOff, saving, save, onCancel, onL
         </>
       )}
       {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
-      <p className="text-meta text-muted" data-testid="snmp-consent">{t(switchOff ? 'deviceSnmp.form.consentOff' : 'deviceSnmp.form.consentOn', { ip: target })}</p>
+      <p className="text-meta text-muted" data-testid="snmp-consent">{t(`deviceSnmp.form.${switchOff ? 'consentOff' : 'consentOn'}${target ? '' : 'NoIp'}`, { ip: target })}</p>
       <DialogFooter>
         <Button onClick={onCancel}>{t('common:cancel')}</Button>
         <Button type="submit" variant="primary" busy={saving} busyLabel={t('common:busy.saving')}>{submitLabel ?? (setUp ? t('deviceSnmp.form.save') : t('deviceSnmp.form.create'))}</Button>

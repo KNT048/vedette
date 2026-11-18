@@ -69,9 +69,9 @@ describe('Device page: the Sources list is compact', () => {
 describe('Device page: Install osquery goes straight to this device', () => {
   it('a Linux device: its own command, copy button, no Add a device form, the manual way folded', async () => {
     enableModule('agent-intake', true)
-    setOs('a-nas02', 'Ubuntu 22.04 LTS')
+    setOs('a-srvad', 'Ubuntu 22.04 LTS')
     const user = userEvent.setup()
-    renderApp('/devices/a-nas02', { role: 'admin' })
+    renderApp('/devices/a-srvad', { role: 'admin' })
     const agent = item(await sources(), 'Agent (osquery or Wazuh)')
     await user.click(within(agent).getByRole('button', { name: 'Install osquery' }))
     const dlg = await screen.findByRole('dialog', undefined, T)
@@ -91,9 +91,9 @@ describe('Device page: Install osquery goes straight to this device', () => {
 
   it('a Windows device gets the PowerShell command', async () => {
     enableModule('agent-intake', true)
-    setOs('a-nas02', 'Microsoft Windows Server 2025')
+    setOs('a-srvad', 'Microsoft Windows Server 2025')
     const user = userEvent.setup()
-    renderApp('/devices/a-nas02', { role: 'admin' })
+    renderApp('/devices/a-srvad', { role: 'admin' })
     await user.click(within(item(await sources(), 'Agent (osquery or Wazuh)')).getByRole('button', { name: 'Install osquery' }))
     const dlg = await screen.findByRole('dialog', undefined, T)
     expect(await within(dlg).findByText(/-Token 'vdt_osquery_/, undefined, T)).toBeInTheDocument()
@@ -101,9 +101,9 @@ describe('Device page: Install osquery goes straight to this device', () => {
 
   it('an unknown system is asked for, and only then is the command shown', async () => {
     enableModule('agent-intake', true)
-    setOs('a-nas02', null)
+    setOs('a-srvad', null)
     const user = userEvent.setup()
-    renderApp('/devices/a-nas02', { role: 'admin' })
+    renderApp('/devices/a-srvad', { role: 'admin' })
     await user.click(within(item(await sources(), 'Agent (osquery or Wazuh)')).getByRole('button', { name: 'Install osquery' }))
     const dlg = await screen.findByRole('dialog', undefined, T)
     expect(await within(dlg).findByRole('button', { name: 'Windows' }, T)).toBeInTheDocument()
@@ -135,6 +135,21 @@ describe('Add a device', () => {
     expect(snmp.state).not.toBe('not_set_up')
   })
 
+  it('SNMP with no IP yet: no sentence shows a blank address (no ", ." and no double space)', async () => {
+    enableModule('sensor-active', true)
+    const user = userEvent.setup()
+    renderApp('/devices?add=snmp', { role: 'admin' })
+    const dlg = await screen.findByRole('dialog', { name: 'Add a device' }, T)
+    await within(dlg).findByLabelText('Community', undefined, T)
+    expect(within(dlg).getByText("Leave empty to read the IP you enter above.")).toBeInTheDocument()
+    const consent = within(dlg).getByTestId('snmp-consent')
+    expect(consent).toHaveTextContent('once you enter its IP')
+    expect(dlg.textContent).not.toMatch(/, \.|\s{2,}| to  in /)
+    await user.type(within(dlg).getByLabelText('Device IP address'), '192.168.10.93')
+    expect(within(dlg).getByText("Leave empty to read the device's IP, 192.168.10.93.")).toBeInTheDocument()
+    expect(within(dlg).getByTestId('snmp-consent')).toHaveTextContent('SNMP questions to 192.168.10.93 in the scan window')
+  })
+
   it('SNMP: nothing is created while the address or the product is missing', async () => {
     enableModule('sensor-active', true)
     const user = userEvent.setup()
@@ -161,5 +176,42 @@ describe('Add a device', () => {
     expect(within(dlg).queryByRole('radiogroup', { name: 'How to add it' })).toBeNull() // the only copy of the token stays on screen
     await user.click(within(dlg).getByRole('button', { name: 'Windows' }))
     expect(await within(dlg).findByText(/-Token 'vdt_osquery_/, undefined, T)).toBeInTheDocument()
+  })
+})
+
+describe('Device page: the Agent row knows what an agent can run on', () => {
+  const AGENT = 'Agent (osquery or Wazuh)'
+  const HINT = 'Agents run on computers and servers.'
+
+  it('a firewall: no Install osquery; one line says agents are for computers and servers and SNMP reads the firmware; Set up opens the SNMP settings in place', async () => {
+    enableModule('agent-intake', true)
+    enableModule('sensor-active', true)
+    const user = userEvent.setup()
+    const r = await api('POST', '/devices', { catalog_id: 'fortigate', ip: '192.168.10.94' })
+    const id = ((await r.json()) as { id: string }).id
+    renderApp(`/devices/${id}`, { role: 'admin' })
+    const agent = item(await sources(), AGENT)
+    expect(await within(agent).findByTestId('agent-kind-hint', undefined, T)).toHaveTextContent(`${HINT} For this device, SNMP reads the firmware version.`)
+    expect(within(agent).queryByRole('button', { name: 'Install osquery' })).toBeNull()
+    await user.click(await within(agent).findByRole('button', { name: 'Set up' }, T))
+    const dlg = await screen.findByRole('dialog', undefined, T)
+    expect(within(dlg).getByLabelText('Community')).toBeInTheDocument()
+  })
+
+  it('a server keeps Install osquery and gets no hint', async () => {
+    enableModule('agent-intake', true)
+    renderApp('/devices/a-srvad', { role: 'admin' })
+    const agent = item(await sources(), AGENT)
+    expect(within(agent).getByRole('button', { name: 'Install osquery' })).toBeInTheDocument()
+    expect(within(agent).queryByTestId('agent-kind-hint')).toBeNull()
+  })
+
+  it('an unknown kind keeps Install osquery and says what agents are for', async () => {
+    enableModule('agent-intake', true)
+    assetsStore.update((l) => l.map((a) => (a.id === 'a-srvad' ? { ...a, kind: 'unknown' } : a)))
+    renderApp('/devices/a-srvad', { role: 'admin' })
+    const agent = item(await sources(), AGENT)
+    expect(within(agent).getByRole('button', { name: 'Install osquery' })).toBeInTheDocument()
+    expect(within(agent).getByTestId('agent-kind-hint')).toHaveTextContent(HINT)
   })
 })

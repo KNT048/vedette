@@ -17,7 +17,7 @@ import { AgentQuietNote } from './AgentQuiet'
 import { useScanningHistory } from '@/features/scanning/api'
 import { inRanges } from './AddToScopeDialog'
 import { nameOf } from './nameOf'
-import { kindLabel } from '@/lib/deviceTypes'
+import { actsAs, kindLabel } from '@/lib/deviceTypes'
 import { toast } from 'sonner'
 import { errMsg } from './kinds'
 import type { DeviceDetail } from './types'
@@ -41,6 +41,11 @@ function feedsOf(d: DeviceDetail): Map<Feed, string | null> {
   for (const s of d.asset.services) add(s.source, null)
   return out
 }
+
+/** Kinds an agent runs on: computers and servers. Network gear (firewall, switch, router, access point, printer, phone, camera,
+ *  NAS and the like) cannot run one; SNMP reads its firmware version. Any other kind (unknown, web) is not decided here. */
+const COMPUTER_KINDS = new Set(['pc', 'server'])
+const GEAR_KINDS = new Set(['firewall', 'router', 'switch', 'ap', 'printer', 'camera', 'nvr', 'nas', 'iot'])
 
 const IPV4 = /^\d{1,3}(\.\d{1,3}){3}$/
 
@@ -130,6 +135,9 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
   const boxUrl = useAgents(admin && agentsOn && agentQuiet !== null).data?.server_url
 
   const ownState = snmpOn && admin && !!ip
+  const family = actsAs(a.kind)
+  const gear = GEAR_KINDS.has(family) && !COMPUTER_KINDS.has(family)
+  const undecided = !gear && !COMPUTER_KINDS.has(family)
   const action = (f: Feed): React.ReactNode => {
     if (f === 'snmp') {
       if (!snmpOn) return <TurnOnModule id="sensor-active" reason={t('sources.snmp.off')} />
@@ -151,10 +159,14 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
     if (f === 'agent') {
       if (!agentsOn) return <TurnOnModule id="agent-intake" reason={t('sources.agent.off')} />
       if (!admin) return <span className="text-meta text-muted">{t('sources.adminOnly')}</span>
+      if (feeds.has('agent')) return <Link to="/devices/setup?tab=agents" className={cn(buttonVariants({ size: 'sm' }))}>{t('sources.agent.manage')}</Link>
       // Installing osquery opens the install steps for this device; managing tokens stays on the agents page.
-      return feeds.has('agent')
-        ? <Link to="/devices/setup?tab=agents" className={cn(buttonVariants({ size: 'sm' }))}>{t('sources.agent.manage')}</Link>
-        : <Button size="sm" onClick={() => setEnrol(true)}>{t('sources.agent.add')}</Button>
+      const install = <Button size="sm" variant={gear ? undefined : 'primary'} onClick={() => setEnrol(true)}>{t('sources.agent.add')}</Button>
+      if (!gear && !undecided) return install
+      // The same SNMP set-up the SNMP row opens, in place, once the device can be read (SNMP on, an IP, approved, not set up yet).
+      const snmpHere = snmpOn && !!ip && a.approved && snmpSetUp === false
+      const setUp = snmpHere ? <Button size="sm" variant="primary" onClick={() => snmp.setEditing(true)}>{t('sources.snmp.setUp')}</Button> : null
+      return <span className="flex flex-wrap items-center gap-2">{setUp}{undecided ? install : null}</span>
     }
     return null
   }
@@ -195,6 +207,7 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
               {f === 'snmp' && ownState ? <SnmpSourceBody d={d} src={snmp} /> : null}
               {f === 'agent' && agentQuiet && (agentQuiet.state === 'quiet' || agentQuiet.state === 'never_reported') && agentQuiet.os
                 ? <AgentQuietNote state={agentQuiet.state} since={agentQuiet.quiet_since} os={agentQuiet.os} box={boxUrl} /> : null}
+              {f === 'agent' && agentsOn && !feeds.has('agent') && (gear || undecided) ? <p className="text-caption text-muted" data-testid="agent-kind-hint">{t(gear ? 'sources.agent.gearHint' : 'sources.agent.unknownHint')}</p> : null}
               {f === 'agent' && agentsOn ? <p className="text-caption text-muted">{t('sources.agent.how')}</p> : null}
             </li>
           )

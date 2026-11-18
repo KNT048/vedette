@@ -40,17 +40,17 @@ type Config struct {
 	// gets a "needs the domain fence" line and nothing more than the by-name checks.
 	DomainFence DomainFence
 	// IPFetch gets the proof file of a typed IP (INV-35); nil: the real one (no proxy, no redirect off the IP, a capped body).
-	IPFetch  IPFetcher
-	DataDir  string         // the box data directory: Greenbone's preflight measures the free space of its filesystem (INV-25)
-	Probes   ProbeLog       // nil: the template and web steps do not run (nothing is sent without a probe log row, LEGAL §3)
-	Matcher  Matcher        // nil: identified services are not compared with exploited CVEs, and the page says so (INV-20)
-	Outside  *InternetDB    // nil: "Check what Shodan has seen" answers 501 (INV-21); cmd/vedette wires Shodan InternetDB
-	Safety   ScanSafety     // nil: the module's own rates and no exclusion; cmd/vedette wires the scan module's shared safety block (INV-31, #850)
+	IPFetch IPFetcher
+	DataDir string      // the box data directory: Greenbone's preflight measures the free space of its filesystem (INV-25)
+	Probes  ProbeLog    // nil: the template and web steps do not run (nothing is sent without a probe log row, LEGAL §3)
+	Matcher Matcher     // nil: identified services are not compared with exploited CVEs, and the page says so (INV-20)
+	Outside *InternetDB // nil: "Check what Shodan has seen" answers 501 (INV-21); cmd/vedette wires Shodan InternetDB
+	Safety  ScanSafety  // nil: the module's own rates and no exclusion; cmd/vedette wires the scan module's shared safety block (INV-31, #850)
 	// Window nil: scheduled scans may start at any time; cmd/vedette wires the scan window of the shared safety block (INV-36).
 	Window ScanWindow
 	// Alert sends what a scheduled scan found new to the alert channels (INV-36); nil: nothing is sent. cmd/vedette wires notify's
 	// system notice path.
-	Alert func(ctx context.Context, a Alert) error
+	Alert    func(ctx context.Context, a Alert) error
 	Location *time.Location // the day of a snapshot and the times of messages when Zone gives none (nil: time.Local)
 	// Zone is the organization's time zone, read at every use (a change applies at once); nil, or a nil answer, is Location. The day of
 	// a snapshot is a day of the customer's calendar: two scans of one local day are one snapshot, never two that read as the same day.

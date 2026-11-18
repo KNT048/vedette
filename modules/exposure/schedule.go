@@ -408,7 +408,7 @@ func (s *Service) RunSchedule(ctx context.Context) error {
 		}
 		s.enqueue(&queuedScan{targetID: t.ID, value: t.Value, by: SystemUser, scheduled: true, state: st})
 	}
-	s.dispatch()
+	s.dispatch() //nolint:contextcheck // a queued scan runs on the service's own context, not on the tick's
 	return nil
 }
 

@@ -471,7 +471,7 @@ func (s *Service) finish(ctx context.Context, run *scanRun, user string, t Targe
 		s.alertChanges(ctx, t, q.prev, run.snap)
 	}
 	close(run.done)
-	s.dispatch() // the next scan that waits
+	s.dispatch() //nolint:contextcheck // the next queued scan runs on the service's own context, not on this run's
 }
 
 func (s *Service) runView(run *scanRun) ScanRun {

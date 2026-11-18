@@ -527,6 +527,7 @@
       "exposure.greenbone_sync": "Update the OpenVAS feed (weekly)",
       "exposure.terms_accept": "Accept the testing terms of an exposure target",
       "exposure.terms_revoke": "Withdraw the testing terms of an exposure target",
+      "exposure.schedule": "Change the scan schedule of an exposure target",
       "exposure.outside_view": "Ask Shodan what it has seen on a public address",
       "exposure.scan": "Scan public address",
       "exposure.target_add": "Add public address to check",

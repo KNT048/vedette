@@ -60,7 +60,7 @@ export const Safety = z.object({
   window: z.object({
     days: z.array(day).describe('Empty only on a box whose discovery was saved off without a day; a save needs one'), from: hhmm, to: hhmm.describe('Earlier than from: crosses midnight'),
     time_zone: z.string().describe('IANA zone the window is read in (the organization time zone); read-only'),
-  }).describe('One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now, Check this device now and external scans are not bound by it'),
+  }).describe('One window for discovery, version scans, SNMP rounds, scheduled vulnerability checks and the scheduled scans of public targets. Scan now and Check this device now are not bound by it'),
   speed: z.object({
     packets_per_s: z.number().int().min(1).max(1000).describe('nmap and SNMP (inventory active.rate)'),
     requests_per_s: z.number().int().min(1).max(20).describe('nuclei on LAN devices (was scan config rate)'),

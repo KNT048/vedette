@@ -224,7 +224,7 @@ func (s *Service) Scan(ctx context.Context, user, id string) (Snapshot, error) {
 // ScanNow scans one target now and waits for the snapshot: it is StartScan followed by waiting for the run, for callers that
 // are not a page (tests, a schedule). The page calls StartScan and polls the run (POST …/scan answers 202).
 func (s *Service) ScanNow(ctx context.Context, who Actor, id, noticeVersion string) (Snapshot, error) {
-	run, err := s.startScan(ctx, who, id, noticeVersion)
+	run, _, err := s.startScan(ctx, who, id, noticeVersion, false)
 	if err != nil {
 		return Snapshot{}, err
 	}
@@ -245,18 +245,26 @@ func (s *Service) ScanNow(ctx context.Context, who Actor, id, noticeVersion stri
 // (LEGAL §3). Without a runner the answer is 501 after the gate. When the only thing missing is the commitment and who.Admin is set,
 // this press is the confirmation: it needs two-step sign-in and the notice version the page showed (confirmByScan), then the
 // gate runs again with the commitment in place. For anyone else the answer is 400 commitment_required.
+//
+// INV-36: when another scan runs or others wait, a scan that passed these checks waits in the box's queue instead of 409 busy: the
+// answer is the run with status queued and the queue, the checks run again right before it starts, and it is audited as queued.
 func (s *Service) StartScan(ctx context.Context, who Actor, id, noticeVersion string) (ScanRun, error) {
-	run, err := s.startScan(ctx, who, id, noticeVersion)
+	run, queued, err := s.startScan(ctx, who, id, noticeVersion, true)
 	if err != nil {
 		return ScanRun{}, err
+	}
+	if queued != nil {
+		return *queued, nil
 	}
 	return s.runView(run), nil
 }
 
-func (s *Service) startScan(ctx context.Context, who Actor, id, noticeVersion string) (*scanRun, error) {
+// startScan is the checks and the start of a scan; with queue, a scan that cannot start now because another runs or others wait is
+// queued (the second result) rather than refused.
+func (s *Service) startScan(ctx context.Context, who Actor, id, noticeVersion string, queue bool) (*scanRun, *ScanRun, error) {
 	t, reason, err := s.gate(ctx, who.Email, id)
 	if err != nil {
-		return nil, fmt.Errorf("exposure: scanning: %w", err)
+		return nil, nil, fmt.Errorf("exposure: scanning: %w", err)
 	}
 	if reason == BlockedNoCommitment && who.Admin {
 		if err = s.confirmByScan(ctx, who, t, noticeVersion); err == nil {
@@ -264,21 +272,32 @@ func (s *Service) startScan(ctx context.Context, who Actor, id, noticeVersion st
 		}
 		if err != nil {
 			s.auditFailedScan(ctx, who.Email, t, err)
-			return nil, fmt.Errorf("exposure: scanning %s: %w", t.Value, err)
+			return nil, nil, fmt.Errorf("exposure: scanning %s: %w", t.Value, err)
 		}
 	}
 	if reason == "" { // INV-31: the shared block is read before anything is sent, for every kind of target
 		if err = s.checkSafety(ctx, t); err != nil {
 			s.auditFailedScan(ctx, who.Email, t, err)
-			return nil, fmt.Errorf("exposure: scanning %s: %w", t.Value, err)
+			return nil, nil, fmt.Errorf("exposure: scanning %s: %w", t.Value, err)
 		}
 	}
-	run, err := s.begin(ctx, who.Email, t, reason, nil)
+	if reason == "" && queue { // INV-36: another scan runs or others wait: this one waits for its turn
+		v, err := s.queueIfBusy(who.Email, t)
+		if err != nil {
+			s.auditFailedScan(ctx, who.Email, t, err)
+			return nil, nil, fmt.Errorf("exposure: scanning %s: %w", t.Value, err)
+		}
+		if v != nil {
+			s.auditScanRow(ctx, who.Email, t.Value, "queued: it starts when the scans before it have ended")
+			return nil, v, nil
+		}
+	}
+	run, err := s.begin(ctx, who.Email, t, reason, nil, nil)
 	if err != nil {
 		s.auditFailedScan(ctx, who.Email, t, err)
-		return nil, fmt.Errorf("exposure: scanning %s: %w", t.Value, err)
+		return nil, nil, fmt.Errorf("exposure: scanning %s: %w", t.Value, err)
 	}
-	return run, nil
+	return run, nil, nil
 }
 
 // checkSafety reads the shared safety block before a scan (INV-31): an unreadable block refuses every scan (503, nothing is sent); an IP

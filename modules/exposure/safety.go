@@ -7,8 +7,8 @@ import (
 
 // The shared safety block of Settings › Scanning (#850, INV-31): the speed and the exclusion list a person sets once for every
 // engine that sends anything. Inventory stores them (GET /scanning shows them); cmd/vedette hands them to exposure through
-// ScanSafety, so exposure never reads another module's tables. The time window does not apply here: a scan of a public target runs
-// only when a person presses Scan now, as the LAN's Scan now does.
+// ScanSafety, so exposure never reads another module's tables. The time window does not apply to a person's Scan now, as the LAN's
+// Scan now; a scheduled scan of a public target starts only inside it (ScanWindow, INV-36).
 
 // Safety is what exposure takes from the shared block.
 type Safety struct {

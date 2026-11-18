@@ -70,8 +70,9 @@ export const Cvss = z.object({
 export const FindingRow = Finding.extend({
   asset: FindingAsset.nullable(), kev: KevInfo.nullable().describe('Read from KEV, not from the project recommendation pack'),
   cvss: Cvss.nullable().describe('null = no CVSS score known: the pages say "No score", never 0'),
-  resolution_reason: z.literal('not_affected_version').nullable().describe('not_affected_version when Vedette closed the finding by itself (the matcher proved the device\'s version or package release is outside the affected range, e.g. after a person entered the release); null for a person\'s own action and for open findings'),
-  software_id: z.string().describe('GET /findings?asset= only: the device\'s software row the finding rests on, the id FindingRow.fix.group and ToFixAction use, open or closed; "" when none is known and on the all-devices list'),
+  resolution_reason: z.string().nullable().describe('not_affected_version when Vedette closed the finding by itself (a matcher proof, or one of its rules that compares no version); null for a person\'s own action and for open findings. A string, not an enum: a new reason must not break the list'),
+  proved_version: z.string().nullable().describe('A finding closed by proof (resolution_reason set): the version or package release the matcher compared to rule it out, as the device row gives it; null when the closure compared none (name only, age, an open platform question, another platform) or it is not closed by Vedette. An entry a person typed closed it only when this equals the entry'),
+  software_id: z.string().describe('The device\'s software row the matcher matched the finding on (the id FindingRow.fix.group and ToFixAction use), stored when it opens, touches or closes the finding; "" until the next match reaches an older finding. Never guessed from the product'),
   fix: RowFix.nullable().optional().describe('GET /findings only, open findings: the update that fixes it with others; null when there is none to name'),
 })
 

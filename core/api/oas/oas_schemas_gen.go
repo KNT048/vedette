@@ -66726,19 +66726,24 @@ type FindingsGetFindingsIDOK struct {
 	// known_version.seen_at says when the version was reported.
 	LastSeen time.Time `json:"last_seen"`
 	// Null = no recommendation confirmed by Vedette maintainers yet.
-	Pack           NilFindingsGetFindingsIDOKPack `json:"pack"`
+	Pack NilFindingsGetFindingsIDOKPack `json:"pack"`
+	// A finding closed by proof (resolution_reason set): the version or package release the matcher
+	// compared to rule it out, as the device row gives it; null when the closure compared none (name only,
+	// age, an open platform question, another platform) or it is not closed by Vedette. An entry a person
+	// typed closed it only when this equals the entry.
+	ProvedVersion  NilString                      `json:"proved_version"`
 	Recheck        FindingsGetFindingsIDOKRecheck `json:"recheck"`
 	ResolutionNote NilString                      `json:"resolution_note"`
-	// Not_affected_version when Vedette closed the finding by itself (the matcher proved the device's
-	// version or package release is outside the affected range, e.g. after a person entered the release);
-	// null for a person's own action and for open findings.
+	// Not_affected_version when Vedette closed the finding by itself (a matcher proof, or one of its rules
+	// that compares no version); null for a person's own action and for open findings. A string, not an
+	// enum: a new reason must not break the list.
 	ResolutionReason NilString                       `json:"resolution_reason"`
 	ResolvedAt       NilDateTime                     `json:"resolved_at"`
 	ResolvedBy       NilString                       `json:"resolved_by"`
 	Severity         FindingsGetFindingsIDOKSeverity `json:"severity"`
-	// GET /findings?asset= only: the device's software row the finding rests on, the id
-	// FindingRow.fix.group and ToFixAction use, open or closed; "" when none is known and on the
-	// all-devices list.
+	// The device's software row the matcher matched the finding on (the id FindingRow.fix.group and
+	// ToFixAction use), stored when it opens, touches or closes the finding; "" until the next match
+	// reaches an older finding. Never guessed from the product.
 	SoftwareID string                        `json:"software_id"`
 	Status     FindingsGetFindingsIDOKStatus `json:"status"`
 }
@@ -66851,6 +66856,11 @@ func (s *FindingsGetFindingsIDOK) GetLastSeen() time.Time {
 // GetPack returns the value of Pack.
 func (s *FindingsGetFindingsIDOK) GetPack() NilFindingsGetFindingsIDOKPack {
 	return s.Pack
+}
+
+// GetProvedVersion returns the value of ProvedVersion.
+func (s *FindingsGetFindingsIDOK) GetProvedVersion() NilString {
+	return s.ProvedVersion
 }
 
 // GetRecheck returns the value of Recheck.
@@ -67001,6 +67011,11 @@ func (s *FindingsGetFindingsIDOK) SetLastSeen(val time.Time) {
 // SetPack sets the value of Pack.
 func (s *FindingsGetFindingsIDOK) SetPack(val NilFindingsGetFindingsIDOKPack) {
 	s.Pack = val
+}
+
+// SetProvedVersion sets the value of ProvedVersion.
+func (s *FindingsGetFindingsIDOK) SetProvedVersion(val NilString) {
+	s.ProvedVersion = val
 }
 
 // SetRecheck sets the value of Recheck.
@@ -70754,18 +70769,23 @@ type FindingsGetFindingsOKItemsItem struct {
 	// When Vedette last matched it: each re-match (after a change to the device's software, and every
 	// hour) or scan that still finds it moves it. Not when the device or its software was last seen;
 	// known_version.seen_at says when the version was reported.
-	LastSeen       time.Time `json:"last_seen"`
+	LastSeen time.Time `json:"last_seen"`
+	// A finding closed by proof (resolution_reason set): the version or package release the matcher
+	// compared to rule it out, as the device row gives it; null when the closure compared none (name only,
+	// age, an open platform question, another platform) or it is not closed by Vedette. An entry a person
+	// typed closed it only when this equals the entry.
+	ProvedVersion  NilString `json:"proved_version"`
 	ResolutionNote NilString `json:"resolution_note"`
-	// Not_affected_version when Vedette closed the finding by itself (the matcher proved the device's
-	// version or package release is outside the affected range, e.g. after a person entered the release);
-	// null for a person's own action and for open findings.
+	// Not_affected_version when Vedette closed the finding by itself (a matcher proof, or one of its rules
+	// that compares no version); null for a person's own action and for open findings. A string, not an
+	// enum: a new reason must not break the list.
 	ResolutionReason NilString                              `json:"resolution_reason"`
 	ResolvedAt       NilDateTime                            `json:"resolved_at"`
 	ResolvedBy       NilString                              `json:"resolved_by"`
 	Severity         FindingsGetFindingsOKItemsItemSeverity `json:"severity"`
-	// GET /findings?asset= only: the device's software row the finding rests on, the id
-	// FindingRow.fix.group and ToFixAction use, open or closed; "" when none is known and on the
-	// all-devices list.
+	// The device's software row the matcher matched the finding on (the id FindingRow.fix.group and
+	// ToFixAction use), stored when it opens, touches or closes the finding; "" until the next match
+	// reaches an older finding. Never guessed from the product.
 	SoftwareID string                               `json:"software_id"`
 	Status     FindingsGetFindingsOKItemsItemStatus `json:"status"`
 }
@@ -70838,6 +70858,11 @@ func (s *FindingsGetFindingsOKItemsItem) GetKev() NilFindingsGetFindingsOKItemsI
 // GetLastSeen returns the value of LastSeen.
 func (s *FindingsGetFindingsOKItemsItem) GetLastSeen() time.Time {
 	return s.LastSeen
+}
+
+// GetProvedVersion returns the value of ProvedVersion.
+func (s *FindingsGetFindingsOKItemsItem) GetProvedVersion() NilString {
+	return s.ProvedVersion
 }
 
 // GetResolutionNote returns the value of ResolutionNote.
@@ -70943,6 +70968,11 @@ func (s *FindingsGetFindingsOKItemsItem) SetKev(val NilFindingsGetFindingsOKItem
 // SetLastSeen sets the value of LastSeen.
 func (s *FindingsGetFindingsOKItemsItem) SetLastSeen(val time.Time) {
 	s.LastSeen = val
+}
+
+// SetProvedVersion sets the value of ProvedVersion.
+func (s *FindingsGetFindingsOKItemsItem) SetProvedVersion(val NilString) {
+	s.ProvedVersion = val
 }
 
 // SetResolutionNote sets the value of ResolutionNote.
@@ -79014,19 +79044,24 @@ type FindingsPostFindingsIDAiOK struct {
 	// known_version.seen_at says when the version was reported.
 	LastSeen time.Time `json:"last_seen"`
 	// Null = no recommendation confirmed by Vedette maintainers yet.
-	Pack           NilFindingsPostFindingsIDAiOKPack `json:"pack"`
+	Pack NilFindingsPostFindingsIDAiOKPack `json:"pack"`
+	// A finding closed by proof (resolution_reason set): the version or package release the matcher
+	// compared to rule it out, as the device row gives it; null when the closure compared none (name only,
+	// age, an open platform question, another platform) or it is not closed by Vedette. An entry a person
+	// typed closed it only when this equals the entry.
+	ProvedVersion  NilString                         `json:"proved_version"`
 	Recheck        FindingsPostFindingsIDAiOKRecheck `json:"recheck"`
 	ResolutionNote NilString                         `json:"resolution_note"`
-	// Not_affected_version when Vedette closed the finding by itself (the matcher proved the device's
-	// version or package release is outside the affected range, e.g. after a person entered the release);
-	// null for a person's own action and for open findings.
+	// Not_affected_version when Vedette closed the finding by itself (a matcher proof, or one of its rules
+	// that compares no version); null for a person's own action and for open findings. A string, not an
+	// enum: a new reason must not break the list.
 	ResolutionReason NilString                          `json:"resolution_reason"`
 	ResolvedAt       NilDateTime                        `json:"resolved_at"`
 	ResolvedBy       NilString                          `json:"resolved_by"`
 	Severity         FindingsPostFindingsIDAiOKSeverity `json:"severity"`
-	// GET /findings?asset= only: the device's software row the finding rests on, the id
-	// FindingRow.fix.group and ToFixAction use, open or closed; "" when none is known and on the
-	// all-devices list.
+	// The device's software row the matcher matched the finding on (the id FindingRow.fix.group and
+	// ToFixAction use), stored when it opens, touches or closes the finding; "" until the next match
+	// reaches an older finding. Never guessed from the product.
 	SoftwareID string                           `json:"software_id"`
 	Status     FindingsPostFindingsIDAiOKStatus `json:"status"`
 }
@@ -79139,6 +79174,11 @@ func (s *FindingsPostFindingsIDAiOK) GetLastSeen() time.Time {
 // GetPack returns the value of Pack.
 func (s *FindingsPostFindingsIDAiOK) GetPack() NilFindingsPostFindingsIDAiOKPack {
 	return s.Pack
+}
+
+// GetProvedVersion returns the value of ProvedVersion.
+func (s *FindingsPostFindingsIDAiOK) GetProvedVersion() NilString {
+	return s.ProvedVersion
 }
 
 // GetRecheck returns the value of Recheck.
@@ -79289,6 +79329,11 @@ func (s *FindingsPostFindingsIDAiOK) SetLastSeen(val time.Time) {
 // SetPack sets the value of Pack.
 func (s *FindingsPostFindingsIDAiOK) SetPack(val NilFindingsPostFindingsIDAiOKPack) {
 	s.Pack = val
+}
+
+// SetProvedVersion sets the value of ProvedVersion.
+func (s *FindingsPostFindingsIDAiOK) SetProvedVersion(val NilString) {
+	s.ProvedVersion = val
 }
 
 // SetRecheck sets the value of Recheck.
@@ -83075,19 +83120,24 @@ type FindingsPostFindingsIDAppliedOK struct {
 	// known_version.seen_at says when the version was reported.
 	LastSeen time.Time `json:"last_seen"`
 	// Null = no recommendation confirmed by Vedette maintainers yet.
-	Pack           NilFindingsPostFindingsIDAppliedOKPack `json:"pack"`
+	Pack NilFindingsPostFindingsIDAppliedOKPack `json:"pack"`
+	// A finding closed by proof (resolution_reason set): the version or package release the matcher
+	// compared to rule it out, as the device row gives it; null when the closure compared none (name only,
+	// age, an open platform question, another platform) or it is not closed by Vedette. An entry a person
+	// typed closed it only when this equals the entry.
+	ProvedVersion  NilString                              `json:"proved_version"`
 	Recheck        FindingsPostFindingsIDAppliedOKRecheck `json:"recheck"`
 	ResolutionNote NilString                              `json:"resolution_note"`
-	// Not_affected_version when Vedette closed the finding by itself (the matcher proved the device's
-	// version or package release is outside the affected range, e.g. after a person entered the release);
-	// null for a person's own action and for open findings.
+	// Not_affected_version when Vedette closed the finding by itself (a matcher proof, or one of its rules
+	// that compares no version); null for a person's own action and for open findings. A string, not an
+	// enum: a new reason must not break the list.
 	ResolutionReason NilString                               `json:"resolution_reason"`
 	ResolvedAt       NilDateTime                             `json:"resolved_at"`
 	ResolvedBy       NilString                               `json:"resolved_by"`
 	Severity         FindingsPostFindingsIDAppliedOKSeverity `json:"severity"`
-	// GET /findings?asset= only: the device's software row the finding rests on, the id
-	// FindingRow.fix.group and ToFixAction use, open or closed; "" when none is known and on the
-	// all-devices list.
+	// The device's software row the matcher matched the finding on (the id FindingRow.fix.group and
+	// ToFixAction use), stored when it opens, touches or closes the finding; "" until the next match
+	// reaches an older finding. Never guessed from the product.
 	SoftwareID string                                `json:"software_id"`
 	Status     FindingsPostFindingsIDAppliedOKStatus `json:"status"`
 }
@@ -83200,6 +83250,11 @@ func (s *FindingsPostFindingsIDAppliedOK) GetLastSeen() time.Time {
 // GetPack returns the value of Pack.
 func (s *FindingsPostFindingsIDAppliedOK) GetPack() NilFindingsPostFindingsIDAppliedOKPack {
 	return s.Pack
+}
+
+// GetProvedVersion returns the value of ProvedVersion.
+func (s *FindingsPostFindingsIDAppliedOK) GetProvedVersion() NilString {
+	return s.ProvedVersion
 }
 
 // GetRecheck returns the value of Recheck.
@@ -83350,6 +83405,11 @@ func (s *FindingsPostFindingsIDAppliedOK) SetLastSeen(val time.Time) {
 // SetPack sets the value of Pack.
 func (s *FindingsPostFindingsIDAppliedOK) SetPack(val NilFindingsPostFindingsIDAppliedOKPack) {
 	s.Pack = val
+}
+
+// SetProvedVersion sets the value of ProvedVersion.
+func (s *FindingsPostFindingsIDAppliedOK) SetProvedVersion(val NilString) {
+	s.ProvedVersion = val
 }
 
 // SetRecheck sets the value of Recheck.
@@ -87157,19 +87217,24 @@ type FindingsPostFindingsIDStatusOK struct {
 	// known_version.seen_at says when the version was reported.
 	LastSeen time.Time `json:"last_seen"`
 	// Null = no recommendation confirmed by Vedette maintainers yet.
-	Pack           NilFindingsPostFindingsIDStatusOKPack `json:"pack"`
+	Pack NilFindingsPostFindingsIDStatusOKPack `json:"pack"`
+	// A finding closed by proof (resolution_reason set): the version or package release the matcher
+	// compared to rule it out, as the device row gives it; null when the closure compared none (name only,
+	// age, an open platform question, another platform) or it is not closed by Vedette. An entry a person
+	// typed closed it only when this equals the entry.
+	ProvedVersion  NilString                             `json:"proved_version"`
 	Recheck        FindingsPostFindingsIDStatusOKRecheck `json:"recheck"`
 	ResolutionNote NilString                             `json:"resolution_note"`
-	// Not_affected_version when Vedette closed the finding by itself (the matcher proved the device's
-	// version or package release is outside the affected range, e.g. after a person entered the release);
-	// null for a person's own action and for open findings.
+	// Not_affected_version when Vedette closed the finding by itself (a matcher proof, or one of its rules
+	// that compares no version); null for a person's own action and for open findings. A string, not an
+	// enum: a new reason must not break the list.
 	ResolutionReason NilString                              `json:"resolution_reason"`
 	ResolvedAt       NilDateTime                            `json:"resolved_at"`
 	ResolvedBy       NilString                              `json:"resolved_by"`
 	Severity         FindingsPostFindingsIDStatusOKSeverity `json:"severity"`
-	// GET /findings?asset= only: the device's software row the finding rests on, the id
-	// FindingRow.fix.group and ToFixAction use, open or closed; "" when none is known and on the
-	// all-devices list.
+	// The device's software row the matcher matched the finding on (the id FindingRow.fix.group and
+	// ToFixAction use), stored when it opens, touches or closes the finding; "" until the next match
+	// reaches an older finding. Never guessed from the product.
 	SoftwareID string                               `json:"software_id"`
 	Status     FindingsPostFindingsIDStatusOKStatus `json:"status"`
 }
@@ -87282,6 +87347,11 @@ func (s *FindingsPostFindingsIDStatusOK) GetLastSeen() time.Time {
 // GetPack returns the value of Pack.
 func (s *FindingsPostFindingsIDStatusOK) GetPack() NilFindingsPostFindingsIDStatusOKPack {
 	return s.Pack
+}
+
+// GetProvedVersion returns the value of ProvedVersion.
+func (s *FindingsPostFindingsIDStatusOK) GetProvedVersion() NilString {
+	return s.ProvedVersion
 }
 
 // GetRecheck returns the value of Recheck.
@@ -87432,6 +87502,11 @@ func (s *FindingsPostFindingsIDStatusOK) SetLastSeen(val time.Time) {
 // SetPack sets the value of Pack.
 func (s *FindingsPostFindingsIDStatusOK) SetPack(val NilFindingsPostFindingsIDStatusOKPack) {
 	s.Pack = val
+}
+
+// SetProvedVersion sets the value of ProvedVersion.
+func (s *FindingsPostFindingsIDStatusOK) SetProvedVersion(val NilString) {
+	s.ProvedVersion = val
 }
 
 // SetRecheck sets the value of Recheck.

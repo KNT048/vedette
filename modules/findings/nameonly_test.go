@@ -179,7 +179,7 @@ func TestContract_ReconcileClosesNameOnlyFindings(t *testing.T) {
 		t.Fatalf("reconcile %+v %v", res, err)
 	}
 	r := load(cve0367.CVE)
-	if r.Status != StatusNotRelevant || r.ResolvedBy != SystemUser || r.ResolutionReason != ReasonNotAffectedVersion ||
+	if r.ProvedVersion != "" || r.Status != StatusNotRelevant || r.ResolvedBy != SystemUser || r.ResolutionReason != ReasonNotAffectedVersion ||
 		!strings.HasPrefix(r.ResolutionNote, NameOnlyNote+": Windows build 26300 is newer than every Windows release Vedette knows") {
 		t.Fatalf("not closed: %+v", r.Finding)
 	}

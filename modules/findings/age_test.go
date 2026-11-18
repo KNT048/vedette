@@ -112,7 +112,7 @@ func TestContract_AgedFindingClosesAndReopens(t *testing.T) {
 	e.pub.take()
 	upsert(nas("6.1.1"), t0.AddDate(-3, 0, 0)) // the day arrives: old, product only
 	r := load()
-	if r.Status != StatusNotRelevant || r.ResolvedBy != SystemUser || r.ResolutionReason != ReasonNotAffectedVersion || !strings.HasPrefix(r.ResolutionNote, AgedNote) {
+	if r.ProvedVersion != "" || r.Status != StatusNotRelevant || r.ResolvedBy != SystemUser || r.ResolutionReason != ReasonNotAffectedVersion || !strings.HasPrefix(r.ResolutionNote, AgedNote) {
 		t.Fatalf("not closed for its age: %+v", r.Finding)
 	}
 	if last := r.History[len(r.History)-1]; last.User != SystemUser || !strings.HasPrefix(last.Note, AgedNote) {

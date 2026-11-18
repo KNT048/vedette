@@ -79,6 +79,10 @@ type Finding struct {
 	// ResolutionReason is set only when Vedette closed the finding by itself: ReasonNotAffectedVersion. A
 	// person's action, a reopen or a scan clears it.
 	ResolutionReason string
+	// SoftwareID is the device's software row the matcher matched the finding on ("" until a match reaches it). ProvedVersion is, for a
+	// finding closed by proof (ReasonNotAffectedVersion), the version or package release the matcher compared; "" for a closure that
+	// compared none (name only, age, platform question, another platform).
+	SoftwareID, ProvedVersion string
 	// AcceptedUntil is the last day (00:00 UTC) of a risk acceptance; set only while the status is risk_accepted.
 	AcceptedUntil time.Time
 }
@@ -131,6 +135,7 @@ func (f Finding) AutoResolve(note string, now time.Time) (Finding, HistoryEntry,
 	}
 	note = clipNote(note)
 	f.Status, f.ResolvedBy, f.ResolvedAt, f.ResolutionNote, f.ResolutionReason, f.AcceptedUntil = StatusNotRelevant, SystemUser, now, note, ReasonNotAffectedVersion, time.Time{}
+	f.ProvedVersion = ""
 	return f, HistoryEntry{TS: now, User: SystemUser, Action: string(StatusNotRelevant), Note: note}, true
 }
 
@@ -295,7 +300,7 @@ func NewFinding(m Match, now time.Time) (Finding, HistoryEntry) {
 	if m.Basis == BasisVersion {
 		note = "Matched version of " + m.SoftwareDisplay
 	}
-	return Finding{Status: StatusSuspected, Severity: m.Severity, Confidence: m.Confidence, Basis: m.Basis, Evidence: &ev},
+	return Finding{Status: StatusSuspected, Severity: m.Severity, Confidence: m.Confidence, Basis: m.Basis, Evidence: &ev, SoftwareID: m.SoftwareID},
 		HistoryEntry{TS: now, User: SystemUser, Action: "created", Note: note}
 }
 
@@ -312,6 +317,9 @@ func NewFinding(m Match, now time.Time) (Finding, HistoryEntry) {
 // finding written before says "only suspected" until then). A finding the agent
 // detected whose new match is not the agent's takes the new sentence (no basis change).
 func (f Finding) ApplyMatch(m Match) Finding {
+	if m.SoftwareID != "" {
+		f.SoftwareID = m.SoftwareID // whatever the status: where the finding rests, not its state
+	}
 	if !f.Status.Open() {
 		return f
 	}

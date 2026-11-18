@@ -140,7 +140,7 @@ function assetView(a: Asset | undefined): FindingAsset | null {
 function row(f: Finding): FindingRow {
   const until = accepted.get()[f.id] ?? null
   const status = until ? 'risk_accepted' : f.status
-  return { ...f, status, accepted_until: until, resolution_reason: null, software_id: '', asset: assetView(assetsStore.get().find((a) => a.id === f.asset_id)), kev: kevInfo(f.cve), cvss: cvssOf(f.cve),
+  return { ...f, status, accepted_until: until, resolution_reason: null, proved_version: null, software_id: '', asset: assetView(assetsStore.get().find((a) => a.id === f.asset_id)), kev: kevInfo(f.cve), cvss: cvssOf(f.cve),
     fix: status === 'confirmed' || status === 'suspected' ? fixes.get()[f.id] ?? null : null }
 }
 
@@ -395,7 +395,7 @@ function versionSeed(asset?: string | null) {
   })
 }
 const seedVersions = new Map<string, string | null>()
-/** GET /findings?asset=: the software row each finding rests on (the row keyed to its KEV entry), as the box names it. */
+/** GET /findings?asset=: the software row each finding rests on, as the box stored it when it matched (here: the row keyed to the entry). */
 function withSoftware(r: FindingRow): FindingRow {
   if (r.software_id) return r
   const a = assetsStore.get().find((x) => x.id === r.asset_id)
@@ -413,7 +413,7 @@ function enteredClosed(asset: string): FindingRow[] {
   const note = `Not affected: OpenSSH ${sw.pkg_version} is outside the range Alpine lists for ${BN340.cve.cve}. Vedette closed this by itself and reopens it if a later match says the device is affected.`
   const f: Finding = { id: `f-${BN340.cve.cve}-${a.id}`, asset_id: a.id, cve: BN340.cve.cve, status: 'not_relevant', severity: 'high', confidence: 0.6, basis: 'version', evidence: null,
     first_seen: at, last_seen: at, resolved_by: 'system', resolved_at: at, resolution_note: note, history: [{ ts: at, user: 'system', action: 'not_relevant', note }] }
-  return [{ ...row(f), resolution_reason: 'not_affected_version', software_id: sw.id }]
+  return [{ ...row(f), resolution_reason: 'not_affected_version', proved_version: sw.pkg_version, software_id: sw.id }]
 }
 
 /** #910 phase 1 mock: the unchecked list; an item leaves it once its software's version changes (the real box re-checks), a person's

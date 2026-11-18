@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -323,18 +324,18 @@ func TestAcceptRiskEndpoint(t *testing.T) {
 	}
 }
 
-// A device's list says which software row each finding rests on and whether Vedette closed it by itself, so a page can say
-// which findings a person's entered release closed. The all-devices list leaves the row empty (it would match every device).
-func TestContract_ListNamesSoftwareRowAndSelfClosedReason(t *testing.T) {
+// The list says which software row each finding rests on and whether Vedette closed it by itself, from what the matcher stored, so a
+// page can tell what a person's entered release closed. Nothing is guessed at read time.
+func TestContract_ListNamesStoredSoftwareRowAndProof(t *testing.T) {
 	t.Parallel()
 	e := newHTTPEnv(t)
-	id := e.seed()
-	if err := e.db.Write(t.Context(), func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(t.Context(), `UPDATE fnd_finding SET status = 'not_relevant', resolved_by = ?, resolved_at = last_seen,
-		resolution_note = 'Not affected: version 10.2 is outside every range.', resolution_reason = ? WHERE id = ?`, SystemUser, ReasonNotAffectedVersion, id)
-		return err
-	}); err != nil {
-		t.Fatal(err)
+	v := []Vuln{qnapVuln(Affected{CPE: qnapCPE, Range: VersionRange{EndExcl: "6.1.2"}})}
+	run := func(ver string) {
+		t.Helper()
+		e.advance(time.Minute)
+		if _, err := e.svc.UpsertFromMatch(t.Context(), nas(ver), v); err != nil {
+			t.Fatal(err)
+		}
 	}
 	row := func(path string) map[string]any {
 		t.Helper()
@@ -345,12 +346,52 @@ func TestContract_ListNamesSoftwareRowAndSelfClosedReason(t *testing.T) {
 		}
 		return items[0].(map[string]any)
 	}
-	mine := row("/findings?asset=a-1")
-	if mine["software_id"] != "s-1" || mine["resolution_reason"] != ReasonNotAffectedVersion || mine["status"] != "not_relevant" {
-		t.Fatalf("device list row = %v", mine)
+	run("6.1.1")
+	if r := row("/findings?asset=a-1"); r["software_id"] != "s-1" || r["resolution_reason"] != nil || r["proved_version"] != nil {
+		t.Fatalf("open finding = %v", r)
 	}
-	all := row("/findings")
-	if all["software_id"] != "" || all["resolution_reason"] != ReasonNotAffectedVersion {
-		t.Fatalf("all-devices row = %v", all)
+	run("6.2.0") // proved outside the range: closed on that version
+	if r := row("/findings?asset=a-1"); r["software_id"] != "s-1" || r["resolution_reason"] != ReasonNotAffectedVersion || r["proved_version"] != "6.2.0" || r["status"] != "not_relevant" {
+		t.Fatalf("closed by proof = %v", r)
+	}
+	run("6.3.0") // a later release also proved: the version that proves it follows the entry, with no new history
+	if r := row("/findings?asset=a-1"); r["proved_version"] != "6.3.0" {
+		t.Fatalf("proved on = %v", r)
+	}
+	if n := e.count(`SELECT count(*) FROM fnd_finding_history WHERE action = 'not_relevant'`); n != 1 {
+		t.Fatalf("history rows %d", n)
+	}
+	// the same row on the all-devices list and on the single finding: one stored column, one answer
+	if r := row("/findings"); r["software_id"] != "s-1" {
+		t.Fatalf("all-devices row = %v", r)
+	}
+	id := row("/findings")["id"].(string)
+	if _, b := e.call("GET", "/findings/"+id, "viewer", ""); b["software_id"] != "s-1" || b["proved_version"] != "6.3.0" {
+		t.Fatalf("detail = %v", b)
+	}
+}
+
+// A closure that compared no version (name only, age, an open platform question) carries no proved version, and a finding no match has
+// reached yet (an older row) names no software row: the list never guesses one from the product.
+func TestContract_ListDoesNotGuessSoftwareOrProof(t *testing.T) {
+	t.Parallel()
+	e := newHTTPEnv(t)
+	id := e.seed()
+	if err := e.db.Write(t.Context(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `UPDATE fnd_finding SET status = 'not_relevant', resolved_by = ?, resolved_at = last_seen,
+			resolution_note = 'Closed: product name only.', resolution_reason = ?, software_id = NULL, proved_version = NULL WHERE id = ?`, SystemUser, ReasonNotAffectedVersion, id)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	_, b := e.call("GET", "/findings?asset=a-1", "viewer", "")
+	r := b["items"].([]any)[0].(map[string]any)
+	if r["software_id"] != "" || r["resolution_reason"] != ReasonNotAffectedVersion || r["proved_version"] != nil {
+		t.Fatalf("row = %v", r)
+	}
+	// and the list does not read the device or the feeds for it: it answers while both are unreadable
+	e.inv.idsErr = errors.New("inventory down")
+	if code, _ := e.call("GET", "/findings?asset=a-1", "viewer", ""); code != 200 {
+		t.Fatalf("list with the device unreadable: %d", code)
 	}
 }

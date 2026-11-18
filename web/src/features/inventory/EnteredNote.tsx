@@ -15,7 +15,7 @@ export function EnteredNote({ assetId, sw }: { assetId: string; sw: SoftwareView
     <div className="grid gap-0.5" data-testid="entered-note">
       {sw.pkg_version ? <span className="text-caption">{t('software.packageRelease', { release: sw.pkg_version })}</span> : null}
       <span className="text-caption text-muted">{by}</span>
-      <EnteredOutcome assetId={assetId} rowIds={[sw.id]} always={!!sw.pkg_version || !!c} />
+      <EnteredOutcome assetId={assetId} rowIds={[sw.id]} entered={[sw.pkg_version, sw.version].filter((x): x is string => !!x)} always={!!sw.pkg_version || !!c} />
     </div>
   )
 }

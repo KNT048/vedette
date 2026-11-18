@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
+import { http, HttpResponse } from 'msw'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
@@ -84,4 +85,96 @@ describe('An entered package release', () => {
     const notes = await within(table).findAllByTestId('entered-note', undefined, T)
     expect(notes.some((n) => /Entered by hand/.test(n.textContent ?? ''))).toBe(true)
   })
+})
+
+// The result is the box's answer to THIS entry: nothing is said until it has matched the device again, only what the entry proved
+// counts as closed by it, and what cannot be read is not turned into an answer.
+const F = (o: Record<string, unknown>) => ({ id: 'f-ssh', asset_id: 'a-bn340', cve: 'CVE-2026-123158', status: 'suspected', severity: 'high', last_seen: '2026-11-18T01:00:00.000Z', history: [],
+  resolution_reason: null, proved_version: null, software_id: 's-bn340-ssh', ...o })
+const closedOn = (v: string | null, o: Record<string, unknown> = {}) => F({ status: 'not_relevant', resolution_reason: 'not_affected_version', proved_version: v, last_seen: '2026-11-18T01:00:00.000Z', ...o })
+/** The device's findings as the box answers them: `before` until the entry is saved, then `after(n)` for the n-th read since (a 500 when it returns null). */
+function box(before: unknown[], after: (n: number) => unknown[] | null) {
+  let saved = false
+  let n = 0
+  server.events.on('request:start', ({ request }) => { if (request.method === 'PATCH' && request.url.includes('/software/')) saved = true })
+  server.use(http.get('*/api/v1/findings', ({ request }) => {
+    if (!new URL(request.url).searchParams.get('asset')) return undefined
+    if (!saved) return HttpResponse.json({ items: before, version_needed: [], unchecked: [] })
+    const items = after(++n)
+    return items ? HttpResponse.json({ items, version_needed: [], unchecked: [] }) : HttpResponse.json({ error: { code: 'internal', message: 'down' } }, { status: 500 })
+  }))
+}
+const SLOW = { timeout: 15000 }
+
+describe('An entered package release › the result is the answer to this entry', () => {
+  it('says "Checking" while the box has not matched the device again, never "still affected" from before the entry', async () => {
+    box([F({})], (n) => (n < 3 ? [F({})] : [closedOn('10.2_p1-r1', { last_seen: '2026-11-18T02:00:00.000Z' })]))
+    await enterRelease('10.2_p1-r1')
+    const saved = await result()
+    expect(await within(saved).findByText('Checking which CVEs this closes…', undefined, T)).toBeInTheDocument()
+    expect(within(saved).queryByText(/still affected/)).toBeNull()
+    expect(await within(saved).findByText(/Closed 1 CVE as not affected:/, undefined, SLOW)).toBeInTheDocument()
+    expect(within(saved).queryByText('Checking which CVEs this closes…')).toBeNull()
+  }, 30000)
+
+  it('Change starts over: the previous release\'s "Closed" is not shown as the answer for the new one', async () => {
+    let second = false
+    box([F({})], (n) => (second ? [closedOn('10.2_p1-r1', { last_seen: '2026-11-18T02:00:00.000Z' })] : n < 2 ? [F({})] : [closedOn('10.2_p1-r1', { last_seen: '2026-11-18T02:00:00.000Z' })]))
+    await enterRelease('10.2_p1-r1')
+    const saved = await result()
+    await within(saved).findByText(/Closed 1 CVE as not affected:/, undefined, SLOW)
+    second = true // the box keeps answering as before the new entry until it matches again
+    await userEvent.click(within(saved).getByRole('button', { name: 'Change OpenSSH on BN340' }))
+    const field = within(saved).getByLabelText('New package release of OpenSSH')
+    await userEvent.clear(field)
+    await userEvent.type(field, '9.9_p1-r0')
+    await userEvent.click(within(saved).getByRole('button', { name: 'Save and check' }))
+    const again = await screen.findByRole('listitem', { name: 'Saved OpenSSH 9.9_p1-r0 on BN340.' }, T)
+    // the old closure was proved on another release: it is not the answer for this one
+    expect(await within(again).findByText('Checking which CVEs this closes…', undefined, T)).toBeInTheDocument()
+    expect(within(again).queryByText(/Closed 1 CVE/)).toBeNull()
+  }, 30000)
+
+  it('a closure by another rule (no version compared) is not counted as closed by the entry', async () => {
+    box([F({})], () => [closedOn(null, { last_seen: '2026-11-18T02:00:00.000Z' })])
+    await enterRelease('10.2_p1-r1')
+    const saved = await result()
+    await within(saved).findByText(/found no exploited CVE left/, undefined, SLOW)
+    expect(within(saved).queryByText(/Closed 1 CVE/)).toBeNull()
+  }, 30000)
+
+  it('a CVE closed on another row of the same product is not shown on this row', async () => {
+    box([F({})], () => [closedOn('10.2_p1-r1', { software_id: 's-other-row', last_seen: '2026-11-18T02:00:00.000Z' }), F({ id: 'f-2', cve: 'CVE-2026-000002', last_seen: '2026-11-18T02:00:00.000Z' })])
+    await enterRelease('10.2_p1-r1')
+    const saved = await result()
+    await within(saved).findByText(/1 CVE is still affected:/, undefined, SLOW)
+    expect(within(saved).queryByText(/Closed/)).toBeNull()
+    expect(within(saved).getByRole('link', { name: 'CVE-2026-000002' })).toBeInTheDocument()
+  }, 30000)
+
+  it('when the findings cannot be read it says nothing about the result', async () => {
+    box([F({})], () => null)
+    await enterRelease('10.2_p1-r1')
+    const saved = await result()
+    await new Promise((r) => setTimeout(r, 1500))
+    expect(saved).toHaveTextContent('Saved OpenSSH 10.2_p1-r1 on BN340.')
+    for (const t of [/Closed/, /still affected/, /found no exploited CVE/]) expect(saved).not.toHaveTextContent(t)
+  }, 30000)
+
+  it('findings no match has reached yet (no software row) are not turned into "no CVE left"', async () => {
+    box([F({})], () => [F({ software_id: '', last_seen: '2026-11-18T02:00:00.000Z' })])
+    await enterRelease('10.2_p1-r1')
+    const saved = await result()
+    await new Promise((r) => setTimeout(r, 1500))
+    expect(saved).not.toHaveTextContent(/found no exploited CVE/)
+    expect(saved).not.toHaveTextContent(/Closed/)
+  }, 30000)
+
+  it('after about 15 seconds without a new match it says it is still checking, and to reload later', async () => {
+    box([F({})], () => [F({})])
+    await enterRelease('10.2_p1-r1')
+    const saved = await result()
+    expect(await within(saved).findByText(/Still checking\. Reload this page in a minute/, undefined, { timeout: 25000 })).toBeInTheDocument()
+    expect(saved).not.toHaveTextContent(/still affected/)
+  }, 40000)
 })

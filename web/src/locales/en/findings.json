@@ -843,6 +843,7 @@
     "field_pkg_version": "package release",
     "field_version": "version",
     "update": "Save and check",
-    "openRow": "Open {{software}} on the device"
+    "openRow": "Open {{software}} on the device",
+    "stillChecking": "Still checking. Reload this page in a minute for the result."
   }
 }

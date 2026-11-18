@@ -3,6 +3,7 @@ package exposure
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -59,6 +60,16 @@ func whereOf(snap Snapshot, domain bool) where {
 	}
 }
 
+// urlPath is the path of an admin page's URL ("/" when it has none or cannot be read), the part of its key that tells two pages on
+// one name and port apart (/wp-admin and /phpmyadmin).
+func urlPath(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil || u.Path == "" {
+		return "/"
+	}
+	return u.Path
+}
+
 // keys are the comparison keys of something on ip with the rest of its key (":443", ":443:CVE-…").
 func (w where) keys(ip, rest string) []string {
 	var out []string
@@ -111,12 +122,12 @@ func (s *Service) changes(ctx context.Context, prev, now Snapshot, at time.Time,
 	admin := map[string]bool{}
 	for _, a := range prev.AdminPanels {
 		admin[a.URL] = true
-		for _, k := range wPrev.keys(a.IP, fmt.Sprintf(":%d", a.Port)) {
+		for _, k := range wPrev.keys(a.IP, fmt.Sprintf(":%d%s", a.Port, urlPath(a.URL))) {
 			admin[k] = true
 		}
 	}
-	for _, a := range now.AdminPanels {
-		if admin[a.URL] || (domain && seen(admin, wNow.keys(a.IP, fmt.Sprintf(":%d", a.Port)))) {
+	for _, a := range now.AdminPanels { // a domain's page: by the names of its address, its port and its path, so another page is new
+		if admin[a.URL] || (domain && seen(admin, wNow.keys(a.IP, fmt.Sprintf(":%d%s", a.Port, urlPath(a.URL))))) {
 			continue
 		}
 		line := "Newly exposed admin page: " + a.URL

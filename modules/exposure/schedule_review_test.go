@@ -196,4 +196,15 @@ func TestSchedule_DomainAddressRotationIsNotNews(t *testing.T) {
 	if len(cs) != 1 || !strings.Contains(cs[0].line, ipB+":8443") {
 		t.Fatalf("a new port on the name: %+v", cs)
 	}
+	// admin pages: the same page on the moved address is not news; another page on the same name and port is
+	now.Ports = now.Ports[:1]
+	prev.AdminPanels = []AdminRow{{URL: "https://" + ipA + "/wp-admin/", Product: "WordPress", IP: ipA, Port: 443, Risk: "warn"}}
+	now.AdminPanels = []AdminRow{{URL: "https://" + ipB + "/wp-admin/", Product: "WordPress", IP: ipB, Port: 443, Risk: "warn"}}
+	if cs := e.svc.changes(e.ctx(), prev, now, t0, true); len(cs) != 0 {
+		t.Fatalf("a moved admin page alerted: %+v", cs)
+	}
+	now.AdminPanels = append(now.AdminPanels, AdminRow{URL: "https://" + ipB + "/phpmyadmin/", Product: "phpMyAdmin", IP: ipB, Port: 443, Risk: "danger"})
+	if cs := e.svc.changes(e.ctx(), prev, now, t0, true); len(cs) != 1 || !strings.Contains(cs[0].line, "/phpmyadmin/") {
+		t.Fatalf("a new page on a known name and port: %+v", cs)
+	}
 }

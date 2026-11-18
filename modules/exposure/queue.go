@@ -42,7 +42,8 @@ type QueuedScan struct {
 	Starting    bool   `json:"starting"`
 }
 
-// RunQueued is the ScanRun status of a Scan now that waits behind another scan (only in the 202 answer).
+// RunQueued is the ScanRun status of a scan that waits: the 202 answer of a Scan now behind another scan, and GET /exposure/scan's
+// answer when nothing ran since the box started and scans wait (the first of them).
 const RunQueued = "queued"
 
 // queueViewsLocked is the queue in order; nil when empty. The caller holds runMu.
@@ -58,6 +59,13 @@ func (s *Service) queueViewsLocked() []QueuedScan {
 func (s *Service) queuedViewLocked(q *queuedScan) ScanRun {
 	return ScanRun{ID: q.id, TargetID: q.targetID, TargetValue: q.value, By: q.by, StartedAt: store.FormatTS(q.at), Status: RunQueued,
 		Phase: PhaseQueued, Scheduled: q.scheduled, Queue: s.queueViewsLocked()}
+}
+
+// tooSoon says whether t was scanned less than ScanEvery ago (begin would answer 429).
+func (s *Service) tooSoon(t Target, now time.Time) bool {
+	s.runMu.Lock()
+	defer s.runMu.Unlock()
+	return s.tooSoonLocked(t, now) != nil
 }
 
 // inQueue says whether a scan of target id runs now or waits.

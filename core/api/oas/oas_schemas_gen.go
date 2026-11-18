@@ -44947,7 +44947,9 @@ type ExposureGetExposureScanOK struct {
 	// earlier results are kept.
 	SnapshotID NilString `json:"snapshot_id"`
 	StartedAt  time.Time `json:"started_at"`
-	// Queued only in the 202 answer of a Scan now that waits behind another scan.
+	// Queued: a scan that waits for the box's one scan slot: the 202 answer of a Scan now behind another
+	// scan, and GET /exposure/scan when nothing ran since the box started and scans wait (the first of
+	// them; started_at is then when it was queued).
 	Status ExposureGetExposureScanOKStatus `json:"status"`
 	// Why the box stopped this run when it was not a person's Stop, e.g. "the testing terms of this target
 	// were withdrawn", "Vedette shut down".
@@ -45540,7 +45542,9 @@ func (s *ExposureGetExposureScanOKQueueItem) SetTargetValue(val string) {
 	s.TargetValue = val
 }
 
-// Queued only in the 202 answer of a Scan now that waits behind another scan.
+// Queued: a scan that waits for the box's one scan slot: the 202 answer of a Scan now behind another
+// scan, and GET /exposure/scan when nothing ran since the box started and scans wait (the first of
+// them; started_at is then when it was queued).
 type ExposureGetExposureScanOKStatus string
 
 const (
@@ -54691,7 +54695,9 @@ type ExposurePostExposureScanStopOK struct {
 	// earlier results are kept.
 	SnapshotID NilString `json:"snapshot_id"`
 	StartedAt  time.Time `json:"started_at"`
-	// Queued only in the 202 answer of a Scan now that waits behind another scan.
+	// Queued: a scan that waits for the box's one scan slot: the 202 answer of a Scan now behind another
+	// scan, and GET /exposure/scan when nothing ran since the box started and scans wait (the first of
+	// them; started_at is then when it was queued).
 	Status ExposurePostExposureScanStopOKStatus `json:"status"`
 	// Why the box stopped this run when it was not a person's Stop, e.g. "the testing terms of this target
 	// were withdrawn", "Vedette shut down".
@@ -55284,7 +55290,9 @@ func (s *ExposurePostExposureScanStopOKQueueItem) SetTargetValue(val string) {
 	s.TargetValue = val
 }
 
-// Queued only in the 202 answer of a Scan now that waits behind another scan.
+// Queued: a scan that waits for the box's one scan slot: the 202 answer of a Scan now behind another
+// scan, and GET /exposure/scan when nothing ran since the box started and scans wait (the first of
+// them; started_at is then when it was queued).
 type ExposurePostExposureScanStopOKStatus string
 
 const (
@@ -57056,7 +57064,9 @@ type ExposurePostExposureTargetsIDOpenvasAccepted struct {
 	// earlier results are kept.
 	SnapshotID NilString `json:"snapshot_id"`
 	StartedAt  time.Time `json:"started_at"`
-	// Queued only in the 202 answer of a Scan now that waits behind another scan.
+	// Queued: a scan that waits for the box's one scan slot: the 202 answer of a Scan now behind another
+	// scan, and GET /exposure/scan when nothing ran since the box started and scans wait (the first of
+	// them; started_at is then when it was queued).
 	Status ExposurePostExposureTargetsIDOpenvasAcceptedStatus `json:"status"`
 	// Why the box stopped this run when it was not a person's Stop, e.g. "the testing terms of this target
 	// were withdrawn", "Vedette shut down".
@@ -57649,7 +57659,9 @@ func (s *ExposurePostExposureTargetsIDOpenvasAcceptedQueueItem) SetTargetValue(v
 	s.TargetValue = val
 }
 
-// Queued only in the 202 answer of a Scan now that waits behind another scan.
+// Queued: a scan that waits for the box's one scan slot: the 202 answer of a Scan now behind another
+// scan, and GET /exposure/scan when nothing ran since the box started and scans wait (the first of
+// them; started_at is then when it was queued).
 type ExposurePostExposureTargetsIDOpenvasAcceptedStatus string
 
 const (
@@ -57874,7 +57886,9 @@ type ExposurePostExposureTargetsIDScanAccepted struct {
 	// earlier results are kept.
 	SnapshotID NilString `json:"snapshot_id"`
 	StartedAt  time.Time `json:"started_at"`
-	// Queued only in the 202 answer of a Scan now that waits behind another scan.
+	// Queued: a scan that waits for the box's one scan slot: the 202 answer of a Scan now behind another
+	// scan, and GET /exposure/scan when nothing ran since the box started and scans wait (the first of
+	// them; started_at is then when it was queued).
 	Status ExposurePostExposureTargetsIDScanAcceptedStatus `json:"status"`
 	// Why the box stopped this run when it was not a person's Stop, e.g. "the testing terms of this target
 	// were withdrawn", "Vedette shut down".
@@ -58467,7 +58481,9 @@ func (s *ExposurePostExposureTargetsIDScanAcceptedQueueItem) SetTargetValue(val 
 	s.TargetValue = val
 }
 
-// Queued only in the 202 answer of a Scan now that waits behind another scan.
+// Queued: a scan that waits for the box's one scan slot: the 202 answer of a Scan now behind another
+// scan, and GET /exposure/scan when nothing ran since the box started and scans wait (the first of
+// them; started_at is then when it was queued).
 type ExposurePostExposureTargetsIDScanAcceptedStatus string
 
 const (

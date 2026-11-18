@@ -397,7 +397,7 @@ func (s *Service) RunSchedule(ctx context.Context) error {
 			continue
 		}
 		due := st.due(t, loc, now)
-		if due.After(now) || s.inQueue(t.ID) {
+		if due.After(now) || s.inQueue(t.ID) || s.tooSoon(t, now) { // scanned minutes ago (a run that failed): no network checks for a 429
 			continue
 		}
 		if why := scheduleWhy(t, now); why != "" {

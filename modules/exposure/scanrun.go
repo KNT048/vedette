@@ -184,6 +184,9 @@ func (s *Service) begin(ctx context.Context, user string, t Target, reason Block
 		if why := scheduleWhy(fresh, now); why != "" {
 			return nil, &skipError{why: why, stored: true}
 		}
+		if r := fresh.blocked(now); r != "" { // the ownership check the gate just stored, as the gate would answer it
+			return nil, &skipError{why: gateWhy(fresh, r, now)}
+		}
 		mode.Disruptive = false // a scan the box starts by itself never runs the disruptive checks
 	}
 	s.lastScan[t.ID] = now

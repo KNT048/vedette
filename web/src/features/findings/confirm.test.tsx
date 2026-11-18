@@ -60,16 +60,19 @@ describe('a person confirms a suspected finding', () => {
     renderApp('/findings?tab=open')
     const table = await screen.findByRole('table', { name: 'Findings list' }, T)
     const wp = within(table).getAllByRole('row').find((r) => within(r).queryByRole('link', { name: 'CVE-2026-119977' }))!
-    await userEvent.click(within(wp).getByRole('button', { name: 'Confirm CVE-2026-119977' }))
+    await userEvent.click(within(wp).getByRole('button', { name: /^Confirm CVE-2026-119977 on / }))
     const dlg = await screen.findByRole('dialog', { name: 'Confirm this finding' })
     await userEvent.type(within(dlg).getByLabelText('What did you check? (required)'), 'Checked on the device')
     await userEvent.click(within(dlg).getByRole('button', { name: 'Confirm finding' }))
-    await waitFor(() => expect(within(table).getByRole('button', { name: 'Undo the confirmation of CVE-2026-119977' })).toBeInTheDocument(), T)
+    // confirmed: the row's one action is now Mark as handled…, and Undo confirm is in its menu
+    const mark = await within(table).findByRole('button', { name: /^Mark as handled: CVE-2026-119977 on / }, T)
+    await userEvent.click(within(mark.closest('tr')!).getByRole('button', { name: /^More actions for CVE-2026-119977 on / }))
+    expect(await screen.findByRole('menuitem', { name: 'Undo confirm' }, T)).toBeInTheDocument()
   })
 
   it('an operator sees Confirm but cannot use it', async () => {
     renderApp('/findings?tab=open', { role: 'operator' })
-    expect(await screen.findByRole('button', { name: 'Confirm CVE-2026-119977' }, T)).toBeDisabled()
+    expect(await screen.findByRole('button', { name: /^Confirm CVE-2026-119977 on / }, T)).toBeDisabled()
   })
 })
 

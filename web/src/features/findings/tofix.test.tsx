@@ -51,7 +51,9 @@ describe('Findings › To fix', () => {
     expect(within(pc).queryByRole('link', { name: 'CVE-2026-1001' })).not.toBeVisible()
     await userEvent.click(within(pc).getByText('Show the 3 CVEs'))
     expect(within(pc).getByRole('link', { name: 'CVE-2026-1001' })).toHaveAttribute('href', '/findings/f-a')
-    expect(within(pc).getByRole('link', { name: 'Handle these 3 findings in the list' })).toHaveAttribute('href', '/findings?tab=open&fix=a-pc%2Fs-win')
+    // each finding line is handled right there, its label naming the CVE and the device
+    expect(within(pc).getByRole('button', { name: 'Mark as handled: CVE-2026-1001 on PC-A' })).toBeInTheDocument()
+    expect(within(pc).queryByRole('link', { name: /in the list/ })).toBeNull()
   })
 
   it('"By fix" turns it around: one row per update with its devices, kept in the address', async () => {
@@ -135,9 +137,11 @@ describe('Findings › To fix', () => {
     expect(screen.getByRole('button', { name: 'Show all findings' })).toBeInTheDocument() // the ?fix= filter is on
   })
 
-  it('the device page\'s "select and handle" link opens the findings table of that device', async () => {
+  it('the device page handles each finding on its own line, without a trip to the Findings list', async () => {
     renderApp('/devices/a-nas02')
-    expect(await screen.findByRole('link', { name: 'Select and handle these findings in the Findings list' }, T)).toHaveAttribute('href', '/findings?tab=open&device=a-nas02')
+    const all = await screen.findByRole('list', { name: 'Every finding of this device' }, T)
+    expect(within(all).getAllByRole('button', { name: /^Mark as handled: CVE-\d+-\d+ on / }).length).toBeGreaterThan(0)
+    expect(screen.queryByRole('link', { name: 'Select and handle these findings in the Findings list' })).toBeNull()
   })
 
   it('"Needs your input (N)" counts what only a person can settle and lists the unproved matches', async () => {

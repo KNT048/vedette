@@ -25,7 +25,7 @@ export const Finding = z.object({
   cve: z.string().regex(/^CVE-\d{4}-\d{4,}$/),
   status: FindingStatus,
   severity: Severity,
-  confidence: z.number().min(0).max(1),
+  confidence: z.number().min(0).max(1).describe('How sure the match is, 0 to 1. A finding its evidence confirms (a scan, the version the device itself reports, or a person) is at least 0.95 in any status, never below a scan\'s confirmation'),
   basis: z.enum(['scan', 'version', 'product', 'person']).describe('scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version = the version is inside the affected range (confirmed when evidence.source says the device itself stated it, suspected otherwise); product = only the product matches'),
   evidence: z.object({
     summary: z.string(), template: z.string().optional(), request: z.string().optional(), response: z.string().optional(), checked_at: iso,
@@ -44,7 +44,7 @@ export const Finding = z.object({
 
 export const KevInfo = z.object({
   name: z.string(), vendor: z.string(), product: z.string(), display: z.string(), required_action: z.string(), links: z.array(z.string()),
-  date_added: z.string(), due_date: z.string().nullable(), ransomware: z.boolean(), epss: z.number().nullable(), has_template: z.boolean(),
+  date_added: z.string(), due_date: z.string().nullable(), ransomware: z.boolean(), epss: z.number().nullable(), has_template: z.boolean().describe('A safe vulnerability check exists for the CVE: the template pack the scan itself plans with has one (not the nuclei-templates feed flag), so a vulnerability check can confirm or rule it out'),
   source: z.enum(['cisa-kev', 'vulncheck-kev']).optional().describe('Which list the entry is on: texts and the source badge name it; an entry of VulnCheck KEV is never called CISA\'s'),
   published: z.iso.date().nullable().describe('the day the CVE was published (NVD `published`), never the day CISA added it; null when NVD has not answered for it (then it counts as recent: an older CVE is not a finding on a product-only match, and a missing date never closes a finding)'),
 })

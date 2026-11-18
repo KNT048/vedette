@@ -135,7 +135,7 @@ test.describe('scan: IT operator', () => {
     await page.getByRole('button', { name: 'Scan selected (2)' }).click()
     await expect(page.getByText('Check 2 devices')).toBeVisible()
     await expect(page.getByRole('progressbar').first()).toBeVisible()
-    await page.goto('/devices/a-web01')
+    await page.goto('/devices/a-nas02') // a device with a finding a vulnerability check can run on
     await expect(page.getByRole('button', { name: 'Check this device now' })).toBeDisabled() // one nmap run at a time
     await expect(page.getByText('Another scan is running.')).toBeVisible()
     await page.getByRole('button', { name: 'Run vulnerability checks now' }).click()
@@ -234,7 +234,7 @@ test.describe('scan: admin sets engines and the shared safety block', () => {
     const disc = engine(page, /Network discovery \(nmap\)/)
     await disc.getByRole('button', { name: 'Scan the LAN now' }).click()
     await expect(disc.getByRole('progressbar').first()).toBeVisible()
-    await page.goto('/devices/a-web01')
+    await page.goto('/devices/a-nas02') // a device with a finding a vulnerability check can run on
     await expect(page.getByRole('button', { name: 'Check this device now' })).toBeDisabled()
     await expect(page.getByText('Another scan is running.')).toBeVisible()
     await expect(page.getByRole('link', { name: 'Open the run' })).toBeVisible()

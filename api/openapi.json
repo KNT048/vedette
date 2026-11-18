@@ -34809,7 +34809,8 @@
                           "confidence": {
                             "type": "number",
                             "minimum": 0,
-                            "maximum": 1
+                            "maximum": 1,
+                            "description": "How sure the match is, 0 to 1. A finding its evidence confirms (a scan, the version the device itself reports, or a person) is at least 0.95 in any status, never below a scan's confirmation"
                           },
                           "basis": {
                             "type": "string",
@@ -35138,7 +35139,8 @@
                                     ]
                                   },
                                   "has_template": {
-                                    "type": "boolean"
+                                    "type": "boolean",
+                                    "description": "A safe vulnerability check exists for the CVE: the template pack the scan itself plans with has one (not the nuclei-templates feed flag), so a vulnerability check can confirm or rule it out"
                                   },
                                   "source": {
                                     "description": "Which list the entry is on: texts and the source badge name it; an entry of VulnCheck KEV is never called CISA's",
@@ -35931,7 +35933,8 @@
                     "confidence": {
                       "type": "number",
                       "minimum": 0,
-                      "maximum": 1
+                      "maximum": 1,
+                      "description": "How sure the match is, 0 to 1. A finding its evidence confirms (a scan, the version the device itself reports, or a person) is at least 0.95 in any status, never below a scan's confirmation"
                     },
                     "basis": {
                       "type": "string",
@@ -36260,7 +36263,8 @@
                               ]
                             },
                             "has_template": {
-                              "type": "boolean"
+                              "type": "boolean",
+                              "description": "A safe vulnerability check exists for the CVE: the template pack the scan itself plans with has one (not the nuclei-templates feed flag), so a vulnerability check can confirm or rule it out"
                             },
                             "source": {
                               "description": "Which list the entry is on: texts and the source badge name it; an entry of VulnCheck KEV is never called CISA's",
@@ -37556,7 +37560,8 @@
                     "confidence": {
                       "type": "number",
                       "minimum": 0,
-                      "maximum": 1
+                      "maximum": 1,
+                      "description": "How sure the match is, 0 to 1. A finding its evidence confirms (a scan, the version the device itself reports, or a person) is at least 0.95 in any status, never below a scan's confirmation"
                     },
                     "basis": {
                       "type": "string",
@@ -37885,7 +37890,8 @@
                               ]
                             },
                             "has_template": {
-                              "type": "boolean"
+                              "type": "boolean",
+                              "description": "A safe vulnerability check exists for the CVE: the template pack the scan itself plans with has one (not the nuclei-templates feed flag), so a vulnerability check can confirm or rule it out"
                             },
                             "source": {
                               "description": "Which list the entry is on: texts and the source badge name it; an entry of VulnCheck KEV is never called CISA's",
@@ -39183,7 +39189,8 @@
                     "confidence": {
                       "type": "number",
                       "minimum": 0,
-                      "maximum": 1
+                      "maximum": 1,
+                      "description": "How sure the match is, 0 to 1. A finding its evidence confirms (a scan, the version the device itself reports, or a person) is at least 0.95 in any status, never below a scan's confirmation"
                     },
                     "basis": {
                       "type": "string",
@@ -39512,7 +39519,8 @@
                               ]
                             },
                             "has_template": {
-                              "type": "boolean"
+                              "type": "boolean",
+                              "description": "A safe vulnerability check exists for the CVE: the template pack the scan itself plans with has one (not the nuclei-templates feed flag), so a vulnerability check can confirm or rule it out"
                             },
                             "source": {
                               "description": "Which list the entry is on: texts and the source badge name it; an entry of VulnCheck KEV is never called CISA's",
@@ -40804,7 +40812,8 @@
                     "confidence": {
                       "type": "number",
                       "minimum": 0,
-                      "maximum": 1
+                      "maximum": 1,
+                      "description": "How sure the match is, 0 to 1. A finding its evidence confirms (a scan, the version the device itself reports, or a person) is at least 0.95 in any status, never below a scan's confirmation"
                     },
                     "basis": {
                       "type": "string",
@@ -41133,7 +41142,8 @@
                               ]
                             },
                             "has_template": {
-                              "type": "boolean"
+                              "type": "boolean",
+                              "description": "A safe vulnerability check exists for the CVE: the template pack the scan itself plans with has one (not the nuclei-templates feed flag), so a vulnerability check can confirm or rule it out"
                             },
                             "source": {
                               "description": "Which list the entry is on: texts and the source badge name it; an entry of VulnCheck KEV is never called CISA's",
@@ -42443,7 +42453,8 @@
                     "confidence": {
                       "type": "number",
                       "minimum": 0,
-                      "maximum": 1
+                      "maximum": 1,
+                      "description": "How sure the match is, 0 to 1. A finding its evidence confirms (a scan, the version the device itself reports, or a person) is at least 0.95 in any status, never below a scan's confirmation"
                     },
                     "basis": {
                       "type": "string",
@@ -42772,7 +42783,8 @@
                               ]
                             },
                             "has_template": {
-                              "type": "boolean"
+                              "type": "boolean",
+                              "description": "A safe vulnerability check exists for the CVE: the template pack the scan itself plans with has one (not the nuclei-templates feed flag), so a vulnerability check can confirm or rule it out"
                             },
                             "source": {
                               "description": "Which list the entry is on: texts and the source badge name it; an entry of VulnCheck KEV is never called CISA's",
@@ -44044,7 +44056,8 @@
                     "confidence": {
                       "type": "number",
                       "minimum": 0,
-                      "maximum": 1
+                      "maximum": 1,
+                      "description": "How sure the match is, 0 to 1. A finding its evidence confirms (a scan, the version the device itself reports, or a person) is at least 0.95 in any status, never below a scan's confirmation"
                     },
                     "basis": {
                       "type": "string",
@@ -44373,7 +44386,8 @@
                               ]
                             },
                             "has_template": {
-                              "type": "boolean"
+                              "type": "boolean",
+                              "description": "A safe vulnerability check exists for the CVE: the template pack the scan itself plans with has one (not the nuclei-templates feed flag), so a vulnerability check can confirm or rule it out"
                             },
                             "source": {
                               "description": "Which list the entry is on: texts and the source badge name it; an entry of VulnCheck KEV is never called CISA's",

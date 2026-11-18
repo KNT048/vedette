@@ -71,7 +71,7 @@ type UpdateAction struct {
 	Ransomware, Likely int
 	// How each exploited finding is known (Proof*); zero for planned ones (every plan CVE is compared on a trusted version).
 	Confirmed, Detected, Reported, Suspected int
-	// Checkable counts the exploited CVEs a safe vulnerability check exists for (Vuln.HasTemplate): "Run the check" is offered only
+	// Checkable counts the exploited CVEs a safe vulnerability check exists for (ServiceConfig.SafeCheck): "Run the check" is offered only
 	// then; zero for planned ones.
 	Checkable int
 	// NVDLag (planned Windows updates, PlanItem.NVDLag): the update is newer than every fix NVD names, so it fixes at least CVEs; the
@@ -127,7 +127,7 @@ func (s *Service) DeviceUpdates(ctx context.Context, assetID string, feedsOn boo
 		if err != nil {
 			return DeviceUpdates{}, false, fmt.Errorf("findings: device updates: reading the exploited list: %w", err)
 		}
-		out.Exploited, out.NoUpdate = exploitedUpdates(a, open, vulns, s.now())
+		out.Exploited, out.NoUpdate = exploitedUpdates(a, open, vulns, s.now(), s.safeCheck)
 	}
 	if feedsOn {
 		out.Planned, out.PlanRan, out.PlanCompared = s.plannedUpdates(assetID)
@@ -140,7 +140,7 @@ func (s *Service) DeviceUpdates(ctx context.Context, assetID string, feedsOn boo
 
 // exploitedUpdates groups the open findings of a device by the update that fixes them, as GET /findings does (addFixes: RowFixes on
 // the CVEs of the open findings that are not product-only matches), and the rest by the software row they are on.
-func exploitedUpdates(a Asset, open []Record, vulns []Vuln, now time.Time) (fixed, none []UpdateAction) {
+func exploitedUpdates(a Asset, open []Record, vulns []Vuln, now time.Time, check func(Vuln) bool) (fixed, none []UpdateAction) {
 	byCVE := make(map[string]Vuln, len(vulns))
 	for _, v := range vulns {
 		byCVE[v.CVE] = v
@@ -225,7 +225,7 @@ func exploitedUpdates(a Asset, open []Record, vulns []Vuln, now time.Time) (fixe
 		default:
 			g.Suspected++
 		}
-		if byCVE[r.CVE].HasTemplate {
+		if check(byCVE[r.CVE]) {
 			g.Checkable++
 		}
 		members[key] = append(members[key], member{r, byCVE[r.CVE].Ransomware})

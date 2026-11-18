@@ -65,9 +65,9 @@ export interface Finding {
   status: FindingStatus
   severity: Severity
   confidence: number
-  /** scan = xác nhận bằng mẫu quét; version = nghi theo phiên bản; product = chỉ khớp sản phẩm, chưa biết phiên bản */
+  /** scan = xác nhận bằng mẫu quét; person = người xác nhận; version = theo phiên bản (xác nhận khi evidence.source: thiết bị tự báo qua SNMP hoặc agent); product = chỉ khớp sản phẩm, chưa biết phiên bản */
   basis: 'scan' | 'version' | 'product' | 'person'
-  evidence: { summary: string; template?: string; request?: string; response?: string; checked_at: string; agent?: boolean; agent_row?: boolean } | null
+  evidence: { summary: string; template?: string; request?: string; response?: string; checked_at: string; agent?: boolean; agent_row?: boolean; source?: 'snmp' | 'agent' } | null
   first_seen: string
   last_seen: string
   resolved_by: string | null

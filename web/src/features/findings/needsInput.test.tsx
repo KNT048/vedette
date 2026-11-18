@@ -12,7 +12,7 @@ import type { FindingAsset, ToFix, ToFixAction, ToFixDevice, UncheckedItem, Vers
 const T = { timeout: 5000 }
 const asset = (id: string, name: string): FindingAsset => ({ id, name, hostname: name, ip: '192.168.18.20', kind: 'server', display: name })
 const act = (o: Partial<ToFixAction>): ToFixAction => ({ group: 'g', software_id: '', software: '', version: '', product: '', source: '', fixed: '', kind: 'none', windows: false, distro: '', pro: false, action: '',
-  cves: [], finding_ids: [], worst: 'medium', ransomware: 0, likely: 0, confirmed: 0, detected: 0, reported: 1, suspected: 0, nvd_lag: false, kb: '', ...o })
+  cves: [], finding_ids: [], worst: 'medium', ransomware: 0, likely: 0, confirmed: 0, detected: 0, reported: 1, suspected: 0, checkable: 0, nvd_lag: false, kb: '', ...o })
 const dev = (a: FindingAsset, o: Partial<ToFixDevice>): ToFixDevice => ({ asset: a, risk: null, open: 0, exploited: [], no_update: [], planned: [], plan_compared: true, ...o })
 const need = (a: FindingAsset, sw: string, o: Partial<VersionNeeded> = {}): VersionNeeded => ({ asset: a, asset_id: a.id, software_id: `s-${a.id}`, software: sw, version: null, cves: 3, ...o })
 const unc = (a: FindingAsset, sw: string, cves: string[], o: Partial<UncheckedItem> = {}): UncheckedItem => ({ asset: a, asset_id: a.id, software_id: `u-${a.id}`, software: sw, version: null, reason: 'no_nvd_data', action: 'none',
@@ -205,6 +205,31 @@ describe('Findings › Needs your input by device', () => {
     await userEvent.click(submit)
     await waitFor(() => expect(sent).toEqual({ ids: ['f-11', 'f-12'], action: 'false_positive', note: 'Microsoft says build 20348.4405 is fixed' }), T)
     expect(await screen.findByText('Status saved for 2 findings', undefined, T)).toBeInTheDocument()
+  })
+
+  it('unproved findings: the ways to confirm them come in order, the automatic ones first, "Run the check" only when a safe check exists, a person last', async () => {
+    const web = asset('a-web', 'WEB01'), fw = asset('a-fw', 'FW-EDGE')
+    serve({}, { truncated: false, plan_ran: true, plan_off: false, risks: {}, devices: [
+      dev(web, { open: 1, no_update: [act({ group: 'a-web/s-wp', software_id: 's-wp', software: 'WordPress', source: 'nmap', cves: ['CVE-2026-21'], finding_ids: ['f-21'], checkable: 1 })] }),
+      dev(fw, { open: 1, no_update: [act({ group: 'a-fw/s-fos', software_id: 's-fos', software: 'FortiOS', source: 'snmp', cves: ['CVE-2026-22'], finding_ids: ['f-22'], checkable: 0 })] }),
+    ] })
+    renderApp('/findings?tab=input')
+    const steps = (block: HTMLElement) => within(within(block).getByTestId('confirm-ways')).getAllByRole('listitem').map((li) => li.textContent ?? '')
+    const wp = await expand('WEB01')
+    await waitFor(() => expect(within(wp).getByTestId('confirm-ways')).toBeInTheDocument(), T)
+    const s1 = steps(wp)
+    expect(s1).toHaveLength(3)
+    expect(s1[0]).toMatch(/^Let the device report its version itself/)
+    expect(s1[1]).toMatch(/^A safe vulnerability check exists for this CVE/)
+    expect(s1[2]).toBe('Last, if you checked the device yourself, open a CVE above and confirm it.')
+    expect(within(wp).getByRole('link', { name: 'turn on SNMP on the device page' })).toHaveAttribute('href', '/devices/a-web')
+    expect(within(wp).getByRole('link', { name: 'or install the agent' })).toHaveAttribute('href', '/devices/setup?tab=agents')
+    expect(within(wp).getByRole('link', { name: 'run the check on the device page' })).toHaveAttribute('href', '/devices/a-web')
+    // the device already states its version over SNMP and no safe check exists: only the person is left, never a check that cannot run
+    const edge = await expand('FW-EDGE')
+    await waitFor(() => expect(within(edge).getByTestId('confirm-ways')).toBeInTheDocument(), T)
+    expect(steps(edge)).toEqual(['Last, if you checked the device yourself, open a CVE above and confirm it.'])
+    expect(within(edge).queryByRole('link', { name: 'run the check on the device page' })).toBeNull()
   })
 
   it('a viewer reads the steps; the actions are locked with the role they need', async () => {

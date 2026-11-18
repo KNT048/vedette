@@ -68529,7 +68529,8 @@ type FindingsGetFindingsIDOK struct {
 	Asset       NilFindingsGetFindingsIDOKAsset      `json:"asset"`
 	AssetID     string                               `json:"asset_id"`
 	// Scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version
-	// = suspected by version; product = only the product matches.
+	// = the version is inside the affected range (confirmed when evidence.source says the device itself
+	// stated it, suspected otherwise); product = only the product matches.
 	Basis      FindingsGetFindingsIDOKBasis         `json:"basis"`
 	Compromise NilFindingsGetFindingsIDOKCompromise `json:"compromise"`
 	Confidence float64                              `json:"confidence"`
@@ -70286,7 +70287,8 @@ func (s *FindingsGetFindingsIDOKAssetKind) UnmarshalText(data []byte) error {
 }
 
 // Scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version
-// = suspected by version; product = only the product matches.
+// = the version is inside the affected range (confirmed when evidence.source says the device itself
+// stated it, suspected otherwise); product = only the product matches.
 type FindingsGetFindingsIDOKBasis string
 
 const (
@@ -70672,8 +70674,13 @@ type FindingsGetFindingsIDOKEvidence struct {
 	CheckedAt time.Time `json:"checked_at"`
 	Request   OptString `json:"request"`
 	Response  OptString `json:"response"`
-	Summary   string    `json:"summary"`
-	Template  OptString `json:"template"`
+	// Basis version only: the device itself stated the exact version (snmp: its answer to Vedette's SNMP
+	// read; agent: its own agent's OS or package list) and it is inside an affected range with an end, so
+	// the finding is confirmed by the version the device reports. Absent for a banner, an OS guess or a
+	// version a person typed.
+	Source   OptFindingsGetFindingsIDOKEvidenceSource `json:"source"`
+	Summary  string                                   `json:"summary"`
+	Template OptString                                `json:"template"`
 }
 
 // GetAgent returns the value of Agent.
@@ -70699,6 +70706,11 @@ func (s *FindingsGetFindingsIDOKEvidence) GetRequest() OptString {
 // GetResponse returns the value of Response.
 func (s *FindingsGetFindingsIDOKEvidence) GetResponse() OptString {
 	return s.Response
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsGetFindingsIDOKEvidence) GetSource() OptFindingsGetFindingsIDOKEvidenceSource {
+	return s.Source
 }
 
 // GetSummary returns the value of Summary.
@@ -70736,6 +70748,11 @@ func (s *FindingsGetFindingsIDOKEvidence) SetResponse(val OptString) {
 	s.Response = val
 }
 
+// SetSource sets the value of Source.
+func (s *FindingsGetFindingsIDOKEvidence) SetSource(val OptFindingsGetFindingsIDOKEvidenceSource) {
+	s.Source = val
+}
+
 // SetSummary sets the value of Summary.
 func (s *FindingsGetFindingsIDOKEvidence) SetSummary(val string) {
 	s.Summary = val
@@ -70744,6 +70761,51 @@ func (s *FindingsGetFindingsIDOKEvidence) SetSummary(val string) {
 // SetTemplate sets the value of Template.
 func (s *FindingsGetFindingsIDOKEvidence) SetTemplate(val OptString) {
 	s.Template = val
+}
+
+// Basis version only: the device itself stated the exact version (snmp: its answer to Vedette's SNMP
+// read; agent: its own agent's OS or package list) and it is inside an affected range with an end, so
+// the finding is confirmed by the version the device reports. Absent for a banner, an OS guess or a
+// version a person typed.
+type FindingsGetFindingsIDOKEvidenceSource string
+
+const (
+	FindingsGetFindingsIDOKEvidenceSourceSnmp  FindingsGetFindingsIDOKEvidenceSource = "snmp"
+	FindingsGetFindingsIDOKEvidenceSourceAgent FindingsGetFindingsIDOKEvidenceSource = "agent"
+)
+
+// AllValues returns all FindingsGetFindingsIDOKEvidenceSource values.
+func (FindingsGetFindingsIDOKEvidenceSource) AllValues() []FindingsGetFindingsIDOKEvidenceSource {
+	return []FindingsGetFindingsIDOKEvidenceSource{
+		FindingsGetFindingsIDOKEvidenceSourceSnmp,
+		FindingsGetFindingsIDOKEvidenceSourceAgent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsIDOKEvidenceSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsIDOKEvidenceSourceSnmp:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKEvidenceSourceAgent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsIDOKEvidenceSource) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsIDOKEvidenceSource(data) {
+	case FindingsGetFindingsIDOKEvidenceSourceSnmp:
+		*s = FindingsGetFindingsIDOKEvidenceSourceSnmp
+		return nil
+	case FindingsGetFindingsIDOKEvidenceSourceAgent:
+		*s = FindingsGetFindingsIDOKEvidenceSourceAgent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // One update fixes this finding together with the device's other open findings of the same software
@@ -72603,7 +72665,8 @@ type FindingsGetFindingsOKItemsItem struct {
 	Asset         NilFindingsGetFindingsOKItemsItemAsset `json:"asset"`
 	AssetID       string                                 `json:"asset_id"`
 	// Scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version
-	// = suspected by version; product = only the product matches.
+	// = the version is inside the affected range (confirmed when evidence.source says the device itself
+	// stated it, suspected otherwise); product = only the product matches.
 	Basis      FindingsGetFindingsOKItemsItemBasis `json:"basis"`
 	Confidence float64                             `json:"confidence"`
 	Cve        string                              `json:"cve"`
@@ -73586,7 +73649,8 @@ func (s *FindingsGetFindingsOKItemsItemAssetKind) UnmarshalText(data []byte) err
 }
 
 // Scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version
-// = suspected by version; product = only the product matches.
+// = the version is inside the affected range (confirmed when evidence.source says the device itself
+// stated it, suspected otherwise); product = only the product matches.
 type FindingsGetFindingsOKItemsItemBasis string
 
 const (
@@ -73809,8 +73873,13 @@ type FindingsGetFindingsOKItemsItemEvidence struct {
 	CheckedAt time.Time `json:"checked_at"`
 	Request   OptString `json:"request"`
 	Response  OptString `json:"response"`
-	Summary   string    `json:"summary"`
-	Template  OptString `json:"template"`
+	// Basis version only: the device itself stated the exact version (snmp: its answer to Vedette's SNMP
+	// read; agent: its own agent's OS or package list) and it is inside an affected range with an end, so
+	// the finding is confirmed by the version the device reports. Absent for a banner, an OS guess or a
+	// version a person typed.
+	Source   OptFindingsGetFindingsOKItemsItemEvidenceSource `json:"source"`
+	Summary  string                                          `json:"summary"`
+	Template OptString                                       `json:"template"`
 }
 
 // GetAgent returns the value of Agent.
@@ -73836,6 +73905,11 @@ func (s *FindingsGetFindingsOKItemsItemEvidence) GetRequest() OptString {
 // GetResponse returns the value of Response.
 func (s *FindingsGetFindingsOKItemsItemEvidence) GetResponse() OptString {
 	return s.Response
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsGetFindingsOKItemsItemEvidence) GetSource() OptFindingsGetFindingsOKItemsItemEvidenceSource {
+	return s.Source
 }
 
 // GetSummary returns the value of Summary.
@@ -73873,6 +73947,11 @@ func (s *FindingsGetFindingsOKItemsItemEvidence) SetResponse(val OptString) {
 	s.Response = val
 }
 
+// SetSource sets the value of Source.
+func (s *FindingsGetFindingsOKItemsItemEvidence) SetSource(val OptFindingsGetFindingsOKItemsItemEvidenceSource) {
+	s.Source = val
+}
+
 // SetSummary sets the value of Summary.
 func (s *FindingsGetFindingsOKItemsItemEvidence) SetSummary(val string) {
 	s.Summary = val
@@ -73881,6 +73960,51 @@ func (s *FindingsGetFindingsOKItemsItemEvidence) SetSummary(val string) {
 // SetTemplate sets the value of Template.
 func (s *FindingsGetFindingsOKItemsItemEvidence) SetTemplate(val OptString) {
 	s.Template = val
+}
+
+// Basis version only: the device itself stated the exact version (snmp: its answer to Vedette's SNMP
+// read; agent: its own agent's OS or package list) and it is inside an affected range with an end, so
+// the finding is confirmed by the version the device reports. Absent for a banner, an OS guess or a
+// version a person typed.
+type FindingsGetFindingsOKItemsItemEvidenceSource string
+
+const (
+	FindingsGetFindingsOKItemsItemEvidenceSourceSnmp  FindingsGetFindingsOKItemsItemEvidenceSource = "snmp"
+	FindingsGetFindingsOKItemsItemEvidenceSourceAgent FindingsGetFindingsOKItemsItemEvidenceSource = "agent"
+)
+
+// AllValues returns all FindingsGetFindingsOKItemsItemEvidenceSource values.
+func (FindingsGetFindingsOKItemsItemEvidenceSource) AllValues() []FindingsGetFindingsOKItemsItemEvidenceSource {
+	return []FindingsGetFindingsOKItemsItemEvidenceSource{
+		FindingsGetFindingsOKItemsItemEvidenceSourceSnmp,
+		FindingsGetFindingsOKItemsItemEvidenceSourceAgent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsOKItemsItemEvidenceSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsOKItemsItemEvidenceSourceSnmp:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemEvidenceSourceAgent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsOKItemsItemEvidenceSource) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsOKItemsItemEvidenceSource(data) {
+	case FindingsGetFindingsOKItemsItemEvidenceSourceSnmp:
+		*s = FindingsGetFindingsOKItemsItemEvidenceSourceSnmp
+		return nil
+	case FindingsGetFindingsOKItemsItemEvidenceSourceAgent:
+		*s = FindingsGetFindingsOKItemsItemEvidenceSourceAgent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // One update fixes this finding together with the device's other open findings of the same software
@@ -79650,8 +79774,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemAssetKind) UnmarshalText(data []by
 
 type FindingsGetFindingsToFixOKDevicesItemExploitedItem struct {
 	// The sentence the page shows: "Upgrade RARLAB WinRAR from 7.01 to 7.13 or later".
-	Action    string `json:"action"`
-	Confirmed int    `json:"confirmed"`
+	Action string `json:"action"`
+	// Exploited: how many of the CVEs a safe vulnerability check exists for; "Run the check" is offered
+	// only when it is above 0. 0 for planned ones.
+	Checkable int `json:"checkable"`
+	Confirmed int `json:"confirmed"`
 	// Worst first.
 	Cves     []string `json:"cves"`
 	Detected int      `json:"detected"`
@@ -79701,6 +79828,11 @@ type FindingsGetFindingsToFixOKDevicesItemExploitedItem struct {
 // GetAction returns the value of Action.
 func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetAction() string {
 	return s.Action
+}
+
+// GetCheckable returns the value of Checkable.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetCheckable() int {
+	return s.Checkable
 }
 
 // GetConfirmed returns the value of Confirmed.
@@ -79816,6 +79948,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetWorst() string {
 // SetAction sets the value of Action.
 func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetAction(val string) {
 	s.Action = val
+}
+
+// SetCheckable sets the value of Checkable.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetCheckable(val int) {
+	s.Checkable = val
 }
 
 // SetConfirmed sets the value of Confirmed.
@@ -80000,8 +80137,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItemKind) UnmarshalText(d
 
 type FindingsGetFindingsToFixOKDevicesItemNoUpdateItem struct {
 	// The sentence the page shows: "Upgrade RARLAB WinRAR from 7.01 to 7.13 or later".
-	Action    string `json:"action"`
-	Confirmed int    `json:"confirmed"`
+	Action string `json:"action"`
+	// Exploited: how many of the CVEs a safe vulnerability check exists for; "Run the check" is offered
+	// only when it is above 0. 0 for planned ones.
+	Checkable int `json:"checkable"`
+	Confirmed int `json:"confirmed"`
 	// Worst first.
 	Cves     []string `json:"cves"`
 	Detected int      `json:"detected"`
@@ -80051,6 +80191,11 @@ type FindingsGetFindingsToFixOKDevicesItemNoUpdateItem struct {
 // GetAction returns the value of Action.
 func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetAction() string {
 	return s.Action
+}
+
+// GetCheckable returns the value of Checkable.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetCheckable() int {
+	return s.Checkable
 }
 
 // GetConfirmed returns the value of Confirmed.
@@ -80166,6 +80311,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetWorst() string {
 // SetAction sets the value of Action.
 func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetAction(val string) {
 	s.Action = val
+}
+
+// SetCheckable sets the value of Checkable.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetCheckable(val int) {
+	s.Checkable = val
 }
 
 // SetConfirmed sets the value of Confirmed.
@@ -80350,8 +80500,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKind) UnmarshalText(da
 
 type FindingsGetFindingsToFixOKDevicesItemPlannedItem struct {
 	// The sentence the page shows: "Upgrade RARLAB WinRAR from 7.01 to 7.13 or later".
-	Action    string `json:"action"`
-	Confirmed int    `json:"confirmed"`
+	Action string `json:"action"`
+	// Exploited: how many of the CVEs a safe vulnerability check exists for; "Run the check" is offered
+	// only when it is above 0. 0 for planned ones.
+	Checkable int `json:"checkable"`
+	Confirmed int `json:"confirmed"`
 	// Worst first.
 	Cves     []string `json:"cves"`
 	Detected int      `json:"detected"`
@@ -80401,6 +80554,11 @@ type FindingsGetFindingsToFixOKDevicesItemPlannedItem struct {
 // GetAction returns the value of Action.
 func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetAction() string {
 	return s.Action
+}
+
+// GetCheckable returns the value of Checkable.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetCheckable() int {
+	return s.Checkable
 }
 
 // GetConfirmed returns the value of Confirmed.
@@ -80516,6 +80674,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetWorst() string {
 // SetAction sets the value of Action.
 func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetAction(val string) {
 	s.Action = val
+}
+
+// SetCheckable sets the value of Checkable.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetCheckable(val int) {
+	s.Checkable = val
 }
 
 // SetConfirmed sets the value of Confirmed.
@@ -80875,7 +81038,8 @@ type FindingsPostFindingsIDAiOK struct {
 	Asset       NilFindingsPostFindingsIDAiOKAsset      `json:"asset"`
 	AssetID     string                                  `json:"asset_id"`
 	// Scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version
-	// = suspected by version; product = only the product matches.
+	// = the version is inside the affected range (confirmed when evidence.source says the device itself
+	// stated it, suspected otherwise); product = only the product matches.
 	Basis      FindingsPostFindingsIDAiOKBasis         `json:"basis"`
 	Compromise NilFindingsPostFindingsIDAiOKCompromise `json:"compromise"`
 	Confidence float64                                 `json:"confidence"`
@@ -82632,7 +82796,8 @@ func (s *FindingsPostFindingsIDAiOKAssetKind) UnmarshalText(data []byte) error {
 }
 
 // Scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version
-// = suspected by version; product = only the product matches.
+// = the version is inside the affected range (confirmed when evidence.source says the device itself
+// stated it, suspected otherwise); product = only the product matches.
 type FindingsPostFindingsIDAiOKBasis string
 
 const (
@@ -83018,8 +83183,13 @@ type FindingsPostFindingsIDAiOKEvidence struct {
 	CheckedAt time.Time `json:"checked_at"`
 	Request   OptString `json:"request"`
 	Response  OptString `json:"response"`
-	Summary   string    `json:"summary"`
-	Template  OptString `json:"template"`
+	// Basis version only: the device itself stated the exact version (snmp: its answer to Vedette's SNMP
+	// read; agent: its own agent's OS or package list) and it is inside an affected range with an end, so
+	// the finding is confirmed by the version the device reports. Absent for a banner, an OS guess or a
+	// version a person typed.
+	Source   OptFindingsPostFindingsIDAiOKEvidenceSource `json:"source"`
+	Summary  string                                      `json:"summary"`
+	Template OptString                                   `json:"template"`
 }
 
 // GetAgent returns the value of Agent.
@@ -83045,6 +83215,11 @@ func (s *FindingsPostFindingsIDAiOKEvidence) GetRequest() OptString {
 // GetResponse returns the value of Response.
 func (s *FindingsPostFindingsIDAiOKEvidence) GetResponse() OptString {
 	return s.Response
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDAiOKEvidence) GetSource() OptFindingsPostFindingsIDAiOKEvidenceSource {
+	return s.Source
 }
 
 // GetSummary returns the value of Summary.
@@ -83082,6 +83257,11 @@ func (s *FindingsPostFindingsIDAiOKEvidence) SetResponse(val OptString) {
 	s.Response = val
 }
 
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDAiOKEvidence) SetSource(val OptFindingsPostFindingsIDAiOKEvidenceSource) {
+	s.Source = val
+}
+
 // SetSummary sets the value of Summary.
 func (s *FindingsPostFindingsIDAiOKEvidence) SetSummary(val string) {
 	s.Summary = val
@@ -83090,6 +83270,51 @@ func (s *FindingsPostFindingsIDAiOKEvidence) SetSummary(val string) {
 // SetTemplate sets the value of Template.
 func (s *FindingsPostFindingsIDAiOKEvidence) SetTemplate(val OptString) {
 	s.Template = val
+}
+
+// Basis version only: the device itself stated the exact version (snmp: its answer to Vedette's SNMP
+// read; agent: its own agent's OS or package list) and it is inside an affected range with an end, so
+// the finding is confirmed by the version the device reports. Absent for a banner, an OS guess or a
+// version a person typed.
+type FindingsPostFindingsIDAiOKEvidenceSource string
+
+const (
+	FindingsPostFindingsIDAiOKEvidenceSourceSnmp  FindingsPostFindingsIDAiOKEvidenceSource = "snmp"
+	FindingsPostFindingsIDAiOKEvidenceSourceAgent FindingsPostFindingsIDAiOKEvidenceSource = "agent"
+)
+
+// AllValues returns all FindingsPostFindingsIDAiOKEvidenceSource values.
+func (FindingsPostFindingsIDAiOKEvidenceSource) AllValues() []FindingsPostFindingsIDAiOKEvidenceSource {
+	return []FindingsPostFindingsIDAiOKEvidenceSource{
+		FindingsPostFindingsIDAiOKEvidenceSourceSnmp,
+		FindingsPostFindingsIDAiOKEvidenceSourceAgent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDAiOKEvidenceSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDAiOKEvidenceSourceSnmp:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKEvidenceSourceAgent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDAiOKEvidenceSource) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDAiOKEvidenceSource(data) {
+	case FindingsPostFindingsIDAiOKEvidenceSourceSnmp:
+		*s = FindingsPostFindingsIDAiOKEvidenceSourceSnmp
+		return nil
+	case FindingsPostFindingsIDAiOKEvidenceSourceAgent:
+		*s = FindingsPostFindingsIDAiOKEvidenceSourceAgent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // One update fixes this finding together with the device's other open findings of the same software
@@ -84972,7 +85197,8 @@ type FindingsPostFindingsIDAppliedOK struct {
 	Asset       NilFindingsPostFindingsIDAppliedOKAsset      `json:"asset"`
 	AssetID     string                                       `json:"asset_id"`
 	// Scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version
-	// = suspected by version; product = only the product matches.
+	// = the version is inside the affected range (confirmed when evidence.source says the device itself
+	// stated it, suspected otherwise); product = only the product matches.
 	Basis      FindingsPostFindingsIDAppliedOKBasis         `json:"basis"`
 	Compromise NilFindingsPostFindingsIDAppliedOKCompromise `json:"compromise"`
 	Confidence float64                                      `json:"confidence"`
@@ -86729,7 +86955,8 @@ func (s *FindingsPostFindingsIDAppliedOKAssetKind) UnmarshalText(data []byte) er
 }
 
 // Scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version
-// = suspected by version; product = only the product matches.
+// = the version is inside the affected range (confirmed when evidence.source says the device itself
+// stated it, suspected otherwise); product = only the product matches.
 type FindingsPostFindingsIDAppliedOKBasis string
 
 const (
@@ -87115,8 +87342,13 @@ type FindingsPostFindingsIDAppliedOKEvidence struct {
 	CheckedAt time.Time `json:"checked_at"`
 	Request   OptString `json:"request"`
 	Response  OptString `json:"response"`
-	Summary   string    `json:"summary"`
-	Template  OptString `json:"template"`
+	// Basis version only: the device itself stated the exact version (snmp: its answer to Vedette's SNMP
+	// read; agent: its own agent's OS or package list) and it is inside an affected range with an end, so
+	// the finding is confirmed by the version the device reports. Absent for a banner, an OS guess or a
+	// version a person typed.
+	Source   OptFindingsPostFindingsIDAppliedOKEvidenceSource `json:"source"`
+	Summary  string                                           `json:"summary"`
+	Template OptString                                        `json:"template"`
 }
 
 // GetAgent returns the value of Agent.
@@ -87142,6 +87374,11 @@ func (s *FindingsPostFindingsIDAppliedOKEvidence) GetRequest() OptString {
 // GetResponse returns the value of Response.
 func (s *FindingsPostFindingsIDAppliedOKEvidence) GetResponse() OptString {
 	return s.Response
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDAppliedOKEvidence) GetSource() OptFindingsPostFindingsIDAppliedOKEvidenceSource {
+	return s.Source
 }
 
 // GetSummary returns the value of Summary.
@@ -87179,6 +87416,11 @@ func (s *FindingsPostFindingsIDAppliedOKEvidence) SetResponse(val OptString) {
 	s.Response = val
 }
 
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDAppliedOKEvidence) SetSource(val OptFindingsPostFindingsIDAppliedOKEvidenceSource) {
+	s.Source = val
+}
+
 // SetSummary sets the value of Summary.
 func (s *FindingsPostFindingsIDAppliedOKEvidence) SetSummary(val string) {
 	s.Summary = val
@@ -87187,6 +87429,51 @@ func (s *FindingsPostFindingsIDAppliedOKEvidence) SetSummary(val string) {
 // SetTemplate sets the value of Template.
 func (s *FindingsPostFindingsIDAppliedOKEvidence) SetTemplate(val OptString) {
 	s.Template = val
+}
+
+// Basis version only: the device itself stated the exact version (snmp: its answer to Vedette's SNMP
+// read; agent: its own agent's OS or package list) and it is inside an affected range with an end, so
+// the finding is confirmed by the version the device reports. Absent for a banner, an OS guess or a
+// version a person typed.
+type FindingsPostFindingsIDAppliedOKEvidenceSource string
+
+const (
+	FindingsPostFindingsIDAppliedOKEvidenceSourceSnmp  FindingsPostFindingsIDAppliedOKEvidenceSource = "snmp"
+	FindingsPostFindingsIDAppliedOKEvidenceSourceAgent FindingsPostFindingsIDAppliedOKEvidenceSource = "agent"
+)
+
+// AllValues returns all FindingsPostFindingsIDAppliedOKEvidenceSource values.
+func (FindingsPostFindingsIDAppliedOKEvidenceSource) AllValues() []FindingsPostFindingsIDAppliedOKEvidenceSource {
+	return []FindingsPostFindingsIDAppliedOKEvidenceSource{
+		FindingsPostFindingsIDAppliedOKEvidenceSourceSnmp,
+		FindingsPostFindingsIDAppliedOKEvidenceSourceAgent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDAppliedOKEvidenceSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDAppliedOKEvidenceSourceSnmp:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKEvidenceSourceAgent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDAppliedOKEvidenceSource) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDAppliedOKEvidenceSource(data) {
+	case FindingsPostFindingsIDAppliedOKEvidenceSourceSnmp:
+		*s = FindingsPostFindingsIDAppliedOKEvidenceSourceSnmp
+		return nil
+	case FindingsPostFindingsIDAppliedOKEvidenceSourceAgent:
+		*s = FindingsPostFindingsIDAppliedOKEvidenceSourceAgent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // One update fixes this finding together with the device's other open findings of the same software
@@ -89090,7 +89377,8 @@ type FindingsPostFindingsIDConfirmOK struct {
 	Asset       NilFindingsPostFindingsIDConfirmOKAsset      `json:"asset"`
 	AssetID     string                                       `json:"asset_id"`
 	// Scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version
-	// = suspected by version; product = only the product matches.
+	// = the version is inside the affected range (confirmed when evidence.source says the device itself
+	// stated it, suspected otherwise); product = only the product matches.
 	Basis      FindingsPostFindingsIDConfirmOKBasis         `json:"basis"`
 	Compromise NilFindingsPostFindingsIDConfirmOKCompromise `json:"compromise"`
 	Confidence float64                                      `json:"confidence"`
@@ -90847,7 +91135,8 @@ func (s *FindingsPostFindingsIDConfirmOKAssetKind) UnmarshalText(data []byte) er
 }
 
 // Scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version
-// = suspected by version; product = only the product matches.
+// = the version is inside the affected range (confirmed when evidence.source says the device itself
+// stated it, suspected otherwise); product = only the product matches.
 type FindingsPostFindingsIDConfirmOKBasis string
 
 const (
@@ -91233,8 +91522,13 @@ type FindingsPostFindingsIDConfirmOKEvidence struct {
 	CheckedAt time.Time `json:"checked_at"`
 	Request   OptString `json:"request"`
 	Response  OptString `json:"response"`
-	Summary   string    `json:"summary"`
-	Template  OptString `json:"template"`
+	// Basis version only: the device itself stated the exact version (snmp: its answer to Vedette's SNMP
+	// read; agent: its own agent's OS or package list) and it is inside an affected range with an end, so
+	// the finding is confirmed by the version the device reports. Absent for a banner, an OS guess or a
+	// version a person typed.
+	Source   OptFindingsPostFindingsIDConfirmOKEvidenceSource `json:"source"`
+	Summary  string                                           `json:"summary"`
+	Template OptString                                        `json:"template"`
 }
 
 // GetAgent returns the value of Agent.
@@ -91260,6 +91554,11 @@ func (s *FindingsPostFindingsIDConfirmOKEvidence) GetRequest() OptString {
 // GetResponse returns the value of Response.
 func (s *FindingsPostFindingsIDConfirmOKEvidence) GetResponse() OptString {
 	return s.Response
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDConfirmOKEvidence) GetSource() OptFindingsPostFindingsIDConfirmOKEvidenceSource {
+	return s.Source
 }
 
 // GetSummary returns the value of Summary.
@@ -91297,6 +91596,11 @@ func (s *FindingsPostFindingsIDConfirmOKEvidence) SetResponse(val OptString) {
 	s.Response = val
 }
 
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDConfirmOKEvidence) SetSource(val OptFindingsPostFindingsIDConfirmOKEvidenceSource) {
+	s.Source = val
+}
+
 // SetSummary sets the value of Summary.
 func (s *FindingsPostFindingsIDConfirmOKEvidence) SetSummary(val string) {
 	s.Summary = val
@@ -91305,6 +91609,51 @@ func (s *FindingsPostFindingsIDConfirmOKEvidence) SetSummary(val string) {
 // SetTemplate sets the value of Template.
 func (s *FindingsPostFindingsIDConfirmOKEvidence) SetTemplate(val OptString) {
 	s.Template = val
+}
+
+// Basis version only: the device itself stated the exact version (snmp: its answer to Vedette's SNMP
+// read; agent: its own agent's OS or package list) and it is inside an affected range with an end, so
+// the finding is confirmed by the version the device reports. Absent for a banner, an OS guess or a
+// version a person typed.
+type FindingsPostFindingsIDConfirmOKEvidenceSource string
+
+const (
+	FindingsPostFindingsIDConfirmOKEvidenceSourceSnmp  FindingsPostFindingsIDConfirmOKEvidenceSource = "snmp"
+	FindingsPostFindingsIDConfirmOKEvidenceSourceAgent FindingsPostFindingsIDConfirmOKEvidenceSource = "agent"
+)
+
+// AllValues returns all FindingsPostFindingsIDConfirmOKEvidenceSource values.
+func (FindingsPostFindingsIDConfirmOKEvidenceSource) AllValues() []FindingsPostFindingsIDConfirmOKEvidenceSource {
+	return []FindingsPostFindingsIDConfirmOKEvidenceSource{
+		FindingsPostFindingsIDConfirmOKEvidenceSourceSnmp,
+		FindingsPostFindingsIDConfirmOKEvidenceSourceAgent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDConfirmOKEvidenceSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDConfirmOKEvidenceSourceSnmp:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKEvidenceSourceAgent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDConfirmOKEvidenceSource) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDConfirmOKEvidenceSource(data) {
+	case FindingsPostFindingsIDConfirmOKEvidenceSourceSnmp:
+		*s = FindingsPostFindingsIDConfirmOKEvidenceSourceSnmp
+		return nil
+	case FindingsPostFindingsIDConfirmOKEvidenceSourceAgent:
+		*s = FindingsPostFindingsIDConfirmOKEvidenceSourceAgent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // One update fixes this finding together with the device's other open findings of the same software
@@ -93146,7 +93495,8 @@ type FindingsPostFindingsIDStatusOK struct {
 	Asset       NilFindingsPostFindingsIDStatusOKAsset      `json:"asset"`
 	AssetID     string                                      `json:"asset_id"`
 	// Scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version
-	// = suspected by version; product = only the product matches.
+	// = the version is inside the affected range (confirmed when evidence.source says the device itself
+	// stated it, suspected otherwise); product = only the product matches.
 	Basis      FindingsPostFindingsIDStatusOKBasis         `json:"basis"`
 	Compromise NilFindingsPostFindingsIDStatusOKCompromise `json:"compromise"`
 	Confidence float64                                     `json:"confidence"`
@@ -94903,7 +95253,8 @@ func (s *FindingsPostFindingsIDStatusOKAssetKind) UnmarshalText(data []byte) err
 }
 
 // Scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version
-// = suspected by version; product = only the product matches.
+// = the version is inside the affected range (confirmed when evidence.source says the device itself
+// stated it, suspected otherwise); product = only the product matches.
 type FindingsPostFindingsIDStatusOKBasis string
 
 const (
@@ -95289,8 +95640,13 @@ type FindingsPostFindingsIDStatusOKEvidence struct {
 	CheckedAt time.Time `json:"checked_at"`
 	Request   OptString `json:"request"`
 	Response  OptString `json:"response"`
-	Summary   string    `json:"summary"`
-	Template  OptString `json:"template"`
+	// Basis version only: the device itself stated the exact version (snmp: its answer to Vedette's SNMP
+	// read; agent: its own agent's OS or package list) and it is inside an affected range with an end, so
+	// the finding is confirmed by the version the device reports. Absent for a banner, an OS guess or a
+	// version a person typed.
+	Source   OptFindingsPostFindingsIDStatusOKEvidenceSource `json:"source"`
+	Summary  string                                          `json:"summary"`
+	Template OptString                                       `json:"template"`
 }
 
 // GetAgent returns the value of Agent.
@@ -95316,6 +95672,11 @@ func (s *FindingsPostFindingsIDStatusOKEvidence) GetRequest() OptString {
 // GetResponse returns the value of Response.
 func (s *FindingsPostFindingsIDStatusOKEvidence) GetResponse() OptString {
 	return s.Response
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDStatusOKEvidence) GetSource() OptFindingsPostFindingsIDStatusOKEvidenceSource {
+	return s.Source
 }
 
 // GetSummary returns the value of Summary.
@@ -95353,6 +95714,11 @@ func (s *FindingsPostFindingsIDStatusOKEvidence) SetResponse(val OptString) {
 	s.Response = val
 }
 
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDStatusOKEvidence) SetSource(val OptFindingsPostFindingsIDStatusOKEvidenceSource) {
+	s.Source = val
+}
+
 // SetSummary sets the value of Summary.
 func (s *FindingsPostFindingsIDStatusOKEvidence) SetSummary(val string) {
 	s.Summary = val
@@ -95361,6 +95727,51 @@ func (s *FindingsPostFindingsIDStatusOKEvidence) SetSummary(val string) {
 // SetTemplate sets the value of Template.
 func (s *FindingsPostFindingsIDStatusOKEvidence) SetTemplate(val OptString) {
 	s.Template = val
+}
+
+// Basis version only: the device itself stated the exact version (snmp: its answer to Vedette's SNMP
+// read; agent: its own agent's OS or package list) and it is inside an affected range with an end, so
+// the finding is confirmed by the version the device reports. Absent for a banner, an OS guess or a
+// version a person typed.
+type FindingsPostFindingsIDStatusOKEvidenceSource string
+
+const (
+	FindingsPostFindingsIDStatusOKEvidenceSourceSnmp  FindingsPostFindingsIDStatusOKEvidenceSource = "snmp"
+	FindingsPostFindingsIDStatusOKEvidenceSourceAgent FindingsPostFindingsIDStatusOKEvidenceSource = "agent"
+)
+
+// AllValues returns all FindingsPostFindingsIDStatusOKEvidenceSource values.
+func (FindingsPostFindingsIDStatusOKEvidenceSource) AllValues() []FindingsPostFindingsIDStatusOKEvidenceSource {
+	return []FindingsPostFindingsIDStatusOKEvidenceSource{
+		FindingsPostFindingsIDStatusOKEvidenceSourceSnmp,
+		FindingsPostFindingsIDStatusOKEvidenceSourceAgent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDStatusOKEvidenceSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDStatusOKEvidenceSourceSnmp:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKEvidenceSourceAgent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDStatusOKEvidenceSource) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDStatusOKEvidenceSource(data) {
+	case FindingsPostFindingsIDStatusOKEvidenceSourceSnmp:
+		*s = FindingsPostFindingsIDStatusOKEvidenceSourceSnmp
+		return nil
+	case FindingsPostFindingsIDStatusOKEvidenceSourceAgent:
+		*s = FindingsPostFindingsIDStatusOKEvidenceSourceAgent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // One update fixes this finding together with the device's other open findings of the same software
@@ -97295,7 +97706,8 @@ type FindingsPostFindingsIDUnconfirmOK struct {
 	Asset       NilFindingsPostFindingsIDUnconfirmOKAsset      `json:"asset"`
 	AssetID     string                                         `json:"asset_id"`
 	// Scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version
-	// = suspected by version; product = only the product matches.
+	// = the version is inside the affected range (confirmed when evidence.source says the device itself
+	// stated it, suspected otherwise); product = only the product matches.
 	Basis      FindingsPostFindingsIDUnconfirmOKBasis         `json:"basis"`
 	Compromise NilFindingsPostFindingsIDUnconfirmOKCompromise `json:"compromise"`
 	Confidence float64                                        `json:"confidence"`
@@ -99052,7 +99464,8 @@ func (s *FindingsPostFindingsIDUnconfirmOKAssetKind) UnmarshalText(data []byte) 
 }
 
 // Scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version
-// = suspected by version; product = only the product matches.
+// = the version is inside the affected range (confirmed when evidence.source says the device itself
+// stated it, suspected otherwise); product = only the product matches.
 type FindingsPostFindingsIDUnconfirmOKBasis string
 
 const (
@@ -99438,8 +99851,13 @@ type FindingsPostFindingsIDUnconfirmOKEvidence struct {
 	CheckedAt time.Time `json:"checked_at"`
 	Request   OptString `json:"request"`
 	Response  OptString `json:"response"`
-	Summary   string    `json:"summary"`
-	Template  OptString `json:"template"`
+	// Basis version only: the device itself stated the exact version (snmp: its answer to Vedette's SNMP
+	// read; agent: its own agent's OS or package list) and it is inside an affected range with an end, so
+	// the finding is confirmed by the version the device reports. Absent for a banner, an OS guess or a
+	// version a person typed.
+	Source   OptFindingsPostFindingsIDUnconfirmOKEvidenceSource `json:"source"`
+	Summary  string                                             `json:"summary"`
+	Template OptString                                          `json:"template"`
 }
 
 // GetAgent returns the value of Agent.
@@ -99465,6 +99883,11 @@ func (s *FindingsPostFindingsIDUnconfirmOKEvidence) GetRequest() OptString {
 // GetResponse returns the value of Response.
 func (s *FindingsPostFindingsIDUnconfirmOKEvidence) GetResponse() OptString {
 	return s.Response
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDUnconfirmOKEvidence) GetSource() OptFindingsPostFindingsIDUnconfirmOKEvidenceSource {
+	return s.Source
 }
 
 // GetSummary returns the value of Summary.
@@ -99502,6 +99925,11 @@ func (s *FindingsPostFindingsIDUnconfirmOKEvidence) SetResponse(val OptString) {
 	s.Response = val
 }
 
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDUnconfirmOKEvidence) SetSource(val OptFindingsPostFindingsIDUnconfirmOKEvidenceSource) {
+	s.Source = val
+}
+
 // SetSummary sets the value of Summary.
 func (s *FindingsPostFindingsIDUnconfirmOKEvidence) SetSummary(val string) {
 	s.Summary = val
@@ -99510,6 +99938,51 @@ func (s *FindingsPostFindingsIDUnconfirmOKEvidence) SetSummary(val string) {
 // SetTemplate sets the value of Template.
 func (s *FindingsPostFindingsIDUnconfirmOKEvidence) SetTemplate(val OptString) {
 	s.Template = val
+}
+
+// Basis version only: the device itself stated the exact version (snmp: its answer to Vedette's SNMP
+// read; agent: its own agent's OS or package list) and it is inside an affected range with an end, so
+// the finding is confirmed by the version the device reports. Absent for a banner, an OS guess or a
+// version a person typed.
+type FindingsPostFindingsIDUnconfirmOKEvidenceSource string
+
+const (
+	FindingsPostFindingsIDUnconfirmOKEvidenceSourceSnmp  FindingsPostFindingsIDUnconfirmOKEvidenceSource = "snmp"
+	FindingsPostFindingsIDUnconfirmOKEvidenceSourceAgent FindingsPostFindingsIDUnconfirmOKEvidenceSource = "agent"
+)
+
+// AllValues returns all FindingsPostFindingsIDUnconfirmOKEvidenceSource values.
+func (FindingsPostFindingsIDUnconfirmOKEvidenceSource) AllValues() []FindingsPostFindingsIDUnconfirmOKEvidenceSource {
+	return []FindingsPostFindingsIDUnconfirmOKEvidenceSource{
+		FindingsPostFindingsIDUnconfirmOKEvidenceSourceSnmp,
+		FindingsPostFindingsIDUnconfirmOKEvidenceSourceAgent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDUnconfirmOKEvidenceSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDUnconfirmOKEvidenceSourceSnmp:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKEvidenceSourceAgent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDUnconfirmOKEvidenceSource) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDUnconfirmOKEvidenceSource(data) {
+	case FindingsPostFindingsIDUnconfirmOKEvidenceSourceSnmp:
+		*s = FindingsPostFindingsIDUnconfirmOKEvidenceSourceSnmp
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKEvidenceSourceAgent:
+		*s = FindingsPostFindingsIDUnconfirmOKEvidenceSourceAgent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // One update fixes this finding together with the device's other open findings of the same software
@@ -164686,6 +165159,52 @@ func (o OptExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent) Or(d ExposureP
 	return d
 }
 
+// NewOptFindingsGetFindingsIDOKEvidenceSource returns new OptFindingsGetFindingsIDOKEvidenceSource with value set to v.
+func NewOptFindingsGetFindingsIDOKEvidenceSource(v FindingsGetFindingsIDOKEvidenceSource) OptFindingsGetFindingsIDOKEvidenceSource {
+	return OptFindingsGetFindingsIDOKEvidenceSource{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptFindingsGetFindingsIDOKEvidenceSource is optional FindingsGetFindingsIDOKEvidenceSource.
+type OptFindingsGetFindingsIDOKEvidenceSource struct {
+	Value FindingsGetFindingsIDOKEvidenceSource
+	Set   bool
+}
+
+// IsSet returns true if OptFindingsGetFindingsIDOKEvidenceSource was set.
+func (o OptFindingsGetFindingsIDOKEvidenceSource) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptFindingsGetFindingsIDOKEvidenceSource) Reset() {
+	var v FindingsGetFindingsIDOKEvidenceSource
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptFindingsGetFindingsIDOKEvidenceSource) SetTo(v FindingsGetFindingsIDOKEvidenceSource) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptFindingsGetFindingsIDOKEvidenceSource) Get() (v FindingsGetFindingsIDOKEvidenceSource, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptFindingsGetFindingsIDOKEvidenceSource) Or(d FindingsGetFindingsIDOKEvidenceSource) FindingsGetFindingsIDOKEvidenceSource {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptFindingsGetFindingsIDOKKevSource returns new OptFindingsGetFindingsIDOKKevSource with value set to v.
 func NewOptFindingsGetFindingsIDOKKevSource(v FindingsGetFindingsIDOKKevSource) OptFindingsGetFindingsIDOKKevSource {
 	return OptFindingsGetFindingsIDOKKevSource{
@@ -164772,6 +165291,52 @@ func (o OptFindingsGetFindingsIDOKPackFirewallItemAlternative) Get() (v Findings
 
 // Or returns value if set, or given parameter if does not.
 func (o OptFindingsGetFindingsIDOKPackFirewallItemAlternative) Or(d FindingsGetFindingsIDOKPackFirewallItemAlternative) FindingsGetFindingsIDOKPackFirewallItemAlternative {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptFindingsGetFindingsOKItemsItemEvidenceSource returns new OptFindingsGetFindingsOKItemsItemEvidenceSource with value set to v.
+func NewOptFindingsGetFindingsOKItemsItemEvidenceSource(v FindingsGetFindingsOKItemsItemEvidenceSource) OptFindingsGetFindingsOKItemsItemEvidenceSource {
+	return OptFindingsGetFindingsOKItemsItemEvidenceSource{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptFindingsGetFindingsOKItemsItemEvidenceSource is optional FindingsGetFindingsOKItemsItemEvidenceSource.
+type OptFindingsGetFindingsOKItemsItemEvidenceSource struct {
+	Value FindingsGetFindingsOKItemsItemEvidenceSource
+	Set   bool
+}
+
+// IsSet returns true if OptFindingsGetFindingsOKItemsItemEvidenceSource was set.
+func (o OptFindingsGetFindingsOKItemsItemEvidenceSource) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptFindingsGetFindingsOKItemsItemEvidenceSource) Reset() {
+	var v FindingsGetFindingsOKItemsItemEvidenceSource
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptFindingsGetFindingsOKItemsItemEvidenceSource) SetTo(v FindingsGetFindingsOKItemsItemEvidenceSource) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptFindingsGetFindingsOKItemsItemEvidenceSource) Get() (v FindingsGetFindingsOKItemsItemEvidenceSource, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptFindingsGetFindingsOKItemsItemEvidenceSource) Or(d FindingsGetFindingsOKItemsItemEvidenceSource) FindingsGetFindingsOKItemsItemEvidenceSource {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -164916,6 +165481,52 @@ func (o OptFindingsGetFindingsPlanTier) Or(d FindingsGetFindingsPlanTier) Findin
 	return d
 }
 
+// NewOptFindingsPostFindingsIDAiOKEvidenceSource returns new OptFindingsPostFindingsIDAiOKEvidenceSource with value set to v.
+func NewOptFindingsPostFindingsIDAiOKEvidenceSource(v FindingsPostFindingsIDAiOKEvidenceSource) OptFindingsPostFindingsIDAiOKEvidenceSource {
+	return OptFindingsPostFindingsIDAiOKEvidenceSource{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptFindingsPostFindingsIDAiOKEvidenceSource is optional FindingsPostFindingsIDAiOKEvidenceSource.
+type OptFindingsPostFindingsIDAiOKEvidenceSource struct {
+	Value FindingsPostFindingsIDAiOKEvidenceSource
+	Set   bool
+}
+
+// IsSet returns true if OptFindingsPostFindingsIDAiOKEvidenceSource was set.
+func (o OptFindingsPostFindingsIDAiOKEvidenceSource) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptFindingsPostFindingsIDAiOKEvidenceSource) Reset() {
+	var v FindingsPostFindingsIDAiOKEvidenceSource
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptFindingsPostFindingsIDAiOKEvidenceSource) SetTo(v FindingsPostFindingsIDAiOKEvidenceSource) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptFindingsPostFindingsIDAiOKEvidenceSource) Get() (v FindingsPostFindingsIDAiOKEvidenceSource, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptFindingsPostFindingsIDAiOKEvidenceSource) Or(d FindingsPostFindingsIDAiOKEvidenceSource) FindingsPostFindingsIDAiOKEvidenceSource {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptFindingsPostFindingsIDAiOKKevSource returns new OptFindingsPostFindingsIDAiOKKevSource with value set to v.
 func NewOptFindingsPostFindingsIDAiOKKevSource(v FindingsPostFindingsIDAiOKKevSource) OptFindingsPostFindingsIDAiOKKevSource {
 	return OptFindingsPostFindingsIDAiOKKevSource{
@@ -165002,6 +165613,52 @@ func (o OptFindingsPostFindingsIDAiOKPackFirewallItemAlternative) Get() (v Findi
 
 // Or returns value if set, or given parameter if does not.
 func (o OptFindingsPostFindingsIDAiOKPackFirewallItemAlternative) Or(d FindingsPostFindingsIDAiOKPackFirewallItemAlternative) FindingsPostFindingsIDAiOKPackFirewallItemAlternative {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptFindingsPostFindingsIDAppliedOKEvidenceSource returns new OptFindingsPostFindingsIDAppliedOKEvidenceSource with value set to v.
+func NewOptFindingsPostFindingsIDAppliedOKEvidenceSource(v FindingsPostFindingsIDAppliedOKEvidenceSource) OptFindingsPostFindingsIDAppliedOKEvidenceSource {
+	return OptFindingsPostFindingsIDAppliedOKEvidenceSource{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptFindingsPostFindingsIDAppliedOKEvidenceSource is optional FindingsPostFindingsIDAppliedOKEvidenceSource.
+type OptFindingsPostFindingsIDAppliedOKEvidenceSource struct {
+	Value FindingsPostFindingsIDAppliedOKEvidenceSource
+	Set   bool
+}
+
+// IsSet returns true if OptFindingsPostFindingsIDAppliedOKEvidenceSource was set.
+func (o OptFindingsPostFindingsIDAppliedOKEvidenceSource) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptFindingsPostFindingsIDAppliedOKEvidenceSource) Reset() {
+	var v FindingsPostFindingsIDAppliedOKEvidenceSource
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptFindingsPostFindingsIDAppliedOKEvidenceSource) SetTo(v FindingsPostFindingsIDAppliedOKEvidenceSource) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptFindingsPostFindingsIDAppliedOKEvidenceSource) Get() (v FindingsPostFindingsIDAppliedOKEvidenceSource, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptFindingsPostFindingsIDAppliedOKEvidenceSource) Or(d FindingsPostFindingsIDAppliedOKEvidenceSource) FindingsPostFindingsIDAppliedOKEvidenceSource {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -165100,6 +165757,52 @@ func (o OptFindingsPostFindingsIDAppliedOKPackFirewallItemAlternative) Or(d Find
 	return d
 }
 
+// NewOptFindingsPostFindingsIDConfirmOKEvidenceSource returns new OptFindingsPostFindingsIDConfirmOKEvidenceSource with value set to v.
+func NewOptFindingsPostFindingsIDConfirmOKEvidenceSource(v FindingsPostFindingsIDConfirmOKEvidenceSource) OptFindingsPostFindingsIDConfirmOKEvidenceSource {
+	return OptFindingsPostFindingsIDConfirmOKEvidenceSource{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptFindingsPostFindingsIDConfirmOKEvidenceSource is optional FindingsPostFindingsIDConfirmOKEvidenceSource.
+type OptFindingsPostFindingsIDConfirmOKEvidenceSource struct {
+	Value FindingsPostFindingsIDConfirmOKEvidenceSource
+	Set   bool
+}
+
+// IsSet returns true if OptFindingsPostFindingsIDConfirmOKEvidenceSource was set.
+func (o OptFindingsPostFindingsIDConfirmOKEvidenceSource) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptFindingsPostFindingsIDConfirmOKEvidenceSource) Reset() {
+	var v FindingsPostFindingsIDConfirmOKEvidenceSource
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptFindingsPostFindingsIDConfirmOKEvidenceSource) SetTo(v FindingsPostFindingsIDConfirmOKEvidenceSource) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptFindingsPostFindingsIDConfirmOKEvidenceSource) Get() (v FindingsPostFindingsIDConfirmOKEvidenceSource, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptFindingsPostFindingsIDConfirmOKEvidenceSource) Or(d FindingsPostFindingsIDConfirmOKEvidenceSource) FindingsPostFindingsIDConfirmOKEvidenceSource {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptFindingsPostFindingsIDConfirmOKKevSource returns new OptFindingsPostFindingsIDConfirmOKKevSource with value set to v.
 func NewOptFindingsPostFindingsIDConfirmOKKevSource(v FindingsPostFindingsIDConfirmOKKevSource) OptFindingsPostFindingsIDConfirmOKKevSource {
 	return OptFindingsPostFindingsIDConfirmOKKevSource{
@@ -165192,6 +165895,52 @@ func (o OptFindingsPostFindingsIDConfirmOKPackFirewallItemAlternative) Or(d Find
 	return d
 }
 
+// NewOptFindingsPostFindingsIDStatusOKEvidenceSource returns new OptFindingsPostFindingsIDStatusOKEvidenceSource with value set to v.
+func NewOptFindingsPostFindingsIDStatusOKEvidenceSource(v FindingsPostFindingsIDStatusOKEvidenceSource) OptFindingsPostFindingsIDStatusOKEvidenceSource {
+	return OptFindingsPostFindingsIDStatusOKEvidenceSource{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptFindingsPostFindingsIDStatusOKEvidenceSource is optional FindingsPostFindingsIDStatusOKEvidenceSource.
+type OptFindingsPostFindingsIDStatusOKEvidenceSource struct {
+	Value FindingsPostFindingsIDStatusOKEvidenceSource
+	Set   bool
+}
+
+// IsSet returns true if OptFindingsPostFindingsIDStatusOKEvidenceSource was set.
+func (o OptFindingsPostFindingsIDStatusOKEvidenceSource) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptFindingsPostFindingsIDStatusOKEvidenceSource) Reset() {
+	var v FindingsPostFindingsIDStatusOKEvidenceSource
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptFindingsPostFindingsIDStatusOKEvidenceSource) SetTo(v FindingsPostFindingsIDStatusOKEvidenceSource) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptFindingsPostFindingsIDStatusOKEvidenceSource) Get() (v FindingsPostFindingsIDStatusOKEvidenceSource, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptFindingsPostFindingsIDStatusOKEvidenceSource) Or(d FindingsPostFindingsIDStatusOKEvidenceSource) FindingsPostFindingsIDStatusOKEvidenceSource {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptFindingsPostFindingsIDStatusOKKevSource returns new OptFindingsPostFindingsIDStatusOKKevSource with value set to v.
 func NewOptFindingsPostFindingsIDStatusOKKevSource(v FindingsPostFindingsIDStatusOKKevSource) OptFindingsPostFindingsIDStatusOKKevSource {
 	return OptFindingsPostFindingsIDStatusOKKevSource{
@@ -165278,6 +166027,52 @@ func (o OptFindingsPostFindingsIDStatusOKPackFirewallItemAlternative) Get() (v F
 
 // Or returns value if set, or given parameter if does not.
 func (o OptFindingsPostFindingsIDStatusOKPackFirewallItemAlternative) Or(d FindingsPostFindingsIDStatusOKPackFirewallItemAlternative) FindingsPostFindingsIDStatusOKPackFirewallItemAlternative {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptFindingsPostFindingsIDUnconfirmOKEvidenceSource returns new OptFindingsPostFindingsIDUnconfirmOKEvidenceSource with value set to v.
+func NewOptFindingsPostFindingsIDUnconfirmOKEvidenceSource(v FindingsPostFindingsIDUnconfirmOKEvidenceSource) OptFindingsPostFindingsIDUnconfirmOKEvidenceSource {
+	return OptFindingsPostFindingsIDUnconfirmOKEvidenceSource{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptFindingsPostFindingsIDUnconfirmOKEvidenceSource is optional FindingsPostFindingsIDUnconfirmOKEvidenceSource.
+type OptFindingsPostFindingsIDUnconfirmOKEvidenceSource struct {
+	Value FindingsPostFindingsIDUnconfirmOKEvidenceSource
+	Set   bool
+}
+
+// IsSet returns true if OptFindingsPostFindingsIDUnconfirmOKEvidenceSource was set.
+func (o OptFindingsPostFindingsIDUnconfirmOKEvidenceSource) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptFindingsPostFindingsIDUnconfirmOKEvidenceSource) Reset() {
+	var v FindingsPostFindingsIDUnconfirmOKEvidenceSource
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptFindingsPostFindingsIDUnconfirmOKEvidenceSource) SetTo(v FindingsPostFindingsIDUnconfirmOKEvidenceSource) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptFindingsPostFindingsIDUnconfirmOKEvidenceSource) Get() (v FindingsPostFindingsIDUnconfirmOKEvidenceSource, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptFindingsPostFindingsIDUnconfirmOKEvidenceSource) Or(d FindingsPostFindingsIDUnconfirmOKEvidenceSource) FindingsPostFindingsIDUnconfirmOKEvidenceSource {
 	if v, ok := o.Get(); ok {
 		return v
 	}

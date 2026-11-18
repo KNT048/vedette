@@ -108,7 +108,7 @@ func (s *Service) closeNotInstalled(ctx context.Context, tx *sql.Tx, assetID, de
 			return closed, kept, err
 		}
 		mk := cves[cve]
-		if r.Status == StatusSuspected && keptAfter(r.History, mk.at) {
+		if (r.Status == StatusSuspected || r.ByDevice()) && keptAfter(r.History, mk.at) {
 			if kept == nil {
 				kept = map[string]string{}
 			}

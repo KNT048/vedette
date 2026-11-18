@@ -415,7 +415,8 @@ func TestContract_PlatformClosesAndReopens(t *testing.T) {
 		return r
 	}
 	run("Alpine Linux v3.23", "10.2_p1-r0") // the agent's apk release, below Alpine 3.23's fix
-	if r := load(); r.Status != StatusSuspected || r.Basis != BasisVersion || !r.Evidence.Agent || !strings.Contains(r.Evidence.Summary, "Update openssh-server to 10.2_p1-r1") {
+	// the device's own agent states the release below the fix: confirmed by the version the device reports
+	if r := load(); r.Status != StatusConfirmed || r.Basis != BasisVersion || !r.Evidence.Agent || r.Evidence.Source != SourceAgent || !strings.Contains(r.Evidence.Summary, "Update openssh-server to 10.2_p1-r1") {
 		t.Fatalf("created = %+v %+v", r.Finding, r.Evidence)
 	}
 	run("Ubuntu 24.04.3 LTS", "9.6p1")
@@ -426,7 +427,7 @@ func TestContract_PlatformClosesAndReopens(t *testing.T) {
 		t.Fatalf("audit rows naming the platform proof: %d", n)
 	}
 	run("Alpine Linux v3.23", "10.2_p1-r0")
-	if r := load(); r.Status != StatusSuspected || r.ResolutionReason != "" {
+	if r := load(); r.Status != StatusConfirmed || r.ResolutionReason != "" { // reopened, and the agent's release confirms it again
 		t.Fatalf("not reopened: %+v", r.Finding)
 	}
 }

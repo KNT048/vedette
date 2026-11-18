@@ -235,9 +235,25 @@ type Evidence struct {
 	AgentRow bool
 	// Prior is, on a finding a person confirmed (basis person), the basis it had before: Undo returns to it. Stored, never sent.
 	Prior Basis
+	// Source is, on a version match (basis version), who stated the version when it is the device itself over a channel that
+	// answers for it: SourceSNMP (the device's answer to Vedette's SNMP read with its community) or SourceAgent (the device's own
+	// agent: its OS or package list); "" otherwise (a banner, an OS guess, a person's entry). Set only when the version is inside a
+	// range with an end that covers it (a fix exists past it): then the finding is confirmed (INV-2, Finding.ByDevice).
+	Source string
 }
 
-// Match is a finding the matcher would create (status is always suspected).
+// The device-stated sources of Evidence.Source.
+const (
+	SourceSNMP  = "snmp"
+	SourceAgent = "agent"
+)
+
+// deviceStated reports whether the evidence says the device itself stated the version that is inside the affected range.
+func (e *Evidence) deviceStated() bool {
+	return e != nil && (e.Source == SourceSNMP || e.Source == SourceAgent)
+}
+
+// Match is a finding the matcher would create: suspected, or confirmed when the device itself stated the version (Evidence.Source).
 type Match struct {
 	CVE             string
 	SoftwareID      string
@@ -1034,6 +1050,9 @@ func judge(a Asset, s Software, in swInfo, v Vuln, key []identity, now time.Time
 	}
 	sw := withVersion(s.Display, s.Version) // a scan row's display already ends with its version ("OpenSSH 10.2")
 	name := clean(a.Name)
+	// snmpStated: the device answered Vedette's SNMP read with this exact version (never a person's correction of it, whose Source
+	// is manual) and it is inside a range with an end: the device's own statement confirms the finding.
+	snmpStated := false
 	m := Match{
 		CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Basis: BasisProduct, Confidence: ConfProduct,
 		Severity: SeverityMedium,
@@ -1060,6 +1079,9 @@ func judge(a Asset, s Software, in swInfo, v Vuln, key []identity, now time.Time
 		if s.Source == "agent" && pinned == "" && (within.EndExcl != "" || within.EndIncl != "") {
 			m.Evidence.Agent = true
 			m.Evidence.Summary = agentSummary(name, s, in, v, within, w, isWin)
+		}
+		if s.Source == SourceSNMP && pinned == "" && w.via == "" && endBound(within) {
+			snmpStated = true
 		}
 	case every && (!in.given || !versionKnown(in.ver)): // the version does not matter (#939: also one Vedette cannot read)
 		m.every = true
@@ -1096,8 +1118,40 @@ func judge(a Asset, s Software, in swInfo, v Vuln, key []identity, now time.Time
 		m.Evidence.Summary += ps.note
 	}
 	m.Evidence.AgentRow = m.Basis == BasisProduct && s.Source == "agent" && in.given
+	switch {
+	case m.Basis != BasisVersion:
+	case m.Evidence.Agent:
+		m.Evidence.Source = SourceAgent
+	case snmpStated && !ps.below && ps.note == "":
+		m.Evidence.Source = SourceSNMP
+		m.Evidence.Summary = fmt.Sprintf("Confirmed: %s reports %s over SNMP; %s lists %s as affected by %s.", name, sw, v.rangesBy(true), rangeWords(within), v.CVE)
+	}
 	m.Evidence.CheckedAt = now
 	return m, outMatch
+}
+
+// rangeWords says a version range the way a person reads it in a sentence: "6.4.0 up to before 7.4.10", "versions before 7.4.10",
+// "7.0.0 up to 7.0.6".
+func rangeWords(r VersionRange) string {
+	start := cmp.Or(r.StartIncl, r.StartExcl)
+	from := ""
+	switch {
+	case r.StartIncl != "":
+		from = clean(r.StartIncl) + " up to "
+	case r.StartExcl != "":
+		from = "later than " + clean(r.StartExcl) + " up to "
+	default:
+		from = "versions "
+	}
+	switch {
+	case r.EndExcl != "":
+		return from + "before " + clean(r.EndExcl)
+	case r.EndIncl != "" && start == "":
+		return "versions up to " + clean(r.EndIncl)
+	case r.EndIncl != "":
+		return from + clean(r.EndIncl)
+	}
+	return clean(r.String())
 }
 
 // agentSummary is the evidence of a version match on a row the device's own agent reported: it says what the agent reports

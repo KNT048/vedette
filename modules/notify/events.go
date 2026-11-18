@@ -98,7 +98,7 @@ func (s *Service) kevEvent(ctx context.Context, data any) error {
 	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error { return markKEV(ctx, tx, []string{e.CVE}, s.now(), false) })
 }
 
-// findingEvent turns findings.finding.created, and a finding that a scan has confirmed
+// findingEvent turns findings.finding.created, and a finding that a scan or the version the device itself reports has confirmed
 // (status_changed to "confirmed"), into a vulnerability notice. A notice for a finding that matched
 // no device is counted, not sent (INV-2).
 func (s *Service) findingEvent(ctx context.Context, data any, statusChange bool) error {
@@ -179,6 +179,9 @@ func (s *Service) findingEvent(ctx context.Context, data any, statusChange bool)
 	if statusChange {
 		n.ID += "-confirmed"
 		n.What = "A scan confirmed that this flaw is present. " + n.What
+		if e.Reason == "device_version" { // the device itself states a version inside the affected range (its SNMP answer or its agent)
+			n.What = "The version the device itself reports confirms that this flaw is present. " + f.What
+		}
 	}
 	return s.Publish(ctx, n)
 }

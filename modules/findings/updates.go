@@ -68,6 +68,9 @@ type UpdateAction struct {
 	Ransomware, Likely int
 	// How each exploited finding is known (Proof*); zero for planned ones (every plan CVE is compared on a trusted version).
 	Confirmed, Detected, Reported, Suspected int
+	// Checkable counts the exploited CVEs a safe vulnerability check exists for (Vuln.HasTemplate): "Run the check" is offered only
+	// then; zero for planned ones.
+	Checkable int
 	// NVDLag (planned Windows updates, PlanItem.NVDLag): the update is newer than every fix NVD names, so it fixes at least CVEs; the
 	// newest update's CVEs are not analysed by NVD yet.
 	NVDLag bool
@@ -218,6 +221,9 @@ func exploitedUpdates(a Asset, open []Record, vulns []Vuln, now time.Time) (fixe
 			g.Reported++
 		default:
 			g.Suspected++
+		}
+		if byCVE[r.CVE].HasTemplate {
+			g.Checkable++
 		}
 		members[key] = append(members[key], member{r, byCVE[r.CVE].Ransomware})
 	}

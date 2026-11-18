@@ -3,6 +3,8 @@ import type { FindingRow } from './types'
 
 /** Khoá i18n cho "cơ sở" của phát hiện: quét xác nhận / theo phiên bản / chỉ khớp sản phẩm. */
 export const basisKey = (b: Finding['basis']) => `basis.${b}`
+/** The basis as the page says it: a version match the device itself stated (its SNMP answer or its agent) is confirmed by it. */
+export const basisLabel = (f: Pick<Finding, 'basis' | 'evidence'>) => (f.basis === 'version' && f.evidence?.source ? 'basis.device' : basisKey(f.basis))
 export const isOpen = (s: FindingRow['status']) => s === 'confirmed' || s === 'suspected'
 /** Tên thiết bị như trang Devices: `name` do API cấp; không bao giờ là id nội bộ. */
 export const deviceName = (a: { name: string } | null, fallback: string) => a?.name || fallback

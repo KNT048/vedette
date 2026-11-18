@@ -1,0 +1,256 @@
+package findings
+
+import (
+	"slices"
+	"strings"
+	"testing"
+	"time"
+)
+
+// A firewall that states FortiOS 7.2.13 over SNMP; NVD lists 6.4.0 up to before 7.4.10 as affected by one exploited CVE and up to
+// before 7.4.7 by another, and names no 7.2 fix: the device really is affected.
+const fortiCPE = "cpe:2.3:o:fortinet:fortios:*:*:*:*:*:*:*:*"
+
+func fortiVulns() []Vuln {
+	recent := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	return []Vuln{
+		{CVE: "CVE-2025-61624", Vendor: "Fortinet", Product: "FortiOS", DateAdded: recent, Published: recent,
+			Affected: []Affected{{CPE: fortiCPE, Range: VersionRange{StartIncl: "6.4.0", EndExcl: "7.4.10"}}}},
+		{CVE: "CVE-2025-68686", Vendor: "Fortinet", Product: "FortiOS", DateAdded: recent, Published: recent,
+			Affected: []Affected{{CPE: fortiCPE, Range: VersionRange{StartIncl: "6.4.0", EndExcl: "7.4.7"}}}},
+	}
+}
+
+// fortiSNMP is the firewall as the matcher reads it when it answers Vedette's SNMP read with version.
+func fortiSNMP(version string) Asset {
+	a := snmpDevice("a-1", "FortiOS "+version)
+	a.Name = "fw-edge"
+	return a
+}
+
+// fortiRow is the firewall with one FortiOS row of version from source (nmap's banner, a person's entry) and no SNMP answer.
+func fortiRow(source, version string) Asset {
+	return Asset{ID: "a-1", Name: "fw-edge", Software: []Software{{ID: "s-fos", Display: "FortiOS", Vendor: "Fortinet", Product: "FortiOS",
+		Version: version, Source: source, KevKeys: []string{"fortinet|fortios"}}}}
+}
+
+func byCVE(ms []Match, cve string) (Match, bool) {
+	i := slices.IndexFunc(ms, func(m Match) bool { return m.CVE == cve })
+	if i < 0 {
+		return Match{}, false
+	}
+	return ms[i], true
+}
+
+// The device's own SNMP answer puts the version inside a range with an end: the match carries source snmp and says why in plain words.
+func TestMatchAsset_SNMPStatedVersionConfirms(t *testing.T) {
+	t.Parallel()
+	res := MatchAsset(fortiSNMP("7.2.13"), fortiVulns(), nil, t0)
+	if len(res.New) != 2 {
+		t.Fatalf("matches %+v", res.New)
+	}
+	m, _ := byCVE(res.New, "CVE-2025-61624")
+	if m.Basis != BasisVersion || m.Evidence.Source != SourceSNMP {
+		t.Fatalf("match %+v", m)
+	}
+	const want = "Confirmed: fw-edge reports Fortinet FortiOS 7.2.13 over SNMP; NVD lists 6.4.0 up to before 7.4.10 as affected by CVE-2025-61624."
+	if m.Evidence.Summary != want {
+		t.Fatalf("summary\n got %q\nwant %q", m.Evidence.Summary, want)
+	}
+	f, _ := NewFinding(m, t0)
+	if f.Status != StatusConfirmed || !f.ByDevice() || f.Validate() != nil {
+		t.Fatalf("finding %+v: %v", f, f.Validate())
+	}
+}
+
+// What stays suspected: a version from a banner, one a person typed (also as a correction of the device's SNMP row), a range with
+// no end, and a version the scheme cannot order (no finding at all, a could-not-check row).
+func TestMatchAsset_OnlyTheDevicesOwnStatementConfirms(t *testing.T) {
+	t.Parallel()
+	corrected := fortiRow("manual", "7.2.13")
+	corrected.Software[0].ReportedSource = "snmp"
+	for name, a := range map[string]Asset{
+		"nmap banner":         fortiRow("nmap", "7.2.13"),
+		"scan":                fortiRow("scan", "7.2.13"),
+		"typed by a person":   fortiRow("manual", "7.2.13"),
+		"a person's override": corrected,
+	} {
+		res := MatchAsset(a, fortiVulns(), nil, t0)
+		m, ok := byCVE(res.New, "CVE-2025-61624")
+		if !ok || m.Basis != BasisVersion || m.Evidence.Source != "" || strings.HasPrefix(m.Evidence.Summary, "Confirmed") {
+			t.Errorf("%s: %+v", name, m)
+			continue
+		}
+		if f, _ := NewFinding(m, t0); f.Status != StatusSuspected {
+			t.Errorf("%s: status %s", name, f.Status)
+		}
+	}
+	open := fortiVulns()[:1]
+	open[0].Affected = []Affected{{CPE: fortiCPE, Range: VersionRange{StartIncl: "6.4.0"}}} // no end: no fix to name past it
+	if m, ok := byCVE(MatchAsset(fortiSNMP("7.2.13"), open, nil, t0).New, "CVE-2025-61624"); !ok || m.Evidence.Source != "" {
+		t.Errorf("open-ended range: %+v", m)
+	}
+	res := MatchAsset(snmpDevice("ios", "Cisco IOS 15.2(4)M3"), loadGolden(t, "testdata/kev-nvd-snmp-os.json"), nil, t0)
+	if len(res.New) != 0 || len(res.NotComparable) == 0 {
+		t.Errorf("not comparable: %+v", res)
+	}
+}
+
+// The device's own agent reporting the version inside a range with an end confirms it too.
+func TestMatchAsset_AgentStatedVersionConfirms(t *testing.T) {
+	t.Parallel()
+	a := nas("6.1.1")
+	a.Software[0].Source = "agent"
+	res := MatchAsset(a, []Vuln{qnapVuln(Affected{CPE: qnapCPE, Range: VersionRange{StartIncl: "6.0", EndExcl: "6.1.2"}})}, nil, t0)
+	if len(res.New) != 1 || res.New[0].Evidence.Source != SourceAgent || !res.New[0].Evidence.Agent {
+		t.Fatalf("matches %+v", res.New)
+	}
+}
+
+// The service: a new finding the device's SNMP answer confirms is created confirmed with its history line; an existing suspected one
+// is confirmed at the next match (status_changed, reason device_version, as a scan's confirmation is a notice); when only a banner
+// is left it goes back to suspected; a stated version outside the range closes it.
+func TestUpsert_DeviceStatedVersionConfirmsAndReJudges(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	vulns := fortiVulns()
+	run := func(a Asset) {
+		t.Helper()
+		e.advance(time.Hour)
+		if _, err := e.svc.UpsertFromMatch(t.Context(), a, vulns); err != nil {
+			t.Fatal(err)
+		}
+	}
+	load := func(cve string) Record {
+		t.Helper()
+		r, err := loadByPair(t.Context(), e.db.Reader(), "a-1", cve)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return r
+	}
+	changes := func() (out []StatusChangedEvent) {
+		for _, p := range e.pub.take() {
+			if p.Name == EventStatusChanged {
+				out = append(out, p.Payload.(StatusChangedEvent))
+			}
+		}
+		return out
+	}
+
+	run(fortiRow("nmap", "7.2.13")) // a banner: suspected
+	if r := load("CVE-2025-61624"); r.Status != StatusSuspected || r.Basis != BasisVersion {
+		t.Fatalf("banner: %+v", r.Finding)
+	}
+	e.pub.take()
+
+	run(fortiSNMP("7.2.13")) // the device states it over SNMP: confirmed, re-judged on the existing finding
+	r := load("CVE-2025-61624")
+	if r.Status != StatusConfirmed || r.Basis != BasisVersion || r.Evidence.Source != SourceSNMP || !strings.HasPrefix(r.Evidence.Summary, "Confirmed: fw-edge reports") {
+		t.Fatalf("snmp: %+v %+v", r.Finding, r.Evidence)
+	}
+	if h := r.History[len(r.History)-1]; h.Action != "confirmed" || h.User != SystemUser || h.Note != DeviceConfirmedNote {
+		t.Fatalf("history %+v", h)
+	}
+	if got := changes(); len(got) != 2 || got[0] != (StatusChangedEvent{FindingID: r.ID, From: StatusSuspected, To: StatusConfirmed, Reason: ReasonDeviceVersion}) {
+		t.Fatalf("events %+v", got)
+	}
+	run(fortiSNMP("7.2.13")) // the same again: no new row, no event
+	if n := len(load("CVE-2025-61624").History); n != len(r.History) {
+		t.Fatalf("a repeated match wrote history: %d, was %d", n, len(r.History))
+	}
+	if got := changes(); len(got) != 0 {
+		t.Fatalf("a repeated match sent %+v", got)
+	}
+
+	run(fortiRow("nmap", "7.2.13")) // SNMP gone, only the banner: back to suspected
+	r = load("CVE-2025-61624")
+	if r.Status != StatusSuspected || r.Evidence.Source != "" || r.History[len(r.History)-1].Note != DeviceUnconfirmedNote {
+		t.Fatalf("banner again: %+v %+v", r.Finding, r.History[len(r.History)-1])
+	}
+	if got := changes(); len(got) != 2 || got[0].To != StatusSuspected || got[0].Reason != ReasonDeviceVersion {
+		t.Fatalf("events %+v", got)
+	}
+
+	run(fortiSNMP("7.2.13"))
+	run(fortiSNMP("7.4.8")) // 7.4.8: outside the first range (before 7.4.7 is fixed too); inside the other
+	if r := load("CVE-2025-68686"); r.Status != StatusNotRelevant || r.ResolvedBy != SystemUser || r.ResolutionReason != ReasonNotAffectedVersion {
+		t.Fatalf("a stated version outside the range: %+v", r.Finding)
+	}
+	if r := load("CVE-2025-61624"); r.Status != StatusConfirmed {
+		t.Fatalf("still inside: %+v", r.Finding)
+	}
+	e.pub.take()
+
+	run(Asset{ID: "a-1", Name: "fw-edge"}) // the device states nothing any more: suspected again, and the usual "no longer matches" row
+	r = load("CVE-2025-61624")
+	if n := len(r.History); r.Status != StatusSuspected || r.Evidence.Source != "" || n < 2 ||
+		r.History[n-2].Action != ActionConfirmUndone || r.History[n-1].Action != "no_longer_matches" {
+		t.Fatalf("nothing stated: %+v %+v", r.Finding, r.History)
+	}
+	if got := changes(); len(got) != 1 || got[0] != (StatusChangedEvent{FindingID: r.ID, From: StatusConfirmed, To: StatusSuspected, Reason: ReasonDeviceVersion}) {
+		t.Fatalf("events %+v", got)
+	}
+}
+
+// A new finding the device's stated version confirms is created confirmed, with the "created" row and then why it is confirmed.
+func TestUpsert_NewFindingFromTheDevicesStatementIsConfirmed(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	res, err := e.svc.UpsertFromMatch(t.Context(), fortiSNMP("7.2.13"), fortiVulns())
+	if err != nil || len(res.Created) != 2 {
+		t.Fatalf("%+v %v", res, err)
+	}
+	r, err := e.svc.Get(t.Context(), res.Created[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Status != StatusConfirmed || len(r.History) != 2 || r.History[0].Action != "created" || r.History[1].Note != DeviceConfirmedNote {
+		t.Fatalf("%+v %+v", r.Finding, r.History)
+	}
+	for _, p := range e.pub.take() { // the created event is the notice; no second status change for a new finding
+		if p.Name == EventStatusChanged {
+			t.Fatalf("event %+v", p)
+		}
+	}
+}
+
+// A person's confirmation is never taken back by the matcher, whatever the device states or a banner says.
+func TestUpsert_PersonConfirmedStaysWhateverTheVersionSource(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	res, err := e.svc.UpsertFromMatch(t.Context(), fortiRow("nmap", "7.2.13"), fortiVulns())
+	if err != nil || len(res.Created) != 2 {
+		t.Fatalf("%+v %v", res, err)
+	}
+	id := res.Created[0]
+	if _, err := e.svc.ConfirmByPerson(t.Context(), id, "checked the console", "it@acme.example"); err != nil {
+		t.Fatal(err)
+	}
+	for _, a := range []Asset{fortiSNMP("7.2.13"), fortiRow("nmap", "7.2.13")} {
+		e.advance(time.Hour)
+		if _, err := e.svc.UpsertFromMatch(t.Context(), a, fortiVulns()); err != nil {
+			t.Fatal(err)
+		}
+		if r, _ := e.svc.Get(t.Context(), id); r.Status != StatusConfirmed || r.Basis != BasisPerson {
+			t.Fatalf("person's confirmation changed: %+v", r.Finding)
+		}
+	}
+}
+
+// A device-confirmed finding reopens confirmed (risk acceptance, a person's reopen), like a scan's or a person's.
+func TestByDevice_ReopensConfirmed(t *testing.T) {
+	t.Parallel()
+	f := Finding{Status: StatusPatched, Severity: SeverityHigh, Confidence: ConfVersion, Basis: BasisVersion,
+		Evidence: &Evidence{Summary: "s", Source: SourceAgent, Agent: true, CheckedAt: t0}}
+	g, _, err := f.Apply(ActionReopen, "", "it@acme.example", t0)
+	if err != nil || g.Status != StatusConfirmed || g.Validate() != nil {
+		t.Fatalf("%+v %v", g, err)
+	}
+	for _, src := range []string{"", "scan", "manual"} { // not the device's own statement: suspected
+		f.Evidence.Source = src
+		if got := f.OpenStatus(); got != StatusSuspected {
+			t.Errorf("source %q reopens %s", src, got)
+		}
+	}
+}

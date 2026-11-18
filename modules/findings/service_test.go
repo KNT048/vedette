@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"maps"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -568,6 +569,19 @@ func TestContract_INV1_DatabaseRefusesWhatTheLibraryNeverBuilds(t *testing.T) {
 	}
 	if err := insert("confirmed", "version", `{"summary":"x","checked_at":"`+ts+`"}`, "CVE-2022-0001"); err == nil {
 		t.Error("confirmed with basis version accepted")
+	}
+	for _, src := range []string{"scan", "manual", "nmap", ""} { // only the device's own statement confirms a version
+		if err := insert("confirmed", "version", `{"summary":"x","source":"`+src+`","checked_at":"`+ts+`"}`, "CVE-2022-0011"); err == nil {
+			t.Errorf("confirmed with basis version from source %q accepted", src)
+		}
+	}
+	if err := insert("confirmed", "product", `{"summary":"x","source":"snmp","checked_at":"`+ts+`"}`, "CVE-2022-0012"); err == nil {
+		t.Error("confirmed with basis product accepted")
+	}
+	for i, src := range []string{"snmp", "agent"} {
+		if err := insert("confirmed", "version", `{"summary":"x","source":"`+src+`","checked_at":"`+ts+`"}`, "CVE-2022-002"+strconv.Itoa(i)); err != nil {
+			t.Errorf("confirmed with basis version stated by the device (%s) refused: %v", src, err)
+		}
 	}
 	if err := insert("confirmed", "scan", nil, "CVE-2022-0002"); err == nil {
 		t.Error("confirmed without evidence accepted")

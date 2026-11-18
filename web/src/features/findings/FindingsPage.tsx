@@ -17,7 +17,7 @@ import { useCan } from '@/lib/session'
 import { AcceptUntil, FindingStatusChip } from './AcceptRisk'
 import { untilOk } from './accept'
 import { useBulkStatus, useFindings, usePlan, useToFix } from './api'
-import { basisKey, deviceName, hasIp, isOpen, riskRank, unverified } from './basis'
+import { basisLabel, deviceName, hasIp, isOpen, riskRank, unverified } from './basis'
 import { MAX_BULK } from './contract'
 import { errMsg } from './errors'
 import { RiskChip } from './Risk'
@@ -188,7 +188,7 @@ function List() {
     ) },
     // hidden, sorted from "Sort by": highest first, no score last both ways
     { id: 'cvss', header: t('col.cvss'), accessorFn: (r) => r.cvss?.score, sortUndefined: 'last', sortDescFirst: true },
-    { id: 'basis', header: t('col.basis'), accessorFn: (r) => r.basis, cell: ({ row: { original: r } }) => <span className={unverified(r) ? 'text-meta text-muted' : 'text-meta'}>{t(basisKey(r.basis))}</span> },
+    { id: 'basis', header: t('col.basis'), accessorFn: (r) => r.basis, cell: ({ row: { original: r } }) => <span className={unverified(r) ? 'text-meta text-muted' : 'text-meta'}>{t(basisLabel(r))}</span> },
     // Confirm (a suspected finding, admin) and Undo (a confirmation a person made) sit on the row; a click on them never opens the finding
     { id: 'confirm', header: t('confirm.col'), enableSorting: false, cell: ({ row: { original: r } }) => (canConfirm(r) || canUndo(r) ? (
       <span onClick={(e) => e.stopPropagation()} className="inline-flex">
@@ -271,7 +271,7 @@ function List() {
                   <span className="text-meta text-muted">{r.kev?.display ?? '–'}</span>
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-meta">
                     <RiskChip f={r} />
-                    <span>{t(basisKey(r.basis))}</span>
+                    <span>{t(basisLabel(r))}</span>
                     <span className="text-muted" title={`${fmtDateTime(r.last_seen)}. ${t('matchedInfo')}`}>{t('matched', { time: fmtRelative(r.last_seen) })}</span>
                   </div>
                   {canConfirm(r) || canUndo(r) ? (

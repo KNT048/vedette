@@ -51,13 +51,18 @@ type StatusChangedEvent struct {
 	From      Status `json:"from"`
 	To        Status `json:"to"`
 	// Reason is set when Vedette changed the status by itself: ReasonNotAffectedVersion when it closed the
-	// finding, ReasonMatchesAgain when it reopened one it had closed, ReasonRiskExpired when a risk acceptance ran out.
-	// Empty for a person's action or a scan.
+	// finding, ReasonMatchesAgain when it reopened one it had closed, ReasonRiskExpired when a risk acceptance ran out,
+	// ReasonDeviceVersion when the version the device reports confirmed it or no longer does. Empty for a person's action or a scan.
 	Reason string `json:"reason,omitempty"`
 	// AcceptedBy and AcceptedUntil (YYYY-MM-DD) are set only with ReasonRiskExpired: who accepted the risk and its last day.
 	AcceptedBy    string `json:"accepted_by,omitempty"`
 	AcceptedUntil string `json:"accepted_until,omitempty"`
 }
+
+// ReasonDeviceVersion is the StatusChangedEvent reason of a finding the version the device itself reports (its SNMP answer or its
+// own agent) confirmed (to confirmed), or no longer confirms (back to suspected): Finding.SettleByDevice. Alerts and response
+// rules treat a change to confirmed like a scan's confirmation.
+const ReasonDeviceVersion = "device_version"
 
 // ReasonMatchesAgain is the StatusChangedEvent reason of a finding Vedette reopened because the device matches the
 // entry again after Vedette had closed it as not affected.

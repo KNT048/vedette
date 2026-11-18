@@ -300,6 +300,11 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, whole *Matc
 			if err := insertHistory(ctx, tx, r.ID, h); err != nil {
 				return err
 			}
+			if f.Status == StatusConfirmed { // the device itself stated a version inside the range (ByDevice)
+				if err := insertHistory(ctx, tx, r.ID, HistoryEntry{TS: now, User: SystemUser, Action: "confirmed", Note: DeviceConfirmedNote}); err != nil {
+					return err
+				}
+			}
 			if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.created", Target: r.ID,
 				Detail: createdDetail(r, a)}); err != nil {
 				return err
@@ -313,7 +318,7 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, whole *Matc
 				return err
 			}
 			before := r.Finding
-			reopened := false
+			reopened, reopenWhy := false, ""
 			if f, h, ok := r.ReopenOnMatch(now); ok { // Vedette closed it by itself; it applies again
 				why, err := reopenReason(ctx, tx, a, r, em.SoftwareID)
 				if err != nil {
@@ -327,9 +332,26 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, whole *Matc
 				if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.matches_again", Target: r.ID, Detail: r.CVE + ": reopened"}); err != nil {
 					return err
 				}
-				emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: before.Status, To: r.Status, Reason: why})
+				reopenWhy = why
 			}
 			r.Finding = r.ApplyMatch(em)
+			settled := r.Status
+			if f, h, ok := r.SettleByDevice(now); ok { // the version the device states confirms it, or no longer does
+				r.Finding = f
+				if err := insertHistory(ctx, tx, r.ID, h); err != nil {
+					return err
+				}
+				if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.status", Target: r.ID,
+					Detail: fmt.Sprintf("%s: %s to %s (%s)", r.CVE, settled, r.Status, deviceDetail(r.Finding))}); err != nil {
+					return err
+				}
+			}
+			switch {
+			case reopened: // one story: the reopen's event carries the status it reopened to
+				emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: before.Status, To: r.Status, Reason: reopenWhy})
+			case r.Status != before.Status:
+				emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: before.Status, To: r.Status, Reason: ReasonDeviceVersion})
+			}
 			r.LastSeen = now
 			if err := r.Validate(); err != nil {
 				return fmt.Errorf("findings: finding %s after a repeated match: %w", r.ID, err)
@@ -387,7 +409,7 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, whole *Matc
 		if res.NotInstalled, kept, err = s.closeNotInstalled(ctx, tx, a.ID, a.Name, notInstalledCVEs(a, vulns, hs, m, now), now, emit); err != nil {
 			return err
 		}
-		n, err := s.noteNoLongerMatching(ctx, tx, a.ID, vulns, m, kept, correctionWhy(a, ""), now)
+		n, err := s.noteNoLongerMatching(ctx, tx, a.ID, vulns, m, kept, correctionWhy(a, ""), now, emit)
 		if err != nil {
 			return err
 		}
@@ -725,6 +747,17 @@ func (s *Service) closeAsked(ctx context.Context, tx *sql.Tx, assetID string, as
 	return closed, nil
 }
 
+// deviceDetail says, for the audit row of a status SettleByDevice changed, who stated the version.
+func deviceDetail(f Finding) string {
+	switch {
+	case !f.ByDevice():
+		return "the device no longer states a version inside the affected range"
+	case f.Evidence.Source == SourceSNMP:
+		return "the device states the version over SNMP"
+	}
+	return "the device's agent states the version"
+}
+
 // orKeep is the matcher's software row id, or the stored one when the match names none.
 func orKeep(id, stored string) string {
 	if id != "" {
@@ -747,8 +780,11 @@ func personKept(hist []HistoryEntry) bool {
 // in vulns says nothing (a partial list never judges a pair), and a finding the scan confirmed (basis scan) is not judged by
 // the version matcher. Such a finding matched by product only and graded above medium before the product-severity rule takes the
 // product severity, once (the re-grade reaches it too: a pair the matcher no longer produces is never in Existing); it returns how many.
-func (s *Service) noteNoLongerMatching(ctx context.Context, tx *sql.Tx, assetID string, vulns []Vuln, m MatchResult, kept map[string]string, corrected string, now time.Time) (regraded int, err error) {
-	rows, err := tx.QueryContext(ctx, `SELECT cve FROM fnd_finding WHERE asset_id = ? AND status = 'suspected'`, assetID)
+// A finding the version the device reports confirmed (ByDevice) is judged the same way: the device no longer states a version
+// inside the range, so it goes back to suspected first (a "confirm_undone" row, findings.finding.status_changed with
+// ReasonDeviceVersion), then gets the same history row.
+func (s *Service) noteNoLongerMatching(ctx context.Context, tx *sql.Tx, assetID string, vulns []Vuln, m MatchResult, kept map[string]string, corrected string, now time.Time, emit func(string, any)) (regraded int, err error) {
+	rows, err := tx.QueryContext(ctx, `SELECT cve FROM fnd_finding WHERE asset_id = ? AND (status = 'suspected' OR status = 'confirmed' AND basis = 'version')`, assetID)
 	if err != nil {
 		return 0, fmt.Errorf("findings: reading suspected findings: %w", err)
 	}
@@ -807,6 +843,29 @@ func (s *Service) noteNoLongerMatching(ctx context.Context, tx *sql.Tx, assetID 
 		r, err := loadByPair(ctx, tx, assetID, cve)
 		if err != nil {
 			return regraded, err
+		}
+		if r.Status == StatusConfirmed && r.ByDevice() { // the device's stated version no longer puts it inside the range
+			ev := *r.Evidence
+			ev.Source = ""
+			r.Evidence = &ev
+			f, h, ok := r.SettleByDevice(now)
+			if ok {
+				r.Finding = f
+				if err := updateRecord(ctx, tx, r); err != nil {
+					return regraded, err
+				}
+				if err := insertHistory(ctx, tx, r.ID, h); err != nil {
+					return regraded, err
+				}
+				if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.status", Target: r.ID,
+					Detail: r.CVE + ": confirmed to suspected (the device no longer states a version inside the affected range)"}); err != nil {
+					return regraded, err
+				}
+				emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: StatusConfirmed, To: r.Status, Reason: ReasonDeviceVersion})
+			}
+		}
+		if r.Status != StatusSuspected {
+			continue
 		}
 		if r.Basis == BasisProduct && sevRank(r.Severity) > sevRank(SeverityMedium) {
 			was := r.Severity

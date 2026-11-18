@@ -264,7 +264,7 @@ func distroMatch(a Asset, s Software, in swInfo, v Vuln, d distroAnswer, now tim
 	m.Evidence = Evidence{CheckedAt: now, Summary: fmt.Sprintf("%s runs %s %s from %s %s's packages. %s fixed %s in %s %s%s (%s); no scan has confirmed it yet, so this is only suspected.",
 		clean(a.Name), softwareName(s.Display, in.pkgVer), clean(in.pkgVer), d.name, d.release, d.name, v.CVE, clean(d.pkg), clean(d.fixed), pro, src)}
 	if s.Source == "agent" { // The agent read the installed package; a detection
-		m.Evidence.Agent = true
+		m.Evidence.Agent, m.Evidence.Source = true, SourceAgent
 		m.Evidence.Summary = fmt.Sprintf("The agent on %s reports %s %s installed from %s %s's packages. %s fixed %s in %s %s%s (%s), so this device has the flaw until it installs %s's security updates.",
 			clean(a.Name), softwareName(s.Display, in.pkgVer), clean(in.pkgVer), d.name, d.release, d.name, v.CVE, clean(d.pkg), clean(d.fixed), pro, src, d.name)
 	}

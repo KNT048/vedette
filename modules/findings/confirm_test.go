@@ -189,10 +189,15 @@ func b2status(b Basis) Status {
 	return StatusSuspected
 }
 
-// The sentence says, from real facts, why a finding is only suspected and what would confirm it.
+// The sentence says, from real facts, why a finding is only suspected and what would confirm it: first the automatic ways (the device
+// reports its version itself; a safe check, only when one exists for the CVE), last a person.
 func TestWhySuspected(t *testing.T) {
 	t.Parallel()
+	banner := &KnownVersion{Software: "web server", Version: "2.4.49", Source: VersionByScan}
 	snmp := &KnownVersion{Software: "edge firewall OS", Version: "7.2.13", Source: VersionBySNMP}
+	const scanHead = "Version match only: A network scan (a guess from what a service answers) states web server 2.4.49, inside NVD's affected range."
+	const device = " It is confirmed by itself once the device reports its version: turn on SNMP for the device, or install the agent on it."
+	const last = " Last, confirm it yourself."
 	for _, c := range []struct {
 		name            string
 		basis           Basis
@@ -201,26 +206,29 @@ func TestWhySuspected(t *testing.T) {
 		reach           string
 		want            string
 	}{
-		{"outside the ranges", BasisVersion, snmp, true, true, ScanOutside,
-			"Version match only: The device's own SNMP answer states edge firewall OS 7.2.13, inside NVD's affected range. A vulnerability check can confirm it, but none has run: the device is outside the confirmed scan ranges. Or confirm it yourself."},
-		{"scan off", BasisVersion, snmp, true, true, ScanOff,
-			"Version match only: The device's own SNMP answer states edge firewall OS 7.2.13, inside NVD's affected range. A vulnerability check can confirm it, but none has run: network scanning is off. Or confirm it yourself."},
-		{"no ranges confirmed", BasisVersion, snmp, true, true, ScanNoRanges,
-			"Version match only: The device's own SNMP answer states edge firewall OS 7.2.13, inside NVD's affected range. A vulnerability check can confirm it, but none has run: no scan ranges are confirmed yet. Or confirm it yourself."},
-		{"added by hand", BasisVersion, snmp, true, true, ScanByHand,
-			"Version match only: The device's own SNMP answer states edge firewall OS 7.2.13, inside NVD's affected range. A vulnerability check can confirm it, but none has run: the device was added by hand and is not scanned. Or confirm it yourself."},
-		{"device scan off", BasisVersion, snmp, true, true, ScanDeviceOff,
-			"Version match only: The device's own SNMP answer states edge firewall OS 7.2.13, inside NVD's affected range. A vulnerability check can confirm it, but none has run: scanning is turned off for this device. Or confirm it yourself."},
-		{"no check", BasisVersion, snmp, true, false, ScanOutside,
-			"Version match only: The device's own SNMP answer states edge firewall OS 7.2.13, inside NVD's affected range. A vulnerability check would confirm it, but none exists for this CVE, so only a person can. Or confirm it yourself."},
-		{"not known: says less", BasisVersion, snmp, false, false, "",
-			"Version match only: The device's own SNMP answer states edge firewall OS 7.2.13, inside NVD's affected range. Or confirm it yourself."},
-		{"scan state not known", BasisVersion, snmp, true, true, "",
-			"Version match only: The device's own SNMP answer states edge firewall OS 7.2.13, inside NVD's affected range. A vulnerability check can confirm it. Or confirm it yourself."},
+		{"outside the ranges", BasisVersion, banner, true, true, ScanOutside,
+			scanHead + device + " A safe vulnerability check exists for this CVE: run the check to confirm it (none has run: the device is outside the confirmed scan ranges)." + last},
+		{"scan off", BasisVersion, banner, true, true, ScanOff,
+			scanHead + device + " A safe vulnerability check exists for this CVE: run the check to confirm it (none has run: network scanning is off)." + last},
+		{"no ranges confirmed", BasisVersion, banner, true, true, ScanNoRanges,
+			scanHead + device + " A safe vulnerability check exists for this CVE: run the check to confirm it (none has run: no scan ranges are confirmed yet)." + last},
+		{"added by hand", BasisVersion, banner, true, true, ScanByHand,
+			scanHead + device + " A safe vulnerability check exists for this CVE: run the check to confirm it (none has run: the device was added by hand and is not scanned)." + last},
+		{"device scan off", BasisVersion, banner, true, true, ScanDeviceOff,
+			scanHead + device + " A safe vulnerability check exists for this CVE: run the check to confirm it (none has run: scanning is turned off for this device)." + last},
+		{"no check: never offered", BasisVersion, banner, true, false, ScanOutside,
+			scanHead + device + " No safe vulnerability check exists for this CVE." + last},
+		{"not known: says less", BasisVersion, banner, false, false, "", scanHead + device + last},
+		{"scan state not known", BasisVersion, banner, true, true, "",
+			scanHead + device + " A safe vulnerability check exists for this CVE: run the check to confirm it." + last},
 		{"typed by a person", BasisVersion, &KnownVersion{Software: "web server", Version: "2.4.1", Source: VersionByManual}, false, false, "",
-			"Version match only: A person (entered on the Devices page) states web server 2.4.1, inside NVD's affected range. Or confirm it yourself."},
+			"Version match only: A person (entered on the Devices page) states web server 2.4.1, inside NVD's affected range." + device + last},
+		{"stated over LLDP", BasisVersion, &KnownVersion{Software: "Junos", Version: "15.1R7.9", Source: VersionByStated}, false, false, "",
+			"Version match only: The device's own statement on the network states Junos 15.1R7.9, inside NVD's affected range." + device + last},
+		{"the device states it, the range does not settle it", BasisVersion, snmp, true, false, "",
+			"Version match only: The device's own SNMP answer states edge firewall OS 7.2.13, inside NVD's affected range, but that range does not clearly cover this release (no end, or listed for another edition or release), so the version alone does not confirm it. No safe vulnerability check exists for this CVE." + last},
 		{"product only", BasisProduct, nil, true, false, "",
-			"Product match only: the device runs the product, but its version is not known, so it could not be compared with NVD's affected range. A vulnerability check would confirm it, but none exists for this CVE, so only a person can. Or confirm it yourself."},
+			"Product match only: the device runs the product, but its version is not known, so it could not be compared with NVD's affected range." + device + " No safe vulnerability check exists for this CVE." + last},
 	} {
 		if got := WhySuspected(c.basis, c.known, c.checkKnown, c.has, c.reach); got != c.want {
 			t.Errorf("%s:\n got %q\nwant %q", c.name, got, c.want)

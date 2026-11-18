@@ -260,3 +260,102 @@ func TestPersonCheckWaitingAtARestartRunsAtTheFirstTick(t *testing.T) {
 		t.Fatal("a device the policy refuses was checked or kept waiting")
 	}
 }
+
+// A person's check that stops waiting (the module stopped, the run's hour over) becomes the window's check_now row; a restart
+// later does not run it outside the window. A row older than the run's hour is converted the same way.
+func TestPersonCheckThatGaveUpIsTheWindowsAndNeverResumed(t *testing.T) {
+	t.Parallel()
+	d := newDriven(t)
+	d.sweptBefore()
+	release := holdExternal(t, d, nil)
+	if _, err := d.svc.StartManual(d.ctx(), []string{"a-web"}, nil); err != nil {
+		release()
+		t.Fatal(err)
+	}
+	waitingText(t, d)
+	d.svc.Stop() // the module stops while the check waits
+	waitManual(t, d.env)
+	release()
+	d.svc.Resume()
+	if n := d.count(`SELECT count(*) FROM sa_queue WHERE asset_id = 'a-web' AND reason = 'check_now'`); n != 1 {
+		t.Fatalf("the abandoned check is not the window's: %d", n)
+	}
+	if err := d.svc.Tick(d.ctx()); err != nil { // Monday 12:00, no window
+		t.Fatal(err)
+	}
+	if d.svc.Manual() != nil || probed(d.calls(), "192.168.10.20") {
+		t.Fatal("an abandoned check ran outside the window")
+	}
+
+	// a waiting row from before the run's hour
+	if err := d.svc.Enqueue(d.ctx(), "a-printer", "check_wait"); err != nil {
+		t.Fatal(err)
+	}
+	d.clk.add(time.Hour + time.Minute)
+	if err := d.svc.Tick(d.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	if d.svc.Manual() != nil || probed(d.calls(), "192.168.10.30") || d.count(`SELECT count(*) FROM sa_queue WHERE asset_id = 'a-printer' AND reason = 'check_now'`) != 1 {
+		t.Fatal("an old waiting row was resumed instead of handed to the window")
+	}
+}
+
+// After a person's check ran, no other row of the device scans it again tonight.
+func TestPersonCheckDropsTheDevicesOtherQueueRows(t *testing.T) {
+	t.Parallel()
+	d := newDriven(t)
+	d.sweptBefore()
+	for _, r := range []string{"first_check"} {
+		if err := d.svc.Enqueue(d.ctx(), "a-web", r); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := d.svc.StartManual(d.ctx(), []string{"a-web"}, nil); err != nil {
+		t.Fatal(err)
+	}
+	waitManual(t, d.env)
+	if n := d.count(`SELECT count(*) FROM sa_queue WHERE asset_id = 'a-web'`); n != 0 {
+		t.Fatalf("%d rows of the device left after its check", n)
+	}
+}
+
+// The first check of a fragile device is the gentle one; a device the policy refuses is not queued at all.
+func TestFirstCheckShapeAndRefusals(t *testing.T) {
+	t.Parallel()
+	e := firstCheckEnv(t)
+	e.inv.mu.Lock()
+	e.inv.decision["a-web"] = sa.Decision{Allowed: true, Rate: 1, Reason: "first_gentle_scan", FirstGentle: true, Fragile: true}
+	e.inv.decision["a-printer"] = sa.Decision{Reason: "fragile_passive_only", Fragile: true}
+	e.inv.mu.Unlock()
+	markSweepDone(t, e, "saj-sweep-a")
+	if err := e.svc.Tick(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.count(`SELECT count(*) FROM sa_probe p JOIN sa_job j ON j.id = p.job_id WHERE j.asset_id = 'a-web' AND j.reason = 'first_check' AND p.shape IN ('gentle', 'gentle_titles')`); n != 1 {
+		t.Fatalf("%d gentle probes of the fragile device's first check", n)
+	}
+	if n := e.count(`SELECT count(*) FROM sa_probe p JOIN sa_job j ON j.id = p.job_id WHERE j.asset_id = 'a-web' AND p.shape IN ('normal', 'versions')`); n != 0 {
+		t.Fatalf("%d normal probes of a fragile device", n)
+	}
+	if n := e.count(`SELECT count(*) FROM sa_job WHERE asset_id = 'a-printer'`); n != 0 {
+		t.Fatalf("a device the policy refuses was checked: %d", n)
+	}
+}
+
+// A deleted device leaves no row in the queue.
+func TestDeletedDeviceLeavesTheQueue(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, fakeOpts{})
+	for _, r := range []string{"check_wait", "first_check"} {
+		id := map[string]string{"check_wait": "a-web", "first_check": "a-printer"}[r]
+		if err := e.svc.Enqueue(e.ctx(), id, r); err != nil {
+			t.Fatal(err)
+		}
+		if err := e.svc.AssetDeleted(e.ctx(), id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if n := e.count(`SELECT count(*) FROM sa_queue`); n != 0 {
+		t.Fatalf("%d rows left", n)
+	}
+}

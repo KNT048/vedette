@@ -1735,7 +1735,8 @@ func (s *Service) Tick(ctx context.Context) error {
 	if err := s.queueOwedNormal(ctx, start); err != nil {
 		s.log.WarnContext(ctx, "sensoractive: queueing the devices that owe a scan failed; tried again in the next window", "error", err)
 	}
-	if err := s.drainQueue(ctx, firstReasons, firstBeforeSweep); err != nil {
+	firstFor := min(st.windowLength()/firstShare, firstMax)
+	if err := s.drainQueue(ctx, firstReasons, firstBeforeSweep, s.clock().Add(firstFor)); err != nil {
 		return err
 	}
 	var done int
@@ -1818,15 +1819,23 @@ func (s *Service) firstPass(ctx context.Context) error {
 // firstReasons are the queue reasons of a device whose first check is owed (INV-27): its network scan was turned on, a range now
 // covers it, no check ever reached it, or a person's check had to wait. firstBeforeSweep is the most of them one tick scans before the
 // window's sweep; the rest follow the sweep as every queued device does.
-var firstReasons = []string{"scan_on", "first_check", "check_wait", "check_now"}
+var firstReasons = []string{"scan_on", "first_check", "check_now"}
 
 const firstBeforeSweep = 25
 
-// drain scans the queued devices in order while the window is open.
-func (s *Service) drain(ctx context.Context) error { return s.drainQueue(ctx, nil, 0) }
+// firstShare and firstMax bound the time the first checks take before the sweep: a quarter of the window, at most 30 minutes, so the
+// sweep (discovery of new devices) always runs in the window.
+const (
+	firstShare = 4
+	firstMax   = 30 * time.Minute
+)
 
-// drainQueue is drain for the queued devices with one of reasons (all when nil), at most limit of them (all when 0).
-func (s *Service) drainQueue(ctx context.Context, reasons []string, limit int) error {
+// drain scans the queued devices in order while the window is open.
+func (s *Service) drain(ctx context.Context) error { return s.drainQueue(ctx, nil, 0, time.Time{}) }
+
+// drainQueue is drain for the queued devices with one of reasons (all when nil), at most limit of them (all when 0), starting none
+// after until (no end when zero). A check_wait row belongs to a person's run (resumeChecks), never to the window.
+func (s *Service) drainQueue(ctx context.Context, reasons []string, limit int, until time.Time) error {
 	list, err := s.queue(ctx)
 	if err != nil {
 		return err
@@ -1836,10 +1845,10 @@ func (s *Service) drainQueue(ctx context.Context, reasons []string, limit int) e
 		if ctx.Err() != nil {
 			return nil
 		}
-		if reasons != nil && !slices.Contains(reasons, q.reason) {
+		if q.reason == reasonCheckWait || (reasons != nil && !slices.Contains(reasons, q.reason)) {
 			continue
 		}
-		if limit > 0 && scanned >= limit {
+		if (limit > 0 && scanned >= limit) || (!until.IsZero() && !s.clock().Before(until)) {
 			return nil
 		}
 		scanned++
@@ -1921,6 +1930,7 @@ func (s *Service) SettingsChanged(ctx context.Context) error {
 // only if the policy still lets it be scanned later). Other devices are not the run's business.
 func (s *Service) AssetChanged(ctx context.Context, assetID string) error {
 	s.snmpChanged(ctx, assetID)
+	s.dropRefused(ctx, assetID)
 	return s.checkRun(ctx, assetID)
 }
 
@@ -2007,4 +2017,23 @@ func (s *Service) checkRun(ctx context.Context, assetID string) error {
 		return err
 	}
 	return nil
+}
+
+// dropRefused takes a device the policy no longer lets be scanned (ignored, deleted, never scan, scanning off for it) out of the
+// queue: a row left behind would only be refused at its turn. A device that becomes scannable again is queued again (INV-27).
+func (s *Service) dropRefused(ctx context.Context, assetID string) {
+	if assetID == "" {
+		return
+	}
+	dec, err := s.inv.ScanPolicy(ctx, assetID)
+	if err == nil && (dec.Allowed || (dec.Reason == reasonScanningOff || dec.Reason == reasonScopeNotConfirmed)) {
+		return
+	}
+	if err != nil && !errors.Is(err, ErrNotFound) {
+		return
+	}
+	_ = s.db.Write(context.WithoutCancel(ctx), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx, `DELETE FROM sa_queue WHERE asset_id = ?`, assetID)
+		return err
+	})
 }

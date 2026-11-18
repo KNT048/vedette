@@ -288,6 +288,9 @@ func (s *Service) runManual(ctx context.Context, m *manualRun) {
 		s.manualSweep(ctx)
 		return
 	}
+	// Whatever way the run ends (its hour, a stop, scanning turned off), a check still waiting becomes the window's: a row that stayed
+	// check_wait would be run again outside the window by resumeChecks (INV-28).
+	defer s.giveUpWaiting(ctx, m.Assets)
 	for i, id := range m.Assets {
 		left := m.Until.Sub(s.clock())
 		if ctx.Err() != nil || s.off.Load() {
@@ -300,8 +303,11 @@ func (s *Service) runManual(ctx context.Context, m *manualRun) {
 		dctx, cancel := context.WithTimeout(ctx, left)
 		res, err := s.identifyDevice(dctx, id, left, true) // behind a busy scanner it waits its turn, as long as the run lasts (INV-28)
 		cancel()
-		if !errors.Is(err, ErrStopped) && res.Why != WhyBusy {
-			s.dropWaiting(ctx, id) // it ran, or was refused: nothing waits any more
+		switch {
+		case err == nil && res.Why == "": // it ran: no other row of the device (a first check, an owed scan) scans it again tonight
+			s.dropQueued(ctx, id, true)
+		case !errors.Is(err, ErrStopped) && res.Why != WhyBusy: // refused or failed: nothing waits any more
+			s.dropQueued(ctx, id, false)
 		}
 		switch {
 		case errors.Is(err, ErrStopped):
@@ -335,14 +341,35 @@ func (s *Service) queueRest(ctx context.Context, ids []string, why string) {
 	s.log.WarnContext(ctx, "sensoractive: devices a person asked to check wait for the next window", "devices", len(ids), "why", why)
 }
 
-// dropWaiting forgets the row a check a person started kept in the queue while it waited for nmap.
-func (s *Service) dropWaiting(ctx context.Context, id string) {
+// dropQueued forgets the rows a check a person started leaves in the queue: the check_wait row it kept while it waited, and, when the
+// check ran (all), the device's row of any other reason too, so the window does not scan it again right after.
+func (s *Service) dropQueued(ctx context.Context, id string, all bool) {
 	err := s.db.Write(context.WithoutCancel(ctx), func(tx *sql.Tx) error {
+		if all {
+			_, err := tx.ExecContext(ctx, `DELETE FROM sa_queue WHERE asset_id = ?`, id)
+			return err
+		}
 		_, err := tx.ExecContext(ctx, `DELETE FROM sa_queue WHERE asset_id = ? AND reason = ?`, id, reasonCheckWait)
 		return err
 	})
 	if err != nil {
 		s.log.WarnContext(ctx, "sensoractive: forgetting a waiting device check failed", "asset", id, "error", err)
+	}
+}
+
+// giveUpWaiting hands the check_wait rows of ids to the window's queue (check_now, the window's rules).
+func (s *Service) giveUpWaiting(ctx context.Context, ids []string) {
+	ctx = context.WithoutCancel(ctx)
+	err := s.db.Write(ctx, func(tx *sql.Tx) error {
+		for _, id := range ids {
+			if _, err := tx.ExecContext(ctx, `UPDATE sa_queue SET reason = 'check_now' WHERE asset_id = ? AND reason = ?`, id, reasonCheckWait); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		s.log.WarnContext(ctx, "sensoractive: handing a waiting device check to the window failed", "error", err)
 	}
 }
 
@@ -355,6 +382,15 @@ func (s *Service) resumeChecks(ctx context.Context) {
 	busy := s.manual != nil
 	s.mu.Unlock()
 	if busy || s.off.Load() {
+		return
+	}
+	// only a check from the last run's hour is the person's still; an older row (the run gave up, a stop, scanning off) is the window's
+	cutoff := store.FormatTS(s.clock().Add(-manualFor))
+	if err := s.db.Write(ctx, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx, `UPDATE sa_queue SET reason = 'check_now' WHERE reason = ? AND queued_at < ?`, reasonCheckWait, cutoff)
+		return err
+	}); err != nil {
+		s.log.WarnContext(ctx, "sensoractive: handing old waiting device checks to the window failed", "error", err)
 		return
 	}
 	rows, err := s.db.Reader().QueryContext(ctx, `SELECT asset_id FROM sa_queue WHERE reason = ? ORDER BY queued_at, asset_id LIMIT ?`, reasonCheckWait, MaxManualTargets)
@@ -379,9 +415,7 @@ func (s *Service) resumeChecks(ctx context.Context) {
 	case err == nil:
 		s.log.InfoContext(ctx, "sensoractive: device checks a person started were waiting for nmap before the restart; they run now", "devices", len(ids))
 	case errors.As(err, &te):
-		s.dropWaiting(ctx, te.Target) // the target is the id the row holds
-	case errors.Is(err, ErrNotFound):
-		// the next tick meets it again through the policy
+		s.dropQueued(ctx, te.Target, false) // the target is the id the row holds
 	}
 }
 

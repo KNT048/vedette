@@ -33,6 +33,15 @@ describe('the first check of a device whose network scan is on', () => {
     expect(firstCheck(input({ discovery: { enabled: true, next_run_at: '2026-11-22T15:00:00.000Z' } }))).toEqual({ when: 'day', day: '22 Nov', time: '22:00' })
   })
 
+  it('words the day from calendar days in the zone: today for a morning opening, tomorrow across a clock change', () => {
+    setDisplayTimeZone('America/New_York') // clocks went forward on 2026-03-08: that day has 23 hours
+    const w = { ...window, time_zone: 'America/New_York' }
+    const at = (iso: string, next: string) => firstCheck(input({ window: w, now: new Date(iso), discovery: { enabled: true, next_run_at: next } }))
+    expect(at('2026-03-07T15:00:00.000Z', '2026-03-09T02:00:00.000Z')).toEqual({ when: 'tomorrow', time: '22:00' }) // 10:00 on the 7th -> 22:00 on the 8th
+    expect(at('2026-03-08T12:00:00.000Z', '2026-03-08T16:00:00.000Z')).toEqual({ when: 'today', time: '12:00' }) // a noon opening is not "tonight"
+    expect(at('2026-03-08T12:00:00.000Z', '2026-03-09T02:00:00.000Z')).toEqual({ when: 'tonight', time: '22:00' })
+  })
+
   it('runs now when the window opened tonight and is still open, across midnight too', () => {
     setDisplayTimeZone(ZONE)
     expect(firstCheck(input({ now: new Date('2026-11-18T17:30:00.000Z') }))).toEqual({ when: 'now' }) // 00:30 on the 19th, the 18th's window
@@ -70,7 +79,7 @@ describe('Device page: the network scan row while the switch is on and nothing h
     await hand('a-hand-fw', '192.168.10.80', 'on')
     renderApp('/devices/a-hand-fw', { role: 'admin' })
     const row = await scanRow()
-    expect(await within(row).findByText(/^On · first check (tonight|tomorrow|on \d+ \w+) at \d\d:\d\d, in the scan window$|^On · first check starts within a minute/, {}, T)).toBeInTheDocument()
+    expect(await within(row).findByText(/^On · first check (tonight|tomorrow|on \d+ \w+) at \d\d:\d\d, in the scan window$|^On · first check runs during this scan window/, {}, T)).toBeInTheDocument()
     expect(row).not.toHaveTextContent('Not set up')
     expect(within(row).getByRole('button', { name: 'Check this device now' })).toBeInTheDocument()
   })

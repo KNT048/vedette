@@ -16,7 +16,7 @@ export type FirstCheckInput = {
 
 export type FirstCheck =
   | { when: 'now' }
-  | { when: 'tonight' | 'tomorrow'; time: string }
+  | { when: 'tonight' | 'today' | 'tomorrow'; time: string }
   | { when: 'day'; day: string; time: string }
   | { when: 'next' }
   | { when: 'waiting'; why: 'off' | 'scope' | 'outside' }
@@ -54,8 +54,13 @@ export function firstCheck(i: FirstCheckInput): FirstCheck {
   const next = i.discovery?.next_run_at
   if (!next) return { when: 'next' }
   const time = fmtTime(next)
+  // calendar days in the organization's zone, never now + 24 h (a day of a clock change is 23 or 25 hours)
   const today = dayOf(i.now.toISOString()), day = dayOf(next)
-  if (day === today) return { when: 'tonight', time }
-  if (day === dayOf(new Date(i.now.getTime() + 86_400_000).toISOString())) return { when: 'tomorrow', time }
+  if (day === today) return { when: Number(time.slice(0, 2)) >= EVENING ? 'tonight' : 'today', time }
+  const [y, m, d] = today.split('-').map(Number)
+  if (day === new Date(Date.UTC(y!, m! - 1, d! + 1)).toISOString().slice(0, 10)) return { when: 'tomorrow', time }
   return { when: 'day', day: fmtDayMonth(next), time }
 }
+
+/** An opening from this hour on is "tonight"; an earlier one the same day is "today". */
+const EVENING = 18

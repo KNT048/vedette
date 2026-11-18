@@ -59,9 +59,10 @@
     "scan": {
       "on": "On",
       "firstTonight": "On · first check tonight at {{time}}, in the scan window",
+      "firstToday": "On · first check today at {{time}}, in the scan window",
       "firstTomorrow": "On · first check tomorrow at {{time}}, in the scan window",
       "firstDay": "On · first check on {{day}} at {{time}}, in the scan window",
-      "firstNow": "On · first check starts within a minute, the scan window is open",
+      "firstNow": "On · first check runs during this scan window",
       "firstNext": "On · first check in the next scan window",
       "waiting": {
         "off": "On · first check waits: active discovery is off",

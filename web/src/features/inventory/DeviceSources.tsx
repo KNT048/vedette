@@ -97,7 +97,7 @@ function FirstCheckText({ d }: { d: DeviceDetail }) {
     : f.when === 'now' ? t('sources.scan.firstNow')
     : f.when === 'next' ? t('sources.scan.firstNext')
     : f.when === 'day' ? t('sources.scan.firstDay', { day: f.day, time: f.time })
-    : t(f.when === 'tonight' ? 'sources.scan.firstTonight' : 'sources.scan.firstTomorrow', { time: f.time })
+    : t(f.when === 'tonight' ? 'sources.scan.firstTonight' : f.when === 'today' ? 'sources.scan.firstToday' : 'sources.scan.firstTomorrow', { time: f.time })
   return <span className="text-meta text-muted">{text}</span>
 }
 
@@ -141,7 +141,7 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
   const feeds = feedsOf(d)
   // The switch is on and nothing has reached the device yet (no report, no device check): its first check is the next window's.
   const history = useScanningHistory(d.asset.id)
-  const firstDue = a.scan_source === 'on' && !feeds.has('scan') && !!history.data && !history.data.items.some((r) => r.kind === 'device')
+  const firstDue = a.scan_source === 'on' && !feeds.has('scan') && !!history.data && !history.data.items.some((r) => r.kind === 'device' && r.outcome !== 'stopped')
   const ip = a.ip && IPV4.test(a.ip) ? a.ip : ''
   const declared = a.origin === 'manual'
   // Whether the device has SNMP settings of its own (the same query as its SNMP card): true, false, or null when not known (loading,

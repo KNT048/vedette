@@ -222,3 +222,35 @@ func TestINV50_TwoProductsStayTwoLines(t *testing.T) {
 		t.Fatalf("%+v", l)
 	}
 }
+
+// An entry that corrects an agent's row beats that row (INV-41, INV-50), where an agent row the entry does not correct outranks it.
+func TestINV50_EntryBeatsTheAgentRowItCorrects(t *testing.T) {
+	t.Parallel()
+	c := newSoftwareCase(t)
+	c.report(observe.Agent, "Kernel", "6.12.116", "6.12.116-1")
+	var agentID string
+	for _, s := range c.e.detail(c.dev).Asset.Software {
+		agentID = s.ID
+	}
+	c.e.tick(time.Minute)
+	v, p := "6.12.117", "6.12.117-1"
+	if err := c.e.svc.EditSoftware(c.e.ctx(), "op@example.com", c.dev, agentID, inventory.SoftwareEdit{Version: &v, PkgVersion: &p}); err != nil {
+		t.Fatal(err)
+	}
+	l := c.oneLine("manual", 1)
+	if l.AlsoSeen[0].ID != agentID || l.AlsoSeen[0].Source != "agent" {
+		t.Fatalf("the corrected agent row is listed under the entry: %+v", l)
+	}
+	m, _, err := c.e.svc.MatchInput(c.e.ctx(), c.dev)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(m.Software) != 1 || m.Software[0].ID != l.ID || m.Software[0].ShadowedBy != "" {
+		t.Fatalf("matching reads the entry alone: %+v", m.Software)
+	}
+	// the agent reads another version: that row is not the one corrected, so the agent outranks the entry
+	c.report(observe.Agent, "Kernel", "6.12.118", "6.12.118-1")
+	if l := c.oneLine("agent", 1); l.Version != "6.12.118" || l.AlsoSeen[0].Source != "manual" {
+		t.Fatalf("%+v", l)
+	}
+}

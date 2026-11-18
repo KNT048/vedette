@@ -30,6 +30,8 @@ type EffectiveSoftware struct {
 	// Differs: a weaker source reads another release (not the same one with more or less detail) and read it after this row's
 	// source did; the strongest such source is the first AlsoSeen with SameRelease false.
 	Differs bool `json:"differs"`
+
+	key, corrects string // the row's identity (rowKey) and, on a person's correction, the row it corrects
 }
 
 // AlsoSeen is another source's reading of an effective software.
@@ -49,7 +51,7 @@ type AlsoSeen struct {
 // readings. Several rows of the strongest source (two installs at other versions) stay rows of their own; a weaker reading goes
 // under the one it is the same release as, else the newest.
 func effectiveSoftware(ctx context.Context, q querier, assetID string) ([]EffectiveSoftware, error) {
-	rows, err := q.QueryContext(ctx, `SELECT s.id, s.vendor, s.product, s.display, ifnull(s.version, ''), ifnull(s.pkg_version, ''), s.packaged, ifnull(s.cpe, ''), s.source, ifnull(s.set_by, ''), s.seen_at
+	rows, err := q.QueryContext(ctx, `SELECT s.id, s.vendor, s.product, s.display, ifnull(s.version, ''), ifnull(s.pkg_version, ''), s.packaged, ifnull(s.cpe, ''), s.source, ifnull(s.set_by, ''), s.seen_at, ifnull(s.corrects, ''), `+rowKey("s")+`
 		FROM inv_software s WHERE s.asset_id = ? AND NOT `+hiddenGuess+` AND NOT `+notInstalledSW+` AND (s.corrects IS NULL OR `+correctionLive+`) ORDER BY s.seen_at DESC, s.id`, assetID)
 	if err != nil {
 		return nil, fmt.Errorf("inventory: read software: %w", err)
@@ -58,7 +60,7 @@ func effectiveSoftware(ctx context.Context, q querier, assetID string) ([]Effect
 	var all []EffectiveSoftware
 	for rows.Next() {
 		var e EffectiveSoftware
-		if err := rows.Scan(&e.ID, &e.Vendor, &e.Product, &e.Display, &e.Version, &e.PkgVersion, &e.Packaged, &e.CPE, &e.Source, &e.SetBy, &e.SeenAt); err != nil {
+		if err := rows.Scan(&e.ID, &e.Vendor, &e.Product, &e.Display, &e.Version, &e.PkgVersion, &e.Packaged, &e.CPE, &e.Source, &e.SetBy, &e.SeenAt, &e.corrects, &e.key); err != nil {
 			return nil, fmt.Errorf("inventory: read software: %w", err)
 		}
 		all = append(all, e)
@@ -128,11 +130,30 @@ func effectiveOf(all []EffectiveSoftware) []EffectiveSoftware {
 	var out []EffectiveSoftware
 	for _, root := range order {
 		idx := classes[root]
-		slices.SortStableFunc(idx, func(a, b int) int { return softwareRank(all[b].Source) - softwareRank(all[a].Source) }) // newest first kept
-		top := softwareRank(all[idx[0]].Source)
+		// a person's entry beats the very row it corrects, whatever that row's source (INV-41, INV-50): that row is not a candidate
+		// for the effective row, it is listed under the entry
+		corrected := map[int]int{} // row index -> the entry index that corrects it
+		for _, c := range idx {
+			if all[c].corrects == "" {
+				continue
+			}
+			for _, r := range idx {
+				if r != c && all[r].key == all[c].corrects && all[r].Source != "manual" {
+					corrected[r] = c
+				}
+			}
+		}
+		var cand []int
+		for _, i := range idx {
+			if _, ok := corrected[i]; !ok {
+				cand = append(cand, i)
+			}
+		}
+		slices.SortStableFunc(cand, func(a, b int) int { return softwareRank(all[b].Source) - softwareRank(all[a].Source) }) // newest first kept
+		top := softwareRank(all[cand[0]].Source)
 		var shown []EffectiveSoftware
 		var rest []int
-		for _, i := range idx {
+		for _, i := range cand {
 			if softwareRank(all[i].Source) == top {
 				r := all[i]
 				r.AlsoSeen = []AlsoSeen{}
@@ -141,14 +162,30 @@ func effectiveOf(all []EffectiveSoftware) []EffectiveSoftware {
 				rest = append(rest, i)
 			}
 		}
+		for _, r := range idx { // the corrected rows go after the lower readings, strongest source first
+			if _, ok := corrected[r]; ok {
+				rest = append(rest, r)
+			}
+		}
 		decided := map[int]bool{} // the strongest reading of another release is the one that counts
 		for _, w := range rest {
 			ti := 0
-			for k := range shown {
+			if c, ok := corrected[w]; ok {
+				for k := range shown {
+					if shown[k].ID == all[c].ID {
+						ti = k
+					}
+				}
+			} else {
+				ti = -1
+			}
+			for k := 0; ti < 0 && k < len(shown); k++ {
 				if pkgrel.Same(shown[k].Version, shown[k].PkgVersion, all[w].Version, all[w].PkgVersion) {
 					ti = k
-					break
 				}
+			}
+			if ti < 0 {
+				ti = 0
 			}
 			t := &shown[ti]
 			same := pkgrel.Same(t.Version, t.PkgVersion, all[w].Version, all[w].PkgVersion)

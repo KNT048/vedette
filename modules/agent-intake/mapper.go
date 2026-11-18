@@ -11,6 +11,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/knt048/vedette/core/apkver"
 	"github.com/knt048/vedette/core/debver"
 	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/core/winrel"
@@ -111,7 +112,7 @@ func debUpstream(v string) string {
 func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, dropped int) {
 	seen := map[string]int{} // key -> index in items
 	add := func(display, vendor, product, version string, mapped, packaged bool, pkgVersion, pkgSource string, conf float64) {
-		if !debver.Valid(pkgVersion) || pkgSource == "" {
+		if !(debver.Valid(pkgVersion) || apkver.Valid(pkgVersion)) || pkgSource == "" {
 			pkgVersion, pkgSource = "", ""
 		}
 		// The key vendor|product must stay within the inventory's 400 bytes, or it refuses the whole list.
@@ -123,6 +124,12 @@ func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, d
 		if i, ok := seen[k]; ok {
 			items[i].Confidence = max(items[i].Confidence, conf) // a version the machine stated outranks one from its components
 			if pkgVersion == "" {
+				return
+			}
+			if lower, ok := lowerRelease(pkgVersion, items[i].PkgVersion); ok {
+				if lower {
+					items[i].PkgVersion, items[i].PkgSource = pkgVersion, pkgSource
+				}
 				return
 			}
 			c, err := debver.Compare(pkgVersion, items[i].PkgVersion) // an empty stored version is ErrInvalid: the new one is taken
@@ -180,6 +187,42 @@ func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, d
 			add(name, name, name, r["version"], false, true, "", "", softwareConfidence)
 		}
 	}
+	for _, r := range snaps["apk_packages"] {
+		if !apkNameRE.MatchString(r["name"]) || !apkver.Valid(r["version"]) {
+			dropped++ // not an Alpine package: never guessed
+			continue
+		}
+		name, origin, upstream := r["name"], cmp.Or(r["origin"], r["name"]), apkNVDVersion(r["version"])
+		if !apkNameRE.MatchString(origin) {
+			origin = name
+		}
+		p, ok := pkgmap.Linux.lookup(strings.ToLower(name))
+		if !ok {
+			p, ok = pkgmap.Linux.lookup(strings.ToLower(origin))
+		}
+		switch {
+		case ok && p.Upstream:
+			add(p.Product, p.Vendor, p.Product, upstream, true, false, "", "", softwareConfidence)
+		case ok:
+			add(p.Product, p.Vendor, p.Product, upstream, true, true, r["version"], origin, softwareConfidence)
+		default:
+			add(name, name, name, upstream, false, true, r["version"], origin, softwareConfidence)
+		}
+	}
+	for _, r := range snaps["pacman_packages"] {
+		// Arch's rolling release carries the upstream version unpatched; no distribution data feed covers it, so the row is not Packaged
+		// and findings reads NVD's ranges against the version ("1:2.43.0-1" is epoch 1, upstream 2.43.0, Arch release 1).
+		name, version := r["name"], pacmanUpstream(r["version"])
+		if !apkNameRE.MatchString(strings.ToLower(name)) || version == "" {
+			dropped++
+			continue
+		}
+		if p, ok := pkgmap.Linux.lookup(strings.ToLower(name)); ok {
+			add(p.Product, p.Vendor, p.Product, version, true, false, "", "", softwareConfidence)
+		} else {
+			add(name, name, name, version, false, false, "", "", softwareConfidence)
+		}
+	}
 	sql := sqlServerVersions(snaps["programs"])
 	for _, r := range sqlUmbrellaFirst(snaps["programs"]) {
 		if r["sql_setup"] != "" {
@@ -204,6 +247,35 @@ func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, d
 		}
 	}
 	return items, dropped
+}
+
+// apkNameRE is the name of an Alpine (or Arch) package.
+var apkNameRE = regexp.MustCompile(`^[a-z0-9][a-z0-9+._-]{0,99}$`)
+
+// lowerRelease compares two apk releases; ok is false when either is not one (the caller then compares as Debian versions).
+func lowerRelease(a, b string) (lower, ok bool) {
+	va, okA := apkver.Parse(a)
+	vb, okB := apkver.Parse(b)
+	if !okA || !okB || strings.ContainsAny(a+b, ":") {
+		return false, false
+	}
+	return apkver.Compare(va, vb) < 0, true
+}
+
+// apkNVDVersion is the upstream version of an apk release in the form NVD writes it: "10.2_p1-r1" is 10.2p1 (apk's _p is a patch
+// letter suffix; the other suffixes keep their apk spelling and so are not read as a release).
+func apkNVDVersion(rel string) string { return strings.Replace(apkver.Upstream(rel), "_p", "p", 1) }
+
+// pacmanUpstream is the upstream version of a pacman version "[epoch:]version-pkgrel"; "" when it has no release part.
+func pacmanUpstream(v string) string {
+	if i := strings.IndexByte(v, ':'); i > 0 && strings.Trim(v[:i], "0123456789") == "" {
+		v = v[i+1:]
+	}
+	i := strings.LastIndexByte(v, '-')
+	if i <= 0 {
+		return ""
+	}
+	return v[:i]
 }
 
 // kernelImageRE is a kernel image package of Ubuntu or Debian: linux-image-7.0.0-43-generic, linux-image-unsigned-…,

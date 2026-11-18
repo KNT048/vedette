@@ -1,13 +1,18 @@
 #!/bin/sh
-# Vedette osquery installer for Linux (any glibc distribution with dpkg or rpm: Debian, Ubuntu, RHEL, Rocky, Alma, Fedora, Amazon Linux, SUSE; x86_64 or arm64). Served by your Vedette box: @@BOX@@
+# Vedette installer for Linux (one command for every common distribution). Served by your Vedette box: @@BOX@@
+# Where osquery runs (glibc with dpkg or rpm: Debian, Ubuntu, RHEL, Rocky, Alma, Fedora, Amazon Linux, SUSE; x86_64 or arm64) it installs osquery.
+# Where it cannot (Alpine and other musl systems, Arch, other architectures) it installs a small package reporter instead: a shell script that
+# enrols with the same token and sends the installed packages (apk, pacman, dpkg or rpm) and the operating system to the same box endpoints.
 # Run as root. Safe to run again: it upgrades or repairs. Remove everything with: --uninstall
-# What it does, in order:
+# What the osquery path does, in order:
 #   1. writes the Vedette box CA certificate (embedded below) to /etc/osquery/vedette-ca.pem
 #   2. downloads osquery @@VERSION@@ and SHA256SUMS from the box (the box mirrors the official osquery release; servers need no Internet),
 #      checks the SHA-256 of the package, installs it with dpkg or rpm (chosen by what this machine has, not by its name)
 #   3. writes the enroll secret (mode 600) and /etc/osquery/osquery.flags; with a token this machine does not hold yet, it first removes
 #      osquery's database (/var/osquery/osquery.db: the old node key and unsent results) so that the machine enrols under the new token
 #   4. enables and starts the osqueryd service (systemd, else the SysV init script), then waits until this machine has enrolled (not for its first report, due within a few minutes) and exits 0
+# What the reporter path does: writes the box CA, the enrol secret (mode 600) and the reporter (/usr/local/sbin/vedette-reporter), runs it once
+# (it enrols, then sends the package list), and schedules it hourly (systemd timer, else cron.d, else busybox crond).
 set -eu
 BOX='@@BOX@@'
 OSQ_VERSION='@@VERSION@@'
@@ -52,23 +57,267 @@ svc_enable_restart() {
 }
 svc_active() { if [ "$INIT" = systemd ]; then systemctl is-active --quiet osqueryd; else "$SYSV" status >/dev/null 2>&1; fi; }
 
+RDIR=/etc/vedette-reporter
+RSTATE=/var/lib/vedette-reporter
+RBIN=/usr/local/sbin/vedette-reporter
+CRON_D=/etc/cron.d/vedette-reporter
+BB_CRON=/etc/crontabs/root
+# The reporter's schedule is removed wherever it was put (also when the machine has since changed init).
+reporter_remove() {
+  if [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1; then systemctl disable --now vedette-reporter.timer >/dev/null 2>&1 || true; fi
+  rm -f /etc/systemd/system/vedette-reporter.timer /etc/systemd/system/vedette-reporter.service "$CRON_D" "$RBIN"
+  if [ -f "$BB_CRON" ]; then grep -v '# vedette-reporter$' "$BB_CRON" > "$BB_CRON.vedette-new" || true; cat "$BB_CRON.vedette-new" > "$BB_CRON"; rm -f "$BB_CRON.vedette-new"; fi
+  if [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1; then systemctl daemon-reload >/dev/null 2>&1 || true; fi
+  rm -rf "$RDIR" "$RSTATE"
+}
+
 if [ "$ACTION" = uninstall ]; then
+  reporter_remove
   [ "$INIT" = none ] || svc_disable_stop
   if command -v dpkg >/dev/null 2>&1 && dpkg -s osquery >/dev/null 2>&1; then dpkg -r osquery 2>/dev/null || true
   elif command -v rpm >/dev/null 2>&1; then rpm -e osquery 2>/dev/null || true; fi
   rm -f "$DIR/osquery.flags" "$DIR/enroll.secret" "$CA"
   rm -rf "$DB"
-  echo "osquery and the Vedette settings were removed from this machine."
+  echo "osquery, the package reporter and the Vedette settings were removed from this machine."
   exit 0
 fi
+
+# The package reporter: for systems osquery cannot run on. It needs a way to run every hour (systemd, cron.d or busybox crond) and curl
+# (installed with apk where it is missing: Alpine has none by default); everything else it uses is in busybox and coreutils.
+install_reporter() {
+  if [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1; then SCHED=systemd
+  elif [ -d /etc/cron.d ]; then SCHED=cron.d
+  elif [ -d /etc/crontabs ]; then SCHED=busybox
+  else echo "Cannot install the package reporter on ${OS_NAME}: no scheduler found (systemd, /etc/cron.d or /etc/crontabs). Install cron and run this command again." >&2; return 1; fi
+  if ! command -v curl >/dev/null 2>&1; then
+    if command -v apk >/dev/null 2>&1; then
+      echo "Installing curl and ca-certificates with apk (the reporter needs curl to talk to the box over TLS)..."
+      apk add --no-cache curl ca-certificates >/dev/null 2>&1 || { echo "apk could not install curl: install curl and run this command again." >&2; return 1; }
+    else echo "Cannot install the package reporter on ${OS_NAME}: 'curl' is required and is not installed." >&2; return 1; fi
+  fi
+  for NEED in awk sed grep mktemp ip; do
+    command -v "$NEED" >/dev/null 2>&1 || { echo "Cannot install the package reporter on ${OS_NAME}: '$NEED' is required and is not installed." >&2; return 1; }
+  done
+  # With a token this machine does not hold yet the reporter's node key is dropped, so that it enrols under the new token.
+  if [ "$(cat "$RDIR/enroll.secret" 2>/dev/null || true)" != "$TOKEN" ]; then rm -f "$RSTATE/node-key"; fi
+  mkdir -p "$RDIR" "$RSTATE" /usr/local/sbin
+  chmod 700 "$RDIR" "$RSTATE"
+  cat > "$RDIR/ca.pem" <<'VEDETTE_CA'
+@@CA@@
+VEDETTE_CA
+  chmod 644 "$RDIR/ca.pem"
+  printf '%s\n' "$BOX" > "$RDIR/box"
+  printf '%s\n' "$HOSTID" > "$RDIR/host-id"
+  ( umask 077; printf '%s\n' "$TOKEN" > "$RDIR/enroll.secret" )
+  cat > "$RBIN" <<'VEDETTE_REPORTER'
+#!/bin/sh
+# Vedette package reporter. Installed by the Vedette install command on Linux systems osquery cannot run on (Alpine and other musl
+# systems, Arch, other architectures). It enrols with the box like an osquery node, then sends this machine's operating system, network
+# addresses and installed packages (apk, pacman, dpkg or rpm) to the box's osquery endpoints. Run by the system's scheduler; safe to run by hand.
+# The enrol secret is read from a file (mode 600) and every request body is a file: nothing secret is ever an argument or is printed.
+set -eu
+umask 077
+D=/etc/vedette-reporter
+S=/var/lib/vedette-reporter
+MAXROWS=5000
+mkdir -p "$S"
+TMP=$(mktemp -d)
+trap 'rm -rf "$TMP"' EXIT HUP INT TERM
+say() { printf '%s\n' "$*" >&2; }
+fail() { printf '%s %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "failed: $*" > "$S/last-run"; say "vedette-reporter: $*"; exit "${2:-1}"; }
+for NEED in curl awk sed uname mktemp grep ip; do command -v "$NEED" >/dev/null 2>&1 || fail "'$NEED' is required and is not installed"; done
+read -r BOX < "$D/box" || fail "cannot read $D/box"
+read -r HOSTID < "$D/host-id" || fail "cannot read $D/host-id"
+read -r TOKEN < "$D/enroll.secret" || fail "cannot read $D/enroll.secret"
+printf '%s' "$TOKEN" | grep -Eq '^vdt_[a-z]+_[a-z0-9]{32}$' || fail "the enrol secret in $D/enroll.secret is not a Vedette token"
+printf '%s' "$BOX" | grep -Eq '^https://[]A-Za-z0-9.:[-]+$' && [ "${#BOX}" -le 270 ] || fail "$D/box is not an https address"
+printf '%s' "$HOSTID" | grep -Eq '^[A-Za-z0-9._-]{1,200}$' || fail "$D/host-id is not a host name"
+
+# One HTTPS call to the box with the box's own certificate pinned. The body is $TMP/req and the answer $TMP/resp.
+post() { curl -fsS --proto '=https' --max-time 120 --cacert "$D/ca.pem" -H 'Content-Type: application/json' --data-binary @"$TMP/req" -o "$TMP/resp" "$BOX/api/v1/intake/osquery/$1"; }
+
+# ---- what this machine is ----
+# os-release is read in a subshell (its VERSION, NAME, ... must not overwrite this script's variables).
+OSF=/etc/os-release; [ -r "$OSF" ] || OSF=/usr/lib/os-release
+# shellcheck disable=SC1090 # the file is os-release, read on purpose
+OSROW=$( . "$OSF" 2>/dev/null; printf '%s\t%s\t%s' "${NAME:-}" "${VERSION_ID:-${BUILD_ID:-}}" "${ID:-linux}" ) || OSROW=''
+OS_NAME=$(printf '%s' "$OSROW" | cut -f1)
+OS_VERSION=$(printf '%s' "$OSROW" | cut -f2)
+OS_ID=$(printf '%s' "$OSROW" | cut -f3)
+ARCH=$(uname -m)
+# Free text becomes a JSON string only after it has been cut to a plain character set: nothing in it needs escaping.
+plain() { printf '%s' "$1" | tr -cd 'A-Za-z0-9 ._+()/:-' | cut -c1-"$2"; }
+OS_NAME=$(plain "$OS_NAME" 80); OS_VERSION=$(plain "$OS_VERSION" 60); OS_ID=$(plain "$OS_ID" 32 | tr 'A-Z ' 'a-z-'); ARCH=$(plain "$ARCH" 32)
+[ -n "$OS_NAME" ] || OS_NAME=Linux
+
+# ---- network addresses: IPv4 and MAC of each card; the address this machine reaches the box from comes first ----
+# The box accepts a report only from an address the report itself lists, so that address must be in the first eight rows.
+BOXHOST=${BOX#https://}; BOXHOST=${BOXHOST%:*}
+SRCIP=''
+if printf '%s' "$BOXHOST" | grep -Eq '^[0-9]{1,3}(\.[0-9]{1,3}){3}$'; then BOXIP=$BOXHOST
+elif command -v getent >/dev/null 2>&1; then BOXIP=$(getent ahostsv4 "$BOXHOST" 2>/dev/null | awk 'NR==1{print $1}')
+else BOXIP=''; fi
+if printf '%s' "$BOXIP" | grep -Eq '^[0-9]{1,3}(\.[0-9]{1,3}){3}$'; then
+  SRCIP=$(ip -4 route get "$BOXIP" 2>/dev/null | sed -n 's/.* src \([0-9.]*\).*/\1/p' | head -n 1)
+fi
+ip -o -4 addr show scope global 2>/dev/null | while read -r _ IFACE _ ADDR _; do
+  IFACE=${IFACE%%@*}; ADDR=${ADDR%%/*}
+  printf '%s' "$ADDR" | grep -Eq '^[0-9]{1,3}(\.[0-9]{1,3}){3}$' || continue
+  printf '%s' "$IFACE" | grep -Eq '^[A-Za-z0-9._-]{1,32}$' || continue
+  MAC=''; read -r MAC 2>/dev/null < "/sys/class/net/$IFACE/address" || continue
+  printf '%s' "$MAC" | grep -Eq '^[0-9a-f]{2}(:[0-9a-f]{2}){5}$' || continue
+  if [ "$ADDR" = "$SRCIP" ]; then printf '0 '; else printf '1 '; fi
+  printf '{"mac":"%s","address":"%s"}\n' "$MAC" "$ADDR"
+done | sort | head -n 8 | cut -d' ' -f2- | paste -sd, - > "$TMP/ifaces" || true
+[ -s "$TMP/ifaces" ] || fail "no IPv4 address with a hardware address was found on this machine"
+
+# ---- installed packages ----
+# Each package manager's output is read with a strict shape per line; a line that does not fit is dropped and counted, and when nothing fits
+# at all the report is refused (the output is of a shape this script does not know), never guessed.
+PKQ=''
+if command -v apk >/dev/null 2>&1 && [ -d /lib/apk/db ]; then
+  PKQ=apk_packages
+  apk list -I > "$TMP/raw" 2>/dev/null || fail "apk list failed"
+  # openssh-10.2_p1-r1 x86_64 {openssh} (BSD-2-Clause) [installed]
+  awk -v max="$MAXROWS" '
+    $1 == "" { next }
+    { bad_line = 1 }
+    NF >= 3 && $3 ~ /^\{[a-z0-9][a-z0-9+._-]*\}$/ && $2 ~ /^[a-z0-9_]+$/ && match($1, /-[0-9][0-9A-Za-z._]*-r[0-9]+$/) && RSTART > 1 {
+      name = substr($1, 1, RSTART - 1); ver = substr($1, RSTART + 1); origin = substr($3, 2, length($3) - 2)
+      if (name ~ /^[a-z0-9][a-z0-9+._-]*$/ && length(name) <= 100 && length(ver) <= 60 && length(origin) <= 100) {
+        bad_line = 0
+        if (good < max) { printf "%s{\"name\":\"%s\",\"version\":\"%s\",\"arch\":\"%s\",\"origin\":\"%s\"}", (good ? "," : ""), name, ver, $2, origin; good++ }
+      }
+    }
+    bad_line { bad++ }
+    END { if (good == 0) exit 4; if (bad > 0) print bad " apk lines were not read" > "/dev/stderr" }' "$TMP/raw" > "$TMP/pkgs" || fail "apk list printed nothing this script can read" 4
+elif command -v pacman >/dev/null 2>&1 && [ -d /var/lib/pacman/local ]; then
+  PKQ=pacman_packages
+  pacman -Q > "$TMP/raw" 2>/dev/null || fail "pacman -Q failed"
+  # linux 6.12.1.arch1-1
+  awk -v max="$MAXROWS" '
+    $1 == "" { next }
+    { bad_line = 1 }
+    NF == 2 && $1 ~ /^[a-z0-9][a-z0-9+._-]*$/ && length($1) <= 100 && $2 ~ /^([0-9]+:)?[A-Za-z0-9._+~]+-[A-Za-z0-9._+]+$/ && length($2) <= 60 {
+      bad_line = 0
+      if (good < max) { printf "%s{\"name\":\"%s\",\"version\":\"%s\"}", (good ? "," : ""), $1, $2; good++ }
+    }
+    bad_line { bad++ }
+    END { if (good == 0) exit 4; if (bad > 0) print bad " pacman lines were not read" > "/dev/stderr" }' "$TMP/raw" > "$TMP/pkgs" || fail "pacman -Q printed nothing this script can read" 4
+elif command -v dpkg-query >/dev/null 2>&1 && [ -e /var/lib/dpkg/status ]; then
+  PKQ=deb_packages
+  dpkg-query -W -f '${db:Status-Abbrev}\t${Package}\t${Version}\t${Architecture}\t${Source}\n' > "$TMP/raw" 2>/dev/null || fail "dpkg-query failed"
+  awk -F '\t' -v max="$MAXROWS" '
+    $1 !~ /^ii/ { next }
+    { bad_line = 1; src = $5; sub(/ .*/, "", src) }
+    $2 ~ /^[a-z0-9][a-z0-9+.-]*$/ && length($2) <= 100 && $3 ~ /^[A-Za-z0-9.+~:-]+$/ && length($3) <= 100 && $4 ~ /^[a-z0-9-]+$/ && (src == "" || (src ~ /^[a-z0-9][a-z0-9+.-]*$/ && length(src) <= 100)) {
+      bad_line = 0
+      if (good < max) { printf "%s{\"name\":\"%s\",\"version\":\"%s\",\"arch\":\"%s\",\"source\":\"%s\"}", (good ? "," : ""), $2, $3, $4, src; good++ }
+    }
+    bad_line { bad++ }
+    END { if (good == 0) exit 4; if (bad > 0) print bad " dpkg lines were not read" > "/dev/stderr" }' "$TMP/raw" > "$TMP/pkgs" || fail "dpkg-query printed nothing this script can read" 4
+elif command -v rpm >/dev/null 2>&1; then
+  PKQ=rpm_packages
+  rpm -qa --qf '%{NAME}\t%{EPOCHNUM}\t%{VERSION}\t%{RELEASE}\t%{ARCH}\n' > "$TMP/raw" 2>/dev/null || fail "rpm -qa failed"
+  awk -F '\t' -v max="$MAXROWS" '
+    $1 == "gpg-pubkey" { next }
+    { bad_line = 1 }
+    $1 ~ /^[A-Za-z0-9][A-Za-z0-9._+-]*$/ && length($1) <= 100 && $2 ~ /^[0-9]+$/ && $3 ~ /^[A-Za-z0-9._+~^]+$/ && length($3) <= 100 && $4 ~ /^[A-Za-z0-9._+~^]+$/ && length($4) <= 100 && $5 ~ /^[A-Za-z0-9_]+$/ {
+      bad_line = 0
+      if (good < max) { printf "%s{\"name\":\"%s\",\"epoch\":\"%s\",\"version\":\"%s\",\"release\":\"%s\",\"arch\":\"%s\"}", (good ? "," : ""), $1, $2, $3, $4, $5; good++ }
+    }
+    bad_line { bad++ }
+    END { if (good == 0) exit 4; if (bad > 0) print bad " rpm lines were not read" > "/dev/stderr" }' "$TMP/raw" > "$TMP/pkgs" || fail "rpm printed nothing this script can read" 4
+else
+  fail "no package manager this script reads (apk, pacman, dpkg, rpm) was found" 4
+fi
+
+# ---- enrol, once: the node key is kept; it is asked for again only when the box no longer knows it ----
+KEYF=$S/node-key
+keyval() { sed -n 's/.*"node_key" *: *"\([A-Za-z0-9_-]*\)".*/\1/p' "$1" | head -n 1; }
+enrol() {
+  printf '{"enroll_secret":"%s","host_identifier":"%s","host_details":{"system_info":{"hostname":"%s"},"os_version":{"platform":"%s"}}}' "$TOKEN" "$HOSTID" "$HOSTID" "$OS_ID" > "$TMP/req"
+  post enroll || fail "cannot reach the box at $BOX (is the address reachable and its certificate the one in $D/ca.pem?)"
+  NODEKEY=$(keyval "$TMP/resp")
+  printf '%s' "$NODEKEY" | grep -Eq '^[A-Za-z0-9_-]{43}$' || fail "the box did not accept this enrol secret (revoked or expired token: run the install command again)" 2
+  printf '%s' "$NODEKEY" > "$KEYF"
+}
+NODEKEY=''
+[ ! -s "$KEYF" ] || read -r NODEKEY < "$KEYF" || NODEKEY=''
+printf '%s' "$NODEKEY" | grep -Eq '^[A-Za-z0-9_-]{43}$' || { NODEKEY=''; enrol; }
+
+send() {
+  {
+    printf '{"node_key":"%s","log_type":"result","data":[' "$NODEKEY"
+    printf '{"name":"os_version","action":"snapshot","snapshot":[{"name":"%s","version":"%s","platform":"%s","arch":"%s"}]},' "$OS_NAME" "$OS_VERSION" "$OS_ID" "$ARCH"
+    printf '{"name":"system_info","action":"snapshot","snapshot":[{"hostname":"%s"}]},' "$HOSTID"
+    printf '{"name":"interfaces","action":"snapshot","snapshot":[%s]},' "$(cat "$TMP/ifaces")"
+    printf '{"name":"%s","action":"snapshot","snapshot":[' "$PKQ"; cat "$TMP/pkgs"; printf ']}]}'
+  } > "$TMP/req"
+  post log || fail "sending the report to $BOX failed"
+}
+send
+if grep -q '"node_invalid" *: *true' "$TMP/resp"; then NODEKEY=''; enrol; send; fi
+if grep -q '"node_invalid" *: *true' "$TMP/resp"; then fail "the box refused this machine's node key twice" 2; fi
+printf '%s %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "sent $PKQ to $BOX" > "$S/last-run"
+VEDETTE_REPORTER
+  chmod 755 "$RBIN"
+  echo "Sending this machine's packages to Vedette..."
+  "$RBIN" || { echo "The package reporter was installed, but its first report failed (see above and $RSTATE/last-run). Check that the box address is reachable from here and the token is still valid, then run: $RBIN" >&2; return 3; }
+  # one minute of the hour per machine, so that a fleet does not report in the same second
+  MIN=$(printf '%s' "$HOSTID" | cksum | awk '{ print $1 % 60 }')
+  case "$SCHED" in
+    systemd)
+      cat > /etc/systemd/system/vedette-reporter.service <<UNIT
+[Unit]
+Description=Vedette package reporter
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=$RBIN
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=$RSTATE
+UNIT
+      cat > /etc/systemd/system/vedette-reporter.timer <<UNIT
+[Unit]
+Description=Vedette package reporter, every hour
+
+[Timer]
+OnCalendar=*-*-* *:$MIN:00
+RandomizedDelaySec=60
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+UNIT
+      systemctl daemon-reload
+      systemctl enable --now vedette-reporter.timer >/dev/null 2>&1 || { echo "systemd did not start vedette-reporter.timer." >&2; return 1; } ;;
+    cron.d)
+      printf '%s * * * * root %s >/dev/null 2>&1\n' "$MIN" "$RBIN" > "$CRON_D"
+      chmod 644 "$CRON_D" ;;
+    busybox)
+      touch "$BB_CRON"
+      { grep -v '# vedette-reporter$' "$BB_CRON" || true; printf '%s * * * * %s >/dev/null 2>&1 # vedette-reporter\n' "$MIN" "$RBIN"; } > "$BB_CRON.vedette-new"
+      cat "$BB_CRON.vedette-new" > "$BB_CRON"; rm -f "$BB_CRON.vedette-new"
+      if command -v rc-service >/dev/null 2>&1; then rc-update add crond default >/dev/null 2>&1 || true; rc-service crond start >/dev/null 2>&1 || true; fi
+      if command -v pgrep >/dev/null 2>&1 && ! pgrep crond >/dev/null 2>&1; then echo "Note: crond is not running on this machine, so the hourly report will not run until it is started (Alpine: rc-service crond start)." >&2; fi ;;
+  esac
+  echo "Installed. This machine's operating system and packages appear in Vedette now and are refreshed every hour (minute $MIN, $SCHED)."
+}
 
 [ -n "$TOKEN" ] || { echo "Missing --token. Copy the install command from Vedette, Devices, Scope and sensors." >&2; exit 2; }
 # The package must match the userland, not the kernel: a 32-bit system on a 64-bit kernel (Raspberry Pi OS armhf) says aarch64 in uname -m.
 ARCH=$(dpkg --print-architecture 2>/dev/null || uname -m)
+# WHY stays empty while osquery can be installed here; the first thing it cannot do is named in it and the reporter is installed instead.
+WHY=
 case "$ARCH" in
   x86_64|amd64) DEB_ARCH=amd64; RPM_ARCH=x86_64; GLIBC_LOADER=/lib64/ld-linux-x86-64.so.2 ;;
   aarch64|arm64) DEB_ARCH=arm64; RPM_ARCH=aarch64; GLIBC_LOADER=/lib/ld-linux-aarch64.so.1 ;;
-  *) echo "osquery from this box runs on x86_64 and arm64 (aarch64) servers only; this one is $ARCH." >&2; exit 1 ;;
+  *) DEB_ARCH=''; RPM_ARCH=''; GLIBC_LOADER=''; WHY="osquery from this box runs on x86_64 and arm64 (aarch64) servers only; this one is $ARCH" ;;
 esac
 # os-release is read in subshells: sourced here it would overwrite this script's own variables (VERSION, NAME, ...). It only names the
 # system in messages; what to do is decided by what the machine has.
@@ -76,20 +325,29 @@ OSF=/etc/os-release; [ -r "$OSF" ] || OSF=/usr/lib/os-release
 # shellcheck disable=SC1090 # the file is os-release, read on purpose
 OS_NAME=$( . "$OSF" 2>/dev/null; printf '%s' "${PRETTY_NAME:-unknown}" ) || OS_NAME=unknown
 # osquery's official Linux builds are dynamically linked against glibc (they do not run on musl systems such as Alpine, with or without gcompat).
-[ -e "$GLIBC_LOADER" ] || { echo "Cannot install osquery on ${OS_NAME}: its official build needs glibc ($GLIBC_LOADER is missing; this looks like a musl system such as Alpine)." >&2; exit 1; }
-if command -v dpkg >/dev/null 2>&1 && [ -e /var/lib/dpkg/status ]; then FMT=deb; FILE="osquery_${OSQ_VERSION}-1.linux_${DEB_ARCH}.deb"
+if [ -z "$WHY" ] && [ ! -e "$GLIBC_LOADER" ]; then WHY="its official build needs glibc ($GLIBC_LOADER is missing; this looks like a musl system such as Alpine)"; fi
+FMT=; FILE=
+if [ -n "$WHY" ]; then :
+elif command -v dpkg >/dev/null 2>&1 && [ -e /var/lib/dpkg/status ]; then FMT=deb; FILE="osquery_${OSQ_VERSION}-1.linux_${DEB_ARCH}.deb"
 elif command -v rpm >/dev/null 2>&1; then FMT=rpm; FILE="osquery-${OSQ_VERSION}-1.linux.${RPM_ARCH}.rpm"
-else echo "Cannot install osquery on ${OS_NAME}: neither dpkg nor rpm is present, and the osquery package of this box is a .deb or .rpm." >&2; exit 1; fi
-[ "$INIT" != none ] || { echo "Cannot install osquery on ${OS_NAME}: no service manager found (systemd, or SysV init scripts with ps and pkill installed)." >&2; exit 1; }
+else WHY="neither dpkg nor rpm is present, and the osquery package of this box is a .deb or .rpm"; fi
+if [ -z "$WHY" ] && [ "$INIT" = none ]; then WHY="no service manager found (systemd, or SysV init scripts with ps and pkill installed)"; fi
+
+HOSTID=$(uname -n | tr -cd 'A-Za-z0-9._-')
+[ -n "$HOSTID" ] || { echo "Cannot read this machine's host name (uname -n)." >&2; exit 1; }
+
+if [ -n "$WHY" ]; then
+  echo "osquery cannot be installed on ${OS_NAME}: ${WHY}."
+  echo "Installing the Vedette package reporter instead (same token, same box; it reports this machine's packages every hour)."
+  install_reporter
+  exit $?
+fi
 for NEED in curl sha256sum mktemp; do
   command -v "$NEED" >/dev/null 2>&1 || { echo "Cannot install osquery on ${OS_NAME}: '$NEED' is required and is not installed." >&2; exit 1; }
 done
 
 # The name this machine enrols under is chosen here (--host_identifier=specified), so the status check below asks for exactly that name;
 # osquery's own hostname lookup can be the short or the full name depending on the machine.
-HOSTID=$(uname -n | tr -cd 'A-Za-z0-9._-')
-[ -n "$HOSTID" ] || { echo "Cannot read this machine's host name (uname -n)." >&2; exit 1; }
-
 mkdir -p "$DIR"
 cat > "$CA" <<'VEDETTE_CA'
 @@CA@@

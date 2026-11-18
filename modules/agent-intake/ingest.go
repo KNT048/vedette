@@ -552,7 +552,7 @@ func (s *Service) deliverServices(ctx context.Context, src netip.Addr, hint obse
 }
 
 func hasPackageQuery(in logIn) bool {
-	for _, q := range []string{"deb_packages", "rpm_packages", "programs"} {
+	for _, q := range []string{"deb_packages", "rpm_packages", "apk_packages", "pacman_packages", "programs"} {
 		if _, ok := in.snaps[q]; ok {
 			return true
 		}

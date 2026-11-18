@@ -9,6 +9,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/knt048/vedette/core/apkver"
 	"github.com/knt048/vedette/core/debver"
 	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/core/store"
@@ -79,7 +80,7 @@ func checkItem(i int, it SoftwareItem) (SoftwareItem, error) {
 		if it.Confidence < 0 || it.Confidence > 1 || it.Confidence != it.Confidence {
 			return it, invalid("software %d: confidence must be between 0 and 1", i)
 		}
-		if !debver.Valid(it.PkgVersion) || !pkgSourceRE.MatchString(it.PkgSource) || !it.Packaged {
+		if !(debver.Valid(it.PkgVersion) || apkver.Valid(it.PkgVersion)) || !pkgSourceRE.MatchString(it.PkgSource) || !it.Packaged {
 			it.PkgVersion, it.PkgSource = "", "" // Only a well-formed pair of a package database row is kept
 		}
 		if len(it.KevKeys) > maxKeys {
@@ -107,7 +108,7 @@ func checkItem(i int, it SoftwareItem) (SoftwareItem, error) {
 }
 
 // pkgSourceRE is a Debian source package name (Policy §5.6.1).
-var pkgSourceRE = regexp.MustCompile(`^[a-z0-9][a-z0-9+.-]{0,99}$`)
+var pkgSourceRE = regexp.MustCompile(`^[a-z0-9][a-z0-9+._-]{0,99}$`)
 
 func swKey(vendor, product, version string) string {
 	return strings.ToLower(vendor) + "\x00" + strings.ToLower(product) + "\x00" + version

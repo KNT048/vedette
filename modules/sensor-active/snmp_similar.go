@@ -12,12 +12,16 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/apierr"
+	"github.com/knt048/vedette/core/localnet"
 )
 
 // "Use these settings on similar devices" (INV-24): the settings of a device whose SNMP is set up are copied, secret included and
 // on the box, to devices a person ticks in a checklist. It is the existing copy_from (SetSNMP) once per target, so every rule of a
 // normal save holds: each target is read only at its own address, the read address is never changed by it, the secret is sealed again
 // for the target, one audit row per target. The person's choice of targets is the consent for sending the secret there.
+
+// codeHasOwnSettings is the per-device result of an apply that found settings the device saved itself.
+const codeHasOwnSettings = "has_own_settings"
 
 // MaxApplySimilar is the most devices one apply names.
 const MaxApplySimilar = 50
@@ -172,7 +176,13 @@ func (s *Service) ApplySNMPToSimilar(ctx context.Context, actor, id string, targ
 			continue
 		}
 		r := SNMPApplyResult{DeviceID: t, Name: c.Name}
-		if _, err := s.SetSNMP(ctx, actor, t, SNMPInput{CopyFrom: id}); err != nil {
+		// the same rule as reading: SNMP stays on local networks (a copied secret is never stored for an address nothing is sent to)
+		if !c.IP.IsValid() || !localnet.Addr(c.IP) {
+			r.Code, r.Message = "read_from_not_local", fmt.Sprintf("%s is not a local network address (%s): SNMP reads stay on your own networks.", c.IP, localnet.Names)
+			out = append(out, r)
+			continue
+		}
+		if _, err := s.SetSNMP(ctx, actor, t, SNMPInput{CopyFrom: id, onlyIfNone: true}); err != nil {
 			var ae *apierr.Error
 			if !errors.As(err, &ae) {
 				return out, err // a failure of the box itself stops the action; what was saved stays saved and audited

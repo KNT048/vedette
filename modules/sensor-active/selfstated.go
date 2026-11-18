@@ -99,13 +99,10 @@ func esxiOf(s selfSays) (statedFirmware, bool) {
 	}
 	build := s.field("Build")
 	if !esxiBuildRE.MatchString(build) {
-		build = ""
+		return statedFirmware{}, false // without its build the line could not be told from a fingerprint name (observe.SelfStatedBasis)
 	}
-	stated := statedFirmware{os: "VMware ESXi " + ver, sw: observe.Software{Display: "VMware ESXi " + ver, Vendor: "vmware", Product: "esxi", Version: ver, Confidence: nmapCeiling, Guess: true}}
-	if build != "" {
-		stated.os += " (build " + build + ")"
-		stated.sw.Display = stated.os
-	}
+	stated := statedFirmware{os: "VMware ESXi " + ver + " (build " + build + ")", sw: observe.Software{Vendor: "vmware", Product: "esxi", Version: ver, Confidence: nmapCeiling, Guess: true}}
+	stated.sw.Display = stated.os
 	if b, known := esxiBuilds[build]; known && strings.HasPrefix(ver, b.Version) {
 		rel := b.Name
 		stated.os = "VMware " + rel + " (build " + build + ")"

@@ -24,6 +24,11 @@ func (s *Service) queueOwedNormal(ctx context.Context, windowStart time.Time) er
 	if p := s.owedQueued.Load(); p != nil && p.Equal(windowStart) {
 		return nil
 	}
+	s.mu.Lock()
+	if s.owedTried == nil {
+		s.owedTried = map[string]bool{}
+	}
+	s.mu.Unlock()
 	addrs, err := s.inv.Addresses(ctx)
 	if err != nil {
 		return err
@@ -32,6 +37,12 @@ func (s *Service) queueOwedNormal(ctx context.Context, windowStart time.Time) er
 	for _, id := range addrs {
 		if ctx.Err() != nil {
 			return ctx.Err()
+		}
+		s.mu.Lock()
+		tried := s.owedTried[id]
+		s.mu.Unlock()
+		if tried {
+			continue
 		}
 		dec, err := s.inv.ScanPolicy(ctx, id)
 		if err != nil {
@@ -57,6 +68,9 @@ func (s *Service) queueOwedNormal(ctx context.Context, windowStart time.Time) er
 			if err := s.Enqueue(ctx, id, "normal_owed"); err != nil {
 				return err
 			}
+			s.mu.Lock()
+			s.owedTried[id] = true // queued once per device (until the process restarts): a scan the policy refuses at its turn is not queued again every window
+			s.mu.Unlock()
 		}
 	}
 	w := windowStart

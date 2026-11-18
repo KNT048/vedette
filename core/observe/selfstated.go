@@ -14,12 +14,13 @@ const (
 	BasisStatedSIP = "stated_sip"
 )
 
-// selfStatement is one shape of OS value a sensor writes for a device's own statement: it starts with Prefix and holds Contains.
+// selfStatement is one shape of OS value a sensor writes for a device's own statement: it starts with Prefix and holds Contains, a
+// marker nmap's OS fingerprint names never have ("VMware ESXi 5.5 - 6.7" is a guess, not a statement).
 type selfStatement struct{ prefix, contains, basis string }
 
 var selfStatements = []selfStatement{
 	{"HPE iLO ", " firmware ", BasisStatedWeb},
-	{"VMware ESXi ", "", BasisStatedWeb},
+	{"VMware ESXi ", " (build ", BasisStatedWeb}, // the build is written always: no fingerprint name of nmap has it
 	{"Grandstream ", " firmware ", BasisStatedSIP},
 }
 

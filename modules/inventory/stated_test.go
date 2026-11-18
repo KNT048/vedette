@@ -332,3 +332,18 @@ func TestSelfStatedFirmwareRowGetsKevKeysFromItsCPE(t *testing.T) {
 		t.Fatalf("KEV keys %q, want vmware|esxi", keys)
 	}
 }
+
+// M1: nmap's fingerprint name of a hypervisor that starts like a statement is a guess: it is not marked stated, and it does not
+// outrank another scan guess or hide its rows.
+func TestFingerprintNamedEsxiStaysAGuess(t *testing.T) {
+	e := newEnv(t)
+	h := observe.AssetHint{IP: netip.MustParseAddr(switchIP), MAC: "aa:bb:cc:00:00:33"}
+	e.record(observe.Observation{AssetHint: h, Field: observe.OS, Value: "VMware ESXi 5.5 - 6.7", Source: observe.Nmap, Confidence: 0.9})
+	d, err := e.svc.Device(e.ctx(), e.idOf(switchIP))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d.OS == nil || d.OS.Basis != "guess" {
+		t.Fatalf("OS %+v, want a guess", d.OS)
+	}
+}

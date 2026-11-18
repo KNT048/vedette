@@ -1,0 +1,62 @@
+# Release name and build of every ESXi 7.0 and 8.0 row of Broadcom KB 316595 (https://knowledge.broadcom.com/external/article/316595), read 2026-11-18.
+# The 7.0 Update 3, 3a and 3b builds (18644231, 18825058, 18905247) are not on the page; esxi-builds.json takes them from the 7.0 Update 3c release notes.
+ESXi 7.0 Update 3w 24784741
+ESXi 7.0 Update 3v 24723872
+ESXi 7.0 Update 3s 24585291
+ESXi 7.0 Update 3r 24411414
+ESXi 7.0 Update 3q 23794027
+ESXi 7.0 Update 3p 23307199
+ESXi 7.0 Update 3o 22348816
+ESXi 7.0 Update 3n 21930508
+ESXi 7.0 Update 3m 21686933
+ESXi 7.0 Update 3l 21424296
+ESXi 7.0 Update 3k 21313628
+ESXi 7.0 Update 3j 21053776
+ESXi 7.0 Update 3i 20842708
+ESXi 7.0 Update 3g 20328353
+ESXi 7.0 Update 3f 20036589
+ESXi 7.0 Update 3e 19898904
+ESXi 7.0 Update 3d 19482537
+ESXi 7.0 Update 2e 19290878
+ESXi 7.0 Update 1e 19324898
+ESXi 7.0 Update 3c 19193900
+ESXi 7.0 Update 2d 18538813
+ESXi 7.0 Update 2c 18426014
+ESXi 7.0 Update 2a 17867351
+ESXi 7.0 Update 2 17630552
+ESXi 7.0 Update 1d 17551050
+ESXi 7.0 Update 1c 17325551
+ESXi 7.0 Update 1b 17168206
+ESXi 7.0 Update 1a 17119627
+ESXi 7.0 Update 1 16850804
+ESXi 7.0b 16324942
+ESXi 7.0 GA 15843807
+ESXi 8.0 Update 3k 25595708
+ESXi 8.0 Update 3j 25429389
+ESXi 8.0 Update 3i 25205845
+ESXi 8.0 Update 3h 25067014
+ESXi 8.0 Update 3g 24859861
+ESXi 8.0 Update 3f 24784735
+ESXi 8.0 Update 3e 24674464
+ESXi 8.0 Update 3d 24585383
+ESXi 8.0 Update 3c 24414501
+ESXi 8.0 Update 3b 24280767
+ESXi 8.0 Update 3 24022510
+ESXi 8.0 Update 2f 25626445
+ESXi 8.0 Update 2e 24789317
+ESXi 8.0 Update 2d 24585300
+ESXi 8.0 Update 2c 23825572
+ESXi 8.0 Update 2b 23305546
+ESXi 8.0 Update 2 22380479
+ESXi 8.0 Update 1d 23299997
+ESXi 8.0 Update 1c 22088125
+ESXi 8.0 Update 1a 21813344
+ESXi 8.0 Update 1 21495797
+ESXi 8.0g 25191479
+ESXi 8.0f 24814147
+ESXi 8.0e 24569005
+ESXi 8.0d 24118393
+ESXi 8.0c 21493926
+ESXi 8.0b 21203435
+ESXi 8.0a 20842819
+ESXi 8.0 GA 20513097

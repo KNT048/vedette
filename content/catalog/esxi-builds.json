@@ -1,5 +1,5 @@
 {
- "_about": "ESXi build number -> release, for the ESXi 8.0 and 7.0 lines. An ESXi host states its version and build over its SOAP service content (8.0.3, 24022510); NVD names a release by version and update (cpe:2.3:o:vmware:esxi:8.0:update_3), so the build is what turns \"8.0.3\" into the update NVD lists. Source: Broadcom KB 316595 \"Build numbers and versions of VMware ESXi/ESX\" (https://knowledge.broadcom.com/external/article/316595), read 2026-11-18. update is NVD's update attribute (\"-\" for the GA release). A build not listed gives no CPE: the row is shown, never matched (a wrong update would make a wrong match). Add a row per release.",
+ "_about": "ESXi build number -> release, for the ESXi 8.0 and 7.0 lines. An ESXi host states its version and build over its SOAP service content (8.0.3, 24022510); NVD names a release by version and update (cpe:2.3:o:vmware:esxi:8.0:update_3), so the build is what turns \"8.0.3\" into the update NVD lists. Sources: Broadcom KB 316595 \"Build numbers and versions of VMware ESXi/ESX\" (https://knowledge.broadcom.com/external/article/316595), every 7.0 and 8.0 row, read 2026-11-18; and, for the withdrawn 7.0 Update 3, 3a and 3b builds the KB table no longer lists (18644231, 18825058, 18905247), the VMware ESXi 7.0 Update 3c Release Notes (Broadcom TechDocs, vsphere-esxi-70u3c-release-notes), which say build 19193900 replaces them. update is NVD's update attribute (\"-\" for the GA release). A build not listed gives no CPE: the row is shown, never matched (a wrong update would make a wrong match). Add a row per release.",
  "builds": {
   "15843807": {
    "version": "7.0",
@@ -300,6 +300,21 @@
    "version": "8.0",
    "update": "update_2f",
    "name": "ESXi 8.0 Update 2f"
+  },
+  "18644231": {
+   "version": "7.0",
+   "update": "update_3",
+   "name": "ESXi 7.0 Update 3"
+  },
+  "18825058": {
+   "version": "7.0",
+   "update": "update_3a",
+   "name": "ESXi 7.0 Update 3a"
+  },
+  "18905247": {
+   "version": "7.0",
+   "update": "update_3b",
+   "name": "ESXi 7.0 Update 3b"
   }
  }
 }

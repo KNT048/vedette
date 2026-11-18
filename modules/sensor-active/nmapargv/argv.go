@@ -29,8 +29,10 @@ const (
 	Gentle               // the one gentle scan of a fragile device
 	Versions             // service identification without OS detection: a person's pick of a device of unknown kind
 	// GentleTitles is the gentle scan of a device whose kind is unknown and that nobody made fragile (lead decision on #714):
-	// the gentle command line plus http-title and ssl-cert on the web and TLS ports it finds open (one GET of / and one TLS
-	// handshake per port), each script capped by --script-timeout. A fragile device keeps Gentle exactly.
+	// the gentle command line plus TitleScripts on the ports it finds open, each script capped by --script-timeout. Per web port
+	// that is one GET of /, one GET of /xmldata?item=all (http-hp-ilo-info) and one POST of a SOAP RetrieveServiceContent to /sdk
+	// (vmware-version); per TLS port one more handshake (ssl-cert). Every answer is read, nothing is sent with a login. A fragile
+	// device keeps Gentle exactly: no script, no -sV, no UDP.
 	GentleTitles
 	// External is service identification on the box's own verified public IP for exposure (exposure INV-19): -sV over the
 	// fixed TCP list of the surface scan (commonports), at ExternalRate, with no -O and no --script (only what -sV runs itself). It

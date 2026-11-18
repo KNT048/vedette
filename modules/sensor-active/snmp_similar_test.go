@@ -2,6 +2,7 @@ package sensoractive_test
 
 import (
 	"encoding/json"
+	"net/netip"
 	"strings"
 	"testing"
 
@@ -72,6 +73,25 @@ func TestSNMPApplyToSimilarDevices(t *testing.T) {
 	}
 	if sent != 1 {
 		t.Fatalf("%d reads of the applied device, want 1", sent)
+	}
+
+	// L2: settings a device saved itself between the list and the save are never overwritten (checked in the write)
+	w.set("a-printer", sa.SNMPInput{Version: "v2c", Community: secrets.NewValue("printer-own")})
+	if err := sa.SetSNMPOnlyIfNone(ctx, w.svc, "admin@example.com", "a-printer", "a-sw"); apiCode(err) != "has_own_settings" {
+		t.Fatalf("a device with its own settings: %v", err)
+	}
+	if _, plain := w.secretOf("a-printer", "secret_id"); plain != "printer-own" {
+		t.Fatal("the apply overwrote a device's own settings")
+	}
+	// L3: a device whose address is not local is refused with a clear result, and nothing is stored
+	w.inv.assets["a-pub"] = netip.MustParseAddr("8.8.8.8")
+	w.inv.similar["a-sw"] = append(w.inv.similar["a-sw"], sa.SimilarDevice{ID: "a-pub", IP: "8.8.8.8", Vendor: "Acme", Kind: "switch", SameMaker: true, SameType: true, Approved: true})
+	res, err = w.svc.ApplySNMPToSimilar(ctx, "admin@example.com", "a-sw", []string{"a-pub"})
+	if err != nil || len(res) != 1 || res[0].OK || res[0].Code != "read_from_not_local" {
+		t.Fatalf("a public address: %v %+v", err, res)
+	}
+	if n := w.count(`SELECT count(*) FROM sa_snmp_device WHERE asset_id = 'a-pub'`); n != 0 {
+		t.Fatal("settings were stored for a public address")
 	}
 
 	for _, bad := range [][]string{nil, make([]string, sa.MaxApplySimilar+1)} {

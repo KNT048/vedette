@@ -48,6 +48,7 @@ func TestStatedFirmwareOfDevices(t *testing.T) {
 		// a build the table does not list is shown with the version the host stated and is never matched: no CPE, a guess row
 		{"esxi_unlisted_build.xml", &want{os: "VMware ESXi 8.0.3 (build 99999999)", display: "VMware ESXi 8.0.3 (build 99999999)", vendor: "vmware", product: "esxi", version: "8.0.3", guess: true}},
 		{"ilo_junk.xml", nil},
+		{"esxi_nobuild.xml", nil}, // no build: the line could not be told from a fingerprint name
 		{"vcenter.xml", nil},
 		{"noversion.xml", nil}, // a device that answers nothing useful
 	} {
@@ -94,6 +95,18 @@ func TestGentleShapeRunsNoFirmwareScript(t *testing.T) {
 	if slices.Contains(args, "--script") || slices.Contains(args, "-sV") || slices.Contains(args, "-sU") {
 		t.Fatalf("the gentle shape of a fragile device: %v", args)
 	}
+	// every fragile device (and one of known type that is fragile) gets that shape; only an unclassified one nobody made fragile
+	// gets the titles and the firmware scripts
+	for name, dec := range map[string]Decision{
+		"fragile": {Fragile: true}, "fragile and unclassified": {Fragile: true, Unclassified: true}, "known type": {},
+	} {
+		if k := gentleShape(dec); k != nmapargv.Gentle {
+			t.Errorf("%s: shape %v, want the plain gentle shape", name, k)
+		}
+	}
+	if k := gentleShape(Decision{Unclassified: true}); k != nmapargv.GentleTitles {
+		t.Errorf("unclassified, not fragile: %v", k)
+	}
 }
 
 // The ESXi build table: every row names a release by version and an update NVD writes, and the build of the customer's host is in it.
@@ -112,5 +125,39 @@ func TestESXiBuildsData(t *testing.T) {
 	}
 	if f.Builds["24022510"] != (esxiBuild{Version: "8.0", Update: "update_3", Name: "ESXi 8.0 Update 3"}) {
 		t.Errorf("8.0 U3: %+v", f.Builds["24022510"])
+	}
+}
+
+// Every release of Broadcom KB 316595 (7.0 and 8.0) has a row, with the update NVD names it by; the three withdrawn 7.0 Update 3 builds
+// the KB no longer lists are in too (from the 7.0 Update 3c release notes).
+func TestESXiBuildsCoverTheKB(t *testing.T) {
+	t.Parallel()
+	for _, l := range strings.Split(strings.TrimSpace(string(fixture(t, "esxi-kb-316595.txt"))), "\n") {
+		if strings.HasPrefix(l, "#") {
+			continue
+		}
+		i := strings.LastIndexByte(l, ' ')
+		name, build := l[:i], l[i+1:]
+		if b, ok := esxiBuilds[build]; !ok || b.Name != name {
+			t.Errorf("build %s (%s): %+v", build, name, b)
+		}
+	}
+	for b, name := range map[string]string{"18644231": "ESXi 7.0 Update 3", "18825058": "ESXi 7.0 Update 3a", "18905247": "ESXi 7.0 Update 3b"} {
+		if esxiBuilds[b].Name != name {
+			t.Errorf("build %s: %+v", b, esxiBuilds[b])
+		}
+	}
+}
+
+// M1: an OS value of nmap's fingerprint that starts like a statement is a guess, never the device's own words.
+func TestFingerprintNamesAreNotSelfStatements(t *testing.T) {
+	t.Parallel()
+	for _, v := range []string{"VMware ESXi 5.5 - 6.7", "VMware ESXi 6.x", "VMware ESXi 8.0.3", "HPE iLO 4", "Grandstream GXP1610 VoIP phone"} {
+		if b := observe.SelfStatedBasis(v); b != "" {
+			t.Errorf("%q is read as a statement (%s)", v, b)
+		}
+	}
+	if observe.SelfStatedBasis("VMware ESXi 8.0 Update 3 (build 24022510)") != observe.BasisStatedWeb {
+		t.Error("the written statement is not recognised")
 	}
 }

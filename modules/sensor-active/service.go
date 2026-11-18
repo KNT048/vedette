@@ -80,16 +80,18 @@ type Service struct {
 	pendingQueued atomic.Bool
 	// owedQueued is the start of the window whose owed normal scans (queueOwedNormal) are queued
 	owedQueued atomic.Pointer[time.Time]
-	obs        observe.Sink
-	sw         observe.SoftwareSink
-	svc        observe.ServiceSink // may be nil
-	events     Publisher
-	path       string
-	prober     Prober
-	clock      func() time.Time
-	log        *slog.Logger
-	loc        func() *time.Location
-	localNets  func(context.Context) []netip.Prefix // may be nil
+	// owedTried is the devices queueOwedNormal queued: each once (guarded by mu)
+	owedTried map[string]bool
+	obs       observe.Sink
+	sw        observe.SoftwareSink
+	svc       observe.ServiceSink // may be nil
+	events    Publisher
+	path      string
+	prober    Prober
+	clock     func() time.Time
+	log       *slog.Logger
+	loc       func() *time.Location
+	localNets func(context.Context) []netip.Prefix // may be nil
 	// budget is core's budget of new devices (60 a minute, 200 an hour; L8): the scan container is a process that can be taken over,
 	// and a sweep over a /16 with random MACs would otherwise mint 65k devices. In memory, like the passive sensor's.
 	budget *capture.FloodBudget

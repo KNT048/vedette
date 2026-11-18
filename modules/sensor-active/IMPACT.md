@@ -124,7 +124,7 @@
 - **findings**: the row is compared like any software row (`TestMatchAsset_EsxiStatedByTheDevice`); a build missing from `esxi-builds.json` gives a row that is never matched, so add the row when a release ships.
 
 ## Modifying: `snmp_similar.go`, `SimilarFinder` (INV-24)
-- Every rule of `SetSNMP` with `CopyFrom` holds per target; a change there changes this action. The checklist comes from the inventory (`SimilarDevices`, INV-47); the web card `SnmpSimilar.tsx` and the mock handlers in `web/src/features/inventory/mocks.ts` follow `contract.ts` (`SnmpSimilar*`, `SnmpApply*`).
+- Every rule of `SetSNMP` with `CopyFrom` holds per target; a change there changes this action. The checklist comes from the inventory (`SimilarDevices`, INV-48); the web card `SnmpSimilar.tsx` and the mock handlers in `web/src/features/inventory/mocks.ts` follow `contract.ts` (`SnmpSimilar*`, `SnmpApply*`).
 - A background read per saved device runs after the response (`Service.bg`); a change of `CheckSNMP` changes what a person sees there.
 
 ## Modifying: `owed.go` (INV-26)

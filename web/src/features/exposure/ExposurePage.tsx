@@ -1,17 +1,19 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { Link, useNavigate, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Plus } from 'lucide-react'
-import { Notice, PageHeader, Section, Panel } from '@/components/common/PageHeader'
+import { Notice, PageHeader, Section } from '@/components/common/PageHeader'
 import { KpiStrip, PageTabs } from '@/components/common/PageFrame'
 import { EmptyState, QueryState, RequireModule, SampleDataNote } from '@/components/common/States'
+import { Chip } from '@/components/common/StatusChip'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
+import { DependencyLink } from '@/components/common/DependencyLink'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogTrigger } from '@/components/ui/dialog'
 import { Field, Input } from '@/components/ui/input'
-import { InfoTip } from '@/components/common/InfoTip'
-import { fmtRelative } from '@/lib/format'
+import { Segmented } from '@/components/ui/segmented'
+import { fmtDate, fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { AnchorRedirect, ScrollToHash } from './anchors'
 import { BoxIpPanel } from './BoxIpPanel'
@@ -20,16 +22,15 @@ import { InfoLine } from './InfoLine'
 import { CommitChip, OwnerChip } from './OwnerChip'
 import { ScanProgress } from './ScanProgress'
 import { useAddTarget, useTargets } from './api'
-import { OutsideList } from './OutsidePanel'
-import { PortMark, PortMarkNote } from './PortMark'
-import { identOf, portLabel, serviceName } from './services'
-import { PortHints, RiskChip } from './PortIdent'
-import { ApplianceNote } from './ApplianceNote'
-import type { Gateway, PortRow, Target } from './types'
+import { portLabel } from './services'
+import type { Target, TargetKind } from './types'
 import { blockedKey } from './types'
 
-// Old #anchor → tab (before the tabs these were stacked blocks of one page).
-const ANCHOR_TAB: Record<string, string> = { targets: 'targets', 'box-ip': 'targets', 'box-ignored': 'targets', open: 'open', 'outside-list': 'outside' }
+// Old #anchor → tab: before the tabs these were stacked blocks of one page, and before the targets' own pages the open ports and what the
+// Internet sees had tabs of their own, which now live on each target.
+const ANCHOR_TAB: Record<string, string> = { targets: 'targets', 'box-ip': 'settings', 'box-ignored': 'settings', greenbone: 'settings', open: 'targets', 'outside-list': 'targets' }
+/** Tabs the page had before each target held its own open exposures and outside view: they land on Targets, with a note. */
+const MOVED_TABS = ['open', 'outside']
 
 // modules.md: the module's API is read only while the module is on; off, the page says so and calls nothing.
 export default function ExposurePage() {
@@ -39,6 +40,7 @@ export default function ExposurePage() {
 function ExposureView() {
   const { t } = useTranslation('exposure')
   const q = useTargets()
+  const [params] = useSearchParams()
   // Đọc rõ các trường query ở đây để react-query theo dõi đúng khi chuyển sang lỗi.
   const { data, error, isPending, refetch } = q
   const items = data?.items
@@ -47,7 +49,7 @@ function ExposureView() {
   const certs = scanned.reduce((n, x) => n + (x.latest?.certs_expiring ?? 0), 0)
   const pending = items?.filter((x) => !x.scannable).length ?? 0
   // Say what is open before saying what is not (the open ports of each target's newest scan).
-  const ports = scanned.reduce((n, x) => n + (x.latest?.ports ?? 0), 0)
+  const ports = scanned.reduce((n, x) => n + (x.open_exposures ?? 0), 0)
   const open = scanned.flatMap((x) => (x.open_ports ?? []).map((p) => ({ ...p, target: x })))
   const shown = open.slice(0, 3).map(portLabel).join(', ')
   const list = ports > 3 ? t('title.more', { list: shown, count: ports - 3 }) : shown
@@ -67,25 +69,32 @@ function ExposureView() {
       <QueryState query={{ data, error, isPending, refetch }}>
         {(d) => {
           const lastScan = d.items.map((x) => x.last_scan_at).filter((x): x is string => !!x).sort().at(-1)
+          // The open exposures live on each target: with one target that has any, the tile opens that target's; else the list, where each row says its count.
+          const withPorts = d.items.filter((x) => x.open_exposures > 0)
+          const openTo = withPorts.length === 1 ? `/exposure/${withPorts[0]!.id}?tab=exposures` : '?tab=targets'
           const kpis = d.items.length > 0 ? [
             { value: d.items.filter((x) => x.status !== 'unverified' && !!x.commitment).length, label: t('kpi.targets'), to: '?tab=targets' },
-            { value: ports, label: t('kpi.open'), to: '?tab=open' },
+            { value: ports, label: t('kpi.open'), to: openTo },
             { value: lastScan ? fmtRelative(lastScan) : t('kpi.never'), label: t('kpi.scan'), to: '?tab=targets' },
           ] : []
           return (
             <>
               <ScrollToHash />
               {kpis.length ? <KpiStrip label={t('kpi.label')} items={kpis} /> : null}
+              {MOVED_TABS.includes(params.get('tab') ?? '') ? <Notice tone="accent" role="status" title={t('moved.title')} info={t('moved.info')} /> : null}
               <PageTabs label={t('tabs.label')} tabs={[
-                { id: 'targets', label: t('tabs.targets'), panel: <>
+                { id: 'targets', label: t('tabs.targets'), panel: (
                   <Section id="targets" title={t('targets.title')} description={t('targets.description')} info={t('targets.descriptionInfo')}>
-                    <TargetsTable items={d.items.filter((x) => x.kind === 'domain')} />
+                    <TargetsTable items={d.items} />
                   </Section>
-                  <BoxIpPanel items={d.items.filter((x) => x.kind === 'ip')} settings={d.box_ip} ignored={d.ignored} />
+                ) },
+                { id: 'settings', label: t('tabs.settings'), panel: <>
+                  <BoxIpPanel settings={d.box_ip} ignored={d.ignored} />
                   <GreenboneSetting />
+                  <Section id="scan-settings" title={t('settings.scanTitle')} description={t('settings.scanDescription')}>
+                    <DependencyLink reason={t('settings.scanReason')} to="/settings/scanning" label={t('settings.scanLink')} />
+                  </Section>
                 </> },
-                { id: 'open', label: t('tabs.open'), panel: open.length > 0 ? <OpenPorts ports={open} total={ports} gateway={d.gateway} /> : <EmptyState title={t('openEmpty')} /> },
-                { id: 'outside', label: t('tabs.outside'), panel: <OutsideList items={d.items.filter((x) => x.kind === 'ip')} /> },
               ]} />
             </>
           )
@@ -95,58 +104,23 @@ function ExposureView() {
   )
 }
 
-/** Every open port of the newest scans, the commonly attacked ones called out, with "is that on purpose?" (S-EXP-1). */
-function OpenPorts({ ports, total, gateway }: { ports: (PortRow & { target: Target })[]; total: number; gateway: Gateway | null }) {
+/** What the row says about scanning: why it cannot be scanned (an auto-detected IP whose terms are not accepted is not a problem: a small note), else when it was last scanned. */
+function ScanCell({ r }: { r: Target }) {
   const { t } = useTranslation('exposure')
-  return (
-    <Section id="open" title={t('open.title', { count: total })} description={t('open.description')} info={t('open.descriptionInfo')}>
-      {/* The gateway answers the ports no appliance claims; a port that names one (a FortiGate certificate) is tied to it instead */}
-      {gateway && (total > ports.length || ports.some((p) => !p.appliance)) ? <GatewayNote g={gateway} rest={ports.some((p) => p.appliance)} /> : null}
-      <Panel className="divide-y divide-rule">
-        {ports.map((p) => {
-          const ident = identOf(p)
-          return (
-            <div key={`${p.target.id}|${p.ip}|${p.port}`} className="grid gap-1 px-4 py-3">
-              <div className="flex flex-wrap items-center gap-2 text-sm">
-                <span className="font-medium">{portLabel(p)}</span>
-                <span className="text-muted">{t('open.on', { ip: p.ip })}</span>
-                {p.product ? <span className="text-muted">{t('open.software', { product: p.product })}</span> : null}
-                {ident === 'port' ? <span className="inline-flex items-center gap-1 text-muted">{t('open.byPort')}<InfoTip topic={t('open.byPort')}>{t('open.byPortInfo', { port: p.port, service: serviceName(p.service) })}</InfoTip></span> : null}
-                {ident === 'none' ? <InfoTip topic={portLabel(p)}>{p.service === 'tcpwrapped' ? t('vulns.tcpwrapped') : t('open.notIdentifiedInfo')}</InfoTip> : null}
-                <PortHints p={p} className="text-muted" />
-                <RiskChip p={p} />
-                <PortMark p={p} />
-                <Link className="text-meta text-accent underline-offset-4 hover:underline" to={`/exposure/${p.target.id}`}>{t('open.details')}</Link>
-              </div>
-              {p.appliance ? <ApplianceNote a={p.appliance} /> : null}
-              {p.last_seen ? <PortMarkNote p={p} at={p.target.last_scan_at} /> : null}
-              <p className="text-meta text-muted">{t('open.purposePlain')}</p>
-            </div>
-          )
-        })}
-      </Panel>
-      {total > ports.length ? <p className="mt-2 text-meta text-muted">{t('open.moreOnTarget', { count: total - ports.length })}</p> : null}
-    </Section>
-  )
+  if (r.scan_state === 'scanning') return <span className="text-meta">{t('targets.scanning')}</span>
+  if (r.origin === 'box' && r.scan_state === 'needs_terms') return <span className="grid"><span className="text-meta text-muted">{t('targets.neverScannedShort')}</span><span className="text-caption text-muted">{t('targets.termsNotAccepted')}</span></span>
+  if (r.blocked_reason) return <span className="text-meta text-warn">{t(`blocked.${blockedKey(r)}`)}</span>
+  return <span className="grid"><span>{r.last_scan_at ? fmtRelative(r.last_scan_at) : t('targets.neverScanned')}</span><span className="text-caption text-muted">{t('targets.ready')}</span></span>
 }
 
-/** The gateway as the note names it: "name (ip)", or the IP alone when the device is named by its IP or has no name (M2-8). */
-const gatewayLabel = (name: string, ip: string) => (name && name !== ip ? `${name} (${ip})` : ip)
-
-/** Which device probably answers the open ports, and what is exploited on it. Never says for sure (a router can forward a port to another device).
- * rest: some ports name an appliance of their own (ApplianceNote), so the note is about the other ports. */
-function GatewayNote({ g, rest = false }: { g: Gateway; rest?: boolean }) {
+/** Ownership with, for an IP, when its proof runs out: every IP proof lasts 30 days and is checked again by the box. */
+function OwnershipCell({ r }: { r: Target }) {
   const { t } = useTranslation('exposure')
-  const name = g.name ?? ''
-  const ip = g.ip ?? ''
-  const known = g.device_id !== null
-  const label = gatewayLabel(name, ip) // M2-8: "192.168.18.1", not "192.168.18.1 (192.168.18.1)"
-  const text = !g.ip ? t('gateway.unknown') : !known ? t(rest ? 'gateway.notListedRest' : 'gateway.notListed', { ip })
-    : g.open_exploited > 0 ? t(rest ? 'gateway.knownRest' : 'gateway.known', { label, count: g.open_exploited }) : t(rest ? 'gateway.noneRest' : 'gateway.none', { label })
-  const info = !g.ip ? t('gateway.unknownInfo') : !known ? t('gateway.notListedInfo') : g.open_exploited > 0 ? t('gateway.knownInfo') : t('gateway.noneInfo', { name })
   return (
-    <Notice tone="accent" data-testid="gateway-note" title={text} info={info}
-      actions={known && g.open_exploited > 0 ? <Link className="text-meta text-accent underline-offset-4 hover:underline" to={`/findings?tab=open&device=${encodeURIComponent(g.device_id ?? '')}`}>{t('gateway.link', { name })}</Link> : undefined} />
+    <span className="grid gap-0.5">
+      <OwnerChip target={r} />
+      {r.kind === 'ip' && r.expires_at && r.status !== 'unverified' ? <span className="text-caption text-muted">{t('targets.proofUntil', { date: fmtDate(r.expires_at) })}</span> : null}
+    </span>
   )
 }
 
@@ -154,29 +128,33 @@ function TargetsTable({ items }: { items: Target[] }) {
   const { t } = useTranslation('exposure')
   const columns: ColumnDef<Target>[] = [
     { id: 'value', header: t('targets.col.target'), accessorFn: (r) => r.value, cell: ({ row }) => (
-      <span className="grid"><Link className="font-medium text-accent underline-offset-4 hover:underline" to={`/exposure/${row.original.id}`}>{row.original.value}</Link><span className="text-caption text-muted">{t(`kind.${row.original.kind}`)}</span></span>
+      <span className="grid gap-0.5"><Link className="font-medium text-accent underline-offset-4 hover:underline" to={`/exposure/${row.original.id}`}>{row.original.value}</Link><span><Chip tone="off">{t(`kind.${row.original.kind}`)}</Chip></span></span>
     ) },
-    { id: 'owner', header: t('targets.col.owner'), accessorFn: (r) => r.status, cell: ({ row }) => <OwnerChip target={row.original} /> },
+    { id: 'owner', header: t('targets.col.owner'), accessorFn: (r) => r.status, cell: ({ row }) => <OwnershipCell r={row.original} /> },
     { id: 'commit', header: t('targets.col.commit'), accessorFn: (r) => (r.commitment ? 1 : 0), cell: ({ row }) => <CommitChip target={row.original} /> },
-    { id: 'scan', header: t('targets.col.scan'), accessorFn: (r) => r.last_scan_at ?? '', cell: ({ row }) => {
-      const r = row.original
-      return r.blocked_reason ? <span className="text-meta text-warn">{t(`blocked.${blockedKey(r)}`)}</span> : <span className="grid"><span>{r.last_scan_at ? fmtRelative(r.last_scan_at) : t('targets.neverScanned')}</span><span className="text-caption text-muted">{t('targets.ready')}</span></span>
-    } },
+    { id: 'scan', header: t('targets.col.scan'), accessorFn: (r) => r.last_scan_at ?? '', cell: ({ row }) => <ScanCell r={row.original} /> },
     { id: 'latest', header: t('targets.col.latest'), enableSorting: false, cell: ({ row }) => {
       const c = row.original.latest
       return c ? <span className="text-meta">{t('targets.latest', { admin: c.admin_panels, ports: c.ports, certs: c.certs_expiring })}</span> : <span className="text-meta text-muted">{t('targets.noResult')}</span>
     } },
+    { id: 'open', header: t('targets.col.open'), accessorFn: (r) => r.open_exposures, cell: ({ row }) => (
+      row.original.open_exposures > 0 ? <Link className="font-medium text-accent underline-offset-4 hover:underline" to={`/exposure/${row.original.id}?tab=exposures`} aria-label={t('targets.openLabel', { count: row.original.open_exposures, value: row.original.value })}>{row.original.open_exposures}</Link>
+        : <span className="text-muted">0</span>
+    ) },
   ]
   return <DataTable caption={t('targets.caption')} data={items} columns={columns} pageSize={20}
     mobileRow={(r) => (
       <div className="grid gap-1.5">
         <Link className="break-all font-medium text-accent underline-offset-4 hover:underline" to={`/exposure/${r.id}`}>{r.value}</Link>
         <div className="flex flex-wrap items-center gap-2">
+          <Chip tone="off">{t(`kind.${r.kind}`)}</Chip>
           <OwnerChip target={r} />
           <CommitChip target={r} />
         </div>
-        <p className="text-meta text-muted">{r.blocked_reason ? t(`blocked.${blockedKey(r)}`) : r.last_scan_at ? fmtRelative(r.last_scan_at) : t('targets.neverScanned')}</p>
+        {r.kind === 'ip' && r.expires_at && r.status !== 'unverified' ? <p className="text-meta text-muted">{t('targets.proofUntil', { date: fmtDate(r.expires_at) })}</p> : null}
+        <ScanCell r={r} />
         {r.latest ? <p className="text-meta">{t('targets.latest', { admin: r.latest.admin_panels, ports: r.latest.ports, certs: r.latest.certs_expiring })}</p> : null}
+        {r.open_exposures > 0 ? <Link className="text-meta text-accent underline-offset-4 hover:underline" to={`/exposure/${r.id}?tab=exposures`}>{t('targets.openLabel', { count: r.open_exposures, value: r.value })}</Link> : null}
       </div>
     )}
     empty={<EmptyState title={t('targets.emptyTitle')}><InfoLine topic={t('targets.emptyTitle')} info={t('targets.emptyBodyInfo')}>{t('targets.emptyBody')}</InfoLine></EmptyState>} />
@@ -188,17 +166,19 @@ function AddTarget() {
   const add = useAddTarget()
   const nav = useNavigate()
   const [open, setOpen] = useState(false)
+  const [kind, setKind] = useState<TargetKind>('domain')
   const [value, setValue] = useState('')
   const [error, setError] = useState<string | null>(null)
   // Cancel, Esc and X all drop the draft and its error, so the next opening never shows an error for text that is gone;
-  // while the domain is being added the dialog stays open, so a late answer never lands on a closed or new draft.
-  const toggle = (o: boolean) => { if (!o && add.isPending) return; setOpen(o); if (!o) { setError(null); setValue('') } }
+  // while the target is being added the dialog stays open, so a late answer never lands on a closed or new draft.
+  const toggle = (o: boolean) => { if (!o && add.isPending) return; setOpen(o); if (!o) { setError(null); setValue(''); setKind('domain') } }
   function submit(e: FormEvent) {
     e.preventDefault()
     setError(null)
-    if (!value.trim()) return setError(t('add.empty'))
-    add.mutate(value.trim(), {
-      onSuccess: (tg) => { toast.success(t('add.toast', { value: tg.value })); setOpen(false); setValue(''); void nav(`/exposure/${tg.id}`) },
+    if (!value.trim()) return setError(t(`add.empty.${kind}`))
+    add.mutate({ value: value.trim(), kind }, {
+      // After adding, the person goes into the target to prove ownership there (the proof steps are on its Ownership tab); a name another proof covers needs none.
+      onSuccess: (tg) => { toast.success(t('add.toast', { value: tg.value })); setOpen(false); setValue(''); void nav(tg.status === 'unverified' ? `/exposure/${tg.id}?tab=ownership` : `/exposure/${tg.id}`) },
       onError: (er) => setError(er instanceof Error ? er.message : String(er)),
     })
   }
@@ -209,7 +189,12 @@ function AddTarget() {
       </DialogTrigger>
       <DialogContent title={t('add.title')} description={t('add.description')} info={t('add.descriptionInfo')}>
         <form onSubmit={submit} noValidate className="grid gap-4">
-          <Field label={t('add.label')} htmlFor="ex-new" hint={t('add.hint')} info={t('add.hintInfo')} error={error ?? undefined}>
+          <div className="grid justify-items-start gap-1">
+            <span className="text-sm font-medium">{t('add.kind')}</span>
+            <Segmented<TargetKind> label={t('add.kind')} value={kind} onChange={(k) => { setKind(k); setError(null) }}
+              options={[{ value: 'domain', label: t('add.kindOption.domain') }, { value: 'ip', label: t('add.kindOption.ip') }]} />
+          </div>
+          <Field label={t(`add.label.${kind}`)} htmlFor="ex-new" hint={t(`add.hint.${kind}`)} info={t(`add.hintInfo.${kind}`)} error={error ?? undefined}>
             <Input id="ex-new" value={value} onChange={(e) => setValue(e.target.value)} autoFocus autoComplete="off" spellCheck={false} aria-invalid={error ? true : undefined} aria-describedby={error ? 'ex-new-error' : 'ex-new-hint'} />
           </Field>
           <DialogFooter>

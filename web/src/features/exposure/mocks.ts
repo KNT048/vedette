@@ -217,7 +217,8 @@ function view(t: StoredTarget): Target {
   const ip = t.kind === 'ip'
   const expired = ip && verified && !!t.expires_at && Date.parse(t.expires_at) < Date.now()
   const validity = !ip || !verified || !t.expires_at ? null : expired ? 'expired' : dayLeft(t.expires_at) <= EXPIRING_DAYS ? 'expiring' : 'valid'
-  const blocked: Target['blocked_reason'] = !verified ? 'unverified' : expired ? 'expired' : !ip && !t.txt_ok ? 'txt_missing' : !current ? 'no_commitment' : ip && ipNotSeenNow(t) ? 'ip_not_current' : null
+  const typed = !!t.typed
+  const blocked: Target['blocked_reason'] = !verified ? 'unverified' : expired ? 'expired' : !ip && !t.txt_ok ? 'txt_missing' : typed && t.last_check && !t.last_check.ok ? 'proof_missing' : !current ? 'no_commitment' : ip && !typed && ipNotSeenNow(t) ? 'ip_not_current' : null
   const snaps = (snapshots.get()[t.id] ?? []).slice().sort((a, b) => a.date.localeCompare(b.date))
   const last = snaps[snaps.length - 1]
   return {
@@ -227,7 +228,9 @@ function view(t: StoredTarget): Target {
     terms, terms_notice: { version: TERMS_VERSION, text: (t.kind === 'domain' ? TERMS_TEMPLATE_DOMAIN : TERMS_TEMPLATE).replaceAll('{value}', t.value), disruptive: TERMS_DISRUPTIVE }, full_scan: terms?.version === TERMS_VERSION,
     scannable: blocked === null, blocked_reason: blocked, created_at: t.created_at, last_scan_at: t.last_scan_at, last_scan_finished_at: last?.finished_at ?? null, latest: last ? last.counts : null, open_ports: last ? last.ports.slice(0, 20) : null,
     proof: proofOf(t),
-    origin: ip ? 'box' : 'person', ip_proof: null, next_check_at: null, open_exposures: last?.counts.ports ?? 0,
+    origin: ip && !typed ? 'box' : 'person', open_exposures: last?.counts.ports ?? 0,
+    ip_proof: typed ? { path: '/.well-known/vedette-verify.txt', content: t.token, urls: [`http://${t.value}/.well-known/vedette-verify.txt`, `https://${t.value}/.well-known/vedette-verify.txt`], ptr_domains: targets.get().filter((o) => o.kind === 'domain' && o.verified_at !== null && o.txt_ok).map((o) => o.value) } : null,
+    next_check_at: typed && verified && t.expires_at ? plus(t.expires_at, -7) : null,
     scan_state: blocked === null ? 'ready' : blocked === 'expired' ? 'expired' : blocked === 'ip_not_current' ? 'paused' : blocked === 'no_commitment' ? 'needs_terms' : 'unproved',
   }
 }
@@ -283,7 +286,8 @@ function notPublicMessage(ips: string[]) {
   const one = ips.length === 1
   return `The box reaches the Internet via ${list(ips)}, which ${one ? 'is a' : 'are'} private, reserved or shared carrier (CGNAT) address${one ? '' : 'es'}. Scanning ${one ? 'it' : 'them'} could hit other people's devices, so Vedette will not verify ${one ? 'it' : 'them'}. Ask your admin to give the box a public IP that belongs to your company, then try again.`
 }
-const IP_NOT_TYPED = 'Public IPs are not typed in. The box finds its own public IPs: turn on auto-detect or select "Detect now" under Public IPs of this box.'
+const IP_NOT_A_DOMAIN = 'That is an IP address, not a domain. Choose Public IP to add an address.'
+const IP_NOT_PUBLIC = 'Enter a public IPv4 address, for example 203.0.113.10. Private, reserved, carrier-grade NAT and IPv6 addresses cannot be scanned from the Internet.'
 /** IPv6 in any common spelling ("2001:db8::1", "[::1]", "::ffff:1.2.3.4"): hex digits, at least two colons, optional brackets. Never a domain. */
 function isIPv6Text(v: string) {
   const s = v.startsWith('[') && v.endsWith(']') ? v.slice(1, -1) : v
@@ -442,21 +446,32 @@ export const handlers = [
     return HttpResponse.json(boxView())
   }),
 
-  // Adding a target changes the scan scope, so admin. Domains only: a public IP is never typed in.
+  // Adding a target changes the scan scope, so admin: a domain, or a public IPv4 typed in (accepted at once, never scanned until proved).
   http.post(`${API}/exposure/targets`, async ({ request }) => {
     const denied = guard('admin'); if (denied) return denied
-    const b = await body<{ value: string }>(request)
+    const b = await body<{ value: string; kind?: 'domain' | 'ip' }>(request)
     const value = String(b.value ?? '').trim().toLowerCase()
-    if (!value) return fail(400, 'empty', 'Enter a domain, for example example.com.')
-    if (isIPv6Text(value)) return fail(400, 'ip_not_allowed', IP_NOT_TYPED)
-    if (/[/:@\s]/.test(value)) return fail(400, 'bad_value', 'Enter only a domain name, without http://, a path, a port or spaces. Example: example.com.')
-    if (IPV4_RE.test(value)) return fail(400, 'ip_not_allowed', IP_NOT_TYPED)
-    if (!DOMAIN_RE.test(value)) return fail(400, 'bad_value', 'Not a valid domain. Example: example.com.')
+    if (!value) return fail(400, 'empty', b.kind === 'ip' ? 'Enter a public IPv4 address, for example 203.0.113.10.' : 'Enter a domain, for example example.com.')
+    const kind = b.kind ?? (IPV4_RE.test(value) ? 'ip' : 'domain')
     if (targets.get().some((t) => t.value === value)) return fail(409, 'duplicate', `${value} is already in the list.`)
     if (targets.get().length >= MAX_TARGETS) return fail(400, 'too_many', `At most ${MAX_TARGETS} targets. Delete ones you no longer use.`)
-    const t: StoredTarget = { id: newId('xt'), kind: 'domain', value, token: randomToken(), method: 'dns_txt', verified_at: null, expires_at: null, txt_ok: false, checks: 0, last_check: null, created_at: nowIso(), last_scan_at: null }
+    if (kind === 'ip') {
+      if (isIPv6Text(value) || (IPV4_RE.test(value) && !isPublicIp(value))) return fail(400, 'ip_not_allowed', IP_NOT_PUBLIC)
+      if (!IPV4_RE.test(value)) return fail(400, 'bad_value', 'Not an IP address. Example: 203.0.113.10.')
+      if (ignored.get().some((x) => x.value === value)) return fail(400, 'bad_value', `${value} is on your Ignored list. Restore it in Settings first.`)
+    }
+    let t: StoredTarget
+    if (kind === 'ip') {
+      t = { id: newId('xt'), kind: 'ip', typed: true, value, token: randomToken(), method: null, verified_at: null, expires_at: null, txt_ok: false, checks: 0, last_check: null, created_at: nowIso(), last_scan_at: null }
+      audit('exposure.target_add', value, 'public IP, typed in; not scanned until proved')
+    } else {
+      if (isIPv6Text(value) || IPV4_RE.test(value)) return fail(400, 'ip_not_allowed', IP_NOT_A_DOMAIN)
+      if (/[/:@\s]/.test(value)) return fail(400, 'bad_value', 'Enter only a domain name, without http://, a path, a port or spaces. Example: example.com.')
+      if (!DOMAIN_RE.test(value)) return fail(400, 'bad_value', 'Not a valid domain. Example: example.com.')
+      t = { id: newId('xt'), kind: 'domain', value, token: randomToken(), method: 'dns_txt', verified_at: null, expires_at: null, txt_ok: false, checks: 0, last_check: null, created_at: nowIso(), last_scan_at: null }
+      audit('exposure.target_add', value)
+    }
     targets.update((l) => [...l, t])
-    audit('exposure.target_add', value)
     return HttpResponse.json(view(t), { status: 201 })
   }),
 
@@ -515,7 +530,7 @@ export const handlers = [
     const denied = guard('operator'); if (denied) return denied
     const t = find(params.id)
     if (!t) return notFound()
-    const limited = t.kind === 'ip' ? rateLimit() : null; if (limited) return limited
+    const limited = t.kind === 'ip' && !t.typed ? rateLimit() : null; if (limited) return limited
     const at = nowIso()
     const checks = t.checks + 1
     let ok: boolean
@@ -528,6 +543,13 @@ export const handlers = [
         ? (cover ? `Found the TXT record of ${cover} on ${cover}: it proves ${cover} and every name under it, ${t.value} included.` : `Found the TXT record vedette-verify=${t.token} on ${t.value}.`)
         : `No TXT record vedette-verify=${t.token} was found. Vedette asked ${t.value}, _vedette-verify.${t.value}. ${t.value}: no TXT record. _vedette-verify.${t.value}: no TXT record. DNS usually updates within minutes and can take up to 72 hours. Check again later, and make sure the value was pasted without extra quotes and that the Name field is the host shown (some providers append the domain automatically).`
       next = { ...t, checks, txt_ok: ok, last_check: { at, ok, message }, verified_at: ok ? (t.verified_at ?? at) : t.verified_at }
+    } else if (t.typed) {
+      // A typed IP: the token file, then reverse DNS. The mock finds the file from the second check on (the person has to place it first).
+      ok = t.txt_ok || checks >= 2
+      message = ok
+        ? `Found the token file at http://${t.value}/.well-known/vedette-verify.txt. Verified until ${fmt(plus(at, VERIFY_DAYS))}.`
+        : `Vedette found no proof of ${t.value}. Token file: put the token ${t.token} as the only content of /.well-known/vedette-verify.txt on that address, over http or https. http://${t.value}/.well-known/vedette-verify.txt: answered 404. https://${t.value}/.well-known/vedette-verify.txt: connection refused. Reverse DNS: ${t.value} has no reverse DNS (PTR) name.`
+      next = { ...t, checks, txt_ok: ok, method: ok ? 'ip_file' : t.method, last_check: { at, ok, message }, verified_at: ok ? at : t.verified_at, expires_at: ok ? plus(at, VERIFY_DAYS) : t.expires_at }
     } else {
       // One check = three probes: the IP is verified when the box leaves through it now (any of several IPs behind a load balancer). It renews for 30 days.
       const observed = egressIps()
@@ -540,7 +562,7 @@ export const handlers = [
       next = { ...t, checks, last_check: { at, ok, message }, verified_at: ok ? at : t.verified_at, expires_at: ok ? plus(at, VERIFY_DAYS) : t.expires_at }
     }
     targets.update((l) => l.map((x) => (x.id === t.id ? next : x)))
-    audit(ok ? 'exposure.verify_ok' : 'exposure.verify_fail', t.value, t.kind === 'domain' ? 'dns_txt' : 'box_egress')
+    audit(ok ? 'exposure.verify_ok' : 'exposure.verify_fail', t.value, t.kind === 'domain' ? 'dns_txt' : t.typed ? 'ip proof' : 'box_egress')
     return HttpResponse.json({ verified: ok, message, target: view(next) })
   }),
 

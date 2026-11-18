@@ -18,6 +18,7 @@ import { CommitmentPanel } from './CommitmentPanel'
 import { TermsPanel } from './TermsPanel'
 import { CommitChip, OwnerChip } from './OwnerChip'
 import { RemoveDialog } from './RemoveDialog'
+import { OpenPortsPanel } from './OpenPortsPanel'
 import { OutsidePanel } from './OutsidePanel'
 import { ResultsPanel } from './ResultsPanel'
 import { SurfacePanel } from './SurfacePanel'
@@ -28,7 +29,7 @@ import { blockedKey } from './types'
 import { fmtDateTime, fmtEnd } from '@/lib/format'
 
 // Old #anchor → tab (before the tabs these were stacked blocks of one page).
-const ANCHOR_TAB: Record<string, string> = { 'step-verify': 'ownership', 'step-commit': 'ownership', results: 'results', compare: 'results', outside: 'outside' }
+const ANCHOR_TAB: Record<string, string> = { 'step-verify': 'ownership', 'step-commit': 'ownership', results: 'results', compare: 'results', open: 'exposures', outside: 'outside' }
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
@@ -68,10 +69,12 @@ function TargetView({ target }: { target: Target }) {
     : t('target.title.ready', { value: target.value })
 
   // The person has something to do on the Ownership tab: prove ownership, or the proof expired or went missing.
-  const needsOwnership = target.status === 'unverified' || target.validity === 'expired' || target.blocked_reason === 'txt_missing'
+  const needsOwnership = target.status === 'unverified' || target.validity === 'expired' || target.blocked_reason === 'txt_missing' || target.blocked_reason === 'proof_missing'
 
   // A paused or blocked ownership is a page-level state: it shows above the tabs whatever tab is open.
+  const typedIp = target.kind === 'ip' && target.origin === 'person'
   const stateKey = target.kind === 'domain' ? (target.status !== 'unverified' && target.blocked_reason === 'txt_missing' ? 'verify.txtMissing' : null)
+    : typedIp ? (target.validity === 'expired' ? 'verify.typed.expired' : target.status !== 'unverified' && target.blocked_reason === 'proof_missing' ? 'verify.typed.missing' : null)
     : target.blocked_reason === 'ip_not_current' ? 'verify.paused'
     : target.validity === 'expired' ? 'verify.ipExpired' : null
   const stateNotice = stateKey ? t(stateKey, { time: fmtDateTime(target.verified_at) }) : null
@@ -121,10 +124,11 @@ function TargetView({ target }: { target: Target }) {
       <ScrollToHash />
       <PageTabs label={t('tabs.label')} tabs={[
         { id: 'results', label: t('tabs.results'), panel: <ResultsPanel target={target} blockedText={blocked} /> },
+        { id: 'exposures', label: t('tabs.open'), badge: target.open_exposures > 0 ? { count: target.open_exposures, label: t('tabs.openCount'), tone: 'off' as const } : undefined, panel: <OpenPortsPanel target={target} /> },
         ...(target.kind === 'domain' ? [{ id: 'surface', label: t('tabs.surface'), panel: <SurfacePanel target={target} blockedText={blocked} /> }] : []),
         { id: 'ownership', label: t('tabs.ownership'), badge: needsOwnership ? { count: 1, label: t('tabs.needsYou') } : undefined, panel: <>
-          <Section id="step-verify" title={t('step.verify')} description={target.kind === 'domain' ? t('step.verifyHintDomain') : t('step.verifyHintIp')}
-            info={target.kind === 'domain' ? <><p>{t('step.verifyHintDomainInfo')}</p><p>{t('verify.doneDomainInfo')}</p></> : t('step.verifyHintIpInfo')}>
+          <Section id="step-verify" title={t('step.verify')} description={target.kind === 'domain' ? t('step.verifyHintDomain') : typedIp ? t('step.verifyHintTypedIp') : t('step.verifyHintIp')}
+            info={target.kind === 'domain' ? <><p>{t('step.verifyHintDomainInfo')}</p><p>{t('verify.doneDomainInfo')}</p></> : typedIp ? t('step.verifyHintTypedIpInfo') : t('step.verifyHintIpInfo')}>
             <VerifyPanel target={target} />
           </Section>
           {target.commitment ? (

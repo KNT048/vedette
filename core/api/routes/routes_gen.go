@@ -244,6 +244,7 @@ var Operations = map[string]Operation{
 	"inventory_post_inventory_agents_devices_id_report":      {Method: "POST", Path: "/inventory/agents/devices/{id}/report", MinRole: Operator, Tag: "inventory"},
 	"inventory_post_inventory_agents_tokens":                 {Method: "POST", Path: "/inventory/agents/tokens", MinRole: Admin, Tag: "inventory"},
 	"inventory_post_inventory_agents_tokens_id_sample_data":  {Method: "POST", Path: "/inventory/agents/tokens/{id}/sample-data", MinRole: Admin, Tag: "inventory"},
+	"inventory_post_inventory_agents_tokens_remove_unused":   {Method: "POST", Path: "/inventory/agents/tokens/remove-unused", MinRole: Admin, Tag: "inventory"},
 	"inventory_post_inventory_agents_wazuh_sample_data":      {Method: "POST", Path: "/inventory/agents/wazuh/sample-data", MinRole: Admin, Tag: "inventory"},
 	"inventory_post_inventory_agents_wazuh_test":             {Method: "POST", Path: "/inventory/agents/wazuh/test", MinRole: Admin, Tag: "inventory"},
 	"inventory_post_inventory_devices":                       {Method: "POST", Path: "/inventory/devices", MinRole: Operator, Tag: "inventory"},

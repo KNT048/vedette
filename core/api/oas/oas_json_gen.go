@@ -186148,6 +186148,10 @@ func (s *InventoryGetInventoryAgentsOKTokensItem) encodeFields(e *jx.Encoder) {
 		json.EncodeDateTime(e, s.CreatedAt)
 	}
 	{
+		e.FieldStart("created_by")
+		s.CreatedBy.Encode(e)
+	}
+	{
 		e.FieldStart("expires_at")
 		s.ExpiresAt.Encode(e, json.EncodeDateTime)
 	}
@@ -186177,15 +186181,16 @@ func (s *InventoryGetInventoryAgentsOKTokensItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfInventoryGetInventoryAgentsOKTokensItem = [8]string{
+var jsonFieldsNameOfInventoryGetInventoryAgentsOKTokensItem = [9]string{
 	0: "created_at",
-	1: "expires_at",
-	2: "hosts",
-	3: "id",
-	4: "kind",
-	5: "last4",
-	6: "last_received",
-	7: "name",
+	1: "created_by",
+	2: "expires_at",
+	3: "hosts",
+	4: "id",
+	5: "kind",
+	6: "last4",
+	7: "last_received",
+	8: "name",
 }
 
 // Decode decodes InventoryGetInventoryAgentsOKTokensItem from json.
@@ -186193,7 +186198,7 @@ func (s *InventoryGetInventoryAgentsOKTokensItem) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode InventoryGetInventoryAgentsOKTokensItem to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -186209,8 +186214,18 @@ func (s *InventoryGetInventoryAgentsOKTokensItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"created_at\"")
 			}
-		case "expires_at":
+		case "created_by":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.CreatedBy.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"created_by\"")
+			}
+		case "expires_at":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.ExpiresAt.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -186220,7 +186235,7 @@ func (s *InventoryGetInventoryAgentsOKTokensItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"expires_at\"")
 			}
 		case "hosts":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Int()
 				s.Hosts = int(v)
@@ -186232,7 +186247,7 @@ func (s *InventoryGetInventoryAgentsOKTokensItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"hosts\"")
 			}
 		case "id":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.ID = string(v)
@@ -186244,7 +186259,7 @@ func (s *InventoryGetInventoryAgentsOKTokensItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
 		case "kind":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -186254,7 +186269,7 @@ func (s *InventoryGetInventoryAgentsOKTokensItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "last4":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Last4 = string(v)
@@ -186266,7 +186281,7 @@ func (s *InventoryGetInventoryAgentsOKTokensItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last4\"")
 			}
 		case "last_received":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.LastReceived.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -186276,7 +186291,7 @@ func (s *InventoryGetInventoryAgentsOKTokensItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last_received\"")
 			}
 		case "name":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -186296,8 +186311,9 @@ func (s *InventoryGetInventoryAgentsOKTokensItem) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
+	for i, mask := range [2]uint8{
 		0b11111111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -204419,6 +204435,10 @@ func (s *InventoryPostInventoryAgentsTokensCreatedToken) encodeFields(e *jx.Enco
 		json.EncodeDateTime(e, s.CreatedAt)
 	}
 	{
+		e.FieldStart("created_by")
+		s.CreatedBy.Encode(e)
+	}
+	{
 		e.FieldStart("expires_at")
 		s.ExpiresAt.Encode(e, json.EncodeDateTime)
 	}
@@ -204448,15 +204468,16 @@ func (s *InventoryPostInventoryAgentsTokensCreatedToken) encodeFields(e *jx.Enco
 	}
 }
 
-var jsonFieldsNameOfInventoryPostInventoryAgentsTokensCreatedToken = [8]string{
+var jsonFieldsNameOfInventoryPostInventoryAgentsTokensCreatedToken = [9]string{
 	0: "created_at",
-	1: "expires_at",
-	2: "hosts",
-	3: "id",
-	4: "kind",
-	5: "last4",
-	6: "last_received",
-	7: "name",
+	1: "created_by",
+	2: "expires_at",
+	3: "hosts",
+	4: "id",
+	5: "kind",
+	6: "last4",
+	7: "last_received",
+	8: "name",
 }
 
 // Decode decodes InventoryPostInventoryAgentsTokensCreatedToken from json.
@@ -204464,7 +204485,7 @@ func (s *InventoryPostInventoryAgentsTokensCreatedToken) Decode(d *jx.Decoder) e
 	if s == nil {
 		return errors.New("invalid: unable to decode InventoryPostInventoryAgentsTokensCreatedToken to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -204480,8 +204501,18 @@ func (s *InventoryPostInventoryAgentsTokensCreatedToken) Decode(d *jx.Decoder) e
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"created_at\"")
 			}
-		case "expires_at":
+		case "created_by":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.CreatedBy.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"created_by\"")
+			}
+		case "expires_at":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.ExpiresAt.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -204491,7 +204522,7 @@ func (s *InventoryPostInventoryAgentsTokensCreatedToken) Decode(d *jx.Decoder) e
 				return errors.Wrap(err, "decode field \"expires_at\"")
 			}
 		case "hosts":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Int()
 				s.Hosts = int(v)
@@ -204503,7 +204534,7 @@ func (s *InventoryPostInventoryAgentsTokensCreatedToken) Decode(d *jx.Decoder) e
 				return errors.Wrap(err, "decode field \"hosts\"")
 			}
 		case "id":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.ID = string(v)
@@ -204515,7 +204546,7 @@ func (s *InventoryPostInventoryAgentsTokensCreatedToken) Decode(d *jx.Decoder) e
 				return errors.Wrap(err, "decode field \"id\"")
 			}
 		case "kind":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -204525,7 +204556,7 @@ func (s *InventoryPostInventoryAgentsTokensCreatedToken) Decode(d *jx.Decoder) e
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "last4":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Last4 = string(v)
@@ -204537,7 +204568,7 @@ func (s *InventoryPostInventoryAgentsTokensCreatedToken) Decode(d *jx.Decoder) e
 				return errors.Wrap(err, "decode field \"last4\"")
 			}
 		case "last_received":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.LastReceived.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -204547,7 +204578,7 @@ func (s *InventoryPostInventoryAgentsTokensCreatedToken) Decode(d *jx.Decoder) e
 				return errors.Wrap(err, "decode field \"last_received\"")
 			}
 		case "name":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -204567,8 +204598,9 @@ func (s *InventoryPostInventoryAgentsTokensCreatedToken) Decode(d *jx.Decoder) e
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
+	for i, mask := range [2]uint8{
 		0b11111111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -204761,6 +204793,102 @@ func (s *InventoryPostInventoryAgentsTokensIDSampleDataOK) MarshalJSON() ([]byte
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *InventoryPostInventoryAgentsTokensIDSampleDataOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *InventoryPostInventoryAgentsTokensRemoveUnusedOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *InventoryPostInventoryAgentsTokensRemoveUnusedOK) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("removed")
+		e.Int(s.Removed)
+	}
+}
+
+var jsonFieldsNameOfInventoryPostInventoryAgentsTokensRemoveUnusedOK = [1]string{
+	0: "removed",
+}
+
+// Decode decodes InventoryPostInventoryAgentsTokensRemoveUnusedOK from json.
+func (s *InventoryPostInventoryAgentsTokensRemoveUnusedOK) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode InventoryPostInventoryAgentsTokensRemoveUnusedOK to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "removed":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int()
+				s.Removed = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"removed\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode InventoryPostInventoryAgentsTokensRemoveUnusedOK")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfInventoryPostInventoryAgentsTokensRemoveUnusedOK) {
+					name = jsonFieldsNameOfInventoryPostInventoryAgentsTokensRemoveUnusedOK[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *InventoryPostInventoryAgentsTokensRemoveUnusedOK) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *InventoryPostInventoryAgentsTokensRemoveUnusedOK) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -215108,6 +215236,14 @@ func (s *LogsGetLogsSourcesOK) encodeFields(e *jx.Encoder) {
 		s.Box.Encode(e)
 	}
 	{
+		e.FieldStart("disk_free_bytes")
+		s.DiskFreeBytes.Encode(e)
+	}
+	{
+		e.FieldStart("logs_bytes")
+		s.LogsBytes.Encode(e)
+	}
+	{
 		e.FieldStart("retention_days")
 		e.Int(s.RetentionDays)
 	}
@@ -215121,10 +215257,12 @@ func (s *LogsGetLogsSourcesOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfLogsGetLogsSourcesOK = [3]string{
+var jsonFieldsNameOfLogsGetLogsSourcesOK = [5]string{
 	0: "box",
-	1: "retention_days",
-	2: "sources",
+	1: "disk_free_bytes",
+	2: "logs_bytes",
+	3: "retention_days",
+	4: "sources",
 }
 
 // Decode decodes LogsGetLogsSourcesOK from json.
@@ -215146,8 +215284,28 @@ func (s *LogsGetLogsSourcesOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"box\"")
 			}
-		case "retention_days":
+		case "disk_free_bytes":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.DiskFreeBytes.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"disk_free_bytes\"")
+			}
+		case "logs_bytes":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.LogsBytes.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"logs_bytes\"")
+			}
+		case "retention_days":
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Int()
 				s.RetentionDays = int(v)
@@ -215159,7 +215317,7 @@ func (s *LogsGetLogsSourcesOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"retention_days\"")
 			}
 		case "sources":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				s.Sources = make([]LogsGetLogsSourcesOKSourcesItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -215186,7 +215344,7 @@ func (s *LogsGetLogsSourcesOK) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00011111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

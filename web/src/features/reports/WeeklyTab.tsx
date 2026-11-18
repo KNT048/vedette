@@ -60,7 +60,6 @@ function Preview() {
     <Section id="rep-preview" title={t('weekly.preview.title')} description={t('weekly.preview.description')} info={t('weekly.preview.descriptionInfo')} stories={['S-REP-1']}
       actions={weekly.data && !noData ? (
         <>
-          <Button onClick={() => ai.mutate(undefined, { onSuccess: () => toast.success(t('weekly.ai.done')) })} disabled={!operator || !weekly.data.ai_available} busy={ai.isPending} busyLabel={t('weekly.ai.working')} title={needRole ?? (weekly.data.ai_available ? undefined : t('weekly.ai.unavailable'))} aria-describedby="weekly-ai-wait"><Sparkles aria-hidden />{t('weekly.ai.button')}</Button>
           <Link to="/reports/print/weekly" className={buttonVariants({ variant: 'secondary' })}><Printer aria-hidden />{t('print.button')}</Link>
           {/* No Send with nobody to send to; one line says what is missing instead */}
           {/* #936 review r1: the line only once the schedule says there is no recipient (no flash while it loads; Send stays on an error) */}
@@ -74,15 +73,19 @@ function Preview() {
       {operator && weekly.data && !noData && !weekly.data.ai_available ? (aiOn && !admin
         ? <p className="mb-3 text-meta text-muted">{t('weekly.ai.why')} {t('weekly.ai.askAdmin')}</p>
         : <DependencyLink className="mb-3" reason={t('weekly.ai.why')} to={aiOn ? '/settings/ai#ai-profiles' : '/settings/modules'} label={t(aiOn ? 'weekly.ai.openAi' : 'weekly.ai.openModules')} />) : null}
-      {/* An AI answer takes a while; say so while it runs */}
-      <BusyNote id="weekly-ai-wait" className="mb-3" busy={ai.isPending}>{t('weekly.ai.waiting')}</BusyNote>
-      <ActionError error={ai.error} />
       <QueryState query={weekly}>
         {(w) => noData
           ? <EmptyState title={t('weekly.empty.title')} info={t('weekly.empty.bodyInfo')} action={<Link to="/devices" className={buttonVariants({ variant: 'primary' })}>{t('weekly.empty.cta')}</Link>}>
             {t('weekly.empty.body')}
           </EmptyState>
-          : <Card><WeeklyDocument report={w.report} org={me?.org ?? ''} /></Card>}
+          : <Card><WeeklyDocument report={w.report} org={me?.org ?? ''} aiAction={(
+            <>
+              <div><Button onClick={() => ai.mutate(undefined, { onSuccess: () => toast.success(t('weekly.ai.done')) })} disabled={!operator || !w.ai_available} busy={ai.isPending} busyLabel={t('weekly.ai.working')} title={needRole ?? (w.ai_available ? undefined : t('weekly.ai.unavailable'))} aria-describedby="weekly-ai-wait"><Sparkles aria-hidden />{t('weekly.ai.button')}</Button></div>
+              {/* An AI answer takes a while; say so while it runs */}
+              <BusyNote id="weekly-ai-wait" busy={ai.isPending}>{t('weekly.ai.waiting')}</BusyNote>
+              <ActionError error={ai.error} />
+            </>
+          )} /></Card>}
       </QueryState>
       <Dialog open={confirm} onOpenChange={setConfirm}>
         <DialogContent title={t('weekly.send.title')} description={recipients.length ? t('weekly.send.body', { count: recipients.length }) : t('weekly.send.noRecipients')}>

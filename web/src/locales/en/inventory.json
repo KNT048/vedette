@@ -700,6 +700,8 @@
     "create": "Create agent token",
     "col": {
       "name": "Name",
+      "madeBy": "Made by",
+      "madeAt": "Made",
       "token": "Token",
       "expires": "Expires",
       "received": "Last data received",
@@ -752,6 +754,16 @@
       "0": "No expiry (not recommended)"
     },
     "createSubmit": "Create token",
+    "createCommand": "Create install command",
+    "createNote": "This makes one enrollment token and shows the install command with it. The token is shown once. A token that no machine has used expires after 24 hours; once a machine has enrolled, it works for the lifetime you see in the list.",
+    "defaultTokenName": "osquery install {{day}}",
+    "unknownMaker": "Not recorded",
+    "removeUnused": {
+      "button": "Remove unused tokens",
+      "hint": "Removes every token with no machine enrolled now. Tokens with machines stay, and so do tokens made in the last hour, in case their command is still on screen.",
+      "done_one": "Removed {{count}} unused token.",
+      "done_other": "Removed {{count}} unused tokens."
+    },
     "createdTitle": "Token for {{name}}",
     "createdBody": "Pick the operating system and run the one command below on the server.",
     "tokenLabel": "Token",

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { AiBlock } from '@/components/common/AiBlock'
 import { Notice } from '@/components/common/PageHeader'
@@ -11,7 +12,8 @@ import { kindLabel } from '@/lib/deviceTypes'
 const MEASURE_TONE: Record<string, Tone> = { ok: 'ok', attention: 'warn', unknown: 'off' }
 
 /** Báo cáo đánh giá an toàn theo Luật BVDLCN (S-REP-2). Câu miễn trừ nằm ở đầu và cuối mọi bản. */
-export function PdplDocument({ report: r }: { report: PdplReport }) {
+/** `aiAction` is the Write AI commentary control; only the live view passes it, so print never shows it. */
+export function PdplDocument({ report: r, aiAction }: { report: PdplReport; aiAction?: ReactNode }) {
   const { t } = useTranslation('reports')
   const o = r.org
   const h = (id: string, key: string) => <h3 id={id} className="mb-2 text-base font-semibold">{t(key)}</h3>
@@ -108,12 +110,13 @@ export function PdplDocument({ report: r }: { report: PdplReport }) {
         <ul className="ml-5 grid list-disc gap-1 text-meta text-muted">{(t('doc.pdpl.basis', { returnObjects: true }) as string[]).map((b, i) => <li key={i}>{b}</li>)}</ul>
       </section>
 
-      {r.ai_summary ? (
+      {r.ai_summary || aiAction ? (
         <div className="grid gap-1">
-          <AiBlock model={r.ai_summary.profile ? `${r.ai_summary.model} (${r.ai_summary.profile})` : r.ai_summary.model} tokens={r.ai_summary.tokens} citations={[{ title: t('doc.pdpl.aiCite') }]}>
-            {r.ai_summary.paragraphs.map((p, i) => <p key={i}>{p}</p>)}
+          <AiBlock model={r.ai_summary ? (r.ai_summary.profile ? `${r.ai_summary.model} (${r.ai_summary.profile})` : r.ai_summary.model) : undefined} tokens={r.ai_summary?.tokens} citations={r.ai_summary ? [{ title: t('doc.pdpl.aiCite') }] : undefined}>
+            {r.ai_summary ? r.ai_summary.paragraphs.map((p, i) => <p key={i}>{p}</p>) : <p className="text-muted">{t('doc.aiNone')}</p>}
+            {aiAction ? <div className="grid gap-2 print:hidden">{aiAction}</div> : null}
           </AiBlock>
-          <p className="text-caption text-muted">{t('doc.aiAt', { time: fmtDateTime(r.ai_summary.generated_at) })}</p>
+          {r.ai_summary ? <p className="text-caption text-muted">{t('doc.aiAt', { time: fmtDateTime(r.ai_summary.generated_at) })}</p> : null}
         </div>
       ) : null}
 

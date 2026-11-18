@@ -46123,6 +46123,13 @@
                             "format": "date-time",
                             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                           },
+                          "created_by": {
+                            "description": "Who made it (null for a token made before this was kept)",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
                           "last_received": {
                             "anyOf": [
                               {
@@ -46151,7 +46158,7 @@
                                 "type": "null"
                               }
                             ],
-                            "description": "null = never expires; default 7 days. The token only enrolls osquery (it can read nothing) and can be revoked"
+                            "description": "When it stops enrolling machines. null = never; default 7 days once a machine has enrolled; a token no machine enrolled with expires 24 hours after it was made. The token only enrolls osquery (it can read nothing) and can be revoked"
                           }
                         },
                         "required": [
@@ -46160,6 +46167,7 @@
                           "kind",
                           "last4",
                           "created_at",
+                          "created_by",
                           "last_received",
                           "hosts",
                           "expires_at"
@@ -46810,6 +46818,13 @@
                           "format": "date-time",
                           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                         },
+                        "created_by": {
+                          "description": "Who made it (null for a token made before this was kept)",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
                         "last_received": {
                           "anyOf": [
                             {
@@ -46838,7 +46853,7 @@
                               "type": "null"
                             }
                           ],
-                          "description": "null = never expires; default 7 days. The token only enrolls osquery (it can read nothing) and can be revoked"
+                          "description": "When it stops enrolling machines. null = never; default 7 days once a machine has enrolled; a token no machine enrolled with expires 24 hours after it was made. The token only enrolls osquery (it can read nothing) and can be revoked"
                         }
                       },
                       "required": [
@@ -46847,6 +46862,7 @@
                         "kind",
                         "last4",
                         "created_at",
+                        "created_by",
                         "last_received",
                         "hosts",
                         "expires_at"
@@ -46961,6 +46977,52 @@
                   "required": [
                     "devices",
                     "software"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inventory/agents/tokens/remove-unused": {
+      "post": {
+        "operationId": "inventory_post_inventory_agents_tokens_remove_unused",
+        "summary": "Remove every token with no machine enrolled now, made over an hour ago (tokens with machines and tokens made in the last hour stay). Audited. Also offered when 409 too_many_tokens says the limit of 500 is reached",
+        "tags": [
+          "inventory"
+        ],
+        "x-stories": [
+          "S-INV-4"
+        ],
+        "x-min-role": "admin",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "removed": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "removed"
                   ],
                   "additionalProperties": false
                 }
@@ -55674,12 +55736,40 @@
                       "type": "integer",
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991
+                    },
+                    "logs_bytes": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Disk space the kept logs take, in bytes (the log database and its write-ahead log); null when it cannot be read"
+                    },
+                    "disk_free_bytes": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Space still free on the filesystem of the box data directory, in bytes; null when it cannot be read"
                     }
                   },
                   "required": [
                     "box",
                     "sources",
-                    "retention_days"
+                    "retention_days",
+                    "logs_bytes",
+                    "disk_free_bytes"
                   ],
                   "additionalProperties": false
                 }

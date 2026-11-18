@@ -243,9 +243,10 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     const methods = within(dlg).getByRole('radiogroup', { name: 'How to add it' })
     expect(within(methods).getAllByRole('radio').map((r) => r.closest('label')?.querySelector('.font-medium')?.textContent)).toEqual(['Manual', 'SNMP', 'osquery', 'Wazuh', 'CSV import'])
     expect(within(dlg).queryByText(/by hand|SSH|API key/)).not.toBeInTheDocument()
-    // SNMP is set up on each device's page, so its method only says where (no form of its own)
+    // SNMP has its own form (address and settings); osquery and Wazuh show no field of the other methods
     const own: Record<string, RegExp> = { Manual: /^IP address$/, SNMP: /^IP address or range$/, osquery: /^Token name|^Name/, Wazuh: /Wazuh API address|Server API|^Address/, 'CSV import': /^Choose a CSV file$/ }
     const noForm = ['osquery', 'Wazuh', 'SNMP']
+    const snmpOnly = /^Device IP address$/
     for (const [m, field] of Object.entries(own)) {
       await user.click(within(methods).getByRole('radio', { name: new RegExp(`^${m}`) }))
       expect(await within(dlg).findByRole('region', { name: m }, T)).toBeInTheDocument()
@@ -253,7 +254,9 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
       for (const [other, f] of Object.entries(own)) if (other !== m && !noForm.includes(other)) expect(within(dlg).queryByLabelText(f)).toBeNull()
     }
     await user.click(within(methods).getByRole('radio', { name: /^SNMP/ }))
-    expect(await within(dlg).findByText(/SNMP is set up on each device's own page/, undefined, T)).toBeInTheDocument()
+    expect(await within(dlg).findByLabelText('Community', undefined, T)).toBeInTheDocument()
+    expect(within(dlg).getByLabelText(snmpOnly)).toBeInTheDocument()
+    expect(within(dlg).queryByText(/set up on each device's own page|manually first/i)).toBeNull()
     await expectNoA11yViolations()
   })
 
@@ -281,7 +284,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     const dlg = await screen.findByRole('dialog', { name: 'Add a device' }, T)
     expect(within(dlg).getByRole('radio', { name: /^osquery/, checked: true })).toBeEnabled()
     await user.click(within(dlg).getByRole('button', { name: 'Turn on Agent intake' }))
-    expect(await within(dlg).findByLabelText(/^Token name/, undefined, T)).toBeInTheDocument()
+    expect(await within(dlg).findByRole('button', { name: 'Linux' }, T)).toBeInTheDocument()
     expect(modulesStore.get().find((m) => m.id === 'agent-intake')?.enabled).toBe(true)
   })
 
@@ -313,8 +316,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     const dlg = await screen.findByRole('dialog', { name: 'Add a device' }, T)
     expect(within(dlg).getByRole('radio', { name: /^osquery/, checked: true })).toBeInTheDocument()
     expect(within(dlg).getByText(/macOS is not supported/)).toBeInTheDocument()
-    await user.type(await within(dlg).findByLabelText(/^Token name/, undefined, T), 'srv-files')
-    await user.click(within(dlg).getByRole('button', { name: /Create/ }))
+    await user.click(await within(dlg).findByRole('button', { name: 'Linux' }, T))
     expect(await within(dlg).findByText(/^vdt_osquery_/, undefined, T)).toBeInTheDocument()
     expect(within(dlg).queryByRole('radiogroup', { name: 'How to add it' })).toBeNull() // the only copy of the secret stays on screen
     expect(within(dlg).getByRole('button', { name: 'Windows' })).toBeInTheDocument()
@@ -1125,7 +1127,7 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
     const box = await screen.findByRole('checkbox', { name: 'I confirm these network ranges belong to my company and I am allowed to scan them.' }, T)
     expect(box).toBeChecked() // sample data: already confirmed
     expect(screen.getAllByRole('checkbox', { name: /I confirm/ })).toHaveLength(1)
-    expect(screen.getByText('Vedette is provided as is. Its author is not responsible for how you use it, including scanning.')).toBeInTheDocument()
+    expect(screen.getByText('Vedette is provided as is. Its authors are not responsible for how you use it, including scanning.')).toBeInTheDocument()
     expect(screen.queryByText(/consent/i)).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /consent/i })).not.toBeInTheDocument()
   })
@@ -1618,7 +1620,7 @@ describe('inventory: agents (S-INV-4)', () => {
     expect(within(dialog).getByText(new RegExp(`sudo sh "\\$f" --token ${secret}; r=\\$\\?; rm -f "\\$f"; exit \\$r\\)$`))).toBeInTheDocument()
     expect(within(dialog).getByText('Expected SHA-256 of the script:').parentElement).toHaveTextContent(sha)
     expect(within(dialog).getByText('What this script does')).toBeInTheDocument()
-    expect(within(dialog).getByText('Advanced: manual setup')).toBeInTheDocument()
+    expect(within(dialog).getByText('Download and install manually')).toBeInTheDocument()
     expect(within(dialog).getByText('Remove osquery from the server again')).toBeInTheDocument()
     // Direct downloads from this origin, one row per Linux package, with what it is for, its size and its SHA-256
     const pkgs = (await call('GET', '/agents')).json!.install.packages as OsqueryPackage[]

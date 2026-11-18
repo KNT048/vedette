@@ -2,19 +2,20 @@ import { useState } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { Section } from '@/components/common/PageHeader'
-import { Chip } from '@/components/common/StatusChip'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { fmtDateTime, fmtRelative } from '@/lib/format'
 import { useModuleEnabled } from '@/lib/modules'
 import { useCan, useMe } from '@/lib/session'
 import { cn } from '@/lib/utils'
-import { AddDialog } from './AddDialog'
+import { InstallOnDeviceDialog } from './InstallAgent'
+import { SnmpSourceActions, SnmpSourceBody, useSnmpSource } from './SnmpCard'
 import { TurnOnModule } from './Inline'
-import { useDeviceAction, useDeviceSnmp, useDeviceSources, useSettings } from './api'
+import { useDeviceAction, useDeviceSources, useSettings } from './api'
 import { useScanningHistory } from '@/features/scanning/api'
 import { inRanges } from './AddToScopeDialog'
-import { hasSnmpCard, nameOf } from './nameOf'
+import { nameOf } from './nameOf'
 import { kindLabel } from '@/lib/deviceTypes'
 import { toast } from 'sonner'
 import { errMsg } from './kinds'
@@ -76,18 +77,6 @@ function When({ at, text }: { at: string; text: string }) {
   return <time className="text-caption text-muted" dateTime={at} title={fmtDateTime(at)}>{text}</time>
 }
 
-/** SNMP without settings of the device's own: no read goes to it whatever its stored switch says (reads come only from a device's
- *  SNMP settings), so there is no switch to show, only what to do. Saving the settings turns SNMP on for the device. */
-function SnmpNotSetUp({ card }: { card: boolean }) {
-  const { t } = useTranslation('inventory')
-  return (
-    <p className="text-meta text-muted" data-testid="snmp-not-set-up">
-      {t('sources.meaning.snmp.notSetUp')}
-      {card ? <> <Link to="#device-snmp" className="text-accent underline-offset-4 hover:underline">{t('sources.meaning.snmp.setUpLink')}</Link></> : null}
-    </p>
-  )
-}
-
 /** The person's switch of one active source of the box for this device (network scan, SNMP), with what on and off mean in one
  *  line. Admin only; others see it locked with the reason. An agent has no switch: it is installed or uninstalled on the machine.
  *  The SNMP switch is drawn only for a device with SNMP settings (DeviceSources): without them "On" would claim reads that never happen. */
@@ -130,10 +119,11 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
   const declared = a.origin === 'manual'
   // Whether the device has SNMP settings of its own (the same query as its SNMP card): true, false, or null when not known (loading,
   // or not an administrator: only administrators see SNMP settings, so others get no SNMP switch rather than a guess).
-  const snmpQ = useDeviceSnmp(a.id, admin && snmpOn)
-  const snmpSetUp = snmpQ.data ? snmpQ.data.state !== 'not_set_up' : null
+  const snmp = useSnmpSource(d, admin && snmpOn)
+  const snmpSetUp = snmp.q.data ? snmp.q.data.state !== 'not_set_up' : null
   const silent = a.scan_source === 'off' && (a.snmp_source === 'off' || snmpSetUp === false)
 
+  const ownState = snmpOn && admin && !!ip
   const action = (f: Feed): React.ReactNode => {
     if (f === 'snmp') {
       if (!snmpOn) return <TurnOnModule id="sensor-active" reason={t('sources.snmp.off')} />
@@ -149,13 +139,13 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
         )
       }
       if (!admin) return <span className="text-meta text-muted">{t('sources.adminOnly')}</span>
-      // SNMP is set up on the device's own SNMP card (version, community or v3 user, Read from, Check now).
-      return null
+      // Set up (or Edit, Check now, Remove) opens the SNMP settings right here, on this row.
+      return <SnmpSourceActions d={d} src={snmp} />
     }
     if (f === 'agent') {
       if (!agentsOn) return <TurnOnModule id="agent-intake" reason={t('sources.agent.off')} />
       if (!admin) return <span className="text-meta text-muted">{t('sources.adminOnly')}</span>
-      // #849: installing osquery opens the Add a device dialog's osquery method here; managing tokens stays on the agents page.
+      // Installing osquery opens the install steps for this device; managing tokens stays on the agents page.
       return feeds.has('agent')
         ? <Link to="/devices/setup?tab=agents" className={cn(buttonVariants({ size: 'sm' }))}>{t('sources.agent.manage')}</Link>
         : <Button size="sm" onClick={() => setEnrol(true)}>{t('sources.agent.add')}</Button>
@@ -167,25 +157,35 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
   const shown = FEEDS.filter((f) => f !== 'manual' || declared || feeds.has('manual'))
   return (
     <Section id="sources" title={t('sources.title')} description={t('sources.description')} stories={['S-INV-1', 'S-INV-4']}>
-      <ul aria-label={t('sources.title')} className="grid gap-2">
+      <ul aria-label={t('sources.title')} className="grid gap-1.5">
         {shown.map((f) => {
           const on = feeds.has(f)
           const at = feeds.get(f) ?? null
+          // Sources that only report (passive listening, what a person entered) are one line: a mark, the name, the last time. Only a
+          // source the person can act on (network scan, SNMP, agent) keeps a control, and with it a frame.
+          const act = f === 'scan' || f === 'snmp' || f === 'agent'
+          const mark = <span aria-hidden className={cn('size-2 shrink-0 rounded-full', on ? 'bg-ok' : 'bg-off')} />
+          const head = (
+            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+              {mark}
+              <span className="text-sm font-medium" title={act ? undefined : t(`sources.what.${f}`)}>{t(`sources.name.${f}`)}</span>
+              {act ? <InfoTip topic={t(`sources.name.${f}`)}>{t(`sources.what.${f}`)}</InfoTip> : null}
+              {/* the SNMP row says its own state below (working, waiting, not set up...): a second word here would contradict it */}
+              {f === 'snmp' && ownState ? null : <span className="text-meta text-muted">{on ? t('sources.feeds') : t('sources.notYet')}</span>}
+              {f === 'scan' ? <ScanTimes id={a.id} seen={at} />
+                : f === 'manual' ? <ManualTime d={d} />
+                : at ? <When at={at} text={t('sources.lastSeen', { when: fmtRelative(at) })} /> : null}
+            </div>
+          )
+          if (!act) return <li key={f} className="px-3 py-1">{head}</li>
           return (
-            <li key={f} className="grid min-w-0 gap-2 rounded-md border border-rule bg-surface p-3">
+            <li key={f} id={f === 'snmp' ? 'device-snmp' : undefined} className="grid min-w-0 gap-2 rounded-md border border-rule bg-surface px-3 py-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex min-w-0 flex-wrap items-center gap-2">
-                  <span className="text-sm font-medium">{t(`sources.name.${f}`)}</span>
-                  {on ? <Chip tone="ok">{t('sources.feeds')}</Chip> : <Chip tone="off">{t('sources.notYet')}</Chip>}
-                  {f === 'scan' ? <ScanTimes id={a.id} seen={at} />
-                    : f === 'manual' ? <ManualTime d={d} />
-                    : at ? <When at={at} text={t('sources.lastSeen', { when: fmtRelative(at) })} /> : null}
-                </div>
+                {head}
                 {action(f)}
               </div>
-              <p className="text-meta text-muted">{t(`sources.what.${f}`)}</p>
               {f === 'scan' || (f === 'snmp' && snmpOn && snmpSetUp) ? <SourceSwitch d={d} which={f} /> : null}
-              {f === 'snmp' && snmpOn && snmpSetUp === false ? <SnmpNotSetUp card={hasSnmpCard(a, admin, snmpOn)} /> : null}
+              {f === 'snmp' && ownState ? <SnmpSourceBody d={d} src={snmp} /> : null}
               {f === 'agent' && agentsOn ? <p className="text-caption text-muted">{t('sources.agent.how')}</p> : null}
             </li>
           )
@@ -194,7 +194,7 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
       {/* the one place on the device page that says why a device added by hand is not scanned: next to the switch that turns it on */}
       {declared && a.scan_source === 'off' ? <p className="mt-3 max-w-3xl text-meta text-muted">{t(silent ? 'sources.declared' : 'sources.declaredScanOff')}</p> : null}
       <p className="mt-3 max-w-3xl text-meta text-muted">{t('sources.both')}</p>
-      {enrol ? <AddDialog open method="osquery" onOpenChange={(o) => { if (!o) setEnrol(false) }} /> : null}
+      {enrol ? <InstallOnDeviceDialog d={d} onClose={() => setEnrol(false)} /> : null}
     </Section>
   )
 }

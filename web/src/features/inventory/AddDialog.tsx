@@ -10,10 +10,13 @@ import { useModuleEnabled, type ModuleId } from '@/lib/modules'
 import { useMe } from '@/lib/session'
 import { cn } from '@/lib/utils'
 import { AddForm } from './AddDeviceDialog'
-import { OsqueryEnrol, WazuhForm } from './AgentsSection'
+import { WazuhForm } from './AgentsSection'
+import { AddSnmpDevice } from './AddSnmpDevice'
+import { AgentInstall } from './InstallAgent'
 import { useAgents } from './api'
 import { TurnOnModule } from './Inline'
 import { ImportForm } from './ImportDialog'
+import { dayOf } from '@/lib/format'
 
 // "Add a device" (#849): ONE dialog with every way a device gets into the list. Manual is first and chosen on open, so the S-INV-2
 // "three clicks" path stays three clicks; ?add=<method> opens it on a method (old ?tab=add, the device page's "Add SNMP / osquery").
@@ -41,20 +44,13 @@ function useNeeds(): Record<Method, Need> {
   }
 }
 
-/** SNMP: set up per device, on the device's own page, so this method only says where (the device-page SNMP card replaces
- *  the credential form that was here). */
-function SnmpMethod() {
-  const { t } = useTranslation('inventory')
-  return <p className="text-meta text-muted">{t('addDialog.snmp.perDevice')}</p>
-}
-
-/** osquery (S-INV-4): a token, then the one-line install for Linux or Windows servers. macOS has no installer. */
+/** osquery (S-INV-4): the person picks the operating system first, then sees the one install command; the manual way stays folded. */
 function OsqueryMethod({ onCreated }: { onCreated: (on: boolean) => void }) {
   const { t } = useTranslation('inventory')
-  const q = useAgents(true)
+  const day = dayOf(new Date().toISOString())
   return (
     <div className="grid min-w-0 gap-3">
-      <QueryState query={q}>{(d) => <OsqueryEnrol data={d} onCreated={() => onCreated(true)} />}</QueryState>
+      <AgentInstall tokenName={t('addDialog.osquery.tokenName', { day })} onCreated={onCreated} />
       <div className="flex items-center gap-1"><p className="text-meta text-muted">{t('addDialog.osquery.noMac')}</p><InfoTip topic={t('addDialog.osquery.noMacTopic')}>{t('addDialog.osquery.noMacInfo')}</InfoTip></div>
     </div>
   )
@@ -127,7 +123,7 @@ export function AddDialog({ open, onOpenChange, method: initial = 'manual', onMe
           {method === 'manual' ? <AddForm key="manual" mode="device" onDone={done} listOpenRef={listOpenRef} /> : null}
           {needs[method].module ? <TurnOnModule id={needs[method].module!} reason={t(`addDialog.needs.${method}`)} /> : (
             <>
-              {method === 'snmp' ? <SnmpMethod key="snmp" /> : null}
+              {method === 'snmp' ? <AddSnmpDevice key="snmp" onDone={done} listOpenRef={listOpenRef} /> : null}
               {method === 'osquery' ? <OsqueryMethod key="osquery" onCreated={setTokenShown} /> : null}
               {method === 'wazuh' ? <WazuhMethod key="wazuh" onDone={done} /> : null}
             </>

@@ -131,9 +131,10 @@ function Downloads({ packages }: { packages: OsqueryPackage[] }) {
 }
 
 /** Một dòng lệnh cài và gỡ cho Linux hoặc Windows Server, script đọc được, tải gói trực tiếp, và cài tay ở mục "Advanced". */
-export function InstallPanel({ data, token }: { data: AgentsResponse; token: string }) {
+export function InstallPanel({ data, token, platform: fixed }: { data: AgentsResponse; token: string; platform?: Platform }) {
   const { t } = useTranslation('inventory')
-  const [platform, setPlatform] = useState<Platform>('linux')
+  const [picked, setPlatform] = useState<Platform>('linux')
+  const platform = fixed ?? picked
   const box = data.server_url
   if (box.includes(NO_BOX_ADDRESS)) return <NoBoxAddress />
   const inst = data.install[platform]
@@ -142,12 +143,14 @@ export function InstallPanel({ data, token }: { data: AgentsResponse; token: str
   return (
     <div className="grid min-w-0 gap-4 [&>*]:min-w-0">
       <BoxAddressNote box={box} />
-      <div className="grid gap-1.5">
-        <span className="text-sm font-medium">{t('agents.platform.label')}</span>
-        <Segmented<Platform> label={t('agents.platform.label')} value={platform} onChange={setPlatform}
-          options={[{ value: 'linux', label: t('agents.platform.linux') }, { value: 'windows', label: t('agents.platform.windows') }]} />
-        <p className="text-meta text-muted">{t('agents.serverOnly')}</p>
-      </div>
+      {fixed ? null : (
+        <div className="grid gap-1.5">
+          <span className="text-sm font-medium">{t('agents.platform.label')}</span>
+          <Segmented<Platform> label={t('agents.platform.label')} value={platform} onChange={setPlatform}
+            options={[{ value: 'linux', label: t('agents.platform.linux') }, { value: 'windows', label: t('agents.platform.windows') }]} />
+          <p className="text-meta text-muted">{t('agents.serverOnly')}</p>
+        </div>
+      )}
       <div className="grid gap-1.5">
         <div className="flex items-center gap-1">
           <p className="text-sm font-medium">{t('agents.install.title')}</p>
@@ -160,6 +163,7 @@ export function InstallPanel({ data, token }: { data: AgentsResponse; token: str
         <p className="text-meta text-muted">{t(`agents.install.${platform}How`)}</p>
         {packages.length ? null : <Notice tone="warn" role="status" className="mb-0" title={t('agents.download.none')} info={t('agents.download.noneInfo')} />}
         <CodeBlock label={t(`agents.install.${platform}Label`)} code={one(box, inst.sha256, token)} />
+        {platform === 'linux' ? <p className="text-meta text-muted">{t('agents.install.worksOn')}</p> : null}
         <p className="text-meta"><span className="font-medium">{t('agents.install.sha')}:</span> <code className="break-all font-mono text-meta">{inst.sha256}</code></p>
       </div>
       <details className="rounded-md border border-rule p-3">
@@ -167,15 +171,17 @@ export function InstallPanel({ data, token }: { data: AgentsResponse; token: str
         <p className="my-2 text-meta text-muted">{t('agents.install.readFirstBody')}</p>
         <CodeBlock label={inst.url} code={inst.script} />
       </details>
-      {packages.length ? <Downloads packages={packages} /> : null}
       <div className="grid gap-1.5">
         <p className="text-sm font-medium">{t('agents.install.uninstall')}</p>
         <CodeBlock label={t(`agents.install.${platform}Label`)} code={one(box, inst.sha256, token, 'uninstall')} />
       </div>
       <div className="flex items-center gap-1"><p className="text-meta text-muted">{t('agents.install.security')}</p><InfoTip>{t('agents.install.securityInfo')}</InfoTip></div>
+      {/* The manual way (package download, then the enrollment steps) stays folded until the person opens it. */}
       <details className="rounded-md border border-rule p-3">
         <summary className="cursor-pointer text-sm font-medium">{t('agents.install.advanced')}</summary>
         <div className="mt-3 grid min-w-0 gap-4 [&>*]:min-w-0">
+          {packages.length ? <Downloads packages={packages} /> : null}
+          {platform === 'linux' ? <p className="text-meta text-muted">{t('agents.install.otherDistros')}</p> : null}
           <div className="flex items-center gap-1">
             <p className="text-meta text-muted">{t('agents.install.advancedBody')}</p>
             <InfoTip topic={t('agents.install.advanced')}><p>{t('agents.install.advancedBodyInfo')}</p><p>{t('agents.fingerprint')}</p><p>{t('agents.ownPaths')}</p></InfoTip>

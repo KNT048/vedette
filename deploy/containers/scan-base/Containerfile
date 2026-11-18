@@ -93,7 +93,7 @@ RUN set -eu; \
 
 FROM base
 ARG VERSION
-LABEL org.opencontainers.image.title="vedette-scan-base" org.opencontainers.image.version="${VERSION}" org.opencontainers.image.source="https://github.com/KNT048/vedette" org.opencontainers.image.licenses="Apache-2.0 AND MIT"
+LABEL org.opencontainers.image.authors="The Vedette authors" org.opencontainers.image.vendor="The Vedette authors" org.opencontainers.image.title="vedette-scan-base" org.opencontainers.image.version="${VERSION}" org.opencontainers.image.source="https://github.com/KNT048/vedette" org.opencontainers.image.licenses="Apache-2.0 AND MIT"
 COPY --from=build /out/vedette-sensor /vedette-sensor
 COPY --from=nuclei /out/nuclei /usr/local/bin/nuclei
 COPY --from=pack /usr/share/vedette/ /usr/share/vedette/

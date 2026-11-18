@@ -251,6 +251,7 @@ func TestNoticeTextIsPinnedToItsVersion(t *testing.T) {
 	pinned := map[string]string{
 		"2026-11-13": "37c87da3084419bf2284a452ea46dd08abb86796060c067709049f6c67cf742b",
 		"2026-11-14": "3dd8a9bbd19da97de41909fd864ef1536a1a98a1c289ac5eed7e80d5124a330f",
+		"2026-11-18": "b110d0b3bf5b79ea23b28ba3fccfd37b7ef14a23f76d83597856c66bf93b099e",
 	}
 	sum := sha256.Sum256([]byte(noticeTemplate))
 	if got := pinned[NoticeVersion]; got != hex.EncodeToString(sum[:]) {

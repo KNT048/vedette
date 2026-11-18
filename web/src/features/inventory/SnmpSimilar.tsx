@@ -20,7 +20,7 @@ export function SnmpSimilarButton({ id }: { id: string }) {
   const [open, setOpen] = useState(false)
   return (
     <>
-      <Button onClick={() => setOpen(true)}>{t('deviceSnmp.similar.button')}</Button>
+      <Button size="sm" onClick={() => setOpen(true)}>{t('deviceSnmp.similar.button')}</Button>
       {open ? <SimilarDialog id={id} onClose={() => setOpen(false)} /> : null}
     </>
   )

@@ -100,7 +100,7 @@ describe('exposure: list (S-EXP-1)', () => {
 
   // A row of the target list as the API sends it (the fields the list reads).
   const rowOf = (over: Record<string, unknown>) => ({ id: 't-ip', kind: 'ip', origin: 'box', value: '203.0.113.10', status: 'verified', method: 'box_egress', token: '', verified_at: '2026-11-13T06:02:00.000Z', expires_at: '2026-12-13T06:02:00.000Z', validity: 'valid', last_check: null,
-    commitment: { by: 'An', at: '2026-11-13T06:02:00.000Z' }, scannable: true, blocked_reason: null, scan_state: 'ready', created_at: '2026-11-13T06:02:00.000Z', last_scan_at: '2026-11-13T06:02:00.000Z', ...over })
+    commitment: { by: 'An', at: '2026-11-13T06:02:00.000Z' }, scannable: true, blocked_reason: null, scan_state: 'ready', created_at: '2026-11-13T06:02:00.000Z', last_scan_at: '2026-11-13T06:02:00.000Z', schedule: { every: 'weekly', next_at: null, note: null }, ...over })
   const BOX = { auto: true, interval_min: 60, last_run: null, retry_in_min: null }
   // The target's own page, as the API sends it: the real sample row of the box IP with what the case changes.
   async function targetPage(over: Record<string, unknown>, gateway: unknown = null) {
@@ -2207,5 +2207,55 @@ describe('exposure: what the Internet sees, Shodan InternetDB (S-EXP-1)', () => 
     renderApp('/exposure/xt-1')
     expect(await screen.findByRole('heading', { level: 2, name: 'Scan results' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'What the Internet sees' })).not.toBeInTheDocument()
+  })
+})
+
+describe('exposure: scheduled scans and the scan queue (S-EXP-1)', () => {
+  it('the target page sets how often the box scans it; the list says when next, or that the schedule is off', async () => {
+    renderApp('/exposure/xt-2')
+    const every = await screen.findByRole('combobox', { name: 'Scheduled scan' })
+    expect(every).toHaveValue('weekly') // every target starts weekly
+    expect(screen.getByText(/^Next scan /)).toBeInTheDocument()
+    await userEvent.selectOptions(every, 'off')
+    expect(await screen.findByText('Schedule off')).toBeInTheDocument()
+    expect(auditStore.get().some((a) => a.action === 'exposure.schedule' && a.detail === 'off (was weekly)')).toBe(true)
+    cleanup()
+    renderApp('/exposure')
+    const row = within(await targetsTable()).getByRole('row', { name: /203\.0\.113\.10/ })
+    expect(within(row).getByText('Schedule off')).toBeInTheDocument()
+    await expectNoA11yViolations()
+  })
+
+  it('a target without accepted testing terms says it is not scanned on schedule, and why; a viewer cannot change it', async () => {
+    renderApp('/exposure/xt-1', { role: 'viewer' })
+    expect(await screen.findByText('Not scanned on schedule: the testing terms are not accepted')).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: 'Scheduled scan' })).toBeDisabled()
+    cleanup()
+    expect((await call('PUT', '/exposure/targets/xt-1/schedule', { every: 'daily' }, 'operator')).status).toBe(403)
+    expect((await call('PUT', '/exposure/targets/xt-1/schedule', { every: 'hourly' })).json.error.code).toBe('bad_value')
+  })
+
+  it('while another target is scanned this page says so (no Stop of that scan here); Scan now queues this one, shows its place and can take it out', async () => {
+    const at = new Date().toISOString()
+    const runA = { id: 'sr-a', target_id: 'xt-1', target_value: 'acme.example', by: 'admin@acme.example', started_at: at, finished_at: null, status: 'running', phase: 'probing', snapshot_id: null, error: null, progress: null }
+    let queue: unknown[] = []
+    server.use(
+      http.get('*/api/v1/exposure/scan', () => HttpResponse.json({ ...runA, queue })),
+      http.post('*/api/v1/exposure/targets/xt-2/scan', () => {
+        queue = [{ target_id: 'xt-2', target_value: '203.0.113.10', by: 'admin@acme.example', queued_at: at, scheduled: false, starting: false }]
+        return HttpResponse.json({ ...runA, id: 'sr-b', target_id: 'xt-2', target_value: '203.0.113.10', status: 'queued', phase: 'queued', queue }, { status: 202 })
+      }),
+      http.delete('*/api/v1/exposure/targets/xt-2/queue', () => { queue = []; return new HttpResponse(null, { status: 204 }) }),
+    )
+    renderApp('/exposure/xt-2')
+    expect(await screen.findByText('Another target is being scanned (acme.example). A scan of this target now waits in the queue until it ends.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Stop' })).toBeNull()
+    expect(screen.queryByText('Scanning acme.example')).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: 'Deep scan now' }))
+    expect(await screen.findByText('Queued: starts after acme.example')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Deep scan now' })).toBeDisabled()
+    await userEvent.click(screen.getByRole('button', { name: 'Remove from queue' }))
+    expect(await screen.findByText('The scan of 203.0.113.10 was removed from the queue.')).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByText('Queued: starts after acme.example')).toBeNull())
   })
 })

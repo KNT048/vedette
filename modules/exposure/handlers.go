@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/core/server"
 )
 
-// ExposureHandlers implements the 19 exposure operations (modules/exposure/CONTRACT.md). Embed it in the
+// ExposureHandlers implements the exposure operations (modules/exposure/CONTRACT.md). Embed it in the
 // composite handler. Roles are enforced by the server pipeline before a handler runs, never here.
 //
 //nolint:revive // the name is distinct on purpose: it is embedded in cmd/vedette next to inventory.Handlers
@@ -200,6 +200,30 @@ func (h *ExposureHandlers) ExposurePutExposureTargetsIDTerms(ctx context.Context
 		return nil, ToAPIError(err)
 	}
 	return into[oas.ExposurePutExposureTargetsIDTermsOK](v)
+}
+
+// ExposurePutExposureTargetsIDSchedule implements exposure_put_exposure_targets_id_schedule (admin): how often the box scans the
+// target by itself (INV-36).
+func (h *ExposureHandlers) ExposurePutExposureTargetsIDSchedule(ctx context.Context, req *oas.ExposurePutExposureTargetsIDScheduleReq, params oas.ExposurePutExposureTargetsIDScheduleParams) (*oas.ExposurePutExposureTargetsIDScheduleOK, error) {
+	user, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	v, err := h.svc.SetSchedule(ctx, user, params.ID, Every(req.Every))
+	if err != nil {
+		return nil, ToAPIError(err)
+	}
+	return into[oas.ExposurePutExposureTargetsIDScheduleOK](v)
+}
+
+// ExposureDeleteExposureTargetsIDQueue implements exposure_delete_exposure_targets_id_queue (operator): the scan of the target that
+// waits in the queue leaves it (INV-36).
+func (h *ExposureHandlers) ExposureDeleteExposureTargetsIDQueue(ctx context.Context, params oas.ExposureDeleteExposureTargetsIDQueueParams) error {
+	user, err := actor(ctx)
+	if err != nil {
+		return err
+	}
+	return ToAPIError(h.svc.Unqueue(ctx, user, params.ID))
 }
 
 // ExposureDeleteExposureTargetsIDTerms implements exposure_delete_exposure_targets_id_terms (admin): withdraw the testing terms.

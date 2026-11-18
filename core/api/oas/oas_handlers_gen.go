@@ -17375,6 +17375,149 @@ func (s *Server) handleExposureDeleteExposureTargetsIDRequest(args [1]string, ar
 	}
 }
 
+// handleExposureDeleteExposureTargetsIDQueueRequest handles exposure_delete_exposure_targets_id_queue operation.
+//
+// Take the scan of this target that waits in the queue out of it (a Scan now or a scheduled scan). 409
+// not_queued when none waits, or its checks have started (stop it once it runs). Audited as
+// exposure.scan.
+//
+// DELETE /exposure/targets/{id}/queue
+func (s *Server) handleExposureDeleteExposureTargetsIDQueueRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ExposureDeleteExposureTargetsIDQueueOperation,
+			ID:   "exposure_delete_exposure_targets_id_queue",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, ExposureDeleteExposureTargetsIDQueueOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+	params, err := decodeExposureDeleteExposureTargetsIDQueueParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response *ExposureDeleteExposureTargetsIDQueueNoContent
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ExposureDeleteExposureTargetsIDQueueOperation,
+			OperationSummary: "Take the scan of this target that waits in the queue out of it (a Scan now or a scheduled scan). 409 not_queued when none waits, or its checks have started (stop it once it runs). Audited as exposure.scan",
+			OperationID:      "exposure_delete_exposure_targets_id_queue",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = ExposureDeleteExposureTargetsIDQueueParams
+			Response = *ExposureDeleteExposureTargetsIDQueueNoContent
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackExposureDeleteExposureTargetsIDQueueParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				err = s.h.ExposureDeleteExposureTargetsIDQueue(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		err = s.h.ExposureDeleteExposureTargetsIDQueue(ctx, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeExposureDeleteExposureTargetsIDQueueResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleExposureDeleteExposureTargetsIDTermsRequest handles exposure_delete_exposure_targets_id_terms operation.
 //
 // Withdraw the testing terms of a target: always possible; the next scan runs in the scope of the Scan
@@ -17649,7 +17792,8 @@ func (s *Server) handleExposureGetExposureGreenboneRequest(args [0]string, argsE
 // handleExposureGetExposureScanRequest handles exposure_get_exposure_scan operation.
 //
 // The scan that runs now, or the last one (status done, failed or stopped, with its error or
-// snapshot_id); null when no scan has run since the box started (the run is kept in memory only).
+// snapshot_id), with the scans that wait (queue); null when no scan has run since the box started (the
+// run and the queue are kept in memory only).
 //
 // GET /exposure/scan
 func (s *Server) handleExposureGetExposureScanRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -17718,7 +17862,7 @@ func (s *Server) handleExposureGetExposureScanRequest(args [0]string, argsEscape
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ExposureGetExposureScanOperation,
-			OperationSummary: "The scan that runs now, or the last one (status done, failed or stopped, with its error or snapshot_id); null when no scan has run since the box started (the run is kept in memory only)",
+			OperationSummary: "The scan that runs now, or the last one (status done, failed or stopped, with its error or snapshot_id), with the scans that wait (queue); null when no scan has run since the box started (the run and the queue are kept in memory only)",
 			OperationID:      "exposure_get_exposure_scan",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -19349,12 +19493,15 @@ func (s *Server) handleExposurePostExposureTargetsIDOutsideRequest(args [1]strin
 // MX and NS records and a list of common names (looked up through the box's DNS resolver) are listed
 // with the kind of each address (INV-27) and get one GET of / by name on ports 80 and 443; the deep
 // steps beyond that go to the box's own address, and to a typed IP or an address of a domain through
-// the executors' own fence. 409 module_off while the External exposure module is off; 409 busy while
-// another scan runs on the box; 429 rate_limited within 10 minutes of the target's last scan. Failures
-// that come while the scan runs (400 too_many when the domain has more than 300 names in the logs; 502
-// unreachable when the certificate-transparency search (crt.sh) does not answer or the scan does not
-// finish within 5 minutes; module_off when the module is switched off meanwhile) end the run as status
-// failed with that code and text, and nothing is saved. Every attempt is audited.
+// the executors' own fence. 409 module_off while the External exposure module is off. While another
+// scan runs on the box (or others wait) the scan waits in the box's queue: 202 with status queued and
+// the queue, the checks above run again right before it starts, and GET /exposure/scan lists it until
+// then (409 busy only for the target whose scan runs now). 429 rate_limited within 10 minutes of the
+// target's last scan. Failures that come while the scan runs (400 too_many when the domain has more
+// than 300 names in the logs; 502 unreachable when the certificate-transparency search (crt.sh) does
+// not answer or the scan does not finish within 5 minutes; module_off when the module is switched off
+// meanwhile) end the run as status failed with that code and text, and nothing is saved. Every attempt
+// is audited.
 //
 // POST /exposure/targets/{id}/scan
 func (s *Server) handleExposurePostExposureTargetsIDScanRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -19448,7 +19595,7 @@ func (s *Server) handleExposurePostExposureTargetsIDScanRequest(args [1]string, 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ExposurePostExposureTargetsIDScanOperation,
-			OperationSummary: "Scan now. Answers at once with 202 and the run (ScanRun, status running): the scan itself goes on in the background and the page polls GET /exposure/scan. The checks below still answer synchronously. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked right before the scan); 409 proof_missing when the proof of a typed IP is not found now (looked for again right before the scan); 409 ip_not_current when an IP is no longer the one the box goes out through (the latest check, or a fresh full check just before the scan, must see it); 400 commitment_required when the commitment is missing and the caller is an operator (an administrator must run the first scan). For an administrator that first scan IS the confirmation: it needs two-step sign-in on the account (403 twofa_required otherwise) and `notice_version` of the sentence shown next to the button (400 commitment_required when left out, 409 notice_changed when it is not the current one); the commitment is then recorded with who, when and that exact sentence, and the scan goes on. A target whose commitment is of the current sentence records nothing again; one of an older sentence is asked again once: it counts as missing (operators get 400 commitment_required \"the confirmation text changed\"), a request without notice_version gets 409 notice_changed, and the administrator's press replaces it. After those checks the scan module's runner does the scan (it follows this module's switch, so the Vulnerability scans module may be off): ports and pages are scanned on the box's own verified public IPs and on a typed public IP while its proof is found (looked for again right before, one live result reused for 5 minutes); a domain's names from certificate transparency, its MX and NS records and a list of common names (looked up through the box's DNS resolver) are listed with the kind of each address (INV-27) and get one GET of / by name on ports 80 and 443; the deep steps beyond that go to the box's own address, and to a typed IP or an address of a domain through the executors' own fence. 409 module_off while the External exposure module is off; 409 busy while another scan runs on the box; 429 rate_limited within 10 minutes of the target's last scan. Failures that come while the scan runs (400 too_many when the domain has more than 300 names in the logs; 502 unreachable when the certificate-transparency search (crt.sh) does not answer or the scan does not finish within 5 minutes; module_off when the module is switched off meanwhile) end the run as status failed with that code and text, and nothing is saved. Every attempt is audited",
+			OperationSummary: "Scan now. Answers at once with 202 and the run (ScanRun, status running): the scan itself goes on in the background and the page polls GET /exposure/scan. The checks below still answer synchronously. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked right before the scan); 409 proof_missing when the proof of a typed IP is not found now (looked for again right before the scan); 409 ip_not_current when an IP is no longer the one the box goes out through (the latest check, or a fresh full check just before the scan, must see it); 400 commitment_required when the commitment is missing and the caller is an operator (an administrator must run the first scan). For an administrator that first scan IS the confirmation: it needs two-step sign-in on the account (403 twofa_required otherwise) and `notice_version` of the sentence shown next to the button (400 commitment_required when left out, 409 notice_changed when it is not the current one); the commitment is then recorded with who, when and that exact sentence, and the scan goes on. A target whose commitment is of the current sentence records nothing again; one of an older sentence is asked again once: it counts as missing (operators get 400 commitment_required \"the confirmation text changed\"), a request without notice_version gets 409 notice_changed, and the administrator's press replaces it. After those checks the scan module's runner does the scan (it follows this module's switch, so the Vulnerability scans module may be off): ports and pages are scanned on the box's own verified public IPs and on a typed public IP while its proof is found (looked for again right before, one live result reused for 5 minutes); a domain's names from certificate transparency, its MX and NS records and a list of common names (looked up through the box's DNS resolver) are listed with the kind of each address (INV-27) and get one GET of / by name on ports 80 and 443; the deep steps beyond that go to the box's own address, and to a typed IP or an address of a domain through the executors' own fence. 409 module_off while the External exposure module is off. While another scan runs on the box (or others wait) the scan waits in the box's queue: 202 with status queued and the queue, the checks above run again right before it starts, and GET /exposure/scan lists it until then (409 busy only for the target whose scan runs now). 429 rate_limited within 10 minutes of the target's last scan. Failures that come while the scan runs (400 too_many when the domain has more than 300 names in the logs; 502 unreachable when the certificate-transparency search (crt.sh) does not answer or the scan does not finish within 5 minutes; module_off when the module is switched off meanwhile) end the run as status failed with that code and text, and nothing is saved. Every attempt is audited",
 			OperationID:      "exposure_post_exposure_targets_id_scan",
 			Body:             request,
 			RawBody:          rawBody,
@@ -19939,6 +20086,169 @@ func (s *Server) handleExposurePutExposureGreenboneRequest(args [0]string, argsE
 	}
 
 	if err := encodeExposurePutExposureGreenboneResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleExposurePutExposureTargetsIDScheduleRequest handles exposure_put_exposure_targets_id_schedule operation.
+//
+// Set how often the box scans this target by itself: off, daily, weekly (the default) or monthly,
+// counted from the start of its newest scan. A scheduled scan runs as the box inside the scan window
+// of Settings › Scanning › Safety, only while the ownership proof holds and the testing terms of
+// the current version are accepted (else it is skipped and schedule.note says why), with the same
+// steps as Deep scan now (OpenVAS only while it is turned on); it waits in the queue like any scan.
+// What it finds new since the scan before (an open port, an admin page, a certificate now expiring
+// within 30 days, an exploited vulnerability newly matched) goes to the alert channels. 400 bad_value
+// for another value. Audited (exposure.schedule).
+//
+// PUT /exposure/targets/{id}/schedule
+func (s *Server) handleExposurePutExposureTargetsIDScheduleRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ExposurePutExposureTargetsIDScheduleOperation,
+			ID:   "exposure_put_exposure_targets_id_schedule",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, ExposurePutExposureTargetsIDScheduleOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+	params, err := decodeExposurePutExposureTargetsIDScheduleParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeExposurePutExposureTargetsIDScheduleRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response *ExposurePutExposureTargetsIDScheduleOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ExposurePutExposureTargetsIDScheduleOperation,
+			OperationSummary: "Set how often the box scans this target by itself: off, daily, weekly (the default) or monthly, counted from the start of its newest scan. A scheduled scan runs as the box inside the scan window of Settings › Scanning › Safety, only while the ownership proof holds and the testing terms of the current version are accepted (else it is skipped and schedule.note says why), with the same steps as Deep scan now (OpenVAS only while it is turned on); it waits in the queue like any scan. What it finds new since the scan before (an open port, an admin page, a certificate now expiring within 30 days, an exploited vulnerability newly matched) goes to the alert channels. 400 bad_value for another value. Audited (exposure.schedule)",
+			OperationID:      "exposure_put_exposure_targets_id_schedule",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *ExposurePutExposureTargetsIDScheduleReq
+			Params   = ExposurePutExposureTargetsIDScheduleParams
+			Response = *ExposurePutExposureTargetsIDScheduleOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackExposurePutExposureTargetsIDScheduleParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ExposurePutExposureTargetsIDSchedule(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ExposurePutExposureTargetsIDSchedule(ctx, request, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeExposurePutExposureTargetsIDScheduleResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

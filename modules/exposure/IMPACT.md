@@ -1,6 +1,14 @@
 # Exposure — Change Impact Map
 
 
+## Modifying: `exp_target.scan_every`/`sched_*`, `Every`, `RunSchedule`, `ScanWindow`/`Config.Window`, `Alert`/`Config.Alert`, the queue (`queueIfBusy`, `dispatch`, `begin`'s `q`), `ScanRun.queue|scheduled`, `TargetView.schedule`, `scan_state: queued` (INV-36)
+- **cmd/vedette** `exposure.go`: `exposureWindow` reads the inventory's shared window (`Settings().Active.Days/From/To`, the block Settings › Scanning › Safety saves); a change to that block's shape changes when scheduled scans start. `cfg.Alert` sends through `newNotify(&d).Publish` as an incident-kind system notice (notify PRE-1): a change of notify's severities or of `ErrModuleOff` touches it. `scanning.go` `external()` reads `CurrentScan()`: a queued scan is not a running job there, only the run is.
+- **modules/core** `export_policy.go` lists the four new columns of `exp_target` (exported as stored).
+- **SPA** `features/exposure`: `SchedulePanel` (target page, the select and next time), `ScanProgress` (`targetId`: this target's run only, another target's run as one line, the queue place with Remove from queue; on the list it names the scans that wait), `TargetPage` (the button is held only by this target's run or place), `ExposurePage` `ScanCell`/`ScheduleLine`, `api.ts` (`useScanRun` polls while scans wait, `useTarget` while it is queued, `useScan` does not put a queued answer in the run's cache), mocks (`schedules`, no queue). A new `scan_state` or `ScanRun.status` needs `contract.ts` and the two components.
+- **PRIVACY.md flow 9** and Settings › Privacy (`core.json` `privacy.flow.9`): scheduled scans send the same requests as Scan now, by themselves; a change of what they send or when changes both.
+- `begin` refuses (409 busy) a start without a queued entry while scans wait: a new caller of `begin` (another kind of run) must queue or accept that.
+
+
 ## Modifying: `exp_snapshot.started_at`/`finished_at`, `exp_target.last_scan_at`, `Config.Zone`, `GreenboneRun.ended_at|stop|again`, `StartOpenVAS`, `openVASPart`, `stoppedBy` (INV-34)
 - **web/features/exposure**: `TargetPage` (header "Last scanned <start>, finished <end>"), `ResultsPanel` (pickers, compare labels, the result line), `SurfacePanel`, `GreenbonePanel` (stop reason with its time, "Run OpenVAS again"), `ScanProgress` (`openvas_only`), mocks and `data.ts`. A new stop reason = `GreenboneStop` in `contract.ts`, `greenbone.results.stop.*` in `locales/en/exposure.json`, `stopWhy`.
 - **cmd/vedette** `scanninghistory.go` (`exposureHistory`) names a scan by `StartedAt` and ends it at `FinishedAt`; `exposure.go` wires `Config.Zone` to the organization's time zone (`orgLocation`). `modules/core/export_policy.go` exports the two new columns (`TestExport`).

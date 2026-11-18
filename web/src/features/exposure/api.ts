@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { BoxIpDetectResult, BoxIpSettings, Diff, Greenbone, OutsideView, ScanRun, Snapshot, SnapshotMeta, Target, TargetKind, TargetList, VerifyResult } from './types'
+import type { BoxIpDetectResult, BoxIpSettings, Diff, Greenbone, OutsideView, ScanRun, ScheduleEvery, Snapshot, SnapshotMeta, Target, TargetKind, TargetList, VerifyResult } from './types'
 
 export const useTargets = (o: { enabled?: boolean } = {}) => useQuery({ queryKey: ['exposure', 'targets'], queryFn: () => api.get<TargetList>('/exposure/targets'), enabled: o.enabled ?? true })
-export const useTarget = (id: string) => useQuery({ queryKey: ['exposure', 'target', id], queryFn: () => api.get<Target>(`/exposure/targets/${encodeURIComponent(id)}`), retry: false })
+// A queued target is read again while it waits, so its page sees the scan start (or why it did not)
+export const useTarget = (id: string) => useQuery({ queryKey: ['exposure', 'target', id], queryFn: () => api.get<Target>(`/exposure/targets/${encodeURIComponent(id)}`), retry: false,
+  refetchInterval: (q) => (q.state.data?.scan_state === 'queued' ? scanPoll.ms : false) })
 export const useSnapshots = (id: string) => useQuery({ queryKey: ['exposure', 'snapshots', id], queryFn: () => api.get<{ items: SnapshotMeta[] }>(`/exposure/targets/${encodeURIComponent(id)}/snapshots`) })
 export const useSnapshot = (id: string, date: string | null) =>
   useQuery({ queryKey: ['exposure', 'snapshot', id, date], queryFn: () => api.get<Snapshot>(`/exposure/targets/${encodeURIComponent(id)}/snapshots/${date}`), enabled: !!date })
@@ -16,7 +18,8 @@ export const scanPoll = { ms: 5000 }
 export const useScanRun = (enabled = true) => useQuery({
   queryKey: ['exposure', 'scan'], queryFn: () => api.get<ScanRun | null>('/exposure/scan'), enabled,
   // a failed poll slows down but does not stop while the last answer says running, so the row cannot hang on "Scanning"
-  refetchInterval: (q) => (q.state.data?.status === 'running' ? (q.state.status === 'error' ? scanPoll.ms * 5 : scanPoll.ms) : false) })
+  // INV-36: also while scans wait in the queue, so the next one is seen when it starts
+  refetchInterval: (q) => (q.state.data?.status === 'running' || (q.state.data?.queue?.length ?? 0) > 0 ? (q.state.status === 'error' ? scanPoll.ms * 5 : scanPoll.ms) : false) })
 
 function useInvalidate() {
   const qc = useQueryClient()
@@ -64,8 +67,19 @@ export function useScan() {
   // onError too: a refused scan may have found the IP paused, and the page must then show it (the answer is a state of the target).
   return useMutation({ // noticeVersion: the version of the sentence shown next to the button; the server records it with the first scan of a target.
     mutationFn: ({ id, noticeVersion }: { id: string; noticeVersion?: string }) => api.post<ScanRun>(`/exposure/targets/${encodeURIComponent(id)}/scan`, noticeVersion ? { notice_version: noticeVersion } : undefined),
-    // the 202 run goes into the cache at once, so a run that ends before the first poll still ends a "running" the page has seen
-    onSuccess: (run) => { qc.setQueryData(['exposure', 'scan'], run); return inv() }, onError: inv })
+    // the 202 run goes into the cache at once, so a run that ends before the first poll still ends a "running" the page has seen;
+    // a queued one is not the box's run: the run that runs now is read again, with the queue
+    onSuccess: (run) => { if (run.status !== 'queued') qc.setQueryData(['exposure', 'scan'], run); return inv() }, onError: inv })
+}
+/** INV-36: how often the box scans a target by itself (admin). */
+export function useSetSchedule(id: string) {
+  const inv = useInvalidate()
+  return useMutation({ mutationFn: (every: ScheduleEvery) => api.put<Target>(`/exposure/targets/${encodeURIComponent(id)}/schedule`, { every }), onSuccess: inv })
+}
+/** INV-36: take the scan of a target that waits in the queue out of it (operator). */
+export function useUnqueue() {
+  const inv = useInvalidate()
+  return useMutation({ mutationFn: (id: string) => api.del<void>(`/exposure/targets/${encodeURIComponent(id)}/queue`), onSuccess: inv, onError: inv })
 }
 /** OpenVAS again, on its own, for the newest scan of a public IP whose OpenVAS step did not finish (operator). Its outcome replaces that
  *  step in the same scan; the page follows the run like a scan (GET /exposure/scan). */

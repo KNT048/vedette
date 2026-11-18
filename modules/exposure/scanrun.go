@@ -53,6 +53,10 @@ type ScanRun struct {
 	// Progress is how far the step that runs now is (#830): the nmap and nuclei jobs of the scan module as the scan worker reports
 	// them, OpenVAS's own percent in the greenbone phase. Only while the run is running; null otherwise. In memory, like the run.
 	Progress *progress.View `json:"progress"`
+	// Scheduled: the run is a scheduled scan of the target (INV-36), started by the box.
+	Scheduled bool `json:"scheduled,omitempty"`
+	// Queue is the scans that wait after this one, in order (INV-36); left out when none waits.
+	Queue []QueuedScan `json:"queue,omitempty"`
 }
 
 // RunError is why a run failed: the code and text of the API error the synchronous scan used to answer.
@@ -75,6 +79,7 @@ type scanRun struct {
 	gbSnap      string            // the snapshot whose OpenVAS step runs now (set under runMu): its "running" is real
 	prog        *progress.Tracker // #830: the progress of the run; its context carries it to the jobs that report
 	steps       *stepLog          // #861 (INV-30): what nuclei, ZAP and OpenVAS did in this run; its context carries it to the steps
+	queued      *queuedScan       // INV-36: the queued scan this run is (nil for a scan that started at once); a scheduled one compares
 }
 
 // stoppedBy is the cause of a run's context when someone stopped it, the module was switched off, the box shut down or the
@@ -139,8 +144,9 @@ func stopWhy(st *GreenboneStop) string {
 // service identification and the templates, 8 minutes a page for ZAP, 90 minutes for the optional Greenbone step;
 // 70 minutes for the service step of a deep scan, FullServicesTimeout), or on StopScan. No cap covers the whole run.
 //
-// With a (POST …/openvas) the run is OpenVAS again on a's snapshot (executeAgain): it needs no runner.
-func (s *Service) begin(ctx context.Context, user string, t Target, reason BlockedReason, a *again) (*scanRun, error) {
+// With a (POST …/openvas) the run is OpenVAS again on a's snapshot (executeAgain): it needs no runner. With q the run is that queued
+// scan (INV-36): it takes q's id and leaves the queue; without q, scans that wait go first (409 busy).
+func (s *Service) begin(ctx context.Context, user string, t Target, reason BlockedReason, a *again, q *queuedScan) (*scanRun, error) {
 	if reason != "" {
 		return nil, s.refusal(t, reason, s.clock())
 	}
@@ -156,16 +162,17 @@ func (s *Service) begin(ctx context.Context, user string, t Target, reason Block
 	if s.run != nil && s.run.view.Status == RunRunning {
 		return nil, ErrScanBusy
 	}
+	if q == nil && len(s.queue) > 0 { // the scans that wait go first
+		return nil, ErrScanBusy
+	}
 	if s.feedSync {
 		return nil, s.errScanFeedSync(s.feedSyncAt)
 	}
 	now := s.clock()
-	last, had := s.lastScan[t.ID]
-	if had && now.Sub(last) < ScanEvery && !last.After(now) {
-		next := last.Add(ScanEvery)
-		return nil, apiErr(429, "rate_limited", "%s was scanned at %s. Scan it again after %s: at most one scan of a target every %d minutes.",
-			t.Value, s.momentText(last), s.momentText(next), int(ScanEvery/time.Minute))
+	if err := s.tooSoonLocked(t, now); err != nil {
+		return nil, err
 	}
+	last, had := s.lastScan[t.ID]
 	// The run's mode comes from a fresh read of the terms under runMu: a withdrawal committed while the gate ran
 	// is seen here, and one that comes later finds this run registered and stops it (stopRunAbove takes runMu too).
 	fresh, err := loadTarget(ctx, s.cfg.DB.Reader(), t.ID)
@@ -180,6 +187,10 @@ func (s *Service) begin(ctx context.Context, user string, t Target, reason Block
 		steps: &stepLog{},
 	}
 	rctx = withSteps(progress.WithSink(rctx, run.prog), run.steps)
+	if q != nil { // the queued scan starts: it keeps the id its place had and leaves the queue
+		run.view.ID, run.view.Scheduled, run.queued = q.id, q.scheduled, q
+		s.removeLocked(q)
+	}
 	s.run = run
 	if a != nil { // no runner step: the run is the OpenVAS step from the start
 		run.view.OpenVASOnly, run.view.Phase = true, PhaseGreenbone
@@ -188,6 +199,17 @@ func (s *Service) begin(ctx context.Context, user string, t Target, reason Block
 	}
 	go s.execute(rctx, run, r, user, t)
 	return run, nil
+}
+
+// tooSoonLocked is the 429 of a target scanned less than ScanEvery ago (nil otherwise). The caller holds runMu.
+func (s *Service) tooSoonLocked(t Target, now time.Time) error {
+	last, had := s.lastScan[t.ID]
+	if had && now.Sub(last) < ScanEvery && !last.After(now) {
+		next := last.Add(ScanEvery)
+		return apiErr(429, "rate_limited", "%s was scanned at %s. Scan it again after %s: at most one scan of a target every %d minutes.",
+			t.Value, s.momentText(last), s.momentText(next), int(ScanEvery/time.Minute))
+	}
+	return nil
 }
 
 func (s *Service) setPhase(run *scanRun, phase string) {
@@ -445,7 +467,11 @@ func (s *Service) finish(ctx context.Context, run *scanRun, user string, t Targe
 		}
 	}
 	s.runMu.Unlock()
+	if q := run.queued; q != nil && q.scheduled && err == nil { // INV-36: what is new since the scan before goes to the alert channels
+		s.alertChanges(ctx, t, q.prev, run.snap)
+	}
 	close(run.done)
+	s.dispatch() // the next scan that waits
 }
 
 func (s *Service) runView(run *scanRun) ScanRun {
@@ -471,6 +497,7 @@ func (s *Service) CurrentScan() *ScanRun {
 		return nil
 	}
 	v := s.run.withProgress()
+	v.Queue = s.queueViewsLocked()
 	return &v
 }
 
@@ -516,6 +543,9 @@ func (s *Service) StopScan(ctx context.Context, by string) (ScanRun, bool) {
 func (s *Service) ModuleSwitched(enabled bool) {
 	s.runMu.Lock()
 	s.off = !enabled
+	if !enabled { // the scans that wait do not run; a scheduled one is queued again by the schedule once the module is on
+		s.clearQueueLocked()
+	}
 	s.runMu.Unlock()
 	if !enabled {
 		s.cancelRunWith(&stoppedBy{by: "the box (the Exposure module was switched off)", why: stopWhy(&GreenboneStop{Reason: StopModule}), reason: StopModule})
@@ -533,6 +563,7 @@ const closeWait = 30 * time.Second
 func (s *Service) Close() {
 	s.runMu.Lock()
 	s.closed = true
+	s.clearQueueLocked()
 	s.runMu.Unlock()
 	g := s.gb() // a Greenbone start that is still pulling images, or its feed update, ends with the box
 	g.mu.Lock()

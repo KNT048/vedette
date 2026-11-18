@@ -26,6 +26,8 @@ afterEach(() => { server.events.removeAllListeners() }) // #849: a failing test 
 
 const BASE = `${location.origin}/api/v1/inventory`
 const T = { timeout: 5000 }
+/** The device list's own count line ("34 devices, 2 not yet approved"); the pager next to it has a status of its own ("1–34 of 34"). */
+const countLine = () => { const l = screen.queryAllByRole('status').filter((s) => /devices/.test(s.textContent ?? '')); expect(l).toHaveLength(1); return l[0] }
 const asAdmin = () => sessionStore.set({ userId: 'u-admin' })
 async function call(method: string, path: string, body?: unknown) {
   const res = await fetch(`${BASE}${path}`, { method, headers: { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) })
@@ -87,7 +89,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     await toggleFilter(user, new RegExp(`^Fragile ${fragile}$`))
     table = screen.getByRole('table', { name: DEVICE_TABLE })
     expect(within(table).getAllByRole('row')).toHaveLength(fragile + 1)
-    expect(screen.getByRole('status')).toHaveTextContent(`${fragile} of `)
+    expect(countLine()).toHaveTextContent(`${fragile} of `)
     // a token typed by hand, offered by the list: type: then a value
     await user.clear(box)
     await user.type(box, 'type:')
@@ -406,11 +408,11 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     await deviceTable()
     const total = assetsStore.get().length
     const approved = assetsStore.get().filter((a) => a.approved).length
-    expect(await screen.findByRole('status')).toHaveTextContent(`${total} devices, 2 not yet approved`)
+    await waitFor(() => expect(countLine()).toHaveTextContent(`${total} devices, 2 not yet approved`), T)
     await toggleFilter(user, /^Fragile/)
     const fragile = assetsStore.get().filter((a) => a.fragile && a.approved).length
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(`${fragile} of ${approved} devices shown · 2 not yet approved`), T)
-    expect(screen.getAllByRole('status')).toHaveLength(1)
+    await waitFor(() => expect(countLine()).toHaveTextContent(`${fragile} of ${approved} devices shown · 2 not yet approved`), T)
+    expect(screen.getAllByRole('status').filter((s) => /devices/.test(s.textContent ?? ''))).toHaveLength(1) // the pager's range names rows, not devices
     await user.type(screen.getByRole('combobox', { name: 'Search devices' }), 'zzz')
     await user.click(await screen.findByRole('button', { name: 'Clear filters' }, T))
     expect(screen.getByRole('combobox', { name: 'Search devices' })).toHaveValue('')

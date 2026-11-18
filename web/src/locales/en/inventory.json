@@ -247,6 +247,16 @@
     "line": "Line {{line}}:",
     "close": "Close"
   },
+  "detectedNotice": {
+    "label": "Detected {{field}}",
+    "text": "Detected {{field}}: {{value}} ({{source}}, {{when}}).",
+    "use": "Use detected",
+    "keep": "Keep mine",
+    "used": "The {{field}} is now {{value}}.",
+    "kept": "Keeping your value. This notice shows again if the detected value changes.",
+    "field": { "hostname": "host name", "vendor": "maker", "model": "model", "os": "OS", "kind": "type" },
+    "source": { "agent": "agent", "snmp": "SNMP", "stated": "announced by the device", "passive": "announced by the device" }
+  },
   "detail": {
     "back": "Device list",
     "title": "{{name}}: {{kind}}, last seen {{when}}",

@@ -23,6 +23,7 @@ import type { AssetKind, Service } from '@/lib/types'
 import { categoryLabel, categoryOf, kindLabel, TYPES_BY_CATEGORY } from '@/lib/deviceTypes'
 import { AddDeviceDialog } from './AddDeviceDialog'
 import { useDevice, useDeviceAction } from './api'
+import { DetectedNotice } from './DetectedNotice'
 import { useScanning } from '@/features/scanning/api'
 import { scanRefusal } from '@/features/scanning/canScan'
 import type { Scanning } from '@/features/scanning/types'
@@ -80,6 +81,7 @@ function Overview({ d }: { d: DeviceDetail }) {
           {a.kind !== 'unknown' ? <span className="text-meta text-muted">{categoryLabel(categoryOf(a.kind))}</span> : null}
           {a.kind_source ? <span className="text-caption text-muted">{t('detail.kindFrom')} <SourceBadge source={a.kind_source} /></span> : null}
         </span>
+        <DetectedNotice d={d} field="kind" />
         {guess ? (
           <div className="mt-2 grid max-w-2xl gap-1.5 rounded-md border border-border p-3" data-testid="kind-guess">
             <div className="flex items-center gap-1">
@@ -116,10 +118,10 @@ function Overview({ d }: { d: DeviceDetail }) {
           {row(t('detail.firstScan'), a.first_scan_at ? fmtDateTime(a.first_scan_at) : <span className="text-muted">{t('detail.firstScanNone')}</span>)}
         </>
       ) : null}
-      {row(t('detail.maker'), <Identity v={a.vendor} />)}
-      {row(t('detail.model'), <Identity v={a.model} />)}
-      {row(t('detail.os'), <Identity v={a.os} />)}
-      {row(hostnameObs(d)?.source === 'manual' ? t('detail.hostnameManual') : t('detail.hostname'), <HostName d={d} />)}
+      {row(t('detail.maker'), <><Identity v={a.vendor} /><DetectedNotice d={d} field="vendor" /></>)}
+      {row(t('detail.model'), <><Identity v={a.model} /><DetectedNotice d={d} field="model" /></>)}
+      {row(t('detail.os'), <><Identity v={a.os} /><DetectedNotice d={d} field="os" /></>)}
+      {row(hostnameObs(d)?.source === 'manual' ? t('detail.hostnameManual') : t('detail.hostname'), <><HostName d={d} /><DetectedNotice d={d} field="hostname" /></>)}
       {row(t('detail.ip'), a.ip)}
       {row(t('detail.mac'), a.mac ?? <span className="text-muted">{t('common:unknown')}</span>)}
       {/* a hand-added device's first_seen is when a person added it, not a sighting; last_seen is one only once a report moved it */}

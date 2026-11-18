@@ -19,6 +19,7 @@ import type { SoftwareView } from '@/features/inventory/types'
 import { isOsSoftware, IUpdated, TypedVersionDialog, type UpdatedSoftware } from './Updated'
 import { RiskMarker } from '@/features/inventory/RiskMarker'
 import { NotAdded, NotAddedChip, notAdded } from './NotAdded'
+import { RowActions } from './Handle'
 
 /** An action that updates the operating system itself (its new build shows only after a restart): Windows' cumulative update, or a
  *  row that is the OS or the kernel (its "vendor|product"). */
@@ -91,17 +92,16 @@ function Action({ a, planned, box, asset, typed }: { a: ToFixAction; planned: bo
           <span className="ml-2 text-meta text-accent underline-offset-4 group-open:hidden">{t('toFix.showCves', { count: a.cves.length })}</span>
           <span className="ml-2 hidden text-meta text-accent underline-offset-4 group-open:inline">{t('toFix.hideCves')}</span>
         </summary>
-        <ul aria-label={t('toFix.cvesOf', { action: a.action })} className="mt-1 flex flex-wrap gap-x-3 gap-y-1 pl-4 text-meta">
+        {/* a finding to fix: one line each, with Mark as handled right there; a planned CVE (no finding) only links to its page */}
+        <ul aria-label={t('toFix.cvesOf', { action: a.action })} className={planned ? 'mt-1 flex flex-wrap gap-x-3 gap-y-1 pl-4 text-meta' : 'mt-1 grid gap-1 pl-4 text-meta'}>
           {a.cves.map((c, i) => (
-            <li key={c}>
+            <li key={c} className={planned ? undefined : 'flex flex-wrap items-center gap-x-3 gap-y-1'}>
               {a.finding_ids[i] ? <Link to={`/findings/${encodeURIComponent(a.finding_ids[i]!)}`} className="text-accent underline-offset-4 hover:underline">{c}</Link>
                 : <Link to={`/cve/${encodeURIComponent(c)}`} className="text-accent underline-offset-4 hover:underline">{c}</Link>}
+              {!planned && a.finding_ids[i] ? <RowActions f={{ id: a.finding_ids[i]!, cve: c, asset }} /> : null}
             </li>
           ))}
         </ul>
-        {!planned && a.kind !== 'none' && a.finding_ids.length > 1 ? (
-          <Link to={`/findings?tab=open&fix=${encodeURIComponent(a.group)}`} className="mt-1 inline-block pl-4 text-meta text-accent underline underline-offset-4">{t('fix.select', { count: a.finding_ids.length })}</Link>
-        ) : null}
       </details>
       <ActionButton a={a} box={box} />
       {/* The same "I updated it" as the finding page: a typed version once per software, under its last row (typedSoftware); an
@@ -230,6 +230,8 @@ function ByFix({ devices }: { devices: ToFixDevice[] }) {
                     <Link to={`/devices/${encodeURIComponent(d.asset.id)}`} className="font-medium text-accent underline-offset-4 hover:underline">{deviceName(d.asset, t('removedDevice'))}</Link>
                     {' '}<NotAddedChip asset={d.asset} />{' '}<RiskMarker id={d.asset.id} risk={d.risk} className="align-middle" />
                     <span className="text-muted">{': '}{a.action}, {a.cves.length === 0 ? t(noCvesKey(a.nvd_lag)) : <>{t(a.nvd_lag ? 'toFix.cveCountAtLeast' : 'toFix.cveCount', { count: a.cves.length })}{a.nvd_lag ? t('plan.nvdLag') : null}</>}</span>
+                    {/* as the By device cards: a device nobody approved yet offers Add device and Ignore on its line */}
+                    {notAdded(d.asset) ? <div className="mt-1"><NotAdded asset={d.asset} findings={a.cves.length} /></div> : null}
                   </li>
                 ))}
               </ul>

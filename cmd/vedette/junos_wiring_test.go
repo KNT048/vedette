@@ -279,3 +279,33 @@ func TestWiringVulnsCarryTemplateAndPublished(t *testing.T) {
 		t.Fatalf("no template, no published day: %+v", v)
 	}
 }
+
+// "A safe check exists" (KevInfo.HasTemplate, To fix's Checkable) is the scan's own pack, never the feed flag: the feed says
+// EternalBlue has a nuclei template the pack does not ship, and nothing for a FortiOS CVE the pack does check (an offline box).
+func TestWiringSafeCheckIsTheScansPack(t *testing.T) {
+	t.Parallel()
+	if safeCheckFor("CVE-2017-0144") || !safeCheckFor("CVE-2018-13379") {
+		t.Fatal("the pack index: CVE-2017-0144 has no template in it, CVE-2018-13379 has")
+	}
+	s := newStack(t)
+	ctx := t.Context()
+	if err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
+		ts := store.FormatTS(time.Now().UTC())
+		_, err := tx.ExecContext(ctx, `INSERT INTO feeds_vuln (cve, vendor, product, product_key, name, date_added, ransomware, has_template, source_id, updated_at)
+			VALUES ('CVE-2017-0144', 'Microsoft', 'SMBv1', 'microsoft|smbv1', 'EternalBlue', '2022-02-10', 1, 1, 'cisa-kev', ?), ('CVE-2018-13379', 'Fortinet', 'FortiOS', 'fortinet|fortios', 'SSL VPN', '2021-11-03', 0, 0, 'cisa-kev', ?)`, ts, ts)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	fs, err := feedsService(*s.d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	kev, err := findingsFeeds{st: fs.Store()}.KevInfo(ctx, []string{"CVE-2017-0144", "CVE-2018-13379"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if kev["CVE-2017-0144"].HasTemplate || !kev["CVE-2018-13379"].HasTemplate {
+		t.Fatalf("has_template follows the feed, not the pack: %+v", kev)
+	}
+}

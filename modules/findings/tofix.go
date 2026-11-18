@@ -113,7 +113,7 @@ func (s *Service) classify(ctx context.Context, feedsOn bool, assetID string) (T
 		}
 		d := DeviceUpdates{AssetID: id, Open: len(open[id])}
 		if len(open[id]) > 0 {
-			d.Exploited, d.NoUpdate = exploitedUpdates(a, open[id], vulns, s.now())
+			d.Exploited, d.NoUpdate = exploitedUpdates(a, open[id], vulns, s.now(), s.safeCheck)
 		}
 		if feedsOn {
 			d.Planned, d.PlanRan, d.PlanCompared = s.plannedUpdates(id)

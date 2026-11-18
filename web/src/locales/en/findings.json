@@ -15,6 +15,7 @@
   "filterLabel": "Filter by status",
   "filters": {
     "all": "All unresolved",
+    "confirmed": "Confirmed",
     "suspected": "Suspected or detected"
   },
   "unchecked": {
@@ -59,7 +60,8 @@
     "severity": "Severity",
     "basis": "Basis",
     "lastSeen": "Last matched",
-    "cvss": "CVSS"
+    "cvss": "CVSS",
+    "actions": "Actions"
   },
   "basis": {
     "scan": "Confirmed by scan",
@@ -107,6 +109,7 @@
   "confirm": {
     "button": "Confirm",
     "buttonFor": "Confirm {{cve}}",
+    "buttonOn": "Confirm {{cve}} on {{device}}",
     "title": "Confirm this finding",
     "description": "Say that {{cve}} really affects this device. It then counts as confirmed.",
     "descriptionInfo": "Use it when you checked the device yourself. Your name and note go into the history. Vedette's matching never takes it back; Undo does.",
@@ -132,6 +135,8 @@
   },
   "status": {
     "mark": "Mark as handled",
+    "markOne": "Mark as handled…",
+    "markOf": "Mark as handled: {{cve}} on {{device}}",
     "reopen": "Reopen finding",
     "reopening": "Reopening…",
     "reopened": "Finding reopened",
@@ -575,9 +580,15 @@
     "chip": "Not added yet",
     "body": "Nobody approved this device yet. Add it to your devices to track it, or ignore it to hide it and all its findings for good.",
     "add": "Add device",
+    "addOf": "Add device {{name}}",
     "ignore": "Ignore",
+    "ignoreOf": "Ignore {{name}}",
     "added": "Added {{name}}.",
     "ignored": "Ignored {{name}}. Its findings are under Ignored."
+  },
+  "rowActions": {
+    "more": "More actions for {{cve}} on {{device}}",
+    "moreShort": "More actions"
   },
   "ignoredTab": {
     "intro": "Findings of devices you ignored. They are hidden from the other lists and never come back, even when the device is seen on the network again. Restore a device to watch it again: it goes back to To review and its findings show again.",
@@ -681,6 +692,7 @@
     "upstreamFixes_one": "upstream fixed {{count}} CVE in later releases",
     "upstreamFixes_other": "upstream fixed {{count}} CVEs in later releases",
     "noDistroData": "{{distro}} publishes no fix data Vedette can check this package against, so confirm with {{command}}.",
+    "unmatchedDistroData": "Vedette could not match this package to {{distro}}'s fix data, so confirm with {{command}}.",
     "noDistroDataAny": "The distribution publishes no fix data Vedette can check this package against, so confirm with its package manager.",
     "fixesAtLeast_one": "fixes at least {{count}} CVE",
     "fixesAtLeast_other": "fixes at least {{count}} CVEs",

@@ -384,4 +384,14 @@ func TestShownConfidence_ConfirmedNeverBelowScan(t *testing.T) {
 	if err != nil || p.ShownConfidence() < ConfScan {
 		t.Fatalf("confirmed by a person: shown %v (%v), want at least %v", p.ShownConfidence(), err, ConfScan)
 	}
+	// the person's confirmation then mitigated: the evidence still confirms it
+	mt, _, err := p.Apply(ActionMitigated, "blocked at the firewall", "it@acme.example", t0)
+	if err != nil || mt.Status != StatusMitigated || mt.ShownConfidence() < ConfScan {
+		t.Fatalf("mitigated after a person's confirmation: %s shown %v (%v), want at least %v", mt.Status, mt.ShownConfidence(), err, ConfScan)
+	}
+	// Undo: what ConfirmByPerson left in the column
+	u, _, err := p.UnconfirmByPerson("it@acme.example", t0)
+	if err != nil || u.Status != StatusSuspected || u.ShownConfidence() != ConfVersion {
+		t.Fatalf("undone: %s shown %v (%v), want suspected at %v", u.Status, u.ShownConfidence(), err, ConfVersion)
+	}
 }

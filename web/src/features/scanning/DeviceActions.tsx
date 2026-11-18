@@ -153,19 +153,21 @@ function DeviceVulnChecks({ assetId, vuln }: { assetId: string; vuln: VulnButton
   )
 }
 
-/** What a vulnerability check of the device can do: `checkable` of its `suspected` findings have a safe check (the KEV entry's
- *  has_template) it can confirm or rule out, and `again` of its confirmed ones a check it can run again to see whether a fix holds
- *  (the scan checks every open finding with a template). `none`: neither, so the device page offers no run (nothing suspected, or
- *  no check exists). Not counted (findings off, or its read failed): the run is offered as before, without a count. The device
- *  page's button and its Last checks row read this one rule. */
+/** What a vulnerability check of the device can do: `checkable` of its `suspected` findings have a safe check (the finding's
+ *  has_template: the scan's own template pack) it can confirm or rule out, and `again` of its confirmed or mitigated ones a check
+ *  it can run again to see whether a fix or a mitigation holds. `none`: neither, so the device page offers no run (nothing
+ *  suspected, or no check exists). Not counted (findings off, no device yet, or its read failed): the run is offered as before,
+ *  without a count. The device page's button and its Last checks row read this one rule. Without an id it reads nothing (never
+ *  the whole /findings list). */
 export function useVulnCheckable(assetId: string) {
-  const findingsOn = useModuleEnabled('findings') === true
+  const findingsOn = useModuleEnabled('findings') === true && assetId !== ''
   const list = useFindings(assetId, findingsOn)
   const counted = findingsOn && list.isSuccess
   const items = counted ? list.data.items : []
   const suspected = items.filter((f) => f.status === 'suspected')
   const checkable = suspected.filter((f) => f.kev?.has_template).length
-  const again = items.filter((f) => f.status === 'confirmed' && f.kev?.has_template).length
+  // the scan also checks confirmed and mitigated findings again (scan run.go `dismissed`): whether a fix or a mitigation holds
+  const again = items.filter((f) => (f.status === 'confirmed' || f.status === 'mitigated') && f.kev?.has_template).length
   return { pending: findingsOn && list.isPending, counted, suspected: suspected.length, checkable, again, none: counted && checkable + again === 0 }
 }
 

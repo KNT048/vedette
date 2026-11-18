@@ -240,8 +240,20 @@ describe('Last checks never points at a button the device page does not show', (
     findingsStore.update((l) => l.map((f) => (f.asset_id === 'a-man1' ? { ...f, status: 'confirmed' as const } : f)))
     renderApp('/devices/a-man1')
     const section = await lastChecks()
-    expect(await within(section).findByText(/1 confirmed finding can be checked again, to see whether a fix holds\./, undefined, T)).toBeInTheDocument()
+    expect(await within(section).findByText(/1 confirmed or mitigated finding can be checked again, to see whether a fix or mitigation holds\./, undefined, T)).toBeInTheDocument()
     expect(within(section).getByRole('button', { name: 'Run vulnerability checks now' })).toBeInTheDocument()
+  })
+
+  it('a mitigated finding with a safe check is its only one: the run is offered to see whether the mitigation holds', async () => {
+    noRuns()
+    addDevice({ ip: '192.168.10.241' })
+    suspect(['CVE-2026-97229'])
+    findingsStore.update((l) => l.map((f) => (f.asset_id === 'a-man1' ? { ...f, status: 'mitigated' as const } : f)))
+    renderApp('/devices/a-man1')
+    const section = await lastChecks()
+    expect(await within(section).findByText(/1 confirmed or mitigated finding can be checked again/, undefined, T)).toBeInTheDocument()
+    expect(within(section).getByRole('button', { name: 'Run vulnerability checks now' })).toBeInTheDocument()
+    expect(within(section).queryByText(/a run would do nothing/)).toBeNull()
   })
 
   it('a device not approved yet: the device check button is there and named, the vulnerability check says to approve it', async () => {

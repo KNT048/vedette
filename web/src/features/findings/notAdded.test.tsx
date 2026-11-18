@@ -25,7 +25,7 @@ describe('findings of a device that is not added yet', () => {
     renderApp('/findings?tab=open')
     const table = await screen.findByRole('table', undefined, T)
     expect((await within(table).findAllByText('Not added yet', undefined, T)).length).toBeGreaterThan(0)
-    expect(within(table).queryByRole('button', { name: 'Add device' })).toBeNull()
+    expect(within(table).queryByRole('button', { name: /^Add device/ })).toBeNull()
   })
 
   it('To fix: the device block has the chip, and Add device approves the device right there', async () => {
@@ -35,11 +35,21 @@ describe('findings of a device that is not added yet', () => {
     const blocks = await screen.findByRole('list', { name: 'Devices to fix, the most urgent first' }, T)
     const block = blocks.querySelector<HTMLElement>(':scope > li')!
     expect(within(block).getByText('Not added yet')).toBeInTheDocument()
-    expect(within(block).getByRole('button', { name: 'Ignore' })).toBeInTheDocument()
+    expect(within(block).getByRole('button', { name: /^Ignore/ })).toBeInTheDocument()
     const approved = () => assetsStore.get().filter((a) => a.approved).length
     const before = approved()
-    await user.click(within(block).getByRole('button', { name: 'Add device' }))
+    await user.click(within(block).getByRole('button', { name: /^Add device/ }))
     await waitFor(() => expect(approved()).toBe(before + 1), T)
+  })
+
+  it('By fix: each device line of a device not added yet has the chip, Add device and Ignore, as By device', async () => {
+    noDeviceApproved()
+    renderApp('/findings?by=fix')
+    const fixes = await screen.findByRole('list', { name: 'Fixes, the most urgent first' }, T)
+    const row = fixes.querySelector<HTMLElement>(':scope > li')!
+    expect(within(row).getAllByText('Not added yet').length).toBeGreaterThan(0)
+    expect(within(row).getAllByRole('button', { name: /^Add device/ }).length).toBeGreaterThan(0)
+    expect(within(row).getAllByRole('button', { name: /^Ignore/ }).length).toBeGreaterThan(0)
   })
 
   it('Needs your input: the device block has the chip, Add device and Ignore, without opening it', async () => {
@@ -48,8 +58,8 @@ describe('findings of a device that is not added yet', () => {
     const blocks = await screen.findByRole('list', { name: 'Devices that need your input, the most urgent first' }, T)
     const block = within(blocks).getAllByRole('listitem')[0]!
     expect(within(block).getByText('Not added yet')).toBeInTheDocument()
-    expect(within(block).getByRole('button', { name: 'Add device' })).toBeInTheDocument()
-    expect(within(block).getByRole('button', { name: 'Ignore' })).toBeInTheDocument()
+    expect(within(block).getByRole('button', { name: /^Add device/ })).toBeInTheDocument()
+    expect(within(block).getByRole('button', { name: /^Ignore/ })).toBeInTheDocument()
   })
 
   it('the finding page says "Device not added yet" once, with Add device and Ignore', async () => {
@@ -57,7 +67,7 @@ describe('findings of a device that is not added yet', () => {
     renderApp(`/findings/${f.id}`)
     expect(await screen.findByText(/Nobody approved this device yet/, undefined, T)).toBeInTheDocument()
     expect(screen.getAllByText('Device not added yet')).toHaveLength(1)
-    expect(screen.getByRole('button', { name: 'Add device' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^Add device/ })).toBeInTheDocument()
   })
 
   it('Ignore on the finding hides the device and its findings from Open; they are under Ignored; Restore brings them back', async () => {
@@ -65,7 +75,7 @@ describe('findings of a device that is not added yet', () => {
     const user = userEvent.setup()
     renderApp(`/findings/${f.id}`)
     expect(await screen.findByText(/Nobody approved this device yet/, undefined, T)).toBeInTheDocument()
-    await user.click(screen.getAllByRole('button', { name: 'Ignore' })[0]!)
+    await user.click(screen.getAllByRole('button', { name: /^Ignore/ })[0]!)
     const dialog = await screen.findByRole('dialog', undefined, T)
     await user.click(within(dialog).getByRole('button', { name: /^Ignore/ }))
     await waitFor(() => expect(metaStore.get()[f.asset_id]?.ignored_at).toBeTruthy(), T)

@@ -154,7 +154,9 @@ function PlanRow({ i, action, showDevice, likelyOnly }: { i: PlanItem; action: s
             {i.nvd_lag ? t('plan.nvdLag') : null}
           </>
         )}
-        {noData && i.cves.length > 0 ? <span className="block text-meta text-muted">{i.distro ? t('plan.noDistroData', { distro: i.distro, command: upgradeCommand(i.distro) }) : t('plan.noDistroDataAny')}</span> : null}
+        {noData && i.cves.length > 0 ? <span className="block text-meta text-muted">{!i.distro ? t('plan.noDistroDataAny')
+          // Vedette reads Ubuntu's and Debian's fix data: there the package could not be matched to it, not "no data"
+          : t(/^(ubuntu|debian)\b/i.test(i.distro) ? 'plan.unmatchedDistroData' : 'plan.noDistroData', { distro: i.distro, command: upgradeCommand(i.distro) })}</span> : null}
         {gone ? <span className="block text-meta text-muted">{i.agent_reported ? t('plan.lastReported', { date: fmtDate(i.agent_reported) }) : t('plan.lastReportedNoDate')}</span> : null}
       </p>
       {i.cves.length > 0 ? (

@@ -957,7 +957,7 @@ describe('findings: one update, one item; the agent\'s build is a detection (TUN
     fixes.set({ 'f-3': fix, 'f-9': fix })
   }
 
-  it('To fix shows the device and the one update with its CVEs inside; "Handle these" lists them as rows of All open', async () => {
+  it('To fix shows the device and the one update with its CVEs inside; ?fix= lists them as rows of All open', async () => {
     agentWindows()
     renderApp('/findings')
     const card = await screen.findByRole('listitem', { name: 'SRV-AD' })
@@ -968,7 +968,8 @@ describe('findings: one update, one item; the agent\'s build is a detection (TUN
     await userEvent.click(within(acts).getByText('Show the 2 CVEs'))
     expect(within(acts).getByRole('link', { name: 'CVE-2024-43451' })).toHaveAttribute('href', '/findings/f-9')
     await expectNoA11yViolations()
-    await userEvent.click(within(acts).getByRole('link', { name: 'Handle these 2 findings in the list' }))
+    cleanup()
+    renderApp('/findings?tab=open&fix=a-srvad%2Fs-win') // the findings one update fixes, as rows (an old link shape)
     await waitFor(() => expect(within(screen.getByRole('table', { name: 'Findings list' })).getAllByRole('row')).toHaveLength(3))
     expect(screen.getByText('Showing the findings one update fixes: Install the latest cumulative update for Windows Server 2025 (from build 26100.1742 to 26100.2314 or later).')).toBeInTheDocument()
   })

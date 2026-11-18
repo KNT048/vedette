@@ -71576,8 +71576,8 @@ type FindingsGetFindingsIDOK struct {
 	// stated it, suspected otherwise); product = only the product matches.
 	Basis      FindingsGetFindingsIDOKBasis         `json:"basis"`
 	Compromise NilFindingsGetFindingsIDOKCompromise `json:"compromise"`
-	// How sure the match is, 0 to 1. A confirmed finding (by a scan, the version the device itself
-	// reports, or a person) is at least 0.95, never below a scan's confirmation.
+	// How sure the match is, 0 to 1. A finding its evidence confirms (a scan, the version the device
+	// itself reports, or a person) is at least 0.95 in any status, never below a scan's confirmation.
 	Confidence float64 `json:"confidence"`
 	Cve        string  `json:"cve"`
 	// Null = no CVSS score known: the pages say "No score", never 0.
@@ -74567,14 +74567,16 @@ func (s *FindingsGetFindingsIDOKHistoryItem) SetUser(val string) {
 }
 
 type FindingsGetFindingsIDOKKev struct {
-	DateAdded   string     `json:"date_added"`
-	Display     string     `json:"display"`
-	DueDate     NilString  `json:"due_date"`
-	Epss        NilFloat64 `json:"epss"`
-	HasTemplate bool       `json:"has_template"`
-	Links       []string   `json:"links"`
-	Name        string     `json:"name"`
-	Product     string     `json:"product"`
+	DateAdded string     `json:"date_added"`
+	Display   string     `json:"display"`
+	DueDate   NilString  `json:"due_date"`
+	Epss      NilFloat64 `json:"epss"`
+	// A safe vulnerability check exists for the CVE: the template pack the scan itself plans with has one
+	// (not the nuclei-templates feed flag), so a vulnerability check can confirm or rule it out.
+	HasTemplate bool     `json:"has_template"`
+	Links       []string `json:"links"`
+	Name        string   `json:"name"`
+	Product     string   `json:"product"`
 	// The day the CVE was published (NVD `published`), never the day CISA added it; null when NVD has not
 	// answered for it (then it counts as recent: an older CVE is not a finding on a product-only match,
 	// and a missing date never closes a finding).
@@ -75743,8 +75745,8 @@ type FindingsGetFindingsOKItemsItem struct {
 	// = the version is inside the affected range (confirmed when evidence.source says the device itself
 	// stated it, suspected otherwise); product = only the product matches.
 	Basis FindingsGetFindingsOKItemsItemBasis `json:"basis"`
-	// How sure the match is, 0 to 1. A confirmed finding (by a scan, the version the device itself
-	// reports, or a person) is at least 0.95, never below a scan's confirmation.
+	// How sure the match is, 0 to 1. A finding its evidence confirms (a scan, the version the device
+	// itself reports, or a person) is at least 0.95 in any status, never below a scan's confirmation.
 	Confidence float64 `json:"confidence"`
 	Cve        string  `json:"cve"`
 	// Null = no CVSS score known: the pages say "No score", never 0.
@@ -77321,14 +77323,16 @@ func (s *FindingsGetFindingsOKItemsItemHistoryItem) SetUser(val string) {
 }
 
 type FindingsGetFindingsOKItemsItemKev struct {
-	DateAdded   string     `json:"date_added"`
-	Display     string     `json:"display"`
-	DueDate     NilString  `json:"due_date"`
-	Epss        NilFloat64 `json:"epss"`
-	HasTemplate bool       `json:"has_template"`
-	Links       []string   `json:"links"`
-	Name        string     `json:"name"`
-	Product     string     `json:"product"`
+	DateAdded string     `json:"date_added"`
+	Display   string     `json:"display"`
+	DueDate   NilString  `json:"due_date"`
+	Epss      NilFloat64 `json:"epss"`
+	// A safe vulnerability check exists for the CVE: the template pack the scan itself plans with has one
+	// (not the nuclei-templates feed flag), so a vulnerability check can confirm or rule it out.
+	HasTemplate bool     `json:"has_template"`
+	Links       []string `json:"links"`
+	Name        string   `json:"name"`
+	Product     string   `json:"product"`
 	// The day the CVE was published (NVD `published`), never the day CISA added it; null when NVD has not
 	// answered for it (then it counts as recent: an older CVE is not a finding on a product-only match,
 	// and a missing date never closes a finding).
@@ -84273,8 +84277,8 @@ type FindingsPostFindingsIDAiOK struct {
 	// stated it, suspected otherwise); product = only the product matches.
 	Basis      FindingsPostFindingsIDAiOKBasis         `json:"basis"`
 	Compromise NilFindingsPostFindingsIDAiOKCompromise `json:"compromise"`
-	// How sure the match is, 0 to 1. A confirmed finding (by a scan, the version the device itself
-	// reports, or a person) is at least 0.95, never below a scan's confirmation.
+	// How sure the match is, 0 to 1. A finding its evidence confirms (a scan, the version the device
+	// itself reports, or a person) is at least 0.95 in any status, never below a scan's confirmation.
 	Confidence float64 `json:"confidence"`
 	Cve        string  `json:"cve"`
 	// Null = no CVSS score known: the pages say "No score", never 0.
@@ -87264,14 +87268,16 @@ func (s *FindingsPostFindingsIDAiOKHistoryItem) SetUser(val string) {
 }
 
 type FindingsPostFindingsIDAiOKKev struct {
-	DateAdded   string     `json:"date_added"`
-	Display     string     `json:"display"`
-	DueDate     NilString  `json:"due_date"`
-	Epss        NilFloat64 `json:"epss"`
-	HasTemplate bool       `json:"has_template"`
-	Links       []string   `json:"links"`
-	Name        string     `json:"name"`
-	Product     string     `json:"product"`
+	DateAdded string     `json:"date_added"`
+	Display   string     `json:"display"`
+	DueDate   NilString  `json:"due_date"`
+	Epss      NilFloat64 `json:"epss"`
+	// A safe vulnerability check exists for the CVE: the template pack the scan itself plans with has one
+	// (not the nuclei-templates feed flag), so a vulnerability check can confirm or rule it out.
+	HasTemplate bool     `json:"has_template"`
+	Links       []string `json:"links"`
+	Name        string   `json:"name"`
+	Product     string   `json:"product"`
 	// The day the CVE was published (NVD `published`), never the day CISA added it; null when NVD has not
 	// answered for it (then it counts as recent: an older CVE is not a finding on a product-only match,
 	// and a missing date never closes a finding).
@@ -88464,8 +88470,8 @@ type FindingsPostFindingsIDAppliedOK struct {
 	// stated it, suspected otherwise); product = only the product matches.
 	Basis      FindingsPostFindingsIDAppliedOKBasis         `json:"basis"`
 	Compromise NilFindingsPostFindingsIDAppliedOKCompromise `json:"compromise"`
-	// How sure the match is, 0 to 1. A confirmed finding (by a scan, the version the device itself
-	// reports, or a person) is at least 0.95, never below a scan's confirmation.
+	// How sure the match is, 0 to 1. A finding its evidence confirms (a scan, the version the device
+	// itself reports, or a person) is at least 0.95 in any status, never below a scan's confirmation.
 	Confidence float64 `json:"confidence"`
 	Cve        string  `json:"cve"`
 	// Null = no CVSS score known: the pages say "No score", never 0.
@@ -91455,14 +91461,16 @@ func (s *FindingsPostFindingsIDAppliedOKHistoryItem) SetUser(val string) {
 }
 
 type FindingsPostFindingsIDAppliedOKKev struct {
-	DateAdded   string     `json:"date_added"`
-	Display     string     `json:"display"`
-	DueDate     NilString  `json:"due_date"`
-	Epss        NilFloat64 `json:"epss"`
-	HasTemplate bool       `json:"has_template"`
-	Links       []string   `json:"links"`
-	Name        string     `json:"name"`
-	Product     string     `json:"product"`
+	DateAdded string     `json:"date_added"`
+	Display   string     `json:"display"`
+	DueDate   NilString  `json:"due_date"`
+	Epss      NilFloat64 `json:"epss"`
+	// A safe vulnerability check exists for the CVE: the template pack the scan itself plans with has one
+	// (not the nuclei-templates feed flag), so a vulnerability check can confirm or rule it out.
+	HasTemplate bool     `json:"has_template"`
+	Links       []string `json:"links"`
+	Name        string   `json:"name"`
+	Product     string   `json:"product"`
 	// The day the CVE was published (NVD `published`), never the day CISA added it; null when NVD has not
 	// answered for it (then it counts as recent: an older CVE is not a finding on a product-only match,
 	// and a missing date never closes a finding).
@@ -92676,8 +92684,8 @@ type FindingsPostFindingsIDConfirmOK struct {
 	// stated it, suspected otherwise); product = only the product matches.
 	Basis      FindingsPostFindingsIDConfirmOKBasis         `json:"basis"`
 	Compromise NilFindingsPostFindingsIDConfirmOKCompromise `json:"compromise"`
-	// How sure the match is, 0 to 1. A confirmed finding (by a scan, the version the device itself
-	// reports, or a person) is at least 0.95, never below a scan's confirmation.
+	// How sure the match is, 0 to 1. A finding its evidence confirms (a scan, the version the device
+	// itself reports, or a person) is at least 0.95 in any status, never below a scan's confirmation.
 	Confidence float64 `json:"confidence"`
 	Cve        string  `json:"cve"`
 	// Null = no CVSS score known: the pages say "No score", never 0.
@@ -95667,14 +95675,16 @@ func (s *FindingsPostFindingsIDConfirmOKHistoryItem) SetUser(val string) {
 }
 
 type FindingsPostFindingsIDConfirmOKKev struct {
-	DateAdded   string     `json:"date_added"`
-	Display     string     `json:"display"`
-	DueDate     NilString  `json:"due_date"`
-	Epss        NilFloat64 `json:"epss"`
-	HasTemplate bool       `json:"has_template"`
-	Links       []string   `json:"links"`
-	Name        string     `json:"name"`
-	Product     string     `json:"product"`
+	DateAdded string     `json:"date_added"`
+	Display   string     `json:"display"`
+	DueDate   NilString  `json:"due_date"`
+	Epss      NilFloat64 `json:"epss"`
+	// A safe vulnerability check exists for the CVE: the template pack the scan itself plans with has one
+	// (not the nuclei-templates feed flag), so a vulnerability check can confirm or rule it out.
+	HasTemplate bool     `json:"has_template"`
+	Links       []string `json:"links"`
+	Name        string   `json:"name"`
+	Product     string   `json:"product"`
 	// The day the CVE was published (NVD `published`), never the day CISA added it; null when NVD has not
 	// answered for it (then it counts as recent: an older CVE is not a finding on a product-only match,
 	// and a missing date never closes a finding).
@@ -96826,8 +96836,8 @@ type FindingsPostFindingsIDStatusOK struct {
 	// stated it, suspected otherwise); product = only the product matches.
 	Basis      FindingsPostFindingsIDStatusOKBasis         `json:"basis"`
 	Compromise NilFindingsPostFindingsIDStatusOKCompromise `json:"compromise"`
-	// How sure the match is, 0 to 1. A confirmed finding (by a scan, the version the device itself
-	// reports, or a person) is at least 0.95, never below a scan's confirmation.
+	// How sure the match is, 0 to 1. A finding its evidence confirms (a scan, the version the device
+	// itself reports, or a person) is at least 0.95 in any status, never below a scan's confirmation.
 	Confidence float64 `json:"confidence"`
 	Cve        string  `json:"cve"`
 	// Null = no CVSS score known: the pages say "No score", never 0.
@@ -99817,14 +99827,16 @@ func (s *FindingsPostFindingsIDStatusOKHistoryItem) SetUser(val string) {
 }
 
 type FindingsPostFindingsIDStatusOKKev struct {
-	DateAdded   string     `json:"date_added"`
-	Display     string     `json:"display"`
-	DueDate     NilString  `json:"due_date"`
-	Epss        NilFloat64 `json:"epss"`
-	HasTemplate bool       `json:"has_template"`
-	Links       []string   `json:"links"`
-	Name        string     `json:"name"`
-	Product     string     `json:"product"`
+	DateAdded string     `json:"date_added"`
+	Display   string     `json:"display"`
+	DueDate   NilString  `json:"due_date"`
+	Epss      NilFloat64 `json:"epss"`
+	// A safe vulnerability check exists for the CVE: the template pack the scan itself plans with has one
+	// (not the nuclei-templates feed flag), so a vulnerability check can confirm or rule it out.
+	HasTemplate bool     `json:"has_template"`
+	Links       []string `json:"links"`
+	Name        string   `json:"name"`
+	Product     string   `json:"product"`
 	// The day the CVE was published (NVD `published`), never the day CISA added it; null when NVD has not
 	// answered for it (then it counts as recent: an older CVE is not a finding on a product-only match,
 	// and a missing date never closes a finding).
@@ -101069,8 +101081,8 @@ type FindingsPostFindingsIDUnconfirmOK struct {
 	// stated it, suspected otherwise); product = only the product matches.
 	Basis      FindingsPostFindingsIDUnconfirmOKBasis         `json:"basis"`
 	Compromise NilFindingsPostFindingsIDUnconfirmOKCompromise `json:"compromise"`
-	// How sure the match is, 0 to 1. A confirmed finding (by a scan, the version the device itself
-	// reports, or a person) is at least 0.95, never below a scan's confirmation.
+	// How sure the match is, 0 to 1. A finding its evidence confirms (a scan, the version the device
+	// itself reports, or a person) is at least 0.95 in any status, never below a scan's confirmation.
 	Confidence float64 `json:"confidence"`
 	Cve        string  `json:"cve"`
 	// Null = no CVSS score known: the pages say "No score", never 0.
@@ -104060,14 +104072,16 @@ func (s *FindingsPostFindingsIDUnconfirmOKHistoryItem) SetUser(val string) {
 }
 
 type FindingsPostFindingsIDUnconfirmOKKev struct {
-	DateAdded   string     `json:"date_added"`
-	Display     string     `json:"display"`
-	DueDate     NilString  `json:"due_date"`
-	Epss        NilFloat64 `json:"epss"`
-	HasTemplate bool       `json:"has_template"`
-	Links       []string   `json:"links"`
-	Name        string     `json:"name"`
-	Product     string     `json:"product"`
+	DateAdded string     `json:"date_added"`
+	Display   string     `json:"display"`
+	DueDate   NilString  `json:"due_date"`
+	Epss      NilFloat64 `json:"epss"`
+	// A safe vulnerability check exists for the CVE: the template pack the scan itself plans with has one
+	// (not the nuclei-templates feed flag), so a vulnerability check can confirm or rule it out.
+	HasTemplate bool     `json:"has_template"`
+	Links       []string `json:"links"`
+	Name        string   `json:"name"`
+	Product     string   `json:"product"`
 	// The day the CVE was published (NVD `published`), never the day CISA added it; null when NVD has not
 	// answered for it (then it counts as recent: an older CVE is not a finding on a product-only match,
 	// and a missing date never closes a finding).

@@ -24,10 +24,10 @@ import { RiskChip } from './Risk'
 import { NeedsInput } from './NeedsInput'
 import { ToFixTab, unproved } from './ToFix'
 import { useFixAction } from './fix'
-import { canConfirm, canUndo, ConfirmButton, ConfirmDialog, UndoButton } from './Confirm'
 import type { BulkAction, FindingRow } from './types'
 import { NotRelevantToggle, isNotRelevant } from './notRelevant'
 import { NotAddedChip } from './NotAdded'
+import { RowActions } from './Handle'
 import { IgnoredTab } from './IgnoredTab'
 import { RiskMarker, riskWord } from '@/features/inventory/RiskMarker'
 
@@ -125,7 +125,6 @@ function List() {
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
   const [bulkOpen, setBulkOpen] = useState(false)
-  const [confirming, setConfirming] = useState<FindingRow | null>(null)
   const opener = useRef<HTMLButtonElement>(null)
   const q = useFindings()
   const items = q.data?.items
@@ -194,12 +193,9 @@ function List() {
     // hidden, sorted from "Sort by": highest first, no score last both ways
     { id: 'cvss', header: t('col.cvss'), accessorFn: (r) => r.cvss?.score, sortUndefined: 'last', sortDescFirst: true },
     { id: 'basis', header: t('col.basis'), accessorFn: (r) => r.basis, cell: ({ row: { original: r } }) => <span className={unverified(r) ? 'text-meta text-muted' : 'text-meta'}>{t(basisLabel(r))}</span> },
-    // Confirm (a suspected finding, admin) and Undo (a confirmation a person made) sit on the row; a click on them never opens the finding
-    { id: 'confirm', header: t('confirm.col'), enableSorting: false, cell: ({ row: { original: r } }) => (canConfirm(r) || canUndo(r) ? (
-      <span onClick={(e) => e.stopPropagation()} className="inline-flex">
-        {canConfirm(r) ? <ConfirmButton f={r} size="sm" onClick={() => setConfirming(r)} /> : <UndoButton f={r} size="sm" />}
-      </span>
-    ) : null) },
+    // One action on the row without ticking it first (Confirm on a suspected finding, else Mark as handled…), the rest in its
+    // More actions menu, Add device and Ignore of a device not added yet included; a click on them never opens the finding
+    { id: 'actions', header: t('col.actions'), enableSorting: false, cell: ({ row: { original: r } }) => <RowActions f={r} device /> },
     { id: 'seen', header: t('col.lastSeen'), accessorFn: (r) => r.last_seen, sortDescFirst: true, cell: ({ row: { original: r } }) => <span className="whitespace-nowrap text-meta text-muted" title={`${fmtDateTime(r.last_seen)}. ${t('matchedInfo')}`}>{fmtRelative(r.last_seen)}</span> },
   ]
 
@@ -280,9 +276,7 @@ function List() {
                     <span>{t(basisLabel(r))}</span>
                     <span className="text-muted" title={`${fmtDateTime(r.last_seen)}. ${t('matchedInfo')}`}>{t('matched', { time: fmtRelative(r.last_seen) })}</span>
                   </div>
-                  {canConfirm(r) || canUndo(r) ? (
-                    <span className="w-fit">{canConfirm(r) ? <ConfirmButton f={r} size="sm" onClick={() => setConfirming(r)} /> : <UndoButton f={r} size="sm" />}</span>
-                  ) : null}
+                  <span className="w-fit empty:hidden"><RowActions f={r} device /></span>
                 </div>
               </div>
             )}
@@ -356,7 +350,6 @@ function List() {
         { id: 'ignored', label: t('tabs.ignored'), panel: <IgnoredTab q={q} /> },
       ]} />
       <BulkDialog ids={shown} open={bulkOpen} onOpenChange={setBulkOpen} opener={opener} onDone={() => setSelected(new Set())} />
-      {confirming ? <ConfirmDialog key={confirming.id} f={confirming} onClose={() => setConfirming(null)} /> : null}
     </>
   )
 }

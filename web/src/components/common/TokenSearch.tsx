@@ -223,7 +223,7 @@ export function TokenSearch({ value, onChange, keys, chips, label, placeholder, 
               {c.label}<X className="size-3" aria-hidden />
             </button>
           ))}
-          {active.length > 1 ? <Button size="sm" variant="link" onClick={() => onChange(active.reduce((q, c) => toggleToken(q, c.token), value))}>{t('tokenSearch.clearFilters')}</Button> : null}
+          {active.length > 0 && words(value).length > 1 ? <Button size="sm" variant="link" onClick={() => { onChange(''); setCaret(0) }}>{t('tokenSearch.clearFilters')}</Button> : null}
         </div>
       ) : null}
     </div>

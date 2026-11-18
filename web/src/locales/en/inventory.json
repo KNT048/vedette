@@ -1006,8 +1006,9 @@
       "exploited": "Exploited",
       "update": "Update recommended"
     },
-    "matches_one": "{{shown}} of {{count}} device",
-    "matches_other": "{{shown}} of {{count}} devices",
+    "shownOf_one": "{{shown}} of {{count}} device shown",
+    "shownOf_other": "{{shown}} of {{count}} devices shown",
+    "pending": "{{count}} not yet approved",
     "clear": "Clear filters",
     "none": "No devices match.",
     "key": {

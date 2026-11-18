@@ -393,6 +393,23 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     expect(screen.getByRole('combobox', { name: 'Search devices' })).toHaveValue('')
   })
 
+  it('one count line: every device without a search, "N of M shown" for this list with one; one Clear filters clears the whole query', async () => {
+    const user = userEvent.setup()
+    renderApp('/devices')
+    await deviceTable()
+    const total = assetsStore.get().length
+    const approved = assetsStore.get().filter((a) => a.approved).length
+    expect(await screen.findByRole('status')).toHaveTextContent(`${total} devices, 2 not yet approved`)
+    await toggleFilter(user, /^Fragile/)
+    const fragile = assetsStore.get().filter((a) => a.fragile && a.approved).length
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(`${fragile} of ${approved} devices shown · 2 not yet approved`), T)
+    expect(screen.getAllByRole('status')).toHaveLength(1)
+    await user.type(screen.getByRole('combobox', { name: 'Search devices' }), 'zzz')
+    await user.click(await screen.findByRole('button', { name: 'Clear filters' }, T))
+    expect(screen.getByRole('combobox', { name: 'Search devices' })).toHaveValue('')
+    expect(screen.queryByRole('button', { name: /^Remove filter/ })).toBeNull()
+  })
+
   it('the Settings button opens the settings page', async () => {
     const user = userEvent.setup()
     renderApp('/devices')

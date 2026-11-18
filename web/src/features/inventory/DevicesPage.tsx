@@ -172,9 +172,9 @@ type Query = ReturnType<typeof useDeviceQuery>
 
 /** The search box of both lists. */
 /** What Body puts in the toolbar of both lists: the count line and the page's buttons. */
-type Bar = { summary: React.ReactNode; actions: React.ReactNode }
+type Bar = { all: number; pending: number; actions: React.ReactNode }
 
-function DeviceSearch({ rows, now, query, same, bar }: { rows: DeviceRow[]; now: number; query: Query; same: SameIds; bar: Bar }) {
+function DeviceSearch({ rows, now, query, same, bar, shown }: { rows: DeviceRow[]; now: number; query: Query; same: SameIds; bar: Bar; shown: number }) {
   const { t } = useTranslation('inventory')
   const keys = useMemo(() => deviceKeys(rows, now, same), [rows, now, same])
   const count = (key: string, value: string) => keys.find((x) => x.key === key)?.values?.find((v) => v.value === value)?.count
@@ -191,19 +191,18 @@ function DeviceSearch({ rows, now, query, same, bar }: { rows: DeviceRow[]; now:
   ]
   // A chip that would show 0 is left out (To review would read "SNMP 0, osquery 0, Manual 0"), unless it is on (#849 review L11).
   const shownChips = chips.filter((c) => c.count !== 0 || hasToken(query.q, c.token))
-  return <TokenSearch value={query.q} onChange={query.setQ} keys={keys} chips={shownChips} label={t('search.label')} placeholder={t('search.placeholder')} chipsLabel={t('search.chipsLabel')} summary={bar.summary} actions={bar.actions} />
+  return <TokenSearch value={query.q} onChange={query.setQ} keys={keys} chips={shownChips} label={t('search.label')} placeholder={t('search.placeholder')} chipsLabel={t('search.chipsLabel')} summary={<CountLine q={query.q} shown={shown} total={rows.length} bar={bar} />} actions={bar.actions} />
 }
 
-/** "12 of 40 devices", read out as the list changes (WCAG 4.1.3): the live region is always there (empty without a search), so the
- *  first change and "0 of 40" are announced too; the Clear button shows only while something matches (the empty table has its own). */
-function MatchLine({ q, shown, total, onClear }: { q: string; shown: number; total: number; onClear: () => void }) {
+/** The toolbar's one count line, read out as the list changes (WCAG 4.1.3; the live region is always there so the first change and
+ *  "0 of 32" are announced). Without a search: "34 devices, 2 not yet approved" (every device, both lists). With one: "1 of 32 devices
+ *  shown" (this list; the other list's devices are not in it) and the not-yet-approved count. */
+function CountLine({ q, shown, total, bar }: { q: string; shown: number; total: number; bar: Bar }) {
   const { t } = useTranslation('inventory')
-  return (
-    <div className={q ? 'flex flex-wrap items-center gap-x-3 text-meta text-muted' : 'sr-only'}>
-      <span role="status" aria-live="polite" className="tabular-nums">{q ? t('search.matches', { shown, count: total }) : ''}</span>
-      {q && shown ? <Button size="sm" variant="link" onClick={onClear}>{t('search.clear')}</Button> : null}
-    </div>
-  )
+  const text = q.trim()
+    ? [t('search.shownOf', { shown, count: total }), bar.pending > 0 ? t('search.pending', { count: bar.pending }) : ''].filter(Boolean).join(' · ')
+    : bar.pending > 0 ? t('list.title', { count: bar.all, pending: bar.pending }) : t('list.titleAllApproved', { count: bar.all })
+  return <span role="status" aria-live="polite" className="text-meta text-muted tabular-nums">{text}</span>
 }
 
 /** Devices: the approved list (#849). */
@@ -265,8 +264,7 @@ function DevicesList({ rows, now, query, same, bar }: { rows: DeviceRow[]; now: 
   ]
   return (
     <section aria-label={t('tabs.devices')} className="grid min-w-0 gap-3">
-      <DeviceSearch rows={rows} now={now} query={query} same={same.ids} bar={bar} />
-      <MatchLine q={q} shown={shown.length} total={rows.length} onClear={clear} />
+      <DeviceSearch rows={rows} now={now} query={query} same={same.ids} bar={bar} shown={shown.length} />
       {selecting ? <div className="flex flex-wrap items-center gap-2"><Slot name={DEVICES_ACTIONS_SLOT} props={{ selectedIds: [...sel], selected: rows.filter((d) => sel.has(d.id)), clearSelection: ops.clear }} /></div> : null}
       <DataTable caption={t('table.caption')} data={shown} columns={columns} initialSort={[{ id: 'seen', desc: true }]} fillColumn="name"
         onRowClick={(d) => void navigate(`/devices/${d.id}`)}
@@ -310,7 +308,7 @@ function ReviewList({ rows, now, notifyNew, notifyAvailable, query, same, bar }:
   return (
     <section className="grid min-w-0 gap-3">
       <PendingPanel items={shown} total={rows.length} notifyNew={notifyNew} notifyAvailable={notifyAvailable} sameAs={same.others}
-        search={<><DeviceSearch rows={rows} now={now} query={query} same={same.ids} bar={bar} /><MatchLine q={q} shown={shown.length} total={rows.length} onClear={clear} /></>} filtered={!!q} onClear={clear} />
+        search={<><DeviceSearch rows={rows} now={now} query={query} same={same.ids} bar={bar} shown={shown.length} /></>} filtered={!!q} onClear={clear} />
     </section>
   )
 }
@@ -372,7 +370,6 @@ function Body() {
   const pending = lists.pending.length
   // The title names the page; "12 devices, 2 not yet approved" is the small line of the toolbar over the list
   const title = !q.data ? t('list.titleLoading') : all === 0 ? t('list.titleEmpty') : all === 1 && lists.approved[0]?.is_box ? t('list.titleBoxOnly') : t('list.titleLoading')
-  const countLine = pending > 0 ? t('list.title', { count: all, pending }) : t('list.titleAllApproved', { count: all })
   // Export, Settings and Add live in the list's toolbar; with no list yet (loading, no devices) the header keeps Settings and Add.
   const buttons = (withExport: boolean) => (
     <>
@@ -382,7 +379,7 @@ function Body() {
       <Button variant="primary" disabled={!canOp} title={needRole} onClick={() => setAdd('manual')}><Plus />{t('add.open')}</Button>
     </>
   )
-  const bar: Bar = { summary: <span className="text-meta text-muted tabular-nums">{countLine}</span>, actions: buttons(true) }
+  const bar: Bar = { all, pending, actions: buttons(true) }
 
   return (
     <>

@@ -120,12 +120,12 @@ describe('TokenSearch (#849)', () => {
     expect(screen.queryByRole('button', { name: /^Remove filter/ })).toBeNull()
   })
 
-  it('Clear filters shows with two or more filters on and removes only the filters, not the typed words', async () => {
+  it('Clear filters shows with a filter and more in the box, and clears the whole query', async () => {
     const user = userEvent.setup()
     render(<Harness initial="cisco fragile source:snmp" />)
     expect(screen.getAllByRole('button', { name: /^Remove filter/ })).toHaveLength(2)
     await user.click(screen.getByRole('button', { name: 'Clear filters' }))
-    expect(q()).toBe('cisco')
+    expect(q()).toBe('')
     expect(screen.queryByRole('button', { name: 'Clear filters' })).toBeNull()
   })
 })

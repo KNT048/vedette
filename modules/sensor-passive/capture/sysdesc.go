@@ -23,8 +23,8 @@ var (
 	// "Cisco IOS Software, C2960 Software (C2960-LANBASEK9-M), Version 12.2(55)SE5, RELEASE SOFTWARE (fc1) …"
 	// "Cisco IOS Software [Bengaluru], Catalyst L3 Switch Software (CAT9K_IOSXE), Version 17.6.4, RELEASE …"
 	descCisco = regexp.MustCompile(`^Cisco IOS Software( \[[A-Za-z0-9 .-]{1,30}\])?, ([A-Za-z0-9][A-Za-z0-9 /-]{0,39}?) Software \(([A-Za-z0-9_-]{1,40})\), Version ([0-9][A-Za-z0-9().]{0,30})`)
-	// "HP J9772A 2530-48G-PoE+ Switch, revision YA.16.04.0008, ROM …", "Aruba JL261A 2930F-24G-PoE+-4SFP Switch, revision WC.16.10.0011, …"
-	descAruba = regexp.MustCompile(`^(?:HP|HPE|Aruba|ProCurve) [A-Z]{1,2}[0-9]{3,5}[A-Z]? ([A-Za-z0-9][A-Za-z0-9+-]{1,39}) Switch, revision ([A-Z]{1,3}\.[0-9][0-9.]{1,20})`)
+	// "HP J9772A 2530-48G-PoE+ Switch, revision YA.16.04.0008, ROM …", "ProCurve J8692A Switch 3500yl-24G, revision K.15.18.0008, ROM …", "Aruba JL261A 2930F-24G-PoE+-4SFP Switch, revision WC.16.10.0011, …"
+	descAruba = regexp.MustCompile(`^(?:HP|HPE|Aruba|ProCurve) [A-Z]{1,2}[0-9]{3,5}[A-Z]? (?:Switch )?([A-Za-z0-9][A-Za-z0-9+-]{1,39})(?: Switch)?, revision ([A-Z]{1,3}\.[0-9][0-9.]{1,20})`)
 	// "MikroTik RouterOS 6.49.10 (long-term) CRS326-24G-2S+"
 	descMikroTik = regexp.MustCompile(`^MikroTik RouterOS ([0-9][0-9.]{0,15}(?:beta[0-9]{1,3}|rc[0-9]{1,3})?) \([a-z -]{1,20}\) ([A-Za-z0-9][A-Za-z0-9+-]{1,39})$`)
 	// lldpd: "Ubuntu 22.04.3 LTS Linux 5.15.0-91-generic #101-Ubuntu SMP …"

@@ -305,7 +305,7 @@ func (h *SNMPHandlers) InventoryPostInventorySnmpDevicesIDApplySimilar(ctx conte
 	}
 	rows := make([]row, 0, len(res))
 	for _, r := range res {
-		rows = append(rows, row{r.DeviceID, r.Name, r.OK, r.Code, r.Message})
+		rows = append(rows, row(r))
 	}
 	return shapeAs[oas.InventoryPostInventorySnmpDevicesIDApplySimilarOK](struct {
 		Results []row `json:"results"`

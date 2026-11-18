@@ -53271,6 +53271,10 @@ func (s InventoryGetInventoryDevicesIDOKAssetModelBasis) Validate() error {
 	switch s {
 	case "stated":
 		return nil
+	case "stated_web":
+		return nil
+	case "stated_sip":
+		return nil
 	case "guess":
 		return nil
 	default:
@@ -53374,6 +53378,10 @@ func (s InventoryGetInventoryDevicesIDOKAssetOsBasis) Validate() error {
 	switch s {
 	case "stated":
 		return nil
+	case "stated_web":
+		return nil
+	case "stated_sip":
+		return nil
 	case "guess":
 		return nil
 	default:
@@ -53476,6 +53484,10 @@ func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected) Validate() e
 func (s InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis) Validate() error {
 	switch s {
 	case "stated":
+		return nil
+	case "stated_web":
+		return nil
+	case "stated_sip":
 		return nil
 	case "guess":
 		return nil
@@ -53758,6 +53770,10 @@ func (s InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis) Validate() error
 	switch s {
 	case "stated":
 		return nil
+	case "stated_web":
+		return nil
+	case "stated_sip":
+		return nil
 	case "guess":
 		return nil
 	default:
@@ -53921,6 +53937,10 @@ func (s *InventoryGetInventoryDevicesIDOKAssetVendor) Validate() error {
 func (s InventoryGetInventoryDevicesIDOKAssetVendorBasis) Validate() error {
 	switch s {
 	case "stated":
+		return nil
+	case "stated_web":
+		return nil
+	case "stated_sip":
 		return nil
 	case "guess":
 		return nil
@@ -54209,6 +54229,10 @@ func (s *InventoryGetInventoryDevicesIDOKObservationsItem) Validate() error {
 func (s InventoryGetInventoryDevicesIDOKObservationsItemBasis) Validate() error {
 	switch s {
 	case "stated":
+		return nil
+	case "stated_web":
+		return nil
+	case "stated_sip":
 		return nil
 	case "guess":
 		return nil
@@ -55517,6 +55541,10 @@ func (s InventoryGetInventoryDevicesOKItemsItemModelBasis) Validate() error {
 	switch s {
 	case "stated":
 		return nil
+	case "stated_web":
+		return nil
+	case "stated_sip":
+		return nil
 	case "guess":
 		return nil
 	default:
@@ -55619,6 +55647,10 @@ func (s *InventoryGetInventoryDevicesOKItemsItemOs) Validate() error {
 func (s InventoryGetInventoryDevicesOKItemsItemOsBasis) Validate() error {
 	switch s {
 	case "stated":
+		return nil
+	case "stated_web":
+		return nil
+	case "stated_sip":
 		return nil
 	case "guess":
 		return nil
@@ -55940,6 +55972,10 @@ func (s InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis) Validate() err
 	switch s {
 	case "stated":
 		return nil
+	case "stated_web":
+		return nil
+	case "stated_sip":
+		return nil
 	case "guess":
 		return nil
 	default:
@@ -56113,6 +56149,10 @@ func (s *InventoryGetInventoryDevicesOKItemsItemVendor) Validate() error {
 func (s InventoryGetInventoryDevicesOKItemsItemVendorBasis) Validate() error {
 	switch s {
 	case "stated":
+		return nil
+	case "stated_web":
+		return nil
+	case "stated_sip":
 		return nil
 	case "guess":
 		return nil

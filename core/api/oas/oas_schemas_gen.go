@@ -103277,14 +103277,18 @@ func (s *InventoryGetInventoryDevicesIDOKAssetModel) SetValue(val string) {
 type InventoryGetInventoryDevicesIDOKAssetModelBasis string
 
 const (
-	InventoryGetInventoryDevicesIDOKAssetModelBasisStated InventoryGetInventoryDevicesIDOKAssetModelBasis = "stated"
-	InventoryGetInventoryDevicesIDOKAssetModelBasisGuess  InventoryGetInventoryDevicesIDOKAssetModelBasis = "guess"
+	InventoryGetInventoryDevicesIDOKAssetModelBasisStated    InventoryGetInventoryDevicesIDOKAssetModelBasis = "stated"
+	InventoryGetInventoryDevicesIDOKAssetModelBasisStatedWeb InventoryGetInventoryDevicesIDOKAssetModelBasis = "stated_web"
+	InventoryGetInventoryDevicesIDOKAssetModelBasisStatedSip InventoryGetInventoryDevicesIDOKAssetModelBasis = "stated_sip"
+	InventoryGetInventoryDevicesIDOKAssetModelBasisGuess     InventoryGetInventoryDevicesIDOKAssetModelBasis = "guess"
 )
 
 // AllValues returns all InventoryGetInventoryDevicesIDOKAssetModelBasis values.
 func (InventoryGetInventoryDevicesIDOKAssetModelBasis) AllValues() []InventoryGetInventoryDevicesIDOKAssetModelBasis {
 	return []InventoryGetInventoryDevicesIDOKAssetModelBasis{
 		InventoryGetInventoryDevicesIDOKAssetModelBasisStated,
+		InventoryGetInventoryDevicesIDOKAssetModelBasisStatedWeb,
+		InventoryGetInventoryDevicesIDOKAssetModelBasisStatedSip,
 		InventoryGetInventoryDevicesIDOKAssetModelBasisGuess,
 	}
 }
@@ -103293,6 +103297,10 @@ func (InventoryGetInventoryDevicesIDOKAssetModelBasis) AllValues() []InventoryGe
 func (s InventoryGetInventoryDevicesIDOKAssetModelBasis) MarshalText() ([]byte, error) {
 	switch s {
 	case InventoryGetInventoryDevicesIDOKAssetModelBasisStated:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetModelBasisStatedWeb:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetModelBasisStatedSip:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDOKAssetModelBasisGuess:
 		return []byte(s), nil
@@ -103306,6 +103314,12 @@ func (s *InventoryGetInventoryDevicesIDOKAssetModelBasis) UnmarshalText(data []b
 	switch InventoryGetInventoryDevicesIDOKAssetModelBasis(data) {
 	case InventoryGetInventoryDevicesIDOKAssetModelBasisStated:
 		*s = InventoryGetInventoryDevicesIDOKAssetModelBasisStated
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetModelBasisStatedWeb:
+		*s = InventoryGetInventoryDevicesIDOKAssetModelBasisStatedWeb
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetModelBasisStatedSip:
+		*s = InventoryGetInventoryDevicesIDOKAssetModelBasisStatedSip
 		return nil
 	case InventoryGetInventoryDevicesIDOKAssetModelBasisGuess:
 		*s = InventoryGetInventoryDevicesIDOKAssetModelBasisGuess
@@ -103506,14 +103520,18 @@ func (s *InventoryGetInventoryDevicesIDOKAssetOs) SetValue(val string) {
 type InventoryGetInventoryDevicesIDOKAssetOsBasis string
 
 const (
-	InventoryGetInventoryDevicesIDOKAssetOsBasisStated InventoryGetInventoryDevicesIDOKAssetOsBasis = "stated"
-	InventoryGetInventoryDevicesIDOKAssetOsBasisGuess  InventoryGetInventoryDevicesIDOKAssetOsBasis = "guess"
+	InventoryGetInventoryDevicesIDOKAssetOsBasisStated    InventoryGetInventoryDevicesIDOKAssetOsBasis = "stated"
+	InventoryGetInventoryDevicesIDOKAssetOsBasisStatedWeb InventoryGetInventoryDevicesIDOKAssetOsBasis = "stated_web"
+	InventoryGetInventoryDevicesIDOKAssetOsBasisStatedSip InventoryGetInventoryDevicesIDOKAssetOsBasis = "stated_sip"
+	InventoryGetInventoryDevicesIDOKAssetOsBasisGuess     InventoryGetInventoryDevicesIDOKAssetOsBasis = "guess"
 )
 
 // AllValues returns all InventoryGetInventoryDevicesIDOKAssetOsBasis values.
 func (InventoryGetInventoryDevicesIDOKAssetOsBasis) AllValues() []InventoryGetInventoryDevicesIDOKAssetOsBasis {
 	return []InventoryGetInventoryDevicesIDOKAssetOsBasis{
 		InventoryGetInventoryDevicesIDOKAssetOsBasisStated,
+		InventoryGetInventoryDevicesIDOKAssetOsBasisStatedWeb,
+		InventoryGetInventoryDevicesIDOKAssetOsBasisStatedSip,
 		InventoryGetInventoryDevicesIDOKAssetOsBasisGuess,
 	}
 }
@@ -103522,6 +103540,10 @@ func (InventoryGetInventoryDevicesIDOKAssetOsBasis) AllValues() []InventoryGetIn
 func (s InventoryGetInventoryDevicesIDOKAssetOsBasis) MarshalText() ([]byte, error) {
 	switch s {
 	case InventoryGetInventoryDevicesIDOKAssetOsBasisStated:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetOsBasisStatedWeb:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetOsBasisStatedSip:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDOKAssetOsBasisGuess:
 		return []byte(s), nil
@@ -103535,6 +103557,12 @@ func (s *InventoryGetInventoryDevicesIDOKAssetOsBasis) UnmarshalText(data []byte
 	switch InventoryGetInventoryDevicesIDOKAssetOsBasis(data) {
 	case InventoryGetInventoryDevicesIDOKAssetOsBasisStated:
 		*s = InventoryGetInventoryDevicesIDOKAssetOsBasisStated
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetOsBasisStatedWeb:
+		*s = InventoryGetInventoryDevicesIDOKAssetOsBasisStatedWeb
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetOsBasisStatedSip:
+		*s = InventoryGetInventoryDevicesIDOKAssetOsBasisStatedSip
 		return nil
 	case InventoryGetInventoryDevicesIDOKAssetOsBasisGuess:
 		*s = InventoryGetInventoryDevicesIDOKAssetOsBasisGuess
@@ -103675,14 +103703,18 @@ func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected) SetValue(val
 type InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis string
 
 const (
-	InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasisStated InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis = "stated"
-	InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasisGuess  InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis = "guess"
+	InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasisStated    InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis = "stated"
+	InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasisStatedWeb InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis = "stated_web"
+	InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasisStatedSip InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis = "stated_sip"
+	InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasisGuess     InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis = "guess"
 )
 
 // AllValues returns all InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis values.
 func (InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis) AllValues() []InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis {
 	return []InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis{
 		InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasisStated,
+		InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasisStatedWeb,
+		InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasisStatedSip,
 		InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasisGuess,
 	}
 }
@@ -103691,6 +103723,10 @@ func (InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis) AllValues(
 func (s InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis) MarshalText() ([]byte, error) {
 	switch s {
 	case InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasisStated:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasisStatedWeb:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasisStatedSip:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasisGuess:
 		return []byte(s), nil
@@ -103704,6 +103740,12 @@ func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis) Unmarsh
 	switch InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis(data) {
 	case InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasisStated:
 		*s = InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasisStated
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasisStatedWeb:
+		*s = InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasisStatedWeb
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasisStatedSip:
+		*s = InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasisStatedSip
 		return nil
 	case InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasisGuess:
 		*s = InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasisGuess
@@ -104339,14 +104381,18 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) SetVersion(val NilSt
 type InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis string
 
 const (
-	InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasisStated InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis = "stated"
-	InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasisGuess  InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis = "guess"
+	InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasisStated    InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis = "stated"
+	InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasisStatedWeb InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis = "stated_web"
+	InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasisStatedSip InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis = "stated_sip"
+	InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasisGuess     InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis = "guess"
 )
 
 // AllValues returns all InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis values.
 func (InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis) AllValues() []InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis {
 	return []InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis{
 		InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasisStated,
+		InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasisStatedWeb,
+		InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasisStatedSip,
 		InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasisGuess,
 	}
 }
@@ -104355,6 +104401,10 @@ func (InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis) AllValues() []Inve
 func (s InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis) MarshalText() ([]byte, error) {
 	switch s {
 	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasisStated:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasisStatedWeb:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasisStatedSip:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasisGuess:
 		return []byte(s), nil
@@ -104368,6 +104418,12 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis) UnmarshalText(d
 	switch InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis(data) {
 	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasisStated:
 		*s = InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasisStated
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasisStatedWeb:
+		*s = InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasisStatedWeb
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasisStatedSip:
+		*s = InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasisStatedSip
 		return nil
 	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasisGuess:
 		*s = InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasisGuess
@@ -104753,14 +104809,18 @@ func (s *InventoryGetInventoryDevicesIDOKAssetVendor) SetValue(val string) {
 type InventoryGetInventoryDevicesIDOKAssetVendorBasis string
 
 const (
-	InventoryGetInventoryDevicesIDOKAssetVendorBasisStated InventoryGetInventoryDevicesIDOKAssetVendorBasis = "stated"
-	InventoryGetInventoryDevicesIDOKAssetVendorBasisGuess  InventoryGetInventoryDevicesIDOKAssetVendorBasis = "guess"
+	InventoryGetInventoryDevicesIDOKAssetVendorBasisStated    InventoryGetInventoryDevicesIDOKAssetVendorBasis = "stated"
+	InventoryGetInventoryDevicesIDOKAssetVendorBasisStatedWeb InventoryGetInventoryDevicesIDOKAssetVendorBasis = "stated_web"
+	InventoryGetInventoryDevicesIDOKAssetVendorBasisStatedSip InventoryGetInventoryDevicesIDOKAssetVendorBasis = "stated_sip"
+	InventoryGetInventoryDevicesIDOKAssetVendorBasisGuess     InventoryGetInventoryDevicesIDOKAssetVendorBasis = "guess"
 )
 
 // AllValues returns all InventoryGetInventoryDevicesIDOKAssetVendorBasis values.
 func (InventoryGetInventoryDevicesIDOKAssetVendorBasis) AllValues() []InventoryGetInventoryDevicesIDOKAssetVendorBasis {
 	return []InventoryGetInventoryDevicesIDOKAssetVendorBasis{
 		InventoryGetInventoryDevicesIDOKAssetVendorBasisStated,
+		InventoryGetInventoryDevicesIDOKAssetVendorBasisStatedWeb,
+		InventoryGetInventoryDevicesIDOKAssetVendorBasisStatedSip,
 		InventoryGetInventoryDevicesIDOKAssetVendorBasisGuess,
 	}
 }
@@ -104769,6 +104829,10 @@ func (InventoryGetInventoryDevicesIDOKAssetVendorBasis) AllValues() []InventoryG
 func (s InventoryGetInventoryDevicesIDOKAssetVendorBasis) MarshalText() ([]byte, error) {
 	switch s {
 	case InventoryGetInventoryDevicesIDOKAssetVendorBasisStated:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetVendorBasisStatedWeb:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetVendorBasisStatedSip:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDOKAssetVendorBasisGuess:
 		return []byte(s), nil
@@ -104782,6 +104846,12 @@ func (s *InventoryGetInventoryDevicesIDOKAssetVendorBasis) UnmarshalText(data []
 	switch InventoryGetInventoryDevicesIDOKAssetVendorBasis(data) {
 	case InventoryGetInventoryDevicesIDOKAssetVendorBasisStated:
 		*s = InventoryGetInventoryDevicesIDOKAssetVendorBasisStated
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetVendorBasisStatedWeb:
+		*s = InventoryGetInventoryDevicesIDOKAssetVendorBasisStatedWeb
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetVendorBasisStatedSip:
+		*s = InventoryGetInventoryDevicesIDOKAssetVendorBasisStatedSip
 		return nil
 	case InventoryGetInventoryDevicesIDOKAssetVendorBasisGuess:
 		*s = InventoryGetInventoryDevicesIDOKAssetVendorBasisGuess
@@ -105620,14 +105690,18 @@ func (s *InventoryGetInventoryDevicesIDOKObservationsItem) SetValue(val string) 
 type InventoryGetInventoryDevicesIDOKObservationsItemBasis string
 
 const (
-	InventoryGetInventoryDevicesIDOKObservationsItemBasisStated InventoryGetInventoryDevicesIDOKObservationsItemBasis = "stated"
-	InventoryGetInventoryDevicesIDOKObservationsItemBasisGuess  InventoryGetInventoryDevicesIDOKObservationsItemBasis = "guess"
+	InventoryGetInventoryDevicesIDOKObservationsItemBasisStated    InventoryGetInventoryDevicesIDOKObservationsItemBasis = "stated"
+	InventoryGetInventoryDevicesIDOKObservationsItemBasisStatedWeb InventoryGetInventoryDevicesIDOKObservationsItemBasis = "stated_web"
+	InventoryGetInventoryDevicesIDOKObservationsItemBasisStatedSip InventoryGetInventoryDevicesIDOKObservationsItemBasis = "stated_sip"
+	InventoryGetInventoryDevicesIDOKObservationsItemBasisGuess     InventoryGetInventoryDevicesIDOKObservationsItemBasis = "guess"
 )
 
 // AllValues returns all InventoryGetInventoryDevicesIDOKObservationsItemBasis values.
 func (InventoryGetInventoryDevicesIDOKObservationsItemBasis) AllValues() []InventoryGetInventoryDevicesIDOKObservationsItemBasis {
 	return []InventoryGetInventoryDevicesIDOKObservationsItemBasis{
 		InventoryGetInventoryDevicesIDOKObservationsItemBasisStated,
+		InventoryGetInventoryDevicesIDOKObservationsItemBasisStatedWeb,
+		InventoryGetInventoryDevicesIDOKObservationsItemBasisStatedSip,
 		InventoryGetInventoryDevicesIDOKObservationsItemBasisGuess,
 	}
 }
@@ -105636,6 +105710,10 @@ func (InventoryGetInventoryDevicesIDOKObservationsItemBasis) AllValues() []Inven
 func (s InventoryGetInventoryDevicesIDOKObservationsItemBasis) MarshalText() ([]byte, error) {
 	switch s {
 	case InventoryGetInventoryDevicesIDOKObservationsItemBasisStated:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKObservationsItemBasisStatedWeb:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKObservationsItemBasisStatedSip:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDOKObservationsItemBasisGuess:
 		return []byte(s), nil
@@ -105649,6 +105727,12 @@ func (s *InventoryGetInventoryDevicesIDOKObservationsItemBasis) UnmarshalText(da
 	switch InventoryGetInventoryDevicesIDOKObservationsItemBasis(data) {
 	case InventoryGetInventoryDevicesIDOKObservationsItemBasisStated:
 		*s = InventoryGetInventoryDevicesIDOKObservationsItemBasisStated
+		return nil
+	case InventoryGetInventoryDevicesIDOKObservationsItemBasisStatedWeb:
+		*s = InventoryGetInventoryDevicesIDOKObservationsItemBasisStatedWeb
+		return nil
+	case InventoryGetInventoryDevicesIDOKObservationsItemBasisStatedSip:
+		*s = InventoryGetInventoryDevicesIDOKObservationsItemBasisStatedSip
 		return nil
 	case InventoryGetInventoryDevicesIDOKObservationsItemBasisGuess:
 		*s = InventoryGetInventoryDevicesIDOKObservationsItemBasisGuess
@@ -108667,14 +108751,18 @@ func (s *InventoryGetInventoryDevicesOKItemsItemModel) SetValue(val string) {
 type InventoryGetInventoryDevicesOKItemsItemModelBasis string
 
 const (
-	InventoryGetInventoryDevicesOKItemsItemModelBasisStated InventoryGetInventoryDevicesOKItemsItemModelBasis = "stated"
-	InventoryGetInventoryDevicesOKItemsItemModelBasisGuess  InventoryGetInventoryDevicesOKItemsItemModelBasis = "guess"
+	InventoryGetInventoryDevicesOKItemsItemModelBasisStated    InventoryGetInventoryDevicesOKItemsItemModelBasis = "stated"
+	InventoryGetInventoryDevicesOKItemsItemModelBasisStatedWeb InventoryGetInventoryDevicesOKItemsItemModelBasis = "stated_web"
+	InventoryGetInventoryDevicesOKItemsItemModelBasisStatedSip InventoryGetInventoryDevicesOKItemsItemModelBasis = "stated_sip"
+	InventoryGetInventoryDevicesOKItemsItemModelBasisGuess     InventoryGetInventoryDevicesOKItemsItemModelBasis = "guess"
 )
 
 // AllValues returns all InventoryGetInventoryDevicesOKItemsItemModelBasis values.
 func (InventoryGetInventoryDevicesOKItemsItemModelBasis) AllValues() []InventoryGetInventoryDevicesOKItemsItemModelBasis {
 	return []InventoryGetInventoryDevicesOKItemsItemModelBasis{
 		InventoryGetInventoryDevicesOKItemsItemModelBasisStated,
+		InventoryGetInventoryDevicesOKItemsItemModelBasisStatedWeb,
+		InventoryGetInventoryDevicesOKItemsItemModelBasisStatedSip,
 		InventoryGetInventoryDevicesOKItemsItemModelBasisGuess,
 	}
 }
@@ -108683,6 +108771,10 @@ func (InventoryGetInventoryDevicesOKItemsItemModelBasis) AllValues() []Inventory
 func (s InventoryGetInventoryDevicesOKItemsItemModelBasis) MarshalText() ([]byte, error) {
 	switch s {
 	case InventoryGetInventoryDevicesOKItemsItemModelBasisStated:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemModelBasisStatedWeb:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemModelBasisStatedSip:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesOKItemsItemModelBasisGuess:
 		return []byte(s), nil
@@ -108696,6 +108788,12 @@ func (s *InventoryGetInventoryDevicesOKItemsItemModelBasis) UnmarshalText(data [
 	switch InventoryGetInventoryDevicesOKItemsItemModelBasis(data) {
 	case InventoryGetInventoryDevicesOKItemsItemModelBasisStated:
 		*s = InventoryGetInventoryDevicesOKItemsItemModelBasisStated
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemModelBasisStatedWeb:
+		*s = InventoryGetInventoryDevicesOKItemsItemModelBasisStatedWeb
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemModelBasisStatedSip:
+		*s = InventoryGetInventoryDevicesOKItemsItemModelBasisStatedSip
 		return nil
 	case InventoryGetInventoryDevicesOKItemsItemModelBasisGuess:
 		*s = InventoryGetInventoryDevicesOKItemsItemModelBasisGuess
@@ -108896,14 +108994,18 @@ func (s *InventoryGetInventoryDevicesOKItemsItemOs) SetValue(val string) {
 type InventoryGetInventoryDevicesOKItemsItemOsBasis string
 
 const (
-	InventoryGetInventoryDevicesOKItemsItemOsBasisStated InventoryGetInventoryDevicesOKItemsItemOsBasis = "stated"
-	InventoryGetInventoryDevicesOKItemsItemOsBasisGuess  InventoryGetInventoryDevicesOKItemsItemOsBasis = "guess"
+	InventoryGetInventoryDevicesOKItemsItemOsBasisStated    InventoryGetInventoryDevicesOKItemsItemOsBasis = "stated"
+	InventoryGetInventoryDevicesOKItemsItemOsBasisStatedWeb InventoryGetInventoryDevicesOKItemsItemOsBasis = "stated_web"
+	InventoryGetInventoryDevicesOKItemsItemOsBasisStatedSip InventoryGetInventoryDevicesOKItemsItemOsBasis = "stated_sip"
+	InventoryGetInventoryDevicesOKItemsItemOsBasisGuess     InventoryGetInventoryDevicesOKItemsItemOsBasis = "guess"
 )
 
 // AllValues returns all InventoryGetInventoryDevicesOKItemsItemOsBasis values.
 func (InventoryGetInventoryDevicesOKItemsItemOsBasis) AllValues() []InventoryGetInventoryDevicesOKItemsItemOsBasis {
 	return []InventoryGetInventoryDevicesOKItemsItemOsBasis{
 		InventoryGetInventoryDevicesOKItemsItemOsBasisStated,
+		InventoryGetInventoryDevicesOKItemsItemOsBasisStatedWeb,
+		InventoryGetInventoryDevicesOKItemsItemOsBasisStatedSip,
 		InventoryGetInventoryDevicesOKItemsItemOsBasisGuess,
 	}
 }
@@ -108912,6 +109014,10 @@ func (InventoryGetInventoryDevicesOKItemsItemOsBasis) AllValues() []InventoryGet
 func (s InventoryGetInventoryDevicesOKItemsItemOsBasis) MarshalText() ([]byte, error) {
 	switch s {
 	case InventoryGetInventoryDevicesOKItemsItemOsBasisStated:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemOsBasisStatedWeb:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemOsBasisStatedSip:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesOKItemsItemOsBasisGuess:
 		return []byte(s), nil
@@ -108925,6 +109031,12 @@ func (s *InventoryGetInventoryDevicesOKItemsItemOsBasis) UnmarshalText(data []by
 	switch InventoryGetInventoryDevicesOKItemsItemOsBasis(data) {
 	case InventoryGetInventoryDevicesOKItemsItemOsBasisStated:
 		*s = InventoryGetInventoryDevicesOKItemsItemOsBasisStated
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemOsBasisStatedWeb:
+		*s = InventoryGetInventoryDevicesOKItemsItemOsBasisStatedWeb
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemOsBasisStatedSip:
+		*s = InventoryGetInventoryDevicesOKItemsItemOsBasisStatedSip
 		return nil
 	case InventoryGetInventoryDevicesOKItemsItemOsBasisGuess:
 		*s = InventoryGetInventoryDevicesOKItemsItemOsBasisGuess
@@ -109536,14 +109648,18 @@ func (s *InventoryGetInventoryDevicesOKItemsItemSoftwareItem) SetVersion(val Nil
 type InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis string
 
 const (
-	InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisStated InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis = "stated"
-	InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisGuess  InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis = "guess"
+	InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisStated    InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis = "stated"
+	InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisStatedWeb InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis = "stated_web"
+	InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisStatedSip InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis = "stated_sip"
+	InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisGuess     InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis = "guess"
 )
 
 // AllValues returns all InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis values.
 func (InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis) AllValues() []InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis {
 	return []InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis{
 		InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisStated,
+		InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisStatedWeb,
+		InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisStatedSip,
 		InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisGuess,
 	}
 }
@@ -109552,6 +109668,10 @@ func (InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis) AllValues() []In
 func (s InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis) MarshalText() ([]byte, error) {
 	switch s {
 	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisStated:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisStatedWeb:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisStatedSip:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisGuess:
 		return []byte(s), nil
@@ -109565,6 +109685,12 @@ func (s *InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis) UnmarshalText
 	switch InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis(data) {
 	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisStated:
 		*s = InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisStated
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisStatedWeb:
+		*s = InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisStatedWeb
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisStatedSip:
+		*s = InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisStatedSip
 		return nil
 	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisGuess:
 		*s = InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisGuess
@@ -109887,14 +110013,18 @@ func (s *InventoryGetInventoryDevicesOKItemsItemVendor) SetValue(val string) {
 type InventoryGetInventoryDevicesOKItemsItemVendorBasis string
 
 const (
-	InventoryGetInventoryDevicesOKItemsItemVendorBasisStated InventoryGetInventoryDevicesOKItemsItemVendorBasis = "stated"
-	InventoryGetInventoryDevicesOKItemsItemVendorBasisGuess  InventoryGetInventoryDevicesOKItemsItemVendorBasis = "guess"
+	InventoryGetInventoryDevicesOKItemsItemVendorBasisStated    InventoryGetInventoryDevicesOKItemsItemVendorBasis = "stated"
+	InventoryGetInventoryDevicesOKItemsItemVendorBasisStatedWeb InventoryGetInventoryDevicesOKItemsItemVendorBasis = "stated_web"
+	InventoryGetInventoryDevicesOKItemsItemVendorBasisStatedSip InventoryGetInventoryDevicesOKItemsItemVendorBasis = "stated_sip"
+	InventoryGetInventoryDevicesOKItemsItemVendorBasisGuess     InventoryGetInventoryDevicesOKItemsItemVendorBasis = "guess"
 )
 
 // AllValues returns all InventoryGetInventoryDevicesOKItemsItemVendorBasis values.
 func (InventoryGetInventoryDevicesOKItemsItemVendorBasis) AllValues() []InventoryGetInventoryDevicesOKItemsItemVendorBasis {
 	return []InventoryGetInventoryDevicesOKItemsItemVendorBasis{
 		InventoryGetInventoryDevicesOKItemsItemVendorBasisStated,
+		InventoryGetInventoryDevicesOKItemsItemVendorBasisStatedWeb,
+		InventoryGetInventoryDevicesOKItemsItemVendorBasisStatedSip,
 		InventoryGetInventoryDevicesOKItemsItemVendorBasisGuess,
 	}
 }
@@ -109903,6 +110033,10 @@ func (InventoryGetInventoryDevicesOKItemsItemVendorBasis) AllValues() []Inventor
 func (s InventoryGetInventoryDevicesOKItemsItemVendorBasis) MarshalText() ([]byte, error) {
 	switch s {
 	case InventoryGetInventoryDevicesOKItemsItemVendorBasisStated:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemVendorBasisStatedWeb:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemVendorBasisStatedSip:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesOKItemsItemVendorBasisGuess:
 		return []byte(s), nil
@@ -109916,6 +110050,12 @@ func (s *InventoryGetInventoryDevicesOKItemsItemVendorBasis) UnmarshalText(data 
 	switch InventoryGetInventoryDevicesOKItemsItemVendorBasis(data) {
 	case InventoryGetInventoryDevicesOKItemsItemVendorBasisStated:
 		*s = InventoryGetInventoryDevicesOKItemsItemVendorBasisStated
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemVendorBasisStatedWeb:
+		*s = InventoryGetInventoryDevicesOKItemsItemVendorBasisStatedWeb
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemVendorBasisStatedSip:
+		*s = InventoryGetInventoryDevicesOKItemsItemVendorBasisStatedSip
 		return nil
 	case InventoryGetInventoryDevicesOKItemsItemVendorBasisGuess:
 		*s = InventoryGetInventoryDevicesOKItemsItemVendorBasisGuess

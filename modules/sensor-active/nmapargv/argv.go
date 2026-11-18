@@ -229,11 +229,11 @@ const (
 // -sV found TLS on, read for the certificate's subject), both in nmap's "default, safe" categories: what the device states about
 // itself (a FortiGate's certificate names its model, J-Web's title the switch). A fixed list, never a category or a wildcard;
 // smb-os-discovery is left out because it opens an anonymous, then a guest, SMB session (a logon attempt).
-const Scripts = "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert"
+const Scripts = "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert,http-hp-ilo-info,vmware-version"
 
 // TitleScripts is the exact NSE script list of the GentleTitles shape: the page title and the certificate subject, both in
 // nmap's "default, safe" categories, read only from ports their portrules match (web and TLS ports).
-const TitleScripts = "http-title,ssl-cert"
+const TitleScripts = "http-title,ssl-cert,http-hp-ilo-info,vmware-version"
 
 // titleScriptTimeout caps each script of GentleTitles, so a device that answers slowly cannot stretch the gentle scan.
 const titleScriptTimeout = "20s"

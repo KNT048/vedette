@@ -32,13 +32,13 @@ func TestBuild(t *testing.T) {
 		{"sweep", Sweep, 50, addrs(t, "192.168.10.1", "192.168.10.2"),
 			[]string{"--privileged", "-sn", "-PE", "-PP", "-PS21,22,23,80,135,139,443,445,554,3389,8000,8080,9100", "-PA80,443", "-n", "--max-rate", "50", "--stats-every", "5s", "-oX", "-", "192.168.10.1", "192.168.10.2"}},
 		{"normal", Normal, 100, one,
-			[]string{"--privileged", "-sS", "-sV", "-O", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "100", "--max-retries", "3", "--top-ports", "1000", "--host-timeout", "30m", "--stats-every", "5s", "-oX", "-", "192.168.10.20"}},
+			[]string{"--privileged", "-sS", "-sV", "-O", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert,http-hp-ilo-info,vmware-version", "-n", "--max-rate", "100", "--max-retries", "3", "--top-ports", "1000", "--host-timeout", "30m", "--stats-every", "5s", "-oX", "-", "192.168.10.20"}},
 		{"versions: no -O, the same two scripts", Versions, 25, one,
-			[]string{"--privileged", "-sS", "-sV", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "25", "--max-retries", "3", "--top-ports", "1000", "--host-timeout", "30m", "--stats-every", "5s", "-oX", "-", "192.168.10.20"}},
+			[]string{"--privileged", "-sS", "-sV", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert,http-hp-ilo-info,vmware-version", "-n", "--max-rate", "25", "--max-retries", "3", "--top-ports", "1000", "--host-timeout", "30m", "--stats-every", "5s", "-oX", "-", "192.168.10.20"}},
 		{"gentle ignores the rate given: 1 packet per second, no -sV", Gentle, 500, one,
 			[]string{"--privileged", "-sS", "-n", "-T2", "--max-retries", "1", "--max-rate", "1", "--host-timeout", "15m", "--top-ports", "100", "--stats-every", "5s", "-oX", "-", "192.168.10.20"}},
 		{"gentle with titles: the gentle line plus http-title and ssl-cert, each capped at 20 s", GentleTitles, 500, one,
-			[]string{"--privileged", "-sS", "--script", "http-title,ssl-cert", "--script-timeout", "20s", "-n", "-T2", "--max-retries", "1", "--max-rate", "1", "--host-timeout", "15m", "--top-ports", "100", "--stats-every", "5s", "-oX", "-", "192.168.10.20"}},
+			[]string{"--privileged", "-sS", "--script", "http-title,ssl-cert,http-hp-ilo-info,vmware-version", "--script-timeout", "20s", "-n", "-T2", "--max-retries", "1", "--max-rate", "1", "--host-timeout", "15m", "--top-ports", "100", "--stats-every", "5s", "-oX", "-", "192.168.10.20"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -96,20 +96,20 @@ func TestBuildRefuses(t *testing.T) {
 // The six shapes written out apart from the code under test (INV-4, SYS-2).
 var (
 	shapeSweep    = []string{"--privileged", "-sn", "-PE", "-PP", "-PS21,22,23,80,135,139,443,445,554,3389,8000,8080,9100", "-PA80,443", "-n", "--max-rate", "50", "--stats-every", "5s", "-oX", "-", "192.168.10.1"}
-	shapeNormal   = []string{"--privileged", "-sS", "-sV", "-O", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "100", "--max-retries", "3", "--top-ports", "1000", "--host-timeout", "30m", "--stats-every", "5s", "-oX", "-", "192.168.10.20"}
+	shapeNormal   = []string{"--privileged", "-sS", "-sV", "-O", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert,http-hp-ilo-info,vmware-version", "-n", "--max-rate", "100", "--max-retries", "3", "--top-ports", "1000", "--host-timeout", "30m", "--stats-every", "5s", "-oX", "-", "192.168.10.20"}
 	shapeGentle   = []string{"--privileged", "-sS", "-n", "-T2", "--max-retries", "1", "--max-rate", "1", "--host-timeout", "15m", "--top-ports", "100", "--stats-every", "5s", "-oX", "-", "192.168.10.30"}
-	shapeVersions = []string{"--privileged", "-sS", "-sV", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "25", "--max-retries", "3", "--top-ports", "1000", "--host-timeout", "30m", "--stats-every", "5s", "-oX", "-", "192.168.10.40"}
-	shapeTitles   = []string{"--privileged", "-sS", "--script", "http-title,ssl-cert", "--script-timeout", "20s", "-n", "-T2", "--max-retries", "1", "--max-rate", "1", "--host-timeout", "15m", "--top-ports", "100", "--stats-every", "5s", "-oX", "-", "192.168.10.50"}
+	shapeVersions = []string{"--privileged", "-sS", "-sV", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert,http-hp-ilo-info,vmware-version", "-n", "--max-rate", "25", "--max-retries", "3", "--top-ports", "1000", "--host-timeout", "30m", "--stats-every", "5s", "-oX", "-", "192.168.10.40"}
+	shapeTitles   = []string{"--privileged", "-sS", "--script", "http-title,ssl-cert,http-hp-ilo-info,vmware-version", "--script-timeout", "20s", "-n", "-T2", "--max-retries", "1", "--max-rate", "1", "--host-timeout", "15m", "--top-ports", "100", "--stats-every", "5s", "-oX", "-", "192.168.10.50"}
 	// The ports written out here are those of modules/scan/commonports (TestExternalPortsAreTheSurfaceList).
 	externalPorts = "21,22,23,25,53,80,81,88,102,110,111,135,139,143,179,389,443,445,465,502,515,554,587,631,636,873,993,995,1080,1194,1433,1521,1723,1883,2049,2082,2083,2086,2087,2222,2375,2376,2379,3000,3128,3306,3389,4443,4899,5000,5001,5060,5061,5432,5601,5672,5900,5901,5938,5984,5985,5986,6379,6443,7001,7002,7547,8000,8006,8008,8009,8080,8081,8088,8089,8090,8123,8291,8443,8728,8729,8834,8880,8883,8888,9000,9042,9090,9100,9200,9443,10000,10250,10443,11211,11443,27017,34567,37777"
 	shapeExternal = []string{"--privileged", "-sS", "-sV", "-Pn", "-n", "--max-rate", "100", "--max-retries", "2", "--host-timeout", "3m", "-p", externalPorts, "--stats-every", "5s", "-oX", "-", "8.8.8.8"}
 	// The run after a normal or versions scan over the surface list and the reviewed admin ports.
-	shapeExtra = []string{"--privileged", "-sS", "-sV", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "100",
+	shapeExtra = []string{"--privileged", "-sS", "-sV", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert,http-hp-ilo-info,vmware-version", "-n", "--max-rate", "100",
 		"--max-retries", "3", "-p", ExtraPorts, "--host-timeout", "30m", "--stats-every", "5s", "-oX", "-", "192.168.10.20"}
 	// The weekly scan of every port of a LAN device that is not fragile.
 	shapeAllPorts = []string{"--privileged", "-sS", "-n", "--max-rate", "100", "--max-retries", "1", "-p-", "--host-timeout", "90m", "--stats-every", "5s", "-oX", "-", "192.168.10.20"}
 	// The -sV follow-up of the weekly scan on the open ports the normal scan does not cover.
-	shapePortVersions = []string{"--privileged", "-sS", "-sV", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "50",
+	shapePortVersions = []string{"--privileged", "-sS", "-sV", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert,http-hp-ilo-info,vmware-version", "-n", "--max-rate", "50",
 		"--max-retries", "3", "-p", "22222,40000", "--host-timeout", "30m", "--stats-every", "5s", "-oX", "-", "192.168.10.20"}
 	// The two full shapes of a target whose testing terms are accepted.
 	shapeFull = []string{"--privileged", "-sS", "-sV", "--version-all", "-Pn", "-n", "-p-", "--script", FullScripts,
@@ -140,12 +140,12 @@ func TestValidate(t *testing.T) {
 		"script":                               {"--privileged", "-sS", "--script", "vuln", "--stats-every", "5s", "-oX", "-", "192.168.10.1"},
 		"script=":                              {"--privileged", "-sS", "--script=vuln", "--stats-every", "5s", "-oX", "-", "192.168.10.1"},
 		"default scripts":                      {"--privileged", "-sS", "-sC", "--stats-every", "5s", "-oX", "-", "192.168.10.1"},
-		"another script list":                  swap(shapeNormal, "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "rdp-ntlm-info,smb-os-discovery"),
-		"script list reordered":                swap(shapeNormal, "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "http-ntlm-info,rdp-ntlm-info,http-title,ssl-cert"),
-		"script category":                      swap(shapeVersions, "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "safe"),
-		"script wildcard":                      swap(shapeVersions, "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "*-ntlm-info"),
+		"another script list":                  swap(shapeNormal, "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert,http-hp-ilo-info,vmware-version", "rdp-ntlm-info,smb-os-discovery"),
+		"script list reordered":                swap(shapeNormal, "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert,http-hp-ilo-info,vmware-version", "http-ntlm-info,rdp-ntlm-info,http-title,ssl-cert"),
+		"script category":                      swap(shapeVersions, "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert,http-hp-ilo-info,vmware-version", "safe"),
+		"script wildcard":                      swap(shapeVersions, "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert,http-hp-ilo-info,vmware-version", "*-ntlm-info"),
 		"script list without the flag":         drop(shapeNormal, "--script"),
-		"normal without its scripts":           drop(shapeNormal, "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert"),
+		"normal without its scripts":           drop(shapeNormal, "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert,http-hp-ilo-info,vmware-version"),
 		"output to a file":                     {"--privileged", "-sS", "-oN", "/tmp/x", "--stats-every", "5s", "-oX", "-", "192.168.10.1"},
 		"xml to a file":                        swap(shapeNormal, "-", "/tmp/x"),
 		"input list":                           {"--privileged", "-sS", "-iL", "/etc/hosts", "--stats-every", "5s", "-oX", "-", "192.168.10.1"},
@@ -210,8 +210,8 @@ func TestValidate(t *testing.T) {
 		"empty token":                          with(shapeSweep, ""),
 		"versions without --host-timeout":      drop(shapeVersions, "--host-timeout", "30m"),
 		"versions without --max-rate":          drop(shapeVersions, "--max-rate", "25"),
-		"gentle titles with the NTLM scripts":  swap(shapeTitles, "http-title,ssl-cert", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert"),
-		"gentle titles with a script category": swap(shapeTitles, "http-title,ssl-cert", "default"),
+		"gentle titles with the NTLM scripts":  swap(shapeTitles, "http-title,ssl-cert,http-hp-ilo-info,vmware-version", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert,http-hp-ilo-info,vmware-version"),
+		"gentle titles with a script category": swap(shapeTitles, "http-title,ssl-cert,http-hp-ilo-info,vmware-version", "default"),
 		"gentle titles without script timeout": drop(shapeTitles, "--script-timeout", "20s"),
 		"gentle titles with a longer timeout":  swap(shapeTitles, "20s", "5m"),
 		"gentle titles at a rate above 1":      func() []string { a := slices.Clone(shapeTitles); a[slices.Index(a, "--max-rate")+1] = "5"; return a }(),

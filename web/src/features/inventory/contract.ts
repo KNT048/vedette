@@ -13,8 +13,9 @@ const dt = z.iso.datetime()
 const confidence = z.number().min(0).max(1)
 
 /** How Vedette knows a value besides its source: stated = the device announced it about itself (the OS in its LLDP description, on
- *  a network card of that vendor, and the model of that frame); guess = nmap's OS fingerprint, a guess: show it as one, never as a confidence level. */
-export const Basis = z.enum(['stated', 'guess'])
+ *  a network card of that vendor, and the model of that frame); stated_web = the device's own web page or API gave its firmware to anyone
+ *  without a login (an iLO's page, an ESXi's service content), stated_sip = its SIP answer did; guess = nmap's OS fingerprint, a guess: show it as one, never as a confidence level. */
+export const Basis = z.enum(['stated', 'stated_web', 'stated_sip', 'guess'])
 const basis = Basis.optional().describe('stated: the device announced it about itself (the OS in its LLDP description on its own vendor\'s network card, and the model of the same frame); guess: nmap\'s OS fingerprint, shown as a guess and never as a confidence level; absent: the source and confidence say it all')
 export const Observed = z.object({ value: z.string(), source: ObsSource, confidence, seen_at: dt, basis,
   software_id: z.string().optional().describe('The software row the value is read from: the OS or firmware row a person declared (a device added by hand as FortiGate, FortiOS v7.2.13 has os FortiOS 7.2.13, model FortiGate); absent when an observation gives it') })

@@ -3,6 +3,7 @@ package inventory_test
 import (
 	"net/netip"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -268,5 +269,66 @@ func TestDeviceRefsNameTheSourceOfTheOS(t *testing.T) {
 	}
 	if r := refs[id]; r.OS != "JUNOS 15.1R7.9" || r.OSSource != "passive" || r.OSBasis != "stated" {
 		t.Fatalf("stated: %+v, want the LLDP statement", r)
+	}
+}
+
+// INV-44: a device's own statement without a login (an iLO's firmware, an ESXi's version) is written by a scan as source nmap. It
+// outranks nmap's fingerprint guess of the same device (the guess row leaves the software list, the statement's own row stays and
+// is matched), says how the device stated it, and still loses to the device's SNMP answer read with the customer's settings.
+func TestSelfStatedFirmwareOutranksTheScanGuessButNotSNMP(t *testing.T) {
+	e := newEnv(t)
+	const mac = "aa:bb:cc:00:00:31"
+	h := observe.AssetHint{IP: netip.MustParseAddr(switchIP), MAC: mac}
+	guess := "Linux 3.2 - 4.14"
+	e.record(observe.Observation{AssetHint: h, Field: observe.OS, Value: guess, Source: observe.Nmap, Confidence: 0.9})
+	fw := "HPE iLO 4 firmware 2.77"
+	e.record(observe.Observation{AssetHint: h, Field: observe.OS, Value: fw, Source: observe.Nmap, Confidence: 0.95})
+	rows := []observe.Software{
+		{Display: guess, Vendor: "linux", Product: "linux_kernel", CPE: "cpe:/o:linux:linux_kernel", Confidence: 0.9, Guess: true},
+		{Display: fw, Vendor: "hp", Product: "integrated lights-out 4 firmware", Version: "2.77", CPE: "cpe:2.3:o:hp:integrated_lights-out_4_firmware:2.77:*:*:*:*:*:*:*", Confidence: 0.95},
+	}
+	if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: h.IP}, observe.Nmap, rows); err != nil {
+		t.Fatal(err)
+	}
+	id := e.idOf(switchIP)
+	d, err := e.svc.Device(e.ctx(), id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d.OS == nil || d.OS.Value != fw || d.OS.Source != "nmap" || d.OS.Basis != "stated_web" {
+		t.Fatalf("OS %+v, want the iLO's own statement, stated on its web page", d.OS)
+	}
+	list, match := shown(e, id)
+	for _, l := range [][]string{list, match} {
+		if len(l) != 1 || l[0] != "integrated lights-out 4 firmware" {
+			t.Errorf("software %v, want only the firmware row: the fingerprint guess is outranked, the statement is not", l)
+		}
+	}
+	if g := osObservation(t, e.detail(id), "nmap"); g.Basis != "guess" && g.Basis != "stated_web" {
+		t.Errorf("OS observation %+v", g)
+	}
+	// the customer's SNMP settings read the device: that answer is the OS, the statement stays an observation
+	e.record(observe.Observation{AssetHint: observe.AssetHint{Device: id}, Field: observe.OS, Value: "iLO 4 v2.77", Source: observe.SNMP, Confidence: 0.9})
+	if got := osOf(e, id); got != "iLO 4 v2.77" {
+		t.Errorf("after an SNMP read: OS %q, want the SNMP answer", got)
+	}
+}
+
+// A device's own firmware row (CPE 2.3, with its update) gets the KEV keys of the curated product that names its CPE, like an nmap
+// row with a CPE 2.2 URI does; a product no curated entry names keeps its vendor|product key.
+func TestSelfStatedFirmwareRowGetsKevKeysFromItsCPE(t *testing.T) {
+	e := newEnv(t)
+	h := observe.AssetHint{IP: netip.MustParseAddr(switchIP), MAC: "aa:bb:cc:00:00:32"}
+	e.record(observe.Observation{AssetHint: h, Field: observe.Vendor, Value: "VMware, Inc.", Source: observe.Nmap, Confidence: 0.6})
+	if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: h.IP}, observe.Nmap, []observe.Software{
+		{Display: "VMware ESXi 8.0 Update 3 (build 24022510)", Vendor: "vmware", Product: "esxi", Version: "8.0", CPE: "cpe:2.3:o:vmware:esxi:8.0:update_3:*:*:*:*:*:*", Confidence: 0.95}}); err != nil {
+		t.Fatal(err)
+	}
+	var keys string
+	if err := e.db.Reader().QueryRowContext(e.ctx(), `SELECT coalesce(group_concat(k.kev_key, ' '), '') FROM inv_software_kev k JOIN inv_software s ON s.id = k.software_id JOIN inv_asset a ON a.id = s.asset_id WHERE a.ip = ?`, switchIP).Scan(&keys); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(keys, "vmware|esxi") {
+		t.Fatalf("KEV keys %q, want vmware|esxi", keys)
 	}
 }

@@ -84,3 +84,33 @@ func TestScriptListsAreReviewed(t *testing.T) {
 		t.Error("StoresOutput is wrong")
 	}
 }
+
+// TestLANScriptsAreSafeAndNeverLogIn: every script of the LAN shapes (the normal and versions list, the gentle-with-titles list) is
+// one nmap 7.95 resolved in its "default or safe or vuln" expression and is in the "safe" category; none belongs to "brute", "dos",
+// "auth", "intrusive" or "exploit" (nothing logs in or crashes a service).
+func TestLANScriptsAreSafeAndNeverLogIn(t *testing.T) {
+	t.Parallel()
+	nse := nse795(t)
+	for name, list := range map[string]string{"Scripts": Scripts, "TitleScripts": TitleScripts} {
+		for _, s := range strings.Split(list, ",") {
+			cats, ok := nse[0][s]
+			if !ok {
+				t.Errorf("%s: %s is not in nmap 7.95's list", name, s)
+				continue
+			}
+			if !slices.Contains(cats, "safe") {
+				t.Errorf("%s: %s is not in the safe category: %v", name, s, cats)
+			}
+			for _, bad := range []string{"brute", "dos", "auth", "intrusive", "exploit", "external", "broadcast"} {
+				if slices.Contains(cats, bad) {
+					t.Errorf("%s: %s is in the %s category", name, s, bad)
+				}
+			}
+		}
+	}
+	for _, s := range []string{"http-hp-ilo-info", "vmware-version"} {
+		if !strings.Contains(Scripts, s) || !strings.Contains(TitleScripts, s) {
+			t.Errorf("%s is read by the normal and by the gentle-with-titles scan", s)
+		}
+	}
+}

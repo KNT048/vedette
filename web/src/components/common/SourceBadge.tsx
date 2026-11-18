@@ -3,7 +3,7 @@ import { fmtDateTime } from '@/lib/format'
 
 /** Mọi dữ liệu có "nguồn" và "độ tin cậy"/"cập nhật lúc" (FRONTEND §3 "độ tin cậy nhìn thấy"). `basis` says how Vedette knows it:
  *  stated (the device announced it, over LLDP) or guess (a network scan's OS fingerprint: a guess, never shown as a confidence level). */
-export function SourceBadge({ source, confidence, at, basis }: { source: string; confidence?: number; at?: string; basis?: 'stated' | 'guess' }) {
+export function SourceBadge({ source, confidence, at, basis }: { source: string; confidence?: number; at?: string; basis?: 'stated' | 'stated_web' | 'stated_sip' | 'guess' }) {
   const { t } = useTranslation()
   const level = confidence === undefined || basis ? null : confidence >= 0.8 ? 'high' : confidence >= 0.5 ? 'medium' : 'low'
   return (

@@ -47059,6 +47059,8 @@
                                     "type": "string",
                                     "enum": [
                                       "stated",
+                                      "stated_web",
+                                      "stated_sip",
                                       "guess"
                                     ]
                                   },
@@ -47114,6 +47116,8 @@
                                     "type": "string",
                                     "enum": [
                                       "stated",
+                                      "stated_web",
+                                      "stated_sip",
                                       "guess"
                                     ]
                                   },
@@ -47169,6 +47173,8 @@
                                     "type": "string",
                                     "enum": [
                                       "stated",
+                                      "stated_web",
+                                      "stated_sip",
                                       "guess"
                                     ]
                                   },
@@ -47242,6 +47248,8 @@
                                   "type": "string",
                                   "enum": [
                                     "stated",
+                                    "stated_web",
+                                    "stated_sip",
                                     "guess"
                                   ]
                                 }
@@ -48183,6 +48191,8 @@
                                   "type": "string",
                                   "enum": [
                                     "stated",
+                                    "stated_web",
+                                    "stated_sip",
                                     "guess"
                                   ]
                                 },
@@ -48238,6 +48248,8 @@
                                   "type": "string",
                                   "enum": [
                                     "stated",
+                                    "stated_web",
+                                    "stated_sip",
                                     "guess"
                                   ]
                                 },
@@ -48293,6 +48305,8 @@
                                   "type": "string",
                                   "enum": [
                                     "stated",
+                                    "stated_web",
+                                    "stated_sip",
                                     "guess"
                                   ]
                                 },
@@ -48510,6 +48524,8 @@
                                 "type": "string",
                                 "enum": [
                                   "stated",
+                                  "stated_web",
+                                  "stated_sip",
                                   "guess"
                                 ]
                               },
@@ -48679,6 +48695,8 @@
                                       "type": "string",
                                       "enum": [
                                         "stated",
+                                        "stated_web",
+                                        "stated_sip",
                                         "guess"
                                       ]
                                     },
@@ -48851,6 +48869,8 @@
                             "type": "string",
                             "enum": [
                               "stated",
+                              "stated_web",
+                              "stated_sip",
                               "guess"
                             ]
                           }

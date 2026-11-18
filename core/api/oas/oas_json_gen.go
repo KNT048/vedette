@@ -185922,6 +185922,10 @@ func (s *InventoryGetInventoryDevicesIDOKAssetModelBasis) Decode(d *jx.Decoder) 
 	switch InventoryGetInventoryDevicesIDOKAssetModelBasis(v) {
 	case InventoryGetInventoryDevicesIDOKAssetModelBasisStated:
 		*s = InventoryGetInventoryDevicesIDOKAssetModelBasisStated
+	case InventoryGetInventoryDevicesIDOKAssetModelBasisStatedWeb:
+		*s = InventoryGetInventoryDevicesIDOKAssetModelBasisStatedWeb
+	case InventoryGetInventoryDevicesIDOKAssetModelBasisStatedSip:
+		*s = InventoryGetInventoryDevicesIDOKAssetModelBasisStatedSip
 	case InventoryGetInventoryDevicesIDOKAssetModelBasisGuess:
 		*s = InventoryGetInventoryDevicesIDOKAssetModelBasisGuess
 	default:
@@ -186229,6 +186233,10 @@ func (s *InventoryGetInventoryDevicesIDOKAssetOsBasis) Decode(d *jx.Decoder) err
 	switch InventoryGetInventoryDevicesIDOKAssetOsBasis(v) {
 	case InventoryGetInventoryDevicesIDOKAssetOsBasisStated:
 		*s = InventoryGetInventoryDevicesIDOKAssetOsBasisStated
+	case InventoryGetInventoryDevicesIDOKAssetOsBasisStatedWeb:
+		*s = InventoryGetInventoryDevicesIDOKAssetOsBasisStatedWeb
+	case InventoryGetInventoryDevicesIDOKAssetOsBasisStatedSip:
+		*s = InventoryGetInventoryDevicesIDOKAssetOsBasisStatedSip
 	case InventoryGetInventoryDevicesIDOKAssetOsBasisGuess:
 		*s = InventoryGetInventoryDevicesIDOKAssetOsBasisGuess
 	default:
@@ -186593,6 +186601,10 @@ func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis) Decode(
 	switch InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis(v) {
 	case InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasisStated:
 		*s = InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasisStated
+	case InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasisStatedWeb:
+		*s = InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasisStatedWeb
+	case InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasisStatedSip:
+		*s = InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasisStatedSip
 	case InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasisGuess:
 		*s = InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasisGuess
 	default:
@@ -187442,6 +187454,10 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis) Decode(d *jx.De
 	switch InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis(v) {
 	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasisStated:
 		*s = InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasisStated
+	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasisStatedWeb:
+		*s = InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasisStatedWeb
+	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasisStatedSip:
+		*s = InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasisStatedSip
 	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasisGuess:
 		*s = InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasisGuess
 	default:
@@ -188111,6 +188127,10 @@ func (s *InventoryGetInventoryDevicesIDOKAssetVendorBasis) Decode(d *jx.Decoder)
 	switch InventoryGetInventoryDevicesIDOKAssetVendorBasis(v) {
 	case InventoryGetInventoryDevicesIDOKAssetVendorBasisStated:
 		*s = InventoryGetInventoryDevicesIDOKAssetVendorBasisStated
+	case InventoryGetInventoryDevicesIDOKAssetVendorBasisStatedWeb:
+		*s = InventoryGetInventoryDevicesIDOKAssetVendorBasisStatedWeb
+	case InventoryGetInventoryDevicesIDOKAssetVendorBasisStatedSip:
+		*s = InventoryGetInventoryDevicesIDOKAssetVendorBasisStatedSip
 	case InventoryGetInventoryDevicesIDOKAssetVendorBasisGuess:
 		*s = InventoryGetInventoryDevicesIDOKAssetVendorBasisGuess
 	default:
@@ -188642,6 +188662,10 @@ func (s *InventoryGetInventoryDevicesIDOKObservationsItemBasis) Decode(d *jx.Dec
 	switch InventoryGetInventoryDevicesIDOKObservationsItemBasis(v) {
 	case InventoryGetInventoryDevicesIDOKObservationsItemBasisStated:
 		*s = InventoryGetInventoryDevicesIDOKObservationsItemBasisStated
+	case InventoryGetInventoryDevicesIDOKObservationsItemBasisStatedWeb:
+		*s = InventoryGetInventoryDevicesIDOKObservationsItemBasisStatedWeb
+	case InventoryGetInventoryDevicesIDOKObservationsItemBasisStatedSip:
+		*s = InventoryGetInventoryDevicesIDOKObservationsItemBasisStatedSip
 	case InventoryGetInventoryDevicesIDOKObservationsItemBasisGuess:
 		*s = InventoryGetInventoryDevicesIDOKObservationsItemBasisGuess
 	default:
@@ -191125,6 +191149,10 @@ func (s *InventoryGetInventoryDevicesOKItemsItemModelBasis) Decode(d *jx.Decoder
 	switch InventoryGetInventoryDevicesOKItemsItemModelBasis(v) {
 	case InventoryGetInventoryDevicesOKItemsItemModelBasisStated:
 		*s = InventoryGetInventoryDevicesOKItemsItemModelBasisStated
+	case InventoryGetInventoryDevicesOKItemsItemModelBasisStatedWeb:
+		*s = InventoryGetInventoryDevicesOKItemsItemModelBasisStatedWeb
+	case InventoryGetInventoryDevicesOKItemsItemModelBasisStatedSip:
+		*s = InventoryGetInventoryDevicesOKItemsItemModelBasisStatedSip
 	case InventoryGetInventoryDevicesOKItemsItemModelBasisGuess:
 		*s = InventoryGetInventoryDevicesOKItemsItemModelBasisGuess
 	default:
@@ -191432,6 +191460,10 @@ func (s *InventoryGetInventoryDevicesOKItemsItemOsBasis) Decode(d *jx.Decoder) e
 	switch InventoryGetInventoryDevicesOKItemsItemOsBasis(v) {
 	case InventoryGetInventoryDevicesOKItemsItemOsBasisStated:
 		*s = InventoryGetInventoryDevicesOKItemsItemOsBasisStated
+	case InventoryGetInventoryDevicesOKItemsItemOsBasisStatedWeb:
+		*s = InventoryGetInventoryDevicesOKItemsItemOsBasisStatedWeb
+	case InventoryGetInventoryDevicesOKItemsItemOsBasisStatedSip:
+		*s = InventoryGetInventoryDevicesOKItemsItemOsBasisStatedSip
 	case InventoryGetInventoryDevicesOKItemsItemOsBasisGuess:
 		*s = InventoryGetInventoryDevicesOKItemsItemOsBasisGuess
 	default:
@@ -192350,6 +192382,10 @@ func (s *InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis) Decode(d *jx.
 	switch InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis(v) {
 	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisStated:
 		*s = InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisStated
+	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisStatedWeb:
+		*s = InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisStatedWeb
+	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisStatedSip:
+		*s = InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisStatedSip
 	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisGuess:
 		*s = InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisGuess
 	default:
@@ -192824,6 +192860,10 @@ func (s *InventoryGetInventoryDevicesOKItemsItemVendorBasis) Decode(d *jx.Decode
 	switch InventoryGetInventoryDevicesOKItemsItemVendorBasis(v) {
 	case InventoryGetInventoryDevicesOKItemsItemVendorBasisStated:
 		*s = InventoryGetInventoryDevicesOKItemsItemVendorBasisStated
+	case InventoryGetInventoryDevicesOKItemsItemVendorBasisStatedWeb:
+		*s = InventoryGetInventoryDevicesOKItemsItemVendorBasisStatedWeb
+	case InventoryGetInventoryDevicesOKItemsItemVendorBasisStatedSip:
+		*s = InventoryGetInventoryDevicesOKItemsItemVendorBasisStatedSip
 	case InventoryGetInventoryDevicesOKItemsItemVendorBasisGuess:
 		*s = InventoryGetInventoryDevicesOKItemsItemVendorBasisGuess
 	default:

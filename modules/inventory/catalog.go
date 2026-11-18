@@ -198,10 +198,16 @@ func (c *Catalog) keysFor(matches []string, fallback string) []string {
 	return keys
 }
 
-// keysForCPE is the KEV keys of the curated entry that names the product of a CPE 2.2 URI ("cpe:/o:apple:iphone_os:17" ->
+// keysForCPE is the KEV keys of the curated entry that names the product of a CPE 2.2 URI or CPE 2.3 string ("cpe:/o:apple:iphone_os:17" ->
 // the keys of iOS / iPadOS), nil when no entry names it. Only part, vendor and product are compared.
 func (c *Catalog) keysForCPE(cpe string) []string {
-	f := strings.SplitN(strings.ToLower(strings.TrimPrefix(cpe, "cpe:/")), ":", 4)
+	cpe = strings.ToLower(cpe)
+	var f []string
+	if rest, ok := strings.CutPrefix(cpe, "cpe:2.3:"); ok { // a CPE 2.3 string (a device's own statement of its firmware, sensor-active INV-25)
+		f = strings.SplitN(rest, ":", 4)
+	} else {
+		f = strings.SplitN(strings.TrimPrefix(cpe, "cpe:/"), ":", 4)
+	}
 	if len(f) < 3 {
 		return nil
 	}

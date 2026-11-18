@@ -219,4 +219,3 @@ func (s *Service) queueReads(ctx context.Context, actor string, ids []string) {
 		}
 	}()
 }
-

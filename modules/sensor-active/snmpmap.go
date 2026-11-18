@@ -181,8 +181,15 @@ func identifySNMP(v sensorlink.SNMPValues) SNMPFacts {
 	}
 	if m := fortiFirmware.FindStringSubmatch(cleanSNMP(v.EntSoftware)); m != nil && f.Vendor == "Fortinet" {
 		model = m[1]
-		if os == "" && (strings.HasPrefix(m[1], "FortiGate-") || strings.HasPrefix(m[1], "FortiWiFi-")) { // FortiSwitch and FortiAP run other systems
+		// FortiSwitch and FortiAP run other systems than FortiOS: their firmware version is their OS line under their own name
+		switch {
+		case os != "":
+		case strings.HasPrefix(m[1], "FortiGate-") || strings.HasPrefix(m[1], "FortiWiFi-"):
 			os = "FortiOS " + m[2]
+		case strings.HasPrefix(m[1], "FortiSwitch-"):
+			os = "FortiSwitchOS " + m[2]
+		case strings.HasPrefix(m[1], "FortiAP-"):
+			os = "FortiAP firmware " + m[2]
 		}
 	}
 	if m := routerOSVersion.FindStringSubmatch(cleanSNMP(v.OSVersion)); m != nil && f.Vendor == "MikroTik" {

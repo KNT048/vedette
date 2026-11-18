@@ -255,7 +255,7 @@ func TestContract_INV4_RateAndFlags(t *testing.T) {
 	calls = slices.Delete(calls, 2, 3)
 	want := [][]string{
 		{"--privileged", "-sn", "-PE", "-PP", "-PS21,22,23,80,135,139,443,445,554,3389,8000,8080,9100", "-PA80,443", "-n", "--max-rate", "100", "--stats-every", "5s", "-oX", "-"},
-		{"--privileged", "-sS", "-sV", "-O", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "100", "--max-retries", "3", "--top-ports", "1000", "--host-timeout", "30m", "--stats-every", "5s", "-oX", "-", "192.168.10.20"},
+		{"--privileged", "-sS", "-sV", "-O", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert,http-hp-ilo-info,vmware-version", "-n", "--max-rate", "100", "--max-retries", "3", "--top-ports", "1000", "--host-timeout", "30m", "--stats-every", "5s", "-oX", "-", "192.168.10.20"},
 		{"--privileged", "-sS", "-n", "-T2", "--max-retries", "1", "--max-rate", "1", "--host-timeout", "15m", "--top-ports", "100", "--stats-every", "5s", "-oX", "-", "192.168.10.30"},
 	}
 	for i, w := range want {
@@ -270,7 +270,7 @@ func TestContract_INV4_RateAndFlags(t *testing.T) {
 	for _, c := range calls {
 		for i, a := range c {
 			// FORBID-6: the only scripts are the two pinned NTLM ones, after a bare --script; never a category or -A/-sC.
-			pinned := a == "--script" && i+1 < len(c) && c[i+1] == "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert"
+			pinned := a == "--script" && i+1 < len(c) && c[i+1] == "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert,http-hp-ilo-info,vmware-version"
 			if strings.HasPrefix(a, "--script") && !pinned || a == "-A" || a == "-sC" {
 				t.Errorf("NSE flag %q in %q (FORBID-6)", a, c)
 			}

@@ -1899,7 +1899,7 @@ describe('inventory: agents (S-INV-4)', () => {
     expect(r.json!.devices).toBeGreaterThan(0)
     expect(r.json!.devices).toBeLessThanOrEqual(3)
     expect(r.json!.software).toBeGreaterThan(0)
-    const updated = assetsStore.get().filter((a) => a.id !== BOX_ID && a.software.some((s) => s.source === 'agent'))
+    const updated = assetsStore.get().filter((a) => a.id !== BOX_ID && a.id !== 'a-fw01' && a.software.some((s) => s.source === 'agent')) // a-fw01 carries an agent row in the sample data already
     expect(updated).toHaveLength(r.json!.devices)
     for (const a of updated) {
       expect(a.approved && (a.kind === 'server' || a.kind === 'pc')).toBe(true)
@@ -2459,17 +2459,13 @@ describe('inventory: naming, versions, Software tab (S-INV-2)', () => {
     await waitFor(() => expect(assetsStore.get().find((d) => d.id === a.id)).toBeUndefined(), T)
   })
 
-  it('a typed version that differs from the agent\'s shows the hint, and Use sets it (edit version)', async () => {
-    const user = userEvent.setup()
+  it('a typed version and an agent\'s reading of one software are one line: the agent\'s value, the entry listed under it, no notice', async () => {
     const id = await addOffice({ version: '2019', ip: '192.168.10.240' })
     assetsStore.update((l) => l.map((a) => (a.id === id ? { ...a, software: [...a.software, { ...a.software[0]!, id: 'sw-agent-office', version: '2021', source: 'agent' as const, confidence: 0.95 }] } : a)))
     renderApp(`/devices/${id}?tab=software`)
-    expect(await screen.findByText('The device reports 2021 (Agent).', undefined, T)).toBeInTheDocument()
-    await waitFor(() => expect(screen.queryByText('Checking findings')).not.toBeInTheDocument(), T) // the Open findings column has its list: the row is drawn for good
-    await user.click(screen.getByRole('button', { name: 'Use version 2021 for Microsoft Office' }))
-    await waitFor(() => expect(find(id).software.find((s) => s.source === 'manual')!.version).toBe('2021'), T)
-    await waitFor(() => expect(screen.queryByText(/The device reports/)).not.toBeInTheDocument(), T)
-    expect(auditStore.get().some((e) => e.action === 'inventory.set_software_version')).toBe(true)
+    expect(await screen.findByText(/Also seen by: 2019 \(Manual/, undefined, T)).toBeInTheDocument()
+    expect(within(screen.getByRole('table', { name: 'Software on the device' })).getAllByText('Microsoft Office')).toHaveLength(1)
+    expect(screen.queryByText(/another release/)).not.toBeInTheDocument()
   })
 
   it('PATCH software version: in place on a declared row, version checked, empty removes it; a reported row gets a correction (INV-41)', async () => {

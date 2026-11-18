@@ -1088,7 +1088,7 @@ export const handlers = [
       return !!p && !!q && (p === q || (q.startsWith(p) && /^p\d*$/.test(q.slice(p.length))) || (p.startsWith(q) && /^p\d*$/.test(p.slice(q.length))))
     }
     const groups = new Map<string, typeof a.software>()
-    for (const s of a.software.filter((x) => !x.not_installed)) groups.set(`${s.vendor}|${s.product}`.toLowerCase(), [...(groups.get(`${s.vendor}|${s.product}`.toLowerCase()) ?? []), s])
+    for (const s of a.software.filter((x) => !x.not_installed && !a.software.some((c) => c.not_installed && c.corrects === x.id))) groups.set(`${s.vendor}|${s.product}`.toLowerCase(), [...(groups.get(`${s.vendor}|${s.product}`.toLowerCase()) ?? []), s])
     const items = [...groups.values()].flatMap((g) => {
       const [top, ...rest] = [...g].sort((x, y) => (rank[y.source] ?? 0) - (rank[x.source] ?? 0))
       if (!top) return []

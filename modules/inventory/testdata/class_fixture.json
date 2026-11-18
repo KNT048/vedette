@@ -3690,6 +3690,54 @@
      "seen": "2026-11-01T10:00:00.000Z"
     }
    ]
+  },
+  {
+   "id": "d900",
+   "scenario": "two-scan-installs-newest-seen-is-older",
+   "vendor": "OpenBSD",
+   "product": "OpenSSH",
+   "expect_changed": 1,
+   "software": [
+    {
+     "source": "nmap",
+     "version": "8.9p1",
+     "pkg": "",
+     "first_seen": "2026-10-01T10:00:00.000Z",
+     "seen": "2026-11-02T10:00:00.000Z"
+    },
+    {
+     "source": "nmap",
+     "version": "10.2p1",
+     "pkg": "",
+     "first_seen": "2026-10-01T10:00:00.000Z",
+     "seen": "2026-11-01T10:00:00.000Z"
+    }
+   ],
+   "os": []
+  },
+  {
+   "id": "d901",
+   "scenario": "two-agent-kernels-newest-seen-is-newer",
+   "vendor": "Linux",
+   "product": "Kernel",
+   "expect_changed": 0,
+   "software": [
+    {
+     "source": "agent",
+     "version": "6.12.117",
+     "pkg": "6.12.117-1",
+     "first_seen": "2026-10-01T10:00:00.000Z",
+     "seen": "2026-11-02T10:00:00.000Z"
+    },
+    {
+     "source": "agent",
+     "version": "6.12.116",
+     "pkg": "6.12.116-1",
+     "first_seen": "2026-10-01T10:00:00.000Z",
+     "seen": "2026-11-01T10:00:00.000Z"
+    }
+   ],
+   "os": []
   }
  ]
 }

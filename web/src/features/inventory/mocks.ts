@@ -859,7 +859,7 @@ export const handlers = [
       const orig = s.corrects ? a.software.find((x) => x.id === s.corrects) : undefined
       // INV-41 (6): a "not installed" correction matches nothing and, while in use, does not disagree with the row it says is not there
       const disagrees = !!orig && !s.not_installed && (orig.version !== s.version || (orig.pkg_version ?? null) !== (s.pkg_version ?? null))
-      return { id: s.id, display: s.display, vendor: s.vendor, product: s.product, version: s.version, source: s.source, confidence: s.confidence, kev_cves: s.not_installed ? [] : cvesFor(s.kev),
+      return { id: s.id, display: s.display, vendor: s.vendor, product: s.product, version: s.version, source: s.source, confidence: s.confidence, kev_cves: s.not_installed ? [] : cvesFor(s.kev), can_correct: true,
         ...(s.pkg_version ? { pkg_version: s.pkg_version } : {}), ...(by ? { corrected_by: by.id } : {}),
         ...(s.corrects ? { correction: { set_at: s.set_at ?? nowIso(), set_by: currentUser()?.email ?? '', active: !!orig, disagrees: disagrees || !orig, ...(s.not_installed ? { not_installed: true } : {}),
           detected: orig ? { id: orig.id, display: orig.display, version: orig.version, pkg_version: orig.pkg_version ?? null, source: orig.source, seen_at: nowIso() } : null } } : {}) }

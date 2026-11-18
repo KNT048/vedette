@@ -28,14 +28,14 @@ func (c *softwareCase) correct(source, version, pkg string) {
 	c.t.Fatalf("no %s row", source)
 }
 
-func (c *softwareCase) lineOf(product string) inventory.EffectiveSoftware {
+func (c *softwareCase) sshLine() inventory.EffectiveSoftware {
 	c.t.Helper()
 	for _, l := range c.lines() {
-		if l.Product == product {
+		if l.Product == "OpenSSH" {
 			return l
 		}
 	}
-	c.t.Fatalf("no line of %s", product)
+	c.t.Fatal("no line of OpenSSH")
 	return inventory.EffectiveSoftware{}
 }
 
@@ -55,22 +55,22 @@ func TestINV52_CorrectionLapsesOnANewerReadingFromAnySource(t *testing.T) {
 			}
 			c.report(src, "OpenSSH", "10.0", "")   // the old version again: the correction is the one it replaced
 			c.report(src, "OpenSSH", "10.2p1", "") // the same release as the person's, written with a patch level
-			if l := c.lineOf("OpenSSH"); l.Source != "manual" || l.Version != "10.2" {
+			if l := c.sshLine(); l.Source != "manual" || l.Version != "10.2" {
 				t.Fatalf("same release keeps the person's version: %+v", l)
 			}
 			c.report(src, "OpenSSH", "10.1", "") // older
-			if l := c.lineOf("OpenSSH"); l.Source != "manual" || l.Version != "10.2" {
+			if l := c.sshLine(); l.Source != "manual" || l.Version != "10.2" {
 				t.Fatalf("an older reading keeps the person's version: %+v", l)
 			}
 			c.report(src, "OpenSSH", "banner-unknown", "") // cannot be compared
-			if l := c.lineOf("OpenSSH"); l.Source != "manual" || l.Version != "10.2" {
+			if l := c.sshLine(); l.Source != "manual" || l.Version != "10.2" {
 				t.Fatalf("an unparseable reading keeps the person's version: %+v", l)
 			}
 			if countOf(c.e.auditActions(), "inventory.software_correction_lapsed") != 0 {
 				t.Fatal("nothing lapsed yet")
 			}
 			c.report(src, "OpenSSH", "10.3", "")
-			l = c.lineOf("OpenSSH")
+			l = c.sshLine()
 			if l.Source != string(src) || l.Version != "10.3" || l.Corrected {
 				t.Fatalf("a newer reading ends the correction: %+v", l)
 			}
@@ -143,5 +143,37 @@ func TestINV52_CorrectedOSLapsesOnANewerReading(t *testing.T) {
 	}
 	if countOf(e.auditActions(), "inventory.os_correction_lapsed") != 1 {
 		t.Fatalf("history: %v", e.auditActions())
+	}
+}
+
+// Two installs a source reads at other releases (two ports, two kernels) are one line, the newest release; the other is listed under
+// it with the differs note and still matches (INV-52).
+func TestINV52_TwoInstallsOfOneSourceAreOneLine(t *testing.T) {
+	t.Parallel()
+	for _, src := range []observe.Source{observe.Agent, observe.Nmap} {
+		t.Run(string(src), func(t *testing.T) {
+			t.Parallel()
+			c := newSoftwareCase(t)
+			c.e.tick(time.Minute)
+			items := []observe.Software{
+				{Display: "OpenSSH", Vendor: "OpenBSD", Product: "OpenSSH", Version: "8.9p1", Confidence: 0.9},
+				{Display: "OpenSSH", Vendor: "OpenBSD", Product: "OpenSSH", Version: "10.2p1", Confidence: 0.9},
+			}
+			if err := c.e.svc.ReplaceSoftware(c.e.ctx(), c.hint, src, items); err != nil {
+				t.Fatal(err)
+			}
+			c.dev = deviceAt(t, c.e, c.hint.IP)
+			l := c.oneLine(string(src), 1)
+			if l.Version != "10.2p1" || !l.Differs || l.AlsoSeen[0].Version != "8.9p1" || l.AlsoSeen[0].SameRelease || !l.CanCorrect {
+				t.Fatalf("%+v", l)
+			}
+			m, _, err := c.e.svc.MatchInput(c.e.ctx(), c.dev)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(m.Software) != 2 {
+				t.Fatalf("both installs still match: %+v", m.Software)
+			}
+		})
 	}
 }

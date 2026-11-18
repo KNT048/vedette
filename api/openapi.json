@@ -54395,6 +54395,10 @@
                                   "active"
                                 ],
                                 "additionalProperties": false
+                              },
+                              "can_correct": {
+                                "type": "boolean",
+                                "description": "A person may correct this row's version (INV-52): PATCH /inventory/devices/{id}/software/{id} with { version }, whatever source reported it; true on every row"
                               }
                             },
                             "required": [
@@ -54405,7 +54409,8 @@
                               "version",
                               "source",
                               "confidence",
-                              "kev_cves"
+                              "kev_cves",
+                              "can_correct"
                             ],
                             "additionalProperties": false
                           }
@@ -55683,7 +55688,7 @@
                           },
                           "differs": {
                             "type": "boolean",
-                            "description": "A scan, SNMP or passive reading reads another release than this row (matching keeps that reading too); never the row a person's entry corrects: the first also_seen of such a source with same_release false"
+                            "description": "Another reading or another install reads another release than this row (matching keeps it too); never the row a person's correction replaces: the first such also_seen with same_release false"
                           },
                           "can_correct": {
                             "type": "boolean",

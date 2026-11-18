@@ -129,6 +129,7 @@ func databaseDevices(t *testing.T, path string) []classDevice {
 		}
 		return devs[id]
 	}
+	//nolint:gosec // G202: swFirst is one of two constant column expressions
 	rows, err := db.QueryContext(ctx, `SELECT s.asset_id, s.id, s.vendor, s.product, s.display, ifnull(s.version, ''), ifnull(s.pkg_version, ''), ifnull(s.cpe, ''), s.source,
 		ifnull(s.set_by, ''), s.seen_at, ifnull(s.corrects, ''), `+rowKey("s")+`, `+swFirst+`
 		FROM inv_software s WHERE s.not_installed = 0 AND NOT `+hiddenGuess+` AND NOT `+notInstalledSW+` ORDER BY s.seen_at DESC, s.id`)
@@ -187,7 +188,7 @@ func classKind(vendor, product string) string {
 
 // oldTop is the line's reading under the rule before INV-52: the strongest source wins (agent, a person's entry, SNMP, a scan), an
 // entry that corrects an agent's row ranks with the agent, the row an entry corrects is not a candidate, and nothing ever lapses.
-func oldTop(rows []EffectiveSoftware) EffectiveSoftware {
+func oldTop(rows []EffectiveSoftware) (EffectiveSoftware, int) {
 	corrected := map[int]bool{}
 	agentCorrected := map[int]bool{}
 	for c := range rows {
@@ -216,10 +217,16 @@ func oldTop(rows []EffectiveSoftware) EffectiveSoftware {
 		}
 	}
 	slices.SortStableFunc(cand, func(a, b int) int { return rank(b) - rank(a) })
-	return rows[cand[0]]
+	lines := 0 // every row of the strongest rank was a line of its own
+	for _, i := range cand {
+		if rank(i) == rank(cand[0]) {
+			lines++
+		}
+	}
+	return rows[cand[0]], lines
 }
 
-type classTally struct{ lines, changed, changedRelease int }
+type classTally struct{ lines, changed, changedRelease, shownBefore, shownNow int }
 
 // classSets splits a device's rows into software identities (the name or the CPE application), as effectiveOf does.
 func classSets(rows []EffectiveSoftware) [][]EffectiveSoftware {
@@ -276,13 +283,15 @@ func TestClassImpact(t *testing.T) {
 func measureClass(t *testing.T, devices []classDevice, check bool) {
 	t.Helper()
 	tally := map[string]*classTally{}
-	add := func(group string, changed, sameRelease bool) {
+	add := func(group string, changed, sameRelease bool, shownBefore, shownNow int) {
 		c := tally[group]
 		if c == nil {
 			c = &classTally{}
 			tally[group] = c
 		}
 		c.lines++
+		c.shownBefore += shownBefore
+		c.shownNow += shownNow
 		if changed {
 			c.changed++
 			if !sameRelease {
@@ -293,7 +302,7 @@ func measureClass(t *testing.T, devices []classDevice, check bool) {
 	for _, d := range devices {
 		got := 0
 		for _, class := range classSets(d.software) {
-			old := oldTop(class)
+			old, oldLines := oldTop(class)
 			var corrections, readings []swFacts
 			for _, r := range class {
 				f := swFacts{id: r.ID, display: r.Display, vendor: r.Vendor, product: r.Product, cpe: r.CPE, version: r.Version, pkg: r.PkgVersion, source: r.Source}
@@ -312,7 +321,8 @@ func measureClass(t *testing.T, devices []classDevice, check bool) {
 					rest = append(rest, r)
 				}
 			}
-			now := effectiveOf(rest)[0]
+			nowAll := effectiveOf(rest)
+			now := nowAll[0]
 			changed := old.Version != now.Version || old.PkgVersion != now.PkgVersion
 			if changed {
 				got++
@@ -324,7 +334,7 @@ func measureClass(t *testing.T, devices []classDevice, check bool) {
 			if !changed {
 				why = "-"
 			}
-			add(fmt.Sprintf("%-8s %-7s -> %-7s %s", classKind(old.Vendor, old.Product), old.Source, now.Source, why), changed, pkgrel.Same(old.Version, old.PkgVersion, now.Version, now.PkgVersion))
+			add(fmt.Sprintf("%-8s %-7s -> %-7s %s", classKind(old.Vendor, old.Product), old.Source, now.Source, why), changed, pkgrel.Same(old.Version, old.PkgVersion, now.Version, now.PkgVersion), oldLines, len(nowAll))
 		}
 		if len(d.os) > 0 {
 			var all, rest []obs
@@ -343,7 +353,7 @@ func measureClass(t *testing.T, devices []classDevice, check bool) {
 				}
 			}
 			for _, o := range d.os {
-				if !(lapsedOS && o.obs.source == "manual") {
+				if !lapsedOS || o.obs.source != "manual" {
 					rest = append(rest, o.obs)
 				}
 			}
@@ -356,7 +366,7 @@ func measureClass(t *testing.T, devices []classDevice, check bool) {
 			if changed {
 				why = "lapse"
 			}
-			add(fmt.Sprintf("%-8s %-7s -> %-7s %s", "os-field", old.source, now.source, why), changed, sameOS(old.value, now.value))
+			add(fmt.Sprintf("%-8s %-7s -> %-7s %s", "os-field", old.source, now.source, why), changed, sameOS(old.value, now.value), 1, 1)
 		}
 		if check && got != d.want {
 			t.Errorf("%s: %d lines change, want %d", d.id, got, d.want)
@@ -369,12 +379,14 @@ func measureClass(t *testing.T, devices []classDevice, check bool) {
 		total.lines += c.lines
 		total.changed += c.changed
 		total.changedRelease += c.changedRelease
+		total.shownBefore += c.shownBefore
+		total.shownNow += c.shownNow
 	}
 	sort.Strings(groups)
-	t.Logf("%d devices, %d lines, %d lines change their version (%d of them to another release, the rest the same release written another way)",
-		len(devices), total.lines, total.changed, total.changedRelease)
+	t.Logf("%d devices, %d software (and OS fields), %d change their version (%d of them to another release, the rest the same release written another way); lines shown before %d, now %d",
+		len(devices), total.lines, total.changed, total.changedRelease, total.shownBefore, total.shownNow)
 	for _, g := range groups {
 		c := tally[g]
-		t.Logf("  %-34s lines %5d  changed %5d  another release %5d", g, c.lines, c.changed, c.changedRelease)
+		t.Logf("  %-34s software %5d  changed %5d  another release %5d  shown before %5d  now %5d", g, c.lines, c.changed, c.changedRelease, c.shownBefore, c.shownNow)
 	}
 }

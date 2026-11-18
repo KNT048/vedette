@@ -85,6 +85,7 @@ func lapsingReadings(corrections, readings []swFacts) map[string]swFacts {
 // under the system actor. It reports whether any lapsed.
 func (s *Service) lapseCorrections(ctx context.Context, tx *sql.Tx, assetID string) (bool, error) {
 	read := func(where string) ([]swFacts, error) {
+		//nolint:gosec // G202: where is one of two constant conditions below
 		rows, err := tx.QueryContext(ctx, `SELECT s.id, s.display, s.vendor, s.product, ifnull(s.cpe, ''), ifnull(s.version, ''), ifnull(s.pkg_version, ''), s.source, CASE WHEN s.source = 'manual' THEN s.seen_at ELSE ifnull(s.first_seen, '') END
 			FROM inv_software s WHERE s.asset_id = ? AND NOT `+hiddenGuess+` AND `+where+` ORDER BY s.seen_at, s.id`, assetID)
 		if err != nil {

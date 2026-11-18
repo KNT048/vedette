@@ -111,10 +111,10 @@ var exportPolicy = map[string]tablePolicy{
 	"hp_tokens":                   {export: "id type name value plant_at created_at", skip: "secret_id"},
 	"hp_trap_ips":                 {export: "id name ip preset vendor enabled mac created_at enabled_at", json: "services"},
 	"inv_asset":                   {export: "id ip mac hostname kind vendor model os vendor_obs_id model_obs_id os_obs_id kind_obs_id hostname_obs_id mac_obs_id origin approved approved_at fragile fragile_manual regular_scan first_scan_at suspicious is_box notes first_seen last_seen agent_key agent_ip ip_confirmed_at user_name scan_source snmp_source ignored_at review_earned_at"},
-	"inv_observation":             {export: "id asset_id field value source confidence seen_at evidence"},
+	"inv_observation":             {export: "id asset_id field value source confidence seen_at evidence first_seen"},
 	"inv_service":                 {export: "id asset_id port proto name product version detail source confidence seen_at"},
 	"inv_setting":                 {export: "key updated_at updated_by", json: "value"},
-	"inv_software":                {export: "id asset_id display vendor product version cpe source confidence seen_at packaged pkg_version pkg_source corrects set_by not_installed"},
+	"inv_software":                {export: "id asset_id display vendor product version cpe source confidence seen_at packaged pkg_version pkg_source corrects set_by not_installed first_seen"},
 	"inv_source":                  {export: "source first_seen"},
 	"inv_detected_keep":           {export: "asset_id field detected kept_at kept_by"}, // detected values a person chose not to switch to
 	"inv_separate":                {export: "a b decided_by decided_at"},               // pairs a person kept separate

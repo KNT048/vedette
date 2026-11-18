@@ -269,7 +269,7 @@ func TestINV50_TwoProductsStayTwoLines(t *testing.T) {
 }
 
 // A correction of an agent's row is the line's value; an older reading keeps it, a newer one lapses it (INV-41, INV-52).
-func TestINV50_EntryBeatsTheAgentRowItCorrects(t *testing.T) {
+func TestINV52_ACorrectionOfTheAgentHoldsUntilANewerReading(t *testing.T) {
 	t.Parallel()
 	c := newSoftwareCase(t)
 	c.report(observe.Agent, "Kernel", "6.12.116", "6.12.116-1")

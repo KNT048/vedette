@@ -118735,8 +118735,11 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSnmpSource) UnmarshalText(data []b
 
 type InventoryGetInventoryDevicesIDOKAssetSoftwareItem struct {
 	// Guess on the row of nmap's OS fingerprint (no version, no match key); absent otherwise.
-	Basis      OptInventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis `json:"basis"`
-	Confidence float64                                                   `json:"confidence"`
+	Basis OptInventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis `json:"basis"`
+	// A person may correct this row's version (INV-52): PATCH /inventory/devices/{id}/software/{id} with {
+	// version }, whatever source reported it; true on every row.
+	CanCorrect bool    `json:"can_correct"`
+	Confidence float64 `json:"confidence"`
 	// On a row a sensor or agent reported: the id of the person's correction that replaces it for matching
 	// (INV-41). Show it as replaced; Clear on the correction brings it back.
 	CorrectedBy OptString `json:"corrected_by"`
@@ -118759,6 +118762,11 @@ type InventoryGetInventoryDevicesIDOKAssetSoftwareItem struct {
 // GetBasis returns the value of Basis.
 func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) GetBasis() OptInventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis {
 	return s.Basis
+}
+
+// GetCanCorrect returns the value of CanCorrect.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) GetCanCorrect() bool {
+	return s.CanCorrect
 }
 
 // GetConfidence returns the value of Confidence.
@@ -118819,6 +118827,11 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) GetVersion() NilStri
 // SetBasis sets the value of Basis.
 func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) SetBasis(val OptInventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis) {
 	s.Basis = val
+}
+
+// SetCanCorrect sets the value of CanCorrect.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) SetCanCorrect(val bool) {
+	s.CanCorrect = val
 }
 
 // SetConfidence sets the value of Confidence.
@@ -120825,9 +120838,8 @@ type InventoryGetInventoryDevicesIDSoftwareOKItemsItem struct {
 	CorrectedFrom NilInventoryGetInventoryDevicesIDSoftwareOKItemsItemCorrectedFrom `json:"corrected_from"`
 	// "" when none.
 	Cpe string `json:"cpe"`
-	// A scan, SNMP or passive reading reads another release than this row (matching keeps that reading
-	// too); never the row a person's entry corrects: the first also_seen of such a source with
-	// same_release false.
+	// Another reading or another install reads another release than this row (matching keeps it too);
+	// never the row a person's correction replaces: the first such also_seen with same_release false.
 	Differs bool   `json:"differs"`
 	Display string `json:"display"`
 	// The software row the values are read from.

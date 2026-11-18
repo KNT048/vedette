@@ -56,6 +56,7 @@ type AlsoSeen struct {
 	PkgVersion  string `json:"pkg_version"`
 	SeenAt      string `json:"seen_at"`
 	corrects    string // a person's correction of another row: matching keeps it unless it is the same release
+	sibling     bool   // a row of the line's own source rank (another install, another correction): matching keeps it unless it is the same release
 	SameRelease bool   `json:"same_release"` // the effective row's release with more or less detail (10.2, 10.2p1, 10.2_p1-r1)
 }
 
@@ -63,8 +64,8 @@ type AlsoSeen struct {
 // (case folded) or the same CPE application, however many sources read it. The row of the strongest source gives the values
 // (agent > a person's entry > SNMP, the device's own statement > a scan banner); every other row is AlsoSeen. Rows a person said
 // are not installed, an OS guess the device does not use and a correction that rests (its source reads another version) are not
-// readings. Several rows of the strongest source (two installs at other versions) stay rows of their own; a weaker reading goes
-// under the one it is the same release as, else the newest.
+// readings. Several rows of the strongest source (two installs at other versions) are still one line: the newest release is the
+// line and the others are listed under it (INV-52).
 func effectiveSoftware(ctx context.Context, q querier, assetID string) ([]EffectiveSoftware, error) {
 	rows, err := q.QueryContext(ctx, `SELECT s.id, s.vendor, s.product, s.display, ifnull(s.version, ''), ifnull(s.pkg_version, ''), s.packaged, ifnull(s.cpe, ''), s.source, ifnull(s.set_by, ''), s.seen_at, ifnull(s.corrects, ''), `+rowKey("s")+`
 		FROM inv_software s WHERE s.asset_id = ? AND NOT `+hiddenGuess+` AND NOT `+notInstalledSW+` AND (s.corrects IS NULL OR `+correctionLive+`) ORDER BY s.seen_at DESC, s.id`, assetID)
@@ -173,16 +174,23 @@ func effectiveOf(all []EffectiveSoftware) []EffectiveSoftware {
 			}
 		}
 		slices.SortStableFunc(cand, func(a, b int) int { return rank(b) - rank(a) }) // newest first kept
-		top := rank(cand[0])
-		var shown []EffectiveSoftware
+		// one line per software (INV-52): of several rows of the strongest source (two installs, two corrections), the newest release
+		// is the line (the newest row when the releases cannot be ordered); the others are listed under it and still match
+		top, line := rank(cand[0]), cand[0]
+		for _, i := range cand[1:] {
+			if rank(i) == top && all[line].corrects == "" && newerRelease(all[i].Version, all[i].PkgVersion, all[line].Version, all[line].PkgVersion) {
+				line = i
+			}
+		}
+		t := all[line]
+		t.AlsoSeen = []AlsoSeen{}
+		t.CanCorrect = true
 		var rest []int
+		sibling := map[int]bool{}
 		for _, i := range cand {
-			if rank(i) == top && (top != softwareRank("correction") || len(shown) == 0) { // two corrections of one software: the newest is the line
-				r := all[i]
-				r.AlsoSeen = []AlsoSeen{}
-				shown = append(shown, r)
-			} else {
+			if i != line {
 				rest = append(rest, i)
+				sibling[i] = rank(i) == top
 			}
 		}
 		for _, r := range idx { // the corrected rows go after the lower readings, strongest source first
@@ -191,47 +199,25 @@ func effectiveOf(all []EffectiveSoftware) []EffectiveSoftware {
 			}
 		}
 		for _, w := range rest {
-			ti := 0
-			if c, ok := corrected[w]; ok {
-				for k := range shown {
-					if shown[k].ID == all[c].ID {
-						ti = k
-					}
-				}
-			} else {
-				ti = -1
-			}
-			for k := 0; ti < 0 && k < len(shown); k++ {
-				if pkgrel.Same(shown[k].Version, shown[k].PkgVersion, all[w].Version, all[w].PkgVersion) {
-					ti = k
-				}
-			}
-			if ti < 0 {
-				ti = 0
-			}
-			t := &shown[ti]
 			same := pkgrel.Same(t.Version, t.PkgVersion, all[w].Version, all[w].PkgVersion)
-			t.AlsoSeen = append(t.AlsoSeen, AlsoSeen{ID: all[w].ID, Source: all[w].Source, Version: all[w].Version, PkgVersion: all[w].PkgVersion, SeenAt: all[w].SeenAt, corrects: all[w].corrects, SameRelease: same})
-			if _, isCorrected := corrected[w]; !same && all[w].Source != "manual" && !isCorrected { // a reading of another release, which matching keeps too; the row the entry corrects is the person's deliberate change, never a notice
+			t.AlsoSeen = append(t.AlsoSeen, AlsoSeen{ID: all[w].ID, Source: all[w].Source, Version: all[w].Version, PkgVersion: all[w].PkgVersion, SeenAt: all[w].SeenAt, corrects: all[w].corrects, sibling: sibling[w], SameRelease: same})
+			// a reading or another install of another release, which matching keeps too; the row a correction replaces is the person's
+			// deliberate change, never a notice
+			if _, isCorrected := corrected[w]; !same && !isCorrected && (all[w].Source != "manual" || sibling[w] && all[w].corrects == "") {
 				t.Differs = true
 			}
 		}
-		for k := range shown {
-			shown[k].CanCorrect = true
-			if shown[k].corrects == "" || shown[k].Source != "manual" {
-				continue
-			}
-			shown[k].Corrected = true
-			src, _, _, ver := correctedFrom(shown[k].corrects)
-			from := &CorrectedFrom{Source: src, Version: ver}
+		if t.corrects != "" && t.Source == "manual" {
+			t.Corrected = true
+			src, _, _, ver := correctedFrom(t.corrects)
+			t.CorrectedFrom = &CorrectedFrom{Source: src, Version: ver}
 			for r, c := range corrected {
-				if all[c].ID == shown[k].ID && all[r].Source == src && all[r].Version == ver {
-					from.PkgVersion = all[r].PkgVersion
+				if all[c].ID == t.ID && all[r].Source == src && all[r].Version == ver {
+					t.CorrectedFrom.PkgVersion = all[r].PkgVersion
 				}
 			}
-			shown[k].CorrectedFrom = from
 		}
-		out = append(out, shown...)
+		out = append(out, t)
 	}
 	return out
 }
@@ -281,8 +267,8 @@ func markShadowed(ctx context.Context, q querier, assetID string, d *MatchDevice
 	shadowed := map[string]bool{}
 	for _, e := range eff {
 		for _, o := range e.AlsoSeen {
-			if o.Source != "manual" && !o.SameRelease || o.corrects != "" && !o.SameRelease {
-				continue // another release of a scan, SNMP or passive reading, or a second correction, still matches
+			if !o.SameRelease && (o.Source != "manual" || o.corrects != "" || o.sibling) {
+				continue // another release of a reading, another install or a second correction still matches
 			}
 			shadowed[o.ID] = true
 		}

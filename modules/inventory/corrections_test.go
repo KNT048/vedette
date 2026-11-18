@@ -151,18 +151,31 @@ func TestINV41_CorrectedSoftwareReplacesTheScannedRow(t *testing.T) {
 	if sw := matchRows(t, e, dev); len(sw) != 1 || sw[0].Source != "manual" {
 		t.Fatalf("the correction must survive the next scan: %+v", sw)
 	}
-	// The source now reads another version (review r2 M-B): the correction rests and the 10.3 row decides; the device says so.
+	// The source now reads another version: the person's entry stays in use (INV-50); the 10.3 row is shadowed by it and the device says
+	// what the scan reads now.
 	scan("10.3")
-	if sw := matchRows(t, e, dev); len(sw) != 1 || sw[0].Source != "nmap" || sw[0].Version != "10.3" ||
-		!strings.Contains(sw[0].Superseded, "op@example.com corrected OpenSSH 10.2 (nmap) to OpenSSH 10.2p1 (package 10.2_p1-r1) on ") ||
-		!strings.HasSuffix(sw[0].Superseded, "; nmap now reads OpenSSH 10.3, so Vedette uses that until the correction is set again") {
-		t.Fatalf("a resting correction must not match; the 10.3 row decides and names it: %+v", sw)
+	rows := matchRows(t, e, dev)
+	var entry, banner string
+	for _, r := range rows {
+		if r.Source == "manual" {
+			entry = r.ID
+		}
 	}
-	if m, _, _ := e.svc.MatchInput(e.ctx(), dev); len(m.StaleCorrections) != 1 {
+	if len(rows) != 2 || entry == "" {
+		t.Fatalf("the entry stays in use next to the new reading: %+v", rows)
+	}
+	for _, r := range rows {
+		switch {
+		case r.Source == "manual" && (r.ShadowedBy != "" || r.Version != "10.2p1"), r.Source == "nmap" && (r.ShadowedBy != entry || r.Version != "10.3"):
+			t.Fatalf("the entry outranks the banner: %+v", r)
+		}
+		banner += r.Source
+	}
+	if m, _, _ := e.svc.MatchInput(e.ctx(), dev); len(m.StaleCorrections) != 0 {
 		t.Fatalf("stale corrections %v", m.StaleCorrections)
 	}
-	if _, mine := swViews(t, e, dev); mine.Correction == nil || mine.Correction.Active || mine.Correction.Detected == nil || *mine.Correction.Detected.Version != "10.3" || !mine.Correction.Disagrees {
-		t.Fatalf("the device shows the correction not in use; the scan now reads 10.3: %+v", mine.Correction)
+	if _, mine := swViews(t, e, dev); mine.Correction == nil || !mine.Correction.Active || mine.Correction.Detected == nil || *mine.Correction.Detected.Version != "10.3" || !mine.Correction.Disagrees {
+		t.Fatalf("the device shows the entry in use and the scan reading 10.3: %+v", mine.Correction)
 	}
 	// Setting it again (here on the correction itself) puts it on what the scan reads now; a version change without a package release
 	// drops the old release (review r1 L3).

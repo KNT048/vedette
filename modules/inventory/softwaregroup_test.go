@@ -130,15 +130,26 @@ func TestINV50_RealDifferenceIsNoticed(t *testing.T) {
 	}
 }
 
-// A correction rests when its scan reads another version (INV-41): the scan's new reading is then the software's row, as for matching.
-func TestINV50_RestingCorrectionIsNotAReading(t *testing.T) {
+// The person's entry stays the effective row when its scan later reads another version (INV-50): the banner is listed as another
+// release and differs is set; matching follows the same row.
+func TestINV50_EntryStaysWhenTheBannerChanges(t *testing.T) {
 	t.Parallel()
 	c := newSoftwareCase(t)
 	c.report(observe.Nmap, "OpenSSH", "10.2", "")
 	c.enter()
 	c.report(observe.Nmap, "OpenSSH", "10.3", "")
-	if l := c.oneLine("nmap", 0); l.Version != "10.3" {
+	l := c.oneLine("manual", 1)
+	if !l.Differs || l.Version != "10.2" || l.AlsoSeen[0].Version != "10.3" || l.AlsoSeen[0].SameRelease {
 		t.Fatalf("%+v", l)
+	}
+	m, _, err := c.e.svc.MatchInput(c.e.ctx(), c.dev)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, sw := range m.Software {
+		if (sw.Source == "manual") != (sw.ShadowedBy == "") || sw.Source == "nmap" && sw.ShadowedBy != l.ID {
+			t.Fatalf("matching rows follow the effective row: %+v", m.Software)
+		}
 	}
 }
 

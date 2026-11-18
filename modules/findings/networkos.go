@@ -1,11 +1,13 @@
 package findings
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"net"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 
 	catalogdata "github.com/knt048/vedette/content/catalog"
@@ -85,6 +87,162 @@ func (d osRow) cpe23() string { return "cpe:2.3:" + d.CPE + ":*:*:*:*:*:*:*:*" }
 
 // dottedRe is a version the dotted scheme orders: two to four numbers, an optional letter ("17.3.1a").
 var dottedRe = regexp.MustCompile(`^\d{1,4}(?:\.\d{1,4}){1,3}[a-z]?$`)
+
+// osScheme is the version scheme of the network OS that NVD configuration c names (its part, vendor and product are a row's
+// cpe), "" when it names none.
+func osScheme(c CPE) string {
+	part, okP := c.Part.Literal()
+	vendor, okV := c.Vendor.Literal()
+	product, okR := c.Product.Literal()
+	if !okP || !okV || !okR {
+		return ""
+	}
+	id := strings.ToLower(part + ":" + vendor + ":" + product)
+	for _, d := range osRows {
+		if strings.EqualFold(d.CPE, id) {
+			return d.Scheme
+		}
+	}
+	return ""
+}
+
+// dottedTrainRe is the numbers a version text starts with, followed by anything but a digit: "15.2" of "15.2(6)e0a", "15.6.3"
+// of "15.6.3m1", "5.2.0" of "5.2.0.base", "17.9.1" of "17.9.1y1".
+var dottedTrainRe = regexp.MustCompile(`^(\d{1,4}(?:\.\d{1,4}){0,3})(?:[^\d.]|\.[^\d]|$)`)
+
+// dottedTrain is the numbers a version text starts with (dottedTrainRe).
+func dottedTrain(s string) ([]uint64, bool) {
+	m := dottedTrainRe.FindStringSubmatch(strings.ToLower(strings.TrimSpace(s)))
+	if m == nil {
+		return nil, false
+	}
+	var out []uint64
+	for _, p := range strings.Split(m[1], ".") {
+		n, _ := strconv.ParseUint(p, 10, 64) // at most 4 digits, by the pattern
+		out = append(out, n)
+	}
+	return out, true
+}
+
+// trainCmp orders a version against every version that starts with the numbers b: by the first of their common numbers that
+// differs ("17.3.1" is after every "15.2…"). ok is false when they share every common number ("16.12.1" and "16.12.1z1",
+// "17.3" and "17.3.1a"): the train is the same, and its build is what NVD does not give in a form Vedette orders.
+func trainCmp(v, b []uint64) (int, bool) {
+	if otherNumbering(v[0], b[0]) {
+		return 0, false
+	}
+	for i := range min(len(v), len(b)) {
+		if c := cmp.Compare(v[i], b[i]); c != 0 {
+			return c, true
+		}
+	}
+	return 0, false
+}
+
+// otherNumbering says whether two first numbers may be one release under two numberings, which no order compares: IOS XE 2.x
+// and 3.x carry classic IOS numbers 12.x and 15.x ("3.6.4E" is IOS "15.2(2)E4", and NVD lists IOS XE at both), so neither is
+// before the other. IOS XE 16 and later, FortiOS and RouterOS use one numbering.
+func otherNumbering(a, b uint64) bool {
+	old := func(n uint64) bool { return n < 4 }
+	ios := func(n uint64) bool { return n >= 10 && n <= 15 }
+	return old(a) && ios(b) || ios(a) && old(b)
+}
+
+// dottedListGuess says whether a No for exact NVD row c (with range r: none) rests only on dottedDecide reading the row by its
+// train: the generic comparison alone did not rule version ver out ("16.12.1z1", "17.9.1x1", "5.2.0.base" do not read). Such a
+// row is one of an enumeration NVD writes partly in forms Vedette does not order, and its enumerations leave releases out
+// (CVE-2025-20352 lists IOS XE from 17.6 and affects every release): no finding from it, but no proof either.
+func dottedListGuess(c CPE, r VersionRange, ver string) bool {
+	lit, ok := c.Version.Literal()
+	if !ok || !r.IsZero() || c.Update.Kind != Any || osScheme(c) != schemeDotted {
+		return false
+	}
+	row := VersionRange{StartIncl: lit, EndIncl: lit}
+	t := row.Contains(ver)
+	if t == No {
+		t = looseExact(row, ver)
+	}
+	return t != No
+}
+
+// dottedAfter says whether version ver is after every version NVD entry c (range r) names: after its end bound, or after its
+// exact version, by the generic order or, when that does not read, by the train (trainCmp). A range with no end is never passed.
+func dottedAfter(c CPE, r VersionRange, ver string) bool {
+	bound, incl := r.EndExcl, false
+	if r.IsZero() {
+		lit, ok := c.Version.Literal()
+		if !ok {
+			return false
+		}
+		bound, incl = lit, true
+	} else if bound == "" {
+		bound, incl = r.EndIncl, true
+	}
+	if bound == "" {
+		return false
+	}
+	cmpTo, known := compareBound(ver, bound)
+	if !known {
+		v, okV := dottedTrain(ver)
+		b, okB := dottedTrain(bound)
+		if !okV || !okB {
+			return false
+		}
+		if cmpTo, known = trainCmp(v, b); !known {
+			return false
+		}
+	}
+	return cmpTo > 0 || !incl && cmpTo == 0
+}
+
+// dottedDecide is, for a network OS of the dotted scheme, the answer t of the generic comparison for an NVD configuration that
+// did not say Yes, read by the numbers each version starts with (trainCmp). It never says Yes:
+//   - a range the generic comparison left Unknown because a bound is not in a form it orders: No when the version is outside
+//     by those numbers (IOS XE 17.3.1 is after every "up to 15.2(6)e0a"); a bound of the version's own train ("16.12" with
+//     16.12.1z1 beside 16.12.4) or of another numbering (otherNumbering) stays Unknown;
+//   - an exact version: No when the numbers it starts with differ ("17.9.1y1" and "5.2.0.base" are not 17.9.4), Unknown when
+//     they do not, whatever the generic comparison said: "17.5.1" or "17.5.1a" does not prove 17.5.1c outside, because NVD's
+//     enumerations leave rebuilds out (CVE-2025-20352 lists 17.5.1 and 17.5.1a and affects all of 17.5).
+//
+// A version that is not of the scheme's form keeps t.
+func dottedDecide(t Tri, r VersionRange, exact bool, ver string) Tri {
+	ver = strings.ToLower(OSVersion(ver))
+	if t == Yes || !dottedRe.MatchString(ver) || !exact && t == No {
+		return t
+	}
+	v, _ := dottedTrain(ver)
+	if exact {
+		b, ok := dottedTrain(r.StartIncl)
+		if !ok {
+			return t // "denali-16.3.4": the generic comparison reads it, or nothing does
+		}
+		if c, ok := trainCmp(v, b); ok && c != 0 {
+			return No
+		}
+		return Unknown
+	}
+	outside := func(bound string, in func(int) bool) bool {
+		if bound == "" {
+			return false
+		}
+		c, known := compareBound(ver, bound)
+		if !known {
+			b, ok := dottedTrain(bound)
+			if !ok {
+				return false
+			}
+			if c, known = trainCmp(v, b); !known {
+				return false
+			}
+		}
+		return !in(c)
+	}
+	if outside(r.StartIncl, func(c int) bool { return c >= 0 }) || outside(r.StartExcl, func(c int) bool { return c > 0 }) ||
+		outside(r.EndIncl, func(c int) bool { return c <= 0 }) || outside(r.EndExcl, func(c int) bool { return c < 0 }) {
+		return No
+	}
+	return Unknown
+}
 
 // reads says whether the row's scheme orders version ver against NVD's.
 func (d osRow) reads(ver string) bool {

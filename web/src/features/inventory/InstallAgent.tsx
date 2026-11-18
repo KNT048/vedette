@@ -1,6 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Notice } from '@/components/common/PageHeader'
 import { InfoTip } from '@/components/common/InfoTip'
 import { CodeBlock } from '@/components/common/CodeBlock'
 import { QueryState } from '@/components/common/States'
@@ -9,10 +8,9 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Segmented } from '@/components/ui/segmented'
 import { kindLabel } from '@/lib/deviceTypes'
-import { InstallPanel } from './AgentsSection'
+import { InstallPanel, TokenError } from './AgentsSection'
 import type { Platform } from './agentConfig'
 import { useAgentActions, useAgents } from './api'
-import { errMsg } from './kinds'
 import { nameOf } from './nameOf'
 import type { AgentsResponse, CreateTokenResult, DeviceDetail } from './types'
 
@@ -36,8 +34,8 @@ export function osOf(d: DeviceDetail): KnownOs | null {
 
 /** One shared way to install the osquery agent, used by the device page (the device's own system is known) and by Add a device (the
  *  person picks it first): the operating system, then the one install command for it, always shown, and the manual way (package
- *  download and the enrollment steps) folded until opened. The enrollment token is made as soon as a system is chosen, so the command
- *  is there at once; it is shown once with the command. `onCreated` tells the caller a secret is on screen (Add a device then keeps
+ *  download and the enrollment steps) folded until opened. The enrollment token is made by one click on "Create install command",
+ *  never by opening the dialog or choosing a system; it is shown once with the command. `onCreated` tells the caller a secret is on screen (Add a device then keeps
  *  its method picker out of the way, so the only copy is not lost). */
 export function AgentInstall({ tokenName, known = null, onCreated }: { tokenName: string; known?: KnownOs | null; onCreated?: (on: boolean) => void }) {
   const q = useAgents(true)
@@ -50,23 +48,16 @@ function InstallFlow({ data, tokenName, known, onCreated }: { data: AgentsRespon
   const [platform, setPlatform] = useState<PickOs | null>(known && known !== 'unsupported' ? known : null)
   const [changing, setChanging] = useState(false)
   const [token, setToken] = useState<CreateTokenResult | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const asked = useRef(false)
+  const [error, setError] = useState<unknown>(null)
 
+  // The token is made by the button only, once: choosing or switching the system afterwards only changes the command.
   const make = () => {
     setError(null)
     create.mutate({ name: tokenName.slice(0, 64), kind: 'osquery', expires_in_days: 7 }, {
       onSuccess: (r) => { setToken(r); onCreated?.(true) },
-      onError: (e) => { asked.current = false; setError(errMsg(e)) },
+      onError: setError,
     })
   }
-  // The token is made once, when a system is first chosen (or known): switching system afterwards only changes the command.
-  useEffect(() => {
-    if (!platform || asked.current || token) return
-    asked.current = true
-    make()
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- make() reads only the name, which does not change while the dialog is open
-  }, [platform])
 
   if (known === 'unsupported' && !platform) {
     return (
@@ -87,8 +78,9 @@ function InstallFlow({ data, tokenName, known, onCreated }: { data: AgentsRespon
         </p>
       ) : <OsPicker platform={platform} onChange={setPlatform} />}
       {run ? <p className="text-meta text-muted">{t('agents.serverOnly')}</p> : null}
-      {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} actions={<Button size="sm" busy={create.isPending} busyLabel={t('common:busy.creating')} onClick={() => { asked.current = true; make() }}>{t('common:retry')}</Button>} /> : null}
+      {error ? <TokenError error={error} onRemoved={() => setError(null)} /> : null}
       <BusyNote busy={create.isPending}>{t('agents.install.preparing')}</BusyNote>
+      {run && !token ? <Button variant="primary" className="justify-self-start" busy={create.isPending} busyLabel={t('common:busy.creating')} onClick={make}>{t('agents.createCommand')}</Button> : null}
       {token && run ? (
         <>
           <CodeBlock label={t('agents.tokenLabel')} code={token.secret} />

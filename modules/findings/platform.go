@@ -249,7 +249,11 @@ func evidenceOf(in swInfo) platformEvidence {
 		e.add(platformsIn(t), "the software reports "+t)
 	}
 	if in.packaged {
-		e.add([]string{debRPM}, "an agent read it from the device's deb or rpm package database, not Alpine's apk")
+		if _, t := apkRelease(in.pkgVer); t != "" {
+			e.add([]string{"alpine"}, "an agent read the release "+clean(t)+" from the device's Alpine apk database")
+		} else {
+			e.add([]string{debRPM}, "an agent read it from the device's deb or rpm package database, not Alpine's apk")
+		}
 	}
 	if p := in.personPkg; p != "" {
 		if _, t := apkRelease(p); t != "" {
@@ -560,7 +564,7 @@ func platformCheck(a Asset, s Software, in swInfo, cve string, rows []DistroFix,
 	fix := f.Releases[branch]
 	want, _ := parseAPK(fix)
 	who := "the package release a person gave"
-	if s.Source == "agent" && s.PkgVersion == "" {
+	if s.Source == "agent" {
 		who = "the release the device's agent reports"
 	}
 	branchName := dist + " " + branch

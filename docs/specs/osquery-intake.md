@@ -88,7 +88,7 @@ Hộp phục vụ hai script (`osquery.sh`, `osquery.ps1`) có chèn sẵn: đ�
 
 Lệnh người dùng sao chép từ GUI (admin đã đăng nhập) chứa `sha256` của script:
 
-- Linux: `(f=$(mktemp) && curl -fsSLk <box>/api/v1/install/osquery.sh -o "$f" && echo "<sha256>  $f" | sha256sum -c - && sudo sh "$f" --token <token>; r=$?; rm -f "$f"; exit $r)` (subshell: mã thoát của tải/kiểm/cài giữ nguyên sau khi dọn, `exit` không đóng terminal) (tệp tạm mới mỗi lần rồi xoá: tên cố định trong `/tmp` do người dùng khác để lại không ghi đè được khi `fs.protected_regular=2`)
+- Linux: `(command -v sudo >/dev/null 2>&1 || sudo() { "$@"; }; f=$(mktemp) && { curl -fsSLk <box>/api/v1/install/osquery.sh -o "$f" || wget -qO "$f" --no-check-certificate <box>/api/v1/install/osquery.sh; } && echo "<sha256>  $f" | sha256sum -c - && sudo sh "$f" --token <token>; r=$?; rm -f "$f"; exit $r)` (subshell: mã thoát của tải/kiểm/cài giữ nguyên sau khi dọn, `exit` không đóng terminal) (tệp tạm mới mỗi lần rồi xoá: tên cố định trong `/tmp` do người dùng khác để lại không ghi đè được khi `fs.protected_regular=2`)
 - Windows (PowerShell 5.1): tải bằng `curl.exe -fsSLk` vào `%TEMP%\vedette-osquery-<GUID>.ps1`, so `Get-FileHash -Algorithm SHA256` với giá trị trong lệnh, sai thì xoá tệp và `throw`, đúng thì chạy `-File … -Token '<token>'` rồi xoá tệp.
 - Script in các dòng của Vedette thôi: đầu ra của `dpkg`/`rpm` (kể cả dòng số do script của gói osquery in) vào log tạm, chỉ in ra khi cài lỗi; `systemctl enable --quiet`.
 - Gỡ: `--uninstall` / `-Uninstall`.
@@ -103,6 +103,8 @@ Chuỗi tin cậy (viết rõ vì lần tải đầu dùng `-k`):
 Sha256 là của **chính byte script hộp phục vụ** (đã chèn CA, địa chỉ, phiên bản): hộp phải phục vụ byte-giống-nhau cho cùng (địa chỉ, phiên bản, CA); đổi bất kỳ thứ nào đổi hash và GUI hiện hash mới. Script phải **deterministic** (không nhúng thời gian/nonce).
 
 Hành vi script (đã có ở mock, spec giữ): chạy với quyền root/Administrator, idempotent (chạy lại = nâng cấp/sửa), Linux `x86_64` hoặc `arm64`/`aarch64` (theo `dpkg --print-architecture`, không có thì `uname -m`); ghi `enroll.secret` mode 600/ACL tương đương; ghi cờ `--config_plugin=tls --logger_plugin=tls --host_identifier=hostname --enroll_secret_path --tls_server_certs --tls_hostname=<host:port> --enroll_tls_endpoint --config_tls_endpoint --logger_tls_endpoint`; bật dịch vụ `osqueryd`; chờ tối đa 2 phút bằng cách gọi `status` (24 lần cách 5 s). Mã thoát `3` = đã cài nhưng chưa thấy check-in.
+
+Máy osquery không chạy được (musl như Alpine, Arch không có dpkg/rpm, kiến trúc khác): cùng lệnh, cùng token, script cài `vedette-reporter` (sh POSIX) thay cho osquery. Nó enroll và gửi `log` đến đúng hai endpoint osquery trên, mỗi giờ (systemd timer, cron.d hoặc busybox crond), với `os_version`, `system_info`, `interfaces` và một danh sách gói (`apk_packages`, `pacman_packages`, `deb_packages`, `rpm_packages`). Secret đọc từ tệp mode 600, CA của hộp được ghim, mỗi dòng danh sách đọc bằng mẫu chặt, dòng lạ bị bỏ và danh sách không đọc được dòng nào thì không gửi.
 
 Cài thủ công ("Advanced") dùng kho `pkg.osquery.io` và các bước trong `agentConfig.ts`; bắt buộc người dùng tự đối chiếu vân tay CA (`openssl x509 -fingerprint -sha256`).
 

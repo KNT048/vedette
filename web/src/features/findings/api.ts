@@ -38,6 +38,12 @@ function useWrite<V>(id: string, fn: (v: V) => Promise<FindingDetail>) {
 export const useSetStatus = (id: string) =>
   useWrite<{ action: StatusAction; note: string; until?: string }>(id, (v) => api.post<FindingDetail>(`/findings/${encodeURIComponent(id)}/status`, v))
 
+/** An admin confirms a suspected finding with a note; Undo returns it to suspected. */
+export const useConfirmFinding = (id: string) =>
+  useWrite<{ note: string }>(id, (v) => api.post<FindingDetail>(`/findings/${encodeURIComponent(id)}/confirm`, v))
+export const useUnconfirmFinding = (id: string) =>
+  useWrite<void>(id, () => api.post<FindingDetail>(`/findings/${encodeURIComponent(id)}/unconfirm`, {}))
+
 export const useApplied = (id: string) =>
   useWrite<ApplyItem>(id, (item) => api.post<FindingDetail>(`/findings/${encodeURIComponent(id)}/applied`, { item }))
 

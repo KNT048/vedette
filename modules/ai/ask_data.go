@@ -46,7 +46,7 @@ type FindingRow struct {
 	CVE        string
 	Status     string // confirmed, suspected, mitigated, patched, false_positive, not_relevant, risk_accepted
 	Severity   string
-	Basis      string // version, product, scan
+	Basis      string // version, product, scan, person
 	Confidence float64
 	Evidence   string // the summary of the scan that confirmed it; "" = none
 	FirstSeen  string

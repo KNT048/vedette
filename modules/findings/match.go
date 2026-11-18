@@ -19,6 +19,7 @@ const (
 	BasisScan    Basis = "scan"    // a safe scan template confirmed it
 	BasisVersion Basis = "version" // the known version is inside the affected range
 	BasisProduct Basis = "product" // only the product matches; version unknown or not checked
+	BasisPerson  Basis = "person"  // a person confirmed it (Finding.ConfirmByPerson): evidence beyond a version match, like a scan
 )
 
 // Confidence by basis. product/vendor-only values are the mock's (match.ts).
@@ -232,6 +233,8 @@ type Evidence struct {
 	// AgentRow: a product-only match (basis product) on a row the device's own agent reported: the agent gave the installed
 	// version and Vedette could not compare it with NVD's data, so the page does not say the version is missing or ask to add it.
 	AgentRow bool
+	// Prior is, on a finding a person confirmed (basis person), the basis it had before: Undo returns to it. Stored, never sent.
+	Prior Basis
 }
 
 // Match is a finding the matcher would create (status is always suspected).
@@ -758,8 +761,10 @@ func rank(b Basis) int {
 		return 1
 	case BasisVersion:
 		return 2
-	case BasisScan:
+	case BasisPerson:
 		return 3
+	case BasisScan:
+		return 4
 	}
 	return 0
 }

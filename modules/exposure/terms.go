@@ -18,7 +18,7 @@ import (
 // TermsVersion asks again. The texts are the only copy: the API sends them with the target in it and the page shows what it got;
 // the mock's copy (contract.ts TERMS_TEMPLATE, TERMS_TEMPLATE_DOMAIN, TERMS_DISRUPTIVE) is held equal by a test, and each version's text is pinned.
 const (
-	TermsVersion = "2026-11-18"
+	TermsVersion = "2026-11-18b"
 	// termsTemplate is an IP target's text, termsTemplateDomain a domain's: the "yours alone"
 	// sentence becomes what reaches every address a name under the domain resolves to and who answers for a provider's permission.
 	// Both share the head and the tail, so the list of tools is the same. They say what the deep scan sends without
@@ -29,6 +29,7 @@ const (
 	// 2026-11-14e: the web line says what TERMS.md says, word for word (follows links, may submit forms), while
 	// the active ZAP scan is not built; the domain's list names "the web scan (ZAP)".
 	// 2026-11-18: the disclaimer names the Vedette authors instead of a person (an acceptance of an older text is asked again).
+	// 2026-11-18b: the box also scans the target on its schedule, never with the disruptive checks, until the schedule is off (INV-36).
 	termsTemplate       = termsHead + termsOwnIP + termsTail
 	termsTemplateDomain = termsHead + termsDomain + termsTail
 	termsHead           = "I confirm that my company owns {value} and that I am authorized to test it in depth. Once I accept, every scan of {value} is a deep scan, and Vedette's tools may send it:\n" +
@@ -47,7 +48,7 @@ const (
 		"With shared or cloud hosting, a CDN or a proxy, that address can also serve other people's systems: you are responsible for having the provider's permission. " +
 		"Vedette does not check who owns those addresses. " +
 		"A name that points (CNAME) to a name outside {value} is scanned at whatever address the owner of that other name sets, so the disruptive checks never run on an address reached only that way. "
-	termsTail = "The deep scan can load or slow the services on {value} and may create, change or delete data. Run scans when you can accept that, and keep a backup. " +
+	termsTail = "Vedette also scans {value} by itself on the schedule set on its page (weekly unless changed), never with the disruptive checks below, until that schedule is turned off. The deep scan can load or slow the services on {value} and may create, change or delete data. Run scans when you can accept that, and keep a backup. " +
 		"An administrator can withdraw this acceptance at any time. Vedette is provided as is under the Apache-2.0 license; the Vedette authors are not responsible for how you use it."
 	// termsDisruptive is the one extra tick, off by default: what it adds to the deep scan.
 	termsDisruptive = "Include disruptive checks (denial of service, password guessing, sign-in attempts with default or well-known passwords, and exploit checks that send more than a harmless read, such as nuclei's POST exploit requests that may create or change data and nmap's SQL injection probes): these can crash a service, lock accounts, change data or take a device offline."
@@ -89,7 +90,13 @@ func (s *Service) ModeNow(ctx context.Context, actor, id string) (ScanMode, erro
 	if err != nil || reason != "" {
 		return ScanMode{}, err
 	}
-	return t.mode(), nil
+	m := t.mode()
+	s.runMu.Lock() // INV-36: the scheduled scan that runs now never gets the disruptive checks, whatever the terms allow
+	if r := s.run; r != nil && r.view.Status == RunRunning && r.view.TargetID == t.ID && r.view.Scheduled {
+		m.Disruptive = false
+	}
+	s.runMu.Unlock()
+	return m, nil
 }
 
 // TermsNotice is the terms as the page shows them (contract.ts TermsNotice): the version, the text with the target in it (one
@@ -281,7 +288,8 @@ func (a ScanMode) above(b ScanMode) bool {
 func (s *Service) stopRunAbove(ctx context.Context, id, value string, m ScanMode, user, action, why string) {
 	s.runMu.Lock()
 	r := s.run
-	stop := r != nil && r.view.Status == RunRunning && r.view.TargetID == id && r.mode.above(m)
+	// INV-36: a scheduled scan runs only under the full terms, so terms that are no longer full stop it whatever its mode
+	stop := r != nil && r.view.Status == RunRunning && r.view.TargetID == id && (r.mode.above(m) || (r.view.Scheduled && !m.Full))
 	if stop {
 		r.cancel(&stoppedBy{by: user + " (" + why + ")", why: why, reason: StopTerms, person: user})
 	}

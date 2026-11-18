@@ -42916,6 +42916,9 @@ func (s *ExposureDeleteExposureTargetsIDIgnore) UnmarshalText(data []byte) error
 // ExposureDeleteExposureTargetsIDNoContent is response for ExposureDeleteExposureTargetsID operation.
 type ExposureDeleteExposureTargetsIDNoContent struct{}
 
+// ExposureDeleteExposureTargetsIDQueueNoContent is response for ExposureDeleteExposureTargetsIDQueue operation.
+type ExposureDeleteExposureTargetsIDQueueNoContent struct{}
+
 type ExposureDeleteExposureTargetsIDTermsOK struct {
 	// Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check
 	// that got an answer did not see the IP and no check since has, so scans are paused (until a later
@@ -42961,11 +42964,14 @@ type ExposureDeleteExposureTargetsIDTermsOK struct {
 	Origin ExposureDeleteExposureTargetsIDTermsOKOrigin `json:"origin"`
 	// Domains: where the TXT record goes and which verified domain covers this one already; null for an IP.
 	Proof NilExposureDeleteExposureTargetsIDTermsOKProof `json:"proof"`
-	// Where the target stands for scanning: scanning (a scan of it runs now), ready, or why not: unproved
-	// (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes
-	// out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet).
+	// Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
+	// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
+	// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
+	// scan confirmation or testing terms are not accepted yet).
 	ScanState ExposureDeleteExposureTargetsIDTermsOKScanState `json:"scan_state"`
 	Scannable bool                                            `json:"scannable"`
+	// How often the box scans the target by itself, when next, and why not.
+	Schedule ExposureDeleteExposureTargetsIDTermsOKSchedule `json:"schedule"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposureDeleteExposureTargetsIDTermsOKStatus `json:"status"`
 	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
@@ -43091,6 +43097,11 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) GetScanState() ExposureDeleteEx
 // GetScannable returns the value of Scannable.
 func (s *ExposureDeleteExposureTargetsIDTermsOK) GetScannable() bool {
 	return s.Scannable
+}
+
+// GetSchedule returns the value of Schedule.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) GetSchedule() ExposureDeleteExposureTargetsIDTermsOKSchedule {
+	return s.Schedule
 }
 
 // GetStatus returns the value of Status.
@@ -43236,6 +43247,11 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) SetScanState(val ExposureDelete
 // SetScannable sets the value of Scannable.
 func (s *ExposureDeleteExposureTargetsIDTermsOK) SetScannable(val bool) {
 	s.Scannable = val
+}
+
+// SetSchedule sets the value of Schedule.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) SetSchedule(val ExposureDeleteExposureTargetsIDTermsOKSchedule) {
+	s.Schedule = val
 }
 
 // SetStatus sets the value of Status.
@@ -44206,9 +44222,10 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKProof) SetZone(val string) {
 	s.Zone = val
 }
 
-// Where the target stands for scanning: scanning (a scan of it runs now), ready, or why not: unproved
-// (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes
-// out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet).
+// Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
+// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
+// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
+// scan confirmation or testing terms are not accepted yet).
 type ExposureDeleteExposureTargetsIDTermsOKScanState string
 
 const (
@@ -44217,6 +44234,7 @@ const (
 	ExposureDeleteExposureTargetsIDTermsOKScanStatePaused     ExposureDeleteExposureTargetsIDTermsOKScanState = "paused"
 	ExposureDeleteExposureTargetsIDTermsOKScanStateNeedsTerms ExposureDeleteExposureTargetsIDTermsOKScanState = "needs_terms"
 	ExposureDeleteExposureTargetsIDTermsOKScanStateReady      ExposureDeleteExposureTargetsIDTermsOKScanState = "ready"
+	ExposureDeleteExposureTargetsIDTermsOKScanStateQueued     ExposureDeleteExposureTargetsIDTermsOKScanState = "queued"
 	ExposureDeleteExposureTargetsIDTermsOKScanStateScanning   ExposureDeleteExposureTargetsIDTermsOKScanState = "scanning"
 )
 
@@ -44228,6 +44246,7 @@ func (ExposureDeleteExposureTargetsIDTermsOKScanState) AllValues() []ExposureDel
 		ExposureDeleteExposureTargetsIDTermsOKScanStatePaused,
 		ExposureDeleteExposureTargetsIDTermsOKScanStateNeedsTerms,
 		ExposureDeleteExposureTargetsIDTermsOKScanStateReady,
+		ExposureDeleteExposureTargetsIDTermsOKScanStateQueued,
 		ExposureDeleteExposureTargetsIDTermsOKScanStateScanning,
 	}
 }
@@ -44244,6 +44263,8 @@ func (s ExposureDeleteExposureTargetsIDTermsOKScanState) MarshalText() ([]byte, 
 	case ExposureDeleteExposureTargetsIDTermsOKScanStateNeedsTerms:
 		return []byte(s), nil
 	case ExposureDeleteExposureTargetsIDTermsOKScanStateReady:
+		return []byte(s), nil
+	case ExposureDeleteExposureTargetsIDTermsOKScanStateQueued:
 		return []byte(s), nil
 	case ExposureDeleteExposureTargetsIDTermsOKScanStateScanning:
 		return []byte(s), nil
@@ -44270,8 +44291,112 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKScanState) UnmarshalText(data []b
 	case ExposureDeleteExposureTargetsIDTermsOKScanStateReady:
 		*s = ExposureDeleteExposureTargetsIDTermsOKScanStateReady
 		return nil
+	case ExposureDeleteExposureTargetsIDTermsOKScanStateQueued:
+		*s = ExposureDeleteExposureTargetsIDTermsOKScanStateQueued
+		return nil
 	case ExposureDeleteExposureTargetsIDTermsOKScanStateScanning:
 		*s = ExposureDeleteExposureTargetsIDTermsOKScanStateScanning
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// How often the box scans the target by itself, when next, and why not.
+type ExposureDeleteExposureTargetsIDTermsOKSchedule struct {
+	// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
+	// itself, counted from the start of its newest scan.
+	Every ExposureDeleteExposureTargetsIDTermsOKScheduleEvery `json:"every"`
+	// When the next scheduled scan is expected to start: when it is due, moved to the next opening of the
+	// scan window; null when the schedule is off or the target cannot be scanned on schedule now (note
+	// says why).
+	NextAt NilDateTime `json:"next_at"`
+	// Why the target is not scanned on schedule, e.g. "Not scanned on schedule: terms need confirming
+	// again"; null otherwise.
+	Note NilString `json:"note"`
+}
+
+// GetEvery returns the value of Every.
+func (s *ExposureDeleteExposureTargetsIDTermsOKSchedule) GetEvery() ExposureDeleteExposureTargetsIDTermsOKScheduleEvery {
+	return s.Every
+}
+
+// GetNextAt returns the value of NextAt.
+func (s *ExposureDeleteExposureTargetsIDTermsOKSchedule) GetNextAt() NilDateTime {
+	return s.NextAt
+}
+
+// GetNote returns the value of Note.
+func (s *ExposureDeleteExposureTargetsIDTermsOKSchedule) GetNote() NilString {
+	return s.Note
+}
+
+// SetEvery sets the value of Every.
+func (s *ExposureDeleteExposureTargetsIDTermsOKSchedule) SetEvery(val ExposureDeleteExposureTargetsIDTermsOKScheduleEvery) {
+	s.Every = val
+}
+
+// SetNextAt sets the value of NextAt.
+func (s *ExposureDeleteExposureTargetsIDTermsOKSchedule) SetNextAt(val NilDateTime) {
+	s.NextAt = val
+}
+
+// SetNote sets the value of Note.
+func (s *ExposureDeleteExposureTargetsIDTermsOKSchedule) SetNote(val NilString) {
+	s.Note = val
+}
+
+// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
+// itself, counted from the start of its newest scan.
+type ExposureDeleteExposureTargetsIDTermsOKScheduleEvery string
+
+const (
+	ExposureDeleteExposureTargetsIDTermsOKScheduleEveryOff     ExposureDeleteExposureTargetsIDTermsOKScheduleEvery = "off"
+	ExposureDeleteExposureTargetsIDTermsOKScheduleEveryDaily   ExposureDeleteExposureTargetsIDTermsOKScheduleEvery = "daily"
+	ExposureDeleteExposureTargetsIDTermsOKScheduleEveryWeekly  ExposureDeleteExposureTargetsIDTermsOKScheduleEvery = "weekly"
+	ExposureDeleteExposureTargetsIDTermsOKScheduleEveryMonthly ExposureDeleteExposureTargetsIDTermsOKScheduleEvery = "monthly"
+)
+
+// AllValues returns all ExposureDeleteExposureTargetsIDTermsOKScheduleEvery values.
+func (ExposureDeleteExposureTargetsIDTermsOKScheduleEvery) AllValues() []ExposureDeleteExposureTargetsIDTermsOKScheduleEvery {
+	return []ExposureDeleteExposureTargetsIDTermsOKScheduleEvery{
+		ExposureDeleteExposureTargetsIDTermsOKScheduleEveryOff,
+		ExposureDeleteExposureTargetsIDTermsOKScheduleEveryDaily,
+		ExposureDeleteExposureTargetsIDTermsOKScheduleEveryWeekly,
+		ExposureDeleteExposureTargetsIDTermsOKScheduleEveryMonthly,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureDeleteExposureTargetsIDTermsOKScheduleEvery) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureDeleteExposureTargetsIDTermsOKScheduleEveryOff:
+		return []byte(s), nil
+	case ExposureDeleteExposureTargetsIDTermsOKScheduleEveryDaily:
+		return []byte(s), nil
+	case ExposureDeleteExposureTargetsIDTermsOKScheduleEveryWeekly:
+		return []byte(s), nil
+	case ExposureDeleteExposureTargetsIDTermsOKScheduleEveryMonthly:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureDeleteExposureTargetsIDTermsOKScheduleEvery) UnmarshalText(data []byte) error {
+	switch ExposureDeleteExposureTargetsIDTermsOKScheduleEvery(data) {
+	case ExposureDeleteExposureTargetsIDTermsOKScheduleEveryOff:
+		*s = ExposureDeleteExposureTargetsIDTermsOKScheduleEveryOff
+		return nil
+	case ExposureDeleteExposureTargetsIDTermsOKScheduleEveryDaily:
+		*s = ExposureDeleteExposureTargetsIDTermsOKScheduleEveryDaily
+		return nil
+	case ExposureDeleteExposureTargetsIDTermsOKScheduleEveryWeekly:
+		*s = ExposureDeleteExposureTargetsIDTermsOKScheduleEveryWeekly
+		return nil
+	case ExposureDeleteExposureTargetsIDTermsOKScheduleEveryMonthly:
+		*s = ExposureDeleteExposureTargetsIDTermsOKScheduleEveryMonthly
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -44814,11 +44939,18 @@ type ExposureGetExposureScanOK struct {
 	// as the scan worker reports them, the passive web checks, and OpenVAS's own percent during the
 	// greenbone phase. Set while status is running; null otherwise.
 	Progress NilExposureGetExposureScanOKProgress `json:"progress"`
+	// The scans that wait after this one, in order; left out when none waits.
+	Queue []ExposureGetExposureScanOKQueueItem `json:"queue"`
+	// The run is a scheduled scan of the target, started by the box.
+	Scheduled OptBool `json:"scheduled"`
 	// The new snapshot when status is done; also when a run was stopped during its Greenbone step, whose
 	// earlier results are kept.
-	SnapshotID NilString                       `json:"snapshot_id"`
-	StartedAt  time.Time                       `json:"started_at"`
-	Status     ExposureGetExposureScanOKStatus `json:"status"`
+	SnapshotID NilString `json:"snapshot_id"`
+	StartedAt  time.Time `json:"started_at"`
+	// Queued: a scan that waits for the box's one scan slot: the 202 answer of a Scan now behind another
+	// scan, and GET /exposure/scan when nothing ran since the box started and scans wait (the first of
+	// them; started_at is then when it was queued).
+	Status ExposureGetExposureScanOKStatus `json:"status"`
 	// Why the box stopped this run when it was not a person's Stop, e.g. "the testing terms of this target
 	// were withdrawn", "Vedette shut down".
 	StopReason  OptNilString `json:"stop_reason"`
@@ -44859,6 +44991,16 @@ func (s *ExposureGetExposureScanOK) GetPhase() ExposureGetExposureScanOKPhase {
 // GetProgress returns the value of Progress.
 func (s *ExposureGetExposureScanOK) GetProgress() NilExposureGetExposureScanOKProgress {
 	return s.Progress
+}
+
+// GetQueue returns the value of Queue.
+func (s *ExposureGetExposureScanOK) GetQueue() []ExposureGetExposureScanOKQueueItem {
+	return s.Queue
+}
+
+// GetScheduled returns the value of Scheduled.
+func (s *ExposureGetExposureScanOK) GetScheduled() OptBool {
+	return s.Scheduled
 }
 
 // GetSnapshotID returns the value of SnapshotID.
@@ -44924,6 +45066,16 @@ func (s *ExposureGetExposureScanOK) SetPhase(val ExposureGetExposureScanOKPhase)
 // SetProgress sets the value of Progress.
 func (s *ExposureGetExposureScanOK) SetProgress(val NilExposureGetExposureScanOKProgress) {
 	s.Progress = val
+}
+
+// SetQueue sets the value of Queue.
+func (s *ExposureGetExposureScanOK) SetQueue(val []ExposureGetExposureScanOKQueueItem) {
+	s.Queue = val
+}
+
+// SetScheduled sets the value of Scheduled.
+func (s *ExposureGetExposureScanOK) SetScheduled(val OptBool) {
+	s.Scheduled = val
 }
 
 // SetSnapshotID sets the value of SnapshotID.
@@ -45318,9 +45470,85 @@ func (s *ExposureGetExposureScanOKProgressUnit) UnmarshalText(data []byte) error
 	}
 }
 
+type ExposureGetExposureScanOKQueueItem struct {
+	// Who pressed Scan now (an e-mail), or system for a scheduled scan.
+	By        string    `json:"by"`
+	QueuedAt  time.Time `json:"queued_at"`
+	Scheduled bool      `json:"scheduled"`
+	// Its checks run now (the TXT record, the proof, the box's IP): it is the next to run and can no
+	// longer be removed.
+	Starting    bool   `json:"starting"`
+	TargetID    string `json:"target_id"`
+	TargetValue string `json:"target_value"`
+}
+
+// GetBy returns the value of By.
+func (s *ExposureGetExposureScanOKQueueItem) GetBy() string {
+	return s.By
+}
+
+// GetQueuedAt returns the value of QueuedAt.
+func (s *ExposureGetExposureScanOKQueueItem) GetQueuedAt() time.Time {
+	return s.QueuedAt
+}
+
+// GetScheduled returns the value of Scheduled.
+func (s *ExposureGetExposureScanOKQueueItem) GetScheduled() bool {
+	return s.Scheduled
+}
+
+// GetStarting returns the value of Starting.
+func (s *ExposureGetExposureScanOKQueueItem) GetStarting() bool {
+	return s.Starting
+}
+
+// GetTargetID returns the value of TargetID.
+func (s *ExposureGetExposureScanOKQueueItem) GetTargetID() string {
+	return s.TargetID
+}
+
+// GetTargetValue returns the value of TargetValue.
+func (s *ExposureGetExposureScanOKQueueItem) GetTargetValue() string {
+	return s.TargetValue
+}
+
+// SetBy sets the value of By.
+func (s *ExposureGetExposureScanOKQueueItem) SetBy(val string) {
+	s.By = val
+}
+
+// SetQueuedAt sets the value of QueuedAt.
+func (s *ExposureGetExposureScanOKQueueItem) SetQueuedAt(val time.Time) {
+	s.QueuedAt = val
+}
+
+// SetScheduled sets the value of Scheduled.
+func (s *ExposureGetExposureScanOKQueueItem) SetScheduled(val bool) {
+	s.Scheduled = val
+}
+
+// SetStarting sets the value of Starting.
+func (s *ExposureGetExposureScanOKQueueItem) SetStarting(val bool) {
+	s.Starting = val
+}
+
+// SetTargetID sets the value of TargetID.
+func (s *ExposureGetExposureScanOKQueueItem) SetTargetID(val string) {
+	s.TargetID = val
+}
+
+// SetTargetValue sets the value of TargetValue.
+func (s *ExposureGetExposureScanOKQueueItem) SetTargetValue(val string) {
+	s.TargetValue = val
+}
+
+// Queued: a scan that waits for the box's one scan slot: the 202 answer of a Scan now behind another
+// scan, and GET /exposure/scan when nothing ran since the box started and scans wait (the first of
+// them; started_at is then when it was queued).
 type ExposureGetExposureScanOKStatus string
 
 const (
+	ExposureGetExposureScanOKStatusQueued  ExposureGetExposureScanOKStatus = "queued"
 	ExposureGetExposureScanOKStatusRunning ExposureGetExposureScanOKStatus = "running"
 	ExposureGetExposureScanOKStatusDone    ExposureGetExposureScanOKStatus = "done"
 	ExposureGetExposureScanOKStatusFailed  ExposureGetExposureScanOKStatus = "failed"
@@ -45330,6 +45558,7 @@ const (
 // AllValues returns all ExposureGetExposureScanOKStatus values.
 func (ExposureGetExposureScanOKStatus) AllValues() []ExposureGetExposureScanOKStatus {
 	return []ExposureGetExposureScanOKStatus{
+		ExposureGetExposureScanOKStatusQueued,
 		ExposureGetExposureScanOKStatusRunning,
 		ExposureGetExposureScanOKStatusDone,
 		ExposureGetExposureScanOKStatusFailed,
@@ -45340,6 +45569,8 @@ func (ExposureGetExposureScanOKStatus) AllValues() []ExposureGetExposureScanOKSt
 // MarshalText implements encoding.TextMarshaler.
 func (s ExposureGetExposureScanOKStatus) MarshalText() ([]byte, error) {
 	switch s {
+	case ExposureGetExposureScanOKStatusQueued:
+		return []byte(s), nil
 	case ExposureGetExposureScanOKStatusRunning:
 		return []byte(s), nil
 	case ExposureGetExposureScanOKStatusDone:
@@ -45356,6 +45587,9 @@ func (s ExposureGetExposureScanOKStatus) MarshalText() ([]byte, error) {
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *ExposureGetExposureScanOKStatus) UnmarshalText(data []byte) error {
 	switch ExposureGetExposureScanOKStatus(data) {
+	case ExposureGetExposureScanOKStatusQueued:
+		*s = ExposureGetExposureScanOKStatusQueued
+		return nil
 	case ExposureGetExposureScanOKStatusRunning:
 		*s = ExposureGetExposureScanOKStatusRunning
 		return nil
@@ -45846,11 +46080,14 @@ type ExposureGetExposureTargetsIDOK struct {
 	Origin ExposureGetExposureTargetsIDOKOrigin `json:"origin"`
 	// Domains: where the TXT record goes and which verified domain covers this one already; null for an IP.
 	Proof NilExposureGetExposureTargetsIDOKProof `json:"proof"`
-	// Where the target stands for scanning: scanning (a scan of it runs now), ready, or why not: unproved
-	// (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes
-	// out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet).
+	// Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
+	// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
+	// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
+	// scan confirmation or testing terms are not accepted yet).
 	ScanState ExposureGetExposureTargetsIDOKScanState `json:"scan_state"`
 	Scannable bool                                    `json:"scannable"`
+	// How often the box scans the target by itself, when next, and why not.
+	Schedule ExposureGetExposureTargetsIDOKSchedule `json:"schedule"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposureGetExposureTargetsIDOKStatus `json:"status"`
 	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
@@ -45976,6 +46213,11 @@ func (s *ExposureGetExposureTargetsIDOK) GetScanState() ExposureGetExposureTarge
 // GetScannable returns the value of Scannable.
 func (s *ExposureGetExposureTargetsIDOK) GetScannable() bool {
 	return s.Scannable
+}
+
+// GetSchedule returns the value of Schedule.
+func (s *ExposureGetExposureTargetsIDOK) GetSchedule() ExposureGetExposureTargetsIDOKSchedule {
+	return s.Schedule
 }
 
 // GetStatus returns the value of Status.
@@ -46121,6 +46363,11 @@ func (s *ExposureGetExposureTargetsIDOK) SetScanState(val ExposureGetExposureTar
 // SetScannable sets the value of Scannable.
 func (s *ExposureGetExposureTargetsIDOK) SetScannable(val bool) {
 	s.Scannable = val
+}
+
+// SetSchedule sets the value of Schedule.
+func (s *ExposureGetExposureTargetsIDOK) SetSchedule(val ExposureGetExposureTargetsIDOKSchedule) {
+	s.Schedule = val
 }
 
 // SetStatus sets the value of Status.
@@ -47091,9 +47338,10 @@ func (s *ExposureGetExposureTargetsIDOKProof) SetZone(val string) {
 	s.Zone = val
 }
 
-// Where the target stands for scanning: scanning (a scan of it runs now), ready, or why not: unproved
-// (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes
-// out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet).
+// Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
+// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
+// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
+// scan confirmation or testing terms are not accepted yet).
 type ExposureGetExposureTargetsIDOKScanState string
 
 const (
@@ -47102,6 +47350,7 @@ const (
 	ExposureGetExposureTargetsIDOKScanStatePaused     ExposureGetExposureTargetsIDOKScanState = "paused"
 	ExposureGetExposureTargetsIDOKScanStateNeedsTerms ExposureGetExposureTargetsIDOKScanState = "needs_terms"
 	ExposureGetExposureTargetsIDOKScanStateReady      ExposureGetExposureTargetsIDOKScanState = "ready"
+	ExposureGetExposureTargetsIDOKScanStateQueued     ExposureGetExposureTargetsIDOKScanState = "queued"
 	ExposureGetExposureTargetsIDOKScanStateScanning   ExposureGetExposureTargetsIDOKScanState = "scanning"
 )
 
@@ -47113,6 +47362,7 @@ func (ExposureGetExposureTargetsIDOKScanState) AllValues() []ExposureGetExposure
 		ExposureGetExposureTargetsIDOKScanStatePaused,
 		ExposureGetExposureTargetsIDOKScanStateNeedsTerms,
 		ExposureGetExposureTargetsIDOKScanStateReady,
+		ExposureGetExposureTargetsIDOKScanStateQueued,
 		ExposureGetExposureTargetsIDOKScanStateScanning,
 	}
 }
@@ -47129,6 +47379,8 @@ func (s ExposureGetExposureTargetsIDOKScanState) MarshalText() ([]byte, error) {
 	case ExposureGetExposureTargetsIDOKScanStateNeedsTerms:
 		return []byte(s), nil
 	case ExposureGetExposureTargetsIDOKScanStateReady:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDOKScanStateQueued:
 		return []byte(s), nil
 	case ExposureGetExposureTargetsIDOKScanStateScanning:
 		return []byte(s), nil
@@ -47155,8 +47407,112 @@ func (s *ExposureGetExposureTargetsIDOKScanState) UnmarshalText(data []byte) err
 	case ExposureGetExposureTargetsIDOKScanStateReady:
 		*s = ExposureGetExposureTargetsIDOKScanStateReady
 		return nil
+	case ExposureGetExposureTargetsIDOKScanStateQueued:
+		*s = ExposureGetExposureTargetsIDOKScanStateQueued
+		return nil
 	case ExposureGetExposureTargetsIDOKScanStateScanning:
 		*s = ExposureGetExposureTargetsIDOKScanStateScanning
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// How often the box scans the target by itself, when next, and why not.
+type ExposureGetExposureTargetsIDOKSchedule struct {
+	// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
+	// itself, counted from the start of its newest scan.
+	Every ExposureGetExposureTargetsIDOKScheduleEvery `json:"every"`
+	// When the next scheduled scan is expected to start: when it is due, moved to the next opening of the
+	// scan window; null when the schedule is off or the target cannot be scanned on schedule now (note
+	// says why).
+	NextAt NilDateTime `json:"next_at"`
+	// Why the target is not scanned on schedule, e.g. "Not scanned on schedule: terms need confirming
+	// again"; null otherwise.
+	Note NilString `json:"note"`
+}
+
+// GetEvery returns the value of Every.
+func (s *ExposureGetExposureTargetsIDOKSchedule) GetEvery() ExposureGetExposureTargetsIDOKScheduleEvery {
+	return s.Every
+}
+
+// GetNextAt returns the value of NextAt.
+func (s *ExposureGetExposureTargetsIDOKSchedule) GetNextAt() NilDateTime {
+	return s.NextAt
+}
+
+// GetNote returns the value of Note.
+func (s *ExposureGetExposureTargetsIDOKSchedule) GetNote() NilString {
+	return s.Note
+}
+
+// SetEvery sets the value of Every.
+func (s *ExposureGetExposureTargetsIDOKSchedule) SetEvery(val ExposureGetExposureTargetsIDOKScheduleEvery) {
+	s.Every = val
+}
+
+// SetNextAt sets the value of NextAt.
+func (s *ExposureGetExposureTargetsIDOKSchedule) SetNextAt(val NilDateTime) {
+	s.NextAt = val
+}
+
+// SetNote sets the value of Note.
+func (s *ExposureGetExposureTargetsIDOKSchedule) SetNote(val NilString) {
+	s.Note = val
+}
+
+// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
+// itself, counted from the start of its newest scan.
+type ExposureGetExposureTargetsIDOKScheduleEvery string
+
+const (
+	ExposureGetExposureTargetsIDOKScheduleEveryOff     ExposureGetExposureTargetsIDOKScheduleEvery = "off"
+	ExposureGetExposureTargetsIDOKScheduleEveryDaily   ExposureGetExposureTargetsIDOKScheduleEvery = "daily"
+	ExposureGetExposureTargetsIDOKScheduleEveryWeekly  ExposureGetExposureTargetsIDOKScheduleEvery = "weekly"
+	ExposureGetExposureTargetsIDOKScheduleEveryMonthly ExposureGetExposureTargetsIDOKScheduleEvery = "monthly"
+)
+
+// AllValues returns all ExposureGetExposureTargetsIDOKScheduleEvery values.
+func (ExposureGetExposureTargetsIDOKScheduleEvery) AllValues() []ExposureGetExposureTargetsIDOKScheduleEvery {
+	return []ExposureGetExposureTargetsIDOKScheduleEvery{
+		ExposureGetExposureTargetsIDOKScheduleEveryOff,
+		ExposureGetExposureTargetsIDOKScheduleEveryDaily,
+		ExposureGetExposureTargetsIDOKScheduleEveryWeekly,
+		ExposureGetExposureTargetsIDOKScheduleEveryMonthly,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTargetsIDOKScheduleEvery) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTargetsIDOKScheduleEveryOff:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDOKScheduleEveryDaily:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDOKScheduleEveryWeekly:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDOKScheduleEveryMonthly:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTargetsIDOKScheduleEvery) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTargetsIDOKScheduleEvery(data) {
+	case ExposureGetExposureTargetsIDOKScheduleEveryOff:
+		*s = ExposureGetExposureTargetsIDOKScheduleEveryOff
+		return nil
+	case ExposureGetExposureTargetsIDOKScheduleEveryDaily:
+		*s = ExposureGetExposureTargetsIDOKScheduleEveryDaily
+		return nil
+	case ExposureGetExposureTargetsIDOKScheduleEveryWeekly:
+		*s = ExposureGetExposureTargetsIDOKScheduleEveryWeekly
+		return nil
+	case ExposureGetExposureTargetsIDOKScheduleEveryMonthly:
+		*s = ExposureGetExposureTargetsIDOKScheduleEveryMonthly
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -50968,11 +51324,14 @@ type ExposureGetExposureTargetsOKItemsItem struct {
 	Origin ExposureGetExposureTargetsOKItemsItemOrigin `json:"origin"`
 	// Domains: where the TXT record goes and which verified domain covers this one already; null for an IP.
 	Proof NilExposureGetExposureTargetsOKItemsItemProof `json:"proof"`
-	// Where the target stands for scanning: scanning (a scan of it runs now), ready, or why not: unproved
-	// (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes
-	// out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet).
+	// Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
+	// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
+	// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
+	// scan confirmation or testing terms are not accepted yet).
 	ScanState ExposureGetExposureTargetsOKItemsItemScanState `json:"scan_state"`
 	Scannable bool                                           `json:"scannable"`
+	// How often the box scans the target by itself, when next, and why not.
+	Schedule ExposureGetExposureTargetsOKItemsItemSchedule `json:"schedule"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposureGetExposureTargetsOKItemsItemStatus `json:"status"`
 	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
@@ -51098,6 +51457,11 @@ func (s *ExposureGetExposureTargetsOKItemsItem) GetScanState() ExposureGetExposu
 // GetScannable returns the value of Scannable.
 func (s *ExposureGetExposureTargetsOKItemsItem) GetScannable() bool {
 	return s.Scannable
+}
+
+// GetSchedule returns the value of Schedule.
+func (s *ExposureGetExposureTargetsOKItemsItem) GetSchedule() ExposureGetExposureTargetsOKItemsItemSchedule {
+	return s.Schedule
 }
 
 // GetStatus returns the value of Status.
@@ -51243,6 +51607,11 @@ func (s *ExposureGetExposureTargetsOKItemsItem) SetScanState(val ExposureGetExpo
 // SetScannable sets the value of Scannable.
 func (s *ExposureGetExposureTargetsOKItemsItem) SetScannable(val bool) {
 	s.Scannable = val
+}
+
+// SetSchedule sets the value of Schedule.
+func (s *ExposureGetExposureTargetsOKItemsItem) SetSchedule(val ExposureGetExposureTargetsOKItemsItemSchedule) {
+	s.Schedule = val
 }
 
 // SetStatus sets the value of Status.
@@ -52213,9 +52582,10 @@ func (s *ExposureGetExposureTargetsOKItemsItemProof) SetZone(val string) {
 	s.Zone = val
 }
 
-// Where the target stands for scanning: scanning (a scan of it runs now), ready, or why not: unproved
-// (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes
-// out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet).
+// Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
+// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
+// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
+// scan confirmation or testing terms are not accepted yet).
 type ExposureGetExposureTargetsOKItemsItemScanState string
 
 const (
@@ -52224,6 +52594,7 @@ const (
 	ExposureGetExposureTargetsOKItemsItemScanStatePaused     ExposureGetExposureTargetsOKItemsItemScanState = "paused"
 	ExposureGetExposureTargetsOKItemsItemScanStateNeedsTerms ExposureGetExposureTargetsOKItemsItemScanState = "needs_terms"
 	ExposureGetExposureTargetsOKItemsItemScanStateReady      ExposureGetExposureTargetsOKItemsItemScanState = "ready"
+	ExposureGetExposureTargetsOKItemsItemScanStateQueued     ExposureGetExposureTargetsOKItemsItemScanState = "queued"
 	ExposureGetExposureTargetsOKItemsItemScanStateScanning   ExposureGetExposureTargetsOKItemsItemScanState = "scanning"
 )
 
@@ -52235,6 +52606,7 @@ func (ExposureGetExposureTargetsOKItemsItemScanState) AllValues() []ExposureGetE
 		ExposureGetExposureTargetsOKItemsItemScanStatePaused,
 		ExposureGetExposureTargetsOKItemsItemScanStateNeedsTerms,
 		ExposureGetExposureTargetsOKItemsItemScanStateReady,
+		ExposureGetExposureTargetsOKItemsItemScanStateQueued,
 		ExposureGetExposureTargetsOKItemsItemScanStateScanning,
 	}
 }
@@ -52251,6 +52623,8 @@ func (s ExposureGetExposureTargetsOKItemsItemScanState) MarshalText() ([]byte, e
 	case ExposureGetExposureTargetsOKItemsItemScanStateNeedsTerms:
 		return []byte(s), nil
 	case ExposureGetExposureTargetsOKItemsItemScanStateReady:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsOKItemsItemScanStateQueued:
 		return []byte(s), nil
 	case ExposureGetExposureTargetsOKItemsItemScanStateScanning:
 		return []byte(s), nil
@@ -52277,8 +52651,112 @@ func (s *ExposureGetExposureTargetsOKItemsItemScanState) UnmarshalText(data []by
 	case ExposureGetExposureTargetsOKItemsItemScanStateReady:
 		*s = ExposureGetExposureTargetsOKItemsItemScanStateReady
 		return nil
+	case ExposureGetExposureTargetsOKItemsItemScanStateQueued:
+		*s = ExposureGetExposureTargetsOKItemsItemScanStateQueued
+		return nil
 	case ExposureGetExposureTargetsOKItemsItemScanStateScanning:
 		*s = ExposureGetExposureTargetsOKItemsItemScanStateScanning
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// How often the box scans the target by itself, when next, and why not.
+type ExposureGetExposureTargetsOKItemsItemSchedule struct {
+	// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
+	// itself, counted from the start of its newest scan.
+	Every ExposureGetExposureTargetsOKItemsItemScheduleEvery `json:"every"`
+	// When the next scheduled scan is expected to start: when it is due, moved to the next opening of the
+	// scan window; null when the schedule is off or the target cannot be scanned on schedule now (note
+	// says why).
+	NextAt NilDateTime `json:"next_at"`
+	// Why the target is not scanned on schedule, e.g. "Not scanned on schedule: terms need confirming
+	// again"; null otherwise.
+	Note NilString `json:"note"`
+}
+
+// GetEvery returns the value of Every.
+func (s *ExposureGetExposureTargetsOKItemsItemSchedule) GetEvery() ExposureGetExposureTargetsOKItemsItemScheduleEvery {
+	return s.Every
+}
+
+// GetNextAt returns the value of NextAt.
+func (s *ExposureGetExposureTargetsOKItemsItemSchedule) GetNextAt() NilDateTime {
+	return s.NextAt
+}
+
+// GetNote returns the value of Note.
+func (s *ExposureGetExposureTargetsOKItemsItemSchedule) GetNote() NilString {
+	return s.Note
+}
+
+// SetEvery sets the value of Every.
+func (s *ExposureGetExposureTargetsOKItemsItemSchedule) SetEvery(val ExposureGetExposureTargetsOKItemsItemScheduleEvery) {
+	s.Every = val
+}
+
+// SetNextAt sets the value of NextAt.
+func (s *ExposureGetExposureTargetsOKItemsItemSchedule) SetNextAt(val NilDateTime) {
+	s.NextAt = val
+}
+
+// SetNote sets the value of Note.
+func (s *ExposureGetExposureTargetsOKItemsItemSchedule) SetNote(val NilString) {
+	s.Note = val
+}
+
+// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
+// itself, counted from the start of its newest scan.
+type ExposureGetExposureTargetsOKItemsItemScheduleEvery string
+
+const (
+	ExposureGetExposureTargetsOKItemsItemScheduleEveryOff     ExposureGetExposureTargetsOKItemsItemScheduleEvery = "off"
+	ExposureGetExposureTargetsOKItemsItemScheduleEveryDaily   ExposureGetExposureTargetsOKItemsItemScheduleEvery = "daily"
+	ExposureGetExposureTargetsOKItemsItemScheduleEveryWeekly  ExposureGetExposureTargetsOKItemsItemScheduleEvery = "weekly"
+	ExposureGetExposureTargetsOKItemsItemScheduleEveryMonthly ExposureGetExposureTargetsOKItemsItemScheduleEvery = "monthly"
+)
+
+// AllValues returns all ExposureGetExposureTargetsOKItemsItemScheduleEvery values.
+func (ExposureGetExposureTargetsOKItemsItemScheduleEvery) AllValues() []ExposureGetExposureTargetsOKItemsItemScheduleEvery {
+	return []ExposureGetExposureTargetsOKItemsItemScheduleEvery{
+		ExposureGetExposureTargetsOKItemsItemScheduleEveryOff,
+		ExposureGetExposureTargetsOKItemsItemScheduleEveryDaily,
+		ExposureGetExposureTargetsOKItemsItemScheduleEveryWeekly,
+		ExposureGetExposureTargetsOKItemsItemScheduleEveryMonthly,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTargetsOKItemsItemScheduleEvery) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTargetsOKItemsItemScheduleEveryOff:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsOKItemsItemScheduleEveryDaily:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsOKItemsItemScheduleEveryWeekly:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsOKItemsItemScheduleEveryMonthly:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTargetsOKItemsItemScheduleEvery) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTargetsOKItemsItemScheduleEvery(data) {
+	case ExposureGetExposureTargetsOKItemsItemScheduleEveryOff:
+		*s = ExposureGetExposureTargetsOKItemsItemScheduleEveryOff
+		return nil
+	case ExposureGetExposureTargetsOKItemsItemScheduleEveryDaily:
+		*s = ExposureGetExposureTargetsOKItemsItemScheduleEveryDaily
+		return nil
+	case ExposureGetExposureTargetsOKItemsItemScheduleEveryWeekly:
+		*s = ExposureGetExposureTargetsOKItemsItemScheduleEveryWeekly
+		return nil
+	case ExposureGetExposureTargetsOKItemsItemScheduleEveryMonthly:
+		*s = ExposureGetExposureTargetsOKItemsItemScheduleEveryMonthly
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -52553,11 +53031,14 @@ type ExposurePostExposureBoxIPVerifyOKItemsItem struct {
 	Origin ExposurePostExposureBoxIPVerifyOKItemsItemOrigin `json:"origin"`
 	// Domains: where the TXT record goes and which verified domain covers this one already; null for an IP.
 	Proof NilExposurePostExposureBoxIPVerifyOKItemsItemProof `json:"proof"`
-	// Where the target stands for scanning: scanning (a scan of it runs now), ready, or why not: unproved
-	// (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes
-	// out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet).
+	// Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
+	// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
+	// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
+	// scan confirmation or testing terms are not accepted yet).
 	ScanState ExposurePostExposureBoxIPVerifyOKItemsItemScanState `json:"scan_state"`
 	Scannable bool                                                `json:"scannable"`
+	// How often the box scans the target by itself, when next, and why not.
+	Schedule ExposurePostExposureBoxIPVerifyOKItemsItemSchedule `json:"schedule"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposurePostExposureBoxIPVerifyOKItemsItemStatus `json:"status"`
 	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
@@ -52683,6 +53164,11 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetScanState() ExposurePost
 // GetScannable returns the value of Scannable.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetScannable() bool {
 	return s.Scannable
+}
+
+// GetSchedule returns the value of Schedule.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetSchedule() ExposurePostExposureBoxIPVerifyOKItemsItemSchedule {
+	return s.Schedule
 }
 
 // GetStatus returns the value of Status.
@@ -52828,6 +53314,11 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetScanState(val ExposurePo
 // SetScannable sets the value of Scannable.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetScannable(val bool) {
 	s.Scannable = val
+}
+
+// SetSchedule sets the value of Schedule.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetSchedule(val ExposurePostExposureBoxIPVerifyOKItemsItemSchedule) {
+	s.Schedule = val
 }
 
 // SetStatus sets the value of Status.
@@ -53798,9 +54289,10 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemProof) SetZone(val string) {
 	s.Zone = val
 }
 
-// Where the target stands for scanning: scanning (a scan of it runs now), ready, or why not: unproved
-// (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes
-// out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet).
+// Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
+// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
+// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
+// scan confirmation or testing terms are not accepted yet).
 type ExposurePostExposureBoxIPVerifyOKItemsItemScanState string
 
 const (
@@ -53809,6 +54301,7 @@ const (
 	ExposurePostExposureBoxIPVerifyOKItemsItemScanStatePaused     ExposurePostExposureBoxIPVerifyOKItemsItemScanState = "paused"
 	ExposurePostExposureBoxIPVerifyOKItemsItemScanStateNeedsTerms ExposurePostExposureBoxIPVerifyOKItemsItemScanState = "needs_terms"
 	ExposurePostExposureBoxIPVerifyOKItemsItemScanStateReady      ExposurePostExposureBoxIPVerifyOKItemsItemScanState = "ready"
+	ExposurePostExposureBoxIPVerifyOKItemsItemScanStateQueued     ExposurePostExposureBoxIPVerifyOKItemsItemScanState = "queued"
 	ExposurePostExposureBoxIPVerifyOKItemsItemScanStateScanning   ExposurePostExposureBoxIPVerifyOKItemsItemScanState = "scanning"
 )
 
@@ -53820,6 +54313,7 @@ func (ExposurePostExposureBoxIPVerifyOKItemsItemScanState) AllValues() []Exposur
 		ExposurePostExposureBoxIPVerifyOKItemsItemScanStatePaused,
 		ExposurePostExposureBoxIPVerifyOKItemsItemScanStateNeedsTerms,
 		ExposurePostExposureBoxIPVerifyOKItemsItemScanStateReady,
+		ExposurePostExposureBoxIPVerifyOKItemsItemScanStateQueued,
 		ExposurePostExposureBoxIPVerifyOKItemsItemScanStateScanning,
 	}
 }
@@ -53836,6 +54330,8 @@ func (s ExposurePostExposureBoxIPVerifyOKItemsItemScanState) MarshalText() ([]by
 	case ExposurePostExposureBoxIPVerifyOKItemsItemScanStateNeedsTerms:
 		return []byte(s), nil
 	case ExposurePostExposureBoxIPVerifyOKItemsItemScanStateReady:
+		return []byte(s), nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemScanStateQueued:
 		return []byte(s), nil
 	case ExposurePostExposureBoxIPVerifyOKItemsItemScanStateScanning:
 		return []byte(s), nil
@@ -53862,8 +54358,112 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemScanState) UnmarshalText(data
 	case ExposurePostExposureBoxIPVerifyOKItemsItemScanStateReady:
 		*s = ExposurePostExposureBoxIPVerifyOKItemsItemScanStateReady
 		return nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemScanStateQueued:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemScanStateQueued
+		return nil
 	case ExposurePostExposureBoxIPVerifyOKItemsItemScanStateScanning:
 		*s = ExposurePostExposureBoxIPVerifyOKItemsItemScanStateScanning
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// How often the box scans the target by itself, when next, and why not.
+type ExposurePostExposureBoxIPVerifyOKItemsItemSchedule struct {
+	// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
+	// itself, counted from the start of its newest scan.
+	Every ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery `json:"every"`
+	// When the next scheduled scan is expected to start: when it is due, moved to the next opening of the
+	// scan window; null when the schedule is off or the target cannot be scanned on schedule now (note
+	// says why).
+	NextAt NilDateTime `json:"next_at"`
+	// Why the target is not scanned on schedule, e.g. "Not scanned on schedule: terms need confirming
+	// again"; null otherwise.
+	Note NilString `json:"note"`
+}
+
+// GetEvery returns the value of Every.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemSchedule) GetEvery() ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery {
+	return s.Every
+}
+
+// GetNextAt returns the value of NextAt.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemSchedule) GetNextAt() NilDateTime {
+	return s.NextAt
+}
+
+// GetNote returns the value of Note.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemSchedule) GetNote() NilString {
+	return s.Note
+}
+
+// SetEvery sets the value of Every.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemSchedule) SetEvery(val ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery) {
+	s.Every = val
+}
+
+// SetNextAt sets the value of NextAt.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemSchedule) SetNextAt(val NilDateTime) {
+	s.NextAt = val
+}
+
+// SetNote sets the value of Note.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemSchedule) SetNote(val NilString) {
+	s.Note = val
+}
+
+// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
+// itself, counted from the start of its newest scan.
+type ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery string
+
+const (
+	ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryOff     ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery = "off"
+	ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryDaily   ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery = "daily"
+	ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryWeekly  ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery = "weekly"
+	ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryMonthly ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery = "monthly"
+)
+
+// AllValues returns all ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery values.
+func (ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery) AllValues() []ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery {
+	return []ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery{
+		ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryOff,
+		ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryDaily,
+		ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryWeekly,
+		ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryMonthly,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryOff:
+		return []byte(s), nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryDaily:
+		return []byte(s), nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryWeekly:
+		return []byte(s), nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryMonthly:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery(data) {
+	case ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryOff:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryOff
+		return nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryDaily:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryDaily
+		return nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryWeekly:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryWeekly
+		return nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryMonthly:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryMonthly
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -54087,11 +54687,18 @@ type ExposurePostExposureScanStopOK struct {
 	// as the scan worker reports them, the passive web checks, and OpenVAS's own percent during the
 	// greenbone phase. Set while status is running; null otherwise.
 	Progress NilExposurePostExposureScanStopOKProgress `json:"progress"`
+	// The scans that wait after this one, in order; left out when none waits.
+	Queue []ExposurePostExposureScanStopOKQueueItem `json:"queue"`
+	// The run is a scheduled scan of the target, started by the box.
+	Scheduled OptBool `json:"scheduled"`
 	// The new snapshot when status is done; also when a run was stopped during its Greenbone step, whose
 	// earlier results are kept.
-	SnapshotID NilString                            `json:"snapshot_id"`
-	StartedAt  time.Time                            `json:"started_at"`
-	Status     ExposurePostExposureScanStopOKStatus `json:"status"`
+	SnapshotID NilString `json:"snapshot_id"`
+	StartedAt  time.Time `json:"started_at"`
+	// Queued: a scan that waits for the box's one scan slot: the 202 answer of a Scan now behind another
+	// scan, and GET /exposure/scan when nothing ran since the box started and scans wait (the first of
+	// them; started_at is then when it was queued).
+	Status ExposurePostExposureScanStopOKStatus `json:"status"`
 	// Why the box stopped this run when it was not a person's Stop, e.g. "the testing terms of this target
 	// were withdrawn", "Vedette shut down".
 	StopReason  OptNilString `json:"stop_reason"`
@@ -54132,6 +54739,16 @@ func (s *ExposurePostExposureScanStopOK) GetPhase() ExposurePostExposureScanStop
 // GetProgress returns the value of Progress.
 func (s *ExposurePostExposureScanStopOK) GetProgress() NilExposurePostExposureScanStopOKProgress {
 	return s.Progress
+}
+
+// GetQueue returns the value of Queue.
+func (s *ExposurePostExposureScanStopOK) GetQueue() []ExposurePostExposureScanStopOKQueueItem {
+	return s.Queue
+}
+
+// GetScheduled returns the value of Scheduled.
+func (s *ExposurePostExposureScanStopOK) GetScheduled() OptBool {
+	return s.Scheduled
 }
 
 // GetSnapshotID returns the value of SnapshotID.
@@ -54197,6 +54814,16 @@ func (s *ExposurePostExposureScanStopOK) SetPhase(val ExposurePostExposureScanSt
 // SetProgress sets the value of Progress.
 func (s *ExposurePostExposureScanStopOK) SetProgress(val NilExposurePostExposureScanStopOKProgress) {
 	s.Progress = val
+}
+
+// SetQueue sets the value of Queue.
+func (s *ExposurePostExposureScanStopOK) SetQueue(val []ExposurePostExposureScanStopOKQueueItem) {
+	s.Queue = val
+}
+
+// SetScheduled sets the value of Scheduled.
+func (s *ExposurePostExposureScanStopOK) SetScheduled(val OptBool) {
+	s.Scheduled = val
 }
 
 // SetSnapshotID sets the value of SnapshotID.
@@ -54591,9 +55218,85 @@ func (s *ExposurePostExposureScanStopOKProgressUnit) UnmarshalText(data []byte) 
 	}
 }
 
+type ExposurePostExposureScanStopOKQueueItem struct {
+	// Who pressed Scan now (an e-mail), or system for a scheduled scan.
+	By        string    `json:"by"`
+	QueuedAt  time.Time `json:"queued_at"`
+	Scheduled bool      `json:"scheduled"`
+	// Its checks run now (the TXT record, the proof, the box's IP): it is the next to run and can no
+	// longer be removed.
+	Starting    bool   `json:"starting"`
+	TargetID    string `json:"target_id"`
+	TargetValue string `json:"target_value"`
+}
+
+// GetBy returns the value of By.
+func (s *ExposurePostExposureScanStopOKQueueItem) GetBy() string {
+	return s.By
+}
+
+// GetQueuedAt returns the value of QueuedAt.
+func (s *ExposurePostExposureScanStopOKQueueItem) GetQueuedAt() time.Time {
+	return s.QueuedAt
+}
+
+// GetScheduled returns the value of Scheduled.
+func (s *ExposurePostExposureScanStopOKQueueItem) GetScheduled() bool {
+	return s.Scheduled
+}
+
+// GetStarting returns the value of Starting.
+func (s *ExposurePostExposureScanStopOKQueueItem) GetStarting() bool {
+	return s.Starting
+}
+
+// GetTargetID returns the value of TargetID.
+func (s *ExposurePostExposureScanStopOKQueueItem) GetTargetID() string {
+	return s.TargetID
+}
+
+// GetTargetValue returns the value of TargetValue.
+func (s *ExposurePostExposureScanStopOKQueueItem) GetTargetValue() string {
+	return s.TargetValue
+}
+
+// SetBy sets the value of By.
+func (s *ExposurePostExposureScanStopOKQueueItem) SetBy(val string) {
+	s.By = val
+}
+
+// SetQueuedAt sets the value of QueuedAt.
+func (s *ExposurePostExposureScanStopOKQueueItem) SetQueuedAt(val time.Time) {
+	s.QueuedAt = val
+}
+
+// SetScheduled sets the value of Scheduled.
+func (s *ExposurePostExposureScanStopOKQueueItem) SetScheduled(val bool) {
+	s.Scheduled = val
+}
+
+// SetStarting sets the value of Starting.
+func (s *ExposurePostExposureScanStopOKQueueItem) SetStarting(val bool) {
+	s.Starting = val
+}
+
+// SetTargetID sets the value of TargetID.
+func (s *ExposurePostExposureScanStopOKQueueItem) SetTargetID(val string) {
+	s.TargetID = val
+}
+
+// SetTargetValue sets the value of TargetValue.
+func (s *ExposurePostExposureScanStopOKQueueItem) SetTargetValue(val string) {
+	s.TargetValue = val
+}
+
+// Queued: a scan that waits for the box's one scan slot: the 202 answer of a Scan now behind another
+// scan, and GET /exposure/scan when nothing ran since the box started and scans wait (the first of
+// them; started_at is then when it was queued).
 type ExposurePostExposureScanStopOKStatus string
 
 const (
+	ExposurePostExposureScanStopOKStatusQueued  ExposurePostExposureScanStopOKStatus = "queued"
 	ExposurePostExposureScanStopOKStatusRunning ExposurePostExposureScanStopOKStatus = "running"
 	ExposurePostExposureScanStopOKStatusDone    ExposurePostExposureScanStopOKStatus = "done"
 	ExposurePostExposureScanStopOKStatusFailed  ExposurePostExposureScanStopOKStatus = "failed"
@@ -54603,6 +55306,7 @@ const (
 // AllValues returns all ExposurePostExposureScanStopOKStatus values.
 func (ExposurePostExposureScanStopOKStatus) AllValues() []ExposurePostExposureScanStopOKStatus {
 	return []ExposurePostExposureScanStopOKStatus{
+		ExposurePostExposureScanStopOKStatusQueued,
 		ExposurePostExposureScanStopOKStatusRunning,
 		ExposurePostExposureScanStopOKStatusDone,
 		ExposurePostExposureScanStopOKStatusFailed,
@@ -54613,6 +55317,8 @@ func (ExposurePostExposureScanStopOKStatus) AllValues() []ExposurePostExposureSc
 // MarshalText implements encoding.TextMarshaler.
 func (s ExposurePostExposureScanStopOKStatus) MarshalText() ([]byte, error) {
 	switch s {
+	case ExposurePostExposureScanStopOKStatusQueued:
+		return []byte(s), nil
 	case ExposurePostExposureScanStopOKStatusRunning:
 		return []byte(s), nil
 	case ExposurePostExposureScanStopOKStatusDone:
@@ -54629,6 +55335,9 @@ func (s ExposurePostExposureScanStopOKStatus) MarshalText() ([]byte, error) {
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *ExposurePostExposureScanStopOKStatus) UnmarshalText(data []byte) error {
 	switch ExposurePostExposureScanStopOKStatus(data) {
+	case ExposurePostExposureScanStopOKStatusQueued:
+		*s = ExposurePostExposureScanStopOKStatusQueued
+		return nil
 	case ExposurePostExposureScanStopOKStatusRunning:
 		*s = ExposurePostExposureScanStopOKStatusRunning
 		return nil
@@ -54691,11 +55400,14 @@ type ExposurePostExposureTargetsCreated struct {
 	Origin ExposurePostExposureTargetsCreatedOrigin `json:"origin"`
 	// Domains: where the TXT record goes and which verified domain covers this one already; null for an IP.
 	Proof NilExposurePostExposureTargetsCreatedProof `json:"proof"`
-	// Where the target stands for scanning: scanning (a scan of it runs now), ready, or why not: unproved
-	// (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes
-	// out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet).
+	// Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
+	// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
+	// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
+	// scan confirmation or testing terms are not accepted yet).
 	ScanState ExposurePostExposureTargetsCreatedScanState `json:"scan_state"`
 	Scannable bool                                        `json:"scannable"`
+	// How often the box scans the target by itself, when next, and why not.
+	Schedule ExposurePostExposureTargetsCreatedSchedule `json:"schedule"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposurePostExposureTargetsCreatedStatus `json:"status"`
 	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
@@ -54821,6 +55533,11 @@ func (s *ExposurePostExposureTargetsCreated) GetScanState() ExposurePostExposure
 // GetScannable returns the value of Scannable.
 func (s *ExposurePostExposureTargetsCreated) GetScannable() bool {
 	return s.Scannable
+}
+
+// GetSchedule returns the value of Schedule.
+func (s *ExposurePostExposureTargetsCreated) GetSchedule() ExposurePostExposureTargetsCreatedSchedule {
+	return s.Schedule
 }
 
 // GetStatus returns the value of Status.
@@ -54966,6 +55683,11 @@ func (s *ExposurePostExposureTargetsCreated) SetScanState(val ExposurePostExposu
 // SetScannable sets the value of Scannable.
 func (s *ExposurePostExposureTargetsCreated) SetScannable(val bool) {
 	s.Scannable = val
+}
+
+// SetSchedule sets the value of Schedule.
+func (s *ExposurePostExposureTargetsCreated) SetSchedule(val ExposurePostExposureTargetsCreatedSchedule) {
+	s.Schedule = val
 }
 
 // SetStatus sets the value of Status.
@@ -55936,9 +56658,10 @@ func (s *ExposurePostExposureTargetsCreatedProof) SetZone(val string) {
 	s.Zone = val
 }
 
-// Where the target stands for scanning: scanning (a scan of it runs now), ready, or why not: unproved
-// (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes
-// out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet).
+// Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
+// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
+// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
+// scan confirmation or testing terms are not accepted yet).
 type ExposurePostExposureTargetsCreatedScanState string
 
 const (
@@ -55947,6 +56670,7 @@ const (
 	ExposurePostExposureTargetsCreatedScanStatePaused     ExposurePostExposureTargetsCreatedScanState = "paused"
 	ExposurePostExposureTargetsCreatedScanStateNeedsTerms ExposurePostExposureTargetsCreatedScanState = "needs_terms"
 	ExposurePostExposureTargetsCreatedScanStateReady      ExposurePostExposureTargetsCreatedScanState = "ready"
+	ExposurePostExposureTargetsCreatedScanStateQueued     ExposurePostExposureTargetsCreatedScanState = "queued"
 	ExposurePostExposureTargetsCreatedScanStateScanning   ExposurePostExposureTargetsCreatedScanState = "scanning"
 )
 
@@ -55958,6 +56682,7 @@ func (ExposurePostExposureTargetsCreatedScanState) AllValues() []ExposurePostExp
 		ExposurePostExposureTargetsCreatedScanStatePaused,
 		ExposurePostExposureTargetsCreatedScanStateNeedsTerms,
 		ExposurePostExposureTargetsCreatedScanStateReady,
+		ExposurePostExposureTargetsCreatedScanStateQueued,
 		ExposurePostExposureTargetsCreatedScanStateScanning,
 	}
 }
@@ -55974,6 +56699,8 @@ func (s ExposurePostExposureTargetsCreatedScanState) MarshalText() ([]byte, erro
 	case ExposurePostExposureTargetsCreatedScanStateNeedsTerms:
 		return []byte(s), nil
 	case ExposurePostExposureTargetsCreatedScanStateReady:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsCreatedScanStateQueued:
 		return []byte(s), nil
 	case ExposurePostExposureTargetsCreatedScanStateScanning:
 		return []byte(s), nil
@@ -56000,8 +56727,112 @@ func (s *ExposurePostExposureTargetsCreatedScanState) UnmarshalText(data []byte)
 	case ExposurePostExposureTargetsCreatedScanStateReady:
 		*s = ExposurePostExposureTargetsCreatedScanStateReady
 		return nil
+	case ExposurePostExposureTargetsCreatedScanStateQueued:
+		*s = ExposurePostExposureTargetsCreatedScanStateQueued
+		return nil
 	case ExposurePostExposureTargetsCreatedScanStateScanning:
 		*s = ExposurePostExposureTargetsCreatedScanStateScanning
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// How often the box scans the target by itself, when next, and why not.
+type ExposurePostExposureTargetsCreatedSchedule struct {
+	// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
+	// itself, counted from the start of its newest scan.
+	Every ExposurePostExposureTargetsCreatedScheduleEvery `json:"every"`
+	// When the next scheduled scan is expected to start: when it is due, moved to the next opening of the
+	// scan window; null when the schedule is off or the target cannot be scanned on schedule now (note
+	// says why).
+	NextAt NilDateTime `json:"next_at"`
+	// Why the target is not scanned on schedule, e.g. "Not scanned on schedule: terms need confirming
+	// again"; null otherwise.
+	Note NilString `json:"note"`
+}
+
+// GetEvery returns the value of Every.
+func (s *ExposurePostExposureTargetsCreatedSchedule) GetEvery() ExposurePostExposureTargetsCreatedScheduleEvery {
+	return s.Every
+}
+
+// GetNextAt returns the value of NextAt.
+func (s *ExposurePostExposureTargetsCreatedSchedule) GetNextAt() NilDateTime {
+	return s.NextAt
+}
+
+// GetNote returns the value of Note.
+func (s *ExposurePostExposureTargetsCreatedSchedule) GetNote() NilString {
+	return s.Note
+}
+
+// SetEvery sets the value of Every.
+func (s *ExposurePostExposureTargetsCreatedSchedule) SetEvery(val ExposurePostExposureTargetsCreatedScheduleEvery) {
+	s.Every = val
+}
+
+// SetNextAt sets the value of NextAt.
+func (s *ExposurePostExposureTargetsCreatedSchedule) SetNextAt(val NilDateTime) {
+	s.NextAt = val
+}
+
+// SetNote sets the value of Note.
+func (s *ExposurePostExposureTargetsCreatedSchedule) SetNote(val NilString) {
+	s.Note = val
+}
+
+// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
+// itself, counted from the start of its newest scan.
+type ExposurePostExposureTargetsCreatedScheduleEvery string
+
+const (
+	ExposurePostExposureTargetsCreatedScheduleEveryOff     ExposurePostExposureTargetsCreatedScheduleEvery = "off"
+	ExposurePostExposureTargetsCreatedScheduleEveryDaily   ExposurePostExposureTargetsCreatedScheduleEvery = "daily"
+	ExposurePostExposureTargetsCreatedScheduleEveryWeekly  ExposurePostExposureTargetsCreatedScheduleEvery = "weekly"
+	ExposurePostExposureTargetsCreatedScheduleEveryMonthly ExposurePostExposureTargetsCreatedScheduleEvery = "monthly"
+)
+
+// AllValues returns all ExposurePostExposureTargetsCreatedScheduleEvery values.
+func (ExposurePostExposureTargetsCreatedScheduleEvery) AllValues() []ExposurePostExposureTargetsCreatedScheduleEvery {
+	return []ExposurePostExposureTargetsCreatedScheduleEvery{
+		ExposurePostExposureTargetsCreatedScheduleEveryOff,
+		ExposurePostExposureTargetsCreatedScheduleEveryDaily,
+		ExposurePostExposureTargetsCreatedScheduleEveryWeekly,
+		ExposurePostExposureTargetsCreatedScheduleEveryMonthly,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTargetsCreatedScheduleEvery) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTargetsCreatedScheduleEveryOff:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsCreatedScheduleEveryDaily:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsCreatedScheduleEveryWeekly:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsCreatedScheduleEveryMonthly:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTargetsCreatedScheduleEvery) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTargetsCreatedScheduleEvery(data) {
+	case ExposurePostExposureTargetsCreatedScheduleEveryOff:
+		*s = ExposurePostExposureTargetsCreatedScheduleEveryOff
+		return nil
+	case ExposurePostExposureTargetsCreatedScheduleEveryDaily:
+		*s = ExposurePostExposureTargetsCreatedScheduleEveryDaily
+		return nil
+	case ExposurePostExposureTargetsCreatedScheduleEveryWeekly:
+		*s = ExposurePostExposureTargetsCreatedScheduleEveryWeekly
+		return nil
+	case ExposurePostExposureTargetsCreatedScheduleEveryMonthly:
+		*s = ExposurePostExposureTargetsCreatedScheduleEveryMonthly
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -56225,11 +57056,18 @@ type ExposurePostExposureTargetsIDOpenvasAccepted struct {
 	// as the scan worker reports them, the passive web checks, and OpenVAS's own percent during the
 	// greenbone phase. Set while status is running; null otherwise.
 	Progress NilExposurePostExposureTargetsIDOpenvasAcceptedProgress `json:"progress"`
+	// The scans that wait after this one, in order; left out when none waits.
+	Queue []ExposurePostExposureTargetsIDOpenvasAcceptedQueueItem `json:"queue"`
+	// The run is a scheduled scan of the target, started by the box.
+	Scheduled OptBool `json:"scheduled"`
 	// The new snapshot when status is done; also when a run was stopped during its Greenbone step, whose
 	// earlier results are kept.
-	SnapshotID NilString                                          `json:"snapshot_id"`
-	StartedAt  time.Time                                          `json:"started_at"`
-	Status     ExposurePostExposureTargetsIDOpenvasAcceptedStatus `json:"status"`
+	SnapshotID NilString `json:"snapshot_id"`
+	StartedAt  time.Time `json:"started_at"`
+	// Queued: a scan that waits for the box's one scan slot: the 202 answer of a Scan now behind another
+	// scan, and GET /exposure/scan when nothing ran since the box started and scans wait (the first of
+	// them; started_at is then when it was queued).
+	Status ExposurePostExposureTargetsIDOpenvasAcceptedStatus `json:"status"`
 	// Why the box stopped this run when it was not a person's Stop, e.g. "the testing terms of this target
 	// were withdrawn", "Vedette shut down".
 	StopReason  OptNilString `json:"stop_reason"`
@@ -56270,6 +57108,16 @@ func (s *ExposurePostExposureTargetsIDOpenvasAccepted) GetPhase() ExposurePostEx
 // GetProgress returns the value of Progress.
 func (s *ExposurePostExposureTargetsIDOpenvasAccepted) GetProgress() NilExposurePostExposureTargetsIDOpenvasAcceptedProgress {
 	return s.Progress
+}
+
+// GetQueue returns the value of Queue.
+func (s *ExposurePostExposureTargetsIDOpenvasAccepted) GetQueue() []ExposurePostExposureTargetsIDOpenvasAcceptedQueueItem {
+	return s.Queue
+}
+
+// GetScheduled returns the value of Scheduled.
+func (s *ExposurePostExposureTargetsIDOpenvasAccepted) GetScheduled() OptBool {
+	return s.Scheduled
 }
 
 // GetSnapshotID returns the value of SnapshotID.
@@ -56335,6 +57183,16 @@ func (s *ExposurePostExposureTargetsIDOpenvasAccepted) SetPhase(val ExposurePost
 // SetProgress sets the value of Progress.
 func (s *ExposurePostExposureTargetsIDOpenvasAccepted) SetProgress(val NilExposurePostExposureTargetsIDOpenvasAcceptedProgress) {
 	s.Progress = val
+}
+
+// SetQueue sets the value of Queue.
+func (s *ExposurePostExposureTargetsIDOpenvasAccepted) SetQueue(val []ExposurePostExposureTargetsIDOpenvasAcceptedQueueItem) {
+	s.Queue = val
+}
+
+// SetScheduled sets the value of Scheduled.
+func (s *ExposurePostExposureTargetsIDOpenvasAccepted) SetScheduled(val OptBool) {
+	s.Scheduled = val
 }
 
 // SetSnapshotID sets the value of SnapshotID.
@@ -56729,9 +57587,85 @@ func (s *ExposurePostExposureTargetsIDOpenvasAcceptedProgressUnit) UnmarshalText
 	}
 }
 
+type ExposurePostExposureTargetsIDOpenvasAcceptedQueueItem struct {
+	// Who pressed Scan now (an e-mail), or system for a scheduled scan.
+	By        string    `json:"by"`
+	QueuedAt  time.Time `json:"queued_at"`
+	Scheduled bool      `json:"scheduled"`
+	// Its checks run now (the TXT record, the proof, the box's IP): it is the next to run and can no
+	// longer be removed.
+	Starting    bool   `json:"starting"`
+	TargetID    string `json:"target_id"`
+	TargetValue string `json:"target_value"`
+}
+
+// GetBy returns the value of By.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedQueueItem) GetBy() string {
+	return s.By
+}
+
+// GetQueuedAt returns the value of QueuedAt.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedQueueItem) GetQueuedAt() time.Time {
+	return s.QueuedAt
+}
+
+// GetScheduled returns the value of Scheduled.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedQueueItem) GetScheduled() bool {
+	return s.Scheduled
+}
+
+// GetStarting returns the value of Starting.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedQueueItem) GetStarting() bool {
+	return s.Starting
+}
+
+// GetTargetID returns the value of TargetID.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedQueueItem) GetTargetID() string {
+	return s.TargetID
+}
+
+// GetTargetValue returns the value of TargetValue.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedQueueItem) GetTargetValue() string {
+	return s.TargetValue
+}
+
+// SetBy sets the value of By.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedQueueItem) SetBy(val string) {
+	s.By = val
+}
+
+// SetQueuedAt sets the value of QueuedAt.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedQueueItem) SetQueuedAt(val time.Time) {
+	s.QueuedAt = val
+}
+
+// SetScheduled sets the value of Scheduled.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedQueueItem) SetScheduled(val bool) {
+	s.Scheduled = val
+}
+
+// SetStarting sets the value of Starting.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedQueueItem) SetStarting(val bool) {
+	s.Starting = val
+}
+
+// SetTargetID sets the value of TargetID.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedQueueItem) SetTargetID(val string) {
+	s.TargetID = val
+}
+
+// SetTargetValue sets the value of TargetValue.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedQueueItem) SetTargetValue(val string) {
+	s.TargetValue = val
+}
+
+// Queued: a scan that waits for the box's one scan slot: the 202 answer of a Scan now behind another
+// scan, and GET /exposure/scan when nothing ran since the box started and scans wait (the first of
+// them; started_at is then when it was queued).
 type ExposurePostExposureTargetsIDOpenvasAcceptedStatus string
 
 const (
+	ExposurePostExposureTargetsIDOpenvasAcceptedStatusQueued  ExposurePostExposureTargetsIDOpenvasAcceptedStatus = "queued"
 	ExposurePostExposureTargetsIDOpenvasAcceptedStatusRunning ExposurePostExposureTargetsIDOpenvasAcceptedStatus = "running"
 	ExposurePostExposureTargetsIDOpenvasAcceptedStatusDone    ExposurePostExposureTargetsIDOpenvasAcceptedStatus = "done"
 	ExposurePostExposureTargetsIDOpenvasAcceptedStatusFailed  ExposurePostExposureTargetsIDOpenvasAcceptedStatus = "failed"
@@ -56741,6 +57675,7 @@ const (
 // AllValues returns all ExposurePostExposureTargetsIDOpenvasAcceptedStatus values.
 func (ExposurePostExposureTargetsIDOpenvasAcceptedStatus) AllValues() []ExposurePostExposureTargetsIDOpenvasAcceptedStatus {
 	return []ExposurePostExposureTargetsIDOpenvasAcceptedStatus{
+		ExposurePostExposureTargetsIDOpenvasAcceptedStatusQueued,
 		ExposurePostExposureTargetsIDOpenvasAcceptedStatusRunning,
 		ExposurePostExposureTargetsIDOpenvasAcceptedStatusDone,
 		ExposurePostExposureTargetsIDOpenvasAcceptedStatusFailed,
@@ -56751,6 +57686,8 @@ func (ExposurePostExposureTargetsIDOpenvasAcceptedStatus) AllValues() []Exposure
 // MarshalText implements encoding.TextMarshaler.
 func (s ExposurePostExposureTargetsIDOpenvasAcceptedStatus) MarshalText() ([]byte, error) {
 	switch s {
+	case ExposurePostExposureTargetsIDOpenvasAcceptedStatusQueued:
+		return []byte(s), nil
 	case ExposurePostExposureTargetsIDOpenvasAcceptedStatusRunning:
 		return []byte(s), nil
 	case ExposurePostExposureTargetsIDOpenvasAcceptedStatusDone:
@@ -56767,6 +57704,9 @@ func (s ExposurePostExposureTargetsIDOpenvasAcceptedStatus) MarshalText() ([]byt
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *ExposurePostExposureTargetsIDOpenvasAcceptedStatus) UnmarshalText(data []byte) error {
 	switch ExposurePostExposureTargetsIDOpenvasAcceptedStatus(data) {
+	case ExposurePostExposureTargetsIDOpenvasAcceptedStatusQueued:
+		*s = ExposurePostExposureTargetsIDOpenvasAcceptedStatusQueued
+		return nil
 	case ExposurePostExposureTargetsIDOpenvasAcceptedStatusRunning:
 		*s = ExposurePostExposureTargetsIDOpenvasAcceptedStatusRunning
 		return nil
@@ -56938,11 +57878,18 @@ type ExposurePostExposureTargetsIDScanAccepted struct {
 	// as the scan worker reports them, the passive web checks, and OpenVAS's own percent during the
 	// greenbone phase. Set while status is running; null otherwise.
 	Progress NilExposurePostExposureTargetsIDScanAcceptedProgress `json:"progress"`
+	// The scans that wait after this one, in order; left out when none waits.
+	Queue []ExposurePostExposureTargetsIDScanAcceptedQueueItem `json:"queue"`
+	// The run is a scheduled scan of the target, started by the box.
+	Scheduled OptBool `json:"scheduled"`
 	// The new snapshot when status is done; also when a run was stopped during its Greenbone step, whose
 	// earlier results are kept.
-	SnapshotID NilString                                       `json:"snapshot_id"`
-	StartedAt  time.Time                                       `json:"started_at"`
-	Status     ExposurePostExposureTargetsIDScanAcceptedStatus `json:"status"`
+	SnapshotID NilString `json:"snapshot_id"`
+	StartedAt  time.Time `json:"started_at"`
+	// Queued: a scan that waits for the box's one scan slot: the 202 answer of a Scan now behind another
+	// scan, and GET /exposure/scan when nothing ran since the box started and scans wait (the first of
+	// them; started_at is then when it was queued).
+	Status ExposurePostExposureTargetsIDScanAcceptedStatus `json:"status"`
 	// Why the box stopped this run when it was not a person's Stop, e.g. "the testing terms of this target
 	// were withdrawn", "Vedette shut down".
 	StopReason  OptNilString `json:"stop_reason"`
@@ -56983,6 +57930,16 @@ func (s *ExposurePostExposureTargetsIDScanAccepted) GetPhase() ExposurePostExpos
 // GetProgress returns the value of Progress.
 func (s *ExposurePostExposureTargetsIDScanAccepted) GetProgress() NilExposurePostExposureTargetsIDScanAcceptedProgress {
 	return s.Progress
+}
+
+// GetQueue returns the value of Queue.
+func (s *ExposurePostExposureTargetsIDScanAccepted) GetQueue() []ExposurePostExposureTargetsIDScanAcceptedQueueItem {
+	return s.Queue
+}
+
+// GetScheduled returns the value of Scheduled.
+func (s *ExposurePostExposureTargetsIDScanAccepted) GetScheduled() OptBool {
+	return s.Scheduled
 }
 
 // GetSnapshotID returns the value of SnapshotID.
@@ -57048,6 +58005,16 @@ func (s *ExposurePostExposureTargetsIDScanAccepted) SetPhase(val ExposurePostExp
 // SetProgress sets the value of Progress.
 func (s *ExposurePostExposureTargetsIDScanAccepted) SetProgress(val NilExposurePostExposureTargetsIDScanAcceptedProgress) {
 	s.Progress = val
+}
+
+// SetQueue sets the value of Queue.
+func (s *ExposurePostExposureTargetsIDScanAccepted) SetQueue(val []ExposurePostExposureTargetsIDScanAcceptedQueueItem) {
+	s.Queue = val
+}
+
+// SetScheduled sets the value of Scheduled.
+func (s *ExposurePostExposureTargetsIDScanAccepted) SetScheduled(val OptBool) {
+	s.Scheduled = val
 }
 
 // SetSnapshotID sets the value of SnapshotID.
@@ -57442,9 +58409,85 @@ func (s *ExposurePostExposureTargetsIDScanAcceptedProgressUnit) UnmarshalText(da
 	}
 }
 
+type ExposurePostExposureTargetsIDScanAcceptedQueueItem struct {
+	// Who pressed Scan now (an e-mail), or system for a scheduled scan.
+	By        string    `json:"by"`
+	QueuedAt  time.Time `json:"queued_at"`
+	Scheduled bool      `json:"scheduled"`
+	// Its checks run now (the TXT record, the proof, the box's IP): it is the next to run and can no
+	// longer be removed.
+	Starting    bool   `json:"starting"`
+	TargetID    string `json:"target_id"`
+	TargetValue string `json:"target_value"`
+}
+
+// GetBy returns the value of By.
+func (s *ExposurePostExposureTargetsIDScanAcceptedQueueItem) GetBy() string {
+	return s.By
+}
+
+// GetQueuedAt returns the value of QueuedAt.
+func (s *ExposurePostExposureTargetsIDScanAcceptedQueueItem) GetQueuedAt() time.Time {
+	return s.QueuedAt
+}
+
+// GetScheduled returns the value of Scheduled.
+func (s *ExposurePostExposureTargetsIDScanAcceptedQueueItem) GetScheduled() bool {
+	return s.Scheduled
+}
+
+// GetStarting returns the value of Starting.
+func (s *ExposurePostExposureTargetsIDScanAcceptedQueueItem) GetStarting() bool {
+	return s.Starting
+}
+
+// GetTargetID returns the value of TargetID.
+func (s *ExposurePostExposureTargetsIDScanAcceptedQueueItem) GetTargetID() string {
+	return s.TargetID
+}
+
+// GetTargetValue returns the value of TargetValue.
+func (s *ExposurePostExposureTargetsIDScanAcceptedQueueItem) GetTargetValue() string {
+	return s.TargetValue
+}
+
+// SetBy sets the value of By.
+func (s *ExposurePostExposureTargetsIDScanAcceptedQueueItem) SetBy(val string) {
+	s.By = val
+}
+
+// SetQueuedAt sets the value of QueuedAt.
+func (s *ExposurePostExposureTargetsIDScanAcceptedQueueItem) SetQueuedAt(val time.Time) {
+	s.QueuedAt = val
+}
+
+// SetScheduled sets the value of Scheduled.
+func (s *ExposurePostExposureTargetsIDScanAcceptedQueueItem) SetScheduled(val bool) {
+	s.Scheduled = val
+}
+
+// SetStarting sets the value of Starting.
+func (s *ExposurePostExposureTargetsIDScanAcceptedQueueItem) SetStarting(val bool) {
+	s.Starting = val
+}
+
+// SetTargetID sets the value of TargetID.
+func (s *ExposurePostExposureTargetsIDScanAcceptedQueueItem) SetTargetID(val string) {
+	s.TargetID = val
+}
+
+// SetTargetValue sets the value of TargetValue.
+func (s *ExposurePostExposureTargetsIDScanAcceptedQueueItem) SetTargetValue(val string) {
+	s.TargetValue = val
+}
+
+// Queued: a scan that waits for the box's one scan slot: the 202 answer of a Scan now behind another
+// scan, and GET /exposure/scan when nothing ran since the box started and scans wait (the first of
+// them; started_at is then when it was queued).
 type ExposurePostExposureTargetsIDScanAcceptedStatus string
 
 const (
+	ExposurePostExposureTargetsIDScanAcceptedStatusQueued  ExposurePostExposureTargetsIDScanAcceptedStatus = "queued"
 	ExposurePostExposureTargetsIDScanAcceptedStatusRunning ExposurePostExposureTargetsIDScanAcceptedStatus = "running"
 	ExposurePostExposureTargetsIDScanAcceptedStatusDone    ExposurePostExposureTargetsIDScanAcceptedStatus = "done"
 	ExposurePostExposureTargetsIDScanAcceptedStatusFailed  ExposurePostExposureTargetsIDScanAcceptedStatus = "failed"
@@ -57454,6 +58497,7 @@ const (
 // AllValues returns all ExposurePostExposureTargetsIDScanAcceptedStatus values.
 func (ExposurePostExposureTargetsIDScanAcceptedStatus) AllValues() []ExposurePostExposureTargetsIDScanAcceptedStatus {
 	return []ExposurePostExposureTargetsIDScanAcceptedStatus{
+		ExposurePostExposureTargetsIDScanAcceptedStatusQueued,
 		ExposurePostExposureTargetsIDScanAcceptedStatusRunning,
 		ExposurePostExposureTargetsIDScanAcceptedStatusDone,
 		ExposurePostExposureTargetsIDScanAcceptedStatusFailed,
@@ -57464,6 +58508,8 @@ func (ExposurePostExposureTargetsIDScanAcceptedStatus) AllValues() []ExposurePos
 // MarshalText implements encoding.TextMarshaler.
 func (s ExposurePostExposureTargetsIDScanAcceptedStatus) MarshalText() ([]byte, error) {
 	switch s {
+	case ExposurePostExposureTargetsIDScanAcceptedStatusQueued:
+		return []byte(s), nil
 	case ExposurePostExposureTargetsIDScanAcceptedStatusRunning:
 		return []byte(s), nil
 	case ExposurePostExposureTargetsIDScanAcceptedStatusDone:
@@ -57480,6 +58526,9 @@ func (s ExposurePostExposureTargetsIDScanAcceptedStatus) MarshalText() ([]byte, 
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *ExposurePostExposureTargetsIDScanAcceptedStatus) UnmarshalText(data []byte) error {
 	switch ExposurePostExposureTargetsIDScanAcceptedStatus(data) {
+	case ExposurePostExposureTargetsIDScanAcceptedStatusQueued:
+		*s = ExposurePostExposureTargetsIDScanAcceptedStatusQueued
+		return nil
 	case ExposurePostExposureTargetsIDScanAcceptedStatusRunning:
 		*s = ExposurePostExposureTargetsIDScanAcceptedStatusRunning
 		return nil
@@ -57594,11 +58643,14 @@ type ExposurePostExposureTargetsIDVerifyOKTarget struct {
 	Origin ExposurePostExposureTargetsIDVerifyOKTargetOrigin `json:"origin"`
 	// Domains: where the TXT record goes and which verified domain covers this one already; null for an IP.
 	Proof NilExposurePostExposureTargetsIDVerifyOKTargetProof `json:"proof"`
-	// Where the target stands for scanning: scanning (a scan of it runs now), ready, or why not: unproved
-	// (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes
-	// out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet).
+	// Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
+	// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
+	// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
+	// scan confirmation or testing terms are not accepted yet).
 	ScanState ExposurePostExposureTargetsIDVerifyOKTargetScanState `json:"scan_state"`
 	Scannable bool                                                 `json:"scannable"`
+	// How often the box scans the target by itself, when next, and why not.
+	Schedule ExposurePostExposureTargetsIDVerifyOKTargetSchedule `json:"schedule"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposurePostExposureTargetsIDVerifyOKTargetStatus `json:"status"`
 	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
@@ -57724,6 +58776,11 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetScanState() ExposurePos
 // GetScannable returns the value of Scannable.
 func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetScannable() bool {
 	return s.Scannable
+}
+
+// GetSchedule returns the value of Schedule.
+func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetSchedule() ExposurePostExposureTargetsIDVerifyOKTargetSchedule {
+	return s.Schedule
 }
 
 // GetStatus returns the value of Status.
@@ -57869,6 +58926,11 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetScanState(val ExposureP
 // SetScannable sets the value of Scannable.
 func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetScannable(val bool) {
 	s.Scannable = val
+}
+
+// SetSchedule sets the value of Schedule.
+func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetSchedule(val ExposurePostExposureTargetsIDVerifyOKTargetSchedule) {
+	s.Schedule = val
 }
 
 // SetStatus sets the value of Status.
@@ -58839,9 +59901,10 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetProof) SetZone(val string) {
 	s.Zone = val
 }
 
-// Where the target stands for scanning: scanning (a scan of it runs now), ready, or why not: unproved
-// (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes
-// out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet).
+// Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
+// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
+// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
+// scan confirmation or testing terms are not accepted yet).
 type ExposurePostExposureTargetsIDVerifyOKTargetScanState string
 
 const (
@@ -58850,6 +59913,7 @@ const (
 	ExposurePostExposureTargetsIDVerifyOKTargetScanStatePaused     ExposurePostExposureTargetsIDVerifyOKTargetScanState = "paused"
 	ExposurePostExposureTargetsIDVerifyOKTargetScanStateNeedsTerms ExposurePostExposureTargetsIDVerifyOKTargetScanState = "needs_terms"
 	ExposurePostExposureTargetsIDVerifyOKTargetScanStateReady      ExposurePostExposureTargetsIDVerifyOKTargetScanState = "ready"
+	ExposurePostExposureTargetsIDVerifyOKTargetScanStateQueued     ExposurePostExposureTargetsIDVerifyOKTargetScanState = "queued"
 	ExposurePostExposureTargetsIDVerifyOKTargetScanStateScanning   ExposurePostExposureTargetsIDVerifyOKTargetScanState = "scanning"
 )
 
@@ -58861,6 +59925,7 @@ func (ExposurePostExposureTargetsIDVerifyOKTargetScanState) AllValues() []Exposu
 		ExposurePostExposureTargetsIDVerifyOKTargetScanStatePaused,
 		ExposurePostExposureTargetsIDVerifyOKTargetScanStateNeedsTerms,
 		ExposurePostExposureTargetsIDVerifyOKTargetScanStateReady,
+		ExposurePostExposureTargetsIDVerifyOKTargetScanStateQueued,
 		ExposurePostExposureTargetsIDVerifyOKTargetScanStateScanning,
 	}
 }
@@ -58877,6 +59942,8 @@ func (s ExposurePostExposureTargetsIDVerifyOKTargetScanState) MarshalText() ([]b
 	case ExposurePostExposureTargetsIDVerifyOKTargetScanStateNeedsTerms:
 		return []byte(s), nil
 	case ExposurePostExposureTargetsIDVerifyOKTargetScanStateReady:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetScanStateQueued:
 		return []byte(s), nil
 	case ExposurePostExposureTargetsIDVerifyOKTargetScanStateScanning:
 		return []byte(s), nil
@@ -58903,8 +59970,112 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetScanState) UnmarshalText(dat
 	case ExposurePostExposureTargetsIDVerifyOKTargetScanStateReady:
 		*s = ExposurePostExposureTargetsIDVerifyOKTargetScanStateReady
 		return nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetScanStateQueued:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetScanStateQueued
+		return nil
 	case ExposurePostExposureTargetsIDVerifyOKTargetScanStateScanning:
 		*s = ExposurePostExposureTargetsIDVerifyOKTargetScanStateScanning
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// How often the box scans the target by itself, when next, and why not.
+type ExposurePostExposureTargetsIDVerifyOKTargetSchedule struct {
+	// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
+	// itself, counted from the start of its newest scan.
+	Every ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery `json:"every"`
+	// When the next scheduled scan is expected to start: when it is due, moved to the next opening of the
+	// scan window; null when the schedule is off or the target cannot be scanned on schedule now (note
+	// says why).
+	NextAt NilDateTime `json:"next_at"`
+	// Why the target is not scanned on schedule, e.g. "Not scanned on schedule: terms need confirming
+	// again"; null otherwise.
+	Note NilString `json:"note"`
+}
+
+// GetEvery returns the value of Every.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetSchedule) GetEvery() ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery {
+	return s.Every
+}
+
+// GetNextAt returns the value of NextAt.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetSchedule) GetNextAt() NilDateTime {
+	return s.NextAt
+}
+
+// GetNote returns the value of Note.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetSchedule) GetNote() NilString {
+	return s.Note
+}
+
+// SetEvery sets the value of Every.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetSchedule) SetEvery(val ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery) {
+	s.Every = val
+}
+
+// SetNextAt sets the value of NextAt.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetSchedule) SetNextAt(val NilDateTime) {
+	s.NextAt = val
+}
+
+// SetNote sets the value of Note.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetSchedule) SetNote(val NilString) {
+	s.Note = val
+}
+
+// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
+// itself, counted from the start of its newest scan.
+type ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery string
+
+const (
+	ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryOff     ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery = "off"
+	ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryDaily   ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery = "daily"
+	ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryWeekly  ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery = "weekly"
+	ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryMonthly ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery = "monthly"
+)
+
+// AllValues returns all ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery values.
+func (ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery) AllValues() []ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery {
+	return []ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery{
+		ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryOff,
+		ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryDaily,
+		ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryWeekly,
+		ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryMonthly,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryOff:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryDaily:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryWeekly:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryMonthly:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery(data) {
+	case ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryOff:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryOff
+		return nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryDaily:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryDaily
+		return nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryWeekly:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryWeekly
+		return nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryMonthly:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryMonthly
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -59623,6 +60794,1756 @@ func (s *ExposurePutExposureGreenboneReq) SetEnabled(val bool) {
 	s.Enabled = val
 }
 
+type ExposurePutExposureTargetsIDScheduleOK struct {
+	// Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check
+	// that got an answer did not see the IP and no check since has, so scans are paused (until a later
+	// check sees it) while the IP stays in the list; verified_at is when the box last saw it.
+	BlockedReason NilExposurePutExposureTargetsIDScheduleOKBlockedReason `json:"blocked_reason"`
+	// Recorded by the first Scan now of an administrator with two-step sign-in: who, when and the exact
+	// sentence shown next to the button.
+	Commitment NilExposurePutExposureTargetsIDScheduleOKCommitment `json:"commitment"`
+	// The sentence the first Scan now of an administrator confirms, with this target in it; null once the
+	// target has a commitment of the current sentence; an older one is asked again once, so a target with
+	// a commitment can carry it too.
+	CommitmentNotice NilExposurePutExposureTargetsIDScheduleOKCommitmentNotice `json:"commitment_notice"`
+	CreatedAt        time.Time                                                 `json:"created_at"`
+	// IP: verified_at + 30 days (the proof expiry of a typed IP). Domain: null (the TXT record is
+	// re-checked right before every scan).
+	ExpiresAt NilDateTime `json:"expires_at"`
+	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the scope of
+	// the Scan now sentence.
+	FullScan bool   `json:"full_scan"`
+	ID       string `json:"id"`
+	// Typed IP: where the proof file goes and which domains of this box can carry a reverse DNS name that
+	// proves it; null for a domain and for an IP the box found.
+	IPProof   NilExposurePutExposureTargetsIDScheduleOKIPProof   `json:"ip_proof"`
+	Kind      ExposurePutExposureTargetsIDScheduleOKKind         `json:"kind"`
+	LastCheck NilExposurePutExposureTargetsIDScheduleOKLastCheck `json:"last_check"`
+	// When the newest scan started: every page names a scan by its start.
+	LastScanAt NilDateTime `json:"last_scan_at"`
+	// When the newest scan ended (its OpenVAS step is its last); null while OpenVAS still runs, when never
+	// scanned, or when not known.
+	LastScanFinishedAt OptNilDateTime                                  `json:"last_scan_finished_at"`
+	Latest             NilExposurePutExposureTargetsIDScheduleOKLatest `json:"latest"`
+	Method             NilExposurePutExposureTargetsIDScheduleOKMethod `json:"method"`
+	// Typed IP with a proof: when the box checks the proof again by itself (7 days before it expires, then
+	// every 6 hours while it is not found); null otherwise.
+	NextCheckAt NilDateTime `json:"next_check_at"`
+	// Open ports of the newest scan (0 when never scanned): the number the target row shows.
+	OpenExposures int `json:"open_exposures"`
+	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
+	// can say what is open; null when never scanned.
+	OpenPorts []ExposurePutExposureTargetsIDScheduleOKOpenPortsItem `json:"open_ports"`
+	// Who added the target: person (a domain or a public IP typed in) or box (a public IP the box found as
+	// its own egress address, neutral until its testing terms are accepted).
+	Origin ExposurePutExposureTargetsIDScheduleOKOrigin `json:"origin"`
+	// Domains: where the TXT record goes and which verified domain covers this one already; null for an IP.
+	Proof NilExposurePutExposureTargetsIDScheduleOKProof `json:"proof"`
+	// Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
+	// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
+	// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
+	// scan confirmation or testing terms are not accepted yet).
+	ScanState ExposurePutExposureTargetsIDScheduleOKScanState `json:"scan_state"`
+	Scannable bool                                            `json:"scannable"`
+	// How often the box scans the target by itself, when next, and why not.
+	Schedule ExposurePutExposureTargetsIDScheduleOKSchedule `json:"schedule"`
+	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
+	Status ExposurePutExposureTargetsIDScheduleOKStatus `json:"status"`
+	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
+	// count (full_scan is false) until accepted again.
+	Terms NilExposurePutExposureTargetsIDScheduleOKTerms `json:"terms"`
+	// The current testing terms for this target, to accept or to read again.
+	TermsNotice ExposurePutExposureTargetsIDScheduleOKTermsNotice `json:"terms_notice"`
+	// GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in
+	// 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409
+	// shared_address) while it shows.
+	TermsWarning OptNilString `json:"terms_warning"`
+	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). Typed IP: the
+	// token the proof file carries (ip_proof). IP the box found: empty string.
+	Token string `json:"token"`
+	// IPs only: expiring = 5 days or less left.
+	Validity NilExposurePutExposureTargetsIDScheduleOKValidity `json:"validity"`
+	Value    string                                            `json:"value"`
+	// Domain: first successful verification. IP the box found: the last time the box saw this IP (every
+	// sighting renews it). Typed IP: the last time its proof was found.
+	VerifiedAt NilDateTime `json:"verified_at"`
+}
+
+// GetBlockedReason returns the value of BlockedReason.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetBlockedReason() NilExposurePutExposureTargetsIDScheduleOKBlockedReason {
+	return s.BlockedReason
+}
+
+// GetCommitment returns the value of Commitment.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetCommitment() NilExposurePutExposureTargetsIDScheduleOKCommitment {
+	return s.Commitment
+}
+
+// GetCommitmentNotice returns the value of CommitmentNotice.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetCommitmentNotice() NilExposurePutExposureTargetsIDScheduleOKCommitmentNotice {
+	return s.CommitmentNotice
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetExpiresAt returns the value of ExpiresAt.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetExpiresAt() NilDateTime {
+	return s.ExpiresAt
+}
+
+// GetFullScan returns the value of FullScan.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetFullScan() bool {
+	return s.FullScan
+}
+
+// GetID returns the value of ID.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetID() string {
+	return s.ID
+}
+
+// GetIPProof returns the value of IPProof.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetIPProof() NilExposurePutExposureTargetsIDScheduleOKIPProof {
+	return s.IPProof
+}
+
+// GetKind returns the value of Kind.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetKind() ExposurePutExposureTargetsIDScheduleOKKind {
+	return s.Kind
+}
+
+// GetLastCheck returns the value of LastCheck.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetLastCheck() NilExposurePutExposureTargetsIDScheduleOKLastCheck {
+	return s.LastCheck
+}
+
+// GetLastScanAt returns the value of LastScanAt.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetLastScanAt() NilDateTime {
+	return s.LastScanAt
+}
+
+// GetLastScanFinishedAt returns the value of LastScanFinishedAt.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetLastScanFinishedAt() OptNilDateTime {
+	return s.LastScanFinishedAt
+}
+
+// GetLatest returns the value of Latest.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetLatest() NilExposurePutExposureTargetsIDScheduleOKLatest {
+	return s.Latest
+}
+
+// GetMethod returns the value of Method.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetMethod() NilExposurePutExposureTargetsIDScheduleOKMethod {
+	return s.Method
+}
+
+// GetNextCheckAt returns the value of NextCheckAt.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetNextCheckAt() NilDateTime {
+	return s.NextCheckAt
+}
+
+// GetOpenExposures returns the value of OpenExposures.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetOpenExposures() int {
+	return s.OpenExposures
+}
+
+// GetOpenPorts returns the value of OpenPorts.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetOpenPorts() []ExposurePutExposureTargetsIDScheduleOKOpenPortsItem {
+	return s.OpenPorts
+}
+
+// GetOrigin returns the value of Origin.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetOrigin() ExposurePutExposureTargetsIDScheduleOKOrigin {
+	return s.Origin
+}
+
+// GetProof returns the value of Proof.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetProof() NilExposurePutExposureTargetsIDScheduleOKProof {
+	return s.Proof
+}
+
+// GetScanState returns the value of ScanState.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetScanState() ExposurePutExposureTargetsIDScheduleOKScanState {
+	return s.ScanState
+}
+
+// GetScannable returns the value of Scannable.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetScannable() bool {
+	return s.Scannable
+}
+
+// GetSchedule returns the value of Schedule.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetSchedule() ExposurePutExposureTargetsIDScheduleOKSchedule {
+	return s.Schedule
+}
+
+// GetStatus returns the value of Status.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetStatus() ExposurePutExposureTargetsIDScheduleOKStatus {
+	return s.Status
+}
+
+// GetTerms returns the value of Terms.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetTerms() NilExposurePutExposureTargetsIDScheduleOKTerms {
+	return s.Terms
+}
+
+// GetTermsNotice returns the value of TermsNotice.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetTermsNotice() ExposurePutExposureTargetsIDScheduleOKTermsNotice {
+	return s.TermsNotice
+}
+
+// GetTermsWarning returns the value of TermsWarning.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetTermsWarning() OptNilString {
+	return s.TermsWarning
+}
+
+// GetToken returns the value of Token.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetToken() string {
+	return s.Token
+}
+
+// GetValidity returns the value of Validity.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetValidity() NilExposurePutExposureTargetsIDScheduleOKValidity {
+	return s.Validity
+}
+
+// GetValue returns the value of Value.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetValue() string {
+	return s.Value
+}
+
+// GetVerifiedAt returns the value of VerifiedAt.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetVerifiedAt() NilDateTime {
+	return s.VerifiedAt
+}
+
+// SetBlockedReason sets the value of BlockedReason.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetBlockedReason(val NilExposurePutExposureTargetsIDScheduleOKBlockedReason) {
+	s.BlockedReason = val
+}
+
+// SetCommitment sets the value of Commitment.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetCommitment(val NilExposurePutExposureTargetsIDScheduleOKCommitment) {
+	s.Commitment = val
+}
+
+// SetCommitmentNotice sets the value of CommitmentNotice.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetCommitmentNotice(val NilExposurePutExposureTargetsIDScheduleOKCommitmentNotice) {
+	s.CommitmentNotice = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetExpiresAt sets the value of ExpiresAt.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetExpiresAt(val NilDateTime) {
+	s.ExpiresAt = val
+}
+
+// SetFullScan sets the value of FullScan.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetFullScan(val bool) {
+	s.FullScan = val
+}
+
+// SetID sets the value of ID.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetID(val string) {
+	s.ID = val
+}
+
+// SetIPProof sets the value of IPProof.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetIPProof(val NilExposurePutExposureTargetsIDScheduleOKIPProof) {
+	s.IPProof = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetKind(val ExposurePutExposureTargetsIDScheduleOKKind) {
+	s.Kind = val
+}
+
+// SetLastCheck sets the value of LastCheck.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetLastCheck(val NilExposurePutExposureTargetsIDScheduleOKLastCheck) {
+	s.LastCheck = val
+}
+
+// SetLastScanAt sets the value of LastScanAt.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetLastScanAt(val NilDateTime) {
+	s.LastScanAt = val
+}
+
+// SetLastScanFinishedAt sets the value of LastScanFinishedAt.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetLastScanFinishedAt(val OptNilDateTime) {
+	s.LastScanFinishedAt = val
+}
+
+// SetLatest sets the value of Latest.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetLatest(val NilExposurePutExposureTargetsIDScheduleOKLatest) {
+	s.Latest = val
+}
+
+// SetMethod sets the value of Method.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetMethod(val NilExposurePutExposureTargetsIDScheduleOKMethod) {
+	s.Method = val
+}
+
+// SetNextCheckAt sets the value of NextCheckAt.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetNextCheckAt(val NilDateTime) {
+	s.NextCheckAt = val
+}
+
+// SetOpenExposures sets the value of OpenExposures.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetOpenExposures(val int) {
+	s.OpenExposures = val
+}
+
+// SetOpenPorts sets the value of OpenPorts.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetOpenPorts(val []ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) {
+	s.OpenPorts = val
+}
+
+// SetOrigin sets the value of Origin.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetOrigin(val ExposurePutExposureTargetsIDScheduleOKOrigin) {
+	s.Origin = val
+}
+
+// SetProof sets the value of Proof.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetProof(val NilExposurePutExposureTargetsIDScheduleOKProof) {
+	s.Proof = val
+}
+
+// SetScanState sets the value of ScanState.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetScanState(val ExposurePutExposureTargetsIDScheduleOKScanState) {
+	s.ScanState = val
+}
+
+// SetScannable sets the value of Scannable.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetScannable(val bool) {
+	s.Scannable = val
+}
+
+// SetSchedule sets the value of Schedule.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetSchedule(val ExposurePutExposureTargetsIDScheduleOKSchedule) {
+	s.Schedule = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetStatus(val ExposurePutExposureTargetsIDScheduleOKStatus) {
+	s.Status = val
+}
+
+// SetTerms sets the value of Terms.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetTerms(val NilExposurePutExposureTargetsIDScheduleOKTerms) {
+	s.Terms = val
+}
+
+// SetTermsNotice sets the value of TermsNotice.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetTermsNotice(val ExposurePutExposureTargetsIDScheduleOKTermsNotice) {
+	s.TermsNotice = val
+}
+
+// SetTermsWarning sets the value of TermsWarning.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetTermsWarning(val OptNilString) {
+	s.TermsWarning = val
+}
+
+// SetToken sets the value of Token.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetToken(val string) {
+	s.Token = val
+}
+
+// SetValidity sets the value of Validity.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetValidity(val NilExposurePutExposureTargetsIDScheduleOKValidity) {
+	s.Validity = val
+}
+
+// SetValue sets the value of Value.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetValue(val string) {
+	s.Value = val
+}
+
+// SetVerifiedAt sets the value of VerifiedAt.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetVerifiedAt(val NilDateTime) {
+	s.VerifiedAt = val
+}
+
+type ExposurePutExposureTargetsIDScheduleOKBlockedReason string
+
+const (
+	ExposurePutExposureTargetsIDScheduleOKBlockedReasonUnverified   ExposurePutExposureTargetsIDScheduleOKBlockedReason = "unverified"
+	ExposurePutExposureTargetsIDScheduleOKBlockedReasonExpired      ExposurePutExposureTargetsIDScheduleOKBlockedReason = "expired"
+	ExposurePutExposureTargetsIDScheduleOKBlockedReasonTxtMissing   ExposurePutExposureTargetsIDScheduleOKBlockedReason = "txt_missing"
+	ExposurePutExposureTargetsIDScheduleOKBlockedReasonProofMissing ExposurePutExposureTargetsIDScheduleOKBlockedReason = "proof_missing"
+	ExposurePutExposureTargetsIDScheduleOKBlockedReasonNoCommitment ExposurePutExposureTargetsIDScheduleOKBlockedReason = "no_commitment"
+	ExposurePutExposureTargetsIDScheduleOKBlockedReasonIPNotCurrent ExposurePutExposureTargetsIDScheduleOKBlockedReason = "ip_not_current"
+)
+
+// AllValues returns all ExposurePutExposureTargetsIDScheduleOKBlockedReason values.
+func (ExposurePutExposureTargetsIDScheduleOKBlockedReason) AllValues() []ExposurePutExposureTargetsIDScheduleOKBlockedReason {
+	return []ExposurePutExposureTargetsIDScheduleOKBlockedReason{
+		ExposurePutExposureTargetsIDScheduleOKBlockedReasonUnverified,
+		ExposurePutExposureTargetsIDScheduleOKBlockedReasonExpired,
+		ExposurePutExposureTargetsIDScheduleOKBlockedReasonTxtMissing,
+		ExposurePutExposureTargetsIDScheduleOKBlockedReasonProofMissing,
+		ExposurePutExposureTargetsIDScheduleOKBlockedReasonNoCommitment,
+		ExposurePutExposureTargetsIDScheduleOKBlockedReasonIPNotCurrent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTargetsIDScheduleOKBlockedReason) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTargetsIDScheduleOKBlockedReasonUnverified:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKBlockedReasonExpired:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKBlockedReasonTxtMissing:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKBlockedReasonProofMissing:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKBlockedReasonNoCommitment:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKBlockedReasonIPNotCurrent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTargetsIDScheduleOKBlockedReason) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTargetsIDScheduleOKBlockedReason(data) {
+	case ExposurePutExposureTargetsIDScheduleOKBlockedReasonUnverified:
+		*s = ExposurePutExposureTargetsIDScheduleOKBlockedReasonUnverified
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKBlockedReasonExpired:
+		*s = ExposurePutExposureTargetsIDScheduleOKBlockedReasonExpired
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKBlockedReasonTxtMissing:
+		*s = ExposurePutExposureTargetsIDScheduleOKBlockedReasonTxtMissing
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKBlockedReasonProofMissing:
+		*s = ExposurePutExposureTargetsIDScheduleOKBlockedReasonProofMissing
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKBlockedReasonNoCommitment:
+		*s = ExposurePutExposureTargetsIDScheduleOKBlockedReasonNoCommitment
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKBlockedReasonIPNotCurrent:
+		*s = ExposurePutExposureTargetsIDScheduleOKBlockedReasonIPNotCurrent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePutExposureTargetsIDScheduleOKCommitment struct {
+	At time.Time `json:"at"`
+	By string    `json:"by"`
+	// The exact sentence, with the target in it, kept with who and when; null on a commitment recorded by
+	// an older version.
+	Sentence NilString `json:"sentence"`
+	// Version of the sentence the administrator saw next to Scan now; null on a commitment recorded by an
+	// older version.
+	Version NilString `json:"version"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposurePutExposureTargetsIDScheduleOKCommitment) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *ExposurePutExposureTargetsIDScheduleOKCommitment) GetBy() string {
+	return s.By
+}
+
+// GetSentence returns the value of Sentence.
+func (s *ExposurePutExposureTargetsIDScheduleOKCommitment) GetSentence() NilString {
+	return s.Sentence
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposurePutExposureTargetsIDScheduleOKCommitment) GetVersion() NilString {
+	return s.Version
+}
+
+// SetAt sets the value of At.
+func (s *ExposurePutExposureTargetsIDScheduleOKCommitment) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *ExposurePutExposureTargetsIDScheduleOKCommitment) SetBy(val string) {
+	s.By = val
+}
+
+// SetSentence sets the value of Sentence.
+func (s *ExposurePutExposureTargetsIDScheduleOKCommitment) SetSentence(val NilString) {
+	s.Sentence = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposurePutExposureTargetsIDScheduleOKCommitment) SetVersion(val NilString) {
+	s.Version = val
+}
+
+type ExposurePutExposureTargetsIDScheduleOKCommitmentNotice struct {
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetText returns the value of Text.
+func (s *ExposurePutExposureTargetsIDScheduleOKCommitmentNotice) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposurePutExposureTargetsIDScheduleOKCommitmentNotice) GetVersion() string {
+	return s.Version
+}
+
+// SetText sets the value of Text.
+func (s *ExposurePutExposureTargetsIDScheduleOKCommitmentNotice) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposurePutExposureTargetsIDScheduleOKCommitmentNotice) SetVersion(val string) {
+	s.Version = val
+}
+
+type ExposurePutExposureTargetsIDScheduleOKIPProof struct {
+	// The token: the whole content of the file.
+	Content string `json:"content"`
+	// /.well-known/vedette-verify.txt.
+	Path string `json:"path"`
+	// Domains of this box that are proved as far as the last check knows: a reverse DNS (PTR) name of the
+	// IP under one of them, resolving back to the IP, proves it.
+	PtrDomains []string `json:"ptr_domains"`
+	// The two addresses the box asks, http and https, on the IP.
+	Urls []string `json:"urls"`
+}
+
+// GetContent returns the value of Content.
+func (s *ExposurePutExposureTargetsIDScheduleOKIPProof) GetContent() string {
+	return s.Content
+}
+
+// GetPath returns the value of Path.
+func (s *ExposurePutExposureTargetsIDScheduleOKIPProof) GetPath() string {
+	return s.Path
+}
+
+// GetPtrDomains returns the value of PtrDomains.
+func (s *ExposurePutExposureTargetsIDScheduleOKIPProof) GetPtrDomains() []string {
+	return s.PtrDomains
+}
+
+// GetUrls returns the value of Urls.
+func (s *ExposurePutExposureTargetsIDScheduleOKIPProof) GetUrls() []string {
+	return s.Urls
+}
+
+// SetContent sets the value of Content.
+func (s *ExposurePutExposureTargetsIDScheduleOKIPProof) SetContent(val string) {
+	s.Content = val
+}
+
+// SetPath sets the value of Path.
+func (s *ExposurePutExposureTargetsIDScheduleOKIPProof) SetPath(val string) {
+	s.Path = val
+}
+
+// SetPtrDomains sets the value of PtrDomains.
+func (s *ExposurePutExposureTargetsIDScheduleOKIPProof) SetPtrDomains(val []string) {
+	s.PtrDomains = val
+}
+
+// SetUrls sets the value of Urls.
+func (s *ExposurePutExposureTargetsIDScheduleOKIPProof) SetUrls(val []string) {
+	s.Urls = val
+}
+
+type ExposurePutExposureTargetsIDScheduleOKKind string
+
+const (
+	ExposurePutExposureTargetsIDScheduleOKKindDomain ExposurePutExposureTargetsIDScheduleOKKind = "domain"
+	ExposurePutExposureTargetsIDScheduleOKKindIP     ExposurePutExposureTargetsIDScheduleOKKind = "ip"
+)
+
+// AllValues returns all ExposurePutExposureTargetsIDScheduleOKKind values.
+func (ExposurePutExposureTargetsIDScheduleOKKind) AllValues() []ExposurePutExposureTargetsIDScheduleOKKind {
+	return []ExposurePutExposureTargetsIDScheduleOKKind{
+		ExposurePutExposureTargetsIDScheduleOKKindDomain,
+		ExposurePutExposureTargetsIDScheduleOKKindIP,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTargetsIDScheduleOKKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTargetsIDScheduleOKKindDomain:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKKindIP:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTargetsIDScheduleOKKind) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTargetsIDScheduleOKKind(data) {
+	case ExposurePutExposureTargetsIDScheduleOKKindDomain:
+		*s = ExposurePutExposureTargetsIDScheduleOKKindDomain
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKKindIP:
+		*s = ExposurePutExposureTargetsIDScheduleOKKindIP
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePutExposureTargetsIDScheduleOKLastCheck struct {
+	At      time.Time `json:"at"`
+	Message string    `json:"message"`
+	Ok      bool      `json:"ok"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposurePutExposureTargetsIDScheduleOKLastCheck) GetAt() time.Time {
+	return s.At
+}
+
+// GetMessage returns the value of Message.
+func (s *ExposurePutExposureTargetsIDScheduleOKLastCheck) GetMessage() string {
+	return s.Message
+}
+
+// GetOk returns the value of Ok.
+func (s *ExposurePutExposureTargetsIDScheduleOKLastCheck) GetOk() bool {
+	return s.Ok
+}
+
+// SetAt sets the value of At.
+func (s *ExposurePutExposureTargetsIDScheduleOKLastCheck) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetMessage sets the value of Message.
+func (s *ExposurePutExposureTargetsIDScheduleOKLastCheck) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetOk sets the value of Ok.
+func (s *ExposurePutExposureTargetsIDScheduleOKLastCheck) SetOk(val bool) {
+	s.Ok = val
+}
+
+type ExposurePutExposureTargetsIDScheduleOKLatest struct {
+	AdminPanels   int `json:"admin_panels"`
+	CertsExpiring int `json:"certs_expiring"`
+	Ips           int `json:"ips"`
+	Ports         int `json:"ports"`
+	Subdomains    int `json:"subdomains"`
+}
+
+// GetAdminPanels returns the value of AdminPanels.
+func (s *ExposurePutExposureTargetsIDScheduleOKLatest) GetAdminPanels() int {
+	return s.AdminPanels
+}
+
+// GetCertsExpiring returns the value of CertsExpiring.
+func (s *ExposurePutExposureTargetsIDScheduleOKLatest) GetCertsExpiring() int {
+	return s.CertsExpiring
+}
+
+// GetIps returns the value of Ips.
+func (s *ExposurePutExposureTargetsIDScheduleOKLatest) GetIps() int {
+	return s.Ips
+}
+
+// GetPorts returns the value of Ports.
+func (s *ExposurePutExposureTargetsIDScheduleOKLatest) GetPorts() int {
+	return s.Ports
+}
+
+// GetSubdomains returns the value of Subdomains.
+func (s *ExposurePutExposureTargetsIDScheduleOKLatest) GetSubdomains() int {
+	return s.Subdomains
+}
+
+// SetAdminPanels sets the value of AdminPanels.
+func (s *ExposurePutExposureTargetsIDScheduleOKLatest) SetAdminPanels(val int) {
+	s.AdminPanels = val
+}
+
+// SetCertsExpiring sets the value of CertsExpiring.
+func (s *ExposurePutExposureTargetsIDScheduleOKLatest) SetCertsExpiring(val int) {
+	s.CertsExpiring = val
+}
+
+// SetIps sets the value of Ips.
+func (s *ExposurePutExposureTargetsIDScheduleOKLatest) SetIps(val int) {
+	s.Ips = val
+}
+
+// SetPorts sets the value of Ports.
+func (s *ExposurePutExposureTargetsIDScheduleOKLatest) SetPorts(val int) {
+	s.Ports = val
+}
+
+// SetSubdomains sets the value of Subdomains.
+func (s *ExposurePutExposureTargetsIDScheduleOKLatest) SetSubdomains(val int) {
+	s.Subdomains = val
+}
+
+type ExposurePutExposureTargetsIDScheduleOKMethod string
+
+const (
+	ExposurePutExposureTargetsIDScheduleOKMethodDNSTxt    ExposurePutExposureTargetsIDScheduleOKMethod = "dns_txt"
+	ExposurePutExposureTargetsIDScheduleOKMethodBoxEgress ExposurePutExposureTargetsIDScheduleOKMethod = "box_egress"
+	ExposurePutExposureTargetsIDScheduleOKMethodIPFile    ExposurePutExposureTargetsIDScheduleOKMethod = "ip_file"
+	ExposurePutExposureTargetsIDScheduleOKMethodIPPtr     ExposurePutExposureTargetsIDScheduleOKMethod = "ip_ptr"
+)
+
+// AllValues returns all ExposurePutExposureTargetsIDScheduleOKMethod values.
+func (ExposurePutExposureTargetsIDScheduleOKMethod) AllValues() []ExposurePutExposureTargetsIDScheduleOKMethod {
+	return []ExposurePutExposureTargetsIDScheduleOKMethod{
+		ExposurePutExposureTargetsIDScheduleOKMethodDNSTxt,
+		ExposurePutExposureTargetsIDScheduleOKMethodBoxEgress,
+		ExposurePutExposureTargetsIDScheduleOKMethodIPFile,
+		ExposurePutExposureTargetsIDScheduleOKMethodIPPtr,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTargetsIDScheduleOKMethod) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTargetsIDScheduleOKMethodDNSTxt:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKMethodBoxEgress:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKMethodIPFile:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKMethodIPPtr:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTargetsIDScheduleOKMethod) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTargetsIDScheduleOKMethod(data) {
+	case ExposurePutExposureTargetsIDScheduleOKMethodDNSTxt:
+		*s = ExposurePutExposureTargetsIDScheduleOKMethodDNSTxt
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKMethodBoxEgress:
+		*s = ExposurePutExposureTargetsIDScheduleOKMethodBoxEgress
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKMethodIPFile:
+		*s = ExposurePutExposureTargetsIDScheduleOKMethodIPFile
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKMethodIPPtr:
+		*s = ExposurePutExposureTargetsIDScheduleOKMethodIPPtr
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePutExposureTargetsIDScheduleOKOpenPortsItem struct {
+	// The network appliance the port names, with the inventory devices of that family; absent when none.
+	Appliance OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance `json:"appliance"`
+	// The names of the port's TLS certificate as the deep scan read them (subject common name, then DNS
+	// alternative names), at most 5.
+	CertNames []string `json:"cert_names"`
+	// How service identification named the service: probed (a probe's answer, or the surface scan's GET
+	// read a product), port (only the usual service of the port number: not confirmed), none (nothing
+	// identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on
+	// the port, or an older scan.
+	Ident OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent `json:"ident"`
+	IP    string                                                      `json:"ip"`
+	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
+	// saw it open (INV-22).
+	LastSeen OptString `json:"last_seen"`
+	// Where the port's first page redirects, when the deep scan did not follow it (http-title).
+	Location OptString `json:"location"`
+	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
+	// last scan).
+	Misses  OptInt    `json:"misses"`
+	Port    int       `json:"port"`
+	Product OptString `json:"product"`
+	// The HTTP Server header on the port (deep scan, http-server-header).
+	Server  OptString `json:"server"`
+	Service string    `json:"service"`
+	// The title of the web page on the port (deep scan, http-title).
+	Title OptString `json:"title"`
+	// The newest scan did not check the address: the row is as an earlier scan left it.
+	Unchecked OptBool `json:"unchecked"`
+}
+
+// GetAppliance returns the value of Appliance.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) GetAppliance() OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance {
+	return s.Appliance
+}
+
+// GetCertNames returns the value of CertNames.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) GetCertNames() []string {
+	return s.CertNames
+}
+
+// GetIdent returns the value of Ident.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) GetIdent() OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent {
+	return s.Ident
+}
+
+// GetIP returns the value of IP.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) GetIP() string {
+	return s.IP
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) GetLastSeen() OptString {
+	return s.LastSeen
+}
+
+// GetLocation returns the value of Location.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) GetLocation() OptString {
+	return s.Location
+}
+
+// GetMisses returns the value of Misses.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) GetMisses() OptInt {
+	return s.Misses
+}
+
+// GetPort returns the value of Port.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) GetPort() int {
+	return s.Port
+}
+
+// GetProduct returns the value of Product.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) GetProduct() OptString {
+	return s.Product
+}
+
+// GetServer returns the value of Server.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) GetServer() OptString {
+	return s.Server
+}
+
+// GetService returns the value of Service.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) GetService() string {
+	return s.Service
+}
+
+// GetTitle returns the value of Title.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) GetTitle() OptString {
+	return s.Title
+}
+
+// GetUnchecked returns the value of Unchecked.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) GetUnchecked() OptBool {
+	return s.Unchecked
+}
+
+// SetAppliance sets the value of Appliance.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) SetAppliance(val OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) {
+	s.Appliance = val
+}
+
+// SetCertNames sets the value of CertNames.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) SetCertNames(val []string) {
+	s.CertNames = val
+}
+
+// SetIdent sets the value of Ident.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) SetIdent(val OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent) {
+	s.Ident = val
+}
+
+// SetIP sets the value of IP.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) SetLastSeen(val OptString) {
+	s.LastSeen = val
+}
+
+// SetLocation sets the value of Location.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) SetLocation(val OptString) {
+	s.Location = val
+}
+
+// SetMisses sets the value of Misses.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) SetMisses(val OptInt) {
+	s.Misses = val
+}
+
+// SetPort sets the value of Port.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) SetPort(val int) {
+	s.Port = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) SetProduct(val OptString) {
+	s.Product = val
+}
+
+// SetServer sets the value of Server.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) SetServer(val OptString) {
+	s.Server = val
+}
+
+// SetService sets the value of Service.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) SetService(val string) {
+	s.Service = val
+}
+
+// SetTitle sets the value of Title.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) SetTitle(val OptString) {
+	s.Title = val
+}
+
+// SetUnchecked sets the value of Unchecked.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) SetUnchecked(val OptBool) {
+	s.Unchecked = val
+}
+
+// The network appliance the port names, with the inventory devices of that family; absent when none.
+type ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance struct {
+	// The inventory devices of the family (its own vendor, model or OS, never a PC with the vendor's VPN
+	// client), at most 5, with their open exploited findings; [] when none is in the inventory; null when
+	// Vedette cannot tell or the product has no family.
+	Devices []ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceDevicesItem `json:"devices"`
+	// Which statement of the port named it.
+	Evidence ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence `json:"evidence"`
+	// Admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an
+	// admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both.
+	Kind ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKind `json:"kind"`
+	// Devices of the family beyond the 5 listed.
+	More OptInt `json:"more"`
+	// The appliance family (FortiGate, Palo Alto firewall, Check Point gateway, F5 BIG-IP, WatchGuard
+	// Firebox…), or the product for a page of no appliance family (Synology DSM, Jenkins).
+	Name string `json:"name"`
+	// The family's vendor; "" for a product of no family.
+	Vendor string `json:"vendor"`
+}
+
+// GetDevices returns the value of Devices.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) GetDevices() []ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceDevicesItem {
+	return s.Devices
+}
+
+// GetEvidence returns the value of Evidence.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) GetEvidence() ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence {
+	return s.Evidence
+}
+
+// GetKind returns the value of Kind.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) GetKind() ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKind {
+	return s.Kind
+}
+
+// GetMore returns the value of More.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) GetMore() OptInt {
+	return s.More
+}
+
+// GetName returns the value of Name.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) GetName() string {
+	return s.Name
+}
+
+// GetVendor returns the value of Vendor.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) GetVendor() string {
+	return s.Vendor
+}
+
+// SetDevices sets the value of Devices.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) SetDevices(val []ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceDevicesItem) {
+	s.Devices = val
+}
+
+// SetEvidence sets the value of Evidence.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) SetEvidence(val ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence) {
+	s.Evidence = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) SetKind(val ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKind) {
+	s.Kind = val
+}
+
+// SetMore sets the value of More.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) SetMore(val OptInt) {
+	s.More = val
+}
+
+// SetName sets the value of Name.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) SetName(val string) {
+	s.Name = val
+}
+
+// SetVendor sets the value of Vendor.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) SetVendor(val string) {
+	s.Vendor = val
+}
+
+type ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceDevicesItem struct {
+	DeviceID string `json:"device_id"`
+	Name     string `json:"name"`
+	// Open exploited (KEV) findings of the device.
+	OpenExploited int `json:"open_exploited"`
+}
+
+// GetDeviceID returns the value of DeviceID.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceDevicesItem) GetDeviceID() string {
+	return s.DeviceID
+}
+
+// GetName returns the value of Name.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceDevicesItem) GetName() string {
+	return s.Name
+}
+
+// GetOpenExploited returns the value of OpenExploited.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceDevicesItem) GetOpenExploited() int {
+	return s.OpenExploited
+}
+
+// SetDeviceID sets the value of DeviceID.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceDevicesItem) SetDeviceID(val string) {
+	s.DeviceID = val
+}
+
+// SetName sets the value of Name.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceDevicesItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetOpenExploited sets the value of OpenExploited.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceDevicesItem) SetOpenExploited(val int) {
+	s.OpenExploited = val
+}
+
+// Which statement of the port named it.
+type ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence string
+
+const (
+	ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceCertificate ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence = "certificate"
+	ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceTitle       ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence = "title"
+	ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceServer      ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence = "server"
+	ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceRedirect    ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence = "redirect"
+	ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceProduct     ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence = "product"
+)
+
+// AllValues returns all ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence values.
+func (ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence) AllValues() []ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence {
+	return []ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence{
+		ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceCertificate,
+		ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceTitle,
+		ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceServer,
+		ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceRedirect,
+		ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceProduct,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceCertificate:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceTitle:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceServer:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceRedirect:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceProduct:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence(data) {
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceCertificate:
+		*s = ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceCertificate
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceTitle:
+		*s = ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceTitle
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceServer:
+		*s = ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceServer
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceRedirect:
+		*s = ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceRedirect
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceProduct:
+		*s = ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceProduct
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an
+// admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both.
+type ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKind string
+
+const (
+	ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindAdmin      ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKind = "admin"
+	ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindVpn        ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKind = "vpn"
+	ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindAdminOrVpn ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKind = "admin_or_vpn"
+)
+
+// AllValues returns all ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKind values.
+func (ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKind) AllValues() []ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKind {
+	return []ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKind{
+		ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindAdmin,
+		ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindVpn,
+		ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindAdminOrVpn,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindAdmin:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindVpn:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindAdminOrVpn:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKind) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKind(data) {
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindAdmin:
+		*s = ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindAdmin
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindVpn:
+		*s = ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindVpn
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindAdminOrVpn:
+		*s = ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindAdminOrVpn
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// How service identification named the service: probed (a probe's answer, or the surface scan's GET
+// read a product), port (only the usual service of the port number: not confirmed), none (nothing
+// identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on
+// the port, or an older scan.
+type ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent string
+
+const (
+	ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentProbed ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent = "probed"
+	ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentPort   ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent = "port"
+	ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentNone   ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent = "none"
+)
+
+// AllValues returns all ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent values.
+func (ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent) AllValues() []ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent {
+	return []ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent{
+		ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentProbed,
+		ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentPort,
+		ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentProbed:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentPort:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent(data) {
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentProbed:
+		*s = ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentProbed
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentPort:
+		*s = ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentPort
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentNone:
+		*s = ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Who added the target: person (a domain or a public IP typed in) or box (a public IP the box found as
+// its own egress address, neutral until its testing terms are accepted).
+type ExposurePutExposureTargetsIDScheduleOKOrigin string
+
+const (
+	ExposurePutExposureTargetsIDScheduleOKOriginPerson ExposurePutExposureTargetsIDScheduleOKOrigin = "person"
+	ExposurePutExposureTargetsIDScheduleOKOriginBox    ExposurePutExposureTargetsIDScheduleOKOrigin = "box"
+)
+
+// AllValues returns all ExposurePutExposureTargetsIDScheduleOKOrigin values.
+func (ExposurePutExposureTargetsIDScheduleOKOrigin) AllValues() []ExposurePutExposureTargetsIDScheduleOKOrigin {
+	return []ExposurePutExposureTargetsIDScheduleOKOrigin{
+		ExposurePutExposureTargetsIDScheduleOKOriginPerson,
+		ExposurePutExposureTargetsIDScheduleOKOriginBox,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTargetsIDScheduleOKOrigin) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTargetsIDScheduleOKOriginPerson:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKOriginBox:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTargetsIDScheduleOKOrigin) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTargetsIDScheduleOKOrigin(data) {
+	case ExposurePutExposureTargetsIDScheduleOKOriginPerson:
+		*s = ExposurePutExposureTargetsIDScheduleOKOriginPerson
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKOriginBox:
+		*s = ExposurePutExposureTargetsIDScheduleOKOriginBox
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePutExposureTargetsIDScheduleOKProof struct {
+	// The alternative Name: "_vedette-verify" or "_vedette-verify.git", which proves the target only
+	// (never the name itself when it is a CNAME: no TXT may sit beside a CNAME); null when
+	// _vedette-verify. would pass 253 characters (no such name can exist).
+	AltHost NilString `json:"alt_host"`
+	// A verified domain of this box that covers this name already (its parent or the zone): a Check is
+	// enough, no second record; null when none.
+	CoveredBy NilString `json:"covered_by"`
+	// The Name (host) to type in that zone: "@", the zone apex, for every target (the target's own record
+	// there proves it, and an apex takes a record whatever the subdomain is).
+	Host string `json:"host"`
+	// The registered domain: the DNS zone the record is added in ("beyondnetglobal.com").
+	Zone string `json:"zone"`
+}
+
+// GetAltHost returns the value of AltHost.
+func (s *ExposurePutExposureTargetsIDScheduleOKProof) GetAltHost() NilString {
+	return s.AltHost
+}
+
+// GetCoveredBy returns the value of CoveredBy.
+func (s *ExposurePutExposureTargetsIDScheduleOKProof) GetCoveredBy() NilString {
+	return s.CoveredBy
+}
+
+// GetHost returns the value of Host.
+func (s *ExposurePutExposureTargetsIDScheduleOKProof) GetHost() string {
+	return s.Host
+}
+
+// GetZone returns the value of Zone.
+func (s *ExposurePutExposureTargetsIDScheduleOKProof) GetZone() string {
+	return s.Zone
+}
+
+// SetAltHost sets the value of AltHost.
+func (s *ExposurePutExposureTargetsIDScheduleOKProof) SetAltHost(val NilString) {
+	s.AltHost = val
+}
+
+// SetCoveredBy sets the value of CoveredBy.
+func (s *ExposurePutExposureTargetsIDScheduleOKProof) SetCoveredBy(val NilString) {
+	s.CoveredBy = val
+}
+
+// SetHost sets the value of Host.
+func (s *ExposurePutExposureTargetsIDScheduleOKProof) SetHost(val string) {
+	s.Host = val
+}
+
+// SetZone sets the value of Zone.
+func (s *ExposurePutExposureTargetsIDScheduleOKProof) SetZone(val string) {
+	s.Zone = val
+}
+
+// Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
+// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
+// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
+// scan confirmation or testing terms are not accepted yet).
+type ExposurePutExposureTargetsIDScheduleOKScanState string
+
+const (
+	ExposurePutExposureTargetsIDScheduleOKScanStateUnproved   ExposurePutExposureTargetsIDScheduleOKScanState = "unproved"
+	ExposurePutExposureTargetsIDScheduleOKScanStateExpired    ExposurePutExposureTargetsIDScheduleOKScanState = "expired"
+	ExposurePutExposureTargetsIDScheduleOKScanStatePaused     ExposurePutExposureTargetsIDScheduleOKScanState = "paused"
+	ExposurePutExposureTargetsIDScheduleOKScanStateNeedsTerms ExposurePutExposureTargetsIDScheduleOKScanState = "needs_terms"
+	ExposurePutExposureTargetsIDScheduleOKScanStateReady      ExposurePutExposureTargetsIDScheduleOKScanState = "ready"
+	ExposurePutExposureTargetsIDScheduleOKScanStateQueued     ExposurePutExposureTargetsIDScheduleOKScanState = "queued"
+	ExposurePutExposureTargetsIDScheduleOKScanStateScanning   ExposurePutExposureTargetsIDScheduleOKScanState = "scanning"
+)
+
+// AllValues returns all ExposurePutExposureTargetsIDScheduleOKScanState values.
+func (ExposurePutExposureTargetsIDScheduleOKScanState) AllValues() []ExposurePutExposureTargetsIDScheduleOKScanState {
+	return []ExposurePutExposureTargetsIDScheduleOKScanState{
+		ExposurePutExposureTargetsIDScheduleOKScanStateUnproved,
+		ExposurePutExposureTargetsIDScheduleOKScanStateExpired,
+		ExposurePutExposureTargetsIDScheduleOKScanStatePaused,
+		ExposurePutExposureTargetsIDScheduleOKScanStateNeedsTerms,
+		ExposurePutExposureTargetsIDScheduleOKScanStateReady,
+		ExposurePutExposureTargetsIDScheduleOKScanStateQueued,
+		ExposurePutExposureTargetsIDScheduleOKScanStateScanning,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTargetsIDScheduleOKScanState) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTargetsIDScheduleOKScanStateUnproved:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKScanStateExpired:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKScanStatePaused:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKScanStateNeedsTerms:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKScanStateReady:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKScanStateQueued:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKScanStateScanning:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTargetsIDScheduleOKScanState) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTargetsIDScheduleOKScanState(data) {
+	case ExposurePutExposureTargetsIDScheduleOKScanStateUnproved:
+		*s = ExposurePutExposureTargetsIDScheduleOKScanStateUnproved
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKScanStateExpired:
+		*s = ExposurePutExposureTargetsIDScheduleOKScanStateExpired
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKScanStatePaused:
+		*s = ExposurePutExposureTargetsIDScheduleOKScanStatePaused
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKScanStateNeedsTerms:
+		*s = ExposurePutExposureTargetsIDScheduleOKScanStateNeedsTerms
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKScanStateReady:
+		*s = ExposurePutExposureTargetsIDScheduleOKScanStateReady
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKScanStateQueued:
+		*s = ExposurePutExposureTargetsIDScheduleOKScanStateQueued
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKScanStateScanning:
+		*s = ExposurePutExposureTargetsIDScheduleOKScanStateScanning
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// How often the box scans the target by itself, when next, and why not.
+type ExposurePutExposureTargetsIDScheduleOKSchedule struct {
+	// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
+	// itself, counted from the start of its newest scan.
+	Every ExposurePutExposureTargetsIDScheduleOKScheduleEvery `json:"every"`
+	// When the next scheduled scan is expected to start: when it is due, moved to the next opening of the
+	// scan window; null when the schedule is off or the target cannot be scanned on schedule now (note
+	// says why).
+	NextAt NilDateTime `json:"next_at"`
+	// Why the target is not scanned on schedule, e.g. "Not scanned on schedule: terms need confirming
+	// again"; null otherwise.
+	Note NilString `json:"note"`
+}
+
+// GetEvery returns the value of Every.
+func (s *ExposurePutExposureTargetsIDScheduleOKSchedule) GetEvery() ExposurePutExposureTargetsIDScheduleOKScheduleEvery {
+	return s.Every
+}
+
+// GetNextAt returns the value of NextAt.
+func (s *ExposurePutExposureTargetsIDScheduleOKSchedule) GetNextAt() NilDateTime {
+	return s.NextAt
+}
+
+// GetNote returns the value of Note.
+func (s *ExposurePutExposureTargetsIDScheduleOKSchedule) GetNote() NilString {
+	return s.Note
+}
+
+// SetEvery sets the value of Every.
+func (s *ExposurePutExposureTargetsIDScheduleOKSchedule) SetEvery(val ExposurePutExposureTargetsIDScheduleOKScheduleEvery) {
+	s.Every = val
+}
+
+// SetNextAt sets the value of NextAt.
+func (s *ExposurePutExposureTargetsIDScheduleOKSchedule) SetNextAt(val NilDateTime) {
+	s.NextAt = val
+}
+
+// SetNote sets the value of Note.
+func (s *ExposurePutExposureTargetsIDScheduleOKSchedule) SetNote(val NilString) {
+	s.Note = val
+}
+
+// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
+// itself, counted from the start of its newest scan.
+type ExposurePutExposureTargetsIDScheduleOKScheduleEvery string
+
+const (
+	ExposurePutExposureTargetsIDScheduleOKScheduleEveryOff     ExposurePutExposureTargetsIDScheduleOKScheduleEvery = "off"
+	ExposurePutExposureTargetsIDScheduleOKScheduleEveryDaily   ExposurePutExposureTargetsIDScheduleOKScheduleEvery = "daily"
+	ExposurePutExposureTargetsIDScheduleOKScheduleEveryWeekly  ExposurePutExposureTargetsIDScheduleOKScheduleEvery = "weekly"
+	ExposurePutExposureTargetsIDScheduleOKScheduleEveryMonthly ExposurePutExposureTargetsIDScheduleOKScheduleEvery = "monthly"
+)
+
+// AllValues returns all ExposurePutExposureTargetsIDScheduleOKScheduleEvery values.
+func (ExposurePutExposureTargetsIDScheduleOKScheduleEvery) AllValues() []ExposurePutExposureTargetsIDScheduleOKScheduleEvery {
+	return []ExposurePutExposureTargetsIDScheduleOKScheduleEvery{
+		ExposurePutExposureTargetsIDScheduleOKScheduleEveryOff,
+		ExposurePutExposureTargetsIDScheduleOKScheduleEveryDaily,
+		ExposurePutExposureTargetsIDScheduleOKScheduleEveryWeekly,
+		ExposurePutExposureTargetsIDScheduleOKScheduleEveryMonthly,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTargetsIDScheduleOKScheduleEvery) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTargetsIDScheduleOKScheduleEveryOff:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKScheduleEveryDaily:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKScheduleEveryWeekly:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKScheduleEveryMonthly:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTargetsIDScheduleOKScheduleEvery) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTargetsIDScheduleOKScheduleEvery(data) {
+	case ExposurePutExposureTargetsIDScheduleOKScheduleEveryOff:
+		*s = ExposurePutExposureTargetsIDScheduleOKScheduleEveryOff
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKScheduleEveryDaily:
+		*s = ExposurePutExposureTargetsIDScheduleOKScheduleEveryDaily
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKScheduleEveryWeekly:
+		*s = ExposurePutExposureTargetsIDScheduleOKScheduleEveryWeekly
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKScheduleEveryMonthly:
+		*s = ExposurePutExposureTargetsIDScheduleOKScheduleEveryMonthly
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
+type ExposurePutExposureTargetsIDScheduleOKStatus string
+
+const (
+	ExposurePutExposureTargetsIDScheduleOKStatusUnverified ExposurePutExposureTargetsIDScheduleOKStatus = "unverified"
+	ExposurePutExposureTargetsIDScheduleOKStatusVerified   ExposurePutExposureTargetsIDScheduleOKStatus = "verified"
+	ExposurePutExposureTargetsIDScheduleOKStatusExpired    ExposurePutExposureTargetsIDScheduleOKStatus = "expired"
+)
+
+// AllValues returns all ExposurePutExposureTargetsIDScheduleOKStatus values.
+func (ExposurePutExposureTargetsIDScheduleOKStatus) AllValues() []ExposurePutExposureTargetsIDScheduleOKStatus {
+	return []ExposurePutExposureTargetsIDScheduleOKStatus{
+		ExposurePutExposureTargetsIDScheduleOKStatusUnverified,
+		ExposurePutExposureTargetsIDScheduleOKStatusVerified,
+		ExposurePutExposureTargetsIDScheduleOKStatusExpired,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTargetsIDScheduleOKStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTargetsIDScheduleOKStatusUnverified:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKStatusVerified:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKStatusExpired:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTargetsIDScheduleOKStatus) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTargetsIDScheduleOKStatus(data) {
+	case ExposurePutExposureTargetsIDScheduleOKStatusUnverified:
+		*s = ExposurePutExposureTargetsIDScheduleOKStatusUnverified
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKStatusVerified:
+		*s = ExposurePutExposureTargetsIDScheduleOKStatusVerified
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKStatusExpired:
+		*s = ExposurePutExposureTargetsIDScheduleOKStatusExpired
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePutExposureTargetsIDScheduleOKTerms struct {
+	At time.Time `json:"at"`
+	By string    `json:"by"`
+	// The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks
+	// that send more than a harmless read too.
+	Disruptive bool `json:"disruptive"`
+	// The exact terms the administrator accepted, with the tick's sentence as the last line when ticked.
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposurePutExposureTargetsIDScheduleOKTerms) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *ExposurePutExposureTargetsIDScheduleOKTerms) GetBy() string {
+	return s.By
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposurePutExposureTargetsIDScheduleOKTerms) GetDisruptive() bool {
+	return s.Disruptive
+}
+
+// GetText returns the value of Text.
+func (s *ExposurePutExposureTargetsIDScheduleOKTerms) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposurePutExposureTargetsIDScheduleOKTerms) GetVersion() string {
+	return s.Version
+}
+
+// SetAt sets the value of At.
+func (s *ExposurePutExposureTargetsIDScheduleOKTerms) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *ExposurePutExposureTargetsIDScheduleOKTerms) SetBy(val string) {
+	s.By = val
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposurePutExposureTargetsIDScheduleOKTerms) SetDisruptive(val bool) {
+	s.Disruptive = val
+}
+
+// SetText sets the value of Text.
+func (s *ExposurePutExposureTargetsIDScheduleOKTerms) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposurePutExposureTargetsIDScheduleOKTerms) SetVersion(val string) {
+	s.Version = val
+}
+
+// The current testing terms for this target, to accept or to read again.
+type ExposurePutExposureTargetsIDScheduleOKTermsNotice struct {
+	// The sentence of the extra tick, off by default.
+	Disruptive string `json:"disruptive"`
+	// The terms with the target in them, one paragraph per line.
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposurePutExposureTargetsIDScheduleOKTermsNotice) GetDisruptive() string {
+	return s.Disruptive
+}
+
+// GetText returns the value of Text.
+func (s *ExposurePutExposureTargetsIDScheduleOKTermsNotice) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposurePutExposureTargetsIDScheduleOKTermsNotice) GetVersion() string {
+	return s.Version
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposurePutExposureTargetsIDScheduleOKTermsNotice) SetDisruptive(val string) {
+	s.Disruptive = val
+}
+
+// SetText sets the value of Text.
+func (s *ExposurePutExposureTargetsIDScheduleOKTermsNotice) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposurePutExposureTargetsIDScheduleOKTermsNotice) SetVersion(val string) {
+	s.Version = val
+}
+
+type ExposurePutExposureTargetsIDScheduleOKValidity string
+
+const (
+	ExposurePutExposureTargetsIDScheduleOKValidityValid    ExposurePutExposureTargetsIDScheduleOKValidity = "valid"
+	ExposurePutExposureTargetsIDScheduleOKValidityExpiring ExposurePutExposureTargetsIDScheduleOKValidity = "expiring"
+	ExposurePutExposureTargetsIDScheduleOKValidityExpired  ExposurePutExposureTargetsIDScheduleOKValidity = "expired"
+)
+
+// AllValues returns all ExposurePutExposureTargetsIDScheduleOKValidity values.
+func (ExposurePutExposureTargetsIDScheduleOKValidity) AllValues() []ExposurePutExposureTargetsIDScheduleOKValidity {
+	return []ExposurePutExposureTargetsIDScheduleOKValidity{
+		ExposurePutExposureTargetsIDScheduleOKValidityValid,
+		ExposurePutExposureTargetsIDScheduleOKValidityExpiring,
+		ExposurePutExposureTargetsIDScheduleOKValidityExpired,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTargetsIDScheduleOKValidity) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTargetsIDScheduleOKValidityValid:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKValidityExpiring:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKValidityExpired:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTargetsIDScheduleOKValidity) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTargetsIDScheduleOKValidity(data) {
+	case ExposurePutExposureTargetsIDScheduleOKValidityValid:
+		*s = ExposurePutExposureTargetsIDScheduleOKValidityValid
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKValidityExpiring:
+		*s = ExposurePutExposureTargetsIDScheduleOKValidityExpiring
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKValidityExpired:
+		*s = ExposurePutExposureTargetsIDScheduleOKValidityExpired
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePutExposureTargetsIDScheduleReq struct {
+	Every ExposurePutExposureTargetsIDScheduleReqEvery `json:"every"`
+}
+
+// GetEvery returns the value of Every.
+func (s *ExposurePutExposureTargetsIDScheduleReq) GetEvery() ExposurePutExposureTargetsIDScheduleReqEvery {
+	return s.Every
+}
+
+// SetEvery sets the value of Every.
+func (s *ExposurePutExposureTargetsIDScheduleReq) SetEvery(val ExposurePutExposureTargetsIDScheduleReqEvery) {
+	s.Every = val
+}
+
+type ExposurePutExposureTargetsIDScheduleReqEvery string
+
+const (
+	ExposurePutExposureTargetsIDScheduleReqEveryOff     ExposurePutExposureTargetsIDScheduleReqEvery = "off"
+	ExposurePutExposureTargetsIDScheduleReqEveryDaily   ExposurePutExposureTargetsIDScheduleReqEvery = "daily"
+	ExposurePutExposureTargetsIDScheduleReqEveryWeekly  ExposurePutExposureTargetsIDScheduleReqEvery = "weekly"
+	ExposurePutExposureTargetsIDScheduleReqEveryMonthly ExposurePutExposureTargetsIDScheduleReqEvery = "monthly"
+)
+
+// AllValues returns all ExposurePutExposureTargetsIDScheduleReqEvery values.
+func (ExposurePutExposureTargetsIDScheduleReqEvery) AllValues() []ExposurePutExposureTargetsIDScheduleReqEvery {
+	return []ExposurePutExposureTargetsIDScheduleReqEvery{
+		ExposurePutExposureTargetsIDScheduleReqEveryOff,
+		ExposurePutExposureTargetsIDScheduleReqEveryDaily,
+		ExposurePutExposureTargetsIDScheduleReqEveryWeekly,
+		ExposurePutExposureTargetsIDScheduleReqEveryMonthly,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTargetsIDScheduleReqEvery) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTargetsIDScheduleReqEveryOff:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleReqEveryDaily:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleReqEveryWeekly:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleReqEveryMonthly:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTargetsIDScheduleReqEvery) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTargetsIDScheduleReqEvery(data) {
+	case ExposurePutExposureTargetsIDScheduleReqEveryOff:
+		*s = ExposurePutExposureTargetsIDScheduleReqEveryOff
+		return nil
+	case ExposurePutExposureTargetsIDScheduleReqEveryDaily:
+		*s = ExposurePutExposureTargetsIDScheduleReqEveryDaily
+		return nil
+	case ExposurePutExposureTargetsIDScheduleReqEveryWeekly:
+		*s = ExposurePutExposureTargetsIDScheduleReqEveryWeekly
+		return nil
+	case ExposurePutExposureTargetsIDScheduleReqEveryMonthly:
+		*s = ExposurePutExposureTargetsIDScheduleReqEveryMonthly
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ExposurePutExposureTargetsIDTermsOK struct {
 	// Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check
 	// that got an answer did not see the IP and no check since has, so scans are paused (until a later
@@ -59668,11 +62589,14 @@ type ExposurePutExposureTargetsIDTermsOK struct {
 	Origin ExposurePutExposureTargetsIDTermsOKOrigin `json:"origin"`
 	// Domains: where the TXT record goes and which verified domain covers this one already; null for an IP.
 	Proof NilExposurePutExposureTargetsIDTermsOKProof `json:"proof"`
-	// Where the target stands for scanning: scanning (a scan of it runs now), ready, or why not: unproved
-	// (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes
-	// out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet).
+	// Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
+	// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
+	// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
+	// scan confirmation or testing terms are not accepted yet).
 	ScanState ExposurePutExposureTargetsIDTermsOKScanState `json:"scan_state"`
 	Scannable bool                                         `json:"scannable"`
+	// How often the box scans the target by itself, when next, and why not.
+	Schedule ExposurePutExposureTargetsIDTermsOKSchedule `json:"schedule"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposurePutExposureTargetsIDTermsOKStatus `json:"status"`
 	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
@@ -59798,6 +62722,11 @@ func (s *ExposurePutExposureTargetsIDTermsOK) GetScanState() ExposurePutExposure
 // GetScannable returns the value of Scannable.
 func (s *ExposurePutExposureTargetsIDTermsOK) GetScannable() bool {
 	return s.Scannable
+}
+
+// GetSchedule returns the value of Schedule.
+func (s *ExposurePutExposureTargetsIDTermsOK) GetSchedule() ExposurePutExposureTargetsIDTermsOKSchedule {
+	return s.Schedule
 }
 
 // GetStatus returns the value of Status.
@@ -59943,6 +62872,11 @@ func (s *ExposurePutExposureTargetsIDTermsOK) SetScanState(val ExposurePutExposu
 // SetScannable sets the value of Scannable.
 func (s *ExposurePutExposureTargetsIDTermsOK) SetScannable(val bool) {
 	s.Scannable = val
+}
+
+// SetSchedule sets the value of Schedule.
+func (s *ExposurePutExposureTargetsIDTermsOK) SetSchedule(val ExposurePutExposureTargetsIDTermsOKSchedule) {
+	s.Schedule = val
 }
 
 // SetStatus sets the value of Status.
@@ -60913,9 +63847,10 @@ func (s *ExposurePutExposureTargetsIDTermsOKProof) SetZone(val string) {
 	s.Zone = val
 }
 
-// Where the target stands for scanning: scanning (a scan of it runs now), ready, or why not: unproved
-// (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes
-// out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet).
+// Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
+// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
+// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
+// scan confirmation or testing terms are not accepted yet).
 type ExposurePutExposureTargetsIDTermsOKScanState string
 
 const (
@@ -60924,6 +63859,7 @@ const (
 	ExposurePutExposureTargetsIDTermsOKScanStatePaused     ExposurePutExposureTargetsIDTermsOKScanState = "paused"
 	ExposurePutExposureTargetsIDTermsOKScanStateNeedsTerms ExposurePutExposureTargetsIDTermsOKScanState = "needs_terms"
 	ExposurePutExposureTargetsIDTermsOKScanStateReady      ExposurePutExposureTargetsIDTermsOKScanState = "ready"
+	ExposurePutExposureTargetsIDTermsOKScanStateQueued     ExposurePutExposureTargetsIDTermsOKScanState = "queued"
 	ExposurePutExposureTargetsIDTermsOKScanStateScanning   ExposurePutExposureTargetsIDTermsOKScanState = "scanning"
 )
 
@@ -60935,6 +63871,7 @@ func (ExposurePutExposureTargetsIDTermsOKScanState) AllValues() []ExposurePutExp
 		ExposurePutExposureTargetsIDTermsOKScanStatePaused,
 		ExposurePutExposureTargetsIDTermsOKScanStateNeedsTerms,
 		ExposurePutExposureTargetsIDTermsOKScanStateReady,
+		ExposurePutExposureTargetsIDTermsOKScanStateQueued,
 		ExposurePutExposureTargetsIDTermsOKScanStateScanning,
 	}
 }
@@ -60951,6 +63888,8 @@ func (s ExposurePutExposureTargetsIDTermsOKScanState) MarshalText() ([]byte, err
 	case ExposurePutExposureTargetsIDTermsOKScanStateNeedsTerms:
 		return []byte(s), nil
 	case ExposurePutExposureTargetsIDTermsOKScanStateReady:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDTermsOKScanStateQueued:
 		return []byte(s), nil
 	case ExposurePutExposureTargetsIDTermsOKScanStateScanning:
 		return []byte(s), nil
@@ -60977,8 +63916,112 @@ func (s *ExposurePutExposureTargetsIDTermsOKScanState) UnmarshalText(data []byte
 	case ExposurePutExposureTargetsIDTermsOKScanStateReady:
 		*s = ExposurePutExposureTargetsIDTermsOKScanStateReady
 		return nil
+	case ExposurePutExposureTargetsIDTermsOKScanStateQueued:
+		*s = ExposurePutExposureTargetsIDTermsOKScanStateQueued
+		return nil
 	case ExposurePutExposureTargetsIDTermsOKScanStateScanning:
 		*s = ExposurePutExposureTargetsIDTermsOKScanStateScanning
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// How often the box scans the target by itself, when next, and why not.
+type ExposurePutExposureTargetsIDTermsOKSchedule struct {
+	// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
+	// itself, counted from the start of its newest scan.
+	Every ExposurePutExposureTargetsIDTermsOKScheduleEvery `json:"every"`
+	// When the next scheduled scan is expected to start: when it is due, moved to the next opening of the
+	// scan window; null when the schedule is off or the target cannot be scanned on schedule now (note
+	// says why).
+	NextAt NilDateTime `json:"next_at"`
+	// Why the target is not scanned on schedule, e.g. "Not scanned on schedule: terms need confirming
+	// again"; null otherwise.
+	Note NilString `json:"note"`
+}
+
+// GetEvery returns the value of Every.
+func (s *ExposurePutExposureTargetsIDTermsOKSchedule) GetEvery() ExposurePutExposureTargetsIDTermsOKScheduleEvery {
+	return s.Every
+}
+
+// GetNextAt returns the value of NextAt.
+func (s *ExposurePutExposureTargetsIDTermsOKSchedule) GetNextAt() NilDateTime {
+	return s.NextAt
+}
+
+// GetNote returns the value of Note.
+func (s *ExposurePutExposureTargetsIDTermsOKSchedule) GetNote() NilString {
+	return s.Note
+}
+
+// SetEvery sets the value of Every.
+func (s *ExposurePutExposureTargetsIDTermsOKSchedule) SetEvery(val ExposurePutExposureTargetsIDTermsOKScheduleEvery) {
+	s.Every = val
+}
+
+// SetNextAt sets the value of NextAt.
+func (s *ExposurePutExposureTargetsIDTermsOKSchedule) SetNextAt(val NilDateTime) {
+	s.NextAt = val
+}
+
+// SetNote sets the value of Note.
+func (s *ExposurePutExposureTargetsIDTermsOKSchedule) SetNote(val NilString) {
+	s.Note = val
+}
+
+// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
+// itself, counted from the start of its newest scan.
+type ExposurePutExposureTargetsIDTermsOKScheduleEvery string
+
+const (
+	ExposurePutExposureTargetsIDTermsOKScheduleEveryOff     ExposurePutExposureTargetsIDTermsOKScheduleEvery = "off"
+	ExposurePutExposureTargetsIDTermsOKScheduleEveryDaily   ExposurePutExposureTargetsIDTermsOKScheduleEvery = "daily"
+	ExposurePutExposureTargetsIDTermsOKScheduleEveryWeekly  ExposurePutExposureTargetsIDTermsOKScheduleEvery = "weekly"
+	ExposurePutExposureTargetsIDTermsOKScheduleEveryMonthly ExposurePutExposureTargetsIDTermsOKScheduleEvery = "monthly"
+)
+
+// AllValues returns all ExposurePutExposureTargetsIDTermsOKScheduleEvery values.
+func (ExposurePutExposureTargetsIDTermsOKScheduleEvery) AllValues() []ExposurePutExposureTargetsIDTermsOKScheduleEvery {
+	return []ExposurePutExposureTargetsIDTermsOKScheduleEvery{
+		ExposurePutExposureTargetsIDTermsOKScheduleEveryOff,
+		ExposurePutExposureTargetsIDTermsOKScheduleEveryDaily,
+		ExposurePutExposureTargetsIDTermsOKScheduleEveryWeekly,
+		ExposurePutExposureTargetsIDTermsOKScheduleEveryMonthly,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTargetsIDTermsOKScheduleEvery) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTargetsIDTermsOKScheduleEveryOff:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDTermsOKScheduleEveryDaily:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDTermsOKScheduleEveryWeekly:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDTermsOKScheduleEveryMonthly:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTargetsIDTermsOKScheduleEvery) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTargetsIDTermsOKScheduleEvery(data) {
+	case ExposurePutExposureTargetsIDTermsOKScheduleEveryOff:
+		*s = ExposurePutExposureTargetsIDTermsOKScheduleEveryOff
+		return nil
+	case ExposurePutExposureTargetsIDTermsOKScheduleEveryDaily:
+		*s = ExposurePutExposureTargetsIDTermsOKScheduleEveryDaily
+		return nil
+	case ExposurePutExposureTargetsIDTermsOKScheduleEveryWeekly:
+		*s = ExposurePutExposureTargetsIDTermsOKScheduleEveryWeekly
+		return nil
+	case ExposurePutExposureTargetsIDTermsOKScheduleEveryMonthly:
+		*s = ExposurePutExposureTargetsIDTermsOKScheduleEveryMonthly
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -117443,7 +120486,8 @@ type InventoryGetInventoryDevicesIDSoftwareOKItemsItem struct {
 	AlsoSeen []InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItem `json:"also_seen"`
 	// "" when none.
 	Cpe string `json:"cpe"`
-	// A weaker source reads another release, newer than this row's source did: the first also_seen with
+	// A scan, SNMP or passive reading reads another release than this row (matching keeps that reading
+	// too); never the row a person's entry corrects: the first also_seen of such a source with
 	// same_release false.
 	Differs bool   `json:"differs"`
 	Display string `json:"display"`
@@ -143343,6 +146387,456 @@ func (o NilExposurePutExposureGreenboneOKFeed) Or(d ExposurePutExposureGreenbone
 	return d
 }
 
+// NewNilExposurePutExposureTargetsIDScheduleOKBlockedReason returns new NilExposurePutExposureTargetsIDScheduleOKBlockedReason with value set to v.
+func NewNilExposurePutExposureTargetsIDScheduleOKBlockedReason(v ExposurePutExposureTargetsIDScheduleOKBlockedReason) NilExposurePutExposureTargetsIDScheduleOKBlockedReason {
+	return NilExposurePutExposureTargetsIDScheduleOKBlockedReason{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTargetsIDScheduleOKBlockedReason is nullable ExposurePutExposureTargetsIDScheduleOKBlockedReason.
+type NilExposurePutExposureTargetsIDScheduleOKBlockedReason struct {
+	Value ExposurePutExposureTargetsIDScheduleOKBlockedReason
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTargetsIDScheduleOKBlockedReason) SetTo(v ExposurePutExposureTargetsIDScheduleOKBlockedReason) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTargetsIDScheduleOKBlockedReason) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTargetsIDScheduleOKBlockedReason) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTargetsIDScheduleOKBlockedReason
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTargetsIDScheduleOKBlockedReason) Get() (v ExposurePutExposureTargetsIDScheduleOKBlockedReason, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTargetsIDScheduleOKBlockedReason) Or(d ExposurePutExposureTargetsIDScheduleOKBlockedReason) ExposurePutExposureTargetsIDScheduleOKBlockedReason {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTargetsIDScheduleOKCommitment returns new NilExposurePutExposureTargetsIDScheduleOKCommitment with value set to v.
+func NewNilExposurePutExposureTargetsIDScheduleOKCommitment(v ExposurePutExposureTargetsIDScheduleOKCommitment) NilExposurePutExposureTargetsIDScheduleOKCommitment {
+	return NilExposurePutExposureTargetsIDScheduleOKCommitment{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTargetsIDScheduleOKCommitment is nullable ExposurePutExposureTargetsIDScheduleOKCommitment.
+type NilExposurePutExposureTargetsIDScheduleOKCommitment struct {
+	Value ExposurePutExposureTargetsIDScheduleOKCommitment
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTargetsIDScheduleOKCommitment) SetTo(v ExposurePutExposureTargetsIDScheduleOKCommitment) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTargetsIDScheduleOKCommitment) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTargetsIDScheduleOKCommitment) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTargetsIDScheduleOKCommitment
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTargetsIDScheduleOKCommitment) Get() (v ExposurePutExposureTargetsIDScheduleOKCommitment, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTargetsIDScheduleOKCommitment) Or(d ExposurePutExposureTargetsIDScheduleOKCommitment) ExposurePutExposureTargetsIDScheduleOKCommitment {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTargetsIDScheduleOKCommitmentNotice returns new NilExposurePutExposureTargetsIDScheduleOKCommitmentNotice with value set to v.
+func NewNilExposurePutExposureTargetsIDScheduleOKCommitmentNotice(v ExposurePutExposureTargetsIDScheduleOKCommitmentNotice) NilExposurePutExposureTargetsIDScheduleOKCommitmentNotice {
+	return NilExposurePutExposureTargetsIDScheduleOKCommitmentNotice{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTargetsIDScheduleOKCommitmentNotice is nullable ExposurePutExposureTargetsIDScheduleOKCommitmentNotice.
+type NilExposurePutExposureTargetsIDScheduleOKCommitmentNotice struct {
+	Value ExposurePutExposureTargetsIDScheduleOKCommitmentNotice
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTargetsIDScheduleOKCommitmentNotice) SetTo(v ExposurePutExposureTargetsIDScheduleOKCommitmentNotice) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTargetsIDScheduleOKCommitmentNotice) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTargetsIDScheduleOKCommitmentNotice) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTargetsIDScheduleOKCommitmentNotice
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTargetsIDScheduleOKCommitmentNotice) Get() (v ExposurePutExposureTargetsIDScheduleOKCommitmentNotice, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTargetsIDScheduleOKCommitmentNotice) Or(d ExposurePutExposureTargetsIDScheduleOKCommitmentNotice) ExposurePutExposureTargetsIDScheduleOKCommitmentNotice {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTargetsIDScheduleOKIPProof returns new NilExposurePutExposureTargetsIDScheduleOKIPProof with value set to v.
+func NewNilExposurePutExposureTargetsIDScheduleOKIPProof(v ExposurePutExposureTargetsIDScheduleOKIPProof) NilExposurePutExposureTargetsIDScheduleOKIPProof {
+	return NilExposurePutExposureTargetsIDScheduleOKIPProof{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTargetsIDScheduleOKIPProof is nullable ExposurePutExposureTargetsIDScheduleOKIPProof.
+type NilExposurePutExposureTargetsIDScheduleOKIPProof struct {
+	Value ExposurePutExposureTargetsIDScheduleOKIPProof
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTargetsIDScheduleOKIPProof) SetTo(v ExposurePutExposureTargetsIDScheduleOKIPProof) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTargetsIDScheduleOKIPProof) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTargetsIDScheduleOKIPProof) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTargetsIDScheduleOKIPProof
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTargetsIDScheduleOKIPProof) Get() (v ExposurePutExposureTargetsIDScheduleOKIPProof, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTargetsIDScheduleOKIPProof) Or(d ExposurePutExposureTargetsIDScheduleOKIPProof) ExposurePutExposureTargetsIDScheduleOKIPProof {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTargetsIDScheduleOKLastCheck returns new NilExposurePutExposureTargetsIDScheduleOKLastCheck with value set to v.
+func NewNilExposurePutExposureTargetsIDScheduleOKLastCheck(v ExposurePutExposureTargetsIDScheduleOKLastCheck) NilExposurePutExposureTargetsIDScheduleOKLastCheck {
+	return NilExposurePutExposureTargetsIDScheduleOKLastCheck{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTargetsIDScheduleOKLastCheck is nullable ExposurePutExposureTargetsIDScheduleOKLastCheck.
+type NilExposurePutExposureTargetsIDScheduleOKLastCheck struct {
+	Value ExposurePutExposureTargetsIDScheduleOKLastCheck
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTargetsIDScheduleOKLastCheck) SetTo(v ExposurePutExposureTargetsIDScheduleOKLastCheck) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTargetsIDScheduleOKLastCheck) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTargetsIDScheduleOKLastCheck) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTargetsIDScheduleOKLastCheck
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTargetsIDScheduleOKLastCheck) Get() (v ExposurePutExposureTargetsIDScheduleOKLastCheck, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTargetsIDScheduleOKLastCheck) Or(d ExposurePutExposureTargetsIDScheduleOKLastCheck) ExposurePutExposureTargetsIDScheduleOKLastCheck {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTargetsIDScheduleOKLatest returns new NilExposurePutExposureTargetsIDScheduleOKLatest with value set to v.
+func NewNilExposurePutExposureTargetsIDScheduleOKLatest(v ExposurePutExposureTargetsIDScheduleOKLatest) NilExposurePutExposureTargetsIDScheduleOKLatest {
+	return NilExposurePutExposureTargetsIDScheduleOKLatest{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTargetsIDScheduleOKLatest is nullable ExposurePutExposureTargetsIDScheduleOKLatest.
+type NilExposurePutExposureTargetsIDScheduleOKLatest struct {
+	Value ExposurePutExposureTargetsIDScheduleOKLatest
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTargetsIDScheduleOKLatest) SetTo(v ExposurePutExposureTargetsIDScheduleOKLatest) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTargetsIDScheduleOKLatest) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTargetsIDScheduleOKLatest) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTargetsIDScheduleOKLatest
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTargetsIDScheduleOKLatest) Get() (v ExposurePutExposureTargetsIDScheduleOKLatest, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTargetsIDScheduleOKLatest) Or(d ExposurePutExposureTargetsIDScheduleOKLatest) ExposurePutExposureTargetsIDScheduleOKLatest {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTargetsIDScheduleOKMethod returns new NilExposurePutExposureTargetsIDScheduleOKMethod with value set to v.
+func NewNilExposurePutExposureTargetsIDScheduleOKMethod(v ExposurePutExposureTargetsIDScheduleOKMethod) NilExposurePutExposureTargetsIDScheduleOKMethod {
+	return NilExposurePutExposureTargetsIDScheduleOKMethod{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTargetsIDScheduleOKMethod is nullable ExposurePutExposureTargetsIDScheduleOKMethod.
+type NilExposurePutExposureTargetsIDScheduleOKMethod struct {
+	Value ExposurePutExposureTargetsIDScheduleOKMethod
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTargetsIDScheduleOKMethod) SetTo(v ExposurePutExposureTargetsIDScheduleOKMethod) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTargetsIDScheduleOKMethod) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTargetsIDScheduleOKMethod) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTargetsIDScheduleOKMethod
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTargetsIDScheduleOKMethod) Get() (v ExposurePutExposureTargetsIDScheduleOKMethod, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTargetsIDScheduleOKMethod) Or(d ExposurePutExposureTargetsIDScheduleOKMethod) ExposurePutExposureTargetsIDScheduleOKMethod {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTargetsIDScheduleOKProof returns new NilExposurePutExposureTargetsIDScheduleOKProof with value set to v.
+func NewNilExposurePutExposureTargetsIDScheduleOKProof(v ExposurePutExposureTargetsIDScheduleOKProof) NilExposurePutExposureTargetsIDScheduleOKProof {
+	return NilExposurePutExposureTargetsIDScheduleOKProof{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTargetsIDScheduleOKProof is nullable ExposurePutExposureTargetsIDScheduleOKProof.
+type NilExposurePutExposureTargetsIDScheduleOKProof struct {
+	Value ExposurePutExposureTargetsIDScheduleOKProof
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTargetsIDScheduleOKProof) SetTo(v ExposurePutExposureTargetsIDScheduleOKProof) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTargetsIDScheduleOKProof) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTargetsIDScheduleOKProof) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTargetsIDScheduleOKProof
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTargetsIDScheduleOKProof) Get() (v ExposurePutExposureTargetsIDScheduleOKProof, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTargetsIDScheduleOKProof) Or(d ExposurePutExposureTargetsIDScheduleOKProof) ExposurePutExposureTargetsIDScheduleOKProof {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTargetsIDScheduleOKTerms returns new NilExposurePutExposureTargetsIDScheduleOKTerms with value set to v.
+func NewNilExposurePutExposureTargetsIDScheduleOKTerms(v ExposurePutExposureTargetsIDScheduleOKTerms) NilExposurePutExposureTargetsIDScheduleOKTerms {
+	return NilExposurePutExposureTargetsIDScheduleOKTerms{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTargetsIDScheduleOKTerms is nullable ExposurePutExposureTargetsIDScheduleOKTerms.
+type NilExposurePutExposureTargetsIDScheduleOKTerms struct {
+	Value ExposurePutExposureTargetsIDScheduleOKTerms
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTargetsIDScheduleOKTerms) SetTo(v ExposurePutExposureTargetsIDScheduleOKTerms) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTargetsIDScheduleOKTerms) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTargetsIDScheduleOKTerms) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTargetsIDScheduleOKTerms
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTargetsIDScheduleOKTerms) Get() (v ExposurePutExposureTargetsIDScheduleOKTerms, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTargetsIDScheduleOKTerms) Or(d ExposurePutExposureTargetsIDScheduleOKTerms) ExposurePutExposureTargetsIDScheduleOKTerms {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTargetsIDScheduleOKValidity returns new NilExposurePutExposureTargetsIDScheduleOKValidity with value set to v.
+func NewNilExposurePutExposureTargetsIDScheduleOKValidity(v ExposurePutExposureTargetsIDScheduleOKValidity) NilExposurePutExposureTargetsIDScheduleOKValidity {
+	return NilExposurePutExposureTargetsIDScheduleOKValidity{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTargetsIDScheduleOKValidity is nullable ExposurePutExposureTargetsIDScheduleOKValidity.
+type NilExposurePutExposureTargetsIDScheduleOKValidity struct {
+	Value ExposurePutExposureTargetsIDScheduleOKValidity
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTargetsIDScheduleOKValidity) SetTo(v ExposurePutExposureTargetsIDScheduleOKValidity) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTargetsIDScheduleOKValidity) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTargetsIDScheduleOKValidity) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTargetsIDScheduleOKValidity
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTargetsIDScheduleOKValidity) Get() (v ExposurePutExposureTargetsIDScheduleOKValidity, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTargetsIDScheduleOKValidity) Or(d ExposurePutExposureTargetsIDScheduleOKValidity) ExposurePutExposureTargetsIDScheduleOKValidity {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilExposurePutExposureTargetsIDTermsOKBlockedReason returns new NilExposurePutExposureTargetsIDTermsOKBlockedReason with value set to v.
 func NewNilExposurePutExposureTargetsIDTermsOKBlockedReason(v ExposurePutExposureTargetsIDTermsOKBlockedReason) NilExposurePutExposureTargetsIDTermsOKBlockedReason {
 	return NilExposurePutExposureTargetsIDTermsOKBlockedReason{
@@ -165443,6 +168937,98 @@ func (o OptExposurePostExposureTargetsReqKind) Get() (v ExposurePostExposureTarg
 
 // Or returns value if set, or given parameter if does not.
 func (o OptExposurePostExposureTargetsReqKind) Or(d ExposurePostExposureTargetsReqKind) ExposurePostExposureTargetsReqKind {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance returns new OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance with value set to v.
+func NewOptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance(v ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance {
+	return OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance is optional ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance.
+type OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance struct {
+	Value ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance
+	Set   bool
+}
+
+// IsSet returns true if OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance was set.
+func (o OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) Reset() {
+	var v ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) SetTo(v ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) Get() (v ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) Or(d ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent returns new OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent with value set to v.
+func NewOptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent(v ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent) OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent {
+	return OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent is optional ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent.
+type OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent struct {
+	Value ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent
+	Set   bool
+}
+
+// IsSet returns true if OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent was set.
+func (o OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent) Reset() {
+	var v ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent) SetTo(v ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent) Get() (v ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent) Or(d ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent) ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -222297,8 +225883,8 @@ type ScanningGetScanningOKSafety struct {
 	// built on (409 safety_changed otherwise), so a page opened before an inline add never drops it. Every
 	// answer that changed the block carries the new one. The same values give the same version.
 	Version string `json:"version"`
-	// One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now,
-	// Check this device now and external scans are not bound by it.
+	// One window for discovery, version scans, SNMP rounds, scheduled vulnerability checks and the
+	// scheduled scans of public targets. Scan now and Check this device now are not bound by it.
 	Window ScanningGetScanningOKSafetyWindow `json:"window"`
 }
 
@@ -222702,8 +226288,8 @@ func (s *ScanningGetScanningOKSafetySpeed) SetRequestsPerS(val int) {
 	s.RequestsPerS = val
 }
 
-// One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now,
-// Check this device now and external scans are not bound by it.
+// One window for discovery, version scans, SNMP rounds, scheduled vulnerability checks and the
+// scheduled scans of public targets. Scan now and Check this device now are not bound by it.
 type ScanningGetScanningOKSafetyWindow struct {
 	// Empty only on a box whose discovery was saved off without a day; a save needs one.
 	Days []int `json:"days"`
@@ -224226,8 +227812,8 @@ type ScanningPatchScanningEnginesIDOKSafety struct {
 	// built on (409 safety_changed otherwise), so a page opened before an inline add never drops it. Every
 	// answer that changed the block carries the new one. The same values give the same version.
 	Version string `json:"version"`
-	// One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now,
-	// Check this device now and external scans are not bound by it.
+	// One window for discovery, version scans, SNMP rounds, scheduled vulnerability checks and the
+	// scheduled scans of public targets. Scan now and Check this device now are not bound by it.
 	Window ScanningPatchScanningEnginesIDOKSafetyWindow `json:"window"`
 }
 
@@ -224631,8 +228217,8 @@ func (s *ScanningPatchScanningEnginesIDOKSafetySpeed) SetRequestsPerS(val int) {
 	s.RequestsPerS = val
 }
 
-// One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now,
-// Check this device now and external scans are not bound by it.
+// One window for discovery, version scans, SNMP rounds, scheduled vulnerability checks and the
+// scheduled scans of public targets. Scan now and Check this device now are not bound by it.
 type ScanningPatchScanningEnginesIDOKSafetyWindow struct {
 	// Empty only on a box whose discovery was saved off without a day; a save needs one.
 	Days []int `json:"days"`
@@ -225183,8 +228769,8 @@ type ScanningPostScanningSafetyExclusionsOK struct {
 	// built on (409 safety_changed otherwise), so a page opened before an inline add never drops it. Every
 	// answer that changed the block carries the new one. The same values give the same version.
 	Version string `json:"version"`
-	// One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now,
-	// Check this device now and external scans are not bound by it.
+	// One window for discovery, version scans, SNMP rounds, scheduled vulnerability checks and the
+	// scheduled scans of public targets. Scan now and Check this device now are not bound by it.
 	Window ScanningPostScanningSafetyExclusionsOKWindow `json:"window"`
 }
 
@@ -225588,8 +229174,8 @@ func (s *ScanningPostScanningSafetyExclusionsOKSpeed) SetRequestsPerS(val int) {
 	s.RequestsPerS = val
 }
 
-// One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now,
-// Check this device now and external scans are not bound by it.
+// One window for discovery, version scans, SNMP rounds, scheduled vulnerability checks and the
+// scheduled scans of public targets. Scan now and Check this device now are not bound by it.
 type ScanningPostScanningSafetyExclusionsOKWindow struct {
 	// Empty only on a box whose discovery was saved off without a day; a save needs one.
 	Days []int `json:"days"`
@@ -225670,8 +229256,8 @@ type ScanningPostScanningSafetyRangesOK struct {
 	// built on (409 safety_changed otherwise), so a page opened before an inline add never drops it. Every
 	// answer that changed the block carries the new one. The same values give the same version.
 	Version string `json:"version"`
-	// One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now,
-	// Check this device now and external scans are not bound by it.
+	// One window for discovery, version scans, SNMP rounds, scheduled vulnerability checks and the
+	// scheduled scans of public targets. Scan now and Check this device now are not bound by it.
 	Window ScanningPostScanningSafetyRangesOKWindow `json:"window"`
 }
 
@@ -226110,8 +229696,8 @@ func (s *ScanningPostScanningSafetyRangesOKSpeed) SetRequestsPerS(val int) {
 	s.RequestsPerS = val
 }
 
-// One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now,
-// Check this device now and external scans are not bound by it.
+// One window for discovery, version scans, SNMP rounds, scheduled vulnerability checks and the
+// scheduled scans of public targets. Scan now and Check this device now are not bound by it.
 type ScanningPostScanningSafetyRangesOKWindow struct {
 	// Empty only on a box whose discovery was saved off without a day; a save needs one.
 	Days []int `json:"days"`
@@ -226235,8 +229821,8 @@ type ScanningPutScanningSafetyOK struct {
 	// built on (409 safety_changed otherwise), so a page opened before an inline add never drops it. Every
 	// answer that changed the block carries the new one. The same values give the same version.
 	Version string `json:"version"`
-	// One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now,
-	// Check this device now and external scans are not bound by it.
+	// One window for discovery, version scans, SNMP rounds, scheduled vulnerability checks and the
+	// scheduled scans of public targets. Scan now and Check this device now are not bound by it.
 	Window ScanningPutScanningSafetyOKWindow `json:"window"`
 }
 
@@ -226675,8 +230261,8 @@ func (s *ScanningPutScanningSafetyOKSpeed) SetRequestsPerS(val int) {
 	s.RequestsPerS = val
 }
 
-// One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now,
-// Check this device now and external scans are not bound by it.
+// One window for discovery, version scans, SNMP rounds, scheduled vulnerability checks and the
+// scheduled scans of public targets. Scan now and Check this device now are not bound by it.
 type ScanningPutScanningSafetyOKWindow struct {
 	// Empty only on a box whose discovery was saved off without a day; a save needs one.
 	Days []int `json:"days"`

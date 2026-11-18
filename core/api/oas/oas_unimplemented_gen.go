@@ -1263,6 +1263,17 @@ func (UnimplementedHandler) ExposureDeleteExposureTargetsID(ctx context.Context,
 	return ht.ErrNotImplemented
 }
 
+// ExposureDeleteExposureTargetsIDQueue implements exposure_delete_exposure_targets_id_queue operation.
+//
+// Take the scan of this target that waits in the queue out of it (a Scan now or a scheduled scan). 409
+// not_queued when none waits, or its checks have started (stop it once it runs). Audited as
+// exposure.scan.
+//
+// DELETE /exposure/targets/{id}/queue
+func (UnimplementedHandler) ExposureDeleteExposureTargetsIDQueue(ctx context.Context, params ExposureDeleteExposureTargetsIDQueueParams) error {
+	return ht.ErrNotImplemented
+}
+
 // ExposureDeleteExposureTargetsIDTerms implements exposure_delete_exposure_targets_id_terms operation.
 //
 // Withdraw the testing terms of a target: always possible; the next scan runs in the scope of the Scan
@@ -1288,7 +1299,8 @@ func (UnimplementedHandler) ExposureGetExposureGreenbone(ctx context.Context) (r
 // ExposureGetExposureScan implements exposure_get_exposure_scan operation.
 //
 // The scan that runs now, or the last one (status done, failed or stopped, with its error or
-// snapshot_id); null when no scan has run since the box started (the run is kept in memory only).
+// snapshot_id), with the scans that wait (queue); null when no scan has run since the box started (the
+// run and the queue are kept in memory only).
 //
 // GET /exposure/scan
 func (UnimplementedHandler) ExposureGetExposureScan(ctx context.Context) (r NilExposureGetExposureScanOK, _ error) {
@@ -1452,12 +1464,15 @@ func (UnimplementedHandler) ExposurePostExposureTargetsIDOutside(ctx context.Con
 // MX and NS records and a list of common names (looked up through the box's DNS resolver) are listed
 // with the kind of each address (INV-27) and get one GET of / by name on ports 80 and 443; the deep
 // steps beyond that go to the box's own address, and to a typed IP or an address of a domain through
-// the executors' own fence. 409 module_off while the External exposure module is off; 409 busy while
-// another scan runs on the box; 429 rate_limited within 10 minutes of the target's last scan. Failures
-// that come while the scan runs (400 too_many when the domain has more than 300 names in the logs; 502
-// unreachable when the certificate-transparency search (crt.sh) does not answer or the scan does not
-// finish within 5 minutes; module_off when the module is switched off meanwhile) end the run as status
-// failed with that code and text, and nothing is saved. Every attempt is audited.
+// the executors' own fence. 409 module_off while the External exposure module is off. While another
+// scan runs on the box (or others wait) the scan waits in the box's queue: 202 with status queued and
+// the queue, the checks above run again right before it starts, and GET /exposure/scan lists it until
+// then (409 busy only for the target whose scan runs now). 429 rate_limited within 10 minutes of the
+// target's last scan. Failures that come while the scan runs (400 too_many when the domain has more
+// than 300 names in the logs; 502 unreachable when the certificate-transparency search (crt.sh) does
+// not answer or the scan does not finish within 5 minutes; module_off when the module is switched off
+// meanwhile) end the run as status failed with that code and text, and nothing is saved. Every attempt
+// is audited.
 //
 // POST /exposure/targets/{id}/scan
 func (UnimplementedHandler) ExposurePostExposureTargetsIDScan(ctx context.Context, req OptExposurePostExposureTargetsIDScanReq, params ExposurePostExposureTargetsIDScanParams) (r *ExposurePostExposureTargetsIDScanAccepted, _ error) {
@@ -1504,6 +1519,22 @@ func (UnimplementedHandler) ExposurePutExposureBoxIPSettings(ctx context.Context
 //
 // PUT /exposure/greenbone
 func (UnimplementedHandler) ExposurePutExposureGreenbone(ctx context.Context, req *ExposurePutExposureGreenboneReq) (r *ExposurePutExposureGreenboneOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ExposurePutExposureTargetsIDSchedule implements exposure_put_exposure_targets_id_schedule operation.
+//
+// Set how often the box scans this target by itself: off, daily, weekly (the default) or monthly,
+// counted from the start of its newest scan. A scheduled scan runs as the box inside the scan window
+// of Settings › Scanning › Safety, only while the ownership proof holds and the testing terms of
+// the current version are accepted (else it is skipped and schedule.note says why), with the same
+// steps as Deep scan now (OpenVAS only while it is turned on); it waits in the queue like any scan.
+// What it finds new since the scan before (an open port, an admin page, a certificate now expiring
+// within 30 days, an exploited vulnerability newly matched) goes to the alert channels. 400 bad_value
+// for another value. Audited (exposure.schedule).
+//
+// PUT /exposure/targets/{id}/schedule
+func (UnimplementedHandler) ExposurePutExposureTargetsIDSchedule(ctx context.Context, req *ExposurePutExposureTargetsIDScheduleReq, params ExposurePutExposureTargetsIDScheduleParams) (r *ExposurePutExposureTargetsIDScheduleOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

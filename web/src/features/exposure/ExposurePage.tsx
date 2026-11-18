@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogTrigger } from '@/components/ui/dialog'
 import { Field, Input } from '@/components/ui/input'
 import { Segmented } from '@/components/ui/segmented'
-import { fmtDate, fmtRelative } from '@/lib/format'
+import { fmtDate, fmtDateTime, fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { AnchorRedirect, ScrollToHash } from './anchors'
 import { BoxIpPanel } from './BoxIpPanel'
@@ -108,9 +108,19 @@ function ExposureView() {
 function ScanCell({ r }: { r: Target }) {
   const { t } = useTranslation('exposure')
   if (r.scan_state === 'scanning') return <span className="text-meta">{t('targets.scanning')}</span>
+  if (r.scan_state === 'queued') return <span className="text-meta">{t('targets.queued')}</span>
   if (r.origin === 'box' && r.scan_state === 'needs_terms') return <span className="grid"><span className="text-meta text-muted">{t('targets.neverScannedShort')}</span><span className="text-caption text-muted">{t('targets.termsNotAccepted')}</span></span>
   if (r.blocked_reason) return <span className="text-meta text-warn">{t(`blocked.${blockedKey(r)}`)}</span>
-  return <span className="grid"><span>{r.last_scan_at ? fmtRelative(r.last_scan_at) : t('targets.neverScanned')}</span><span className="text-caption text-muted">{t('targets.ready')}</span></span>
+  return <span className="grid"><span>{r.last_scan_at ? fmtRelative(r.last_scan_at) : t('targets.neverScanned')}</span><span className="text-caption text-muted">{t('targets.ready')}</span><ScheduleLine r={r} /></span>
+}
+
+/** INV-36: the row's schedule: when the next scheduled scan starts, that it is off, or why it does not run. */
+function ScheduleLine({ r }: { r: Target }) {
+  const { t } = useTranslation('exposure')
+  const s = r.schedule
+  if (s.every === 'off') return <span className="text-caption text-muted">{t('schedule.off')}</span>
+  if (s.note) return <span className="text-caption text-warn">{s.note}</span>
+  return s.next_at ? <span className="text-caption text-muted">{t('schedule.next', { time: fmtDateTime(s.next_at) })}</span> : null
 }
 
 /** Ownership with, for an IP, when its proof runs out: every IP proof lasts 30 days and is checked again by the box. */

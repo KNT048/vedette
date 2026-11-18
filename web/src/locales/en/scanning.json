@@ -209,7 +209,7 @@
   },
   "safety": {
     "adminOnly": "Only an administrator can change these settings. You can still read them.",
-    "appliesTo": "Set once for every engine on your LAN: network discovery, service versions, SNMP and the vulnerability checks. Scans of your public targets follow their own testing terms and are not covered here yet.",
+    "appliesTo": "Set once for every engine on your LAN: network discovery, service versions, SNMP and the vulnerability checks. Scans of your public targets follow their own testing terms and are not covered here yet, except the window: their scheduled scans start only inside it.",
     "scopeTitle": "Where the box may scan",
     "scopeDescription": "Your LAN ranges and your confirmation that you may scan them.",
     "scopeInfo": "Nothing outside these ranges is ever scanned. Changing the ranges asks for the confirmation again.",
@@ -218,7 +218,7 @@
     "notConfirmed": "Not confirmed yet: nothing on the LAN is scanned until you tick it.",
     "windowTitle": "Time window",
     "windowDescription": "Discovery, version scans, SNMP rounds and scheduled checks run only inside it.",
-    "windowInfo": "Read in the organization time zone ({{zone}}). A window that crosses midnight (22:00 to 05:00) counts by its start day. Scan now and scans of public targets are not bound by it.",
+    "windowInfo": "Read in the organization time zone ({{zone}}). A window that crosses midnight (22:00 to 05:00) counts by its start day. Scan now is not bound by it; the scheduled scans of your public targets start only inside it.",
     "days": "Days the window starts",
     "from": "From",
     "to": "Until",

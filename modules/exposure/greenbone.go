@@ -1721,6 +1721,8 @@ func (s *Service) RunGreenboneSync(ctx context.Context) error {
 	}
 	s.feedSync, s.feedSyncAt = true, s.clock()
 	s.runMu.Unlock()
+	// INV-36: once the slot is free again (the defer below runs first), the scans that waited start on the service's own context
+	defer s.dispatch() //nolint:contextcheck // the queue never runs on the job's context
 	defer func() {
 		s.runMu.Lock()
 		s.feedSync = false

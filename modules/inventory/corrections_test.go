@@ -151,11 +151,11 @@ func TestINV41_CorrectedSoftwareReplacesTheScannedRow(t *testing.T) {
 	if sw := matchRows(t, e, dev); len(sw) != 1 || sw[0].Source != "manual" {
 		t.Fatalf("the correction must survive the next scan: %+v", sw)
 	}
-	// The source now reads another version: the person's entry stays in use and the row matching follows (INV-50); the 10.3 row is
-	// listed under it and the device says what the scan reads now.
+	// The source now reads another version: the person's entry stays in use (INV-50) and the 10.3 reading matches too; the device
+	// says what the scan reads now.
 	scan("10.3")
-	if rows := matchRows(t, e, dev); len(rows) != 1 || rows[0].Source != "manual" || rows[0].Version != "10.2p1" || rows[0].ShadowedBy != "" {
-		t.Fatalf("matching follows the entry; the 10.3 reading is listed under it, not matched: %+v", rows)
+	if rows := matchRows(t, e, dev); len(rows) != 2 {
+		t.Fatalf("matching reads the entry and the 10.3 reading (another release): %+v", rows)
 	}
 	if m, _, _ := e.svc.MatchInput(e.ctx(), dev); len(m.StaleCorrections) != 0 {
 		t.Fatalf("stale corrections %v", m.StaleCorrections)

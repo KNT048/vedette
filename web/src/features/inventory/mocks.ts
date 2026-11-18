@@ -1088,14 +1088,14 @@ export const handlers = [
       return !!p && !!q && (p === q || (q.startsWith(p) && /^p\d*$/.test(q.slice(p.length))) || (p.startsWith(q) && /^p\d*$/.test(p.slice(q.length))))
     }
     const groups = new Map<string, typeof a.software>()
-    for (const s of a.software.filter((x) => !x.not_installed)) groups.set(`${s.vendor}|${s.product}`.toLowerCase(), [...(groups.get(`${s.vendor}|${s.product}`.toLowerCase()) ?? []), s])
+    for (const s of a.software.filter((x) => !x.not_installed && !a.software.some((c) => c.not_installed && c.corrects === x.id))) groups.set(`${s.vendor}|${s.product}`.toLowerCase(), [...(groups.get(`${s.vendor}|${s.product}`.toLowerCase()) ?? []), s])
     const items = [...groups.values()].flatMap((g) => {
       const [top, ...rest] = [...g].sort((x, y) => (rank[y.source] ?? 0) - (rank[x.source] ?? 0))
       if (!top) return []
       const at = (x: typeof top) => x.set_at ?? nowIso()
       const also = rest.map((o) => ({ id: o.id, source: o.source, version: o.version ?? '', pkg_version: o.pkg_version ?? '', seen_at: at(o), same_release: same(top, o) }))
       return [{ id: top.id, vendor: top.vendor, product: top.product, display: top.display, version: top.version ?? '', pkg_version: top.pkg_version ?? '', packaged: top.source === 'agent', cpe: '', source: top.source,
-        set_by: top.source === 'manual' ? (currentUser()?.email ?? '') : '', seen_at: at(top), also_seen: also, differs: also.some((o) => !o.same_release && o.seen_at > at(top)) }]
+        set_by: top.source === 'manual' ? (currentUser()?.email ?? '') : '', seen_at: at(top), also_seen: also, differs: also.some((o) => !o.same_release && o.source !== 'manual' && o.id !== top.corrects) }]
     })
     return HttpResponse.json({ items })
   }),

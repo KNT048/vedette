@@ -59,7 +59,7 @@ func (s *Service) StartOpenVAS(ctx context.Context, who Actor, id string) (ScanR
 	snap, ports, err := s.againPlan(ctx, t, reason)
 	if err == nil {
 		var run *scanRun
-		if run, err = s.begin(ctx, who.Email, t, "", &again{snap: snap, ports: ports}); err == nil {
+		if run, err = s.begin(ctx, who.Email, t, "", &again{snap: snap, ports: ports}, nil); err == nil {
 			return s.runView(run), nil
 		}
 	}

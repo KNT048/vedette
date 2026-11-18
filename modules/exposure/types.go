@@ -182,10 +182,12 @@ type TargetView struct {
 	IPProof *IPProofHint `json:"ip_proof"`
 	// NextCheckAt is when a typed IP's proof is looked at again by itself (INV-35); nil for any other target and while unproved.
 	NextCheckAt *string `json:"next_check_at"`
-	// ScanState is where the target stands for scanning: unproved, expired, paused, needs_terms, ready or scanning.
+	// ScanState is where the target stands for scanning: unproved, expired, paused, needs_terms, ready, queued or scanning.
 	ScanState string `json:"scan_state"`
 	// OpenExposures is the number of open ports of the newest scan (0 when never scanned): the count the target row shows.
 	OpenExposures int `json:"open_exposures"`
+	// Schedule is how often the target is scanned by itself, when next and why not (INV-36).
+	Schedule *ScheduleView `json:"schedule"`
 }
 
 // MaxOpenPorts bounds TargetView.OpenPorts (a domain can have hundreds of names on 80 and 443).

@@ -75,7 +75,9 @@
   },
   "basis": {
     "stated": "Announced by the device (LLDP)",
-    "guess": "Network scan guess"
+    "guess": "Network scan guess",
+    "stated_web": "Announced by the device (web page)",
+    "stated_sip": "Announced by the device (SIP answer)"
   },
   "confidence": {
     "high": "high confidence",

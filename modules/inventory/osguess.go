@@ -3,6 +3,8 @@ package inventory
 import (
 	"slices"
 	"strings"
+
+	"github.com/knt048/vedette/core/observe"
 )
 
 // nmap's OS guesses. nmap names an OS from the shape of a device's TCP/IP
@@ -134,8 +136,20 @@ const osGuessRow = `(s.source = 'nmap' AND s.cpe LIKE 'cpe:/o:%' AND NOT EXISTS 
 
 // outrankedGuess (rule 1): a person, the agent, SNMP or the device's LLDP statement gave the device's OS. A passive OS wins over
 // nmap's only as the device's LLDP statement (INV-44); a passive hint (a DHCP client's OS family) never outranks a guess.
-const outrankedGuess = `EXISTS (SELECT 1 FROM inv_asset ga JOIN inv_observation gob ON gob.id = ga.os_obs_id WHERE ga.id = s.asset_id
-	AND gob.source IN ('manual', 'agent', 'snmp', 'passive'))`
+var outrankedGuess = `EXISTS (SELECT 1 FROM inv_asset ga JOIN inv_observation gob ON gob.id = ga.os_obs_id WHERE ga.id = s.asset_id
+	AND (gob.source IN ('manual', 'agent', 'snmp', 'passive') OR (gob.source = 'nmap' AND ` + selfStatedSQL("gob.value") + ` AND NOT ` + selfStatedSQL("s.display") + `)))`
+
+// selfStatedSQL is the condition on column col that it is the device's own statement without a login (observe.SelfStatedLike): such an
+// OS outranks nmap's fingerprint too, so its guess rows leave the device (rule 1); the row that holds the statement itself stays
+// (the same condition on s.display).
+func selfStatedSQL(col string) string {
+	likes := observe.SelfStatedLike()
+	c := make([]string, len(likes))
+	for i, l := range likes {
+		c[i] = col + " LIKE '" + strings.ReplaceAll(l, "'", "''") + "'"
+	}
+	return "(" + strings.Join(c, " OR ") + ")"
+}
 
 // fingerprintRow is the SQL condition on a software row (alias s) that it is nmap's OS fingerprint guess: an OS guess row with no
 // version that is not the device's own NTLM answer (its basis is a guess, contract.ts Software.basis).

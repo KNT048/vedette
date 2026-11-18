@@ -74,18 +74,24 @@ type Config struct {
 type Service struct {
 	db  *store.DB
 	inv Inventory
+	// bg holds the background SNMP reads ApplySNMPToSimilar queues
+	bg sync.WaitGroup
 	// pendingQueued: queuePendingOnce has queued the devices waiting for their gentle scan in this process
 	pendingQueued atomic.Bool
-	obs           observe.Sink
-	sw            observe.SoftwareSink
-	svc           observe.ServiceSink // may be nil
-	events        Publisher
-	path          string
-	prober        Prober
-	clock         func() time.Time
-	log           *slog.Logger
-	loc           func() *time.Location
-	localNets     func(context.Context) []netip.Prefix // may be nil
+	// owedQueued is the start of the window whose owed normal scans (queueOwedNormal) are queued
+	owedQueued atomic.Pointer[time.Time]
+	// owedTried is the devices queueOwedNormal queued: each once (guarded by mu)
+	owedTried map[string]bool
+	obs       observe.Sink
+	sw        observe.SoftwareSink
+	svc       observe.ServiceSink // may be nil
+	events    Publisher
+	path      string
+	prober    Prober
+	clock     func() time.Time
+	log       *slog.Logger
+	loc       func() *time.Location
+	localNets func(context.Context) []netip.Prefix // may be nil
 	// budget is core's budget of new devices (60 a minute, 200 an hour; L8): the scan container is a process that can be taken over,
 	// and a sweep over a /16 with random MACs would otherwise mint 65k devices. In memory, like the passive sensor's.
 	budget *capture.FloodBudget
@@ -1203,6 +1209,14 @@ func (s *Service) recordHost(ctx context.Context, assetID string, ip netip.Addr,
 		if err := s.sw.ReplaceSoftware(ctx, hint, observe.Nmap, append(sw, carried...)); err != nil {
 			return fmt.Errorf("sensoractive: recording software: %w", err)
 		}
+	case kind == nmapargv.GentleTitles:
+		// a gentle look with titles reads no product, but the scripts of nmapargv.TitleScripts may read what the device states about
+		// its firmware (INV-25): that is recorded, the one thing such a scan says about software
+		if sw := statedSoftware(h); len(sw) > 0 {
+			if err := s.sw.ReplaceSoftware(ctx, hint, observe.Nmap, sw); err != nil {
+				return fmt.Errorf("sensoractive: recording software: %w", err)
+			}
+		}
 	case kind == nmapargv.AllPorts:
 		// the weekly run adds its follow-up's products to the device's software: the last normal scan's list (its OS guess
 		// untouched) plus them, never a replacement by them alone
@@ -1651,6 +1665,9 @@ func (s *Service) Tick(ctx context.Context) error {
 		if _, err := s.DiscoverRanges(ctx); err != nil && !errors.Is(err, ErrStopped) && !errors.Is(err, ErrOutsideWindow) {
 			s.log.WarnContext(ctx, "sensoractive: the sweep did not run", "error", err)
 		}
+	}
+	if err := s.queueOwedNormal(ctx, start); err != nil {
+		s.log.WarnContext(ctx, "sensoractive: queueing the devices that owe a normal scan failed; tried again in the next window", "error", err)
 	}
 	if err := s.drain(ctx); err != nil {
 		return err

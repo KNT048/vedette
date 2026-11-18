@@ -74,6 +74,7 @@ type host struct {
 	closed, filtered int
 	ntlm             ntlmInfo    // what the device said about itself in an NTLM challenge; zero when no script answered
 	scripts          []nseScript // every NSE script result of an open port or of the host (<hostscript>), read for the full shapes
+	says             []selfSays  // what the device stated about itself to the scripts of selfScripts (a web page's version), no login involved
 }
 
 // nseScript is one NSE script result: the script's id, its text output (scriptText, or outputWithheld) and the findings
@@ -171,10 +172,46 @@ func (n ntlmInfo) name() string {
 // ntlmScripts are the scripts whose output is read; any other <script> is ignored.
 var ntlmScripts = map[string]bool{"rdp-ntlm-info": true, "http-ntlm-info": true}
 
+// selfScripts are the scripts that read what a device states about itself, without a login, in a page or an API it serves to
+// anyone: the fields each one's structured output is read for (selfFields). A value longer than maxElemLen, or with a character that
+// is not printable, is dropped.
+var selfScripts = map[string]bool{"http-hp-ilo-info": true, "vmware-version": true}
+
+// selfFields are the <elem> keys read from the output of each of selfScripts.
+var selfFields = map[string]map[string]bool{
+	"http-hp-ilo-info": {"ILOType": true, "ILOFirmware": true, "ServerType": true},
+	"vmware-version":   {"Server version": true, "Build": true},
+}
+
+// selfSays is what one script of selfScripts read on one port.
+type selfSays struct {
+	port   int
+	script string
+	fields map[string]string
+}
+
+// field is the value of one key, "" when the device did not state it.
+func (s selfSays) field(k string) string { return s.fields[k] }
+
 var (
 	ntlmVersionRE = regexp.MustCompile(`^(?:[1-9]|10)\.[0-9]{1,2}\.[0-9]{3,5}$`)
 	ntlmNameRE    = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$`)
 )
+
+// addSays keeps one field a self-statement script read: the first value of a key on a port wins.
+func (h *host) addSays(port int, script, key, value string) {
+	for i := range h.says {
+		if h.says[i].port == port && h.says[i].script == script {
+			if _, ok := h.says[i].fields[key]; !ok {
+				h.says[i].fields[key] = value
+			}
+			return
+		}
+	}
+	if len(h.says) < maxScriptsPerHost {
+		h.says = append(h.says, selfSays{port: port, script: script, fields: map[string]string{key: value}})
+	}
+}
 
 // setNTLM keeps one <elem> of an NTLM script: the first well-formed value of each field wins (a host with RDP and HTTP answers twice).
 func (h *host) setNTLM(port int, key, value string) {
@@ -371,6 +408,7 @@ func parseNmapXML(data []byte) ([]host, error) {
 		cpeBuf   strings.Builder
 		closed   bool
 		ntlm     bool   // inside the <script> of an NTLM script of an open port
+		selfID   string // the id of the <script> being read when it is one of selfScripts, of an open port; "" otherwise
 		title    bool   // inside the <script> of http-title
 		elemKey  string // key of the <elem> being read; "" when none
 		elemBuf  strings.Builder
@@ -508,11 +546,15 @@ func parseNmapXML(data []byte) ([]host, error) {
 			case "nmaprun/host/ports/port/script":
 				ntlm = cur != nil && port != nil && ntlmScripts[a["id"]]
 				title = cur != nil && port != nil && a["id"] == "http-title"
+				selfID = ""
+				if cur != nil && port != nil && selfScripts[a["id"]] {
+					selfID = a["id"]
+				}
 				if cur != nil && port != nil && a["id"] == "ssl-cert" {
 					port.certSubject = certSubject(a["output"])
 				}
 			case "nmaprun/host/ports/port/script/elem":
-				if ntlm || (title && a["key"] == "title") {
+				if ntlm || (title && a["key"] == "title") || (selfID != "" && selfFields[selfID][a["key"]]) {
 					elemKey = a["key"]
 					elemBuf.Reset()
 				}
@@ -592,15 +634,20 @@ func parseNmapXML(data []byte) ([]host, error) {
 				}
 				port = nil
 			case "nmaprun/host/ports/port/script":
-				ntlm, title = false, false
+				ntlm, title, selfID = false, false, ""
 			case "nmaprun/host/ports/port/script/elem":
 				// The challenge is read only from an open port; a value longer than maxElemLen or of another form is dropped.
 				// A title longer than the buffer keeps its start (#714 review: shortened, not dropped).
 				if elemKey != "" && cur != nil && portOK && (title || elemBuf.Len() <= maxElemLen) {
 					v := text(clipRunes(strings.Join(strings.Fields(elemBuf.String()), " "), maxTitle))
-					if title {
+					switch {
+					case title:
 						port.title = v
-					} else {
+					case selfID != "":
+						if v != "" && elemBuf.Len() <= maxElemLen {
+							cur.addSays(port.number, selfID, elemKey, v)
+						}
+					default:
 						cur.setNTLM(port.number, elemKey, text(strings.TrimSpace(elemBuf.String())))
 					}
 				}

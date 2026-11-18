@@ -555,6 +555,7 @@
       "inventory.snmp_test": "Test SNMP credential",
       "inventory.snmp_read": "Read devices now with SNMP credential",
       "inventory.snmp_set": "Set up SNMP on a device",
+      "inventory.snmp_apply_similar": "Use a device's SNMP settings on similar devices",
       "inventory.snmp_remove": "Remove SNMP from a device",
       "inventory.snmp_check": "Check a device now with SNMP",
       "inventory.snmp_move": "Move an SNMP credential to its devices",

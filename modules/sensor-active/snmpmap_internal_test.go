@@ -39,9 +39,21 @@ func TestIdentifySNMP(t *testing.T) {
 			sensorlink.SNMPValues{SysDescr: "our firewall", SysObjectID: ".1.3.6.1.4.1.12356.15"},
 			SNMPFacts{Vendor: "Fortinet"},
 		},
-		"fortiswitch: no FortiOS": {
+		"fortiswitch: no FortiOS, its own firmware line": {
 			sensorlink.SNMPValues{SysObjectID: ".1.3.6.1.4.1.12356.106.1.2482", EntClass: "3", EntSoftware: "FortiSwitch-248D v3.6.9,build0470,190507 (GA)"},
-			SNMPFacts{Vendor: "Fortinet", Product: "FortiSwitch", Model: "FortiSwitch-248D", Kind: "switch", Firmware: "FortiSwitch-248D v3.6.9,build0470,190507 (GA)"},
+			SNMPFacts{Vendor: "Fortinet", Product: "FortiSwitch", Model: "FortiSwitch-248D", OS: "FortiSwitchOS 3.6.9", Kind: "switch", Firmware: "FortiSwitch-248D v3.6.9,build0470,190507 (GA)"},
+		},
+		"fortiap: its firmware version, not FortiOS": {
+			sensorlink.SNMPValues{SysObjectID: ".1.3.6.1.4.1.12356.15", EntClass: "3", EntSoftware: "FortiAP-221E v6.4.8,build0472,220209 (GA)"},
+			SNMPFacts{Vendor: "Fortinet", Model: "FortiAP-221E", OS: "FortiAP firmware 6.4.8", Firmware: "FortiAP-221E v6.4.8,build0472,220209 (GA)"},
+		},
+		"procurve: the revision is the firmware": {
+			sensorlink.SNMPValues{SysDescr: "ProCurve J8692A Switch 3500yl-24G, revision K.15.18.0008, ROM K.15.20 (/sw/code/build/btm(tm))", SysObjectID: ".1.3.6.1.4.1.11.2.3.7.11.65", SysName: "sw-lab"},
+			SNMPFacts{Vendor: "HP", Model: "3500yl-24G", OS: "ArubaOS-Switch K.15.18.0008", Hostname: "sw-lab"},
+		},
+		"arubaos-switch 2930F": {
+			sensorlink.SNMPValues{SysDescr: "Aruba JL261A 2930F-24G-PoE+-4SFP Switch, revision WC.16.10.0011, ROM WC.16.01.0008 (/ws/swbuildm/rel_x/code/build/lld(swbuildm_rel))", SysObjectID: ".1.3.6.1.4.1.11.2.3.7.11.176"},
+			SNMPFacts{Vendor: "HP", Model: "2930F-24G-PoE+-4SFP", OS: "ArubaOS-Switch WC.16.10.0011"},
 		},
 		"cisco ios": {
 			sensorlink.SNMPValues{SysDescr: "Cisco IOS Software, C2960 Software (C2960-LANBASEK9-M), Version 15.0(2)SE11, RELEASE SOFTWARE (fc3)\r\nTechnical Support: http://www.cisco.com/techsupport",

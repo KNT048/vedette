@@ -109,7 +109,7 @@ func detectedOS(ctx context.Context, q querier, id string) (*Observed, error) {
 		return nil, nil
 	}
 	basis := osBasis(w.value, w.source, "") // a guess; the statement was decided against the MAC by winners
-	if w.stated {
+	if w.stated && w.source == "passive" {
 		basis = basisStated
 	}
 	return &Observed{Value: w.value, Source: w.source, Confidence: w.confidence, SeenAt: w.seenAt, Basis: basis}, nil

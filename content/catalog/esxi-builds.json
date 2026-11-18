@@ -1,0 +1,320 @@
+{
+ "_about": "ESXi build number -> release, for the ESXi 8.0 and 7.0 lines. An ESXi host states its version and build over its SOAP service content (8.0.3, 24022510); NVD names a release by version and update (cpe:2.3:o:vmware:esxi:8.0:update_3), so the build is what turns \"8.0.3\" into the update NVD lists. Sources: Broadcom KB 316595 \"Build numbers and versions of VMware ESXi/ESX\" (https://knowledge.broadcom.com/external/article/316595), every 7.0 and 8.0 row, read 2026-11-18; and, for the withdrawn 7.0 Update 3, 3a and 3b builds the KB table no longer lists (18644231, 18825058, 18905247), the VMware ESXi 7.0 Update 3c Release Notes (Broadcom TechDocs, vsphere-esxi-70u3c-release-notes), which say build 19193900 replaces them. update is NVD's update attribute (\"-\" for the GA release). A build not listed gives no CPE: the row is shown, never matched (a wrong update would make a wrong match). Add a row per release.",
+ "builds": {
+  "15843807": {
+   "version": "7.0",
+   "update": "-",
+   "name": "ESXi 7.0 GA"
+  },
+  "16324942": {
+   "version": "7.0",
+   "update": "b",
+   "name": "ESXi 7.0b"
+  },
+  "16850804": {
+   "version": "7.0",
+   "update": "update_1",
+   "name": "ESXi 7.0 Update 1"
+  },
+  "17119627": {
+   "version": "7.0",
+   "update": "update_1a",
+   "name": "ESXi 7.0 Update 1a"
+  },
+  "17168206": {
+   "version": "7.0",
+   "update": "update_1b",
+   "name": "ESXi 7.0 Update 1b"
+  },
+  "17325551": {
+   "version": "7.0",
+   "update": "update_1c",
+   "name": "ESXi 7.0 Update 1c"
+  },
+  "17551050": {
+   "version": "7.0",
+   "update": "update_1d",
+   "name": "ESXi 7.0 Update 1d"
+  },
+  "17630552": {
+   "version": "7.0",
+   "update": "update_2",
+   "name": "ESXi 7.0 Update 2"
+  },
+  "17867351": {
+   "version": "7.0",
+   "update": "update_2a",
+   "name": "ESXi 7.0 Update 2a"
+  },
+  "18426014": {
+   "version": "7.0",
+   "update": "update_2c",
+   "name": "ESXi 7.0 Update 2c"
+  },
+  "18538813": {
+   "version": "7.0",
+   "update": "update_2d",
+   "name": "ESXi 7.0 Update 2d"
+  },
+  "19193900": {
+   "version": "7.0",
+   "update": "update_3c",
+   "name": "ESXi 7.0 Update 3c"
+  },
+  "19290878": {
+   "version": "7.0",
+   "update": "update_2e",
+   "name": "ESXi 7.0 Update 2e"
+  },
+  "19324898": {
+   "version": "7.0",
+   "update": "update_1e",
+   "name": "ESXi 7.0 Update 1e"
+  },
+  "19482537": {
+   "version": "7.0",
+   "update": "update_3d",
+   "name": "ESXi 7.0 Update 3d"
+  },
+  "19898904": {
+   "version": "7.0",
+   "update": "update_3e",
+   "name": "ESXi 7.0 Update 3e"
+  },
+  "20036589": {
+   "version": "7.0",
+   "update": "update_3f",
+   "name": "ESXi 7.0 Update 3f"
+  },
+  "20328353": {
+   "version": "7.0",
+   "update": "update_3g",
+   "name": "ESXi 7.0 Update 3g"
+  },
+  "20513097": {
+   "version": "8.0",
+   "update": "-",
+   "name": "ESXi 8.0 GA"
+  },
+  "20842708": {
+   "version": "7.0",
+   "update": "update_3i",
+   "name": "ESXi 7.0 Update 3i"
+  },
+  "20842819": {
+   "version": "8.0",
+   "update": "a",
+   "name": "ESXi 8.0a"
+  },
+  "21053776": {
+   "version": "7.0",
+   "update": "update_3j",
+   "name": "ESXi 7.0 Update 3j"
+  },
+  "21203435": {
+   "version": "8.0",
+   "update": "b",
+   "name": "ESXi 8.0b"
+  },
+  "21313628": {
+   "version": "7.0",
+   "update": "update_3k",
+   "name": "ESXi 7.0 Update 3k"
+  },
+  "21424296": {
+   "version": "7.0",
+   "update": "update_3l",
+   "name": "ESXi 7.0 Update 3l"
+  },
+  "21493926": {
+   "version": "8.0",
+   "update": "c",
+   "name": "ESXi 8.0c"
+  },
+  "21495797": {
+   "version": "8.0",
+   "update": "update_1",
+   "name": "ESXi 8.0 Update 1"
+  },
+  "21686933": {
+   "version": "7.0",
+   "update": "update_3m",
+   "name": "ESXi 7.0 Update 3m"
+  },
+  "21813344": {
+   "version": "8.0",
+   "update": "update_1a",
+   "name": "ESXi 8.0 Update 1a"
+  },
+  "21930508": {
+   "version": "7.0",
+   "update": "update_3n",
+   "name": "ESXi 7.0 Update 3n"
+  },
+  "22088125": {
+   "version": "8.0",
+   "update": "update_1c",
+   "name": "ESXi 8.0 Update 1c"
+  },
+  "22348816": {
+   "version": "7.0",
+   "update": "update_3o",
+   "name": "ESXi 7.0 Update 3o"
+  },
+  "22380479": {
+   "version": "8.0",
+   "update": "update_2",
+   "name": "ESXi 8.0 Update 2"
+  },
+  "23299997": {
+   "version": "8.0",
+   "update": "update_1d",
+   "name": "ESXi 8.0 Update 1d"
+  },
+  "23305546": {
+   "version": "8.0",
+   "update": "update_2b",
+   "name": "ESXi 8.0 Update 2b"
+  },
+  "23307199": {
+   "version": "7.0",
+   "update": "update_3p",
+   "name": "ESXi 7.0 Update 3p"
+  },
+  "23794027": {
+   "version": "7.0",
+   "update": "update_3q",
+   "name": "ESXi 7.0 Update 3q"
+  },
+  "23825572": {
+   "version": "8.0",
+   "update": "update_2c",
+   "name": "ESXi 8.0 Update 2c"
+  },
+  "24022510": {
+   "version": "8.0",
+   "update": "update_3",
+   "name": "ESXi 8.0 Update 3"
+  },
+  "24118393": {
+   "version": "8.0",
+   "update": "d",
+   "name": "ESXi 8.0d"
+  },
+  "24280767": {
+   "version": "8.0",
+   "update": "update_3b",
+   "name": "ESXi 8.0 Update 3b"
+  },
+  "24411414": {
+   "version": "7.0",
+   "update": "update_3r",
+   "name": "ESXi 7.0 Update 3r"
+  },
+  "24414501": {
+   "version": "8.0",
+   "update": "update_3c",
+   "name": "ESXi 8.0 Update 3c"
+  },
+  "24569005": {
+   "version": "8.0",
+   "update": "e",
+   "name": "ESXi 8.0e"
+  },
+  "24585291": {
+   "version": "7.0",
+   "update": "update_3s",
+   "name": "ESXi 7.0 Update 3s"
+  },
+  "24585300": {
+   "version": "8.0",
+   "update": "update_2d",
+   "name": "ESXi 8.0 Update 2d"
+  },
+  "24585383": {
+   "version": "8.0",
+   "update": "update_3d",
+   "name": "ESXi 8.0 Update 3d"
+  },
+  "24674464": {
+   "version": "8.0",
+   "update": "update_3e",
+   "name": "ESXi 8.0 Update 3e"
+  },
+  "24723872": {
+   "version": "7.0",
+   "update": "update_3v",
+   "name": "ESXi 7.0 Update 3v"
+  },
+  "24784735": {
+   "version": "8.0",
+   "update": "update_3f",
+   "name": "ESXi 8.0 Update 3f"
+  },
+  "24784741": {
+   "version": "7.0",
+   "update": "update_3w",
+   "name": "ESXi 7.0 Update 3w"
+  },
+  "24789317": {
+   "version": "8.0",
+   "update": "update_2e",
+   "name": "ESXi 8.0 Update 2e"
+  },
+  "24814147": {
+   "version": "8.0",
+   "update": "f",
+   "name": "ESXi 8.0f"
+  },
+  "24859861": {
+   "version": "8.0",
+   "update": "update_3g",
+   "name": "ESXi 8.0 Update 3g"
+  },
+  "25067014": {
+   "version": "8.0",
+   "update": "update_3h",
+   "name": "ESXi 8.0 Update 3h"
+  },
+  "25191479": {
+   "version": "8.0",
+   "update": "g",
+   "name": "ESXi 8.0g"
+  },
+  "25205845": {
+   "version": "8.0",
+   "update": "update_3i",
+   "name": "ESXi 8.0 Update 3i"
+  },
+  "25429389": {
+   "version": "8.0",
+   "update": "update_3j",
+   "name": "ESXi 8.0 Update 3j"
+  },
+  "25595708": {
+   "version": "8.0",
+   "update": "update_3k",
+   "name": "ESXi 8.0 Update 3k"
+  },
+  "25626445": {
+   "version": "8.0",
+   "update": "update_2f",
+   "name": "ESXi 8.0 Update 2f"
+  },
+  "18644231": {
+   "version": "7.0",
+   "update": "update_3",
+   "name": "ESXi 7.0 Update 3"
+  },
+  "18825058": {
+   "version": "7.0",
+   "update": "update_3a",
+   "name": "ESXi 7.0 Update 3a"
+  },
+  "18905247": {
+   "version": "7.0",
+   "update": "update_3b",
+   "name": "ESXi 7.0 Update 3b"
+  }
+ }
+}

@@ -392,6 +392,8 @@ func TestParseSysDesc(t *testing.T) {
 		{"Cisco IOS Software [Bengaluru], Catalyst L3 Switch Software (CAT9K_IOSXE), Version 17.6.4, RELEASE SOFTWARE (fc1)", "", "Cisco IOS XE 17.6.4"},
 		{"Cisco IOS Software [Denali], Catalyst L3 Switch Software (CAT3K_CAA-UNIVERSALK9-M), Version 16.3.7, RELEASE SOFTWARE (fc1)", "", "Cisco IOS XE 16.3.7"},
 		{"Aruba JL261A 2930F-24G-PoE+-4SFP Switch, revision WC.16.10.0011, ROM WC.16.01.0008 (/ws/swbuildm/rel_x/code/build/lld(swbuildm_rel))", "2930F-24G-PoE+-4SFP", "ArubaOS-Switch WC.16.10.0011"},
+		{"ProCurve J8692A Switch 3500yl-24G, revision K.15.18.0008, ROM K.15.20 (/sw/code/build/btm(tm))", "3500yl-24G", "ArubaOS-Switch K.15.18.0008"},
+		{"HP J9021A Switch 2810-24G, revision N.11.14, ROM N.10.02 (/sw/code/build/N_ob(N_REL))", "2810-24G", "ArubaOS-Switch N.11.14"},
 		{"MikroTik RouterOS 6.49.10 (long-term) CRS326-24G-2S+", "CRS326-24G-2S+", "RouterOS 6.49.10"},
 		{"Ubuntu 22.04.3 LTS Linux 5.15.0-91-generic #101-Ubuntu SMP Tue Nov 14 13:30:08 UTC 2023 x86_64", "", "Ubuntu 22.04.3 LTS"},
 		// net-snmp's uname layout (n82): the kernel build's marks only; a release number only when the mark carries one.

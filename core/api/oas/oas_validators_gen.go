@@ -54407,6 +54407,10 @@ func (s InventoryGetInventoryDevicesIDOKAssetModelBasis) Validate() error {
 	switch s {
 	case "stated":
 		return nil
+	case "stated_web":
+		return nil
+	case "stated_sip":
+		return nil
 	case "guess":
 		return nil
 	default:
@@ -54510,6 +54514,10 @@ func (s InventoryGetInventoryDevicesIDOKAssetOsBasis) Validate() error {
 	switch s {
 	case "stated":
 		return nil
+	case "stated_web":
+		return nil
+	case "stated_sip":
+		return nil
 	case "guess":
 		return nil
 	default:
@@ -54612,6 +54620,10 @@ func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected) Validate() e
 func (s InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis) Validate() error {
 	switch s {
 	case "stated":
+		return nil
+	case "stated_web":
+		return nil
+	case "stated_sip":
 		return nil
 	case "guess":
 		return nil
@@ -54894,6 +54906,10 @@ func (s InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis) Validate() error
 	switch s {
 	case "stated":
 		return nil
+	case "stated_web":
+		return nil
+	case "stated_sip":
+		return nil
 	case "guess":
 		return nil
 	default:
@@ -55058,6 +55074,10 @@ func (s InventoryGetInventoryDevicesIDOKAssetVendorBasis) Validate() error {
 	switch s {
 	case "stated":
 		return nil
+	case "stated_web":
+		return nil
+	case "stated_sip":
+		return nil
 	case "guess":
 		return nil
 	default:
@@ -55139,6 +55159,10 @@ func (s *InventoryGetInventoryDevicesIDOKDetectedDiffersItem) Validate() error {
 func (s InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis) Validate() error {
 	switch s {
 	case "stated":
+		return nil
+	case "stated_web":
+		return nil
+	case "stated_sip":
 		return nil
 	case "guess":
 		return nil
@@ -55444,6 +55468,10 @@ func (s *InventoryGetInventoryDevicesIDOKObservationsItem) Validate() error {
 func (s InventoryGetInventoryDevicesIDOKObservationsItemBasis) Validate() error {
 	switch s {
 	case "stated":
+		return nil
+	case "stated_web":
+		return nil
+	case "stated_sip":
 		return nil
 	case "guess":
 		return nil
@@ -56752,6 +56780,10 @@ func (s InventoryGetInventoryDevicesOKItemsItemModelBasis) Validate() error {
 	switch s {
 	case "stated":
 		return nil
+	case "stated_web":
+		return nil
+	case "stated_sip":
+		return nil
 	case "guess":
 		return nil
 	default:
@@ -56854,6 +56886,10 @@ func (s *InventoryGetInventoryDevicesOKItemsItemOs) Validate() error {
 func (s InventoryGetInventoryDevicesOKItemsItemOsBasis) Validate() error {
 	switch s {
 	case "stated":
+		return nil
+	case "stated_web":
+		return nil
+	case "stated_sip":
 		return nil
 	case "guess":
 		return nil
@@ -57175,6 +57211,10 @@ func (s InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis) Validate() err
 	switch s {
 	case "stated":
 		return nil
+	case "stated_web":
+		return nil
+	case "stated_sip":
+		return nil
 	case "guess":
 		return nil
 	default:
@@ -57348,6 +57388,10 @@ func (s *InventoryGetInventoryDevicesOKItemsItemVendor) Validate() error {
 func (s InventoryGetInventoryDevicesOKItemsItemVendorBasis) Validate() error {
 	switch s {
 	case "stated":
+		return nil
+	case "stated_web":
+		return nil
+	case "stated_sip":
 		return nil
 	case "guess":
 		return nil
@@ -58274,6 +58318,29 @@ func (s InventoryGetInventorySnmpDevicesIDOKVersion) Validate() error {
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
+}
+
+func (s *InventoryGetInventorySnmpDevicesIDSimilarOK) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.Devices == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "devices",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
 }
 
 func (s *InventoryGetInventorySnmpOK) Validate() error {
@@ -60826,6 +60893,89 @@ func (s *InventoryPostInventoryImportReq) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "size",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *InventoryPostInventorySnmpDevicesIDApplySimilarOK) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.Results == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "results",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *InventoryPostInventorySnmpDevicesIDApplySimilarReq) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.DeviceIds == nil {
+			return errors.New("nil is invalid value")
+		}
+		if err := (validate.Array{
+			MinLength:    1,
+			MinLengthSet: true,
+			MaxLength:    50,
+			MaxLengthSet: true,
+		}).ValidateLength(len(s.DeviceIds)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.DeviceIds {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     1,
+					MinLengthSet:  true,
+					MaxLength:     96,
+					MaxLengthSet:  true,
+					Email:         false,
+					Hostname:      false,
+					Regex:         nil,
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(elem)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "device_ids",
 			Error: err,
 		})
 	}

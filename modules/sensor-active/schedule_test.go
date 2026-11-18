@@ -337,7 +337,7 @@ func TestPendingGentleScanRunsAtTheFirstWindowTick(t *testing.T) {
 		t.Fatal(err)
 	}
 	calls := e.nm.calls(t)
-	if len(calls) != 1 || !slices.Contains(calls[0], "192.168.10.30") || !slices.Contains(calls[0], "http-title,ssl-cert") {
+	if len(calls) != 1 || !slices.Contains(calls[0], "192.168.10.30") || !slices.Contains(calls[0], "http-title,ssl-cert,http-hp-ilo-info,vmware-version") {
 		t.Fatalf("nmap runs = %q, want the gentle scan with titles of a-printer", calls)
 	}
 	if err := svc.Tick(e.ctx()); err != nil {
@@ -345,5 +345,62 @@ func TestPendingGentleScanRunsAtTheFirstWindowTick(t *testing.T) {
 	}
 	if p.reads != 1 {
 		t.Fatalf("the waiting devices were read %d times: once per start", p.reads)
+	}
+}
+
+// A device found while its kind was unknown is scanned once, gently. When it later becomes one the policy scans normally (its type
+// was set, the fragile kinds changed) it owes a normal scan: the window queues it once; a device that is still fragile is left
+// alone, and once the scan ran (whatever it found) nothing queues it again.
+func TestWindowQueuesTheNormalScanADeviceOwes(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, fakeOpts{})
+	e.inv.addrs = map[netip.Addr]string{netip.MustParseAddr("192.168.10.20"): "a-web", netip.MustParseAddr("192.168.10.30"): "a-printer"}
+	// window 1: both are new and of unknown kind: one gentle scan each
+	first := sa.Decision{Allowed: true, Rate: 1, Reason: "first_gentle_scan", FirstGentle: true, Unclassified: true}
+	e.inv.decision = map[string]sa.Decision{"a-web": first, "a-printer": first}
+	for _, id := range []string{"a-web", "a-printer"} {
+		if err := e.svc.Enqueue(e.ctx(), id, "discovered"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	markSweepDone(t, e, "saj-sweep-a")
+	if err := e.svc.Tick(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.count(`SELECT count(*) FROM sa_probe WHERE shape IN ('gentle', 'gentle_titles')`); n != 2 {
+		t.Fatalf("%d gentle scans in the first window, want 2", n)
+	}
+	// window 2: a-web was given a type the policy scans normally; a-printer is fragile
+	e.inv.mu.Lock()
+	e.inv.decision = map[string]sa.Decision{"a-printer": {Reason: "fragile_passive_only", Fragile: true}}
+	e.inv.mu.Unlock()
+	e.base, e.t0 = local(10, 2, 0), time.Now()
+	markSweepDone(t, e, "saj-sweep-b")
+	if err := e.svc.Tick(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	var web, printerNormal int
+	for _, c := range e.nm.calls(t) {
+		switch {
+		case slices.Contains(c, "192.168.10.20") && slices.Contains(c, "-sV"):
+			web++
+		case slices.Contains(c, "192.168.10.30") && slices.Contains(c, "-sV"):
+			printerNormal++
+		}
+	}
+	if web == 0 || printerNormal != 0 {
+		t.Fatalf("normal scans of a-web = %d (want at least 1), of the fragile a-printer = %d", web, printerNormal)
+	}
+	if n := e.count(`SELECT count(*) FROM sa_job WHERE asset_id = 'a-web' AND reason = 'normal_owed'`); n != 1 {
+		t.Fatalf("%d jobs of the owed scan", n)
+	}
+	// window 3: the scan has run, so nothing is owed
+	e.base, e.t0 = local(11, 2, 0), time.Now()
+	markSweepDone(t, e, "saj-sweep-c")
+	if err := e.svc.Tick(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.count(`SELECT count(*) FROM sa_job WHERE asset_id = 'a-web' AND reason = 'normal_owed'`); n != 1 {
+		t.Fatalf("%d jobs of the owed scan after the next window, want still 1", n)
 	}
 }

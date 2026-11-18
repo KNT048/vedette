@@ -38,3 +38,9 @@ var PlatformLimits []byte
 //
 //go:embed network-os.json
 var NetworkOS []byte
+
+// ESXiBuilds is esxi-builds.json: the ESXi build number of each 8.0 and 7.0 release, as NVD names it (version and update), read by
+// sensor-active to give a host's own statement the right CPE.
+//
+//go:embed esxi-builds.json
+var ESXiBuilds []byte

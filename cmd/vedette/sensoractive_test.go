@@ -165,7 +165,7 @@ func TestSensorActiveScansADiscoveredDevice(t *testing.T) {
 		t.Fatal(err)
 	}
 	calls := nm.calls(t)
-	want := []string{"--privileged", "-sS", "-sV", "-O", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "100", "--max-retries", "3", "--top-ports", "1000", "--host-timeout", "30m", "--stats-every", "5s", "-oX", "-", "192.168.10.20"}
+	want := []string{"--privileged", "-sS", "-sV", "-O", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert,http-hp-ilo-info,vmware-version", "-n", "--max-rate", "100", "--max-retries", "3", "--top-ports", "1000", "--host-timeout", "30m", "--stats-every", "5s", "-oX", "-", "192.168.10.20"}
 	// the queue's normal scan and its extra ports, then the device's first weekly scan of every port in the same window
 	if got := scanTargets(calls, "192.168.10.20"); len(got) != 3 || !slices.Equal(got[0], want) || !slices.Contains(got[1], nmapargv.ExtraPorts) ||
 		!slices.Contains(got[2], "-p-") || slices.Contains(got[2], "-O") {

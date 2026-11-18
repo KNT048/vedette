@@ -369,3 +369,39 @@ describe('SNMP notices and the Scanning card', () => {
     expect(screen.getByText('SNMP is set up on 1 device. Open one to edit it or check it now.')).toBeInTheDocument()
   })
 })
+
+describe('Device page: use these SNMP settings on similar devices', () => {
+  it('lists devices of the same maker or type without settings, prechecks the same maker, applies to the ticked ones', async () => {
+    const bodies: unknown[] = []
+    server.events.on('request:start', async ({ request }) => { if (request.url.includes('/apply-similar')) bodies.push(await request.clone().json()) })
+    const user = userEvent.setup()
+    renderApp('/devices/a-fw01', { role: 'admin' })
+    const c = await card()
+    await user.click(await within(c).findByRole('button', { name: 'Use on similar devices' }, T))
+    const dlg = await dialog()
+    const boxes = await within(dlg).findAllByRole('checkbox', undefined, T)
+    expect(boxes.length).toBeGreaterThan(0)
+    const maker = within(dlg).getByRole('checkbox', { name: /192\.168\.10\.251/ })
+    expect(maker).toBeChecked() // same maker (Fortinet): prechecked
+    expect(dlg).not.toHaveTextContent('ro-auth-2fe8') // the secret never reaches the page
+    await user.click(within(dlg).getByRole('button', { name: /^Use on \d+ devices?$/ }))
+    expect(await within(dlg).findByText('Settings saved, read queued.', undefined, T)).toBeInTheDocument()
+    expect(bodies).toHaveLength(1)
+    expect((bodies[0] as { device_ids: string[] }).device_ids).toContain('a-unk02')
+    expect(snmpStore.get().find((x) => x.device_id === 'a-unk02')?.read_from).toBe('192.168.10.251')
+  })
+
+  it('a device that was ticked but is no longer a candidate says so, and nothing is saved on it', async () => {
+    const user = userEvent.setup()
+    renderApp('/devices/a-fw01', { role: 'admin' })
+    const c = await card()
+    await user.click(await within(c).findByRole('button', { name: 'Use on similar devices' }, T))
+    const dlg = await dialog()
+    await within(dlg).findAllByRole('checkbox', undefined, T)
+    // the device gets its own settings while the list is open
+    const own = snmpStore.get().find((x) => x.device_id === 'a-fw01')!
+    snmpStore.update((l) => [...l, { ...own, device_id: 'a-unk02', read_from: '192.168.10.251' }])
+    await user.click(within(dlg).getByRole('button', { name: /^Use on \d+ devices?$/ }))
+    expect(await within(dlg).findByText(/not a candidate any more/, undefined, T)).toBeInTheDocument()
+  })
+})

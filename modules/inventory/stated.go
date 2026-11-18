@@ -8,6 +8,7 @@ import (
 
 	catalogdata "github.com/knt048/vedette/content/catalog"
 	"github.com/knt048/vedette/content/oui"
+	"github.com/knt048/vedette/core/observe"
 )
 
 // What a device announces about itself ranks above what a scan guesses (INV-44). A switch's LLDP system description states its
@@ -75,6 +76,8 @@ const (
 // LLDP statement, or "" (the source and confidence say it all).
 func osBasis(value, source, mac string) string {
 	switch {
+	case source == "nmap" && observe.SelfStatedBasis(value) != "":
+		return observe.SelfStatedBasis(value) // the device's own statement without a login (observe.SelfStatedBasis)
 	case source == "nmap" && !ntlmAnswer(value):
 		return basisGuess
 	case source == "passive" && lldpStated(value, mac):
@@ -84,7 +87,8 @@ func osBasis(value, source, mac string) string {
 }
 
 // markStated sets stated on each OS observation of list that is the device's LLDP statement (lldpStated), read against the MAC
-// that wins in list (the newest one, INV-1). A list without a MAC states nothing.
+// that wins in list (the newest one, INV-1), or the device's own statement without a login (observe.SelfStatedBasis, written by a scan
+// as source nmap). A list without a MAC states no LLDP OS.
 func markStated(list []obs) {
 	var mac obs
 	for _, o := range list {
@@ -93,7 +97,8 @@ func markStated(list []obs) {
 		}
 	}
 	for i, o := range list {
-		list[i].stated = o.field == "os" && o.source == "passive" && mac.id != "" && lldpStated(o.value, mac.value)
+		list[i].stated = o.field == "os" && (o.source == "passive" && mac.id != "" && lldpStated(o.value, mac.value) ||
+			o.source == "nmap" && observe.SelfStatedBasis(o.value) != "")
 	}
 }
 

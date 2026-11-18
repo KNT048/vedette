@@ -248,6 +248,10 @@ func deviceObservations(h host, shape nmapargv.Kind) []observe.Observation {
 	add(observe.Hostname, cmp.Or(h.hostname, h.ntlm.name()), 0.6)
 	add(observe.Vendor, h.vendor, 0.6)
 	kind := ""
+	// what the device states about its firmware without a login: its own words, ranked above nmap's guess (INV-25)
+	if fw := h.statedFirmware(); len(fw) > 0 {
+		add(observe.OS, fw[0].os, nmapCeiling)
+	}
 	w, ntlm := windowsOf(h)
 	if ntlm { // the device's own answer outranks nmap's fingerprint guess
 		add(observe.OS, w.display, nmapCeiling)
@@ -307,6 +311,11 @@ func softwareOf(h host) []observe.Software {
 			out = append(out, s)
 		}
 	}
+	stated := map[string]bool{} // vendor|product the device itself stated a version of: a service's OS CPE of the same product adds no second row
+	for _, f := range h.statedFirmware() {
+		add(f.sw)
+		stated[strings.ToLower(f.sw.Vendor+"|"+f.sw.Product)] = true
+	}
 	for _, p := range h.ports {
 		conf := serviceConf(p.conf)
 		var withCPE bool
@@ -346,7 +355,7 @@ func softwareOf(h host) []observe.Software {
 	if !ok { // no sure OS fingerprint: the OS a service names is the OS row, only with the version -sV read from that service
 		for _, p := range h.ports {
 			for _, c := range p.cpes {
-				if part, vendor, product, _, ok := cpeParts(c); ok && part == "o" && p.version != "" {
+				if part, vendor, product, _, ok := cpeParts(c); ok && part == "o" && p.version != "" && !stated[strings.ToLower(vendor+"|"+product)] {
 					add(observe.Software{Display: strings.TrimSpace(vendor + " " + product + " " + p.version), Vendor: vendor, Product: product, Version: p.version, CPE: cpeBase(c), Confidence: serviceConf(p.conf) * 0.8})
 				}
 			}

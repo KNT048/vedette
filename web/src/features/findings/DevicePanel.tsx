@@ -17,6 +17,7 @@ import { useDeviceSoftware } from './rematch'
 import { PlanDataState } from './Plan'
 import { DeviceCard, WithBox, actionable, listed as hasWork, typedSoftware } from './ToFix'
 import { NotRelevantToggle, withoutNotRelevant } from './notRelevant'
+import { RowActions } from './Handle'
 
 /** Slot device.panels (trang chi tiết thiết bị của module inventory): phát hiện của đúng thiết bị này. */
 export function DevicePanel(props: Record<string, unknown>) {
@@ -51,9 +52,8 @@ export function DevicePanel(props: Record<string, unknown>) {
           if (listed.rows.length === 0) return <div className="grid gap-1"><p className="text-sm text-muted">{t('device.onlyNotRelevant', { count: listed.total })}</p>{toggle}</div>
           return (
           <div className="grid gap-2">
-          {d.items.some((f) => isOpen(f.status)) ? (
-            <Link to={`/findings?tab=open&device=${encodeURIComponent(assetId)}`} className="w-fit text-meta text-accent underline underline-offset-4">{t('device.handleAll')}</Link>
-          ) : null}
+          {/* each finding is handled on its own line (Confirm or Mark as handled…, the rest under More actions); the device page has
+              its own Add device and Ignore */}
           {rest.length ? <Card flush><ul aria-label={t('device.all')} className="divide-y divide-rule">
             {[...rest].sort((a, b) => riskRank(b) - riskRank(a)).map((f) => (
               <li key={f.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3">
@@ -62,6 +62,7 @@ export function DevicePanel(props: Record<string, unknown>) {
                 <FindingStatusChip f={f} />
                 <RiskChip f={f} />
                 <span className="ml-auto text-caption text-muted" title={`${fmtDateTime(f.last_seen)}. ${t('matchedInfo')}`}>{t('matched', { time: fmtRelative(f.last_seen) })}</span>
+                <RowActions f={f} />
               </li>
             ))}
           </ul></Card> : null}

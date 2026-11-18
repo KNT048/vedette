@@ -18,6 +18,11 @@ const run = (over: Partial<ScanRun>): ScanRun => ({
   id: 'run-nas', trigger: 'manual', trigger_note: null, started_at: '2026-11-17T03:18:00.000Z', started_by: 'admin@acme.example', ended_at: '2026-11-17T03:25:00.000Z',
   status: 'done', total: 1, done: 1, current: null, progress: null, results: [], matched: 0, stop_reason: null, identification: [], ...over,
 })
+/** A suspected finding a vulnerability check can confirm (its CVE has a safe check): the device page offers the run. */
+const checkableOn = (asset: string) => {
+  const tpl = findingsStore.get()[0]!
+  findingsStore.update((l) => [...l, { ...tpl, id: `f-chk-${asset}`, asset_id: asset, cve: 'CVE-2026-97229', status: 'suspected' as const }])
+}
 const result = (target: string, cve: string) => ({ target_id: target, label: target, ip: '192.168.10.21', template: null, result: 'no_template' as const, finding_id: null, note: cve })
 
 describe('the device page says what each check does and when each last ran', () => {
@@ -59,6 +64,7 @@ describe('the device page says what each check does and when each last ran', () 
 
   it('a kind that never ran says "Never" and what runs it; the checks module off says so', async () => {
     server.use(http.get('*/api/v1/scans/runs', () => HttpResponse.json({ engine_busy: false, items: [] })))
+    checkableOn('a-nas01')
     renderApp('/devices/a-nas01')
     const ident = await screen.findByRole('group', { name: IDENT }, T)
     // the hints name the two buttons, which this device's page shows
@@ -201,7 +207,7 @@ describe('Last checks never points at a button the device page does not show', (
     suspect(['CVE-2024-27834', 'CVE-2026-119977'])
     renderApp('/devices/a-man1')
     const section = await lastChecks()
-    expect(await within(section).findByText(/No safe check exists for these 2 suspected CVEs/, undefined, T)).toBeInTheDocument()
+    expect(await within(section).findByText(/No suspected finding on this device has a safe check: none exists for these 2 suspected CVEs/, undefined, T)).toBeInTheDocument()
     expect(within(section).queryByRole('button', { name: 'Run vulnerability checks now' })).toBeNull()
   })
 
@@ -213,6 +219,41 @@ describe('Last checks never points at a button the device page does not show', (
     const section = await lastChecks()
     expect(await within(section).findByText(/1 of 2 suspected findings can be checked\./, undefined, T)).toBeInTheDocument()
     expect(within(section).getByRole('button', { name: 'Run vulnerability checks now' })).toBeInTheDocument()
+  })
+
+  it('every finding confirmed and none with a safe check: no run is offered, the note says why, the row never names the button', async () => {
+    noRuns()
+    addDevice({ ip: '192.168.10.241' })
+    suspect(['CVE-2024-27834', 'CVE-2026-119977'])
+    findingsStore.update((l) => l.map((f) => (f.asset_id === 'a-man1' ? { ...f, status: 'confirmed' as const } : f)))
+    renderApp('/devices/a-man1')
+    const section = await lastChecks()
+    expect(await within(section).findByText(/No suspected finding on this device has a safe check: nothing on it is suspected/, undefined, T)).toBeInTheDocument()
+    expect(within(section).queryByRole('button', { name: 'Run vulnerability checks now' })).toBeNull()
+    expect(within(await within(section).findByRole('group', { name: VULN }, T)).getByText('Not run yet.')).toBeInTheDocument()
+  })
+
+  it('a confirmed finding with a safe check: the run is offered to check it again', async () => {
+    noRuns()
+    addDevice({ ip: '192.168.10.241' })
+    suspect(['CVE-2026-97229'])
+    findingsStore.update((l) => l.map((f) => (f.asset_id === 'a-man1' ? { ...f, status: 'confirmed' as const } : f)))
+    renderApp('/devices/a-man1')
+    const section = await lastChecks()
+    expect(await within(section).findByText(/1 confirmed or mitigated finding can be checked again, to see whether a fix or mitigation holds\./, undefined, T)).toBeInTheDocument()
+    expect(within(section).getByRole('button', { name: 'Run vulnerability checks now' })).toBeInTheDocument()
+  })
+
+  it('a mitigated finding with a safe check is its only one: the run is offered to see whether the mitigation holds', async () => {
+    noRuns()
+    addDevice({ ip: '192.168.10.241' })
+    suspect(['CVE-2026-97229'])
+    findingsStore.update((l) => l.map((f) => (f.asset_id === 'a-man1' ? { ...f, status: 'mitigated' as const } : f)))
+    renderApp('/devices/a-man1')
+    const section = await lastChecks()
+    expect(await within(section).findByText(/1 confirmed or mitigated finding can be checked again/, undefined, T)).toBeInTheDocument()
+    expect(within(section).getByRole('button', { name: 'Run vulnerability checks now' })).toBeInTheDocument()
+    expect(within(section).queryByText(/a run would do nothing/)).toBeNull()
   })
 
   it('a device not approved yet: the device check button is there and named, the vulnerability check says to approve it', async () => {
@@ -229,6 +270,7 @@ describe('Last checks never points at a button the device page does not show', (
 
   it('a viewer sees both buttons disabled: the hints say who can run them', async () => {
     noRuns()
+    checkableOn('a-nas01')
     renderApp('/devices/a-nas01', { role: 'viewer' })
     const section = await lastChecks()
     const ident = await within(section).findByRole('group', { name: IDENT }, T)
@@ -238,6 +280,7 @@ describe('Last checks never points at a button the device page does not show', (
 
   it('an operator runs the vulnerability checks, an admin the device check', async () => {
     noRuns()
+    checkableOn('a-nas01')
     renderApp('/devices/a-nas01', { role: 'operator' })
     const section = await lastChecks()
     const ident = await within(section).findByRole('group', { name: IDENT }, T)

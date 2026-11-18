@@ -37,6 +37,18 @@ type ServiceConfig struct {
 	// Applied reports which of the findings have a mitigation item a person marked applied (mitigation's log): such a
 	// finding counts as decided when a merge must keep one of two findings of a CVE. nil: none has.
 	Applied func(ctx context.Context, findingIDs []string) (map[string]bool, error)
+	// SafeCheck says whether a safe vulnerability check exists for a CVE: the binary answers from the template pack the scan
+	// itself plans with (scan Pack.ForCVE), never the nuclei-templates feed flag, which is off on an offline box and lists
+	// templates the pack does not ship. The Feeds port's KevInfo.HasTemplate is the same answer. nil: Vuln.HasTemplate as given.
+	SafeCheck func(cve string) bool
+}
+
+// safeCheck is ServiceConfig.SafeCheck for v, else v's own flag.
+func (s *Service) safeCheck(v Vuln) bool {
+	if s.cfg.SafeCheck != nil {
+		return s.cfg.SafeCheck(v.CVE)
+	}
+	return v.HasTemplate
 }
 
 // Have is the scope of one device declared by "I have this" (INV-11): its software of KEV key Key that has no version

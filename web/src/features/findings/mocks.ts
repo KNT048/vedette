@@ -141,7 +141,10 @@ function assetView(a: Asset | undefined): FindingAsset | null {
 function row(f: Finding): FindingRow {
   const until = accepted.get()[f.id] ?? null
   const status = until ? 'risk_accepted' : f.status
-  return { ...f, status, accepted_until: until, resolution_reason: null, proved_version: null, software_id: '', asset: assetView(assetsStore.get().find((a) => a.id === f.asset_id)), kev: kevInfo(f.cve), cvss: cvssOf(f.cve),
+  // as findings.ShownConfidence: a finding its evidence confirms is never shown below a scan's confirmation (0.95), in any status
+  const confirmedBy = f.basis === 'scan' || f.basis === 'person' || (f.basis === 'version' && f.status === 'confirmed')
+  const confidence = confirmedBy ? Math.max(f.confidence, 0.95) : f.confidence
+  return { ...f, status, confidence, accepted_until: until, resolution_reason: null, proved_version: null, software_id: '', asset: assetView(assetsStore.get().find((a) => a.id === f.asset_id)), kev: kevInfo(f.cve), cvss: cvssOf(f.cve),
     fix: status === 'confirmed' || status === 'suspected' ? fixes.get()[f.id] ?? null : null }
 }
 

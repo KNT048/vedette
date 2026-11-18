@@ -329,7 +329,7 @@ type Detail struct {
 
 func newRow(r Record, a *AssetView, k *KevInfo, c *CVSS) Row {
 	row := Row{
-		ID: r.ID, AssetID: r.AssetID, CVE: r.CVE, Status: r.Status, Severity: r.Severity, Confidence: r.Confidence, Basis: r.Basis,
+		ID: r.ID, AssetID: r.AssetID, CVE: r.CVE, Status: r.Status, Severity: r.Severity, Confidence: r.ShownConfidence(), Basis: r.Basis,
 		Evidence: apiEvidence(r.Evidence), FirstSeen: r.FirstSeen.UTC(), LastSeen: r.LastSeen.UTC(),
 		History: make([]historyDoc, 0, len(r.History)), Asset: a, Kev: k, CVSS: c,
 	}

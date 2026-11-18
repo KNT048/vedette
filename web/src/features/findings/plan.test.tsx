@@ -220,6 +220,31 @@ describe('Updates to plan (S-TIER-1, S-TIER-2)', () => {
     await expectNoA11yViolations()
   })
 
+  it('a package of a distribution without fix data says the count is upstream\'s and how to confirm, never "fixes N CVEs"', async () => {
+    const cve = (n: number) => ({ cve: `CVE-2026-${4000 + n}`, tier: 'recent', basis: 'agent', severity: 'high', score: 7.5, published: '2026-06-01', epss: 0.01, percentile: 0.5 })
+    const item = { group: 'a-alp/s-ssh', asset: { id: 'a-alp', name: 'alpine-edge' }, risk: null, software: 'OpenSSH', version: '10.2_p1-r1', fixed: '',
+      kind: 'distro', pro: false, distro: 'Alpine Linux', nvd_lag: false, kb: '', cves: [cve(1), cve(2)], likely: 0, recent: 2, agent_gone: false, agent_reported: null }
+    server.use(http.get('*/api/v1/findings/plan', () => HttpResponse.json({ items: [item], counts: { likely: 0, recent: 1, all: 1 }, compared: true, compared_devices: 1, unchecked_devices: 0, old_evidence: 0,
+      data: { epss: 'ready', recent: 'ready', epss_date: '2026-11-17', recent_since: '2025-11-17' } })))
+    renderApp('/plan?tier=all')
+    const list = await screen.findByRole('list', { name: 'Recommended updates' })
+    const row = within(list).getAllByRole('listitem')[0]!
+    expect(row).toHaveTextContent('Install Alpine Linux\'s security updates for OpenSSH (10.2_p1-r1): upstream fixed 2 CVEs in later releases')
+    expect(row).toHaveTextContent('Alpine Linux publishes no fix data Vedette can check this package against, so confirm with apk upgrade.')
+    expect(row).not.toHaveTextContent(/fixes 2 CVEs/)
+    cleanup()
+
+    // Ubuntu has fix data Vedette reads: this package could not be matched to it
+    const ubuntu = { ...item, asset: { id: 'a-ub', name: 'web-ubuntu' }, software: 'example-lib', version: '1.2-1', distro: 'Ubuntu' }
+    server.use(http.get('*/api/v1/findings/plan', () => HttpResponse.json({ items: [ubuntu], counts: { likely: 0, recent: 1, all: 1 }, compared: true, compared_devices: 1, unchecked_devices: 0, old_evidence: 0,
+      data: { epss: 'ready', recent: 'ready', epss_date: '2026-11-17', recent_since: '2025-11-17' } })))
+    renderApp('/plan?tier=all')
+    const again = await screen.findByRole('list', { name: 'Recommended updates' })
+    const u = within(again).getAllByRole('listitem')[0]!
+    expect(u).toHaveTextContent('Vedette could not match this package to Ubuntu\'s fix data, so confirm with apt upgrade.')
+    expect(u).not.toHaveTextContent('publishes no fix data')
+  })
+
   it('the CVE page answers for a CVE on no exploited list, with its devices from Updates to plan', async () => {
     renderApp('/cve/CVE-2026-31001')
     expect(await screen.findByRole('heading', { level: 1, name: 'CVE-2026-31001' })).toBeInTheDocument()

@@ -135,21 +135,40 @@ export function DeviceActions({ assetId, asset: d }: { assetId: string; /** The 
 function DeviceVulnChecks({ assetId, vuln }: { assetId: string; vuln: VulnButton }) {
   const { t } = useTranslation('scanning')
   const hint = useId()
-  const findingsOn = useModuleEnabled('findings') === true
-  const list = useFindings(assetId, findingsOn)
+  const c = useVulnCheckable(assetId)
   if (vuln === 'off') return null
   if (vuln) return <p className="text-meta text-muted">{t(`scan:reason.${vuln}`)}</p>
-  if (findingsOn && list.isPending) return null // the count decides whether a run is offered: wait for it
-  // How many of the device's suspected findings have a safe check (the KEV entry's has_template): the run can only confirm those
-  const suspected = (list.data?.items ?? []).filter((f) => f.status === 'suspected')
-  const checkable = suspected.filter((f) => f.kev?.has_template).length
-  if (suspected.length > 0 && checkable === 0) return <p className="max-w-xs text-meta text-muted">{t('hint.vulnNone', { count: suspected.length })}</p>
+  if (c.pending) return null // the count decides whether a run is offered: wait for it
+  // nothing a run could confirm or rule out: no button that runs for nothing, and why (nothing suspected, or no check exists)
+  if (c.none) return <p className="max-w-xs text-meta text-muted">{c.suspected === 0 ? t('hint.vulnNoneSuspected') : t('hint.vulnNone', { count: c.suspected })}</p>
   return (
     <div className="grid max-w-xs gap-1">
       <VulnChecksButton targets={[assetId]} describedBy={hint} />
-      <p id={hint} className="text-meta text-muted">{t('hint.vuln')}{suspected.length > 0 ? ` ${t('hint.vulnCount', { checkable, count: suspected.length })}` : ''}</p>
+      <p id={hint} className="text-meta text-muted">
+        {t('hint.vuln')}
+        {c.counted && c.suspected > 0 ? ` ${t('hint.vulnCount', { checkable: c.checkable, count: c.suspected })}` : ''}
+        {c.again > 0 ? ` ${t('hint.vulnAgain', { count: c.again })}` : ''}
+      </p>
     </div>
   )
+}
+
+/** What a vulnerability check of the device can do: `checkable` of its `suspected` findings have a safe check (the finding's
+ *  has_template: the scan's own template pack) it can confirm or rule out, and `again` of its confirmed or mitigated ones a check
+ *  it can run again to see whether a fix or a mitigation holds. `none`: neither, so the device page offers no run (nothing
+ *  suspected, or no check exists). Not counted (findings off, no device yet, or its read failed): the run is offered as before,
+ *  without a count. The device page's button and its Last checks row read this one rule. Without an id it reads nothing (never
+ *  the whole /findings list). */
+export function useVulnCheckable(assetId: string) {
+  const findingsOn = useModuleEnabled('findings') === true && assetId !== ''
+  const list = useFindings(assetId, findingsOn)
+  const counted = findingsOn && list.isSuccess
+  const items = counted ? list.data.items : []
+  const suspected = items.filter((f) => f.status === 'suspected')
+  const checkable = suspected.filter((f) => f.kev?.has_template).length
+  // the scan also checks confirmed and mitigated findings again (scan run.go `dismissed`): whether a fix or a mitigation holds
+  const again = items.filter((f) => (f.status === 'confirmed' || f.status === 'mitigated') && f.kev?.has_template).length
+  return { pending: findingsOn && list.isPending, counted, suspected: suspected.length, checkable, again, none: counted && checkable + again === 0 }
 }
 
 /** A device added by hand whose network scan is off: the full note is on its Sources card, next to the switch that turns the scan

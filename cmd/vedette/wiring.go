@@ -335,7 +335,7 @@ func (a findingsFeeds) KevInfo(ctx context.Context, cves []string) (map[string]f
 			due = &v.DueDate
 		}
 		out[v.CVE] = findings.KevInfo{Name: v.Name, Vendor: v.Vendor, Product: v.Product, Display: feeds.DisplayOf(v.Vendor, v.Product),
-			RequiredAction: v.RequiredAction, Links: v.Links, DateAdded: v.DateAdded, DueDate: due, Ransomware: v.Ransomware, EPSS: v.EPSS, HasTemplate: v.HasTemplate, Source: v.SourceID}
+			RequiredAction: v.RequiredAction, Links: v.Links, DateAdded: v.DateAdded, DueDate: due, Ransomware: v.Ransomware, EPSS: v.EPSS, HasTemplate: safeCheckFor(v.CVE), Source: v.SourceID}
 		if d, ok := pub[v.CVE]; ok {
 			k := out[v.CVE]
 			k.Published = &d
@@ -624,7 +624,8 @@ func buildServices(ctx context.Context, d *deps) error {
 	// Backlog: findings the reconcile job creates for old KEV entries are backlog, silent for notify (findings does not import notify).
 	cfg := findings.ServiceConfig{DB: d.DB, Audit: d.Audit, Inventory: inv, Feeds: feed, Log: d.Log, Clock: d.Clock, Zone: orgTimeZone(d), Backlog: notify.WithBaseline,
 		HaveSince: findingsHave(fs.Store()), // "I have this" on Home scopes the one device it declared
-		Applied:   mitigationApplied(d.DB)}  // a merge keeps the finding a person marked a mitigation item applied on
+		Applied:   mitigationApplied(d.DB),  // a merge keeps the finding a person marked a mitigation item applied on
+		SafeCheck: safeCheckFor}             // "a safe check exists": the scan's own pack, the same answer as KevInfo.HasTemplate
 	if d.Bus != nil {
 		cfg.Publisher = findingsPublisher{d.Bus}
 	}

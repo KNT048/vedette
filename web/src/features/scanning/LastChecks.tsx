@@ -18,7 +18,7 @@ import { scanRefusal, useDeviceButtons, type DeviceRefusal } from './canScan'
 import { historyRowHref } from './places'
 import { HistoryOutcome } from './RunHistory'
 import { hasSnmpCard, hasSourcesCard } from '@/features/inventory/nameOf'
-import { DeviceActions, ScanOffSeeSources } from './DeviceActions'
+import { DeviceActions, ScanOffSeeSources, useVulnCheckable } from './DeviceActions'
 
 const link = 'text-accent underline-offset-4 hover:underline'
 
@@ -80,6 +80,8 @@ export function LastChecks(props: Record<string, unknown>) {
   const cfg = useScanConfig(scanOn === true)
   // the buttons the device page shows for this device (DeviceActions' own rule): a hint names a button only when it is there
   const buttons = useDeviceButtons(assetId, device.data?.asset)
+  // no suspected finding a run could check: the page offers no "Run vulnerability checks now", so the row never names it
+  const checkable = useVulnCheckable(assetId)
   if (!assetId) return null
   // #965: a read that failed or has not answered is never "Never"
   const failed = [history, modules, device].find((q) => q.isError)
@@ -97,11 +99,12 @@ export function LastChecks(props: Record<string, unknown>) {
   // the cause is the note above the rows (DeviceActions): the rows say only that nothing ran
   const neverIdentify = refusal === 'manual' ? seeSources : refusal ? t('lastChecks.notRun') : admin ? t('lastChecks.neverIdentify') : t('lastChecks.neverIdentifyRole')
   const vulnReason = buttons.vuln && buttons.vuln !== 'off' ? vulnWhy(buttons.vuln, a?.origin, buttons.identify) : null
+  const blockReason = cfg.data && !cfg.data.can_scan && cfg.data.block_reason ? cfg.data.block_reason : null
   const neverVuln = vulnReason === 'manual' ? seeSources
     : vulnReason ? t('lastChecks.notRun')
+    : checkable.none ? blockReason ?? t('lastChecks.notRun')
     : !operator ? t('lastChecks.neverVulnRole')
-    : cfg.data && !cfg.data.can_scan && cfg.data.block_reason ? cfg.data.block_reason
-    : t('lastChecks.neverVuln')
+    : blockReason ?? t('lastChecks.neverVuln')
   // the device's own SNMP card is on this page (the page's rule, SnmpCard.hasSnmpCard)
   const snmpCard = !!a && hasSnmpCard(a, admin, modules.data?.modules.find((m) => m.id === 'sensor-active')?.enabled === true)
   return (

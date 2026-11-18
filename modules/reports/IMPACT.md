@@ -15,6 +15,7 @@
 
 ## Modifying: interface đọc dữ liệu (`inventory.AllDevices`, `findings.List`, `feeds.Store.KevVulns` / `KevPulledAt`, `feeds.Service.NewlyExploited`, `feeds.DisplayOf`)
 - `kev_new`/`kev_matched` là `feeds.Service.NewlyExploited` (cùng số với trang chủ), tên sản phẩm là `feeds.DisplayOf` (cùng tên với Findings), `devices` đếm cả hộp như trang Devices. Đổi một trong ba ở module kia là đổi báo cáo theo, đúng ý.
+- Finding `patched` do Vedette đóng vì thiết bị được cập nhật (`fixed_by_update`, `resolved_by=system`) được tính là đã xử lý và dòng ghi `by` = "Vedette" (INV-13); đổi `resolved_by` của đóng tự động ⇒ sửa `weekly.go`.
 - Reports là **người tiêu thụ** của `inventory`, findings (core), `feeds`; đổi ngữ nghĩa trạng thái finding (`confirmed/suspected/mitigated/patched/false_positive/not_relevant/risk_accepted`; `risk_accepted` là đã đóng nhưng **không** tính vào "đã xử lý" của tuần: `Counts.Accepted`/`AcceptedUntil` và dòng "Risk accepted: N (until …)"; cần `Finding.AcceptedUntil` do adapter `cmd/vedette/reports.go` điền từ findings) hoặc loại thiết bị → báo cáo đếm sai nhưng không báo lỗi. Cần test hợp đồng ở `inventory`.
 
 - `Finding.Agent` do `cmd/vedette/reports.go` điền từ `findings.Record.Evidence.Agent`; mất ⇒ dòng báo cáo lại nói "Suspected" cho phát hiện của agent.

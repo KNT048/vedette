@@ -103,6 +103,7 @@
   "GET /inventory/catalog": "inventory",
   "GET /inventory/devices": "inventory",
   "GET /inventory/devices/{id}": "inventory",
+  "GET /inventory/devices/{id}/software": "inventory",
   "GET /inventory/export.csv": "inventory",
   "GET /inventory/import-template.csv": "inventory",
   "GET /inventory/possible-same": "inventory",

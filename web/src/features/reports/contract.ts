@@ -10,6 +10,7 @@ export const FindingRow = z.object({
   severity: z.enum(['critical', 'high', 'medium', 'low', 'info']), since: iso,
   by: z.string().optional().describe('Who closed it (rows of what was done)'),
   agent: z.boolean().optional().describe("The version compared is the one the device's own agent reports (findings evidence.agent): the status reads \"Detected by the agent\", not \"Suspected\"; absent in reports sent before it"),
+  device_approved: z.boolean().optional().describe('False when the device is still to review, not in the Devices list yet; absent in reports made before it (read as approved)'),
 })
 export const TopRisk = z.object({
   product: z.string().describe('The product as Findings names it'), device: z.string().describe('The device, or the first names and how many more'),
@@ -32,21 +33,27 @@ export const Happened = z.object({
   })).max(3),
 }).describe('Incidents of the week from notify: counts per kind and the few that matter')
 export const AiSummary = z.object({ paragraphs: z.array(z.string()), model: z.string(), profile: z.string().optional().describe('AI profile that answered'), tokens: z.object({ input: z.number(), output: z.number() }), generated_at: iso })
+export const WeeklyCounts = z.object({
+  new_findings: z.number(), resolved: z.number().describe('Closed this week; accepted risks are counted in accepted'), open_confirmed: z.number(), open_suspected: z.number(),
+  accepted: z.number().optional().describe('Risks accepted this week; absent when none or in reports sent before it'),
+  accepted_until: z.iso.date().optional().describe('The earliest day one of those acceptances ends'),
+  devices: z.number().describe('Devices as the Devices page counts them, this box included'), devices_unapproved: z.number(), devices_new: z.number(),
+  kev_new: z.number().describe('Vulnerabilities newly exploited in the last 7 days, as Home counts them'),
+  kev_matched: z.number().describe('Products you use among them, as Home counts them (earlier reports: their CVEs on a device)'),
+  not_relevant: z.number().optional().describe('Different findings closed as not relevant among the figures; absent in reports sent before it'),
+  not_relevant_new: z.number().optional().describe('Of new_findings, the ones closed as not relevant'),
+  not_relevant_resolved: z.number().optional().describe('Of resolved, the ones closed as not relevant'),
+})
 export const WeeklyReport = z.object({
   period: z.object({ from: iso, to: iso }), generated_at: iso,
-  counts: z.object({
-    new_findings: z.number(), resolved: z.number().describe('Closed this week; accepted risks are counted in accepted'), open_confirmed: z.number(), open_suspected: z.number(),
-    accepted: z.number().optional().describe('Risks accepted this week; absent when none or in reports sent before it'),
-    accepted_until: z.iso.date().optional().describe('The earliest day one of those acceptances ends'),
-    devices: z.number().describe('Devices as the Devices page counts them, this box included'), devices_unapproved: z.number(), devices_new: z.number(),
-    kev_new: z.number().describe('Vulnerabilities newly exploited in the last 7 days, as Home counts them'),
-    kev_matched: z.number().describe('Products you use among them, as Home counts them (earlier reports: their CVEs on a device)'),
-  }),
+  counts: WeeklyCounts,
   top_risks: z.array(TopRisk).max(3).optional().describe('The three biggest open risks, by product; absent in reports sent before it'),
   new_findings: z.array(FindingRow), resolved: z.array(FindingRow), open: z.array(FindingRow), actions: z.array(ActionItem),
   happened: Happened.nullable().optional().describe('Absent or null when notify is off, or in reports sent by an older version'),
   sources: z.array(z.object({ id: z.enum(['inventory', 'findings', 'kev', 'vulncheck-kev', 'incidents']), at: iso })).describe('Sources of the figures in the report; incidents only when notify is on'),
   ai_summary: AiSummary.nullable(),
+  approved_only: z.object({ counts: WeeklyCounts, top_risks: z.array(TopRisk).max(3), actions: z.array(ActionItem) }).optional()
+    .describe('The counts, top risks and actions again without the devices not in the Devices list (not approved yet) and their findings; the lists are filtered by device_approved. Absent in reports sent before it'),
 })
 export const WeeklyPreview = z.object({ report: WeeklyReport, ai_available: z.boolean() })
 export const Weekday = z.number().int().min(1).max(7).describe('1 = Monday … 7 = Sunday')
@@ -73,16 +80,19 @@ export const Obligation = z.object({
   regime: z.enum(['required', 'optional', 'exempt']).describe('For dpia and dpo under Article 38 of Law 91/2025/QH15 and Article 41 of Decree 356/2025/NĐ-CP; other items are always required'),
   done: z.boolean().nullable(),
 })
+export const PdplInventory = z.object({
+  total: z.number(), approved: z.number(), unapproved: z.number(), fragile: z.number(),
+  by_kind: z.array(z.object({ kind: z.string(), n: z.number() })),
+  key_systems: z.array(z.object({ id: z.string(), name: z.string(), ip: z.string(), kind: z.string(), os: z.string() })),
+  sources: z.array(z.object({ source: z.string(), n: z.number() })),
+})
 export const PdplReport = z.object({
   id: z.string(), generated_at: iso, org: PdplOrg,
-  inventory: z.object({
-    total: z.number(), approved: z.number(), unapproved: z.number(), fragile: z.number(),
-    by_kind: z.array(z.object({ kind: z.string(), n: z.number() })),
-    key_systems: z.array(z.object({ id: z.string(), name: z.string(), ip: z.string(), kind: z.string(), os: z.string() })),
-    sources: z.array(z.object({ source: z.string(), n: z.number() })),
-  }),
+  inventory: PdplInventory,
   measures: z.array(Measure), risks: z.array(FindingRow), obligations: z.array(Obligation),
   coverage: z.array(z.object({ module: z.string(), on: z.boolean() })), ai_summary: AiSummary.nullable(),
+  approved_only: z.object({ inventory: PdplInventory, measures: z.array(Measure), risks: z.array(FindingRow) }).optional()
+    .describe('The inventory, measures and risks again without the devices not in the Devices list (not approved yet) and their findings; the unapproved measure stays the full one. Absent in reports generated before it'),
 })
 export const PdplState = z.object({ org: PdplOrg.nullable(), defaults: z.object({ name: z.string() }), report: PdplReport.nullable(), ai_available: z.boolean() })
 

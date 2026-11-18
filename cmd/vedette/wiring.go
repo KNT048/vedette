@@ -226,6 +226,22 @@ func (a findingsInventory) IgnoredIDs(ctx context.Context) ([]string, error) {
 	return a.inv.IgnoredIDs(ctx)
 }
 
+func (a findingsInventory) EffectiveSoftware(ctx context.Context, id string) ([]findings.EffectiveSoftware, error) {
+	rows, err := a.inv.EffectiveSoftware(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]findings.EffectiveSoftware, len(rows))
+	for i, r := range rows {
+		out[i] = findings.EffectiveSoftware{ID: r.ID, Vendor: r.Vendor, Product: r.Product, Display: r.Display, Version: r.Version, PkgVersion: r.PkgVersion,
+			Packaged: r.Packaged, CPE: r.CPE, Source: r.Source, SetBy: r.SetBy, SeenAt: r.SeenAt, Differs: r.Differs, AlsoSeen: make([]findings.AlsoSeen, len(r.AlsoSeen))}
+		for j, o := range r.AlsoSeen {
+			out[i].AlsoSeen[j] = findings.AlsoSeen{ID: o.ID, Source: o.Source, Version: o.Version, PkgVersion: o.PkgVersion, SeenAt: o.SeenAt, SameRelease: o.SameRelease}
+		}
+	}
+	return out, nil
+}
+
 func (a findingsInventory) IsIgnored(ctx context.Context, id string) (bool, error) {
 	return a.inv.IsIgnored(ctx, id)
 }

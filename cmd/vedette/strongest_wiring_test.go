@@ -49,6 +49,23 @@ func sshFeeds(t *testing.T, s *stack) {
 				return err
 			}
 		}
+		// The distribution feeds are on and have been read: each holds a row, of a package no device here runs. A feed that is on and
+		// holds no row is still loading, and the plan compares no package of its distribution until it has loaded.
+		for _, f := range []struct{ source, distro, release, status, fixed string }{
+			{"alpine-osv", "alpine", "3.20", "fixed", "1.0-r0"},
+			{"debian-tracker", "debian", "12", "fixed", "1.0-1"},
+			{"ubuntu-osv", "ubuntu", "24.04", "fixed", "1.0-1"},
+			{"ubuntu-vex", "ubuntu", "24.04", "not_affected", ""},
+		} {
+			var fixed any
+			if f.fixed != "" {
+				fixed = f.fixed
+			}
+			if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_distro_fix (source_id, distro, release, package, cve, status, fixed_version) VALUES (?, ?, ?, 'zlib', 'CVE-2026-69999', ?, ?)`,
+				f.source, f.distro, f.release, f.status, fixed); err != nil {
+				return err
+			}
+		}
 		return nil
 	})
 	if err != nil {
@@ -194,13 +211,8 @@ func TestStrongestRow_EveryCombination(t *testing.T) {
 						default:
 							w.source = "nmap"
 						}
-						switch {
-						case w.source == "nmap":
+						if w.source == "nmap" {
 							w.planItems = 0 // a banner's version is never planned
-						case o.name == "ubuntu" && agent == "packaged":
-							w.planItems = 0 // the agent's deb row: Ubuntu's own data decides (none stored here: nothing to plan)
-							// a person's Debian release names its source package only by a guess, which holds no Ubuntu rows here: NVD,
-							// with Ubuntu's security updates (TestWiringPersonsUbuntuReleaseUsesUbuntusData stores the rows)
 						}
 						w.id = addSSHDevice(t, s, fmt.Sprintf("10.77.%d.%d", n/200, n%200+1), r)
 						cases = append(cases, w)
@@ -315,7 +327,7 @@ func TestWiringRouterWithThreeSourcesOfOpenSSH(t *testing.T) {
 		u.Exploited[0].Action != "Install the distribution's security updates for OpenSSH" {
 		t.Errorf("To fix, exploited: %+v", u.Exploited)
 	}
-	if len(u.Planned) != 1 || u.Planned[0].SoftwareID != agentRow || u.Planned[0].Action != "Install Alpine Linux's security updates for OpenSSH" {
+	if len(u.Planned) != 1 || u.Planned[0].SoftwareID != agentRow || u.Planned[0].Action != "Check Alpine Linux's security updates for OpenSSH" {
 		t.Errorf("To fix, recommended: %+v", u.Planned)
 	}
 	for _, x := range append(u.Exploited, u.Planned...) {
@@ -334,8 +346,8 @@ func TestWiringRouterWithThreeSourcesOfOpenSSH(t *testing.T) {
 
 // A Debian release a person gave on an Ubuntu host that has no agent (Needs your input, a correction of the scan's row): the feeds
 // are asked for its source package by the product's name (feedsInventory.Distros reads the row's vendor and product), and Ubuntu's own
-// data decides the plan item ("Upgrade the openssh package … to 1:10.2p1-2ubuntu3.9"). On a release the feeds hold no Ubuntu rows for
-// under that name, the row is not dropped: it is compared with NVD and gets "install Ubuntu's security updates".
+// data decides the plan item ("Upgrade the openssh package … to 1:10.2p1-2ubuntu3.9"). On a release whose Ubuntu rows hold none of
+// that package, Ubuntu's data lists no CVE for it: the device is compared and has no item.
 func TestWiringPersonsUbuntuReleaseUsesUbuntusData(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
@@ -358,6 +370,7 @@ func TestWiringPersonsUbuntuReleaseUsesUbuntusData(t *testing.T) {
 			{`INSERT INTO feeds_recent_cve (cve, published, last_modified, status, severity, score) VALUES (?, ?, ?, 'Analyzed', 'HIGH', 7.5)`,
 				[]any{ubuntuCVE, store.FormatTS(now.AddDate(0, 0, -15)), store.FormatTS(now.AddDate(0, 0, -10))}},
 			{`INSERT INTO feeds_distro_fix (source_id, distro, release, package, cve, status, fixed_version) VALUES ('ubuntu-osv', 'ubuntu', '24.04', 'openssh', ?, 'fixed', '1:10.2p1-2ubuntu3.9')`, []any{ubuntuCVE}},
+			{`INSERT INTO feeds_distro_fix (source_id, distro, release, package, cve, status, fixed_version) VALUES ('ubuntu-osv', 'ubuntu', '22.04', 'zlib', 'CVE-2026-69998', 'fixed', '1.0-1')`, nil},
 		} {
 			if _, err := tx.ExecContext(ctx, q.sql, q.args...); err != nil {
 				return err
@@ -386,8 +399,8 @@ func TestWiringPersonsUbuntuReleaseUsesUbuntusData(t *testing.T) {
 		len(its[0].CVEs) != 1 || its[0].CVEs[0].CVE != ubuntuCVE {
 		t.Errorf("24.04, Ubuntu's data: %+v", its)
 	}
-	if its := byDevice[jammy]; len(its) != 1 || its[0].Kind != "distro" || its[0].Fixed != "" || its[0].Distro != "Ubuntu" || len(its[0].CVEs) != 1 || its[0].CVEs[0].CVE != sshTierCVE {
-		t.Errorf("22.04, no Ubuntu rows: %+v, want NVD's CVE with Ubuntu's security updates", its)
+	if its := byDevice[jammy]; len(its) != 0 {
+		t.Errorf("22.04, Ubuntu's data holds rows for the release and none of openssh: %+v, want no item", its)
 	}
 	if plan.Unchecked != 0 {
 		t.Errorf("a device was left not compared: %+v", plan)

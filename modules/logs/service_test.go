@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"log/slog"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -1685,6 +1687,43 @@ func TestEventHeaderIsReadForDisplay(t *testing.T) {
 		e.withHeader()
 		if e.Message != c.msg || (e.Host == nil) != (c.host == "") || (e.Host != nil && *e.Host != c.host) || (e.App == nil) != (c.app == "") || (e.App != nil && *e.App != c.app) {
 			t.Errorf("%q: host %v app %v message %q", c.line, e.Host, e.App, e.Message)
+		}
+	}
+}
+
+// The Retention card reads two sizes with no row scan: what the kept logs take on disk and what is free where the box keeps its data.
+// Each is null when it cannot be read.
+func TestSourcesCarryLogsSizeAndFreeDisk(t *testing.T) {
+	e := newEnv(t)
+	e.svc.cfg.DataDir = t.TempDir()
+	v, err := e.svc.Sources(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v.LogsBytes == nil || *v.LogsBytes <= 0 {
+		t.Fatalf("logs_bytes = %v, want the size of the logs database", v.LogsBytes)
+	}
+	if v.DiskFreeBytes == nil || *v.DiskFreeBytes <= 0 {
+		t.Fatalf("disk_free_bytes = %v, want the free space of the data directory", v.DiskFreeBytes)
+	}
+	body, err := json.Marshal(v)
+	if err != nil || !strings.Contains(string(body), `"logs_bytes":`) || !strings.Contains(string(body), `"disk_free_bytes":`) {
+		t.Fatalf("response %s does not carry both numbers (%v)", body, err)
+	}
+
+	// No data directory (or one that is gone): the free space is null, the page still answers.
+	for _, dir := range []string{"", filepath.Join(t.TempDir(), "gone")} {
+		e.svc.cfg.DataDir = dir
+		v, err = e.svc.Sources(t.Context())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if v.DiskFreeBytes != nil {
+			t.Fatalf("DataDir %q: disk_free_bytes = %d, want null", dir, *v.DiskFreeBytes)
+		}
+		body, _ = json.Marshal(v)
+		if !strings.Contains(string(body), `"disk_free_bytes":null`) {
+			t.Fatalf("DataDir %q: response %s, want disk_free_bytes null", dir, body)
 		}
 	}
 }

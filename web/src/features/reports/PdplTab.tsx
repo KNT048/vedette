@@ -140,7 +140,6 @@ function ReportSection({ s }: { s: PdplState }) {
           <Button variant={r ? 'secondary' : 'primary'} onClick={() => gen.mutate(undefined, { onSuccess: () => toast.success(t('pdpl.report.generated')) })} disabled={!operator || needOrg} busy={gen.isPending} busyLabel={t('common:busy.generating')} title={reason} aria-describedby="pdpl-gen-wait"><FileText aria-hidden />{r ? t('pdpl.report.regenerate') : t('pdpl.report.generate')}</Button>
           {r ? (
             <>
-              <Button onClick={() => ai.mutate(undefined, { onSuccess: () => toast.success(t('weekly.ai.done')) })} disabled={!operator || !s.ai_available} busy={ai.isPending} busyLabel={t('weekly.ai.working')} title={!operator ? reason : s.ai_available ? undefined : t('weekly.ai.unavailable')} aria-describedby="pdpl-ai-wait"><Sparkles aria-hidden />{t('weekly.ai.button')}</Button>
               <Link to="/reports/print/pdpl" className={buttonVariants({ variant: 'primary' })}><Printer aria-hidden />{t('print.button')}</Link>
             </>
           ) : null}
@@ -149,13 +148,17 @@ function ReportSection({ s }: { s: PdplState }) {
       <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
         {/* Say what a long wait is doing */}
         <BusyNote id="pdpl-gen-wait" busy={gen.isPending}>{t('pdpl.report.waiting')}</BusyNote>
-        <BusyNote id="pdpl-ai-wait" busy={ai.isPending}>{t('weekly.ai.waiting')}</BusyNote>
         <ActionError error={gen.error} />
-        <ActionError error={ai.error} />
         {r ? (
           <>
             <p className="text-meta text-muted">{t('pdpl.report.at', { time: fmtDateTime(r.generated_at) })}</p>
-            <Card><PdplDocument report={r} /></Card>
+            <Card><PdplDocument report={r} aiAction={(
+              <>
+                <div><Button onClick={() => ai.mutate(undefined, { onSuccess: () => toast.success(t('weekly.ai.done')) })} disabled={!operator || !s.ai_available} busy={ai.isPending} busyLabel={t('weekly.ai.working')} title={!operator ? reason : s.ai_available ? undefined : t('weekly.ai.unavailable')} aria-describedby="pdpl-ai-wait"><Sparkles aria-hidden />{t('weekly.ai.button')}</Button></div>
+                <BusyNote id="pdpl-ai-wait" busy={ai.isPending}>{t('weekly.ai.waiting')}</BusyNote>
+                <ActionError error={ai.error} />
+              </>
+            )} /></Card>
           </>
         ) : <EmptyState title={t('pdpl.report.empty')}>{needOrg ? t('pdpl.report.emptyNeedOrg') : t('pdpl.report.emptyReady')}</EmptyState>}
       </div>

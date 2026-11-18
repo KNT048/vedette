@@ -26,7 +26,7 @@ describe('Device page: Sources', () => {
   it('lists what feeds a scanned device and offers osquery', async () => {
     enableModule('agent-intake', true)
     const user = userEvent.setup()
-    const { container } = renderApp('/devices/a-nas02', { role: 'admin' })
+    const { container } = renderApp('/devices/a-srvad', { role: 'admin' })
     const list = await sources()
     expect(item(list, 'Network scan')).toHaveTextContent('Reporting')
     expect(item(list, 'Passive listening')).toHaveTextContent('Reporting')

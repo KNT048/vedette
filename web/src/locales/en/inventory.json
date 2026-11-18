@@ -52,6 +52,8 @@
       "off": "Turn on the Agents module in Settings to use osquery or Wazuh.",
       "add": "Install osquery",
       "manage": "Agents and tokens",
+      "gearHint": "Agents run on computers and servers. For this device, SNMP reads the firmware version.",
+      "unknownHint": "Agents run on computers and servers. If this is network gear, SNMP reads its firmware version instead.",
       "how": "An agent is installed or uninstalled on the machine itself, not switched here."
     },
     "snmp": {
@@ -1228,6 +1230,7 @@
     "check": {
       "button": "Check now",
       "pending": "Reading {{ip}} with SNMP… this takes up to 15 seconds.",
+      "pendingNoIp": "Reading the device with SNMP… this takes up to 15 seconds.",
       "answered": "{{name}} answered SNMP.",
       "failed": "Nothing was sent",
       "noAnswer": "{{name}} did not answer SNMP. The SNMP row says why."
@@ -1294,12 +1297,15 @@
       "bodyInfo": "The community or passwords are stored encrypted on the box and sent only to the Read from address; afterwards only their last 4 characters are shown. SNMPv1, MD5 and DES are not offered: they are not secure.",
       "readFrom": "Read from",
       "readFromHint": "Leave empty to read the device's IP, {{ip}}.",
+      "readFromHintNoIp": "Leave empty to read the IP you enter above.",
       "readFromInfo": "Use a management address when the device answers SNMP only on another interface, for example a firewall whose SNMP listens on its management port. What answers there is recorded on this device. Any address on your local networks, not the Vedette box.",
       "copy": "Copy from another device",
       "copyType": "Don't copy: type the settings",
       "copyOption": "{{name}} ({{ip}}, {{version}})",
       "copyNone": "Copies the version, user, community or passwords and port of a device that already has SNMP set up.",
+      "copyHintNoIp": "The box copies the saved community or passwords itself; they never reach this browser. They are sent only to this device's own IP.",
       "copyHint": "The box copies the saved community or passwords itself; they never reach this browser. They are sent only to this device's own IP, {{ip}}.",
+      "copyOwnIpOnlyNoIp": "A copied community or password goes only to this device's own IP. To read it at {{target}}, choose \"Don't copy\" and type them.",
       "copyOwnIpOnly": "A copied community or password goes only to this device's own IP, {{ip}}. To read it at {{target}}, choose \"Don't copy\" and type them.",
       "copyWhat": "Copies {{name}}'s SNMP settings: {{version}}, UDP port {{port}}, with its saved community or passwords.",
       "version": "SNMP version",
@@ -1319,6 +1325,8 @@
       "port": "Port",
       "portHint": "Only if the device answers SNMP on another port. Leave empty for 161.",
       "consentOff": "Saving turns SNMP on for this device (Sources): Vedette then sends read-only SNMP questions to {{ip}} in the scan window and when you press Check now.",
+      "consentOffNoIp": "Saving turns SNMP on for this device (Sources): once you enter its IP, Vedette sends read-only SNMP questions to it in the scan window and when you press Check now.",
+      "consentOnNoIp": "Vedette sends read-only SNMP questions to the device's IP in the scan window and when you press Check now.",
       "consentOn": "Vedette sends read-only SNMP questions to {{ip}} in the scan window and when you press Check now.",
       "create": "Set up SNMP",
       "save": "Save"

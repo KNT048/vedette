@@ -25,6 +25,9 @@ func (s *Service) typedScope(ctx context.Context, t Target) (scope *DomainScope,
 	if !ok {
 		return nil, typedGone
 	}
+	if why := s.listTypedIP(ctx, t.Value); why != "" {
+		return nil, why
+	}
 	tok, err := s.cfg.DomainFence.Token(ctx, t.Value)
 	if err != nil || !fenceTokenRE.MatchString(tok) {
 		s.cfg.Log.ErrorContext(ctx, "exposure: the domain fence gave no token for a typed IP", "target", t.Value, "error", err)
@@ -35,6 +38,9 @@ func (s *Service) typedScope(ctx context.Context, t Target) (scope *DomainScope,
 	}
 	ts := &TypedScope{Method: domainfence.MethodFile}
 	if pr.method == methodIPPTR {
+		if _, ok, err := loadTargetByValue(ctx, s.cfg.DB.Reader(), pr.coverDomain); err != nil || !ok { // deleted while the scan ran: never list it again
+			return nil, typedGone
+		}
 		ct, err := s.cfg.DomainFence.Token(ctx, pr.coverDomain)
 		if err != nil || !fenceTokenRE.MatchString(ct) {
 			return nil, typedNoFence
@@ -52,4 +58,35 @@ func (s *Service) typedAddr(ctx context.Context, ip netip.Addr) (t Target, ok bo
 		return Target{}, false
 	}
 	return t, true
+}
+
+// IPLister is implemented by a DomainFence that can list a proved typed IP for the executors (host op exposure.token with proved): an IP
+// nobody proved takes no place on the host's list, so typed IPs never use a domain's.
+type IPLister interface {
+	ListIP(ctx context.Context, ip string) error
+}
+
+const typedNotListed = "the host could not list this IP for the executors (its limit of typed IPs, or the host did not answer), so nothing was sent."
+
+// listTypedIP lists the typed IP t on the host once per run of the box, after its proof was found; "" when listed (or no lister), else the
+// line that says why not.
+func (s *Service) listTypedIP(ctx context.Context, ip string) string {
+	l, ok := s.cfg.DomainFence.(IPLister)
+	if !ok {
+		return ""
+	}
+	s.liveMu.Lock()
+	done := s.ipListed[ip]
+	s.liveMu.Unlock()
+	if done {
+		return ""
+	}
+	if err := l.ListIP(ctx, ip); err != nil {
+		s.cfg.Log.ErrorContext(ctx, "exposure: the host did not list a typed IP", "ip", ip, "error", err)
+		return typedNotListed
+	}
+	s.liveMu.Lock()
+	s.ipListed[ip] = true
+	s.liveMu.Unlock()
+	return ""
 }

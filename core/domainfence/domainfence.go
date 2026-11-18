@@ -433,8 +433,26 @@ func ParseList(b []byte) (map[string]bool, error) {
 		if l == "" && len(b) == 0 {
 			break
 		}
-		if !ValidDomain(l) && !ValidIPLiteral(l) {
-			return nil, fmt.Errorf("domainfence: the domain list holds %.60q, not a domain name or a public IP", l)
+		if !ValidDomain(l) {
+			return nil, fmt.Errorf("domainfence: the domain list holds %.60q, not a domain name", l)
+		}
+		out[l] = true
+	}
+	return out, nil
+}
+
+// ParseIPList reads the typed-IP list: one canonical public IPv4 address per line, nothing else.
+func ParseIPList(b []byte) (map[string]bool, error) {
+	if len(b) > MaxListSize {
+		return nil, errors.New("domainfence: the IP list is too large")
+	}
+	out := map[string]bool{}
+	for _, l := range strings.Split(strings.TrimSuffix(string(b), "\n"), "\n") {
+		if l == "" && len(b) == 0 {
+			break
+		}
+		if !ValidIPLiteral(l) {
+			return nil, fmt.Errorf("domainfence: the IP list holds %.60q, not a public IPv4 address", l)
 		}
 		out[l] = true
 	}
@@ -459,21 +477,34 @@ func ListText(domains map[string]bool) []byte {
 // second (review r2 L-2: the host replaces it by a rename, and a re-check of a running scan must not be killed by an instant of it),
 // and then lists nothing (fail closed).
 func FileList(path string) func(domain string) bool {
-	return fileList(path, func() { <-time.After(time.Second) })
+	return fileList(path, ParseList, func() { <-time.After(time.Second) })
 }
 
-func fileList(path string, wait func()) func(domain string) bool {
+// FileLists is a listed func over the domain list file and the typed-IP list file beside it (an IP literal is looked up in the second,
+// a domain in the first): the IPs have a file of their own so a scan container older than the typed-IP check keeps parsing the domain list.
+func FileLists(domains, ips string) func(domain string) bool {
+	d := FileList(domains)
+	i := fileList(ips, ParseIPList, func() { <-time.After(time.Second) })
+	return func(name string) bool {
+		if ValidIPLiteral(name) {
+			return i(name)
+		}
+		return d(name)
+	}
+}
+
+func fileList(path string, parse func([]byte) (map[string]bool, error), wait func()) func(domain string) bool {
 	return func(domain string) bool {
-		l, err := readList(path)
+		l, err := readList(path, parse)
 		if err != nil {
 			wait()
-			l, err = readList(path)
+			l, err = readList(path, parse)
 		}
 		return err == nil && l[domain]
 	}
 }
 
-func readList(path string) (map[string]bool, error) {
+func readList(path string, parse func([]byte) (map[string]bool, error)) (map[string]bool, error) {
 	fi, err := os.Lstat(path)
 	if err != nil {
 		return nil, err
@@ -485,7 +516,7 @@ func readList(path string) (map[string]bool, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ParseList(b)
+	return parse(b)
 }
 
 // NewKey is KeySize random bytes.

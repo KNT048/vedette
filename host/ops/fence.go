@@ -36,6 +36,9 @@ import (
 const (
 	fenceKeyName     = "fence.key"
 	fenceListName    = "fence-domains" // in the state directory
+	fenceIPsName     = "fence-ips"     // the typed public IPs, in the state directory
+	fenceScanIPs     = "ips"           // in fenceScanDir, beside "domains"
+	fenceMaxIPs      = 20              // typed IPs have a cap of their own, so unproved or many IPs never take a domain's place
 	fenceScanList    = "domains"       // in fenceScanDir, what the worker reads (cmd/vedette-sensor loadFence)
 	fenceMaxDomains  = 20              // the plan names no domain cap (§4 caps are per run): the director's 20
 	fenceScanDir     = "/var/lib/vedette-fence"
@@ -95,6 +98,12 @@ func (o *Ops) initFence() {
 		return
 	}
 	o.fenceList = list
+	ips, err := o.loadFenceIPs()
+	if err != nil {
+		o.log.Error("the typed IP fence list is not usable: typed IP scans are refused", "error", err.Error())
+		ips = map[string]bool{}
+	}
+	o.fenceIPs = ips
 	f, err := domainfence.New(key, fenceResolver{o}, o.fenceListed, o.d.Now)
 	if err != nil {
 		o.log.Error("the domain fence cannot start: domain_ip scans are refused", "error", err.Error())
@@ -110,6 +119,9 @@ func (o *Ops) initFence() {
 		}
 		if err := o.fenceScanCopy(fenceScanList, domainfence.ListText(list)); err != nil {
 			o.log.Error("the scan container's copy of the domain fence list could not be written: its domain_ip jobs are refused", "error", err.Error())
+		}
+		if err := o.fenceScanCopy(fenceScanIPs, domainfence.ListText(ips)); err != nil {
+			o.log.Error("the scan container's copy of the typed IP list could not be written: its typed IP jobs are refused", "error", err.Error())
 		}
 	}
 }
@@ -150,7 +162,30 @@ func (o *Ops) loadFenceList() (map[string]bool, error) {
 func (o *Ops) fenceListed(domain string) bool {
 	o.fenceMu.Lock()
 	defer o.fenceMu.Unlock()
+	if domainfence.ValidIPLiteral(domain) {
+		return o.fenceIPs[domain]
+	}
 	return o.fenceList[domain]
+}
+
+// loadFenceIPs reads <state>/fence-ips (missing: none).
+func (o *Ops) loadFenceIPs() (map[string]bool, error) {
+	p := o.stateFile(fenceIPsName)
+	fi, err := os.Lstat(p)
+	if errors.Is(err, fs.ErrNotExist) {
+		return map[string]bool{}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if !fi.Mode().IsRegular() {
+		return nil, errors.New("ops: the typed IP fence list is not a regular file")
+	}
+	b, err := os.ReadFile(p) //nolint:gosec // the host's own state file, Lstat-ed as a regular file above
+	if err != nil {
+		return nil, err
+	}
+	return domainfence.ParseIPList(b)
 }
 
 // fenceScanDir makes fenceScanDir, owned by the sensor user, with mode (0700 while the host writes the copies, then 0500).
@@ -213,6 +248,62 @@ func (o *Ops) fenceScanList(list map[string]bool) {
 	if err := o.fenceScanCopy(fenceScanList, domainfence.ListText(list)); err != nil {
 		o.log.Error("the scan container's copy of the domain fence list could not be written", "error", err.Error())
 	}
+}
+
+// fenceScanIPList rewrites the worker's copy of the typed IP list, logged when it fails.
+func (o *Ops) fenceScanIPList(list map[string]bool) {
+	if o.cfg.SensorUID <= 0 || o.d.FenceKey != nil {
+		return
+	}
+	if err := o.fenceScanCopy(fenceScanIPs, domainfence.ListText(list)); err != nil {
+		o.log.Error("the scan container's copy of the typed IP list could not be written", "error", err.Error())
+	}
+}
+
+// listIP is exposure.token's work for a typed IP core says is proved: on the host's IP list (its own file and cap, audited first, then
+// the state file, then the scan container's copy), idempotent.
+func (o *Ops) listIP(ip string) error {
+	o.fenceMu.Lock()
+	defer o.fenceMu.Unlock()
+	if o.fenceIPs[ip] {
+		return nil
+	}
+	if len(o.fenceIPs) >= fenceMaxIPs {
+		return refuse409(api.CodeFenceDomainsFull, "The host has already listed its limit of "+strconv.Itoa(fenceMaxIPs)+" typed public IPs, so "+ip+" is not listed. Deleting an IP target frees its place.")
+	}
+	next := maps.Clone(o.fenceIPs)
+	next[ip] = true
+	if err := o.noteErr(api.CmdExposureToken, auditDomainAdded, map[string]any{"domain": ip, "domains": len(next)}); err != nil {
+		return fail(api.CodeFenceUnavailable, "The host could not audit the new IP, so it did not list it.")
+	}
+	if err := writeFileAtomic(o.stateFile(fenceIPsName), domainfence.ListText(next), 0o600); err != nil {
+		o.note(api.CmdExposureToken, auditDomainNotAdded, map[string]any{"domain": ip})
+		return fail(api.CodeFenceUnavailable, "The host could not record the IP in its fence list.")
+	}
+	o.fenceIPs = next
+	o.fenceScanIPList(next)
+	return nil
+}
+
+// forgetIP takes a typed IP off the host's IP list (idempotent).
+func (o *Ops) forgetIP(ip string) (bool, error) {
+	o.fenceMu.Lock()
+	defer o.fenceMu.Unlock()
+	if !o.fenceIPs[ip] {
+		return false, nil
+	}
+	next := maps.Clone(o.fenceIPs)
+	delete(next, ip)
+	if err := o.noteErr(api.CmdExposureTokenForget, auditDomainRemoved, map[string]any{"domain": ip, "domains": len(next)}); err != nil {
+		return false, fail(api.CodeFenceUnavailable, "The host could not audit the removal, so the IP stays on its fence list.")
+	}
+	if err := writeFileAtomic(o.stateFile(fenceIPsName), domainfence.ListText(next), 0o600); err != nil {
+		o.note(api.CmdExposureTokenForget, auditDomainNotRemoved, map[string]any{"domain": ip})
+		return false, fail(api.CodeFenceUnavailable, "The host could not write its fence list, so the IP stays on it.")
+	}
+	o.fenceIPs = next
+	o.fenceScanIPList(next)
+	return true, nil
 }
 
 // issueToken is exposure.token's work: a domain already on the list gets its token; a new one (at most fenceMaxDomains) is audited
@@ -283,7 +374,11 @@ func (o *Ops) exposureTokenForget(a api.ExposureTokenArgs) (any, error) {
 	if o.fence == nil {
 		return nil, fail(api.CodeFenceUnavailable, "The host has no usable domain fence; its log says why.")
 	}
-	removed, err := o.forgetToken(a.Domain)
+	forget := o.forgetToken
+	if domainfence.ValidIPLiteral(a.Domain) {
+		forget = o.forgetIP
+	}
+	removed, err := forget(a.Domain)
 	if err != nil {
 		return nil, err
 	}
@@ -353,6 +448,14 @@ func (o *Ops) exposureToken(a api.ExposureTokenArgs) (any, error) {
 	}
 	if o.fence == nil {
 		return nil, fail(api.CodeFenceUnavailable, "The host has no usable domain fence key; its log says why.")
+	}
+	if domainfence.ValidIPLiteral(a.Domain) { // a typed IP: its token is the box's HMAC; it takes a list place only once core says it is proved
+		if a.Proved {
+			if err := o.listIP(a.Domain); err != nil {
+				return nil, err
+			}
+		}
+		return api.ExposureTokenResult{Token: o.fence.Token(a.Domain)}, nil
 	}
 	tok, err := o.issueToken(a.Domain)
 	if err != nil {

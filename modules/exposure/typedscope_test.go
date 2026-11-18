@@ -178,3 +178,35 @@ func TestTypedScope_ADomainDeepStepToATypedAddressCarriesTheTypedProof(t *testin
 		t.Fatalf("%+v %q", scope, why)
 	}
 }
+
+// A domain's deep scan that reaches a typed IP uses the stricter of the two targets' terms: the IP is a separate asset with its own consent.
+func TestTypedScope_ADomainDeepStepToATypedAddressUsesTheStricterTerms(t *testing.T) {
+	t.Parallel()
+	d := newDeepEnv(t)
+	d.svc.cfg.DomainFence = &fakeFence{}
+	files := &fileSite{files: map[string]string{}}
+	d.svc.cfg.IPFetch = files
+	v, err := d.svc.AddTarget(d.ctx(), "admin@acme.example", KindIP, ipB)
+	if err != nil {
+		t.Fatal(err)
+	}
+	files.serve(ipB, "http", v.Token)
+	d.advance(DomainCheckEvery)
+	if r, err := d.svc.Verify(d.ctx(), "operator@acme.example", v.ID); err != nil || !r.Verified {
+		t.Fatalf("%+v %v", r, err)
+	}
+	if _, err := d.commit(v.ID); err != nil {
+		t.Fatal(err)
+	}
+	d.acceptTerms(d.dom.ID, true) // the domain accepted the deep scan and the disruptive checks
+	st := ScanTarget{ID: d.dom.ID, Kind: KindDomain, Value: d.dom.Value, User: "admin@acme.example", Mode: ScanMode{Full: true, Disruptive: true}}
+	ip := netip.MustParseAddr(ipB)
+	if _, why, err := d.svc.deepGate(d.ctx(), st, ip, []string{"www.acme.example"}); err != nil || why != deepTerms {
+		t.Fatalf("the IP has no terms: %q %v", why, err)
+	}
+	d.acceptTerms(v.ID, false) // deep, not disruptive
+	out, why, err := d.svc.deepGate(d.ctx(), st, ip, []string{"www.acme.example"})
+	if err != nil || why != "" || out.Domain == nil || out.Domain.Typed == nil || !out.Mode.Full || out.Mode.Disruptive {
+		t.Fatalf("the stricter of the two: %+v %q %v", out, why, err)
+	}
+}

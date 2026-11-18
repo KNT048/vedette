@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 // ptrDNS adds reverse DNS to a fakeDNS.
@@ -155,17 +156,55 @@ func TestTypedPTR_AResolverWithoutReverseLookupProvesNothing(t *testing.T) {
 	}
 }
 
-func TestTheDomainListTakesTypedIPsAndNothingElse(t *testing.T) {
+func TestTheDomainListTakesDomainsAndTheIPListTakesIPs(t *testing.T) {
 	t.Parallel()
-	if l, err := ParseList([]byte("9.9.9.9\nacme.example\n")); err != nil || !l["9.9.9.9"] {
+	if l, err := ParseIPList([]byte("9.9.9.9\n1.1.1.1\n")); err != nil || !l["9.9.9.9"] {
 		t.Fatalf("%v %v", l, err)
 	}
-	for _, bad := range []string{"10.0.0.1\n", "9.9.9.09\n", "::1\n", "9.9.9.9/32\n"} {
-		if _, err := ParseList([]byte(bad)); err == nil {
-			t.Errorf("%q was accepted", bad)
+	if _, err := ParseList([]byte("9.9.9.9\nacme.example\n")); err == nil {
+		t.Error("an IP in the domain list: an older scan container would not parse the file")
+	}
+	for _, bad := range []string{"10.0.0.1\n", "9.9.9.09\n", "::1\n", "9.9.9.9/32\n", "acme.example\n"} {
+		if _, err := ParseIPList([]byte(bad)); err == nil {
+			t.Errorf("%q was accepted in the IP list", bad)
 		}
 	}
 }
+
+func TestTypedFile_OneFlakyAnswerIsRetriedAndANetworkFailureIsUnchecked(t *testing.T) {
+	t.Parallel()
+	old := fileRetryWait
+	fileRetryWait = time.Millisecond
+	t.Cleanup(func() { fileRetryWait = old })
+	f := &flaky{ok: Token(key1, "9.9.9.9"), failFirst: 2}
+	if o := typedFence(t, world(), &files{m: map[string]string{}}, "9.9.9.9").withFetcher(f).Check(t.Context(), fileJob(), false); o.Reason != "" {
+		t.Fatalf("a flaky first look: %+v", o)
+	}
+	g := &flaky{ok: Token(key1, "9.9.9.9"), failFirst: 99}
+	if o := typedFence(t, world(), &files{m: map[string]string{}}, "9.9.9.9").withFetcher(g).Check(t.Context(), fileJob(), false); o.Reason != Unchecked {
+		t.Fatalf("a network failure: %+v", o)
+	}
+}
+
+// flaky fails the first failFirst requests like a time-out, then serves the token.
+type flaky struct {
+	mu        sync.Mutex
+	n         int
+	failFirst int
+	ok        string
+}
+
+func (f *flaky) Fetch(context.Context, string, netip.Addr) ([]byte, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.n++
+	if f.n <= f.failFirst {
+		return nil, errors.New("request: i/o timeout")
+	}
+	return []byte(f.ok), nil
+}
+
+func (f *Fence) withFetcher(x FileFetcher) *Fence { f.fetcher = x; return f }
 
 func TestHTTPFetcher_RedirectsStayOnTheAddressAndAWebPort(t *testing.T) {
 	t.Parallel()

@@ -250,6 +250,9 @@ type Ops struct {
 	// fenceMu guards fenceList, the domains the host issued a fence token for (review r1 H1).
 	fenceMu   sync.Mutex
 	fenceList map[string]bool
+	// fenceIPs are the typed public IPs the host listed once core said they were proved (their own file and cap, so an older scan container
+	// keeps parsing the domain list), guarded by fenceMu like fenceList.
+	fenceIPs map[string]bool
 	// gbOnQueue, internal tests only, is called by an up or feed update once it has its generation, before it waits for the slot.
 	gbOnQueue func()
 }

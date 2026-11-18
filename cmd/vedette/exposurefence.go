@@ -47,6 +47,21 @@ func (f hostDomainFence) Token(ctx context.Context, domain string) (string, erro
 	return "", err // an older host (unknown_command), an unusable key or list: exposure falls back to a random token
 }
 
+// ListIP lists a proved typed IP on the host for the executors (exposure.token with proved).
+func (f hostDomainFence) ListIP(ctx context.Context, ip string) error {
+	l, ok := f.host.(interface {
+		ExposureListIP(ctx context.Context, ip, requestID, actor string) error
+	})
+	if !ok {
+		return nil
+	}
+	id, err := newUUID()
+	if err != nil {
+		return err
+	}
+	return l.ExposureListIP(ctx, ip, id, "exposure")
+}
+
 // Forget gives a domain's fence slot back to the host (exposure.token_forget, review r2 M-A).
 func (f hostDomainFence) Forget(ctx context.Context, domain string) error {
 	id, err := newUUID()

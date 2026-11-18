@@ -78,8 +78,9 @@ type Service struct {
 	lastCheck  map[string]time.Time // when each domain target's ownership was last checked by a person (DomainCheckEvery; in memory, a restart forgets it)
 	bucketFull time.Time            // the box-wide bound of those checks: when the bucket would be full again (zero: it is), guarded by checkMu
 
-	liveMu sync.Mutex
-	live   map[string]liveEntry // the last live result of each typed IP's proof (liveFor), guarded by liveMu
+	liveMu   sync.Mutex
+	ipListed map[string]bool      // typed IPs the host listed for the executors in this run, guarded by liveMu
+	live     map[string]liveEntry // the last live result of each typed IP's proof (liveFor), guarded by liveMu
 
 	gbOnce sync.Once
 	gbs    *gbState // Greenbone's state in memory (INV-25); made by gb()
@@ -101,7 +102,7 @@ func NewService(cfg Config) (*Service, error) {
 	if cfg.Location == nil {
 		cfg.Location = time.Local
 	}
-	return &Service{cfg: cfg, now: now, runner: cfg.Runner, lastScan: map[string]time.Time{}, lastCheck: map[string]time.Time{}, live: map[string]liveEntry{}, bg: context.Background()}, nil
+	return &Service{cfg: cfg, now: now, runner: cfg.Runner, lastScan: map[string]time.Time{}, lastCheck: map[string]time.Time{}, live: map[string]liveEntry{}, ipListed: map[string]bool{}, bg: context.Background()}, nil
 }
 
 // SetRunner registers the scanner (the scan module does it at start-up). Nil removes it.
@@ -624,6 +625,11 @@ func (s *Service) Remove(ctx context.Context, user, id string, ignore bool) erro
 		return fmt.Errorf("exposure: deleting target: %w", err)
 	}
 	if kind == KindDomain || typed { // the deleted domain's (or typed IP's) fence slot goes back to the host
+		if typed {
+			s.liveMu.Lock()
+			delete(s.ipListed, value)
+			s.liveMu.Unlock()
+		}
 		s.forgetDomain(ctx, value)
 	}
 	return nil

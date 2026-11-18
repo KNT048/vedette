@@ -19,7 +19,7 @@ import (
 	"github.com/knt048/vedette/core/localnet"
 )
 
-// The proof of a public IP a person typed in (exposure INV-35), as the executors check it. A typed IP's token is this box's own
+// The proof of a public IP a person typed in (exposure's typed IP target), as the executors check it. A typed IP's token is this box's own
 // (Token over the IP literal, which no domain name can be), and the host lists the IP like a domain, so core's word is taken for none
 // of it. The proof is one of:
 //
@@ -129,11 +129,28 @@ func (f *Fence) checkTyped(ctx context.Context, j Job) Outcome {
 	case !slices.ContainsFunc(names, func(n string) bool { return strings.ToLower(strings.TrimSuffix(n, ".")) == j.Typed.PTRName }):
 		return Outcome{Reason: NotOwned, Detail: j.IP.String() + " has no reverse DNS name " + j.Typed.PTRName + " now"}
 	}
-	o, _ := f.check(ctx, cj) // the record of the covering domain, and the name resolving back to the address
+	cj.Disruptive = j.Disruptive // the domain rule: disruptive checks are refused when the name's CNAME leaves the covering domain
+	o, _ := f.check(ctx, cj)     // the record of the covering domain, and the name resolving back to the address
 	return o
 }
 
+// fileRetryWait is the pause before the one new look at the token file after both requests failed on the network.
+var fileRetryWait = 2 * time.Second
+
 func (f *Fence) checkFile(ctx context.Context, j Job) Outcome {
+	o, network := f.lookFile(ctx, j)
+	if network && ctx.Err() == nil { // one flaky answer must not end a long scan: look once more
+		select {
+		case <-ctx.Done():
+		case <-time.After(fileRetryWait):
+			o, _ = f.lookFile(ctx, j)
+		}
+	}
+	return o
+}
+
+// lookFile asks both schemes once. network says both failed without an answer (no connection, a time-out), which is not "the file is gone".
+func (f *Fence) lookFile(ctx context.Context, j Job) (o Outcome, network bool) {
 	fetch := f.fetcher
 	if fetch == nil {
 		fetch = HTTPFetcher{}
@@ -153,12 +170,18 @@ func (f *Fence) checkFile(ctx context.Context, j Job) Outcome {
 	}
 	wg.Wait()
 	if okAt[0] || okAt[1] {
-		return Outcome{}
+		return Outcome{}, false
 	}
 	if ctx.Err() != nil {
-		return Outcome{Reason: Unchecked, Detail: "the check was cut short"}
+		return Outcome{Reason: Unchecked, Detail: "the check was cut short"}, false
 	}
-	return Outcome{Reason: NotOwned, Detail: "the token file is not served on " + j.IP.String() + " now"}
+	noAnswer := func(err error) bool {
+		return err != nil && !strings.Contains(err.Error(), "answered ") && !strings.Contains(err.Error(), "redirected")
+	}
+	if noAnswer(errs[0]) && noAnswer(errs[1]) { // nothing answered: nothing is known, which is not the same as a file that is gone
+		return Outcome{Reason: Unchecked, Detail: "the token file could not be asked on " + j.IP.String()}, true
+	}
+	return Outcome{Reason: NotOwned, Detail: "the token file is not served on " + j.IP.String() + " now"}, false
 }
 
 // TokenInFile says whether the body of a proof file is the token (alone, or as vedette-verify=<token>).

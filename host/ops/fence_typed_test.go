@@ -31,7 +31,7 @@ func typedWorld(t *testing.T, files map[string]string) *zapWorld {
 	t.Helper()
 	w := newZapWorld(t, Deps{FenceFetcher: &typedFiles{m: files}})
 	w.o.fenceMu.Lock()
-	w.o.fenceList[typedTestIP] = true // the host issued the IP's token
+	w.o.fenceIPs[typedTestIP] = true // core said the IP is proved, so the host listed it
 	w.o.fenceMu.Unlock()
 	return w
 }
@@ -81,11 +81,24 @@ func TestExposureFenceCheck_TypedIP(t *testing.T) {
 func TestExposureToken_IssuesForATypedIPAndNeverForAPrivateOne(t *testing.T) {
 	t.Parallel()
 	w := newZapWorld(t, Deps{})
-	if _, err := w.o.exposureToken(api.ExposureTokenArgs{Domain: typedTestIP}); err != nil {
+	got, err := w.o.exposureToken(api.ExposureTokenArgs{Domain: typedTestIP}) // not proved: a token, and no place on any list
+	if err != nil || got.(api.ExposureTokenResult).Token != domainfence.Token(zapTestKey, typedTestIP) {
+		t.Fatalf("%v %v", got, err)
+	}
+	if l, _ := w.o.loadFenceIPs(); l[typedTestIP] {
+		t.Fatal("an unproved IP took a place on the host's list")
+	}
+	if _, err := w.o.exposureToken(api.ExposureTokenArgs{Domain: typedTestIP, Proved: true}); err != nil {
 		t.Fatal(err)
 	}
-	if l, _ := w.o.loadFenceList(); !l[typedTestIP] {
-		t.Fatal("the IP is not on the host's list")
+	if l, _ := w.o.loadFenceIPs(); !l[typedTestIP] {
+		t.Fatal("the proved IP is not on the host's IP list")
+	}
+	if l, _ := w.o.loadFenceList(); l[typedTestIP] {
+		t.Fatal("the IP went into the domain list, which an older scan container parses")
+	}
+	if removed, err := w.o.forgetIP(typedTestIP); err != nil || !removed {
+		t.Fatalf("forget: %v %v", removed, err)
 	}
 	for _, bad := range []string{"10.0.0.1", "9.9.9.09", "::1"} {
 		if _, err := w.o.exposureToken(api.ExposureTokenArgs{Domain: bad}); err == nil {

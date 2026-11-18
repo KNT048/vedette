@@ -34,6 +34,9 @@ const (
 // ExposureTokenArgs are the args of exposure.token.
 type ExposureTokenArgs struct {
 	Domain string `json:"domain"`
+	// Proved, for a public IP a person typed in: core found its proof, so the host lists it (its own list, its own cap) for the executors.
+	// Without it the IP gets its token and no list place, so an IP nobody proved takes none.
+	Proved bool `json:"proved,omitempty"`
 }
 
 // ExposureTokenResult is its result.

@@ -108746,6 +108746,385 @@ func (s *InventoryGetInventoryDevicesIDOKRiskLevel) UnmarshalText(data []byte) e
 	}
 }
 
+type InventoryGetInventoryDevicesIDSoftwareOK struct {
+	Items []InventoryGetInventoryDevicesIDSoftwareOKItemsItem `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *InventoryGetInventoryDevicesIDSoftwareOK) GetItems() []InventoryGetInventoryDevicesIDSoftwareOKItemsItem {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *InventoryGetInventoryDevicesIDSoftwareOK) SetItems(val []InventoryGetInventoryDevicesIDSoftwareOKItemsItem) {
+	s.Items = val
+}
+
+type InventoryGetInventoryDevicesIDSoftwareOKItemsItem struct {
+	// The other rows of the same software, strongest source first.
+	AlsoSeen []InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItem `json:"also_seen"`
+	// "" when none.
+	Cpe string `json:"cpe"`
+	// A weaker source reads another release, newer than this row's source did: the first also_seen with
+	// same_release false.
+	Differs bool   `json:"differs"`
+	Display string `json:"display"`
+	// The software row the values are read from.
+	ID string `json:"id"`
+	// Read from the operating system's package database.
+	Packaged bool `json:"packaged"`
+	// The package release; "" when none.
+	PkgVersion string    `json:"pkg_version"`
+	Product    string    `json:"product"`
+	SeenAt     time.Time `json:"seen_at"`
+	// Who entered it (a person's entry or correction); "" otherwise.
+	SetBy  string                                                  `json:"set_by"`
+	Source InventoryGetInventoryDevicesIDSoftwareOKItemsItemSource `json:"source"`
+	Vendor string                                                  `json:"vendor"`
+	// "" when none.
+	Version string `json:"version"`
+}
+
+// GetAlsoSeen returns the value of AlsoSeen.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) GetAlsoSeen() []InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItem {
+	return s.AlsoSeen
+}
+
+// GetCpe returns the value of Cpe.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) GetCpe() string {
+	return s.Cpe
+}
+
+// GetDiffers returns the value of Differs.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) GetDiffers() bool {
+	return s.Differs
+}
+
+// GetDisplay returns the value of Display.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) GetDisplay() string {
+	return s.Display
+}
+
+// GetID returns the value of ID.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) GetID() string {
+	return s.ID
+}
+
+// GetPackaged returns the value of Packaged.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) GetPackaged() bool {
+	return s.Packaged
+}
+
+// GetPkgVersion returns the value of PkgVersion.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) GetPkgVersion() string {
+	return s.PkgVersion
+}
+
+// GetProduct returns the value of Product.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) GetProduct() string {
+	return s.Product
+}
+
+// GetSeenAt returns the value of SeenAt.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) GetSeenAt() time.Time {
+	return s.SeenAt
+}
+
+// GetSetBy returns the value of SetBy.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) GetSetBy() string {
+	return s.SetBy
+}
+
+// GetSource returns the value of Source.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) GetSource() InventoryGetInventoryDevicesIDSoftwareOKItemsItemSource {
+	return s.Source
+}
+
+// GetVendor returns the value of Vendor.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) GetVendor() string {
+	return s.Vendor
+}
+
+// GetVersion returns the value of Version.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) GetVersion() string {
+	return s.Version
+}
+
+// SetAlsoSeen sets the value of AlsoSeen.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) SetAlsoSeen(val []InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItem) {
+	s.AlsoSeen = val
+}
+
+// SetCpe sets the value of Cpe.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) SetCpe(val string) {
+	s.Cpe = val
+}
+
+// SetDiffers sets the value of Differs.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) SetDiffers(val bool) {
+	s.Differs = val
+}
+
+// SetDisplay sets the value of Display.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) SetDisplay(val string) {
+	s.Display = val
+}
+
+// SetID sets the value of ID.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetPackaged sets the value of Packaged.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) SetPackaged(val bool) {
+	s.Packaged = val
+}
+
+// SetPkgVersion sets the value of PkgVersion.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) SetPkgVersion(val string) {
+	s.PkgVersion = val
+}
+
+// SetProduct sets the value of Product.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetSeenAt sets the value of SeenAt.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) SetSeenAt(val time.Time) {
+	s.SeenAt = val
+}
+
+// SetSetBy sets the value of SetBy.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) SetSetBy(val string) {
+	s.SetBy = val
+}
+
+// SetSource sets the value of Source.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) SetSource(val InventoryGetInventoryDevicesIDSoftwareOKItemsItemSource) {
+	s.Source = val
+}
+
+// SetVendor sets the value of Vendor.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) SetVendor(val string) {
+	s.Vendor = val
+}
+
+// SetVersion sets the value of Version.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) SetVersion(val string) {
+	s.Version = val
+}
+
+type InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItem struct {
+	ID string `json:"id"`
+	// "" when none.
+	PkgVersion string `json:"pkg_version"`
+	// The effective row's release with more or less detail (10.2, 10.2p1, 10.2_p1-r1): not a disagreement.
+	SameRelease bool                                                                `json:"same_release"`
+	SeenAt      time.Time                                                           `json:"seen_at"`
+	Source      InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSource `json:"source"`
+	// "" when the source gave none.
+	Version string `json:"version"`
+}
+
+// GetID returns the value of ID.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItem) GetID() string {
+	return s.ID
+}
+
+// GetPkgVersion returns the value of PkgVersion.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItem) GetPkgVersion() string {
+	return s.PkgVersion
+}
+
+// GetSameRelease returns the value of SameRelease.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItem) GetSameRelease() bool {
+	return s.SameRelease
+}
+
+// GetSeenAt returns the value of SeenAt.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItem) GetSeenAt() time.Time {
+	return s.SeenAt
+}
+
+// GetSource returns the value of Source.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItem) GetSource() InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSource {
+	return s.Source
+}
+
+// GetVersion returns the value of Version.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItem) GetVersion() string {
+	return s.Version
+}
+
+// SetID sets the value of ID.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetPkgVersion sets the value of PkgVersion.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItem) SetPkgVersion(val string) {
+	s.PkgVersion = val
+}
+
+// SetSameRelease sets the value of SameRelease.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItem) SetSameRelease(val bool) {
+	s.SameRelease = val
+}
+
+// SetSeenAt sets the value of SeenAt.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItem) SetSeenAt(val time.Time) {
+	s.SeenAt = val
+}
+
+// SetSource sets the value of Source.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItem) SetSource(val InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSource) {
+	s.Source = val
+}
+
+// SetVersion sets the value of Version.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItem) SetVersion(val string) {
+	s.Version = val
+}
+
+type InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSource string
+
+const (
+	InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceManual  InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSource = "manual"
+	InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceAgent   InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSource = "agent"
+	InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceSnmp    InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSource = "snmp"
+	InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceNmap    InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSource = "nmap"
+	InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourcePassive InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSource = "passive"
+	InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceScan    InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSource = "scan"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSource values.
+func (InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSource) AllValues() []InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSource {
+	return []InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSource{
+		InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceManual,
+		InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceAgent,
+		InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceSnmp,
+		InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceNmap,
+		InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourcePassive,
+		InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceScan,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSource) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceManual:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceAgent:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceSnmp:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceNmap:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourcePassive:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceScan:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSource) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSource(data) {
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceManual:
+		*s = InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceManual
+		return nil
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceAgent:
+		*s = InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceAgent
+		return nil
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceSnmp:
+		*s = InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceSnmp
+		return nil
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceNmap:
+		*s = InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceNmap
+		return nil
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourcePassive:
+		*s = InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourcePassive
+		return nil
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceScan:
+		*s = InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceScan
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryGetInventoryDevicesIDSoftwareOKItemsItemSource string
+
+const (
+	InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceManual  InventoryGetInventoryDevicesIDSoftwareOKItemsItemSource = "manual"
+	InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceAgent   InventoryGetInventoryDevicesIDSoftwareOKItemsItemSource = "agent"
+	InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceSnmp    InventoryGetInventoryDevicesIDSoftwareOKItemsItemSource = "snmp"
+	InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceNmap    InventoryGetInventoryDevicesIDSoftwareOKItemsItemSource = "nmap"
+	InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourcePassive InventoryGetInventoryDevicesIDSoftwareOKItemsItemSource = "passive"
+	InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceScan    InventoryGetInventoryDevicesIDSoftwareOKItemsItemSource = "scan"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesIDSoftwareOKItemsItemSource values.
+func (InventoryGetInventoryDevicesIDSoftwareOKItemsItemSource) AllValues() []InventoryGetInventoryDevicesIDSoftwareOKItemsItemSource {
+	return []InventoryGetInventoryDevicesIDSoftwareOKItemsItemSource{
+		InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceManual,
+		InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceAgent,
+		InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceSnmp,
+		InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceNmap,
+		InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourcePassive,
+		InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceScan,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesIDSoftwareOKItemsItemSource) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceManual:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceAgent:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceSnmp:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceNmap:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourcePassive:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceScan:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItemSource) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesIDSoftwareOKItemsItemSource(data) {
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceManual:
+		*s = InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceManual
+		return nil
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceAgent:
+		*s = InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceAgent
+		return nil
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceSnmp:
+		*s = InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceSnmp
+		return nil
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceNmap:
+		*s = InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceNmap
+		return nil
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourcePassive:
+		*s = InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourcePassive
+		return nil
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceScan:
+		*s = InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceScan
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // True lists only the ignored devices; false or absent leaves them out.
 type InventoryGetInventoryDevicesIgnored string
 

@@ -1,0 +1,212 @@
+package inventory
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"slices"
+	"strings"
+
+	"github.com/knt048/vedette/core/pkgrel"
+)
+
+// EffectiveSoftware is one software the way a device has it, whatever number of sources read it (INV-50; contract.ts
+// EffectiveSoftware). Its values are the strongest source's reading; the other sources are AlsoSeen.
+type EffectiveSoftware struct {
+	// ID is the id of the software row the values are read from.
+	ID         string `json:"id"`
+	Vendor     string `json:"vendor"`
+	Product    string `json:"product"`
+	Display    string `json:"display"`
+	Version    string `json:"version"`     // "" when the source gave none
+	PkgVersion string `json:"pkg_version"` // the package release; "" when none
+	Packaged   bool   `json:"packaged"`    // read from the operating system's package database
+	CPE        string `json:"cpe"`         // "" when none
+	Source     string `json:"source"`
+	SetBy      string `json:"set_by"` // who entered it (a person's entry or correction); "" otherwise
+	SeenAt     string `json:"seen_at"`
+	// AlsoSeen lists the other rows of the same software, strongest source first, never as rows of their own.
+	AlsoSeen []AlsoSeen `json:"also_seen"`
+	// Differs: a weaker source reads another release (not the same one with more or less detail) and read it after this row's
+	// source did; the strongest such source is the first AlsoSeen with SameRelease false.
+	Differs bool `json:"differs"`
+}
+
+// AlsoSeen is another source's reading of an effective software.
+type AlsoSeen struct {
+	ID          string `json:"id"`
+	Source      string `json:"source"`
+	Version     string `json:"version"`
+	PkgVersion  string `json:"pkg_version"`
+	SeenAt      string `json:"seen_at"`
+	SameRelease bool   `json:"same_release"` // the effective row's release with more or less detail (10.2, 10.2p1, 10.2_p1-r1)
+}
+
+// effectiveSoftware reads the software of a device as one row per software (INV-50). Identity: the same vendor and product
+// (case folded) or the same CPE application, however many sources read it. The row of the strongest source gives the values
+// (agent > a person's entry > SNMP, the device's own statement > a scan banner); every other row is AlsoSeen. Rows a person said
+// are not installed, an OS guess the device does not use and a correction that rests (its source reads another version) are not
+// readings. Several rows of the strongest source (two installs at other versions) stay rows of their own; a weaker reading goes
+// under the one it is the same release as, else the newest.
+func effectiveSoftware(ctx context.Context, q querier, assetID string) ([]EffectiveSoftware, error) {
+	rows, err := q.QueryContext(ctx, `SELECT s.id, s.vendor, s.product, s.display, ifnull(s.version, ''), ifnull(s.pkg_version, ''), s.packaged, ifnull(s.cpe, ''), s.source, ifnull(s.set_by, ''), s.seen_at
+		FROM inv_software s WHERE s.asset_id = ? AND NOT `+hiddenGuess+` AND NOT `+notInstalledSW+` AND (s.corrects IS NULL OR `+correctionLive+`) ORDER BY s.seen_at DESC, s.id`, assetID)
+	if err != nil {
+		return nil, fmt.Errorf("inventory: read software: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var all []EffectiveSoftware
+	for rows.Next() {
+		var e EffectiveSoftware
+		if err := rows.Scan(&e.ID, &e.Vendor, &e.Product, &e.Display, &e.Version, &e.PkgVersion, &e.Packaged, &e.CPE, &e.Source, &e.SetBy, &e.SeenAt); err != nil {
+			return nil, fmt.Errorf("inventory: read software: %w", err)
+		}
+		all = append(all, e)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("inventory: read software: %w", err)
+	}
+	return effectiveOf(all), nil
+}
+
+// cpeApp is the "vendor:product" of an application CPE (cpe:/a:vendor:product:version or cpe:2.3:a:...), "" for any other.
+func cpeApp(cpe string) string {
+	c := strings.ToLower(cpe)
+	var rest string
+	switch {
+	case strings.HasPrefix(c, "cpe:/a:"):
+		rest = c[len("cpe:/a:"):]
+	case strings.HasPrefix(c, "cpe:2.3:a:"):
+		rest = c[len("cpe:2.3:a:"):]
+	default:
+		return ""
+	}
+	p := strings.SplitN(rest, ":", 3)
+	if len(p) < 2 || p[0] == "" || p[1] == "" || p[1] == "*" {
+		return ""
+	}
+	return p[0] + ":" + p[1]
+}
+
+// effectiveOf folds readings (newest first) into effective rows; see effectiveSoftware.
+func effectiveOf(all []EffectiveSoftware) []EffectiveSoftware {
+	// identity classes: rows sharing a name key or a CPE key are one software
+	parent := make([]int, len(all))
+	for i := range parent {
+		parent[i] = i
+	}
+	find := func(i int) int {
+		for parent[i] != i {
+			parent[i] = parent[parent[i]]
+			i = parent[i]
+		}
+		return i
+	}
+	first := map[string]int{}
+	join := func(key string, i int) {
+		if j, ok := first[key]; ok {
+			parent[find(i)] = find(j)
+		} else {
+			first[key] = i
+		}
+	}
+	for i, r := range all {
+		join("n\x1f"+strings.ToLower(r.Vendor)+"\x1f"+strings.ToLower(r.Product), i)
+		if k := cpeApp(r.CPE); k != "" {
+			join("c\x1f"+k, i)
+		}
+	}
+	classes := map[int][]int{}
+	var order []int
+	for i := range all {
+		root := find(i)
+		if _, ok := classes[root]; !ok {
+			order = append(order, root)
+		}
+		classes[root] = append(classes[root], i)
+	}
+	var out []EffectiveSoftware
+	for _, root := range order {
+		idx := classes[root]
+		slices.SortStableFunc(idx, func(a, b int) int { return softwareRank(all[b].Source) - softwareRank(all[a].Source) }) // newest first kept
+		top := softwareRank(all[idx[0]].Source)
+		var shown []EffectiveSoftware
+		var rest []int
+		for _, i := range idx {
+			if softwareRank(all[i].Source) == top {
+				r := all[i]
+				r.AlsoSeen = []AlsoSeen{}
+				shown = append(shown, r)
+			} else {
+				rest = append(rest, i)
+			}
+		}
+		decided := map[int]bool{} // the strongest reading of another release is the one that counts
+		for _, w := range rest {
+			ti := 0
+			for k := range shown {
+				if pkgrel.Same(shown[k].Version, shown[k].PkgVersion, all[w].Version, all[w].PkgVersion) {
+					ti = k
+					break
+				}
+			}
+			t := &shown[ti]
+			same := pkgrel.Same(t.Version, t.PkgVersion, all[w].Version, all[w].PkgVersion)
+			t.AlsoSeen = append(t.AlsoSeen, AlsoSeen{ID: all[w].ID, Source: all[w].Source, Version: all[w].Version, PkgVersion: all[w].PkgVersion, SeenAt: all[w].SeenAt, SameRelease: same})
+			if !same && !decided[ti] {
+				decided[ti] = true
+				t.Differs = all[w].SeenAt > t.SeenAt
+			}
+		}
+		out = append(out, shown...)
+	}
+	return out
+}
+
+// softwareRank is the order the effective row is picked by: an agent reads the package database, so it outranks what a person
+// typed; a person's entry outranks what the device announces over SNMP and a scan's banner.
+func softwareRank(source string) int {
+	switch source {
+	case "agent":
+		return 6
+	case "manual":
+		return 5
+	}
+	return sourceRank(source)
+}
+
+// EffectiveSoftware is the one reading of a device's software that every surface shows (INV-50): the device page, findings,
+// the plan, reports. ErrNotFound when the device does not exist.
+func (s *Service) EffectiveSoftware(ctx context.Context, assetID string) ([]EffectiveSoftware, error) {
+	var one int
+	if err := s.db.Reader().QueryRowContext(ctx, `SELECT 1 FROM inv_asset WHERE id = ?`, assetID).Scan(&one); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("inventory: read device: %w", err)
+	}
+	out, err := effectiveSoftware(ctx, s.db.Reader(), assetID)
+	if out == nil {
+		out = []EffectiveSoftware{}
+	}
+	return out, err
+}
+
+// markShadowed sets ShadowedBy on the rows of a device that another source of the same software outranks (INV-50), from the
+// effective rows, so it always agrees with them.
+func markShadowed(ctx context.Context, q querier, assetID string, d *MatchDevice) error {
+	eff, err := effectiveSoftware(ctx, q, assetID)
+	if err != nil {
+		return err
+	}
+	by := map[string]string{}
+	for _, e := range eff {
+		for _, o := range e.AlsoSeen {
+			by[o.ID] = e.ID
+		}
+	}
+	for i := range d.Software {
+		d.Software[i].ShadowedBy = by[d.Software[i].ID]
+	}
+	return nil
+}

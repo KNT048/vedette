@@ -1075,6 +1075,30 @@ export const handlers = [
     return HttpResponse.json({ ok: true })
   }),
 
+  // INV-50: one row per software, the strongest source's values, the other sources listed
+  http.get(`${API}/inventory/devices/:id/software`, ({ params, request }) => {
+    const denied = guard('viewer'); if (denied) return denied
+    const a = find(String(params.id))
+    if (!a) return notFound(request)
+    const rank: Record<string, number> = { agent: 6, manual: 5, snmp: 3, nmap: 2, scan: 2, passive: 1 }
+    const upstream = (v: string) => (v.trim().split(/\s+/)[0] ?? '').toLowerCase().replace(/^\d+:/, '').replace(/-[^-]*$/, '').replace(/_p(\d*)/, 'p$1')
+    const same = (x: { version?: string | null; pkg_version?: string | null }, y: typeof x) => {
+      const p = upstream(x.pkg_version || x.version || ''), q = upstream(y.pkg_version || y.version || '')
+      return !!p && !!q && (p === q || (q.startsWith(p) && /^p\d*$/.test(q.slice(p.length))) || (p.startsWith(q) && /^p\d*$/.test(p.slice(q.length))))
+    }
+    const groups = new Map<string, typeof a.software>()
+    for (const s of a.software.filter((x) => !x.not_installed)) groups.set(`${s.vendor}|${s.product}`.toLowerCase(), [...(groups.get(`${s.vendor}|${s.product}`.toLowerCase()) ?? []), s])
+    const items = [...groups.values()].flatMap((g) => {
+      const [top, ...rest] = [...g].sort((x, y) => (rank[y.source] ?? 0) - (rank[x.source] ?? 0))
+      if (!top) return []
+      const at = (x: typeof top) => x.set_at ?? nowIso()
+      const also = rest.map((o) => ({ id: o.id, source: o.source, version: o.version ?? '', pkg_version: o.pkg_version ?? '', seen_at: at(o), same_release: same(top, o) }))
+      return [{ id: top.id, vendor: top.vendor, product: top.product, display: top.display, version: top.version ?? '', pkg_version: top.pkg_version ?? '', packaged: top.source === 'agent', cpe: '', source: top.source,
+        set_by: top.source === 'manual' ? (currentUser()?.email ?? '') : '', seen_at: at(top), also_seen: also, differs: also.some((o) => !o.same_release && o.seen_at > at(top)) }]
+    })
+    return HttpResponse.json({ items })
+  }),
+
   http.post(`${API}/inventory/devices/:id/software`, async ({ params, request }) => {
     const denied = guard('operator'); if (denied) return denied
     const a = find(String(params.id))

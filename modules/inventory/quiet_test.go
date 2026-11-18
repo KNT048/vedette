@@ -39,7 +39,7 @@ func TestPrivateMAC(t *testing.T) {
 	t.Parallel()
 	for mac, want := range map[string]bool{
 		"c2:31:86:3f:8c:a0": true, "86:52:d9:85:7f:a9": true, "7e:ca:40:4d:93:b1": true, "ca:fe:85:f7:61:fb": true,
-		"3c:22:fb:00:00:01": false, // burned in
+		"3c:22:fb:00:00:01": false,                                             // burned in
 		qemuMAC:             false, dockMAC: false, "0a:00:27:00:00:05": false, // stable virtual prefixes
 		"": false, "bad": false,
 	} {

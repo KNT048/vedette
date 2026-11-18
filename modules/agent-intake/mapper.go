@@ -112,7 +112,7 @@ func debUpstream(v string) string {
 func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, dropped int) {
 	seen := map[string]int{} // key -> index in items
 	add := func(display, vendor, product, version string, mapped, packaged bool, pkgVersion, pkgSource string, conf float64) {
-		if !(debver.Valid(pkgVersion) || apkver.Valid(pkgVersion)) || pkgSource == "" {
+		if !debver.Valid(pkgVersion) && !apkver.Valid(pkgVersion) || pkgSource == "" {
 			pkgVersion, pkgSource = "", ""
 		}
 		// The key vendor|product must stay within the inventory's 400 bytes, or it refuses the whole list.
@@ -264,10 +264,26 @@ func lowerRelease(a, b string) (lower, ok bool) {
 
 // apkNVDVersion is the upstream version of an apk release in the form NVD writes it: "10.2_p1-r1" is 10.2p1 (apk's _p is a patch
 // letter suffix; the other suffixes keep their apk spelling and so are not read as a release).
-func apkNVDVersion(rel string) string { return strings.Replace(apkver.Upstream(rel), "_p", "p", 1) }
+func apkNVDVersion(rel string) string {
+	return apkPatchRE.ReplaceAllStringFunc(apkver.Upstream(rel), func(m string) string {
+		d := m[2:]
+		if len(d) <= 3 {
+			return "p" + d // a short patch number: OpenSSH's "10.2_p1" is 10.2p1
+		}
+		return "+" + d // a date ("6.5_p20250503"): a build tail NVD's ranges cannot place, so the bounds stay unknown, as for Debian's "6.5+20250503"
+	})
+}
+
+var apkPatchRE = regexp.MustCompile(`_p[0-9]*`)
+
+// pacmanVersionRE is the shape pacman prints (the reporter reads the same one): an optional epoch, the upstream version, "-", the release.
+var pacmanVersionRE = regexp.MustCompile(`^([0-9]+:)?[A-Za-z0-9._+~]+-[A-Za-z0-9._+]+$`)
 
 // pacmanUpstream is the upstream version of a pacman version "[epoch:]version-pkgrel"; "" when it has no release part.
 func pacmanUpstream(v string) string {
+	if !pacmanVersionRE.MatchString(v) {
+		return ""
+	}
 	if i := strings.IndexByte(v, ':'); i > 0 && strings.Trim(v[:i], "0123456789") == "" {
 		v = v[i+1:]
 	}

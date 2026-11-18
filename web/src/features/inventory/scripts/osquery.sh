@@ -14,6 +14,7 @@
 # What the reporter path does: writes the box CA, the enrol secret (mode 600) and the reporter (/usr/local/sbin/vedette-reporter), runs it once
 # (it enrols, then sends the package list), and schedules it hourly (systemd timer, else cron.d, else busybox crond).
 set -eu
+umask 022 # files this installer writes do not depend on root's umask; secrets are written in their own 077 subshell
 BOX='@@BOX@@'
 OSQ_VERSION='@@VERSION@@'
 TOKEN=''
@@ -50,7 +51,14 @@ svc_disable_stop() {
   fi
 }
 svc_enable_restart() {
-  if [ "$INIT" = systemd ]; then systemctl enable --quiet osqueryd; systemctl restart osqueryd; return; fi
+  if [ "$INIT" = systemd ]; then
+    # A crashed osqueryd comes back by itself. The drop-in is read back from systemd, and the install fails if it did not apply.
+    mkdir -p /etc/systemd/system/osqueryd.service.d
+    printf '[Service]\nRestart=on-failure\nRestartSec=10\n' > /etc/systemd/system/osqueryd.service.d/vedette-restart.conf
+    systemctl daemon-reload
+    [ "$(systemctl show -p Restart osqueryd 2>/dev/null)" = Restart=on-failure ] || { echo "systemd did not apply Restart=on-failure to osqueryd (see /etc/systemd/system/osqueryd.service.d/vedette-restart.conf); osqueryd would not come back after a crash." >&2; exit 1; }
+    systemctl enable --quiet osqueryd; systemctl restart osqueryd; return
+  fi
   if command -v update-rc.d >/dev/null 2>&1; then update-rc.d osqueryd defaults >/dev/null 2>&1 || true
   elif command -v chkconfig >/dev/null 2>&1; then chkconfig osqueryd on >/dev/null 2>&1 || true; fi
   "$SYSV" restart >/dev/null 2>&1
@@ -62,11 +70,19 @@ RSTATE=/var/lib/vedette-reporter
 RBIN=/usr/local/sbin/vedette-reporter
 CRON_D=/etc/cron.d/vedette-reporter
 BB_CRON=/etc/crontabs/root
+# Takes this installer's line out of the busybox crontab. A grep that finds nothing (exit 1) is fine; a grep that fails (exit 2) must never
+# leave root's crontab empty, so the file is replaced only after grep ran.
+cron_strip() {
+  rc=0; grep -v '# vedette-reporter$' "$BB_CRON" > "$BB_CRON.vedette-new" || rc=$?
+  if [ "$rc" -le 1 ]; then cat "$BB_CRON.vedette-new" > "$BB_CRON"; fi
+  rm -f "$BB_CRON.vedette-new"
+  [ "$rc" -le 1 ]
+}
 # The reporter's schedule is removed wherever it was put (also when the machine has since changed init).
 reporter_remove() {
   if [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1; then systemctl disable --now vedette-reporter.timer >/dev/null 2>&1 || true; fi
   rm -f /etc/systemd/system/vedette-reporter.timer /etc/systemd/system/vedette-reporter.service "$CRON_D" "$RBIN"
-  if [ -f "$BB_CRON" ]; then grep -v '# vedette-reporter$' "$BB_CRON" > "$BB_CRON.vedette-new" || true; cat "$BB_CRON.vedette-new" > "$BB_CRON"; rm -f "$BB_CRON.vedette-new"; fi
+  if [ -f "$BB_CRON" ]; then cron_strip || true; fi
   if [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1; then systemctl daemon-reload >/dev/null 2>&1 || true; fi
   rm -rf "$RDIR" "$RSTATE"
 }
@@ -74,6 +90,7 @@ reporter_remove() {
 if [ "$ACTION" = uninstall ]; then
   reporter_remove
   [ "$INIT" = none ] || svc_disable_stop
+  rm -rf /etc/systemd/system/osqueryd.service.d/vedette-restart.conf
   if command -v dpkg >/dev/null 2>&1 && dpkg -s osquery >/dev/null 2>&1; then dpkg -r osquery 2>/dev/null || true
   elif command -v rpm >/dev/null 2>&1; then rpm -e osquery 2>/dev/null || true; fi
   rm -f "$DIR/osquery.flags" "$DIR/enroll.secret" "$CA"
@@ -91,8 +108,8 @@ install_reporter() {
   else echo "Cannot install the package reporter on ${OS_NAME}: no scheduler found (systemd, /etc/cron.d or /etc/crontabs). Install cron and run this command again." >&2; return 1; fi
   if ! command -v curl >/dev/null 2>&1; then
     if command -v apk >/dev/null 2>&1; then
-      echo "Installing curl and ca-certificates with apk (the reporter needs curl to talk to the box over TLS)..."
-      apk add --no-cache curl ca-certificates >/dev/null 2>&1 || { echo "apk could not install curl: install curl and run this command again." >&2; return 1; }
+      echo "Installing curl with apk (the reporter needs curl to talk to the box over TLS; this needs access to your apk repositories)..."
+      apk add --no-cache curl >/dev/null 2>&1 || { echo "apk could not install curl: install curl and run this command again." >&2; return 1; }
     else echo "Cannot install the package reporter on ${OS_NAME}: 'curl' is required and is not installed." >&2; return 1; fi
   fi
   for NEED in awk sed grep mktemp ip; do
@@ -100,8 +117,11 @@ install_reporter() {
   done
   # With a token this machine does not hold yet the reporter's node key is dropped, so that it enrols under the new token.
   if [ "$(cat "$RDIR/enroll.secret" 2>/dev/null || true)" != "$TOKEN" ]; then rm -f "$RSTATE/node-key"; fi
-  mkdir -p "$RDIR" "$RSTATE" /usr/local/sbin
+  # osquery and the reporter never both enrol this machine: the box keeps one node per host name, so each enrolment would replace the other's.
+  if [ "$INIT" != none ] && svc_known; then svc_disable_stop; fi
+  mkdir -p "$RDIR" "$RSTATE" "$RDIR/capath" /usr/local/sbin
   chmod 700 "$RDIR" "$RSTATE"
+  chmod 755 "$RDIR/capath"
   cat > "$RDIR/ca.pem" <<'VEDETTE_CA'
 @@CA@@
 VEDETTE_CA
@@ -109,7 +129,8 @@ VEDETTE_CA
   printf '%s\n' "$BOX" > "$RDIR/box"
   printf '%s\n' "$HOSTID" > "$RDIR/host-id"
   ( umask 077; printf '%s\n' "$TOKEN" > "$RDIR/enroll.secret" )
-  cat > "$RBIN" <<'VEDETTE_REPORTER'
+  rm -f "$RBIN.new"
+  cat > "$RBIN.new" <<'VEDETTE_REPORTER'
 #!/bin/sh
 # Vedette package reporter. Installed by the Vedette install command on Linux systems osquery cannot run on (Alpine and other musl
 # systems, Arch, other architectures). It enrols with the box like an osquery node, then sends this machine's operating system, network
@@ -117,6 +138,9 @@ VEDETTE_CA
 # The enrol secret is read from a file (mode 600) and every request body is a file: nothing secret is ever an argument or is printed.
 set -eu
 umask 077
+# A scheduler's PATH can be short (cron.d: /usr/bin:/bin), and ip lives in /usr/sbin on some systems; the job runs as root, so PATH is fixed.
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
 D=/etc/vedette-reporter
 S=/var/lib/vedette-reporter
 MAXROWS=5000
@@ -134,7 +158,15 @@ printf '%s' "$BOX" | grep -Eq '^https://[]A-Za-z0-9.:[-]+$' && [ "${#BOX}" -le 2
 printf '%s' "$HOSTID" | grep -Eq '^[A-Za-z0-9._-]{1,200}$' || fail "$D/host-id is not a host name"
 
 # One HTTPS call to the box with the box's own certificate pinned. The body is $TMP/req and the answer $TMP/resp.
-post() { curl -fsS --proto '=https' --max-time 120 --cacert "$D/ca.pem" -H 'Content-Type: application/json' --data-binary @"$TMP/req" -o "$TMP/resp" "$BOX/api/v1/intake/osquery/$1"; }
+# --capath points at an empty directory: --cacert alone leaves the system's CA directory trusted too (Debian and Ubuntu curl), so any public CA
+# could stand in for the box. HTTPCODE is 000 when the box could not be reached at all.
+post() {
+  HTTPCODE=$(curl -sS --proto '=https' --max-time 120 --cacert "$D/ca.pem" --capath "$D/capath" -H 'Content-Type: application/json' --data-binary @"$TMP/req" -o "$TMP/resp" -w '%{http_code}' "$BOX/api/v1/intake/osquery/$1") || HTTPCODE=000
+  case "$HTTPCODE" in 2??) return 0 ;; esac
+  return 1
+}
+# why says what a failed call was: no answer (address, certificate), or the box's HTTP status (429: asked again within a minute; wait and retry).
+why() { if [ "$HTTPCODE" = 000 ]; then printf 'cannot reach the box at %s (is the address reachable and its certificate the one in %s/ca.pem?)' "$BOX" "$D"; else printf 'the box at %s answered HTTP %s' "$BOX" "$HTTPCODE"; fi; }
 
 # ---- what this machine is ----
 # os-release is read in a subshell (its VERSION, NAME, ... must not overwrite this script's variables).
@@ -145,6 +177,8 @@ OS_NAME=$(printf '%s' "$OSROW" | cut -f1)
 OS_VERSION=$(printf '%s' "$OSROW" | cut -f2)
 OS_ID=$(printf '%s' "$OSROW" | cut -f3)
 ARCH=$(uname -m)
+# The host name is read at every run (a renamed machine reports its new name); the identifier it enrolled under stays the stored one.
+LIVEHOST=$(uname -n | tr -cd 'A-Za-z0-9._-' | cut -c1-200); [ -n "$LIVEHOST" ] || LIVEHOST=$HOSTID
 # Free text becomes a JSON string only after it has been cut to a plain character set: nothing in it needs escaping.
 plain() { printf '%s' "$1" | tr -cd 'A-Za-z0-9 ._+()/:-' | cut -c1-"$2"; }
 OS_NAME=$(plain "$OS_NAME" 80); OS_VERSION=$(plain "$OS_VERSION" 60); OS_ID=$(plain "$OS_ID" 32 | tr 'A-Z ' 'a-z-'); ARCH=$(plain "$ARCH" 32)
@@ -208,9 +242,9 @@ elif command -v dpkg-query >/dev/null 2>&1 && [ -e /var/lib/dpkg/status ]; then
   PKQ=deb_packages
   dpkg-query -W -f '${db:Status-Abbrev}\t${Package}\t${Version}\t${Architecture}\t${Source}\n' > "$TMP/raw" 2>/dev/null || fail "dpkg-query failed"
   awk -F '\t' -v max="$MAXROWS" '
-    $1 !~ /^ii/ { next }
-    { bad_line = 1; src = $5; sub(/ .*/, "", src) }
-    $2 ~ /^[a-z0-9][a-z0-9+.-]*$/ && length($2) <= 100 && $3 ~ /^[A-Za-z0-9.+~:-]+$/ && length($3) <= 100 && $4 ~ /^[a-z0-9-]+$/ && (src == "" || (src ~ /^[a-z0-9][a-z0-9+.-]*$/ && length(src) <= 100)) {
+    $1 !~ /^[hi]i/ { next }
+    { bad_line = 1; src = $5 }
+    $2 ~ /^[a-z0-9][a-z0-9+.-]*$/ && length($2) <= 100 && $3 ~ /^[A-Za-z0-9.+~:-]+$/ && length($3) <= 100 && $4 ~ /^[a-z0-9-]+$/ && (src == "" || (src ~ /^[a-z0-9][a-z0-9+.-]*( \([A-Za-z0-9.+~:-]+\))?$/ && length(src) <= 150)) {
       bad_line = 0
       if (good < max) { printf "%s{\"name\":\"%s\",\"version\":\"%s\",\"arch\":\"%s\",\"source\":\"%s\"}", (good ? "," : ""), $2, $3, $4, src; good++ }
     }
@@ -237,33 +271,32 @@ KEYF=$S/node-key
 keyval() { sed -n 's/.*"node_key" *: *"\([A-Za-z0-9_-]*\)".*/\1/p' "$1" | head -n 1; }
 enrol() {
   printf '{"enroll_secret":"%s","host_identifier":"%s","host_details":{"system_info":{"hostname":"%s"},"os_version":{"platform":"%s"}}}' "$TOKEN" "$HOSTID" "$HOSTID" "$OS_ID" > "$TMP/req"
-  post enroll || fail "cannot reach the box at $BOX (is the address reachable and its certificate the one in $D/ca.pem?)"
+  post enroll || fail "$(why)"
   NODEKEY=$(keyval "$TMP/resp")
   printf '%s' "$NODEKEY" | grep -Eq '^[A-Za-z0-9_-]{43}$' || fail "the box did not accept this enrol secret (revoked or expired token: run the install command again)" 2
-  printf '%s' "$NODEKEY" > "$KEYF"
+  printf '%s\n' "$NODEKEY" > "$KEYF"
 }
 NODEKEY=''
-[ ! -s "$KEYF" ] || read -r NODEKEY < "$KEYF" || NODEKEY=''
+# read returns 1 at the end of a file without a final newline although it set the variable: the key is written with one and read either way
+[ ! -s "$KEYF" ] || read -r NODEKEY < "$KEYF" || [ -n "$NODEKEY" ] || NODEKEY=''
 printf '%s' "$NODEKEY" | grep -Eq '^[A-Za-z0-9_-]{43}$' || { NODEKEY=''; enrol; }
 
 send() {
   {
     printf '{"node_key":"%s","log_type":"result","data":[' "$NODEKEY"
     printf '{"name":"os_version","action":"snapshot","snapshot":[{"name":"%s","version":"%s","platform":"%s","arch":"%s"}]},' "$OS_NAME" "$OS_VERSION" "$OS_ID" "$ARCH"
-    printf '{"name":"system_info","action":"snapshot","snapshot":[{"hostname":"%s"}]},' "$HOSTID"
+    printf '{"name":"system_info","action":"snapshot","snapshot":[{"hostname":"%s"}]},' "$LIVEHOST"
     printf '{"name":"interfaces","action":"snapshot","snapshot":[%s]},' "$(cat "$TMP/ifaces")"
     printf '{"name":"%s","action":"snapshot","snapshot":[' "$PKQ"; cat "$TMP/pkgs"; printf ']}]}'
   } > "$TMP/req"
-  post log || fail "sending the report to $BOX failed"
+  post log || fail "sending the report failed: $(why)"
 }
 send
 if grep -q '"node_invalid" *: *true' "$TMP/resp"; then NODEKEY=''; enrol; send; fi
 if grep -q '"node_invalid" *: *true' "$TMP/resp"; then fail "the box refused this machine's node key twice" 2; fi
 printf '%s %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "sent $PKQ to $BOX" > "$S/last-run"
 VEDETTE_REPORTER
-  chmod 755 "$RBIN"
-  echo "Sending this machine's packages to Vedette..."
-  "$RBIN" || { echo "The package reporter was installed, but its first report failed (see above and $RSTATE/last-run). Check that the box address is reachable from here and the token is still valid, then run: $RBIN" >&2; return 3; }
+  chmod 755 "$RBIN.new"; mv -f "$RBIN.new" "$RBIN"
   # one minute of the hour per machine, so that a fleet does not report in the same second
   MIN=$(printf '%s' "$HOSTID" | cksum | awk '{ print $1 % 60 }')
   case "$SCHED" in
@@ -279,8 +312,7 @@ ExecStart=$RBIN
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=true
-ProtectSystem=strict
-ReadWritePaths=$RSTATE
+ProtectSystem=full
 UNIT
       cat > /etc/systemd/system/vedette-reporter.timer <<UNIT
 [Unit]
@@ -295,17 +327,22 @@ Persistent=true
 WantedBy=timers.target
 UNIT
       systemctl daemon-reload
-      systemctl enable --now vedette-reporter.timer >/dev/null 2>&1 || { echo "systemd did not start vedette-reporter.timer." >&2; return 1; } ;;
+      if ! systemctl enable --now vedette-reporter.timer >/dev/null 2>&1 || ! systemctl is-active --quiet vedette-reporter.timer; then
+        echo "systemd did not start vedette-reporter.timer: the hourly report would not run." >&2; return 1
+      fi ;;
     cron.d)
       printf '%s * * * * root %s >/dev/null 2>&1\n' "$MIN" "$RBIN" > "$CRON_D"
       chmod 644 "$CRON_D" ;;
     busybox)
       touch "$BB_CRON"
-      { grep -v '# vedette-reporter$' "$BB_CRON" || true; printf '%s * * * * %s >/dev/null 2>&1 # vedette-reporter\n' "$MIN" "$RBIN"; } > "$BB_CRON.vedette-new"
-      cat "$BB_CRON.vedette-new" > "$BB_CRON"; rm -f "$BB_CRON.vedette-new"
+      cron_strip || { echo "Could not read $BB_CRON; the crontab was left as it is." >&2; return 1; }
+      printf '%s * * * * %s >/dev/null 2>&1 # vedette-reporter\n' "$MIN" "$RBIN" >> "$BB_CRON"
       if command -v rc-service >/dev/null 2>&1; then rc-update add crond default >/dev/null 2>&1 || true; rc-service crond start >/dev/null 2>&1 || true; fi
       if command -v pgrep >/dev/null 2>&1 && ! pgrep crond >/dev/null 2>&1; then echo "Note: crond is not running on this machine, so the hourly report will not run until it is started (Alpine: rc-service crond start)." >&2; fi ;;
   esac
+  # The schedule is in place before the first report, so a failure of the first one (a network that is not up yet) does not leave a reporter that never runs.
+  echo "Sending this machine's packages to Vedette..."
+  "$RBIN" || { echo "The package reporter was installed and scheduled every hour (minute $MIN, $SCHED), but its first report failed (see above and $RSTATE/last-run). Check that the box address is reachable from here and the token is still valid, then run: $RBIN" >&2; return 3; }
   echo "Installed. This machine's operating system and packages appear in Vedette now and are refreshed every hour (minute $MIN, $SCHED)."
 }
 
@@ -356,8 +393,11 @@ chmod 644 "$CA"
 
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
-curl -fsS --cacert "$CA" "$BOX/api/v1/install/osquery/SHA256SUMS" -o "$TMP/SHA256SUMS"
-curl -fsS --cacert "$CA" "$BOX/api/v1/install/osquery/$FILE" -o "$TMP/$FILE"
+mkdir "$TMP/capath" # empty: --cacert alone leaves the system's CA directory trusted too (Debian and Ubuntu curl), so only the box's own certificate is accepted
+# One machine runs one agent: a reporter from an earlier run is removed, since both enrol under this machine's name and would replace each other's node.
+reporter_remove
+curl -fsS --cacert "$CA" --capath "$TMP/capath" "$BOX/api/v1/install/osquery/SHA256SUMS" -o "$TMP/SHA256SUMS"
+curl -fsS --cacert "$CA" --capath "$TMP/capath" "$BOX/api/v1/install/osquery/$FILE" -o "$TMP/$FILE"
 ( cd "$TMP" && grep " $FILE\$" SHA256SUMS | sha256sum -c - ) || { echo "Checksum of $FILE does not match. Nothing was installed." >&2; exit 1; }
 # The package manager's output (and whatever osquery's own package scripts print, such as a bare line of numbers) goes to a log shown
 # only when the install fails, so a normal run prints Vedette's lines only.
@@ -392,7 +432,7 @@ FLAGS
 # status answers for THIS machine: sent its name (the host_identifier set above), it returns host_last_seen, when
 # the box last heard from a machine of this token with that name (null = none yet). Success = osqueryd runs and that value appeared or moved
 # since before the restart; the first report itself comes later and is not waited for. Other machines of the token do not count.
-vstatus() { curl -fsS --cacert "$CA" -X POST -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d "{\"host_identifier\":\"$HOSTID\"}" "$BOX/api/v1/intake/osquery/status" 2>/dev/null || true; }
+vstatus() { curl -fsS --cacert "$CA" --capath "$TMP/capath" -X POST -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d "{\"host_identifier\":\"$HOSTID\"}" "$BOX/api/v1/intake/osquery/status" 2>/dev/null || true; }
 seen_of() { sed -n 's/.*"host_last_seen":"\([^"]*\)".*/\1/p'; }
 BASE=$(vstatus | seen_of)
 svc_enable_restart

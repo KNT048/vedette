@@ -80,7 +80,7 @@ func checkItem(i int, it SoftwareItem) (SoftwareItem, error) {
 		if it.Confidence < 0 || it.Confidence > 1 || it.Confidence != it.Confidence {
 			return it, invalid("software %d: confidence must be between 0 and 1", i)
 		}
-		if !(debver.Valid(it.PkgVersion) || apkver.Valid(it.PkgVersion)) || !pkgSourceRE.MatchString(it.PkgSource) || !it.Packaged {
+		if !debver.Valid(it.PkgVersion) && !apkver.Valid(it.PkgVersion) || !pkgSourceRE.MatchString(it.PkgSource) || !it.Packaged {
 			it.PkgVersion, it.PkgSource = "", "" // Only a well-formed pair of a package database row is kept
 		}
 		if len(it.KevKeys) > maxKeys {

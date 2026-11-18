@@ -21,10 +21,10 @@ func TestReporter_ApkAndPacmanListsBecomeSoftwareRows(t *testing.T) {
 	}{
 		{"Alpine", map[string]string{"name": "Alpine Linux", "version": "3.23.2", "platform": "alpine", "arch": "x86_64"},
 			[]map[string]string{apk("openssh-server", "10.2_p1-r1", "openssh"), apk("busybox", "1.37.0-r30", "busybox"), apk("ca-certificates-bundle", "20261020-r0", "ca-certificates"),
-				apk("OPENSSH", "10.2_p1-r1", "openssh"), apk("bad name", "1.0-r0", "x"), apk("musl", "1.2.5-bad", "musl")},
-			"apk_packages", map[string]string{"OpenSSH": "10.2p1"}, map[string]string{"OpenSSH": "10.2_p1-r1"}},
+				apk("ncurses-libs", "6.5_p20250503-r0", "ncurses"), apk("OPENSSH", "10.2_p1-r1", "openssh"), apk("bad name", "1.0-r0", "x"), apk("musl", "1.2.5-bad", "musl")},
+			"apk_packages", map[string]string{"OpenSSH": "10.2p1", "ncurses-libs": "6.5+20250503"}, map[string]string{"OpenSSH": "10.2_p1-r1"}}, // a date patch level is a build tail, never "6.5p20250503" (which an "up to 6.5" range would call not affected)
 		{"Arch", map[string]string{"name": "Arch Linux", "version": "rolling", "platform": "arch", "arch": "x86_64"},
-			[]map[string]string{{"name": "openssh", "version": "10.2p1-1"}, {"name": "git", "version": "1:2.43.0-1"}, {"name": "linux", "version": "6.12.1.arch1-1"}, {"name": "x", "version": "noRelease"}},
+			[]map[string]string{{"name": "openssh", "version": "10.2p1-1"}, {"name": "git", "version": "1:2.43.0-1"}, {"name": "linux", "version": "6.12.1.arch1-1"}, {"name": "x", "version": "noRelease"}, {"name": "evil", "version": "1.0;x-1"}},
 			"pacman_packages", map[string]string{"OpenSSH": "10.2p1", "Git": "2.43.0"}, nil},
 	}
 	for _, c := range cases {
@@ -62,7 +62,7 @@ func TestReporter_ApkAndPacmanListsBecomeSoftwareRows(t *testing.T) {
 					t.Errorf("%s: package release %q, want %q", p, pkg[p], v)
 				}
 			}
-			for _, bad := range []string{"bad name", "musl", "x"} {
+			for _, bad := range []string{"bad name", "musl", "x", "evil"} {
 				if _, there := got[bad]; there {
 					t.Errorf("a row that is not a package of this system was kept: %s", bad)
 				}

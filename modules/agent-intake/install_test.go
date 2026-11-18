@@ -338,7 +338,7 @@ func TestInstall_LinuxScriptDetectsByCapability(t *testing.T) {
 		`[ ! -e "$GLIBC_LOADER" ]; then WHY="its official build needs glibc`,
 		`command -v dpkg >/dev/null 2>&1 && [ -e /var/lib/dpkg/status ]; then FMT=deb`, `elif command -v rpm >/dev/null 2>&1; then FMT=rpm`,
 		`neither dpkg nor rpm is present`, `no service manager found`, `install_reporter`, `for NEED in curl sha256sum mktemp`,
-		`mkdir -p "$DIR"`, `curl -fsS --cacert "$CA" "$BOX/api/v1/install/osquery/SHA256SUMS"`,
+		`mkdir -p "$DIR"`, `curl -fsS --cacert "$CA" --capath "$TMP/capath" "$BOX/api/v1/install/osquery/SHA256SUMS"`,
 	} {
 		i := strings.Index(sh[at:], step)
 		if i < 0 {
@@ -890,6 +890,11 @@ func TestInstall_ReporterIsSafe(t *testing.T) {
 		"umask 077", `read -r TOKEN < "$D/enroll.secret"`, `--cacert "$D/ca.pem"`, `--proto '=https'`, `--data-binary @"$TMP/req"`,
 		`/api/v1/intake/osquery/$1`, `post enroll`, `post log`, `'^vdt_[a-z]+_[a-z0-9]{32}$'`, `'^[A-Za-z0-9_-]{43}$'`, "exit 4",
 		"apk list -I", "pacman -Q", "dpkg-query -W", "rpm -qa",
+		// the pin is real: --cacert alone leaves the system CA directory trusted (Debian and Ubuntu curl)
+		`--cacert "$D/ca.pem" --capath "$D/capath"`, `PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin`,
+		// the node key is kept with a newline and read back whatever its ending, so a second run does not enrol again (reporter_test.sh runs it twice)
+		`printf '%s\n' "$NODEKEY" > "$KEYF"`, `read -r NODEKEY < "$KEYF" || [ -n "$NODEKEY" ]`,
+		`$1 !~ /^[hi]i/`, // a held package is installed
 	} {
 		if !strings.Contains(rep, want) {
 			t.Errorf("the reporter lost %q", want)
@@ -900,6 +905,13 @@ func TestInstall_ReporterIsSafe(t *testing.T) {
 			(strings.Contains(line, "$TOKEN") || strings.Contains(line, "$NODEKEY")) {
 			t.Errorf("a secret on a curl command line: %s", line)
 		}
+	}
+	if strings.Count(sh, `--capath "$TMP/capath"`) != 3 || strings.Contains(sh, `curl -fsS --cacert "$CA" "`) || strings.Contains(sh, `curl -fsS --cacert "$CA" -X`) {
+		t.Error("every curl of the osquery path must pass --capath next to --cacert (SHA256SUMS, the package and the status call)")
+	}
+	// the dpkg source keeps its version ("openssl (3.0.13-0ubuntu3)"): the mapper compares it with the binary's release
+	if strings.Contains(rep, `sub(/ .*/, "", src)`) {
+		t.Error("the reporter strips the version from the dpkg source")
 	}
 	// the endpoints are the osquery ones the box already serves
 	if !strings.Contains(sh, "--enroll_tls_endpoint=/api/v1/intake/osquery/enroll") || !strings.Contains(sh, "--logger_tls_endpoint=/api/v1/intake/osquery/log") {

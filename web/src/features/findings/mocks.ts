@@ -154,7 +154,7 @@ function expireAccepted() {
     const f = find(id)
     clearAccepted(id)
     if (!f) continue
-    patch(id, (x) => ({ ...x, status: x.basis === 'scan' ? 'confirmed' : 'suspected', resolved_at: null, resolved_by: null, resolution_note: null,
+    patch(id, (x) => ({ ...x, status: x.basis === 'scan' || x.basis === 'person' || (x.basis === 'version' && !!x.evidence?.source) ? 'confirmed' : 'suspected', resolved_at: null, resolved_by: null, resolution_note: null,
       history: [...x.history, { ts: nowIso(), user: 'system', action: 'reopened', note: `Risk acceptance expired (accepted by ${f.resolved_by ?? 'someone'} until ${fmtDate(until)}).` }] }))
   }
 }
@@ -543,7 +543,7 @@ function toFix(asset: string | null): ToFix {
       if (!g.worst) g.worst = r.severity
       if (r.kev?.ransomware) g.ransomware++
       if (r.kev?.has_template) g.checkable++
-      if (r.basis === 'scan') g.confirmed++
+      if (r.status === 'confirmed') g.confirmed++ // a scan, a person or the version the device reports (findings proofOf)
       else if (r.basis === 'version') g.detected++
       else g.reported++
     }
@@ -630,7 +630,7 @@ export const handlers = [
       accepted.update((m) => ({ ...m, [f.id]: until }))
     } else if (b.action === 'reopen') {
       if (f.status === 'confirmed' || f.status === 'suspected') return fail(409, 'already_open', 'This finding is already open.')
-      patch(f.id, (x) => ({ ...x, status: x.basis === 'scan' || x.basis === 'person' ? 'confirmed' : 'suspected', resolved_by: null, resolved_at: null, resolution_note: null, history: [...x.history, { ts, user, action: 'reopened', note: note || undefined }] }))
+      patch(f.id, (x) => ({ ...x, status: x.basis === 'scan' || x.basis === 'person' || (x.basis === 'version' && !!x.evidence?.source) ? 'confirmed' : 'suspected', resolved_by: null, resolved_at: null, resolution_note: null, history: [...x.history, { ts, user, action: 'reopened', note: note || undefined }] }))
     } else {
       patch(f.id, (x) => ({ ...x, status: b.action as Finding['status'], resolved_by: user, resolved_at: ts, resolution_note: note || null, history: [...x.history, { ts, user, action: b.action as string, note: note || undefined }] }))
     }
@@ -659,7 +659,7 @@ export const handlers = [
     const denied = guard('admin'); if (denied) return denied
     const f = find(params.id)
     if (!f) return fail(404, 'not_found', 'No such finding.')
-    if (f.status !== 'confirmed' || f.basis !== 'person') return fail(409, 'not_confirmed_by_person', 'Only a finding a person confirmed can be returned to suspected; a scan confirmed this one.')
+    if (f.status !== 'confirmed' || f.basis !== 'person') return fail(409, 'not_confirmed_by_person', 'Only a finding a person confirmed can be returned to suspected; a scan or the version the device reports confirmed this one.')
     const user = who()
     const was = priorBasis.get(f.id) ?? 'version'
     patch(f.id, (x) => ({ ...x, status: 'suspected', basis: was, history: [...x.history, { ts: nowIso(), user, action: 'confirm_undone', note: `Confirmation undone by ${user}: back to suspected.` }] }))

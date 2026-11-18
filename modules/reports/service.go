@@ -177,7 +177,7 @@ func weeklyFacts(r WeeklyReport) string {
 	c := r.Counts
 	fmt.Fprintf(&b, "Period: %s to %s\nNew findings: %d\nResolved: %d\nOpen confirmed: %d\nOpen suspected: %d\nDevices: %d (%d not approved, %d new)\nNewly exploited in the last 7 days: %d, products in use among them: %d\n",
 		r.Period.From, r.Period.To, c.NewFindings, c.Resolved, c.OpenConfirmed, c.OpenSuspected, c.Devices, c.DevicesUnapprove, c.DevicesNew, c.KevNew, c.KevMatched)
-	b.WriteString("Top risks (product, number of devices, open findings, confirmed by a scan, worst severity):\n")
+	b.WriteString("Top risks (product, number of devices, open findings, confirmed, worst severity):\n")
 	for _, r := range r.TopRisks { // no device names in the prompt
 		fmt.Fprintf(&b, "- %s | %d | %d | %d | %s\n", r.Product, r.Devices, r.Open, r.Confirmed, r.Severity)
 	}

@@ -312,6 +312,10 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, whole *Matc
 			emit(EventCreated, CreatedEvent{FindingID: r.ID, AssetID: r.AssetID, CVE: r.CVE, Severity: r.Severity, Basis: r.Basis})
 			res.Created = append(res.Created, r.ID)
 		}
+		backfill, err := backfillPending(ctx, tx)
+		if err != nil {
+			return err
+		}
 		for _, em := range m.Existing {
 			r, err := loadByPair(ctx, tx, a.ID, em.CVE)
 			if err != nil {
@@ -335,7 +339,7 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, whole *Matc
 				reopenWhy = why
 			}
 			r.Finding = r.ApplyMatch(em)
-			settled := r.Status
+			settled, quiet := r.Status, false
 			if f, h, ok := r.SettleByDevice(now); ok { // the version the device states confirms it, or no longer does
 				r.Finding = f
 				if err := insertHistory(ctx, tx, r.ID, h); err != nil {
@@ -345,10 +349,18 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, whole *Matc
 					Detail: fmt.Sprintf("%s: %s to %s (%s)", r.CVE, settled, r.Status, deviceDetail(r.Finding))}); err != nil {
 					return err
 				}
+				// The first pass after the rule arrived: an open finding confirmed only by the new rule is told once, in the
+				// summary finishBackfill sends, not one notice each.
+				if quiet = backfill && !reopened && r.Status == StatusConfirmed; quiet {
+					if _, err := tx.ExecContext(ctx, `INSERT INTO fnd_device_backfill (finding_id) VALUES (?) ON CONFLICT (finding_id) DO NOTHING`, r.ID); err != nil {
+						return fmt.Errorf("findings: recording a confirmation of the first pass: %w", err)
+					}
+				}
 			}
 			switch {
 			case reopened: // one story: the reopen's event carries the status it reopened to
 				emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: before.Status, To: r.Status, Reason: reopenWhy})
+			case quiet:
 			case r.Status != before.Status:
 				emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: before.Status, To: r.Status, Reason: ReasonDeviceVersion})
 			}

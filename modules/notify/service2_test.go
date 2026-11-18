@@ -754,3 +754,35 @@ func TestSubscribeDeviceVersionConfirmationIsANotice(t *testing.T) {
 		t.Fatalf("text %q missing: %s", want, all)
 	}
 }
+
+// The first pass after the device-version rule arrived: one summary notice for every finding it confirmed, sent once.
+func TestSubscribeDeviceVersionBackfillIsOneSummary(t *testing.T) {
+	e := newEnv(t, func(c *notify.Config) {
+		c.Findings = fakeFindings{map[string]notify.FindingInfo{
+			"f-1": {CVE: "CVE-2025-61624", Product: "Fortinet FortiOS", Severity: notify.High, Title: "t", What: "w", Action: "a", Devices: []string{"FW-EDGE"}},
+			"f-2": {CVE: "CVE-2025-68686", Product: "Fortinet FortiOS", Severity: notify.High, Title: "t", What: "w", Action: "a", Devices: []string{"FW-EDGE"}},
+			"f-3": {CVE: "CVE-2022-27593", Product: "QNAP Photo Station", Severity: notify.Critical, Title: "t", What: "w", Action: "a", Devices: []string{"NAS-01"}},
+		}}
+	})
+	smtp := newFakeSMTP(t)
+	e.email(smtp)
+	e.plain()
+	e.svc.Subscribe(e.bus)
+	ev := findings.DeviceBackfillEvent{Findings: 3, Devices: 2, CVEs: 3, Severity: findings.SeverityCritical,
+		FindingIDs: []string{"f-3", "f-1", "f-2"}, CVEList: []string{"CVE-2022-27593", "CVE-2025-61624", "CVE-2025-68686"}}
+	for range 2 { // the same summary twice: still one notice
+		if err := e.bus.Publish(e.ctx(), events.Event{Name: notify.EventDeviceBackfill, Data: ev}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	e.flush()
+	if n := e.count(`SELECT COUNT(*) FROM notify_notice`); n != 1 {
+		t.Fatalf("notices = %d", n)
+	}
+	all := strings.NewReplacer("=\r\n", "", "=\n", "", "\r\n ", " ", "\n ", " ").Replace(strings.Join(smtp.messages(), "\n"))
+	for _, want := range []string{"3 findings are now confirmed by the version their device reports", "on 2 devices (3 CVEs)"} {
+		if !strings.Contains(all, want) {
+			t.Fatalf("text %q missing: %s", want, all)
+		}
+	}
+}

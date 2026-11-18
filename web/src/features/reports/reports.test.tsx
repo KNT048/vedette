@@ -25,7 +25,7 @@ describe('reports: weekly report (S-REP-1)', () => {
     expect(within(fresh).getByText('CVE-2022-27593')).toBeInTheDocument()
     expect(within(doc).getAllByText('CVE-2022-27593')).toHaveLength(1)
     expect(within(doc).getByText(/^(Plus the new findings? listed above|Every unresolved finding is new this week|The new finding listed above)/)).toBeInTheDocument()
-    expect(within(doc).getByText(/Update or apply the vendor's temporary fix to .+ on NAS-PHOTOS: a scan confirmed it \(CVE-2022-27593\)/)).toBeInTheDocument()
+    expect(within(doc).getByText(/Update or apply the vendor's temporary fix to .+ on NAS-PHOTOS: it is confirmed \(CVE-2022-27593\)/)).toBeInTheDocument()
     expect(within(doc).queryByText(/Honeypot touches$/)).toBeNull() // không bịa số bẫy/log
     expect(within(doc).getByText(/are not part of this report yet/)).toBeInTheDocument()
     expect(within(doc).getByText('No AI commentary yet. Write it here.')).toBeInTheDocument() // the empty AI block holds only the button, no model or text

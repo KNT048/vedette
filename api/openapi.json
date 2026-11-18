@@ -44745,7 +44745,7 @@
                           "type": "integer",
                           "minimum": -9007199254740991,
                           "maximum": 9007199254740991,
-                          "description": "Of them, confirmed by a scan"
+                          "description": "Of them, confirmed: by a scan, a person or the version the device itself reports"
                         },
                         "devices": {
                           "type": "integer",
@@ -45501,7 +45501,7 @@
                                   "type": "integer",
                                   "minimum": -9007199254740991,
                                   "maximum": 9007199254740991,
-                                  "description": "How each exploited finding is known: confirmed by a scan, detected from a version the device reported, reported but not compared, suspected from the network"
+                                  "description": "How each exploited finding is known: confirmed (a scan, a person, or a version the device itself reports inside a range with an end; the finding's status says confirmed), detected from a version the device reported that does not confirm it, reported but not compared, suspected from the network"
                                 },
                                 "checkable": {
                                   "type": "integer",
@@ -45654,7 +45654,7 @@
                                   "type": "integer",
                                   "minimum": -9007199254740991,
                                   "maximum": 9007199254740991,
-                                  "description": "How each exploited finding is known: confirmed by a scan, detected from a version the device reported, reported but not compared, suspected from the network"
+                                  "description": "How each exploited finding is known: confirmed (a scan, a person, or a version the device itself reports inside a range with an end; the finding's status says confirmed), detected from a version the device reported that does not confirm it, reported but not compared, suspected from the network"
                                 },
                                 "checkable": {
                                   "type": "integer",
@@ -45807,7 +45807,7 @@
                                   "type": "integer",
                                   "minimum": -9007199254740991,
                                   "maximum": 9007199254740991,
-                                  "description": "How each exploited finding is known: confirmed by a scan, detected from a version the device reported, reported but not compared, suspected from the network"
+                                  "description": "How each exploited finding is known: confirmed (a scan, a person, or a version the device itself reports inside a range with an end; the finding's status says confirmed), detected from a version the device reported that does not confirm it, reported but not compared, suspected from the network"
                                 },
                                 "checkable": {
                                   "type": "integer",

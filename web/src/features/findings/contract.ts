@@ -260,7 +260,7 @@ export const SummaryItem = z.object({
 export const HomeSummary = z.object({
   open: z.object({
     total: z.number().int().describe('Open findings (confirmed + suspected): a device runs software on an exploited list'),
-    confirmed: z.number().int().describe('Of them, confirmed by a scan'),
+    confirmed: z.number().int().describe('Of them, confirmed: by a scan, a person or the version the device itself reports'),
     devices: z.number().int().describe('Devices with at least one open finding'),
     ransomware: z.number().int().describe('Open findings whose CVE ransomware campaigns use'),
   }),
@@ -290,7 +290,7 @@ export const ToFixAction = z.object({
   finding_ids: z.array(z.string()).describe('The open findings of the CVEs, same order (exploited only; empty for planned)'),
   worst: z.string().describe('The finding\'s severity (critical, high, medium, low) for exploited ones; NVD\'s for planned ones; "" when none'),
   ransomware: z.number().int(), likely: z.number().int().describe('Planned: CVEs EPSS says are likely to be exploited soon'),
-  confirmed: z.number().int(), detected: z.number().int(), reported: z.number().int(), suspected: z.number().int().describe('How each exploited finding is known: confirmed by a scan, detected from a version the device reported, reported but not compared, suspected from the network'),
+  confirmed: z.number().int(), detected: z.number().int(), reported: z.number().int(), suspected: z.number().int().describe('How each exploited finding is known: confirmed (a scan, a person, or a version the device itself reports inside a range with an end; the finding\'s status says confirmed), detected from a version the device reported that does not confirm it, reported but not compared, suspected from the network'),
   checkable: z.number().int().describe('Exploited: how many of the CVEs a safe vulnerability check exists for; "Run the check" is offered only when it is above 0. 0 for planned ones'),
   kb: z.string().describe('A Windows update: the KB number of `fixed` when Microsoft\'s release information lists that build; "" otherwise'),
   nvd_lag: z.boolean().describe('Planned Windows updates: PlanItem.nvd_lag (it fixes at least `cves`; the newest update\'s CVEs are not yet analysed by NVD); false otherwise'),

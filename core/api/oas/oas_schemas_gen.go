@@ -77660,7 +77660,7 @@ func (s *FindingsGetFindingsSummaryOKIncidents) SetUrgent(val int) {
 }
 
 type FindingsGetFindingsSummaryOKOpen struct {
-	// Of them, confirmed by a scan.
+	// Of them, confirmed: by a scan, a person or the version the device itself reports.
 	Confirmed int `json:"confirmed"`
 	// Devices with at least one open finding.
 	Devices int `json:"devices"`
@@ -79813,8 +79813,9 @@ type FindingsGetFindingsToFixOKDevicesItemExploitedItem struct {
 	// Who reported the software row (agent, manual, scan, a sensor; "" when none): "I updated it" follows
 	// it.
 	Source string `json:"source"`
-	// How each exploited finding is known: confirmed by a scan, detected from a version the device
-	// reported, reported but not compared, suspected from the network.
+	// How each exploited finding is known: confirmed (a scan, a person, or a version the device itself
+	// reports inside a range with an end; the finding's status says confirmed), detected from a version
+	// the device reported that does not confirm it, reported but not compared, suspected from the network.
 	Suspected int `json:"suspected"`
 	// The installed version; "" when none.
 	Version string `json:"version"`
@@ -80176,8 +80177,9 @@ type FindingsGetFindingsToFixOKDevicesItemNoUpdateItem struct {
 	// Who reported the software row (agent, manual, scan, a sensor; "" when none): "I updated it" follows
 	// it.
 	Source string `json:"source"`
-	// How each exploited finding is known: confirmed by a scan, detected from a version the device
-	// reported, reported but not compared, suspected from the network.
+	// How each exploited finding is known: confirmed (a scan, a person, or a version the device itself
+	// reports inside a range with an end; the finding's status says confirmed), detected from a version
+	// the device reported that does not confirm it, reported but not compared, suspected from the network.
 	Suspected int `json:"suspected"`
 	// The installed version; "" when none.
 	Version string `json:"version"`
@@ -80539,8 +80541,9 @@ type FindingsGetFindingsToFixOKDevicesItemPlannedItem struct {
 	// Who reported the software row (agent, manual, scan, a sensor; "" when none): "I updated it" follows
 	// it.
 	Source string `json:"source"`
-	// How each exploited finding is known: confirmed by a scan, detected from a version the device
-	// reported, reported but not compared, suspected from the network.
+	// How each exploited finding is known: confirmed (a scan, a person, or a version the device itself
+	// reports inside a range with an end; the finding's status says confirmed), detected from a version
+	// the device reported that does not confirm it, reported but not compared, suspected from the network.
 	Suspected int `json:"suspected"`
 	// The installed version; "" when none.
 	Version string `json:"version"`

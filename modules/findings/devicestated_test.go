@@ -113,6 +113,9 @@ func TestMatchAsset_AgentStatedVersionConfirms(t *testing.T) {
 func TestUpsert_DeviceStatedVersionConfirmsAndReJudges(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
+	if err := e.svc.finishBackfill(t.Context()); err != nil { // after the first pass: every change is told on its own
+		t.Fatal(err)
+	}
 	vulns := fortiVulns()
 	run := func(a Asset) {
 		t.Helper()

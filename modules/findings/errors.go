@@ -29,7 +29,7 @@ var (
 	// Confirming a finding by hand (Finding.ConfirmByPerson, UnconfirmByPerson).
 	ErrConfirmNoteRequired = &APIError{"confirm_note_required", 400, "Write what makes you sure (at least 3 characters) so the next person understands."}
 	ErrNotSuspected        = &APIError{"not_suspected", 409, "Only a suspected finding can be confirmed."}
-	ErrNotConfirmedByHand  = &APIError{"not_confirmed_by_person", 409, "Only a finding a person confirmed can be returned to suspected; a scan confirmed this one."}
+	ErrNotConfirmedByHand  = &APIError{"not_confirmed_by_person", 409, "Only a finding a person confirmed can be returned to suspected; a scan or the version the device reports confirmed this one."}
 )
 
 // Errors that are not API codes.

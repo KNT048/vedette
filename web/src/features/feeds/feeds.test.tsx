@@ -30,7 +30,7 @@ describe('feeds: home (S-FEED-1, S-FEED-2)', () => {
     const tiles = within(strip).getAllByRole('listitem')
     expect(tiles).toHaveLength(4)
     expect(within(tiles[0]!).getByRole('link', { name: /^\d+ open exploited findings? on \d+ devices?$/ })).toHaveAttribute('href', '/findings?tab=open')
-    expect(within(tiles[0]!).getByRole('link', { name: /confirmed by scan$/ })).toHaveAttribute('href', '/findings?tab=open&status=confirmed')
+    expect(within(tiles[0]!).getByRole('link', { name: /confirmed$/ })).toHaveAttribute('href', '/findings?tab=open&status=confirmed')
     expect(within(tiles[0]!).getByRole('img', { name: /^Open exploited findings over 30 days: \d+ then, \d+ now$/ })).toBeInTheDocument()
     expect(within(tiles[1]!).getByRole('link', { name: /devices? watched$/ })).toHaveAttribute('href', '/devices')
     expect(within(tiles[2]!).getByRole('link', { name: /alerts? sent, last 7 days$/ })).toHaveAttribute('href', '/settings/channels#history')

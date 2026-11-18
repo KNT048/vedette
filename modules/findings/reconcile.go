@@ -178,6 +178,15 @@ func (s *Service) Reconcile(ctx context.Context) (ReconcileResult, error) {
 		}
 		res.Orphans += n
 	}
+	if len(vulns) > 0 { // a pass that matched the devices ends the first pass after the device-version rule arrived
+		if err := s.finishBackfill(ctx); err != nil {
+			if ctx.Err() != nil {
+				return res, ctx.Err()
+			}
+			s.cfg.Log.WarnContext(ctx, "findings reconcile could not send the summary of the findings the device's version confirmed", "error", err)
+			failed = append(failed, err)
+		}
+	}
 	// One line per run, so a box's log shows the pass ran and what it changed (the job's own line is debug).
 	s.cfg.Log.InfoContext(ctx, "findings: reconcile pass done", "devices", res.Devices, "created", res.Created,
 		"closed_not_affected", res.Closed, "closed_multiple_products", res.Retired, "closed_older_than_12_months", res.Aged, "closed_no_version_evidence", res.NameOnly, "removed_with_device", res.Orphans, "risk_acceptances_expired", res.Expired, "ignore_healed", res.IgnoreHealed)

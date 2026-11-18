@@ -16,7 +16,24 @@ const (
 	// (#939): one event per device and match write, listing them; never again for the same device and CVE, never for a CVE the device
 	// has or had a finding for. Published under the Backlog mark from Reconcile's backlog write, like findings.finding.created.
 	EventUncheckedAdded = "findings.unchecked.added"
+	// EventDeviceBackfill: the one summary of the open findings the first full match pass after the device-version rule arrived
+	// confirmed only because of that rule (they were already open; each was recorded in its history, none sent its own notice).
+	EventDeviceBackfill = "findings.device_version.backfilled"
 )
+
+// DeviceBackfillEvent is the payload of findings.device_version.backfilled: how many findings, devices and CVEs, and up to
+// MaxBackfillListed of the findings and CVEs, worst first.
+type DeviceBackfillEvent struct {
+	Findings   int      `json:"findings"`
+	Devices    int      `json:"devices"`
+	CVEs       int      `json:"cves"`
+	Severity   Severity `json:"severity"` // the worst of them
+	FindingIDs []string `json:"finding_ids"`
+	CVEList    []string `json:"cve_list"`
+}
+
+// MaxBackfillListed caps the lists of a DeviceBackfillEvent.
+const MaxBackfillListed = 50
 
 // UncheckedAddedEvent is the payload of findings.unchecked.added.
 type UncheckedAddedEvent struct {

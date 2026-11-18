@@ -31,7 +31,7 @@ function watch5xx(page: Page): string[] {
 const E_EMPTY = 'Enter a domain, for example example.com.'
 const E_BAD = 'Enter only a domain name, without http://, a path, a port or spaces. Example: example.com.'
 const E_DOMAIN = 'Not a valid domain. Example: example.com.'
-const E_IP = 'Public IPs are not typed in. The box finds its own public IPs: turn on auto-detect or select "Detect now" under Public IPs of this box.'
+const E_IP = 'That is an IP address, not a domain. Choose Public IP to add an address.'
 const REFUSALS: [string, number, string, string][] = [
   ['', 400, 'empty', E_EMPTY],
   ['   ', 400, 'empty', E_EMPTY],
@@ -73,7 +73,7 @@ test.describe('the page, read as a viewer (S-EXP-1)', () => {
       await expect(page.getByText('No domain yet')).toBeVisible()
       await expect(page.getByText('Select Add target, choose Domain or Public IP and follow the ownership steps.')).toBeVisible()
     } else {
-      await expect(domainTable(page).getByRole('row')).toHaveCount(domains.length + 1)
+      await expect(domainTable(page).getByRole('row')).toHaveCount(d.items.length + 1) // domains and public IPs share one list
       for (const t of domains) {
         const row = domainTable(page).getByRole('row').filter({ has: page.getByRole('link', { name: t.value, exact: true }) })
         await expect(row, t.value).toHaveCount(1)
@@ -81,7 +81,14 @@ test.describe('the page, read as a viewer (S-EXP-1)', () => {
         await expect(row).toContainText(t.commitment ? 'Commitment confirmed' : 'Not confirmed yet')
       }
     }
-    // Public IPs: the settings line, the last check exactly as stored, one row per IP, the Ignored list
+    // Public IPs: one row per IP in the same list, then the Settings tab: the settings line, the last check exactly as stored, the Ignored list
+    const ips = d.items.filter((i) => i.kind === 'ip')
+    for (const t of ips) {
+      const row = ipTable(page).getByRole('row').filter({ has: page.getByRole('link', { name: t.value, exact: true }) })
+      await expect(row, t.value).toHaveCount(1)
+      await expect(row).toContainText(scanCell(t))
+    }
+    await page.goto('/exposure?tab=settings')
     const box = page.locator('#box-ip')
     await expect(box.getByText(autoLine(d.box_ip), { exact: true })).toBeVisible()
     if (d.box_ip.last_run === null) await expect(box.getByText(/^No check yet\. The first check is a full check/)).toBeVisible()
@@ -93,25 +100,13 @@ test.describe('the page, read as a viewer (S-EXP-1)', () => {
     if (d.box_ip.retry_in_min === null) await expect(page.getByText(/Try again in about/)).toHaveCount(0)
     else await expect(page.getByText(`Try again in about ${d.box_ip.retry_in_min} minute${d.box_ip.retry_in_min === 1 ? '' : 's'}. The 10 attempts an hour are used up.`).first()).toBeVisible()
     await expect(box.getByRole('textbox')).toHaveCount(0) // an IP is never typed in (FORBID-2)
-    const ips = d.items.filter((i) => i.kind === 'ip')
-    if (ips.length === 0) {
-      await expect(box.getByText('No public IP yet')).toBeVisible()
-      await expect(box.getByText(d.box_ip.auto ? 'Select Detect now to look right away.' : 'Auto-detect is off. Turn it on, or select Detect now.')).toBeVisible()
-    } else {
-      await expect(ipTable(page).getByRole('row')).toHaveCount(ips.length + 1)
-      for (const t of ips) {
-        const row = ipTable(page).getByRole('row').filter({ has: page.getByRole('link', { name: t.value, exact: true }) })
-        await expect(row, t.value).toHaveCount(1)
-        await expect(row).toContainText(scanCell(t))
-      }
-    }
     const ignored = page.locator('#box-ignored')
     if (d.ignored.length === 0) await expect(ignored.getByText('No ignored IPs')).toBeVisible()
     else for (const i of d.ignored) await expect(ignored.getByRole('row').filter({ hasText: i.value })).toHaveCount(1)
     // the help says how the box finds its IP, and that nothing is typed
     // #824: the help is behind the section's ⓘ; its text is the button's accessible description
-    const help = box.getByRole('button', { name: 'About Public IPs of this box' })
-    for (const t of [/checkip\.amazonaws\.com \(AWS\), icanhazip\.com \(Cloudflare\) and ifconfig\.me\/ip \(Google Cloud\)/, /You cannot type an IP\./, /Private, reserved and shared carrier \(CGNAT, 100\.64\.0\.0\/10\) addresses are refused/, /share 10 attempts per hour/]) await expect(help).toHaveAccessibleDescription(t)
+    const help = box.getByRole('button', { name: 'About Public IP of this box' })
+    for (const t of [/checkip\.amazonaws\.com \(AWS\), icanhazip\.com \(Cloudflare\) and ifconfig\.me\/ip \(Google Cloud\)/, /Private, reserved and shared carrier \(CGNAT, 100\.64\.0\.0\/10\) addresses are refused/, /share 10 attempts per hour/]) await expect(help).toHaveAccessibleDescription(t)
     await expect(page.locator('body')).not.toContainText(/undefined|NaN|\[object|1970|goroutine/)
     await expectAccessible(page, 'exposure list')
     await noVietnamese(page, 'exposure list')
@@ -166,7 +161,7 @@ test.describe('domains as an administrator (S-EXP-1, INV-1, INV-6, INV-7, PRE-4)
       const auditBefore = await auditIds(admin, 'exposure.target_add')
       // every refusal through the API: status, code and the whole message
       for (const [value, status, code, message] of REFUSALS) {
-        expect(await api<ApiErr>(admin, 'POST', '/exposure/targets', { value }), JSON.stringify(value)).toMatchObject(refused(status, code, message))
+        expect(await api<ApiErr>(admin, 'POST', '/exposure/targets', { value, kind: 'domain' }), JSON.stringify(value)).toMatchObject(refused(status, code, message))
       }
       for (const body of [{}, { value: 5 }, { value: null }]) expect(await api<ApiErr>(admin, 'POST', '/exposure/targets', body), JSON.stringify(body)).toMatchObject({ status: 400, body: { error: { code: 'invalid' } } })
       expect(await snapshot(admin), 'a refusal saves nothing').toBe(before)
@@ -345,7 +340,6 @@ test.describe('roles (PRE-4, PRE-1, PRE-2)', () => {
       expect(made1.status, JSON.stringify(made1.body)).toBe(201)
       const id = made1.body.id
       const d = await list(admin)
-      const ips = d.items.filter((i) => i.kind === 'ip')
       const before = await snapshot(admin)
       const auditBefore = await auditIds(admin, 'exposure.')
 
@@ -362,11 +356,11 @@ test.describe('roles (PRE-4, PRE-1, PRE-2)', () => {
         await expect(h1(page)).toHaveText(headline((await list(admin)).items))
         await expect(page.getByRole('button', { name: 'Add target' }).first()).toBeDisabled()
         await expect(page.getByRole('button', { name: 'Add target' }).first()).toHaveAttribute('title', NEEDS_ADMIN)
+        await page.goto('/exposure?tab=settings')
         await expect(page.getByRole('switch', { name: "Detect the box's public IPs automatically" })).toBeDisabled()
         await expect(page.getByRole('button', { name: 'Detect now' })).toBeDisabled()
         await expect(page.getByRole('button', { name: 'Detect now' })).toHaveAttribute('title', NEEDS_ADMIN)
         await expect(page.locator('#box-ip').getByText(NEEDS_ADMIN, { exact: true })).toBeVisible()
-        for (const t of ips) await expect(page.getByRole('button', { name: `Remove ${t.value}` })).toBeDisabled()
         for (const i of d.ignored) await expect(page.getByRole('button', { name: `Restore ${i.value}` })).toBeDisabled()
         await expect(domainTable(page).getByRole('link', { name: value, exact: true })).toBeVisible()
         if (d.box_ip.auto) await expect(page.getByRole('combobox', { name: 'Check every' })).toBeDisabled()

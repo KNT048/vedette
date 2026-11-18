@@ -67,7 +67,7 @@ test('the check interval: 1 to 1440 minutes is saved and audited, anything else 
     expect((await list(admin)).box_ip.interval_min).toBe(15)
 
     // the page, with auto-detect off and 15 minutes stored: it says it is off, offers no interval (nothing runs by itself), and keeps Detect now (not pressed)
-    await page.goto('/exposure')
+    await page.goto('/exposure?tab=settings')
     const box = page.locator('#box-ip')
     const now = await list(admin)
     await expect(h1(page)).toHaveText(headline(now.items))

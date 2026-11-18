@@ -411,7 +411,7 @@ func (s *Service) whyNot(ctx context.Context, memo *memoResolver, t Target, cand
 	case n <= maxReuseListed: // a few: each with what was found there
 		b.WriteString("Also looked for the record of another target of this box that would cover it: " + strings.Join(viaRecords, "; ") + ". ")
 	default: // many: one line
-		b.WriteString(fmt.Sprintf("Also looked for the tokens of the %s of this box on the names above it: none of them is there now. ", plural(n, "other target")))
+		fmt.Fprintf(&b, "Also looked for the tokens of the %s of this box on the names above it: none of them is there now. ", plural(n, "other target"))
 	}
 	if len(above) == 0 {
 		b.WriteString("No domain of this box above it covers it. ")

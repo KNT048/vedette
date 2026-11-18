@@ -10,9 +10,9 @@ import (
 
 // reuseWorld is git.example.com proved by its token on example.com, with example.com, www.example.com and a.b.example.com added after it
 // (each covered at its add).
-func reuseWorld(t *testing.T) (e *env, d *cnameDNS, git, root, www TargetView) {
+func reuseWorld(t *testing.T) (e *env, git, root, www TargetView) {
 	t.Helper()
-	e, d = newProofEnv(t)
+	e, _ = newProofEnv(t)
 	git = e.add("admin@acme.example", "git.example.com")
 	e.dns.put("example.com", "v=spf1 -all", txtRecord(git.Token))
 	if r := e.verify(git.ID); !r.Verified {
@@ -25,14 +25,14 @@ func reuseWorld(t *testing.T) (e *env, d *cnameDNS, git, root, www TargetView) {
 			t.Fatalf("%s is not covered: %+v", v.Value, e.target(v.ID).LastCheck)
 		}
 	}
-	return e, d, git, root, www
+	return e, git, root, www
 }
 
 // The gate of a covered name hands the executors the donor's domain and token and the name the record sits on, and the web and deep
 // steps accept exactly that: one rule at every gate.
 func TestReuse_TheGateHandsTheExecutorsTheDonorsProof(t *testing.T) {
 	t.Parallel()
-	e, _, git, root, www := reuseWorld(t)
+	e, git, root, www := reuseWorld(t)
 	run := &fakeRunner{content: Content{}}
 	e.svc.SetRunner(run)
 	for _, v := range []TargetView{root, www} {
@@ -93,7 +93,7 @@ func TestReuse_TheDeepStepOfACoveredNameCarriesTheDonor(t *testing.T) {
 // and nothing about the donor's own last check.
 func TestReuse_TheGateAsksTheRecordNowAndTheDonorNow(t *testing.T) {
 	t.Parallel()
-	e, _, git, root, www := reuseWorld(t)
+	e, git, root, www := reuseWorld(t)
 	// the donor's own check fails once (a timeout): the covered names stay covered, the record is what counts
 	e.advance(time.Minute)
 	e.dns.err = context.DeadlineExceeded
@@ -128,7 +128,7 @@ func TestReuse_TheGateAsksTheRecordNowAndTheDonorNow(t *testing.T) {
 // (the alternative host) changes nothing for the names above it.
 func TestReuse_ANearerRecordOfTheDonorDoesNotDropTheCoverage(t *testing.T) {
 	t.Parallel()
-	e, _, git, root, www := reuseWorld(t)
+	e, git, root, www := reuseWorld(t)
 	e.dns.put("git.example.com", txtRecord(git.Token))
 	if r := e.verify(git.ID); !r.Verified {
 		t.Fatalf("%+v", r)

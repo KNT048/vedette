@@ -108,7 +108,7 @@ func (j Job) Valid() error {
 		return errors.New("the domain is not a domain name")
 	case j.ProofAt == "" && !Under(j.Name, j.Domain):
 		return errors.New("the name is not the domain or a name under it")
-	case j.ProofAt != "" && !(Under(j.Name, j.ProofAt) && proofat.Within(j.Name, j.ProofAt)):
+	case j.ProofAt != "" && (!Under(j.Name, j.ProofAt) || !proofat.Within(j.Name, j.ProofAt)):
 		return errors.New("the name is not under the proof name, down to its registered domain")
 	case !j.IP.Is4() || !localnet.Public(j.IP):
 		return errors.New("the address is not a public IPv4 address")

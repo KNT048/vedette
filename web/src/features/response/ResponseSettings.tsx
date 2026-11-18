@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { InfoTip } from '@/components/common/InfoTip'
-import { Notice, PageHeader } from '@/components/common/PageHeader'
+import { Notice, PageEnd, PageHeader } from '@/components/common/PageHeader'
 import { Card } from '@/components/common/Card'
 import { ErrorState, Loading } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
@@ -157,7 +157,7 @@ export default function ResponseSettings({ embedded = false }: { embedded?: bool
   const s = q.data
   return (
     <>
-      {embedded ? <div className="mb-4 flex max-w-3xl items-center gap-1 text-meta text-muted"><p>{t('settings.description')}</p><InfoTip topic={t('settings.title')}>{t('settings.descriptionInfo')}</InfoTip></div> : <PageHeader title={t('settings.title')} meta={t('settings.description')} info={t('settings.descriptionInfo')} stories={['S-RESP-2', 'S-RESP-4']} actions={leaving ? <TurnOffResponse /> : undefined} />}
+      {embedded ? <div className="mb-4 flex max-w-3xl items-center gap-1 text-meta text-muted"><p>{t('settings.description')}</p><InfoTip topic={t('settings.title')}>{t('settings.descriptionInfo')}</InfoTip></div> : <PageHeader title={t('settings.title')} meta={t('settings.description')} info={t('settings.descriptionInfo')} stories={['S-RESP-2', 'S-RESP-4']} />}
       <FrozenCtx.Provider value={leaving}>
       <section>
         <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
@@ -185,6 +185,8 @@ export default function ResponseSettings({ embedded = false }: { embedded?: bool
       </section>
       </FrozenCtx.Provider>
       <EnableDialog open={open} onOpenChange={setOpen} />
+      {/* The way out of a module this build does not offer, on the standalone page (the Response page's own end carries it there) */}
+      {leaving && !embedded ? <PageEnd><TurnOffResponse /></PageEnd> : null}
       {leaving ? <ConfirmExecutionOff open={askOff} onOpenChange={setAskOff} title={t('leaving.execOffTitle')} confirmLabel={t('leaving.execOffConfirm')} busy={set.isPending} busyLabel={t('common:busy.turningOff')} onConfirm={off} /> : null}
     </>
   )

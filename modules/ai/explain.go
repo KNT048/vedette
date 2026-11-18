@@ -47,7 +47,7 @@ type AssetFact struct {
 	Name   string // hostname, else the IP
 	IP     string
 	Kind   string
-	Basis  string // version or product
+	Basis  string // version, product, scan or person
 	Status string // open, confirmed, ...
 	// IsBox marks the Vedette box itself: the citation names it apart, as Devices and Reports do. Not sent to the model.
 	IsBox bool
@@ -182,7 +182,7 @@ func hasKeys(text string, keys ...string) bool {
 	return true
 }
 
-// affectedOf is the box's own answer to "does it affect me": no matching device, no; a finding confirmed by a scan, yes; a match
+// affectedOf is the box's own answer to "does it affect me": no matching device, no; a finding confirmed by a scan or a person, yes; a match
 // that nobody confirmed, unknown.
 func affectedOf(assets []AssetFact) string {
 	if len(assets) == 0 {

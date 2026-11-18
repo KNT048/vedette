@@ -44,8 +44,7 @@ function HitBody({ h, crumbs, respond }: { h: HitDetail; crumbs: Crumb[]; respon
     <>
       <PageHeader breadcrumbs={crumbs} stories={['S-HP-1', 'S-HP-2']}
         title={h.is_test ? t('hit.titleTest', { service, time: fmtDateTime(h.ts) }) : t(`hit.title_${h.kind}`, { service, time: fmtDateTime(h.ts), src })}
-        meta={h.is_test ? <Chip tone="off">{t('hits.test')}</Chip> : t(`hit.meta_${h.kind}`, { ip: h.trap_ip })}
-        actions={h.is_test || !respond ? undefined : <RespondLink h={h} />} />
+        meta={h.is_test ? <Chip tone="off">{t('hits.test')}</Chip> : t(`hit.meta_${h.kind}`, { ip: h.trap_ip })} />
       <Section id="facts" title={t('hit.facts')}>
         <Card>
           <KeyValue items={[
@@ -65,7 +64,8 @@ function HitBody({ h, crumbs, respond }: { h: HitDetail; crumbs: Crumb[]; respon
         <DataTable caption={t('hit.eventsCaption')} data={h.events} columns={columns} pageSize={20} rowTone={(r) => (r.mark ? 'warn' : undefined)} initialSort={[{ id: 'ts', desc: false }]} />
       </Section>
       {h.is_test ? null : (
-        <Section id="next" title={t('hit.next')}>
+        // Respond is the next step done in the response module: it sits with the steps, not in the header
+        <Section id="next" title={t('hit.next')} actions={respond ? <RespondLink h={h} /> : undefined}>
           <ol className="grid max-w-3xl list-decimal gap-2 pl-5 text-sm">
             <li>{t('hit.next1', { src })}</li>
             <li>{t('hit.next2')}</li>

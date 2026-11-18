@@ -1718,6 +1718,16 @@ func (UnimplementedHandler) FindingsPostFindingsIDApplied(ctx context.Context, r
 	return r, ht.ErrNotImplemented
 }
 
+// FindingsPostFindingsIDConfirm implements findings_post_findings_id_confirm operation.
+//
+// Confirm a suspected finding on your own word (admin): basis person, status confirmed; a note is
+// required and goes into the history as "Confirmed by : ".
+//
+// POST /findings/{id}/confirm
+func (UnimplementedHandler) FindingsPostFindingsIDConfirm(ctx context.Context, req *FindingsPostFindingsIDConfirmReq, params FindingsPostFindingsIDConfirmParams) (r *FindingsPostFindingsIDConfirmOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // FindingsPostFindingsIDStatus implements findings_post_findings_id_status operation.
 //
 // Change status (patched, mitigated, false positive, not relevant, accept risk until a day, reopen)
@@ -1725,6 +1735,16 @@ func (UnimplementedHandler) FindingsPostFindingsIDApplied(ctx context.Context, r
 //
 // POST /findings/{id}/status
 func (UnimplementedHandler) FindingsPostFindingsIDStatus(ctx context.Context, req *FindingsPostFindingsIDStatusReq, params FindingsPostFindingsIDStatusParams) (r *FindingsPostFindingsIDStatusOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// FindingsPostFindingsIDUnconfirm implements findings_post_findings_id_unconfirm operation.
+//
+// Undo a confirmation a person made (admin): the finding is suspected again; a finding a scan
+// confirmed is refused.
+//
+// POST /findings/{id}/unconfirm
+func (UnimplementedHandler) FindingsPostFindingsIDUnconfirm(ctx context.Context, params FindingsPostFindingsIDUnconfirmParams) (r *FindingsPostFindingsIDUnconfirmOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -2011,6 +2031,19 @@ func (UnimplementedHandler) InventoryGetInventoryDevices(ctx context.Context, pa
 //
 // GET /inventory/devices/{id}
 func (UnimplementedHandler) InventoryGetInventoryDevicesID(ctx context.Context, params InventoryGetInventoryDevicesIDParams) (r *InventoryGetInventoryDevicesIDOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// InventoryGetInventoryDevicesIDSoftware implements inventory_get_inventory_devices_id_software operation.
+//
+// The device's software as one row per software (INV-50): same vendor and product (or CPE application)
+// from several sources is one row, with the values of the strongest source (agent, then a person's
+// entry, then SNMP, then a scan banner). A weaker reading that is only a less precise form of the same
+// release is the same release. Each row lists the other sources (also_seen) and says whether one reads
+// another release (differs). 404 not_found.
+//
+// GET /inventory/devices/{id}/software
+func (UnimplementedHandler) InventoryGetInventoryDevicesIDSoftware(ctx context.Context, params InventoryGetInventoryDevicesIDSoftwareParams) (r *InventoryGetInventoryDevicesIDSoftwareOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

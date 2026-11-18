@@ -12,6 +12,21 @@
     "pdpl": "Data protection assessment",
     "titleEmpty": "No data to build a report yet: add devices first"
   },
+  "filters": {
+    "label": "What the report includes",
+    "unapproved": "Include devices not in the Devices list",
+    "notRelevant": "Include not relevant",
+    "used": {
+      "devicesIn": "Devices not in the Devices list (awaiting approval) are included.",
+      "devicesOut_one": "1 device not in the Devices list (awaiting approval) is left out, with its findings.",
+      "devicesOut_other": "{{count}} devices not in the Devices list (awaiting approval) are left out, with their findings.",
+      "devicesOutNone": "Devices not in the Devices list are left out; there are none now.",
+      "nrIn": "Findings closed as not relevant are included.",
+      "nrOut_one": "1 finding closed as not relevant is left out of these totals and lists.",
+      "nrOut_other": "{{count}} findings closed as not relevant are left out of these totals and lists.",
+      "nrOutNone": "Findings closed as not relevant are left out; there are none this week."
+    }
+  },
   "print": {
     "back": "Back to reports",
     "hint": "Click Print, then choose Save as PDF in the print dialog.",
@@ -233,6 +248,8 @@
       "period": "From {{from}} to {{to}}",
       "headline": "{{open}} findings unresolved, {{confirmed}} of them confirmed; {{unapproved}} devices await approval.",
       "headlineClear": "No unresolved findings; {{unapproved}} devices await approval.",
+      "headlineListed": "{{open}} findings unresolved on the devices in the Devices list, {{confirmed}} of them confirmed.",
+      "headlineClearListed": "No unresolved findings on the devices in the Devices list.",
       "stat": {
         "open": "Open findings",
         "openValue": "{{open}} ({{confirmed}} confirmed by a scan)",
@@ -252,8 +269,6 @@
       "done": "Done this week",
       "doneLine": "{{cve}} on {{device}} ({{product}}): {{status}}",
       "doneLineBy": "{{cve}} on {{device}} ({{product}}): {{status}}, by {{by}}",
-      "notRelevantHidden_one": "1 finding closed as not relevant is hidden from these totals and lists.",
-      "notRelevantHidden_other": "{{count}} findings closed as not relevant are hidden from these totals and lists.",
       "doneMore_one": "And 1 more, listed in the appendix.",
       "doneMore_other": "And {{count}} more, listed in the appendix.",
       "accepted": "Risk accepted: {{count}} (until {{date}})",
@@ -318,7 +333,8 @@
       },
       "levelValue": "Level {{level}}",
       "noFlags": "No special traits declared",
-      "inventorySummary": "The inventory records {{total}} devices: {{approved}} approved, {{unapproved}} awaiting approval, {{fragile}} fragile devices (printers, cameras, NAS) that are only listened to passively.",
+      "inventorySummaryListed": "The Devices list records {{total}} devices, {{fragile}} of them fragile devices (printers, cameras, NAS) that are only listened to passively.",
+      "inventorySummary":"The inventory records {{total}} devices: {{approved}} approved, {{unapproved}} awaiting approval, {{fragile}} fragile devices (printers, cameras, NAS) that are only listened to passively.",
       "byKind": "By type:",
       "noDevices": "No devices are recorded yet.",
       "noKeySystems": "No server, NAS or firewall in the inventory.",

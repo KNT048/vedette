@@ -31,6 +31,7 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/mitigation"
 	"github.com/knt048/vedette/modules/notify"
+	"github.com/knt048/vedette/modules/scan"
 	sensoractive "github.com/knt048/vedette/modules/sensor-active"
 )
 
@@ -223,6 +224,22 @@ func (a findingsInventory) AssetIDs(ctx context.Context) ([]string, error) {
 // IgnoredIDs and IsIgnored are the devices a person ignored, for findings' reconcile and its write-time check.
 func (a findingsInventory) IgnoredIDs(ctx context.Context) ([]string, error) {
 	return a.inv.IgnoredIDs(ctx)
+}
+
+func (a findingsInventory) EffectiveSoftware(ctx context.Context, id string) ([]findings.EffectiveSoftware, error) {
+	rows, err := a.inv.EffectiveSoftware(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]findings.EffectiveSoftware, len(rows))
+	for i, r := range rows {
+		out[i] = findings.EffectiveSoftware{ID: r.ID, Vendor: r.Vendor, Product: r.Product, Display: r.Display, Version: r.Version, PkgVersion: r.PkgVersion,
+			Packaged: r.Packaged, CPE: r.CPE, Source: r.Source, SetBy: r.SetBy, SeenAt: r.SeenAt, Differs: r.Differs, AlsoSeen: make([]findings.AlsoSeen, len(r.AlsoSeen))}
+		for j, o := range r.AlsoSeen {
+			out[i].AlsoSeen[j] = findings.AlsoSeen{ID: o.ID, Source: o.Source, Version: o.Version, PkgVersion: o.PkgVersion, SeenAt: o.SeenAt, SameRelease: o.SameRelease}
+		}
+	}
+	return out, nil
 }
 
 func (a findingsInventory) IsIgnored(ctx context.Context, id string) (bool, error) {
@@ -629,6 +646,7 @@ func buildServices(ctx context.Context, d *deps) error {
 	}
 	d.FindingHandlers.SetHome(home)
 	d.FindingHandlers.SetAgents(agentReports(d))
+	d.FindingHandlers.SetScanReach(scanReach(d))
 	// The ai service comes before mitigation: mitigation reaches the AI only through this door (mitigation.AI), and the door is
 	// unavailable while no profile is assigned, so the page offers no AI button then.
 	d.AIFacts = aiFacts{fs.Store(), d.Findings, inv, aiBoxID(d.Inventory)}
@@ -1140,6 +1158,33 @@ func agentReports(d *deps) findings.AgentReports {
 			return !st.Stale
 		}
 		return false
+	}
+}
+
+// scanReach is how the vulnerability scan stands to a device, for the finding page's "why only suspected" line: unknown (""
+// = the line says nothing about the scan) when the scan module cannot be read, off while its module is off.
+func scanReach(d *deps) findings.ScanReach {
+	return func(ctx context.Context, id string) string {
+		if d.Reg != nil && !d.Reg.Enabled("scan") {
+			return findings.ScanOff
+		}
+		r, err := scanService(*d).Reach(ctx, id)
+		if err != nil {
+			return ""
+		}
+		switch r {
+		case scan.ReachOutside:
+			return findings.ScanOutside
+		case scan.ReachOff:
+			return findings.ScanOff
+		case scan.ReachNoRanges:
+			return findings.ScanNoRanges
+		case scan.ReachByHand:
+			return findings.ScanByHand
+		case scan.ReachDeviceOff:
+			return findings.ScanDeviceOff
+		}
+		return ""
 	}
 }
 

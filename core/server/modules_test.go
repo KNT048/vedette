@@ -213,6 +213,8 @@ var contractRoutes = map[string][]string{
 		"GET /findings/summary",
 		"POST /findings/status",
 		"POST /findings/{id}/status",
+		"POST /findings/{id}/confirm",
+		"POST /findings/{id}/unconfirm",
 	},
 	"honeypot": {
 		"DELETE /honeypot/tokens/{id}",
@@ -248,6 +250,7 @@ var contractRoutes = map[string][]string{
 		"GET /inventory/catalog",
 		"GET /inventory/devices",
 		"GET /inventory/devices/{id}",
+		"GET /inventory/devices/{id}/software",
 		"GET /inventory/export.csv",
 		"GET /inventory/import-template.csv",
 		"GET /inventory/possible-same",

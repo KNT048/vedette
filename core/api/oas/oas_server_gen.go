@@ -1203,6 +1203,13 @@ type Handler interface {
 	//
 	// POST /findings/{id}/applied
 	FindingsPostFindingsIDApplied(ctx context.Context, req *FindingsPostFindingsIDAppliedReq, params FindingsPostFindingsIDAppliedParams) (*FindingsPostFindingsIDAppliedOK, error)
+	// FindingsPostFindingsIDConfirm implements findings_post_findings_id_confirm operation.
+	//
+	// Confirm a suspected finding on your own word (admin): basis person, status confirmed; a note is
+	// required and goes into the history as "Confirmed by : ".
+	//
+	// POST /findings/{id}/confirm
+	FindingsPostFindingsIDConfirm(ctx context.Context, req *FindingsPostFindingsIDConfirmReq, params FindingsPostFindingsIDConfirmParams) (*FindingsPostFindingsIDConfirmOK, error)
 	// FindingsPostFindingsIDStatus implements findings_post_findings_id_status operation.
 	//
 	// Change status (patched, mitigated, false positive, not relevant, accept risk until a day, reopen)
@@ -1210,6 +1217,13 @@ type Handler interface {
 	//
 	// POST /findings/{id}/status
 	FindingsPostFindingsIDStatus(ctx context.Context, req *FindingsPostFindingsIDStatusReq, params FindingsPostFindingsIDStatusParams) (*FindingsPostFindingsIDStatusOK, error)
+	// FindingsPostFindingsIDUnconfirm implements findings_post_findings_id_unconfirm operation.
+	//
+	// Undo a confirmation a person made (admin): the finding is suspected again; a finding a scan
+	// confirmed is refused.
+	//
+	// POST /findings/{id}/unconfirm
+	FindingsPostFindingsIDUnconfirm(ctx context.Context, params FindingsPostFindingsIDUnconfirmParams) (*FindingsPostFindingsIDUnconfirmOK, error)
 	// FindingsPostFindingsStatus implements findings_post_findings_status operation.
 	//
 	// Change the status of the open findings among the ids (at most 500) with one note; one history and
@@ -1406,6 +1420,16 @@ type Handler interface {
 	//
 	// GET /inventory/devices/{id}
 	InventoryGetInventoryDevicesID(ctx context.Context, params InventoryGetInventoryDevicesIDParams) (*InventoryGetInventoryDevicesIDOK, error)
+	// InventoryGetInventoryDevicesIDSoftware implements inventory_get_inventory_devices_id_software operation.
+	//
+	// The device's software as one row per software (INV-50): same vendor and product (or CPE application)
+	// from several sources is one row, with the values of the strongest source (agent, then a person's
+	// entry, then SNMP, then a scan banner). A weaker reading that is only a less precise form of the same
+	// release is the same release. Each row lists the other sources (also_seen) and says whether one reads
+	// another release (differs). 404 not_found.
+	//
+	// GET /inventory/devices/{id}/software
+	InventoryGetInventoryDevicesIDSoftware(ctx context.Context, params InventoryGetInventoryDevicesIDSoftwareParams) (*InventoryGetInventoryDevicesIDSoftwareOK, error)
 	// InventoryGetInventoryExportCsv implements inventory_get_inventory_export_csv operation.
 	//
 	// Download the device list as CSV (UTF-8 with BOM, opens in Excel); the filters of GET

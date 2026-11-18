@@ -36,6 +36,27 @@ func pdplFor(mods Modules, org PdplOrg) PdplReport {
 	return buildPdpl(pdplInput{devices: in.devices, findings: in.findings, kev: in.kev, modules: mods, org: org, id: "pdpl-1", now: t0})
 }
 
+// The ApprovedOnly view of the assessment leaves the devices not approved yet and their findings out of the inventory, the
+// measures and the risks; the "unapproved" measure stays the full report's (leaving them out does not approve them).
+func TestPdplApprovedOnlyView(t *testing.T) {
+	t.Parallel()
+	r := pdplFor(fakeMods{"feeds": true, "scan": true}, okOrg())
+	v := r.ApprovedOnly
+	if v == nil || v.Inventory.Total != 2 || v.Inventory.Unapproved != 0 || r.Inventory.Unapproved != 1 {
+		t.Fatalf("view = %+v, full inventory = %+v", v, r.Inventory)
+	}
+	if len(v.Risks) != 1 || v.Risks[0].ID != "f2" || len(r.Risks) != 2 {
+		t.Fatalf("risks = %+v (full %+v)", v.Risks, r.Risks)
+	}
+	view := PdplReport{Measures: v.Measures}
+	if m := measure(view, "unapproved"); m.Status != "attention" || m.N != 1 {
+		t.Fatalf("unapproved measure = %+v", m)
+	}
+	if m := measure(view, "eol"); m.N != 1 { // pc-old (Windows 10) is left out, srv (Server 2016) stays
+		t.Fatalf("eol = %+v", m)
+	}
+}
+
 func measure(r PdplReport, id string) Measure {
 	for _, m := range r.Measures {
 		if m.ID == id {

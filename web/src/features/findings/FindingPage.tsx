@@ -25,6 +25,7 @@ import { useFinding, useSetStatus } from './api'
 import { useFindingAgentGone } from './agentNow'
 import { basisKey, deviceName, hasIp, isOpen, unverified } from './basis'
 import { errMsg } from './errors'
+import { canConfirm, canUndo, ConfirmButton, ConfirmDialog, UndoButton } from './Confirm'
 import { AskAi, NoPack, PackView } from './Recommendation'
 import { GeneralChecks } from './Hardening'
 import { RiskChip } from './Risk'
@@ -90,6 +91,7 @@ function Evidence({ f }: { f: FindingDetail }) {
   return (
     <Section id="evidence" title={t('evidence.title')} description={t('evidence.description')} stories={['S-SCAN-3']}>
       <Card className="grid gap-4">
+        {f.suspected_why ? <p className="max-w-3xl text-sm text-muted" data-testid="suspected-why">{f.suspected_why}</p> : null}
         {ev ? (
           <>
             <p className="max-w-3xl text-sm">{ev.summary}</p>
@@ -205,7 +207,9 @@ function Detail({ f, crumbs }: { f: FindingDetail; crumbs: { label: string; to: 
   const can = useCan('operator')
   const set = useSetStatus(f.id)
   const [open, setOpen] = useState(false)
+  const [confirming, setConfirming] = useState(false)
   const opener = useRef<HTMLButtonElement>(null)
+  const confirmOpener = useRef<HTMLButtonElement>(null)
   const name = deviceName(f.asset, t('removedDevice'))
   // the agent's build is a detection; once no agent reports the device it is the last list one sent (as Updates to plan says it)
   const agentHeadline = f.status === 'suspected' && !!f.evidence?.agent
@@ -247,6 +251,8 @@ function Detail({ f, crumbs }: { f: FindingDetail; crumbs: { label: string; to: 
           <>
             <SampleDataNote />
             <IUpdatedFinding f={f} />
+            {canConfirm(f) ? <ConfirmButton f={f} buttonRef={confirmOpener} onClick={() => setConfirming(true)} /> : null}
+            {canUndo(f) ? <UndoButton f={f} /> : null}
             {open_ ? <Button ref={opener} variant="primary" disabled={!can} title={needRole} onClick={() => setOpen(true)}>{t('status.mark')}</Button> : null}
           </>
         }
@@ -268,6 +274,7 @@ function Detail({ f, crumbs }: { f: FindingDetail; crumbs: { label: string; to: 
         <Aside f={f} />
       </div>
       <StatusDialog f={f} open={open} onOpenChange={setOpen} opener={opener} />
+      {confirming ? <ConfirmDialog f={f} onClose={() => setConfirming(false)} opener={confirmOpener} /> : null}
     </>
   )
 }

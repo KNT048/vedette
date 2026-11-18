@@ -106,3 +106,17 @@ func Valid(s string) bool {
 	_, ok := Parse(s)
 	return ok
 }
+
+var apkPatchRE = regexp.MustCompile(`_p[0-9]*`)
+
+// NVDVersion is the upstream version of an apk release in the form NVD writes it: "10.2_p1-r1" is 10.2p1 (apk's _p is a patch
+// letter suffix; the other suffixes keep their apk spelling and so are not read as a release).
+func NVDVersion(rel string) string {
+	return apkPatchRE.ReplaceAllStringFunc(Upstream(rel), func(m string) string {
+		d := m[2:]
+		if len(d) <= 3 {
+			return "p" + d // a short patch number: OpenSSH's "10.2_p1" is 10.2p1
+		}
+		return "+" + d // a date ("6.5_p20250503"): a build tail NVD's ranges cannot place, so the bounds stay unknown, as for Debian's "6.5+20250503"
+	})
+}

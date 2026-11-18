@@ -5,6 +5,7 @@ import { Notice } from '@/components/common/PageHeader'
 import { Chip, type Tone } from '@/components/common/StatusChip'
 import { FindingStatusChip } from '@/features/findings/AcceptRisk'
 import { fmtDate, fmtDateTime } from '@/lib/format'
+import { FiltersUsed, pdplView, useReportFilters } from './filters'
 import { Scroll } from './parts'
 import type { PdplReport } from './types'
 import { kindLabel } from '@/lib/deviceTypes'
@@ -13,8 +14,11 @@ const MEASURE_TONE: Record<string, Tone> = { ok: 'ok', attention: 'warn', unknow
 
 /** Báo cáo đánh giá an toàn theo Luật BVDLCN (S-REP-2). Câu miễn trừ nằm ở đầu và cuối mọi bản. */
 /** `aiAction` is the Write AI commentary control; only the live view passes it, so print never shows it. */
-export function PdplDocument({ report: r, aiAction }: { report: PdplReport; aiAction?: ReactNode }) {
+export function PdplDocument({ report: full, aiAction }: { report: PdplReport; aiAction?: ReactNode }) {
   const { t } = useTranslation('reports')
+  // The viewer's choice of devices (not in the Devices list: in or out) applies to the inventory, measures and risks; said in the header.
+  const [filters] = useReportFilters()
+  const { report: r, left } = pdplView(full, filters)
   const o = r.org
   const h = (id: string, key: string) => <h3 id={id} className="mb-2 text-base font-semibold">{t(key)}</h3>
   const disclaimer = (
@@ -27,6 +31,7 @@ export function PdplDocument({ report: r, aiAction }: { report: PdplReport; aiAc
         <h2 className="text-base font-semibold">{t('doc.pdpl.title')}</h2>
         <p className="text-meta text-muted">{t('doc.pdpl.subtitle')}</p>
         <p className="text-meta text-muted">{t('doc.pdpl.generated', { time: fmtDateTime(r.generated_at) })}</p>
+        <FiltersUsed left={left} />
       </header>
       {disclaimer}
 
@@ -43,7 +48,7 @@ export function PdplDocument({ report: r, aiAction }: { report: PdplReport; aiAc
 
       <section aria-labelledby="pd-inv">
         {h('pd-inv', 'doc.pdpl.s.inventory')}
-        <p>{t('doc.pdpl.inventorySummary', { total: r.inventory.total, approved: r.inventory.approved, unapproved: r.inventory.unapproved, fragile: r.inventory.fragile })}</p>
+        <p>{t(left.devices === null ? 'doc.pdpl.inventorySummary' : 'doc.pdpl.inventorySummaryListed', { total: r.inventory.total, approved: r.inventory.approved, unapproved: r.inventory.unapproved, fragile: r.inventory.fragile })}</p>
         {r.inventory.by_kind.length > 0 ? <p className="mt-1 text-muted">{t('doc.pdpl.byKind')} {r.inventory.by_kind.map((k) => `${kindLabel(k.kind)} ${k.n}`).join(', ')}.</p> : null}
         {r.inventory.key_systems.length === 0 ? <p className="mt-2 text-muted">{r.inventory.total === 0 ? t('doc.pdpl.noDevices') : t('doc.pdpl.noKeySystems')}</p> : <div className="mt-2"><Scroll>
           <table className="w-full border-collapse text-meta">

@@ -188,7 +188,7 @@ func (h *FindingHandlers) suspectedWhy(ctx context.Context, rec Record, d Detail
 	if reach != nil && checkKnown && hasCheck {
 		where = reach(ctx, rec.AssetID)
 	}
-	s := WhySuspected(rec.Basis, d.Known, checkKnown, hasCheck, where)
+	s := WhySuspected(rec.Basis, d.Known, checkKnown, hasCheck, where, h.svc.now())
 	return &s
 }
 

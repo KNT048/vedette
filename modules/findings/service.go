@@ -858,7 +858,8 @@ func (s *Service) noteNoLongerMatching(ctx context.Context, tx *sql.Tx, assetID 
 		}
 		if r.Status == StatusConfirmed && r.ByDevice() { // the device's stated version no longer puts it inside the range
 			ev := *r.Evidence
-			ev.Source = ""
+			ev.Source, ev.Agent = "", false // nothing the device states decides it any more: neither "Confirmed: …" nor "Detected by the agent"
+			ev.Summary = DeviceUnconfirmedNote + " Vedette no longer matches it to the software the device reports; check the device and close this finding if it does not apply."
 			r.Evidence = &ev
 			f, h, ok := r.SettleByDevice(now)
 			if ok {

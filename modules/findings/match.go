@@ -1118,17 +1118,37 @@ func judge(a Asset, s Software, in swInfo, v Vuln, key []identity, now time.Time
 		m.Evidence.Summary += ps.note
 	}
 	m.Evidence.AgentRow = m.Basis == BasisProduct && s.Source == "agent" && in.given
+	// Who stated the version confirms the finding only when it is the device itself, as it reports it now: never while a person's OS
+	// correction stands (inventory INV-41 puts the person's value in every reading of the device), never an SNMP answer older than
+	// SNMPFresh, and for a distribution's package only the distribution's own fix (distroMatch, ps.below), never NVD's upstream
+	// range, which ignores the distribution's backports (a packaged OpenSSH 8.7p1 on Rocky 9 carries the fix of CVE-2024-6387).
+	packaged := s.Packaged || strings.TrimSpace(s.PkgVersion) != ""
 	switch {
-	case m.Basis != BasisVersion:
-	case m.Evidence.Agent:
+	case m.Basis != BasisVersion || !deviceSays(a):
+	case m.Evidence.Agent && ps.below:
 		m.Evidence.Source = SourceAgent
-	case snmpStated && !ps.below && ps.note == "":
+	case m.Evidence.Agent && !packaged && ps.note == "":
+		m.Evidence.Source = SourceAgent
+	case snmpStated && !ps.below && ps.note == "" && snmpFresh(s.SeenAt, now):
 		m.Evidence.Source = SourceSNMP
 		m.Evidence.Summary = fmt.Sprintf("Confirmed: %s reports %s over SNMP; %s lists %s as affected by %s.", name, sw, v.rangesBy(true), rangeWords(within), v.CVE)
 	}
 	m.Evidence.CheckedAt = now
 	return m, outMatch
 }
+
+// SNMPFresh is how recent the device's SNMP answer must be for the version it states to confirm a finding: a device that has not
+// answered Vedette's SNMP read for longer may run another version by now.
+const SNMPFresh = 7 * 24 * time.Hour
+
+// snmpFresh says whether an SNMP answer seen at at is recent enough to confirm (SNMPFresh); an unknown time is not.
+func snmpFresh(at, now time.Time) bool {
+	return !at.IsZero() && !at.Before(now.Add(-SNMPFresh))
+}
+
+// deviceSays reports whether the readings of the device are its own: false while a person's OS correction stands (inventory
+// INV-41 writes the person's value into the agent's, SNMP's and LLDP's statements), so no version can be the device's own word.
+func deviceSays(a Asset) bool { return a.ManualOS == "" && a.OSCorrection == "" }
 
 // rangeWords says a version range the way a person reads it in a sentence: "6.4.0 up to before 7.4.10", "versions before 7.4.10",
 // "7.0.0 up to 7.0.6".

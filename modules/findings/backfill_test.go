@@ -1,6 +1,7 @@
 package findings
 
 import (
+	"errors"
 	"slices"
 	"testing"
 	"time"
@@ -123,5 +124,49 @@ func TestReconcile_FirstPassOnANewBoxSendsNoSummary(t *testing.T) {
 	}
 	if n := e.count(`SELECT count(*) FROM fnd_device_backfill_pending`); n != 0 {
 		t.Fatalf("marker left: %d", n)
+	}
+}
+
+// Review L2: a pass that could not match every device does not end the first pass (its summary would miss findings), but a box with
+// no finding at all drops the marker even before an exploited list is loaded, so a fresh install never sends the summary.
+func TestReconcile_FirstPassEndsOnlyWhenComplete(t *testing.T) {
+	t.Parallel()
+	marker := func(e *env) int { return e.count(`SELECT count(*) FROM fnd_device_backfill_pending`) }
+	fresh := newEnv(t)
+	fresh.feeds.vulns = nil // no exploited list yet and no finding: the marker goes
+	if _, err := fresh.svc.Reconcile(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if n := marker(fresh); n != 0 {
+		t.Fatalf("a box with no finding kept the marker: %d", n)
+	}
+
+	e := newEnv(t)
+	e.seed() // a finding exists
+	e.feeds.vulns = nil
+	if _, err := e.svc.Reconcile(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if n := marker(e); n != 1 {
+		t.Fatalf("a pass with no exploited list ended the first pass: %d", n)
+	}
+	e.feeds.vulns = []Vuln{qnapScanned()}
+	e.inv.mu.Lock()
+	e.inv.ignoredErr = errors.New("inventory busy")
+	e.inv.mu.Unlock()
+	if _, err := e.svc.Reconcile(t.Context()); err == nil {
+		t.Fatal("the pass with an error reported none")
+	}
+	if n := marker(e); n != 1 {
+		t.Fatalf("a pass with an error ended the first pass: %d", n)
+	}
+	e.inv.mu.Lock()
+	e.inv.ignoredErr = nil
+	e.inv.mu.Unlock()
+	if _, err := e.svc.Reconcile(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if n := marker(e); n != 0 {
+		t.Fatalf("a complete pass kept the marker: %d", n)
 	}
 }

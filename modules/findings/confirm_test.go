@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/knt048/vedette/core/orgtime"
 )
 
 // A person confirms a suspected finding: the status, the basis, the history line, the audit row and the event.
@@ -194,7 +196,9 @@ func b2status(b Basis) Status {
 func TestWhySuspected(t *testing.T) {
 	t.Parallel()
 	banner := &KnownVersion{Software: "web server", Version: "2.4.49", Source: VersionByScan}
-	snmp := &KnownVersion{Software: "edge firewall OS", Version: "7.2.13", Source: VersionBySNMP}
+	fresh, old := t0.Add(-time.Hour), t0.Add(-8*24*time.Hour)
+	snmp := &KnownVersion{Software: "edge firewall OS", Version: "7.2.13", Source: VersionBySNMP, SeenAt: &fresh}
+	staleSNMP := &KnownVersion{Software: "edge firewall OS", Version: "7.2.13", Source: VersionBySNMP, SeenAt: &old}
 	const scanHead = "Version match only: A network scan (a guess from what a service answers) states web server 2.4.49, inside NVD's affected range."
 	const device = " It is confirmed by itself once the device reports its version: turn on SNMP for the device, or install the agent on it."
 	const last = " Last, confirm it yourself."
@@ -227,10 +231,12 @@ func TestWhySuspected(t *testing.T) {
 			"Version match only: The device's own statement on the network states Junos 15.1R7.9, inside NVD's affected range." + device + last},
 		{"the device states it, the range does not settle it", BasisVersion, snmp, true, false, "",
 			"Version match only: The device's own SNMP answer states edge firewall OS 7.2.13, inside NVD's affected range, but that range does not clearly cover this release (no end, or listed for another edition or release), so the version alone does not confirm it. No safe vulnerability check exists for this CVE." + last},
+		{"the device has not answered SNMP for over a week", BasisVersion, staleSNMP, true, false, "",
+			"Version match only: The device's own SNMP answer stated edge firewall OS 7.2.13, inside NVD's affected range, but the device has not answered SNMP since " + orgtime.CalendarDay(old) + ", so that version no longer confirms it. It is confirmed by itself once the device answers SNMP again: check that SNMP is on and reachable for it. No safe vulnerability check exists for this CVE." + last},
 		{"product only", BasisProduct, nil, true, false, "",
 			"Product match only: the device runs the product, but its version is not known, so it could not be compared with NVD's affected range." + device + " No safe vulnerability check exists for this CVE." + last},
 	} {
-		if got := WhySuspected(c.basis, c.known, c.checkKnown, c.has, c.reach); got != c.want {
+		if got := WhySuspected(c.basis, c.known, c.checkKnown, c.has, c.reach, t0); got != c.want {
 			t.Errorf("%s:\n got %q\nwant %q", c.name, got, c.want)
 		}
 	}

@@ -28,12 +28,25 @@ func backfillPending(ctx context.Context, tx *sql.Tx) (bool, error) {
 // finishBackfill ends the first full match pass after the device-version rule arrived: the findings it recorded that are still
 // confirmed become one findings.device_version.backfilled event and an audit row that says how many (neither when there are none); the
 // marker and the list are emptied, so every later confirmation by the device's version is told on its own. Nothing happens once
-// the marker is gone.
-func (s *Service) finishBackfill(ctx context.Context) error {
+// the marker is gone. complete says the pass matched every device without an error; an incomplete pass only drops the marker when
+// the box has no finding at all (a new install: nothing was open before the rule).
+func (s *Service) finishBackfill(ctx context.Context, complete bool) error {
 	return s.write(ctx, func(tx *sql.Tx, _ time.Time, emit func(string, any)) error {
 		pending, err := backfillPending(ctx, tx)
 		if err != nil || !pending {
 			return err
+		}
+		if !complete {
+			var has int
+			if err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM fnd_finding)`).Scan(&has); err != nil {
+				return fmt.Errorf("findings: reading whether the box has findings: %w", err)
+			}
+			if has == 0 {
+				if _, err := tx.ExecContext(ctx, `DELETE FROM fnd_device_backfill_pending`); err != nil {
+					return fmt.Errorf("findings: ending the first pass: %w", err)
+				}
+			}
+			return nil
 		}
 		rows, err := tx.QueryContext(ctx, `SELECT f.id, f.asset_id, f.cve, f.severity FROM fnd_device_backfill b JOIN fnd_finding f ON f.id = b.finding_id
 			WHERE f.status = 'confirmed' ORDER BY f.cve, f.id`)

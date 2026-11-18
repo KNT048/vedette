@@ -124,6 +124,9 @@ type MatchSoftware struct {
 	// SeenAt is when the row's source last reported it (inv_software.seen_at, RFC 3339): for an agent's row, the day of the list the
 	// version comes from (findings names it once no agent reports the device).
 	SeenAt string
+	// ShadowedBy is the id of the effective row (EffectiveSoftware, INV-50) that describes this software when this row is not it.
+	// MatchInput leaves such rows out, so it is "" on every row it returns.
+	ShadowedBy string
 }
 
 // MatchDevice is a device with its software, for the matcher of findings.
@@ -239,6 +242,9 @@ func (s *Service) MatchInput(ctx context.Context, id string) (d MatchDevice, ok 
 		return MatchDevice{}, false, fmt.Errorf("inventory: read software: %w", err)
 	}
 	if err := restingCorrections(ctx, q, id, &d, prefix, loc); err != nil {
+		return MatchDevice{}, false, err
+	}
+	if err := markShadowed(ctx, q, id, &d); err != nil {
 		return MatchDevice{}, false, err
 	}
 	if d.NotInstalled, err = notInstalledRows(ctx, q, id, loc); err != nil {

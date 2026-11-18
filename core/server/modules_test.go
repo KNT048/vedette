@@ -32,6 +32,7 @@ var contractRoutes = map[string][]string{
 		"POST /intake/osquery/status",
 		"POST /inventory/agents/devices/{id}/report",
 		"POST /inventory/agents/tokens",
+		"POST /inventory/agents/tokens/remove-unused",
 		"POST /inventory/agents/tokens/{id}/sample-data",
 		"POST /inventory/agents/wazuh/sample-data",
 		"POST /inventory/agents/wazuh/test",
@@ -168,6 +169,7 @@ var contractRoutes = map[string][]string{
 	"exposure": {
 		"DELETE /exposure/box-ip/ignored/{ip}",
 		"DELETE /exposure/targets/{id}",
+		"DELETE /exposure/targets/{id}/queue",
 		"DELETE /exposure/targets/{id}/terms",
 		"GET /exposure/greenbone",
 		"GET /exposure/scan",
@@ -186,6 +188,7 @@ var contractRoutes = map[string][]string{
 		"POST /exposure/targets/{id}/verify",
 		"PUT /exposure/box-ip/settings",
 		"PUT /exposure/greenbone",
+		"PUT /exposure/targets/{id}/schedule",
 		"PUT /exposure/targets/{id}/terms",
 	},
 	"feeds": {
@@ -212,6 +215,8 @@ var contractRoutes = map[string][]string{
 		"GET /findings/summary",
 		"POST /findings/status",
 		"POST /findings/{id}/status",
+		"POST /findings/{id}/confirm",
+		"POST /findings/{id}/unconfirm",
 	},
 	"honeypot": {
 		"DELETE /honeypot/tokens/{id}",
@@ -247,6 +252,7 @@ var contractRoutes = map[string][]string{
 		"GET /inventory/catalog",
 		"GET /inventory/devices",
 		"GET /inventory/devices/{id}",
+		"GET /inventory/devices/{id}/software",
 		"GET /inventory/export.csv",
 		"GET /inventory/import-template.csv",
 		"GET /inventory/possible-same",

@@ -3206,6 +3206,71 @@ func decodeExposureDeleteExposureTargetsIDParams(args [1]string, argsEscaped boo
 	return params, nil
 }
 
+// ExposureDeleteExposureTargetsIDQueueParams is parameters of exposure_delete_exposure_targets_id_queue operation.
+type ExposureDeleteExposureTargetsIDQueueParams struct {
+	ID string
+}
+
+func unpackExposureDeleteExposureTargetsIDQueueParams(packed middleware.Parameters) (params ExposureDeleteExposureTargetsIDQueueParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(string)
+	}
+	return params
+}
+
+func decodeExposureDeleteExposureTargetsIDQueueParams(args [1]string, argsEscaped bool, r *http.Request) (params ExposureDeleteExposureTargetsIDQueueParams, _ error) {
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // ExposureDeleteExposureTargetsIDTermsParams is parameters of exposure_delete_exposure_targets_id_terms operation.
 type ExposureDeleteExposureTargetsIDTermsParams struct {
 	ID string
@@ -4010,6 +4075,71 @@ func unpackExposurePostExposureTargetsIDVerifyParams(packed middleware.Parameter
 }
 
 func decodeExposurePostExposureTargetsIDVerifyParams(args [1]string, argsEscaped bool, r *http.Request) (params ExposurePostExposureTargetsIDVerifyParams, _ error) {
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// ExposurePutExposureTargetsIDScheduleParams is parameters of exposure_put_exposure_targets_id_schedule operation.
+type ExposurePutExposureTargetsIDScheduleParams struct {
+	ID string
+}
+
+func unpackExposurePutExposureTargetsIDScheduleParams(packed middleware.Parameters) (params ExposurePutExposureTargetsIDScheduleParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(string)
+	}
+	return params
+}
+
+func decodeExposurePutExposureTargetsIDScheduleParams(args [1]string, argsEscaped bool, r *http.Request) (params ExposurePutExposureTargetsIDScheduleParams, _ error) {
 	// Decode path: id.
 	if err := func() error {
 		param := args[0]
@@ -5300,6 +5430,91 @@ func decodeFindingsPostFindingsIDAppliedParams(args [1]string, argsEscaped bool,
 	return params, nil
 }
 
+// FindingsPostFindingsIDConfirmParams is parameters of findings_post_findings_id_confirm operation.
+type FindingsPostFindingsIDConfirmParams struct {
+	ID string
+}
+
+func unpackFindingsPostFindingsIDConfirmParams(packed middleware.Parameters) (params FindingsPostFindingsIDConfirmParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(string)
+	}
+	return params
+}
+
+func decodeFindingsPostFindingsIDConfirmParams(args [1]string, argsEscaped bool, r *http.Request) (params FindingsPostFindingsIDConfirmParams, _ error) {
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     1,
+					MinLengthSet:  true,
+					MaxLength:     64,
+					MaxLengthSet:  true,
+					Email:         false,
+					Hostname:      false,
+					Regex:         nil,
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(params.ID)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // FindingsPostFindingsIDStatusParams is parameters of findings_post_findings_id_status operation.
 type FindingsPostFindingsIDStatusParams struct {
 	ID string
@@ -5317,6 +5532,91 @@ func unpackFindingsPostFindingsIDStatusParams(packed middleware.Parameters) (par
 }
 
 func decodeFindingsPostFindingsIDStatusParams(args [1]string, argsEscaped bool, r *http.Request) (params FindingsPostFindingsIDStatusParams, _ error) {
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     1,
+					MinLengthSet:  true,
+					MaxLength:     64,
+					MaxLengthSet:  true,
+					Email:         false,
+					Hostname:      false,
+					Regex:         nil,
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(params.ID)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// FindingsPostFindingsIDUnconfirmParams is parameters of findings_post_findings_id_unconfirm operation.
+type FindingsPostFindingsIDUnconfirmParams struct {
+	ID string
+}
+
+func unpackFindingsPostFindingsIDUnconfirmParams(packed middleware.Parameters) (params FindingsPostFindingsIDUnconfirmParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(string)
+	}
+	return params
+}
+
+func decodeFindingsPostFindingsIDUnconfirmParams(args [1]string, argsEscaped bool, r *http.Request) (params FindingsPostFindingsIDUnconfirmParams, _ error) {
 	// Decode path: id.
 	if err := func() error {
 		param := args[0]
@@ -7030,6 +7330,71 @@ func unpackInventoryGetInventoryDevicesIDParams(packed middleware.Parameters) (p
 }
 
 func decodeInventoryGetInventoryDevicesIDParams(args [1]string, argsEscaped bool, r *http.Request) (params InventoryGetInventoryDevicesIDParams, _ error) {
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// InventoryGetInventoryDevicesIDSoftwareParams is parameters of inventory_get_inventory_devices_id_software operation.
+type InventoryGetInventoryDevicesIDSoftwareParams struct {
+	ID string
+}
+
+func unpackInventoryGetInventoryDevicesIDSoftwareParams(packed middleware.Parameters) (params InventoryGetInventoryDevicesIDSoftwareParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(string)
+	}
+	return params
+}
+
+func decodeInventoryGetInventoryDevicesIDSoftwareParams(args [1]string, argsEscaped bool, r *http.Request) (params InventoryGetInventoryDevicesIDSoftwareParams, _ error) {
 	// Decode path: id.
 	if err := func() error {
 		param := args[0]

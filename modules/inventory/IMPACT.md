@@ -228,3 +228,9 @@
 
 ## Modifying: `AssetHint.Device` in `Record`/`resolve` (INV-43), `SNMPKnown`
 - **sensor-active** records every SNMP answer with `observe.AssetHint{Device: id}` (`snmpObservations`): letting such a hint find a device by address, create one or run the join rules would attribute a management address's answer to whatever sits there (a firewall read at 100.65.253.1). `SNMPKnown` feeds the one-time move of the old SNMP credentials (`snmp_move.go`): changing what it lists changes which devices get a copy of a secret. `SetSources` is called by sensor-active's `TurnSNMPOn` when a person saves a device's SNMP (adapter `cmd/vedette/sensoractive.go`).
+
+## Modifying: the effective software row (`softwaregroup.go`, `EffectiveSoftware`, `core/pkgrel`, INV-50)
+- **One reading**: findings (`findings.Inventory.EffectiveSoftware`, adapter `cmd/vedette` `findingsInventory`), reports, the AI context and the device page's Software tab read the device's software here; do not add a second per-source pick. A new source, or a change of the source order, changes `softwareRank`.
+- **Release comparison** is `core/pkgrel.Same` (uses `core/apkver`); a package form it does not know is compared as written.
+- **Web**: the device Software tab (`DevicePage.tsx` `SoftwareList`, `softwareLines`, `AlsoSeenLine`; `useEffectiveSoftware`) draws one line per effective row with the other sources under it, and the one notice only when `differs`; any row the effective answer does not cover (a "not installed" mark, a resting correction) stays a line of its own.
+- **API**: `GET /inventory/devices/{id}/software` (`contract.ts` `EffectiveSoftware`, `AlsoSeen`; `api/route-modules.json`; mock in `features/inventory/mocks.ts`).

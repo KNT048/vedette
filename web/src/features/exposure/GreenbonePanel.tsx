@@ -245,7 +245,7 @@ function OpenVasAgain({ target, s }: { target: Target; s: Snapshot }) {
   // the ports the server sends: this IP's, seen open by this scan
   const ports = [...new Set(s.ports.filter((p) => p.ip === target.value && !p.last_seen && !p.unchecked).map((p) => p.port))].sort((a, b) => a - b)
   // the 10 minutes count from the target's newest start: its scan, or a run of OpenVAS again since
-  const since = Math.max(target.last_scan_at ? Date.parse(target.last_scan_at) : 0, last?.target_id === target.id ? Date.parse(last.started_at) : 0)
+  const since = Math.max(target.last_scan_at ? Date.parse(target.last_scan_at) : 0, last?.target_id === target.id && last.status !== 'queued' ? Date.parse(last.started_at) : 0) // a queued entry has not started
   // Why the server would refuse now, first the one the person can act on here; each with the place to fix it (docs/UI.md §0)
   const why: { text: string; link?: { to: string; label: string } } | null = !operator ? { text: t('common:needRole', { role: t('common:role.operator') }) }
     : last?.status === 'running' ? { text: t('greenbone.again.busy') }

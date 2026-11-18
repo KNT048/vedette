@@ -42916,6 +42916,9 @@ func (s *ExposureDeleteExposureTargetsIDIgnore) UnmarshalText(data []byte) error
 // ExposureDeleteExposureTargetsIDNoContent is response for ExposureDeleteExposureTargetsID operation.
 type ExposureDeleteExposureTargetsIDNoContent struct{}
 
+// ExposureDeleteExposureTargetsIDQueueNoContent is response for ExposureDeleteExposureTargetsIDQueue operation.
+type ExposureDeleteExposureTargetsIDQueueNoContent struct{}
+
 type ExposureDeleteExposureTargetsIDTermsOK struct {
 	// Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check
 	// that got an answer did not see the IP and no check since has, so scans are paused (until a later
@@ -42961,11 +42964,14 @@ type ExposureDeleteExposureTargetsIDTermsOK struct {
 	Origin ExposureDeleteExposureTargetsIDTermsOKOrigin `json:"origin"`
 	// Domains: where the TXT record goes and which verified domain covers this one already; null for an IP.
 	Proof NilExposureDeleteExposureTargetsIDTermsOKProof `json:"proof"`
-	// Where the target stands for scanning: scanning (a scan of it runs now), ready, or why not: unproved
-	// (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes
-	// out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet).
+	// Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
+	// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
+	// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
+	// scan confirmation or testing terms are not accepted yet).
 	ScanState ExposureDeleteExposureTargetsIDTermsOKScanState `json:"scan_state"`
 	Scannable bool                                            `json:"scannable"`
+	// How often the box scans the target by itself, when next, and why not.
+	Schedule ExposureDeleteExposureTargetsIDTermsOKSchedule `json:"schedule"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposureDeleteExposureTargetsIDTermsOKStatus `json:"status"`
 	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
@@ -43091,6 +43097,11 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) GetScanState() ExposureDeleteEx
 // GetScannable returns the value of Scannable.
 func (s *ExposureDeleteExposureTargetsIDTermsOK) GetScannable() bool {
 	return s.Scannable
+}
+
+// GetSchedule returns the value of Schedule.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) GetSchedule() ExposureDeleteExposureTargetsIDTermsOKSchedule {
+	return s.Schedule
 }
 
 // GetStatus returns the value of Status.
@@ -43236,6 +43247,11 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) SetScanState(val ExposureDelete
 // SetScannable sets the value of Scannable.
 func (s *ExposureDeleteExposureTargetsIDTermsOK) SetScannable(val bool) {
 	s.Scannable = val
+}
+
+// SetSchedule sets the value of Schedule.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) SetSchedule(val ExposureDeleteExposureTargetsIDTermsOKSchedule) {
+	s.Schedule = val
 }
 
 // SetStatus sets the value of Status.
@@ -44206,9 +44222,10 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKProof) SetZone(val string) {
 	s.Zone = val
 }
 
-// Where the target stands for scanning: scanning (a scan of it runs now), ready, or why not: unproved
-// (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes
-// out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet).
+// Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
+// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
+// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
+// scan confirmation or testing terms are not accepted yet).
 type ExposureDeleteExposureTargetsIDTermsOKScanState string
 
 const (
@@ -44217,6 +44234,7 @@ const (
 	ExposureDeleteExposureTargetsIDTermsOKScanStatePaused     ExposureDeleteExposureTargetsIDTermsOKScanState = "paused"
 	ExposureDeleteExposureTargetsIDTermsOKScanStateNeedsTerms ExposureDeleteExposureTargetsIDTermsOKScanState = "needs_terms"
 	ExposureDeleteExposureTargetsIDTermsOKScanStateReady      ExposureDeleteExposureTargetsIDTermsOKScanState = "ready"
+	ExposureDeleteExposureTargetsIDTermsOKScanStateQueued     ExposureDeleteExposureTargetsIDTermsOKScanState = "queued"
 	ExposureDeleteExposureTargetsIDTermsOKScanStateScanning   ExposureDeleteExposureTargetsIDTermsOKScanState = "scanning"
 )
 
@@ -44228,6 +44246,7 @@ func (ExposureDeleteExposureTargetsIDTermsOKScanState) AllValues() []ExposureDel
 		ExposureDeleteExposureTargetsIDTermsOKScanStatePaused,
 		ExposureDeleteExposureTargetsIDTermsOKScanStateNeedsTerms,
 		ExposureDeleteExposureTargetsIDTermsOKScanStateReady,
+		ExposureDeleteExposureTargetsIDTermsOKScanStateQueued,
 		ExposureDeleteExposureTargetsIDTermsOKScanStateScanning,
 	}
 }
@@ -44244,6 +44263,8 @@ func (s ExposureDeleteExposureTargetsIDTermsOKScanState) MarshalText() ([]byte, 
 	case ExposureDeleteExposureTargetsIDTermsOKScanStateNeedsTerms:
 		return []byte(s), nil
 	case ExposureDeleteExposureTargetsIDTermsOKScanStateReady:
+		return []byte(s), nil
+	case ExposureDeleteExposureTargetsIDTermsOKScanStateQueued:
 		return []byte(s), nil
 	case ExposureDeleteExposureTargetsIDTermsOKScanStateScanning:
 		return []byte(s), nil
@@ -44270,8 +44291,112 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKScanState) UnmarshalText(data []b
 	case ExposureDeleteExposureTargetsIDTermsOKScanStateReady:
 		*s = ExposureDeleteExposureTargetsIDTermsOKScanStateReady
 		return nil
+	case ExposureDeleteExposureTargetsIDTermsOKScanStateQueued:
+		*s = ExposureDeleteExposureTargetsIDTermsOKScanStateQueued
+		return nil
 	case ExposureDeleteExposureTargetsIDTermsOKScanStateScanning:
 		*s = ExposureDeleteExposureTargetsIDTermsOKScanStateScanning
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// How often the box scans the target by itself, when next, and why not.
+type ExposureDeleteExposureTargetsIDTermsOKSchedule struct {
+	// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
+	// itself, counted from the start of its newest scan.
+	Every ExposureDeleteExposureTargetsIDTermsOKScheduleEvery `json:"every"`
+	// When the next scheduled scan is expected to start: when it is due, moved to the next opening of the
+	// scan window; null when the schedule is off or the target cannot be scanned on schedule now (note
+	// says why).
+	NextAt NilDateTime `json:"next_at"`
+	// Why the target is not scanned on schedule, e.g. "Not scanned on schedule: terms need confirming
+	// again"; null otherwise.
+	Note NilString `json:"note"`
+}
+
+// GetEvery returns the value of Every.
+func (s *ExposureDeleteExposureTargetsIDTermsOKSchedule) GetEvery() ExposureDeleteExposureTargetsIDTermsOKScheduleEvery {
+	return s.Every
+}
+
+// GetNextAt returns the value of NextAt.
+func (s *ExposureDeleteExposureTargetsIDTermsOKSchedule) GetNextAt() NilDateTime {
+	return s.NextAt
+}
+
+// GetNote returns the value of Note.
+func (s *ExposureDeleteExposureTargetsIDTermsOKSchedule) GetNote() NilString {
+	return s.Note
+}
+
+// SetEvery sets the value of Every.
+func (s *ExposureDeleteExposureTargetsIDTermsOKSchedule) SetEvery(val ExposureDeleteExposureTargetsIDTermsOKScheduleEvery) {
+	s.Every = val
+}
+
+// SetNextAt sets the value of NextAt.
+func (s *ExposureDeleteExposureTargetsIDTermsOKSchedule) SetNextAt(val NilDateTime) {
+	s.NextAt = val
+}
+
+// SetNote sets the value of Note.
+func (s *ExposureDeleteExposureTargetsIDTermsOKSchedule) SetNote(val NilString) {
+	s.Note = val
+}
+
+// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
+// itself, counted from the start of its newest scan.
+type ExposureDeleteExposureTargetsIDTermsOKScheduleEvery string
+
+const (
+	ExposureDeleteExposureTargetsIDTermsOKScheduleEveryOff     ExposureDeleteExposureTargetsIDTermsOKScheduleEvery = "off"
+	ExposureDeleteExposureTargetsIDTermsOKScheduleEveryDaily   ExposureDeleteExposureTargetsIDTermsOKScheduleEvery = "daily"
+	ExposureDeleteExposureTargetsIDTermsOKScheduleEveryWeekly  ExposureDeleteExposureTargetsIDTermsOKScheduleEvery = "weekly"
+	ExposureDeleteExposureTargetsIDTermsOKScheduleEveryMonthly ExposureDeleteExposureTargetsIDTermsOKScheduleEvery = "monthly"
+)
+
+// AllValues returns all ExposureDeleteExposureTargetsIDTermsOKScheduleEvery values.
+func (ExposureDeleteExposureTargetsIDTermsOKScheduleEvery) AllValues() []ExposureDeleteExposureTargetsIDTermsOKScheduleEvery {
+	return []ExposureDeleteExposureTargetsIDTermsOKScheduleEvery{
+		ExposureDeleteExposureTargetsIDTermsOKScheduleEveryOff,
+		ExposureDeleteExposureTargetsIDTermsOKScheduleEveryDaily,
+		ExposureDeleteExposureTargetsIDTermsOKScheduleEveryWeekly,
+		ExposureDeleteExposureTargetsIDTermsOKScheduleEveryMonthly,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureDeleteExposureTargetsIDTermsOKScheduleEvery) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureDeleteExposureTargetsIDTermsOKScheduleEveryOff:
+		return []byte(s), nil
+	case ExposureDeleteExposureTargetsIDTermsOKScheduleEveryDaily:
+		return []byte(s), nil
+	case ExposureDeleteExposureTargetsIDTermsOKScheduleEveryWeekly:
+		return []byte(s), nil
+	case ExposureDeleteExposureTargetsIDTermsOKScheduleEveryMonthly:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureDeleteExposureTargetsIDTermsOKScheduleEvery) UnmarshalText(data []byte) error {
+	switch ExposureDeleteExposureTargetsIDTermsOKScheduleEvery(data) {
+	case ExposureDeleteExposureTargetsIDTermsOKScheduleEveryOff:
+		*s = ExposureDeleteExposureTargetsIDTermsOKScheduleEveryOff
+		return nil
+	case ExposureDeleteExposureTargetsIDTermsOKScheduleEveryDaily:
+		*s = ExposureDeleteExposureTargetsIDTermsOKScheduleEveryDaily
+		return nil
+	case ExposureDeleteExposureTargetsIDTermsOKScheduleEveryWeekly:
+		*s = ExposureDeleteExposureTargetsIDTermsOKScheduleEveryWeekly
+		return nil
+	case ExposureDeleteExposureTargetsIDTermsOKScheduleEveryMonthly:
+		*s = ExposureDeleteExposureTargetsIDTermsOKScheduleEveryMonthly
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -44814,11 +44939,18 @@ type ExposureGetExposureScanOK struct {
 	// as the scan worker reports them, the passive web checks, and OpenVAS's own percent during the
 	// greenbone phase. Set while status is running; null otherwise.
 	Progress NilExposureGetExposureScanOKProgress `json:"progress"`
+	// The scans that wait after this one, in order; left out when none waits.
+	Queue []ExposureGetExposureScanOKQueueItem `json:"queue"`
+	// The run is a scheduled scan of the target, started by the box.
+	Scheduled OptBool `json:"scheduled"`
 	// The new snapshot when status is done; also when a run was stopped during its Greenbone step, whose
 	// earlier results are kept.
-	SnapshotID NilString                       `json:"snapshot_id"`
-	StartedAt  time.Time                       `json:"started_at"`
-	Status     ExposureGetExposureScanOKStatus `json:"status"`
+	SnapshotID NilString `json:"snapshot_id"`
+	StartedAt  time.Time `json:"started_at"`
+	// Queued: a scan that waits for the box's one scan slot: the 202 answer of a Scan now behind another
+	// scan, and GET /exposure/scan when nothing ran since the box started and scans wait (the first of
+	// them; started_at is then when it was queued).
+	Status ExposureGetExposureScanOKStatus `json:"status"`
 	// Why the box stopped this run when it was not a person's Stop, e.g. "the testing terms of this target
 	// were withdrawn", "Vedette shut down".
 	StopReason  OptNilString `json:"stop_reason"`
@@ -44859,6 +44991,16 @@ func (s *ExposureGetExposureScanOK) GetPhase() ExposureGetExposureScanOKPhase {
 // GetProgress returns the value of Progress.
 func (s *ExposureGetExposureScanOK) GetProgress() NilExposureGetExposureScanOKProgress {
 	return s.Progress
+}
+
+// GetQueue returns the value of Queue.
+func (s *ExposureGetExposureScanOK) GetQueue() []ExposureGetExposureScanOKQueueItem {
+	return s.Queue
+}
+
+// GetScheduled returns the value of Scheduled.
+func (s *ExposureGetExposureScanOK) GetScheduled() OptBool {
+	return s.Scheduled
 }
 
 // GetSnapshotID returns the value of SnapshotID.
@@ -44924,6 +45066,16 @@ func (s *ExposureGetExposureScanOK) SetPhase(val ExposureGetExposureScanOKPhase)
 // SetProgress sets the value of Progress.
 func (s *ExposureGetExposureScanOK) SetProgress(val NilExposureGetExposureScanOKProgress) {
 	s.Progress = val
+}
+
+// SetQueue sets the value of Queue.
+func (s *ExposureGetExposureScanOK) SetQueue(val []ExposureGetExposureScanOKQueueItem) {
+	s.Queue = val
+}
+
+// SetScheduled sets the value of Scheduled.
+func (s *ExposureGetExposureScanOK) SetScheduled(val OptBool) {
+	s.Scheduled = val
 }
 
 // SetSnapshotID sets the value of SnapshotID.
@@ -45318,9 +45470,85 @@ func (s *ExposureGetExposureScanOKProgressUnit) UnmarshalText(data []byte) error
 	}
 }
 
+type ExposureGetExposureScanOKQueueItem struct {
+	// Who pressed Scan now (an e-mail), or system for a scheduled scan.
+	By        string    `json:"by"`
+	QueuedAt  time.Time `json:"queued_at"`
+	Scheduled bool      `json:"scheduled"`
+	// Its checks run now (the TXT record, the proof, the box's IP): it is the next to run and can no
+	// longer be removed.
+	Starting    bool   `json:"starting"`
+	TargetID    string `json:"target_id"`
+	TargetValue string `json:"target_value"`
+}
+
+// GetBy returns the value of By.
+func (s *ExposureGetExposureScanOKQueueItem) GetBy() string {
+	return s.By
+}
+
+// GetQueuedAt returns the value of QueuedAt.
+func (s *ExposureGetExposureScanOKQueueItem) GetQueuedAt() time.Time {
+	return s.QueuedAt
+}
+
+// GetScheduled returns the value of Scheduled.
+func (s *ExposureGetExposureScanOKQueueItem) GetScheduled() bool {
+	return s.Scheduled
+}
+
+// GetStarting returns the value of Starting.
+func (s *ExposureGetExposureScanOKQueueItem) GetStarting() bool {
+	return s.Starting
+}
+
+// GetTargetID returns the value of TargetID.
+func (s *ExposureGetExposureScanOKQueueItem) GetTargetID() string {
+	return s.TargetID
+}
+
+// GetTargetValue returns the value of TargetValue.
+func (s *ExposureGetExposureScanOKQueueItem) GetTargetValue() string {
+	return s.TargetValue
+}
+
+// SetBy sets the value of By.
+func (s *ExposureGetExposureScanOKQueueItem) SetBy(val string) {
+	s.By = val
+}
+
+// SetQueuedAt sets the value of QueuedAt.
+func (s *ExposureGetExposureScanOKQueueItem) SetQueuedAt(val time.Time) {
+	s.QueuedAt = val
+}
+
+// SetScheduled sets the value of Scheduled.
+func (s *ExposureGetExposureScanOKQueueItem) SetScheduled(val bool) {
+	s.Scheduled = val
+}
+
+// SetStarting sets the value of Starting.
+func (s *ExposureGetExposureScanOKQueueItem) SetStarting(val bool) {
+	s.Starting = val
+}
+
+// SetTargetID sets the value of TargetID.
+func (s *ExposureGetExposureScanOKQueueItem) SetTargetID(val string) {
+	s.TargetID = val
+}
+
+// SetTargetValue sets the value of TargetValue.
+func (s *ExposureGetExposureScanOKQueueItem) SetTargetValue(val string) {
+	s.TargetValue = val
+}
+
+// Queued: a scan that waits for the box's one scan slot: the 202 answer of a Scan now behind another
+// scan, and GET /exposure/scan when nothing ran since the box started and scans wait (the first of
+// them; started_at is then when it was queued).
 type ExposureGetExposureScanOKStatus string
 
 const (
+	ExposureGetExposureScanOKStatusQueued  ExposureGetExposureScanOKStatus = "queued"
 	ExposureGetExposureScanOKStatusRunning ExposureGetExposureScanOKStatus = "running"
 	ExposureGetExposureScanOKStatusDone    ExposureGetExposureScanOKStatus = "done"
 	ExposureGetExposureScanOKStatusFailed  ExposureGetExposureScanOKStatus = "failed"
@@ -45330,6 +45558,7 @@ const (
 // AllValues returns all ExposureGetExposureScanOKStatus values.
 func (ExposureGetExposureScanOKStatus) AllValues() []ExposureGetExposureScanOKStatus {
 	return []ExposureGetExposureScanOKStatus{
+		ExposureGetExposureScanOKStatusQueued,
 		ExposureGetExposureScanOKStatusRunning,
 		ExposureGetExposureScanOKStatusDone,
 		ExposureGetExposureScanOKStatusFailed,
@@ -45340,6 +45569,8 @@ func (ExposureGetExposureScanOKStatus) AllValues() []ExposureGetExposureScanOKSt
 // MarshalText implements encoding.TextMarshaler.
 func (s ExposureGetExposureScanOKStatus) MarshalText() ([]byte, error) {
 	switch s {
+	case ExposureGetExposureScanOKStatusQueued:
+		return []byte(s), nil
 	case ExposureGetExposureScanOKStatusRunning:
 		return []byte(s), nil
 	case ExposureGetExposureScanOKStatusDone:
@@ -45356,6 +45587,9 @@ func (s ExposureGetExposureScanOKStatus) MarshalText() ([]byte, error) {
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *ExposureGetExposureScanOKStatus) UnmarshalText(data []byte) error {
 	switch ExposureGetExposureScanOKStatus(data) {
+	case ExposureGetExposureScanOKStatusQueued:
+		*s = ExposureGetExposureScanOKStatusQueued
+		return nil
 	case ExposureGetExposureScanOKStatusRunning:
 		*s = ExposureGetExposureScanOKStatusRunning
 		return nil
@@ -45846,11 +46080,14 @@ type ExposureGetExposureTargetsIDOK struct {
 	Origin ExposureGetExposureTargetsIDOKOrigin `json:"origin"`
 	// Domains: where the TXT record goes and which verified domain covers this one already; null for an IP.
 	Proof NilExposureGetExposureTargetsIDOKProof `json:"proof"`
-	// Where the target stands for scanning: scanning (a scan of it runs now), ready, or why not: unproved
-	// (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes
-	// out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet).
+	// Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
+	// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
+	// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
+	// scan confirmation or testing terms are not accepted yet).
 	ScanState ExposureGetExposureTargetsIDOKScanState `json:"scan_state"`
 	Scannable bool                                    `json:"scannable"`
+	// How often the box scans the target by itself, when next, and why not.
+	Schedule ExposureGetExposureTargetsIDOKSchedule `json:"schedule"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposureGetExposureTargetsIDOKStatus `json:"status"`
 	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
@@ -45976,6 +46213,11 @@ func (s *ExposureGetExposureTargetsIDOK) GetScanState() ExposureGetExposureTarge
 // GetScannable returns the value of Scannable.
 func (s *ExposureGetExposureTargetsIDOK) GetScannable() bool {
 	return s.Scannable
+}
+
+// GetSchedule returns the value of Schedule.
+func (s *ExposureGetExposureTargetsIDOK) GetSchedule() ExposureGetExposureTargetsIDOKSchedule {
+	return s.Schedule
 }
 
 // GetStatus returns the value of Status.
@@ -46121,6 +46363,11 @@ func (s *ExposureGetExposureTargetsIDOK) SetScanState(val ExposureGetExposureTar
 // SetScannable sets the value of Scannable.
 func (s *ExposureGetExposureTargetsIDOK) SetScannable(val bool) {
 	s.Scannable = val
+}
+
+// SetSchedule sets the value of Schedule.
+func (s *ExposureGetExposureTargetsIDOK) SetSchedule(val ExposureGetExposureTargetsIDOKSchedule) {
+	s.Schedule = val
 }
 
 // SetStatus sets the value of Status.
@@ -47091,9 +47338,10 @@ func (s *ExposureGetExposureTargetsIDOKProof) SetZone(val string) {
 	s.Zone = val
 }
 
-// Where the target stands for scanning: scanning (a scan of it runs now), ready, or why not: unproved
-// (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes
-// out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet).
+// Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
+// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
+// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
+// scan confirmation or testing terms are not accepted yet).
 type ExposureGetExposureTargetsIDOKScanState string
 
 const (
@@ -47102,6 +47350,7 @@ const (
 	ExposureGetExposureTargetsIDOKScanStatePaused     ExposureGetExposureTargetsIDOKScanState = "paused"
 	ExposureGetExposureTargetsIDOKScanStateNeedsTerms ExposureGetExposureTargetsIDOKScanState = "needs_terms"
 	ExposureGetExposureTargetsIDOKScanStateReady      ExposureGetExposureTargetsIDOKScanState = "ready"
+	ExposureGetExposureTargetsIDOKScanStateQueued     ExposureGetExposureTargetsIDOKScanState = "queued"
 	ExposureGetExposureTargetsIDOKScanStateScanning   ExposureGetExposureTargetsIDOKScanState = "scanning"
 )
 
@@ -47113,6 +47362,7 @@ func (ExposureGetExposureTargetsIDOKScanState) AllValues() []ExposureGetExposure
 		ExposureGetExposureTargetsIDOKScanStatePaused,
 		ExposureGetExposureTargetsIDOKScanStateNeedsTerms,
 		ExposureGetExposureTargetsIDOKScanStateReady,
+		ExposureGetExposureTargetsIDOKScanStateQueued,
 		ExposureGetExposureTargetsIDOKScanStateScanning,
 	}
 }
@@ -47129,6 +47379,8 @@ func (s ExposureGetExposureTargetsIDOKScanState) MarshalText() ([]byte, error) {
 	case ExposureGetExposureTargetsIDOKScanStateNeedsTerms:
 		return []byte(s), nil
 	case ExposureGetExposureTargetsIDOKScanStateReady:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDOKScanStateQueued:
 		return []byte(s), nil
 	case ExposureGetExposureTargetsIDOKScanStateScanning:
 		return []byte(s), nil
@@ -47155,8 +47407,112 @@ func (s *ExposureGetExposureTargetsIDOKScanState) UnmarshalText(data []byte) err
 	case ExposureGetExposureTargetsIDOKScanStateReady:
 		*s = ExposureGetExposureTargetsIDOKScanStateReady
 		return nil
+	case ExposureGetExposureTargetsIDOKScanStateQueued:
+		*s = ExposureGetExposureTargetsIDOKScanStateQueued
+		return nil
 	case ExposureGetExposureTargetsIDOKScanStateScanning:
 		*s = ExposureGetExposureTargetsIDOKScanStateScanning
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// How often the box scans the target by itself, when next, and why not.
+type ExposureGetExposureTargetsIDOKSchedule struct {
+	// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
+	// itself, counted from the start of its newest scan.
+	Every ExposureGetExposureTargetsIDOKScheduleEvery `json:"every"`
+	// When the next scheduled scan is expected to start: when it is due, moved to the next opening of the
+	// scan window; null when the schedule is off or the target cannot be scanned on schedule now (note
+	// says why).
+	NextAt NilDateTime `json:"next_at"`
+	// Why the target is not scanned on schedule, e.g. "Not scanned on schedule: terms need confirming
+	// again"; null otherwise.
+	Note NilString `json:"note"`
+}
+
+// GetEvery returns the value of Every.
+func (s *ExposureGetExposureTargetsIDOKSchedule) GetEvery() ExposureGetExposureTargetsIDOKScheduleEvery {
+	return s.Every
+}
+
+// GetNextAt returns the value of NextAt.
+func (s *ExposureGetExposureTargetsIDOKSchedule) GetNextAt() NilDateTime {
+	return s.NextAt
+}
+
+// GetNote returns the value of Note.
+func (s *ExposureGetExposureTargetsIDOKSchedule) GetNote() NilString {
+	return s.Note
+}
+
+// SetEvery sets the value of Every.
+func (s *ExposureGetExposureTargetsIDOKSchedule) SetEvery(val ExposureGetExposureTargetsIDOKScheduleEvery) {
+	s.Every = val
+}
+
+// SetNextAt sets the value of NextAt.
+func (s *ExposureGetExposureTargetsIDOKSchedule) SetNextAt(val NilDateTime) {
+	s.NextAt = val
+}
+
+// SetNote sets the value of Note.
+func (s *ExposureGetExposureTargetsIDOKSchedule) SetNote(val NilString) {
+	s.Note = val
+}
+
+// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
+// itself, counted from the start of its newest scan.
+type ExposureGetExposureTargetsIDOKScheduleEvery string
+
+const (
+	ExposureGetExposureTargetsIDOKScheduleEveryOff     ExposureGetExposureTargetsIDOKScheduleEvery = "off"
+	ExposureGetExposureTargetsIDOKScheduleEveryDaily   ExposureGetExposureTargetsIDOKScheduleEvery = "daily"
+	ExposureGetExposureTargetsIDOKScheduleEveryWeekly  ExposureGetExposureTargetsIDOKScheduleEvery = "weekly"
+	ExposureGetExposureTargetsIDOKScheduleEveryMonthly ExposureGetExposureTargetsIDOKScheduleEvery = "monthly"
+)
+
+// AllValues returns all ExposureGetExposureTargetsIDOKScheduleEvery values.
+func (ExposureGetExposureTargetsIDOKScheduleEvery) AllValues() []ExposureGetExposureTargetsIDOKScheduleEvery {
+	return []ExposureGetExposureTargetsIDOKScheduleEvery{
+		ExposureGetExposureTargetsIDOKScheduleEveryOff,
+		ExposureGetExposureTargetsIDOKScheduleEveryDaily,
+		ExposureGetExposureTargetsIDOKScheduleEveryWeekly,
+		ExposureGetExposureTargetsIDOKScheduleEveryMonthly,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTargetsIDOKScheduleEvery) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTargetsIDOKScheduleEveryOff:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDOKScheduleEveryDaily:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDOKScheduleEveryWeekly:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDOKScheduleEveryMonthly:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTargetsIDOKScheduleEvery) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTargetsIDOKScheduleEvery(data) {
+	case ExposureGetExposureTargetsIDOKScheduleEveryOff:
+		*s = ExposureGetExposureTargetsIDOKScheduleEveryOff
+		return nil
+	case ExposureGetExposureTargetsIDOKScheduleEveryDaily:
+		*s = ExposureGetExposureTargetsIDOKScheduleEveryDaily
+		return nil
+	case ExposureGetExposureTargetsIDOKScheduleEveryWeekly:
+		*s = ExposureGetExposureTargetsIDOKScheduleEveryWeekly
+		return nil
+	case ExposureGetExposureTargetsIDOKScheduleEveryMonthly:
+		*s = ExposureGetExposureTargetsIDOKScheduleEveryMonthly
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -50968,11 +51324,14 @@ type ExposureGetExposureTargetsOKItemsItem struct {
 	Origin ExposureGetExposureTargetsOKItemsItemOrigin `json:"origin"`
 	// Domains: where the TXT record goes and which verified domain covers this one already; null for an IP.
 	Proof NilExposureGetExposureTargetsOKItemsItemProof `json:"proof"`
-	// Where the target stands for scanning: scanning (a scan of it runs now), ready, or why not: unproved
-	// (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes
-	// out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet).
+	// Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
+	// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
+	// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
+	// scan confirmation or testing terms are not accepted yet).
 	ScanState ExposureGetExposureTargetsOKItemsItemScanState `json:"scan_state"`
 	Scannable bool                                           `json:"scannable"`
+	// How often the box scans the target by itself, when next, and why not.
+	Schedule ExposureGetExposureTargetsOKItemsItemSchedule `json:"schedule"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposureGetExposureTargetsOKItemsItemStatus `json:"status"`
 	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
@@ -51098,6 +51457,11 @@ func (s *ExposureGetExposureTargetsOKItemsItem) GetScanState() ExposureGetExposu
 // GetScannable returns the value of Scannable.
 func (s *ExposureGetExposureTargetsOKItemsItem) GetScannable() bool {
 	return s.Scannable
+}
+
+// GetSchedule returns the value of Schedule.
+func (s *ExposureGetExposureTargetsOKItemsItem) GetSchedule() ExposureGetExposureTargetsOKItemsItemSchedule {
+	return s.Schedule
 }
 
 // GetStatus returns the value of Status.
@@ -51243,6 +51607,11 @@ func (s *ExposureGetExposureTargetsOKItemsItem) SetScanState(val ExposureGetExpo
 // SetScannable sets the value of Scannable.
 func (s *ExposureGetExposureTargetsOKItemsItem) SetScannable(val bool) {
 	s.Scannable = val
+}
+
+// SetSchedule sets the value of Schedule.
+func (s *ExposureGetExposureTargetsOKItemsItem) SetSchedule(val ExposureGetExposureTargetsOKItemsItemSchedule) {
+	s.Schedule = val
 }
 
 // SetStatus sets the value of Status.
@@ -52213,9 +52582,10 @@ func (s *ExposureGetExposureTargetsOKItemsItemProof) SetZone(val string) {
 	s.Zone = val
 }
 
-// Where the target stands for scanning: scanning (a scan of it runs now), ready, or why not: unproved
-// (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes
-// out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet).
+// Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
+// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
+// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
+// scan confirmation or testing terms are not accepted yet).
 type ExposureGetExposureTargetsOKItemsItemScanState string
 
 const (
@@ -52224,6 +52594,7 @@ const (
 	ExposureGetExposureTargetsOKItemsItemScanStatePaused     ExposureGetExposureTargetsOKItemsItemScanState = "paused"
 	ExposureGetExposureTargetsOKItemsItemScanStateNeedsTerms ExposureGetExposureTargetsOKItemsItemScanState = "needs_terms"
 	ExposureGetExposureTargetsOKItemsItemScanStateReady      ExposureGetExposureTargetsOKItemsItemScanState = "ready"
+	ExposureGetExposureTargetsOKItemsItemScanStateQueued     ExposureGetExposureTargetsOKItemsItemScanState = "queued"
 	ExposureGetExposureTargetsOKItemsItemScanStateScanning   ExposureGetExposureTargetsOKItemsItemScanState = "scanning"
 )
 
@@ -52235,6 +52606,7 @@ func (ExposureGetExposureTargetsOKItemsItemScanState) AllValues() []ExposureGetE
 		ExposureGetExposureTargetsOKItemsItemScanStatePaused,
 		ExposureGetExposureTargetsOKItemsItemScanStateNeedsTerms,
 		ExposureGetExposureTargetsOKItemsItemScanStateReady,
+		ExposureGetExposureTargetsOKItemsItemScanStateQueued,
 		ExposureGetExposureTargetsOKItemsItemScanStateScanning,
 	}
 }
@@ -52251,6 +52623,8 @@ func (s ExposureGetExposureTargetsOKItemsItemScanState) MarshalText() ([]byte, e
 	case ExposureGetExposureTargetsOKItemsItemScanStateNeedsTerms:
 		return []byte(s), nil
 	case ExposureGetExposureTargetsOKItemsItemScanStateReady:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsOKItemsItemScanStateQueued:
 		return []byte(s), nil
 	case ExposureGetExposureTargetsOKItemsItemScanStateScanning:
 		return []byte(s), nil
@@ -52277,8 +52651,112 @@ func (s *ExposureGetExposureTargetsOKItemsItemScanState) UnmarshalText(data []by
 	case ExposureGetExposureTargetsOKItemsItemScanStateReady:
 		*s = ExposureGetExposureTargetsOKItemsItemScanStateReady
 		return nil
+	case ExposureGetExposureTargetsOKItemsItemScanStateQueued:
+		*s = ExposureGetExposureTargetsOKItemsItemScanStateQueued
+		return nil
 	case ExposureGetExposureTargetsOKItemsItemScanStateScanning:
 		*s = ExposureGetExposureTargetsOKItemsItemScanStateScanning
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// How often the box scans the target by itself, when next, and why not.
+type ExposureGetExposureTargetsOKItemsItemSchedule struct {
+	// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
+	// itself, counted from the start of its newest scan.
+	Every ExposureGetExposureTargetsOKItemsItemScheduleEvery `json:"every"`
+	// When the next scheduled scan is expected to start: when it is due, moved to the next opening of the
+	// scan window; null when the schedule is off or the target cannot be scanned on schedule now (note
+	// says why).
+	NextAt NilDateTime `json:"next_at"`
+	// Why the target is not scanned on schedule, e.g. "Not scanned on schedule: terms need confirming
+	// again"; null otherwise.
+	Note NilString `json:"note"`
+}
+
+// GetEvery returns the value of Every.
+func (s *ExposureGetExposureTargetsOKItemsItemSchedule) GetEvery() ExposureGetExposureTargetsOKItemsItemScheduleEvery {
+	return s.Every
+}
+
+// GetNextAt returns the value of NextAt.
+func (s *ExposureGetExposureTargetsOKItemsItemSchedule) GetNextAt() NilDateTime {
+	return s.NextAt
+}
+
+// GetNote returns the value of Note.
+func (s *ExposureGetExposureTargetsOKItemsItemSchedule) GetNote() NilString {
+	return s.Note
+}
+
+// SetEvery sets the value of Every.
+func (s *ExposureGetExposureTargetsOKItemsItemSchedule) SetEvery(val ExposureGetExposureTargetsOKItemsItemScheduleEvery) {
+	s.Every = val
+}
+
+// SetNextAt sets the value of NextAt.
+func (s *ExposureGetExposureTargetsOKItemsItemSchedule) SetNextAt(val NilDateTime) {
+	s.NextAt = val
+}
+
+// SetNote sets the value of Note.
+func (s *ExposureGetExposureTargetsOKItemsItemSchedule) SetNote(val NilString) {
+	s.Note = val
+}
+
+// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
+// itself, counted from the start of its newest scan.
+type ExposureGetExposureTargetsOKItemsItemScheduleEvery string
+
+const (
+	ExposureGetExposureTargetsOKItemsItemScheduleEveryOff     ExposureGetExposureTargetsOKItemsItemScheduleEvery = "off"
+	ExposureGetExposureTargetsOKItemsItemScheduleEveryDaily   ExposureGetExposureTargetsOKItemsItemScheduleEvery = "daily"
+	ExposureGetExposureTargetsOKItemsItemScheduleEveryWeekly  ExposureGetExposureTargetsOKItemsItemScheduleEvery = "weekly"
+	ExposureGetExposureTargetsOKItemsItemScheduleEveryMonthly ExposureGetExposureTargetsOKItemsItemScheduleEvery = "monthly"
+)
+
+// AllValues returns all ExposureGetExposureTargetsOKItemsItemScheduleEvery values.
+func (ExposureGetExposureTargetsOKItemsItemScheduleEvery) AllValues() []ExposureGetExposureTargetsOKItemsItemScheduleEvery {
+	return []ExposureGetExposureTargetsOKItemsItemScheduleEvery{
+		ExposureGetExposureTargetsOKItemsItemScheduleEveryOff,
+		ExposureGetExposureTargetsOKItemsItemScheduleEveryDaily,
+		ExposureGetExposureTargetsOKItemsItemScheduleEveryWeekly,
+		ExposureGetExposureTargetsOKItemsItemScheduleEveryMonthly,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTargetsOKItemsItemScheduleEvery) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTargetsOKItemsItemScheduleEveryOff:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsOKItemsItemScheduleEveryDaily:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsOKItemsItemScheduleEveryWeekly:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsOKItemsItemScheduleEveryMonthly:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTargetsOKItemsItemScheduleEvery) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTargetsOKItemsItemScheduleEvery(data) {
+	case ExposureGetExposureTargetsOKItemsItemScheduleEveryOff:
+		*s = ExposureGetExposureTargetsOKItemsItemScheduleEveryOff
+		return nil
+	case ExposureGetExposureTargetsOKItemsItemScheduleEveryDaily:
+		*s = ExposureGetExposureTargetsOKItemsItemScheduleEveryDaily
+		return nil
+	case ExposureGetExposureTargetsOKItemsItemScheduleEveryWeekly:
+		*s = ExposureGetExposureTargetsOKItemsItemScheduleEveryWeekly
+		return nil
+	case ExposureGetExposureTargetsOKItemsItemScheduleEveryMonthly:
+		*s = ExposureGetExposureTargetsOKItemsItemScheduleEveryMonthly
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -52553,11 +53031,14 @@ type ExposurePostExposureBoxIPVerifyOKItemsItem struct {
 	Origin ExposurePostExposureBoxIPVerifyOKItemsItemOrigin `json:"origin"`
 	// Domains: where the TXT record goes and which verified domain covers this one already; null for an IP.
 	Proof NilExposurePostExposureBoxIPVerifyOKItemsItemProof `json:"proof"`
-	// Where the target stands for scanning: scanning (a scan of it runs now), ready, or why not: unproved
-	// (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes
-	// out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet).
+	// Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
+	// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
+	// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
+	// scan confirmation or testing terms are not accepted yet).
 	ScanState ExposurePostExposureBoxIPVerifyOKItemsItemScanState `json:"scan_state"`
 	Scannable bool                                                `json:"scannable"`
+	// How often the box scans the target by itself, when next, and why not.
+	Schedule ExposurePostExposureBoxIPVerifyOKItemsItemSchedule `json:"schedule"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposurePostExposureBoxIPVerifyOKItemsItemStatus `json:"status"`
 	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
@@ -52683,6 +53164,11 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetScanState() ExposurePost
 // GetScannable returns the value of Scannable.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetScannable() bool {
 	return s.Scannable
+}
+
+// GetSchedule returns the value of Schedule.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetSchedule() ExposurePostExposureBoxIPVerifyOKItemsItemSchedule {
+	return s.Schedule
 }
 
 // GetStatus returns the value of Status.
@@ -52828,6 +53314,11 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetScanState(val ExposurePo
 // SetScannable sets the value of Scannable.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetScannable(val bool) {
 	s.Scannable = val
+}
+
+// SetSchedule sets the value of Schedule.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetSchedule(val ExposurePostExposureBoxIPVerifyOKItemsItemSchedule) {
+	s.Schedule = val
 }
 
 // SetStatus sets the value of Status.
@@ -53798,9 +54289,10 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemProof) SetZone(val string) {
 	s.Zone = val
 }
 
-// Where the target stands for scanning: scanning (a scan of it runs now), ready, or why not: unproved
-// (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes
-// out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet).
+// Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
+// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
+// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
+// scan confirmation or testing terms are not accepted yet).
 type ExposurePostExposureBoxIPVerifyOKItemsItemScanState string
 
 const (
@@ -53809,6 +54301,7 @@ const (
 	ExposurePostExposureBoxIPVerifyOKItemsItemScanStatePaused     ExposurePostExposureBoxIPVerifyOKItemsItemScanState = "paused"
 	ExposurePostExposureBoxIPVerifyOKItemsItemScanStateNeedsTerms ExposurePostExposureBoxIPVerifyOKItemsItemScanState = "needs_terms"
 	ExposurePostExposureBoxIPVerifyOKItemsItemScanStateReady      ExposurePostExposureBoxIPVerifyOKItemsItemScanState = "ready"
+	ExposurePostExposureBoxIPVerifyOKItemsItemScanStateQueued     ExposurePostExposureBoxIPVerifyOKItemsItemScanState = "queued"
 	ExposurePostExposureBoxIPVerifyOKItemsItemScanStateScanning   ExposurePostExposureBoxIPVerifyOKItemsItemScanState = "scanning"
 )
 
@@ -53820,6 +54313,7 @@ func (ExposurePostExposureBoxIPVerifyOKItemsItemScanState) AllValues() []Exposur
 		ExposurePostExposureBoxIPVerifyOKItemsItemScanStatePaused,
 		ExposurePostExposureBoxIPVerifyOKItemsItemScanStateNeedsTerms,
 		ExposurePostExposureBoxIPVerifyOKItemsItemScanStateReady,
+		ExposurePostExposureBoxIPVerifyOKItemsItemScanStateQueued,
 		ExposurePostExposureBoxIPVerifyOKItemsItemScanStateScanning,
 	}
 }
@@ -53836,6 +54330,8 @@ func (s ExposurePostExposureBoxIPVerifyOKItemsItemScanState) MarshalText() ([]by
 	case ExposurePostExposureBoxIPVerifyOKItemsItemScanStateNeedsTerms:
 		return []byte(s), nil
 	case ExposurePostExposureBoxIPVerifyOKItemsItemScanStateReady:
+		return []byte(s), nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemScanStateQueued:
 		return []byte(s), nil
 	case ExposurePostExposureBoxIPVerifyOKItemsItemScanStateScanning:
 		return []byte(s), nil
@@ -53862,8 +54358,112 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemScanState) UnmarshalText(data
 	case ExposurePostExposureBoxIPVerifyOKItemsItemScanStateReady:
 		*s = ExposurePostExposureBoxIPVerifyOKItemsItemScanStateReady
 		return nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemScanStateQueued:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemScanStateQueued
+		return nil
 	case ExposurePostExposureBoxIPVerifyOKItemsItemScanStateScanning:
 		*s = ExposurePostExposureBoxIPVerifyOKItemsItemScanStateScanning
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// How often the box scans the target by itself, when next, and why not.
+type ExposurePostExposureBoxIPVerifyOKItemsItemSchedule struct {
+	// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
+	// itself, counted from the start of its newest scan.
+	Every ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery `json:"every"`
+	// When the next scheduled scan is expected to start: when it is due, moved to the next opening of the
+	// scan window; null when the schedule is off or the target cannot be scanned on schedule now (note
+	// says why).
+	NextAt NilDateTime `json:"next_at"`
+	// Why the target is not scanned on schedule, e.g. "Not scanned on schedule: terms need confirming
+	// again"; null otherwise.
+	Note NilString `json:"note"`
+}
+
+// GetEvery returns the value of Every.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemSchedule) GetEvery() ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery {
+	return s.Every
+}
+
+// GetNextAt returns the value of NextAt.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemSchedule) GetNextAt() NilDateTime {
+	return s.NextAt
+}
+
+// GetNote returns the value of Note.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemSchedule) GetNote() NilString {
+	return s.Note
+}
+
+// SetEvery sets the value of Every.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemSchedule) SetEvery(val ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery) {
+	s.Every = val
+}
+
+// SetNextAt sets the value of NextAt.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemSchedule) SetNextAt(val NilDateTime) {
+	s.NextAt = val
+}
+
+// SetNote sets the value of Note.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemSchedule) SetNote(val NilString) {
+	s.Note = val
+}
+
+// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
+// itself, counted from the start of its newest scan.
+type ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery string
+
+const (
+	ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryOff     ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery = "off"
+	ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryDaily   ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery = "daily"
+	ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryWeekly  ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery = "weekly"
+	ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryMonthly ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery = "monthly"
+)
+
+// AllValues returns all ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery values.
+func (ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery) AllValues() []ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery {
+	return []ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery{
+		ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryOff,
+		ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryDaily,
+		ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryWeekly,
+		ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryMonthly,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryOff:
+		return []byte(s), nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryDaily:
+		return []byte(s), nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryWeekly:
+		return []byte(s), nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryMonthly:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery(data) {
+	case ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryOff:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryOff
+		return nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryDaily:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryDaily
+		return nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryWeekly:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryWeekly
+		return nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryMonthly:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryMonthly
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -54087,11 +54687,18 @@ type ExposurePostExposureScanStopOK struct {
 	// as the scan worker reports them, the passive web checks, and OpenVAS's own percent during the
 	// greenbone phase. Set while status is running; null otherwise.
 	Progress NilExposurePostExposureScanStopOKProgress `json:"progress"`
+	// The scans that wait after this one, in order; left out when none waits.
+	Queue []ExposurePostExposureScanStopOKQueueItem `json:"queue"`
+	// The run is a scheduled scan of the target, started by the box.
+	Scheduled OptBool `json:"scheduled"`
 	// The new snapshot when status is done; also when a run was stopped during its Greenbone step, whose
 	// earlier results are kept.
-	SnapshotID NilString                            `json:"snapshot_id"`
-	StartedAt  time.Time                            `json:"started_at"`
-	Status     ExposurePostExposureScanStopOKStatus `json:"status"`
+	SnapshotID NilString `json:"snapshot_id"`
+	StartedAt  time.Time `json:"started_at"`
+	// Queued: a scan that waits for the box's one scan slot: the 202 answer of a Scan now behind another
+	// scan, and GET /exposure/scan when nothing ran since the box started and scans wait (the first of
+	// them; started_at is then when it was queued).
+	Status ExposurePostExposureScanStopOKStatus `json:"status"`
 	// Why the box stopped this run when it was not a person's Stop, e.g. "the testing terms of this target
 	// were withdrawn", "Vedette shut down".
 	StopReason  OptNilString `json:"stop_reason"`
@@ -54132,6 +54739,16 @@ func (s *ExposurePostExposureScanStopOK) GetPhase() ExposurePostExposureScanStop
 // GetProgress returns the value of Progress.
 func (s *ExposurePostExposureScanStopOK) GetProgress() NilExposurePostExposureScanStopOKProgress {
 	return s.Progress
+}
+
+// GetQueue returns the value of Queue.
+func (s *ExposurePostExposureScanStopOK) GetQueue() []ExposurePostExposureScanStopOKQueueItem {
+	return s.Queue
+}
+
+// GetScheduled returns the value of Scheduled.
+func (s *ExposurePostExposureScanStopOK) GetScheduled() OptBool {
+	return s.Scheduled
 }
 
 // GetSnapshotID returns the value of SnapshotID.
@@ -54197,6 +54814,16 @@ func (s *ExposurePostExposureScanStopOK) SetPhase(val ExposurePostExposureScanSt
 // SetProgress sets the value of Progress.
 func (s *ExposurePostExposureScanStopOK) SetProgress(val NilExposurePostExposureScanStopOKProgress) {
 	s.Progress = val
+}
+
+// SetQueue sets the value of Queue.
+func (s *ExposurePostExposureScanStopOK) SetQueue(val []ExposurePostExposureScanStopOKQueueItem) {
+	s.Queue = val
+}
+
+// SetScheduled sets the value of Scheduled.
+func (s *ExposurePostExposureScanStopOK) SetScheduled(val OptBool) {
+	s.Scheduled = val
 }
 
 // SetSnapshotID sets the value of SnapshotID.
@@ -54591,9 +55218,85 @@ func (s *ExposurePostExposureScanStopOKProgressUnit) UnmarshalText(data []byte) 
 	}
 }
 
+type ExposurePostExposureScanStopOKQueueItem struct {
+	// Who pressed Scan now (an e-mail), or system for a scheduled scan.
+	By        string    `json:"by"`
+	QueuedAt  time.Time `json:"queued_at"`
+	Scheduled bool      `json:"scheduled"`
+	// Its checks run now (the TXT record, the proof, the box's IP): it is the next to run and can no
+	// longer be removed.
+	Starting    bool   `json:"starting"`
+	TargetID    string `json:"target_id"`
+	TargetValue string `json:"target_value"`
+}
+
+// GetBy returns the value of By.
+func (s *ExposurePostExposureScanStopOKQueueItem) GetBy() string {
+	return s.By
+}
+
+// GetQueuedAt returns the value of QueuedAt.
+func (s *ExposurePostExposureScanStopOKQueueItem) GetQueuedAt() time.Time {
+	return s.QueuedAt
+}
+
+// GetScheduled returns the value of Scheduled.
+func (s *ExposurePostExposureScanStopOKQueueItem) GetScheduled() bool {
+	return s.Scheduled
+}
+
+// GetStarting returns the value of Starting.
+func (s *ExposurePostExposureScanStopOKQueueItem) GetStarting() bool {
+	return s.Starting
+}
+
+// GetTargetID returns the value of TargetID.
+func (s *ExposurePostExposureScanStopOKQueueItem) GetTargetID() string {
+	return s.TargetID
+}
+
+// GetTargetValue returns the value of TargetValue.
+func (s *ExposurePostExposureScanStopOKQueueItem) GetTargetValue() string {
+	return s.TargetValue
+}
+
+// SetBy sets the value of By.
+func (s *ExposurePostExposureScanStopOKQueueItem) SetBy(val string) {
+	s.By = val
+}
+
+// SetQueuedAt sets the value of QueuedAt.
+func (s *ExposurePostExposureScanStopOKQueueItem) SetQueuedAt(val time.Time) {
+	s.QueuedAt = val
+}
+
+// SetScheduled sets the value of Scheduled.
+func (s *ExposurePostExposureScanStopOKQueueItem) SetScheduled(val bool) {
+	s.Scheduled = val
+}
+
+// SetStarting sets the value of Starting.
+func (s *ExposurePostExposureScanStopOKQueueItem) SetStarting(val bool) {
+	s.Starting = val
+}
+
+// SetTargetID sets the value of TargetID.
+func (s *ExposurePostExposureScanStopOKQueueItem) SetTargetID(val string) {
+	s.TargetID = val
+}
+
+// SetTargetValue sets the value of TargetValue.
+func (s *ExposurePostExposureScanStopOKQueueItem) SetTargetValue(val string) {
+	s.TargetValue = val
+}
+
+// Queued: a scan that waits for the box's one scan slot: the 202 answer of a Scan now behind another
+// scan, and GET /exposure/scan when nothing ran since the box started and scans wait (the first of
+// them; started_at is then when it was queued).
 type ExposurePostExposureScanStopOKStatus string
 
 const (
+	ExposurePostExposureScanStopOKStatusQueued  ExposurePostExposureScanStopOKStatus = "queued"
 	ExposurePostExposureScanStopOKStatusRunning ExposurePostExposureScanStopOKStatus = "running"
 	ExposurePostExposureScanStopOKStatusDone    ExposurePostExposureScanStopOKStatus = "done"
 	ExposurePostExposureScanStopOKStatusFailed  ExposurePostExposureScanStopOKStatus = "failed"
@@ -54603,6 +55306,7 @@ const (
 // AllValues returns all ExposurePostExposureScanStopOKStatus values.
 func (ExposurePostExposureScanStopOKStatus) AllValues() []ExposurePostExposureScanStopOKStatus {
 	return []ExposurePostExposureScanStopOKStatus{
+		ExposurePostExposureScanStopOKStatusQueued,
 		ExposurePostExposureScanStopOKStatusRunning,
 		ExposurePostExposureScanStopOKStatusDone,
 		ExposurePostExposureScanStopOKStatusFailed,
@@ -54613,6 +55317,8 @@ func (ExposurePostExposureScanStopOKStatus) AllValues() []ExposurePostExposureSc
 // MarshalText implements encoding.TextMarshaler.
 func (s ExposurePostExposureScanStopOKStatus) MarshalText() ([]byte, error) {
 	switch s {
+	case ExposurePostExposureScanStopOKStatusQueued:
+		return []byte(s), nil
 	case ExposurePostExposureScanStopOKStatusRunning:
 		return []byte(s), nil
 	case ExposurePostExposureScanStopOKStatusDone:
@@ -54629,6 +55335,9 @@ func (s ExposurePostExposureScanStopOKStatus) MarshalText() ([]byte, error) {
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *ExposurePostExposureScanStopOKStatus) UnmarshalText(data []byte) error {
 	switch ExposurePostExposureScanStopOKStatus(data) {
+	case ExposurePostExposureScanStopOKStatusQueued:
+		*s = ExposurePostExposureScanStopOKStatusQueued
+		return nil
 	case ExposurePostExposureScanStopOKStatusRunning:
 		*s = ExposurePostExposureScanStopOKStatusRunning
 		return nil
@@ -54691,11 +55400,14 @@ type ExposurePostExposureTargetsCreated struct {
 	Origin ExposurePostExposureTargetsCreatedOrigin `json:"origin"`
 	// Domains: where the TXT record goes and which verified domain covers this one already; null for an IP.
 	Proof NilExposurePostExposureTargetsCreatedProof `json:"proof"`
-	// Where the target stands for scanning: scanning (a scan of it runs now), ready, or why not: unproved
-	// (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes
-	// out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet).
+	// Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
+	// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
+	// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
+	// scan confirmation or testing terms are not accepted yet).
 	ScanState ExposurePostExposureTargetsCreatedScanState `json:"scan_state"`
 	Scannable bool                                        `json:"scannable"`
+	// How often the box scans the target by itself, when next, and why not.
+	Schedule ExposurePostExposureTargetsCreatedSchedule `json:"schedule"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposurePostExposureTargetsCreatedStatus `json:"status"`
 	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
@@ -54821,6 +55533,11 @@ func (s *ExposurePostExposureTargetsCreated) GetScanState() ExposurePostExposure
 // GetScannable returns the value of Scannable.
 func (s *ExposurePostExposureTargetsCreated) GetScannable() bool {
 	return s.Scannable
+}
+
+// GetSchedule returns the value of Schedule.
+func (s *ExposurePostExposureTargetsCreated) GetSchedule() ExposurePostExposureTargetsCreatedSchedule {
+	return s.Schedule
 }
 
 // GetStatus returns the value of Status.
@@ -54966,6 +55683,11 @@ func (s *ExposurePostExposureTargetsCreated) SetScanState(val ExposurePostExposu
 // SetScannable sets the value of Scannable.
 func (s *ExposurePostExposureTargetsCreated) SetScannable(val bool) {
 	s.Scannable = val
+}
+
+// SetSchedule sets the value of Schedule.
+func (s *ExposurePostExposureTargetsCreated) SetSchedule(val ExposurePostExposureTargetsCreatedSchedule) {
+	s.Schedule = val
 }
 
 // SetStatus sets the value of Status.
@@ -55936,9 +56658,10 @@ func (s *ExposurePostExposureTargetsCreatedProof) SetZone(val string) {
 	s.Zone = val
 }
 
-// Where the target stands for scanning: scanning (a scan of it runs now), ready, or why not: unproved
-// (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes
-// out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet).
+// Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
+// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
+// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
+// scan confirmation or testing terms are not accepted yet).
 type ExposurePostExposureTargetsCreatedScanState string
 
 const (
@@ -55947,6 +56670,7 @@ const (
 	ExposurePostExposureTargetsCreatedScanStatePaused     ExposurePostExposureTargetsCreatedScanState = "paused"
 	ExposurePostExposureTargetsCreatedScanStateNeedsTerms ExposurePostExposureTargetsCreatedScanState = "needs_terms"
 	ExposurePostExposureTargetsCreatedScanStateReady      ExposurePostExposureTargetsCreatedScanState = "ready"
+	ExposurePostExposureTargetsCreatedScanStateQueued     ExposurePostExposureTargetsCreatedScanState = "queued"
 	ExposurePostExposureTargetsCreatedScanStateScanning   ExposurePostExposureTargetsCreatedScanState = "scanning"
 )
 
@@ -55958,6 +56682,7 @@ func (ExposurePostExposureTargetsCreatedScanState) AllValues() []ExposurePostExp
 		ExposurePostExposureTargetsCreatedScanStatePaused,
 		ExposurePostExposureTargetsCreatedScanStateNeedsTerms,
 		ExposurePostExposureTargetsCreatedScanStateReady,
+		ExposurePostExposureTargetsCreatedScanStateQueued,
 		ExposurePostExposureTargetsCreatedScanStateScanning,
 	}
 }
@@ -55974,6 +56699,8 @@ func (s ExposurePostExposureTargetsCreatedScanState) MarshalText() ([]byte, erro
 	case ExposurePostExposureTargetsCreatedScanStateNeedsTerms:
 		return []byte(s), nil
 	case ExposurePostExposureTargetsCreatedScanStateReady:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsCreatedScanStateQueued:
 		return []byte(s), nil
 	case ExposurePostExposureTargetsCreatedScanStateScanning:
 		return []byte(s), nil
@@ -56000,8 +56727,112 @@ func (s *ExposurePostExposureTargetsCreatedScanState) UnmarshalText(data []byte)
 	case ExposurePostExposureTargetsCreatedScanStateReady:
 		*s = ExposurePostExposureTargetsCreatedScanStateReady
 		return nil
+	case ExposurePostExposureTargetsCreatedScanStateQueued:
+		*s = ExposurePostExposureTargetsCreatedScanStateQueued
+		return nil
 	case ExposurePostExposureTargetsCreatedScanStateScanning:
 		*s = ExposurePostExposureTargetsCreatedScanStateScanning
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// How often the box scans the target by itself, when next, and why not.
+type ExposurePostExposureTargetsCreatedSchedule struct {
+	// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
+	// itself, counted from the start of its newest scan.
+	Every ExposurePostExposureTargetsCreatedScheduleEvery `json:"every"`
+	// When the next scheduled scan is expected to start: when it is due, moved to the next opening of the
+	// scan window; null when the schedule is off or the target cannot be scanned on schedule now (note
+	// says why).
+	NextAt NilDateTime `json:"next_at"`
+	// Why the target is not scanned on schedule, e.g. "Not scanned on schedule: terms need confirming
+	// again"; null otherwise.
+	Note NilString `json:"note"`
+}
+
+// GetEvery returns the value of Every.
+func (s *ExposurePostExposureTargetsCreatedSchedule) GetEvery() ExposurePostExposureTargetsCreatedScheduleEvery {
+	return s.Every
+}
+
+// GetNextAt returns the value of NextAt.
+func (s *ExposurePostExposureTargetsCreatedSchedule) GetNextAt() NilDateTime {
+	return s.NextAt
+}
+
+// GetNote returns the value of Note.
+func (s *ExposurePostExposureTargetsCreatedSchedule) GetNote() NilString {
+	return s.Note
+}
+
+// SetEvery sets the value of Every.
+func (s *ExposurePostExposureTargetsCreatedSchedule) SetEvery(val ExposurePostExposureTargetsCreatedScheduleEvery) {
+	s.Every = val
+}
+
+// SetNextAt sets the value of NextAt.
+func (s *ExposurePostExposureTargetsCreatedSchedule) SetNextAt(val NilDateTime) {
+	s.NextAt = val
+}
+
+// SetNote sets the value of Note.
+func (s *ExposurePostExposureTargetsCreatedSchedule) SetNote(val NilString) {
+	s.Note = val
+}
+
+// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
+// itself, counted from the start of its newest scan.
+type ExposurePostExposureTargetsCreatedScheduleEvery string
+
+const (
+	ExposurePostExposureTargetsCreatedScheduleEveryOff     ExposurePostExposureTargetsCreatedScheduleEvery = "off"
+	ExposurePostExposureTargetsCreatedScheduleEveryDaily   ExposurePostExposureTargetsCreatedScheduleEvery = "daily"
+	ExposurePostExposureTargetsCreatedScheduleEveryWeekly  ExposurePostExposureTargetsCreatedScheduleEvery = "weekly"
+	ExposurePostExposureTargetsCreatedScheduleEveryMonthly ExposurePostExposureTargetsCreatedScheduleEvery = "monthly"
+)
+
+// AllValues returns all ExposurePostExposureTargetsCreatedScheduleEvery values.
+func (ExposurePostExposureTargetsCreatedScheduleEvery) AllValues() []ExposurePostExposureTargetsCreatedScheduleEvery {
+	return []ExposurePostExposureTargetsCreatedScheduleEvery{
+		ExposurePostExposureTargetsCreatedScheduleEveryOff,
+		ExposurePostExposureTargetsCreatedScheduleEveryDaily,
+		ExposurePostExposureTargetsCreatedScheduleEveryWeekly,
+		ExposurePostExposureTargetsCreatedScheduleEveryMonthly,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTargetsCreatedScheduleEvery) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTargetsCreatedScheduleEveryOff:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsCreatedScheduleEveryDaily:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsCreatedScheduleEveryWeekly:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsCreatedScheduleEveryMonthly:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTargetsCreatedScheduleEvery) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTargetsCreatedScheduleEvery(data) {
+	case ExposurePostExposureTargetsCreatedScheduleEveryOff:
+		*s = ExposurePostExposureTargetsCreatedScheduleEveryOff
+		return nil
+	case ExposurePostExposureTargetsCreatedScheduleEveryDaily:
+		*s = ExposurePostExposureTargetsCreatedScheduleEveryDaily
+		return nil
+	case ExposurePostExposureTargetsCreatedScheduleEveryWeekly:
+		*s = ExposurePostExposureTargetsCreatedScheduleEveryWeekly
+		return nil
+	case ExposurePostExposureTargetsCreatedScheduleEveryMonthly:
+		*s = ExposurePostExposureTargetsCreatedScheduleEveryMonthly
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -56225,11 +57056,18 @@ type ExposurePostExposureTargetsIDOpenvasAccepted struct {
 	// as the scan worker reports them, the passive web checks, and OpenVAS's own percent during the
 	// greenbone phase. Set while status is running; null otherwise.
 	Progress NilExposurePostExposureTargetsIDOpenvasAcceptedProgress `json:"progress"`
+	// The scans that wait after this one, in order; left out when none waits.
+	Queue []ExposurePostExposureTargetsIDOpenvasAcceptedQueueItem `json:"queue"`
+	// The run is a scheduled scan of the target, started by the box.
+	Scheduled OptBool `json:"scheduled"`
 	// The new snapshot when status is done; also when a run was stopped during its Greenbone step, whose
 	// earlier results are kept.
-	SnapshotID NilString                                          `json:"snapshot_id"`
-	StartedAt  time.Time                                          `json:"started_at"`
-	Status     ExposurePostExposureTargetsIDOpenvasAcceptedStatus `json:"status"`
+	SnapshotID NilString `json:"snapshot_id"`
+	StartedAt  time.Time `json:"started_at"`
+	// Queued: a scan that waits for the box's one scan slot: the 202 answer of a Scan now behind another
+	// scan, and GET /exposure/scan when nothing ran since the box started and scans wait (the first of
+	// them; started_at is then when it was queued).
+	Status ExposurePostExposureTargetsIDOpenvasAcceptedStatus `json:"status"`
 	// Why the box stopped this run when it was not a person's Stop, e.g. "the testing terms of this target
 	// were withdrawn", "Vedette shut down".
 	StopReason  OptNilString `json:"stop_reason"`
@@ -56270,6 +57108,16 @@ func (s *ExposurePostExposureTargetsIDOpenvasAccepted) GetPhase() ExposurePostEx
 // GetProgress returns the value of Progress.
 func (s *ExposurePostExposureTargetsIDOpenvasAccepted) GetProgress() NilExposurePostExposureTargetsIDOpenvasAcceptedProgress {
 	return s.Progress
+}
+
+// GetQueue returns the value of Queue.
+func (s *ExposurePostExposureTargetsIDOpenvasAccepted) GetQueue() []ExposurePostExposureTargetsIDOpenvasAcceptedQueueItem {
+	return s.Queue
+}
+
+// GetScheduled returns the value of Scheduled.
+func (s *ExposurePostExposureTargetsIDOpenvasAccepted) GetScheduled() OptBool {
+	return s.Scheduled
 }
 
 // GetSnapshotID returns the value of SnapshotID.
@@ -56335,6 +57183,16 @@ func (s *ExposurePostExposureTargetsIDOpenvasAccepted) SetPhase(val ExposurePost
 // SetProgress sets the value of Progress.
 func (s *ExposurePostExposureTargetsIDOpenvasAccepted) SetProgress(val NilExposurePostExposureTargetsIDOpenvasAcceptedProgress) {
 	s.Progress = val
+}
+
+// SetQueue sets the value of Queue.
+func (s *ExposurePostExposureTargetsIDOpenvasAccepted) SetQueue(val []ExposurePostExposureTargetsIDOpenvasAcceptedQueueItem) {
+	s.Queue = val
+}
+
+// SetScheduled sets the value of Scheduled.
+func (s *ExposurePostExposureTargetsIDOpenvasAccepted) SetScheduled(val OptBool) {
+	s.Scheduled = val
 }
 
 // SetSnapshotID sets the value of SnapshotID.
@@ -56729,9 +57587,85 @@ func (s *ExposurePostExposureTargetsIDOpenvasAcceptedProgressUnit) UnmarshalText
 	}
 }
 
+type ExposurePostExposureTargetsIDOpenvasAcceptedQueueItem struct {
+	// Who pressed Scan now (an e-mail), or system for a scheduled scan.
+	By        string    `json:"by"`
+	QueuedAt  time.Time `json:"queued_at"`
+	Scheduled bool      `json:"scheduled"`
+	// Its checks run now (the TXT record, the proof, the box's IP): it is the next to run and can no
+	// longer be removed.
+	Starting    bool   `json:"starting"`
+	TargetID    string `json:"target_id"`
+	TargetValue string `json:"target_value"`
+}
+
+// GetBy returns the value of By.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedQueueItem) GetBy() string {
+	return s.By
+}
+
+// GetQueuedAt returns the value of QueuedAt.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedQueueItem) GetQueuedAt() time.Time {
+	return s.QueuedAt
+}
+
+// GetScheduled returns the value of Scheduled.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedQueueItem) GetScheduled() bool {
+	return s.Scheduled
+}
+
+// GetStarting returns the value of Starting.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedQueueItem) GetStarting() bool {
+	return s.Starting
+}
+
+// GetTargetID returns the value of TargetID.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedQueueItem) GetTargetID() string {
+	return s.TargetID
+}
+
+// GetTargetValue returns the value of TargetValue.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedQueueItem) GetTargetValue() string {
+	return s.TargetValue
+}
+
+// SetBy sets the value of By.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedQueueItem) SetBy(val string) {
+	s.By = val
+}
+
+// SetQueuedAt sets the value of QueuedAt.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedQueueItem) SetQueuedAt(val time.Time) {
+	s.QueuedAt = val
+}
+
+// SetScheduled sets the value of Scheduled.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedQueueItem) SetScheduled(val bool) {
+	s.Scheduled = val
+}
+
+// SetStarting sets the value of Starting.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedQueueItem) SetStarting(val bool) {
+	s.Starting = val
+}
+
+// SetTargetID sets the value of TargetID.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedQueueItem) SetTargetID(val string) {
+	s.TargetID = val
+}
+
+// SetTargetValue sets the value of TargetValue.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedQueueItem) SetTargetValue(val string) {
+	s.TargetValue = val
+}
+
+// Queued: a scan that waits for the box's one scan slot: the 202 answer of a Scan now behind another
+// scan, and GET /exposure/scan when nothing ran since the box started and scans wait (the first of
+// them; started_at is then when it was queued).
 type ExposurePostExposureTargetsIDOpenvasAcceptedStatus string
 
 const (
+	ExposurePostExposureTargetsIDOpenvasAcceptedStatusQueued  ExposurePostExposureTargetsIDOpenvasAcceptedStatus = "queued"
 	ExposurePostExposureTargetsIDOpenvasAcceptedStatusRunning ExposurePostExposureTargetsIDOpenvasAcceptedStatus = "running"
 	ExposurePostExposureTargetsIDOpenvasAcceptedStatusDone    ExposurePostExposureTargetsIDOpenvasAcceptedStatus = "done"
 	ExposurePostExposureTargetsIDOpenvasAcceptedStatusFailed  ExposurePostExposureTargetsIDOpenvasAcceptedStatus = "failed"
@@ -56741,6 +57675,7 @@ const (
 // AllValues returns all ExposurePostExposureTargetsIDOpenvasAcceptedStatus values.
 func (ExposurePostExposureTargetsIDOpenvasAcceptedStatus) AllValues() []ExposurePostExposureTargetsIDOpenvasAcceptedStatus {
 	return []ExposurePostExposureTargetsIDOpenvasAcceptedStatus{
+		ExposurePostExposureTargetsIDOpenvasAcceptedStatusQueued,
 		ExposurePostExposureTargetsIDOpenvasAcceptedStatusRunning,
 		ExposurePostExposureTargetsIDOpenvasAcceptedStatusDone,
 		ExposurePostExposureTargetsIDOpenvasAcceptedStatusFailed,
@@ -56751,6 +57686,8 @@ func (ExposurePostExposureTargetsIDOpenvasAcceptedStatus) AllValues() []Exposure
 // MarshalText implements encoding.TextMarshaler.
 func (s ExposurePostExposureTargetsIDOpenvasAcceptedStatus) MarshalText() ([]byte, error) {
 	switch s {
+	case ExposurePostExposureTargetsIDOpenvasAcceptedStatusQueued:
+		return []byte(s), nil
 	case ExposurePostExposureTargetsIDOpenvasAcceptedStatusRunning:
 		return []byte(s), nil
 	case ExposurePostExposureTargetsIDOpenvasAcceptedStatusDone:
@@ -56767,6 +57704,9 @@ func (s ExposurePostExposureTargetsIDOpenvasAcceptedStatus) MarshalText() ([]byt
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *ExposurePostExposureTargetsIDOpenvasAcceptedStatus) UnmarshalText(data []byte) error {
 	switch ExposurePostExposureTargetsIDOpenvasAcceptedStatus(data) {
+	case ExposurePostExposureTargetsIDOpenvasAcceptedStatusQueued:
+		*s = ExposurePostExposureTargetsIDOpenvasAcceptedStatusQueued
+		return nil
 	case ExposurePostExposureTargetsIDOpenvasAcceptedStatusRunning:
 		*s = ExposurePostExposureTargetsIDOpenvasAcceptedStatusRunning
 		return nil
@@ -56938,11 +57878,18 @@ type ExposurePostExposureTargetsIDScanAccepted struct {
 	// as the scan worker reports them, the passive web checks, and OpenVAS's own percent during the
 	// greenbone phase. Set while status is running; null otherwise.
 	Progress NilExposurePostExposureTargetsIDScanAcceptedProgress `json:"progress"`
+	// The scans that wait after this one, in order; left out when none waits.
+	Queue []ExposurePostExposureTargetsIDScanAcceptedQueueItem `json:"queue"`
+	// The run is a scheduled scan of the target, started by the box.
+	Scheduled OptBool `json:"scheduled"`
 	// The new snapshot when status is done; also when a run was stopped during its Greenbone step, whose
 	// earlier results are kept.
-	SnapshotID NilString                                       `json:"snapshot_id"`
-	StartedAt  time.Time                                       `json:"started_at"`
-	Status     ExposurePostExposureTargetsIDScanAcceptedStatus `json:"status"`
+	SnapshotID NilString `json:"snapshot_id"`
+	StartedAt  time.Time `json:"started_at"`
+	// Queued: a scan that waits for the box's one scan slot: the 202 answer of a Scan now behind another
+	// scan, and GET /exposure/scan when nothing ran since the box started and scans wait (the first of
+	// them; started_at is then when it was queued).
+	Status ExposurePostExposureTargetsIDScanAcceptedStatus `json:"status"`
 	// Why the box stopped this run when it was not a person's Stop, e.g. "the testing terms of this target
 	// were withdrawn", "Vedette shut down".
 	StopReason  OptNilString `json:"stop_reason"`
@@ -56983,6 +57930,16 @@ func (s *ExposurePostExposureTargetsIDScanAccepted) GetPhase() ExposurePostExpos
 // GetProgress returns the value of Progress.
 func (s *ExposurePostExposureTargetsIDScanAccepted) GetProgress() NilExposurePostExposureTargetsIDScanAcceptedProgress {
 	return s.Progress
+}
+
+// GetQueue returns the value of Queue.
+func (s *ExposurePostExposureTargetsIDScanAccepted) GetQueue() []ExposurePostExposureTargetsIDScanAcceptedQueueItem {
+	return s.Queue
+}
+
+// GetScheduled returns the value of Scheduled.
+func (s *ExposurePostExposureTargetsIDScanAccepted) GetScheduled() OptBool {
+	return s.Scheduled
 }
 
 // GetSnapshotID returns the value of SnapshotID.
@@ -57048,6 +58005,16 @@ func (s *ExposurePostExposureTargetsIDScanAccepted) SetPhase(val ExposurePostExp
 // SetProgress sets the value of Progress.
 func (s *ExposurePostExposureTargetsIDScanAccepted) SetProgress(val NilExposurePostExposureTargetsIDScanAcceptedProgress) {
 	s.Progress = val
+}
+
+// SetQueue sets the value of Queue.
+func (s *ExposurePostExposureTargetsIDScanAccepted) SetQueue(val []ExposurePostExposureTargetsIDScanAcceptedQueueItem) {
+	s.Queue = val
+}
+
+// SetScheduled sets the value of Scheduled.
+func (s *ExposurePostExposureTargetsIDScanAccepted) SetScheduled(val OptBool) {
+	s.Scheduled = val
 }
 
 // SetSnapshotID sets the value of SnapshotID.
@@ -57442,9 +58409,85 @@ func (s *ExposurePostExposureTargetsIDScanAcceptedProgressUnit) UnmarshalText(da
 	}
 }
 
+type ExposurePostExposureTargetsIDScanAcceptedQueueItem struct {
+	// Who pressed Scan now (an e-mail), or system for a scheduled scan.
+	By        string    `json:"by"`
+	QueuedAt  time.Time `json:"queued_at"`
+	Scheduled bool      `json:"scheduled"`
+	// Its checks run now (the TXT record, the proof, the box's IP): it is the next to run and can no
+	// longer be removed.
+	Starting    bool   `json:"starting"`
+	TargetID    string `json:"target_id"`
+	TargetValue string `json:"target_value"`
+}
+
+// GetBy returns the value of By.
+func (s *ExposurePostExposureTargetsIDScanAcceptedQueueItem) GetBy() string {
+	return s.By
+}
+
+// GetQueuedAt returns the value of QueuedAt.
+func (s *ExposurePostExposureTargetsIDScanAcceptedQueueItem) GetQueuedAt() time.Time {
+	return s.QueuedAt
+}
+
+// GetScheduled returns the value of Scheduled.
+func (s *ExposurePostExposureTargetsIDScanAcceptedQueueItem) GetScheduled() bool {
+	return s.Scheduled
+}
+
+// GetStarting returns the value of Starting.
+func (s *ExposurePostExposureTargetsIDScanAcceptedQueueItem) GetStarting() bool {
+	return s.Starting
+}
+
+// GetTargetID returns the value of TargetID.
+func (s *ExposurePostExposureTargetsIDScanAcceptedQueueItem) GetTargetID() string {
+	return s.TargetID
+}
+
+// GetTargetValue returns the value of TargetValue.
+func (s *ExposurePostExposureTargetsIDScanAcceptedQueueItem) GetTargetValue() string {
+	return s.TargetValue
+}
+
+// SetBy sets the value of By.
+func (s *ExposurePostExposureTargetsIDScanAcceptedQueueItem) SetBy(val string) {
+	s.By = val
+}
+
+// SetQueuedAt sets the value of QueuedAt.
+func (s *ExposurePostExposureTargetsIDScanAcceptedQueueItem) SetQueuedAt(val time.Time) {
+	s.QueuedAt = val
+}
+
+// SetScheduled sets the value of Scheduled.
+func (s *ExposurePostExposureTargetsIDScanAcceptedQueueItem) SetScheduled(val bool) {
+	s.Scheduled = val
+}
+
+// SetStarting sets the value of Starting.
+func (s *ExposurePostExposureTargetsIDScanAcceptedQueueItem) SetStarting(val bool) {
+	s.Starting = val
+}
+
+// SetTargetID sets the value of TargetID.
+func (s *ExposurePostExposureTargetsIDScanAcceptedQueueItem) SetTargetID(val string) {
+	s.TargetID = val
+}
+
+// SetTargetValue sets the value of TargetValue.
+func (s *ExposurePostExposureTargetsIDScanAcceptedQueueItem) SetTargetValue(val string) {
+	s.TargetValue = val
+}
+
+// Queued: a scan that waits for the box's one scan slot: the 202 answer of a Scan now behind another
+// scan, and GET /exposure/scan when nothing ran since the box started and scans wait (the first of
+// them; started_at is then when it was queued).
 type ExposurePostExposureTargetsIDScanAcceptedStatus string
 
 const (
+	ExposurePostExposureTargetsIDScanAcceptedStatusQueued  ExposurePostExposureTargetsIDScanAcceptedStatus = "queued"
 	ExposurePostExposureTargetsIDScanAcceptedStatusRunning ExposurePostExposureTargetsIDScanAcceptedStatus = "running"
 	ExposurePostExposureTargetsIDScanAcceptedStatusDone    ExposurePostExposureTargetsIDScanAcceptedStatus = "done"
 	ExposurePostExposureTargetsIDScanAcceptedStatusFailed  ExposurePostExposureTargetsIDScanAcceptedStatus = "failed"
@@ -57454,6 +58497,7 @@ const (
 // AllValues returns all ExposurePostExposureTargetsIDScanAcceptedStatus values.
 func (ExposurePostExposureTargetsIDScanAcceptedStatus) AllValues() []ExposurePostExposureTargetsIDScanAcceptedStatus {
 	return []ExposurePostExposureTargetsIDScanAcceptedStatus{
+		ExposurePostExposureTargetsIDScanAcceptedStatusQueued,
 		ExposurePostExposureTargetsIDScanAcceptedStatusRunning,
 		ExposurePostExposureTargetsIDScanAcceptedStatusDone,
 		ExposurePostExposureTargetsIDScanAcceptedStatusFailed,
@@ -57464,6 +58508,8 @@ func (ExposurePostExposureTargetsIDScanAcceptedStatus) AllValues() []ExposurePos
 // MarshalText implements encoding.TextMarshaler.
 func (s ExposurePostExposureTargetsIDScanAcceptedStatus) MarshalText() ([]byte, error) {
 	switch s {
+	case ExposurePostExposureTargetsIDScanAcceptedStatusQueued:
+		return []byte(s), nil
 	case ExposurePostExposureTargetsIDScanAcceptedStatusRunning:
 		return []byte(s), nil
 	case ExposurePostExposureTargetsIDScanAcceptedStatusDone:
@@ -57480,6 +58526,9 @@ func (s ExposurePostExposureTargetsIDScanAcceptedStatus) MarshalText() ([]byte, 
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *ExposurePostExposureTargetsIDScanAcceptedStatus) UnmarshalText(data []byte) error {
 	switch ExposurePostExposureTargetsIDScanAcceptedStatus(data) {
+	case ExposurePostExposureTargetsIDScanAcceptedStatusQueued:
+		*s = ExposurePostExposureTargetsIDScanAcceptedStatusQueued
+		return nil
 	case ExposurePostExposureTargetsIDScanAcceptedStatusRunning:
 		*s = ExposurePostExposureTargetsIDScanAcceptedStatusRunning
 		return nil
@@ -57594,11 +58643,14 @@ type ExposurePostExposureTargetsIDVerifyOKTarget struct {
 	Origin ExposurePostExposureTargetsIDVerifyOKTargetOrigin `json:"origin"`
 	// Domains: where the TXT record goes and which verified domain covers this one already; null for an IP.
 	Proof NilExposurePostExposureTargetsIDVerifyOKTargetProof `json:"proof"`
-	// Where the target stands for scanning: scanning (a scan of it runs now), ready, or why not: unproved
-	// (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes
-	// out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet).
+	// Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
+	// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
+	// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
+	// scan confirmation or testing terms are not accepted yet).
 	ScanState ExposurePostExposureTargetsIDVerifyOKTargetScanState `json:"scan_state"`
 	Scannable bool                                                 `json:"scannable"`
+	// How often the box scans the target by itself, when next, and why not.
+	Schedule ExposurePostExposureTargetsIDVerifyOKTargetSchedule `json:"schedule"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposurePostExposureTargetsIDVerifyOKTargetStatus `json:"status"`
 	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
@@ -57724,6 +58776,11 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetScanState() ExposurePos
 // GetScannable returns the value of Scannable.
 func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetScannable() bool {
 	return s.Scannable
+}
+
+// GetSchedule returns the value of Schedule.
+func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetSchedule() ExposurePostExposureTargetsIDVerifyOKTargetSchedule {
+	return s.Schedule
 }
 
 // GetStatus returns the value of Status.
@@ -57869,6 +58926,11 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetScanState(val ExposureP
 // SetScannable sets the value of Scannable.
 func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetScannable(val bool) {
 	s.Scannable = val
+}
+
+// SetSchedule sets the value of Schedule.
+func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetSchedule(val ExposurePostExposureTargetsIDVerifyOKTargetSchedule) {
+	s.Schedule = val
 }
 
 // SetStatus sets the value of Status.
@@ -58839,9 +59901,10 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetProof) SetZone(val string) {
 	s.Zone = val
 }
 
-// Where the target stands for scanning: scanning (a scan of it runs now), ready, or why not: unproved
-// (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes
-// out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet).
+// Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
+// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
+// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
+// scan confirmation or testing terms are not accepted yet).
 type ExposurePostExposureTargetsIDVerifyOKTargetScanState string
 
 const (
@@ -58850,6 +59913,7 @@ const (
 	ExposurePostExposureTargetsIDVerifyOKTargetScanStatePaused     ExposurePostExposureTargetsIDVerifyOKTargetScanState = "paused"
 	ExposurePostExposureTargetsIDVerifyOKTargetScanStateNeedsTerms ExposurePostExposureTargetsIDVerifyOKTargetScanState = "needs_terms"
 	ExposurePostExposureTargetsIDVerifyOKTargetScanStateReady      ExposurePostExposureTargetsIDVerifyOKTargetScanState = "ready"
+	ExposurePostExposureTargetsIDVerifyOKTargetScanStateQueued     ExposurePostExposureTargetsIDVerifyOKTargetScanState = "queued"
 	ExposurePostExposureTargetsIDVerifyOKTargetScanStateScanning   ExposurePostExposureTargetsIDVerifyOKTargetScanState = "scanning"
 )
 
@@ -58861,6 +59925,7 @@ func (ExposurePostExposureTargetsIDVerifyOKTargetScanState) AllValues() []Exposu
 		ExposurePostExposureTargetsIDVerifyOKTargetScanStatePaused,
 		ExposurePostExposureTargetsIDVerifyOKTargetScanStateNeedsTerms,
 		ExposurePostExposureTargetsIDVerifyOKTargetScanStateReady,
+		ExposurePostExposureTargetsIDVerifyOKTargetScanStateQueued,
 		ExposurePostExposureTargetsIDVerifyOKTargetScanStateScanning,
 	}
 }
@@ -58877,6 +59942,8 @@ func (s ExposurePostExposureTargetsIDVerifyOKTargetScanState) MarshalText() ([]b
 	case ExposurePostExposureTargetsIDVerifyOKTargetScanStateNeedsTerms:
 		return []byte(s), nil
 	case ExposurePostExposureTargetsIDVerifyOKTargetScanStateReady:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetScanStateQueued:
 		return []byte(s), nil
 	case ExposurePostExposureTargetsIDVerifyOKTargetScanStateScanning:
 		return []byte(s), nil
@@ -58903,8 +59970,112 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetScanState) UnmarshalText(dat
 	case ExposurePostExposureTargetsIDVerifyOKTargetScanStateReady:
 		*s = ExposurePostExposureTargetsIDVerifyOKTargetScanStateReady
 		return nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetScanStateQueued:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetScanStateQueued
+		return nil
 	case ExposurePostExposureTargetsIDVerifyOKTargetScanStateScanning:
 		*s = ExposurePostExposureTargetsIDVerifyOKTargetScanStateScanning
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// How often the box scans the target by itself, when next, and why not.
+type ExposurePostExposureTargetsIDVerifyOKTargetSchedule struct {
+	// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
+	// itself, counted from the start of its newest scan.
+	Every ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery `json:"every"`
+	// When the next scheduled scan is expected to start: when it is due, moved to the next opening of the
+	// scan window; null when the schedule is off or the target cannot be scanned on schedule now (note
+	// says why).
+	NextAt NilDateTime `json:"next_at"`
+	// Why the target is not scanned on schedule, e.g. "Not scanned on schedule: terms need confirming
+	// again"; null otherwise.
+	Note NilString `json:"note"`
+}
+
+// GetEvery returns the value of Every.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetSchedule) GetEvery() ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery {
+	return s.Every
+}
+
+// GetNextAt returns the value of NextAt.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetSchedule) GetNextAt() NilDateTime {
+	return s.NextAt
+}
+
+// GetNote returns the value of Note.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetSchedule) GetNote() NilString {
+	return s.Note
+}
+
+// SetEvery sets the value of Every.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetSchedule) SetEvery(val ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery) {
+	s.Every = val
+}
+
+// SetNextAt sets the value of NextAt.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetSchedule) SetNextAt(val NilDateTime) {
+	s.NextAt = val
+}
+
+// SetNote sets the value of Note.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetSchedule) SetNote(val NilString) {
+	s.Note = val
+}
+
+// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
+// itself, counted from the start of its newest scan.
+type ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery string
+
+const (
+	ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryOff     ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery = "off"
+	ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryDaily   ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery = "daily"
+	ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryWeekly  ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery = "weekly"
+	ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryMonthly ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery = "monthly"
+)
+
+// AllValues returns all ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery values.
+func (ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery) AllValues() []ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery {
+	return []ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery{
+		ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryOff,
+		ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryDaily,
+		ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryWeekly,
+		ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryMonthly,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryOff:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryDaily:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryWeekly:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryMonthly:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery(data) {
+	case ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryOff:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryOff
+		return nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryDaily:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryDaily
+		return nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryWeekly:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryWeekly
+		return nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryMonthly:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryMonthly
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -59623,6 +60794,1756 @@ func (s *ExposurePutExposureGreenboneReq) SetEnabled(val bool) {
 	s.Enabled = val
 }
 
+type ExposurePutExposureTargetsIDScheduleOK struct {
+	// Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check
+	// that got an answer did not see the IP and no check since has, so scans are paused (until a later
+	// check sees it) while the IP stays in the list; verified_at is when the box last saw it.
+	BlockedReason NilExposurePutExposureTargetsIDScheduleOKBlockedReason `json:"blocked_reason"`
+	// Recorded by the first Scan now of an administrator with two-step sign-in: who, when and the exact
+	// sentence shown next to the button.
+	Commitment NilExposurePutExposureTargetsIDScheduleOKCommitment `json:"commitment"`
+	// The sentence the first Scan now of an administrator confirms, with this target in it; null once the
+	// target has a commitment of the current sentence; an older one is asked again once, so a target with
+	// a commitment can carry it too.
+	CommitmentNotice NilExposurePutExposureTargetsIDScheduleOKCommitmentNotice `json:"commitment_notice"`
+	CreatedAt        time.Time                                                 `json:"created_at"`
+	// IP: verified_at + 30 days (the proof expiry of a typed IP). Domain: null (the TXT record is
+	// re-checked right before every scan).
+	ExpiresAt NilDateTime `json:"expires_at"`
+	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the scope of
+	// the Scan now sentence.
+	FullScan bool   `json:"full_scan"`
+	ID       string `json:"id"`
+	// Typed IP: where the proof file goes and which domains of this box can carry a reverse DNS name that
+	// proves it; null for a domain and for an IP the box found.
+	IPProof   NilExposurePutExposureTargetsIDScheduleOKIPProof   `json:"ip_proof"`
+	Kind      ExposurePutExposureTargetsIDScheduleOKKind         `json:"kind"`
+	LastCheck NilExposurePutExposureTargetsIDScheduleOKLastCheck `json:"last_check"`
+	// When the newest scan started: every page names a scan by its start.
+	LastScanAt NilDateTime `json:"last_scan_at"`
+	// When the newest scan ended (its OpenVAS step is its last); null while OpenVAS still runs, when never
+	// scanned, or when not known.
+	LastScanFinishedAt OptNilDateTime                                  `json:"last_scan_finished_at"`
+	Latest             NilExposurePutExposureTargetsIDScheduleOKLatest `json:"latest"`
+	Method             NilExposurePutExposureTargetsIDScheduleOKMethod `json:"method"`
+	// Typed IP with a proof: when the box checks the proof again by itself (7 days before it expires, then
+	// every 6 hours while it is not found); null otherwise.
+	NextCheckAt NilDateTime `json:"next_check_at"`
+	// Open ports of the newest scan (0 when never scanned): the number the target row shows.
+	OpenExposures int `json:"open_exposures"`
+	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
+	// can say what is open; null when never scanned.
+	OpenPorts []ExposurePutExposureTargetsIDScheduleOKOpenPortsItem `json:"open_ports"`
+	// Who added the target: person (a domain or a public IP typed in) or box (a public IP the box found as
+	// its own egress address, neutral until its testing terms are accepted).
+	Origin ExposurePutExposureTargetsIDScheduleOKOrigin `json:"origin"`
+	// Domains: where the TXT record goes and which verified domain covers this one already; null for an IP.
+	Proof NilExposurePutExposureTargetsIDScheduleOKProof `json:"proof"`
+	// Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
+	// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
+	// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
+	// scan confirmation or testing terms are not accepted yet).
+	ScanState ExposurePutExposureTargetsIDScheduleOKScanState `json:"scan_state"`
+	Scannable bool                                            `json:"scannable"`
+	// How often the box scans the target by itself, when next, and why not.
+	Schedule ExposurePutExposureTargetsIDScheduleOKSchedule `json:"schedule"`
+	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
+	Status ExposurePutExposureTargetsIDScheduleOKStatus `json:"status"`
+	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
+	// count (full_scan is false) until accepted again.
+	Terms NilExposurePutExposureTargetsIDScheduleOKTerms `json:"terms"`
+	// The current testing terms for this target, to accept or to read again.
+	TermsNotice ExposurePutExposureTargetsIDScheduleOKTermsNotice `json:"terms_notice"`
+	// GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in
+	// 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409
+	// shared_address) while it shows.
+	TermsWarning OptNilString `json:"terms_warning"`
+	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). Typed IP: the
+	// token the proof file carries (ip_proof). IP the box found: empty string.
+	Token string `json:"token"`
+	// IPs only: expiring = 5 days or less left.
+	Validity NilExposurePutExposureTargetsIDScheduleOKValidity `json:"validity"`
+	Value    string                                            `json:"value"`
+	// Domain: first successful verification. IP the box found: the last time the box saw this IP (every
+	// sighting renews it). Typed IP: the last time its proof was found.
+	VerifiedAt NilDateTime `json:"verified_at"`
+}
+
+// GetBlockedReason returns the value of BlockedReason.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetBlockedReason() NilExposurePutExposureTargetsIDScheduleOKBlockedReason {
+	return s.BlockedReason
+}
+
+// GetCommitment returns the value of Commitment.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetCommitment() NilExposurePutExposureTargetsIDScheduleOKCommitment {
+	return s.Commitment
+}
+
+// GetCommitmentNotice returns the value of CommitmentNotice.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetCommitmentNotice() NilExposurePutExposureTargetsIDScheduleOKCommitmentNotice {
+	return s.CommitmentNotice
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetExpiresAt returns the value of ExpiresAt.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetExpiresAt() NilDateTime {
+	return s.ExpiresAt
+}
+
+// GetFullScan returns the value of FullScan.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetFullScan() bool {
+	return s.FullScan
+}
+
+// GetID returns the value of ID.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetID() string {
+	return s.ID
+}
+
+// GetIPProof returns the value of IPProof.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetIPProof() NilExposurePutExposureTargetsIDScheduleOKIPProof {
+	return s.IPProof
+}
+
+// GetKind returns the value of Kind.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetKind() ExposurePutExposureTargetsIDScheduleOKKind {
+	return s.Kind
+}
+
+// GetLastCheck returns the value of LastCheck.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetLastCheck() NilExposurePutExposureTargetsIDScheduleOKLastCheck {
+	return s.LastCheck
+}
+
+// GetLastScanAt returns the value of LastScanAt.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetLastScanAt() NilDateTime {
+	return s.LastScanAt
+}
+
+// GetLastScanFinishedAt returns the value of LastScanFinishedAt.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetLastScanFinishedAt() OptNilDateTime {
+	return s.LastScanFinishedAt
+}
+
+// GetLatest returns the value of Latest.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetLatest() NilExposurePutExposureTargetsIDScheduleOKLatest {
+	return s.Latest
+}
+
+// GetMethod returns the value of Method.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetMethod() NilExposurePutExposureTargetsIDScheduleOKMethod {
+	return s.Method
+}
+
+// GetNextCheckAt returns the value of NextCheckAt.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetNextCheckAt() NilDateTime {
+	return s.NextCheckAt
+}
+
+// GetOpenExposures returns the value of OpenExposures.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetOpenExposures() int {
+	return s.OpenExposures
+}
+
+// GetOpenPorts returns the value of OpenPorts.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetOpenPorts() []ExposurePutExposureTargetsIDScheduleOKOpenPortsItem {
+	return s.OpenPorts
+}
+
+// GetOrigin returns the value of Origin.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetOrigin() ExposurePutExposureTargetsIDScheduleOKOrigin {
+	return s.Origin
+}
+
+// GetProof returns the value of Proof.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetProof() NilExposurePutExposureTargetsIDScheduleOKProof {
+	return s.Proof
+}
+
+// GetScanState returns the value of ScanState.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetScanState() ExposurePutExposureTargetsIDScheduleOKScanState {
+	return s.ScanState
+}
+
+// GetScannable returns the value of Scannable.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetScannable() bool {
+	return s.Scannable
+}
+
+// GetSchedule returns the value of Schedule.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetSchedule() ExposurePutExposureTargetsIDScheduleOKSchedule {
+	return s.Schedule
+}
+
+// GetStatus returns the value of Status.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetStatus() ExposurePutExposureTargetsIDScheduleOKStatus {
+	return s.Status
+}
+
+// GetTerms returns the value of Terms.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetTerms() NilExposurePutExposureTargetsIDScheduleOKTerms {
+	return s.Terms
+}
+
+// GetTermsNotice returns the value of TermsNotice.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetTermsNotice() ExposurePutExposureTargetsIDScheduleOKTermsNotice {
+	return s.TermsNotice
+}
+
+// GetTermsWarning returns the value of TermsWarning.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetTermsWarning() OptNilString {
+	return s.TermsWarning
+}
+
+// GetToken returns the value of Token.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetToken() string {
+	return s.Token
+}
+
+// GetValidity returns the value of Validity.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetValidity() NilExposurePutExposureTargetsIDScheduleOKValidity {
+	return s.Validity
+}
+
+// GetValue returns the value of Value.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetValue() string {
+	return s.Value
+}
+
+// GetVerifiedAt returns the value of VerifiedAt.
+func (s *ExposurePutExposureTargetsIDScheduleOK) GetVerifiedAt() NilDateTime {
+	return s.VerifiedAt
+}
+
+// SetBlockedReason sets the value of BlockedReason.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetBlockedReason(val NilExposurePutExposureTargetsIDScheduleOKBlockedReason) {
+	s.BlockedReason = val
+}
+
+// SetCommitment sets the value of Commitment.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetCommitment(val NilExposurePutExposureTargetsIDScheduleOKCommitment) {
+	s.Commitment = val
+}
+
+// SetCommitmentNotice sets the value of CommitmentNotice.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetCommitmentNotice(val NilExposurePutExposureTargetsIDScheduleOKCommitmentNotice) {
+	s.CommitmentNotice = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetExpiresAt sets the value of ExpiresAt.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetExpiresAt(val NilDateTime) {
+	s.ExpiresAt = val
+}
+
+// SetFullScan sets the value of FullScan.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetFullScan(val bool) {
+	s.FullScan = val
+}
+
+// SetID sets the value of ID.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetID(val string) {
+	s.ID = val
+}
+
+// SetIPProof sets the value of IPProof.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetIPProof(val NilExposurePutExposureTargetsIDScheduleOKIPProof) {
+	s.IPProof = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetKind(val ExposurePutExposureTargetsIDScheduleOKKind) {
+	s.Kind = val
+}
+
+// SetLastCheck sets the value of LastCheck.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetLastCheck(val NilExposurePutExposureTargetsIDScheduleOKLastCheck) {
+	s.LastCheck = val
+}
+
+// SetLastScanAt sets the value of LastScanAt.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetLastScanAt(val NilDateTime) {
+	s.LastScanAt = val
+}
+
+// SetLastScanFinishedAt sets the value of LastScanFinishedAt.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetLastScanFinishedAt(val OptNilDateTime) {
+	s.LastScanFinishedAt = val
+}
+
+// SetLatest sets the value of Latest.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetLatest(val NilExposurePutExposureTargetsIDScheduleOKLatest) {
+	s.Latest = val
+}
+
+// SetMethod sets the value of Method.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetMethod(val NilExposurePutExposureTargetsIDScheduleOKMethod) {
+	s.Method = val
+}
+
+// SetNextCheckAt sets the value of NextCheckAt.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetNextCheckAt(val NilDateTime) {
+	s.NextCheckAt = val
+}
+
+// SetOpenExposures sets the value of OpenExposures.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetOpenExposures(val int) {
+	s.OpenExposures = val
+}
+
+// SetOpenPorts sets the value of OpenPorts.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetOpenPorts(val []ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) {
+	s.OpenPorts = val
+}
+
+// SetOrigin sets the value of Origin.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetOrigin(val ExposurePutExposureTargetsIDScheduleOKOrigin) {
+	s.Origin = val
+}
+
+// SetProof sets the value of Proof.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetProof(val NilExposurePutExposureTargetsIDScheduleOKProof) {
+	s.Proof = val
+}
+
+// SetScanState sets the value of ScanState.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetScanState(val ExposurePutExposureTargetsIDScheduleOKScanState) {
+	s.ScanState = val
+}
+
+// SetScannable sets the value of Scannable.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetScannable(val bool) {
+	s.Scannable = val
+}
+
+// SetSchedule sets the value of Schedule.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetSchedule(val ExposurePutExposureTargetsIDScheduleOKSchedule) {
+	s.Schedule = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetStatus(val ExposurePutExposureTargetsIDScheduleOKStatus) {
+	s.Status = val
+}
+
+// SetTerms sets the value of Terms.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetTerms(val NilExposurePutExposureTargetsIDScheduleOKTerms) {
+	s.Terms = val
+}
+
+// SetTermsNotice sets the value of TermsNotice.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetTermsNotice(val ExposurePutExposureTargetsIDScheduleOKTermsNotice) {
+	s.TermsNotice = val
+}
+
+// SetTermsWarning sets the value of TermsWarning.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetTermsWarning(val OptNilString) {
+	s.TermsWarning = val
+}
+
+// SetToken sets the value of Token.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetToken(val string) {
+	s.Token = val
+}
+
+// SetValidity sets the value of Validity.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetValidity(val NilExposurePutExposureTargetsIDScheduleOKValidity) {
+	s.Validity = val
+}
+
+// SetValue sets the value of Value.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetValue(val string) {
+	s.Value = val
+}
+
+// SetVerifiedAt sets the value of VerifiedAt.
+func (s *ExposurePutExposureTargetsIDScheduleOK) SetVerifiedAt(val NilDateTime) {
+	s.VerifiedAt = val
+}
+
+type ExposurePutExposureTargetsIDScheduleOKBlockedReason string
+
+const (
+	ExposurePutExposureTargetsIDScheduleOKBlockedReasonUnverified   ExposurePutExposureTargetsIDScheduleOKBlockedReason = "unverified"
+	ExposurePutExposureTargetsIDScheduleOKBlockedReasonExpired      ExposurePutExposureTargetsIDScheduleOKBlockedReason = "expired"
+	ExposurePutExposureTargetsIDScheduleOKBlockedReasonTxtMissing   ExposurePutExposureTargetsIDScheduleOKBlockedReason = "txt_missing"
+	ExposurePutExposureTargetsIDScheduleOKBlockedReasonProofMissing ExposurePutExposureTargetsIDScheduleOKBlockedReason = "proof_missing"
+	ExposurePutExposureTargetsIDScheduleOKBlockedReasonNoCommitment ExposurePutExposureTargetsIDScheduleOKBlockedReason = "no_commitment"
+	ExposurePutExposureTargetsIDScheduleOKBlockedReasonIPNotCurrent ExposurePutExposureTargetsIDScheduleOKBlockedReason = "ip_not_current"
+)
+
+// AllValues returns all ExposurePutExposureTargetsIDScheduleOKBlockedReason values.
+func (ExposurePutExposureTargetsIDScheduleOKBlockedReason) AllValues() []ExposurePutExposureTargetsIDScheduleOKBlockedReason {
+	return []ExposurePutExposureTargetsIDScheduleOKBlockedReason{
+		ExposurePutExposureTargetsIDScheduleOKBlockedReasonUnverified,
+		ExposurePutExposureTargetsIDScheduleOKBlockedReasonExpired,
+		ExposurePutExposureTargetsIDScheduleOKBlockedReasonTxtMissing,
+		ExposurePutExposureTargetsIDScheduleOKBlockedReasonProofMissing,
+		ExposurePutExposureTargetsIDScheduleOKBlockedReasonNoCommitment,
+		ExposurePutExposureTargetsIDScheduleOKBlockedReasonIPNotCurrent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTargetsIDScheduleOKBlockedReason) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTargetsIDScheduleOKBlockedReasonUnverified:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKBlockedReasonExpired:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKBlockedReasonTxtMissing:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKBlockedReasonProofMissing:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKBlockedReasonNoCommitment:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKBlockedReasonIPNotCurrent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTargetsIDScheduleOKBlockedReason) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTargetsIDScheduleOKBlockedReason(data) {
+	case ExposurePutExposureTargetsIDScheduleOKBlockedReasonUnverified:
+		*s = ExposurePutExposureTargetsIDScheduleOKBlockedReasonUnverified
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKBlockedReasonExpired:
+		*s = ExposurePutExposureTargetsIDScheduleOKBlockedReasonExpired
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKBlockedReasonTxtMissing:
+		*s = ExposurePutExposureTargetsIDScheduleOKBlockedReasonTxtMissing
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKBlockedReasonProofMissing:
+		*s = ExposurePutExposureTargetsIDScheduleOKBlockedReasonProofMissing
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKBlockedReasonNoCommitment:
+		*s = ExposurePutExposureTargetsIDScheduleOKBlockedReasonNoCommitment
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKBlockedReasonIPNotCurrent:
+		*s = ExposurePutExposureTargetsIDScheduleOKBlockedReasonIPNotCurrent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePutExposureTargetsIDScheduleOKCommitment struct {
+	At time.Time `json:"at"`
+	By string    `json:"by"`
+	// The exact sentence, with the target in it, kept with who and when; null on a commitment recorded by
+	// an older version.
+	Sentence NilString `json:"sentence"`
+	// Version of the sentence the administrator saw next to Scan now; null on a commitment recorded by an
+	// older version.
+	Version NilString `json:"version"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposurePutExposureTargetsIDScheduleOKCommitment) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *ExposurePutExposureTargetsIDScheduleOKCommitment) GetBy() string {
+	return s.By
+}
+
+// GetSentence returns the value of Sentence.
+func (s *ExposurePutExposureTargetsIDScheduleOKCommitment) GetSentence() NilString {
+	return s.Sentence
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposurePutExposureTargetsIDScheduleOKCommitment) GetVersion() NilString {
+	return s.Version
+}
+
+// SetAt sets the value of At.
+func (s *ExposurePutExposureTargetsIDScheduleOKCommitment) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *ExposurePutExposureTargetsIDScheduleOKCommitment) SetBy(val string) {
+	s.By = val
+}
+
+// SetSentence sets the value of Sentence.
+func (s *ExposurePutExposureTargetsIDScheduleOKCommitment) SetSentence(val NilString) {
+	s.Sentence = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposurePutExposureTargetsIDScheduleOKCommitment) SetVersion(val NilString) {
+	s.Version = val
+}
+
+type ExposurePutExposureTargetsIDScheduleOKCommitmentNotice struct {
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetText returns the value of Text.
+func (s *ExposurePutExposureTargetsIDScheduleOKCommitmentNotice) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposurePutExposureTargetsIDScheduleOKCommitmentNotice) GetVersion() string {
+	return s.Version
+}
+
+// SetText sets the value of Text.
+func (s *ExposurePutExposureTargetsIDScheduleOKCommitmentNotice) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposurePutExposureTargetsIDScheduleOKCommitmentNotice) SetVersion(val string) {
+	s.Version = val
+}
+
+type ExposurePutExposureTargetsIDScheduleOKIPProof struct {
+	// The token: the whole content of the file.
+	Content string `json:"content"`
+	// /.well-known/vedette-verify.txt.
+	Path string `json:"path"`
+	// Domains of this box that are proved as far as the last check knows: a reverse DNS (PTR) name of the
+	// IP under one of them, resolving back to the IP, proves it.
+	PtrDomains []string `json:"ptr_domains"`
+	// The two addresses the box asks, http and https, on the IP.
+	Urls []string `json:"urls"`
+}
+
+// GetContent returns the value of Content.
+func (s *ExposurePutExposureTargetsIDScheduleOKIPProof) GetContent() string {
+	return s.Content
+}
+
+// GetPath returns the value of Path.
+func (s *ExposurePutExposureTargetsIDScheduleOKIPProof) GetPath() string {
+	return s.Path
+}
+
+// GetPtrDomains returns the value of PtrDomains.
+func (s *ExposurePutExposureTargetsIDScheduleOKIPProof) GetPtrDomains() []string {
+	return s.PtrDomains
+}
+
+// GetUrls returns the value of Urls.
+func (s *ExposurePutExposureTargetsIDScheduleOKIPProof) GetUrls() []string {
+	return s.Urls
+}
+
+// SetContent sets the value of Content.
+func (s *ExposurePutExposureTargetsIDScheduleOKIPProof) SetContent(val string) {
+	s.Content = val
+}
+
+// SetPath sets the value of Path.
+func (s *ExposurePutExposureTargetsIDScheduleOKIPProof) SetPath(val string) {
+	s.Path = val
+}
+
+// SetPtrDomains sets the value of PtrDomains.
+func (s *ExposurePutExposureTargetsIDScheduleOKIPProof) SetPtrDomains(val []string) {
+	s.PtrDomains = val
+}
+
+// SetUrls sets the value of Urls.
+func (s *ExposurePutExposureTargetsIDScheduleOKIPProof) SetUrls(val []string) {
+	s.Urls = val
+}
+
+type ExposurePutExposureTargetsIDScheduleOKKind string
+
+const (
+	ExposurePutExposureTargetsIDScheduleOKKindDomain ExposurePutExposureTargetsIDScheduleOKKind = "domain"
+	ExposurePutExposureTargetsIDScheduleOKKindIP     ExposurePutExposureTargetsIDScheduleOKKind = "ip"
+)
+
+// AllValues returns all ExposurePutExposureTargetsIDScheduleOKKind values.
+func (ExposurePutExposureTargetsIDScheduleOKKind) AllValues() []ExposurePutExposureTargetsIDScheduleOKKind {
+	return []ExposurePutExposureTargetsIDScheduleOKKind{
+		ExposurePutExposureTargetsIDScheduleOKKindDomain,
+		ExposurePutExposureTargetsIDScheduleOKKindIP,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTargetsIDScheduleOKKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTargetsIDScheduleOKKindDomain:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKKindIP:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTargetsIDScheduleOKKind) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTargetsIDScheduleOKKind(data) {
+	case ExposurePutExposureTargetsIDScheduleOKKindDomain:
+		*s = ExposurePutExposureTargetsIDScheduleOKKindDomain
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKKindIP:
+		*s = ExposurePutExposureTargetsIDScheduleOKKindIP
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePutExposureTargetsIDScheduleOKLastCheck struct {
+	At      time.Time `json:"at"`
+	Message string    `json:"message"`
+	Ok      bool      `json:"ok"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposurePutExposureTargetsIDScheduleOKLastCheck) GetAt() time.Time {
+	return s.At
+}
+
+// GetMessage returns the value of Message.
+func (s *ExposurePutExposureTargetsIDScheduleOKLastCheck) GetMessage() string {
+	return s.Message
+}
+
+// GetOk returns the value of Ok.
+func (s *ExposurePutExposureTargetsIDScheduleOKLastCheck) GetOk() bool {
+	return s.Ok
+}
+
+// SetAt sets the value of At.
+func (s *ExposurePutExposureTargetsIDScheduleOKLastCheck) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetMessage sets the value of Message.
+func (s *ExposurePutExposureTargetsIDScheduleOKLastCheck) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetOk sets the value of Ok.
+func (s *ExposurePutExposureTargetsIDScheduleOKLastCheck) SetOk(val bool) {
+	s.Ok = val
+}
+
+type ExposurePutExposureTargetsIDScheduleOKLatest struct {
+	AdminPanels   int `json:"admin_panels"`
+	CertsExpiring int `json:"certs_expiring"`
+	Ips           int `json:"ips"`
+	Ports         int `json:"ports"`
+	Subdomains    int `json:"subdomains"`
+}
+
+// GetAdminPanels returns the value of AdminPanels.
+func (s *ExposurePutExposureTargetsIDScheduleOKLatest) GetAdminPanels() int {
+	return s.AdminPanels
+}
+
+// GetCertsExpiring returns the value of CertsExpiring.
+func (s *ExposurePutExposureTargetsIDScheduleOKLatest) GetCertsExpiring() int {
+	return s.CertsExpiring
+}
+
+// GetIps returns the value of Ips.
+func (s *ExposurePutExposureTargetsIDScheduleOKLatest) GetIps() int {
+	return s.Ips
+}
+
+// GetPorts returns the value of Ports.
+func (s *ExposurePutExposureTargetsIDScheduleOKLatest) GetPorts() int {
+	return s.Ports
+}
+
+// GetSubdomains returns the value of Subdomains.
+func (s *ExposurePutExposureTargetsIDScheduleOKLatest) GetSubdomains() int {
+	return s.Subdomains
+}
+
+// SetAdminPanels sets the value of AdminPanels.
+func (s *ExposurePutExposureTargetsIDScheduleOKLatest) SetAdminPanels(val int) {
+	s.AdminPanels = val
+}
+
+// SetCertsExpiring sets the value of CertsExpiring.
+func (s *ExposurePutExposureTargetsIDScheduleOKLatest) SetCertsExpiring(val int) {
+	s.CertsExpiring = val
+}
+
+// SetIps sets the value of Ips.
+func (s *ExposurePutExposureTargetsIDScheduleOKLatest) SetIps(val int) {
+	s.Ips = val
+}
+
+// SetPorts sets the value of Ports.
+func (s *ExposurePutExposureTargetsIDScheduleOKLatest) SetPorts(val int) {
+	s.Ports = val
+}
+
+// SetSubdomains sets the value of Subdomains.
+func (s *ExposurePutExposureTargetsIDScheduleOKLatest) SetSubdomains(val int) {
+	s.Subdomains = val
+}
+
+type ExposurePutExposureTargetsIDScheduleOKMethod string
+
+const (
+	ExposurePutExposureTargetsIDScheduleOKMethodDNSTxt    ExposurePutExposureTargetsIDScheduleOKMethod = "dns_txt"
+	ExposurePutExposureTargetsIDScheduleOKMethodBoxEgress ExposurePutExposureTargetsIDScheduleOKMethod = "box_egress"
+	ExposurePutExposureTargetsIDScheduleOKMethodIPFile    ExposurePutExposureTargetsIDScheduleOKMethod = "ip_file"
+	ExposurePutExposureTargetsIDScheduleOKMethodIPPtr     ExposurePutExposureTargetsIDScheduleOKMethod = "ip_ptr"
+)
+
+// AllValues returns all ExposurePutExposureTargetsIDScheduleOKMethod values.
+func (ExposurePutExposureTargetsIDScheduleOKMethod) AllValues() []ExposurePutExposureTargetsIDScheduleOKMethod {
+	return []ExposurePutExposureTargetsIDScheduleOKMethod{
+		ExposurePutExposureTargetsIDScheduleOKMethodDNSTxt,
+		ExposurePutExposureTargetsIDScheduleOKMethodBoxEgress,
+		ExposurePutExposureTargetsIDScheduleOKMethodIPFile,
+		ExposurePutExposureTargetsIDScheduleOKMethodIPPtr,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTargetsIDScheduleOKMethod) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTargetsIDScheduleOKMethodDNSTxt:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKMethodBoxEgress:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKMethodIPFile:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKMethodIPPtr:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTargetsIDScheduleOKMethod) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTargetsIDScheduleOKMethod(data) {
+	case ExposurePutExposureTargetsIDScheduleOKMethodDNSTxt:
+		*s = ExposurePutExposureTargetsIDScheduleOKMethodDNSTxt
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKMethodBoxEgress:
+		*s = ExposurePutExposureTargetsIDScheduleOKMethodBoxEgress
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKMethodIPFile:
+		*s = ExposurePutExposureTargetsIDScheduleOKMethodIPFile
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKMethodIPPtr:
+		*s = ExposurePutExposureTargetsIDScheduleOKMethodIPPtr
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePutExposureTargetsIDScheduleOKOpenPortsItem struct {
+	// The network appliance the port names, with the inventory devices of that family; absent when none.
+	Appliance OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance `json:"appliance"`
+	// The names of the port's TLS certificate as the deep scan read them (subject common name, then DNS
+	// alternative names), at most 5.
+	CertNames []string `json:"cert_names"`
+	// How service identification named the service: probed (a probe's answer, or the surface scan's GET
+	// read a product), port (only the usual service of the port number: not confirmed), none (nothing
+	// identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on
+	// the port, or an older scan.
+	Ident OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent `json:"ident"`
+	IP    string                                                      `json:"ip"`
+	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
+	// saw it open (INV-22).
+	LastSeen OptString `json:"last_seen"`
+	// Where the port's first page redirects, when the deep scan did not follow it (http-title).
+	Location OptString `json:"location"`
+	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
+	// last scan).
+	Misses  OptInt    `json:"misses"`
+	Port    int       `json:"port"`
+	Product OptString `json:"product"`
+	// The HTTP Server header on the port (deep scan, http-server-header).
+	Server  OptString `json:"server"`
+	Service string    `json:"service"`
+	// The title of the web page on the port (deep scan, http-title).
+	Title OptString `json:"title"`
+	// The newest scan did not check the address: the row is as an earlier scan left it.
+	Unchecked OptBool `json:"unchecked"`
+}
+
+// GetAppliance returns the value of Appliance.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) GetAppliance() OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance {
+	return s.Appliance
+}
+
+// GetCertNames returns the value of CertNames.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) GetCertNames() []string {
+	return s.CertNames
+}
+
+// GetIdent returns the value of Ident.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) GetIdent() OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent {
+	return s.Ident
+}
+
+// GetIP returns the value of IP.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) GetIP() string {
+	return s.IP
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) GetLastSeen() OptString {
+	return s.LastSeen
+}
+
+// GetLocation returns the value of Location.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) GetLocation() OptString {
+	return s.Location
+}
+
+// GetMisses returns the value of Misses.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) GetMisses() OptInt {
+	return s.Misses
+}
+
+// GetPort returns the value of Port.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) GetPort() int {
+	return s.Port
+}
+
+// GetProduct returns the value of Product.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) GetProduct() OptString {
+	return s.Product
+}
+
+// GetServer returns the value of Server.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) GetServer() OptString {
+	return s.Server
+}
+
+// GetService returns the value of Service.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) GetService() string {
+	return s.Service
+}
+
+// GetTitle returns the value of Title.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) GetTitle() OptString {
+	return s.Title
+}
+
+// GetUnchecked returns the value of Unchecked.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) GetUnchecked() OptBool {
+	return s.Unchecked
+}
+
+// SetAppliance sets the value of Appliance.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) SetAppliance(val OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) {
+	s.Appliance = val
+}
+
+// SetCertNames sets the value of CertNames.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) SetCertNames(val []string) {
+	s.CertNames = val
+}
+
+// SetIdent sets the value of Ident.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) SetIdent(val OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent) {
+	s.Ident = val
+}
+
+// SetIP sets the value of IP.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) SetLastSeen(val OptString) {
+	s.LastSeen = val
+}
+
+// SetLocation sets the value of Location.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) SetLocation(val OptString) {
+	s.Location = val
+}
+
+// SetMisses sets the value of Misses.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) SetMisses(val OptInt) {
+	s.Misses = val
+}
+
+// SetPort sets the value of Port.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) SetPort(val int) {
+	s.Port = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) SetProduct(val OptString) {
+	s.Product = val
+}
+
+// SetServer sets the value of Server.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) SetServer(val OptString) {
+	s.Server = val
+}
+
+// SetService sets the value of Service.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) SetService(val string) {
+	s.Service = val
+}
+
+// SetTitle sets the value of Title.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) SetTitle(val OptString) {
+	s.Title = val
+}
+
+// SetUnchecked sets the value of Unchecked.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) SetUnchecked(val OptBool) {
+	s.Unchecked = val
+}
+
+// The network appliance the port names, with the inventory devices of that family; absent when none.
+type ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance struct {
+	// The inventory devices of the family (its own vendor, model or OS, never a PC with the vendor's VPN
+	// client), at most 5, with their open exploited findings; [] when none is in the inventory; null when
+	// Vedette cannot tell or the product has no family.
+	Devices []ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceDevicesItem `json:"devices"`
+	// Which statement of the port named it.
+	Evidence ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence `json:"evidence"`
+	// Admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an
+	// admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both.
+	Kind ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKind `json:"kind"`
+	// Devices of the family beyond the 5 listed.
+	More OptInt `json:"more"`
+	// The appliance family (FortiGate, Palo Alto firewall, Check Point gateway, F5 BIG-IP, WatchGuard
+	// Firebox…), or the product for a page of no appliance family (Synology DSM, Jenkins).
+	Name string `json:"name"`
+	// The family's vendor; "" for a product of no family.
+	Vendor string `json:"vendor"`
+}
+
+// GetDevices returns the value of Devices.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) GetDevices() []ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceDevicesItem {
+	return s.Devices
+}
+
+// GetEvidence returns the value of Evidence.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) GetEvidence() ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence {
+	return s.Evidence
+}
+
+// GetKind returns the value of Kind.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) GetKind() ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKind {
+	return s.Kind
+}
+
+// GetMore returns the value of More.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) GetMore() OptInt {
+	return s.More
+}
+
+// GetName returns the value of Name.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) GetName() string {
+	return s.Name
+}
+
+// GetVendor returns the value of Vendor.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) GetVendor() string {
+	return s.Vendor
+}
+
+// SetDevices sets the value of Devices.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) SetDevices(val []ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceDevicesItem) {
+	s.Devices = val
+}
+
+// SetEvidence sets the value of Evidence.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) SetEvidence(val ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence) {
+	s.Evidence = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) SetKind(val ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKind) {
+	s.Kind = val
+}
+
+// SetMore sets the value of More.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) SetMore(val OptInt) {
+	s.More = val
+}
+
+// SetName sets the value of Name.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) SetName(val string) {
+	s.Name = val
+}
+
+// SetVendor sets the value of Vendor.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) SetVendor(val string) {
+	s.Vendor = val
+}
+
+type ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceDevicesItem struct {
+	DeviceID string `json:"device_id"`
+	Name     string `json:"name"`
+	// Open exploited (KEV) findings of the device.
+	OpenExploited int `json:"open_exploited"`
+}
+
+// GetDeviceID returns the value of DeviceID.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceDevicesItem) GetDeviceID() string {
+	return s.DeviceID
+}
+
+// GetName returns the value of Name.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceDevicesItem) GetName() string {
+	return s.Name
+}
+
+// GetOpenExploited returns the value of OpenExploited.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceDevicesItem) GetOpenExploited() int {
+	return s.OpenExploited
+}
+
+// SetDeviceID sets the value of DeviceID.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceDevicesItem) SetDeviceID(val string) {
+	s.DeviceID = val
+}
+
+// SetName sets the value of Name.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceDevicesItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetOpenExploited sets the value of OpenExploited.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceDevicesItem) SetOpenExploited(val int) {
+	s.OpenExploited = val
+}
+
+// Which statement of the port named it.
+type ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence string
+
+const (
+	ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceCertificate ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence = "certificate"
+	ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceTitle       ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence = "title"
+	ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceServer      ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence = "server"
+	ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceRedirect    ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence = "redirect"
+	ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceProduct     ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence = "product"
+)
+
+// AllValues returns all ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence values.
+func (ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence) AllValues() []ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence {
+	return []ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence{
+		ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceCertificate,
+		ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceTitle,
+		ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceServer,
+		ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceRedirect,
+		ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceProduct,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceCertificate:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceTitle:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceServer:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceRedirect:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceProduct:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence(data) {
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceCertificate:
+		*s = ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceCertificate
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceTitle:
+		*s = ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceTitle
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceServer:
+		*s = ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceServer
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceRedirect:
+		*s = ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceRedirect
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceProduct:
+		*s = ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceProduct
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an
+// admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both.
+type ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKind string
+
+const (
+	ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindAdmin      ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKind = "admin"
+	ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindVpn        ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKind = "vpn"
+	ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindAdminOrVpn ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKind = "admin_or_vpn"
+)
+
+// AllValues returns all ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKind values.
+func (ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKind) AllValues() []ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKind {
+	return []ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKind{
+		ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindAdmin,
+		ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindVpn,
+		ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindAdminOrVpn,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindAdmin:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindVpn:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindAdminOrVpn:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKind) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKind(data) {
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindAdmin:
+		*s = ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindAdmin
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindVpn:
+		*s = ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindVpn
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindAdminOrVpn:
+		*s = ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindAdminOrVpn
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// How service identification named the service: probed (a probe's answer, or the surface scan's GET
+// read a product), port (only the usual service of the port number: not confirmed), none (nothing
+// identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on
+// the port, or an older scan.
+type ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent string
+
+const (
+	ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentProbed ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent = "probed"
+	ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentPort   ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent = "port"
+	ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentNone   ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent = "none"
+)
+
+// AllValues returns all ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent values.
+func (ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent) AllValues() []ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent {
+	return []ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent{
+		ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentProbed,
+		ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentPort,
+		ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentProbed:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentPort:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent(data) {
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentProbed:
+		*s = ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentProbed
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentPort:
+		*s = ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentPort
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentNone:
+		*s = ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Who added the target: person (a domain or a public IP typed in) or box (a public IP the box found as
+// its own egress address, neutral until its testing terms are accepted).
+type ExposurePutExposureTargetsIDScheduleOKOrigin string
+
+const (
+	ExposurePutExposureTargetsIDScheduleOKOriginPerson ExposurePutExposureTargetsIDScheduleOKOrigin = "person"
+	ExposurePutExposureTargetsIDScheduleOKOriginBox    ExposurePutExposureTargetsIDScheduleOKOrigin = "box"
+)
+
+// AllValues returns all ExposurePutExposureTargetsIDScheduleOKOrigin values.
+func (ExposurePutExposureTargetsIDScheduleOKOrigin) AllValues() []ExposurePutExposureTargetsIDScheduleOKOrigin {
+	return []ExposurePutExposureTargetsIDScheduleOKOrigin{
+		ExposurePutExposureTargetsIDScheduleOKOriginPerson,
+		ExposurePutExposureTargetsIDScheduleOKOriginBox,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTargetsIDScheduleOKOrigin) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTargetsIDScheduleOKOriginPerson:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKOriginBox:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTargetsIDScheduleOKOrigin) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTargetsIDScheduleOKOrigin(data) {
+	case ExposurePutExposureTargetsIDScheduleOKOriginPerson:
+		*s = ExposurePutExposureTargetsIDScheduleOKOriginPerson
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKOriginBox:
+		*s = ExposurePutExposureTargetsIDScheduleOKOriginBox
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePutExposureTargetsIDScheduleOKProof struct {
+	// The alternative Name: "_vedette-verify" or "_vedette-verify.git", which proves the target only
+	// (never the name itself when it is a CNAME: no TXT may sit beside a CNAME); null when
+	// _vedette-verify. would pass 253 characters (no such name can exist).
+	AltHost NilString `json:"alt_host"`
+	// A verified domain of this box that covers this name already (its parent or the zone): a Check is
+	// enough, no second record; null when none.
+	CoveredBy NilString `json:"covered_by"`
+	// The Name (host) to type in that zone: "@", the zone apex, for every target (the target's own record
+	// there proves it, and an apex takes a record whatever the subdomain is).
+	Host string `json:"host"`
+	// The registered domain: the DNS zone the record is added in ("beyondnetglobal.com").
+	Zone string `json:"zone"`
+}
+
+// GetAltHost returns the value of AltHost.
+func (s *ExposurePutExposureTargetsIDScheduleOKProof) GetAltHost() NilString {
+	return s.AltHost
+}
+
+// GetCoveredBy returns the value of CoveredBy.
+func (s *ExposurePutExposureTargetsIDScheduleOKProof) GetCoveredBy() NilString {
+	return s.CoveredBy
+}
+
+// GetHost returns the value of Host.
+func (s *ExposurePutExposureTargetsIDScheduleOKProof) GetHost() string {
+	return s.Host
+}
+
+// GetZone returns the value of Zone.
+func (s *ExposurePutExposureTargetsIDScheduleOKProof) GetZone() string {
+	return s.Zone
+}
+
+// SetAltHost sets the value of AltHost.
+func (s *ExposurePutExposureTargetsIDScheduleOKProof) SetAltHost(val NilString) {
+	s.AltHost = val
+}
+
+// SetCoveredBy sets the value of CoveredBy.
+func (s *ExposurePutExposureTargetsIDScheduleOKProof) SetCoveredBy(val NilString) {
+	s.CoveredBy = val
+}
+
+// SetHost sets the value of Host.
+func (s *ExposurePutExposureTargetsIDScheduleOKProof) SetHost(val string) {
+	s.Host = val
+}
+
+// SetZone sets the value of Zone.
+func (s *ExposurePutExposureTargetsIDScheduleOKProof) SetZone(val string) {
+	s.Zone = val
+}
+
+// Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
+// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
+// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
+// scan confirmation or testing terms are not accepted yet).
+type ExposurePutExposureTargetsIDScheduleOKScanState string
+
+const (
+	ExposurePutExposureTargetsIDScheduleOKScanStateUnproved   ExposurePutExposureTargetsIDScheduleOKScanState = "unproved"
+	ExposurePutExposureTargetsIDScheduleOKScanStateExpired    ExposurePutExposureTargetsIDScheduleOKScanState = "expired"
+	ExposurePutExposureTargetsIDScheduleOKScanStatePaused     ExposurePutExposureTargetsIDScheduleOKScanState = "paused"
+	ExposurePutExposureTargetsIDScheduleOKScanStateNeedsTerms ExposurePutExposureTargetsIDScheduleOKScanState = "needs_terms"
+	ExposurePutExposureTargetsIDScheduleOKScanStateReady      ExposurePutExposureTargetsIDScheduleOKScanState = "ready"
+	ExposurePutExposureTargetsIDScheduleOKScanStateQueued     ExposurePutExposureTargetsIDScheduleOKScanState = "queued"
+	ExposurePutExposureTargetsIDScheduleOKScanStateScanning   ExposurePutExposureTargetsIDScheduleOKScanState = "scanning"
+)
+
+// AllValues returns all ExposurePutExposureTargetsIDScheduleOKScanState values.
+func (ExposurePutExposureTargetsIDScheduleOKScanState) AllValues() []ExposurePutExposureTargetsIDScheduleOKScanState {
+	return []ExposurePutExposureTargetsIDScheduleOKScanState{
+		ExposurePutExposureTargetsIDScheduleOKScanStateUnproved,
+		ExposurePutExposureTargetsIDScheduleOKScanStateExpired,
+		ExposurePutExposureTargetsIDScheduleOKScanStatePaused,
+		ExposurePutExposureTargetsIDScheduleOKScanStateNeedsTerms,
+		ExposurePutExposureTargetsIDScheduleOKScanStateReady,
+		ExposurePutExposureTargetsIDScheduleOKScanStateQueued,
+		ExposurePutExposureTargetsIDScheduleOKScanStateScanning,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTargetsIDScheduleOKScanState) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTargetsIDScheduleOKScanStateUnproved:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKScanStateExpired:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKScanStatePaused:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKScanStateNeedsTerms:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKScanStateReady:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKScanStateQueued:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKScanStateScanning:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTargetsIDScheduleOKScanState) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTargetsIDScheduleOKScanState(data) {
+	case ExposurePutExposureTargetsIDScheduleOKScanStateUnproved:
+		*s = ExposurePutExposureTargetsIDScheduleOKScanStateUnproved
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKScanStateExpired:
+		*s = ExposurePutExposureTargetsIDScheduleOKScanStateExpired
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKScanStatePaused:
+		*s = ExposurePutExposureTargetsIDScheduleOKScanStatePaused
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKScanStateNeedsTerms:
+		*s = ExposurePutExposureTargetsIDScheduleOKScanStateNeedsTerms
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKScanStateReady:
+		*s = ExposurePutExposureTargetsIDScheduleOKScanStateReady
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKScanStateQueued:
+		*s = ExposurePutExposureTargetsIDScheduleOKScanStateQueued
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKScanStateScanning:
+		*s = ExposurePutExposureTargetsIDScheduleOKScanStateScanning
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// How often the box scans the target by itself, when next, and why not.
+type ExposurePutExposureTargetsIDScheduleOKSchedule struct {
+	// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
+	// itself, counted from the start of its newest scan.
+	Every ExposurePutExposureTargetsIDScheduleOKScheduleEvery `json:"every"`
+	// When the next scheduled scan is expected to start: when it is due, moved to the next opening of the
+	// scan window; null when the schedule is off or the target cannot be scanned on schedule now (note
+	// says why).
+	NextAt NilDateTime `json:"next_at"`
+	// Why the target is not scanned on schedule, e.g. "Not scanned on schedule: terms need confirming
+	// again"; null otherwise.
+	Note NilString `json:"note"`
+}
+
+// GetEvery returns the value of Every.
+func (s *ExposurePutExposureTargetsIDScheduleOKSchedule) GetEvery() ExposurePutExposureTargetsIDScheduleOKScheduleEvery {
+	return s.Every
+}
+
+// GetNextAt returns the value of NextAt.
+func (s *ExposurePutExposureTargetsIDScheduleOKSchedule) GetNextAt() NilDateTime {
+	return s.NextAt
+}
+
+// GetNote returns the value of Note.
+func (s *ExposurePutExposureTargetsIDScheduleOKSchedule) GetNote() NilString {
+	return s.Note
+}
+
+// SetEvery sets the value of Every.
+func (s *ExposurePutExposureTargetsIDScheduleOKSchedule) SetEvery(val ExposurePutExposureTargetsIDScheduleOKScheduleEvery) {
+	s.Every = val
+}
+
+// SetNextAt sets the value of NextAt.
+func (s *ExposurePutExposureTargetsIDScheduleOKSchedule) SetNextAt(val NilDateTime) {
+	s.NextAt = val
+}
+
+// SetNote sets the value of Note.
+func (s *ExposurePutExposureTargetsIDScheduleOKSchedule) SetNote(val NilString) {
+	s.Note = val
+}
+
+// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
+// itself, counted from the start of its newest scan.
+type ExposurePutExposureTargetsIDScheduleOKScheduleEvery string
+
+const (
+	ExposurePutExposureTargetsIDScheduleOKScheduleEveryOff     ExposurePutExposureTargetsIDScheduleOKScheduleEvery = "off"
+	ExposurePutExposureTargetsIDScheduleOKScheduleEveryDaily   ExposurePutExposureTargetsIDScheduleOKScheduleEvery = "daily"
+	ExposurePutExposureTargetsIDScheduleOKScheduleEveryWeekly  ExposurePutExposureTargetsIDScheduleOKScheduleEvery = "weekly"
+	ExposurePutExposureTargetsIDScheduleOKScheduleEveryMonthly ExposurePutExposureTargetsIDScheduleOKScheduleEvery = "monthly"
+)
+
+// AllValues returns all ExposurePutExposureTargetsIDScheduleOKScheduleEvery values.
+func (ExposurePutExposureTargetsIDScheduleOKScheduleEvery) AllValues() []ExposurePutExposureTargetsIDScheduleOKScheduleEvery {
+	return []ExposurePutExposureTargetsIDScheduleOKScheduleEvery{
+		ExposurePutExposureTargetsIDScheduleOKScheduleEveryOff,
+		ExposurePutExposureTargetsIDScheduleOKScheduleEveryDaily,
+		ExposurePutExposureTargetsIDScheduleOKScheduleEveryWeekly,
+		ExposurePutExposureTargetsIDScheduleOKScheduleEveryMonthly,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTargetsIDScheduleOKScheduleEvery) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTargetsIDScheduleOKScheduleEveryOff:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKScheduleEveryDaily:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKScheduleEveryWeekly:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKScheduleEveryMonthly:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTargetsIDScheduleOKScheduleEvery) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTargetsIDScheduleOKScheduleEvery(data) {
+	case ExposurePutExposureTargetsIDScheduleOKScheduleEveryOff:
+		*s = ExposurePutExposureTargetsIDScheduleOKScheduleEveryOff
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKScheduleEveryDaily:
+		*s = ExposurePutExposureTargetsIDScheduleOKScheduleEveryDaily
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKScheduleEveryWeekly:
+		*s = ExposurePutExposureTargetsIDScheduleOKScheduleEveryWeekly
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKScheduleEveryMonthly:
+		*s = ExposurePutExposureTargetsIDScheduleOKScheduleEveryMonthly
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
+type ExposurePutExposureTargetsIDScheduleOKStatus string
+
+const (
+	ExposurePutExposureTargetsIDScheduleOKStatusUnverified ExposurePutExposureTargetsIDScheduleOKStatus = "unverified"
+	ExposurePutExposureTargetsIDScheduleOKStatusVerified   ExposurePutExposureTargetsIDScheduleOKStatus = "verified"
+	ExposurePutExposureTargetsIDScheduleOKStatusExpired    ExposurePutExposureTargetsIDScheduleOKStatus = "expired"
+)
+
+// AllValues returns all ExposurePutExposureTargetsIDScheduleOKStatus values.
+func (ExposurePutExposureTargetsIDScheduleOKStatus) AllValues() []ExposurePutExposureTargetsIDScheduleOKStatus {
+	return []ExposurePutExposureTargetsIDScheduleOKStatus{
+		ExposurePutExposureTargetsIDScheduleOKStatusUnverified,
+		ExposurePutExposureTargetsIDScheduleOKStatusVerified,
+		ExposurePutExposureTargetsIDScheduleOKStatusExpired,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTargetsIDScheduleOKStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTargetsIDScheduleOKStatusUnverified:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKStatusVerified:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKStatusExpired:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTargetsIDScheduleOKStatus) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTargetsIDScheduleOKStatus(data) {
+	case ExposurePutExposureTargetsIDScheduleOKStatusUnverified:
+		*s = ExposurePutExposureTargetsIDScheduleOKStatusUnverified
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKStatusVerified:
+		*s = ExposurePutExposureTargetsIDScheduleOKStatusVerified
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKStatusExpired:
+		*s = ExposurePutExposureTargetsIDScheduleOKStatusExpired
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePutExposureTargetsIDScheduleOKTerms struct {
+	At time.Time `json:"at"`
+	By string    `json:"by"`
+	// The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks
+	// that send more than a harmless read too.
+	Disruptive bool `json:"disruptive"`
+	// The exact terms the administrator accepted, with the tick's sentence as the last line when ticked.
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposurePutExposureTargetsIDScheduleOKTerms) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *ExposurePutExposureTargetsIDScheduleOKTerms) GetBy() string {
+	return s.By
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposurePutExposureTargetsIDScheduleOKTerms) GetDisruptive() bool {
+	return s.Disruptive
+}
+
+// GetText returns the value of Text.
+func (s *ExposurePutExposureTargetsIDScheduleOKTerms) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposurePutExposureTargetsIDScheduleOKTerms) GetVersion() string {
+	return s.Version
+}
+
+// SetAt sets the value of At.
+func (s *ExposurePutExposureTargetsIDScheduleOKTerms) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *ExposurePutExposureTargetsIDScheduleOKTerms) SetBy(val string) {
+	s.By = val
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposurePutExposureTargetsIDScheduleOKTerms) SetDisruptive(val bool) {
+	s.Disruptive = val
+}
+
+// SetText sets the value of Text.
+func (s *ExposurePutExposureTargetsIDScheduleOKTerms) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposurePutExposureTargetsIDScheduleOKTerms) SetVersion(val string) {
+	s.Version = val
+}
+
+// The current testing terms for this target, to accept or to read again.
+type ExposurePutExposureTargetsIDScheduleOKTermsNotice struct {
+	// The sentence of the extra tick, off by default.
+	Disruptive string `json:"disruptive"`
+	// The terms with the target in them, one paragraph per line.
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposurePutExposureTargetsIDScheduleOKTermsNotice) GetDisruptive() string {
+	return s.Disruptive
+}
+
+// GetText returns the value of Text.
+func (s *ExposurePutExposureTargetsIDScheduleOKTermsNotice) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposurePutExposureTargetsIDScheduleOKTermsNotice) GetVersion() string {
+	return s.Version
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposurePutExposureTargetsIDScheduleOKTermsNotice) SetDisruptive(val string) {
+	s.Disruptive = val
+}
+
+// SetText sets the value of Text.
+func (s *ExposurePutExposureTargetsIDScheduleOKTermsNotice) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposurePutExposureTargetsIDScheduleOKTermsNotice) SetVersion(val string) {
+	s.Version = val
+}
+
+type ExposurePutExposureTargetsIDScheduleOKValidity string
+
+const (
+	ExposurePutExposureTargetsIDScheduleOKValidityValid    ExposurePutExposureTargetsIDScheduleOKValidity = "valid"
+	ExposurePutExposureTargetsIDScheduleOKValidityExpiring ExposurePutExposureTargetsIDScheduleOKValidity = "expiring"
+	ExposurePutExposureTargetsIDScheduleOKValidityExpired  ExposurePutExposureTargetsIDScheduleOKValidity = "expired"
+)
+
+// AllValues returns all ExposurePutExposureTargetsIDScheduleOKValidity values.
+func (ExposurePutExposureTargetsIDScheduleOKValidity) AllValues() []ExposurePutExposureTargetsIDScheduleOKValidity {
+	return []ExposurePutExposureTargetsIDScheduleOKValidity{
+		ExposurePutExposureTargetsIDScheduleOKValidityValid,
+		ExposurePutExposureTargetsIDScheduleOKValidityExpiring,
+		ExposurePutExposureTargetsIDScheduleOKValidityExpired,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTargetsIDScheduleOKValidity) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTargetsIDScheduleOKValidityValid:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKValidityExpiring:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleOKValidityExpired:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTargetsIDScheduleOKValidity) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTargetsIDScheduleOKValidity(data) {
+	case ExposurePutExposureTargetsIDScheduleOKValidityValid:
+		*s = ExposurePutExposureTargetsIDScheduleOKValidityValid
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKValidityExpiring:
+		*s = ExposurePutExposureTargetsIDScheduleOKValidityExpiring
+		return nil
+	case ExposurePutExposureTargetsIDScheduleOKValidityExpired:
+		*s = ExposurePutExposureTargetsIDScheduleOKValidityExpired
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePutExposureTargetsIDScheduleReq struct {
+	Every ExposurePutExposureTargetsIDScheduleReqEvery `json:"every"`
+}
+
+// GetEvery returns the value of Every.
+func (s *ExposurePutExposureTargetsIDScheduleReq) GetEvery() ExposurePutExposureTargetsIDScheduleReqEvery {
+	return s.Every
+}
+
+// SetEvery sets the value of Every.
+func (s *ExposurePutExposureTargetsIDScheduleReq) SetEvery(val ExposurePutExposureTargetsIDScheduleReqEvery) {
+	s.Every = val
+}
+
+type ExposurePutExposureTargetsIDScheduleReqEvery string
+
+const (
+	ExposurePutExposureTargetsIDScheduleReqEveryOff     ExposurePutExposureTargetsIDScheduleReqEvery = "off"
+	ExposurePutExposureTargetsIDScheduleReqEveryDaily   ExposurePutExposureTargetsIDScheduleReqEvery = "daily"
+	ExposurePutExposureTargetsIDScheduleReqEveryWeekly  ExposurePutExposureTargetsIDScheduleReqEvery = "weekly"
+	ExposurePutExposureTargetsIDScheduleReqEveryMonthly ExposurePutExposureTargetsIDScheduleReqEvery = "monthly"
+)
+
+// AllValues returns all ExposurePutExposureTargetsIDScheduleReqEvery values.
+func (ExposurePutExposureTargetsIDScheduleReqEvery) AllValues() []ExposurePutExposureTargetsIDScheduleReqEvery {
+	return []ExposurePutExposureTargetsIDScheduleReqEvery{
+		ExposurePutExposureTargetsIDScheduleReqEveryOff,
+		ExposurePutExposureTargetsIDScheduleReqEveryDaily,
+		ExposurePutExposureTargetsIDScheduleReqEveryWeekly,
+		ExposurePutExposureTargetsIDScheduleReqEveryMonthly,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTargetsIDScheduleReqEvery) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTargetsIDScheduleReqEveryOff:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleReqEveryDaily:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleReqEveryWeekly:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDScheduleReqEveryMonthly:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTargetsIDScheduleReqEvery) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTargetsIDScheduleReqEvery(data) {
+	case ExposurePutExposureTargetsIDScheduleReqEveryOff:
+		*s = ExposurePutExposureTargetsIDScheduleReqEveryOff
+		return nil
+	case ExposurePutExposureTargetsIDScheduleReqEveryDaily:
+		*s = ExposurePutExposureTargetsIDScheduleReqEveryDaily
+		return nil
+	case ExposurePutExposureTargetsIDScheduleReqEveryWeekly:
+		*s = ExposurePutExposureTargetsIDScheduleReqEveryWeekly
+		return nil
+	case ExposurePutExposureTargetsIDScheduleReqEveryMonthly:
+		*s = ExposurePutExposureTargetsIDScheduleReqEveryMonthly
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ExposurePutExposureTargetsIDTermsOK struct {
 	// Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check
 	// that got an answer did not see the IP and no check since has, so scans are paused (until a later
@@ -59668,11 +62589,14 @@ type ExposurePutExposureTargetsIDTermsOK struct {
 	Origin ExposurePutExposureTargetsIDTermsOKOrigin `json:"origin"`
 	// Domains: where the TXT record goes and which verified domain covers this one already; null for an IP.
 	Proof NilExposurePutExposureTargetsIDTermsOKProof `json:"proof"`
-	// Where the target stands for scanning: scanning (a scan of it runs now), ready, or why not: unproved
-	// (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes
-	// out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet).
+	// Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
+	// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
+	// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
+	// scan confirmation or testing terms are not accepted yet).
 	ScanState ExposurePutExposureTargetsIDTermsOKScanState `json:"scan_state"`
 	Scannable bool                                         `json:"scannable"`
+	// How often the box scans the target by itself, when next, and why not.
+	Schedule ExposurePutExposureTargetsIDTermsOKSchedule `json:"schedule"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposurePutExposureTargetsIDTermsOKStatus `json:"status"`
 	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
@@ -59798,6 +62722,11 @@ func (s *ExposurePutExposureTargetsIDTermsOK) GetScanState() ExposurePutExposure
 // GetScannable returns the value of Scannable.
 func (s *ExposurePutExposureTargetsIDTermsOK) GetScannable() bool {
 	return s.Scannable
+}
+
+// GetSchedule returns the value of Schedule.
+func (s *ExposurePutExposureTargetsIDTermsOK) GetSchedule() ExposurePutExposureTargetsIDTermsOKSchedule {
+	return s.Schedule
 }
 
 // GetStatus returns the value of Status.
@@ -59943,6 +62872,11 @@ func (s *ExposurePutExposureTargetsIDTermsOK) SetScanState(val ExposurePutExposu
 // SetScannable sets the value of Scannable.
 func (s *ExposurePutExposureTargetsIDTermsOK) SetScannable(val bool) {
 	s.Scannable = val
+}
+
+// SetSchedule sets the value of Schedule.
+func (s *ExposurePutExposureTargetsIDTermsOK) SetSchedule(val ExposurePutExposureTargetsIDTermsOKSchedule) {
+	s.Schedule = val
 }
 
 // SetStatus sets the value of Status.
@@ -60913,9 +63847,10 @@ func (s *ExposurePutExposureTargetsIDTermsOKProof) SetZone(val string) {
 	s.Zone = val
 }
 
-// Where the target stands for scanning: scanning (a scan of it runs now), ready, or why not: unproved
-// (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes
-// out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet).
+// Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
+// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
+// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
+// scan confirmation or testing terms are not accepted yet).
 type ExposurePutExposureTargetsIDTermsOKScanState string
 
 const (
@@ -60924,6 +63859,7 @@ const (
 	ExposurePutExposureTargetsIDTermsOKScanStatePaused     ExposurePutExposureTargetsIDTermsOKScanState = "paused"
 	ExposurePutExposureTargetsIDTermsOKScanStateNeedsTerms ExposurePutExposureTargetsIDTermsOKScanState = "needs_terms"
 	ExposurePutExposureTargetsIDTermsOKScanStateReady      ExposurePutExposureTargetsIDTermsOKScanState = "ready"
+	ExposurePutExposureTargetsIDTermsOKScanStateQueued     ExposurePutExposureTargetsIDTermsOKScanState = "queued"
 	ExposurePutExposureTargetsIDTermsOKScanStateScanning   ExposurePutExposureTargetsIDTermsOKScanState = "scanning"
 )
 
@@ -60935,6 +63871,7 @@ func (ExposurePutExposureTargetsIDTermsOKScanState) AllValues() []ExposurePutExp
 		ExposurePutExposureTargetsIDTermsOKScanStatePaused,
 		ExposurePutExposureTargetsIDTermsOKScanStateNeedsTerms,
 		ExposurePutExposureTargetsIDTermsOKScanStateReady,
+		ExposurePutExposureTargetsIDTermsOKScanStateQueued,
 		ExposurePutExposureTargetsIDTermsOKScanStateScanning,
 	}
 }
@@ -60951,6 +63888,8 @@ func (s ExposurePutExposureTargetsIDTermsOKScanState) MarshalText() ([]byte, err
 	case ExposurePutExposureTargetsIDTermsOKScanStateNeedsTerms:
 		return []byte(s), nil
 	case ExposurePutExposureTargetsIDTermsOKScanStateReady:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDTermsOKScanStateQueued:
 		return []byte(s), nil
 	case ExposurePutExposureTargetsIDTermsOKScanStateScanning:
 		return []byte(s), nil
@@ -60977,8 +63916,112 @@ func (s *ExposurePutExposureTargetsIDTermsOKScanState) UnmarshalText(data []byte
 	case ExposurePutExposureTargetsIDTermsOKScanStateReady:
 		*s = ExposurePutExposureTargetsIDTermsOKScanStateReady
 		return nil
+	case ExposurePutExposureTargetsIDTermsOKScanStateQueued:
+		*s = ExposurePutExposureTargetsIDTermsOKScanStateQueued
+		return nil
 	case ExposurePutExposureTargetsIDTermsOKScanStateScanning:
 		*s = ExposurePutExposureTargetsIDTermsOKScanStateScanning
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// How often the box scans the target by itself, when next, and why not.
+type ExposurePutExposureTargetsIDTermsOKSchedule struct {
+	// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
+	// itself, counted from the start of its newest scan.
+	Every ExposurePutExposureTargetsIDTermsOKScheduleEvery `json:"every"`
+	// When the next scheduled scan is expected to start: when it is due, moved to the next opening of the
+	// scan window; null when the schedule is off or the target cannot be scanned on schedule now (note
+	// says why).
+	NextAt NilDateTime `json:"next_at"`
+	// Why the target is not scanned on schedule, e.g. "Not scanned on schedule: terms need confirming
+	// again"; null otherwise.
+	Note NilString `json:"note"`
+}
+
+// GetEvery returns the value of Every.
+func (s *ExposurePutExposureTargetsIDTermsOKSchedule) GetEvery() ExposurePutExposureTargetsIDTermsOKScheduleEvery {
+	return s.Every
+}
+
+// GetNextAt returns the value of NextAt.
+func (s *ExposurePutExposureTargetsIDTermsOKSchedule) GetNextAt() NilDateTime {
+	return s.NextAt
+}
+
+// GetNote returns the value of Note.
+func (s *ExposurePutExposureTargetsIDTermsOKSchedule) GetNote() NilString {
+	return s.Note
+}
+
+// SetEvery sets the value of Every.
+func (s *ExposurePutExposureTargetsIDTermsOKSchedule) SetEvery(val ExposurePutExposureTargetsIDTermsOKScheduleEvery) {
+	s.Every = val
+}
+
+// SetNextAt sets the value of NextAt.
+func (s *ExposurePutExposureTargetsIDTermsOKSchedule) SetNextAt(val NilDateTime) {
+	s.NextAt = val
+}
+
+// SetNote sets the value of Note.
+func (s *ExposurePutExposureTargetsIDTermsOKSchedule) SetNote(val NilString) {
+	s.Note = val
+}
+
+// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
+// itself, counted from the start of its newest scan.
+type ExposurePutExposureTargetsIDTermsOKScheduleEvery string
+
+const (
+	ExposurePutExposureTargetsIDTermsOKScheduleEveryOff     ExposurePutExposureTargetsIDTermsOKScheduleEvery = "off"
+	ExposurePutExposureTargetsIDTermsOKScheduleEveryDaily   ExposurePutExposureTargetsIDTermsOKScheduleEvery = "daily"
+	ExposurePutExposureTargetsIDTermsOKScheduleEveryWeekly  ExposurePutExposureTargetsIDTermsOKScheduleEvery = "weekly"
+	ExposurePutExposureTargetsIDTermsOKScheduleEveryMonthly ExposurePutExposureTargetsIDTermsOKScheduleEvery = "monthly"
+)
+
+// AllValues returns all ExposurePutExposureTargetsIDTermsOKScheduleEvery values.
+func (ExposurePutExposureTargetsIDTermsOKScheduleEvery) AllValues() []ExposurePutExposureTargetsIDTermsOKScheduleEvery {
+	return []ExposurePutExposureTargetsIDTermsOKScheduleEvery{
+		ExposurePutExposureTargetsIDTermsOKScheduleEveryOff,
+		ExposurePutExposureTargetsIDTermsOKScheduleEveryDaily,
+		ExposurePutExposureTargetsIDTermsOKScheduleEveryWeekly,
+		ExposurePutExposureTargetsIDTermsOKScheduleEveryMonthly,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTargetsIDTermsOKScheduleEvery) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTargetsIDTermsOKScheduleEveryOff:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDTermsOKScheduleEveryDaily:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDTermsOKScheduleEveryWeekly:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDTermsOKScheduleEveryMonthly:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTargetsIDTermsOKScheduleEvery) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTargetsIDTermsOKScheduleEvery(data) {
+	case ExposurePutExposureTargetsIDTermsOKScheduleEveryOff:
+		*s = ExposurePutExposureTargetsIDTermsOKScheduleEveryOff
+		return nil
+	case ExposurePutExposureTargetsIDTermsOKScheduleEveryDaily:
+		*s = ExposurePutExposureTargetsIDTermsOKScheduleEveryDaily
+		return nil
+	case ExposurePutExposureTargetsIDTermsOKScheduleEveryWeekly:
+		*s = ExposurePutExposureTargetsIDTermsOKScheduleEveryWeekly
+		return nil
+	case ExposurePutExposureTargetsIDTermsOKScheduleEveryMonthly:
+		*s = ExposurePutExposureTargetsIDTermsOKScheduleEveryMonthly
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -68528,8 +71571,8 @@ type FindingsGetFindingsIDOK struct {
 	Applied     []FindingsGetFindingsIDOKAppliedItem `json:"applied"`
 	Asset       NilFindingsGetFindingsIDOKAsset      `json:"asset"`
 	AssetID     string                               `json:"asset_id"`
-	// Scan = confirmed by a scan template; version = suspected by version; product = only the product
-	// matches.
+	// Scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version
+	// = suspected by version; product = only the product matches.
 	Basis      FindingsGetFindingsIDOKBasis         `json:"basis"`
 	Compromise NilFindingsGetFindingsIDOKCompromise `json:"compromise"`
 	Confidence float64                              `json:"confidence"`
@@ -68578,6 +71621,10 @@ type FindingsGetFindingsIDOK struct {
 	// reaches an older finding. Never guessed from the product.
 	SoftwareID string                        `json:"software_id"`
 	Status     FindingsGetFindingsIDOKStatus `json:"status"`
+	// A suspected finding only: why it is not confirmed and what would confirm it, in words (who stated
+	// the version, whether a vulnerability check exists for the CVE and whether the scan reaches the
+	// device); null for any other status.
+	SuspectedWhy NilString `json:"suspected_why"`
 }
 
 // GetAcceptedUntil returns the value of AcceptedUntil.
@@ -68735,6 +71782,11 @@ func (s *FindingsGetFindingsIDOK) GetStatus() FindingsGetFindingsIDOKStatus {
 	return s.Status
 }
 
+// GetSuspectedWhy returns the value of SuspectedWhy.
+func (s *FindingsGetFindingsIDOK) GetSuspectedWhy() NilString {
+	return s.SuspectedWhy
+}
+
 // SetAcceptedUntil sets the value of AcceptedUntil.
 func (s *FindingsGetFindingsIDOK) SetAcceptedUntil(val NilDate) {
 	s.AcceptedUntil = val
@@ -68888,6 +71940,11 @@ func (s *FindingsGetFindingsIDOK) SetSoftwareID(val string) {
 // SetStatus sets the value of Status.
 func (s *FindingsGetFindingsIDOK) SetStatus(val FindingsGetFindingsIDOKStatus) {
 	s.Status = val
+}
+
+// SetSuspectedWhy sets the value of SuspectedWhy.
+func (s *FindingsGetFindingsIDOK) SetSuspectedWhy(val NilString) {
+	s.SuspectedWhy = val
 }
 
 type FindingsGetFindingsIDOKAi struct {
@@ -70297,14 +73354,15 @@ func (s *FindingsGetFindingsIDOKAssetKind) UnmarshalText(data []byte) error {
 	}
 }
 
-// Scan = confirmed by a scan template; version = suspected by version; product = only the product
-// matches.
+// Scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version
+// = suspected by version; product = only the product matches.
 type FindingsGetFindingsIDOKBasis string
 
 const (
 	FindingsGetFindingsIDOKBasisScan    FindingsGetFindingsIDOKBasis = "scan"
 	FindingsGetFindingsIDOKBasisVersion FindingsGetFindingsIDOKBasis = "version"
 	FindingsGetFindingsIDOKBasisProduct FindingsGetFindingsIDOKBasis = "product"
+	FindingsGetFindingsIDOKBasisPerson  FindingsGetFindingsIDOKBasis = "person"
 )
 
 // AllValues returns all FindingsGetFindingsIDOKBasis values.
@@ -70313,6 +73371,7 @@ func (FindingsGetFindingsIDOKBasis) AllValues() []FindingsGetFindingsIDOKBasis {
 		FindingsGetFindingsIDOKBasisScan,
 		FindingsGetFindingsIDOKBasisVersion,
 		FindingsGetFindingsIDOKBasisProduct,
+		FindingsGetFindingsIDOKBasisPerson,
 	}
 }
 
@@ -70324,6 +73383,8 @@ func (s FindingsGetFindingsIDOKBasis) MarshalText() ([]byte, error) {
 	case FindingsGetFindingsIDOKBasisVersion:
 		return []byte(s), nil
 	case FindingsGetFindingsIDOKBasisProduct:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKBasisPerson:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -70341,6 +73402,9 @@ func (s *FindingsGetFindingsIDOKBasis) UnmarshalText(data []byte) error {
 		return nil
 	case FindingsGetFindingsIDOKBasisProduct:
 		*s = FindingsGetFindingsIDOKBasisProduct
+		return nil
+	case FindingsGetFindingsIDOKBasisPerson:
+		*s = FindingsGetFindingsIDOKBasisPerson
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -72607,8 +75671,8 @@ type FindingsGetFindingsOKItemsItem struct {
 	AcceptedUntil NilDate                                `json:"accepted_until"`
 	Asset         NilFindingsGetFindingsOKItemsItemAsset `json:"asset"`
 	AssetID       string                                 `json:"asset_id"`
-	// Scan = confirmed by a scan template; version = suspected by version; product = only the product
-	// matches.
+	// Scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version
+	// = suspected by version; product = only the product matches.
 	Basis      FindingsGetFindingsOKItemsItemBasis `json:"basis"`
 	Confidence float64                             `json:"confidence"`
 	Cve        string                              `json:"cve"`
@@ -73616,14 +76680,15 @@ func (s *FindingsGetFindingsOKItemsItemAssetKind) UnmarshalText(data []byte) err
 	}
 }
 
-// Scan = confirmed by a scan template; version = suspected by version; product = only the product
-// matches.
+// Scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version
+// = suspected by version; product = only the product matches.
 type FindingsGetFindingsOKItemsItemBasis string
 
 const (
 	FindingsGetFindingsOKItemsItemBasisScan    FindingsGetFindingsOKItemsItemBasis = "scan"
 	FindingsGetFindingsOKItemsItemBasisVersion FindingsGetFindingsOKItemsItemBasis = "version"
 	FindingsGetFindingsOKItemsItemBasisProduct FindingsGetFindingsOKItemsItemBasis = "product"
+	FindingsGetFindingsOKItemsItemBasisPerson  FindingsGetFindingsOKItemsItemBasis = "person"
 )
 
 // AllValues returns all FindingsGetFindingsOKItemsItemBasis values.
@@ -73632,6 +76697,7 @@ func (FindingsGetFindingsOKItemsItemBasis) AllValues() []FindingsGetFindingsOKIt
 		FindingsGetFindingsOKItemsItemBasisScan,
 		FindingsGetFindingsOKItemsItemBasisVersion,
 		FindingsGetFindingsOKItemsItemBasisProduct,
+		FindingsGetFindingsOKItemsItemBasisPerson,
 	}
 }
 
@@ -73643,6 +76709,8 @@ func (s FindingsGetFindingsOKItemsItemBasis) MarshalText() ([]byte, error) {
 	case FindingsGetFindingsOKItemsItemBasisVersion:
 		return []byte(s), nil
 	case FindingsGetFindingsOKItemsItemBasisProduct:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemBasisPerson:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -73660,6 +76728,9 @@ func (s *FindingsGetFindingsOKItemsItemBasis) UnmarshalText(data []byte) error {
 		return nil
 	case FindingsGetFindingsOKItemsItemBasisProduct:
 		*s = FindingsGetFindingsOKItemsItemBasisProduct
+		return nil
+	case FindingsGetFindingsOKItemsItemBasisPerson:
+		*s = FindingsGetFindingsOKItemsItemBasisPerson
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -81002,8 +84073,8 @@ type FindingsPostFindingsIDAiOK struct {
 	Applied     []FindingsPostFindingsIDAiOKAppliedItem `json:"applied"`
 	Asset       NilFindingsPostFindingsIDAiOKAsset      `json:"asset"`
 	AssetID     string                                  `json:"asset_id"`
-	// Scan = confirmed by a scan template; version = suspected by version; product = only the product
-	// matches.
+	// Scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version
+	// = suspected by version; product = only the product matches.
 	Basis      FindingsPostFindingsIDAiOKBasis         `json:"basis"`
 	Compromise NilFindingsPostFindingsIDAiOKCompromise `json:"compromise"`
 	Confidence float64                                 `json:"confidence"`
@@ -81052,6 +84123,10 @@ type FindingsPostFindingsIDAiOK struct {
 	// reaches an older finding. Never guessed from the product.
 	SoftwareID string                           `json:"software_id"`
 	Status     FindingsPostFindingsIDAiOKStatus `json:"status"`
+	// A suspected finding only: why it is not confirmed and what would confirm it, in words (who stated
+	// the version, whether a vulnerability check exists for the CVE and whether the scan reaches the
+	// device); null for any other status.
+	SuspectedWhy NilString `json:"suspected_why"`
 }
 
 // GetAcceptedUntil returns the value of AcceptedUntil.
@@ -81209,6 +84284,11 @@ func (s *FindingsPostFindingsIDAiOK) GetStatus() FindingsPostFindingsIDAiOKStatu
 	return s.Status
 }
 
+// GetSuspectedWhy returns the value of SuspectedWhy.
+func (s *FindingsPostFindingsIDAiOK) GetSuspectedWhy() NilString {
+	return s.SuspectedWhy
+}
+
 // SetAcceptedUntil sets the value of AcceptedUntil.
 func (s *FindingsPostFindingsIDAiOK) SetAcceptedUntil(val NilDate) {
 	s.AcceptedUntil = val
@@ -81362,6 +84442,11 @@ func (s *FindingsPostFindingsIDAiOK) SetSoftwareID(val string) {
 // SetStatus sets the value of Status.
 func (s *FindingsPostFindingsIDAiOK) SetStatus(val FindingsPostFindingsIDAiOKStatus) {
 	s.Status = val
+}
+
+// SetSuspectedWhy sets the value of SuspectedWhy.
+func (s *FindingsPostFindingsIDAiOK) SetSuspectedWhy(val NilString) {
+	s.SuspectedWhy = val
 }
 
 type FindingsPostFindingsIDAiOKAi struct {
@@ -82771,14 +85856,15 @@ func (s *FindingsPostFindingsIDAiOKAssetKind) UnmarshalText(data []byte) error {
 	}
 }
 
-// Scan = confirmed by a scan template; version = suspected by version; product = only the product
-// matches.
+// Scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version
+// = suspected by version; product = only the product matches.
 type FindingsPostFindingsIDAiOKBasis string
 
 const (
 	FindingsPostFindingsIDAiOKBasisScan    FindingsPostFindingsIDAiOKBasis = "scan"
 	FindingsPostFindingsIDAiOKBasisVersion FindingsPostFindingsIDAiOKBasis = "version"
 	FindingsPostFindingsIDAiOKBasisProduct FindingsPostFindingsIDAiOKBasis = "product"
+	FindingsPostFindingsIDAiOKBasisPerson  FindingsPostFindingsIDAiOKBasis = "person"
 )
 
 // AllValues returns all FindingsPostFindingsIDAiOKBasis values.
@@ -82787,6 +85873,7 @@ func (FindingsPostFindingsIDAiOKBasis) AllValues() []FindingsPostFindingsIDAiOKB
 		FindingsPostFindingsIDAiOKBasisScan,
 		FindingsPostFindingsIDAiOKBasisVersion,
 		FindingsPostFindingsIDAiOKBasisProduct,
+		FindingsPostFindingsIDAiOKBasisPerson,
 	}
 }
 
@@ -82798,6 +85885,8 @@ func (s FindingsPostFindingsIDAiOKBasis) MarshalText() ([]byte, error) {
 	case FindingsPostFindingsIDAiOKBasisVersion:
 		return []byte(s), nil
 	case FindingsPostFindingsIDAiOKBasisProduct:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKBasisPerson:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -82815,6 +85904,9 @@ func (s *FindingsPostFindingsIDAiOKBasis) UnmarshalText(data []byte) error {
 		return nil
 	case FindingsPostFindingsIDAiOKBasisProduct:
 		*s = FindingsPostFindingsIDAiOKBasisProduct
+		return nil
+	case FindingsPostFindingsIDAiOKBasisPerson:
+		*s = FindingsPostFindingsIDAiOKBasisPerson
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -85104,8 +88196,8 @@ type FindingsPostFindingsIDAppliedOK struct {
 	Applied     []FindingsPostFindingsIDAppliedOKAppliedItem `json:"applied"`
 	Asset       NilFindingsPostFindingsIDAppliedOKAsset      `json:"asset"`
 	AssetID     string                                       `json:"asset_id"`
-	// Scan = confirmed by a scan template; version = suspected by version; product = only the product
-	// matches.
+	// Scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version
+	// = suspected by version; product = only the product matches.
 	Basis      FindingsPostFindingsIDAppliedOKBasis         `json:"basis"`
 	Compromise NilFindingsPostFindingsIDAppliedOKCompromise `json:"compromise"`
 	Confidence float64                                      `json:"confidence"`
@@ -85154,6 +88246,10 @@ type FindingsPostFindingsIDAppliedOK struct {
 	// reaches an older finding. Never guessed from the product.
 	SoftwareID string                                `json:"software_id"`
 	Status     FindingsPostFindingsIDAppliedOKStatus `json:"status"`
+	// A suspected finding only: why it is not confirmed and what would confirm it, in words (who stated
+	// the version, whether a vulnerability check exists for the CVE and whether the scan reaches the
+	// device); null for any other status.
+	SuspectedWhy NilString `json:"suspected_why"`
 }
 
 // GetAcceptedUntil returns the value of AcceptedUntil.
@@ -85311,6 +88407,11 @@ func (s *FindingsPostFindingsIDAppliedOK) GetStatus() FindingsPostFindingsIDAppl
 	return s.Status
 }
 
+// GetSuspectedWhy returns the value of SuspectedWhy.
+func (s *FindingsPostFindingsIDAppliedOK) GetSuspectedWhy() NilString {
+	return s.SuspectedWhy
+}
+
 // SetAcceptedUntil sets the value of AcceptedUntil.
 func (s *FindingsPostFindingsIDAppliedOK) SetAcceptedUntil(val NilDate) {
 	s.AcceptedUntil = val
@@ -85464,6 +88565,11 @@ func (s *FindingsPostFindingsIDAppliedOK) SetSoftwareID(val string) {
 // SetStatus sets the value of Status.
 func (s *FindingsPostFindingsIDAppliedOK) SetStatus(val FindingsPostFindingsIDAppliedOKStatus) {
 	s.Status = val
+}
+
+// SetSuspectedWhy sets the value of SuspectedWhy.
+func (s *FindingsPostFindingsIDAppliedOK) SetSuspectedWhy(val NilString) {
+	s.SuspectedWhy = val
 }
 
 type FindingsPostFindingsIDAppliedOKAi struct {
@@ -86873,14 +89979,15 @@ func (s *FindingsPostFindingsIDAppliedOKAssetKind) UnmarshalText(data []byte) er
 	}
 }
 
-// Scan = confirmed by a scan template; version = suspected by version; product = only the product
-// matches.
+// Scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version
+// = suspected by version; product = only the product matches.
 type FindingsPostFindingsIDAppliedOKBasis string
 
 const (
 	FindingsPostFindingsIDAppliedOKBasisScan    FindingsPostFindingsIDAppliedOKBasis = "scan"
 	FindingsPostFindingsIDAppliedOKBasisVersion FindingsPostFindingsIDAppliedOKBasis = "version"
 	FindingsPostFindingsIDAppliedOKBasisProduct FindingsPostFindingsIDAppliedOKBasis = "product"
+	FindingsPostFindingsIDAppliedOKBasisPerson  FindingsPostFindingsIDAppliedOKBasis = "person"
 )
 
 // AllValues returns all FindingsPostFindingsIDAppliedOKBasis values.
@@ -86889,6 +89996,7 @@ func (FindingsPostFindingsIDAppliedOKBasis) AllValues() []FindingsPostFindingsID
 		FindingsPostFindingsIDAppliedOKBasisScan,
 		FindingsPostFindingsIDAppliedOKBasisVersion,
 		FindingsPostFindingsIDAppliedOKBasisProduct,
+		FindingsPostFindingsIDAppliedOKBasisPerson,
 	}
 }
 
@@ -86900,6 +90008,8 @@ func (s FindingsPostFindingsIDAppliedOKBasis) MarshalText() ([]byte, error) {
 	case FindingsPostFindingsIDAppliedOKBasisVersion:
 		return []byte(s), nil
 	case FindingsPostFindingsIDAppliedOKBasisProduct:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKBasisPerson:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -86917,6 +90027,9 @@ func (s *FindingsPostFindingsIDAppliedOKBasis) UnmarshalText(data []byte) error 
 		return nil
 	case FindingsPostFindingsIDAppliedOKBasisProduct:
 		*s = FindingsPostFindingsIDAppliedOKBasisProduct
+		return nil
+	case FindingsPostFindingsIDAppliedOKBasisPerson:
+		*s = FindingsPostFindingsIDAppliedOKBasisPerson
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -89218,6 +92331,4062 @@ func (s *FindingsPostFindingsIDAppliedReqItem) UnmarshalText(data []byte) error 
 	}
 }
 
+type FindingsPostFindingsIDConfirmOK struct {
+	// Risk_accepted only: the last day of the acceptance (UTC); the finding reopens by itself after it.
+	AcceptedUntil NilDate                           `json:"accepted_until"`
+	Ai            FindingsPostFindingsIDConfirmOKAi `json:"ai"`
+	// Whether an AI profile is assigned and allowed for each job.
+	AiAvailable FindingsPostFindingsIDConfirmOKAiAvailable   `json:"ai_available"`
+	Applied     []FindingsPostFindingsIDConfirmOKAppliedItem `json:"applied"`
+	Asset       NilFindingsPostFindingsIDConfirmOKAsset      `json:"asset"`
+	AssetID     string                                       `json:"asset_id"`
+	// Scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version
+	// = suspected by version; product = only the product matches.
+	Basis      FindingsPostFindingsIDConfirmOKBasis         `json:"basis"`
+	Compromise NilFindingsPostFindingsIDConfirmOKCompromise `json:"compromise"`
+	Confidence float64                                      `json:"confidence"`
+	Cve        string                                       `json:"cve"`
+	// Null = no CVSS score known: the pages say "No score", never 0.
+	Cvss     NilFindingsPostFindingsIDConfirmOKCvss     `json:"cvss"`
+	Evidence NilFindingsPostFindingsIDConfirmOKEvidence `json:"evidence"`
+	// When Vedette first matched this vulnerability to the device.
+	FirstSeen time.Time `json:"first_seen"`
+	// GET /findings only, open findings: the update that fixes it with others; null when there is none to
+	// name.
+	Fix OptNilFindingsPostFindingsIDConfirmOKFix `json:"fix"`
+	// The release that fixes this finding on this device, from the NVD affected versions; null = NVD gives
+	// none, the page shows CISA and the vendor advisory only.
+	FixedIn NilFindingsPostFindingsIDConfirmOKFixedIn `json:"fixed_in"`
+	// Null when the confirmed pack has its own compromise signs, or mitigation is off.
+	Hardening NilFindingsPostFindingsIDConfirmOKHardening  `json:"hardening"`
+	History   []FindingsPostFindingsIDConfirmOKHistoryItem `json:"history"`
+	ID        string                                       `json:"id"`
+	// Read from KEV, not from the project recommendation pack.
+	Kev NilFindingsPostFindingsIDConfirmOKKev `json:"kev"`
+	// Null when the matched software has no version or its source is not known.
+	KnownVersion NilFindingsPostFindingsIDConfirmOKKnownVersion `json:"known_version"`
+	// When Vedette last matched it: each re-match (after a change to the device's software, and every
+	// hour) or scan that still finds it moves it. Not when the device or its software was last seen;
+	// known_version.seen_at says when the version was reported.
+	LastSeen time.Time `json:"last_seen"`
+	// Null = no recommendation confirmed by Vedette maintainers yet.
+	Pack NilFindingsPostFindingsIDConfirmOKPack `json:"pack"`
+	// A finding closed by proof (resolution_reason set): the version or package release the matcher
+	// compared to rule it out, as the device row gives it; null when the closure compared none (name only,
+	// age, an open platform question, another platform) or it is not closed by Vedette. An entry a person
+	// typed closed it only when this equals the entry.
+	ProvedVersion  NilString                              `json:"proved_version"`
+	Recheck        FindingsPostFindingsIDConfirmOKRecheck `json:"recheck"`
+	ResolutionNote NilString                              `json:"resolution_note"`
+	// Not_affected_version when Vedette closed the finding by itself (a matcher proof, or one of its rules
+	// that compares no version); null for a person's own action and for open findings. A string, not an
+	// enum: a new reason must not break the list.
+	ResolutionReason NilString                               `json:"resolution_reason"`
+	ResolvedAt       NilDateTime                             `json:"resolved_at"`
+	ResolvedBy       NilString                               `json:"resolved_by"`
+	Severity         FindingsPostFindingsIDConfirmOKSeverity `json:"severity"`
+	// The device's software row the matcher matched the finding on (the id FindingRow.fix.group and
+	// ToFixAction use), stored when it opens, touches or closes the finding; "" until the next match
+	// reaches an older finding. Never guessed from the product.
+	SoftwareID string                                `json:"software_id"`
+	Status     FindingsPostFindingsIDConfirmOKStatus `json:"status"`
+	// A suspected finding only: why it is not confirmed and what would confirm it, in words (who stated
+	// the version, whether a vulnerability check exists for the CVE and whether the scan reaches the
+	// device); null for any other status.
+	SuspectedWhy NilString `json:"suspected_why"`
+}
+
+// GetAcceptedUntil returns the value of AcceptedUntil.
+func (s *FindingsPostFindingsIDConfirmOK) GetAcceptedUntil() NilDate {
+	return s.AcceptedUntil
+}
+
+// GetAi returns the value of Ai.
+func (s *FindingsPostFindingsIDConfirmOK) GetAi() FindingsPostFindingsIDConfirmOKAi {
+	return s.Ai
+}
+
+// GetAiAvailable returns the value of AiAvailable.
+func (s *FindingsPostFindingsIDConfirmOK) GetAiAvailable() FindingsPostFindingsIDConfirmOKAiAvailable {
+	return s.AiAvailable
+}
+
+// GetApplied returns the value of Applied.
+func (s *FindingsPostFindingsIDConfirmOK) GetApplied() []FindingsPostFindingsIDConfirmOKAppliedItem {
+	return s.Applied
+}
+
+// GetAsset returns the value of Asset.
+func (s *FindingsPostFindingsIDConfirmOK) GetAsset() NilFindingsPostFindingsIDConfirmOKAsset {
+	return s.Asset
+}
+
+// GetAssetID returns the value of AssetID.
+func (s *FindingsPostFindingsIDConfirmOK) GetAssetID() string {
+	return s.AssetID
+}
+
+// GetBasis returns the value of Basis.
+func (s *FindingsPostFindingsIDConfirmOK) GetBasis() FindingsPostFindingsIDConfirmOKBasis {
+	return s.Basis
+}
+
+// GetCompromise returns the value of Compromise.
+func (s *FindingsPostFindingsIDConfirmOK) GetCompromise() NilFindingsPostFindingsIDConfirmOKCompromise {
+	return s.Compromise
+}
+
+// GetConfidence returns the value of Confidence.
+func (s *FindingsPostFindingsIDConfirmOK) GetConfidence() float64 {
+	return s.Confidence
+}
+
+// GetCve returns the value of Cve.
+func (s *FindingsPostFindingsIDConfirmOK) GetCve() string {
+	return s.Cve
+}
+
+// GetCvss returns the value of Cvss.
+func (s *FindingsPostFindingsIDConfirmOK) GetCvss() NilFindingsPostFindingsIDConfirmOKCvss {
+	return s.Cvss
+}
+
+// GetEvidence returns the value of Evidence.
+func (s *FindingsPostFindingsIDConfirmOK) GetEvidence() NilFindingsPostFindingsIDConfirmOKEvidence {
+	return s.Evidence
+}
+
+// GetFirstSeen returns the value of FirstSeen.
+func (s *FindingsPostFindingsIDConfirmOK) GetFirstSeen() time.Time {
+	return s.FirstSeen
+}
+
+// GetFix returns the value of Fix.
+func (s *FindingsPostFindingsIDConfirmOK) GetFix() OptNilFindingsPostFindingsIDConfirmOKFix {
+	return s.Fix
+}
+
+// GetFixedIn returns the value of FixedIn.
+func (s *FindingsPostFindingsIDConfirmOK) GetFixedIn() NilFindingsPostFindingsIDConfirmOKFixedIn {
+	return s.FixedIn
+}
+
+// GetHardening returns the value of Hardening.
+func (s *FindingsPostFindingsIDConfirmOK) GetHardening() NilFindingsPostFindingsIDConfirmOKHardening {
+	return s.Hardening
+}
+
+// GetHistory returns the value of History.
+func (s *FindingsPostFindingsIDConfirmOK) GetHistory() []FindingsPostFindingsIDConfirmOKHistoryItem {
+	return s.History
+}
+
+// GetID returns the value of ID.
+func (s *FindingsPostFindingsIDConfirmOK) GetID() string {
+	return s.ID
+}
+
+// GetKev returns the value of Kev.
+func (s *FindingsPostFindingsIDConfirmOK) GetKev() NilFindingsPostFindingsIDConfirmOKKev {
+	return s.Kev
+}
+
+// GetKnownVersion returns the value of KnownVersion.
+func (s *FindingsPostFindingsIDConfirmOK) GetKnownVersion() NilFindingsPostFindingsIDConfirmOKKnownVersion {
+	return s.KnownVersion
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *FindingsPostFindingsIDConfirmOK) GetLastSeen() time.Time {
+	return s.LastSeen
+}
+
+// GetPack returns the value of Pack.
+func (s *FindingsPostFindingsIDConfirmOK) GetPack() NilFindingsPostFindingsIDConfirmOKPack {
+	return s.Pack
+}
+
+// GetProvedVersion returns the value of ProvedVersion.
+func (s *FindingsPostFindingsIDConfirmOK) GetProvedVersion() NilString {
+	return s.ProvedVersion
+}
+
+// GetRecheck returns the value of Recheck.
+func (s *FindingsPostFindingsIDConfirmOK) GetRecheck() FindingsPostFindingsIDConfirmOKRecheck {
+	return s.Recheck
+}
+
+// GetResolutionNote returns the value of ResolutionNote.
+func (s *FindingsPostFindingsIDConfirmOK) GetResolutionNote() NilString {
+	return s.ResolutionNote
+}
+
+// GetResolutionReason returns the value of ResolutionReason.
+func (s *FindingsPostFindingsIDConfirmOK) GetResolutionReason() NilString {
+	return s.ResolutionReason
+}
+
+// GetResolvedAt returns the value of ResolvedAt.
+func (s *FindingsPostFindingsIDConfirmOK) GetResolvedAt() NilDateTime {
+	return s.ResolvedAt
+}
+
+// GetResolvedBy returns the value of ResolvedBy.
+func (s *FindingsPostFindingsIDConfirmOK) GetResolvedBy() NilString {
+	return s.ResolvedBy
+}
+
+// GetSeverity returns the value of Severity.
+func (s *FindingsPostFindingsIDConfirmOK) GetSeverity() FindingsPostFindingsIDConfirmOKSeverity {
+	return s.Severity
+}
+
+// GetSoftwareID returns the value of SoftwareID.
+func (s *FindingsPostFindingsIDConfirmOK) GetSoftwareID() string {
+	return s.SoftwareID
+}
+
+// GetStatus returns the value of Status.
+func (s *FindingsPostFindingsIDConfirmOK) GetStatus() FindingsPostFindingsIDConfirmOKStatus {
+	return s.Status
+}
+
+// GetSuspectedWhy returns the value of SuspectedWhy.
+func (s *FindingsPostFindingsIDConfirmOK) GetSuspectedWhy() NilString {
+	return s.SuspectedWhy
+}
+
+// SetAcceptedUntil sets the value of AcceptedUntil.
+func (s *FindingsPostFindingsIDConfirmOK) SetAcceptedUntil(val NilDate) {
+	s.AcceptedUntil = val
+}
+
+// SetAi sets the value of Ai.
+func (s *FindingsPostFindingsIDConfirmOK) SetAi(val FindingsPostFindingsIDConfirmOKAi) {
+	s.Ai = val
+}
+
+// SetAiAvailable sets the value of AiAvailable.
+func (s *FindingsPostFindingsIDConfirmOK) SetAiAvailable(val FindingsPostFindingsIDConfirmOKAiAvailable) {
+	s.AiAvailable = val
+}
+
+// SetApplied sets the value of Applied.
+func (s *FindingsPostFindingsIDConfirmOK) SetApplied(val []FindingsPostFindingsIDConfirmOKAppliedItem) {
+	s.Applied = val
+}
+
+// SetAsset sets the value of Asset.
+func (s *FindingsPostFindingsIDConfirmOK) SetAsset(val NilFindingsPostFindingsIDConfirmOKAsset) {
+	s.Asset = val
+}
+
+// SetAssetID sets the value of AssetID.
+func (s *FindingsPostFindingsIDConfirmOK) SetAssetID(val string) {
+	s.AssetID = val
+}
+
+// SetBasis sets the value of Basis.
+func (s *FindingsPostFindingsIDConfirmOK) SetBasis(val FindingsPostFindingsIDConfirmOKBasis) {
+	s.Basis = val
+}
+
+// SetCompromise sets the value of Compromise.
+func (s *FindingsPostFindingsIDConfirmOK) SetCompromise(val NilFindingsPostFindingsIDConfirmOKCompromise) {
+	s.Compromise = val
+}
+
+// SetConfidence sets the value of Confidence.
+func (s *FindingsPostFindingsIDConfirmOK) SetConfidence(val float64) {
+	s.Confidence = val
+}
+
+// SetCve sets the value of Cve.
+func (s *FindingsPostFindingsIDConfirmOK) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetCvss sets the value of Cvss.
+func (s *FindingsPostFindingsIDConfirmOK) SetCvss(val NilFindingsPostFindingsIDConfirmOKCvss) {
+	s.Cvss = val
+}
+
+// SetEvidence sets the value of Evidence.
+func (s *FindingsPostFindingsIDConfirmOK) SetEvidence(val NilFindingsPostFindingsIDConfirmOKEvidence) {
+	s.Evidence = val
+}
+
+// SetFirstSeen sets the value of FirstSeen.
+func (s *FindingsPostFindingsIDConfirmOK) SetFirstSeen(val time.Time) {
+	s.FirstSeen = val
+}
+
+// SetFix sets the value of Fix.
+func (s *FindingsPostFindingsIDConfirmOK) SetFix(val OptNilFindingsPostFindingsIDConfirmOKFix) {
+	s.Fix = val
+}
+
+// SetFixedIn sets the value of FixedIn.
+func (s *FindingsPostFindingsIDConfirmOK) SetFixedIn(val NilFindingsPostFindingsIDConfirmOKFixedIn) {
+	s.FixedIn = val
+}
+
+// SetHardening sets the value of Hardening.
+func (s *FindingsPostFindingsIDConfirmOK) SetHardening(val NilFindingsPostFindingsIDConfirmOKHardening) {
+	s.Hardening = val
+}
+
+// SetHistory sets the value of History.
+func (s *FindingsPostFindingsIDConfirmOK) SetHistory(val []FindingsPostFindingsIDConfirmOKHistoryItem) {
+	s.History = val
+}
+
+// SetID sets the value of ID.
+func (s *FindingsPostFindingsIDConfirmOK) SetID(val string) {
+	s.ID = val
+}
+
+// SetKev sets the value of Kev.
+func (s *FindingsPostFindingsIDConfirmOK) SetKev(val NilFindingsPostFindingsIDConfirmOKKev) {
+	s.Kev = val
+}
+
+// SetKnownVersion sets the value of KnownVersion.
+func (s *FindingsPostFindingsIDConfirmOK) SetKnownVersion(val NilFindingsPostFindingsIDConfirmOKKnownVersion) {
+	s.KnownVersion = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *FindingsPostFindingsIDConfirmOK) SetLastSeen(val time.Time) {
+	s.LastSeen = val
+}
+
+// SetPack sets the value of Pack.
+func (s *FindingsPostFindingsIDConfirmOK) SetPack(val NilFindingsPostFindingsIDConfirmOKPack) {
+	s.Pack = val
+}
+
+// SetProvedVersion sets the value of ProvedVersion.
+func (s *FindingsPostFindingsIDConfirmOK) SetProvedVersion(val NilString) {
+	s.ProvedVersion = val
+}
+
+// SetRecheck sets the value of Recheck.
+func (s *FindingsPostFindingsIDConfirmOK) SetRecheck(val FindingsPostFindingsIDConfirmOKRecheck) {
+	s.Recheck = val
+}
+
+// SetResolutionNote sets the value of ResolutionNote.
+func (s *FindingsPostFindingsIDConfirmOK) SetResolutionNote(val NilString) {
+	s.ResolutionNote = val
+}
+
+// SetResolutionReason sets the value of ResolutionReason.
+func (s *FindingsPostFindingsIDConfirmOK) SetResolutionReason(val NilString) {
+	s.ResolutionReason = val
+}
+
+// SetResolvedAt sets the value of ResolvedAt.
+func (s *FindingsPostFindingsIDConfirmOK) SetResolvedAt(val NilDateTime) {
+	s.ResolvedAt = val
+}
+
+// SetResolvedBy sets the value of ResolvedBy.
+func (s *FindingsPostFindingsIDConfirmOK) SetResolvedBy(val NilString) {
+	s.ResolvedBy = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *FindingsPostFindingsIDConfirmOK) SetSeverity(val FindingsPostFindingsIDConfirmOKSeverity) {
+	s.Severity = val
+}
+
+// SetSoftwareID sets the value of SoftwareID.
+func (s *FindingsPostFindingsIDConfirmOK) SetSoftwareID(val string) {
+	s.SoftwareID = val
+}
+
+// SetStatus sets the value of Status.
+func (s *FindingsPostFindingsIDConfirmOK) SetStatus(val FindingsPostFindingsIDConfirmOKStatus) {
+	s.Status = val
+}
+
+// SetSuspectedWhy sets the value of SuspectedWhy.
+func (s *FindingsPostFindingsIDConfirmOK) SetSuspectedWhy(val NilString) {
+	s.SuspectedWhy = val
+}
+
+type FindingsPostFindingsIDConfirmOKAi struct {
+	Config  NilFindingsPostFindingsIDConfirmOKAiConfig  `json:"config"`
+	Explain NilFindingsPostFindingsIDConfirmOKAiExplain `json:"explain"`
+}
+
+// GetConfig returns the value of Config.
+func (s *FindingsPostFindingsIDConfirmOKAi) GetConfig() NilFindingsPostFindingsIDConfirmOKAiConfig {
+	return s.Config
+}
+
+// GetExplain returns the value of Explain.
+func (s *FindingsPostFindingsIDConfirmOKAi) GetExplain() NilFindingsPostFindingsIDConfirmOKAiExplain {
+	return s.Explain
+}
+
+// SetConfig sets the value of Config.
+func (s *FindingsPostFindingsIDConfirmOKAi) SetConfig(val NilFindingsPostFindingsIDConfirmOKAiConfig) {
+	s.Config = val
+}
+
+// SetExplain sets the value of Explain.
+func (s *FindingsPostFindingsIDConfirmOKAi) SetExplain(val NilFindingsPostFindingsIDConfirmOKAiExplain) {
+	s.Explain = val
+}
+
+// Whether an AI profile is assigned and allowed for each job.
+type FindingsPostFindingsIDConfirmOKAiAvailable struct {
+	Config  bool `json:"config"`
+	Explain bool `json:"explain"`
+}
+
+// GetConfig returns the value of Config.
+func (s *FindingsPostFindingsIDConfirmOKAiAvailable) GetConfig() bool {
+	return s.Config
+}
+
+// GetExplain returns the value of Explain.
+func (s *FindingsPostFindingsIDConfirmOKAiAvailable) GetExplain() bool {
+	return s.Explain
+}
+
+// SetConfig sets the value of Config.
+func (s *FindingsPostFindingsIDConfirmOKAiAvailable) SetConfig(val bool) {
+	s.Config = val
+}
+
+// SetExplain sets the value of Explain.
+func (s *FindingsPostFindingsIDConfirmOKAiAvailable) SetExplain(val bool) {
+	s.Explain = val
+}
+
+type FindingsPostFindingsIDConfirmOKAiConfig struct {
+	Citations []FindingsPostFindingsIDConfirmOKAiConfigCitationsItem `json:"citations"`
+	// Mitigation-config: config blocks to paste as they are, the device's own workaround first, then a
+	// rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based
+	// on, `side_effect` what it can break. Absent for explain and for answers stored before.
+	Configs []FindingsPostFindingsIDConfirmOKAiConfigConfigsItem `json:"configs"`
+	Model   string                                               `json:"model"`
+	// #897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding
+	// (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's
+	// words; the page shows it where the configuration would be.
+	NoConfigReason OptString `json:"no_config_reason"`
+	Paragraphs     []string  `json:"paragraphs"`
+	// Name of the AI profile that answered.
+	Profile OptString `json:"profile"`
+	// A part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never
+	// in the middle of one) or a config block was left out whole.
+	Shortened OptBool                                       `json:"shortened"`
+	Skill     FindingsPostFindingsIDConfirmOKAiConfigSkill  `json:"skill"`
+	Steps     []string                                      `json:"steps"`
+	Tokens    FindingsPostFindingsIDConfirmOKAiConfigTokens `json:"tokens"`
+	Ts        time.Time                                     `json:"ts"`
+}
+
+// GetCitations returns the value of Citations.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) GetCitations() []FindingsPostFindingsIDConfirmOKAiConfigCitationsItem {
+	return s.Citations
+}
+
+// GetConfigs returns the value of Configs.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) GetConfigs() []FindingsPostFindingsIDConfirmOKAiConfigConfigsItem {
+	return s.Configs
+}
+
+// GetModel returns the value of Model.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) GetModel() string {
+	return s.Model
+}
+
+// GetNoConfigReason returns the value of NoConfigReason.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) GetNoConfigReason() OptString {
+	return s.NoConfigReason
+}
+
+// GetParagraphs returns the value of Paragraphs.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) GetParagraphs() []string {
+	return s.Paragraphs
+}
+
+// GetProfile returns the value of Profile.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) GetProfile() OptString {
+	return s.Profile
+}
+
+// GetShortened returns the value of Shortened.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) GetShortened() OptBool {
+	return s.Shortened
+}
+
+// GetSkill returns the value of Skill.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) GetSkill() FindingsPostFindingsIDConfirmOKAiConfigSkill {
+	return s.Skill
+}
+
+// GetSteps returns the value of Steps.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) GetSteps() []string {
+	return s.Steps
+}
+
+// GetTokens returns the value of Tokens.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) GetTokens() FindingsPostFindingsIDConfirmOKAiConfigTokens {
+	return s.Tokens
+}
+
+// GetTs returns the value of Ts.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) GetTs() time.Time {
+	return s.Ts
+}
+
+// SetCitations sets the value of Citations.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) SetCitations(val []FindingsPostFindingsIDConfirmOKAiConfigCitationsItem) {
+	s.Citations = val
+}
+
+// SetConfigs sets the value of Configs.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) SetConfigs(val []FindingsPostFindingsIDConfirmOKAiConfigConfigsItem) {
+	s.Configs = val
+}
+
+// SetModel sets the value of Model.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) SetModel(val string) {
+	s.Model = val
+}
+
+// SetNoConfigReason sets the value of NoConfigReason.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) SetNoConfigReason(val OptString) {
+	s.NoConfigReason = val
+}
+
+// SetParagraphs sets the value of Paragraphs.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) SetParagraphs(val []string) {
+	s.Paragraphs = val
+}
+
+// SetProfile sets the value of Profile.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) SetProfile(val OptString) {
+	s.Profile = val
+}
+
+// SetShortened sets the value of Shortened.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) SetShortened(val OptBool) {
+	s.Shortened = val
+}
+
+// SetSkill sets the value of Skill.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) SetSkill(val FindingsPostFindingsIDConfirmOKAiConfigSkill) {
+	s.Skill = val
+}
+
+// SetSteps sets the value of Steps.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) SetSteps(val []string) {
+	s.Steps = val
+}
+
+// SetTokens sets the value of Tokens.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) SetTokens(val FindingsPostFindingsIDConfirmOKAiConfigTokens) {
+	s.Tokens = val
+}
+
+// SetTs sets the value of Ts.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) SetTs(val time.Time) {
+	s.Ts = val
+}
+
+type FindingsPostFindingsIDConfirmOKAiConfigCitationsItem struct {
+	Title string    `json:"title"`
+	URL   OptString `json:"url"`
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigCitationsItem) GetTitle() string {
+	return s.Title
+}
+
+// GetURL returns the value of URL.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigCitationsItem) GetURL() OptString {
+	return s.URL
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigCitationsItem) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetURL sets the value of URL.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigCitationsItem) SetURL(val OptString) {
+	s.URL = val
+}
+
+type FindingsPostFindingsIDConfirmOKAiConfigConfigsItem struct {
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
+	// Side effect that must be stated before the user pastes the command.
+	SideEffect OptString `json:"side_effect"`
+	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigConfigsItem) GetCheck() []string {
+	return s.Check
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigConfigsItem) GetCode() string {
+	return s.Code
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigConfigsItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigConfigsItem) GetSideEffect() OptString {
+	return s.SideEffect
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigConfigsItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigConfigsItem) SetCheck(val []string) {
+	s.Check = val
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigConfigsItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigConfigsItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigConfigsItem) SetSideEffect(val OptString) {
+	s.SideEffect = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigConfigsItem) SetTitle(val string) {
+	s.Title = val
+}
+
+type FindingsPostFindingsIDConfirmOKAiConfigSkill string
+
+const (
+	FindingsPostFindingsIDConfirmOKAiConfigSkillExplain          FindingsPostFindingsIDConfirmOKAiConfigSkill = "explain"
+	FindingsPostFindingsIDConfirmOKAiConfigSkillMitigationConfig FindingsPostFindingsIDConfirmOKAiConfigSkill = "mitigation-config"
+)
+
+// AllValues returns all FindingsPostFindingsIDConfirmOKAiConfigSkill values.
+func (FindingsPostFindingsIDConfirmOKAiConfigSkill) AllValues() []FindingsPostFindingsIDConfirmOKAiConfigSkill {
+	return []FindingsPostFindingsIDConfirmOKAiConfigSkill{
+		FindingsPostFindingsIDConfirmOKAiConfigSkillExplain,
+		FindingsPostFindingsIDConfirmOKAiConfigSkillMitigationConfig,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDConfirmOKAiConfigSkill) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDConfirmOKAiConfigSkillExplain:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAiConfigSkillMitigationConfig:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigSkill) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDConfirmOKAiConfigSkill(data) {
+	case FindingsPostFindingsIDConfirmOKAiConfigSkillExplain:
+		*s = FindingsPostFindingsIDConfirmOKAiConfigSkillExplain
+		return nil
+	case FindingsPostFindingsIDConfirmOKAiConfigSkillMitigationConfig:
+		*s = FindingsPostFindingsIDConfirmOKAiConfigSkillMitigationConfig
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDConfirmOKAiConfigTokens struct {
+	Input  float64 `json:"input"`
+	Output float64 `json:"output"`
+}
+
+// GetInput returns the value of Input.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigTokens) GetInput() float64 {
+	return s.Input
+}
+
+// GetOutput returns the value of Output.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigTokens) GetOutput() float64 {
+	return s.Output
+}
+
+// SetInput sets the value of Input.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigTokens) SetInput(val float64) {
+	s.Input = val
+}
+
+// SetOutput sets the value of Output.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigTokens) SetOutput(val float64) {
+	s.Output = val
+}
+
+type FindingsPostFindingsIDConfirmOKAiExplain struct {
+	Citations []FindingsPostFindingsIDConfirmOKAiExplainCitationsItem `json:"citations"`
+	// Mitigation-config: config blocks to paste as they are, the device's own workaround first, then a
+	// rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based
+	// on, `side_effect` what it can break. Absent for explain and for answers stored before.
+	Configs []FindingsPostFindingsIDConfirmOKAiExplainConfigsItem `json:"configs"`
+	Model   string                                                `json:"model"`
+	// #897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding
+	// (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's
+	// words; the page shows it where the configuration would be.
+	NoConfigReason OptString `json:"no_config_reason"`
+	Paragraphs     []string  `json:"paragraphs"`
+	// Name of the AI profile that answered.
+	Profile OptString `json:"profile"`
+	// A part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never
+	// in the middle of one) or a config block was left out whole.
+	Shortened OptBool                                        `json:"shortened"`
+	Skill     FindingsPostFindingsIDConfirmOKAiExplainSkill  `json:"skill"`
+	Steps     []string                                       `json:"steps"`
+	Tokens    FindingsPostFindingsIDConfirmOKAiExplainTokens `json:"tokens"`
+	Ts        time.Time                                      `json:"ts"`
+}
+
+// GetCitations returns the value of Citations.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) GetCitations() []FindingsPostFindingsIDConfirmOKAiExplainCitationsItem {
+	return s.Citations
+}
+
+// GetConfigs returns the value of Configs.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) GetConfigs() []FindingsPostFindingsIDConfirmOKAiExplainConfigsItem {
+	return s.Configs
+}
+
+// GetModel returns the value of Model.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) GetModel() string {
+	return s.Model
+}
+
+// GetNoConfigReason returns the value of NoConfigReason.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) GetNoConfigReason() OptString {
+	return s.NoConfigReason
+}
+
+// GetParagraphs returns the value of Paragraphs.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) GetParagraphs() []string {
+	return s.Paragraphs
+}
+
+// GetProfile returns the value of Profile.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) GetProfile() OptString {
+	return s.Profile
+}
+
+// GetShortened returns the value of Shortened.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) GetShortened() OptBool {
+	return s.Shortened
+}
+
+// GetSkill returns the value of Skill.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) GetSkill() FindingsPostFindingsIDConfirmOKAiExplainSkill {
+	return s.Skill
+}
+
+// GetSteps returns the value of Steps.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) GetSteps() []string {
+	return s.Steps
+}
+
+// GetTokens returns the value of Tokens.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) GetTokens() FindingsPostFindingsIDConfirmOKAiExplainTokens {
+	return s.Tokens
+}
+
+// GetTs returns the value of Ts.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) GetTs() time.Time {
+	return s.Ts
+}
+
+// SetCitations sets the value of Citations.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) SetCitations(val []FindingsPostFindingsIDConfirmOKAiExplainCitationsItem) {
+	s.Citations = val
+}
+
+// SetConfigs sets the value of Configs.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) SetConfigs(val []FindingsPostFindingsIDConfirmOKAiExplainConfigsItem) {
+	s.Configs = val
+}
+
+// SetModel sets the value of Model.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) SetModel(val string) {
+	s.Model = val
+}
+
+// SetNoConfigReason sets the value of NoConfigReason.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) SetNoConfigReason(val OptString) {
+	s.NoConfigReason = val
+}
+
+// SetParagraphs sets the value of Paragraphs.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) SetParagraphs(val []string) {
+	s.Paragraphs = val
+}
+
+// SetProfile sets the value of Profile.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) SetProfile(val OptString) {
+	s.Profile = val
+}
+
+// SetShortened sets the value of Shortened.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) SetShortened(val OptBool) {
+	s.Shortened = val
+}
+
+// SetSkill sets the value of Skill.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) SetSkill(val FindingsPostFindingsIDConfirmOKAiExplainSkill) {
+	s.Skill = val
+}
+
+// SetSteps sets the value of Steps.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) SetSteps(val []string) {
+	s.Steps = val
+}
+
+// SetTokens sets the value of Tokens.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) SetTokens(val FindingsPostFindingsIDConfirmOKAiExplainTokens) {
+	s.Tokens = val
+}
+
+// SetTs sets the value of Ts.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) SetTs(val time.Time) {
+	s.Ts = val
+}
+
+type FindingsPostFindingsIDConfirmOKAiExplainCitationsItem struct {
+	Title string    `json:"title"`
+	URL   OptString `json:"url"`
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainCitationsItem) GetTitle() string {
+	return s.Title
+}
+
+// GetURL returns the value of URL.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainCitationsItem) GetURL() OptString {
+	return s.URL
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainCitationsItem) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetURL sets the value of URL.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainCitationsItem) SetURL(val OptString) {
+	s.URL = val
+}
+
+type FindingsPostFindingsIDConfirmOKAiExplainConfigsItem struct {
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
+	// Side effect that must be stated before the user pastes the command.
+	SideEffect OptString `json:"side_effect"`
+	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainConfigsItem) GetCheck() []string {
+	return s.Check
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainConfigsItem) GetCode() string {
+	return s.Code
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainConfigsItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainConfigsItem) GetSideEffect() OptString {
+	return s.SideEffect
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainConfigsItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainConfigsItem) SetCheck(val []string) {
+	s.Check = val
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainConfigsItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainConfigsItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainConfigsItem) SetSideEffect(val OptString) {
+	s.SideEffect = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainConfigsItem) SetTitle(val string) {
+	s.Title = val
+}
+
+type FindingsPostFindingsIDConfirmOKAiExplainSkill string
+
+const (
+	FindingsPostFindingsIDConfirmOKAiExplainSkillExplain          FindingsPostFindingsIDConfirmOKAiExplainSkill = "explain"
+	FindingsPostFindingsIDConfirmOKAiExplainSkillMitigationConfig FindingsPostFindingsIDConfirmOKAiExplainSkill = "mitigation-config"
+)
+
+// AllValues returns all FindingsPostFindingsIDConfirmOKAiExplainSkill values.
+func (FindingsPostFindingsIDConfirmOKAiExplainSkill) AllValues() []FindingsPostFindingsIDConfirmOKAiExplainSkill {
+	return []FindingsPostFindingsIDConfirmOKAiExplainSkill{
+		FindingsPostFindingsIDConfirmOKAiExplainSkillExplain,
+		FindingsPostFindingsIDConfirmOKAiExplainSkillMitigationConfig,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDConfirmOKAiExplainSkill) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDConfirmOKAiExplainSkillExplain:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAiExplainSkillMitigationConfig:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainSkill) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDConfirmOKAiExplainSkill(data) {
+	case FindingsPostFindingsIDConfirmOKAiExplainSkillExplain:
+		*s = FindingsPostFindingsIDConfirmOKAiExplainSkillExplain
+		return nil
+	case FindingsPostFindingsIDConfirmOKAiExplainSkillMitigationConfig:
+		*s = FindingsPostFindingsIDConfirmOKAiExplainSkillMitigationConfig
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDConfirmOKAiExplainTokens struct {
+	Input  float64 `json:"input"`
+	Output float64 `json:"output"`
+}
+
+// GetInput returns the value of Input.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainTokens) GetInput() float64 {
+	return s.Input
+}
+
+// GetOutput returns the value of Output.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainTokens) GetOutput() float64 {
+	return s.Output
+}
+
+// SetInput sets the value of Input.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainTokens) SetInput(val float64) {
+	s.Input = val
+}
+
+// SetOutput sets the value of Output.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainTokens) SetOutput(val float64) {
+	s.Output = val
+}
+
+type FindingsPostFindingsIDConfirmOKAppliedItem struct {
+	Item string    `json:"item"`
+	Ts   time.Time `json:"ts"`
+	User string    `json:"user"`
+}
+
+// GetItem returns the value of Item.
+func (s *FindingsPostFindingsIDConfirmOKAppliedItem) GetItem() string {
+	return s.Item
+}
+
+// GetTs returns the value of Ts.
+func (s *FindingsPostFindingsIDConfirmOKAppliedItem) GetTs() time.Time {
+	return s.Ts
+}
+
+// GetUser returns the value of User.
+func (s *FindingsPostFindingsIDConfirmOKAppliedItem) GetUser() string {
+	return s.User
+}
+
+// SetItem sets the value of Item.
+func (s *FindingsPostFindingsIDConfirmOKAppliedItem) SetItem(val string) {
+	s.Item = val
+}
+
+// SetTs sets the value of Ts.
+func (s *FindingsPostFindingsIDConfirmOKAppliedItem) SetTs(val time.Time) {
+	s.Ts = val
+}
+
+// SetUser sets the value of User.
+func (s *FindingsPostFindingsIDConfirmOKAppliedItem) SetUser(val string) {
+	s.User = val
+}
+
+type FindingsPostFindingsIDConfirmOKAsset struct {
+	Display  string    `json:"display"`
+	Hostname NilString `json:"hostname"`
+	ID       string    `json:"id"`
+	// "—" when the device has no IP address.
+	IP   string                                   `json:"ip"`
+	Kind FindingsPostFindingsIDConfirmOKAssetKind `json:"kind"`
+	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
+	// never the internal id.
+	Name string `json:"name"`
+}
+
+// GetDisplay returns the value of Display.
+func (s *FindingsPostFindingsIDConfirmOKAsset) GetDisplay() string {
+	return s.Display
+}
+
+// GetHostname returns the value of Hostname.
+func (s *FindingsPostFindingsIDConfirmOKAsset) GetHostname() NilString {
+	return s.Hostname
+}
+
+// GetID returns the value of ID.
+func (s *FindingsPostFindingsIDConfirmOKAsset) GetID() string {
+	return s.ID
+}
+
+// GetIP returns the value of IP.
+func (s *FindingsPostFindingsIDConfirmOKAsset) GetIP() string {
+	return s.IP
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsPostFindingsIDConfirmOKAsset) GetKind() FindingsPostFindingsIDConfirmOKAssetKind {
+	return s.Kind
+}
+
+// GetName returns the value of Name.
+func (s *FindingsPostFindingsIDConfirmOKAsset) GetName() string {
+	return s.Name
+}
+
+// SetDisplay sets the value of Display.
+func (s *FindingsPostFindingsIDConfirmOKAsset) SetDisplay(val string) {
+	s.Display = val
+}
+
+// SetHostname sets the value of Hostname.
+func (s *FindingsPostFindingsIDConfirmOKAsset) SetHostname(val NilString) {
+	s.Hostname = val
+}
+
+// SetID sets the value of ID.
+func (s *FindingsPostFindingsIDConfirmOKAsset) SetID(val string) {
+	s.ID = val
+}
+
+// SetIP sets the value of IP.
+func (s *FindingsPostFindingsIDConfirmOKAsset) SetIP(val string) {
+	s.IP = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsPostFindingsIDConfirmOKAsset) SetKind(val FindingsPostFindingsIDConfirmOKAssetKind) {
+	s.Kind = val
+}
+
+// SetName sets the value of Name.
+func (s *FindingsPostFindingsIDConfirmOKAsset) SetName(val string) {
+	s.Name = val
+}
+
+type FindingsPostFindingsIDConfirmOKAssetKind string
+
+const (
+	FindingsPostFindingsIDConfirmOKAssetKindRouter              FindingsPostFindingsIDConfirmOKAssetKind = "router"
+	FindingsPostFindingsIDConfirmOKAssetKindSwitch              FindingsPostFindingsIDConfirmOKAssetKind = "switch"
+	FindingsPostFindingsIDConfirmOKAssetKindModem               FindingsPostFindingsIDConfirmOKAssetKind = "modem"
+	FindingsPostFindingsIDConfirmOKAssetKindSdWan               FindingsPostFindingsIDConfirmOKAssetKind = "sd_wan"
+	FindingsPostFindingsIDConfirmOKAssetKindLoadBalancer        FindingsPostFindingsIDConfirmOKAssetKind = "load_balancer"
+	FindingsPostFindingsIDConfirmOKAssetKindNetworkController   FindingsPostFindingsIDConfirmOKAssetKind = "network_controller"
+	FindingsPostFindingsIDConfirmOKAssetKindFirewall            FindingsPostFindingsIDConfirmOKAssetKind = "firewall"
+	FindingsPostFindingsIDConfirmOKAssetKindVpnGateway          FindingsPostFindingsIDConfirmOKAssetKind = "vpn_gateway"
+	FindingsPostFindingsIDConfirmOKAssetKindIdsSensor           FindingsPostFindingsIDConfirmOKAssetKind = "ids_sensor"
+	FindingsPostFindingsIDConfirmOKAssetKindProxy               FindingsPostFindingsIDConfirmOKAssetKind = "proxy"
+	FindingsPostFindingsIDConfirmOKAssetKindAp                  FindingsPostFindingsIDConfirmOKAssetKind = "ap"
+	FindingsPostFindingsIDConfirmOKAssetKindWirelessController  FindingsPostFindingsIDConfirmOKAssetKind = "wireless_controller"
+	FindingsPostFindingsIDConfirmOKAssetKindWifiExtender        FindingsPostFindingsIDConfirmOKAssetKind = "wifi_extender"
+	FindingsPostFindingsIDConfirmOKAssetKindMeshNode            FindingsPostFindingsIDConfirmOKAssetKind = "mesh_node"
+	FindingsPostFindingsIDConfirmOKAssetKindServer              FindingsPostFindingsIDConfirmOKAssetKind = "server"
+	FindingsPostFindingsIDConfirmOKAssetKindVirtualMachine      FindingsPostFindingsIDConfirmOKAssetKind = "virtual_machine"
+	FindingsPostFindingsIDConfirmOKAssetKindHypervisor          FindingsPostFindingsIDConfirmOKAssetKind = "hypervisor"
+	FindingsPostFindingsIDConfirmOKAssetKindBmc                 FindingsPostFindingsIDConfirmOKAssetKind = "bmc"
+	FindingsPostFindingsIDConfirmOKAssetKindDomainController    FindingsPostFindingsIDConfirmOKAssetKind = "domain_controller"
+	FindingsPostFindingsIDConfirmOKAssetKindMailServer          FindingsPostFindingsIDConfirmOKAssetKind = "mail_server"
+	FindingsPostFindingsIDConfirmOKAssetKindDatabaseServer      FindingsPostFindingsIDConfirmOKAssetKind = "database_server"
+	FindingsPostFindingsIDConfirmOKAssetKindBackupServer        FindingsPostFindingsIDConfirmOKAssetKind = "backup_server"
+	FindingsPostFindingsIDConfirmOKAssetKindPc                  FindingsPostFindingsIDConfirmOKAssetKind = "pc"
+	FindingsPostFindingsIDConfirmOKAssetKindLaptop              FindingsPostFindingsIDConfirmOKAssetKind = "laptop"
+	FindingsPostFindingsIDConfirmOKAssetKindWorkstation         FindingsPostFindingsIDConfirmOKAssetKind = "workstation"
+	FindingsPostFindingsIDConfirmOKAssetKindThinClient          FindingsPostFindingsIDConfirmOKAssetKind = "thin_client"
+	FindingsPostFindingsIDConfirmOKAssetKindPosTerminal         FindingsPostFindingsIDConfirmOKAssetKind = "pos_terminal"
+	FindingsPostFindingsIDConfirmOKAssetKindKiosk               FindingsPostFindingsIDConfirmOKAssetKind = "kiosk"
+	FindingsPostFindingsIDConfirmOKAssetKindSmartphone          FindingsPostFindingsIDConfirmOKAssetKind = "smartphone"
+	FindingsPostFindingsIDConfirmOKAssetKindTablet              FindingsPostFindingsIDConfirmOKAssetKind = "tablet"
+	FindingsPostFindingsIDConfirmOKAssetKindSmartwatch          FindingsPostFindingsIDConfirmOKAssetKind = "smartwatch"
+	FindingsPostFindingsIDConfirmOKAssetKindPrinter             FindingsPostFindingsIDConfirmOKAssetKind = "printer"
+	FindingsPostFindingsIDConfirmOKAssetKindMfp                 FindingsPostFindingsIDConfirmOKAssetKind = "mfp"
+	FindingsPostFindingsIDConfirmOKAssetKindScanner             FindingsPostFindingsIDConfirmOKAssetKind = "scanner"
+	FindingsPostFindingsIDConfirmOKAssetKindLabelPrinter        FindingsPostFindingsIDConfirmOKAssetKind = "label_printer"
+	FindingsPostFindingsIDConfirmOKAssetKindReceiptPrinter      FindingsPostFindingsIDConfirmOKAssetKind = "receipt_printer"
+	FindingsPostFindingsIDConfirmOKAssetKindPlotter             FindingsPostFindingsIDConfirmOKAssetKind = "plotter"
+	FindingsPostFindingsIDConfirmOKAssetKind3dPrinter           FindingsPostFindingsIDConfirmOKAssetKind = "3d_printer"
+	FindingsPostFindingsIDConfirmOKAssetKindCamera              FindingsPostFindingsIDConfirmOKAssetKind = "camera"
+	FindingsPostFindingsIDConfirmOKAssetKindNvr                 FindingsPostFindingsIDConfirmOKAssetKind = "nvr"
+	FindingsPostFindingsIDConfirmOKAssetKindDvr                 FindingsPostFindingsIDConfirmOKAssetKind = "dvr"
+	FindingsPostFindingsIDConfirmOKAssetKindVideoEncoder        FindingsPostFindingsIDConfirmOKAssetKind = "video_encoder"
+	FindingsPostFindingsIDConfirmOKAssetKindDoorbell            FindingsPostFindingsIDConfirmOKAssetKind = "doorbell"
+	FindingsPostFindingsIDConfirmOKAssetKindVideoConferencing   FindingsPostFindingsIDConfirmOKAssetKind = "video_conferencing"
+	FindingsPostFindingsIDConfirmOKAssetKindIPPhone             FindingsPostFindingsIDConfirmOKAssetKind = "ip_phone"
+	FindingsPostFindingsIDConfirmOKAssetKindPbx                 FindingsPostFindingsIDConfirmOKAssetKind = "pbx"
+	FindingsPostFindingsIDConfirmOKAssetKindVoipAdapter         FindingsPostFindingsIDConfirmOKAssetKind = "voip_adapter"
+	FindingsPostFindingsIDConfirmOKAssetKindVoipGateway         FindingsPostFindingsIDConfirmOKAssetKind = "voip_gateway"
+	FindingsPostFindingsIDConfirmOKAssetKindConferencePhone     FindingsPostFindingsIDConfirmOKAssetKind = "conference_phone"
+	FindingsPostFindingsIDConfirmOKAssetKindIntercom            FindingsPostFindingsIDConfirmOKAssetKind = "intercom"
+	FindingsPostFindingsIDConfirmOKAssetKindNas                 FindingsPostFindingsIDConfirmOKAssetKind = "nas"
+	FindingsPostFindingsIDConfirmOKAssetKindSan                 FindingsPostFindingsIDConfirmOKAssetKind = "san"
+	FindingsPostFindingsIDConfirmOKAssetKindBackupAppliance     FindingsPostFindingsIDConfirmOKAssetKind = "backup_appliance"
+	FindingsPostFindingsIDConfirmOKAssetKindTapeLibrary         FindingsPostFindingsIDConfirmOKAssetKind = "tape_library"
+	FindingsPostFindingsIDConfirmOKAssetKindIot                 FindingsPostFindingsIDConfirmOKAssetKind = "iot"
+	FindingsPostFindingsIDConfirmOKAssetKindSmartTv             FindingsPostFindingsIDConfirmOKAssetKind = "smart_tv"
+	FindingsPostFindingsIDConfirmOKAssetKindMediaPlayer         FindingsPostFindingsIDConfirmOKAssetKind = "media_player"
+	FindingsPostFindingsIDConfirmOKAssetKindSmartSpeaker        FindingsPostFindingsIDConfirmOKAssetKind = "smart_speaker"
+	FindingsPostFindingsIDConfirmOKAssetKindGameConsole         FindingsPostFindingsIDConfirmOKAssetKind = "game_console"
+	FindingsPostFindingsIDConfirmOKAssetKindSmartPlug           FindingsPostFindingsIDConfirmOKAssetKind = "smart_plug"
+	FindingsPostFindingsIDConfirmOKAssetKindSmartLight          FindingsPostFindingsIDConfirmOKAssetKind = "smart_light"
+	FindingsPostFindingsIDConfirmOKAssetKindSmartHub            FindingsPostFindingsIDConfirmOKAssetKind = "smart_hub"
+	FindingsPostFindingsIDConfirmOKAssetKindThermostat          FindingsPostFindingsIDConfirmOKAssetKind = "thermostat"
+	FindingsPostFindingsIDConfirmOKAssetKindProjector           FindingsPostFindingsIDConfirmOKAssetKind = "projector"
+	FindingsPostFindingsIDConfirmOKAssetKindDigitalSignage      FindingsPostFindingsIDConfirmOKAssetKind = "digital_signage"
+	FindingsPostFindingsIDConfirmOKAssetKindSingleBoardComputer FindingsPostFindingsIDConfirmOKAssetKind = "single_board_computer"
+	FindingsPostFindingsIDConfirmOKAssetKindSmartAppliance      FindingsPostFindingsIDConfirmOKAssetKind = "smart_appliance"
+	FindingsPostFindingsIDConfirmOKAssetKindRobotVacuum         FindingsPostFindingsIDConfirmOKAssetKind = "robot_vacuum"
+	FindingsPostFindingsIDConfirmOKAssetKindWirelessBridge      FindingsPostFindingsIDConfirmOKAssetKind = "wireless_bridge"
+	FindingsPostFindingsIDConfirmOKAssetKindPlc                 FindingsPostFindingsIDConfirmOKAssetKind = "plc"
+	FindingsPostFindingsIDConfirmOKAssetKindHmi                 FindingsPostFindingsIDConfirmOKAssetKind = "hmi"
+	FindingsPostFindingsIDConfirmOKAssetKindRtu                 FindingsPostFindingsIDConfirmOKAssetKind = "rtu"
+	FindingsPostFindingsIDConfirmOKAssetKindScadaServer         FindingsPostFindingsIDConfirmOKAssetKind = "scada_server"
+	FindingsPostFindingsIDConfirmOKAssetKindIndustrialSwitch    FindingsPostFindingsIDConfirmOKAssetKind = "industrial_switch"
+	FindingsPostFindingsIDConfirmOKAssetKindUps                 FindingsPostFindingsIDConfirmOKAssetKind = "ups"
+	FindingsPostFindingsIDConfirmOKAssetKindPdu                 FindingsPostFindingsIDConfirmOKAssetKind = "pdu"
+	FindingsPostFindingsIDConfirmOKAssetKindAccessControl       FindingsPostFindingsIDConfirmOKAssetKind = "access_control"
+	FindingsPostFindingsIDConfirmOKAssetKindTimeClock           FindingsPostFindingsIDConfirmOKAssetKind = "time_clock"
+	FindingsPostFindingsIDConfirmOKAssetKindAlarmPanel          FindingsPostFindingsIDConfirmOKAssetKind = "alarm_panel"
+	FindingsPostFindingsIDConfirmOKAssetKindHvacController      FindingsPostFindingsIDConfirmOKAssetKind = "hvac_controller"
+	FindingsPostFindingsIDConfirmOKAssetKindBuildingController  FindingsPostFindingsIDConfirmOKAssetKind = "building_controller"
+	FindingsPostFindingsIDConfirmOKAssetKindPowerMeter          FindingsPostFindingsIDConfirmOKAssetKind = "power_meter"
+	FindingsPostFindingsIDConfirmOKAssetKindEnvironmentMonitor  FindingsPostFindingsIDConfirmOKAssetKind = "environment_monitor"
+	FindingsPostFindingsIDConfirmOKAssetKindEvCharger           FindingsPostFindingsIDConfirmOKAssetKind = "ev_charger"
+	FindingsPostFindingsIDConfirmOKAssetKindSolarInverter       FindingsPostFindingsIDConfirmOKAssetKind = "solar_inverter"
+	FindingsPostFindingsIDConfirmOKAssetKindMedicalDevice       FindingsPostFindingsIDConfirmOKAssetKind = "medical_device"
+	FindingsPostFindingsIDConfirmOKAssetKindWeb                 FindingsPostFindingsIDConfirmOKAssetKind = "web"
+	FindingsPostFindingsIDConfirmOKAssetKindCloudService        FindingsPostFindingsIDConfirmOKAssetKind = "cloud_service"
+	FindingsPostFindingsIDConfirmOKAssetKindUnknown             FindingsPostFindingsIDConfirmOKAssetKind = "unknown"
+)
+
+// AllValues returns all FindingsPostFindingsIDConfirmOKAssetKind values.
+func (FindingsPostFindingsIDConfirmOKAssetKind) AllValues() []FindingsPostFindingsIDConfirmOKAssetKind {
+	return []FindingsPostFindingsIDConfirmOKAssetKind{
+		FindingsPostFindingsIDConfirmOKAssetKindRouter,
+		FindingsPostFindingsIDConfirmOKAssetKindSwitch,
+		FindingsPostFindingsIDConfirmOKAssetKindModem,
+		FindingsPostFindingsIDConfirmOKAssetKindSdWan,
+		FindingsPostFindingsIDConfirmOKAssetKindLoadBalancer,
+		FindingsPostFindingsIDConfirmOKAssetKindNetworkController,
+		FindingsPostFindingsIDConfirmOKAssetKindFirewall,
+		FindingsPostFindingsIDConfirmOKAssetKindVpnGateway,
+		FindingsPostFindingsIDConfirmOKAssetKindIdsSensor,
+		FindingsPostFindingsIDConfirmOKAssetKindProxy,
+		FindingsPostFindingsIDConfirmOKAssetKindAp,
+		FindingsPostFindingsIDConfirmOKAssetKindWirelessController,
+		FindingsPostFindingsIDConfirmOKAssetKindWifiExtender,
+		FindingsPostFindingsIDConfirmOKAssetKindMeshNode,
+		FindingsPostFindingsIDConfirmOKAssetKindServer,
+		FindingsPostFindingsIDConfirmOKAssetKindVirtualMachine,
+		FindingsPostFindingsIDConfirmOKAssetKindHypervisor,
+		FindingsPostFindingsIDConfirmOKAssetKindBmc,
+		FindingsPostFindingsIDConfirmOKAssetKindDomainController,
+		FindingsPostFindingsIDConfirmOKAssetKindMailServer,
+		FindingsPostFindingsIDConfirmOKAssetKindDatabaseServer,
+		FindingsPostFindingsIDConfirmOKAssetKindBackupServer,
+		FindingsPostFindingsIDConfirmOKAssetKindPc,
+		FindingsPostFindingsIDConfirmOKAssetKindLaptop,
+		FindingsPostFindingsIDConfirmOKAssetKindWorkstation,
+		FindingsPostFindingsIDConfirmOKAssetKindThinClient,
+		FindingsPostFindingsIDConfirmOKAssetKindPosTerminal,
+		FindingsPostFindingsIDConfirmOKAssetKindKiosk,
+		FindingsPostFindingsIDConfirmOKAssetKindSmartphone,
+		FindingsPostFindingsIDConfirmOKAssetKindTablet,
+		FindingsPostFindingsIDConfirmOKAssetKindSmartwatch,
+		FindingsPostFindingsIDConfirmOKAssetKindPrinter,
+		FindingsPostFindingsIDConfirmOKAssetKindMfp,
+		FindingsPostFindingsIDConfirmOKAssetKindScanner,
+		FindingsPostFindingsIDConfirmOKAssetKindLabelPrinter,
+		FindingsPostFindingsIDConfirmOKAssetKindReceiptPrinter,
+		FindingsPostFindingsIDConfirmOKAssetKindPlotter,
+		FindingsPostFindingsIDConfirmOKAssetKind3dPrinter,
+		FindingsPostFindingsIDConfirmOKAssetKindCamera,
+		FindingsPostFindingsIDConfirmOKAssetKindNvr,
+		FindingsPostFindingsIDConfirmOKAssetKindDvr,
+		FindingsPostFindingsIDConfirmOKAssetKindVideoEncoder,
+		FindingsPostFindingsIDConfirmOKAssetKindDoorbell,
+		FindingsPostFindingsIDConfirmOKAssetKindVideoConferencing,
+		FindingsPostFindingsIDConfirmOKAssetKindIPPhone,
+		FindingsPostFindingsIDConfirmOKAssetKindPbx,
+		FindingsPostFindingsIDConfirmOKAssetKindVoipAdapter,
+		FindingsPostFindingsIDConfirmOKAssetKindVoipGateway,
+		FindingsPostFindingsIDConfirmOKAssetKindConferencePhone,
+		FindingsPostFindingsIDConfirmOKAssetKindIntercom,
+		FindingsPostFindingsIDConfirmOKAssetKindNas,
+		FindingsPostFindingsIDConfirmOKAssetKindSan,
+		FindingsPostFindingsIDConfirmOKAssetKindBackupAppliance,
+		FindingsPostFindingsIDConfirmOKAssetKindTapeLibrary,
+		FindingsPostFindingsIDConfirmOKAssetKindIot,
+		FindingsPostFindingsIDConfirmOKAssetKindSmartTv,
+		FindingsPostFindingsIDConfirmOKAssetKindMediaPlayer,
+		FindingsPostFindingsIDConfirmOKAssetKindSmartSpeaker,
+		FindingsPostFindingsIDConfirmOKAssetKindGameConsole,
+		FindingsPostFindingsIDConfirmOKAssetKindSmartPlug,
+		FindingsPostFindingsIDConfirmOKAssetKindSmartLight,
+		FindingsPostFindingsIDConfirmOKAssetKindSmartHub,
+		FindingsPostFindingsIDConfirmOKAssetKindThermostat,
+		FindingsPostFindingsIDConfirmOKAssetKindProjector,
+		FindingsPostFindingsIDConfirmOKAssetKindDigitalSignage,
+		FindingsPostFindingsIDConfirmOKAssetKindSingleBoardComputer,
+		FindingsPostFindingsIDConfirmOKAssetKindSmartAppliance,
+		FindingsPostFindingsIDConfirmOKAssetKindRobotVacuum,
+		FindingsPostFindingsIDConfirmOKAssetKindWirelessBridge,
+		FindingsPostFindingsIDConfirmOKAssetKindPlc,
+		FindingsPostFindingsIDConfirmOKAssetKindHmi,
+		FindingsPostFindingsIDConfirmOKAssetKindRtu,
+		FindingsPostFindingsIDConfirmOKAssetKindScadaServer,
+		FindingsPostFindingsIDConfirmOKAssetKindIndustrialSwitch,
+		FindingsPostFindingsIDConfirmOKAssetKindUps,
+		FindingsPostFindingsIDConfirmOKAssetKindPdu,
+		FindingsPostFindingsIDConfirmOKAssetKindAccessControl,
+		FindingsPostFindingsIDConfirmOKAssetKindTimeClock,
+		FindingsPostFindingsIDConfirmOKAssetKindAlarmPanel,
+		FindingsPostFindingsIDConfirmOKAssetKindHvacController,
+		FindingsPostFindingsIDConfirmOKAssetKindBuildingController,
+		FindingsPostFindingsIDConfirmOKAssetKindPowerMeter,
+		FindingsPostFindingsIDConfirmOKAssetKindEnvironmentMonitor,
+		FindingsPostFindingsIDConfirmOKAssetKindEvCharger,
+		FindingsPostFindingsIDConfirmOKAssetKindSolarInverter,
+		FindingsPostFindingsIDConfirmOKAssetKindMedicalDevice,
+		FindingsPostFindingsIDConfirmOKAssetKindWeb,
+		FindingsPostFindingsIDConfirmOKAssetKindCloudService,
+		FindingsPostFindingsIDConfirmOKAssetKindUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDConfirmOKAssetKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDConfirmOKAssetKindRouter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSwitch:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindModem:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSdWan:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindLoadBalancer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindNetworkController:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindFirewall:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindVpnGateway:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindIdsSensor:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindProxy:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindAp:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindWirelessController:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindWifiExtender:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindMeshNode:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindServer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindVirtualMachine:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindHypervisor:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindBmc:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindDomainController:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindMailServer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindDatabaseServer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindBackupServer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindPc:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindLaptop:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindWorkstation:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindThinClient:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindPosTerminal:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindKiosk:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSmartphone:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindTablet:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSmartwatch:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindPrinter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindMfp:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindScanner:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindLabelPrinter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindReceiptPrinter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindPlotter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKind3dPrinter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindCamera:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindNvr:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindDvr:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindVideoEncoder:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindDoorbell:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindVideoConferencing:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindIPPhone:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindPbx:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindVoipAdapter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindVoipGateway:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindConferencePhone:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindIntercom:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindNas:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSan:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindBackupAppliance:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindTapeLibrary:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindIot:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSmartTv:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindMediaPlayer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSmartSpeaker:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindGameConsole:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSmartPlug:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSmartLight:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSmartHub:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindThermostat:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindProjector:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindDigitalSignage:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSingleBoardComputer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSmartAppliance:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindRobotVacuum:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindWirelessBridge:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindPlc:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindHmi:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindRtu:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindScadaServer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindIndustrialSwitch:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindUps:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindPdu:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindAccessControl:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindTimeClock:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindAlarmPanel:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindHvacController:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindBuildingController:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindPowerMeter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindEnvironmentMonitor:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindEvCharger:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSolarInverter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindMedicalDevice:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindWeb:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindCloudService:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAssetKindUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDConfirmOKAssetKind) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDConfirmOKAssetKind(data) {
+	case FindingsPostFindingsIDConfirmOKAssetKindRouter:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindRouter
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSwitch:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindSwitch
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindModem:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindModem
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSdWan:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindSdWan
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindLoadBalancer:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindLoadBalancer
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindNetworkController:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindNetworkController
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindFirewall:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindFirewall
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindVpnGateway:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindVpnGateway
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindIdsSensor:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindIdsSensor
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindProxy:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindProxy
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindAp:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindAp
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindWirelessController:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindWirelessController
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindWifiExtender:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindWifiExtender
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindMeshNode:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindMeshNode
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindServer:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindServer
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindVirtualMachine:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindVirtualMachine
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindHypervisor:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindHypervisor
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindBmc:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindBmc
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindDomainController:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindDomainController
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindMailServer:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindMailServer
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindDatabaseServer:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindDatabaseServer
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindBackupServer:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindBackupServer
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindPc:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindPc
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindLaptop:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindLaptop
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindWorkstation:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindWorkstation
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindThinClient:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindThinClient
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindPosTerminal:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindPosTerminal
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindKiosk:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindKiosk
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSmartphone:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindSmartphone
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindTablet:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindTablet
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSmartwatch:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindSmartwatch
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindPrinter:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindPrinter
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindMfp:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindMfp
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindScanner:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindScanner
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindLabelPrinter:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindLabelPrinter
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindReceiptPrinter:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindReceiptPrinter
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindPlotter:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindPlotter
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKind3dPrinter:
+		*s = FindingsPostFindingsIDConfirmOKAssetKind3dPrinter
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindCamera:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindCamera
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindNvr:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindNvr
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindDvr:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindDvr
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindVideoEncoder:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindVideoEncoder
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindDoorbell:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindDoorbell
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindVideoConferencing:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindVideoConferencing
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindIPPhone:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindIPPhone
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindPbx:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindPbx
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindVoipAdapter:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindVoipAdapter
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindVoipGateway:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindVoipGateway
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindConferencePhone:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindConferencePhone
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindIntercom:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindIntercom
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindNas:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindNas
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSan:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindSan
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindBackupAppliance:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindBackupAppliance
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindTapeLibrary:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindTapeLibrary
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindIot:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindIot
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSmartTv:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindSmartTv
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindMediaPlayer:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindMediaPlayer
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSmartSpeaker:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindSmartSpeaker
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindGameConsole:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindGameConsole
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSmartPlug:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindSmartPlug
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSmartLight:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindSmartLight
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSmartHub:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindSmartHub
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindThermostat:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindThermostat
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindProjector:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindProjector
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindDigitalSignage:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindDigitalSignage
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSingleBoardComputer:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindSingleBoardComputer
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSmartAppliance:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindSmartAppliance
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindRobotVacuum:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindRobotVacuum
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindWirelessBridge:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindWirelessBridge
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindPlc:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindPlc
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindHmi:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindHmi
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindRtu:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindRtu
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindScadaServer:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindScadaServer
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindIndustrialSwitch:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindIndustrialSwitch
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindUps:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindUps
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindPdu:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindPdu
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindAccessControl:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindAccessControl
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindTimeClock:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindTimeClock
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindAlarmPanel:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindAlarmPanel
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindHvacController:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindHvacController
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindBuildingController:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindBuildingController
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindPowerMeter:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindPowerMeter
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindEnvironmentMonitor:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindEnvironmentMonitor
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindEvCharger:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindEvCharger
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindSolarInverter:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindSolarInverter
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindMedicalDevice:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindMedicalDevice
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindWeb:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindWeb
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindCloudService:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindCloudService
+		return nil
+	case FindingsPostFindingsIDConfirmOKAssetKindUnknown:
+		*s = FindingsPostFindingsIDConfirmOKAssetKindUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version
+// = suspected by version; product = only the product matches.
+type FindingsPostFindingsIDConfirmOKBasis string
+
+const (
+	FindingsPostFindingsIDConfirmOKBasisScan    FindingsPostFindingsIDConfirmOKBasis = "scan"
+	FindingsPostFindingsIDConfirmOKBasisVersion FindingsPostFindingsIDConfirmOKBasis = "version"
+	FindingsPostFindingsIDConfirmOKBasisProduct FindingsPostFindingsIDConfirmOKBasis = "product"
+	FindingsPostFindingsIDConfirmOKBasisPerson  FindingsPostFindingsIDConfirmOKBasis = "person"
+)
+
+// AllValues returns all FindingsPostFindingsIDConfirmOKBasis values.
+func (FindingsPostFindingsIDConfirmOKBasis) AllValues() []FindingsPostFindingsIDConfirmOKBasis {
+	return []FindingsPostFindingsIDConfirmOKBasis{
+		FindingsPostFindingsIDConfirmOKBasisScan,
+		FindingsPostFindingsIDConfirmOKBasisVersion,
+		FindingsPostFindingsIDConfirmOKBasisProduct,
+		FindingsPostFindingsIDConfirmOKBasisPerson,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDConfirmOKBasis) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDConfirmOKBasisScan:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKBasisVersion:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKBasisProduct:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKBasisPerson:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDConfirmOKBasis) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDConfirmOKBasis(data) {
+	case FindingsPostFindingsIDConfirmOKBasisScan:
+		*s = FindingsPostFindingsIDConfirmOKBasisScan
+		return nil
+	case FindingsPostFindingsIDConfirmOKBasisVersion:
+		*s = FindingsPostFindingsIDConfirmOKBasisVersion
+		return nil
+	case FindingsPostFindingsIDConfirmOKBasisProduct:
+		*s = FindingsPostFindingsIDConfirmOKBasisProduct
+		return nil
+	case FindingsPostFindingsIDConfirmOKBasisPerson:
+		*s = FindingsPostFindingsIDConfirmOKBasisPerson
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDConfirmOKCompromise struct {
+	IfFound    []string                                                  `json:"if_found"`
+	Indicators []FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItem `json:"indicators"`
+	Summary    string                                                    `json:"summary"`
+}
+
+// GetIfFound returns the value of IfFound.
+func (s *FindingsPostFindingsIDConfirmOKCompromise) GetIfFound() []string {
+	return s.IfFound
+}
+
+// GetIndicators returns the value of Indicators.
+func (s *FindingsPostFindingsIDConfirmOKCompromise) GetIndicators() []FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItem {
+	return s.Indicators
+}
+
+// GetSummary returns the value of Summary.
+func (s *FindingsPostFindingsIDConfirmOKCompromise) GetSummary() string {
+	return s.Summary
+}
+
+// SetIfFound sets the value of IfFound.
+func (s *FindingsPostFindingsIDConfirmOKCompromise) SetIfFound(val []string) {
+	s.IfFound = val
+}
+
+// SetIndicators sets the value of Indicators.
+func (s *FindingsPostFindingsIDConfirmOKCompromise) SetIndicators(val []FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItem) {
+	s.Indicators = val
+}
+
+// SetSummary sets the value of Summary.
+func (s *FindingsPostFindingsIDConfirmOKCompromise) SetSummary(val string) {
+	s.Summary = val
+}
+
+type FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItem struct {
+	Commands []FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemCommandsItem `json:"commands"`
+	Detail   string                                                                `json:"detail"`
+	Kind     FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKind           `json:"kind"`
+	Title    string                                                                `json:"title"`
+}
+
+// GetCommands returns the value of Commands.
+func (s *FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItem) GetCommands() []FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemCommandsItem {
+	return s.Commands
+}
+
+// GetDetail returns the value of Detail.
+func (s *FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItem) GetDetail() string {
+	return s.Detail
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItem) GetKind() FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKind {
+	return s.Kind
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCommands sets the value of Commands.
+func (s *FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItem) SetCommands(val []FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemCommandsItem) {
+	s.Commands = val
+}
+
+// SetDetail sets the value of Detail.
+func (s *FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItem) SetDetail(val string) {
+	s.Detail = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItem) SetKind(val FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKind) {
+	s.Kind = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItem) SetTitle(val string) {
+	s.Title = val
+}
+
+type FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemCommandsItem struct {
+	Code  string `json:"code"`
+	Label string `json:"label"`
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemCommandsItem) GetCode() string {
+	return s.Code
+}
+
+// GetLabel returns the value of Label.
+func (s *FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemCommandsItem) GetLabel() string {
+	return s.Label
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemCommandsItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetLabel sets the value of Label.
+func (s *FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemCommandsItem) SetLabel(val string) {
+	s.Label = val
+}
+
+type FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKind string
+
+const (
+	FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKindFile    FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKind = "file"
+	FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKindWeb     FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKind = "web"
+	FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKindLog     FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKind = "log"
+	FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKindProcess FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKind = "process"
+)
+
+// AllValues returns all FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKind values.
+func (FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKind) AllValues() []FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKind {
+	return []FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKind{
+		FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKindFile,
+		FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKindWeb,
+		FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKindLog,
+		FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKindProcess,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKindFile:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKindWeb:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKindLog:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKindProcess:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKind) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKind(data) {
+	case FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKindFile:
+		*s = FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKindFile
+		return nil
+	case FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKindWeb:
+		*s = FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKindWeb
+		return nil
+	case FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKindLog:
+		*s = FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKindLog
+		return nil
+	case FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKindProcess:
+		*s = FindingsPostFindingsIDConfirmOKCompromiseIndicatorsItemKindProcess
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// #825 (findings INV-22, feeds INV-28): the CVSS base score from the same NVD records feeds already
+// reads (nvd-kev, else nvd-recent). Shown next to the exploited status, never instead of it.
+type FindingsPostFindingsIDConfirmOKCvss struct {
+	// The CVSS base score (0.0 to 10.0, one decimal); its band follows from FIRST's table (3.x, 4.0) or
+	// NVD's v2 table (2.0: Low, Medium, High; no Critical).
+	Score float64 `json:"score"`
+	// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+	// Authority or CISA's ADP), used only when NVD gives none for that version.
+	Source FindingsPostFindingsIDConfirmOKCvssSource `json:"source"`
+	// NVD's vector string of the score ("CVSS:3.1/AV:N/AC:L/…"; 2.0: "AV:N/AC:L/Au:N/…"): FIRST asks
+	// that a score be shown with its vector, so a score without a valid one is not shown.
+	Vector string `json:"vector"`
+	// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+	// nothing newer).
+	Version FindingsPostFindingsIDConfirmOKCvssVersion `json:"version"`
+}
+
+// GetScore returns the value of Score.
+func (s *FindingsPostFindingsIDConfirmOKCvss) GetScore() float64 {
+	return s.Score
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDConfirmOKCvss) GetSource() FindingsPostFindingsIDConfirmOKCvssSource {
+	return s.Source
+}
+
+// GetVector returns the value of Vector.
+func (s *FindingsPostFindingsIDConfirmOKCvss) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsPostFindingsIDConfirmOKCvss) GetVersion() FindingsPostFindingsIDConfirmOKCvssVersion {
+	return s.Version
+}
+
+// SetScore sets the value of Score.
+func (s *FindingsPostFindingsIDConfirmOKCvss) SetScore(val float64) {
+	s.Score = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDConfirmOKCvss) SetSource(val FindingsPostFindingsIDConfirmOKCvssSource) {
+	s.Source = val
+}
+
+// SetVector sets the value of Vector.
+func (s *FindingsPostFindingsIDConfirmOKCvss) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsPostFindingsIDConfirmOKCvss) SetVersion(val FindingsPostFindingsIDConfirmOKCvssVersion) {
+	s.Version = val
+}
+
+// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+// Authority or CISA's ADP), used only when NVD gives none for that version.
+type FindingsPostFindingsIDConfirmOKCvssSource string
+
+const (
+	FindingsPostFindingsIDConfirmOKCvssSourceNvd FindingsPostFindingsIDConfirmOKCvssSource = "nvd"
+	FindingsPostFindingsIDConfirmOKCvssSourceCna FindingsPostFindingsIDConfirmOKCvssSource = "cna"
+)
+
+// AllValues returns all FindingsPostFindingsIDConfirmOKCvssSource values.
+func (FindingsPostFindingsIDConfirmOKCvssSource) AllValues() []FindingsPostFindingsIDConfirmOKCvssSource {
+	return []FindingsPostFindingsIDConfirmOKCvssSource{
+		FindingsPostFindingsIDConfirmOKCvssSourceNvd,
+		FindingsPostFindingsIDConfirmOKCvssSourceCna,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDConfirmOKCvssSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDConfirmOKCvssSourceNvd:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKCvssSourceCna:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDConfirmOKCvssSource) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDConfirmOKCvssSource(data) {
+	case FindingsPostFindingsIDConfirmOKCvssSourceNvd:
+		*s = FindingsPostFindingsIDConfirmOKCvssSourceNvd
+		return nil
+	case FindingsPostFindingsIDConfirmOKCvssSourceCna:
+		*s = FindingsPostFindingsIDConfirmOKCvssSourceCna
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+// nothing newer).
+type FindingsPostFindingsIDConfirmOKCvssVersion string
+
+const (
+	FindingsPostFindingsIDConfirmOKCvssVersion40 FindingsPostFindingsIDConfirmOKCvssVersion = "4.0"
+	FindingsPostFindingsIDConfirmOKCvssVersion31 FindingsPostFindingsIDConfirmOKCvssVersion = "3.1"
+	FindingsPostFindingsIDConfirmOKCvssVersion30 FindingsPostFindingsIDConfirmOKCvssVersion = "3.0"
+	FindingsPostFindingsIDConfirmOKCvssVersion20 FindingsPostFindingsIDConfirmOKCvssVersion = "2.0"
+)
+
+// AllValues returns all FindingsPostFindingsIDConfirmOKCvssVersion values.
+func (FindingsPostFindingsIDConfirmOKCvssVersion) AllValues() []FindingsPostFindingsIDConfirmOKCvssVersion {
+	return []FindingsPostFindingsIDConfirmOKCvssVersion{
+		FindingsPostFindingsIDConfirmOKCvssVersion40,
+		FindingsPostFindingsIDConfirmOKCvssVersion31,
+		FindingsPostFindingsIDConfirmOKCvssVersion30,
+		FindingsPostFindingsIDConfirmOKCvssVersion20,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDConfirmOKCvssVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDConfirmOKCvssVersion40:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKCvssVersion31:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKCvssVersion30:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKCvssVersion20:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDConfirmOKCvssVersion) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDConfirmOKCvssVersion(data) {
+	case FindingsPostFindingsIDConfirmOKCvssVersion40:
+		*s = FindingsPostFindingsIDConfirmOKCvssVersion40
+		return nil
+	case FindingsPostFindingsIDConfirmOKCvssVersion31:
+		*s = FindingsPostFindingsIDConfirmOKCvssVersion31
+		return nil
+	case FindingsPostFindingsIDConfirmOKCvssVersion30:
+		*s = FindingsPostFindingsIDConfirmOKCvssVersion30
+		return nil
+	case FindingsPostFindingsIDConfirmOKCvssVersion20:
+		*s = FindingsPostFindingsIDConfirmOKCvssVersion20
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDConfirmOKEvidence struct {
+	// The version compared is the one the device's own agent (osquery, Wazuh) reports installed: a
+	// detection, shown as "Detected by the agent", with nothing for the person to look up.
+	Agent OptBool `json:"agent"`
+	// A product-only match on a software row the device's own agent reported with its installed version:
+	// Vedette could not compare that version with NVD's data, so the page does not ask to add the version.
+	AgentRow  OptBool   `json:"agent_row"`
+	CheckedAt time.Time `json:"checked_at"`
+	Request   OptString `json:"request"`
+	Response  OptString `json:"response"`
+	Summary   string    `json:"summary"`
+	Template  OptString `json:"template"`
+}
+
+// GetAgent returns the value of Agent.
+func (s *FindingsPostFindingsIDConfirmOKEvidence) GetAgent() OptBool {
+	return s.Agent
+}
+
+// GetAgentRow returns the value of AgentRow.
+func (s *FindingsPostFindingsIDConfirmOKEvidence) GetAgentRow() OptBool {
+	return s.AgentRow
+}
+
+// GetCheckedAt returns the value of CheckedAt.
+func (s *FindingsPostFindingsIDConfirmOKEvidence) GetCheckedAt() time.Time {
+	return s.CheckedAt
+}
+
+// GetRequest returns the value of Request.
+func (s *FindingsPostFindingsIDConfirmOKEvidence) GetRequest() OptString {
+	return s.Request
+}
+
+// GetResponse returns the value of Response.
+func (s *FindingsPostFindingsIDConfirmOKEvidence) GetResponse() OptString {
+	return s.Response
+}
+
+// GetSummary returns the value of Summary.
+func (s *FindingsPostFindingsIDConfirmOKEvidence) GetSummary() string {
+	return s.Summary
+}
+
+// GetTemplate returns the value of Template.
+func (s *FindingsPostFindingsIDConfirmOKEvidence) GetTemplate() OptString {
+	return s.Template
+}
+
+// SetAgent sets the value of Agent.
+func (s *FindingsPostFindingsIDConfirmOKEvidence) SetAgent(val OptBool) {
+	s.Agent = val
+}
+
+// SetAgentRow sets the value of AgentRow.
+func (s *FindingsPostFindingsIDConfirmOKEvidence) SetAgentRow(val OptBool) {
+	s.AgentRow = val
+}
+
+// SetCheckedAt sets the value of CheckedAt.
+func (s *FindingsPostFindingsIDConfirmOKEvidence) SetCheckedAt(val time.Time) {
+	s.CheckedAt = val
+}
+
+// SetRequest sets the value of Request.
+func (s *FindingsPostFindingsIDConfirmOKEvidence) SetRequest(val OptString) {
+	s.Request = val
+}
+
+// SetResponse sets the value of Response.
+func (s *FindingsPostFindingsIDConfirmOKEvidence) SetResponse(val OptString) {
+	s.Response = val
+}
+
+// SetSummary sets the value of Summary.
+func (s *FindingsPostFindingsIDConfirmOKEvidence) SetSummary(val string) {
+	s.Summary = val
+}
+
+// SetTemplate sets the value of Template.
+func (s *FindingsPostFindingsIDConfirmOKEvidence) SetTemplate(val OptString) {
+	s.Template = val
+}
+
+// One update fixes this finding together with the device's other open findings of the same software
+// (top-tier: one item per missing update).
+type FindingsPostFindingsIDConfirmOKFix struct {
+	// Distro: "Ubuntu" or "Debian", empty for the distribution's.
+	Distro string `json:"distro"`
+	// The release or build that fixes them all; feature_update: the release to move to; empty for distro.
+	Fixed string `json:"fixed"`
+	// "/": the open findings with the same group are fixed by the same update.
+	Group string `json:"group"`
+	// Fixed = upgrade to `fixed` (a Windows release: the monthly cumulative update with build `fixed` or
+	// later); esu = that build needs Extended Security Updates; feature_update = no update of this release
+	// fixes them, move to release `fixed`; distro = install the distribution's security updates for the
+	// package.
+	Kind FindingsPostFindingsIDConfirmOKFixKind `json:"kind"`
+	// Distro: the fix of at least one of them is in Ubuntu Pro (ESM) only.
+	Pro bool `json:"pro"`
+	// Display name of the software row.
+	Software string `json:"software"`
+	// The installed version.
+	Version string `json:"version"`
+	// A Windows release row: the update is the monthly cumulative update Windows Update offers.
+	Windows bool `json:"windows"`
+}
+
+// GetDistro returns the value of Distro.
+func (s *FindingsPostFindingsIDConfirmOKFix) GetDistro() string {
+	return s.Distro
+}
+
+// GetFixed returns the value of Fixed.
+func (s *FindingsPostFindingsIDConfirmOKFix) GetFixed() string {
+	return s.Fixed
+}
+
+// GetGroup returns the value of Group.
+func (s *FindingsPostFindingsIDConfirmOKFix) GetGroup() string {
+	return s.Group
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsPostFindingsIDConfirmOKFix) GetKind() FindingsPostFindingsIDConfirmOKFixKind {
+	return s.Kind
+}
+
+// GetPro returns the value of Pro.
+func (s *FindingsPostFindingsIDConfirmOKFix) GetPro() bool {
+	return s.Pro
+}
+
+// GetSoftware returns the value of Software.
+func (s *FindingsPostFindingsIDConfirmOKFix) GetSoftware() string {
+	return s.Software
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsPostFindingsIDConfirmOKFix) GetVersion() string {
+	return s.Version
+}
+
+// GetWindows returns the value of Windows.
+func (s *FindingsPostFindingsIDConfirmOKFix) GetWindows() bool {
+	return s.Windows
+}
+
+// SetDistro sets the value of Distro.
+func (s *FindingsPostFindingsIDConfirmOKFix) SetDistro(val string) {
+	s.Distro = val
+}
+
+// SetFixed sets the value of Fixed.
+func (s *FindingsPostFindingsIDConfirmOKFix) SetFixed(val string) {
+	s.Fixed = val
+}
+
+// SetGroup sets the value of Group.
+func (s *FindingsPostFindingsIDConfirmOKFix) SetGroup(val string) {
+	s.Group = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsPostFindingsIDConfirmOKFix) SetKind(val FindingsPostFindingsIDConfirmOKFixKind) {
+	s.Kind = val
+}
+
+// SetPro sets the value of Pro.
+func (s *FindingsPostFindingsIDConfirmOKFix) SetPro(val bool) {
+	s.Pro = val
+}
+
+// SetSoftware sets the value of Software.
+func (s *FindingsPostFindingsIDConfirmOKFix) SetSoftware(val string) {
+	s.Software = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsPostFindingsIDConfirmOKFix) SetVersion(val string) {
+	s.Version = val
+}
+
+// SetWindows sets the value of Windows.
+func (s *FindingsPostFindingsIDConfirmOKFix) SetWindows(val bool) {
+	s.Windows = val
+}
+
+// Fixed = upgrade to `fixed` (a Windows release: the monthly cumulative update with build `fixed` or
+// later); esu = that build needs Extended Security Updates; feature_update = no update of this release
+// fixes them, move to release `fixed`; distro = install the distribution's security updates for the
+// package.
+type FindingsPostFindingsIDConfirmOKFixKind string
+
+const (
+	FindingsPostFindingsIDConfirmOKFixKindFixed         FindingsPostFindingsIDConfirmOKFixKind = "fixed"
+	FindingsPostFindingsIDConfirmOKFixKindEsu           FindingsPostFindingsIDConfirmOKFixKind = "esu"
+	FindingsPostFindingsIDConfirmOKFixKindFeatureUpdate FindingsPostFindingsIDConfirmOKFixKind = "feature_update"
+	FindingsPostFindingsIDConfirmOKFixKindDistro        FindingsPostFindingsIDConfirmOKFixKind = "distro"
+)
+
+// AllValues returns all FindingsPostFindingsIDConfirmOKFixKind values.
+func (FindingsPostFindingsIDConfirmOKFixKind) AllValues() []FindingsPostFindingsIDConfirmOKFixKind {
+	return []FindingsPostFindingsIDConfirmOKFixKind{
+		FindingsPostFindingsIDConfirmOKFixKindFixed,
+		FindingsPostFindingsIDConfirmOKFixKindEsu,
+		FindingsPostFindingsIDConfirmOKFixKindFeatureUpdate,
+		FindingsPostFindingsIDConfirmOKFixKindDistro,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDConfirmOKFixKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDConfirmOKFixKindFixed:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKFixKindEsu:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKFixKindFeatureUpdate:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKFixKindDistro:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDConfirmOKFixKind) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDConfirmOKFixKind(data) {
+	case FindingsPostFindingsIDConfirmOKFixKindFixed:
+		*s = FindingsPostFindingsIDConfirmOKFixKindFixed
+		return nil
+	case FindingsPostFindingsIDConfirmOKFixKindEsu:
+		*s = FindingsPostFindingsIDConfirmOKFixKindEsu
+		return nil
+	case FindingsPostFindingsIDConfirmOKFixKindFeatureUpdate:
+		*s = FindingsPostFindingsIDConfirmOKFixKindFeatureUpdate
+		return nil
+	case FindingsPostFindingsIDConfirmOKFixKindDistro:
+		*s = FindingsPostFindingsIDConfirmOKFixKindDistro
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDConfirmOKFixedIn struct {
+	// At most 5, newest first.
+	Branches []FindingsPostFindingsIDConfirmOKFixedInBranchesItem `json:"branches"`
+	// "Ubuntu" or "Debian" when the device runs one, empty otherwise. distro: whose security updates to
+	// install (empty = the distribution). Other kinds: set only when the software is not known to come
+	// from the package database (typed by a person, read by a scan, or an agent row stored before
+	// inventory kept the flag); the page adds "if you installed it from the distribution's packages,
+	// install its security updates instead".
+	Distro string `json:"distro"`
+	// Kind distro only: the version of the distribution's package that fixes the CVE on the device's
+	// release (Ubuntu security data, Debian Security Tracker); `version` is then the device's full package
+	// version. Empty when the distribution's data does not say.
+	DistroFixed string `json:"distro_fixed"`
+	// Distro_fixed is in Ubuntu Pro (ESM) only.
+	DistroPro bool `json:"distro_pro"`
+	// The device's release with distro_fixed ("24.04", "12"); empty otherwise.
+	DistroRelease string `json:"distro_release"`
+	// The fixed release (fixed), the last affected release (up_to), the upstream fixed release as a
+	// reference when NVD names one (distro: the backport may keep the package's number below it); empty
+	// for branches.
+	Fixed string `json:"fixed"`
+	// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
+	// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
+	// named); end_listed = inside a range that ends before `fixed`, but NVD lists releases of `fixed`
+	// itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix, the
+	// vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the fix
+	// of each release line; distro = a package of the distribution, whose security updates carry the fix
+	// under their own numbers: an agent read it from the device's package database (deb/rpm), or the
+	// version carries a marker such as ubuntu, +deb12, .el9; feature_update = a Windows release NVD does
+	// not list for the fix, which only a later release of its line (`branches[0].branch`, from build
+	// `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu = the fixing Windows
+	// build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+	Kind FindingsPostFindingsIDConfirmOKFixedInKind `json:"kind"`
+	// Release lines with a fix left out of branches.
+	More int `json:"more"`
+	// Release lines NVD gives no fixed release for (a range that ends at an affected version).
+	NoFix int `json:"no_fix"`
+	// Where the versions come from: "NVD affected versions", "CVE.org affected versions (from the CVE
+	// record's CNA)" when NVD has none, or with distro_fixed "Ubuntu security data" / "Debian Security
+	// Tracker".
+	Source string `json:"source"`
+	// The device's version; for branches empty when it has none, else the text Vedette cannot read.
+	Version string `json:"version"`
+}
+
+// GetBranches returns the value of Branches.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) GetBranches() []FindingsPostFindingsIDConfirmOKFixedInBranchesItem {
+	return s.Branches
+}
+
+// GetDistro returns the value of Distro.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) GetDistro() string {
+	return s.Distro
+}
+
+// GetDistroFixed returns the value of DistroFixed.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) GetDistroFixed() string {
+	return s.DistroFixed
+}
+
+// GetDistroPro returns the value of DistroPro.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) GetDistroPro() bool {
+	return s.DistroPro
+}
+
+// GetDistroRelease returns the value of DistroRelease.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) GetDistroRelease() string {
+	return s.DistroRelease
+}
+
+// GetFixed returns the value of Fixed.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) GetFixed() string {
+	return s.Fixed
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) GetKind() FindingsPostFindingsIDConfirmOKFixedInKind {
+	return s.Kind
+}
+
+// GetMore returns the value of More.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) GetMore() int {
+	return s.More
+}
+
+// GetNoFix returns the value of NoFix.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) GetNoFix() int {
+	return s.NoFix
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) GetSource() string {
+	return s.Source
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) GetVersion() string {
+	return s.Version
+}
+
+// SetBranches sets the value of Branches.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) SetBranches(val []FindingsPostFindingsIDConfirmOKFixedInBranchesItem) {
+	s.Branches = val
+}
+
+// SetDistro sets the value of Distro.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) SetDistro(val string) {
+	s.Distro = val
+}
+
+// SetDistroFixed sets the value of DistroFixed.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) SetDistroFixed(val string) {
+	s.DistroFixed = val
+}
+
+// SetDistroPro sets the value of DistroPro.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) SetDistroPro(val bool) {
+	s.DistroPro = val
+}
+
+// SetDistroRelease sets the value of DistroRelease.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) SetDistroRelease(val string) {
+	s.DistroRelease = val
+}
+
+// SetFixed sets the value of Fixed.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) SetFixed(val string) {
+	s.Fixed = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) SetKind(val FindingsPostFindingsIDConfirmOKFixedInKind) {
+	s.Kind = val
+}
+
+// SetMore sets the value of More.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) SetMore(val int) {
+	s.More = val
+}
+
+// SetNoFix sets the value of NoFix.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) SetNoFix(val int) {
+	s.NoFix = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) SetSource(val string) {
+	s.Source = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsPostFindingsIDConfirmOKFixedIn) SetVersion(val string) {
+	s.Version = val
+}
+
+type FindingsPostFindingsIDConfirmOKFixedInBranchesItem struct {
+	// Release line such as 7.4; empty when it cannot be told.
+	Branch string `json:"branch"`
+	Fixed  string `json:"fixed"`
+}
+
+// GetBranch returns the value of Branch.
+func (s *FindingsPostFindingsIDConfirmOKFixedInBranchesItem) GetBranch() string {
+	return s.Branch
+}
+
+// GetFixed returns the value of Fixed.
+func (s *FindingsPostFindingsIDConfirmOKFixedInBranchesItem) GetFixed() string {
+	return s.Fixed
+}
+
+// SetBranch sets the value of Branch.
+func (s *FindingsPostFindingsIDConfirmOKFixedInBranchesItem) SetBranch(val string) {
+	s.Branch = val
+}
+
+// SetFixed sets the value of Fixed.
+func (s *FindingsPostFindingsIDConfirmOKFixedInBranchesItem) SetFixed(val string) {
+	s.Fixed = val
+}
+
+// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
+// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
+// named); end_listed = inside a range that ends before `fixed`, but NVD lists releases of `fixed`
+// itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix, the
+// vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the fix
+// of each release line; distro = a package of the distribution, whose security updates carry the fix
+// under their own numbers: an agent read it from the device's package database (deb/rpm), or the
+// version carries a marker such as ubuntu, +deb12, .el9; feature_update = a Windows release NVD does
+// not list for the fix, which only a later release of its line (`branches[0].branch`, from build
+// `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu = the fixing Windows
+// build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+type FindingsPostFindingsIDConfirmOKFixedInKind string
+
+const (
+	FindingsPostFindingsIDConfirmOKFixedInKindFixed         FindingsPostFindingsIDConfirmOKFixedInKind = "fixed"
+	FindingsPostFindingsIDConfirmOKFixedInKindUpTo          FindingsPostFindingsIDConfirmOKFixedInKind = "up_to"
+	FindingsPostFindingsIDConfirmOKFixedInKindEndListed     FindingsPostFindingsIDConfirmOKFixedInKind = "end_listed"
+	FindingsPostFindingsIDConfirmOKFixedInKindBranches      FindingsPostFindingsIDConfirmOKFixedInKind = "branches"
+	FindingsPostFindingsIDConfirmOKFixedInKindDistro        FindingsPostFindingsIDConfirmOKFixedInKind = "distro"
+	FindingsPostFindingsIDConfirmOKFixedInKindFeatureUpdate FindingsPostFindingsIDConfirmOKFixedInKind = "feature_update"
+	FindingsPostFindingsIDConfirmOKFixedInKindEsu           FindingsPostFindingsIDConfirmOKFixedInKind = "esu"
+)
+
+// AllValues returns all FindingsPostFindingsIDConfirmOKFixedInKind values.
+func (FindingsPostFindingsIDConfirmOKFixedInKind) AllValues() []FindingsPostFindingsIDConfirmOKFixedInKind {
+	return []FindingsPostFindingsIDConfirmOKFixedInKind{
+		FindingsPostFindingsIDConfirmOKFixedInKindFixed,
+		FindingsPostFindingsIDConfirmOKFixedInKindUpTo,
+		FindingsPostFindingsIDConfirmOKFixedInKindEndListed,
+		FindingsPostFindingsIDConfirmOKFixedInKindBranches,
+		FindingsPostFindingsIDConfirmOKFixedInKindDistro,
+		FindingsPostFindingsIDConfirmOKFixedInKindFeatureUpdate,
+		FindingsPostFindingsIDConfirmOKFixedInKindEsu,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDConfirmOKFixedInKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDConfirmOKFixedInKindFixed:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKFixedInKindUpTo:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKFixedInKindEndListed:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKFixedInKindBranches:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKFixedInKindDistro:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKFixedInKindFeatureUpdate:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKFixedInKindEsu:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDConfirmOKFixedInKind) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDConfirmOKFixedInKind(data) {
+	case FindingsPostFindingsIDConfirmOKFixedInKindFixed:
+		*s = FindingsPostFindingsIDConfirmOKFixedInKindFixed
+		return nil
+	case FindingsPostFindingsIDConfirmOKFixedInKindUpTo:
+		*s = FindingsPostFindingsIDConfirmOKFixedInKindUpTo
+		return nil
+	case FindingsPostFindingsIDConfirmOKFixedInKindEndListed:
+		*s = FindingsPostFindingsIDConfirmOKFixedInKindEndListed
+		return nil
+	case FindingsPostFindingsIDConfirmOKFixedInKindBranches:
+		*s = FindingsPostFindingsIDConfirmOKFixedInKindBranches
+		return nil
+	case FindingsPostFindingsIDConfirmOKFixedInKindDistro:
+		*s = FindingsPostFindingsIDConfirmOKFixedInKindDistro
+		return nil
+	case FindingsPostFindingsIDConfirmOKFixedInKindFeatureUpdate:
+		*s = FindingsPostFindingsIDConfirmOKFixedInKindFeatureUpdate
+		return nil
+	case FindingsPostFindingsIDConfirmOKFixedInKindEsu:
+		*s = FindingsPostFindingsIDConfirmOKFixedInKindEsu
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Mitigation INV-8: general compromise checks written by reviewed code, not a recommendation for the
+// CVE: never shown as "Vedette confirmed", never run by Vedette. The generated firewall configs and
+// the admin network field are gone.
+type FindingsPostFindingsIDConfirmOKHardening struct {
+	// General "Have I been hit?" checks for the software family.
+	Checks NilFindingsPostFindingsIDConfirmOKHardeningChecks `json:"checks"`
+	// The family the checks are written for ("Linux", "Network device", "General").
+	Family string `json:"family"`
+	// The software the checks are for, as the page names it.
+	Software string `json:"software"`
+}
+
+// GetChecks returns the value of Checks.
+func (s *FindingsPostFindingsIDConfirmOKHardening) GetChecks() NilFindingsPostFindingsIDConfirmOKHardeningChecks {
+	return s.Checks
+}
+
+// GetFamily returns the value of Family.
+func (s *FindingsPostFindingsIDConfirmOKHardening) GetFamily() string {
+	return s.Family
+}
+
+// GetSoftware returns the value of Software.
+func (s *FindingsPostFindingsIDConfirmOKHardening) GetSoftware() string {
+	return s.Software
+}
+
+// SetChecks sets the value of Checks.
+func (s *FindingsPostFindingsIDConfirmOKHardening) SetChecks(val NilFindingsPostFindingsIDConfirmOKHardeningChecks) {
+	s.Checks = val
+}
+
+// SetFamily sets the value of Family.
+func (s *FindingsPostFindingsIDConfirmOKHardening) SetFamily(val string) {
+	s.Family = val
+}
+
+// SetSoftware sets the value of Software.
+func (s *FindingsPostFindingsIDConfirmOKHardening) SetSoftware(val string) {
+	s.Software = val
+}
+
+type FindingsPostFindingsIDConfirmOKHardeningChecks struct {
+	IfFound    []string                                                       `json:"if_found"`
+	Indicators []FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItem `json:"indicators"`
+	Summary    string                                                         `json:"summary"`
+}
+
+// GetIfFound returns the value of IfFound.
+func (s *FindingsPostFindingsIDConfirmOKHardeningChecks) GetIfFound() []string {
+	return s.IfFound
+}
+
+// GetIndicators returns the value of Indicators.
+func (s *FindingsPostFindingsIDConfirmOKHardeningChecks) GetIndicators() []FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItem {
+	return s.Indicators
+}
+
+// GetSummary returns the value of Summary.
+func (s *FindingsPostFindingsIDConfirmOKHardeningChecks) GetSummary() string {
+	return s.Summary
+}
+
+// SetIfFound sets the value of IfFound.
+func (s *FindingsPostFindingsIDConfirmOKHardeningChecks) SetIfFound(val []string) {
+	s.IfFound = val
+}
+
+// SetIndicators sets the value of Indicators.
+func (s *FindingsPostFindingsIDConfirmOKHardeningChecks) SetIndicators(val []FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItem) {
+	s.Indicators = val
+}
+
+// SetSummary sets the value of Summary.
+func (s *FindingsPostFindingsIDConfirmOKHardeningChecks) SetSummary(val string) {
+	s.Summary = val
+}
+
+type FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItem struct {
+	Commands []FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemCommandsItem `json:"commands"`
+	Detail   string                                                                     `json:"detail"`
+	Kind     FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKind           `json:"kind"`
+	Title    string                                                                     `json:"title"`
+}
+
+// GetCommands returns the value of Commands.
+func (s *FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItem) GetCommands() []FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemCommandsItem {
+	return s.Commands
+}
+
+// GetDetail returns the value of Detail.
+func (s *FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItem) GetDetail() string {
+	return s.Detail
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItem) GetKind() FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKind {
+	return s.Kind
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCommands sets the value of Commands.
+func (s *FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItem) SetCommands(val []FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemCommandsItem) {
+	s.Commands = val
+}
+
+// SetDetail sets the value of Detail.
+func (s *FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItem) SetDetail(val string) {
+	s.Detail = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItem) SetKind(val FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKind) {
+	s.Kind = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItem) SetTitle(val string) {
+	s.Title = val
+}
+
+type FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemCommandsItem struct {
+	Code  string `json:"code"`
+	Label string `json:"label"`
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemCommandsItem) GetCode() string {
+	return s.Code
+}
+
+// GetLabel returns the value of Label.
+func (s *FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemCommandsItem) GetLabel() string {
+	return s.Label
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemCommandsItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetLabel sets the value of Label.
+func (s *FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemCommandsItem) SetLabel(val string) {
+	s.Label = val
+}
+
+type FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKind string
+
+const (
+	FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKindFile    FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKind = "file"
+	FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKindWeb     FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKind = "web"
+	FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKindLog     FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKind = "log"
+	FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKindProcess FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKind = "process"
+)
+
+// AllValues returns all FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKind values.
+func (FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKind) AllValues() []FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKind {
+	return []FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKind{
+		FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKindFile,
+		FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKindWeb,
+		FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKindLog,
+		FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKindProcess,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKindFile:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKindWeb:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKindLog:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKindProcess:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKind) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKind(data) {
+	case FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKindFile:
+		*s = FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKindFile
+		return nil
+	case FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKindWeb:
+		*s = FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKindWeb
+		return nil
+	case FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKindLog:
+		*s = FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKindLog
+		return nil
+	case FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKindProcess:
+		*s = FindingsPostFindingsIDConfirmOKHardeningChecksIndicatorsItemKindProcess
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDConfirmOKHistoryItem struct {
+	Action string    `json:"action"`
+	Note   OptString `json:"note"`
+	Ts     time.Time `json:"ts"`
+	User   string    `json:"user"`
+}
+
+// GetAction returns the value of Action.
+func (s *FindingsPostFindingsIDConfirmOKHistoryItem) GetAction() string {
+	return s.Action
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDConfirmOKHistoryItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetTs returns the value of Ts.
+func (s *FindingsPostFindingsIDConfirmOKHistoryItem) GetTs() time.Time {
+	return s.Ts
+}
+
+// GetUser returns the value of User.
+func (s *FindingsPostFindingsIDConfirmOKHistoryItem) GetUser() string {
+	return s.User
+}
+
+// SetAction sets the value of Action.
+func (s *FindingsPostFindingsIDConfirmOKHistoryItem) SetAction(val string) {
+	s.Action = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDConfirmOKHistoryItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetTs sets the value of Ts.
+func (s *FindingsPostFindingsIDConfirmOKHistoryItem) SetTs(val time.Time) {
+	s.Ts = val
+}
+
+// SetUser sets the value of User.
+func (s *FindingsPostFindingsIDConfirmOKHistoryItem) SetUser(val string) {
+	s.User = val
+}
+
+type FindingsPostFindingsIDConfirmOKKev struct {
+	DateAdded   string     `json:"date_added"`
+	Display     string     `json:"display"`
+	DueDate     NilString  `json:"due_date"`
+	Epss        NilFloat64 `json:"epss"`
+	HasTemplate bool       `json:"has_template"`
+	Links       []string   `json:"links"`
+	Name        string     `json:"name"`
+	Product     string     `json:"product"`
+	// The day the CVE was published (NVD `published`), never the day CISA added it; null when NVD has not
+	// answered for it (then it counts as recent: an older CVE is not a finding on a product-only match,
+	// and a missing date never closes a finding).
+	Published      NilDate `json:"published"`
+	Ransomware     bool    `json:"ransomware"`
+	RequiredAction string  `json:"required_action"`
+	// Which list the entry is on: texts and the source badge name it; an entry of VulnCheck KEV is never
+	// called CISA's.
+	Source OptFindingsPostFindingsIDConfirmOKKevSource `json:"source"`
+	Vendor string                                      `json:"vendor"`
+}
+
+// GetDateAdded returns the value of DateAdded.
+func (s *FindingsPostFindingsIDConfirmOKKev) GetDateAdded() string {
+	return s.DateAdded
+}
+
+// GetDisplay returns the value of Display.
+func (s *FindingsPostFindingsIDConfirmOKKev) GetDisplay() string {
+	return s.Display
+}
+
+// GetDueDate returns the value of DueDate.
+func (s *FindingsPostFindingsIDConfirmOKKev) GetDueDate() NilString {
+	return s.DueDate
+}
+
+// GetEpss returns the value of Epss.
+func (s *FindingsPostFindingsIDConfirmOKKev) GetEpss() NilFloat64 {
+	return s.Epss
+}
+
+// GetHasTemplate returns the value of HasTemplate.
+func (s *FindingsPostFindingsIDConfirmOKKev) GetHasTemplate() bool {
+	return s.HasTemplate
+}
+
+// GetLinks returns the value of Links.
+func (s *FindingsPostFindingsIDConfirmOKKev) GetLinks() []string {
+	return s.Links
+}
+
+// GetName returns the value of Name.
+func (s *FindingsPostFindingsIDConfirmOKKev) GetName() string {
+	return s.Name
+}
+
+// GetProduct returns the value of Product.
+func (s *FindingsPostFindingsIDConfirmOKKev) GetProduct() string {
+	return s.Product
+}
+
+// GetPublished returns the value of Published.
+func (s *FindingsPostFindingsIDConfirmOKKev) GetPublished() NilDate {
+	return s.Published
+}
+
+// GetRansomware returns the value of Ransomware.
+func (s *FindingsPostFindingsIDConfirmOKKev) GetRansomware() bool {
+	return s.Ransomware
+}
+
+// GetRequiredAction returns the value of RequiredAction.
+func (s *FindingsPostFindingsIDConfirmOKKev) GetRequiredAction() string {
+	return s.RequiredAction
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDConfirmOKKev) GetSource() OptFindingsPostFindingsIDConfirmOKKevSource {
+	return s.Source
+}
+
+// GetVendor returns the value of Vendor.
+func (s *FindingsPostFindingsIDConfirmOKKev) GetVendor() string {
+	return s.Vendor
+}
+
+// SetDateAdded sets the value of DateAdded.
+func (s *FindingsPostFindingsIDConfirmOKKev) SetDateAdded(val string) {
+	s.DateAdded = val
+}
+
+// SetDisplay sets the value of Display.
+func (s *FindingsPostFindingsIDConfirmOKKev) SetDisplay(val string) {
+	s.Display = val
+}
+
+// SetDueDate sets the value of DueDate.
+func (s *FindingsPostFindingsIDConfirmOKKev) SetDueDate(val NilString) {
+	s.DueDate = val
+}
+
+// SetEpss sets the value of Epss.
+func (s *FindingsPostFindingsIDConfirmOKKev) SetEpss(val NilFloat64) {
+	s.Epss = val
+}
+
+// SetHasTemplate sets the value of HasTemplate.
+func (s *FindingsPostFindingsIDConfirmOKKev) SetHasTemplate(val bool) {
+	s.HasTemplate = val
+}
+
+// SetLinks sets the value of Links.
+func (s *FindingsPostFindingsIDConfirmOKKev) SetLinks(val []string) {
+	s.Links = val
+}
+
+// SetName sets the value of Name.
+func (s *FindingsPostFindingsIDConfirmOKKev) SetName(val string) {
+	s.Name = val
+}
+
+// SetProduct sets the value of Product.
+func (s *FindingsPostFindingsIDConfirmOKKev) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetPublished sets the value of Published.
+func (s *FindingsPostFindingsIDConfirmOKKev) SetPublished(val NilDate) {
+	s.Published = val
+}
+
+// SetRansomware sets the value of Ransomware.
+func (s *FindingsPostFindingsIDConfirmOKKev) SetRansomware(val bool) {
+	s.Ransomware = val
+}
+
+// SetRequiredAction sets the value of RequiredAction.
+func (s *FindingsPostFindingsIDConfirmOKKev) SetRequiredAction(val string) {
+	s.RequiredAction = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDConfirmOKKev) SetSource(val OptFindingsPostFindingsIDConfirmOKKevSource) {
+	s.Source = val
+}
+
+// SetVendor sets the value of Vendor.
+func (s *FindingsPostFindingsIDConfirmOKKev) SetVendor(val string) {
+	s.Vendor = val
+}
+
+// Which list the entry is on: texts and the source badge name it; an entry of VulnCheck KEV is never
+// called CISA's.
+type FindingsPostFindingsIDConfirmOKKevSource string
+
+const (
+	FindingsPostFindingsIDConfirmOKKevSourceCisaKev      FindingsPostFindingsIDConfirmOKKevSource = "cisa-kev"
+	FindingsPostFindingsIDConfirmOKKevSourceVulncheckKev FindingsPostFindingsIDConfirmOKKevSource = "vulncheck-kev"
+)
+
+// AllValues returns all FindingsPostFindingsIDConfirmOKKevSource values.
+func (FindingsPostFindingsIDConfirmOKKevSource) AllValues() []FindingsPostFindingsIDConfirmOKKevSource {
+	return []FindingsPostFindingsIDConfirmOKKevSource{
+		FindingsPostFindingsIDConfirmOKKevSourceCisaKev,
+		FindingsPostFindingsIDConfirmOKKevSourceVulncheckKev,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDConfirmOKKevSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDConfirmOKKevSourceCisaKev:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKKevSourceVulncheckKev:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDConfirmOKKevSource) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDConfirmOKKevSource(data) {
+	case FindingsPostFindingsIDConfirmOKKevSourceCisaKev:
+		*s = FindingsPostFindingsIDConfirmOKKevSourceCisaKev
+		return nil
+	case FindingsPostFindingsIDConfirmOKKevSourceVulncheckKev:
+		*s = FindingsPostFindingsIDConfirmOKKevSourceVulncheckKev
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The version the box has for the matched software; the page says it and how a newer one reaches
+// Vedette, never "find which version".
+type FindingsPostFindingsIDConfirmOKKnownVersion struct {
+	// When that source last gave the version: the agent's last list, the last scan or SNMP read that
+	// returned it, or when a person entered it; null when not known. Not the same as the finding's
+	// last_seen.
+	SeenAt NilDateTime `json:"seen_at"`
+	// Display name of the software the finding was matched on.
+	Software string `json:"software"`
+	// Who gave the version: the device's agent, its answer to Vedette's SNMP read, its own statement on
+	// the network (LLDP), a network scan, or a person on the Devices page.
+	Source  FindingsPostFindingsIDConfirmOKKnownVersionSource `json:"source"`
+	Version string                                            `json:"version"`
+}
+
+// GetSeenAt returns the value of SeenAt.
+func (s *FindingsPostFindingsIDConfirmOKKnownVersion) GetSeenAt() NilDateTime {
+	return s.SeenAt
+}
+
+// GetSoftware returns the value of Software.
+func (s *FindingsPostFindingsIDConfirmOKKnownVersion) GetSoftware() string {
+	return s.Software
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDConfirmOKKnownVersion) GetSource() FindingsPostFindingsIDConfirmOKKnownVersionSource {
+	return s.Source
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsPostFindingsIDConfirmOKKnownVersion) GetVersion() string {
+	return s.Version
+}
+
+// SetSeenAt sets the value of SeenAt.
+func (s *FindingsPostFindingsIDConfirmOKKnownVersion) SetSeenAt(val NilDateTime) {
+	s.SeenAt = val
+}
+
+// SetSoftware sets the value of Software.
+func (s *FindingsPostFindingsIDConfirmOKKnownVersion) SetSoftware(val string) {
+	s.Software = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDConfirmOKKnownVersion) SetSource(val FindingsPostFindingsIDConfirmOKKnownVersionSource) {
+	s.Source = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsPostFindingsIDConfirmOKKnownVersion) SetVersion(val string) {
+	s.Version = val
+}
+
+// Who gave the version: the device's agent, its answer to Vedette's SNMP read, its own statement on
+// the network (LLDP), a network scan, or a person on the Devices page.
+type FindingsPostFindingsIDConfirmOKKnownVersionSource string
+
+const (
+	FindingsPostFindingsIDConfirmOKKnownVersionSourceAgent  FindingsPostFindingsIDConfirmOKKnownVersionSource = "agent"
+	FindingsPostFindingsIDConfirmOKKnownVersionSourceSnmp   FindingsPostFindingsIDConfirmOKKnownVersionSource = "snmp"
+	FindingsPostFindingsIDConfirmOKKnownVersionSourceStated FindingsPostFindingsIDConfirmOKKnownVersionSource = "stated"
+	FindingsPostFindingsIDConfirmOKKnownVersionSourceScan   FindingsPostFindingsIDConfirmOKKnownVersionSource = "scan"
+	FindingsPostFindingsIDConfirmOKKnownVersionSourceManual FindingsPostFindingsIDConfirmOKKnownVersionSource = "manual"
+)
+
+// AllValues returns all FindingsPostFindingsIDConfirmOKKnownVersionSource values.
+func (FindingsPostFindingsIDConfirmOKKnownVersionSource) AllValues() []FindingsPostFindingsIDConfirmOKKnownVersionSource {
+	return []FindingsPostFindingsIDConfirmOKKnownVersionSource{
+		FindingsPostFindingsIDConfirmOKKnownVersionSourceAgent,
+		FindingsPostFindingsIDConfirmOKKnownVersionSourceSnmp,
+		FindingsPostFindingsIDConfirmOKKnownVersionSourceStated,
+		FindingsPostFindingsIDConfirmOKKnownVersionSourceScan,
+		FindingsPostFindingsIDConfirmOKKnownVersionSourceManual,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDConfirmOKKnownVersionSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDConfirmOKKnownVersionSourceAgent:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKKnownVersionSourceSnmp:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKKnownVersionSourceStated:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKKnownVersionSourceScan:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKKnownVersionSourceManual:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDConfirmOKKnownVersionSource) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDConfirmOKKnownVersionSource(data) {
+	case FindingsPostFindingsIDConfirmOKKnownVersionSourceAgent:
+		*s = FindingsPostFindingsIDConfirmOKKnownVersionSourceAgent
+		return nil
+	case FindingsPostFindingsIDConfirmOKKnownVersionSourceSnmp:
+		*s = FindingsPostFindingsIDConfirmOKKnownVersionSourceSnmp
+		return nil
+	case FindingsPostFindingsIDConfirmOKKnownVersionSourceStated:
+		*s = FindingsPostFindingsIDConfirmOKKnownVersionSourceStated
+		return nil
+	case FindingsPostFindingsIDConfirmOKKnownVersionSourceScan:
+		*s = FindingsPostFindingsIDConfirmOKKnownVersionSourceScan
+		return nil
+	case FindingsPostFindingsIDConfirmOKKnownVersionSourceManual:
+		*s = FindingsPostFindingsIDConfirmOKKnownVersionSourceManual
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDConfirmOKPack struct {
+	Checklist   []string                                          `json:"checklist"`
+	ConfirmedAt time.Time                                         `json:"confirmed_at"`
+	ConfirmedBy string                                            `json:"confirmed_by"`
+	Cve         string                                            `json:"cve"`
+	DraftedWith string                                            `json:"drafted_with"`
+	Firewall    []FindingsPostFindingsIDConfirmOKPackFirewallItem `json:"firewall"`
+	Patch       FindingsPostFindingsIDConfirmOKPackPatch          `json:"patch"`
+	Sources     []FindingsPostFindingsIDConfirmOKPackSourcesItem  `json:"sources"`
+	Workaround  FindingsPostFindingsIDConfirmOKPackWorkaround     `json:"workaround"`
+}
+
+// GetChecklist returns the value of Checklist.
+func (s *FindingsPostFindingsIDConfirmOKPack) GetChecklist() []string {
+	return s.Checklist
+}
+
+// GetConfirmedAt returns the value of ConfirmedAt.
+func (s *FindingsPostFindingsIDConfirmOKPack) GetConfirmedAt() time.Time {
+	return s.ConfirmedAt
+}
+
+// GetConfirmedBy returns the value of ConfirmedBy.
+func (s *FindingsPostFindingsIDConfirmOKPack) GetConfirmedBy() string {
+	return s.ConfirmedBy
+}
+
+// GetCve returns the value of Cve.
+func (s *FindingsPostFindingsIDConfirmOKPack) GetCve() string {
+	return s.Cve
+}
+
+// GetDraftedWith returns the value of DraftedWith.
+func (s *FindingsPostFindingsIDConfirmOKPack) GetDraftedWith() string {
+	return s.DraftedWith
+}
+
+// GetFirewall returns the value of Firewall.
+func (s *FindingsPostFindingsIDConfirmOKPack) GetFirewall() []FindingsPostFindingsIDConfirmOKPackFirewallItem {
+	return s.Firewall
+}
+
+// GetPatch returns the value of Patch.
+func (s *FindingsPostFindingsIDConfirmOKPack) GetPatch() FindingsPostFindingsIDConfirmOKPackPatch {
+	return s.Patch
+}
+
+// GetSources returns the value of Sources.
+func (s *FindingsPostFindingsIDConfirmOKPack) GetSources() []FindingsPostFindingsIDConfirmOKPackSourcesItem {
+	return s.Sources
+}
+
+// GetWorkaround returns the value of Workaround.
+func (s *FindingsPostFindingsIDConfirmOKPack) GetWorkaround() FindingsPostFindingsIDConfirmOKPackWorkaround {
+	return s.Workaround
+}
+
+// SetChecklist sets the value of Checklist.
+func (s *FindingsPostFindingsIDConfirmOKPack) SetChecklist(val []string) {
+	s.Checklist = val
+}
+
+// SetConfirmedAt sets the value of ConfirmedAt.
+func (s *FindingsPostFindingsIDConfirmOKPack) SetConfirmedAt(val time.Time) {
+	s.ConfirmedAt = val
+}
+
+// SetConfirmedBy sets the value of ConfirmedBy.
+func (s *FindingsPostFindingsIDConfirmOKPack) SetConfirmedBy(val string) {
+	s.ConfirmedBy = val
+}
+
+// SetCve sets the value of Cve.
+func (s *FindingsPostFindingsIDConfirmOKPack) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetDraftedWith sets the value of DraftedWith.
+func (s *FindingsPostFindingsIDConfirmOKPack) SetDraftedWith(val string) {
+	s.DraftedWith = val
+}
+
+// SetFirewall sets the value of Firewall.
+func (s *FindingsPostFindingsIDConfirmOKPack) SetFirewall(val []FindingsPostFindingsIDConfirmOKPackFirewallItem) {
+	s.Firewall = val
+}
+
+// SetPatch sets the value of Patch.
+func (s *FindingsPostFindingsIDConfirmOKPack) SetPatch(val FindingsPostFindingsIDConfirmOKPackPatch) {
+	s.Patch = val
+}
+
+// SetSources sets the value of Sources.
+func (s *FindingsPostFindingsIDConfirmOKPack) SetSources(val []FindingsPostFindingsIDConfirmOKPackSourcesItem) {
+	s.Sources = val
+}
+
+// SetWorkaround sets the value of Workaround.
+func (s *FindingsPostFindingsIDConfirmOKPack) SetWorkaround(val FindingsPostFindingsIDConfirmOKPackWorkaround) {
+	s.Workaround = val
+}
+
+type FindingsPostFindingsIDConfirmOKPackFirewallItem struct {
+	Alternative OptFindingsPostFindingsIDConfirmOKPackFirewallItemAlternative `json:"alternative"`
+	// The user declared a device of this vendor in the inventory.
+	Detected bool                                                        `json:"detected"`
+	Intro    string                                                      `json:"intro"`
+	Label    string                                                      `json:"label"`
+	Plain    []string                                                    `json:"plain"`
+	Steps    []FindingsPostFindingsIDConfirmOKPackFirewallItemStepsItem  `json:"steps"`
+	Undo     []FindingsPostFindingsIDConfirmOKPackFirewallItemUndoItem   `json:"undo"`
+	Vendor   FindingsPostFindingsIDConfirmOKPackFirewallItemVendor       `json:"vendor"`
+	Verify   []FindingsPostFindingsIDConfirmOKPackFirewallItemVerifyItem `json:"verify"`
+}
+
+// GetAlternative returns the value of Alternative.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItem) GetAlternative() OptFindingsPostFindingsIDConfirmOKPackFirewallItemAlternative {
+	return s.Alternative
+}
+
+// GetDetected returns the value of Detected.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItem) GetDetected() bool {
+	return s.Detected
+}
+
+// GetIntro returns the value of Intro.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItem) GetIntro() string {
+	return s.Intro
+}
+
+// GetLabel returns the value of Label.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItem) GetLabel() string {
+	return s.Label
+}
+
+// GetPlain returns the value of Plain.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItem) GetPlain() []string {
+	return s.Plain
+}
+
+// GetSteps returns the value of Steps.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItem) GetSteps() []FindingsPostFindingsIDConfirmOKPackFirewallItemStepsItem {
+	return s.Steps
+}
+
+// GetUndo returns the value of Undo.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItem) GetUndo() []FindingsPostFindingsIDConfirmOKPackFirewallItemUndoItem {
+	return s.Undo
+}
+
+// GetVendor returns the value of Vendor.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItem) GetVendor() FindingsPostFindingsIDConfirmOKPackFirewallItemVendor {
+	return s.Vendor
+}
+
+// GetVerify returns the value of Verify.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItem) GetVerify() []FindingsPostFindingsIDConfirmOKPackFirewallItemVerifyItem {
+	return s.Verify
+}
+
+// SetAlternative sets the value of Alternative.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItem) SetAlternative(val OptFindingsPostFindingsIDConfirmOKPackFirewallItemAlternative) {
+	s.Alternative = val
+}
+
+// SetDetected sets the value of Detected.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItem) SetDetected(val bool) {
+	s.Detected = val
+}
+
+// SetIntro sets the value of Intro.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItem) SetIntro(val string) {
+	s.Intro = val
+}
+
+// SetLabel sets the value of Label.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItem) SetLabel(val string) {
+	s.Label = val
+}
+
+// SetPlain sets the value of Plain.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItem) SetPlain(val []string) {
+	s.Plain = val
+}
+
+// SetSteps sets the value of Steps.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItem) SetSteps(val []FindingsPostFindingsIDConfirmOKPackFirewallItemStepsItem) {
+	s.Steps = val
+}
+
+// SetUndo sets the value of Undo.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItem) SetUndo(val []FindingsPostFindingsIDConfirmOKPackFirewallItemUndoItem) {
+	s.Undo = val
+}
+
+// SetVendor sets the value of Vendor.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItem) SetVendor(val FindingsPostFindingsIDConfirmOKPackFirewallItemVendor) {
+	s.Vendor = val
+}
+
+// SetVerify sets the value of Verify.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItem) SetVerify(val []FindingsPostFindingsIDConfirmOKPackFirewallItemVerifyItem) {
+	s.Verify = val
+}
+
+type FindingsPostFindingsIDConfirmOKPackFirewallItemAlternative struct {
+	Intro string                                                                `json:"intro"`
+	Steps []FindingsPostFindingsIDConfirmOKPackFirewallItemAlternativeStepsItem `json:"steps"`
+	Title string                                                                `json:"title"`
+}
+
+// GetIntro returns the value of Intro.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemAlternative) GetIntro() string {
+	return s.Intro
+}
+
+// GetSteps returns the value of Steps.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemAlternative) GetSteps() []FindingsPostFindingsIDConfirmOKPackFirewallItemAlternativeStepsItem {
+	return s.Steps
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemAlternative) GetTitle() string {
+	return s.Title
+}
+
+// SetIntro sets the value of Intro.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemAlternative) SetIntro(val string) {
+	s.Intro = val
+}
+
+// SetSteps sets the value of Steps.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemAlternative) SetSteps(val []FindingsPostFindingsIDConfirmOKPackFirewallItemAlternativeStepsItem) {
+	s.Steps = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemAlternative) SetTitle(val string) {
+	s.Title = val
+}
+
+type FindingsPostFindingsIDConfirmOKPackFirewallItemAlternativeStepsItem struct {
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
+	// Side effect that must be stated before the user pastes the command.
+	SideEffect OptString `json:"side_effect"`
+	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemAlternativeStepsItem) GetCheck() []string {
+	return s.Check
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemAlternativeStepsItem) GetCode() string {
+	return s.Code
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemAlternativeStepsItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemAlternativeStepsItem) GetSideEffect() OptString {
+	return s.SideEffect
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemAlternativeStepsItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemAlternativeStepsItem) SetCheck(val []string) {
+	s.Check = val
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemAlternativeStepsItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemAlternativeStepsItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemAlternativeStepsItem) SetSideEffect(val OptString) {
+	s.SideEffect = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemAlternativeStepsItem) SetTitle(val string) {
+	s.Title = val
+}
+
+type FindingsPostFindingsIDConfirmOKPackFirewallItemStepsItem struct {
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
+	// Side effect that must be stated before the user pastes the command.
+	SideEffect OptString `json:"side_effect"`
+	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemStepsItem) GetCheck() []string {
+	return s.Check
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemStepsItem) GetCode() string {
+	return s.Code
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemStepsItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemStepsItem) GetSideEffect() OptString {
+	return s.SideEffect
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemStepsItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemStepsItem) SetCheck(val []string) {
+	s.Check = val
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemStepsItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemStepsItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemStepsItem) SetSideEffect(val OptString) {
+	s.SideEffect = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemStepsItem) SetTitle(val string) {
+	s.Title = val
+}
+
+type FindingsPostFindingsIDConfirmOKPackFirewallItemUndoItem struct {
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
+	// Side effect that must be stated before the user pastes the command.
+	SideEffect OptString `json:"side_effect"`
+	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemUndoItem) GetCheck() []string {
+	return s.Check
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemUndoItem) GetCode() string {
+	return s.Code
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemUndoItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemUndoItem) GetSideEffect() OptString {
+	return s.SideEffect
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemUndoItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemUndoItem) SetCheck(val []string) {
+	s.Check = val
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemUndoItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemUndoItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemUndoItem) SetSideEffect(val OptString) {
+	s.SideEffect = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemUndoItem) SetTitle(val string) {
+	s.Title = val
+}
+
+type FindingsPostFindingsIDConfirmOKPackFirewallItemVendor string
+
+const (
+	FindingsPostFindingsIDConfirmOKPackFirewallItemVendorFortigate FindingsPostFindingsIDConfirmOKPackFirewallItemVendor = "fortigate"
+	FindingsPostFindingsIDConfirmOKPackFirewallItemVendorMikrotik  FindingsPostFindingsIDConfirmOKPackFirewallItemVendor = "mikrotik"
+	FindingsPostFindingsIDConfirmOKPackFirewallItemVendorGeneric   FindingsPostFindingsIDConfirmOKPackFirewallItemVendor = "generic"
+)
+
+// AllValues returns all FindingsPostFindingsIDConfirmOKPackFirewallItemVendor values.
+func (FindingsPostFindingsIDConfirmOKPackFirewallItemVendor) AllValues() []FindingsPostFindingsIDConfirmOKPackFirewallItemVendor {
+	return []FindingsPostFindingsIDConfirmOKPackFirewallItemVendor{
+		FindingsPostFindingsIDConfirmOKPackFirewallItemVendorFortigate,
+		FindingsPostFindingsIDConfirmOKPackFirewallItemVendorMikrotik,
+		FindingsPostFindingsIDConfirmOKPackFirewallItemVendorGeneric,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDConfirmOKPackFirewallItemVendor) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDConfirmOKPackFirewallItemVendorFortigate:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKPackFirewallItemVendorMikrotik:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKPackFirewallItemVendorGeneric:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemVendor) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDConfirmOKPackFirewallItemVendor(data) {
+	case FindingsPostFindingsIDConfirmOKPackFirewallItemVendorFortigate:
+		*s = FindingsPostFindingsIDConfirmOKPackFirewallItemVendorFortigate
+		return nil
+	case FindingsPostFindingsIDConfirmOKPackFirewallItemVendorMikrotik:
+		*s = FindingsPostFindingsIDConfirmOKPackFirewallItemVendorMikrotik
+		return nil
+	case FindingsPostFindingsIDConfirmOKPackFirewallItemVendorGeneric:
+		*s = FindingsPostFindingsIDConfirmOKPackFirewallItemVendorGeneric
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDConfirmOKPackFirewallItemVerifyItem struct {
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
+	// Side effect that must be stated before the user pastes the command.
+	SideEffect OptString `json:"side_effect"`
+	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemVerifyItem) GetCheck() []string {
+	return s.Check
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemVerifyItem) GetCode() string {
+	return s.Code
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemVerifyItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemVerifyItem) GetSideEffect() OptString {
+	return s.SideEffect
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemVerifyItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemVerifyItem) SetCheck(val []string) {
+	s.Check = val
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemVerifyItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemVerifyItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemVerifyItem) SetSideEffect(val OptString) {
+	s.SideEffect = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKPackFirewallItemVerifyItem) SetTitle(val string) {
+	s.Title = val
+}
+
+type FindingsPostFindingsIDConfirmOKPackPatch struct {
+	Fixed      string   `json:"fixed"`
+	SideEffect string   `json:"side_effect"`
+	Steps      []string `json:"steps"`
+	Summary    string   `json:"summary"`
+	URL        string   `json:"url"`
+}
+
+// GetFixed returns the value of Fixed.
+func (s *FindingsPostFindingsIDConfirmOKPackPatch) GetFixed() string {
+	return s.Fixed
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDConfirmOKPackPatch) GetSideEffect() string {
+	return s.SideEffect
+}
+
+// GetSteps returns the value of Steps.
+func (s *FindingsPostFindingsIDConfirmOKPackPatch) GetSteps() []string {
+	return s.Steps
+}
+
+// GetSummary returns the value of Summary.
+func (s *FindingsPostFindingsIDConfirmOKPackPatch) GetSummary() string {
+	return s.Summary
+}
+
+// GetURL returns the value of URL.
+func (s *FindingsPostFindingsIDConfirmOKPackPatch) GetURL() string {
+	return s.URL
+}
+
+// SetFixed sets the value of Fixed.
+func (s *FindingsPostFindingsIDConfirmOKPackPatch) SetFixed(val string) {
+	s.Fixed = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDConfirmOKPackPatch) SetSideEffect(val string) {
+	s.SideEffect = val
+}
+
+// SetSteps sets the value of Steps.
+func (s *FindingsPostFindingsIDConfirmOKPackPatch) SetSteps(val []string) {
+	s.Steps = val
+}
+
+// SetSummary sets the value of Summary.
+func (s *FindingsPostFindingsIDConfirmOKPackPatch) SetSummary(val string) {
+	s.Summary = val
+}
+
+// SetURL sets the value of URL.
+func (s *FindingsPostFindingsIDConfirmOKPackPatch) SetURL(val string) {
+	s.URL = val
+}
+
+type FindingsPostFindingsIDConfirmOKPackSourcesItem struct {
+	Title string `json:"title"`
+	URL   string `json:"url"`
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKPackSourcesItem) GetTitle() string {
+	return s.Title
+}
+
+// GetURL returns the value of URL.
+func (s *FindingsPostFindingsIDConfirmOKPackSourcesItem) GetURL() string {
+	return s.URL
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKPackSourcesItem) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetURL sets the value of URL.
+func (s *FindingsPostFindingsIDConfirmOKPackSourcesItem) SetURL(val string) {
+	s.URL = val
+}
+
+type FindingsPostFindingsIDConfirmOKPackWorkaround struct {
+	SideEffect string   `json:"side_effect"`
+	Steps      []string `json:"steps"`
+	Summary    string   `json:"summary"`
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDConfirmOKPackWorkaround) GetSideEffect() string {
+	return s.SideEffect
+}
+
+// GetSteps returns the value of Steps.
+func (s *FindingsPostFindingsIDConfirmOKPackWorkaround) GetSteps() []string {
+	return s.Steps
+}
+
+// GetSummary returns the value of Summary.
+func (s *FindingsPostFindingsIDConfirmOKPackWorkaround) GetSummary() string {
+	return s.Summary
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDConfirmOKPackWorkaround) SetSideEffect(val string) {
+	s.SideEffect = val
+}
+
+// SetSteps sets the value of Steps.
+func (s *FindingsPostFindingsIDConfirmOKPackWorkaround) SetSteps(val []string) {
+	s.Steps = val
+}
+
+// SetSummary sets the value of Summary.
+func (s *FindingsPostFindingsIDConfirmOKPackWorkaround) SetSummary(val string) {
+	s.Summary = val
+}
+
+type FindingsPostFindingsIDConfirmOKRecheck struct {
+	Code  OptString `json:"code"`
+	Steps []string  `json:"steps"`
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDConfirmOKRecheck) GetCode() OptString {
+	return s.Code
+}
+
+// GetSteps returns the value of Steps.
+func (s *FindingsPostFindingsIDConfirmOKRecheck) GetSteps() []string {
+	return s.Steps
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDConfirmOKRecheck) SetCode(val OptString) {
+	s.Code = val
+}
+
+// SetSteps sets the value of Steps.
+func (s *FindingsPostFindingsIDConfirmOKRecheck) SetSteps(val []string) {
+	s.Steps = val
+}
+
+type FindingsPostFindingsIDConfirmOKSeverity string
+
+const (
+	FindingsPostFindingsIDConfirmOKSeverityCritical FindingsPostFindingsIDConfirmOKSeverity = "critical"
+	FindingsPostFindingsIDConfirmOKSeverityHigh     FindingsPostFindingsIDConfirmOKSeverity = "high"
+	FindingsPostFindingsIDConfirmOKSeverityMedium   FindingsPostFindingsIDConfirmOKSeverity = "medium"
+	FindingsPostFindingsIDConfirmOKSeverityLow      FindingsPostFindingsIDConfirmOKSeverity = "low"
+	FindingsPostFindingsIDConfirmOKSeverityInfo     FindingsPostFindingsIDConfirmOKSeverity = "info"
+)
+
+// AllValues returns all FindingsPostFindingsIDConfirmOKSeverity values.
+func (FindingsPostFindingsIDConfirmOKSeverity) AllValues() []FindingsPostFindingsIDConfirmOKSeverity {
+	return []FindingsPostFindingsIDConfirmOKSeverity{
+		FindingsPostFindingsIDConfirmOKSeverityCritical,
+		FindingsPostFindingsIDConfirmOKSeverityHigh,
+		FindingsPostFindingsIDConfirmOKSeverityMedium,
+		FindingsPostFindingsIDConfirmOKSeverityLow,
+		FindingsPostFindingsIDConfirmOKSeverityInfo,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDConfirmOKSeverity) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDConfirmOKSeverityCritical:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKSeverityHigh:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKSeverityMedium:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKSeverityLow:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKSeverityInfo:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDConfirmOKSeverity) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDConfirmOKSeverity(data) {
+	case FindingsPostFindingsIDConfirmOKSeverityCritical:
+		*s = FindingsPostFindingsIDConfirmOKSeverityCritical
+		return nil
+	case FindingsPostFindingsIDConfirmOKSeverityHigh:
+		*s = FindingsPostFindingsIDConfirmOKSeverityHigh
+		return nil
+	case FindingsPostFindingsIDConfirmOKSeverityMedium:
+		*s = FindingsPostFindingsIDConfirmOKSeverityMedium
+		return nil
+	case FindingsPostFindingsIDConfirmOKSeverityLow:
+		*s = FindingsPostFindingsIDConfirmOKSeverityLow
+		return nil
+	case FindingsPostFindingsIDConfirmOKSeverityInfo:
+		*s = FindingsPostFindingsIDConfirmOKSeverityInfo
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDConfirmOKStatus string
+
+const (
+	FindingsPostFindingsIDConfirmOKStatusConfirmed     FindingsPostFindingsIDConfirmOKStatus = "confirmed"
+	FindingsPostFindingsIDConfirmOKStatusSuspected     FindingsPostFindingsIDConfirmOKStatus = "suspected"
+	FindingsPostFindingsIDConfirmOKStatusMitigated     FindingsPostFindingsIDConfirmOKStatus = "mitigated"
+	FindingsPostFindingsIDConfirmOKStatusPatched       FindingsPostFindingsIDConfirmOKStatus = "patched"
+	FindingsPostFindingsIDConfirmOKStatusFalsePositive FindingsPostFindingsIDConfirmOKStatus = "false_positive"
+	FindingsPostFindingsIDConfirmOKStatusNotRelevant   FindingsPostFindingsIDConfirmOKStatus = "not_relevant"
+	FindingsPostFindingsIDConfirmOKStatusRiskAccepted  FindingsPostFindingsIDConfirmOKStatus = "risk_accepted"
+)
+
+// AllValues returns all FindingsPostFindingsIDConfirmOKStatus values.
+func (FindingsPostFindingsIDConfirmOKStatus) AllValues() []FindingsPostFindingsIDConfirmOKStatus {
+	return []FindingsPostFindingsIDConfirmOKStatus{
+		FindingsPostFindingsIDConfirmOKStatusConfirmed,
+		FindingsPostFindingsIDConfirmOKStatusSuspected,
+		FindingsPostFindingsIDConfirmOKStatusMitigated,
+		FindingsPostFindingsIDConfirmOKStatusPatched,
+		FindingsPostFindingsIDConfirmOKStatusFalsePositive,
+		FindingsPostFindingsIDConfirmOKStatusNotRelevant,
+		FindingsPostFindingsIDConfirmOKStatusRiskAccepted,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDConfirmOKStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDConfirmOKStatusConfirmed:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKStatusSuspected:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKStatusMitigated:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKStatusPatched:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKStatusFalsePositive:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKStatusNotRelevant:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKStatusRiskAccepted:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDConfirmOKStatus) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDConfirmOKStatus(data) {
+	case FindingsPostFindingsIDConfirmOKStatusConfirmed:
+		*s = FindingsPostFindingsIDConfirmOKStatusConfirmed
+		return nil
+	case FindingsPostFindingsIDConfirmOKStatusSuspected:
+		*s = FindingsPostFindingsIDConfirmOKStatusSuspected
+		return nil
+	case FindingsPostFindingsIDConfirmOKStatusMitigated:
+		*s = FindingsPostFindingsIDConfirmOKStatusMitigated
+		return nil
+	case FindingsPostFindingsIDConfirmOKStatusPatched:
+		*s = FindingsPostFindingsIDConfirmOKStatusPatched
+		return nil
+	case FindingsPostFindingsIDConfirmOKStatusFalsePositive:
+		*s = FindingsPostFindingsIDConfirmOKStatusFalsePositive
+		return nil
+	case FindingsPostFindingsIDConfirmOKStatusNotRelevant:
+		*s = FindingsPostFindingsIDConfirmOKStatusNotRelevant
+		return nil
+	case FindingsPostFindingsIDConfirmOKStatusRiskAccepted:
+		*s = FindingsPostFindingsIDConfirmOKStatusRiskAccepted
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDConfirmReq struct {
+	Note string `json:"note"`
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDConfirmReq) GetNote() string {
+	return s.Note
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDConfirmReq) SetNote(val string) {
+	s.Note = val
+}
+
 type FindingsPostFindingsIDStatusOK struct {
 	// Risk_accepted only: the last day of the acceptance (UTC); the finding reopens by itself after it.
 	AcceptedUntil NilDate                          `json:"accepted_until"`
@@ -89227,8 +96396,8 @@ type FindingsPostFindingsIDStatusOK struct {
 	Applied     []FindingsPostFindingsIDStatusOKAppliedItem `json:"applied"`
 	Asset       NilFindingsPostFindingsIDStatusOKAsset      `json:"asset"`
 	AssetID     string                                      `json:"asset_id"`
-	// Scan = confirmed by a scan template; version = suspected by version; product = only the product
-	// matches.
+	// Scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version
+	// = suspected by version; product = only the product matches.
 	Basis      FindingsPostFindingsIDStatusOKBasis         `json:"basis"`
 	Compromise NilFindingsPostFindingsIDStatusOKCompromise `json:"compromise"`
 	Confidence float64                                     `json:"confidence"`
@@ -89277,6 +96446,10 @@ type FindingsPostFindingsIDStatusOK struct {
 	// reaches an older finding. Never guessed from the product.
 	SoftwareID string                               `json:"software_id"`
 	Status     FindingsPostFindingsIDStatusOKStatus `json:"status"`
+	// A suspected finding only: why it is not confirmed and what would confirm it, in words (who stated
+	// the version, whether a vulnerability check exists for the CVE and whether the scan reaches the
+	// device); null for any other status.
+	SuspectedWhy NilString `json:"suspected_why"`
 }
 
 // GetAcceptedUntil returns the value of AcceptedUntil.
@@ -89434,6 +96607,11 @@ func (s *FindingsPostFindingsIDStatusOK) GetStatus() FindingsPostFindingsIDStatu
 	return s.Status
 }
 
+// GetSuspectedWhy returns the value of SuspectedWhy.
+func (s *FindingsPostFindingsIDStatusOK) GetSuspectedWhy() NilString {
+	return s.SuspectedWhy
+}
+
 // SetAcceptedUntil sets the value of AcceptedUntil.
 func (s *FindingsPostFindingsIDStatusOK) SetAcceptedUntil(val NilDate) {
 	s.AcceptedUntil = val
@@ -89587,6 +96765,11 @@ func (s *FindingsPostFindingsIDStatusOK) SetSoftwareID(val string) {
 // SetStatus sets the value of Status.
 func (s *FindingsPostFindingsIDStatusOK) SetStatus(val FindingsPostFindingsIDStatusOKStatus) {
 	s.Status = val
+}
+
+// SetSuspectedWhy sets the value of SuspectedWhy.
+func (s *FindingsPostFindingsIDStatusOK) SetSuspectedWhy(val NilString) {
+	s.SuspectedWhy = val
 }
 
 type FindingsPostFindingsIDStatusOKAi struct {
@@ -90996,14 +98179,15 @@ func (s *FindingsPostFindingsIDStatusOKAssetKind) UnmarshalText(data []byte) err
 	}
 }
 
-// Scan = confirmed by a scan template; version = suspected by version; product = only the product
-// matches.
+// Scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version
+// = suspected by version; product = only the product matches.
 type FindingsPostFindingsIDStatusOKBasis string
 
 const (
 	FindingsPostFindingsIDStatusOKBasisScan    FindingsPostFindingsIDStatusOKBasis = "scan"
 	FindingsPostFindingsIDStatusOKBasisVersion FindingsPostFindingsIDStatusOKBasis = "version"
 	FindingsPostFindingsIDStatusOKBasisProduct FindingsPostFindingsIDStatusOKBasis = "product"
+	FindingsPostFindingsIDStatusOKBasisPerson  FindingsPostFindingsIDStatusOKBasis = "person"
 )
 
 // AllValues returns all FindingsPostFindingsIDStatusOKBasis values.
@@ -91012,6 +98196,7 @@ func (FindingsPostFindingsIDStatusOKBasis) AllValues() []FindingsPostFindingsIDS
 		FindingsPostFindingsIDStatusOKBasisScan,
 		FindingsPostFindingsIDStatusOKBasisVersion,
 		FindingsPostFindingsIDStatusOKBasisProduct,
+		FindingsPostFindingsIDStatusOKBasisPerson,
 	}
 }
 
@@ -91023,6 +98208,8 @@ func (s FindingsPostFindingsIDStatusOKBasis) MarshalText() ([]byte, error) {
 	case FindingsPostFindingsIDStatusOKBasisVersion:
 		return []byte(s), nil
 	case FindingsPostFindingsIDStatusOKBasisProduct:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKBasisPerson:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -91040,6 +98227,9 @@ func (s *FindingsPostFindingsIDStatusOKBasis) UnmarshalText(data []byte) error {
 		return nil
 	case FindingsPostFindingsIDStatusOKBasisProduct:
 		*s = FindingsPostFindingsIDStatusOKBasisProduct
+		return nil
+	case FindingsPostFindingsIDStatusOKBasisPerson:
+		*s = FindingsPostFindingsIDStatusOKBasisPerson
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -93366,6 +100556,4048 @@ func (s *FindingsPostFindingsIDStatusReqAction) UnmarshalText(data []byte) error
 		return nil
 	case FindingsPostFindingsIDStatusReqActionReopen:
 		*s = FindingsPostFindingsIDStatusReqActionReopen
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDUnconfirmOK struct {
+	// Risk_accepted only: the last day of the acceptance (UTC); the finding reopens by itself after it.
+	AcceptedUntil NilDate                             `json:"accepted_until"`
+	Ai            FindingsPostFindingsIDUnconfirmOKAi `json:"ai"`
+	// Whether an AI profile is assigned and allowed for each job.
+	AiAvailable FindingsPostFindingsIDUnconfirmOKAiAvailable   `json:"ai_available"`
+	Applied     []FindingsPostFindingsIDUnconfirmOKAppliedItem `json:"applied"`
+	Asset       NilFindingsPostFindingsIDUnconfirmOKAsset      `json:"asset"`
+	AssetID     string                                         `json:"asset_id"`
+	// Scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version
+	// = suspected by version; product = only the product matches.
+	Basis      FindingsPostFindingsIDUnconfirmOKBasis         `json:"basis"`
+	Compromise NilFindingsPostFindingsIDUnconfirmOKCompromise `json:"compromise"`
+	Confidence float64                                        `json:"confidence"`
+	Cve        string                                         `json:"cve"`
+	// Null = no CVSS score known: the pages say "No score", never 0.
+	Cvss     NilFindingsPostFindingsIDUnconfirmOKCvss     `json:"cvss"`
+	Evidence NilFindingsPostFindingsIDUnconfirmOKEvidence `json:"evidence"`
+	// When Vedette first matched this vulnerability to the device.
+	FirstSeen time.Time `json:"first_seen"`
+	// GET /findings only, open findings: the update that fixes it with others; null when there is none to
+	// name.
+	Fix OptNilFindingsPostFindingsIDUnconfirmOKFix `json:"fix"`
+	// The release that fixes this finding on this device, from the NVD affected versions; null = NVD gives
+	// none, the page shows CISA and the vendor advisory only.
+	FixedIn NilFindingsPostFindingsIDUnconfirmOKFixedIn `json:"fixed_in"`
+	// Null when the confirmed pack has its own compromise signs, or mitigation is off.
+	Hardening NilFindingsPostFindingsIDUnconfirmOKHardening  `json:"hardening"`
+	History   []FindingsPostFindingsIDUnconfirmOKHistoryItem `json:"history"`
+	ID        string                                         `json:"id"`
+	// Read from KEV, not from the project recommendation pack.
+	Kev NilFindingsPostFindingsIDUnconfirmOKKev `json:"kev"`
+	// Null when the matched software has no version or its source is not known.
+	KnownVersion NilFindingsPostFindingsIDUnconfirmOKKnownVersion `json:"known_version"`
+	// When Vedette last matched it: each re-match (after a change to the device's software, and every
+	// hour) or scan that still finds it moves it. Not when the device or its software was last seen;
+	// known_version.seen_at says when the version was reported.
+	LastSeen time.Time `json:"last_seen"`
+	// Null = no recommendation confirmed by Vedette maintainers yet.
+	Pack NilFindingsPostFindingsIDUnconfirmOKPack `json:"pack"`
+	// A finding closed by proof (resolution_reason set): the version or package release the matcher
+	// compared to rule it out, as the device row gives it; null when the closure compared none (name only,
+	// age, an open platform question, another platform) or it is not closed by Vedette. An entry a person
+	// typed closed it only when this equals the entry.
+	ProvedVersion  NilString                                `json:"proved_version"`
+	Recheck        FindingsPostFindingsIDUnconfirmOKRecheck `json:"recheck"`
+	ResolutionNote NilString                                `json:"resolution_note"`
+	// Not_affected_version when Vedette closed the finding by itself (a matcher proof, or one of its rules
+	// that compares no version); null for a person's own action and for open findings. A string, not an
+	// enum: a new reason must not break the list.
+	ResolutionReason NilString                                 `json:"resolution_reason"`
+	ResolvedAt       NilDateTime                               `json:"resolved_at"`
+	ResolvedBy       NilString                                 `json:"resolved_by"`
+	Severity         FindingsPostFindingsIDUnconfirmOKSeverity `json:"severity"`
+	// The device's software row the matcher matched the finding on (the id FindingRow.fix.group and
+	// ToFixAction use), stored when it opens, touches or closes the finding; "" until the next match
+	// reaches an older finding. Never guessed from the product.
+	SoftwareID string                                  `json:"software_id"`
+	Status     FindingsPostFindingsIDUnconfirmOKStatus `json:"status"`
+	// A suspected finding only: why it is not confirmed and what would confirm it, in words (who stated
+	// the version, whether a vulnerability check exists for the CVE and whether the scan reaches the
+	// device); null for any other status.
+	SuspectedWhy NilString `json:"suspected_why"`
+}
+
+// GetAcceptedUntil returns the value of AcceptedUntil.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetAcceptedUntil() NilDate {
+	return s.AcceptedUntil
+}
+
+// GetAi returns the value of Ai.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetAi() FindingsPostFindingsIDUnconfirmOKAi {
+	return s.Ai
+}
+
+// GetAiAvailable returns the value of AiAvailable.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetAiAvailable() FindingsPostFindingsIDUnconfirmOKAiAvailable {
+	return s.AiAvailable
+}
+
+// GetApplied returns the value of Applied.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetApplied() []FindingsPostFindingsIDUnconfirmOKAppliedItem {
+	return s.Applied
+}
+
+// GetAsset returns the value of Asset.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetAsset() NilFindingsPostFindingsIDUnconfirmOKAsset {
+	return s.Asset
+}
+
+// GetAssetID returns the value of AssetID.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetAssetID() string {
+	return s.AssetID
+}
+
+// GetBasis returns the value of Basis.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetBasis() FindingsPostFindingsIDUnconfirmOKBasis {
+	return s.Basis
+}
+
+// GetCompromise returns the value of Compromise.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetCompromise() NilFindingsPostFindingsIDUnconfirmOKCompromise {
+	return s.Compromise
+}
+
+// GetConfidence returns the value of Confidence.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetConfidence() float64 {
+	return s.Confidence
+}
+
+// GetCve returns the value of Cve.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetCve() string {
+	return s.Cve
+}
+
+// GetCvss returns the value of Cvss.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetCvss() NilFindingsPostFindingsIDUnconfirmOKCvss {
+	return s.Cvss
+}
+
+// GetEvidence returns the value of Evidence.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetEvidence() NilFindingsPostFindingsIDUnconfirmOKEvidence {
+	return s.Evidence
+}
+
+// GetFirstSeen returns the value of FirstSeen.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetFirstSeen() time.Time {
+	return s.FirstSeen
+}
+
+// GetFix returns the value of Fix.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetFix() OptNilFindingsPostFindingsIDUnconfirmOKFix {
+	return s.Fix
+}
+
+// GetFixedIn returns the value of FixedIn.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetFixedIn() NilFindingsPostFindingsIDUnconfirmOKFixedIn {
+	return s.FixedIn
+}
+
+// GetHardening returns the value of Hardening.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetHardening() NilFindingsPostFindingsIDUnconfirmOKHardening {
+	return s.Hardening
+}
+
+// GetHistory returns the value of History.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetHistory() []FindingsPostFindingsIDUnconfirmOKHistoryItem {
+	return s.History
+}
+
+// GetID returns the value of ID.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetID() string {
+	return s.ID
+}
+
+// GetKev returns the value of Kev.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetKev() NilFindingsPostFindingsIDUnconfirmOKKev {
+	return s.Kev
+}
+
+// GetKnownVersion returns the value of KnownVersion.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetKnownVersion() NilFindingsPostFindingsIDUnconfirmOKKnownVersion {
+	return s.KnownVersion
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetLastSeen() time.Time {
+	return s.LastSeen
+}
+
+// GetPack returns the value of Pack.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetPack() NilFindingsPostFindingsIDUnconfirmOKPack {
+	return s.Pack
+}
+
+// GetProvedVersion returns the value of ProvedVersion.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetProvedVersion() NilString {
+	return s.ProvedVersion
+}
+
+// GetRecheck returns the value of Recheck.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetRecheck() FindingsPostFindingsIDUnconfirmOKRecheck {
+	return s.Recheck
+}
+
+// GetResolutionNote returns the value of ResolutionNote.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetResolutionNote() NilString {
+	return s.ResolutionNote
+}
+
+// GetResolutionReason returns the value of ResolutionReason.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetResolutionReason() NilString {
+	return s.ResolutionReason
+}
+
+// GetResolvedAt returns the value of ResolvedAt.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetResolvedAt() NilDateTime {
+	return s.ResolvedAt
+}
+
+// GetResolvedBy returns the value of ResolvedBy.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetResolvedBy() NilString {
+	return s.ResolvedBy
+}
+
+// GetSeverity returns the value of Severity.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetSeverity() FindingsPostFindingsIDUnconfirmOKSeverity {
+	return s.Severity
+}
+
+// GetSoftwareID returns the value of SoftwareID.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetSoftwareID() string {
+	return s.SoftwareID
+}
+
+// GetStatus returns the value of Status.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetStatus() FindingsPostFindingsIDUnconfirmOKStatus {
+	return s.Status
+}
+
+// GetSuspectedWhy returns the value of SuspectedWhy.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetSuspectedWhy() NilString {
+	return s.SuspectedWhy
+}
+
+// SetAcceptedUntil sets the value of AcceptedUntil.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetAcceptedUntil(val NilDate) {
+	s.AcceptedUntil = val
+}
+
+// SetAi sets the value of Ai.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetAi(val FindingsPostFindingsIDUnconfirmOKAi) {
+	s.Ai = val
+}
+
+// SetAiAvailable sets the value of AiAvailable.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetAiAvailable(val FindingsPostFindingsIDUnconfirmOKAiAvailable) {
+	s.AiAvailable = val
+}
+
+// SetApplied sets the value of Applied.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetApplied(val []FindingsPostFindingsIDUnconfirmOKAppliedItem) {
+	s.Applied = val
+}
+
+// SetAsset sets the value of Asset.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetAsset(val NilFindingsPostFindingsIDUnconfirmOKAsset) {
+	s.Asset = val
+}
+
+// SetAssetID sets the value of AssetID.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetAssetID(val string) {
+	s.AssetID = val
+}
+
+// SetBasis sets the value of Basis.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetBasis(val FindingsPostFindingsIDUnconfirmOKBasis) {
+	s.Basis = val
+}
+
+// SetCompromise sets the value of Compromise.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetCompromise(val NilFindingsPostFindingsIDUnconfirmOKCompromise) {
+	s.Compromise = val
+}
+
+// SetConfidence sets the value of Confidence.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetConfidence(val float64) {
+	s.Confidence = val
+}
+
+// SetCve sets the value of Cve.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetCvss sets the value of Cvss.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetCvss(val NilFindingsPostFindingsIDUnconfirmOKCvss) {
+	s.Cvss = val
+}
+
+// SetEvidence sets the value of Evidence.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetEvidence(val NilFindingsPostFindingsIDUnconfirmOKEvidence) {
+	s.Evidence = val
+}
+
+// SetFirstSeen sets the value of FirstSeen.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetFirstSeen(val time.Time) {
+	s.FirstSeen = val
+}
+
+// SetFix sets the value of Fix.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetFix(val OptNilFindingsPostFindingsIDUnconfirmOKFix) {
+	s.Fix = val
+}
+
+// SetFixedIn sets the value of FixedIn.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetFixedIn(val NilFindingsPostFindingsIDUnconfirmOKFixedIn) {
+	s.FixedIn = val
+}
+
+// SetHardening sets the value of Hardening.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetHardening(val NilFindingsPostFindingsIDUnconfirmOKHardening) {
+	s.Hardening = val
+}
+
+// SetHistory sets the value of History.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetHistory(val []FindingsPostFindingsIDUnconfirmOKHistoryItem) {
+	s.History = val
+}
+
+// SetID sets the value of ID.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetID(val string) {
+	s.ID = val
+}
+
+// SetKev sets the value of Kev.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetKev(val NilFindingsPostFindingsIDUnconfirmOKKev) {
+	s.Kev = val
+}
+
+// SetKnownVersion sets the value of KnownVersion.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetKnownVersion(val NilFindingsPostFindingsIDUnconfirmOKKnownVersion) {
+	s.KnownVersion = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetLastSeen(val time.Time) {
+	s.LastSeen = val
+}
+
+// SetPack sets the value of Pack.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetPack(val NilFindingsPostFindingsIDUnconfirmOKPack) {
+	s.Pack = val
+}
+
+// SetProvedVersion sets the value of ProvedVersion.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetProvedVersion(val NilString) {
+	s.ProvedVersion = val
+}
+
+// SetRecheck sets the value of Recheck.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetRecheck(val FindingsPostFindingsIDUnconfirmOKRecheck) {
+	s.Recheck = val
+}
+
+// SetResolutionNote sets the value of ResolutionNote.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetResolutionNote(val NilString) {
+	s.ResolutionNote = val
+}
+
+// SetResolutionReason sets the value of ResolutionReason.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetResolutionReason(val NilString) {
+	s.ResolutionReason = val
+}
+
+// SetResolvedAt sets the value of ResolvedAt.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetResolvedAt(val NilDateTime) {
+	s.ResolvedAt = val
+}
+
+// SetResolvedBy sets the value of ResolvedBy.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetResolvedBy(val NilString) {
+	s.ResolvedBy = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetSeverity(val FindingsPostFindingsIDUnconfirmOKSeverity) {
+	s.Severity = val
+}
+
+// SetSoftwareID sets the value of SoftwareID.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetSoftwareID(val string) {
+	s.SoftwareID = val
+}
+
+// SetStatus sets the value of Status.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetStatus(val FindingsPostFindingsIDUnconfirmOKStatus) {
+	s.Status = val
+}
+
+// SetSuspectedWhy sets the value of SuspectedWhy.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetSuspectedWhy(val NilString) {
+	s.SuspectedWhy = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKAi struct {
+	Config  NilFindingsPostFindingsIDUnconfirmOKAiConfig  `json:"config"`
+	Explain NilFindingsPostFindingsIDUnconfirmOKAiExplain `json:"explain"`
+}
+
+// GetConfig returns the value of Config.
+func (s *FindingsPostFindingsIDUnconfirmOKAi) GetConfig() NilFindingsPostFindingsIDUnconfirmOKAiConfig {
+	return s.Config
+}
+
+// GetExplain returns the value of Explain.
+func (s *FindingsPostFindingsIDUnconfirmOKAi) GetExplain() NilFindingsPostFindingsIDUnconfirmOKAiExplain {
+	return s.Explain
+}
+
+// SetConfig sets the value of Config.
+func (s *FindingsPostFindingsIDUnconfirmOKAi) SetConfig(val NilFindingsPostFindingsIDUnconfirmOKAiConfig) {
+	s.Config = val
+}
+
+// SetExplain sets the value of Explain.
+func (s *FindingsPostFindingsIDUnconfirmOKAi) SetExplain(val NilFindingsPostFindingsIDUnconfirmOKAiExplain) {
+	s.Explain = val
+}
+
+// Whether an AI profile is assigned and allowed for each job.
+type FindingsPostFindingsIDUnconfirmOKAiAvailable struct {
+	Config  bool `json:"config"`
+	Explain bool `json:"explain"`
+}
+
+// GetConfig returns the value of Config.
+func (s *FindingsPostFindingsIDUnconfirmOKAiAvailable) GetConfig() bool {
+	return s.Config
+}
+
+// GetExplain returns the value of Explain.
+func (s *FindingsPostFindingsIDUnconfirmOKAiAvailable) GetExplain() bool {
+	return s.Explain
+}
+
+// SetConfig sets the value of Config.
+func (s *FindingsPostFindingsIDUnconfirmOKAiAvailable) SetConfig(val bool) {
+	s.Config = val
+}
+
+// SetExplain sets the value of Explain.
+func (s *FindingsPostFindingsIDUnconfirmOKAiAvailable) SetExplain(val bool) {
+	s.Explain = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKAiConfig struct {
+	Citations []FindingsPostFindingsIDUnconfirmOKAiConfigCitationsItem `json:"citations"`
+	// Mitigation-config: config blocks to paste as they are, the device's own workaround first, then a
+	// rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based
+	// on, `side_effect` what it can break. Absent for explain and for answers stored before.
+	Configs []FindingsPostFindingsIDUnconfirmOKAiConfigConfigsItem `json:"configs"`
+	Model   string                                                 `json:"model"`
+	// #897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding
+	// (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's
+	// words; the page shows it where the configuration would be.
+	NoConfigReason OptString `json:"no_config_reason"`
+	Paragraphs     []string  `json:"paragraphs"`
+	// Name of the AI profile that answered.
+	Profile OptString `json:"profile"`
+	// A part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never
+	// in the middle of one) or a config block was left out whole.
+	Shortened OptBool                                         `json:"shortened"`
+	Skill     FindingsPostFindingsIDUnconfirmOKAiConfigSkill  `json:"skill"`
+	Steps     []string                                        `json:"steps"`
+	Tokens    FindingsPostFindingsIDUnconfirmOKAiConfigTokens `json:"tokens"`
+	Ts        time.Time                                       `json:"ts"`
+}
+
+// GetCitations returns the value of Citations.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) GetCitations() []FindingsPostFindingsIDUnconfirmOKAiConfigCitationsItem {
+	return s.Citations
+}
+
+// GetConfigs returns the value of Configs.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) GetConfigs() []FindingsPostFindingsIDUnconfirmOKAiConfigConfigsItem {
+	return s.Configs
+}
+
+// GetModel returns the value of Model.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) GetModel() string {
+	return s.Model
+}
+
+// GetNoConfigReason returns the value of NoConfigReason.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) GetNoConfigReason() OptString {
+	return s.NoConfigReason
+}
+
+// GetParagraphs returns the value of Paragraphs.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) GetParagraphs() []string {
+	return s.Paragraphs
+}
+
+// GetProfile returns the value of Profile.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) GetProfile() OptString {
+	return s.Profile
+}
+
+// GetShortened returns the value of Shortened.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) GetShortened() OptBool {
+	return s.Shortened
+}
+
+// GetSkill returns the value of Skill.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) GetSkill() FindingsPostFindingsIDUnconfirmOKAiConfigSkill {
+	return s.Skill
+}
+
+// GetSteps returns the value of Steps.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) GetSteps() []string {
+	return s.Steps
+}
+
+// GetTokens returns the value of Tokens.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) GetTokens() FindingsPostFindingsIDUnconfirmOKAiConfigTokens {
+	return s.Tokens
+}
+
+// GetTs returns the value of Ts.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) GetTs() time.Time {
+	return s.Ts
+}
+
+// SetCitations sets the value of Citations.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) SetCitations(val []FindingsPostFindingsIDUnconfirmOKAiConfigCitationsItem) {
+	s.Citations = val
+}
+
+// SetConfigs sets the value of Configs.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) SetConfigs(val []FindingsPostFindingsIDUnconfirmOKAiConfigConfigsItem) {
+	s.Configs = val
+}
+
+// SetModel sets the value of Model.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) SetModel(val string) {
+	s.Model = val
+}
+
+// SetNoConfigReason sets the value of NoConfigReason.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) SetNoConfigReason(val OptString) {
+	s.NoConfigReason = val
+}
+
+// SetParagraphs sets the value of Paragraphs.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) SetParagraphs(val []string) {
+	s.Paragraphs = val
+}
+
+// SetProfile sets the value of Profile.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) SetProfile(val OptString) {
+	s.Profile = val
+}
+
+// SetShortened sets the value of Shortened.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) SetShortened(val OptBool) {
+	s.Shortened = val
+}
+
+// SetSkill sets the value of Skill.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) SetSkill(val FindingsPostFindingsIDUnconfirmOKAiConfigSkill) {
+	s.Skill = val
+}
+
+// SetSteps sets the value of Steps.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) SetSteps(val []string) {
+	s.Steps = val
+}
+
+// SetTokens sets the value of Tokens.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) SetTokens(val FindingsPostFindingsIDUnconfirmOKAiConfigTokens) {
+	s.Tokens = val
+}
+
+// SetTs sets the value of Ts.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) SetTs(val time.Time) {
+	s.Ts = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKAiConfigCitationsItem struct {
+	Title string    `json:"title"`
+	URL   OptString `json:"url"`
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigCitationsItem) GetTitle() string {
+	return s.Title
+}
+
+// GetURL returns the value of URL.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigCitationsItem) GetURL() OptString {
+	return s.URL
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigCitationsItem) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetURL sets the value of URL.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigCitationsItem) SetURL(val OptString) {
+	s.URL = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKAiConfigConfigsItem struct {
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
+	// Side effect that must be stated before the user pastes the command.
+	SideEffect OptString `json:"side_effect"`
+	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigConfigsItem) GetCheck() []string {
+	return s.Check
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigConfigsItem) GetCode() string {
+	return s.Code
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigConfigsItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigConfigsItem) GetSideEffect() OptString {
+	return s.SideEffect
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigConfigsItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigConfigsItem) SetCheck(val []string) {
+	s.Check = val
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigConfigsItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigConfigsItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigConfigsItem) SetSideEffect(val OptString) {
+	s.SideEffect = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigConfigsItem) SetTitle(val string) {
+	s.Title = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKAiConfigSkill string
+
+const (
+	FindingsPostFindingsIDUnconfirmOKAiConfigSkillExplain          FindingsPostFindingsIDUnconfirmOKAiConfigSkill = "explain"
+	FindingsPostFindingsIDUnconfirmOKAiConfigSkillMitigationConfig FindingsPostFindingsIDUnconfirmOKAiConfigSkill = "mitigation-config"
+)
+
+// AllValues returns all FindingsPostFindingsIDUnconfirmOKAiConfigSkill values.
+func (FindingsPostFindingsIDUnconfirmOKAiConfigSkill) AllValues() []FindingsPostFindingsIDUnconfirmOKAiConfigSkill {
+	return []FindingsPostFindingsIDUnconfirmOKAiConfigSkill{
+		FindingsPostFindingsIDUnconfirmOKAiConfigSkillExplain,
+		FindingsPostFindingsIDUnconfirmOKAiConfigSkillMitigationConfig,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDUnconfirmOKAiConfigSkill) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDUnconfirmOKAiConfigSkillExplain:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAiConfigSkillMitigationConfig:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigSkill) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDUnconfirmOKAiConfigSkill(data) {
+	case FindingsPostFindingsIDUnconfirmOKAiConfigSkillExplain:
+		*s = FindingsPostFindingsIDUnconfirmOKAiConfigSkillExplain
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAiConfigSkillMitigationConfig:
+		*s = FindingsPostFindingsIDUnconfirmOKAiConfigSkillMitigationConfig
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDUnconfirmOKAiConfigTokens struct {
+	Input  float64 `json:"input"`
+	Output float64 `json:"output"`
+}
+
+// GetInput returns the value of Input.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigTokens) GetInput() float64 {
+	return s.Input
+}
+
+// GetOutput returns the value of Output.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigTokens) GetOutput() float64 {
+	return s.Output
+}
+
+// SetInput sets the value of Input.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigTokens) SetInput(val float64) {
+	s.Input = val
+}
+
+// SetOutput sets the value of Output.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigTokens) SetOutput(val float64) {
+	s.Output = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKAiExplain struct {
+	Citations []FindingsPostFindingsIDUnconfirmOKAiExplainCitationsItem `json:"citations"`
+	// Mitigation-config: config blocks to paste as they are, the device's own workaround first, then a
+	// rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based
+	// on, `side_effect` what it can break. Absent for explain and for answers stored before.
+	Configs []FindingsPostFindingsIDUnconfirmOKAiExplainConfigsItem `json:"configs"`
+	Model   string                                                  `json:"model"`
+	// #897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding
+	// (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's
+	// words; the page shows it where the configuration would be.
+	NoConfigReason OptString `json:"no_config_reason"`
+	Paragraphs     []string  `json:"paragraphs"`
+	// Name of the AI profile that answered.
+	Profile OptString `json:"profile"`
+	// A part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never
+	// in the middle of one) or a config block was left out whole.
+	Shortened OptBool                                          `json:"shortened"`
+	Skill     FindingsPostFindingsIDUnconfirmOKAiExplainSkill  `json:"skill"`
+	Steps     []string                                         `json:"steps"`
+	Tokens    FindingsPostFindingsIDUnconfirmOKAiExplainTokens `json:"tokens"`
+	Ts        time.Time                                        `json:"ts"`
+}
+
+// GetCitations returns the value of Citations.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) GetCitations() []FindingsPostFindingsIDUnconfirmOKAiExplainCitationsItem {
+	return s.Citations
+}
+
+// GetConfigs returns the value of Configs.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) GetConfigs() []FindingsPostFindingsIDUnconfirmOKAiExplainConfigsItem {
+	return s.Configs
+}
+
+// GetModel returns the value of Model.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) GetModel() string {
+	return s.Model
+}
+
+// GetNoConfigReason returns the value of NoConfigReason.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) GetNoConfigReason() OptString {
+	return s.NoConfigReason
+}
+
+// GetParagraphs returns the value of Paragraphs.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) GetParagraphs() []string {
+	return s.Paragraphs
+}
+
+// GetProfile returns the value of Profile.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) GetProfile() OptString {
+	return s.Profile
+}
+
+// GetShortened returns the value of Shortened.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) GetShortened() OptBool {
+	return s.Shortened
+}
+
+// GetSkill returns the value of Skill.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) GetSkill() FindingsPostFindingsIDUnconfirmOKAiExplainSkill {
+	return s.Skill
+}
+
+// GetSteps returns the value of Steps.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) GetSteps() []string {
+	return s.Steps
+}
+
+// GetTokens returns the value of Tokens.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) GetTokens() FindingsPostFindingsIDUnconfirmOKAiExplainTokens {
+	return s.Tokens
+}
+
+// GetTs returns the value of Ts.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) GetTs() time.Time {
+	return s.Ts
+}
+
+// SetCitations sets the value of Citations.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) SetCitations(val []FindingsPostFindingsIDUnconfirmOKAiExplainCitationsItem) {
+	s.Citations = val
+}
+
+// SetConfigs sets the value of Configs.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) SetConfigs(val []FindingsPostFindingsIDUnconfirmOKAiExplainConfigsItem) {
+	s.Configs = val
+}
+
+// SetModel sets the value of Model.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) SetModel(val string) {
+	s.Model = val
+}
+
+// SetNoConfigReason sets the value of NoConfigReason.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) SetNoConfigReason(val OptString) {
+	s.NoConfigReason = val
+}
+
+// SetParagraphs sets the value of Paragraphs.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) SetParagraphs(val []string) {
+	s.Paragraphs = val
+}
+
+// SetProfile sets the value of Profile.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) SetProfile(val OptString) {
+	s.Profile = val
+}
+
+// SetShortened sets the value of Shortened.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) SetShortened(val OptBool) {
+	s.Shortened = val
+}
+
+// SetSkill sets the value of Skill.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) SetSkill(val FindingsPostFindingsIDUnconfirmOKAiExplainSkill) {
+	s.Skill = val
+}
+
+// SetSteps sets the value of Steps.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) SetSteps(val []string) {
+	s.Steps = val
+}
+
+// SetTokens sets the value of Tokens.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) SetTokens(val FindingsPostFindingsIDUnconfirmOKAiExplainTokens) {
+	s.Tokens = val
+}
+
+// SetTs sets the value of Ts.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) SetTs(val time.Time) {
+	s.Ts = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKAiExplainCitationsItem struct {
+	Title string    `json:"title"`
+	URL   OptString `json:"url"`
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainCitationsItem) GetTitle() string {
+	return s.Title
+}
+
+// GetURL returns the value of URL.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainCitationsItem) GetURL() OptString {
+	return s.URL
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainCitationsItem) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetURL sets the value of URL.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainCitationsItem) SetURL(val OptString) {
+	s.URL = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKAiExplainConfigsItem struct {
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
+	// Side effect that must be stated before the user pastes the command.
+	SideEffect OptString `json:"side_effect"`
+	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainConfigsItem) GetCheck() []string {
+	return s.Check
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainConfigsItem) GetCode() string {
+	return s.Code
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainConfigsItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainConfigsItem) GetSideEffect() OptString {
+	return s.SideEffect
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainConfigsItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainConfigsItem) SetCheck(val []string) {
+	s.Check = val
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainConfigsItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainConfigsItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainConfigsItem) SetSideEffect(val OptString) {
+	s.SideEffect = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainConfigsItem) SetTitle(val string) {
+	s.Title = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKAiExplainSkill string
+
+const (
+	FindingsPostFindingsIDUnconfirmOKAiExplainSkillExplain          FindingsPostFindingsIDUnconfirmOKAiExplainSkill = "explain"
+	FindingsPostFindingsIDUnconfirmOKAiExplainSkillMitigationConfig FindingsPostFindingsIDUnconfirmOKAiExplainSkill = "mitigation-config"
+)
+
+// AllValues returns all FindingsPostFindingsIDUnconfirmOKAiExplainSkill values.
+func (FindingsPostFindingsIDUnconfirmOKAiExplainSkill) AllValues() []FindingsPostFindingsIDUnconfirmOKAiExplainSkill {
+	return []FindingsPostFindingsIDUnconfirmOKAiExplainSkill{
+		FindingsPostFindingsIDUnconfirmOKAiExplainSkillExplain,
+		FindingsPostFindingsIDUnconfirmOKAiExplainSkillMitigationConfig,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDUnconfirmOKAiExplainSkill) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDUnconfirmOKAiExplainSkillExplain:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAiExplainSkillMitigationConfig:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainSkill) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDUnconfirmOKAiExplainSkill(data) {
+	case FindingsPostFindingsIDUnconfirmOKAiExplainSkillExplain:
+		*s = FindingsPostFindingsIDUnconfirmOKAiExplainSkillExplain
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAiExplainSkillMitigationConfig:
+		*s = FindingsPostFindingsIDUnconfirmOKAiExplainSkillMitigationConfig
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDUnconfirmOKAiExplainTokens struct {
+	Input  float64 `json:"input"`
+	Output float64 `json:"output"`
+}
+
+// GetInput returns the value of Input.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainTokens) GetInput() float64 {
+	return s.Input
+}
+
+// GetOutput returns the value of Output.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainTokens) GetOutput() float64 {
+	return s.Output
+}
+
+// SetInput sets the value of Input.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainTokens) SetInput(val float64) {
+	s.Input = val
+}
+
+// SetOutput sets the value of Output.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainTokens) SetOutput(val float64) {
+	s.Output = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKAppliedItem struct {
+	Item string    `json:"item"`
+	Ts   time.Time `json:"ts"`
+	User string    `json:"user"`
+}
+
+// GetItem returns the value of Item.
+func (s *FindingsPostFindingsIDUnconfirmOKAppliedItem) GetItem() string {
+	return s.Item
+}
+
+// GetTs returns the value of Ts.
+func (s *FindingsPostFindingsIDUnconfirmOKAppliedItem) GetTs() time.Time {
+	return s.Ts
+}
+
+// GetUser returns the value of User.
+func (s *FindingsPostFindingsIDUnconfirmOKAppliedItem) GetUser() string {
+	return s.User
+}
+
+// SetItem sets the value of Item.
+func (s *FindingsPostFindingsIDUnconfirmOKAppliedItem) SetItem(val string) {
+	s.Item = val
+}
+
+// SetTs sets the value of Ts.
+func (s *FindingsPostFindingsIDUnconfirmOKAppliedItem) SetTs(val time.Time) {
+	s.Ts = val
+}
+
+// SetUser sets the value of User.
+func (s *FindingsPostFindingsIDUnconfirmOKAppliedItem) SetUser(val string) {
+	s.User = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKAsset struct {
+	Display  string    `json:"display"`
+	Hostname NilString `json:"hostname"`
+	ID       string    `json:"id"`
+	// "—" when the device has no IP address.
+	IP   string                                     `json:"ip"`
+	Kind FindingsPostFindingsIDUnconfirmOKAssetKind `json:"kind"`
+	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
+	// never the internal id.
+	Name string `json:"name"`
+}
+
+// GetDisplay returns the value of Display.
+func (s *FindingsPostFindingsIDUnconfirmOKAsset) GetDisplay() string {
+	return s.Display
+}
+
+// GetHostname returns the value of Hostname.
+func (s *FindingsPostFindingsIDUnconfirmOKAsset) GetHostname() NilString {
+	return s.Hostname
+}
+
+// GetID returns the value of ID.
+func (s *FindingsPostFindingsIDUnconfirmOKAsset) GetID() string {
+	return s.ID
+}
+
+// GetIP returns the value of IP.
+func (s *FindingsPostFindingsIDUnconfirmOKAsset) GetIP() string {
+	return s.IP
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsPostFindingsIDUnconfirmOKAsset) GetKind() FindingsPostFindingsIDUnconfirmOKAssetKind {
+	return s.Kind
+}
+
+// GetName returns the value of Name.
+func (s *FindingsPostFindingsIDUnconfirmOKAsset) GetName() string {
+	return s.Name
+}
+
+// SetDisplay sets the value of Display.
+func (s *FindingsPostFindingsIDUnconfirmOKAsset) SetDisplay(val string) {
+	s.Display = val
+}
+
+// SetHostname sets the value of Hostname.
+func (s *FindingsPostFindingsIDUnconfirmOKAsset) SetHostname(val NilString) {
+	s.Hostname = val
+}
+
+// SetID sets the value of ID.
+func (s *FindingsPostFindingsIDUnconfirmOKAsset) SetID(val string) {
+	s.ID = val
+}
+
+// SetIP sets the value of IP.
+func (s *FindingsPostFindingsIDUnconfirmOKAsset) SetIP(val string) {
+	s.IP = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsPostFindingsIDUnconfirmOKAsset) SetKind(val FindingsPostFindingsIDUnconfirmOKAssetKind) {
+	s.Kind = val
+}
+
+// SetName sets the value of Name.
+func (s *FindingsPostFindingsIDUnconfirmOKAsset) SetName(val string) {
+	s.Name = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKAssetKind string
+
+const (
+	FindingsPostFindingsIDUnconfirmOKAssetKindRouter              FindingsPostFindingsIDUnconfirmOKAssetKind = "router"
+	FindingsPostFindingsIDUnconfirmOKAssetKindSwitch              FindingsPostFindingsIDUnconfirmOKAssetKind = "switch"
+	FindingsPostFindingsIDUnconfirmOKAssetKindModem               FindingsPostFindingsIDUnconfirmOKAssetKind = "modem"
+	FindingsPostFindingsIDUnconfirmOKAssetKindSdWan               FindingsPostFindingsIDUnconfirmOKAssetKind = "sd_wan"
+	FindingsPostFindingsIDUnconfirmOKAssetKindLoadBalancer        FindingsPostFindingsIDUnconfirmOKAssetKind = "load_balancer"
+	FindingsPostFindingsIDUnconfirmOKAssetKindNetworkController   FindingsPostFindingsIDUnconfirmOKAssetKind = "network_controller"
+	FindingsPostFindingsIDUnconfirmOKAssetKindFirewall            FindingsPostFindingsIDUnconfirmOKAssetKind = "firewall"
+	FindingsPostFindingsIDUnconfirmOKAssetKindVpnGateway          FindingsPostFindingsIDUnconfirmOKAssetKind = "vpn_gateway"
+	FindingsPostFindingsIDUnconfirmOKAssetKindIdsSensor           FindingsPostFindingsIDUnconfirmOKAssetKind = "ids_sensor"
+	FindingsPostFindingsIDUnconfirmOKAssetKindProxy               FindingsPostFindingsIDUnconfirmOKAssetKind = "proxy"
+	FindingsPostFindingsIDUnconfirmOKAssetKindAp                  FindingsPostFindingsIDUnconfirmOKAssetKind = "ap"
+	FindingsPostFindingsIDUnconfirmOKAssetKindWirelessController  FindingsPostFindingsIDUnconfirmOKAssetKind = "wireless_controller"
+	FindingsPostFindingsIDUnconfirmOKAssetKindWifiExtender        FindingsPostFindingsIDUnconfirmOKAssetKind = "wifi_extender"
+	FindingsPostFindingsIDUnconfirmOKAssetKindMeshNode            FindingsPostFindingsIDUnconfirmOKAssetKind = "mesh_node"
+	FindingsPostFindingsIDUnconfirmOKAssetKindServer              FindingsPostFindingsIDUnconfirmOKAssetKind = "server"
+	FindingsPostFindingsIDUnconfirmOKAssetKindVirtualMachine      FindingsPostFindingsIDUnconfirmOKAssetKind = "virtual_machine"
+	FindingsPostFindingsIDUnconfirmOKAssetKindHypervisor          FindingsPostFindingsIDUnconfirmOKAssetKind = "hypervisor"
+	FindingsPostFindingsIDUnconfirmOKAssetKindBmc                 FindingsPostFindingsIDUnconfirmOKAssetKind = "bmc"
+	FindingsPostFindingsIDUnconfirmOKAssetKindDomainController    FindingsPostFindingsIDUnconfirmOKAssetKind = "domain_controller"
+	FindingsPostFindingsIDUnconfirmOKAssetKindMailServer          FindingsPostFindingsIDUnconfirmOKAssetKind = "mail_server"
+	FindingsPostFindingsIDUnconfirmOKAssetKindDatabaseServer      FindingsPostFindingsIDUnconfirmOKAssetKind = "database_server"
+	FindingsPostFindingsIDUnconfirmOKAssetKindBackupServer        FindingsPostFindingsIDUnconfirmOKAssetKind = "backup_server"
+	FindingsPostFindingsIDUnconfirmOKAssetKindPc                  FindingsPostFindingsIDUnconfirmOKAssetKind = "pc"
+	FindingsPostFindingsIDUnconfirmOKAssetKindLaptop              FindingsPostFindingsIDUnconfirmOKAssetKind = "laptop"
+	FindingsPostFindingsIDUnconfirmOKAssetKindWorkstation         FindingsPostFindingsIDUnconfirmOKAssetKind = "workstation"
+	FindingsPostFindingsIDUnconfirmOKAssetKindThinClient          FindingsPostFindingsIDUnconfirmOKAssetKind = "thin_client"
+	FindingsPostFindingsIDUnconfirmOKAssetKindPosTerminal         FindingsPostFindingsIDUnconfirmOKAssetKind = "pos_terminal"
+	FindingsPostFindingsIDUnconfirmOKAssetKindKiosk               FindingsPostFindingsIDUnconfirmOKAssetKind = "kiosk"
+	FindingsPostFindingsIDUnconfirmOKAssetKindSmartphone          FindingsPostFindingsIDUnconfirmOKAssetKind = "smartphone"
+	FindingsPostFindingsIDUnconfirmOKAssetKindTablet              FindingsPostFindingsIDUnconfirmOKAssetKind = "tablet"
+	FindingsPostFindingsIDUnconfirmOKAssetKindSmartwatch          FindingsPostFindingsIDUnconfirmOKAssetKind = "smartwatch"
+	FindingsPostFindingsIDUnconfirmOKAssetKindPrinter             FindingsPostFindingsIDUnconfirmOKAssetKind = "printer"
+	FindingsPostFindingsIDUnconfirmOKAssetKindMfp                 FindingsPostFindingsIDUnconfirmOKAssetKind = "mfp"
+	FindingsPostFindingsIDUnconfirmOKAssetKindScanner             FindingsPostFindingsIDUnconfirmOKAssetKind = "scanner"
+	FindingsPostFindingsIDUnconfirmOKAssetKindLabelPrinter        FindingsPostFindingsIDUnconfirmOKAssetKind = "label_printer"
+	FindingsPostFindingsIDUnconfirmOKAssetKindReceiptPrinter      FindingsPostFindingsIDUnconfirmOKAssetKind = "receipt_printer"
+	FindingsPostFindingsIDUnconfirmOKAssetKindPlotter             FindingsPostFindingsIDUnconfirmOKAssetKind = "plotter"
+	FindingsPostFindingsIDUnconfirmOKAssetKind3dPrinter           FindingsPostFindingsIDUnconfirmOKAssetKind = "3d_printer"
+	FindingsPostFindingsIDUnconfirmOKAssetKindCamera              FindingsPostFindingsIDUnconfirmOKAssetKind = "camera"
+	FindingsPostFindingsIDUnconfirmOKAssetKindNvr                 FindingsPostFindingsIDUnconfirmOKAssetKind = "nvr"
+	FindingsPostFindingsIDUnconfirmOKAssetKindDvr                 FindingsPostFindingsIDUnconfirmOKAssetKind = "dvr"
+	FindingsPostFindingsIDUnconfirmOKAssetKindVideoEncoder        FindingsPostFindingsIDUnconfirmOKAssetKind = "video_encoder"
+	FindingsPostFindingsIDUnconfirmOKAssetKindDoorbell            FindingsPostFindingsIDUnconfirmOKAssetKind = "doorbell"
+	FindingsPostFindingsIDUnconfirmOKAssetKindVideoConferencing   FindingsPostFindingsIDUnconfirmOKAssetKind = "video_conferencing"
+	FindingsPostFindingsIDUnconfirmOKAssetKindIPPhone             FindingsPostFindingsIDUnconfirmOKAssetKind = "ip_phone"
+	FindingsPostFindingsIDUnconfirmOKAssetKindPbx                 FindingsPostFindingsIDUnconfirmOKAssetKind = "pbx"
+	FindingsPostFindingsIDUnconfirmOKAssetKindVoipAdapter         FindingsPostFindingsIDUnconfirmOKAssetKind = "voip_adapter"
+	FindingsPostFindingsIDUnconfirmOKAssetKindVoipGateway         FindingsPostFindingsIDUnconfirmOKAssetKind = "voip_gateway"
+	FindingsPostFindingsIDUnconfirmOKAssetKindConferencePhone     FindingsPostFindingsIDUnconfirmOKAssetKind = "conference_phone"
+	FindingsPostFindingsIDUnconfirmOKAssetKindIntercom            FindingsPostFindingsIDUnconfirmOKAssetKind = "intercom"
+	FindingsPostFindingsIDUnconfirmOKAssetKindNas                 FindingsPostFindingsIDUnconfirmOKAssetKind = "nas"
+	FindingsPostFindingsIDUnconfirmOKAssetKindSan                 FindingsPostFindingsIDUnconfirmOKAssetKind = "san"
+	FindingsPostFindingsIDUnconfirmOKAssetKindBackupAppliance     FindingsPostFindingsIDUnconfirmOKAssetKind = "backup_appliance"
+	FindingsPostFindingsIDUnconfirmOKAssetKindTapeLibrary         FindingsPostFindingsIDUnconfirmOKAssetKind = "tape_library"
+	FindingsPostFindingsIDUnconfirmOKAssetKindIot                 FindingsPostFindingsIDUnconfirmOKAssetKind = "iot"
+	FindingsPostFindingsIDUnconfirmOKAssetKindSmartTv             FindingsPostFindingsIDUnconfirmOKAssetKind = "smart_tv"
+	FindingsPostFindingsIDUnconfirmOKAssetKindMediaPlayer         FindingsPostFindingsIDUnconfirmOKAssetKind = "media_player"
+	FindingsPostFindingsIDUnconfirmOKAssetKindSmartSpeaker        FindingsPostFindingsIDUnconfirmOKAssetKind = "smart_speaker"
+	FindingsPostFindingsIDUnconfirmOKAssetKindGameConsole         FindingsPostFindingsIDUnconfirmOKAssetKind = "game_console"
+	FindingsPostFindingsIDUnconfirmOKAssetKindSmartPlug           FindingsPostFindingsIDUnconfirmOKAssetKind = "smart_plug"
+	FindingsPostFindingsIDUnconfirmOKAssetKindSmartLight          FindingsPostFindingsIDUnconfirmOKAssetKind = "smart_light"
+	FindingsPostFindingsIDUnconfirmOKAssetKindSmartHub            FindingsPostFindingsIDUnconfirmOKAssetKind = "smart_hub"
+	FindingsPostFindingsIDUnconfirmOKAssetKindThermostat          FindingsPostFindingsIDUnconfirmOKAssetKind = "thermostat"
+	FindingsPostFindingsIDUnconfirmOKAssetKindProjector           FindingsPostFindingsIDUnconfirmOKAssetKind = "projector"
+	FindingsPostFindingsIDUnconfirmOKAssetKindDigitalSignage      FindingsPostFindingsIDUnconfirmOKAssetKind = "digital_signage"
+	FindingsPostFindingsIDUnconfirmOKAssetKindSingleBoardComputer FindingsPostFindingsIDUnconfirmOKAssetKind = "single_board_computer"
+	FindingsPostFindingsIDUnconfirmOKAssetKindSmartAppliance      FindingsPostFindingsIDUnconfirmOKAssetKind = "smart_appliance"
+	FindingsPostFindingsIDUnconfirmOKAssetKindRobotVacuum         FindingsPostFindingsIDUnconfirmOKAssetKind = "robot_vacuum"
+	FindingsPostFindingsIDUnconfirmOKAssetKindWirelessBridge      FindingsPostFindingsIDUnconfirmOKAssetKind = "wireless_bridge"
+	FindingsPostFindingsIDUnconfirmOKAssetKindPlc                 FindingsPostFindingsIDUnconfirmOKAssetKind = "plc"
+	FindingsPostFindingsIDUnconfirmOKAssetKindHmi                 FindingsPostFindingsIDUnconfirmOKAssetKind = "hmi"
+	FindingsPostFindingsIDUnconfirmOKAssetKindRtu                 FindingsPostFindingsIDUnconfirmOKAssetKind = "rtu"
+	FindingsPostFindingsIDUnconfirmOKAssetKindScadaServer         FindingsPostFindingsIDUnconfirmOKAssetKind = "scada_server"
+	FindingsPostFindingsIDUnconfirmOKAssetKindIndustrialSwitch    FindingsPostFindingsIDUnconfirmOKAssetKind = "industrial_switch"
+	FindingsPostFindingsIDUnconfirmOKAssetKindUps                 FindingsPostFindingsIDUnconfirmOKAssetKind = "ups"
+	FindingsPostFindingsIDUnconfirmOKAssetKindPdu                 FindingsPostFindingsIDUnconfirmOKAssetKind = "pdu"
+	FindingsPostFindingsIDUnconfirmOKAssetKindAccessControl       FindingsPostFindingsIDUnconfirmOKAssetKind = "access_control"
+	FindingsPostFindingsIDUnconfirmOKAssetKindTimeClock           FindingsPostFindingsIDUnconfirmOKAssetKind = "time_clock"
+	FindingsPostFindingsIDUnconfirmOKAssetKindAlarmPanel          FindingsPostFindingsIDUnconfirmOKAssetKind = "alarm_panel"
+	FindingsPostFindingsIDUnconfirmOKAssetKindHvacController      FindingsPostFindingsIDUnconfirmOKAssetKind = "hvac_controller"
+	FindingsPostFindingsIDUnconfirmOKAssetKindBuildingController  FindingsPostFindingsIDUnconfirmOKAssetKind = "building_controller"
+	FindingsPostFindingsIDUnconfirmOKAssetKindPowerMeter          FindingsPostFindingsIDUnconfirmOKAssetKind = "power_meter"
+	FindingsPostFindingsIDUnconfirmOKAssetKindEnvironmentMonitor  FindingsPostFindingsIDUnconfirmOKAssetKind = "environment_monitor"
+	FindingsPostFindingsIDUnconfirmOKAssetKindEvCharger           FindingsPostFindingsIDUnconfirmOKAssetKind = "ev_charger"
+	FindingsPostFindingsIDUnconfirmOKAssetKindSolarInverter       FindingsPostFindingsIDUnconfirmOKAssetKind = "solar_inverter"
+	FindingsPostFindingsIDUnconfirmOKAssetKindMedicalDevice       FindingsPostFindingsIDUnconfirmOKAssetKind = "medical_device"
+	FindingsPostFindingsIDUnconfirmOKAssetKindWeb                 FindingsPostFindingsIDUnconfirmOKAssetKind = "web"
+	FindingsPostFindingsIDUnconfirmOKAssetKindCloudService        FindingsPostFindingsIDUnconfirmOKAssetKind = "cloud_service"
+	FindingsPostFindingsIDUnconfirmOKAssetKindUnknown             FindingsPostFindingsIDUnconfirmOKAssetKind = "unknown"
+)
+
+// AllValues returns all FindingsPostFindingsIDUnconfirmOKAssetKind values.
+func (FindingsPostFindingsIDUnconfirmOKAssetKind) AllValues() []FindingsPostFindingsIDUnconfirmOKAssetKind {
+	return []FindingsPostFindingsIDUnconfirmOKAssetKind{
+		FindingsPostFindingsIDUnconfirmOKAssetKindRouter,
+		FindingsPostFindingsIDUnconfirmOKAssetKindSwitch,
+		FindingsPostFindingsIDUnconfirmOKAssetKindModem,
+		FindingsPostFindingsIDUnconfirmOKAssetKindSdWan,
+		FindingsPostFindingsIDUnconfirmOKAssetKindLoadBalancer,
+		FindingsPostFindingsIDUnconfirmOKAssetKindNetworkController,
+		FindingsPostFindingsIDUnconfirmOKAssetKindFirewall,
+		FindingsPostFindingsIDUnconfirmOKAssetKindVpnGateway,
+		FindingsPostFindingsIDUnconfirmOKAssetKindIdsSensor,
+		FindingsPostFindingsIDUnconfirmOKAssetKindProxy,
+		FindingsPostFindingsIDUnconfirmOKAssetKindAp,
+		FindingsPostFindingsIDUnconfirmOKAssetKindWirelessController,
+		FindingsPostFindingsIDUnconfirmOKAssetKindWifiExtender,
+		FindingsPostFindingsIDUnconfirmOKAssetKindMeshNode,
+		FindingsPostFindingsIDUnconfirmOKAssetKindServer,
+		FindingsPostFindingsIDUnconfirmOKAssetKindVirtualMachine,
+		FindingsPostFindingsIDUnconfirmOKAssetKindHypervisor,
+		FindingsPostFindingsIDUnconfirmOKAssetKindBmc,
+		FindingsPostFindingsIDUnconfirmOKAssetKindDomainController,
+		FindingsPostFindingsIDUnconfirmOKAssetKindMailServer,
+		FindingsPostFindingsIDUnconfirmOKAssetKindDatabaseServer,
+		FindingsPostFindingsIDUnconfirmOKAssetKindBackupServer,
+		FindingsPostFindingsIDUnconfirmOKAssetKindPc,
+		FindingsPostFindingsIDUnconfirmOKAssetKindLaptop,
+		FindingsPostFindingsIDUnconfirmOKAssetKindWorkstation,
+		FindingsPostFindingsIDUnconfirmOKAssetKindThinClient,
+		FindingsPostFindingsIDUnconfirmOKAssetKindPosTerminal,
+		FindingsPostFindingsIDUnconfirmOKAssetKindKiosk,
+		FindingsPostFindingsIDUnconfirmOKAssetKindSmartphone,
+		FindingsPostFindingsIDUnconfirmOKAssetKindTablet,
+		FindingsPostFindingsIDUnconfirmOKAssetKindSmartwatch,
+		FindingsPostFindingsIDUnconfirmOKAssetKindPrinter,
+		FindingsPostFindingsIDUnconfirmOKAssetKindMfp,
+		FindingsPostFindingsIDUnconfirmOKAssetKindScanner,
+		FindingsPostFindingsIDUnconfirmOKAssetKindLabelPrinter,
+		FindingsPostFindingsIDUnconfirmOKAssetKindReceiptPrinter,
+		FindingsPostFindingsIDUnconfirmOKAssetKindPlotter,
+		FindingsPostFindingsIDUnconfirmOKAssetKind3dPrinter,
+		FindingsPostFindingsIDUnconfirmOKAssetKindCamera,
+		FindingsPostFindingsIDUnconfirmOKAssetKindNvr,
+		FindingsPostFindingsIDUnconfirmOKAssetKindDvr,
+		FindingsPostFindingsIDUnconfirmOKAssetKindVideoEncoder,
+		FindingsPostFindingsIDUnconfirmOKAssetKindDoorbell,
+		FindingsPostFindingsIDUnconfirmOKAssetKindVideoConferencing,
+		FindingsPostFindingsIDUnconfirmOKAssetKindIPPhone,
+		FindingsPostFindingsIDUnconfirmOKAssetKindPbx,
+		FindingsPostFindingsIDUnconfirmOKAssetKindVoipAdapter,
+		FindingsPostFindingsIDUnconfirmOKAssetKindVoipGateway,
+		FindingsPostFindingsIDUnconfirmOKAssetKindConferencePhone,
+		FindingsPostFindingsIDUnconfirmOKAssetKindIntercom,
+		FindingsPostFindingsIDUnconfirmOKAssetKindNas,
+		FindingsPostFindingsIDUnconfirmOKAssetKindSan,
+		FindingsPostFindingsIDUnconfirmOKAssetKindBackupAppliance,
+		FindingsPostFindingsIDUnconfirmOKAssetKindTapeLibrary,
+		FindingsPostFindingsIDUnconfirmOKAssetKindIot,
+		FindingsPostFindingsIDUnconfirmOKAssetKindSmartTv,
+		FindingsPostFindingsIDUnconfirmOKAssetKindMediaPlayer,
+		FindingsPostFindingsIDUnconfirmOKAssetKindSmartSpeaker,
+		FindingsPostFindingsIDUnconfirmOKAssetKindGameConsole,
+		FindingsPostFindingsIDUnconfirmOKAssetKindSmartPlug,
+		FindingsPostFindingsIDUnconfirmOKAssetKindSmartLight,
+		FindingsPostFindingsIDUnconfirmOKAssetKindSmartHub,
+		FindingsPostFindingsIDUnconfirmOKAssetKindThermostat,
+		FindingsPostFindingsIDUnconfirmOKAssetKindProjector,
+		FindingsPostFindingsIDUnconfirmOKAssetKindDigitalSignage,
+		FindingsPostFindingsIDUnconfirmOKAssetKindSingleBoardComputer,
+		FindingsPostFindingsIDUnconfirmOKAssetKindSmartAppliance,
+		FindingsPostFindingsIDUnconfirmOKAssetKindRobotVacuum,
+		FindingsPostFindingsIDUnconfirmOKAssetKindWirelessBridge,
+		FindingsPostFindingsIDUnconfirmOKAssetKindPlc,
+		FindingsPostFindingsIDUnconfirmOKAssetKindHmi,
+		FindingsPostFindingsIDUnconfirmOKAssetKindRtu,
+		FindingsPostFindingsIDUnconfirmOKAssetKindScadaServer,
+		FindingsPostFindingsIDUnconfirmOKAssetKindIndustrialSwitch,
+		FindingsPostFindingsIDUnconfirmOKAssetKindUps,
+		FindingsPostFindingsIDUnconfirmOKAssetKindPdu,
+		FindingsPostFindingsIDUnconfirmOKAssetKindAccessControl,
+		FindingsPostFindingsIDUnconfirmOKAssetKindTimeClock,
+		FindingsPostFindingsIDUnconfirmOKAssetKindAlarmPanel,
+		FindingsPostFindingsIDUnconfirmOKAssetKindHvacController,
+		FindingsPostFindingsIDUnconfirmOKAssetKindBuildingController,
+		FindingsPostFindingsIDUnconfirmOKAssetKindPowerMeter,
+		FindingsPostFindingsIDUnconfirmOKAssetKindEnvironmentMonitor,
+		FindingsPostFindingsIDUnconfirmOKAssetKindEvCharger,
+		FindingsPostFindingsIDUnconfirmOKAssetKindSolarInverter,
+		FindingsPostFindingsIDUnconfirmOKAssetKindMedicalDevice,
+		FindingsPostFindingsIDUnconfirmOKAssetKindWeb,
+		FindingsPostFindingsIDUnconfirmOKAssetKindCloudService,
+		FindingsPostFindingsIDUnconfirmOKAssetKindUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDUnconfirmOKAssetKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDUnconfirmOKAssetKindRouter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSwitch:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindModem:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSdWan:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindLoadBalancer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindNetworkController:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindFirewall:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindVpnGateway:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindIdsSensor:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindProxy:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindAp:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindWirelessController:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindWifiExtender:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindMeshNode:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindServer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindVirtualMachine:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindHypervisor:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindBmc:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindDomainController:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindMailServer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindDatabaseServer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindBackupServer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindPc:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindLaptop:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindWorkstation:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindThinClient:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindPosTerminal:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindKiosk:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSmartphone:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindTablet:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSmartwatch:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindPrinter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindMfp:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindScanner:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindLabelPrinter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindReceiptPrinter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindPlotter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKind3dPrinter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindCamera:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindNvr:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindDvr:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindVideoEncoder:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindDoorbell:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindVideoConferencing:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindIPPhone:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindPbx:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindVoipAdapter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindVoipGateway:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindConferencePhone:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindIntercom:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindNas:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSan:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindBackupAppliance:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindTapeLibrary:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindIot:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSmartTv:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindMediaPlayer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSmartSpeaker:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindGameConsole:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSmartPlug:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSmartLight:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSmartHub:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindThermostat:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindProjector:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindDigitalSignage:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSingleBoardComputer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSmartAppliance:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindRobotVacuum:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindWirelessBridge:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindPlc:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindHmi:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindRtu:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindScadaServer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindIndustrialSwitch:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindUps:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindPdu:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindAccessControl:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindTimeClock:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindAlarmPanel:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindHvacController:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindBuildingController:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindPowerMeter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindEnvironmentMonitor:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindEvCharger:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSolarInverter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindMedicalDevice:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindWeb:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindCloudService:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDUnconfirmOKAssetKind) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDUnconfirmOKAssetKind(data) {
+	case FindingsPostFindingsIDUnconfirmOKAssetKindRouter:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindRouter
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSwitch:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindSwitch
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindModem:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindModem
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSdWan:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindSdWan
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindLoadBalancer:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindLoadBalancer
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindNetworkController:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindNetworkController
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindFirewall:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindFirewall
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindVpnGateway:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindVpnGateway
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindIdsSensor:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindIdsSensor
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindProxy:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindProxy
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindAp:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindAp
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindWirelessController:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindWirelessController
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindWifiExtender:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindWifiExtender
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindMeshNode:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindMeshNode
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindServer:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindServer
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindVirtualMachine:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindVirtualMachine
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindHypervisor:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindHypervisor
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindBmc:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindBmc
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindDomainController:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindDomainController
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindMailServer:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindMailServer
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindDatabaseServer:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindDatabaseServer
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindBackupServer:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindBackupServer
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindPc:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindPc
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindLaptop:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindLaptop
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindWorkstation:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindWorkstation
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindThinClient:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindThinClient
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindPosTerminal:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindPosTerminal
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindKiosk:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindKiosk
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSmartphone:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindSmartphone
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindTablet:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindTablet
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSmartwatch:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindSmartwatch
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindPrinter:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindPrinter
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindMfp:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindMfp
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindScanner:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindScanner
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindLabelPrinter:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindLabelPrinter
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindReceiptPrinter:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindReceiptPrinter
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindPlotter:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindPlotter
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKind3dPrinter:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKind3dPrinter
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindCamera:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindCamera
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindNvr:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindNvr
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindDvr:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindDvr
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindVideoEncoder:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindVideoEncoder
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindDoorbell:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindDoorbell
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindVideoConferencing:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindVideoConferencing
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindIPPhone:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindIPPhone
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindPbx:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindPbx
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindVoipAdapter:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindVoipAdapter
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindVoipGateway:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindVoipGateway
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindConferencePhone:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindConferencePhone
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindIntercom:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindIntercom
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindNas:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindNas
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSan:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindSan
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindBackupAppliance:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindBackupAppliance
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindTapeLibrary:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindTapeLibrary
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindIot:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindIot
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSmartTv:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindSmartTv
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindMediaPlayer:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindMediaPlayer
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSmartSpeaker:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindSmartSpeaker
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindGameConsole:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindGameConsole
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSmartPlug:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindSmartPlug
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSmartLight:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindSmartLight
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSmartHub:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindSmartHub
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindThermostat:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindThermostat
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindProjector:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindProjector
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindDigitalSignage:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindDigitalSignage
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSingleBoardComputer:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindSingleBoardComputer
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSmartAppliance:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindSmartAppliance
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindRobotVacuum:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindRobotVacuum
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindWirelessBridge:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindWirelessBridge
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindPlc:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindPlc
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindHmi:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindHmi
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindRtu:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindRtu
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindScadaServer:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindScadaServer
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindIndustrialSwitch:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindIndustrialSwitch
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindUps:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindUps
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindPdu:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindPdu
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindAccessControl:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindAccessControl
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindTimeClock:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindTimeClock
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindAlarmPanel:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindAlarmPanel
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindHvacController:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindHvacController
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindBuildingController:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindBuildingController
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindPowerMeter:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindPowerMeter
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindEnvironmentMonitor:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindEnvironmentMonitor
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindEvCharger:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindEvCharger
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindSolarInverter:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindSolarInverter
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindMedicalDevice:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindMedicalDevice
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindWeb:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindWeb
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindCloudService:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindCloudService
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAssetKindUnknown:
+		*s = FindingsPostFindingsIDUnconfirmOKAssetKindUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Scan = confirmed by a scan template; person = confirmed by a person (an admin, with a note); version
+// = suspected by version; product = only the product matches.
+type FindingsPostFindingsIDUnconfirmOKBasis string
+
+const (
+	FindingsPostFindingsIDUnconfirmOKBasisScan    FindingsPostFindingsIDUnconfirmOKBasis = "scan"
+	FindingsPostFindingsIDUnconfirmOKBasisVersion FindingsPostFindingsIDUnconfirmOKBasis = "version"
+	FindingsPostFindingsIDUnconfirmOKBasisProduct FindingsPostFindingsIDUnconfirmOKBasis = "product"
+	FindingsPostFindingsIDUnconfirmOKBasisPerson  FindingsPostFindingsIDUnconfirmOKBasis = "person"
+)
+
+// AllValues returns all FindingsPostFindingsIDUnconfirmOKBasis values.
+func (FindingsPostFindingsIDUnconfirmOKBasis) AllValues() []FindingsPostFindingsIDUnconfirmOKBasis {
+	return []FindingsPostFindingsIDUnconfirmOKBasis{
+		FindingsPostFindingsIDUnconfirmOKBasisScan,
+		FindingsPostFindingsIDUnconfirmOKBasisVersion,
+		FindingsPostFindingsIDUnconfirmOKBasisProduct,
+		FindingsPostFindingsIDUnconfirmOKBasisPerson,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDUnconfirmOKBasis) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDUnconfirmOKBasisScan:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKBasisVersion:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKBasisProduct:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKBasisPerson:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDUnconfirmOKBasis) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDUnconfirmOKBasis(data) {
+	case FindingsPostFindingsIDUnconfirmOKBasisScan:
+		*s = FindingsPostFindingsIDUnconfirmOKBasisScan
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKBasisVersion:
+		*s = FindingsPostFindingsIDUnconfirmOKBasisVersion
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKBasisProduct:
+		*s = FindingsPostFindingsIDUnconfirmOKBasisProduct
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKBasisPerson:
+		*s = FindingsPostFindingsIDUnconfirmOKBasisPerson
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDUnconfirmOKCompromise struct {
+	IfFound    []string                                                    `json:"if_found"`
+	Indicators []FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItem `json:"indicators"`
+	Summary    string                                                      `json:"summary"`
+}
+
+// GetIfFound returns the value of IfFound.
+func (s *FindingsPostFindingsIDUnconfirmOKCompromise) GetIfFound() []string {
+	return s.IfFound
+}
+
+// GetIndicators returns the value of Indicators.
+func (s *FindingsPostFindingsIDUnconfirmOKCompromise) GetIndicators() []FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItem {
+	return s.Indicators
+}
+
+// GetSummary returns the value of Summary.
+func (s *FindingsPostFindingsIDUnconfirmOKCompromise) GetSummary() string {
+	return s.Summary
+}
+
+// SetIfFound sets the value of IfFound.
+func (s *FindingsPostFindingsIDUnconfirmOKCompromise) SetIfFound(val []string) {
+	s.IfFound = val
+}
+
+// SetIndicators sets the value of Indicators.
+func (s *FindingsPostFindingsIDUnconfirmOKCompromise) SetIndicators(val []FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItem) {
+	s.Indicators = val
+}
+
+// SetSummary sets the value of Summary.
+func (s *FindingsPostFindingsIDUnconfirmOKCompromise) SetSummary(val string) {
+	s.Summary = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItem struct {
+	Commands []FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemCommandsItem `json:"commands"`
+	Detail   string                                                                  `json:"detail"`
+	Kind     FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKind           `json:"kind"`
+	Title    string                                                                  `json:"title"`
+}
+
+// GetCommands returns the value of Commands.
+func (s *FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItem) GetCommands() []FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemCommandsItem {
+	return s.Commands
+}
+
+// GetDetail returns the value of Detail.
+func (s *FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItem) GetDetail() string {
+	return s.Detail
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItem) GetKind() FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKind {
+	return s.Kind
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCommands sets the value of Commands.
+func (s *FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItem) SetCommands(val []FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemCommandsItem) {
+	s.Commands = val
+}
+
+// SetDetail sets the value of Detail.
+func (s *FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItem) SetDetail(val string) {
+	s.Detail = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItem) SetKind(val FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKind) {
+	s.Kind = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItem) SetTitle(val string) {
+	s.Title = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemCommandsItem struct {
+	Code  string `json:"code"`
+	Label string `json:"label"`
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemCommandsItem) GetCode() string {
+	return s.Code
+}
+
+// GetLabel returns the value of Label.
+func (s *FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemCommandsItem) GetLabel() string {
+	return s.Label
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemCommandsItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetLabel sets the value of Label.
+func (s *FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemCommandsItem) SetLabel(val string) {
+	s.Label = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKind string
+
+const (
+	FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKindFile    FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKind = "file"
+	FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKindWeb     FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKind = "web"
+	FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKindLog     FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKind = "log"
+	FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKindProcess FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKind = "process"
+)
+
+// AllValues returns all FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKind values.
+func (FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKind) AllValues() []FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKind {
+	return []FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKind{
+		FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKindFile,
+		FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKindWeb,
+		FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKindLog,
+		FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKindProcess,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKindFile:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKindWeb:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKindLog:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKindProcess:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKind) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKind(data) {
+	case FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKindFile:
+		*s = FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKindFile
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKindWeb:
+		*s = FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKindWeb
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKindLog:
+		*s = FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKindLog
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKindProcess:
+		*s = FindingsPostFindingsIDUnconfirmOKCompromiseIndicatorsItemKindProcess
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// #825 (findings INV-22, feeds INV-28): the CVSS base score from the same NVD records feeds already
+// reads (nvd-kev, else nvd-recent). Shown next to the exploited status, never instead of it.
+type FindingsPostFindingsIDUnconfirmOKCvss struct {
+	// The CVSS base score (0.0 to 10.0, one decimal); its band follows from FIRST's table (3.x, 4.0) or
+	// NVD's v2 table (2.0: Low, Medium, High; no Critical).
+	Score float64 `json:"score"`
+	// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+	// Authority or CISA's ADP), used only when NVD gives none for that version.
+	Source FindingsPostFindingsIDUnconfirmOKCvssSource `json:"source"`
+	// NVD's vector string of the score ("CVSS:3.1/AV:N/AC:L/…"; 2.0: "AV:N/AC:L/Au:N/…"): FIRST asks
+	// that a score be shown with its vector, so a score without a valid one is not shown.
+	Vector string `json:"vector"`
+	// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+	// nothing newer).
+	Version FindingsPostFindingsIDUnconfirmOKCvssVersion `json:"version"`
+}
+
+// GetScore returns the value of Score.
+func (s *FindingsPostFindingsIDUnconfirmOKCvss) GetScore() float64 {
+	return s.Score
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDUnconfirmOKCvss) GetSource() FindingsPostFindingsIDUnconfirmOKCvssSource {
+	return s.Source
+}
+
+// GetVector returns the value of Vector.
+func (s *FindingsPostFindingsIDUnconfirmOKCvss) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsPostFindingsIDUnconfirmOKCvss) GetVersion() FindingsPostFindingsIDUnconfirmOKCvssVersion {
+	return s.Version
+}
+
+// SetScore sets the value of Score.
+func (s *FindingsPostFindingsIDUnconfirmOKCvss) SetScore(val float64) {
+	s.Score = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDUnconfirmOKCvss) SetSource(val FindingsPostFindingsIDUnconfirmOKCvssSource) {
+	s.Source = val
+}
+
+// SetVector sets the value of Vector.
+func (s *FindingsPostFindingsIDUnconfirmOKCvss) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsPostFindingsIDUnconfirmOKCvss) SetVersion(val FindingsPostFindingsIDUnconfirmOKCvssVersion) {
+	s.Version = val
+}
+
+// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+// Authority or CISA's ADP), used only when NVD gives none for that version.
+type FindingsPostFindingsIDUnconfirmOKCvssSource string
+
+const (
+	FindingsPostFindingsIDUnconfirmOKCvssSourceNvd FindingsPostFindingsIDUnconfirmOKCvssSource = "nvd"
+	FindingsPostFindingsIDUnconfirmOKCvssSourceCna FindingsPostFindingsIDUnconfirmOKCvssSource = "cna"
+)
+
+// AllValues returns all FindingsPostFindingsIDUnconfirmOKCvssSource values.
+func (FindingsPostFindingsIDUnconfirmOKCvssSource) AllValues() []FindingsPostFindingsIDUnconfirmOKCvssSource {
+	return []FindingsPostFindingsIDUnconfirmOKCvssSource{
+		FindingsPostFindingsIDUnconfirmOKCvssSourceNvd,
+		FindingsPostFindingsIDUnconfirmOKCvssSourceCna,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDUnconfirmOKCvssSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDUnconfirmOKCvssSourceNvd:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKCvssSourceCna:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDUnconfirmOKCvssSource) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDUnconfirmOKCvssSource(data) {
+	case FindingsPostFindingsIDUnconfirmOKCvssSourceNvd:
+		*s = FindingsPostFindingsIDUnconfirmOKCvssSourceNvd
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKCvssSourceCna:
+		*s = FindingsPostFindingsIDUnconfirmOKCvssSourceCna
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+// nothing newer).
+type FindingsPostFindingsIDUnconfirmOKCvssVersion string
+
+const (
+	FindingsPostFindingsIDUnconfirmOKCvssVersion40 FindingsPostFindingsIDUnconfirmOKCvssVersion = "4.0"
+	FindingsPostFindingsIDUnconfirmOKCvssVersion31 FindingsPostFindingsIDUnconfirmOKCvssVersion = "3.1"
+	FindingsPostFindingsIDUnconfirmOKCvssVersion30 FindingsPostFindingsIDUnconfirmOKCvssVersion = "3.0"
+	FindingsPostFindingsIDUnconfirmOKCvssVersion20 FindingsPostFindingsIDUnconfirmOKCvssVersion = "2.0"
+)
+
+// AllValues returns all FindingsPostFindingsIDUnconfirmOKCvssVersion values.
+func (FindingsPostFindingsIDUnconfirmOKCvssVersion) AllValues() []FindingsPostFindingsIDUnconfirmOKCvssVersion {
+	return []FindingsPostFindingsIDUnconfirmOKCvssVersion{
+		FindingsPostFindingsIDUnconfirmOKCvssVersion40,
+		FindingsPostFindingsIDUnconfirmOKCvssVersion31,
+		FindingsPostFindingsIDUnconfirmOKCvssVersion30,
+		FindingsPostFindingsIDUnconfirmOKCvssVersion20,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDUnconfirmOKCvssVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDUnconfirmOKCvssVersion40:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKCvssVersion31:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKCvssVersion30:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKCvssVersion20:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDUnconfirmOKCvssVersion) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDUnconfirmOKCvssVersion(data) {
+	case FindingsPostFindingsIDUnconfirmOKCvssVersion40:
+		*s = FindingsPostFindingsIDUnconfirmOKCvssVersion40
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKCvssVersion31:
+		*s = FindingsPostFindingsIDUnconfirmOKCvssVersion31
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKCvssVersion30:
+		*s = FindingsPostFindingsIDUnconfirmOKCvssVersion30
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKCvssVersion20:
+		*s = FindingsPostFindingsIDUnconfirmOKCvssVersion20
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDUnconfirmOKEvidence struct {
+	// The version compared is the one the device's own agent (osquery, Wazuh) reports installed: a
+	// detection, shown as "Detected by the agent", with nothing for the person to look up.
+	Agent OptBool `json:"agent"`
+	// A product-only match on a software row the device's own agent reported with its installed version:
+	// Vedette could not compare that version with NVD's data, so the page does not ask to add the version.
+	AgentRow  OptBool   `json:"agent_row"`
+	CheckedAt time.Time `json:"checked_at"`
+	Request   OptString `json:"request"`
+	Response  OptString `json:"response"`
+	Summary   string    `json:"summary"`
+	Template  OptString `json:"template"`
+}
+
+// GetAgent returns the value of Agent.
+func (s *FindingsPostFindingsIDUnconfirmOKEvidence) GetAgent() OptBool {
+	return s.Agent
+}
+
+// GetAgentRow returns the value of AgentRow.
+func (s *FindingsPostFindingsIDUnconfirmOKEvidence) GetAgentRow() OptBool {
+	return s.AgentRow
+}
+
+// GetCheckedAt returns the value of CheckedAt.
+func (s *FindingsPostFindingsIDUnconfirmOKEvidence) GetCheckedAt() time.Time {
+	return s.CheckedAt
+}
+
+// GetRequest returns the value of Request.
+func (s *FindingsPostFindingsIDUnconfirmOKEvidence) GetRequest() OptString {
+	return s.Request
+}
+
+// GetResponse returns the value of Response.
+func (s *FindingsPostFindingsIDUnconfirmOKEvidence) GetResponse() OptString {
+	return s.Response
+}
+
+// GetSummary returns the value of Summary.
+func (s *FindingsPostFindingsIDUnconfirmOKEvidence) GetSummary() string {
+	return s.Summary
+}
+
+// GetTemplate returns the value of Template.
+func (s *FindingsPostFindingsIDUnconfirmOKEvidence) GetTemplate() OptString {
+	return s.Template
+}
+
+// SetAgent sets the value of Agent.
+func (s *FindingsPostFindingsIDUnconfirmOKEvidence) SetAgent(val OptBool) {
+	s.Agent = val
+}
+
+// SetAgentRow sets the value of AgentRow.
+func (s *FindingsPostFindingsIDUnconfirmOKEvidence) SetAgentRow(val OptBool) {
+	s.AgentRow = val
+}
+
+// SetCheckedAt sets the value of CheckedAt.
+func (s *FindingsPostFindingsIDUnconfirmOKEvidence) SetCheckedAt(val time.Time) {
+	s.CheckedAt = val
+}
+
+// SetRequest sets the value of Request.
+func (s *FindingsPostFindingsIDUnconfirmOKEvidence) SetRequest(val OptString) {
+	s.Request = val
+}
+
+// SetResponse sets the value of Response.
+func (s *FindingsPostFindingsIDUnconfirmOKEvidence) SetResponse(val OptString) {
+	s.Response = val
+}
+
+// SetSummary sets the value of Summary.
+func (s *FindingsPostFindingsIDUnconfirmOKEvidence) SetSummary(val string) {
+	s.Summary = val
+}
+
+// SetTemplate sets the value of Template.
+func (s *FindingsPostFindingsIDUnconfirmOKEvidence) SetTemplate(val OptString) {
+	s.Template = val
+}
+
+// One update fixes this finding together with the device's other open findings of the same software
+// (top-tier: one item per missing update).
+type FindingsPostFindingsIDUnconfirmOKFix struct {
+	// Distro: "Ubuntu" or "Debian", empty for the distribution's.
+	Distro string `json:"distro"`
+	// The release or build that fixes them all; feature_update: the release to move to; empty for distro.
+	Fixed string `json:"fixed"`
+	// "/": the open findings with the same group are fixed by the same update.
+	Group string `json:"group"`
+	// Fixed = upgrade to `fixed` (a Windows release: the monthly cumulative update with build `fixed` or
+	// later); esu = that build needs Extended Security Updates; feature_update = no update of this release
+	// fixes them, move to release `fixed`; distro = install the distribution's security updates for the
+	// package.
+	Kind FindingsPostFindingsIDUnconfirmOKFixKind `json:"kind"`
+	// Distro: the fix of at least one of them is in Ubuntu Pro (ESM) only.
+	Pro bool `json:"pro"`
+	// Display name of the software row.
+	Software string `json:"software"`
+	// The installed version.
+	Version string `json:"version"`
+	// A Windows release row: the update is the monthly cumulative update Windows Update offers.
+	Windows bool `json:"windows"`
+}
+
+// GetDistro returns the value of Distro.
+func (s *FindingsPostFindingsIDUnconfirmOKFix) GetDistro() string {
+	return s.Distro
+}
+
+// GetFixed returns the value of Fixed.
+func (s *FindingsPostFindingsIDUnconfirmOKFix) GetFixed() string {
+	return s.Fixed
+}
+
+// GetGroup returns the value of Group.
+func (s *FindingsPostFindingsIDUnconfirmOKFix) GetGroup() string {
+	return s.Group
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsPostFindingsIDUnconfirmOKFix) GetKind() FindingsPostFindingsIDUnconfirmOKFixKind {
+	return s.Kind
+}
+
+// GetPro returns the value of Pro.
+func (s *FindingsPostFindingsIDUnconfirmOKFix) GetPro() bool {
+	return s.Pro
+}
+
+// GetSoftware returns the value of Software.
+func (s *FindingsPostFindingsIDUnconfirmOKFix) GetSoftware() string {
+	return s.Software
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsPostFindingsIDUnconfirmOKFix) GetVersion() string {
+	return s.Version
+}
+
+// GetWindows returns the value of Windows.
+func (s *FindingsPostFindingsIDUnconfirmOKFix) GetWindows() bool {
+	return s.Windows
+}
+
+// SetDistro sets the value of Distro.
+func (s *FindingsPostFindingsIDUnconfirmOKFix) SetDistro(val string) {
+	s.Distro = val
+}
+
+// SetFixed sets the value of Fixed.
+func (s *FindingsPostFindingsIDUnconfirmOKFix) SetFixed(val string) {
+	s.Fixed = val
+}
+
+// SetGroup sets the value of Group.
+func (s *FindingsPostFindingsIDUnconfirmOKFix) SetGroup(val string) {
+	s.Group = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsPostFindingsIDUnconfirmOKFix) SetKind(val FindingsPostFindingsIDUnconfirmOKFixKind) {
+	s.Kind = val
+}
+
+// SetPro sets the value of Pro.
+func (s *FindingsPostFindingsIDUnconfirmOKFix) SetPro(val bool) {
+	s.Pro = val
+}
+
+// SetSoftware sets the value of Software.
+func (s *FindingsPostFindingsIDUnconfirmOKFix) SetSoftware(val string) {
+	s.Software = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsPostFindingsIDUnconfirmOKFix) SetVersion(val string) {
+	s.Version = val
+}
+
+// SetWindows sets the value of Windows.
+func (s *FindingsPostFindingsIDUnconfirmOKFix) SetWindows(val bool) {
+	s.Windows = val
+}
+
+// Fixed = upgrade to `fixed` (a Windows release: the monthly cumulative update with build `fixed` or
+// later); esu = that build needs Extended Security Updates; feature_update = no update of this release
+// fixes them, move to release `fixed`; distro = install the distribution's security updates for the
+// package.
+type FindingsPostFindingsIDUnconfirmOKFixKind string
+
+const (
+	FindingsPostFindingsIDUnconfirmOKFixKindFixed         FindingsPostFindingsIDUnconfirmOKFixKind = "fixed"
+	FindingsPostFindingsIDUnconfirmOKFixKindEsu           FindingsPostFindingsIDUnconfirmOKFixKind = "esu"
+	FindingsPostFindingsIDUnconfirmOKFixKindFeatureUpdate FindingsPostFindingsIDUnconfirmOKFixKind = "feature_update"
+	FindingsPostFindingsIDUnconfirmOKFixKindDistro        FindingsPostFindingsIDUnconfirmOKFixKind = "distro"
+)
+
+// AllValues returns all FindingsPostFindingsIDUnconfirmOKFixKind values.
+func (FindingsPostFindingsIDUnconfirmOKFixKind) AllValues() []FindingsPostFindingsIDUnconfirmOKFixKind {
+	return []FindingsPostFindingsIDUnconfirmOKFixKind{
+		FindingsPostFindingsIDUnconfirmOKFixKindFixed,
+		FindingsPostFindingsIDUnconfirmOKFixKindEsu,
+		FindingsPostFindingsIDUnconfirmOKFixKindFeatureUpdate,
+		FindingsPostFindingsIDUnconfirmOKFixKindDistro,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDUnconfirmOKFixKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDUnconfirmOKFixKindFixed:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKFixKindEsu:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKFixKindFeatureUpdate:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKFixKindDistro:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDUnconfirmOKFixKind) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDUnconfirmOKFixKind(data) {
+	case FindingsPostFindingsIDUnconfirmOKFixKindFixed:
+		*s = FindingsPostFindingsIDUnconfirmOKFixKindFixed
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKFixKindEsu:
+		*s = FindingsPostFindingsIDUnconfirmOKFixKindEsu
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKFixKindFeatureUpdate:
+		*s = FindingsPostFindingsIDUnconfirmOKFixKindFeatureUpdate
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKFixKindDistro:
+		*s = FindingsPostFindingsIDUnconfirmOKFixKindDistro
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDUnconfirmOKFixedIn struct {
+	// At most 5, newest first.
+	Branches []FindingsPostFindingsIDUnconfirmOKFixedInBranchesItem `json:"branches"`
+	// "Ubuntu" or "Debian" when the device runs one, empty otherwise. distro: whose security updates to
+	// install (empty = the distribution). Other kinds: set only when the software is not known to come
+	// from the package database (typed by a person, read by a scan, or an agent row stored before
+	// inventory kept the flag); the page adds "if you installed it from the distribution's packages,
+	// install its security updates instead".
+	Distro string `json:"distro"`
+	// Kind distro only: the version of the distribution's package that fixes the CVE on the device's
+	// release (Ubuntu security data, Debian Security Tracker); `version` is then the device's full package
+	// version. Empty when the distribution's data does not say.
+	DistroFixed string `json:"distro_fixed"`
+	// Distro_fixed is in Ubuntu Pro (ESM) only.
+	DistroPro bool `json:"distro_pro"`
+	// The device's release with distro_fixed ("24.04", "12"); empty otherwise.
+	DistroRelease string `json:"distro_release"`
+	// The fixed release (fixed), the last affected release (up_to), the upstream fixed release as a
+	// reference when NVD names one (distro: the backport may keep the package's number below it); empty
+	// for branches.
+	Fixed string `json:"fixed"`
+	// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
+	// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
+	// named); end_listed = inside a range that ends before `fixed`, but NVD lists releases of `fixed`
+	// itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix, the
+	// vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the fix
+	// of each release line; distro = a package of the distribution, whose security updates carry the fix
+	// under their own numbers: an agent read it from the device's package database (deb/rpm), or the
+	// version carries a marker such as ubuntu, +deb12, .el9; feature_update = a Windows release NVD does
+	// not list for the fix, which only a later release of its line (`branches[0].branch`, from build
+	// `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu = the fixing Windows
+	// build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+	Kind FindingsPostFindingsIDUnconfirmOKFixedInKind `json:"kind"`
+	// Release lines with a fix left out of branches.
+	More int `json:"more"`
+	// Release lines NVD gives no fixed release for (a range that ends at an affected version).
+	NoFix int `json:"no_fix"`
+	// Where the versions come from: "NVD affected versions", "CVE.org affected versions (from the CVE
+	// record's CNA)" when NVD has none, or with distro_fixed "Ubuntu security data" / "Debian Security
+	// Tracker".
+	Source string `json:"source"`
+	// The device's version; for branches empty when it has none, else the text Vedette cannot read.
+	Version string `json:"version"`
+}
+
+// GetBranches returns the value of Branches.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) GetBranches() []FindingsPostFindingsIDUnconfirmOKFixedInBranchesItem {
+	return s.Branches
+}
+
+// GetDistro returns the value of Distro.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) GetDistro() string {
+	return s.Distro
+}
+
+// GetDistroFixed returns the value of DistroFixed.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) GetDistroFixed() string {
+	return s.DistroFixed
+}
+
+// GetDistroPro returns the value of DistroPro.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) GetDistroPro() bool {
+	return s.DistroPro
+}
+
+// GetDistroRelease returns the value of DistroRelease.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) GetDistroRelease() string {
+	return s.DistroRelease
+}
+
+// GetFixed returns the value of Fixed.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) GetFixed() string {
+	return s.Fixed
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) GetKind() FindingsPostFindingsIDUnconfirmOKFixedInKind {
+	return s.Kind
+}
+
+// GetMore returns the value of More.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) GetMore() int {
+	return s.More
+}
+
+// GetNoFix returns the value of NoFix.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) GetNoFix() int {
+	return s.NoFix
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) GetSource() string {
+	return s.Source
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) GetVersion() string {
+	return s.Version
+}
+
+// SetBranches sets the value of Branches.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) SetBranches(val []FindingsPostFindingsIDUnconfirmOKFixedInBranchesItem) {
+	s.Branches = val
+}
+
+// SetDistro sets the value of Distro.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) SetDistro(val string) {
+	s.Distro = val
+}
+
+// SetDistroFixed sets the value of DistroFixed.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) SetDistroFixed(val string) {
+	s.DistroFixed = val
+}
+
+// SetDistroPro sets the value of DistroPro.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) SetDistroPro(val bool) {
+	s.DistroPro = val
+}
+
+// SetDistroRelease sets the value of DistroRelease.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) SetDistroRelease(val string) {
+	s.DistroRelease = val
+}
+
+// SetFixed sets the value of Fixed.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) SetFixed(val string) {
+	s.Fixed = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) SetKind(val FindingsPostFindingsIDUnconfirmOKFixedInKind) {
+	s.Kind = val
+}
+
+// SetMore sets the value of More.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) SetMore(val int) {
+	s.More = val
+}
+
+// SetNoFix sets the value of NoFix.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) SetNoFix(val int) {
+	s.NoFix = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) SetSource(val string) {
+	s.Source = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedIn) SetVersion(val string) {
+	s.Version = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKFixedInBranchesItem struct {
+	// Release line such as 7.4; empty when it cannot be told.
+	Branch string `json:"branch"`
+	Fixed  string `json:"fixed"`
+}
+
+// GetBranch returns the value of Branch.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedInBranchesItem) GetBranch() string {
+	return s.Branch
+}
+
+// GetFixed returns the value of Fixed.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedInBranchesItem) GetFixed() string {
+	return s.Fixed
+}
+
+// SetBranch sets the value of Branch.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedInBranchesItem) SetBranch(val string) {
+	s.Branch = val
+}
+
+// SetFixed sets the value of Fixed.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedInBranchesItem) SetFixed(val string) {
+	s.Fixed = val
+}
+
+// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
+// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
+// named); end_listed = inside a range that ends before `fixed`, but NVD lists releases of `fixed`
+// itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix, the
+// vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the fix
+// of each release line; distro = a package of the distribution, whose security updates carry the fix
+// under their own numbers: an agent read it from the device's package database (deb/rpm), or the
+// version carries a marker such as ubuntu, +deb12, .el9; feature_update = a Windows release NVD does
+// not list for the fix, which only a later release of its line (`branches[0].branch`, from build
+// `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu = the fixing Windows
+// build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+type FindingsPostFindingsIDUnconfirmOKFixedInKind string
+
+const (
+	FindingsPostFindingsIDUnconfirmOKFixedInKindFixed         FindingsPostFindingsIDUnconfirmOKFixedInKind = "fixed"
+	FindingsPostFindingsIDUnconfirmOKFixedInKindUpTo          FindingsPostFindingsIDUnconfirmOKFixedInKind = "up_to"
+	FindingsPostFindingsIDUnconfirmOKFixedInKindEndListed     FindingsPostFindingsIDUnconfirmOKFixedInKind = "end_listed"
+	FindingsPostFindingsIDUnconfirmOKFixedInKindBranches      FindingsPostFindingsIDUnconfirmOKFixedInKind = "branches"
+	FindingsPostFindingsIDUnconfirmOKFixedInKindDistro        FindingsPostFindingsIDUnconfirmOKFixedInKind = "distro"
+	FindingsPostFindingsIDUnconfirmOKFixedInKindFeatureUpdate FindingsPostFindingsIDUnconfirmOKFixedInKind = "feature_update"
+	FindingsPostFindingsIDUnconfirmOKFixedInKindEsu           FindingsPostFindingsIDUnconfirmOKFixedInKind = "esu"
+)
+
+// AllValues returns all FindingsPostFindingsIDUnconfirmOKFixedInKind values.
+func (FindingsPostFindingsIDUnconfirmOKFixedInKind) AllValues() []FindingsPostFindingsIDUnconfirmOKFixedInKind {
+	return []FindingsPostFindingsIDUnconfirmOKFixedInKind{
+		FindingsPostFindingsIDUnconfirmOKFixedInKindFixed,
+		FindingsPostFindingsIDUnconfirmOKFixedInKindUpTo,
+		FindingsPostFindingsIDUnconfirmOKFixedInKindEndListed,
+		FindingsPostFindingsIDUnconfirmOKFixedInKindBranches,
+		FindingsPostFindingsIDUnconfirmOKFixedInKindDistro,
+		FindingsPostFindingsIDUnconfirmOKFixedInKindFeatureUpdate,
+		FindingsPostFindingsIDUnconfirmOKFixedInKindEsu,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDUnconfirmOKFixedInKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDUnconfirmOKFixedInKindFixed:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKFixedInKindUpTo:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKFixedInKindEndListed:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKFixedInKindBranches:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKFixedInKindDistro:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKFixedInKindFeatureUpdate:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKFixedInKindEsu:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDUnconfirmOKFixedInKind) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDUnconfirmOKFixedInKind(data) {
+	case FindingsPostFindingsIDUnconfirmOKFixedInKindFixed:
+		*s = FindingsPostFindingsIDUnconfirmOKFixedInKindFixed
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKFixedInKindUpTo:
+		*s = FindingsPostFindingsIDUnconfirmOKFixedInKindUpTo
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKFixedInKindEndListed:
+		*s = FindingsPostFindingsIDUnconfirmOKFixedInKindEndListed
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKFixedInKindBranches:
+		*s = FindingsPostFindingsIDUnconfirmOKFixedInKindBranches
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKFixedInKindDistro:
+		*s = FindingsPostFindingsIDUnconfirmOKFixedInKindDistro
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKFixedInKindFeatureUpdate:
+		*s = FindingsPostFindingsIDUnconfirmOKFixedInKindFeatureUpdate
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKFixedInKindEsu:
+		*s = FindingsPostFindingsIDUnconfirmOKFixedInKindEsu
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Mitigation INV-8: general compromise checks written by reviewed code, not a recommendation for the
+// CVE: never shown as "Vedette confirmed", never run by Vedette. The generated firewall configs and
+// the admin network field are gone.
+type FindingsPostFindingsIDUnconfirmOKHardening struct {
+	// General "Have I been hit?" checks for the software family.
+	Checks NilFindingsPostFindingsIDUnconfirmOKHardeningChecks `json:"checks"`
+	// The family the checks are written for ("Linux", "Network device", "General").
+	Family string `json:"family"`
+	// The software the checks are for, as the page names it.
+	Software string `json:"software"`
+}
+
+// GetChecks returns the value of Checks.
+func (s *FindingsPostFindingsIDUnconfirmOKHardening) GetChecks() NilFindingsPostFindingsIDUnconfirmOKHardeningChecks {
+	return s.Checks
+}
+
+// GetFamily returns the value of Family.
+func (s *FindingsPostFindingsIDUnconfirmOKHardening) GetFamily() string {
+	return s.Family
+}
+
+// GetSoftware returns the value of Software.
+func (s *FindingsPostFindingsIDUnconfirmOKHardening) GetSoftware() string {
+	return s.Software
+}
+
+// SetChecks sets the value of Checks.
+func (s *FindingsPostFindingsIDUnconfirmOKHardening) SetChecks(val NilFindingsPostFindingsIDUnconfirmOKHardeningChecks) {
+	s.Checks = val
+}
+
+// SetFamily sets the value of Family.
+func (s *FindingsPostFindingsIDUnconfirmOKHardening) SetFamily(val string) {
+	s.Family = val
+}
+
+// SetSoftware sets the value of Software.
+func (s *FindingsPostFindingsIDUnconfirmOKHardening) SetSoftware(val string) {
+	s.Software = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKHardeningChecks struct {
+	IfFound    []string                                                         `json:"if_found"`
+	Indicators []FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItem `json:"indicators"`
+	Summary    string                                                           `json:"summary"`
+}
+
+// GetIfFound returns the value of IfFound.
+func (s *FindingsPostFindingsIDUnconfirmOKHardeningChecks) GetIfFound() []string {
+	return s.IfFound
+}
+
+// GetIndicators returns the value of Indicators.
+func (s *FindingsPostFindingsIDUnconfirmOKHardeningChecks) GetIndicators() []FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItem {
+	return s.Indicators
+}
+
+// GetSummary returns the value of Summary.
+func (s *FindingsPostFindingsIDUnconfirmOKHardeningChecks) GetSummary() string {
+	return s.Summary
+}
+
+// SetIfFound sets the value of IfFound.
+func (s *FindingsPostFindingsIDUnconfirmOKHardeningChecks) SetIfFound(val []string) {
+	s.IfFound = val
+}
+
+// SetIndicators sets the value of Indicators.
+func (s *FindingsPostFindingsIDUnconfirmOKHardeningChecks) SetIndicators(val []FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItem) {
+	s.Indicators = val
+}
+
+// SetSummary sets the value of Summary.
+func (s *FindingsPostFindingsIDUnconfirmOKHardeningChecks) SetSummary(val string) {
+	s.Summary = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItem struct {
+	Commands []FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemCommandsItem `json:"commands"`
+	Detail   string                                                                       `json:"detail"`
+	Kind     FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKind           `json:"kind"`
+	Title    string                                                                       `json:"title"`
+}
+
+// GetCommands returns the value of Commands.
+func (s *FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItem) GetCommands() []FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemCommandsItem {
+	return s.Commands
+}
+
+// GetDetail returns the value of Detail.
+func (s *FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItem) GetDetail() string {
+	return s.Detail
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItem) GetKind() FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKind {
+	return s.Kind
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCommands sets the value of Commands.
+func (s *FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItem) SetCommands(val []FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemCommandsItem) {
+	s.Commands = val
+}
+
+// SetDetail sets the value of Detail.
+func (s *FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItem) SetDetail(val string) {
+	s.Detail = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItem) SetKind(val FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKind) {
+	s.Kind = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItem) SetTitle(val string) {
+	s.Title = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemCommandsItem struct {
+	Code  string `json:"code"`
+	Label string `json:"label"`
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemCommandsItem) GetCode() string {
+	return s.Code
+}
+
+// GetLabel returns the value of Label.
+func (s *FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemCommandsItem) GetLabel() string {
+	return s.Label
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemCommandsItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetLabel sets the value of Label.
+func (s *FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemCommandsItem) SetLabel(val string) {
+	s.Label = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKind string
+
+const (
+	FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKindFile    FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKind = "file"
+	FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKindWeb     FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKind = "web"
+	FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKindLog     FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKind = "log"
+	FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKindProcess FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKind = "process"
+)
+
+// AllValues returns all FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKind values.
+func (FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKind) AllValues() []FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKind {
+	return []FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKind{
+		FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKindFile,
+		FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKindWeb,
+		FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKindLog,
+		FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKindProcess,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKindFile:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKindWeb:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKindLog:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKindProcess:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKind) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKind(data) {
+	case FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKindFile:
+		*s = FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKindFile
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKindWeb:
+		*s = FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKindWeb
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKindLog:
+		*s = FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKindLog
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKindProcess:
+		*s = FindingsPostFindingsIDUnconfirmOKHardeningChecksIndicatorsItemKindProcess
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDUnconfirmOKHistoryItem struct {
+	Action string    `json:"action"`
+	Note   OptString `json:"note"`
+	Ts     time.Time `json:"ts"`
+	User   string    `json:"user"`
+}
+
+// GetAction returns the value of Action.
+func (s *FindingsPostFindingsIDUnconfirmOKHistoryItem) GetAction() string {
+	return s.Action
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDUnconfirmOKHistoryItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetTs returns the value of Ts.
+func (s *FindingsPostFindingsIDUnconfirmOKHistoryItem) GetTs() time.Time {
+	return s.Ts
+}
+
+// GetUser returns the value of User.
+func (s *FindingsPostFindingsIDUnconfirmOKHistoryItem) GetUser() string {
+	return s.User
+}
+
+// SetAction sets the value of Action.
+func (s *FindingsPostFindingsIDUnconfirmOKHistoryItem) SetAction(val string) {
+	s.Action = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDUnconfirmOKHistoryItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetTs sets the value of Ts.
+func (s *FindingsPostFindingsIDUnconfirmOKHistoryItem) SetTs(val time.Time) {
+	s.Ts = val
+}
+
+// SetUser sets the value of User.
+func (s *FindingsPostFindingsIDUnconfirmOKHistoryItem) SetUser(val string) {
+	s.User = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKKev struct {
+	DateAdded   string     `json:"date_added"`
+	Display     string     `json:"display"`
+	DueDate     NilString  `json:"due_date"`
+	Epss        NilFloat64 `json:"epss"`
+	HasTemplate bool       `json:"has_template"`
+	Links       []string   `json:"links"`
+	Name        string     `json:"name"`
+	Product     string     `json:"product"`
+	// The day the CVE was published (NVD `published`), never the day CISA added it; null when NVD has not
+	// answered for it (then it counts as recent: an older CVE is not a finding on a product-only match,
+	// and a missing date never closes a finding).
+	Published      NilDate `json:"published"`
+	Ransomware     bool    `json:"ransomware"`
+	RequiredAction string  `json:"required_action"`
+	// Which list the entry is on: texts and the source badge name it; an entry of VulnCheck KEV is never
+	// called CISA's.
+	Source OptFindingsPostFindingsIDUnconfirmOKKevSource `json:"source"`
+	Vendor string                                        `json:"vendor"`
+}
+
+// GetDateAdded returns the value of DateAdded.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) GetDateAdded() string {
+	return s.DateAdded
+}
+
+// GetDisplay returns the value of Display.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) GetDisplay() string {
+	return s.Display
+}
+
+// GetDueDate returns the value of DueDate.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) GetDueDate() NilString {
+	return s.DueDate
+}
+
+// GetEpss returns the value of Epss.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) GetEpss() NilFloat64 {
+	return s.Epss
+}
+
+// GetHasTemplate returns the value of HasTemplate.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) GetHasTemplate() bool {
+	return s.HasTemplate
+}
+
+// GetLinks returns the value of Links.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) GetLinks() []string {
+	return s.Links
+}
+
+// GetName returns the value of Name.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) GetName() string {
+	return s.Name
+}
+
+// GetProduct returns the value of Product.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) GetProduct() string {
+	return s.Product
+}
+
+// GetPublished returns the value of Published.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) GetPublished() NilDate {
+	return s.Published
+}
+
+// GetRansomware returns the value of Ransomware.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) GetRansomware() bool {
+	return s.Ransomware
+}
+
+// GetRequiredAction returns the value of RequiredAction.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) GetRequiredAction() string {
+	return s.RequiredAction
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) GetSource() OptFindingsPostFindingsIDUnconfirmOKKevSource {
+	return s.Source
+}
+
+// GetVendor returns the value of Vendor.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) GetVendor() string {
+	return s.Vendor
+}
+
+// SetDateAdded sets the value of DateAdded.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) SetDateAdded(val string) {
+	s.DateAdded = val
+}
+
+// SetDisplay sets the value of Display.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) SetDisplay(val string) {
+	s.Display = val
+}
+
+// SetDueDate sets the value of DueDate.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) SetDueDate(val NilString) {
+	s.DueDate = val
+}
+
+// SetEpss sets the value of Epss.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) SetEpss(val NilFloat64) {
+	s.Epss = val
+}
+
+// SetHasTemplate sets the value of HasTemplate.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) SetHasTemplate(val bool) {
+	s.HasTemplate = val
+}
+
+// SetLinks sets the value of Links.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) SetLinks(val []string) {
+	s.Links = val
+}
+
+// SetName sets the value of Name.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) SetName(val string) {
+	s.Name = val
+}
+
+// SetProduct sets the value of Product.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetPublished sets the value of Published.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) SetPublished(val NilDate) {
+	s.Published = val
+}
+
+// SetRansomware sets the value of Ransomware.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) SetRansomware(val bool) {
+	s.Ransomware = val
+}
+
+// SetRequiredAction sets the value of RequiredAction.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) SetRequiredAction(val string) {
+	s.RequiredAction = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) SetSource(val OptFindingsPostFindingsIDUnconfirmOKKevSource) {
+	s.Source = val
+}
+
+// SetVendor sets the value of Vendor.
+func (s *FindingsPostFindingsIDUnconfirmOKKev) SetVendor(val string) {
+	s.Vendor = val
+}
+
+// Which list the entry is on: texts and the source badge name it; an entry of VulnCheck KEV is never
+// called CISA's.
+type FindingsPostFindingsIDUnconfirmOKKevSource string
+
+const (
+	FindingsPostFindingsIDUnconfirmOKKevSourceCisaKev      FindingsPostFindingsIDUnconfirmOKKevSource = "cisa-kev"
+	FindingsPostFindingsIDUnconfirmOKKevSourceVulncheckKev FindingsPostFindingsIDUnconfirmOKKevSource = "vulncheck-kev"
+)
+
+// AllValues returns all FindingsPostFindingsIDUnconfirmOKKevSource values.
+func (FindingsPostFindingsIDUnconfirmOKKevSource) AllValues() []FindingsPostFindingsIDUnconfirmOKKevSource {
+	return []FindingsPostFindingsIDUnconfirmOKKevSource{
+		FindingsPostFindingsIDUnconfirmOKKevSourceCisaKev,
+		FindingsPostFindingsIDUnconfirmOKKevSourceVulncheckKev,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDUnconfirmOKKevSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDUnconfirmOKKevSourceCisaKev:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKKevSourceVulncheckKev:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDUnconfirmOKKevSource) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDUnconfirmOKKevSource(data) {
+	case FindingsPostFindingsIDUnconfirmOKKevSourceCisaKev:
+		*s = FindingsPostFindingsIDUnconfirmOKKevSourceCisaKev
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKKevSourceVulncheckKev:
+		*s = FindingsPostFindingsIDUnconfirmOKKevSourceVulncheckKev
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The version the box has for the matched software; the page says it and how a newer one reaches
+// Vedette, never "find which version".
+type FindingsPostFindingsIDUnconfirmOKKnownVersion struct {
+	// When that source last gave the version: the agent's last list, the last scan or SNMP read that
+	// returned it, or when a person entered it; null when not known. Not the same as the finding's
+	// last_seen.
+	SeenAt NilDateTime `json:"seen_at"`
+	// Display name of the software the finding was matched on.
+	Software string `json:"software"`
+	// Who gave the version: the device's agent, its answer to Vedette's SNMP read, its own statement on
+	// the network (LLDP), a network scan, or a person on the Devices page.
+	Source  FindingsPostFindingsIDUnconfirmOKKnownVersionSource `json:"source"`
+	Version string                                              `json:"version"`
+}
+
+// GetSeenAt returns the value of SeenAt.
+func (s *FindingsPostFindingsIDUnconfirmOKKnownVersion) GetSeenAt() NilDateTime {
+	return s.SeenAt
+}
+
+// GetSoftware returns the value of Software.
+func (s *FindingsPostFindingsIDUnconfirmOKKnownVersion) GetSoftware() string {
+	return s.Software
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDUnconfirmOKKnownVersion) GetSource() FindingsPostFindingsIDUnconfirmOKKnownVersionSource {
+	return s.Source
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsPostFindingsIDUnconfirmOKKnownVersion) GetVersion() string {
+	return s.Version
+}
+
+// SetSeenAt sets the value of SeenAt.
+func (s *FindingsPostFindingsIDUnconfirmOKKnownVersion) SetSeenAt(val NilDateTime) {
+	s.SeenAt = val
+}
+
+// SetSoftware sets the value of Software.
+func (s *FindingsPostFindingsIDUnconfirmOKKnownVersion) SetSoftware(val string) {
+	s.Software = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDUnconfirmOKKnownVersion) SetSource(val FindingsPostFindingsIDUnconfirmOKKnownVersionSource) {
+	s.Source = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsPostFindingsIDUnconfirmOKKnownVersion) SetVersion(val string) {
+	s.Version = val
+}
+
+// Who gave the version: the device's agent, its answer to Vedette's SNMP read, its own statement on
+// the network (LLDP), a network scan, or a person on the Devices page.
+type FindingsPostFindingsIDUnconfirmOKKnownVersionSource string
+
+const (
+	FindingsPostFindingsIDUnconfirmOKKnownVersionSourceAgent  FindingsPostFindingsIDUnconfirmOKKnownVersionSource = "agent"
+	FindingsPostFindingsIDUnconfirmOKKnownVersionSourceSnmp   FindingsPostFindingsIDUnconfirmOKKnownVersionSource = "snmp"
+	FindingsPostFindingsIDUnconfirmOKKnownVersionSourceStated FindingsPostFindingsIDUnconfirmOKKnownVersionSource = "stated"
+	FindingsPostFindingsIDUnconfirmOKKnownVersionSourceScan   FindingsPostFindingsIDUnconfirmOKKnownVersionSource = "scan"
+	FindingsPostFindingsIDUnconfirmOKKnownVersionSourceManual FindingsPostFindingsIDUnconfirmOKKnownVersionSource = "manual"
+)
+
+// AllValues returns all FindingsPostFindingsIDUnconfirmOKKnownVersionSource values.
+func (FindingsPostFindingsIDUnconfirmOKKnownVersionSource) AllValues() []FindingsPostFindingsIDUnconfirmOKKnownVersionSource {
+	return []FindingsPostFindingsIDUnconfirmOKKnownVersionSource{
+		FindingsPostFindingsIDUnconfirmOKKnownVersionSourceAgent,
+		FindingsPostFindingsIDUnconfirmOKKnownVersionSourceSnmp,
+		FindingsPostFindingsIDUnconfirmOKKnownVersionSourceStated,
+		FindingsPostFindingsIDUnconfirmOKKnownVersionSourceScan,
+		FindingsPostFindingsIDUnconfirmOKKnownVersionSourceManual,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDUnconfirmOKKnownVersionSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDUnconfirmOKKnownVersionSourceAgent:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKKnownVersionSourceSnmp:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKKnownVersionSourceStated:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKKnownVersionSourceScan:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKKnownVersionSourceManual:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDUnconfirmOKKnownVersionSource) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDUnconfirmOKKnownVersionSource(data) {
+	case FindingsPostFindingsIDUnconfirmOKKnownVersionSourceAgent:
+		*s = FindingsPostFindingsIDUnconfirmOKKnownVersionSourceAgent
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKKnownVersionSourceSnmp:
+		*s = FindingsPostFindingsIDUnconfirmOKKnownVersionSourceSnmp
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKKnownVersionSourceStated:
+		*s = FindingsPostFindingsIDUnconfirmOKKnownVersionSourceStated
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKKnownVersionSourceScan:
+		*s = FindingsPostFindingsIDUnconfirmOKKnownVersionSourceScan
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKKnownVersionSourceManual:
+		*s = FindingsPostFindingsIDUnconfirmOKKnownVersionSourceManual
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDUnconfirmOKPack struct {
+	Checklist   []string                                            `json:"checklist"`
+	ConfirmedAt time.Time                                           `json:"confirmed_at"`
+	ConfirmedBy string                                              `json:"confirmed_by"`
+	Cve         string                                              `json:"cve"`
+	DraftedWith string                                              `json:"drafted_with"`
+	Firewall    []FindingsPostFindingsIDUnconfirmOKPackFirewallItem `json:"firewall"`
+	Patch       FindingsPostFindingsIDUnconfirmOKPackPatch          `json:"patch"`
+	Sources     []FindingsPostFindingsIDUnconfirmOKPackSourcesItem  `json:"sources"`
+	Workaround  FindingsPostFindingsIDUnconfirmOKPackWorkaround     `json:"workaround"`
+}
+
+// GetChecklist returns the value of Checklist.
+func (s *FindingsPostFindingsIDUnconfirmOKPack) GetChecklist() []string {
+	return s.Checklist
+}
+
+// GetConfirmedAt returns the value of ConfirmedAt.
+func (s *FindingsPostFindingsIDUnconfirmOKPack) GetConfirmedAt() time.Time {
+	return s.ConfirmedAt
+}
+
+// GetConfirmedBy returns the value of ConfirmedBy.
+func (s *FindingsPostFindingsIDUnconfirmOKPack) GetConfirmedBy() string {
+	return s.ConfirmedBy
+}
+
+// GetCve returns the value of Cve.
+func (s *FindingsPostFindingsIDUnconfirmOKPack) GetCve() string {
+	return s.Cve
+}
+
+// GetDraftedWith returns the value of DraftedWith.
+func (s *FindingsPostFindingsIDUnconfirmOKPack) GetDraftedWith() string {
+	return s.DraftedWith
+}
+
+// GetFirewall returns the value of Firewall.
+func (s *FindingsPostFindingsIDUnconfirmOKPack) GetFirewall() []FindingsPostFindingsIDUnconfirmOKPackFirewallItem {
+	return s.Firewall
+}
+
+// GetPatch returns the value of Patch.
+func (s *FindingsPostFindingsIDUnconfirmOKPack) GetPatch() FindingsPostFindingsIDUnconfirmOKPackPatch {
+	return s.Patch
+}
+
+// GetSources returns the value of Sources.
+func (s *FindingsPostFindingsIDUnconfirmOKPack) GetSources() []FindingsPostFindingsIDUnconfirmOKPackSourcesItem {
+	return s.Sources
+}
+
+// GetWorkaround returns the value of Workaround.
+func (s *FindingsPostFindingsIDUnconfirmOKPack) GetWorkaround() FindingsPostFindingsIDUnconfirmOKPackWorkaround {
+	return s.Workaround
+}
+
+// SetChecklist sets the value of Checklist.
+func (s *FindingsPostFindingsIDUnconfirmOKPack) SetChecklist(val []string) {
+	s.Checklist = val
+}
+
+// SetConfirmedAt sets the value of ConfirmedAt.
+func (s *FindingsPostFindingsIDUnconfirmOKPack) SetConfirmedAt(val time.Time) {
+	s.ConfirmedAt = val
+}
+
+// SetConfirmedBy sets the value of ConfirmedBy.
+func (s *FindingsPostFindingsIDUnconfirmOKPack) SetConfirmedBy(val string) {
+	s.ConfirmedBy = val
+}
+
+// SetCve sets the value of Cve.
+func (s *FindingsPostFindingsIDUnconfirmOKPack) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetDraftedWith sets the value of DraftedWith.
+func (s *FindingsPostFindingsIDUnconfirmOKPack) SetDraftedWith(val string) {
+	s.DraftedWith = val
+}
+
+// SetFirewall sets the value of Firewall.
+func (s *FindingsPostFindingsIDUnconfirmOKPack) SetFirewall(val []FindingsPostFindingsIDUnconfirmOKPackFirewallItem) {
+	s.Firewall = val
+}
+
+// SetPatch sets the value of Patch.
+func (s *FindingsPostFindingsIDUnconfirmOKPack) SetPatch(val FindingsPostFindingsIDUnconfirmOKPackPatch) {
+	s.Patch = val
+}
+
+// SetSources sets the value of Sources.
+func (s *FindingsPostFindingsIDUnconfirmOKPack) SetSources(val []FindingsPostFindingsIDUnconfirmOKPackSourcesItem) {
+	s.Sources = val
+}
+
+// SetWorkaround sets the value of Workaround.
+func (s *FindingsPostFindingsIDUnconfirmOKPack) SetWorkaround(val FindingsPostFindingsIDUnconfirmOKPackWorkaround) {
+	s.Workaround = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKPackFirewallItem struct {
+	Alternative OptFindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative `json:"alternative"`
+	// The user declared a device of this vendor in the inventory.
+	Detected bool                                                          `json:"detected"`
+	Intro    string                                                        `json:"intro"`
+	Label    string                                                        `json:"label"`
+	Plain    []string                                                      `json:"plain"`
+	Steps    []FindingsPostFindingsIDUnconfirmOKPackFirewallItemStepsItem  `json:"steps"`
+	Undo     []FindingsPostFindingsIDUnconfirmOKPackFirewallItemUndoItem   `json:"undo"`
+	Vendor   FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendor       `json:"vendor"`
+	Verify   []FindingsPostFindingsIDUnconfirmOKPackFirewallItemVerifyItem `json:"verify"`
+}
+
+// GetAlternative returns the value of Alternative.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItem) GetAlternative() OptFindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative {
+	return s.Alternative
+}
+
+// GetDetected returns the value of Detected.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItem) GetDetected() bool {
+	return s.Detected
+}
+
+// GetIntro returns the value of Intro.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItem) GetIntro() string {
+	return s.Intro
+}
+
+// GetLabel returns the value of Label.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItem) GetLabel() string {
+	return s.Label
+}
+
+// GetPlain returns the value of Plain.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItem) GetPlain() []string {
+	return s.Plain
+}
+
+// GetSteps returns the value of Steps.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItem) GetSteps() []FindingsPostFindingsIDUnconfirmOKPackFirewallItemStepsItem {
+	return s.Steps
+}
+
+// GetUndo returns the value of Undo.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItem) GetUndo() []FindingsPostFindingsIDUnconfirmOKPackFirewallItemUndoItem {
+	return s.Undo
+}
+
+// GetVendor returns the value of Vendor.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItem) GetVendor() FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendor {
+	return s.Vendor
+}
+
+// GetVerify returns the value of Verify.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItem) GetVerify() []FindingsPostFindingsIDUnconfirmOKPackFirewallItemVerifyItem {
+	return s.Verify
+}
+
+// SetAlternative sets the value of Alternative.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItem) SetAlternative(val OptFindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative) {
+	s.Alternative = val
+}
+
+// SetDetected sets the value of Detected.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItem) SetDetected(val bool) {
+	s.Detected = val
+}
+
+// SetIntro sets the value of Intro.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItem) SetIntro(val string) {
+	s.Intro = val
+}
+
+// SetLabel sets the value of Label.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItem) SetLabel(val string) {
+	s.Label = val
+}
+
+// SetPlain sets the value of Plain.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItem) SetPlain(val []string) {
+	s.Plain = val
+}
+
+// SetSteps sets the value of Steps.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItem) SetSteps(val []FindingsPostFindingsIDUnconfirmOKPackFirewallItemStepsItem) {
+	s.Steps = val
+}
+
+// SetUndo sets the value of Undo.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItem) SetUndo(val []FindingsPostFindingsIDUnconfirmOKPackFirewallItemUndoItem) {
+	s.Undo = val
+}
+
+// SetVendor sets the value of Vendor.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItem) SetVendor(val FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendor) {
+	s.Vendor = val
+}
+
+// SetVerify sets the value of Verify.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItem) SetVerify(val []FindingsPostFindingsIDUnconfirmOKPackFirewallItemVerifyItem) {
+	s.Verify = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative struct {
+	Intro string                                                                  `json:"intro"`
+	Steps []FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternativeStepsItem `json:"steps"`
+	Title string                                                                  `json:"title"`
+}
+
+// GetIntro returns the value of Intro.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative) GetIntro() string {
+	return s.Intro
+}
+
+// GetSteps returns the value of Steps.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative) GetSteps() []FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternativeStepsItem {
+	return s.Steps
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative) GetTitle() string {
+	return s.Title
+}
+
+// SetIntro sets the value of Intro.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative) SetIntro(val string) {
+	s.Intro = val
+}
+
+// SetSteps sets the value of Steps.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative) SetSteps(val []FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternativeStepsItem) {
+	s.Steps = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative) SetTitle(val string) {
+	s.Title = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternativeStepsItem struct {
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
+	// Side effect that must be stated before the user pastes the command.
+	SideEffect OptString `json:"side_effect"`
+	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternativeStepsItem) GetCheck() []string {
+	return s.Check
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternativeStepsItem) GetCode() string {
+	return s.Code
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternativeStepsItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternativeStepsItem) GetSideEffect() OptString {
+	return s.SideEffect
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternativeStepsItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternativeStepsItem) SetCheck(val []string) {
+	s.Check = val
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternativeStepsItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternativeStepsItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternativeStepsItem) SetSideEffect(val OptString) {
+	s.SideEffect = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternativeStepsItem) SetTitle(val string) {
+	s.Title = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKPackFirewallItemStepsItem struct {
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
+	// Side effect that must be stated before the user pastes the command.
+	SideEffect OptString `json:"side_effect"`
+	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemStepsItem) GetCheck() []string {
+	return s.Check
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemStepsItem) GetCode() string {
+	return s.Code
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemStepsItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemStepsItem) GetSideEffect() OptString {
+	return s.SideEffect
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemStepsItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemStepsItem) SetCheck(val []string) {
+	s.Check = val
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemStepsItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemStepsItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemStepsItem) SetSideEffect(val OptString) {
+	s.SideEffect = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemStepsItem) SetTitle(val string) {
+	s.Title = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKPackFirewallItemUndoItem struct {
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
+	// Side effect that must be stated before the user pastes the command.
+	SideEffect OptString `json:"side_effect"`
+	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemUndoItem) GetCheck() []string {
+	return s.Check
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemUndoItem) GetCode() string {
+	return s.Code
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemUndoItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemUndoItem) GetSideEffect() OptString {
+	return s.SideEffect
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemUndoItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemUndoItem) SetCheck(val []string) {
+	s.Check = val
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemUndoItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemUndoItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemUndoItem) SetSideEffect(val OptString) {
+	s.SideEffect = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemUndoItem) SetTitle(val string) {
+	s.Title = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendor string
+
+const (
+	FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendorFortigate FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendor = "fortigate"
+	FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendorMikrotik  FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendor = "mikrotik"
+	FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendorGeneric   FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendor = "generic"
+)
+
+// AllValues returns all FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendor values.
+func (FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendor) AllValues() []FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendor {
+	return []FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendor{
+		FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendorFortigate,
+		FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendorMikrotik,
+		FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendorGeneric,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendor) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendorFortigate:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendorMikrotik:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendorGeneric:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendor) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendor(data) {
+	case FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendorFortigate:
+		*s = FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendorFortigate
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendorMikrotik:
+		*s = FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendorMikrotik
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendorGeneric:
+		*s = FindingsPostFindingsIDUnconfirmOKPackFirewallItemVendorGeneric
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDUnconfirmOKPackFirewallItemVerifyItem struct {
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
+	// Side effect that must be stated before the user pastes the command.
+	SideEffect OptString `json:"side_effect"`
+	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemVerifyItem) GetCheck() []string {
+	return s.Check
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemVerifyItem) GetCode() string {
+	return s.Code
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemVerifyItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemVerifyItem) GetSideEffect() OptString {
+	return s.SideEffect
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemVerifyItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemVerifyItem) SetCheck(val []string) {
+	s.Check = val
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemVerifyItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemVerifyItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemVerifyItem) SetSideEffect(val OptString) {
+	s.SideEffect = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKPackFirewallItemVerifyItem) SetTitle(val string) {
+	s.Title = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKPackPatch struct {
+	Fixed      string   `json:"fixed"`
+	SideEffect string   `json:"side_effect"`
+	Steps      []string `json:"steps"`
+	Summary    string   `json:"summary"`
+	URL        string   `json:"url"`
+}
+
+// GetFixed returns the value of Fixed.
+func (s *FindingsPostFindingsIDUnconfirmOKPackPatch) GetFixed() string {
+	return s.Fixed
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDUnconfirmOKPackPatch) GetSideEffect() string {
+	return s.SideEffect
+}
+
+// GetSteps returns the value of Steps.
+func (s *FindingsPostFindingsIDUnconfirmOKPackPatch) GetSteps() []string {
+	return s.Steps
+}
+
+// GetSummary returns the value of Summary.
+func (s *FindingsPostFindingsIDUnconfirmOKPackPatch) GetSummary() string {
+	return s.Summary
+}
+
+// GetURL returns the value of URL.
+func (s *FindingsPostFindingsIDUnconfirmOKPackPatch) GetURL() string {
+	return s.URL
+}
+
+// SetFixed sets the value of Fixed.
+func (s *FindingsPostFindingsIDUnconfirmOKPackPatch) SetFixed(val string) {
+	s.Fixed = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDUnconfirmOKPackPatch) SetSideEffect(val string) {
+	s.SideEffect = val
+}
+
+// SetSteps sets the value of Steps.
+func (s *FindingsPostFindingsIDUnconfirmOKPackPatch) SetSteps(val []string) {
+	s.Steps = val
+}
+
+// SetSummary sets the value of Summary.
+func (s *FindingsPostFindingsIDUnconfirmOKPackPatch) SetSummary(val string) {
+	s.Summary = val
+}
+
+// SetURL sets the value of URL.
+func (s *FindingsPostFindingsIDUnconfirmOKPackPatch) SetURL(val string) {
+	s.URL = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKPackSourcesItem struct {
+	Title string `json:"title"`
+	URL   string `json:"url"`
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKPackSourcesItem) GetTitle() string {
+	return s.Title
+}
+
+// GetURL returns the value of URL.
+func (s *FindingsPostFindingsIDUnconfirmOKPackSourcesItem) GetURL() string {
+	return s.URL
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKPackSourcesItem) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetURL sets the value of URL.
+func (s *FindingsPostFindingsIDUnconfirmOKPackSourcesItem) SetURL(val string) {
+	s.URL = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKPackWorkaround struct {
+	SideEffect string   `json:"side_effect"`
+	Steps      []string `json:"steps"`
+	Summary    string   `json:"summary"`
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDUnconfirmOKPackWorkaround) GetSideEffect() string {
+	return s.SideEffect
+}
+
+// GetSteps returns the value of Steps.
+func (s *FindingsPostFindingsIDUnconfirmOKPackWorkaround) GetSteps() []string {
+	return s.Steps
+}
+
+// GetSummary returns the value of Summary.
+func (s *FindingsPostFindingsIDUnconfirmOKPackWorkaround) GetSummary() string {
+	return s.Summary
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDUnconfirmOKPackWorkaround) SetSideEffect(val string) {
+	s.SideEffect = val
+}
+
+// SetSteps sets the value of Steps.
+func (s *FindingsPostFindingsIDUnconfirmOKPackWorkaround) SetSteps(val []string) {
+	s.Steps = val
+}
+
+// SetSummary sets the value of Summary.
+func (s *FindingsPostFindingsIDUnconfirmOKPackWorkaround) SetSummary(val string) {
+	s.Summary = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKRecheck struct {
+	Code  OptString `json:"code"`
+	Steps []string  `json:"steps"`
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDUnconfirmOKRecheck) GetCode() OptString {
+	return s.Code
+}
+
+// GetSteps returns the value of Steps.
+func (s *FindingsPostFindingsIDUnconfirmOKRecheck) GetSteps() []string {
+	return s.Steps
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDUnconfirmOKRecheck) SetCode(val OptString) {
+	s.Code = val
+}
+
+// SetSteps sets the value of Steps.
+func (s *FindingsPostFindingsIDUnconfirmOKRecheck) SetSteps(val []string) {
+	s.Steps = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKSeverity string
+
+const (
+	FindingsPostFindingsIDUnconfirmOKSeverityCritical FindingsPostFindingsIDUnconfirmOKSeverity = "critical"
+	FindingsPostFindingsIDUnconfirmOKSeverityHigh     FindingsPostFindingsIDUnconfirmOKSeverity = "high"
+	FindingsPostFindingsIDUnconfirmOKSeverityMedium   FindingsPostFindingsIDUnconfirmOKSeverity = "medium"
+	FindingsPostFindingsIDUnconfirmOKSeverityLow      FindingsPostFindingsIDUnconfirmOKSeverity = "low"
+	FindingsPostFindingsIDUnconfirmOKSeverityInfo     FindingsPostFindingsIDUnconfirmOKSeverity = "info"
+)
+
+// AllValues returns all FindingsPostFindingsIDUnconfirmOKSeverity values.
+func (FindingsPostFindingsIDUnconfirmOKSeverity) AllValues() []FindingsPostFindingsIDUnconfirmOKSeverity {
+	return []FindingsPostFindingsIDUnconfirmOKSeverity{
+		FindingsPostFindingsIDUnconfirmOKSeverityCritical,
+		FindingsPostFindingsIDUnconfirmOKSeverityHigh,
+		FindingsPostFindingsIDUnconfirmOKSeverityMedium,
+		FindingsPostFindingsIDUnconfirmOKSeverityLow,
+		FindingsPostFindingsIDUnconfirmOKSeverityInfo,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDUnconfirmOKSeverity) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDUnconfirmOKSeverityCritical:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKSeverityHigh:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKSeverityMedium:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKSeverityLow:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKSeverityInfo:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDUnconfirmOKSeverity) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDUnconfirmOKSeverity(data) {
+	case FindingsPostFindingsIDUnconfirmOKSeverityCritical:
+		*s = FindingsPostFindingsIDUnconfirmOKSeverityCritical
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKSeverityHigh:
+		*s = FindingsPostFindingsIDUnconfirmOKSeverityHigh
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKSeverityMedium:
+		*s = FindingsPostFindingsIDUnconfirmOKSeverityMedium
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKSeverityLow:
+		*s = FindingsPostFindingsIDUnconfirmOKSeverityLow
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKSeverityInfo:
+		*s = FindingsPostFindingsIDUnconfirmOKSeverityInfo
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDUnconfirmOKStatus string
+
+const (
+	FindingsPostFindingsIDUnconfirmOKStatusConfirmed     FindingsPostFindingsIDUnconfirmOKStatus = "confirmed"
+	FindingsPostFindingsIDUnconfirmOKStatusSuspected     FindingsPostFindingsIDUnconfirmOKStatus = "suspected"
+	FindingsPostFindingsIDUnconfirmOKStatusMitigated     FindingsPostFindingsIDUnconfirmOKStatus = "mitigated"
+	FindingsPostFindingsIDUnconfirmOKStatusPatched       FindingsPostFindingsIDUnconfirmOKStatus = "patched"
+	FindingsPostFindingsIDUnconfirmOKStatusFalsePositive FindingsPostFindingsIDUnconfirmOKStatus = "false_positive"
+	FindingsPostFindingsIDUnconfirmOKStatusNotRelevant   FindingsPostFindingsIDUnconfirmOKStatus = "not_relevant"
+	FindingsPostFindingsIDUnconfirmOKStatusRiskAccepted  FindingsPostFindingsIDUnconfirmOKStatus = "risk_accepted"
+)
+
+// AllValues returns all FindingsPostFindingsIDUnconfirmOKStatus values.
+func (FindingsPostFindingsIDUnconfirmOKStatus) AllValues() []FindingsPostFindingsIDUnconfirmOKStatus {
+	return []FindingsPostFindingsIDUnconfirmOKStatus{
+		FindingsPostFindingsIDUnconfirmOKStatusConfirmed,
+		FindingsPostFindingsIDUnconfirmOKStatusSuspected,
+		FindingsPostFindingsIDUnconfirmOKStatusMitigated,
+		FindingsPostFindingsIDUnconfirmOKStatusPatched,
+		FindingsPostFindingsIDUnconfirmOKStatusFalsePositive,
+		FindingsPostFindingsIDUnconfirmOKStatusNotRelevant,
+		FindingsPostFindingsIDUnconfirmOKStatusRiskAccepted,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDUnconfirmOKStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDUnconfirmOKStatusConfirmed:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKStatusSuspected:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKStatusMitigated:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKStatusPatched:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKStatusFalsePositive:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKStatusNotRelevant:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKStatusRiskAccepted:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDUnconfirmOKStatus) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDUnconfirmOKStatus(data) {
+	case FindingsPostFindingsIDUnconfirmOKStatusConfirmed:
+		*s = FindingsPostFindingsIDUnconfirmOKStatusConfirmed
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKStatusSuspected:
+		*s = FindingsPostFindingsIDUnconfirmOKStatusSuspected
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKStatusMitigated:
+		*s = FindingsPostFindingsIDUnconfirmOKStatusMitigated
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKStatusPatched:
+		*s = FindingsPostFindingsIDUnconfirmOKStatusPatched
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKStatusFalsePositive:
+		*s = FindingsPostFindingsIDUnconfirmOKStatusFalsePositive
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKStatusNotRelevant:
+		*s = FindingsPostFindingsIDUnconfirmOKStatusNotRelevant
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKStatusRiskAccepted:
+		*s = FindingsPostFindingsIDUnconfirmOKStatusRiskAccepted
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -102114,8 +113346,11 @@ func (s *InventoryGetInventoryAgentsOKNodesItemState) UnmarshalText(data []byte)
 
 type InventoryGetInventoryAgentsOKTokensItem struct {
 	CreatedAt time.Time `json:"created_at"`
-	// Null = never expires; default 7 days. The token only enrolls osquery (it can read nothing) and can
-	// be revoked.
+	// Who made it (null for a token made before this was kept).
+	CreatedBy NilString `json:"created_by"`
+	// When it stops enrolling machines. null = never; default 7 days once a machine has enrolled; a token
+	// no machine enrolled with expires 24 hours after it was made. The token only enrolls osquery (it can
+	// read nothing) and can be revoked.
 	ExpiresAt    NilDateTime                                 `json:"expires_at"`
 	Hosts        int                                         `json:"hosts"`
 	ID           string                                      `json:"id"`
@@ -102128,6 +113363,11 @@ type InventoryGetInventoryAgentsOKTokensItem struct {
 // GetCreatedAt returns the value of CreatedAt.
 func (s *InventoryGetInventoryAgentsOKTokensItem) GetCreatedAt() time.Time {
 	return s.CreatedAt
+}
+
+// GetCreatedBy returns the value of CreatedBy.
+func (s *InventoryGetInventoryAgentsOKTokensItem) GetCreatedBy() NilString {
+	return s.CreatedBy
 }
 
 // GetExpiresAt returns the value of ExpiresAt.
@@ -102168,6 +113408,11 @@ func (s *InventoryGetInventoryAgentsOKTokensItem) GetName() string {
 // SetCreatedAt sets the value of CreatedAt.
 func (s *InventoryGetInventoryAgentsOKTokensItem) SetCreatedAt(val time.Time) {
 	s.CreatedAt = val
+}
+
+// SetCreatedBy sets the value of CreatedBy.
+func (s *InventoryGetInventoryAgentsOKTokensItem) SetCreatedBy(val NilString) {
+	s.CreatedBy = val
 }
 
 // SetExpiresAt sets the value of ExpiresAt.
@@ -108974,6 +120219,386 @@ func (s *InventoryGetInventoryDevicesIDOKRiskLevel) UnmarshalText(data []byte) e
 		return nil
 	case InventoryGetInventoryDevicesIDOKRiskLevelUpdate:
 		*s = InventoryGetInventoryDevicesIDOKRiskLevelUpdate
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryGetInventoryDevicesIDSoftwareOK struct {
+	Items []InventoryGetInventoryDevicesIDSoftwareOKItemsItem `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *InventoryGetInventoryDevicesIDSoftwareOK) GetItems() []InventoryGetInventoryDevicesIDSoftwareOKItemsItem {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *InventoryGetInventoryDevicesIDSoftwareOK) SetItems(val []InventoryGetInventoryDevicesIDSoftwareOKItemsItem) {
+	s.Items = val
+}
+
+type InventoryGetInventoryDevicesIDSoftwareOKItemsItem struct {
+	// The other rows of the same software, strongest source first.
+	AlsoSeen []InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItem `json:"also_seen"`
+	// "" when none.
+	Cpe string `json:"cpe"`
+	// A scan, SNMP or passive reading reads another release than this row (matching keeps that reading
+	// too); never the row a person's entry corrects: the first also_seen of such a source with
+	// same_release false.
+	Differs bool   `json:"differs"`
+	Display string `json:"display"`
+	// The software row the values are read from.
+	ID string `json:"id"`
+	// Read from the operating system's package database.
+	Packaged bool `json:"packaged"`
+	// The package release; "" when none.
+	PkgVersion string    `json:"pkg_version"`
+	Product    string    `json:"product"`
+	SeenAt     time.Time `json:"seen_at"`
+	// Who entered it (a person's entry or correction); "" otherwise.
+	SetBy  string                                                  `json:"set_by"`
+	Source InventoryGetInventoryDevicesIDSoftwareOKItemsItemSource `json:"source"`
+	Vendor string                                                  `json:"vendor"`
+	// "" when none.
+	Version string `json:"version"`
+}
+
+// GetAlsoSeen returns the value of AlsoSeen.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) GetAlsoSeen() []InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItem {
+	return s.AlsoSeen
+}
+
+// GetCpe returns the value of Cpe.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) GetCpe() string {
+	return s.Cpe
+}
+
+// GetDiffers returns the value of Differs.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) GetDiffers() bool {
+	return s.Differs
+}
+
+// GetDisplay returns the value of Display.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) GetDisplay() string {
+	return s.Display
+}
+
+// GetID returns the value of ID.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) GetID() string {
+	return s.ID
+}
+
+// GetPackaged returns the value of Packaged.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) GetPackaged() bool {
+	return s.Packaged
+}
+
+// GetPkgVersion returns the value of PkgVersion.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) GetPkgVersion() string {
+	return s.PkgVersion
+}
+
+// GetProduct returns the value of Product.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) GetProduct() string {
+	return s.Product
+}
+
+// GetSeenAt returns the value of SeenAt.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) GetSeenAt() time.Time {
+	return s.SeenAt
+}
+
+// GetSetBy returns the value of SetBy.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) GetSetBy() string {
+	return s.SetBy
+}
+
+// GetSource returns the value of Source.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) GetSource() InventoryGetInventoryDevicesIDSoftwareOKItemsItemSource {
+	return s.Source
+}
+
+// GetVendor returns the value of Vendor.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) GetVendor() string {
+	return s.Vendor
+}
+
+// GetVersion returns the value of Version.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) GetVersion() string {
+	return s.Version
+}
+
+// SetAlsoSeen sets the value of AlsoSeen.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) SetAlsoSeen(val []InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItem) {
+	s.AlsoSeen = val
+}
+
+// SetCpe sets the value of Cpe.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) SetCpe(val string) {
+	s.Cpe = val
+}
+
+// SetDiffers sets the value of Differs.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) SetDiffers(val bool) {
+	s.Differs = val
+}
+
+// SetDisplay sets the value of Display.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) SetDisplay(val string) {
+	s.Display = val
+}
+
+// SetID sets the value of ID.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetPackaged sets the value of Packaged.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) SetPackaged(val bool) {
+	s.Packaged = val
+}
+
+// SetPkgVersion sets the value of PkgVersion.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) SetPkgVersion(val string) {
+	s.PkgVersion = val
+}
+
+// SetProduct sets the value of Product.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetSeenAt sets the value of SeenAt.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) SetSeenAt(val time.Time) {
+	s.SeenAt = val
+}
+
+// SetSetBy sets the value of SetBy.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) SetSetBy(val string) {
+	s.SetBy = val
+}
+
+// SetSource sets the value of Source.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) SetSource(val InventoryGetInventoryDevicesIDSoftwareOKItemsItemSource) {
+	s.Source = val
+}
+
+// SetVendor sets the value of Vendor.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) SetVendor(val string) {
+	s.Vendor = val
+}
+
+// SetVersion sets the value of Version.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) SetVersion(val string) {
+	s.Version = val
+}
+
+type InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItem struct {
+	ID string `json:"id"`
+	// "" when none.
+	PkgVersion string `json:"pkg_version"`
+	// The effective row's release with more or less detail (10.2, 10.2p1, 10.2_p1-r1): not a disagreement.
+	SameRelease bool                                                                `json:"same_release"`
+	SeenAt      time.Time                                                           `json:"seen_at"`
+	Source      InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSource `json:"source"`
+	// "" when the source gave none.
+	Version string `json:"version"`
+}
+
+// GetID returns the value of ID.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItem) GetID() string {
+	return s.ID
+}
+
+// GetPkgVersion returns the value of PkgVersion.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItem) GetPkgVersion() string {
+	return s.PkgVersion
+}
+
+// GetSameRelease returns the value of SameRelease.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItem) GetSameRelease() bool {
+	return s.SameRelease
+}
+
+// GetSeenAt returns the value of SeenAt.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItem) GetSeenAt() time.Time {
+	return s.SeenAt
+}
+
+// GetSource returns the value of Source.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItem) GetSource() InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSource {
+	return s.Source
+}
+
+// GetVersion returns the value of Version.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItem) GetVersion() string {
+	return s.Version
+}
+
+// SetID sets the value of ID.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetPkgVersion sets the value of PkgVersion.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItem) SetPkgVersion(val string) {
+	s.PkgVersion = val
+}
+
+// SetSameRelease sets the value of SameRelease.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItem) SetSameRelease(val bool) {
+	s.SameRelease = val
+}
+
+// SetSeenAt sets the value of SeenAt.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItem) SetSeenAt(val time.Time) {
+	s.SeenAt = val
+}
+
+// SetSource sets the value of Source.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItem) SetSource(val InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSource) {
+	s.Source = val
+}
+
+// SetVersion sets the value of Version.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItem) SetVersion(val string) {
+	s.Version = val
+}
+
+type InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSource string
+
+const (
+	InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceManual  InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSource = "manual"
+	InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceAgent   InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSource = "agent"
+	InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceSnmp    InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSource = "snmp"
+	InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceNmap    InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSource = "nmap"
+	InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourcePassive InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSource = "passive"
+	InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceScan    InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSource = "scan"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSource values.
+func (InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSource) AllValues() []InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSource {
+	return []InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSource{
+		InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceManual,
+		InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceAgent,
+		InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceSnmp,
+		InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceNmap,
+		InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourcePassive,
+		InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceScan,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSource) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceManual:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceAgent:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceSnmp:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceNmap:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourcePassive:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceScan:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSource) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSource(data) {
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceManual:
+		*s = InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceManual
+		return nil
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceAgent:
+		*s = InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceAgent
+		return nil
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceSnmp:
+		*s = InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceSnmp
+		return nil
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceNmap:
+		*s = InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceNmap
+		return nil
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourcePassive:
+		*s = InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourcePassive
+		return nil
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceScan:
+		*s = InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSourceScan
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryGetInventoryDevicesIDSoftwareOKItemsItemSource string
+
+const (
+	InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceManual  InventoryGetInventoryDevicesIDSoftwareOKItemsItemSource = "manual"
+	InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceAgent   InventoryGetInventoryDevicesIDSoftwareOKItemsItemSource = "agent"
+	InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceSnmp    InventoryGetInventoryDevicesIDSoftwareOKItemsItemSource = "snmp"
+	InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceNmap    InventoryGetInventoryDevicesIDSoftwareOKItemsItemSource = "nmap"
+	InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourcePassive InventoryGetInventoryDevicesIDSoftwareOKItemsItemSource = "passive"
+	InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceScan    InventoryGetInventoryDevicesIDSoftwareOKItemsItemSource = "scan"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesIDSoftwareOKItemsItemSource values.
+func (InventoryGetInventoryDevicesIDSoftwareOKItemsItemSource) AllValues() []InventoryGetInventoryDevicesIDSoftwareOKItemsItemSource {
+	return []InventoryGetInventoryDevicesIDSoftwareOKItemsItemSource{
+		InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceManual,
+		InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceAgent,
+		InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceSnmp,
+		InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceNmap,
+		InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourcePassive,
+		InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceScan,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesIDSoftwareOKItemsItemSource) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceManual:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceAgent:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceSnmp:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceNmap:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourcePassive:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceScan:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItemSource) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesIDSoftwareOKItemsItemSource(data) {
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceManual:
+		*s = InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceManual
+		return nil
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceAgent:
+		*s = InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceAgent
+		return nil
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceSnmp:
+		*s = InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceSnmp
+		return nil
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceNmap:
+		*s = InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceNmap
+		return nil
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourcePassive:
+		*s = InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourcePassive
+		return nil
+	case InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceScan:
+		*s = InventoryGetInventoryDevicesIDSoftwareOKItemsItemSourceScan
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -117724,8 +129349,11 @@ func (s *InventoryPostInventoryAgentsTokensCreated) SetToken(val InventoryPostIn
 
 type InventoryPostInventoryAgentsTokensCreatedToken struct {
 	CreatedAt time.Time `json:"created_at"`
-	// Null = never expires; default 7 days. The token only enrolls osquery (it can read nothing) and can
-	// be revoked.
+	// Who made it (null for a token made before this was kept).
+	CreatedBy NilString `json:"created_by"`
+	// When it stops enrolling machines. null = never; default 7 days once a machine has enrolled; a token
+	// no machine enrolled with expires 24 hours after it was made. The token only enrolls osquery (it can
+	// read nothing) and can be revoked.
 	ExpiresAt    NilDateTime                                        `json:"expires_at"`
 	Hosts        int                                                `json:"hosts"`
 	ID           string                                             `json:"id"`
@@ -117738,6 +129366,11 @@ type InventoryPostInventoryAgentsTokensCreatedToken struct {
 // GetCreatedAt returns the value of CreatedAt.
 func (s *InventoryPostInventoryAgentsTokensCreatedToken) GetCreatedAt() time.Time {
 	return s.CreatedAt
+}
+
+// GetCreatedBy returns the value of CreatedBy.
+func (s *InventoryPostInventoryAgentsTokensCreatedToken) GetCreatedBy() NilString {
+	return s.CreatedBy
 }
 
 // GetExpiresAt returns the value of ExpiresAt.
@@ -117778,6 +129411,11 @@ func (s *InventoryPostInventoryAgentsTokensCreatedToken) GetName() string {
 // SetCreatedAt sets the value of CreatedAt.
 func (s *InventoryPostInventoryAgentsTokensCreatedToken) SetCreatedAt(val time.Time) {
 	s.CreatedAt = val
+}
+
+// SetCreatedBy sets the value of CreatedBy.
+func (s *InventoryPostInventoryAgentsTokensCreatedToken) SetCreatedBy(val NilString) {
+	s.CreatedBy = val
 }
 
 // SetExpiresAt sets the value of ExpiresAt.
@@ -117872,6 +129510,20 @@ func (s *InventoryPostInventoryAgentsTokensIDSampleDataOK) SetDevices(val int) {
 // SetSoftware sets the value of Software.
 func (s *InventoryPostInventoryAgentsTokensIDSampleDataOK) SetSoftware(val int) {
 	s.Software = val
+}
+
+type InventoryPostInventoryAgentsTokensRemoveUnusedOK struct {
+	Removed int `json:"removed"`
+}
+
+// GetRemoved returns the value of Removed.
+func (s *InventoryPostInventoryAgentsTokensRemoveUnusedOK) GetRemoved() int {
+	return s.Removed
+}
+
+// SetRemoved sets the value of Removed.
+func (s *InventoryPostInventoryAgentsTokensRemoveUnusedOK) SetRemoved(val int) {
+	s.Removed = val
 }
 
 type InventoryPostInventoryAgentsTokensReq struct {
@@ -134493,6 +146145,456 @@ func (o NilExposurePutExposureGreenboneOKFeed) Or(d ExposurePutExposureGreenbone
 	return d
 }
 
+// NewNilExposurePutExposureTargetsIDScheduleOKBlockedReason returns new NilExposurePutExposureTargetsIDScheduleOKBlockedReason with value set to v.
+func NewNilExposurePutExposureTargetsIDScheduleOKBlockedReason(v ExposurePutExposureTargetsIDScheduleOKBlockedReason) NilExposurePutExposureTargetsIDScheduleOKBlockedReason {
+	return NilExposurePutExposureTargetsIDScheduleOKBlockedReason{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTargetsIDScheduleOKBlockedReason is nullable ExposurePutExposureTargetsIDScheduleOKBlockedReason.
+type NilExposurePutExposureTargetsIDScheduleOKBlockedReason struct {
+	Value ExposurePutExposureTargetsIDScheduleOKBlockedReason
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTargetsIDScheduleOKBlockedReason) SetTo(v ExposurePutExposureTargetsIDScheduleOKBlockedReason) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTargetsIDScheduleOKBlockedReason) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTargetsIDScheduleOKBlockedReason) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTargetsIDScheduleOKBlockedReason
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTargetsIDScheduleOKBlockedReason) Get() (v ExposurePutExposureTargetsIDScheduleOKBlockedReason, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTargetsIDScheduleOKBlockedReason) Or(d ExposurePutExposureTargetsIDScheduleOKBlockedReason) ExposurePutExposureTargetsIDScheduleOKBlockedReason {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTargetsIDScheduleOKCommitment returns new NilExposurePutExposureTargetsIDScheduleOKCommitment with value set to v.
+func NewNilExposurePutExposureTargetsIDScheduleOKCommitment(v ExposurePutExposureTargetsIDScheduleOKCommitment) NilExposurePutExposureTargetsIDScheduleOKCommitment {
+	return NilExposurePutExposureTargetsIDScheduleOKCommitment{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTargetsIDScheduleOKCommitment is nullable ExposurePutExposureTargetsIDScheduleOKCommitment.
+type NilExposurePutExposureTargetsIDScheduleOKCommitment struct {
+	Value ExposurePutExposureTargetsIDScheduleOKCommitment
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTargetsIDScheduleOKCommitment) SetTo(v ExposurePutExposureTargetsIDScheduleOKCommitment) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTargetsIDScheduleOKCommitment) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTargetsIDScheduleOKCommitment) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTargetsIDScheduleOKCommitment
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTargetsIDScheduleOKCommitment) Get() (v ExposurePutExposureTargetsIDScheduleOKCommitment, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTargetsIDScheduleOKCommitment) Or(d ExposurePutExposureTargetsIDScheduleOKCommitment) ExposurePutExposureTargetsIDScheduleOKCommitment {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTargetsIDScheduleOKCommitmentNotice returns new NilExposurePutExposureTargetsIDScheduleOKCommitmentNotice with value set to v.
+func NewNilExposurePutExposureTargetsIDScheduleOKCommitmentNotice(v ExposurePutExposureTargetsIDScheduleOKCommitmentNotice) NilExposurePutExposureTargetsIDScheduleOKCommitmentNotice {
+	return NilExposurePutExposureTargetsIDScheduleOKCommitmentNotice{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTargetsIDScheduleOKCommitmentNotice is nullable ExposurePutExposureTargetsIDScheduleOKCommitmentNotice.
+type NilExposurePutExposureTargetsIDScheduleOKCommitmentNotice struct {
+	Value ExposurePutExposureTargetsIDScheduleOKCommitmentNotice
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTargetsIDScheduleOKCommitmentNotice) SetTo(v ExposurePutExposureTargetsIDScheduleOKCommitmentNotice) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTargetsIDScheduleOKCommitmentNotice) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTargetsIDScheduleOKCommitmentNotice) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTargetsIDScheduleOKCommitmentNotice
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTargetsIDScheduleOKCommitmentNotice) Get() (v ExposurePutExposureTargetsIDScheduleOKCommitmentNotice, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTargetsIDScheduleOKCommitmentNotice) Or(d ExposurePutExposureTargetsIDScheduleOKCommitmentNotice) ExposurePutExposureTargetsIDScheduleOKCommitmentNotice {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTargetsIDScheduleOKIPProof returns new NilExposurePutExposureTargetsIDScheduleOKIPProof with value set to v.
+func NewNilExposurePutExposureTargetsIDScheduleOKIPProof(v ExposurePutExposureTargetsIDScheduleOKIPProof) NilExposurePutExposureTargetsIDScheduleOKIPProof {
+	return NilExposurePutExposureTargetsIDScheduleOKIPProof{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTargetsIDScheduleOKIPProof is nullable ExposurePutExposureTargetsIDScheduleOKIPProof.
+type NilExposurePutExposureTargetsIDScheduleOKIPProof struct {
+	Value ExposurePutExposureTargetsIDScheduleOKIPProof
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTargetsIDScheduleOKIPProof) SetTo(v ExposurePutExposureTargetsIDScheduleOKIPProof) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTargetsIDScheduleOKIPProof) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTargetsIDScheduleOKIPProof) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTargetsIDScheduleOKIPProof
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTargetsIDScheduleOKIPProof) Get() (v ExposurePutExposureTargetsIDScheduleOKIPProof, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTargetsIDScheduleOKIPProof) Or(d ExposurePutExposureTargetsIDScheduleOKIPProof) ExposurePutExposureTargetsIDScheduleOKIPProof {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTargetsIDScheduleOKLastCheck returns new NilExposurePutExposureTargetsIDScheduleOKLastCheck with value set to v.
+func NewNilExposurePutExposureTargetsIDScheduleOKLastCheck(v ExposurePutExposureTargetsIDScheduleOKLastCheck) NilExposurePutExposureTargetsIDScheduleOKLastCheck {
+	return NilExposurePutExposureTargetsIDScheduleOKLastCheck{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTargetsIDScheduleOKLastCheck is nullable ExposurePutExposureTargetsIDScheduleOKLastCheck.
+type NilExposurePutExposureTargetsIDScheduleOKLastCheck struct {
+	Value ExposurePutExposureTargetsIDScheduleOKLastCheck
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTargetsIDScheduleOKLastCheck) SetTo(v ExposurePutExposureTargetsIDScheduleOKLastCheck) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTargetsIDScheduleOKLastCheck) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTargetsIDScheduleOKLastCheck) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTargetsIDScheduleOKLastCheck
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTargetsIDScheduleOKLastCheck) Get() (v ExposurePutExposureTargetsIDScheduleOKLastCheck, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTargetsIDScheduleOKLastCheck) Or(d ExposurePutExposureTargetsIDScheduleOKLastCheck) ExposurePutExposureTargetsIDScheduleOKLastCheck {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTargetsIDScheduleOKLatest returns new NilExposurePutExposureTargetsIDScheduleOKLatest with value set to v.
+func NewNilExposurePutExposureTargetsIDScheduleOKLatest(v ExposurePutExposureTargetsIDScheduleOKLatest) NilExposurePutExposureTargetsIDScheduleOKLatest {
+	return NilExposurePutExposureTargetsIDScheduleOKLatest{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTargetsIDScheduleOKLatest is nullable ExposurePutExposureTargetsIDScheduleOKLatest.
+type NilExposurePutExposureTargetsIDScheduleOKLatest struct {
+	Value ExposurePutExposureTargetsIDScheduleOKLatest
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTargetsIDScheduleOKLatest) SetTo(v ExposurePutExposureTargetsIDScheduleOKLatest) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTargetsIDScheduleOKLatest) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTargetsIDScheduleOKLatest) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTargetsIDScheduleOKLatest
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTargetsIDScheduleOKLatest) Get() (v ExposurePutExposureTargetsIDScheduleOKLatest, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTargetsIDScheduleOKLatest) Or(d ExposurePutExposureTargetsIDScheduleOKLatest) ExposurePutExposureTargetsIDScheduleOKLatest {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTargetsIDScheduleOKMethod returns new NilExposurePutExposureTargetsIDScheduleOKMethod with value set to v.
+func NewNilExposurePutExposureTargetsIDScheduleOKMethod(v ExposurePutExposureTargetsIDScheduleOKMethod) NilExposurePutExposureTargetsIDScheduleOKMethod {
+	return NilExposurePutExposureTargetsIDScheduleOKMethod{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTargetsIDScheduleOKMethod is nullable ExposurePutExposureTargetsIDScheduleOKMethod.
+type NilExposurePutExposureTargetsIDScheduleOKMethod struct {
+	Value ExposurePutExposureTargetsIDScheduleOKMethod
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTargetsIDScheduleOKMethod) SetTo(v ExposurePutExposureTargetsIDScheduleOKMethod) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTargetsIDScheduleOKMethod) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTargetsIDScheduleOKMethod) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTargetsIDScheduleOKMethod
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTargetsIDScheduleOKMethod) Get() (v ExposurePutExposureTargetsIDScheduleOKMethod, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTargetsIDScheduleOKMethod) Or(d ExposurePutExposureTargetsIDScheduleOKMethod) ExposurePutExposureTargetsIDScheduleOKMethod {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTargetsIDScheduleOKProof returns new NilExposurePutExposureTargetsIDScheduleOKProof with value set to v.
+func NewNilExposurePutExposureTargetsIDScheduleOKProof(v ExposurePutExposureTargetsIDScheduleOKProof) NilExposurePutExposureTargetsIDScheduleOKProof {
+	return NilExposurePutExposureTargetsIDScheduleOKProof{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTargetsIDScheduleOKProof is nullable ExposurePutExposureTargetsIDScheduleOKProof.
+type NilExposurePutExposureTargetsIDScheduleOKProof struct {
+	Value ExposurePutExposureTargetsIDScheduleOKProof
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTargetsIDScheduleOKProof) SetTo(v ExposurePutExposureTargetsIDScheduleOKProof) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTargetsIDScheduleOKProof) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTargetsIDScheduleOKProof) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTargetsIDScheduleOKProof
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTargetsIDScheduleOKProof) Get() (v ExposurePutExposureTargetsIDScheduleOKProof, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTargetsIDScheduleOKProof) Or(d ExposurePutExposureTargetsIDScheduleOKProof) ExposurePutExposureTargetsIDScheduleOKProof {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTargetsIDScheduleOKTerms returns new NilExposurePutExposureTargetsIDScheduleOKTerms with value set to v.
+func NewNilExposurePutExposureTargetsIDScheduleOKTerms(v ExposurePutExposureTargetsIDScheduleOKTerms) NilExposurePutExposureTargetsIDScheduleOKTerms {
+	return NilExposurePutExposureTargetsIDScheduleOKTerms{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTargetsIDScheduleOKTerms is nullable ExposurePutExposureTargetsIDScheduleOKTerms.
+type NilExposurePutExposureTargetsIDScheduleOKTerms struct {
+	Value ExposurePutExposureTargetsIDScheduleOKTerms
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTargetsIDScheduleOKTerms) SetTo(v ExposurePutExposureTargetsIDScheduleOKTerms) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTargetsIDScheduleOKTerms) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTargetsIDScheduleOKTerms) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTargetsIDScheduleOKTerms
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTargetsIDScheduleOKTerms) Get() (v ExposurePutExposureTargetsIDScheduleOKTerms, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTargetsIDScheduleOKTerms) Or(d ExposurePutExposureTargetsIDScheduleOKTerms) ExposurePutExposureTargetsIDScheduleOKTerms {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTargetsIDScheduleOKValidity returns new NilExposurePutExposureTargetsIDScheduleOKValidity with value set to v.
+func NewNilExposurePutExposureTargetsIDScheduleOKValidity(v ExposurePutExposureTargetsIDScheduleOKValidity) NilExposurePutExposureTargetsIDScheduleOKValidity {
+	return NilExposurePutExposureTargetsIDScheduleOKValidity{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTargetsIDScheduleOKValidity is nullable ExposurePutExposureTargetsIDScheduleOKValidity.
+type NilExposurePutExposureTargetsIDScheduleOKValidity struct {
+	Value ExposurePutExposureTargetsIDScheduleOKValidity
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTargetsIDScheduleOKValidity) SetTo(v ExposurePutExposureTargetsIDScheduleOKValidity) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTargetsIDScheduleOKValidity) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTargetsIDScheduleOKValidity) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTargetsIDScheduleOKValidity
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTargetsIDScheduleOKValidity) Get() (v ExposurePutExposureTargetsIDScheduleOKValidity, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTargetsIDScheduleOKValidity) Or(d ExposurePutExposureTargetsIDScheduleOKValidity) ExposurePutExposureTargetsIDScheduleOKValidity {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilExposurePutExposureTargetsIDTermsOKBlockedReason returns new NilExposurePutExposureTargetsIDTermsOKBlockedReason with value set to v.
 func NewNilExposurePutExposureTargetsIDTermsOKBlockedReason(v ExposurePutExposureTargetsIDTermsOKBlockedReason) NilExposurePutExposureTargetsIDTermsOKBlockedReason {
 	return NilExposurePutExposureTargetsIDTermsOKBlockedReason{
@@ -137733,6 +149835,546 @@ func (o NilFindingsPostFindingsIDAppliedOKPack) Or(d FindingsPostFindingsIDAppli
 	return d
 }
 
+// NewNilFindingsPostFindingsIDConfirmOKAiConfig returns new NilFindingsPostFindingsIDConfirmOKAiConfig with value set to v.
+func NewNilFindingsPostFindingsIDConfirmOKAiConfig(v FindingsPostFindingsIDConfirmOKAiConfig) NilFindingsPostFindingsIDConfirmOKAiConfig {
+	return NilFindingsPostFindingsIDConfirmOKAiConfig{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDConfirmOKAiConfig is nullable FindingsPostFindingsIDConfirmOKAiConfig.
+type NilFindingsPostFindingsIDConfirmOKAiConfig struct {
+	Value FindingsPostFindingsIDConfirmOKAiConfig
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDConfirmOKAiConfig) SetTo(v FindingsPostFindingsIDConfirmOKAiConfig) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDConfirmOKAiConfig) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDConfirmOKAiConfig) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDConfirmOKAiConfig
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDConfirmOKAiConfig) Get() (v FindingsPostFindingsIDConfirmOKAiConfig, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDConfirmOKAiConfig) Or(d FindingsPostFindingsIDConfirmOKAiConfig) FindingsPostFindingsIDConfirmOKAiConfig {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDConfirmOKAiExplain returns new NilFindingsPostFindingsIDConfirmOKAiExplain with value set to v.
+func NewNilFindingsPostFindingsIDConfirmOKAiExplain(v FindingsPostFindingsIDConfirmOKAiExplain) NilFindingsPostFindingsIDConfirmOKAiExplain {
+	return NilFindingsPostFindingsIDConfirmOKAiExplain{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDConfirmOKAiExplain is nullable FindingsPostFindingsIDConfirmOKAiExplain.
+type NilFindingsPostFindingsIDConfirmOKAiExplain struct {
+	Value FindingsPostFindingsIDConfirmOKAiExplain
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDConfirmOKAiExplain) SetTo(v FindingsPostFindingsIDConfirmOKAiExplain) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDConfirmOKAiExplain) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDConfirmOKAiExplain) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDConfirmOKAiExplain
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDConfirmOKAiExplain) Get() (v FindingsPostFindingsIDConfirmOKAiExplain, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDConfirmOKAiExplain) Or(d FindingsPostFindingsIDConfirmOKAiExplain) FindingsPostFindingsIDConfirmOKAiExplain {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDConfirmOKAsset returns new NilFindingsPostFindingsIDConfirmOKAsset with value set to v.
+func NewNilFindingsPostFindingsIDConfirmOKAsset(v FindingsPostFindingsIDConfirmOKAsset) NilFindingsPostFindingsIDConfirmOKAsset {
+	return NilFindingsPostFindingsIDConfirmOKAsset{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDConfirmOKAsset is nullable FindingsPostFindingsIDConfirmOKAsset.
+type NilFindingsPostFindingsIDConfirmOKAsset struct {
+	Value FindingsPostFindingsIDConfirmOKAsset
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDConfirmOKAsset) SetTo(v FindingsPostFindingsIDConfirmOKAsset) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDConfirmOKAsset) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDConfirmOKAsset) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDConfirmOKAsset
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDConfirmOKAsset) Get() (v FindingsPostFindingsIDConfirmOKAsset, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDConfirmOKAsset) Or(d FindingsPostFindingsIDConfirmOKAsset) FindingsPostFindingsIDConfirmOKAsset {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDConfirmOKCompromise returns new NilFindingsPostFindingsIDConfirmOKCompromise with value set to v.
+func NewNilFindingsPostFindingsIDConfirmOKCompromise(v FindingsPostFindingsIDConfirmOKCompromise) NilFindingsPostFindingsIDConfirmOKCompromise {
+	return NilFindingsPostFindingsIDConfirmOKCompromise{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDConfirmOKCompromise is nullable FindingsPostFindingsIDConfirmOKCompromise.
+type NilFindingsPostFindingsIDConfirmOKCompromise struct {
+	Value FindingsPostFindingsIDConfirmOKCompromise
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDConfirmOKCompromise) SetTo(v FindingsPostFindingsIDConfirmOKCompromise) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDConfirmOKCompromise) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDConfirmOKCompromise) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDConfirmOKCompromise
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDConfirmOKCompromise) Get() (v FindingsPostFindingsIDConfirmOKCompromise, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDConfirmOKCompromise) Or(d FindingsPostFindingsIDConfirmOKCompromise) FindingsPostFindingsIDConfirmOKCompromise {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDConfirmOKCvss returns new NilFindingsPostFindingsIDConfirmOKCvss with value set to v.
+func NewNilFindingsPostFindingsIDConfirmOKCvss(v FindingsPostFindingsIDConfirmOKCvss) NilFindingsPostFindingsIDConfirmOKCvss {
+	return NilFindingsPostFindingsIDConfirmOKCvss{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDConfirmOKCvss is nullable FindingsPostFindingsIDConfirmOKCvss.
+type NilFindingsPostFindingsIDConfirmOKCvss struct {
+	Value FindingsPostFindingsIDConfirmOKCvss
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDConfirmOKCvss) SetTo(v FindingsPostFindingsIDConfirmOKCvss) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDConfirmOKCvss) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDConfirmOKCvss) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDConfirmOKCvss
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDConfirmOKCvss) Get() (v FindingsPostFindingsIDConfirmOKCvss, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDConfirmOKCvss) Or(d FindingsPostFindingsIDConfirmOKCvss) FindingsPostFindingsIDConfirmOKCvss {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDConfirmOKEvidence returns new NilFindingsPostFindingsIDConfirmOKEvidence with value set to v.
+func NewNilFindingsPostFindingsIDConfirmOKEvidence(v FindingsPostFindingsIDConfirmOKEvidence) NilFindingsPostFindingsIDConfirmOKEvidence {
+	return NilFindingsPostFindingsIDConfirmOKEvidence{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDConfirmOKEvidence is nullable FindingsPostFindingsIDConfirmOKEvidence.
+type NilFindingsPostFindingsIDConfirmOKEvidence struct {
+	Value FindingsPostFindingsIDConfirmOKEvidence
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDConfirmOKEvidence) SetTo(v FindingsPostFindingsIDConfirmOKEvidence) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDConfirmOKEvidence) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDConfirmOKEvidence) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDConfirmOKEvidence
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDConfirmOKEvidence) Get() (v FindingsPostFindingsIDConfirmOKEvidence, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDConfirmOKEvidence) Or(d FindingsPostFindingsIDConfirmOKEvidence) FindingsPostFindingsIDConfirmOKEvidence {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDConfirmOKFixedIn returns new NilFindingsPostFindingsIDConfirmOKFixedIn with value set to v.
+func NewNilFindingsPostFindingsIDConfirmOKFixedIn(v FindingsPostFindingsIDConfirmOKFixedIn) NilFindingsPostFindingsIDConfirmOKFixedIn {
+	return NilFindingsPostFindingsIDConfirmOKFixedIn{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDConfirmOKFixedIn is nullable FindingsPostFindingsIDConfirmOKFixedIn.
+type NilFindingsPostFindingsIDConfirmOKFixedIn struct {
+	Value FindingsPostFindingsIDConfirmOKFixedIn
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDConfirmOKFixedIn) SetTo(v FindingsPostFindingsIDConfirmOKFixedIn) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDConfirmOKFixedIn) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDConfirmOKFixedIn) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDConfirmOKFixedIn
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDConfirmOKFixedIn) Get() (v FindingsPostFindingsIDConfirmOKFixedIn, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDConfirmOKFixedIn) Or(d FindingsPostFindingsIDConfirmOKFixedIn) FindingsPostFindingsIDConfirmOKFixedIn {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDConfirmOKHardening returns new NilFindingsPostFindingsIDConfirmOKHardening with value set to v.
+func NewNilFindingsPostFindingsIDConfirmOKHardening(v FindingsPostFindingsIDConfirmOKHardening) NilFindingsPostFindingsIDConfirmOKHardening {
+	return NilFindingsPostFindingsIDConfirmOKHardening{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDConfirmOKHardening is nullable FindingsPostFindingsIDConfirmOKHardening.
+type NilFindingsPostFindingsIDConfirmOKHardening struct {
+	Value FindingsPostFindingsIDConfirmOKHardening
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDConfirmOKHardening) SetTo(v FindingsPostFindingsIDConfirmOKHardening) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDConfirmOKHardening) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDConfirmOKHardening) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDConfirmOKHardening
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDConfirmOKHardening) Get() (v FindingsPostFindingsIDConfirmOKHardening, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDConfirmOKHardening) Or(d FindingsPostFindingsIDConfirmOKHardening) FindingsPostFindingsIDConfirmOKHardening {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDConfirmOKHardeningChecks returns new NilFindingsPostFindingsIDConfirmOKHardeningChecks with value set to v.
+func NewNilFindingsPostFindingsIDConfirmOKHardeningChecks(v FindingsPostFindingsIDConfirmOKHardeningChecks) NilFindingsPostFindingsIDConfirmOKHardeningChecks {
+	return NilFindingsPostFindingsIDConfirmOKHardeningChecks{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDConfirmOKHardeningChecks is nullable FindingsPostFindingsIDConfirmOKHardeningChecks.
+type NilFindingsPostFindingsIDConfirmOKHardeningChecks struct {
+	Value FindingsPostFindingsIDConfirmOKHardeningChecks
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDConfirmOKHardeningChecks) SetTo(v FindingsPostFindingsIDConfirmOKHardeningChecks) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDConfirmOKHardeningChecks) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDConfirmOKHardeningChecks) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDConfirmOKHardeningChecks
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDConfirmOKHardeningChecks) Get() (v FindingsPostFindingsIDConfirmOKHardeningChecks, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDConfirmOKHardeningChecks) Or(d FindingsPostFindingsIDConfirmOKHardeningChecks) FindingsPostFindingsIDConfirmOKHardeningChecks {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDConfirmOKKev returns new NilFindingsPostFindingsIDConfirmOKKev with value set to v.
+func NewNilFindingsPostFindingsIDConfirmOKKev(v FindingsPostFindingsIDConfirmOKKev) NilFindingsPostFindingsIDConfirmOKKev {
+	return NilFindingsPostFindingsIDConfirmOKKev{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDConfirmOKKev is nullable FindingsPostFindingsIDConfirmOKKev.
+type NilFindingsPostFindingsIDConfirmOKKev struct {
+	Value FindingsPostFindingsIDConfirmOKKev
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDConfirmOKKev) SetTo(v FindingsPostFindingsIDConfirmOKKev) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDConfirmOKKev) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDConfirmOKKev) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDConfirmOKKev
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDConfirmOKKev) Get() (v FindingsPostFindingsIDConfirmOKKev, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDConfirmOKKev) Or(d FindingsPostFindingsIDConfirmOKKev) FindingsPostFindingsIDConfirmOKKev {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDConfirmOKKnownVersion returns new NilFindingsPostFindingsIDConfirmOKKnownVersion with value set to v.
+func NewNilFindingsPostFindingsIDConfirmOKKnownVersion(v FindingsPostFindingsIDConfirmOKKnownVersion) NilFindingsPostFindingsIDConfirmOKKnownVersion {
+	return NilFindingsPostFindingsIDConfirmOKKnownVersion{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDConfirmOKKnownVersion is nullable FindingsPostFindingsIDConfirmOKKnownVersion.
+type NilFindingsPostFindingsIDConfirmOKKnownVersion struct {
+	Value FindingsPostFindingsIDConfirmOKKnownVersion
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDConfirmOKKnownVersion) SetTo(v FindingsPostFindingsIDConfirmOKKnownVersion) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDConfirmOKKnownVersion) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDConfirmOKKnownVersion) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDConfirmOKKnownVersion
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDConfirmOKKnownVersion) Get() (v FindingsPostFindingsIDConfirmOKKnownVersion, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDConfirmOKKnownVersion) Or(d FindingsPostFindingsIDConfirmOKKnownVersion) FindingsPostFindingsIDConfirmOKKnownVersion {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDConfirmOKPack returns new NilFindingsPostFindingsIDConfirmOKPack with value set to v.
+func NewNilFindingsPostFindingsIDConfirmOKPack(v FindingsPostFindingsIDConfirmOKPack) NilFindingsPostFindingsIDConfirmOKPack {
+	return NilFindingsPostFindingsIDConfirmOKPack{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDConfirmOKPack is nullable FindingsPostFindingsIDConfirmOKPack.
+type NilFindingsPostFindingsIDConfirmOKPack struct {
+	Value FindingsPostFindingsIDConfirmOKPack
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDConfirmOKPack) SetTo(v FindingsPostFindingsIDConfirmOKPack) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDConfirmOKPack) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDConfirmOKPack) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDConfirmOKPack
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDConfirmOKPack) Get() (v FindingsPostFindingsIDConfirmOKPack, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDConfirmOKPack) Or(d FindingsPostFindingsIDConfirmOKPack) FindingsPostFindingsIDConfirmOKPack {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilFindingsPostFindingsIDStatusOKAiConfig returns new NilFindingsPostFindingsIDStatusOKAiConfig with value set to v.
 func NewNilFindingsPostFindingsIDStatusOKAiConfig(v FindingsPostFindingsIDStatusOKAiConfig) NilFindingsPostFindingsIDStatusOKAiConfig {
 	return NilFindingsPostFindingsIDStatusOKAiConfig{
@@ -138267,6 +150909,546 @@ func (o NilFindingsPostFindingsIDStatusOKPack) Get() (v FindingsPostFindingsIDSt
 
 // Or returns value if set, or given parameter if does not.
 func (o NilFindingsPostFindingsIDStatusOKPack) Or(d FindingsPostFindingsIDStatusOKPack) FindingsPostFindingsIDStatusOKPack {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDUnconfirmOKAiConfig returns new NilFindingsPostFindingsIDUnconfirmOKAiConfig with value set to v.
+func NewNilFindingsPostFindingsIDUnconfirmOKAiConfig(v FindingsPostFindingsIDUnconfirmOKAiConfig) NilFindingsPostFindingsIDUnconfirmOKAiConfig {
+	return NilFindingsPostFindingsIDUnconfirmOKAiConfig{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDUnconfirmOKAiConfig is nullable FindingsPostFindingsIDUnconfirmOKAiConfig.
+type NilFindingsPostFindingsIDUnconfirmOKAiConfig struct {
+	Value FindingsPostFindingsIDUnconfirmOKAiConfig
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDUnconfirmOKAiConfig) SetTo(v FindingsPostFindingsIDUnconfirmOKAiConfig) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDUnconfirmOKAiConfig) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDUnconfirmOKAiConfig) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDUnconfirmOKAiConfig
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDUnconfirmOKAiConfig) Get() (v FindingsPostFindingsIDUnconfirmOKAiConfig, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDUnconfirmOKAiConfig) Or(d FindingsPostFindingsIDUnconfirmOKAiConfig) FindingsPostFindingsIDUnconfirmOKAiConfig {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDUnconfirmOKAiExplain returns new NilFindingsPostFindingsIDUnconfirmOKAiExplain with value set to v.
+func NewNilFindingsPostFindingsIDUnconfirmOKAiExplain(v FindingsPostFindingsIDUnconfirmOKAiExplain) NilFindingsPostFindingsIDUnconfirmOKAiExplain {
+	return NilFindingsPostFindingsIDUnconfirmOKAiExplain{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDUnconfirmOKAiExplain is nullable FindingsPostFindingsIDUnconfirmOKAiExplain.
+type NilFindingsPostFindingsIDUnconfirmOKAiExplain struct {
+	Value FindingsPostFindingsIDUnconfirmOKAiExplain
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDUnconfirmOKAiExplain) SetTo(v FindingsPostFindingsIDUnconfirmOKAiExplain) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDUnconfirmOKAiExplain) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDUnconfirmOKAiExplain) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDUnconfirmOKAiExplain
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDUnconfirmOKAiExplain) Get() (v FindingsPostFindingsIDUnconfirmOKAiExplain, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDUnconfirmOKAiExplain) Or(d FindingsPostFindingsIDUnconfirmOKAiExplain) FindingsPostFindingsIDUnconfirmOKAiExplain {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDUnconfirmOKAsset returns new NilFindingsPostFindingsIDUnconfirmOKAsset with value set to v.
+func NewNilFindingsPostFindingsIDUnconfirmOKAsset(v FindingsPostFindingsIDUnconfirmOKAsset) NilFindingsPostFindingsIDUnconfirmOKAsset {
+	return NilFindingsPostFindingsIDUnconfirmOKAsset{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDUnconfirmOKAsset is nullable FindingsPostFindingsIDUnconfirmOKAsset.
+type NilFindingsPostFindingsIDUnconfirmOKAsset struct {
+	Value FindingsPostFindingsIDUnconfirmOKAsset
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDUnconfirmOKAsset) SetTo(v FindingsPostFindingsIDUnconfirmOKAsset) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDUnconfirmOKAsset) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDUnconfirmOKAsset) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDUnconfirmOKAsset
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDUnconfirmOKAsset) Get() (v FindingsPostFindingsIDUnconfirmOKAsset, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDUnconfirmOKAsset) Or(d FindingsPostFindingsIDUnconfirmOKAsset) FindingsPostFindingsIDUnconfirmOKAsset {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDUnconfirmOKCompromise returns new NilFindingsPostFindingsIDUnconfirmOKCompromise with value set to v.
+func NewNilFindingsPostFindingsIDUnconfirmOKCompromise(v FindingsPostFindingsIDUnconfirmOKCompromise) NilFindingsPostFindingsIDUnconfirmOKCompromise {
+	return NilFindingsPostFindingsIDUnconfirmOKCompromise{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDUnconfirmOKCompromise is nullable FindingsPostFindingsIDUnconfirmOKCompromise.
+type NilFindingsPostFindingsIDUnconfirmOKCompromise struct {
+	Value FindingsPostFindingsIDUnconfirmOKCompromise
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDUnconfirmOKCompromise) SetTo(v FindingsPostFindingsIDUnconfirmOKCompromise) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDUnconfirmOKCompromise) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDUnconfirmOKCompromise) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDUnconfirmOKCompromise
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDUnconfirmOKCompromise) Get() (v FindingsPostFindingsIDUnconfirmOKCompromise, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDUnconfirmOKCompromise) Or(d FindingsPostFindingsIDUnconfirmOKCompromise) FindingsPostFindingsIDUnconfirmOKCompromise {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDUnconfirmOKCvss returns new NilFindingsPostFindingsIDUnconfirmOKCvss with value set to v.
+func NewNilFindingsPostFindingsIDUnconfirmOKCvss(v FindingsPostFindingsIDUnconfirmOKCvss) NilFindingsPostFindingsIDUnconfirmOKCvss {
+	return NilFindingsPostFindingsIDUnconfirmOKCvss{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDUnconfirmOKCvss is nullable FindingsPostFindingsIDUnconfirmOKCvss.
+type NilFindingsPostFindingsIDUnconfirmOKCvss struct {
+	Value FindingsPostFindingsIDUnconfirmOKCvss
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDUnconfirmOKCvss) SetTo(v FindingsPostFindingsIDUnconfirmOKCvss) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDUnconfirmOKCvss) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDUnconfirmOKCvss) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDUnconfirmOKCvss
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDUnconfirmOKCvss) Get() (v FindingsPostFindingsIDUnconfirmOKCvss, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDUnconfirmOKCvss) Or(d FindingsPostFindingsIDUnconfirmOKCvss) FindingsPostFindingsIDUnconfirmOKCvss {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDUnconfirmOKEvidence returns new NilFindingsPostFindingsIDUnconfirmOKEvidence with value set to v.
+func NewNilFindingsPostFindingsIDUnconfirmOKEvidence(v FindingsPostFindingsIDUnconfirmOKEvidence) NilFindingsPostFindingsIDUnconfirmOKEvidence {
+	return NilFindingsPostFindingsIDUnconfirmOKEvidence{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDUnconfirmOKEvidence is nullable FindingsPostFindingsIDUnconfirmOKEvidence.
+type NilFindingsPostFindingsIDUnconfirmOKEvidence struct {
+	Value FindingsPostFindingsIDUnconfirmOKEvidence
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDUnconfirmOKEvidence) SetTo(v FindingsPostFindingsIDUnconfirmOKEvidence) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDUnconfirmOKEvidence) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDUnconfirmOKEvidence) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDUnconfirmOKEvidence
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDUnconfirmOKEvidence) Get() (v FindingsPostFindingsIDUnconfirmOKEvidence, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDUnconfirmOKEvidence) Or(d FindingsPostFindingsIDUnconfirmOKEvidence) FindingsPostFindingsIDUnconfirmOKEvidence {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDUnconfirmOKFixedIn returns new NilFindingsPostFindingsIDUnconfirmOKFixedIn with value set to v.
+func NewNilFindingsPostFindingsIDUnconfirmOKFixedIn(v FindingsPostFindingsIDUnconfirmOKFixedIn) NilFindingsPostFindingsIDUnconfirmOKFixedIn {
+	return NilFindingsPostFindingsIDUnconfirmOKFixedIn{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDUnconfirmOKFixedIn is nullable FindingsPostFindingsIDUnconfirmOKFixedIn.
+type NilFindingsPostFindingsIDUnconfirmOKFixedIn struct {
+	Value FindingsPostFindingsIDUnconfirmOKFixedIn
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDUnconfirmOKFixedIn) SetTo(v FindingsPostFindingsIDUnconfirmOKFixedIn) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDUnconfirmOKFixedIn) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDUnconfirmOKFixedIn) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDUnconfirmOKFixedIn
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDUnconfirmOKFixedIn) Get() (v FindingsPostFindingsIDUnconfirmOKFixedIn, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDUnconfirmOKFixedIn) Or(d FindingsPostFindingsIDUnconfirmOKFixedIn) FindingsPostFindingsIDUnconfirmOKFixedIn {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDUnconfirmOKHardening returns new NilFindingsPostFindingsIDUnconfirmOKHardening with value set to v.
+func NewNilFindingsPostFindingsIDUnconfirmOKHardening(v FindingsPostFindingsIDUnconfirmOKHardening) NilFindingsPostFindingsIDUnconfirmOKHardening {
+	return NilFindingsPostFindingsIDUnconfirmOKHardening{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDUnconfirmOKHardening is nullable FindingsPostFindingsIDUnconfirmOKHardening.
+type NilFindingsPostFindingsIDUnconfirmOKHardening struct {
+	Value FindingsPostFindingsIDUnconfirmOKHardening
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDUnconfirmOKHardening) SetTo(v FindingsPostFindingsIDUnconfirmOKHardening) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDUnconfirmOKHardening) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDUnconfirmOKHardening) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDUnconfirmOKHardening
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDUnconfirmOKHardening) Get() (v FindingsPostFindingsIDUnconfirmOKHardening, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDUnconfirmOKHardening) Or(d FindingsPostFindingsIDUnconfirmOKHardening) FindingsPostFindingsIDUnconfirmOKHardening {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDUnconfirmOKHardeningChecks returns new NilFindingsPostFindingsIDUnconfirmOKHardeningChecks with value set to v.
+func NewNilFindingsPostFindingsIDUnconfirmOKHardeningChecks(v FindingsPostFindingsIDUnconfirmOKHardeningChecks) NilFindingsPostFindingsIDUnconfirmOKHardeningChecks {
+	return NilFindingsPostFindingsIDUnconfirmOKHardeningChecks{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDUnconfirmOKHardeningChecks is nullable FindingsPostFindingsIDUnconfirmOKHardeningChecks.
+type NilFindingsPostFindingsIDUnconfirmOKHardeningChecks struct {
+	Value FindingsPostFindingsIDUnconfirmOKHardeningChecks
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDUnconfirmOKHardeningChecks) SetTo(v FindingsPostFindingsIDUnconfirmOKHardeningChecks) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDUnconfirmOKHardeningChecks) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDUnconfirmOKHardeningChecks) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDUnconfirmOKHardeningChecks
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDUnconfirmOKHardeningChecks) Get() (v FindingsPostFindingsIDUnconfirmOKHardeningChecks, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDUnconfirmOKHardeningChecks) Or(d FindingsPostFindingsIDUnconfirmOKHardeningChecks) FindingsPostFindingsIDUnconfirmOKHardeningChecks {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDUnconfirmOKKev returns new NilFindingsPostFindingsIDUnconfirmOKKev with value set to v.
+func NewNilFindingsPostFindingsIDUnconfirmOKKev(v FindingsPostFindingsIDUnconfirmOKKev) NilFindingsPostFindingsIDUnconfirmOKKev {
+	return NilFindingsPostFindingsIDUnconfirmOKKev{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDUnconfirmOKKev is nullable FindingsPostFindingsIDUnconfirmOKKev.
+type NilFindingsPostFindingsIDUnconfirmOKKev struct {
+	Value FindingsPostFindingsIDUnconfirmOKKev
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDUnconfirmOKKev) SetTo(v FindingsPostFindingsIDUnconfirmOKKev) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDUnconfirmOKKev) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDUnconfirmOKKev) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDUnconfirmOKKev
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDUnconfirmOKKev) Get() (v FindingsPostFindingsIDUnconfirmOKKev, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDUnconfirmOKKev) Or(d FindingsPostFindingsIDUnconfirmOKKev) FindingsPostFindingsIDUnconfirmOKKev {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDUnconfirmOKKnownVersion returns new NilFindingsPostFindingsIDUnconfirmOKKnownVersion with value set to v.
+func NewNilFindingsPostFindingsIDUnconfirmOKKnownVersion(v FindingsPostFindingsIDUnconfirmOKKnownVersion) NilFindingsPostFindingsIDUnconfirmOKKnownVersion {
+	return NilFindingsPostFindingsIDUnconfirmOKKnownVersion{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDUnconfirmOKKnownVersion is nullable FindingsPostFindingsIDUnconfirmOKKnownVersion.
+type NilFindingsPostFindingsIDUnconfirmOKKnownVersion struct {
+	Value FindingsPostFindingsIDUnconfirmOKKnownVersion
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDUnconfirmOKKnownVersion) SetTo(v FindingsPostFindingsIDUnconfirmOKKnownVersion) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDUnconfirmOKKnownVersion) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDUnconfirmOKKnownVersion) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDUnconfirmOKKnownVersion
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDUnconfirmOKKnownVersion) Get() (v FindingsPostFindingsIDUnconfirmOKKnownVersion, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDUnconfirmOKKnownVersion) Or(d FindingsPostFindingsIDUnconfirmOKKnownVersion) FindingsPostFindingsIDUnconfirmOKKnownVersion {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDUnconfirmOKPack returns new NilFindingsPostFindingsIDUnconfirmOKPack with value set to v.
+func NewNilFindingsPostFindingsIDUnconfirmOKPack(v FindingsPostFindingsIDUnconfirmOKPack) NilFindingsPostFindingsIDUnconfirmOKPack {
+	return NilFindingsPostFindingsIDUnconfirmOKPack{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDUnconfirmOKPack is nullable FindingsPostFindingsIDUnconfirmOKPack.
+type NilFindingsPostFindingsIDUnconfirmOKPack struct {
+	Value FindingsPostFindingsIDUnconfirmOKPack
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDUnconfirmOKPack) SetTo(v FindingsPostFindingsIDUnconfirmOKPack) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDUnconfirmOKPack) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDUnconfirmOKPack) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDUnconfirmOKPack
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDUnconfirmOKPack) Get() (v FindingsPostFindingsIDUnconfirmOKPack, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDUnconfirmOKPack) Or(d FindingsPostFindingsIDUnconfirmOKPack) FindingsPostFindingsIDUnconfirmOKPack {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -155519,6 +168701,98 @@ func (o OptExposurePostExposureTargetsReqKind) Or(d ExposurePostExposureTargetsR
 	return d
 }
 
+// NewOptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance returns new OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance with value set to v.
+func NewOptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance(v ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance {
+	return OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance is optional ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance.
+type OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance struct {
+	Value ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance
+	Set   bool
+}
+
+// IsSet returns true if OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance was set.
+func (o OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) Reset() {
+	var v ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) SetTo(v ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) Get() (v ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) Or(d ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent returns new OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent with value set to v.
+func NewOptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent(v ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent) OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent {
+	return OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent is optional ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent.
+type OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent struct {
+	Value ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent
+	Set   bool
+}
+
+// IsSet returns true if OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent was set.
+func (o OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent) Reset() {
+	var v ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent) SetTo(v ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent) Get() (v ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent) Or(d ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent) ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance returns new OptExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance with value set to v.
 func NewOptExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance(v ExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance) OptExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance {
 	return OptExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance{
@@ -156025,6 +169299,98 @@ func (o OptFindingsPostFindingsIDAppliedOKPackFirewallItemAlternative) Or(d Find
 	return d
 }
 
+// NewOptFindingsPostFindingsIDConfirmOKKevSource returns new OptFindingsPostFindingsIDConfirmOKKevSource with value set to v.
+func NewOptFindingsPostFindingsIDConfirmOKKevSource(v FindingsPostFindingsIDConfirmOKKevSource) OptFindingsPostFindingsIDConfirmOKKevSource {
+	return OptFindingsPostFindingsIDConfirmOKKevSource{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptFindingsPostFindingsIDConfirmOKKevSource is optional FindingsPostFindingsIDConfirmOKKevSource.
+type OptFindingsPostFindingsIDConfirmOKKevSource struct {
+	Value FindingsPostFindingsIDConfirmOKKevSource
+	Set   bool
+}
+
+// IsSet returns true if OptFindingsPostFindingsIDConfirmOKKevSource was set.
+func (o OptFindingsPostFindingsIDConfirmOKKevSource) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptFindingsPostFindingsIDConfirmOKKevSource) Reset() {
+	var v FindingsPostFindingsIDConfirmOKKevSource
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptFindingsPostFindingsIDConfirmOKKevSource) SetTo(v FindingsPostFindingsIDConfirmOKKevSource) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptFindingsPostFindingsIDConfirmOKKevSource) Get() (v FindingsPostFindingsIDConfirmOKKevSource, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptFindingsPostFindingsIDConfirmOKKevSource) Or(d FindingsPostFindingsIDConfirmOKKevSource) FindingsPostFindingsIDConfirmOKKevSource {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptFindingsPostFindingsIDConfirmOKPackFirewallItemAlternative returns new OptFindingsPostFindingsIDConfirmOKPackFirewallItemAlternative with value set to v.
+func NewOptFindingsPostFindingsIDConfirmOKPackFirewallItemAlternative(v FindingsPostFindingsIDConfirmOKPackFirewallItemAlternative) OptFindingsPostFindingsIDConfirmOKPackFirewallItemAlternative {
+	return OptFindingsPostFindingsIDConfirmOKPackFirewallItemAlternative{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptFindingsPostFindingsIDConfirmOKPackFirewallItemAlternative is optional FindingsPostFindingsIDConfirmOKPackFirewallItemAlternative.
+type OptFindingsPostFindingsIDConfirmOKPackFirewallItemAlternative struct {
+	Value FindingsPostFindingsIDConfirmOKPackFirewallItemAlternative
+	Set   bool
+}
+
+// IsSet returns true if OptFindingsPostFindingsIDConfirmOKPackFirewallItemAlternative was set.
+func (o OptFindingsPostFindingsIDConfirmOKPackFirewallItemAlternative) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptFindingsPostFindingsIDConfirmOKPackFirewallItemAlternative) Reset() {
+	var v FindingsPostFindingsIDConfirmOKPackFirewallItemAlternative
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptFindingsPostFindingsIDConfirmOKPackFirewallItemAlternative) SetTo(v FindingsPostFindingsIDConfirmOKPackFirewallItemAlternative) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptFindingsPostFindingsIDConfirmOKPackFirewallItemAlternative) Get() (v FindingsPostFindingsIDConfirmOKPackFirewallItemAlternative, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptFindingsPostFindingsIDConfirmOKPackFirewallItemAlternative) Or(d FindingsPostFindingsIDConfirmOKPackFirewallItemAlternative) FindingsPostFindingsIDConfirmOKPackFirewallItemAlternative {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptFindingsPostFindingsIDStatusOKKevSource returns new OptFindingsPostFindingsIDStatusOKKevSource with value set to v.
 func NewOptFindingsPostFindingsIDStatusOKKevSource(v FindingsPostFindingsIDStatusOKKevSource) OptFindingsPostFindingsIDStatusOKKevSource {
 	return OptFindingsPostFindingsIDStatusOKKevSource{
@@ -156111,6 +169477,98 @@ func (o OptFindingsPostFindingsIDStatusOKPackFirewallItemAlternative) Get() (v F
 
 // Or returns value if set, or given parameter if does not.
 func (o OptFindingsPostFindingsIDStatusOKPackFirewallItemAlternative) Or(d FindingsPostFindingsIDStatusOKPackFirewallItemAlternative) FindingsPostFindingsIDStatusOKPackFirewallItemAlternative {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptFindingsPostFindingsIDUnconfirmOKKevSource returns new OptFindingsPostFindingsIDUnconfirmOKKevSource with value set to v.
+func NewOptFindingsPostFindingsIDUnconfirmOKKevSource(v FindingsPostFindingsIDUnconfirmOKKevSource) OptFindingsPostFindingsIDUnconfirmOKKevSource {
+	return OptFindingsPostFindingsIDUnconfirmOKKevSource{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptFindingsPostFindingsIDUnconfirmOKKevSource is optional FindingsPostFindingsIDUnconfirmOKKevSource.
+type OptFindingsPostFindingsIDUnconfirmOKKevSource struct {
+	Value FindingsPostFindingsIDUnconfirmOKKevSource
+	Set   bool
+}
+
+// IsSet returns true if OptFindingsPostFindingsIDUnconfirmOKKevSource was set.
+func (o OptFindingsPostFindingsIDUnconfirmOKKevSource) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptFindingsPostFindingsIDUnconfirmOKKevSource) Reset() {
+	var v FindingsPostFindingsIDUnconfirmOKKevSource
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptFindingsPostFindingsIDUnconfirmOKKevSource) SetTo(v FindingsPostFindingsIDUnconfirmOKKevSource) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptFindingsPostFindingsIDUnconfirmOKKevSource) Get() (v FindingsPostFindingsIDUnconfirmOKKevSource, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptFindingsPostFindingsIDUnconfirmOKKevSource) Or(d FindingsPostFindingsIDUnconfirmOKKevSource) FindingsPostFindingsIDUnconfirmOKKevSource {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptFindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative returns new OptFindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative with value set to v.
+func NewOptFindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative(v FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative) OptFindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative {
+	return OptFindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptFindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative is optional FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative.
+type OptFindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative struct {
+	Value FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative
+	Set   bool
+}
+
+// IsSet returns true if OptFindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative was set.
+func (o OptFindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptFindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative) Reset() {
+	var v FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptFindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative) SetTo(v FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptFindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative) Get() (v FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptFindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative) Or(d FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative) FindingsPostFindingsIDUnconfirmOKPackFirewallItemAlternative {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -158137,6 +171595,74 @@ func (o OptNilFindingsPostFindingsIDAppliedOKFix) Or(d FindingsPostFindingsIDApp
 	return d
 }
 
+// NewOptNilFindingsPostFindingsIDConfirmOKFix returns new OptNilFindingsPostFindingsIDConfirmOKFix with value set to v.
+func NewOptNilFindingsPostFindingsIDConfirmOKFix(v FindingsPostFindingsIDConfirmOKFix) OptNilFindingsPostFindingsIDConfirmOKFix {
+	return OptNilFindingsPostFindingsIDConfirmOKFix{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilFindingsPostFindingsIDConfirmOKFix is optional nullable FindingsPostFindingsIDConfirmOKFix.
+type OptNilFindingsPostFindingsIDConfirmOKFix struct {
+	Value FindingsPostFindingsIDConfirmOKFix
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilFindingsPostFindingsIDConfirmOKFix was set.
+func (o OptNilFindingsPostFindingsIDConfirmOKFix) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilFindingsPostFindingsIDConfirmOKFix) Reset() {
+	var v FindingsPostFindingsIDConfirmOKFix
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilFindingsPostFindingsIDConfirmOKFix) SetTo(v FindingsPostFindingsIDConfirmOKFix) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilFindingsPostFindingsIDConfirmOKFix) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilFindingsPostFindingsIDConfirmOKFix) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v FindingsPostFindingsIDConfirmOKFix
+	o.Value = v
+}
+
+// IsEmpty returns true if the field was omitted from the payload (not Set and not Null).
+func (o OptNilFindingsPostFindingsIDConfirmOKFix) IsEmpty() bool {
+	return !o.Set && !o.Null
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilFindingsPostFindingsIDConfirmOKFix) Get() (v FindingsPostFindingsIDConfirmOKFix, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilFindingsPostFindingsIDConfirmOKFix) Or(d FindingsPostFindingsIDConfirmOKFix) FindingsPostFindingsIDConfirmOKFix {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptNilFindingsPostFindingsIDStatusOKFix returns new OptNilFindingsPostFindingsIDStatusOKFix with value set to v.
 func NewOptNilFindingsPostFindingsIDStatusOKFix(v FindingsPostFindingsIDStatusOKFix) OptNilFindingsPostFindingsIDStatusOKFix {
 	return OptNilFindingsPostFindingsIDStatusOKFix{
@@ -158199,6 +171725,74 @@ func (o OptNilFindingsPostFindingsIDStatusOKFix) Get() (v FindingsPostFindingsID
 
 // Or returns value if set, or given parameter if does not.
 func (o OptNilFindingsPostFindingsIDStatusOKFix) Or(d FindingsPostFindingsIDStatusOKFix) FindingsPostFindingsIDStatusOKFix {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilFindingsPostFindingsIDUnconfirmOKFix returns new OptNilFindingsPostFindingsIDUnconfirmOKFix with value set to v.
+func NewOptNilFindingsPostFindingsIDUnconfirmOKFix(v FindingsPostFindingsIDUnconfirmOKFix) OptNilFindingsPostFindingsIDUnconfirmOKFix {
+	return OptNilFindingsPostFindingsIDUnconfirmOKFix{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilFindingsPostFindingsIDUnconfirmOKFix is optional nullable FindingsPostFindingsIDUnconfirmOKFix.
+type OptNilFindingsPostFindingsIDUnconfirmOKFix struct {
+	Value FindingsPostFindingsIDUnconfirmOKFix
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilFindingsPostFindingsIDUnconfirmOKFix was set.
+func (o OptNilFindingsPostFindingsIDUnconfirmOKFix) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilFindingsPostFindingsIDUnconfirmOKFix) Reset() {
+	var v FindingsPostFindingsIDUnconfirmOKFix
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilFindingsPostFindingsIDUnconfirmOKFix) SetTo(v FindingsPostFindingsIDUnconfirmOKFix) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilFindingsPostFindingsIDUnconfirmOKFix) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilFindingsPostFindingsIDUnconfirmOKFix) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v FindingsPostFindingsIDUnconfirmOKFix
+	o.Value = v
+}
+
+// IsEmpty returns true if the field was omitted from the payload (not Set and not Null).
+func (o OptNilFindingsPostFindingsIDUnconfirmOKFix) IsEmpty() bool {
+	return !o.Set && !o.Null
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilFindingsPostFindingsIDUnconfirmOKFix) Get() (v FindingsPostFindingsIDUnconfirmOKFix, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilFindingsPostFindingsIDUnconfirmOKFix) Or(d FindingsPostFindingsIDUnconfirmOKFix) FindingsPostFindingsIDUnconfirmOKFix {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -158609,6 +172203,190 @@ func (o OptNotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel) Get() (v Notify
 
 // Or returns value if set, or given parameter if does not.
 func (o OptNotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel) Or(d NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel) NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptReportsGetReportsPdplOKReportApprovedOnly returns new OptReportsGetReportsPdplOKReportApprovedOnly with value set to v.
+func NewOptReportsGetReportsPdplOKReportApprovedOnly(v ReportsGetReportsPdplOKReportApprovedOnly) OptReportsGetReportsPdplOKReportApprovedOnly {
+	return OptReportsGetReportsPdplOKReportApprovedOnly{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptReportsGetReportsPdplOKReportApprovedOnly is optional ReportsGetReportsPdplOKReportApprovedOnly.
+type OptReportsGetReportsPdplOKReportApprovedOnly struct {
+	Value ReportsGetReportsPdplOKReportApprovedOnly
+	Set   bool
+}
+
+// IsSet returns true if OptReportsGetReportsPdplOKReportApprovedOnly was set.
+func (o OptReportsGetReportsPdplOKReportApprovedOnly) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptReportsGetReportsPdplOKReportApprovedOnly) Reset() {
+	var v ReportsGetReportsPdplOKReportApprovedOnly
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptReportsGetReportsPdplOKReportApprovedOnly) SetTo(v ReportsGetReportsPdplOKReportApprovedOnly) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptReportsGetReportsPdplOKReportApprovedOnly) Get() (v ReportsGetReportsPdplOKReportApprovedOnly, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptReportsGetReportsPdplOKReportApprovedOnly) Or(d ReportsGetReportsPdplOKReportApprovedOnly) ReportsGetReportsPdplOKReportApprovedOnly {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly returns new OptReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly with value set to v.
+func NewOptReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly(v ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly) OptReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly {
+	return OptReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly is optional ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly.
+type OptReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly struct {
+	Value ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly
+	Set   bool
+}
+
+// IsSet returns true if OptReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly was set.
+func (o OptReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly) Reset() {
+	var v ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly) SetTo(v ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly) Get() (v ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly) Or(d ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly) ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptReportsGetReportsWeeklyPreviewOKReportApprovedOnly returns new OptReportsGetReportsWeeklyPreviewOKReportApprovedOnly with value set to v.
+func NewOptReportsGetReportsWeeklyPreviewOKReportApprovedOnly(v ReportsGetReportsWeeklyPreviewOKReportApprovedOnly) OptReportsGetReportsWeeklyPreviewOKReportApprovedOnly {
+	return OptReportsGetReportsWeeklyPreviewOKReportApprovedOnly{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptReportsGetReportsWeeklyPreviewOKReportApprovedOnly is optional ReportsGetReportsWeeklyPreviewOKReportApprovedOnly.
+type OptReportsGetReportsWeeklyPreviewOKReportApprovedOnly struct {
+	Value ReportsGetReportsWeeklyPreviewOKReportApprovedOnly
+	Set   bool
+}
+
+// IsSet returns true if OptReportsGetReportsWeeklyPreviewOKReportApprovedOnly was set.
+func (o OptReportsGetReportsWeeklyPreviewOKReportApprovedOnly) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptReportsGetReportsWeeklyPreviewOKReportApprovedOnly) Reset() {
+	var v ReportsGetReportsWeeklyPreviewOKReportApprovedOnly
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptReportsGetReportsWeeklyPreviewOKReportApprovedOnly) SetTo(v ReportsGetReportsWeeklyPreviewOKReportApprovedOnly) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptReportsGetReportsWeeklyPreviewOKReportApprovedOnly) Get() (v ReportsGetReportsWeeklyPreviewOKReportApprovedOnly, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptReportsGetReportsWeeklyPreviewOKReportApprovedOnly) Or(d ReportsGetReportsWeeklyPreviewOKReportApprovedOnly) ReportsGetReportsWeeklyPreviewOKReportApprovedOnly {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptReportsPostReportsPdplGenerateOKApprovedOnly returns new OptReportsPostReportsPdplGenerateOKApprovedOnly with value set to v.
+func NewOptReportsPostReportsPdplGenerateOKApprovedOnly(v ReportsPostReportsPdplGenerateOKApprovedOnly) OptReportsPostReportsPdplGenerateOKApprovedOnly {
+	return OptReportsPostReportsPdplGenerateOKApprovedOnly{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptReportsPostReportsPdplGenerateOKApprovedOnly is optional ReportsPostReportsPdplGenerateOKApprovedOnly.
+type OptReportsPostReportsPdplGenerateOKApprovedOnly struct {
+	Value ReportsPostReportsPdplGenerateOKApprovedOnly
+	Set   bool
+}
+
+// IsSet returns true if OptReportsPostReportsPdplGenerateOKApprovedOnly was set.
+func (o OptReportsPostReportsPdplGenerateOKApprovedOnly) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptReportsPostReportsPdplGenerateOKApprovedOnly) Reset() {
+	var v ReportsPostReportsPdplGenerateOKApprovedOnly
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptReportsPostReportsPdplGenerateOKApprovedOnly) SetTo(v ReportsPostReportsPdplGenerateOKApprovedOnly) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptReportsPostReportsPdplGenerateOKApprovedOnly) Get() (v ReportsPostReportsPdplGenerateOKApprovedOnly, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptReportsPostReportsPdplGenerateOKApprovedOnly) Or(d ReportsPostReportsPdplGenerateOKApprovedOnly) ReportsPostReportsPdplGenerateOKApprovedOnly {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -159546,20 +173324,29 @@ func (s *ReportsGetReportsPdplOKOrgSize) UnmarshalText(data []byte) error {
 }
 
 type ReportsGetReportsPdplOKReport struct {
-	AiSummary   NilReportsGetReportsPdplOKReportAiSummary      `json:"ai_summary"`
-	Coverage    []ReportsGetReportsPdplOKReportCoverageItem    `json:"coverage"`
-	GeneratedAt time.Time                                      `json:"generated_at"`
-	ID          string                                         `json:"id"`
-	Inventory   ReportsGetReportsPdplOKReportInventory         `json:"inventory"`
-	Measures    []ReportsGetReportsPdplOKReportMeasuresItem    `json:"measures"`
-	Obligations []ReportsGetReportsPdplOKReportObligationsItem `json:"obligations"`
-	Org         ReportsGetReportsPdplOKReportOrg               `json:"org"`
-	Risks       []ReportsGetReportsPdplOKReportRisksItem       `json:"risks"`
+	AiSummary NilReportsGetReportsPdplOKReportAiSummary `json:"ai_summary"`
+	// The inventory, measures and risks again without the devices not in the Devices list (not approved
+	// yet) and their findings; the unapproved measure stays the full one. Absent in reports generated
+	// before it.
+	ApprovedOnly OptReportsGetReportsPdplOKReportApprovedOnly   `json:"approved_only"`
+	Coverage     []ReportsGetReportsPdplOKReportCoverageItem    `json:"coverage"`
+	GeneratedAt  time.Time                                      `json:"generated_at"`
+	ID           string                                         `json:"id"`
+	Inventory    ReportsGetReportsPdplOKReportInventory         `json:"inventory"`
+	Measures     []ReportsGetReportsPdplOKReportMeasuresItem    `json:"measures"`
+	Obligations  []ReportsGetReportsPdplOKReportObligationsItem `json:"obligations"`
+	Org          ReportsGetReportsPdplOKReportOrg               `json:"org"`
+	Risks        []ReportsGetReportsPdplOKReportRisksItem       `json:"risks"`
 }
 
 // GetAiSummary returns the value of AiSummary.
 func (s *ReportsGetReportsPdplOKReport) GetAiSummary() NilReportsGetReportsPdplOKReportAiSummary {
 	return s.AiSummary
+}
+
+// GetApprovedOnly returns the value of ApprovedOnly.
+func (s *ReportsGetReportsPdplOKReport) GetApprovedOnly() OptReportsGetReportsPdplOKReportApprovedOnly {
+	return s.ApprovedOnly
 }
 
 // GetCoverage returns the value of Coverage.
@@ -159605,6 +173392,11 @@ func (s *ReportsGetReportsPdplOKReport) GetRisks() []ReportsGetReportsPdplOKRepo
 // SetAiSummary sets the value of AiSummary.
 func (s *ReportsGetReportsPdplOKReport) SetAiSummary(val NilReportsGetReportsPdplOKReportAiSummary) {
 	s.AiSummary = val
+}
+
+// SetApprovedOnly sets the value of ApprovedOnly.
+func (s *ReportsGetReportsPdplOKReport) SetApprovedOnly(val OptReportsGetReportsPdplOKReportApprovedOnly) {
+	s.ApprovedOnly = val
 }
 
 // SetCoverage sets the value of Coverage.
@@ -159729,6 +173521,685 @@ func (s *ReportsGetReportsPdplOKReportAiSummaryTokens) SetInput(val float64) {
 // SetOutput sets the value of Output.
 func (s *ReportsGetReportsPdplOKReportAiSummaryTokens) SetOutput(val float64) {
 	s.Output = val
+}
+
+// The inventory, measures and risks again without the devices not in the Devices list (not approved
+// yet) and their findings; the unapproved measure stays the full one. Absent in reports generated
+// before it.
+type ReportsGetReportsPdplOKReportApprovedOnly struct {
+	Inventory ReportsGetReportsPdplOKReportApprovedOnlyInventory      `json:"inventory"`
+	Measures  []ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItem `json:"measures"`
+	Risks     []ReportsGetReportsPdplOKReportApprovedOnlyRisksItem    `json:"risks"`
+}
+
+// GetInventory returns the value of Inventory.
+func (s *ReportsGetReportsPdplOKReportApprovedOnly) GetInventory() ReportsGetReportsPdplOKReportApprovedOnlyInventory {
+	return s.Inventory
+}
+
+// GetMeasures returns the value of Measures.
+func (s *ReportsGetReportsPdplOKReportApprovedOnly) GetMeasures() []ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItem {
+	return s.Measures
+}
+
+// GetRisks returns the value of Risks.
+func (s *ReportsGetReportsPdplOKReportApprovedOnly) GetRisks() []ReportsGetReportsPdplOKReportApprovedOnlyRisksItem {
+	return s.Risks
+}
+
+// SetInventory sets the value of Inventory.
+func (s *ReportsGetReportsPdplOKReportApprovedOnly) SetInventory(val ReportsGetReportsPdplOKReportApprovedOnlyInventory) {
+	s.Inventory = val
+}
+
+// SetMeasures sets the value of Measures.
+func (s *ReportsGetReportsPdplOKReportApprovedOnly) SetMeasures(val []ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItem) {
+	s.Measures = val
+}
+
+// SetRisks sets the value of Risks.
+func (s *ReportsGetReportsPdplOKReportApprovedOnly) SetRisks(val []ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) {
+	s.Risks = val
+}
+
+type ReportsGetReportsPdplOKReportApprovedOnlyInventory struct {
+	Approved   float64                                                            `json:"approved"`
+	ByKind     []ReportsGetReportsPdplOKReportApprovedOnlyInventoryByKindItem     `json:"by_kind"`
+	Fragile    float64                                                            `json:"fragile"`
+	KeySystems []ReportsGetReportsPdplOKReportApprovedOnlyInventoryKeySystemsItem `json:"key_systems"`
+	Sources    []ReportsGetReportsPdplOKReportApprovedOnlyInventorySourcesItem    `json:"sources"`
+	Total      float64                                                            `json:"total"`
+	Unapproved float64                                                            `json:"unapproved"`
+}
+
+// GetApproved returns the value of Approved.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventory) GetApproved() float64 {
+	return s.Approved
+}
+
+// GetByKind returns the value of ByKind.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventory) GetByKind() []ReportsGetReportsPdplOKReportApprovedOnlyInventoryByKindItem {
+	return s.ByKind
+}
+
+// GetFragile returns the value of Fragile.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventory) GetFragile() float64 {
+	return s.Fragile
+}
+
+// GetKeySystems returns the value of KeySystems.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventory) GetKeySystems() []ReportsGetReportsPdplOKReportApprovedOnlyInventoryKeySystemsItem {
+	return s.KeySystems
+}
+
+// GetSources returns the value of Sources.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventory) GetSources() []ReportsGetReportsPdplOKReportApprovedOnlyInventorySourcesItem {
+	return s.Sources
+}
+
+// GetTotal returns the value of Total.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventory) GetTotal() float64 {
+	return s.Total
+}
+
+// GetUnapproved returns the value of Unapproved.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventory) GetUnapproved() float64 {
+	return s.Unapproved
+}
+
+// SetApproved sets the value of Approved.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventory) SetApproved(val float64) {
+	s.Approved = val
+}
+
+// SetByKind sets the value of ByKind.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventory) SetByKind(val []ReportsGetReportsPdplOKReportApprovedOnlyInventoryByKindItem) {
+	s.ByKind = val
+}
+
+// SetFragile sets the value of Fragile.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventory) SetFragile(val float64) {
+	s.Fragile = val
+}
+
+// SetKeySystems sets the value of KeySystems.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventory) SetKeySystems(val []ReportsGetReportsPdplOKReportApprovedOnlyInventoryKeySystemsItem) {
+	s.KeySystems = val
+}
+
+// SetSources sets the value of Sources.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventory) SetSources(val []ReportsGetReportsPdplOKReportApprovedOnlyInventorySourcesItem) {
+	s.Sources = val
+}
+
+// SetTotal sets the value of Total.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventory) SetTotal(val float64) {
+	s.Total = val
+}
+
+// SetUnapproved sets the value of Unapproved.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventory) SetUnapproved(val float64) {
+	s.Unapproved = val
+}
+
+type ReportsGetReportsPdplOKReportApprovedOnlyInventoryByKindItem struct {
+	Kind string  `json:"kind"`
+	N    float64 `json:"n"`
+}
+
+// GetKind returns the value of Kind.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventoryByKindItem) GetKind() string {
+	return s.Kind
+}
+
+// GetN returns the value of N.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventoryByKindItem) GetN() float64 {
+	return s.N
+}
+
+// SetKind sets the value of Kind.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventoryByKindItem) SetKind(val string) {
+	s.Kind = val
+}
+
+// SetN sets the value of N.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventoryByKindItem) SetN(val float64) {
+	s.N = val
+}
+
+type ReportsGetReportsPdplOKReportApprovedOnlyInventoryKeySystemsItem struct {
+	ID   string `json:"id"`
+	IP   string `json:"ip"`
+	Kind string `json:"kind"`
+	Name string `json:"name"`
+	Os   string `json:"os"`
+}
+
+// GetID returns the value of ID.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventoryKeySystemsItem) GetID() string {
+	return s.ID
+}
+
+// GetIP returns the value of IP.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventoryKeySystemsItem) GetIP() string {
+	return s.IP
+}
+
+// GetKind returns the value of Kind.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventoryKeySystemsItem) GetKind() string {
+	return s.Kind
+}
+
+// GetName returns the value of Name.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventoryKeySystemsItem) GetName() string {
+	return s.Name
+}
+
+// GetOs returns the value of Os.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventoryKeySystemsItem) GetOs() string {
+	return s.Os
+}
+
+// SetID sets the value of ID.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventoryKeySystemsItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetIP sets the value of IP.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventoryKeySystemsItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventoryKeySystemsItem) SetKind(val string) {
+	s.Kind = val
+}
+
+// SetName sets the value of Name.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventoryKeySystemsItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetOs sets the value of Os.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventoryKeySystemsItem) SetOs(val string) {
+	s.Os = val
+}
+
+type ReportsGetReportsPdplOKReportApprovedOnlyInventorySourcesItem struct {
+	N      float64 `json:"n"`
+	Source string  `json:"source"`
+}
+
+// GetN returns the value of N.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventorySourcesItem) GetN() float64 {
+	return s.N
+}
+
+// GetSource returns the value of Source.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventorySourcesItem) GetSource() string {
+	return s.Source
+}
+
+// SetN sets the value of N.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventorySourcesItem) SetN(val float64) {
+	s.N = val
+}
+
+// SetSource sets the value of Source.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventorySourcesItem) SetSource(val string) {
+	s.Source = val
+}
+
+type ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItem struct {
+	ID     ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemID     `json:"id"`
+	N      float64                                                     `json:"n"`
+	Names  []string                                                    `json:"names"`
+	Status ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatus `json:"status"`
+}
+
+// GetID returns the value of ID.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItem) GetID() ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemID {
+	return s.ID
+}
+
+// GetN returns the value of N.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItem) GetN() float64 {
+	return s.N
+}
+
+// GetNames returns the value of Names.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItem) GetNames() []string {
+	return s.Names
+}
+
+// GetStatus returns the value of Status.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItem) GetStatus() ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatus {
+	return s.Status
+}
+
+// SetID sets the value of ID.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItem) SetID(val ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemID) {
+	s.ID = val
+}
+
+// SetN sets the value of N.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItem) SetN(val float64) {
+	s.N = val
+}
+
+// SetNames sets the value of Names.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItem) SetNames(val []string) {
+	s.Names = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItem) SetStatus(val ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatus) {
+	s.Status = val
+}
+
+type ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemID string
+
+const (
+	ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDFirewall   ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemID = "firewall"
+	ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDPatching   ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemID = "patching"
+	ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDEol        ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemID = "eol"
+	ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDUnapproved ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemID = "unapproved"
+	ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDRemote     ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemID = "remote"
+	ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDLogging    ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemID = "logging"
+	ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDHoneypot   ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemID = "honeypot"
+	ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDScan       ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemID = "scan"
+	ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDBackup     ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemID = "backup"
+)
+
+// AllValues returns all ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemID values.
+func (ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemID) AllValues() []ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemID {
+	return []ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemID{
+		ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDFirewall,
+		ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDPatching,
+		ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDEol,
+		ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDUnapproved,
+		ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDRemote,
+		ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDLogging,
+		ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDHoneypot,
+		ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDScan,
+		ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDBackup,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemID) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDFirewall:
+		return []byte(s), nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDPatching:
+		return []byte(s), nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDEol:
+		return []byte(s), nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDUnapproved:
+		return []byte(s), nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDRemote:
+		return []byte(s), nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDLogging:
+		return []byte(s), nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDHoneypot:
+		return []byte(s), nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDScan:
+		return []byte(s), nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDBackup:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemID) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemID(data) {
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDFirewall:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDFirewall
+		return nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDPatching:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDPatching
+		return nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDEol:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDEol
+		return nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDUnapproved:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDUnapproved
+		return nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDRemote:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDRemote
+		return nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDLogging:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDLogging
+		return nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDHoneypot:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDHoneypot
+		return nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDScan:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDScan
+		return nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDBackup:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDBackup
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatus string
+
+const (
+	ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatusOk        ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatus = "ok"
+	ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatusAttention ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatus = "attention"
+	ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatusUnknown   ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatus = "unknown"
+)
+
+// AllValues returns all ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatus values.
+func (ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatus) AllValues() []ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatus {
+	return []ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatus{
+		ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatusOk,
+		ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatusAttention,
+		ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatusUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatusOk:
+		return []byte(s), nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatusAttention:
+		return []byte(s), nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatusUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatus) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatus(data) {
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatusOk:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatusOk
+		return nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatusAttention:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatusAttention
+		return nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatusUnknown:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatusUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsPdplOKReportApprovedOnlyRisksItem struct {
+	// The version compared is the one the device's own agent reports (findings evidence.agent): the status
+	// reads "Detected by the agent", not "Suspected"; absent in reports sent before it.
+	Agent   OptBool `json:"agent"`
+	AssetID string  `json:"asset_id"`
+	// Who closed it (rows of what was done).
+	By     OptString `json:"by"`
+	Cve    string    `json:"cve"`
+	Device string    `json:"device"`
+	// False when the device is still to review, not in the Devices list yet; absent in reports made before
+	// it (read as approved).
+	DeviceApproved OptBool                                                    `json:"device_approved"`
+	ID             string                                                     `json:"id"`
+	Product        string                                                     `json:"product"`
+	Severity       ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverity `json:"severity"`
+	Since          time.Time                                                  `json:"since"`
+	Status         ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatus   `json:"status"`
+}
+
+// GetAgent returns the value of Agent.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) GetAgent() OptBool {
+	return s.Agent
+}
+
+// GetAssetID returns the value of AssetID.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) GetAssetID() string {
+	return s.AssetID
+}
+
+// GetBy returns the value of By.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) GetBy() OptString {
+	return s.By
+}
+
+// GetCve returns the value of Cve.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) GetCve() string {
+	return s.Cve
+}
+
+// GetDevice returns the value of Device.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) GetDevice() string {
+	return s.Device
+}
+
+// GetDeviceApproved returns the value of DeviceApproved.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) GetDeviceApproved() OptBool {
+	return s.DeviceApproved
+}
+
+// GetID returns the value of ID.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) GetID() string {
+	return s.ID
+}
+
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) GetProduct() string {
+	return s.Product
+}
+
+// GetSeverity returns the value of Severity.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) GetSeverity() ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverity {
+	return s.Severity
+}
+
+// GetSince returns the value of Since.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) GetSince() time.Time {
+	return s.Since
+}
+
+// GetStatus returns the value of Status.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) GetStatus() ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatus {
+	return s.Status
+}
+
+// SetAgent sets the value of Agent.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) SetAgent(val OptBool) {
+	s.Agent = val
+}
+
+// SetAssetID sets the value of AssetID.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) SetAssetID(val string) {
+	s.AssetID = val
+}
+
+// SetBy sets the value of By.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) SetBy(val OptString) {
+	s.By = val
+}
+
+// SetCve sets the value of Cve.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetDevice sets the value of Device.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) SetDevice(val string) {
+	s.Device = val
+}
+
+// SetDeviceApproved sets the value of DeviceApproved.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) SetDeviceApproved(val OptBool) {
+	s.DeviceApproved = val
+}
+
+// SetID sets the value of ID.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) SetSeverity(val ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverity) {
+	s.Severity = val
+}
+
+// SetSince sets the value of Since.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) SetSince(val time.Time) {
+	s.Since = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) SetStatus(val ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatus) {
+	s.Status = val
+}
+
+type ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverity string
+
+const (
+	ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityCritical ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverity = "critical"
+	ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityHigh     ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverity = "high"
+	ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityMedium   ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverity = "medium"
+	ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityLow      ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverity = "low"
+	ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityInfo     ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverity = "info"
+)
+
+// AllValues returns all ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverity values.
+func (ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverity) AllValues() []ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverity {
+	return []ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverity{
+		ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityCritical,
+		ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityHigh,
+		ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityMedium,
+		ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityLow,
+		ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityInfo,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverity) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityCritical:
+		return []byte(s), nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityHigh:
+		return []byte(s), nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityMedium:
+		return []byte(s), nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityLow:
+		return []byte(s), nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityInfo:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverity) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverity(data) {
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityCritical:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityCritical
+		return nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityHigh:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityHigh
+		return nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityMedium:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityMedium
+		return nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityLow:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityLow
+		return nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityInfo:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityInfo
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatus string
+
+const (
+	ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusConfirmed     ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatus = "confirmed"
+	ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusSuspected     ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatus = "suspected"
+	ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusMitigated     ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatus = "mitigated"
+	ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusPatched       ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatus = "patched"
+	ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusFalsePositive ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatus = "false_positive"
+	ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusNotRelevant   ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatus = "not_relevant"
+	ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusRiskAccepted  ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatus = "risk_accepted"
+)
+
+// AllValues returns all ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatus values.
+func (ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatus) AllValues() []ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatus {
+	return []ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatus{
+		ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusConfirmed,
+		ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusSuspected,
+		ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusMitigated,
+		ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusPatched,
+		ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusFalsePositive,
+		ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusNotRelevant,
+		ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusRiskAccepted,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusConfirmed:
+		return []byte(s), nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusSuspected:
+		return []byte(s), nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusMitigated:
+		return []byte(s), nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusPatched:
+		return []byte(s), nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusFalsePositive:
+		return []byte(s), nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusNotRelevant:
+		return []byte(s), nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusRiskAccepted:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatus) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatus(data) {
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusConfirmed:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusConfirmed
+		return nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusSuspected:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusSuspected
+		return nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusMitigated:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusMitigated
+		return nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusPatched:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusPatched
+		return nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusFalsePositive:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusFalsePositive
+		return nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusNotRelevant:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusNotRelevant
+		return nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusRiskAccepted:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusRiskAccepted
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ReportsGetReportsPdplOKReportCoverageItem struct {
@@ -160673,14 +175144,17 @@ type ReportsGetReportsPdplOKReportRisksItem struct {
 	Agent   OptBool `json:"agent"`
 	AssetID string  `json:"asset_id"`
 	// Who closed it (rows of what was done).
-	By       OptString                                      `json:"by"`
-	Cve      string                                         `json:"cve"`
-	Device   string                                         `json:"device"`
-	ID       string                                         `json:"id"`
-	Product  string                                         `json:"product"`
-	Severity ReportsGetReportsPdplOKReportRisksItemSeverity `json:"severity"`
-	Since    time.Time                                      `json:"since"`
-	Status   ReportsGetReportsPdplOKReportRisksItemStatus   `json:"status"`
+	By     OptString `json:"by"`
+	Cve    string    `json:"cve"`
+	Device string    `json:"device"`
+	// False when the device is still to review, not in the Devices list yet; absent in reports made before
+	// it (read as approved).
+	DeviceApproved OptBool                                        `json:"device_approved"`
+	ID             string                                         `json:"id"`
+	Product        string                                         `json:"product"`
+	Severity       ReportsGetReportsPdplOKReportRisksItemSeverity `json:"severity"`
+	Since          time.Time                                      `json:"since"`
+	Status         ReportsGetReportsPdplOKReportRisksItemStatus   `json:"status"`
 }
 
 // GetAgent returns the value of Agent.
@@ -160706,6 +175180,11 @@ func (s *ReportsGetReportsPdplOKReportRisksItem) GetCve() string {
 // GetDevice returns the value of Device.
 func (s *ReportsGetReportsPdplOKReportRisksItem) GetDevice() string {
 	return s.Device
+}
+
+// GetDeviceApproved returns the value of DeviceApproved.
+func (s *ReportsGetReportsPdplOKReportRisksItem) GetDeviceApproved() OptBool {
+	return s.DeviceApproved
 }
 
 // GetID returns the value of ID.
@@ -160756,6 +175235,11 @@ func (s *ReportsGetReportsPdplOKReportRisksItem) SetCve(val string) {
 // SetDevice sets the value of Device.
 func (s *ReportsGetReportsPdplOKReportRisksItem) SetDevice(val string) {
 	s.Device = val
+}
+
+// SetDeviceApproved sets the value of DeviceApproved.
+func (s *ReportsGetReportsPdplOKReportRisksItem) SetDeviceApproved(val OptBool) {
+	s.DeviceApproved = val
 }
 
 // SetID sets the value of ID.
@@ -161197,6 +175681,223 @@ func (s *ReportsGetReportsWeeklyHistoryID1Verify) SetText(val OptString) {
 	s.Text = val
 }
 
+// One top risk: product and count (its open findings) are set; cve and finding_id are its worst
+// finding.
+// Ref: #/components/schemas/reports_get_reports_weekly_history_id_2_fix
+type ReportsGetReportsWeeklyHistoryID2Fix struct {
+	Count     OptInt    `json:"count"`
+	Cve       string    `json:"cve"`
+	Device    string    `json:"device"`
+	FindingID string    `json:"finding_id"`
+	Kind      string    `json:"kind"`
+	Product   OptString `json:"product"`
+	// The sentence of the top risk action.
+	Text OptString `json:"text"`
+}
+
+// GetCount returns the value of Count.
+func (s *ReportsGetReportsWeeklyHistoryID2Fix) GetCount() OptInt {
+	return s.Count
+}
+
+// GetCve returns the value of Cve.
+func (s *ReportsGetReportsWeeklyHistoryID2Fix) GetCve() string {
+	return s.Cve
+}
+
+// GetDevice returns the value of Device.
+func (s *ReportsGetReportsWeeklyHistoryID2Fix) GetDevice() string {
+	return s.Device
+}
+
+// GetFindingID returns the value of FindingID.
+func (s *ReportsGetReportsWeeklyHistoryID2Fix) GetFindingID() string {
+	return s.FindingID
+}
+
+// GetKind returns the value of Kind.
+func (s *ReportsGetReportsWeeklyHistoryID2Fix) GetKind() string {
+	return s.Kind
+}
+
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsWeeklyHistoryID2Fix) GetProduct() OptString {
+	return s.Product
+}
+
+// GetText returns the value of Text.
+func (s *ReportsGetReportsWeeklyHistoryID2Fix) GetText() OptString {
+	return s.Text
+}
+
+// SetCount sets the value of Count.
+func (s *ReportsGetReportsWeeklyHistoryID2Fix) SetCount(val OptInt) {
+	s.Count = val
+}
+
+// SetCve sets the value of Cve.
+func (s *ReportsGetReportsWeeklyHistoryID2Fix) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetDevice sets the value of Device.
+func (s *ReportsGetReportsWeeklyHistoryID2Fix) SetDevice(val string) {
+	s.Device = val
+}
+
+// SetFindingID sets the value of FindingID.
+func (s *ReportsGetReportsWeeklyHistoryID2Fix) SetFindingID(val string) {
+	s.FindingID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ReportsGetReportsWeeklyHistoryID2Fix) SetKind(val string) {
+	s.Kind = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsWeeklyHistoryID2Fix) SetProduct(val OptString) {
+	s.Product = val
+}
+
+// SetText sets the value of Text.
+func (s *ReportsGetReportsWeeklyHistoryID2Fix) SetText(val OptString) {
+	s.Text = val
+}
+
+// Ref: #/components/schemas/reports_get_reports_weekly_history_id_2_plan_os
+type ReportsGetReportsWeeklyHistoryID2PlanOs struct {
+	Count int    `json:"count"`
+	Kind  string `json:"kind"`
+}
+
+// GetCount returns the value of Count.
+func (s *ReportsGetReportsWeeklyHistoryID2PlanOs) GetCount() int {
+	return s.Count
+}
+
+// GetKind returns the value of Kind.
+func (s *ReportsGetReportsWeeklyHistoryID2PlanOs) GetKind() string {
+	return s.Kind
+}
+
+// SetCount sets the value of Count.
+func (s *ReportsGetReportsWeeklyHistoryID2PlanOs) SetCount(val int) {
+	s.Count = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ReportsGetReportsWeeklyHistoryID2PlanOs) SetKind(val string) {
+	s.Kind = val
+}
+
+// Ref: #/components/schemas/reports_get_reports_weekly_history_id_2_review_devices
+type ReportsGetReportsWeeklyHistoryID2ReviewDevices struct {
+	Count int    `json:"count"`
+	Kind  string `json:"kind"`
+}
+
+// GetCount returns the value of Count.
+func (s *ReportsGetReportsWeeklyHistoryID2ReviewDevices) GetCount() int {
+	return s.Count
+}
+
+// GetKind returns the value of Kind.
+func (s *ReportsGetReportsWeeklyHistoryID2ReviewDevices) GetKind() string {
+	return s.Kind
+}
+
+// SetCount sets the value of Count.
+func (s *ReportsGetReportsWeeklyHistoryID2ReviewDevices) SetCount(val int) {
+	s.Count = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ReportsGetReportsWeeklyHistoryID2ReviewDevices) SetKind(val string) {
+	s.Kind = val
+}
+
+// Ref: #/components/schemas/reports_get_reports_weekly_history_id_2_verify
+type ReportsGetReportsWeeklyHistoryID2Verify struct {
+	Count     OptInt    `json:"count"`
+	Cve       string    `json:"cve"`
+	Device    string    `json:"device"`
+	FindingID string    `json:"finding_id"`
+	Kind      string    `json:"kind"`
+	Product   OptString `json:"product"`
+	Text      OptString `json:"text"`
+}
+
+// GetCount returns the value of Count.
+func (s *ReportsGetReportsWeeklyHistoryID2Verify) GetCount() OptInt {
+	return s.Count
+}
+
+// GetCve returns the value of Cve.
+func (s *ReportsGetReportsWeeklyHistoryID2Verify) GetCve() string {
+	return s.Cve
+}
+
+// GetDevice returns the value of Device.
+func (s *ReportsGetReportsWeeklyHistoryID2Verify) GetDevice() string {
+	return s.Device
+}
+
+// GetFindingID returns the value of FindingID.
+func (s *ReportsGetReportsWeeklyHistoryID2Verify) GetFindingID() string {
+	return s.FindingID
+}
+
+// GetKind returns the value of Kind.
+func (s *ReportsGetReportsWeeklyHistoryID2Verify) GetKind() string {
+	return s.Kind
+}
+
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsWeeklyHistoryID2Verify) GetProduct() OptString {
+	return s.Product
+}
+
+// GetText returns the value of Text.
+func (s *ReportsGetReportsWeeklyHistoryID2Verify) GetText() OptString {
+	return s.Text
+}
+
+// SetCount sets the value of Count.
+func (s *ReportsGetReportsWeeklyHistoryID2Verify) SetCount(val OptInt) {
+	s.Count = val
+}
+
+// SetCve sets the value of Cve.
+func (s *ReportsGetReportsWeeklyHistoryID2Verify) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetDevice sets the value of Device.
+func (s *ReportsGetReportsWeeklyHistoryID2Verify) SetDevice(val string) {
+	s.Device = val
+}
+
+// SetFindingID sets the value of FindingID.
+func (s *ReportsGetReportsWeeklyHistoryID2Verify) SetFindingID(val string) {
+	s.FindingID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ReportsGetReportsWeeklyHistoryID2Verify) SetKind(val string) {
+	s.Kind = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsWeeklyHistoryID2Verify) SetProduct(val OptString) {
+	s.Product = val
+}
+
+// SetText sets the value of Text.
+func (s *ReportsGetReportsWeeklyHistoryID2Verify) SetText(val OptString) {
+	s.Text = val
+}
+
 type ReportsGetReportsWeeklyHistoryIDOK struct {
 	Error      OptString                                 `json:"error"`
 	ID         string                                    `json:"id"`
@@ -161278,10 +175979,13 @@ func (s *ReportsGetReportsWeeklyHistoryIDOK) SetTs(val time.Time) {
 }
 
 type ReportsGetReportsWeeklyHistoryIDOKReport struct {
-	Actions     []ReportsGetReportsWeeklyHistoryIDOKReportActionsItem `json:"actions"`
-	AiSummary   NilReportsGetReportsWeeklyHistoryIDOKReportAiSummary  `json:"ai_summary"`
-	Counts      ReportsGetReportsWeeklyHistoryIDOKReportCounts        `json:"counts"`
-	GeneratedAt time.Time                                             `json:"generated_at"`
+	Actions   []ReportsGetReportsWeeklyHistoryIDOKReportActionsItem `json:"actions"`
+	AiSummary NilReportsGetReportsWeeklyHistoryIDOKReportAiSummary  `json:"ai_summary"`
+	// The counts, top risks and actions again without the devices not in the Devices list (not approved
+	// yet) and their findings; the lists are filtered by device_approved. Absent in reports sent before it.
+	ApprovedOnly OptReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly `json:"approved_only"`
+	Counts       ReportsGetReportsWeeklyHistoryIDOKReportCounts          `json:"counts"`
+	GeneratedAt  time.Time                                               `json:"generated_at"`
 	// Absent or null when notify is off, or in reports sent by an older version.
 	Happened    OptNilReportsGetReportsWeeklyHistoryIDOKReportHappened    `json:"happened"`
 	NewFindings []ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem `json:"new_findings"`
@@ -161302,6 +176006,11 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReport) GetActions() []ReportsGetRepo
 // GetAiSummary returns the value of AiSummary.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReport) GetAiSummary() NilReportsGetReportsWeeklyHistoryIDOKReportAiSummary {
 	return s.AiSummary
+}
+
+// GetApprovedOnly returns the value of ApprovedOnly.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReport) GetApprovedOnly() OptReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly {
+	return s.ApprovedOnly
 }
 
 // GetCounts returns the value of Counts.
@@ -161357,6 +176066,11 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReport) SetActions(val []ReportsGetRe
 // SetAiSummary sets the value of AiSummary.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReport) SetAiSummary(val NilReportsGetReportsWeeklyHistoryIDOKReportAiSummary) {
 	s.AiSummary = val
+}
+
+// SetApprovedOnly sets the value of ApprovedOnly.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReport) SetApprovedOnly(val OptReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly) {
+	s.ApprovedOnly = val
 }
 
 // SetCounts sets the value of Counts.
@@ -161613,6 +176327,507 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportAiSummaryTokens) SetOutput(val 
 	s.Output = val
 }
 
+// The counts, top risks and actions again without the devices not in the Devices list (not approved
+// yet) and their findings; the lists are filtered by device_approved. Absent in reports sent before it.
+type ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly struct {
+	Actions  []ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem  `json:"actions"`
+	Counts   ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts         `json:"counts"`
+	TopRisks []ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem `json:"top_risks"`
+}
+
+// GetActions returns the value of Actions.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly) GetActions() []ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem {
+	return s.Actions
+}
+
+// GetCounts returns the value of Counts.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly) GetCounts() ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts {
+	return s.Counts
+}
+
+// GetTopRisks returns the value of TopRisks.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly) GetTopRisks() []ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem {
+	return s.TopRisks
+}
+
+// SetActions sets the value of Actions.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly) SetActions(val []ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem) {
+	s.Actions = val
+}
+
+// SetCounts sets the value of Counts.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly) SetCounts(val ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) {
+	s.Counts = val
+}
+
+// SetTopRisks sets the value of TopRisks.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly) SetTopRisks(val []ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem) {
+	s.TopRisks = val
+}
+
+// ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem represents sum type.
+type ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem struct {
+	// Type selects the active sum variant, switch on this field.
+	Type                                           ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItemType
+	ReportsGetReportsWeeklyHistoryID2Fix           ReportsGetReportsWeeklyHistoryID2Fix
+	ReportsGetReportsWeeklyHistoryID2Verify        ReportsGetReportsWeeklyHistoryID2Verify
+	ReportsGetReportsWeeklyHistoryID2ReviewDevices ReportsGetReportsWeeklyHistoryID2ReviewDevices
+	ReportsGetReportsWeeklyHistoryID2PlanOs        ReportsGetReportsWeeklyHistoryID2PlanOs
+}
+
+// ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItemType is oneOf type of ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem.
+type ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItemType string
+
+// Possible values for ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItemType.
+const (
+	ReportsGetReportsWeeklyHistoryID2FixReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem           ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItemType = "fix"
+	ReportsGetReportsWeeklyHistoryID2VerifyReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem        ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItemType = "verify"
+	ReportsGetReportsWeeklyHistoryID2ReviewDevicesReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItemType = "review_devices"
+	ReportsGetReportsWeeklyHistoryID2PlanOsReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem        ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItemType = "plan_os"
+)
+
+// IsReportsGetReportsWeeklyHistoryID2Fix reports whether ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem is ReportsGetReportsWeeklyHistoryID2Fix.
+func (s ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem) IsReportsGetReportsWeeklyHistoryID2Fix() bool {
+	return s.Type == ReportsGetReportsWeeklyHistoryID2FixReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem
+}
+
+// IsReportsGetReportsWeeklyHistoryID2Verify reports whether ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem is ReportsGetReportsWeeklyHistoryID2Verify.
+func (s ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem) IsReportsGetReportsWeeklyHistoryID2Verify() bool {
+	return s.Type == ReportsGetReportsWeeklyHistoryID2VerifyReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem
+}
+
+// IsReportsGetReportsWeeklyHistoryID2ReviewDevices reports whether ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem is ReportsGetReportsWeeklyHistoryID2ReviewDevices.
+func (s ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem) IsReportsGetReportsWeeklyHistoryID2ReviewDevices() bool {
+	return s.Type == ReportsGetReportsWeeklyHistoryID2ReviewDevicesReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem
+}
+
+// IsReportsGetReportsWeeklyHistoryID2PlanOs reports whether ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem is ReportsGetReportsWeeklyHistoryID2PlanOs.
+func (s ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem) IsReportsGetReportsWeeklyHistoryID2PlanOs() bool {
+	return s.Type == ReportsGetReportsWeeklyHistoryID2PlanOsReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem
+}
+
+// SetReportsGetReportsWeeklyHistoryID2Fix sets ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem to ReportsGetReportsWeeklyHistoryID2Fix.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem) SetReportsGetReportsWeeklyHistoryID2Fix(v ReportsGetReportsWeeklyHistoryID2Fix) {
+	s.Type = ReportsGetReportsWeeklyHistoryID2FixReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem
+	s.ReportsGetReportsWeeklyHistoryID2Fix = v
+}
+
+// GetReportsGetReportsWeeklyHistoryID2Fix returns ReportsGetReportsWeeklyHistoryID2Fix and true boolean if ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem is ReportsGetReportsWeeklyHistoryID2Fix.
+func (s ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem) GetReportsGetReportsWeeklyHistoryID2Fix() (v ReportsGetReportsWeeklyHistoryID2Fix, ok bool) {
+	if !s.IsReportsGetReportsWeeklyHistoryID2Fix() {
+		return v, false
+	}
+	return s.ReportsGetReportsWeeklyHistoryID2Fix, true
+}
+
+// NewReportsGetReportsWeeklyHistoryID2FixReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem returns new ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem from ReportsGetReportsWeeklyHistoryID2Fix.
+func NewReportsGetReportsWeeklyHistoryID2FixReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem(v ReportsGetReportsWeeklyHistoryID2Fix) ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem {
+	var s ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem
+	s.SetReportsGetReportsWeeklyHistoryID2Fix(v)
+	return s
+}
+
+// SetReportsGetReportsWeeklyHistoryID2Verify sets ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem to ReportsGetReportsWeeklyHistoryID2Verify.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem) SetReportsGetReportsWeeklyHistoryID2Verify(v ReportsGetReportsWeeklyHistoryID2Verify) {
+	s.Type = ReportsGetReportsWeeklyHistoryID2VerifyReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem
+	s.ReportsGetReportsWeeklyHistoryID2Verify = v
+}
+
+// GetReportsGetReportsWeeklyHistoryID2Verify returns ReportsGetReportsWeeklyHistoryID2Verify and true boolean if ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem is ReportsGetReportsWeeklyHistoryID2Verify.
+func (s ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem) GetReportsGetReportsWeeklyHistoryID2Verify() (v ReportsGetReportsWeeklyHistoryID2Verify, ok bool) {
+	if !s.IsReportsGetReportsWeeklyHistoryID2Verify() {
+		return v, false
+	}
+	return s.ReportsGetReportsWeeklyHistoryID2Verify, true
+}
+
+// NewReportsGetReportsWeeklyHistoryID2VerifyReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem returns new ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem from ReportsGetReportsWeeklyHistoryID2Verify.
+func NewReportsGetReportsWeeklyHistoryID2VerifyReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem(v ReportsGetReportsWeeklyHistoryID2Verify) ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem {
+	var s ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem
+	s.SetReportsGetReportsWeeklyHistoryID2Verify(v)
+	return s
+}
+
+// SetReportsGetReportsWeeklyHistoryID2ReviewDevices sets ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem to ReportsGetReportsWeeklyHistoryID2ReviewDevices.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem) SetReportsGetReportsWeeklyHistoryID2ReviewDevices(v ReportsGetReportsWeeklyHistoryID2ReviewDevices) {
+	s.Type = ReportsGetReportsWeeklyHistoryID2ReviewDevicesReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem
+	s.ReportsGetReportsWeeklyHistoryID2ReviewDevices = v
+}
+
+// GetReportsGetReportsWeeklyHistoryID2ReviewDevices returns ReportsGetReportsWeeklyHistoryID2ReviewDevices and true boolean if ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem is ReportsGetReportsWeeklyHistoryID2ReviewDevices.
+func (s ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem) GetReportsGetReportsWeeklyHistoryID2ReviewDevices() (v ReportsGetReportsWeeklyHistoryID2ReviewDevices, ok bool) {
+	if !s.IsReportsGetReportsWeeklyHistoryID2ReviewDevices() {
+		return v, false
+	}
+	return s.ReportsGetReportsWeeklyHistoryID2ReviewDevices, true
+}
+
+// NewReportsGetReportsWeeklyHistoryID2ReviewDevicesReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem returns new ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem from ReportsGetReportsWeeklyHistoryID2ReviewDevices.
+func NewReportsGetReportsWeeklyHistoryID2ReviewDevicesReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem(v ReportsGetReportsWeeklyHistoryID2ReviewDevices) ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem {
+	var s ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem
+	s.SetReportsGetReportsWeeklyHistoryID2ReviewDevices(v)
+	return s
+}
+
+// SetReportsGetReportsWeeklyHistoryID2PlanOs sets ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem to ReportsGetReportsWeeklyHistoryID2PlanOs.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem) SetReportsGetReportsWeeklyHistoryID2PlanOs(v ReportsGetReportsWeeklyHistoryID2PlanOs) {
+	s.Type = ReportsGetReportsWeeklyHistoryID2PlanOsReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem
+	s.ReportsGetReportsWeeklyHistoryID2PlanOs = v
+}
+
+// GetReportsGetReportsWeeklyHistoryID2PlanOs returns ReportsGetReportsWeeklyHistoryID2PlanOs and true boolean if ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem is ReportsGetReportsWeeklyHistoryID2PlanOs.
+func (s ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem) GetReportsGetReportsWeeklyHistoryID2PlanOs() (v ReportsGetReportsWeeklyHistoryID2PlanOs, ok bool) {
+	if !s.IsReportsGetReportsWeeklyHistoryID2PlanOs() {
+		return v, false
+	}
+	return s.ReportsGetReportsWeeklyHistoryID2PlanOs, true
+}
+
+// NewReportsGetReportsWeeklyHistoryID2PlanOsReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem returns new ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem from ReportsGetReportsWeeklyHistoryID2PlanOs.
+func NewReportsGetReportsWeeklyHistoryID2PlanOsReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem(v ReportsGetReportsWeeklyHistoryID2PlanOs) ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem {
+	var s ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem
+	s.SetReportsGetReportsWeeklyHistoryID2PlanOs(v)
+	return s
+}
+
+type ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts struct {
+	// Risks accepted this week; absent when none or in reports sent before it.
+	Accepted OptFloat64 `json:"accepted"`
+	// The earliest day one of those acceptances ends.
+	AcceptedUntil OptDate `json:"accepted_until"`
+	// Devices as the Devices page counts them, this box included.
+	Devices           float64 `json:"devices"`
+	DevicesNew        float64 `json:"devices_new"`
+	DevicesUnapproved float64 `json:"devices_unapproved"`
+	// Products you use among them, as Home counts them (earlier reports: their CVEs on a device).
+	KevMatched float64 `json:"kev_matched"`
+	// Vulnerabilities newly exploited in the last 7 days, as Home counts them.
+	KevNew      float64 `json:"kev_new"`
+	NewFindings float64 `json:"new_findings"`
+	// Different findings closed as not relevant among the figures; absent in reports sent before it.
+	NotRelevant OptFloat64 `json:"not_relevant"`
+	// Of new_findings, the ones closed as not relevant.
+	NotRelevantNew OptFloat64 `json:"not_relevant_new"`
+	// Of resolved, the ones closed as not relevant.
+	NotRelevantResolved OptFloat64 `json:"not_relevant_resolved"`
+	OpenConfirmed       float64    `json:"open_confirmed"`
+	OpenSuspected       float64    `json:"open_suspected"`
+	// Closed this week; accepted risks are counted in accepted.
+	Resolved float64 `json:"resolved"`
+}
+
+// GetAccepted returns the value of Accepted.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) GetAccepted() OptFloat64 {
+	return s.Accepted
+}
+
+// GetAcceptedUntil returns the value of AcceptedUntil.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) GetAcceptedUntil() OptDate {
+	return s.AcceptedUntil
+}
+
+// GetDevices returns the value of Devices.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) GetDevices() float64 {
+	return s.Devices
+}
+
+// GetDevicesNew returns the value of DevicesNew.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) GetDevicesNew() float64 {
+	return s.DevicesNew
+}
+
+// GetDevicesUnapproved returns the value of DevicesUnapproved.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) GetDevicesUnapproved() float64 {
+	return s.DevicesUnapproved
+}
+
+// GetKevMatched returns the value of KevMatched.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) GetKevMatched() float64 {
+	return s.KevMatched
+}
+
+// GetKevNew returns the value of KevNew.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) GetKevNew() float64 {
+	return s.KevNew
+}
+
+// GetNewFindings returns the value of NewFindings.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) GetNewFindings() float64 {
+	return s.NewFindings
+}
+
+// GetNotRelevant returns the value of NotRelevant.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) GetNotRelevant() OptFloat64 {
+	return s.NotRelevant
+}
+
+// GetNotRelevantNew returns the value of NotRelevantNew.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) GetNotRelevantNew() OptFloat64 {
+	return s.NotRelevantNew
+}
+
+// GetNotRelevantResolved returns the value of NotRelevantResolved.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) GetNotRelevantResolved() OptFloat64 {
+	return s.NotRelevantResolved
+}
+
+// GetOpenConfirmed returns the value of OpenConfirmed.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) GetOpenConfirmed() float64 {
+	return s.OpenConfirmed
+}
+
+// GetOpenSuspected returns the value of OpenSuspected.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) GetOpenSuspected() float64 {
+	return s.OpenSuspected
+}
+
+// GetResolved returns the value of Resolved.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) GetResolved() float64 {
+	return s.Resolved
+}
+
+// SetAccepted sets the value of Accepted.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) SetAccepted(val OptFloat64) {
+	s.Accepted = val
+}
+
+// SetAcceptedUntil sets the value of AcceptedUntil.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) SetAcceptedUntil(val OptDate) {
+	s.AcceptedUntil = val
+}
+
+// SetDevices sets the value of Devices.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) SetDevices(val float64) {
+	s.Devices = val
+}
+
+// SetDevicesNew sets the value of DevicesNew.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) SetDevicesNew(val float64) {
+	s.DevicesNew = val
+}
+
+// SetDevicesUnapproved sets the value of DevicesUnapproved.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) SetDevicesUnapproved(val float64) {
+	s.DevicesUnapproved = val
+}
+
+// SetKevMatched sets the value of KevMatched.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) SetKevMatched(val float64) {
+	s.KevMatched = val
+}
+
+// SetKevNew sets the value of KevNew.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) SetKevNew(val float64) {
+	s.KevNew = val
+}
+
+// SetNewFindings sets the value of NewFindings.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) SetNewFindings(val float64) {
+	s.NewFindings = val
+}
+
+// SetNotRelevant sets the value of NotRelevant.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) SetNotRelevant(val OptFloat64) {
+	s.NotRelevant = val
+}
+
+// SetNotRelevantNew sets the value of NotRelevantNew.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) SetNotRelevantNew(val OptFloat64) {
+	s.NotRelevantNew = val
+}
+
+// SetNotRelevantResolved sets the value of NotRelevantResolved.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) SetNotRelevantResolved(val OptFloat64) {
+	s.NotRelevantResolved = val
+}
+
+// SetOpenConfirmed sets the value of OpenConfirmed.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) SetOpenConfirmed(val float64) {
+	s.OpenConfirmed = val
+}
+
+// SetOpenSuspected sets the value of OpenSuspected.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) SetOpenSuspected(val float64) {
+	s.OpenSuspected = val
+}
+
+// SetResolved sets the value of Resolved.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) SetResolved(val float64) {
+	s.Resolved = val
+}
+
+type ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem struct {
+	// What to do this week, one sentence naming the device(s) and the fixed version when NVD says; absent
+	// in reports sent before it.
+	Action OptString `json:"action"`
+	// Open findings a scan confirmed.
+	Confirmed int    `json:"confirmed"`
+	Cve       string `json:"cve"`
+	// The device, or the first names and how many more.
+	Device  string `json:"device"`
+	Devices int    `json:"devices"`
+	// Its worst finding.
+	FindingID string `json:"finding_id"`
+	Open      int    `json:"open"`
+	// The product as Findings names it.
+	Product string `json:"product"`
+	// The worst severity.
+	Severity ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverity `json:"severity"`
+}
+
+// GetAction returns the value of Action.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem) GetAction() OptString {
+	return s.Action
+}
+
+// GetConfirmed returns the value of Confirmed.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem) GetConfirmed() int {
+	return s.Confirmed
+}
+
+// GetCve returns the value of Cve.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem) GetCve() string {
+	return s.Cve
+}
+
+// GetDevice returns the value of Device.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem) GetDevice() string {
+	return s.Device
+}
+
+// GetDevices returns the value of Devices.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem) GetDevices() int {
+	return s.Devices
+}
+
+// GetFindingID returns the value of FindingID.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem) GetFindingID() string {
+	return s.FindingID
+}
+
+// GetOpen returns the value of Open.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem) GetOpen() int {
+	return s.Open
+}
+
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem) GetProduct() string {
+	return s.Product
+}
+
+// GetSeverity returns the value of Severity.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem) GetSeverity() ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverity {
+	return s.Severity
+}
+
+// SetAction sets the value of Action.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem) SetAction(val OptString) {
+	s.Action = val
+}
+
+// SetConfirmed sets the value of Confirmed.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem) SetConfirmed(val int) {
+	s.Confirmed = val
+}
+
+// SetCve sets the value of Cve.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetDevice sets the value of Device.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem) SetDevice(val string) {
+	s.Device = val
+}
+
+// SetDevices sets the value of Devices.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem) SetDevices(val int) {
+	s.Devices = val
+}
+
+// SetFindingID sets the value of FindingID.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem) SetFindingID(val string) {
+	s.FindingID = val
+}
+
+// SetOpen sets the value of Open.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem) SetOpen(val int) {
+	s.Open = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem) SetSeverity(val ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverity) {
+	s.Severity = val
+}
+
+// The worst severity.
+type ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverity string
+
+const (
+	ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityCritical ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverity = "critical"
+	ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityHigh     ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverity = "high"
+	ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityMedium   ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverity = "medium"
+	ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityLow      ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverity = "low"
+	ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityInfo     ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverity = "info"
+)
+
+// AllValues returns all ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverity values.
+func (ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverity) AllValues() []ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverity {
+	return []ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverity{
+		ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityCritical,
+		ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityHigh,
+		ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityMedium,
+		ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityLow,
+		ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityInfo,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverity) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityCritical:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityHigh:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityMedium:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityLow:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityInfo:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverity) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverity(data) {
+	case ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityCritical:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityCritical
+		return nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityHigh:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityHigh
+		return nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityMedium:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityMedium
+		return nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityLow:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityLow
+		return nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityInfo:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityInfo
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ReportsGetReportsWeeklyHistoryIDOKReportCounts struct {
 	// Risks accepted this week; absent when none or in reports sent before it.
 	Accepted OptFloat64 `json:"accepted"`
@@ -161625,10 +176840,16 @@ type ReportsGetReportsWeeklyHistoryIDOKReportCounts struct {
 	// Products you use among them, as Home counts them (earlier reports: their CVEs on a device).
 	KevMatched float64 `json:"kev_matched"`
 	// Vulnerabilities newly exploited in the last 7 days, as Home counts them.
-	KevNew        float64 `json:"kev_new"`
-	NewFindings   float64 `json:"new_findings"`
-	OpenConfirmed float64 `json:"open_confirmed"`
-	OpenSuspected float64 `json:"open_suspected"`
+	KevNew      float64 `json:"kev_new"`
+	NewFindings float64 `json:"new_findings"`
+	// Different findings closed as not relevant among the figures; absent in reports sent before it.
+	NotRelevant OptFloat64 `json:"not_relevant"`
+	// Of new_findings, the ones closed as not relevant.
+	NotRelevantNew OptFloat64 `json:"not_relevant_new"`
+	// Of resolved, the ones closed as not relevant.
+	NotRelevantResolved OptFloat64 `json:"not_relevant_resolved"`
+	OpenConfirmed       float64    `json:"open_confirmed"`
+	OpenSuspected       float64    `json:"open_suspected"`
 	// Closed this week; accepted risks are counted in accepted.
 	Resolved float64 `json:"resolved"`
 }
@@ -161671,6 +176892,21 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) GetKevNew() float64 {
 // GetNewFindings returns the value of NewFindings.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) GetNewFindings() float64 {
 	return s.NewFindings
+}
+
+// GetNotRelevant returns the value of NotRelevant.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) GetNotRelevant() OptFloat64 {
+	return s.NotRelevant
+}
+
+// GetNotRelevantNew returns the value of NotRelevantNew.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) GetNotRelevantNew() OptFloat64 {
+	return s.NotRelevantNew
+}
+
+// GetNotRelevantResolved returns the value of NotRelevantResolved.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) GetNotRelevantResolved() OptFloat64 {
+	return s.NotRelevantResolved
 }
 
 // GetOpenConfirmed returns the value of OpenConfirmed.
@@ -161726,6 +176962,21 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) SetKevNew(val float64) 
 // SetNewFindings sets the value of NewFindings.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) SetNewFindings(val float64) {
 	s.NewFindings = val
+}
+
+// SetNotRelevant sets the value of NotRelevant.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) SetNotRelevant(val OptFloat64) {
+	s.NotRelevant = val
+}
+
+// SetNotRelevantNew sets the value of NotRelevantNew.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) SetNotRelevantNew(val OptFloat64) {
+	s.NotRelevantNew = val
+}
+
+// SetNotRelevantResolved sets the value of NotRelevantResolved.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) SetNotRelevantResolved(val OptFloat64) {
+	s.NotRelevantResolved = val
 }
 
 // SetOpenConfirmed sets the value of OpenConfirmed.
@@ -162003,14 +177254,17 @@ type ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem struct {
 	Agent   OptBool `json:"agent"`
 	AssetID string  `json:"asset_id"`
 	// Who closed it (rows of what was done).
-	By       OptString                                                       `json:"by"`
-	Cve      string                                                          `json:"cve"`
-	Device   string                                                          `json:"device"`
-	ID       string                                                          `json:"id"`
-	Product  string                                                          `json:"product"`
-	Severity ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemSeverity `json:"severity"`
-	Since    time.Time                                                       `json:"since"`
-	Status   ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemStatus   `json:"status"`
+	By     OptString `json:"by"`
+	Cve    string    `json:"cve"`
+	Device string    `json:"device"`
+	// False when the device is still to review, not in the Devices list yet; absent in reports made before
+	// it (read as approved).
+	DeviceApproved OptBool                                                         `json:"device_approved"`
+	ID             string                                                          `json:"id"`
+	Product        string                                                          `json:"product"`
+	Severity       ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemSeverity `json:"severity"`
+	Since          time.Time                                                       `json:"since"`
+	Status         ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemStatus   `json:"status"`
 }
 
 // GetAgent returns the value of Agent.
@@ -162036,6 +177290,11 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem) GetCve() strin
 // GetDevice returns the value of Device.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem) GetDevice() string {
 	return s.Device
+}
+
+// GetDeviceApproved returns the value of DeviceApproved.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem) GetDeviceApproved() OptBool {
+	return s.DeviceApproved
 }
 
 // GetID returns the value of ID.
@@ -162086,6 +177345,11 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem) SetCve(val str
 // SetDevice sets the value of Device.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem) SetDevice(val string) {
 	s.Device = val
+}
+
+// SetDeviceApproved sets the value of DeviceApproved.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem) SetDeviceApproved(val OptBool) {
+	s.DeviceApproved = val
 }
 
 // SetID sets the value of ID.
@@ -162257,14 +177521,17 @@ type ReportsGetReportsWeeklyHistoryIDOKReportOpenItem struct {
 	Agent   OptBool `json:"agent"`
 	AssetID string  `json:"asset_id"`
 	// Who closed it (rows of what was done).
-	By       OptString                                                `json:"by"`
-	Cve      string                                                   `json:"cve"`
-	Device   string                                                   `json:"device"`
-	ID       string                                                   `json:"id"`
-	Product  string                                                   `json:"product"`
-	Severity ReportsGetReportsWeeklyHistoryIDOKReportOpenItemSeverity `json:"severity"`
-	Since    time.Time                                                `json:"since"`
-	Status   ReportsGetReportsWeeklyHistoryIDOKReportOpenItemStatus   `json:"status"`
+	By     OptString `json:"by"`
+	Cve    string    `json:"cve"`
+	Device string    `json:"device"`
+	// False when the device is still to review, not in the Devices list yet; absent in reports made before
+	// it (read as approved).
+	DeviceApproved OptBool                                                  `json:"device_approved"`
+	ID             string                                                   `json:"id"`
+	Product        string                                                   `json:"product"`
+	Severity       ReportsGetReportsWeeklyHistoryIDOKReportOpenItemSeverity `json:"severity"`
+	Since          time.Time                                                `json:"since"`
+	Status         ReportsGetReportsWeeklyHistoryIDOKReportOpenItemStatus   `json:"status"`
 }
 
 // GetAgent returns the value of Agent.
@@ -162290,6 +177557,11 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportOpenItem) GetCve() string {
 // GetDevice returns the value of Device.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReportOpenItem) GetDevice() string {
 	return s.Device
+}
+
+// GetDeviceApproved returns the value of DeviceApproved.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportOpenItem) GetDeviceApproved() OptBool {
+	return s.DeviceApproved
 }
 
 // GetID returns the value of ID.
@@ -162340,6 +177612,11 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportOpenItem) SetCve(val string) {
 // SetDevice sets the value of Device.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReportOpenItem) SetDevice(val string) {
 	s.Device = val
+}
+
+// SetDeviceApproved sets the value of DeviceApproved.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportOpenItem) SetDeviceApproved(val OptBool) {
+	s.DeviceApproved = val
 }
 
 // SetID sets the value of ID.
@@ -162536,14 +177813,17 @@ type ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem struct {
 	Agent   OptBool `json:"agent"`
 	AssetID string  `json:"asset_id"`
 	// Who closed it (rows of what was done).
-	By       OptString                                                    `json:"by"`
-	Cve      string                                                       `json:"cve"`
-	Device   string                                                       `json:"device"`
-	ID       string                                                       `json:"id"`
-	Product  string                                                       `json:"product"`
-	Severity ReportsGetReportsWeeklyHistoryIDOKReportResolvedItemSeverity `json:"severity"`
-	Since    time.Time                                                    `json:"since"`
-	Status   ReportsGetReportsWeeklyHistoryIDOKReportResolvedItemStatus   `json:"status"`
+	By     OptString `json:"by"`
+	Cve    string    `json:"cve"`
+	Device string    `json:"device"`
+	// False when the device is still to review, not in the Devices list yet; absent in reports made before
+	// it (read as approved).
+	DeviceApproved OptBool                                                      `json:"device_approved"`
+	ID             string                                                       `json:"id"`
+	Product        string                                                       `json:"product"`
+	Severity       ReportsGetReportsWeeklyHistoryIDOKReportResolvedItemSeverity `json:"severity"`
+	Since          time.Time                                                    `json:"since"`
+	Status         ReportsGetReportsWeeklyHistoryIDOKReportResolvedItemStatus   `json:"status"`
 }
 
 // GetAgent returns the value of Agent.
@@ -162569,6 +177849,11 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem) GetCve() string {
 // GetDevice returns the value of Device.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem) GetDevice() string {
 	return s.Device
+}
+
+// GetDeviceApproved returns the value of DeviceApproved.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem) GetDeviceApproved() OptBool {
+	return s.DeviceApproved
 }
 
 // GetID returns the value of ID.
@@ -162619,6 +177904,11 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem) SetCve(val string
 // SetDevice sets the value of Device.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem) SetDevice(val string) {
 	s.Device = val
+}
+
+// SetDeviceApproved sets the value of DeviceApproved.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem) SetDeviceApproved(val OptBool) {
+	s.DeviceApproved = val
 }
 
 // SetID sets the value of ID.
@@ -163507,6 +178797,223 @@ func (s *ReportsGetReportsWeeklyPreview1Verify) SetText(val OptString) {
 	s.Text = val
 }
 
+// One top risk: product and count (its open findings) are set; cve and finding_id are its worst
+// finding.
+// Ref: #/components/schemas/reports_get_reports_weekly_preview_2_fix
+type ReportsGetReportsWeeklyPreview2Fix struct {
+	Count     OptInt    `json:"count"`
+	Cve       string    `json:"cve"`
+	Device    string    `json:"device"`
+	FindingID string    `json:"finding_id"`
+	Kind      string    `json:"kind"`
+	Product   OptString `json:"product"`
+	// The sentence of the top risk action.
+	Text OptString `json:"text"`
+}
+
+// GetCount returns the value of Count.
+func (s *ReportsGetReportsWeeklyPreview2Fix) GetCount() OptInt {
+	return s.Count
+}
+
+// GetCve returns the value of Cve.
+func (s *ReportsGetReportsWeeklyPreview2Fix) GetCve() string {
+	return s.Cve
+}
+
+// GetDevice returns the value of Device.
+func (s *ReportsGetReportsWeeklyPreview2Fix) GetDevice() string {
+	return s.Device
+}
+
+// GetFindingID returns the value of FindingID.
+func (s *ReportsGetReportsWeeklyPreview2Fix) GetFindingID() string {
+	return s.FindingID
+}
+
+// GetKind returns the value of Kind.
+func (s *ReportsGetReportsWeeklyPreview2Fix) GetKind() string {
+	return s.Kind
+}
+
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsWeeklyPreview2Fix) GetProduct() OptString {
+	return s.Product
+}
+
+// GetText returns the value of Text.
+func (s *ReportsGetReportsWeeklyPreview2Fix) GetText() OptString {
+	return s.Text
+}
+
+// SetCount sets the value of Count.
+func (s *ReportsGetReportsWeeklyPreview2Fix) SetCount(val OptInt) {
+	s.Count = val
+}
+
+// SetCve sets the value of Cve.
+func (s *ReportsGetReportsWeeklyPreview2Fix) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetDevice sets the value of Device.
+func (s *ReportsGetReportsWeeklyPreview2Fix) SetDevice(val string) {
+	s.Device = val
+}
+
+// SetFindingID sets the value of FindingID.
+func (s *ReportsGetReportsWeeklyPreview2Fix) SetFindingID(val string) {
+	s.FindingID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ReportsGetReportsWeeklyPreview2Fix) SetKind(val string) {
+	s.Kind = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsWeeklyPreview2Fix) SetProduct(val OptString) {
+	s.Product = val
+}
+
+// SetText sets the value of Text.
+func (s *ReportsGetReportsWeeklyPreview2Fix) SetText(val OptString) {
+	s.Text = val
+}
+
+// Ref: #/components/schemas/reports_get_reports_weekly_preview_2_plan_os
+type ReportsGetReportsWeeklyPreview2PlanOs struct {
+	Count int    `json:"count"`
+	Kind  string `json:"kind"`
+}
+
+// GetCount returns the value of Count.
+func (s *ReportsGetReportsWeeklyPreview2PlanOs) GetCount() int {
+	return s.Count
+}
+
+// GetKind returns the value of Kind.
+func (s *ReportsGetReportsWeeklyPreview2PlanOs) GetKind() string {
+	return s.Kind
+}
+
+// SetCount sets the value of Count.
+func (s *ReportsGetReportsWeeklyPreview2PlanOs) SetCount(val int) {
+	s.Count = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ReportsGetReportsWeeklyPreview2PlanOs) SetKind(val string) {
+	s.Kind = val
+}
+
+// Ref: #/components/schemas/reports_get_reports_weekly_preview_2_review_devices
+type ReportsGetReportsWeeklyPreview2ReviewDevices struct {
+	Count int    `json:"count"`
+	Kind  string `json:"kind"`
+}
+
+// GetCount returns the value of Count.
+func (s *ReportsGetReportsWeeklyPreview2ReviewDevices) GetCount() int {
+	return s.Count
+}
+
+// GetKind returns the value of Kind.
+func (s *ReportsGetReportsWeeklyPreview2ReviewDevices) GetKind() string {
+	return s.Kind
+}
+
+// SetCount sets the value of Count.
+func (s *ReportsGetReportsWeeklyPreview2ReviewDevices) SetCount(val int) {
+	s.Count = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ReportsGetReportsWeeklyPreview2ReviewDevices) SetKind(val string) {
+	s.Kind = val
+}
+
+// Ref: #/components/schemas/reports_get_reports_weekly_preview_2_verify
+type ReportsGetReportsWeeklyPreview2Verify struct {
+	Count     OptInt    `json:"count"`
+	Cve       string    `json:"cve"`
+	Device    string    `json:"device"`
+	FindingID string    `json:"finding_id"`
+	Kind      string    `json:"kind"`
+	Product   OptString `json:"product"`
+	Text      OptString `json:"text"`
+}
+
+// GetCount returns the value of Count.
+func (s *ReportsGetReportsWeeklyPreview2Verify) GetCount() OptInt {
+	return s.Count
+}
+
+// GetCve returns the value of Cve.
+func (s *ReportsGetReportsWeeklyPreview2Verify) GetCve() string {
+	return s.Cve
+}
+
+// GetDevice returns the value of Device.
+func (s *ReportsGetReportsWeeklyPreview2Verify) GetDevice() string {
+	return s.Device
+}
+
+// GetFindingID returns the value of FindingID.
+func (s *ReportsGetReportsWeeklyPreview2Verify) GetFindingID() string {
+	return s.FindingID
+}
+
+// GetKind returns the value of Kind.
+func (s *ReportsGetReportsWeeklyPreview2Verify) GetKind() string {
+	return s.Kind
+}
+
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsWeeklyPreview2Verify) GetProduct() OptString {
+	return s.Product
+}
+
+// GetText returns the value of Text.
+func (s *ReportsGetReportsWeeklyPreview2Verify) GetText() OptString {
+	return s.Text
+}
+
+// SetCount sets the value of Count.
+func (s *ReportsGetReportsWeeklyPreview2Verify) SetCount(val OptInt) {
+	s.Count = val
+}
+
+// SetCve sets the value of Cve.
+func (s *ReportsGetReportsWeeklyPreview2Verify) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetDevice sets the value of Device.
+func (s *ReportsGetReportsWeeklyPreview2Verify) SetDevice(val string) {
+	s.Device = val
+}
+
+// SetFindingID sets the value of FindingID.
+func (s *ReportsGetReportsWeeklyPreview2Verify) SetFindingID(val string) {
+	s.FindingID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ReportsGetReportsWeeklyPreview2Verify) SetKind(val string) {
+	s.Kind = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsWeeklyPreview2Verify) SetProduct(val OptString) {
+	s.Product = val
+}
+
+// SetText sets the value of Text.
+func (s *ReportsGetReportsWeeklyPreview2Verify) SetText(val OptString) {
+	s.Text = val
+}
+
 type ReportsGetReportsWeeklyPreviewOK struct {
 	AiAvailable bool                                   `json:"ai_available"`
 	Report      ReportsGetReportsWeeklyPreviewOKReport `json:"report"`
@@ -163533,10 +179040,13 @@ func (s *ReportsGetReportsWeeklyPreviewOK) SetReport(val ReportsGetReportsWeekly
 }
 
 type ReportsGetReportsWeeklyPreviewOKReport struct {
-	Actions     []ReportsGetReportsWeeklyPreviewOKReportActionsItem `json:"actions"`
-	AiSummary   NilReportsGetReportsWeeklyPreviewOKReportAiSummary  `json:"ai_summary"`
-	Counts      ReportsGetReportsWeeklyPreviewOKReportCounts        `json:"counts"`
-	GeneratedAt time.Time                                           `json:"generated_at"`
+	Actions   []ReportsGetReportsWeeklyPreviewOKReportActionsItem `json:"actions"`
+	AiSummary NilReportsGetReportsWeeklyPreviewOKReportAiSummary  `json:"ai_summary"`
+	// The counts, top risks and actions again without the devices not in the Devices list (not approved
+	// yet) and their findings; the lists are filtered by device_approved. Absent in reports sent before it.
+	ApprovedOnly OptReportsGetReportsWeeklyPreviewOKReportApprovedOnly `json:"approved_only"`
+	Counts       ReportsGetReportsWeeklyPreviewOKReportCounts          `json:"counts"`
+	GeneratedAt  time.Time                                             `json:"generated_at"`
 	// Absent or null when notify is off, or in reports sent by an older version.
 	Happened    OptNilReportsGetReportsWeeklyPreviewOKReportHappened    `json:"happened"`
 	NewFindings []ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem `json:"new_findings"`
@@ -163557,6 +179067,11 @@ func (s *ReportsGetReportsWeeklyPreviewOKReport) GetActions() []ReportsGetReport
 // GetAiSummary returns the value of AiSummary.
 func (s *ReportsGetReportsWeeklyPreviewOKReport) GetAiSummary() NilReportsGetReportsWeeklyPreviewOKReportAiSummary {
 	return s.AiSummary
+}
+
+// GetApprovedOnly returns the value of ApprovedOnly.
+func (s *ReportsGetReportsWeeklyPreviewOKReport) GetApprovedOnly() OptReportsGetReportsWeeklyPreviewOKReportApprovedOnly {
+	return s.ApprovedOnly
 }
 
 // GetCounts returns the value of Counts.
@@ -163612,6 +179127,11 @@ func (s *ReportsGetReportsWeeklyPreviewOKReport) SetActions(val []ReportsGetRepo
 // SetAiSummary sets the value of AiSummary.
 func (s *ReportsGetReportsWeeklyPreviewOKReport) SetAiSummary(val NilReportsGetReportsWeeklyPreviewOKReportAiSummary) {
 	s.AiSummary = val
+}
+
+// SetApprovedOnly sets the value of ApprovedOnly.
+func (s *ReportsGetReportsWeeklyPreviewOKReport) SetApprovedOnly(val OptReportsGetReportsWeeklyPreviewOKReportApprovedOnly) {
+	s.ApprovedOnly = val
 }
 
 // SetCounts sets the value of Counts.
@@ -163868,6 +179388,507 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportAiSummaryTokens) SetOutput(val fl
 	s.Output = val
 }
 
+// The counts, top risks and actions again without the devices not in the Devices list (not approved
+// yet) and their findings; the lists are filtered by device_approved. Absent in reports sent before it.
+type ReportsGetReportsWeeklyPreviewOKReportApprovedOnly struct {
+	Actions  []ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem  `json:"actions"`
+	Counts   ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts         `json:"counts"`
+	TopRisks []ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem `json:"top_risks"`
+}
+
+// GetActions returns the value of Actions.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnly) GetActions() []ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem {
+	return s.Actions
+}
+
+// GetCounts returns the value of Counts.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnly) GetCounts() ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts {
+	return s.Counts
+}
+
+// GetTopRisks returns the value of TopRisks.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnly) GetTopRisks() []ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem {
+	return s.TopRisks
+}
+
+// SetActions sets the value of Actions.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnly) SetActions(val []ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem) {
+	s.Actions = val
+}
+
+// SetCounts sets the value of Counts.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnly) SetCounts(val ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) {
+	s.Counts = val
+}
+
+// SetTopRisks sets the value of TopRisks.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnly) SetTopRisks(val []ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem) {
+	s.TopRisks = val
+}
+
+// ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem represents sum type.
+type ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem struct {
+	// Type selects the active sum variant, switch on this field.
+	Type                                         ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItemType
+	ReportsGetReportsWeeklyPreview2Fix           ReportsGetReportsWeeklyPreview2Fix
+	ReportsGetReportsWeeklyPreview2Verify        ReportsGetReportsWeeklyPreview2Verify
+	ReportsGetReportsWeeklyPreview2ReviewDevices ReportsGetReportsWeeklyPreview2ReviewDevices
+	ReportsGetReportsWeeklyPreview2PlanOs        ReportsGetReportsWeeklyPreview2PlanOs
+}
+
+// ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItemType is oneOf type of ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem.
+type ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItemType string
+
+// Possible values for ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItemType.
+const (
+	ReportsGetReportsWeeklyPreview2FixReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem           ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItemType = "fix"
+	ReportsGetReportsWeeklyPreview2VerifyReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem        ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItemType = "verify"
+	ReportsGetReportsWeeklyPreview2ReviewDevicesReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItemType = "review_devices"
+	ReportsGetReportsWeeklyPreview2PlanOsReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem        ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItemType = "plan_os"
+)
+
+// IsReportsGetReportsWeeklyPreview2Fix reports whether ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem is ReportsGetReportsWeeklyPreview2Fix.
+func (s ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem) IsReportsGetReportsWeeklyPreview2Fix() bool {
+	return s.Type == ReportsGetReportsWeeklyPreview2FixReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem
+}
+
+// IsReportsGetReportsWeeklyPreview2Verify reports whether ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem is ReportsGetReportsWeeklyPreview2Verify.
+func (s ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem) IsReportsGetReportsWeeklyPreview2Verify() bool {
+	return s.Type == ReportsGetReportsWeeklyPreview2VerifyReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem
+}
+
+// IsReportsGetReportsWeeklyPreview2ReviewDevices reports whether ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem is ReportsGetReportsWeeklyPreview2ReviewDevices.
+func (s ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem) IsReportsGetReportsWeeklyPreview2ReviewDevices() bool {
+	return s.Type == ReportsGetReportsWeeklyPreview2ReviewDevicesReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem
+}
+
+// IsReportsGetReportsWeeklyPreview2PlanOs reports whether ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem is ReportsGetReportsWeeklyPreview2PlanOs.
+func (s ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem) IsReportsGetReportsWeeklyPreview2PlanOs() bool {
+	return s.Type == ReportsGetReportsWeeklyPreview2PlanOsReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem
+}
+
+// SetReportsGetReportsWeeklyPreview2Fix sets ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem to ReportsGetReportsWeeklyPreview2Fix.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem) SetReportsGetReportsWeeklyPreview2Fix(v ReportsGetReportsWeeklyPreview2Fix) {
+	s.Type = ReportsGetReportsWeeklyPreview2FixReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem
+	s.ReportsGetReportsWeeklyPreview2Fix = v
+}
+
+// GetReportsGetReportsWeeklyPreview2Fix returns ReportsGetReportsWeeklyPreview2Fix and true boolean if ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem is ReportsGetReportsWeeklyPreview2Fix.
+func (s ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem) GetReportsGetReportsWeeklyPreview2Fix() (v ReportsGetReportsWeeklyPreview2Fix, ok bool) {
+	if !s.IsReportsGetReportsWeeklyPreview2Fix() {
+		return v, false
+	}
+	return s.ReportsGetReportsWeeklyPreview2Fix, true
+}
+
+// NewReportsGetReportsWeeklyPreview2FixReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem returns new ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem from ReportsGetReportsWeeklyPreview2Fix.
+func NewReportsGetReportsWeeklyPreview2FixReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem(v ReportsGetReportsWeeklyPreview2Fix) ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem {
+	var s ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem
+	s.SetReportsGetReportsWeeklyPreview2Fix(v)
+	return s
+}
+
+// SetReportsGetReportsWeeklyPreview2Verify sets ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem to ReportsGetReportsWeeklyPreview2Verify.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem) SetReportsGetReportsWeeklyPreview2Verify(v ReportsGetReportsWeeklyPreview2Verify) {
+	s.Type = ReportsGetReportsWeeklyPreview2VerifyReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem
+	s.ReportsGetReportsWeeklyPreview2Verify = v
+}
+
+// GetReportsGetReportsWeeklyPreview2Verify returns ReportsGetReportsWeeklyPreview2Verify and true boolean if ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem is ReportsGetReportsWeeklyPreview2Verify.
+func (s ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem) GetReportsGetReportsWeeklyPreview2Verify() (v ReportsGetReportsWeeklyPreview2Verify, ok bool) {
+	if !s.IsReportsGetReportsWeeklyPreview2Verify() {
+		return v, false
+	}
+	return s.ReportsGetReportsWeeklyPreview2Verify, true
+}
+
+// NewReportsGetReportsWeeklyPreview2VerifyReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem returns new ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem from ReportsGetReportsWeeklyPreview2Verify.
+func NewReportsGetReportsWeeklyPreview2VerifyReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem(v ReportsGetReportsWeeklyPreview2Verify) ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem {
+	var s ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem
+	s.SetReportsGetReportsWeeklyPreview2Verify(v)
+	return s
+}
+
+// SetReportsGetReportsWeeklyPreview2ReviewDevices sets ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem to ReportsGetReportsWeeklyPreview2ReviewDevices.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem) SetReportsGetReportsWeeklyPreview2ReviewDevices(v ReportsGetReportsWeeklyPreview2ReviewDevices) {
+	s.Type = ReportsGetReportsWeeklyPreview2ReviewDevicesReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem
+	s.ReportsGetReportsWeeklyPreview2ReviewDevices = v
+}
+
+// GetReportsGetReportsWeeklyPreview2ReviewDevices returns ReportsGetReportsWeeklyPreview2ReviewDevices and true boolean if ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem is ReportsGetReportsWeeklyPreview2ReviewDevices.
+func (s ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem) GetReportsGetReportsWeeklyPreview2ReviewDevices() (v ReportsGetReportsWeeklyPreview2ReviewDevices, ok bool) {
+	if !s.IsReportsGetReportsWeeklyPreview2ReviewDevices() {
+		return v, false
+	}
+	return s.ReportsGetReportsWeeklyPreview2ReviewDevices, true
+}
+
+// NewReportsGetReportsWeeklyPreview2ReviewDevicesReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem returns new ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem from ReportsGetReportsWeeklyPreview2ReviewDevices.
+func NewReportsGetReportsWeeklyPreview2ReviewDevicesReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem(v ReportsGetReportsWeeklyPreview2ReviewDevices) ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem {
+	var s ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem
+	s.SetReportsGetReportsWeeklyPreview2ReviewDevices(v)
+	return s
+}
+
+// SetReportsGetReportsWeeklyPreview2PlanOs sets ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem to ReportsGetReportsWeeklyPreview2PlanOs.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem) SetReportsGetReportsWeeklyPreview2PlanOs(v ReportsGetReportsWeeklyPreview2PlanOs) {
+	s.Type = ReportsGetReportsWeeklyPreview2PlanOsReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem
+	s.ReportsGetReportsWeeklyPreview2PlanOs = v
+}
+
+// GetReportsGetReportsWeeklyPreview2PlanOs returns ReportsGetReportsWeeklyPreview2PlanOs and true boolean if ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem is ReportsGetReportsWeeklyPreview2PlanOs.
+func (s ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem) GetReportsGetReportsWeeklyPreview2PlanOs() (v ReportsGetReportsWeeklyPreview2PlanOs, ok bool) {
+	if !s.IsReportsGetReportsWeeklyPreview2PlanOs() {
+		return v, false
+	}
+	return s.ReportsGetReportsWeeklyPreview2PlanOs, true
+}
+
+// NewReportsGetReportsWeeklyPreview2PlanOsReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem returns new ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem from ReportsGetReportsWeeklyPreview2PlanOs.
+func NewReportsGetReportsWeeklyPreview2PlanOsReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem(v ReportsGetReportsWeeklyPreview2PlanOs) ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem {
+	var s ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem
+	s.SetReportsGetReportsWeeklyPreview2PlanOs(v)
+	return s
+}
+
+type ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts struct {
+	// Risks accepted this week; absent when none or in reports sent before it.
+	Accepted OptFloat64 `json:"accepted"`
+	// The earliest day one of those acceptances ends.
+	AcceptedUntil OptDate `json:"accepted_until"`
+	// Devices as the Devices page counts them, this box included.
+	Devices           float64 `json:"devices"`
+	DevicesNew        float64 `json:"devices_new"`
+	DevicesUnapproved float64 `json:"devices_unapproved"`
+	// Products you use among them, as Home counts them (earlier reports: their CVEs on a device).
+	KevMatched float64 `json:"kev_matched"`
+	// Vulnerabilities newly exploited in the last 7 days, as Home counts them.
+	KevNew      float64 `json:"kev_new"`
+	NewFindings float64 `json:"new_findings"`
+	// Different findings closed as not relevant among the figures; absent in reports sent before it.
+	NotRelevant OptFloat64 `json:"not_relevant"`
+	// Of new_findings, the ones closed as not relevant.
+	NotRelevantNew OptFloat64 `json:"not_relevant_new"`
+	// Of resolved, the ones closed as not relevant.
+	NotRelevantResolved OptFloat64 `json:"not_relevant_resolved"`
+	OpenConfirmed       float64    `json:"open_confirmed"`
+	OpenSuspected       float64    `json:"open_suspected"`
+	// Closed this week; accepted risks are counted in accepted.
+	Resolved float64 `json:"resolved"`
+}
+
+// GetAccepted returns the value of Accepted.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) GetAccepted() OptFloat64 {
+	return s.Accepted
+}
+
+// GetAcceptedUntil returns the value of AcceptedUntil.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) GetAcceptedUntil() OptDate {
+	return s.AcceptedUntil
+}
+
+// GetDevices returns the value of Devices.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) GetDevices() float64 {
+	return s.Devices
+}
+
+// GetDevicesNew returns the value of DevicesNew.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) GetDevicesNew() float64 {
+	return s.DevicesNew
+}
+
+// GetDevicesUnapproved returns the value of DevicesUnapproved.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) GetDevicesUnapproved() float64 {
+	return s.DevicesUnapproved
+}
+
+// GetKevMatched returns the value of KevMatched.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) GetKevMatched() float64 {
+	return s.KevMatched
+}
+
+// GetKevNew returns the value of KevNew.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) GetKevNew() float64 {
+	return s.KevNew
+}
+
+// GetNewFindings returns the value of NewFindings.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) GetNewFindings() float64 {
+	return s.NewFindings
+}
+
+// GetNotRelevant returns the value of NotRelevant.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) GetNotRelevant() OptFloat64 {
+	return s.NotRelevant
+}
+
+// GetNotRelevantNew returns the value of NotRelevantNew.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) GetNotRelevantNew() OptFloat64 {
+	return s.NotRelevantNew
+}
+
+// GetNotRelevantResolved returns the value of NotRelevantResolved.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) GetNotRelevantResolved() OptFloat64 {
+	return s.NotRelevantResolved
+}
+
+// GetOpenConfirmed returns the value of OpenConfirmed.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) GetOpenConfirmed() float64 {
+	return s.OpenConfirmed
+}
+
+// GetOpenSuspected returns the value of OpenSuspected.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) GetOpenSuspected() float64 {
+	return s.OpenSuspected
+}
+
+// GetResolved returns the value of Resolved.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) GetResolved() float64 {
+	return s.Resolved
+}
+
+// SetAccepted sets the value of Accepted.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) SetAccepted(val OptFloat64) {
+	s.Accepted = val
+}
+
+// SetAcceptedUntil sets the value of AcceptedUntil.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) SetAcceptedUntil(val OptDate) {
+	s.AcceptedUntil = val
+}
+
+// SetDevices sets the value of Devices.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) SetDevices(val float64) {
+	s.Devices = val
+}
+
+// SetDevicesNew sets the value of DevicesNew.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) SetDevicesNew(val float64) {
+	s.DevicesNew = val
+}
+
+// SetDevicesUnapproved sets the value of DevicesUnapproved.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) SetDevicesUnapproved(val float64) {
+	s.DevicesUnapproved = val
+}
+
+// SetKevMatched sets the value of KevMatched.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) SetKevMatched(val float64) {
+	s.KevMatched = val
+}
+
+// SetKevNew sets the value of KevNew.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) SetKevNew(val float64) {
+	s.KevNew = val
+}
+
+// SetNewFindings sets the value of NewFindings.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) SetNewFindings(val float64) {
+	s.NewFindings = val
+}
+
+// SetNotRelevant sets the value of NotRelevant.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) SetNotRelevant(val OptFloat64) {
+	s.NotRelevant = val
+}
+
+// SetNotRelevantNew sets the value of NotRelevantNew.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) SetNotRelevantNew(val OptFloat64) {
+	s.NotRelevantNew = val
+}
+
+// SetNotRelevantResolved sets the value of NotRelevantResolved.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) SetNotRelevantResolved(val OptFloat64) {
+	s.NotRelevantResolved = val
+}
+
+// SetOpenConfirmed sets the value of OpenConfirmed.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) SetOpenConfirmed(val float64) {
+	s.OpenConfirmed = val
+}
+
+// SetOpenSuspected sets the value of OpenSuspected.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) SetOpenSuspected(val float64) {
+	s.OpenSuspected = val
+}
+
+// SetResolved sets the value of Resolved.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) SetResolved(val float64) {
+	s.Resolved = val
+}
+
+type ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem struct {
+	// What to do this week, one sentence naming the device(s) and the fixed version when NVD says; absent
+	// in reports sent before it.
+	Action OptString `json:"action"`
+	// Open findings a scan confirmed.
+	Confirmed int    `json:"confirmed"`
+	Cve       string `json:"cve"`
+	// The device, or the first names and how many more.
+	Device  string `json:"device"`
+	Devices int    `json:"devices"`
+	// Its worst finding.
+	FindingID string `json:"finding_id"`
+	Open      int    `json:"open"`
+	// The product as Findings names it.
+	Product string `json:"product"`
+	// The worst severity.
+	Severity ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverity `json:"severity"`
+}
+
+// GetAction returns the value of Action.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem) GetAction() OptString {
+	return s.Action
+}
+
+// GetConfirmed returns the value of Confirmed.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem) GetConfirmed() int {
+	return s.Confirmed
+}
+
+// GetCve returns the value of Cve.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem) GetCve() string {
+	return s.Cve
+}
+
+// GetDevice returns the value of Device.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem) GetDevice() string {
+	return s.Device
+}
+
+// GetDevices returns the value of Devices.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem) GetDevices() int {
+	return s.Devices
+}
+
+// GetFindingID returns the value of FindingID.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem) GetFindingID() string {
+	return s.FindingID
+}
+
+// GetOpen returns the value of Open.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem) GetOpen() int {
+	return s.Open
+}
+
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem) GetProduct() string {
+	return s.Product
+}
+
+// GetSeverity returns the value of Severity.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem) GetSeverity() ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverity {
+	return s.Severity
+}
+
+// SetAction sets the value of Action.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem) SetAction(val OptString) {
+	s.Action = val
+}
+
+// SetConfirmed sets the value of Confirmed.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem) SetConfirmed(val int) {
+	s.Confirmed = val
+}
+
+// SetCve sets the value of Cve.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetDevice sets the value of Device.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem) SetDevice(val string) {
+	s.Device = val
+}
+
+// SetDevices sets the value of Devices.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem) SetDevices(val int) {
+	s.Devices = val
+}
+
+// SetFindingID sets the value of FindingID.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem) SetFindingID(val string) {
+	s.FindingID = val
+}
+
+// SetOpen sets the value of Open.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem) SetOpen(val int) {
+	s.Open = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem) SetSeverity(val ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverity) {
+	s.Severity = val
+}
+
+// The worst severity.
+type ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverity string
+
+const (
+	ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityCritical ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverity = "critical"
+	ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityHigh     ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverity = "high"
+	ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityMedium   ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverity = "medium"
+	ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityLow      ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverity = "low"
+	ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityInfo     ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverity = "info"
+)
+
+// AllValues returns all ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverity values.
+func (ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverity) AllValues() []ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverity {
+	return []ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverity{
+		ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityCritical,
+		ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityHigh,
+		ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityMedium,
+		ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityLow,
+		ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityInfo,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverity) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityCritical:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityHigh:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityMedium:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityLow:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityInfo:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverity) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverity(data) {
+	case ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityCritical:
+		*s = ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityCritical
+		return nil
+	case ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityHigh:
+		*s = ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityHigh
+		return nil
+	case ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityMedium:
+		*s = ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityMedium
+		return nil
+	case ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityLow:
+		*s = ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityLow
+		return nil
+	case ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityInfo:
+		*s = ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityInfo
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ReportsGetReportsWeeklyPreviewOKReportCounts struct {
 	// Risks accepted this week; absent when none or in reports sent before it.
 	Accepted OptFloat64 `json:"accepted"`
@@ -163880,10 +179901,16 @@ type ReportsGetReportsWeeklyPreviewOKReportCounts struct {
 	// Products you use among them, as Home counts them (earlier reports: their CVEs on a device).
 	KevMatched float64 `json:"kev_matched"`
 	// Vulnerabilities newly exploited in the last 7 days, as Home counts them.
-	KevNew        float64 `json:"kev_new"`
-	NewFindings   float64 `json:"new_findings"`
-	OpenConfirmed float64 `json:"open_confirmed"`
-	OpenSuspected float64 `json:"open_suspected"`
+	KevNew      float64 `json:"kev_new"`
+	NewFindings float64 `json:"new_findings"`
+	// Different findings closed as not relevant among the figures; absent in reports sent before it.
+	NotRelevant OptFloat64 `json:"not_relevant"`
+	// Of new_findings, the ones closed as not relevant.
+	NotRelevantNew OptFloat64 `json:"not_relevant_new"`
+	// Of resolved, the ones closed as not relevant.
+	NotRelevantResolved OptFloat64 `json:"not_relevant_resolved"`
+	OpenConfirmed       float64    `json:"open_confirmed"`
+	OpenSuspected       float64    `json:"open_suspected"`
 	// Closed this week; accepted risks are counted in accepted.
 	Resolved float64 `json:"resolved"`
 }
@@ -163926,6 +179953,21 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) GetKevNew() float64 {
 // GetNewFindings returns the value of NewFindings.
 func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) GetNewFindings() float64 {
 	return s.NewFindings
+}
+
+// GetNotRelevant returns the value of NotRelevant.
+func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) GetNotRelevant() OptFloat64 {
+	return s.NotRelevant
+}
+
+// GetNotRelevantNew returns the value of NotRelevantNew.
+func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) GetNotRelevantNew() OptFloat64 {
+	return s.NotRelevantNew
+}
+
+// GetNotRelevantResolved returns the value of NotRelevantResolved.
+func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) GetNotRelevantResolved() OptFloat64 {
+	return s.NotRelevantResolved
 }
 
 // GetOpenConfirmed returns the value of OpenConfirmed.
@@ -163981,6 +180023,21 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) SetKevNew(val float64) {
 // SetNewFindings sets the value of NewFindings.
 func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) SetNewFindings(val float64) {
 	s.NewFindings = val
+}
+
+// SetNotRelevant sets the value of NotRelevant.
+func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) SetNotRelevant(val OptFloat64) {
+	s.NotRelevant = val
+}
+
+// SetNotRelevantNew sets the value of NotRelevantNew.
+func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) SetNotRelevantNew(val OptFloat64) {
+	s.NotRelevantNew = val
+}
+
+// SetNotRelevantResolved sets the value of NotRelevantResolved.
+func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) SetNotRelevantResolved(val OptFloat64) {
+	s.NotRelevantResolved = val
 }
 
 // SetOpenConfirmed sets the value of OpenConfirmed.
@@ -164258,14 +180315,17 @@ type ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem struct {
 	Agent   OptBool `json:"agent"`
 	AssetID string  `json:"asset_id"`
 	// Who closed it (rows of what was done).
-	By       OptString                                                     `json:"by"`
-	Cve      string                                                        `json:"cve"`
-	Device   string                                                        `json:"device"`
-	ID       string                                                        `json:"id"`
-	Product  string                                                        `json:"product"`
-	Severity ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemSeverity `json:"severity"`
-	Since    time.Time                                                     `json:"since"`
-	Status   ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemStatus   `json:"status"`
+	By     OptString `json:"by"`
+	Cve    string    `json:"cve"`
+	Device string    `json:"device"`
+	// False when the device is still to review, not in the Devices list yet; absent in reports made before
+	// it (read as approved).
+	DeviceApproved OptBool                                                       `json:"device_approved"`
+	ID             string                                                        `json:"id"`
+	Product        string                                                        `json:"product"`
+	Severity       ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemSeverity `json:"severity"`
+	Since          time.Time                                                     `json:"since"`
+	Status         ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemStatus   `json:"status"`
 }
 
 // GetAgent returns the value of Agent.
@@ -164291,6 +180351,11 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem) GetCve() string 
 // GetDevice returns the value of Device.
 func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem) GetDevice() string {
 	return s.Device
+}
+
+// GetDeviceApproved returns the value of DeviceApproved.
+func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem) GetDeviceApproved() OptBool {
+	return s.DeviceApproved
 }
 
 // GetID returns the value of ID.
@@ -164341,6 +180406,11 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem) SetCve(val strin
 // SetDevice sets the value of Device.
 func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem) SetDevice(val string) {
 	s.Device = val
+}
+
+// SetDeviceApproved sets the value of DeviceApproved.
+func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem) SetDeviceApproved(val OptBool) {
+	s.DeviceApproved = val
 }
 
 // SetID sets the value of ID.
@@ -164512,14 +180582,17 @@ type ReportsGetReportsWeeklyPreviewOKReportOpenItem struct {
 	Agent   OptBool `json:"agent"`
 	AssetID string  `json:"asset_id"`
 	// Who closed it (rows of what was done).
-	By       OptString                                              `json:"by"`
-	Cve      string                                                 `json:"cve"`
-	Device   string                                                 `json:"device"`
-	ID       string                                                 `json:"id"`
-	Product  string                                                 `json:"product"`
-	Severity ReportsGetReportsWeeklyPreviewOKReportOpenItemSeverity `json:"severity"`
-	Since    time.Time                                              `json:"since"`
-	Status   ReportsGetReportsWeeklyPreviewOKReportOpenItemStatus   `json:"status"`
+	By     OptString `json:"by"`
+	Cve    string    `json:"cve"`
+	Device string    `json:"device"`
+	// False when the device is still to review, not in the Devices list yet; absent in reports made before
+	// it (read as approved).
+	DeviceApproved OptBool                                                `json:"device_approved"`
+	ID             string                                                 `json:"id"`
+	Product        string                                                 `json:"product"`
+	Severity       ReportsGetReportsWeeklyPreviewOKReportOpenItemSeverity `json:"severity"`
+	Since          time.Time                                              `json:"since"`
+	Status         ReportsGetReportsWeeklyPreviewOKReportOpenItemStatus   `json:"status"`
 }
 
 // GetAgent returns the value of Agent.
@@ -164545,6 +180618,11 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportOpenItem) GetCve() string {
 // GetDevice returns the value of Device.
 func (s *ReportsGetReportsWeeklyPreviewOKReportOpenItem) GetDevice() string {
 	return s.Device
+}
+
+// GetDeviceApproved returns the value of DeviceApproved.
+func (s *ReportsGetReportsWeeklyPreviewOKReportOpenItem) GetDeviceApproved() OptBool {
+	return s.DeviceApproved
 }
 
 // GetID returns the value of ID.
@@ -164595,6 +180673,11 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportOpenItem) SetCve(val string) {
 // SetDevice sets the value of Device.
 func (s *ReportsGetReportsWeeklyPreviewOKReportOpenItem) SetDevice(val string) {
 	s.Device = val
+}
+
+// SetDeviceApproved sets the value of DeviceApproved.
+func (s *ReportsGetReportsWeeklyPreviewOKReportOpenItem) SetDeviceApproved(val OptBool) {
+	s.DeviceApproved = val
 }
 
 // SetID sets the value of ID.
@@ -164791,14 +180874,17 @@ type ReportsGetReportsWeeklyPreviewOKReportResolvedItem struct {
 	Agent   OptBool `json:"agent"`
 	AssetID string  `json:"asset_id"`
 	// Who closed it (rows of what was done).
-	By       OptString                                                  `json:"by"`
-	Cve      string                                                     `json:"cve"`
-	Device   string                                                     `json:"device"`
-	ID       string                                                     `json:"id"`
-	Product  string                                                     `json:"product"`
-	Severity ReportsGetReportsWeeklyPreviewOKReportResolvedItemSeverity `json:"severity"`
-	Since    time.Time                                                  `json:"since"`
-	Status   ReportsGetReportsWeeklyPreviewOKReportResolvedItemStatus   `json:"status"`
+	By     OptString `json:"by"`
+	Cve    string    `json:"cve"`
+	Device string    `json:"device"`
+	// False when the device is still to review, not in the Devices list yet; absent in reports made before
+	// it (read as approved).
+	DeviceApproved OptBool                                                    `json:"device_approved"`
+	ID             string                                                     `json:"id"`
+	Product        string                                                     `json:"product"`
+	Severity       ReportsGetReportsWeeklyPreviewOKReportResolvedItemSeverity `json:"severity"`
+	Since          time.Time                                                  `json:"since"`
+	Status         ReportsGetReportsWeeklyPreviewOKReportResolvedItemStatus   `json:"status"`
 }
 
 // GetAgent returns the value of Agent.
@@ -164824,6 +180910,11 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportResolvedItem) GetCve() string {
 // GetDevice returns the value of Device.
 func (s *ReportsGetReportsWeeklyPreviewOKReportResolvedItem) GetDevice() string {
 	return s.Device
+}
+
+// GetDeviceApproved returns the value of DeviceApproved.
+func (s *ReportsGetReportsWeeklyPreviewOKReportResolvedItem) GetDeviceApproved() OptBool {
+	return s.DeviceApproved
 }
 
 // GetID returns the value of ID.
@@ -164874,6 +180965,11 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportResolvedItem) SetCve(val string) 
 // SetDevice sets the value of Device.
 func (s *ReportsGetReportsWeeklyPreviewOKReportResolvedItem) SetDevice(val string) {
 	s.Device = val
+}
+
+// SetDeviceApproved sets the value of DeviceApproved.
+func (s *ReportsGetReportsWeeklyPreviewOKReportResolvedItem) SetDeviceApproved(val OptBool) {
+	s.DeviceApproved = val
 }
 
 // SetID sets the value of ID.
@@ -165383,20 +181479,29 @@ func (s *ReportsPostReportsPdplAiSummaryOKTokens) SetOutput(val float64) {
 }
 
 type ReportsPostReportsPdplGenerateOK struct {
-	AiSummary   NilReportsPostReportsPdplGenerateOKAiSummary      `json:"ai_summary"`
-	Coverage    []ReportsPostReportsPdplGenerateOKCoverageItem    `json:"coverage"`
-	GeneratedAt time.Time                                         `json:"generated_at"`
-	ID          string                                            `json:"id"`
-	Inventory   ReportsPostReportsPdplGenerateOKInventory         `json:"inventory"`
-	Measures    []ReportsPostReportsPdplGenerateOKMeasuresItem    `json:"measures"`
-	Obligations []ReportsPostReportsPdplGenerateOKObligationsItem `json:"obligations"`
-	Org         ReportsPostReportsPdplGenerateOKOrg               `json:"org"`
-	Risks       []ReportsPostReportsPdplGenerateOKRisksItem       `json:"risks"`
+	AiSummary NilReportsPostReportsPdplGenerateOKAiSummary `json:"ai_summary"`
+	// The inventory, measures and risks again without the devices not in the Devices list (not approved
+	// yet) and their findings; the unapproved measure stays the full one. Absent in reports generated
+	// before it.
+	ApprovedOnly OptReportsPostReportsPdplGenerateOKApprovedOnly   `json:"approved_only"`
+	Coverage     []ReportsPostReportsPdplGenerateOKCoverageItem    `json:"coverage"`
+	GeneratedAt  time.Time                                         `json:"generated_at"`
+	ID           string                                            `json:"id"`
+	Inventory    ReportsPostReportsPdplGenerateOKInventory         `json:"inventory"`
+	Measures     []ReportsPostReportsPdplGenerateOKMeasuresItem    `json:"measures"`
+	Obligations  []ReportsPostReportsPdplGenerateOKObligationsItem `json:"obligations"`
+	Org          ReportsPostReportsPdplGenerateOKOrg               `json:"org"`
+	Risks        []ReportsPostReportsPdplGenerateOKRisksItem       `json:"risks"`
 }
 
 // GetAiSummary returns the value of AiSummary.
 func (s *ReportsPostReportsPdplGenerateOK) GetAiSummary() NilReportsPostReportsPdplGenerateOKAiSummary {
 	return s.AiSummary
+}
+
+// GetApprovedOnly returns the value of ApprovedOnly.
+func (s *ReportsPostReportsPdplGenerateOK) GetApprovedOnly() OptReportsPostReportsPdplGenerateOKApprovedOnly {
+	return s.ApprovedOnly
 }
 
 // GetCoverage returns the value of Coverage.
@@ -165442,6 +181547,11 @@ func (s *ReportsPostReportsPdplGenerateOK) GetRisks() []ReportsPostReportsPdplGe
 // SetAiSummary sets the value of AiSummary.
 func (s *ReportsPostReportsPdplGenerateOK) SetAiSummary(val NilReportsPostReportsPdplGenerateOKAiSummary) {
 	s.AiSummary = val
+}
+
+// SetApprovedOnly sets the value of ApprovedOnly.
+func (s *ReportsPostReportsPdplGenerateOK) SetApprovedOnly(val OptReportsPostReportsPdplGenerateOKApprovedOnly) {
+	s.ApprovedOnly = val
 }
 
 // SetCoverage sets the value of Coverage.
@@ -165566,6 +181676,685 @@ func (s *ReportsPostReportsPdplGenerateOKAiSummaryTokens) SetInput(val float64) 
 // SetOutput sets the value of Output.
 func (s *ReportsPostReportsPdplGenerateOKAiSummaryTokens) SetOutput(val float64) {
 	s.Output = val
+}
+
+// The inventory, measures and risks again without the devices not in the Devices list (not approved
+// yet) and their findings; the unapproved measure stays the full one. Absent in reports generated
+// before it.
+type ReportsPostReportsPdplGenerateOKApprovedOnly struct {
+	Inventory ReportsPostReportsPdplGenerateOKApprovedOnlyInventory      `json:"inventory"`
+	Measures  []ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItem `json:"measures"`
+	Risks     []ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem    `json:"risks"`
+}
+
+// GetInventory returns the value of Inventory.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnly) GetInventory() ReportsPostReportsPdplGenerateOKApprovedOnlyInventory {
+	return s.Inventory
+}
+
+// GetMeasures returns the value of Measures.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnly) GetMeasures() []ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItem {
+	return s.Measures
+}
+
+// GetRisks returns the value of Risks.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnly) GetRisks() []ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem {
+	return s.Risks
+}
+
+// SetInventory sets the value of Inventory.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnly) SetInventory(val ReportsPostReportsPdplGenerateOKApprovedOnlyInventory) {
+	s.Inventory = val
+}
+
+// SetMeasures sets the value of Measures.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnly) SetMeasures(val []ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItem) {
+	s.Measures = val
+}
+
+// SetRisks sets the value of Risks.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnly) SetRisks(val []ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) {
+	s.Risks = val
+}
+
+type ReportsPostReportsPdplGenerateOKApprovedOnlyInventory struct {
+	Approved   float64                                                               `json:"approved"`
+	ByKind     []ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryByKindItem     `json:"by_kind"`
+	Fragile    float64                                                               `json:"fragile"`
+	KeySystems []ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryKeySystemsItem `json:"key_systems"`
+	Sources    []ReportsPostReportsPdplGenerateOKApprovedOnlyInventorySourcesItem    `json:"sources"`
+	Total      float64                                                               `json:"total"`
+	Unapproved float64                                                               `json:"unapproved"`
+}
+
+// GetApproved returns the value of Approved.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventory) GetApproved() float64 {
+	return s.Approved
+}
+
+// GetByKind returns the value of ByKind.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventory) GetByKind() []ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryByKindItem {
+	return s.ByKind
+}
+
+// GetFragile returns the value of Fragile.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventory) GetFragile() float64 {
+	return s.Fragile
+}
+
+// GetKeySystems returns the value of KeySystems.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventory) GetKeySystems() []ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryKeySystemsItem {
+	return s.KeySystems
+}
+
+// GetSources returns the value of Sources.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventory) GetSources() []ReportsPostReportsPdplGenerateOKApprovedOnlyInventorySourcesItem {
+	return s.Sources
+}
+
+// GetTotal returns the value of Total.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventory) GetTotal() float64 {
+	return s.Total
+}
+
+// GetUnapproved returns the value of Unapproved.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventory) GetUnapproved() float64 {
+	return s.Unapproved
+}
+
+// SetApproved sets the value of Approved.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventory) SetApproved(val float64) {
+	s.Approved = val
+}
+
+// SetByKind sets the value of ByKind.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventory) SetByKind(val []ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryByKindItem) {
+	s.ByKind = val
+}
+
+// SetFragile sets the value of Fragile.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventory) SetFragile(val float64) {
+	s.Fragile = val
+}
+
+// SetKeySystems sets the value of KeySystems.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventory) SetKeySystems(val []ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryKeySystemsItem) {
+	s.KeySystems = val
+}
+
+// SetSources sets the value of Sources.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventory) SetSources(val []ReportsPostReportsPdplGenerateOKApprovedOnlyInventorySourcesItem) {
+	s.Sources = val
+}
+
+// SetTotal sets the value of Total.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventory) SetTotal(val float64) {
+	s.Total = val
+}
+
+// SetUnapproved sets the value of Unapproved.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventory) SetUnapproved(val float64) {
+	s.Unapproved = val
+}
+
+type ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryByKindItem struct {
+	Kind string  `json:"kind"`
+	N    float64 `json:"n"`
+}
+
+// GetKind returns the value of Kind.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryByKindItem) GetKind() string {
+	return s.Kind
+}
+
+// GetN returns the value of N.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryByKindItem) GetN() float64 {
+	return s.N
+}
+
+// SetKind sets the value of Kind.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryByKindItem) SetKind(val string) {
+	s.Kind = val
+}
+
+// SetN sets the value of N.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryByKindItem) SetN(val float64) {
+	s.N = val
+}
+
+type ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryKeySystemsItem struct {
+	ID   string `json:"id"`
+	IP   string `json:"ip"`
+	Kind string `json:"kind"`
+	Name string `json:"name"`
+	Os   string `json:"os"`
+}
+
+// GetID returns the value of ID.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryKeySystemsItem) GetID() string {
+	return s.ID
+}
+
+// GetIP returns the value of IP.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryKeySystemsItem) GetIP() string {
+	return s.IP
+}
+
+// GetKind returns the value of Kind.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryKeySystemsItem) GetKind() string {
+	return s.Kind
+}
+
+// GetName returns the value of Name.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryKeySystemsItem) GetName() string {
+	return s.Name
+}
+
+// GetOs returns the value of Os.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryKeySystemsItem) GetOs() string {
+	return s.Os
+}
+
+// SetID sets the value of ID.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryKeySystemsItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetIP sets the value of IP.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryKeySystemsItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryKeySystemsItem) SetKind(val string) {
+	s.Kind = val
+}
+
+// SetName sets the value of Name.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryKeySystemsItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetOs sets the value of Os.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryKeySystemsItem) SetOs(val string) {
+	s.Os = val
+}
+
+type ReportsPostReportsPdplGenerateOKApprovedOnlyInventorySourcesItem struct {
+	N      float64 `json:"n"`
+	Source string  `json:"source"`
+}
+
+// GetN returns the value of N.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventorySourcesItem) GetN() float64 {
+	return s.N
+}
+
+// GetSource returns the value of Source.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventorySourcesItem) GetSource() string {
+	return s.Source
+}
+
+// SetN sets the value of N.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventorySourcesItem) SetN(val float64) {
+	s.N = val
+}
+
+// SetSource sets the value of Source.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventorySourcesItem) SetSource(val string) {
+	s.Source = val
+}
+
+type ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItem struct {
+	ID     ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemID     `json:"id"`
+	N      float64                                                        `json:"n"`
+	Names  []string                                                       `json:"names"`
+	Status ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatus `json:"status"`
+}
+
+// GetID returns the value of ID.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItem) GetID() ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemID {
+	return s.ID
+}
+
+// GetN returns the value of N.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItem) GetN() float64 {
+	return s.N
+}
+
+// GetNames returns the value of Names.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItem) GetNames() []string {
+	return s.Names
+}
+
+// GetStatus returns the value of Status.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItem) GetStatus() ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatus {
+	return s.Status
+}
+
+// SetID sets the value of ID.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItem) SetID(val ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemID) {
+	s.ID = val
+}
+
+// SetN sets the value of N.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItem) SetN(val float64) {
+	s.N = val
+}
+
+// SetNames sets the value of Names.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItem) SetNames(val []string) {
+	s.Names = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItem) SetStatus(val ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatus) {
+	s.Status = val
+}
+
+type ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemID string
+
+const (
+	ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDFirewall   ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemID = "firewall"
+	ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDPatching   ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemID = "patching"
+	ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDEol        ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemID = "eol"
+	ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDUnapproved ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemID = "unapproved"
+	ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDRemote     ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemID = "remote"
+	ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDLogging    ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemID = "logging"
+	ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDHoneypot   ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemID = "honeypot"
+	ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDScan       ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemID = "scan"
+	ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDBackup     ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemID = "backup"
+)
+
+// AllValues returns all ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemID values.
+func (ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemID) AllValues() []ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemID {
+	return []ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemID{
+		ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDFirewall,
+		ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDPatching,
+		ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDEol,
+		ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDUnapproved,
+		ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDRemote,
+		ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDLogging,
+		ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDHoneypot,
+		ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDScan,
+		ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDBackup,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemID) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDFirewall:
+		return []byte(s), nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDPatching:
+		return []byte(s), nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDEol:
+		return []byte(s), nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDUnapproved:
+		return []byte(s), nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDRemote:
+		return []byte(s), nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDLogging:
+		return []byte(s), nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDHoneypot:
+		return []byte(s), nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDScan:
+		return []byte(s), nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDBackup:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemID) UnmarshalText(data []byte) error {
+	switch ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemID(data) {
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDFirewall:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDFirewall
+		return nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDPatching:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDPatching
+		return nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDEol:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDEol
+		return nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDUnapproved:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDUnapproved
+		return nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDRemote:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDRemote
+		return nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDLogging:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDLogging
+		return nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDHoneypot:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDHoneypot
+		return nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDScan:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDScan
+		return nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDBackup:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDBackup
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatus string
+
+const (
+	ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatusOk        ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatus = "ok"
+	ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatusAttention ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatus = "attention"
+	ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatusUnknown   ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatus = "unknown"
+)
+
+// AllValues returns all ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatus values.
+func (ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatus) AllValues() []ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatus {
+	return []ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatus{
+		ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatusOk,
+		ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatusAttention,
+		ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatusUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatusOk:
+		return []byte(s), nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatusAttention:
+		return []byte(s), nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatusUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatus) UnmarshalText(data []byte) error {
+	switch ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatus(data) {
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatusOk:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatusOk
+		return nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatusAttention:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatusAttention
+		return nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatusUnknown:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatusUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem struct {
+	// The version compared is the one the device's own agent reports (findings evidence.agent): the status
+	// reads "Detected by the agent", not "Suspected"; absent in reports sent before it.
+	Agent   OptBool `json:"agent"`
+	AssetID string  `json:"asset_id"`
+	// Who closed it (rows of what was done).
+	By     OptString `json:"by"`
+	Cve    string    `json:"cve"`
+	Device string    `json:"device"`
+	// False when the device is still to review, not in the Devices list yet; absent in reports made before
+	// it (read as approved).
+	DeviceApproved OptBool                                                       `json:"device_approved"`
+	ID             string                                                        `json:"id"`
+	Product        string                                                        `json:"product"`
+	Severity       ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverity `json:"severity"`
+	Since          time.Time                                                     `json:"since"`
+	Status         ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatus   `json:"status"`
+}
+
+// GetAgent returns the value of Agent.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) GetAgent() OptBool {
+	return s.Agent
+}
+
+// GetAssetID returns the value of AssetID.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) GetAssetID() string {
+	return s.AssetID
+}
+
+// GetBy returns the value of By.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) GetBy() OptString {
+	return s.By
+}
+
+// GetCve returns the value of Cve.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) GetCve() string {
+	return s.Cve
+}
+
+// GetDevice returns the value of Device.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) GetDevice() string {
+	return s.Device
+}
+
+// GetDeviceApproved returns the value of DeviceApproved.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) GetDeviceApproved() OptBool {
+	return s.DeviceApproved
+}
+
+// GetID returns the value of ID.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) GetID() string {
+	return s.ID
+}
+
+// GetProduct returns the value of Product.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) GetProduct() string {
+	return s.Product
+}
+
+// GetSeverity returns the value of Severity.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) GetSeverity() ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverity {
+	return s.Severity
+}
+
+// GetSince returns the value of Since.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) GetSince() time.Time {
+	return s.Since
+}
+
+// GetStatus returns the value of Status.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) GetStatus() ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatus {
+	return s.Status
+}
+
+// SetAgent sets the value of Agent.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) SetAgent(val OptBool) {
+	s.Agent = val
+}
+
+// SetAssetID sets the value of AssetID.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) SetAssetID(val string) {
+	s.AssetID = val
+}
+
+// SetBy sets the value of By.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) SetBy(val OptString) {
+	s.By = val
+}
+
+// SetCve sets the value of Cve.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetDevice sets the value of Device.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) SetDevice(val string) {
+	s.Device = val
+}
+
+// SetDeviceApproved sets the value of DeviceApproved.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) SetDeviceApproved(val OptBool) {
+	s.DeviceApproved = val
+}
+
+// SetID sets the value of ID.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) SetSeverity(val ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverity) {
+	s.Severity = val
+}
+
+// SetSince sets the value of Since.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) SetSince(val time.Time) {
+	s.Since = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) SetStatus(val ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatus) {
+	s.Status = val
+}
+
+type ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverity string
+
+const (
+	ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityCritical ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverity = "critical"
+	ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityHigh     ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverity = "high"
+	ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityMedium   ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverity = "medium"
+	ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityLow      ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverity = "low"
+	ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityInfo     ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverity = "info"
+)
+
+// AllValues returns all ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverity values.
+func (ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverity) AllValues() []ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverity {
+	return []ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverity{
+		ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityCritical,
+		ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityHigh,
+		ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityMedium,
+		ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityLow,
+		ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityInfo,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverity) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityCritical:
+		return []byte(s), nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityHigh:
+		return []byte(s), nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityMedium:
+		return []byte(s), nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityLow:
+		return []byte(s), nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityInfo:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverity) UnmarshalText(data []byte) error {
+	switch ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverity(data) {
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityCritical:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityCritical
+		return nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityHigh:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityHigh
+		return nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityMedium:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityMedium
+		return nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityLow:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityLow
+		return nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityInfo:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityInfo
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatus string
+
+const (
+	ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusConfirmed     ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatus = "confirmed"
+	ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusSuspected     ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatus = "suspected"
+	ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusMitigated     ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatus = "mitigated"
+	ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusPatched       ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatus = "patched"
+	ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusFalsePositive ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatus = "false_positive"
+	ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusNotRelevant   ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatus = "not_relevant"
+	ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusRiskAccepted  ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatus = "risk_accepted"
+)
+
+// AllValues returns all ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatus values.
+func (ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatus) AllValues() []ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatus {
+	return []ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatus{
+		ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusConfirmed,
+		ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusSuspected,
+		ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusMitigated,
+		ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusPatched,
+		ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusFalsePositive,
+		ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusNotRelevant,
+		ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusRiskAccepted,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusConfirmed:
+		return []byte(s), nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusSuspected:
+		return []byte(s), nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusMitigated:
+		return []byte(s), nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusPatched:
+		return []byte(s), nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusFalsePositive:
+		return []byte(s), nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusNotRelevant:
+		return []byte(s), nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusRiskAccepted:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatus) UnmarshalText(data []byte) error {
+	switch ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatus(data) {
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusConfirmed:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusConfirmed
+		return nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusSuspected:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusSuspected
+		return nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusMitigated:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusMitigated
+		return nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusPatched:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusPatched
+		return nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusFalsePositive:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusFalsePositive
+		return nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusNotRelevant:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusNotRelevant
+		return nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusRiskAccepted:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusRiskAccepted
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ReportsPostReportsPdplGenerateOKCoverageItem struct {
@@ -166510,14 +183299,17 @@ type ReportsPostReportsPdplGenerateOKRisksItem struct {
 	Agent   OptBool `json:"agent"`
 	AssetID string  `json:"asset_id"`
 	// Who closed it (rows of what was done).
-	By       OptString                                         `json:"by"`
-	Cve      string                                            `json:"cve"`
-	Device   string                                            `json:"device"`
-	ID       string                                            `json:"id"`
-	Product  string                                            `json:"product"`
-	Severity ReportsPostReportsPdplGenerateOKRisksItemSeverity `json:"severity"`
-	Since    time.Time                                         `json:"since"`
-	Status   ReportsPostReportsPdplGenerateOKRisksItemStatus   `json:"status"`
+	By     OptString `json:"by"`
+	Cve    string    `json:"cve"`
+	Device string    `json:"device"`
+	// False when the device is still to review, not in the Devices list yet; absent in reports made before
+	// it (read as approved).
+	DeviceApproved OptBool                                           `json:"device_approved"`
+	ID             string                                            `json:"id"`
+	Product        string                                            `json:"product"`
+	Severity       ReportsPostReportsPdplGenerateOKRisksItemSeverity `json:"severity"`
+	Since          time.Time                                         `json:"since"`
+	Status         ReportsPostReportsPdplGenerateOKRisksItemStatus   `json:"status"`
 }
 
 // GetAgent returns the value of Agent.
@@ -166543,6 +183335,11 @@ func (s *ReportsPostReportsPdplGenerateOKRisksItem) GetCve() string {
 // GetDevice returns the value of Device.
 func (s *ReportsPostReportsPdplGenerateOKRisksItem) GetDevice() string {
 	return s.Device
+}
+
+// GetDeviceApproved returns the value of DeviceApproved.
+func (s *ReportsPostReportsPdplGenerateOKRisksItem) GetDeviceApproved() OptBool {
+	return s.DeviceApproved
 }
 
 // GetID returns the value of ID.
@@ -166593,6 +183390,11 @@ func (s *ReportsPostReportsPdplGenerateOKRisksItem) SetCve(val string) {
 // SetDevice sets the value of Device.
 func (s *ReportsPostReportsPdplGenerateOKRisksItem) SetDevice(val string) {
 	s.Device = val
+}
+
+// SetDeviceApproved sets the value of DeviceApproved.
+func (s *ReportsPostReportsPdplGenerateOKRisksItem) SetDeviceApproved(val OptBool) {
+	s.DeviceApproved = val
 }
 
 // SetID sets the value of ID.
@@ -208517,8 +225319,8 @@ type ScanningGetScanningOKSafety struct {
 	// built on (409 safety_changed otherwise), so a page opened before an inline add never drops it. Every
 	// answer that changed the block carries the new one. The same values give the same version.
 	Version string `json:"version"`
-	// One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now,
-	// Check this device now and external scans are not bound by it.
+	// One window for discovery, version scans, SNMP rounds, scheduled vulnerability checks and the
+	// scheduled scans of public targets. Scan now and Check this device now are not bound by it.
 	Window ScanningGetScanningOKSafetyWindow `json:"window"`
 }
 
@@ -208922,8 +225724,8 @@ func (s *ScanningGetScanningOKSafetySpeed) SetRequestsPerS(val int) {
 	s.RequestsPerS = val
 }
 
-// One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now,
-// Check this device now and external scans are not bound by it.
+// One window for discovery, version scans, SNMP rounds, scheduled vulnerability checks and the
+// scheduled scans of public targets. Scan now and Check this device now are not bound by it.
 type ScanningGetScanningOKSafetyWindow struct {
 	// Empty only on a box whose discovery was saved off without a day; a save needs one.
 	Days []int `json:"days"`
@@ -210446,8 +227248,8 @@ type ScanningPatchScanningEnginesIDOKSafety struct {
 	// built on (409 safety_changed otherwise), so a page opened before an inline add never drops it. Every
 	// answer that changed the block carries the new one. The same values give the same version.
 	Version string `json:"version"`
-	// One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now,
-	// Check this device now and external scans are not bound by it.
+	// One window for discovery, version scans, SNMP rounds, scheduled vulnerability checks and the
+	// scheduled scans of public targets. Scan now and Check this device now are not bound by it.
 	Window ScanningPatchScanningEnginesIDOKSafetyWindow `json:"window"`
 }
 
@@ -210851,8 +227653,8 @@ func (s *ScanningPatchScanningEnginesIDOKSafetySpeed) SetRequestsPerS(val int) {
 	s.RequestsPerS = val
 }
 
-// One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now,
-// Check this device now and external scans are not bound by it.
+// One window for discovery, version scans, SNMP rounds, scheduled vulnerability checks and the
+// scheduled scans of public targets. Scan now and Check this device now are not bound by it.
 type ScanningPatchScanningEnginesIDOKSafetyWindow struct {
 	// Empty only on a box whose discovery was saved off without a day; a save needs one.
 	Days []int `json:"days"`
@@ -211403,8 +228205,8 @@ type ScanningPostScanningSafetyExclusionsOK struct {
 	// built on (409 safety_changed otherwise), so a page opened before an inline add never drops it. Every
 	// answer that changed the block carries the new one. The same values give the same version.
 	Version string `json:"version"`
-	// One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now,
-	// Check this device now and external scans are not bound by it.
+	// One window for discovery, version scans, SNMP rounds, scheduled vulnerability checks and the
+	// scheduled scans of public targets. Scan now and Check this device now are not bound by it.
 	Window ScanningPostScanningSafetyExclusionsOKWindow `json:"window"`
 }
 
@@ -211808,8 +228610,8 @@ func (s *ScanningPostScanningSafetyExclusionsOKSpeed) SetRequestsPerS(val int) {
 	s.RequestsPerS = val
 }
 
-// One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now,
-// Check this device now and external scans are not bound by it.
+// One window for discovery, version scans, SNMP rounds, scheduled vulnerability checks and the
+// scheduled scans of public targets. Scan now and Check this device now are not bound by it.
 type ScanningPostScanningSafetyExclusionsOKWindow struct {
 	// Empty only on a box whose discovery was saved off without a day; a save needs one.
 	Days []int `json:"days"`
@@ -211890,8 +228692,8 @@ type ScanningPostScanningSafetyRangesOK struct {
 	// built on (409 safety_changed otherwise), so a page opened before an inline add never drops it. Every
 	// answer that changed the block carries the new one. The same values give the same version.
 	Version string `json:"version"`
-	// One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now,
-	// Check this device now and external scans are not bound by it.
+	// One window for discovery, version scans, SNMP rounds, scheduled vulnerability checks and the
+	// scheduled scans of public targets. Scan now and Check this device now are not bound by it.
 	Window ScanningPostScanningSafetyRangesOKWindow `json:"window"`
 }
 
@@ -212330,8 +229132,8 @@ func (s *ScanningPostScanningSafetyRangesOKSpeed) SetRequestsPerS(val int) {
 	s.RequestsPerS = val
 }
 
-// One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now,
-// Check this device now and external scans are not bound by it.
+// One window for discovery, version scans, SNMP rounds, scheduled vulnerability checks and the
+// scheduled scans of public targets. Scan now and Check this device now are not bound by it.
 type ScanningPostScanningSafetyRangesOKWindow struct {
 	// Empty only on a box whose discovery was saved off without a day; a save needs one.
 	Days []int `json:"days"`
@@ -212455,8 +229257,8 @@ type ScanningPutScanningSafetyOK struct {
 	// built on (409 safety_changed otherwise), so a page opened before an inline add never drops it. Every
 	// answer that changed the block carries the new one. The same values give the same version.
 	Version string `json:"version"`
-	// One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now,
-	// Check this device now and external scans are not bound by it.
+	// One window for discovery, version scans, SNMP rounds, scheduled vulnerability checks and the
+	// scheduled scans of public targets. Scan now and Check this device now are not bound by it.
 	Window ScanningPutScanningSafetyOKWindow `json:"window"`
 }
 
@@ -212895,8 +229697,8 @@ func (s *ScanningPutScanningSafetyOKSpeed) SetRequestsPerS(val int) {
 	s.RequestsPerS = val
 }
 
-// One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now,
-// Check this device now and external scans are not bound by it.
+// One window for discovery, version scans, SNMP rounds, scheduled vulnerability checks and the
+// scheduled scans of public targets. Scan now and Check this device now are not bound by it.
 type ScanningPutScanningSafetyOKWindow struct {
 	// Empty only on a box whose discovery was saved off without a day; a save needs one.
 	Days []int `json:"days"`

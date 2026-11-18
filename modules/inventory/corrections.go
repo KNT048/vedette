@@ -33,15 +33,26 @@ func productKey(s string) string {
 	return s + `.source || char(31) || lower(` + s + `.vendor) || char(31) || lower(` + s + `.product) || char(31)`
 }
 
-// correctionLive is the SQL condition on a correction (alias s) that it is in use: the row it corrects is still reported
-// (#950). When that source moves on (a scan now reads 10.3 and its 10.2 row is gone) or stops reporting the product (the agent's
-// package was removed, or its row expired), the correction rests: the source's current reading decides again, under the source's own
-// rules, and the device shows the correction as not in use until the person sets it again on what the source reads now.
-var correctionLive = `EXISTS (SELECT 1 FROM inv_software r WHERE r.asset_id = s.asset_id AND r.source <> 'manual' AND ` + rowKey("r") + ` = s.corrects)`
+// sameProductAs is the SQL condition that the key in corrects (alias c) is a row of the product of reported row r: its source, vendor and
+// product, whatever the version (no stored name holds char(31)).
+func sameProductAs(c, r string) string {
+	pk := productKey(r)
+	return `(substr(` + c + `.corrects, 1, length(` + pk + `)) = ` + pk + ` AND instr(substr(` + c + `.corrects, length(` + pk + `) + 1), char(31)) = 0)`
+}
+
+// correctionLive is the SQL condition on a correction (alias s) that it is in use (INV-41, INV-50): a person's entry stays in use while
+// its source still reports the product, at whatever version: a later reading of another version does not take it away (it is the
+// entry the device page and matching follow; the page says what the source reads now and the person switches). A "not installed" mark
+// (INV-41 (6)) covers exactly the row it was set on: when that row is replaced by another version, it rests (a new install). When the
+// source reports the product no more (the package was removed, or an agent row expired), the correction rests.
+var correctionLive = `(CASE WHEN s.not_installed = 1
+	THEN EXISTS (SELECT 1 FROM inv_software r WHERE r.asset_id = s.asset_id AND r.source <> 'manual' AND ` + rowKey("r") + ` = s.corrects)
+	ELSE EXISTS (SELECT 1 FROM inv_software r WHERE r.asset_id = s.asset_id AND r.source <> 'manual' AND ` + sameProductAs("s", "r") + `) END)`
 
 // liveSW is the SQL condition on a software row (alias s) that counts for matching and the "Do you have it?" lists (INV-41): a row a
 // person declared; a correction in use (correctionLive) that is not a "not installed" one (INV-41 (6): it replaces its row with
-// nothing); a reported row no correction in use replaces; never an nmap OS guess the device does not use (hiddenGuess).
+// nothing); a reported row no correction replaces (the one row a correction was set on; a later reading of another version of the product is a row of its own that matches too, INV-50);
+// never an nmap OS guess the device does not use (hiddenGuess).
 var liveSW = `(NOT ` + hiddenGuess + ` AND (CASE WHEN s.corrects IS NOT NULL THEN s.not_installed = 0 AND ` + correctionLive + ` WHEN s.source = 'manual' THEN 1
 	ELSE NOT EXISTS (SELECT 1 FROM inv_software c WHERE c.asset_id = s.asset_id AND c.corrects = ` + rowKey("s") + `) END))`
 
@@ -536,7 +547,7 @@ func addCorrections(ctx context.Context, q querier, assetID string, views []Soft
 				best = d
 			}
 		}
-		c.Active = best != nil && byID[best.ID].key == in.corrects
+		c.Active = best != nil && (byID[best.ID].key == in.corrects || !c.NotInstalled) // INV-50: an entry stays in use while its source reports the product
 		if best != nil {
 			c.Detected = &SoftwareDetected{ID: best.ID, Display: best.Display, Version: best.Version, PkgVersion: best.PkgVersion, Source: best.Source, SeenAt: byID[best.ID].seenAt}
 		}

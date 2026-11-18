@@ -1,16 +1,17 @@
 # Writes the brand SVGs (issue #826) from one geometry: logo lockups, app icon sources, favicon.svg, README hero, social preview.
-# Text (the wordmark, the taglines) is Be Vietnam Pro (OFL-1.1, the app's own font from web/node_modules) converted to outlined
-# paths, so no SVG needs a font at run time. An authoring step, run only when the logo or a tagline changes; then run `make brand`.
+# Text (the wordmark, the taglines) is Be Vietnam Pro (OFL-1.1) converted to outlined paths, so no SVG needs a font at run time.
+# The app itself no longer ships this font, so the authoring step fetches it once into a throwaway folder (below). An authoring step, run only when the logo or a tagline changes; then run `make brand`.
 # The illustrations (web/src/assets/illustrations/) are hand-written and not made here.
 # Needs Python 3 with: pip install fonttools==4.68.0 brotli==1.2.1 uharfbuzz==0.57.0 (a throwaway venv; nothing here ships).
-# Usage: python3 scripts/brand/outline.py   (after pnpm --dir web install)
+# Fonts: cd "$(mktemp -d)" && npm pack @fontsource/be-vietnam-pro@5.3.0 && tar xzf fontsource-be-vietnam-pro-5.3.0.tgz
+# Usage: BRAND_FONT_DIR=<that folder>/package/files python3 scripts/brand/outline.py
 import io, re, os
 import uharfbuzz as hb
 from fontTools.ttLib import TTFont
 from fontTools.pens.svgPathPen import SVGPathPen
 from fontTools.pens.transformPen import TransformPen
 R=os.path.abspath(os.path.join(os.path.dirname(__file__),'..','..'))
-FD=R+'/web/node_modules/@fontsource/be-vietnam-pro/files/be-vietnam-pro-latin-%d-normal.woff'
+FD=os.environ['BRAND_FONT_DIR']+'/be-vietnam-pro-latin-%d-normal.woff'
 _f={}
 def font(w):
     if w not in _f:

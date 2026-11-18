@@ -190,7 +190,7 @@ func jobHistory(j sensoractive.JobRow, shown map[string]shownOS) (core.HistoryRu
 	case sensoractive.KindDevice:
 		r.Engine, r.Label = "nmap-versions", "A device"
 		switch j.Reason {
-		case "check_now":
+		case "check_now", "check_wait":
 			r.Trigger = "person"
 		case "scan_now":
 			r.Trigger = "scan_now"

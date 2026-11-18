@@ -97,7 +97,8 @@ function containerSensors() {
   }))
 }
 const agentsStore = collection<AgentToken[]>('intake_agent_tokens', () => [
-  { id: 'tk-osquery', name: 'osquery on SRV-AD and SRV-FILE', kind: 'osquery', last4: 'k3Pq', created_at: daysAgo(12), last_received: daysAgo(0, 3), hosts: 2, expires_at: new Date(Date.now() + 5 * 864e5).toISOString() },
+  { id: 'tk-osquery', name: 'osquery on SRV-AD and SRV-FILE', kind: 'osquery', last4: 'k3Pq', created_at: daysAgo(12), created_by: 'admin@example.test', last_received: daysAgo(0, 3), hosts: 2, expires_at: new Date(Date.now() + 5 * 864e5).toISOString() },
+  { id: 'tk-old-unused', name: 'osquery install (never run)', kind: 'osquery', last4: 'u9Zx', created_at: daysAgo(3), created_by: 'admin@example.test', last_received: null, hosts: 0, expires_at: new Date(Date.now() - 2 * 864e5).toISOString() },
 ], () => [])
 type StoredWazuh = WazuhConnection & { password: string }
 // Chứng chỉ CA của hộp (mock: giá trị giả, nhúng trong script như bản thật sẽ nhúng CA tự ký của hộp).
@@ -1075,6 +1076,30 @@ export const handlers = [
     return HttpResponse.json({ ok: true })
   }),
 
+  // INV-50: one row per software, the strongest source's values, the other sources listed
+  http.get(`${API}/inventory/devices/:id/software`, ({ params, request }) => {
+    const denied = guard('viewer'); if (denied) return denied
+    const a = find(String(params.id))
+    if (!a) return notFound(request)
+    const rank: Record<string, number> = { agent: 6, manual: 5, snmp: 3, nmap: 2, scan: 2, passive: 1 }
+    const upstream = (v: string) => (v.trim().split(/\s+/)[0] ?? '').toLowerCase().replace(/^\d+:/, '').replace(/-[^-]*$/, '').replace(/_p(\d*)/, 'p$1')
+    const same = (x: { version?: string | null; pkg_version?: string | null }, y: typeof x) => {
+      const p = upstream(x.pkg_version || x.version || ''), q = upstream(y.pkg_version || y.version || '')
+      return !!p && !!q && (p === q || (q.startsWith(p) && /^p\d*$/.test(q.slice(p.length))) || (p.startsWith(q) && /^p\d*$/.test(p.slice(q.length))))
+    }
+    const groups = new Map<string, typeof a.software>()
+    for (const s of a.software.filter((x) => !x.not_installed && !a.software.some((c) => c.not_installed && c.corrects === x.id))) groups.set(`${s.vendor}|${s.product}`.toLowerCase(), [...(groups.get(`${s.vendor}|${s.product}`.toLowerCase()) ?? []), s])
+    const items = [...groups.values()].flatMap((g) => {
+      const [top, ...rest] = [...g].sort((x, y) => (rank[y.source] ?? 0) - (rank[x.source] ?? 0))
+      if (!top) return []
+      const at = (x: typeof top) => x.set_at ?? nowIso()
+      const also = rest.map((o) => ({ id: o.id, source: o.source, version: o.version ?? '', pkg_version: o.pkg_version ?? '', seen_at: at(o), same_release: same(top, o) }))
+      return [{ id: top.id, vendor: top.vendor, product: top.product, display: top.display, version: top.version ?? '', pkg_version: top.pkg_version ?? '', packaged: top.source === 'agent', cpe: '', source: top.source,
+        set_by: top.source === 'manual' ? (currentUser()?.email ?? '') : '', seen_at: at(top), also_seen: also, differs: also.some((o) => !o.same_release && o.source !== 'manual' && o.id !== top.corrects) }]
+    })
+    return HttpResponse.json({ items })
+  }),
+
   http.post(`${API}/inventory/devices/:id/software`, async ({ params, request }) => {
     const denied = guard('operator'); if (denied) return denied
     const a = find(String(params.id))
@@ -1365,7 +1390,7 @@ export const handlers = [
     const days = b.expires_in_days === undefined ? 7 : Number(b.expires_in_days)
     if (!Number.isInteger(days) || days < 0 || days > 365) return fail(400, 'bad_expiry', 'Choose how long the token works: 1 to 365 days, or 0 for no expiry.')
     const secret = `vdt_osquery_${rand(32, 'abcdefghijkmnpqrstuvwxyz23456789')}`
-    const token: AgentToken = { id: newId('tk'), name, kind: 'osquery', last4: secret.slice(-4), created_at: nowIso(), last_received: null, hosts: 0, expires_at: days === 0 ? null : new Date(Date.now() + days * 864e5).toISOString() }
+    const token: AgentToken = { id: newId('tk'), name, kind: 'osquery', last4: secret.slice(-4), created_at: nowIso(), created_by: 'admin@example.test', last_received: null, hosts: 0, expires_at: days === 0 ? null : new Date(Date.now() + days * 864e5).toISOString() }
     agentsStore.update((l) => [...l, token])
     audit('inventory.agent_token_create', name, `osquery, ${days === 0 ? 'no expiry' : `expires in ${days} days`}`)
     return HttpResponse.json({ token, secret }, { status: 201 })
@@ -1378,6 +1403,14 @@ export const handlers = [
     removedNodes.update((l) => [...l, n.id.replace(/^node-/, '')])
     audit('inventory.agent_node_remove', n.host)
     return new HttpResponse(null, { status: 204 })
+  }),
+  http.post(`${API}/inventory/agents/tokens/remove-unused`, () => {
+    const denied = guard('admin'); if (denied) return denied
+    const fresh = (x: AgentToken) => Date.now() - Date.parse(x.created_at) < 3_600_000
+    const gone = agentsStore.get().filter((x) => x.hosts === 0 && !fresh(x))
+    agentsStore.update((l) => l.filter((x) => x.hosts > 0 || fresh(x)))
+    audit('inventory.agent_tokens_remove_unused', 'unused tokens', `${gone.length} removed`)
+    return HttpResponse.json({ removed: gone.length })
   }),
   http.delete(`${API}/inventory/agents/tokens/:id`, ({ params }) => {
     const denied = guard('admin'); if (denied) return denied

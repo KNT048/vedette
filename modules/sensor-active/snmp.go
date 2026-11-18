@@ -782,6 +782,9 @@ func (s *Service) dropSNMP(ctx context.Context, tx *sql.Tx, r snmpRow) error {
 func (s *Service) AssetDeleted(ctx context.Context, assetID string) error {
 	defer s.snmpSettingsChanged(assetID)
 	return s.db.Write(ctx, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM sa_queue WHERE asset_id = ?`, assetID); err != nil {
+			return fmt.Errorf("sensoractive: forget the queued scan of a deleted device: %w", err)
+		}
 		r, err := s.snmpRow(ctx, tx, assetID)
 		if err != nil || r == nil {
 			return err
@@ -802,6 +805,9 @@ func (s *Service) AssetMerged(ctx context.Context, from, into string) error {
 	return s.db.Write(ctx, func(tx *sql.Tx) error {
 		if _, err := tx.ExecContext(ctx, `UPDATE sa_job SET asset_id = ? WHERE asset_id = ?`, into, from); err != nil {
 			return fmt.Errorf("sensoractive: merge device checks: %w", err)
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM sa_queue WHERE asset_id = ?`, from); err != nil {
+			return fmt.Errorf("sensoractive: forget the queued scan of a merged device: %w", err)
 		}
 		f, err := s.snmpRow(ctx, tx, from)
 		if err != nil || f == nil {

@@ -121,7 +121,9 @@ describe('notify: incidents (S-ALERT-3)', () => {
   it('detail: what happened, first and last seen, count, who responded; message text per channel; Respond link', async () => {
     renderApp('/incidents/al-4')
     expect(await screen.findByRole('heading', { level: 1, name: 'PC-HR-01 touched the SMB trap on FILESRV-OLD' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Respond' })).toHaveAttribute('href', '/response?incident=al-4')
+    // Respond is one way to handle the incident: in the Handle section, not the header
+    expect(within(screen.getByRole('region', { name: 'Handle the incident' })).getByRole('link', { name: 'Respond' })).toHaveAttribute('href', '/response?incident=al-4')
+    expect(within(screen.getByRole('heading', { level: 1 }).closest('header')!).queryByRole('link', { name: 'Respond' })).toBeNull()
     expect(screen.getByRole('link', { name: 'Open trap touch' })).toHaveAttribute('href', '/honeypot/hits/hit-seed-1')
     expect(screen.getByRole('link', { name: 'PC-HR-01' })).toHaveAttribute('href', '/devices/a-pc07')
     expect(screen.getByText('Times seen')).toBeInTheDocument()

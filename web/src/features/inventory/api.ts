@@ -4,7 +4,7 @@ import { toast } from 'sonner'
 import { api, ApiError } from '@/lib/api'
 import type { AssetKind } from '@/lib/types'
 import type {
-  AddDeviceInput, AddDeviceResult, AgentKind, AgentReport, AgentsResponse, CatalogResponse, CreateTokenResult, DeviceDetail, DevicesResponse,
+  AddDeviceInput, AddDeviceResult, AgentKind, AgentReport, AgentsResponse, CatalogResponse, CreateTokenResult, DeviceDetail, DevicesResponse, EffectiveSoftware,
   ImportResult, InventorySettings, KeepSeparateInput, MergeInput, RegularScan, SamePairs, SampleResult, Sensor, SensorPatch, SensorsResponse, SettingsInput, SettingsSaved, SourcesInput, SourcesState, SnmpResponse,
   DeviceSnmp, DeviceSnmpInput, DetectedField, SnmpCheckResult, SnmpSimilarResponse, SnmpApplyResponse,
   WazuhConnection, WazuhInput, WazuhTestResult,
@@ -14,6 +14,9 @@ export const useDevices = () => useQuery({ queryKey: ['inventory', 'devices'], q
 /** The devices a person ignored (the Ignored tab), read only while that tab is open. */
 export const useIgnoredDevices = (enabled = true) => useQuery({ queryKey: ['inventory', 'devices', 'ignored'], queryFn: () => api.get<DevicesResponse>('/inventory/devices?ignored=true'), enabled })
 export const useDevice = (id: string) => useQuery({ queryKey: ['inventory', 'device', id], queryFn: () => api.get<DeviceDetail>(`/inventory/devices/${encodeURIComponent(id)}`), retry: false })
+/** The device's software as one row per software (inventory INV-50), the strongest source's reading with the other sources listed. */
+export const useEffectiveSoftware = (id: string) =>
+  useQuery({ queryKey: ['inventory', 'device', id, 'software'], queryFn: () => api.get<{ items: EffectiveSoftware[] }>(`/inventory/devices/${encodeURIComponent(id)}/software`), retry: false })
 /** The contract allows at most 80 characters in `q` (the backend answers 400 above that; the mock clips). A pasted long text is clipped here so suggestions keep working. */
 export const CATALOG_Q_MAX = 80
 export const catalogPath = (q: string) => `/inventory/catalog?q=${encodeURIComponent(q.trim().slice(0, CATALOG_Q_MAX).trim())}`
@@ -177,6 +180,8 @@ export function useAgentActions() {
   const inv = useInvalidate()
   return {
     create: useMutation({ mutationFn: (b: { name: string; kind?: AgentKind; expires_in_days?: number }) => api.post<CreateTokenResult>('/inventory/agents/tokens', b), onSuccess: inv }),
+    /** Every token no machine enrolled with goes; tokens with machines stay. */
+    removeUnused: useMutation({ mutationFn: () => api.post<{ removed: number }>('/inventory/agents/tokens/remove-unused'), onSuccess: inv }),
     revoke: useMutation({ mutationFn: (id: string) => api.del(`/inventory/agents/tokens/${encodeURIComponent(id)}`), onSuccess: inv }),
     /** One stale agent record goes (the token and the other machines stay); the device page reads the report again. */
     removeNode: useMutation({ mutationFn: (id: string) => api.del(`/inventory/agents/nodes/${encodeURIComponent(id)}`), onSuccess: inv }),

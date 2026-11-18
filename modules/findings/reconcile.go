@@ -350,7 +350,7 @@ func (s *Service) expireRaw(ctx context.Context, tx *sql.Tx, id string, now time
 		return ev, false, nil
 	}
 	to := StatusSuspected
-	if Basis(basis) == BasisScan {
+	if b := Basis(basis); b == BasisScan || b == BasisPerson {
 		to = StatusConfirmed
 	}
 	if _, err := tx.ExecContext(ctx, `SAVEPOINT fnd_expire_raw`); err != nil {

@@ -17,7 +17,7 @@ import (
 // How a finding's CVE is known on the device, mapped from what the finding stores (basis, evidence.agent, evidence.agent_row)
 // and the source of the software row it is on. Never "needs confirming" for a version the device itself reported.
 const (
-	// ProofConfirmed: a safe scan proved it (basis scan).
+	// ProofConfirmed: a safe scan proved it (basis scan), or a person confirmed it (basis person).
 	ProofConfirmed = "confirmed"
 	// ProofDetected: the device itself reported the installed version (its agent: osquery, Wazuh, the box's package list,
 	// evidence.agent; or a version the plan also trusts, tierSource: a person's entry, the device's SNMP answer, the OS the
@@ -273,7 +273,7 @@ func proofRow(matched Software, ok bool, f *RowFix, sws map[string]Software) (So
 func proofOf(r Record, row Software, known bool) string {
 	agentRow := known && row.Source == "agent"
 	switch {
-	case r.Basis == BasisScan:
+	case r.Basis == BasisScan, r.Basis == BasisPerson:
 		return ProofConfirmed
 	case r.Evidence != nil && r.Evidence.Agent:
 		return ProofDetected

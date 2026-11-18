@@ -27,7 +27,7 @@
     "feeds": "Reporting",
     "notYet": "Not set up",
     "lastSeen": "last report {{when}}",
-    "lastCheck": "last device check {{when}}",
+    "lastCheck": "last check {{when}}",
     "lastSeenScan": "seen by a network scan {{when}}",
     "added": "added {{when}}",
     "lastChanged": "last changed {{when}}",
@@ -55,6 +55,20 @@
       "gearHint": "Agents run on computers and servers. For this device, SNMP reads the firmware version.",
       "unknownHint": "Agents run on computers and servers. If this is network gear, SNMP reads its firmware version instead.",
       "how": "An agent is installed or uninstalled on the machine itself, not switched here."
+    },
+    "scan": {
+      "on": "On",
+      "firstTonight": "On · first check tonight at {{time}}, in the scan window",
+      "firstToday": "On · first check today at {{time}}, in the scan window",
+      "firstTomorrow": "On · first check tomorrow at {{time}}, in the scan window",
+      "firstDay": "On · first check on {{day}} at {{time}}, in the scan window",
+      "firstNow": "On · first check runs during this scan window",
+      "firstNext": "On · first check in the next scan window",
+      "waiting": {
+        "off": "On · first check waits: active discovery is off",
+        "scope": "On · first check waits: the scan ranges are not confirmed",
+        "outside": "On · first check waits: the device is outside the scan ranges"
+      }
     },
     "snmp": {
       "off": "Turn on active discovery in Settings to read devices with SNMP.",
@@ -415,8 +429,9 @@
     "editSave": "Save version",
     "edited": "{{name}} is now version {{version}}. Findings are matched again.",
     "editedNone": "Removed the version of {{name}}. Findings are matched again.",
-    "seen": "The device reports {{version}} ({{source}}).",
-    "seenTyped": "You entered {{typed}}; the device reports {{version}} ({{source}}).",
+    "differs": "{{source}} reads {{version}} ({{when}}), another release.",
+    "alsoSeen": "Also seen by: {{reads}}",
+    "alsoSeenItem": "{{version}} ({{source}}, {{when}})",
     "accept": "Use {{version}}",
     "acceptLabel": "Use version {{version}} for {{name}}",
     "notInstalledAction": "Mark not installed…",
@@ -708,6 +723,8 @@
     "create": "Create agent token",
     "col": {
       "name": "Name",
+      "madeBy": "Made by",
+      "madeAt": "Made",
       "token": "Token",
       "expires": "Expires",
       "received": "Last data received",
@@ -760,6 +777,16 @@
       "0": "No expiry (not recommended)"
     },
     "createSubmit": "Create token",
+    "createCommand": "Create install command",
+    "createNote": "This makes one enrollment token and shows the install command with it. The token is shown once. A token that no machine has used expires after 24 hours; once a machine has enrolled, it works for the lifetime you see in the list.",
+    "defaultTokenName": "osquery install {{day}}",
+    "unknownMaker": "Not recorded",
+    "removeUnused": {
+      "button": "Remove unused tokens",
+      "hint": "Removes every token with no machine enrolled now. Tokens with machines stay, and so do tokens made in the last hour, in case their command is still on screen.",
+      "done_one": "Removed {{count}} unused token.",
+      "done_other": "Removed {{count}} unused tokens."
+    },
     "createdTitle": "Token for {{name}}",
     "createdBody": "Pick the operating system and run the one command below on the server.",
     "tokenLabel": "Token",

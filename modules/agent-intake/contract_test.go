@@ -116,7 +116,7 @@ func TestContract_TokenNamesExpiryAndCap(t *testing.T) {
 		w.token(fmt.Sprintf("t%d", i), 7)
 	}
 	if _, _, err := w.svc.IssueToken(t.Context(), "a@b.example", "one too many", 7); err == nil || !strings.Contains(err.Error(), "too_many_tokens") {
-		t.Fatalf("51st token: %v", err)
+		t.Fatalf("501st token: %v", err)
 	}
 	if err := w.svc.RevokeToken(t.Context(), "a@b.example", "tok-nope"); err == nil || !strings.Contains(err.Error(), "not_found") {
 		t.Fatalf("revoke unknown: %v", err)
@@ -712,13 +712,14 @@ func TestContract_PruneRetention(t *testing.T) {
 	_, s1 := w.token("keeps-nodes", 1)
 	_, s2 := w.token("no-nodes", 1)
 	_ = s2
-	w.token("never", 0)
+	_, s3 := w.token("never", 0)
 	k := w.enroll(s1, "srv-1", peerA)
+	w.enroll(s3, "srv-2", peerA) // a token with no expiry that was used stays after its machines go; an unused one goes after a day
 	w.pruneFor(33 * 24 * time.Hour)
 	if n := w.count(`SELECT count(*) FROM intake_agent_tokens`); n != 2 { // "no-nodes" is gone, "keeps-nodes" has a node, "never" never expires
 		t.Fatalf("%d tokens", n)
 	}
-	if n := w.count(`SELECT count(*) FROM intake_osquery_nodes`); n != 1 {
+	if n := w.count(`SELECT count(*) FROM intake_osquery_nodes`); n != 2 {
 		t.Fatalf("%d nodes", n)
 	}
 	w.pruneFor(60 * 24 * time.Hour) // 93 days of an unbroken job in all

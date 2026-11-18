@@ -182455,6 +182455,8 @@ func (s *InventoryGetInventoryAgentsDevicesIDReportOKState) Decode(d *jx.Decoder
 		*s = InventoryGetInventoryAgentsDevicesIDReportOKStateQuiet
 	case InventoryGetInventoryAgentsDevicesIDReportOKStateNeverReported:
 		*s = InventoryGetInventoryAgentsDevicesIDReportOKStateNeverReported
+	case InventoryGetInventoryAgentsDevicesIDReportOKStateReplaced:
+		*s = InventoryGetInventoryAgentsDevicesIDReportOKStateReplaced
 	default:
 		*s = InventoryGetInventoryAgentsDevicesIDReportOKState(v)
 	}
@@ -183652,6 +183654,8 @@ func (s *InventoryGetInventoryAgentsOKNodesItemState) Decode(d *jx.Decoder) erro
 		*s = InventoryGetInventoryAgentsOKNodesItemStateQuiet
 	case InventoryGetInventoryAgentsOKNodesItemStateNeverReported:
 		*s = InventoryGetInventoryAgentsOKNodesItemStateNeverReported
+	case InventoryGetInventoryAgentsOKNodesItemStateReplaced:
+		*s = InventoryGetInventoryAgentsOKNodesItemStateReplaced
 	default:
 		*s = InventoryGetInventoryAgentsOKNodesItemState(v)
 	}
@@ -200688,6 +200692,8 @@ func (s *InventoryPostInventoryAgentsDevicesIDReportOKState) Decode(d *jx.Decode
 		*s = InventoryPostInventoryAgentsDevicesIDReportOKStateQuiet
 	case InventoryPostInventoryAgentsDevicesIDReportOKStateNeverReported:
 		*s = InventoryPostInventoryAgentsDevicesIDReportOKStateNeverReported
+	case InventoryPostInventoryAgentsDevicesIDReportOKStateReplaced:
+		*s = InventoryPostInventoryAgentsDevicesIDReportOKStateReplaced
 	default:
 		*s = InventoryPostInventoryAgentsDevicesIDReportOKState(v)
 	}

@@ -210,6 +210,7 @@ var Operations = map[string]Operation{
 	"honeypot_post_honeypot_tokens_id_test":                  {Method: "POST", Path: "/honeypot/tokens/{id}/test", MinRole: Operator, Tag: "honeypot"},
 	"honeypot_post_honeypot_trap_ips":                        {Method: "POST", Path: "/honeypot/trap-ips", MinRole: Admin, Tag: "honeypot"},
 	"honeypot_put_honeypot_trap_ips_id":                      {Method: "PUT", Path: "/honeypot/trap-ips/{id}", MinRole: Admin, Tag: "honeypot"},
+	"inventory_delete_inventory_agents_nodes_id":             {Method: "DELETE", Path: "/inventory/agents/nodes/{id}", MinRole: Admin, Tag: "inventory"},
 	"inventory_delete_inventory_agents_tokens_id":            {Method: "DELETE", Path: "/inventory/agents/tokens/{id}", MinRole: Admin, Tag: "inventory"},
 	"inventory_delete_inventory_agents_wazuh":                {Method: "DELETE", Path: "/inventory/agents/wazuh", MinRole: Admin, Tag: "inventory"},
 	"inventory_delete_inventory_devices_id":                  {Method: "DELETE", Path: "/inventory/devices/{id}", MinRole: Operator, Tag: "inventory"},

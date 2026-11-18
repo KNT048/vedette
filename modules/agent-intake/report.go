@@ -91,10 +91,6 @@ const (
 	ReportBox     = "box"     // the Vedette box itself: it reads its own packages (inventory job box, hourly), no agent
 )
 
-// reportStale is how long a node may go without calling before an ask is said not to reach it now (review r1 L1 of #953): twice its
-// config refresh (300 s, the install scripts), so a node that is on fetches its config at least once within it.
-const reportStale = 10 * time.Minute
-
 // ReportState is what "I updated it" needs to know of a device's agent.
 type ReportState struct {
 	Agent string
@@ -102,7 +98,7 @@ type ReportState struct {
 	AskedAt time.Time
 	// AskAgainAt is when a new ask is possible (the last ask + reportCooldown) while that is in the future, zero otherwise.
 	AskAgainAt time.Time
-	// LastSeen is when the osquery node last called (config or log), zero when not osquery; Stale says it is older than reportStale.
+	// LastSeen is when the osquery node last called (config or log), zero when not osquery; Stale is State quiet (nodestate.go: three missed config calls).
 	LastSeen time.Time
 	Stale    bool
 	// State, QuietSince and OS are the agent's state (nodestate.go), set for an osquery agent only.
@@ -141,21 +137,33 @@ func (s *Service) reportState(ctx context.Context, device string) (ReportState, 
 		return ReportState{Agent: ReportBox}, askNode{}, nil
 	}
 	if id, ok := strings.CutPrefix(d.Agent, "osquery:"); ok {
-		var asked, taken, seen, enrolled, result, platform string
-		err := s.db.Reader().QueryRowContext(ctx, `SELECT ifnull(report_asked_at, ''), ifnull(software_taken_at, ''), last_seen, enrolled_at, ifnull(last_result_at, ''), ifnull(platform, '') FROM intake_osquery_nodes WHERE id = ?`, id).Scan(&asked, &taken, &seen, &enrolled, &result, &platform)
+		var enrolledS, callS, resultS string
+		var asked, taken string
+		var bound nodeStateRow
+		err := s.db.Reader().QueryRowContext(ctx, `SELECT ifnull(report_asked_at, ''), ifnull(software_taken_at, ''), `+nodeStateCols+` FROM intake_osquery_nodes WHERE id = ?`, id).
+			Scan(&asked, &taken, &bound.id, &bound.tokenID, &bound.host, &bound.hostID, &bound.platform, &enrolledS, &callS, &resultS)
 		switch {
 		case err == nil:
+			bound.enrolled, _ = time.Parse(time.RFC3339Nano, enrolledS)
+			bound.lastCall, _ = time.Parse(time.RFC3339Nano, callS)
+			bound.lastResult, _ = time.Parse(time.RFC3339Nano, resultS)
 			now := s.now()
 			n := askNode{id: id}
 			n.askedAt, _ = time.Parse(time.RFC3339Nano, asked)
 			n.softwareAt, _ = time.Parse(time.RFC3339Nano, taken)
+			// The device stays bound to the first node that read it. When the machine was enrolled again (another token, a re-install),
+			// its state is the newest record's, never the old one's.
+			live := bound
+			if top, found, err := s.newestOf(ctx, bound); err != nil {
+				return ReportState{}, askNode{}, err
+			} else if found && supersededBy(bound, top) {
+				live = top
+			}
 			st := ReportState{Agent: ReportOsquery}
-			st.LastSeen, _ = time.Parse(time.RFC3339Nano, seen)
-			st.Stale = now.Sub(st.LastSeen) > reportStale
-			en, _ := time.Parse(time.RFC3339Nano, enrolled)
-			res, _ := time.Parse(time.RFC3339Nano, result)
-			st.State, st.QuietSince = stateOf(now, en, st.LastSeen, res)
-			st.OS = osOf(platform)
+			st.LastSeen = live.lastCall
+			st.State, st.QuietSince = stateOf(now, live.enrolled, live.lastCall, live.lastResult)
+			st.Stale = st.State == StateQuiet // one rule: "no agent reports this device now" and "quiet" are the same fact
+			st.OS = osOf(live.platform)
 			if askOpen(nodeRow{askedAt: n.askedAt, softwareAt: n.softwareAt}, now) {
 				st.AskedAt = n.askedAt
 			}
@@ -244,4 +252,16 @@ func (s *Service) AskReport(ctx context.Context, actor, device string) (ReportSt
 	}
 	st.AskedAt, st.AskAgainAt = now, now.Add(reportCooldown)
 	return st, nil
+}
+
+// newestOf is the newest record enrolled under the same machine name as n, any token; found is false when n is the newest.
+func (s *Service) newestOf(ctx context.Context, n nodeStateRow) (nodeStateRow, bool, error) {
+	top, err := scanNodeState(s.db.Reader().QueryRowContext(ctx, `SELECT `+nodeStateCols+` FROM intake_osquery_nodes WHERE lower(host_identifier) = lower(?) AND id <> ? ORDER BY enrolled_at DESC LIMIT 1`, n.hostID, n.id))
+	if errors.Is(err, sql.ErrNoRows) {
+		return nodeStateRow{}, false, nil
+	}
+	if err != nil {
+		return nodeStateRow{}, false, fmt.Errorf("agentintake: read newest node: %w", err)
+	}
+	return top, top.enrolled.After(n.enrolled), nil
 }

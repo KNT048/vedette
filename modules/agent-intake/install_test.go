@@ -879,7 +879,7 @@ func TestInstall_WindowsServiceRestartsItself(t *testing.T) {
 		"sc.exe failureflag osqueryd 1",
 		`HKLM:\SYSTEM\CurrentControlSet\Services\osqueryd`,
 		"$svc.DelayedAutostart -ne 1", "$svc.FailureActionsOnNonCrashFailures -ne 1", "[BitConverter]::ToUInt32($fa, 0) -ne 86400", "$restarts -ne 3",
-		"did not take its recovery settings",
+		"did not take its recovery settings", "exit 4", "will NOT restart itself", "sc.exe said:",
 	} {
 		if !strings.Contains(ps1, want) {
 			t.Errorf("the Windows script lacks %q", want)
@@ -889,6 +889,10 @@ func TestInstall_WindowsServiceRestartsItself(t *testing.T) {
 	check, restart := strings.Index(ps1, "did not take its recovery settings"), strings.Index(ps1, "Restart-Service osqueryd")
 	if check < 0 || restart < 0 || check > restart {
 		t.Errorf("the read-back (%d) must come before the restart (%d)", check, restart)
+	}
+	// a failed read-back never leaves the agent stopped: it is a warning and an exit code after the agent enrolled, not a throw
+	if strings.Contains(ps1[strings.Index(ps1, "$recoveryProblem = ''"):], "throw 'The osqueryd service") {
+		t.Error("a failed read-back must not throw before the service is restarted")
 	}
 	if strings.Contains(ps1, "-StartupType Automatic") {
 		t.Error("the service must start delayed-auto, not plain Automatic")

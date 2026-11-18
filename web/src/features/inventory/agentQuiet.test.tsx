@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { AgentQuietNote } from './AgentQuiet'
 import { renderApp } from '@/test/render'
 import { assetsStore, modulesStore } from '@/mocks/stores'
 import { ensureBox } from './mocks'
@@ -29,6 +31,11 @@ describe('A quiet agent is shown where the person looks', () => {
     expect(within(note).getByText('Get-Service osqueryd')).toBeInTheDocument()
     expect(within(note).getByText('Restart-Service osqueryd')).toBeInTheDocument()
     expect(note).toHaveTextContent('PowerShell as Administrator')
+    // the other common cause has its own text and command: the service runs but cannot reach the box
+    expect(note).toHaveTextContent('If the service is stopped')
+    expect(note).toHaveTextContent('If the service is running')
+    expect(note).toHaveTextContent(/firewall or proxy/)
+    expect(await within(note).findByText(/^Test-NetConnection .* -Port \d+$/, undefined, T)).toBeInTheDocument()
   })
 
   it('an agent that called a minute ago shows no warning', async () => {
@@ -51,5 +58,36 @@ describe('A quiet agent is shown where the person looks', () => {
     expect(rows[0]).toHaveTextContent('Quiet')
     expect(rows[0]).toHaveTextContent(/Quiet since/)
     expect(rows[0]).toHaveTextContent('Restart-Service osqueryd')
+  })
+})
+
+describe('The other cases get their own text', () => {
+  it('a Linux agent that never reported is running: no restart command, its own sentence', () => {
+    render(<AgentQuietNote state="never_reported" since={null} os="linux" box="https://10.0.0.5:8443" />)
+    const note = screen.getByTestId('agent-never-reported')
+    expect(note).toHaveTextContent('Agent running, but it has not reported anything yet')
+    expect(screen.queryByText(/systemctl restart/)).toBeNull()
+  })
+
+  it('a quiet Linux agent gets the systemctl commands and a reachability check against the box address it uses', () => {
+    render(<AgentQuietNote state="quiet" since={hoursAgo(5)} os="linux" box="https://10.0.0.5:8443" />)
+    const note = screen.getByTestId('agent-quiet')
+    expect(within(note).getByText('sudo systemctl restart osqueryd')).toBeInTheDocument()
+    expect(within(note).getByText("timeout 5 bash -c '</dev/tcp/10.0.0.5/8443' && echo reachable")).toBeInTheDocument()
+    expect(note).toHaveTextContent('10.0.0.5:8443')
+    expect(note).toHaveTextContent('/etc/init.d/osqueryd')
+  })
+})
+
+describe('A stale agent record is cleared in Settings without revoking the token', () => {
+  it('Remove takes the machine off the list and the device page stops saying quiet', async () => {
+    on()
+    setSeen('a-srvacc', hoursAgo(72))
+    const user = userEvent.setup()
+    renderApp('/devices/setup#agents', { role: 'admin' })
+    const table = await screen.findByRole('table', { name: 'Machines with an osquery agent' }, T)
+    await user.click(await within(table).findByRole('button', { name: 'Remove the record of SRV-ACCOUNTS' }, T))
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Remove the record of SRV-ACCOUNTS' })).toBeNull(), T)
+    expect(screen.getByRole('table', { name: 'Enrollment tokens' })).toBeInTheDocument()
   })
 })

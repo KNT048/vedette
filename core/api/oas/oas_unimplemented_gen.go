@@ -1848,6 +1848,17 @@ func (UnimplementedHandler) HoneypotPutHoneypotTrapIpsID(ctx context.Context, re
 	return r, ht.ErrNotImplemented
 }
 
+// InventoryDeleteInventoryAgentsNodesID implements inventory_delete_inventory_agents_nodes_id operation.
+//
+// Remove one agent record (an uninstalled agent, a decommissioned machine, or the older record of a
+// machine enrolled again) without revoking the token the other machines use. The device it was bound
+// to is released. The agent, if it still runs, enrols again with its token. 404 not_found. Audited.
+//
+// DELETE /inventory/agents/nodes/{id}
+func (UnimplementedHandler) InventoryDeleteInventoryAgentsNodesID(ctx context.Context, params InventoryDeleteInventoryAgentsNodesIDParams) error {
+	return ht.ErrNotImplemented
+}
+
 // InventoryDeleteInventoryAgentsTokensID implements inventory_delete_inventory_agents_tokens_id operation.
 //
 // Revoke an osquery token.

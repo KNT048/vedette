@@ -348,8 +348,10 @@ function agentStateOf(a: Asset): { state: 'reporting' | 'quiet'; quiet_since: st
   const quiet = Date.now() - Date.parse(a.last_seen) > QUIET_AFTER_MS
   return { state: quiet ? 'quiet' : 'reporting', quiet_since: quiet ? a.last_seen : null }
 }
+/** Agent records a person removed in Settings > Agents (by device id; the mock has one record per device). */
+const removedNodes = collection<string[]>('agent_nodes_removed', () => [], () => [])
 function agentNodes(): AgentNode[] {
-  return allAssets().filter((a) => a.id !== BOX_ID && sourcesOf(a).includes('osquery')).map((a) => ({
+  return allAssets().filter((a) => a.id !== BOX_ID && sourcesOf(a).includes('osquery') && !removedNodes.get().includes(a.id)).map((a) => ({
     id: `node-${a.id}`, token_id: 'tk-osquery', host: a.hostname ?? a.ip, os: agentOs(a), ...agentStateOf(a),
     enrolled_at: a.first_seen, last_seen: a.last_seen, last_result_at: a.last_seen,
   })).sort((x, y) => Number(y.state === 'quiet') - Number(x.state === 'quiet') || x.host.localeCompare(y.host))
@@ -361,7 +363,7 @@ function agentReport(id: string): AgentReport | null {
   if (a.id === BOX_ID) return { ...none, agent: 'box' }
   const src = sourcesOf(a)
   const asked = reportAsks.get(id)
-  if (src.includes('osquery')) {
+  if (src.includes('osquery') && !removedNodes.get().includes(a.id)) {
     return { ...none, agent: 'osquery', last_seen: a.last_seen, ...agentStateOf(a), os: agentOs(a), stale: agentStateOf(a).state === 'quiet',
       asked_at: asked !== undefined && Date.now() - asked < REPORT_WINDOW_MS ? new Date(asked).toISOString() : null,
       ask_again_at: asked !== undefined && Date.now() - asked < REPORT_COOLDOWN_MS ? new Date(asked + REPORT_COOLDOWN_MS).toISOString() : null }
@@ -1364,6 +1366,14 @@ export const handlers = [
     return HttpResponse.json({ token, secret }, { status: 201 })
   }),
 
+  http.delete(`${API}/inventory/agents/nodes/:id`, ({ params }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const n = agentNodes().find((x) => x.id === params.id)
+    if (!n) return fail(404, 'not_found', 'No such agent.')
+    removedNodes.update((l) => [...l, n.id.replace(/^node-/, '')])
+    audit('inventory.agent_node_remove', n.host)
+    return new HttpResponse(null, { status: 204 })
+  }),
   http.delete(`${API}/inventory/agents/tokens/:id`, ({ params }) => {
     const denied = guard('admin'); if (denied) return denied
     const t = agentsStore.get().find((x) => x.id === params.id)

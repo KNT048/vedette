@@ -99101,6 +99101,9 @@ func (s *HoneypotPutHoneypotTrapIpsIDReqVendor) UnmarshalText(data []byte) error
 	}
 }
 
+// InventoryDeleteInventoryAgentsNodesIDNoContent is response for InventoryDeleteInventoryAgentsNodesID operation.
+type InventoryDeleteInventoryAgentsNodesIDNoContent struct{}
+
 // InventoryDeleteInventoryAgentsTokensIDNoContent is response for InventoryDeleteInventoryAgentsTokensID operation.
 type InventoryDeleteInventoryAgentsTokensIDNoContent struct{}
 
@@ -99396,6 +99399,7 @@ const (
 	InventoryGetInventoryAgentsDevicesIDReportOKStateReporting     InventoryGetInventoryAgentsDevicesIDReportOKState = "reporting"
 	InventoryGetInventoryAgentsDevicesIDReportOKStateQuiet         InventoryGetInventoryAgentsDevicesIDReportOKState = "quiet"
 	InventoryGetInventoryAgentsDevicesIDReportOKStateNeverReported InventoryGetInventoryAgentsDevicesIDReportOKState = "never_reported"
+	InventoryGetInventoryAgentsDevicesIDReportOKStateReplaced      InventoryGetInventoryAgentsDevicesIDReportOKState = "replaced"
 )
 
 // AllValues returns all InventoryGetInventoryAgentsDevicesIDReportOKState values.
@@ -99404,6 +99408,7 @@ func (InventoryGetInventoryAgentsDevicesIDReportOKState) AllValues() []Inventory
 		InventoryGetInventoryAgentsDevicesIDReportOKStateReporting,
 		InventoryGetInventoryAgentsDevicesIDReportOKStateQuiet,
 		InventoryGetInventoryAgentsDevicesIDReportOKStateNeverReported,
+		InventoryGetInventoryAgentsDevicesIDReportOKStateReplaced,
 	}
 }
 
@@ -99415,6 +99420,8 @@ func (s InventoryGetInventoryAgentsDevicesIDReportOKState) MarshalText() ([]byte
 	case InventoryGetInventoryAgentsDevicesIDReportOKStateQuiet:
 		return []byte(s), nil
 	case InventoryGetInventoryAgentsDevicesIDReportOKStateNeverReported:
+		return []byte(s), nil
+	case InventoryGetInventoryAgentsDevicesIDReportOKStateReplaced:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -99432,6 +99439,9 @@ func (s *InventoryGetInventoryAgentsDevicesIDReportOKState) UnmarshalText(data [
 		return nil
 	case InventoryGetInventoryAgentsDevicesIDReportOKStateNeverReported:
 		*s = InventoryGetInventoryAgentsDevicesIDReportOKStateNeverReported
+		return nil
+	case InventoryGetInventoryAgentsDevicesIDReportOKStateReplaced:
+		*s = InventoryGetInventoryAgentsDevicesIDReportOKStateReplaced
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -99839,8 +99849,9 @@ type InventoryGetInventoryAgentsOKNodesItem struct {
 	// State quiet: when it was last heard; null otherwise.
 	QuietSince NilDateTime `json:"quiet_since"`
 	// Reporting = it checked in within three of its 5-minute config calls; quiet = it did not (quiet_since
-	// is its last check-in); never_reported = it has checked in but delivered no result since it enrolled,
-	// after the first hour.
+	// is its last check-in); never_reported = it calls but has delivered no result since it enrolled,
+	// after the first hour; replaced = a newer agent of the same machine (same name, any token) took over,
+	// so this record is only left to remove.
 	State   InventoryGetInventoryAgentsOKNodesItemState `json:"state"`
 	TokenID string                                      `json:"token_id"`
 }
@@ -99977,14 +99988,16 @@ func (s *InventoryGetInventoryAgentsOKNodesItemOs) UnmarshalText(data []byte) er
 }
 
 // Reporting = it checked in within three of its 5-minute config calls; quiet = it did not (quiet_since
-// is its last check-in); never_reported = it has checked in but delivered no result since it enrolled,
-// after the first hour.
+// is its last check-in); never_reported = it calls but has delivered no result since it enrolled,
+// after the first hour; replaced = a newer agent of the same machine (same name, any token) took over,
+// so this record is only left to remove.
 type InventoryGetInventoryAgentsOKNodesItemState string
 
 const (
 	InventoryGetInventoryAgentsOKNodesItemStateReporting     InventoryGetInventoryAgentsOKNodesItemState = "reporting"
 	InventoryGetInventoryAgentsOKNodesItemStateQuiet         InventoryGetInventoryAgentsOKNodesItemState = "quiet"
 	InventoryGetInventoryAgentsOKNodesItemStateNeverReported InventoryGetInventoryAgentsOKNodesItemState = "never_reported"
+	InventoryGetInventoryAgentsOKNodesItemStateReplaced      InventoryGetInventoryAgentsOKNodesItemState = "replaced"
 )
 
 // AllValues returns all InventoryGetInventoryAgentsOKNodesItemState values.
@@ -99993,6 +100006,7 @@ func (InventoryGetInventoryAgentsOKNodesItemState) AllValues() []InventoryGetInv
 		InventoryGetInventoryAgentsOKNodesItemStateReporting,
 		InventoryGetInventoryAgentsOKNodesItemStateQuiet,
 		InventoryGetInventoryAgentsOKNodesItemStateNeverReported,
+		InventoryGetInventoryAgentsOKNodesItemStateReplaced,
 	}
 }
 
@@ -100004,6 +100018,8 @@ func (s InventoryGetInventoryAgentsOKNodesItemState) MarshalText() ([]byte, erro
 	case InventoryGetInventoryAgentsOKNodesItemStateQuiet:
 		return []byte(s), nil
 	case InventoryGetInventoryAgentsOKNodesItemStateNeverReported:
+		return []byte(s), nil
+	case InventoryGetInventoryAgentsOKNodesItemStateReplaced:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -100021,6 +100037,9 @@ func (s *InventoryGetInventoryAgentsOKNodesItemState) UnmarshalText(data []byte)
 		return nil
 	case InventoryGetInventoryAgentsOKNodesItemStateNeverReported:
 		*s = InventoryGetInventoryAgentsOKNodesItemStateNeverReported
+		return nil
+	case InventoryGetInventoryAgentsOKNodesItemStateReplaced:
+		*s = InventoryGetInventoryAgentsOKNodesItemStateReplaced
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -115238,6 +115257,7 @@ const (
 	InventoryPostInventoryAgentsDevicesIDReportOKStateReporting     InventoryPostInventoryAgentsDevicesIDReportOKState = "reporting"
 	InventoryPostInventoryAgentsDevicesIDReportOKStateQuiet         InventoryPostInventoryAgentsDevicesIDReportOKState = "quiet"
 	InventoryPostInventoryAgentsDevicesIDReportOKStateNeverReported InventoryPostInventoryAgentsDevicesIDReportOKState = "never_reported"
+	InventoryPostInventoryAgentsDevicesIDReportOKStateReplaced      InventoryPostInventoryAgentsDevicesIDReportOKState = "replaced"
 )
 
 // AllValues returns all InventoryPostInventoryAgentsDevicesIDReportOKState values.
@@ -115246,6 +115266,7 @@ func (InventoryPostInventoryAgentsDevicesIDReportOKState) AllValues() []Inventor
 		InventoryPostInventoryAgentsDevicesIDReportOKStateReporting,
 		InventoryPostInventoryAgentsDevicesIDReportOKStateQuiet,
 		InventoryPostInventoryAgentsDevicesIDReportOKStateNeverReported,
+		InventoryPostInventoryAgentsDevicesIDReportOKStateReplaced,
 	}
 }
 
@@ -115257,6 +115278,8 @@ func (s InventoryPostInventoryAgentsDevicesIDReportOKState) MarshalText() ([]byt
 	case InventoryPostInventoryAgentsDevicesIDReportOKStateQuiet:
 		return []byte(s), nil
 	case InventoryPostInventoryAgentsDevicesIDReportOKStateNeverReported:
+		return []byte(s), nil
+	case InventoryPostInventoryAgentsDevicesIDReportOKStateReplaced:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -115274,6 +115297,9 @@ func (s *InventoryPostInventoryAgentsDevicesIDReportOKState) UnmarshalText(data 
 		return nil
 	case InventoryPostInventoryAgentsDevicesIDReportOKStateNeverReported:
 		*s = InventoryPostInventoryAgentsDevicesIDReportOKStateNeverReported
+		return nil
+	case InventoryPostInventoryAgentsDevicesIDReportOKStateReplaced:
+		*s = InventoryPostInventoryAgentsDevicesIDReportOKStateReplaced
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

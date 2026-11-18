@@ -432,7 +432,7 @@ func (s *Service) markResult(ctx context.Context, n nodeRow, ip netip.Addr, mac 
 	ts := store.FormatTS(s.now())
 	gone := false
 	err := s.db.Write(ctx, func(tx *sql.Tx) error {
-		r, err := tx.ExecContext(ctx, `UPDATE intake_osquery_nodes SET last_seen = ?, last_result_at = ? WHERE id = ?`, ts, ts, n.id)
+		r, err := tx.ExecContext(ctx, `UPDATE intake_osquery_nodes SET last_seen = ?1, last_call_at = ?1, last_result_at = ?1 WHERE id = ?2`, ts, n.id)
 		if err != nil {
 			return fmt.Errorf("agentintake: mark node: %w", err)
 		}

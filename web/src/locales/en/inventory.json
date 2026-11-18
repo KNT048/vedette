@@ -617,17 +617,28 @@
   "agents": {
     "quiet": {
       "since": "Agent quiet since {{when}} — check the service on the device",
-      "never": "Agent installed but it has not reported yet — check the service on the device",
+      "sinceUnknown": "Agent quiet — check the service on the device",
+      "stopped": "If the service is stopped",
       "whereWindows": "On the Windows machine, in PowerShell as Administrator:",
       "whereLinux": "On the machine, in a shell with root rights:",
       "check": "Check the service",
       "restart": "Restart the service",
-      "repair": "If it stops again, run the install command from Devices > Scope and sensors > Agents once more: the current script makes the service restart itself after a failure."
+      "sysv": "Without systemd: sudo /etc/init.d/osqueryd status, then sudo /etc/init.d/osqueryd restart.",
+      "running": "If the service is running",
+      "runningBody": "Then it cannot reach Vedette at {{box}}. Check that this machine can open that address, that no firewall or proxy blocks it, and that the box address has not changed.",
+      "runningBodyNoBox": "Then it cannot reach Vedette. Check that this machine can open the box address, that no firewall or proxy blocks it, and that the box address has not changed.",
+      "reach": "Test the connection to Vedette",
+      "repair": "If the box address changed or the agent keeps stopping, run the install command from Devices > Scope and sensors > Agents again: the current script points the agent at the box and makes the service restart itself after a failure."
+    },
+    "neverReported": {
+      "title": "Agent running, but it has not reported anything yet",
+      "body": "It calls Vedette, so the service is running, but it has delivered no results since it was installed. If it stays like this, run the install command again from Devices > Scope and sensors > Agents on that machine, or check that its address is one Vedette knows."
     },
     "state": {
       "reporting": "Reporting",
       "quiet": "Quiet",
-      "never_reported": "Never reported"
+      "never_reported": "Never reported",
+      "replaced": "Replaced by a newer agent"
     },
     "machines": {
       "title": "Machines with an agent",
@@ -646,7 +657,12 @@
       },
       "heard": "Last heard {{when}}",
       "quietSince": "Quiet since {{when}}",
-      "none": "No machine has enrolled yet."
+      "none": "No machine has enrolled yet.",
+      "remove": "Remove",
+      "removeLabel": "Remove the record of {{host}}",
+      "removed": "{{host}} was removed from the list. If its agent still runs, it enrols again by itself.",
+      "replacedNote": "A newer agent of this machine reports. Remove this old record.",
+      "neverNote": "It calls Vedette but has delivered nothing yet."
     },
     "onDevice": {
       "title": "Install osquery on {{name}}",

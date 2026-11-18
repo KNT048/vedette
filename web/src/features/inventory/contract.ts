@@ -261,11 +261,11 @@ export const WazuhInput = z.object({
 })
 export const WazuhTestResult = z.object({ ok: z.literal(true), version: z.string(), agents: z.number().int().describe('Number of Wazuh agents the API user can read') })
 /** How an enrolled osquery agent is doing, from its own check-ins against its own schedule (it asks for its config every 5 minutes). */
-export const AgentState = z.enum(['reporting', 'quiet', 'never_reported'])
+export const AgentState = z.enum(['reporting', 'quiet', 'never_reported', 'replaced'])
 export const AgentOs = z.enum(['windows', 'linux'])
 export const AgentNode = z.object({
   id: z.string(), token_id: z.string(), host: z.string().describe('The name the machine enrolled under'), os: AgentOs,
-  state: AgentState.describe('reporting = it checked in within three of its 5-minute config calls; quiet = it did not (quiet_since is its last check-in); never_reported = it has checked in but delivered no result since it enrolled, after the first hour'),
+  state: AgentState.describe('reporting = it checked in within three of its 5-minute config calls; quiet = it did not (quiet_since is its last check-in); never_reported = it calls but has delivered no result since it enrolled, after the first hour; replaced = a newer agent of the same machine (same name, any token) took over, so this record is only left to remove'),
   enrolled_at: dt, last_seen: dt.describe('Its last call to the box (config or results)'), last_result_at: dt.nullable().describe('Its last delivered result log; null = none yet'),
   quiet_since: dt.nullable().describe('state quiet: when it was last heard; null otherwise'),
 })
@@ -401,6 +401,7 @@ export const endpoints = defineEndpoints([
   { method: 'delete', path: '/inventory/agents/tokens/{id}', summary: 'Revoke an osquery token', stories: ['S-INV-4'], role: 'admin', params: id, response: null },
   { method: 'get', path: '/inventory/agents/devices/{id}/report', summary: 'Which agent of this box reads the device and whether an ask to send its software now is open ("I updated it", S-MIT-1). 404 not_found: no such device; 404 too while agent-intake is off', stories: ['S-MIT-1', 'S-INV-4'], role: 'viewer', params: id, response: AgentReport },
   { method: 'post', path: '/inventory/agents/devices/{id}/report', summary: 'I updated it: ask the device\'s osquery agent to send its software now. For 15 minutes, or until its list arrives, the box\'s config gives the agent\'s software queries (the same read-only queries, nothing else) a 60 s interval; osquery reads its config every 5 minutes. An open ask is answered as it is; a new ask within 10 minutes of the last: 429 rate_limited (retry_after). 409 cannot_ask: no osquery agent of this box reports on the device (Wazuh only, or none). 404 not_found. Audited', stories: ['S-MIT-1', 'S-INV-4'], role: 'operator', params: id, response: AgentReport },
+  { method: 'delete', path: '/inventory/agents/nodes/{id}', summary: 'Remove one agent record (an uninstalled agent, a decommissioned machine, or the older record of a machine enrolled again) without revoking the token the other machines use. The device it was bound to is released. The agent, if it still runs, enrols again with its token. 404 not_found. Audited', stories: ['S-INV-4'], role: 'admin', params: id, response: null },
   { method: 'post', path: '/inventory/agents/tokens/{id}/sample-data', summary: 'PREVIEW ONLY (mock): send sample data as if the agent had reported in, to see the effect', stories: ['S-INV-4'], role: 'admin', params: id, response: SampleResult },
   { method: 'get', path: '/install/osquery.sh', summary: 'One-line osquery install script for Linux (Debian, Ubuntu, RHEL, Rocky, AlmaLinux; x86_64 or arm64), served by the box; public, contains no secrets (the token is passed as a parameter); 404 no_box_address while the box knows no address other machines can reach', stories: ['S-INV-4'], role: 'public', response: 'file' },
   { method: 'get', path: '/install/osquery.ps1', summary: 'osquery install script for Windows Server, served by the box; public, contains no secrets; 404 no_box_address while the box knows no address other machines can reach', stories: ['S-INV-4'], role: 'public', response: 'file' },

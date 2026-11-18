@@ -2343,6 +2343,12 @@ func encodeHoneypotPutHoneypotTrapIpsIDResponse(response *HoneypotPutHoneypotTra
 	return nil
 }
 
+func encodeInventoryDeleteInventoryAgentsNodesIDResponse(response *InventoryDeleteInventoryAgentsNodesIDNoContent, w http.ResponseWriter) error {
+	w.WriteHeader(204)
+
+	return nil
+}
+
 func encodeInventoryDeleteInventoryAgentsTokensIDResponse(response *InventoryDeleteInventoryAgentsTokensIDNoContent, w http.ResponseWriter) error {
 	w.WriteHeader(204)
 

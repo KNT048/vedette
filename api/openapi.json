@@ -45564,9 +45564,10 @@
                             "enum": [
                               "reporting",
                               "quiet",
-                              "never_reported"
+                              "never_reported",
+                              "replaced"
                             ],
-                            "description": "reporting = it checked in within three of its 5-minute config calls; quiet = it did not (quiet_since is its last check-in); never_reported = it has checked in but delivered no result since it enrolled, after the first hour"
+                            "description": "reporting = it checked in within three of its 5-minute config calls; quiet = it did not (quiet_since is its last check-in); never_reported = it calls but has delivered no result since it enrolled, after the first hour; replaced = a newer agent of the same machine (same name, any token) took over, so this record is only left to remove"
                           },
                           "enrolled_at": {
                             "type": "string",
@@ -45813,7 +45814,8 @@
                           "enum": [
                             "reporting",
                             "quiet",
-                            "never_reported"
+                            "never_reported",
+                            "replaced"
                           ]
                         },
                         {
@@ -45981,7 +45983,8 @@
                           "enum": [
                             "reporting",
                             "quiet",
-                            "never_reported"
+                            "never_reported",
+                            "replaced"
                           ]
                         },
                         {
@@ -46051,6 +46054,44 @@
                 }
               }
             }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inventory/agents/nodes/{id}": {
+      "delete": {
+        "operationId": "inventory_delete_inventory_agents_nodes_id",
+        "summary": "Remove one agent record (an uninstalled agent, a decommissioned machine, or the older record of a machine enrolled again) without revoking the token the other machines use. The device it was bound to is released. The agent, if it still runs, enrols again with its token. 404 not_found. Audited",
+        "tags": [
+          "inventory"
+        ],
+        "x-stories": [
+          "S-INV-4"
+        ],
+        "x-min-role": "admin",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done, no content"
           },
           "default": {
             "description": "Error",

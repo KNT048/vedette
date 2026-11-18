@@ -51572,6 +51572,8 @@ func (s InventoryGetInventoryAgentsDevicesIDReportOKState) Validate() error {
 		return nil
 	case "never_reported":
 		return nil
+	case "replaced":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -51867,6 +51869,8 @@ func (s InventoryGetInventoryAgentsOKNodesItemState) Validate() error {
 	case "quiet":
 		return nil
 	case "never_reported":
+		return nil
+	case "replaced":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -58766,6 +58770,8 @@ func (s InventoryPostInventoryAgentsDevicesIDReportOKState) Validate() error {
 	case "quiet":
 		return nil
 	case "never_reported":
+		return nil
+	case "replaced":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

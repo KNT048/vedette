@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils'
 import { InstallOnDeviceDialog } from './InstallAgent'
 import { SnmpSourceActions, SnmpSourceBody, useSnmpSource } from './SnmpCard'
 import { TurnOnModule } from './Inline'
-import { useAgentReport, useDeviceAction, useDeviceSources, useSettings } from './api'
+import { useAgentReport, useAgents, useDeviceAction, useDeviceSources, useSettings } from './api'
 import { AgentQuietNote } from './AgentQuiet'
 import { useScanningHistory } from '@/features/scanning/api'
 import { inRanges } from './AddToScopeDialog'
@@ -126,7 +126,8 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
 
   // An osquery agent that stopped calling is said where the person looks: the report knows it from the agent's own schedule.
   const agentReport = useAgentReport(a.id, agentsOn && feeds.has('agent')).data
-  const agentQuiet = agentReport?.agent === 'osquery' && agentReport.state && agentReport.state !== 'reporting' ? agentReport : null
+  const agentQuiet = agentReport?.agent === 'osquery' && (agentReport.state === 'quiet' || agentReport.state === 'never_reported') ? agentReport : null
+  const boxUrl = useAgents(admin && agentsOn && agentQuiet !== null).data?.server_url
 
   const ownState = snmpOn && admin && !!ip
   const action = (f: Feed): React.ReactNode => {
@@ -192,8 +193,8 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
               </div>
               {f === 'scan' || (f === 'snmp' && snmpOn && snmpSetUp) ? <SourceSwitch d={d} which={f} /> : null}
               {f === 'snmp' && ownState ? <SnmpSourceBody d={d} src={snmp} /> : null}
-              {f === 'agent' && agentQuiet && agentQuiet.state && agentQuiet.state !== 'reporting' && agentQuiet.os
-                ? <AgentQuietNote state={agentQuiet.state} since={agentQuiet.quiet_since} os={agentQuiet.os} /> : null}
+              {f === 'agent' && agentQuiet && (agentQuiet.state === 'quiet' || agentQuiet.state === 'never_reported') && agentQuiet.os
+                ? <AgentQuietNote state={agentQuiet.state} since={agentQuiet.quiet_since} os={agentQuiet.os} box={boxUrl} /> : null}
               {f === 'agent' && agentsOn ? <p className="text-caption text-muted">{t('sources.agent.how')}</p> : null}
             </li>
           )

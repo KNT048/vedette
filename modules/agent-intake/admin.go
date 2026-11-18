@@ -135,6 +135,18 @@ func (h *AdminHandlers) InventoryDeleteInventoryAgentsTokensID(ctx context.Conte
 	return h.s.RevokeToken(ctx, who, params.ID)
 }
 
+// InventoryDeleteInventoryAgentsNodesID implements DELETE /inventory/agents/nodes/{id}: one stale agent record goes, its device is released.
+func (h *AdminHandlers) InventoryDeleteInventoryAgentsNodesID(ctx context.Context, params oas.InventoryDeleteInventoryAgentsNodesIDParams) error {
+	if h.s == nil {
+		return apierr.NotImplemented()
+	}
+	who, err := adminActor(ctx)
+	if err != nil {
+		return err
+	}
+	return h.s.RemoveNode(ctx, who, params.ID)
+}
+
 // reportWire is the wire form of a ReportState (GET and POST answer the same shape): a zero time and a zero interval are null.
 type reportWire struct {
 	asked, again, seen, quiet oas.NilDateTime

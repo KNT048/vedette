@@ -49,7 +49,7 @@ func TestAdmin_RoleCSRFAndModuleOff(t *testing.T) {
 	w := newWorld(t)
 	id, _ := w.token("srv", 7)
 	for _, c := range []struct{ method, path string }{
-		{"GET", "/inventory/agents"}, {"POST", "/inventory/agents/tokens"}, {"DELETE", "/inventory/agents/tokens/" + id},
+		{"GET", "/inventory/agents"}, {"POST", "/inventory/agents/tokens"}, {"DELETE", "/inventory/agents/nodes/" + id}, {"DELETE", "/inventory/agents/tokens/" + id},
 	} {
 		csrf := c.method != "GET"
 		if r := w.as("", c.method, c.path, csrf); r.code != 401 {
@@ -72,7 +72,7 @@ func TestAdmin_RoleCSRFAndModuleOff(t *testing.T) {
 	w.gate.Set("agent-intake", false)
 	unknown := w.as("admin", "GET", "/inventory/nothing", true)
 	for _, c := range []struct{ method, path string }{
-		{"GET", "/inventory/agents"}, {"POST", "/inventory/agents/tokens"}, {"DELETE", "/inventory/agents/tokens/" + id},
+		{"GET", "/inventory/agents"}, {"POST", "/inventory/agents/tokens"}, {"DELETE", "/inventory/agents/nodes/" + id}, {"DELETE", "/inventory/agents/tokens/" + id},
 	} {
 		if r := w.admin(c.method, c.path, map[string]any{"name": "x"}); r.code != 404 || r.raw != unknown.raw {
 			t.Errorf("%s %s while off: %d %s", c.method, c.path, r.code, r.raw)

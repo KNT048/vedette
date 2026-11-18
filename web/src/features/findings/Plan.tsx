@@ -29,18 +29,7 @@ function Severity({ c }: { c: PlanCve }) {
 }
 
 /** The evidence key of a CVE: an agent's row reads "Last reported by an agent" once no agent reports the device (`gone`). */
-/** The command that installs a distribution's updates, for the "confirm with" line of a package Vedette has no fix data for. */
-function upgradeCommand(distro: string): string {
-  const d = distro.toLowerCase()
-  if (d.includes('alpine')) return 'apk upgrade'
-  if (/ubuntu|debian|mint|raspbian/.test(d)) return 'apt upgrade'
-  if (/red hat|rhel|rocky|alma|centos|fedora|oracle|amazon/.test(d)) return 'dnf upgrade'
-  if (d.includes('suse')) return 'zypper update'
-  if (d.includes('arch')) return 'pacman -Syu'
-  return 'its package manager'
-}
-
-const evidenceKey =(basis: PlanCve['basis'], gone: boolean) => (basis === 'agent' && gone ? 'agentLast' : basis)
+const evidenceKey = (basis: PlanCve['basis'], gone: boolean) => (basis === 'agent' && gone ? 'agentLast' : basis)
 
 /** The evidence chip: how Vedette knows the device has the flaw. */
 export function EvidenceChip({ basis, gone = false }: { basis: PlanCve['basis']; gone?: boolean }) {
@@ -134,20 +123,13 @@ function Legend({ item, gone }: { item: PlanItem; gone: boolean }) {
 function PlanRow({ i, action, showDevice, likelyOnly }: { i: PlanItem; action: string; showDevice: boolean; likelyOnly: boolean }) {
   const { t } = useTranslation('findings')
   const gone = i.agent_gone // the box's answer for the device (no request per row)
-  const noData = i.kind === 'distro' && !i.fixed // a package of a distribution whose fix data Vedette does not read
   return (
     <li className="grid min-w-0 gap-1 px-4 py-3">
       <p className="text-sm">
         {showDevice ? <><Link to={`/devices/${i.asset.id}`} className="font-medium text-accent underline-offset-4 hover:underline">{i.asset.name}</Link>{' '}<RiskMarker id={i.asset.id} risk={i.risk} className="align-middle" />{': '}</> : null}
         <span className="font-medium">{action}</span>{': '}
         {/* Microsoft's newest Windows update with none of its CVEs analysed by NVD yet: no count, no list */}
-        {i.cves.length === 0 ? t(noCvesKey(i.nvd_lag)) : noData ? (
-          // no fix data of the distribution: the count is upstream's (NVD's ranges), never "fixes N CVEs" of a package Vedette cannot check
-          <>
-            {t('plan.upstreamFixes', { count: i.cves.length })}
-            {i.likely > 0 ? <> <span className="text-warn">{t('plan.fixesLikely', { count: i.likely })}</span></> : null}
-          </>
-        ) : likelyOnly ? <span className="text-warn">{t('plan.fixesOnlyLikely', { count: i.cves.length })}</span> : (
+        {i.cves.length === 0 ? t(noCvesKey(i.nvd_lag)) : likelyOnly ? <span className="text-warn">{t('plan.fixesOnlyLikely', { count: i.cves.length })}</span> : (
           <>
             {t(planCountKey(i), { count: i.cves.length })}
             {i.likely > 0 ? <> <span className="text-warn">{t('plan.fixesLikely', { count: i.likely })}</span></> : null}
@@ -155,9 +137,6 @@ function PlanRow({ i, action, showDevice, likelyOnly }: { i: PlanItem; action: s
             {i.nvd_lag ? t('plan.nvdLag') : null}
           </>
         )}
-        {noData && i.cves.length > 0 ? <span className="block text-meta text-muted">{!i.distro ? t('plan.noDistroDataAny')
-          // Vedette reads Ubuntu's and Debian's fix data: there the package could not be matched to it, not "no data"
-          : t(/^(ubuntu|debian)\b/i.test(i.distro) ? 'plan.unmatchedDistroData' : 'plan.noDistroData', { distro: i.distro, command: upgradeCommand(i.distro) })}</span> : null}
         {gone ? <span className="block text-meta text-muted">{i.agent_reported ? t('plan.lastReported', { date: fmtDate(i.agent_reported) }) : t('plan.lastReportedNoDate')}</span> : null}
         {i.kind === 'distro' && i.distro_data === 'none' ? <span className="block text-meta text-muted">{t('plan.noDataNote')}</span> : null}
       </p>

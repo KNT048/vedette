@@ -54,7 +54,7 @@ export function DoneLine({ group, action, done }: { group: string; action: strin
   return (
     <span className="flex flex-wrap items-center gap-x-2 text-meta text-muted">
       <span>{t('plan.done.line', { by: done.by, date: fmtDate(done.at) })}{done.note ? `: ${done.note}` : ''}</span>
-      <Button size="sm" variant="link" className="px-0" disabled={!can} busy={undo.isPending} aria-label={t('plan.done.undoFor', { action })}
+      <Button size="sm" variant="link" className="px-0" disabled={!can} busy={undo.isPending} busyLabel={t('common:busy.saving')} aria-label={t('plan.done.undoFor', { action })}
         title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })}
         onClick={() => undo.mutate(group, { onSuccess: () => toast.success(t('plan.done.undone')), onError: (e) => toast.error(errMsg(e)) })}>{t('plan.done.undo')}</Button>
     </span>

@@ -22,7 +22,7 @@ import { useCan } from '@/lib/session'
 import type { AssetKind, Service } from '@/lib/types'
 import { categoryLabel, categoryOf, kindLabel, TYPES_BY_CATEGORY } from '@/lib/deviceTypes'
 import { AddDeviceDialog } from './AddDeviceDialog'
-import { useDevice, useDeviceAction } from './api'
+import { useDevice, useDeviceAction, useEffectiveSoftware } from './api'
 import { DetectedNotice } from './DetectedNotice'
 import { useScanning } from '@/features/scanning/api'
 import { scanRefusal } from '@/features/scanning/canScan'
@@ -40,7 +40,7 @@ import { DeviceSources } from './DeviceSources'
 import { PossibleSameNotice } from './SameDevice'
 import { BoxNotice } from './BoxNotice'
 import { IgnoreDialog, IgnoredNotice } from './IgnoreDevice'
-import type { DeviceDetail, Observation, RegularScan, SoftwareView } from './types'
+import type { AlsoSeen, DeviceDetail, EffectiveSoftware, Observation, RegularScan, SoftwareView } from './types'
 import { RiskMarker } from './RiskMarker'
 
 /** #944: the fragile line promises a scan only when Vedette may scan the device now, by the one rule
@@ -281,13 +281,27 @@ function Services({ list, by, asset }: { list: Service[]; by: PortsBy; asset: De
 }
 
 const VERSION_RE = /^[A-Za-z0-9_.\-+() ]{1,40}$/ // the backend's versionRE: what "edit version" accepts
-const sameProduct = (a: SoftwareView, b: SoftwareView) => a.vendor.toLowerCase() === b.vendor.toLowerCase() && a.product.toLowerCase() === b.product.toLowerCase()
 
-/** A version a person typed (or left empty) that an agent or scan sees differently on the same device. */
-function seenVersion(sw: SoftwareView, list: SoftwareView[]) {
-  if (sw.source !== 'manual') return null
-  const typed = (sw.version ?? '').trim().toLowerCase()
-  return list.find((o) => o.source !== 'manual' && o.version && sameProduct(o, sw) && o.version.trim().toLowerCase() !== typed) ?? null
+/** A software the page shows as one line: the row the effective reading comes from, with the other sources (INV-50) when known. */
+type SoftwareLine = { sw: SoftwareView; eff?: EffectiveSoftware }
+
+/** The lines of the Software tab: one per software, from the effective rows; any other row of the device (a "not installed" mark, a
+ *  correction that rests) stays a line of its own. Without the effective answer (still loading, or failed) every row is a line. */
+function softwareLines(rows: SoftwareView[], eff: EffectiveSoftware[] | undefined): SoftwareLine[] {
+  const byId = new Map(rows.map((r) => [r.id, r]))
+  const shown = (r: SoftwareView) => !(r.corrected_by && rows.some((c) => c.id === r.corrected_by && c.correction?.not_installed && c.correction.active))
+  if (!eff) return rows.filter(shown).map((sw) => ({ sw }))
+  const covered = new Set(eff.flatMap((e) => [e.id, ...e.also_seen.map((o) => o.id)]))
+  const lines: SoftwareLine[] = eff.flatMap((e) => { const sw = byId.get(e.id); return sw ? [{ sw, eff: e }] : [] })
+  return [...lines, ...rows.filter((r) => !covered.has(r.id) && shown(r)).map((sw) => ({ sw }))]
+}
+
+/** "Also seen by: 10.2 (Active scan, 2 hours ago)": the other sources of the software, quiet evidence under its value. */
+function AlsoSeenLine({ also }: { also: AlsoSeen[] }) {
+  const { t } = useTranslation('inventory')
+  if (!also.length) return null
+  const reads = also.map((o) => t('software.alsoSeenItem', { version: o.version || t('software.noVersion'), source: t(`common:source.${o.source}`), when: fmtRelative(o.seen_at) }))
+  return <span className="text-caption text-muted [overflow-wrap:anywhere]" data-testid="software-also-seen">{t('software.alsoSeen', { reads: reads.join('; ') })}</span>
 }
 
 function SoftwareList({ d }: { d: DeviceDetail }) {
@@ -299,8 +313,10 @@ function SoftwareList({ d }: { d: DeviceDetail }) {
   // What each software row needs, from the same answer as Findings › To fix
   const needs = useSoftwareNeeds(d.asset.id)
   // INV-41 (6): a reported row a person said is not installed is shown once, as that "not installed" row (with Clear)
-  const notInstalledIn = (sw: SoftwareView) => !!sw.correction?.not_installed
-  const list = d.asset.software.filter((sw) => !(sw.corrected_by && d.asset.software.some((c) => c.id === sw.corrected_by && notInstalledIn(c) && c.correction?.active)))
+  const effective = useEffectiveSoftware(d.asset.id)
+  const lines = softwareLines(d.asset.software, effective.data?.items)
+  const list = lines.map((l) => l.sw)
+  const lineOf = new Map(lines.map((l) => [l.sw.id, l]))
   // The OS the device uses has a line of its own when no row shows it (an OS from the agent, SNMP or the device's LLDP statement);
   // a network scan's OS guess, or the OS row a person declared, is its own row, never also a line. The box's own OS is its package list.
   const os = d.asset.os
@@ -327,16 +343,18 @@ function SoftwareList({ d }: { d: DeviceDetail }) {
         </div>
       )
     }
-    const seen = seenVersion(sw, list)
-    const v = seen?.version ?? ''
+    const eff = lineOf.get(sw.id)?.eff
+    // INV-50: the one notice, only when another source reads another release (`differs`); the same release is quiet evidence below
+    const differing = eff?.differs ? eff.also_seen.find((o) => !o.same_release) : undefined
+    const v = differing?.version ?? ''
     return (
       <div className="grid gap-1">
         <span>{sw.version || <span className="text-muted">{t(sw.basis === 'guess' ? 'software.guessNoVersion' : 'software.noVersion')}</span>}</span>
         <EnteredNote assetId={d.asset.id} sw={sw} />
-        {seen ? (
-          <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-caption text-warn">
-            {t('software.seen', { version: v, source: t(`common:source.${seen.source}`) })}
-            {VERSION_RE.test(v) ? (
+        {differing ? (
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-caption text-warn" data-testid="software-differs">
+            {t('software.differs', { version: v || t('software.noVersion'), source: t(`common:source.${differing.source}`), when: fmtRelative(differing.seen_at) })}
+            {sw.source === 'manual' && VERSION_RE.test(v) ? (
               <Button size="sm" variant="secondary" disabled={!can || act.setVersion.isPending} busy={act.setVersion.isPending && act.setVersion.variables?.sid === sw.id} busyLabel={t('common:busy.saving')} title={needRole} aria-label={t('software.acceptLabel', { version: v, name: sw.display })}
                 onClick={() => act.setVersion.mutate({ sid: sw.id, version: v }, { onSuccess: () => toast.success(t('software.edited', { name: sw.display, version: v })), onError: (e) => toast.error(errMsg(e)) })}>
                 {t('software.accept', { version: v })}
@@ -344,6 +362,7 @@ function SoftwareList({ d }: { d: DeviceDetail }) {
             ) : null}
           </span>
         ) : null}
+        <AlsoSeenLine also={eff?.also_seen ?? []} />
       </div>
     )
   }

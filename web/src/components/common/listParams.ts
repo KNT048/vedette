@@ -10,6 +10,9 @@ export function listKey(caption: string): string {
   return caption.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 24).replace(/-+$/, '') || 'list'
 }
 
+/** The largest page a server-paged list accepts (the API's limit cap): a bigger size in the URL reads as this one. */
+export const MAX_PAGE_SIZE = 200
+
 const int = (v: string | null) => {
   const n = v === null ? Number.NaN : Number.parseInt(v, 10)
   return Number.isFinite(n) && n > 0 ? n : undefined
@@ -22,7 +25,8 @@ function useUrlList(key: string): ListParams {
   const k = useCallback((n: string) => `${key}.${n}`, [key])
   const q = params.get(k('q')) ?? ''
   const page = (int(params.get(k('page'))) ?? 1) - 1
-  const size = int(params.get(k('size')))
+  const asked = int(params.get(k('size')))
+  const size = asked === undefined ? undefined : Math.min(asked, MAX_PAGE_SIZE)
   const set = useCallback((patch: Partial<ListState>) => {
     setParams((prev) => {
       const p = new URLSearchParams(prev)

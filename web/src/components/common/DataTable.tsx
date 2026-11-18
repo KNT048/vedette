@@ -89,6 +89,10 @@ export function DataTable<T>({ data, columns, filterPlaceholder, onRowClick, row
   const page = Math.min(list.page, pages - 1)
   if (page !== list.page) table.setOptions((o) => ({ ...o, state: { ...o.state, pagination: pagination(page) } }))
   const rows = table.getRowModel().rows
+  // A server-paged list asked for a page past the last (an old link, rows that aged out): the server returned none, so ask for the
+  // last page instead of showing an empty table under a pager that says otherwise
+  const pastEnd = !!server && list.page > pages - 1 && data.length === 0
+  useEffect(() => { if (pastEnd) list.set({ page: pages - 1 }) }, [pastEnd, pages, list])
   // The page's own filters changed: back to page 1
   const lastReset = useRef(resetPageOn)
   useEffect(() => {

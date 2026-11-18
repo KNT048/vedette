@@ -174,3 +174,43 @@ func TestIocPairsFeedsOff(t *testing.T) {
 		t.Fatalf("%+v", r)
 	}
 }
+
+// Hits on several sub-domains of one listed name are one row per device, named by the listed name, as in the digest; the other
+// devices count every device that reached that listed name.
+func TestIocPairsGroupByListedName(t *testing.T) {
+	t.Parallel()
+	e, _, _, _ := iocEnv(t)
+	now := e.svc.now()
+	if err := e.vol.Write(t.Context(), func(tx *sql.Tx) error {
+		for i, h := range []struct{ src, dest, listed string }{
+			{"192.168.10.1", "a.bad.example", "bad.example"}, {"192.168.10.1", "b.bad.example", "bad.example"},
+			{"192.168.10.2", "c.bad.example", "bad.example"}, {"192.168.10.3", "bad.example", ""},
+		} {
+			if _, err := tx.ExecContext(t.Context(), `INSERT INTO logs_ioc_hits (id, ts, src_ip, dest, dest_kind, seen_via, feeds, confidence, source_id, blocked, listed_as)
+				VALUES (?, ?, ?, ?, 'domain', 'syslog:FW-HQ', '["URLhaus"]', 0.8, 'ls-x', 0, ?)`, fmt.Sprintf("h-%d", i), store.FormatTS(now.Add(-time.Duration(i)*time.Minute)), h.src, h.dest, h.listed); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := e.svc.IocPairs(t.Context(), IocPairQuery{Window: "24h", Sort: "hits"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Total != 3 {
+		t.Fatalf("one row per device and listed name: %+v", got.Items)
+	}
+	for _, p := range got.Items {
+		if p.OtherDevices != 2 {
+			t.Fatalf("other devices of %s from %s = %d", p.Dest, p.SrcIP, p.OtherDevices)
+		}
+		if p.SrcIP == "192.168.10.1" && (p.Dest != "bad.example" || p.Hits != 2 || p.ListedAs != nil) {
+			t.Fatalf("two sub-domains of one listed name: %+v", p)
+		}
+		if p.SrcIP == "192.168.10.2" && (p.Dest != "c.bad.example" || p.ListedAs == nil || *p.ListedAs != "bad.example") {
+			t.Fatalf("one sub-domain keeps its name and the listed one: %+v", p)
+		}
+	}
+}

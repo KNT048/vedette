@@ -59,11 +59,16 @@ type IocPairQuery struct {
 	Offset, Limit   int
 }
 
-// iocPairsSQL groups the hits of the range by source address and destination. other is a window function over the groups: the source
-// addresses of the same destination, this one left out.
-const iocPairsSQL = `SELECT src_ip, dest, dest_kind, max(listed_as), count(*), min(ts), max(ts), max(confidence), sum(blocked),
-	json_group_array(DISTINCT feeds), json_group_array(DISTINCT seen_via), count(*) OVER (PARTITION BY dest_kind, dest) - 1
-	FROM logs_ioc_hits WHERE ts >= ? GROUP BY src_ip, dest_kind, dest`
+// iocPairsSQL groups the hits of the range by source address and listed destination (the name a feed lists: hits on several
+// sub-domains of one listed name are one row, as in the digest, INV-7). The row names the one name asked for, or the listed name when
+// several were. other is a window function over the groups: the source addresses of the same listed destination, this one left out.
+const iocPairsSQL = `SELECT src_ip, CASE WHEN count(DISTINCT dest) > 1 THEN ` + iocListedKey + ` ELSE max(dest) END, dest_kind,
+	CASE WHEN count(DISTINCT dest) > 1 THEN '' ELSE max(listed_as) END, count(*), min(ts), max(ts), max(confidence), sum(blocked),
+	json_group_array(DISTINCT feeds), json_group_array(DISTINCT seen_via), count(*) OVER (PARTITION BY dest_kind, ` + iocListedKey + `) - 1
+	FROM logs_ioc_hits WHERE ts >= ? GROUP BY src_ip, dest_kind, ` + iocListedKey
+
+// iocListedKey is the listed name of a hit: listed_as when the feed lists a parent of the name asked for, else the name itself.
+const iocListedKey = `coalesce(nullif(listed_as, ''), dest)`
 
 // IocPairs lists the connections to listed destinations of the range, one row per source address and destination (INV-7). With the
 // feeds module off the list is empty, as in the digest (PRE-3).

@@ -48,4 +48,24 @@ describe('the device Software tab, one line per software', () => {
     expect(within(ssh!).getByTestId('software-also-seen').textContent).toMatch(/Active scan/)
     expect(within(ssh!).queryByTestId('software-differs')).toBeNull()
   })
+
+  it('an entry and a later SNMP reading of another release: the notice names the SNMP reading', async () => {
+    assetsStore.update((l) => l.map((a) => (a.id === 'a-fw01' ? { ...a, software: [...a.software.filter((s) => s.id !== 's-fw01-ssh-agent'), { id: 's-fw01-ssh-snmp', display: 'OpenSSH', vendor: 'OpenBSD', product: 'OpenSSH', version: '9.8', kev: [], source: 'snmp' as const, confidence: 0.8 }] } : a)))
+    renderApp('/devices/a-fw01?tab=software')
+    await waitFor(async () => expect(await row('OpenSSH')).toHaveLength(1), T)
+    const [ssh] = await row('OpenSSH')
+    expect(within(ssh!).getByTestId('software-differs').textContent).toMatch(/SNMP reads 9\.8/)
+  })
+
+  it('an agent line with an outranked entry of another release: no notice for the entry', async () => {
+    assetsStore.update((l) => l.map((a) => (a.id === 'a-fw01' ? { ...a, software: [...a.software.filter((s) => !s.id.startsWith('s-fw01-ssh')),
+      { id: 's-fw01-ssh-agent', display: 'OpenSSH', vendor: 'OpenBSD', product: 'OpenSSH', version: '10.2p1', kev: [], source: 'agent' as const, confidence: 0.95 },
+      { id: 's-fw01-ssh-hand', display: 'OpenSSH', vendor: 'OpenBSD', product: 'OpenSSH', version: '9.0', kev: [], source: 'manual' as const, confidence: 1 }] } : a)))
+    renderApp('/devices/a-fw01?tab=software')
+    await waitFor(async () => expect(await row('OpenSSH')).toHaveLength(1), T)
+    const [ssh] = await row('OpenSSH')
+    expect(within(ssh!).getByText('10.2p1')).toBeInTheDocument()
+    expect(within(ssh!).getByTestId('software-also-seen').textContent).toMatch(/9\.0 \(Manual/)
+    expect(within(ssh!).queryByTestId('software-differs')).toBeNull()
+  })
 })

@@ -440,7 +440,8 @@
     "saved": "Notes saved."
   },
   "setup": {
-    "link": "Scope, sensors and agents",
+    "link": "Settings",
+    "linkLabel": "Device discovery settings",
     "titleLoading": "Scope, sensors and agents",
     "meta": "Vedette only listens and lightly scans inside the scope you set here.",
     "metaInfo": "Vedette does not block traffic.",

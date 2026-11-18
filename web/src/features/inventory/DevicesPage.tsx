@@ -171,7 +171,10 @@ function useDeviceQuery() {
 type Query = ReturnType<typeof useDeviceQuery>
 
 /** The search box of both lists. */
-function DeviceSearch({ rows, now, query, same }: { rows: DeviceRow[]; now: number; query: Query; same: SameIds }) {
+/** What Body puts in the toolbar of both lists: the count line and the page's buttons. */
+type Bar = { summary: React.ReactNode; actions: React.ReactNode }
+
+function DeviceSearch({ rows, now, query, same, bar }: { rows: DeviceRow[]; now: number; query: Query; same: SameIds; bar: Bar }) {
   const { t } = useTranslation('inventory')
   const keys = useMemo(() => deviceKeys(rows, now, same), [rows, now, same])
   const count = (key: string, value: string) => keys.find((x) => x.key === key)?.values?.find((v) => v.value === value)?.count
@@ -188,7 +191,7 @@ function DeviceSearch({ rows, now, query, same }: { rows: DeviceRow[]; now: numb
   ]
   // A chip that would show 0 is left out (To review would read "SNMP 0, osquery 0, Manual 0"), unless it is on (#849 review L11).
   const shownChips = chips.filter((c) => c.count !== 0 || hasToken(query.q, c.token))
-  return <TokenSearch value={query.q} onChange={query.setQ} keys={keys} chips={shownChips} label={t('search.label')} placeholder={t('search.placeholder')} chipsLabel={t('search.chipsLabel')} />
+  return <TokenSearch value={query.q} onChange={query.setQ} keys={keys} chips={shownChips} label={t('search.label')} placeholder={t('search.placeholder')} chipsLabel={t('search.chipsLabel')} summary={bar.summary} actions={bar.actions} />
 }
 
 /** "12 of 40 devices", read out as the list changes (WCAG 4.1.3): the live region is always there (empty without a search), so the
@@ -204,7 +207,7 @@ function MatchLine({ q, shown, total, onClear }: { q: string; shown: number; tot
 }
 
 /** Devices: the approved list (#849). */
-function DevicesList({ rows, now, query, same }: { rows: DeviceRow[]; now: number; query: Query; same: SamePairsBy }) {
+function DevicesList({ rows, now, query, same, bar }: { rows: DeviceRow[]; now: number; query: Query; same: SamePairsBy; bar: Bar }) {
   const { t } = useTranslation('inventory')
   const navigate = useNavigate()
   const { q, clear } = query
@@ -262,7 +265,7 @@ function DevicesList({ rows, now, query, same }: { rows: DeviceRow[]; now: numbe
   ]
   return (
     <section aria-label={t('tabs.devices')} className="grid min-w-0 gap-3">
-      <DeviceSearch rows={rows} now={now} query={query} same={same.ids} />
+      <DeviceSearch rows={rows} now={now} query={query} same={same.ids} bar={bar} />
       <MatchLine q={q} shown={shown.length} total={rows.length} onClear={clear} />
       {selecting ? <div className="flex flex-wrap items-center gap-2"><Slot name={DEVICES_ACTIONS_SLOT} props={{ selectedIds: [...sel], selected: rows.filter((d) => sel.has(d.id)), clearSelection: ops.clear }} /></div> : null}
       <DataTable caption={t('table.caption')} data={shown} columns={columns} initialSort={[{ id: 'seen', desc: true }]} fillColumn="name"
@@ -300,14 +303,14 @@ function DevicesList({ rows, now, query, same }: { rows: DeviceRow[]; now: numbe
 }
 
 /** To review: found by a scan or by listening, not approved yet (S-INV-3). Same search box. */
-function ReviewList({ rows, now, notifyNew, notifyAvailable, query, same }: { rows: DeviceRow[]; now: number; notifyNew: boolean; notifyAvailable: boolean; query: Query; same: SamePairsBy }) {
+function ReviewList({ rows, now, notifyNew, notifyAvailable, query, same, bar }: { rows: DeviceRow[]; now: number; notifyNew: boolean; notifyAvailable: boolean; query: Query; same: SamePairsBy; bar: Bar }) {
   const { q, clear } = query
   const deferred = useDeferredValue(q)
   const shown = useMemo(() => filterDevices(rows, deferred, now, same.ids), [rows, deferred, now, same.ids])
   return (
     <section className="grid min-w-0 gap-3">
       <PendingPanel items={shown} total={rows.length} notifyNew={notifyNew} notifyAvailable={notifyAvailable} sameAs={same.others}
-        search={<><DeviceSearch rows={rows} now={now} query={query} same={same.ids} /><MatchLine q={q} shown={shown.length} total={rows.length} onClear={clear} /></>} filtered={!!q} onClear={clear} />
+        search={<><DeviceSearch rows={rows} now={now} query={query} same={same.ids} bar={bar} /><MatchLine q={q} shown={shown.length} total={rows.length} onClear={clear} /></>} filtered={!!q} onClear={clear} />
     </section>
   )
 }
@@ -367,20 +370,25 @@ function Body() {
     </p>
   ) : null
   const pending = lists.pending.length
-  const title = !q.data ? t('list.titleLoading') : all === 0 ? t('list.titleEmpty') : all === 1 && lists.approved[0]?.is_box ? t('list.titleBoxOnly') : pending > 0 ? t('list.title', { count: all, pending }) : t('list.titleAllApproved', { count: all })
+  // The title names the page; "12 devices, 2 not yet approved" is the small line of the toolbar over the list
+  const title = !q.data ? t('list.titleLoading') : all === 0 ? t('list.titleEmpty') : all === 1 && lists.approved[0]?.is_box ? t('list.titleBoxOnly') : t('list.titleLoading')
+  const countLine = pending > 0 ? t('list.title', { count: all, pending }) : t('list.titleAllApproved', { count: all })
+  // Export, Settings and Add live in the list's toolbar; with no list yet (loading, no devices) the header keeps Settings and Add.
+  const buttons = (withExport: boolean) => (
+    <>
+      {/* Nothing to export before the first device */}
+      {withExport && all > 0 ? <DownloadButton variant="ghost" path="/inventory/export.csv" filename="vedette-devices.csv" onError={(e) => toast.error(errMsg(e))}><Download />{t('export')}</DownloadButton> : null}
+      {canAdmin ? <Link to="/devices/setup" aria-label={t('setup.linkLabel')} title={t('setup.linkLabel')} className={cn(buttonVariants({ variant: 'ghost' }))}><Settings2 />{t('setup.link')}</Link> : null}
+      <Button variant="primary" disabled={!canOp} title={needRole} onClick={() => setAdd('manual')}><Plus />{t('add.open')}</Button>
+    </>
+  )
+  const bar: Bar = { summary: <span className="text-meta text-muted tabular-nums">{countLine}</span>, actions: buttons(true) }
 
   return (
     <>
       <PageHeader title={title} stories={['S-INV-1', 'S-INV-2', 'S-INV-3', 'S-INV-4']}
         meta={<span className="inline-flex flex-wrap items-center gap-2"><SampleDataNote />{t('list.meta')}</span>} info={t('list.metaInfo')}
-        actions={
-          <>
-            {/* Nothing to export before the first device */}
-            {all > 0 ? <DownloadButton path="/inventory/export.csv" filename="vedette-devices.csv" onError={(e) => toast.error(errMsg(e))}><Download />{t('export')}</DownloadButton> : null}
-            {canAdmin ? <Link to="/devices/setup" className={cn(buttonVariants({ variant: 'secondary' }))}><Settings2 />{t('setup.link')}</Link> : null}
-            <Button variant="primary" disabled={!canOp} title={needRole} onClick={() => setAdd('manual')}><Plus />{t('add.open')}</Button>
-          </>
-        } />
+        actions={all === 0 ? buttons(false) : undefined} />
       {/* what the box changed by itself in SNMP settings, for an admin, until dismissed */}
       <SnmpNotices />
       <QueryState query={q}>
@@ -395,8 +403,8 @@ function Body() {
               {/* #949: findings could not answer; the list still shows, quietly without risk marks */}
               {d.risk_unavailable ? <p role="status" className="mb-3 text-meta text-muted">{t('risk.unavailable')}</p> : null}
               <PageTabs label={t('tabs.label')} tabs={[
-                { id: 'devices', label: t('tabs.devices'), panel: <DevicesList rows={lists.approved} now={now} query={query} same={same} /> },
-                { id: 'review', label: t('tabs.review'), panel: <ReviewList rows={lists.pending} now={now} notifyNew={d.notify_new} notifyAvailable={d.notify_available} query={query} same={same} />, badge: { count: pending, label: t('tabs.reviewBadge'), tone: 'off' } },
+                { id: 'devices', label: t('tabs.devices'), panel: <DevicesList rows={lists.approved} now={now} query={query} same={same} bar={bar} /> },
+                { id: 'review', label: t('tabs.review'), panel: <ReviewList rows={lists.pending} now={now} notifyNew={d.notify_new} notifyAvailable={d.notify_available} query={query} same={same} bar={bar} />, badge: { count: pending, label: t('tabs.reviewBadge'), tone: 'off' } },
                 // The devices a person ignored, only while there are any (an old ?tab=ignored link lands on Devices then)
                 ...(d.counts.ignored > 0 ? [{ id: 'ignored', label: t('tabs.ignoredCount', { count: d.counts.ignored }), panel: <IgnoredPanel /> }] : []),
               ]} />

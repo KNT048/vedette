@@ -105,11 +105,27 @@ describe('TokenSearch (#849)', () => {
   it('chips toggle their token and say whether they are on', async () => {
     const user = userEvent.setup()
     render(<Harness initial="cisco" />)
-    const chips = screen.getByRole('group', { name: 'Common filters' })
-    await user.click(within(chips).getByRole('button', { name: 'Fragile 4' }))
+    const filters = screen.getByRole('button', { name: 'Filters' })
+    await user.click(filters)
+    await user.click(await screen.findByRole('menuitemcheckbox', { name: 'Fragile 4' }))
     expect(q()).toBe('cisco fragile')
-    expect(within(chips).getByRole('button', { name: 'Fragile 4' })).toHaveAttribute('aria-pressed', 'true')
-    await user.click(within(chips).getByRole('button', { name: 'Fragile 4' }))
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Fragile 4' })).toBeChecked() // the menu stays open for a second pick
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(filters).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'Filters 1' })).toBeInTheDocument()
+    // the active filter is a removable chip
+    await user.click(screen.getByRole('button', { name: 'Remove filter Fragile' }))
     expect(q()).toBe('cisco')
+    expect(screen.queryByRole('button', { name: /^Remove filter/ })).toBeNull()
+  })
+
+  it('Clear filters shows with two or more filters on and removes only the filters, not the typed words', async () => {
+    const user = userEvent.setup()
+    render(<Harness initial="cisco fragile source:snmp" />)
+    expect(screen.getAllByRole('button', { name: /^Remove filter/ })).toHaveLength(2)
+    await user.click(screen.getByRole('button', { name: 'Clear filters' }))
+    expect(q()).toBe('cisco')
+    expect(screen.queryByRole('button', { name: 'Clear filters' })).toBeNull()
   })
 })

@@ -2006,8 +2006,10 @@ describe('exposure: deep scan of a domain\'s addresses (S-EXP-2)', () => {
     ]) expect(terms.textContent).toContain(sentence)
     expect(terms.textContent).not.toContain('yours alone')
     const ip = (await call('GET', '/exposure/targets/xt-2')).json as { terms_notice: { text: string; version: string } }
-    expect(ip.terms_notice.version).toBe('2026-11-18')
+    expect(ip.terms_notice.version).toBe('2026-11-18b')
     expect(ip.terms_notice.text).toContain('Accept only if 203.0.113.10 is yours alone')
+    // the terms say the box also scans on the schedule, never with the disruptive checks
+    expect(ip.terms_notice.text).toContain('Vedette also scans 203.0.113.10 by itself on the schedule set on its page (weekly unless changed), never with the disruptive checks below, until that schedule is turned off.')
     expect(ip.terms_notice.text).not.toContain('Verifying a name')
   })
 

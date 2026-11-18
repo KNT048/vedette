@@ -209,6 +209,7 @@ const (
 	InventoryGetInventoryCatalogOperation                    OperationName = "InventoryGetInventoryCatalog"
 	InventoryGetInventoryDevicesOperation                    OperationName = "InventoryGetInventoryDevices"
 	InventoryGetInventoryDevicesIDOperation                  OperationName = "InventoryGetInventoryDevicesID"
+	InventoryGetInventoryDevicesIDSoftwareOperation          OperationName = "InventoryGetInventoryDevicesIDSoftware"
 	InventoryGetInventoryExportCsvOperation                  OperationName = "InventoryGetInventoryExportCsv"
 	InventoryGetInventoryImportTemplateCsvOperation          OperationName = "InventoryGetInventoryImportTemplateCsv"
 	InventoryGetInventoryPossibleSameOperation               OperationName = "InventoryGetInventoryPossibleSame"

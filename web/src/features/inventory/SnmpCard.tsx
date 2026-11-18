@@ -22,6 +22,7 @@ import { ScopeButton } from '@/features/scanning/Fixes'
 import { useDeviceAction, useDeviceSnmp, useDeviceSnmpActions, useDeviceSources, useDismissSnmpNotices, useSnmp } from './api'
 import { errMsg } from './kinds'
 import { hasSnmpCard, nameOf } from './nameOf'
+import { SnmpSimilarButton } from './SnmpSimilar'
 import type { DeviceDetail, DeviceSnmp, DeviceSnmpInput, SnmpAuth, SnmpDeviceRow, SnmpPriv, SnmpState, SnmpVersion } from './types'
 import { IPV4_RE_UI, isPrivateCidr, LOCAL_RANGE_NAMES } from './validate'
 
@@ -94,6 +95,7 @@ function SnmpPanel({ d }: { d: DeviceDetail }) {
   const actions = !s ? null : setUp ? (
     <>
       <Button variant="primary" busy={act.check.isPending} busyLabel={t('common:busy.checking')} disabled={act.remove.isPending} onClick={check}>{t('deviceSnmp.check.button')}</Button>
+      {s.state === 'working' ? <SnmpSimilarButton id={id} /> : null}
       <Button onClick={() => setEditing(true)}><Pencil />{t('deviceSnmp.edit')}</Button>
       <Button onClick={() => setRemoving(true)}><Trash2 />{t('deviceSnmp.remove')}</Button>
     </>

@@ -74,6 +74,8 @@ type Config struct {
 type Service struct {
 	db  *store.DB
 	inv Inventory
+	// bg holds the background SNMP reads ApplySNMPToSimilar queues
+	bg sync.WaitGroup
 	// pendingQueued: queuePendingOnce has queued the devices waiting for their gentle scan in this process
 	pendingQueued atomic.Bool
 	obs           observe.Sink

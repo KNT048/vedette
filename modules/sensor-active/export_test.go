@@ -25,3 +25,6 @@ func SNMPJobAt(ctx context.Context, s *Service, asset string, ip netip.Addr) (se
 
 // ErrSNMPNotReadAddress is the refusal of a job whose target is not its device's read address.
 var ErrSNMPNotReadAddress = errSNMPNotReadAddress
+
+// WaitSNMPReads waits for the background reads ApplySNMPToSimilar queued.
+func WaitSNMPReads(s *Service) { s.bg.Wait() }

@@ -359,3 +359,19 @@ func (a sensorInventory) withBoxCards(ctx context.Context, out []netip.Addr) ([]
 	}
 	return append(out, hostIPv4s(ctx, a.hostNet)...), nil
 }
+
+// SimilarDevices implements sensoractive.SimilarFinder.
+func (a sensorInventory) SimilarDevices(ctx context.Context, assetID string) ([]sensoractive.SimilarDevice, error) {
+	list, err := a.inv.SimilarDevices(ctx, assetID)
+	if errors.Is(err, inventory.ErrNotFound) {
+		return nil, sensoractive.ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	out := make([]sensoractive.SimilarDevice, len(list))
+	for i, d := range list {
+		out[i] = sensoractive.SimilarDevice{ID: d.ID, IP: d.IP, Vendor: d.Vendor, Kind: d.Kind, SameMaker: d.SameMaker, SameType: d.SameType, Approved: d.Approved}
+	}
+	return out, nil
+}

@@ -2593,6 +2593,19 @@ func encodeInventoryGetInventorySnmpDevicesIDResponse(response *InventoryGetInve
 	return nil
 }
 
+func encodeInventoryGetInventorySnmpDevicesIDSimilarResponse(response *InventoryGetInventorySnmpDevicesIDSimilarOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
 func encodeInventoryPatchInventoryDevicesIDResponse(response *InventoryPatchInventoryDevicesIDOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
@@ -2841,6 +2854,19 @@ func encodeInventoryPostInventoryDevicesIDSuspiciousResponse(response *Inventory
 }
 
 func encodeInventoryPostInventoryImportResponse(response *InventoryPostInventoryImportOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeInventoryPostInventorySnmpDevicesIDApplySimilarResponse(response *InventoryPostInventorySnmpDevicesIDApplySimilarOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
 

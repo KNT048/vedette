@@ -1251,6 +1251,22 @@
       "label": "Devices with SNMP set up",
       "at": "{{ip}}, {{version}}",
       "blocked": "Nothing is sent now: open the device to see why"
+    },
+    "similar": {
+      "button": "Use on similar devices",
+      "title": "Use these settings on similar devices",
+      "description": "Copy this device's SNMP settings to devices of the same maker or type that have none of their own.",
+      "legend": "Devices to copy the settings to",
+      "none": "No similar devices without SNMP settings of their own.",
+      "notApproved": "Not approved yet: the settings are saved, nothing is sent until you approve it.",
+      "noteTitle": "What this does",
+      "note": "The community or passwords are copied on the box and never shown. Each device is read only at its own address, now and in the scan window.",
+      "apply_one": "Use on {{count}} device",
+      "apply_other": "Use on {{count}} devices",
+      "applied_one": "SNMP settings saved on {{count}} device; reading it now.",
+      "applied_other": "SNMP settings saved on {{count}} devices; reading them now.",
+      "results": "Result per device",
+      "saved": "Settings saved, read queued."
     }
   }
 }

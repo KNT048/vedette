@@ -6,7 +6,7 @@ import type { AssetKind } from '@/lib/types'
 import type {
   AddDeviceInput, AddDeviceResult, AgentKind, AgentReport, AgentsResponse, CatalogResponse, CreateTokenResult, DeviceDetail, DevicesResponse,
   ImportResult, InventorySettings, KeepSeparateInput, MergeInput, RegularScan, SamePairs, SampleResult, Sensor, SensorPatch, SensorsResponse, SettingsInput, SettingsSaved, SourcesInput, SourcesState, SnmpResponse,
-  DeviceSnmp, DeviceSnmpInput, SnmpCheckResult,
+  DeviceSnmp, DeviceSnmpInput, SnmpCheckResult, SnmpSimilarResponse, SnmpApplyResponse,
   WazuhConnection, WazuhInput, WazuhTestResult,
 } from './types'
 
@@ -184,4 +184,18 @@ export function useDeviceSnmpActions(id: string) {
     remove: useMutation({ mutationFn: () => api.del(path), onSuccess: inv }),
     check: useMutation({ mutationFn: () => api.post<SnmpCheckResult>(`${path}/check`, {}), onSuccess: inv }),
   }
+}
+
+/** The checklist of "Use these settings on similar devices": devices of the same maker or type without SNMP settings of their own. Asked
+ *  only when the dialog opens. */
+export const useSnmpSimilar = (id: string, enabled: boolean) =>
+  useQuery({ queryKey: ['inventory', 'snmp', 'similar', id], queryFn: () => api.get<SnmpSimilarResponse>(`/inventory/snmp/devices/${encodeURIComponent(id)}/similar`), retry: false, enabled })
+
+/** Applies this device's SNMP settings to the ticked devices; the box copies the secret itself. */
+export function useApplySnmpSimilar(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (device_ids: string[]) => api.post<SnmpApplyResponse>(`/inventory/snmp/devices/${encodeURIComponent(id)}/apply-similar`, { device_ids }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['inventory'] }),
+  })
 }

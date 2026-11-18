@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { AiBlock } from '@/components/common/AiBlock'
 import { SeverityChip } from '@/components/common/StatusChip'
@@ -55,7 +55,8 @@ function Risk({ r }: { r: TopRisk }) {
  * Báo cáo tuần (S-REP-1). Trang đầu cho lãnh đạo: số liệu cùng định nghĩa với Home/Devices, 3 rủi ro lớn nhất, đã làm gì, tuần sau làm
  * gì; danh sách đầy đủ ở phụ lục (in: sang trang mới). Dùng cho xem trước, lịch sử và bản in.
  */
-export function WeeklyDocument({ report: full, org }: { report: WeeklyReport; org: string }) {
+/** `aiAction` is the Write AI commentary control; only the live preview passes it, so history and print never show it. */
+export function WeeklyDocument({ report: full, org, aiAction }: { report: WeeklyReport; org: string; aiAction?: ReactNode }) {
   const { t } = useTranslation('reports')
   // Findings closed as not relevant are noise: left out of the lists and of the totals until the toggle (a report lists 100 rows at
   // most, so a not relevant row past that cut is not known here and stays in the totals).
@@ -120,12 +121,13 @@ export function WeeklyDocument({ report: full, org }: { report: WeeklyReport; or
           </>
         ) : null}
         <section aria-labelledby="wk-act"><h3 id="wk-act" className="mb-1 font-semibold">{t('doc.weekly.next')}</h3>{r.actions.length ? <ol className="ml-5 list-decimal">{r.actions.map((a, i) => <li key={i}>{actionText(a, t)}</li>)}</ol> : <p className="text-muted">{t('doc.weekly.noneNext')}</p>}</section>
-        {r.ai_summary ? (
+        {r.ai_summary || aiAction ? (
           <div className="grid gap-1">
-            <AiBlock model={r.ai_summary.profile ? `${r.ai_summary.model} (${r.ai_summary.profile})` : r.ai_summary.model} tokens={r.ai_summary.tokens} citations={[{ title: t('doc.weekly.aiCite') }]}>
-              {r.ai_summary.paragraphs.map((p, i) => <p key={i}>{p}</p>)}
+            <AiBlock model={r.ai_summary ? (r.ai_summary.profile ? `${r.ai_summary.model} (${r.ai_summary.profile})` : r.ai_summary.model) : undefined} tokens={r.ai_summary?.tokens} citations={r.ai_summary ? [{ title: t('doc.weekly.aiCite') }] : undefined}>
+              {r.ai_summary ? r.ai_summary.paragraphs.map((p, i) => <p key={i}>{p}</p>) : <p className="text-muted">{t('doc.aiNone')}</p>}
+              {aiAction ? <div className="grid gap-2 print:hidden">{aiAction}</div> : null}
             </AiBlock>
-            <p className="text-caption text-muted">{t('doc.aiAt', { time: fmtDateTime(r.ai_summary.generated_at) })}</p>
+            {r.ai_summary ? <p className="text-caption text-muted">{t('doc.aiAt', { time: fmtDateTime(r.ai_summary.generated_at) })}</p> : null}
           </div>
         ) : null}
       </div>

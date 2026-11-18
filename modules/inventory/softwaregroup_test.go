@@ -79,7 +79,7 @@ func TestINV50_ThreeSourcesOneLine(t *testing.T) {
 	c.report(observe.Nmap, "OpenSSH", "10.2", "")
 	c.enter()
 	c.report(observe.Agent, "OpenSSH", "10.2p1", "10.2_p1-r1")
-	l := c.oneLine("manual", 2) // the person's correction is the line, the agent's and the scan's readings are listed under it
+	l := c.oneLine("agent", 2) // the agent reads the release the person said, with its package release: its reading is the line
 	if l.Differs {
 		t.Fatalf("the same release read three ways is not a disagreement: %+v", l)
 	}
@@ -91,11 +91,11 @@ func TestINV50_ThreeSourcesOneLine(t *testing.T) {
 		t.Fatalf("matching reads the effective row alone: %+v", m.Software)
 	}
 	for _, s := range l.AlsoSeen {
-		if !s.SameRelease {
+		if !s.SameRelease || s.Source == "agent" {
 			t.Fatalf("source %+v", s)
 		}
 	}
-	if l.AlsoSeen[0].Source != "agent" || l.AlsoSeen[1].Source != "nmap" {
+	if l.AlsoSeen[0].Source != "manual" || l.AlsoSeen[1].Source != "nmap" {
 		t.Fatalf("sources strongest first: %+v", l.AlsoSeen)
 	}
 }

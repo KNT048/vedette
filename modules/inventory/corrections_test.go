@@ -257,9 +257,9 @@ func TestINV41_ACorrectionReplacesOnlyItsRow(t *testing.T) {
 		got = append(got, r.Source+" "+r.Version)
 	}
 	slices.Sort(got)
-	want := []string{"agent 6.12.117", "manual 10.2p1", "manual 6.12.116", "nmap 8.9p1"}
+	want := []string{"agent 10.2p1", "agent 6.12.117", "manual 6.12.116", "nmap 8.9p1"}
 	if !slices.Equal(got, want) {
-		t.Fatalf("rows matched %v, want %v (the two corrected rows go, and the agent's own 10.2p1 is the release the correction says)", got, want)
+		t.Fatalf("rows matched %v, want %v (the two corrected rows go; the agent's own 10.2p1 reads the release the correction says)", got, want)
 	}
 	// .181 (review r2 M-A): with the nmap row corrected to 10.2p1, the agent's own 10.2p1 row is corrected too (its package release).
 	if err := e.svc.EditSoftware(e.ctx(), "op@example.com", dev, idOf("agent", "10.2p1"), inventory.SoftwareEdit{PkgVersion: ptr("1:10.2p1-2ubuntu3.9")}); err != nil {

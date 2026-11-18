@@ -124,7 +124,7 @@
    "scenario": "scan-corrected-agent-same-release-later",
    "vendor": "OpenBSD",
    "product": "OpenSSH",
-   "expect_changed": 1,
+   "expect_changed": 0,
    "software": [
     {
      "source": "nmap",

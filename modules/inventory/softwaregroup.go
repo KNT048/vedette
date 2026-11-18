@@ -161,8 +161,23 @@ func effectiveOf(all []EffectiveSoftware) []EffectiveSoftware {
 		}
 		// a person's correction is the line's value whatever source it corrects (INV-52): it outranks the agent, and every reading,
 		// another agent row included, is listed under it
+		// ... unless the agent reads the very release the person said (with its package release): then the agent's reading is the line,
+		// the person's version with more detail, and the correction is listed under it
+		confirmed := func(i int) bool {
+			for r, c := range corrected {
+				if c == i && all[r].Source == "agent" {
+					return false // the person corrected the agent itself
+				}
+			}
+			for _, j := range idx {
+				if _, gone := corrected[j]; !gone && all[j].Source == "agent" && pkgrel.Same(all[i].Version, all[i].PkgVersion, all[j].Version, all[j].PkgVersion) {
+					return true
+				}
+			}
+			return false
+		}
 		rank := func(i int) int {
-			if all[i].corrects != "" && all[i].Source == "manual" {
+			if all[i].corrects != "" && all[i].Source == "manual" && !confirmed(i) {
 				return softwareRank("correction")
 			}
 			return softwareRank(all[i].Source)
@@ -178,7 +193,7 @@ func effectiveOf(all []EffectiveSoftware) []EffectiveSoftware {
 		// is the line (the newest row when the releases cannot be ordered); the others are listed under it and still match
 		top, line := rank(cand[0]), cand[0]
 		for _, i := range cand[1:] {
-			if rank(i) == top && all[line].corrects == "" && newerRelease(all[i].Version, all[i].PkgVersion, all[line].Version, all[line].PkgVersion) {
+			if rank(i) == top && newerRelease(all[i].Version, all[i].PkgVersion, all[line].Version, all[line].PkgVersion) {
 				line = i
 			}
 		}

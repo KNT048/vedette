@@ -228,6 +228,9 @@ func (s *Service) replaceSoftwareTx(ctx context.Context, tx *sql.Tx, o *outbox, 
 			pv, ps := pkgOf(it, source)
 			if now, _ := pv.(string); now != havePkg[id] { // 1:9.6p1-3ubuntu13.5 -> 13.14: the same row, a different package
 				pkgChanged = true
+				if _, err := tx.ExecContext(ctx, `UPDATE inv_software SET first_seen = ? WHERE id = ?`, seenAt, id); err != nil { // a new reading (INV-52)
+					return fmt.Errorf("inventory: refresh software: %w", err)
+				}
 			}
 			if _, err := tx.ExecContext(ctx, `UPDATE inv_software SET display = ?, cpe = ?, confidence = ?, seen_at = ?, packaged = ?, pkg_version = ?, pkg_source = ? WHERE id = ?`,
 				it.Display, nullStr(it.CPE), it.Confidence, seenAt, packaged(it, source), pv, ps, id); err != nil {

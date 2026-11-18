@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/knt048/vedette/core/apkver"
 	"github.com/knt048/vedette/core/debver"
 	"github.com/knt048/vedette/core/pkgrel"
 )
@@ -28,7 +29,24 @@ func newerRelease(readV, readP, personV, personP string) bool {
 		return v
 	}
 	r, p := rel(readV, readP), rel(personV, personP)
-	if strings.TrimSpace(r) == "" || strings.TrimSpace(p) == "" || pkgrel.Same(readV, readP, personV, personP) {
+	if strings.TrimSpace(r) == "" || strings.TrimSpace(p) == "" {
+		return false
+	}
+	// both are package releases of one upstream version (1:9.2p1-2+deb12u2, 1:9.2p1-2+deb12u4): the distribution's security update is
+	// a newer release, so the full release is ordered
+	if strings.TrimSpace(readP) != "" && strings.TrimSpace(personP) != "" && pkgrel.Upstream(readP) == pkgrel.Upstream(personP) && epochPart(readP) == epochPart(personP) {
+		if a, ok := apkver.Parse(readP); ok {
+			if b, ok := apkver.Parse(personP); ok { // Alpine: 10.2_p1-r1 < 10.2_p1-r3
+				return apkver.Compare(a, b) > 0
+			}
+		}
+		if !debver.Valid(readP) || !debver.Valid(personP) {
+			return false
+		}
+		c, err := debver.Compare(readP, personP)
+		return err == nil && c > 0
+	}
+	if pkgrel.Same(readV, readP, personV, personP) {
 		return false
 	}
 	ur, up := pkgrel.Upstream(r), pkgrel.Upstream(p)
@@ -42,6 +60,12 @@ func newerRelease(readV, readP, personV, personP string) bool {
 	return err == nil && c > 0
 }
 
+// pkgUpdate reports whether a reading and a correction both name a package release of one upstream version: the person stated the
+// distribution's release, so a newer one read later is the distribution's update whatever the overridden reading was.
+func pkgUpdate(r, c swFacts) bool {
+	return strings.TrimSpace(r.pkg) != "" && strings.TrimSpace(c.pkg) != "" && pkgrel.Upstream(r.pkg) == pkgrel.Upstream(c.pkg)
+}
+
 func epochPart(v string) string {
 	if i := strings.IndexByte(v, ':'); i > 0 {
 		return v[:i]
@@ -53,12 +77,14 @@ func epochPart(v string) string {
 // reading ("" for a reading that predates the record of it: it counts as read before any correction).
 type swFacts struct {
 	id, display, vendor, product, cpe, version, pkg, source, setAt string
+	overrode                                                       string // on a correction: the version of the reading it replaced ("" when none)
 }
 
 // lapsingReadings is the one rule for software, firmware and declared OS rows alike (INV-52): for each correction, the newest
 // reading of the same software (the same vendor and product, or the same CPE application) that first appeared after the correction
-// was set and reads a newer release than the person's. The result maps a correction's id to that reading; a correction nothing
-// outgrew is not in it.
+// was set and reads a newer release than the person's and than the reading the person overrode (a row the source dropped and reads
+// again, at the version the person said was wrong, is not an update). The result maps a correction's id to that reading; a
+// correction nothing outgrew is not in it.
 func lapsingReadings(corrections, readings []swFacts) map[string]swFacts {
 	out := map[string]swFacts{}
 	for _, c := range corrections {
@@ -66,7 +92,8 @@ func lapsingReadings(corrections, readings []swFacts) map[string]swFacts {
 		for i := range readings {
 			r := &readings[i]
 			same := strings.EqualFold(r.vendor, c.vendor) && strings.EqualFold(r.product, c.product) || cpeApp(r.cpe) != "" && cpeApp(r.cpe) == cpeApp(c.cpe)
-			if !same || r.source == "manual" || r.setAt == "" || r.setAt <= c.setAt || !newerRelease(r.version, r.pkg, c.version, c.pkg) {
+			if !same || r.source == "manual" || r.setAt == "" || r.setAt <= c.setAt || !newerRelease(r.version, r.pkg, c.version, c.pkg) ||
+				c.overrode != "" && !pkgUpdate(*r, c) && !newerRelease(r.version, r.pkg, c.overrode, "") {
 				continue
 			}
 			if newest == nil || newerRelease(r.version, r.pkg, newest.version, newest.pkg) {
@@ -86,7 +113,7 @@ func lapsingReadings(corrections, readings []swFacts) map[string]swFacts {
 func (s *Service) lapseCorrections(ctx context.Context, tx *sql.Tx, assetID string) (bool, error) {
 	read := func(where string) ([]swFacts, error) {
 		//nolint:gosec // G202: where is one of two constant conditions below
-		rows, err := tx.QueryContext(ctx, `SELECT s.id, s.display, s.vendor, s.product, ifnull(s.cpe, ''), ifnull(s.version, ''), ifnull(s.pkg_version, ''), s.source, CASE WHEN s.source = 'manual' THEN s.seen_at ELSE ifnull(s.first_seen, '') END
+		rows, err := tx.QueryContext(ctx, `SELECT s.id, s.display, s.vendor, s.product, ifnull(s.cpe, ''), ifnull(s.version, ''), ifnull(s.pkg_version, ''), s.source, CASE WHEN s.source = 'manual' THEN s.seen_at ELSE ifnull(s.first_seen, '') END, ifnull(s.corrects, '')
 			FROM inv_software s WHERE s.asset_id = ? AND NOT `+hiddenGuess+` AND `+where+` ORDER BY s.seen_at, s.id`, assetID)
 		if err != nil {
 			return nil, fmt.Errorf("inventory: read software: %w", err)
@@ -95,8 +122,12 @@ func (s *Service) lapseCorrections(ctx context.Context, tx *sql.Tx, assetID stri
 		var out []swFacts
 		for rows.Next() {
 			var x swFacts
-			if err := rows.Scan(&x.id, &x.display, &x.vendor, &x.product, &x.cpe, &x.version, &x.pkg, &x.source, &x.setAt); err != nil {
+			var corrects string
+			if err := rows.Scan(&x.id, &x.display, &x.vendor, &x.product, &x.cpe, &x.version, &x.pkg, &x.source, &x.setAt, &corrects); err != nil {
 				return nil, fmt.Errorf("inventory: read software: %w", err)
+			}
+			if corrects != "" {
+				_, _, _, x.overrode = correctedFrom(corrects)
 			}
 			out = append(out, x)
 		}
@@ -141,6 +172,13 @@ func osSplit(text string) (name, version string, ok bool) {
 	return strings.ToLower(strings.TrimSpace(m[1])), m[2], true
 }
 
+// sameOSName reports whether two OS texts name the same OS with a version each ("Alpine Linux 3.20", "Alpine Linux 3.23").
+func sameOSName(a, b string) bool {
+	an, _, ok1 := osSplit(a)
+	bn, _, ok2 := osSplit(b)
+	return ok1 && ok2 && an == bn
+}
+
 // osNewer reports whether an OS reading names a newer version of the same OS than the person's text, by the rule of newerRelease.
 func osNewer(reading, person string) bool {
 	rn, rv, ok1 := osSplit(reading)
@@ -156,17 +194,24 @@ func (s *Service) lapseOS(ctx context.Context, tx *sql.Tx, assetID string) (bool
 	if err != nil || !ok {
 		return false, err
 	}
-	rows, err := tx.QueryContext(ctx, `SELECT value, source FROM inv_observation WHERE asset_id = ? AND field = 'os' AND source <> 'manual'
-		AND ifnull(first_seen, '') > ? ORDER BY first_seen DESC, id`, assetID, setAt)
+	// only what the device states about itself (its agent, its SNMP system description) lapses it: a scan or traffic fingerprint
+	// is a guess and wobbles between versions from run to run
+	rows, err := tx.QueryContext(ctx, `SELECT value, source, ifnull(first_seen, '') FROM inv_observation WHERE asset_id = ? AND field = 'os' AND source IN ('agent', 'snmp')
+		ORDER BY first_seen DESC, id`, assetID)
 	if err != nil {
 		return false, fmt.Errorf("inventory: read the detected OS: %w", err)
 	}
 	var newest, from string
+	var before []string // the readings there when the person set it: the one they overrode is among them
 	for rows.Next() {
-		var v, src string
-		if err := rows.Scan(&v, &src); err != nil {
+		var v, src, first string
+		if err := rows.Scan(&v, &src, &first); err != nil {
 			_ = rows.Close()
 			return false, fmt.Errorf("inventory: read the detected OS: %w", err)
+		}
+		if first == "" || first <= setAt {
+			before = append(before, v)
+			continue
 		}
 		if osNewer(v, person) && (newest == "" || osNewer(v, newest)) {
 			newest, from = v, src
@@ -174,6 +219,11 @@ func (s *Service) lapseOS(ctx context.Context, tx *sql.Tx, assetID string) (bool
 	}
 	if err := rows.Close(); err != nil {
 		return false, err
+	}
+	for _, b := range before { // a reading the source dropped and reads again is not an update
+		if newest != "" && !osNewer(newest, b) && sameOSName(newest, b) {
+			newest = ""
+		}
 	}
 	if newest == "" {
 		return false, nil

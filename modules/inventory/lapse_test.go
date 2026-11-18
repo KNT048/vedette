@@ -55,7 +55,8 @@ func TestINV52_CorrectionLapsesOnANewerReadingFromAnySource(t *testing.T) {
 			}
 			c.report(src, "OpenSSH", "10.0", "")   // the old version again: the correction is the one it replaced
 			c.report(src, "OpenSSH", "10.2p1", "") // the same release as the person's, written with a patch level
-			if l := c.sshLine(); l.Source != "manual" || l.Version != "10.2" {
+			// the same release keeps the person's version; the agent reading it with its patch level is that version with more detail
+			if l := c.sshLine(); src != observe.Agent && (l.Source != "manual" || l.Version != "10.2") || src == observe.Agent && (l.Source != "agent" || l.Version != "10.2p1") {
 				t.Fatalf("same release keeps the person's version: %+v", l)
 			}
 			c.report(src, "OpenSSH", "10.1", "") // older
@@ -96,7 +97,7 @@ func TestINV52_ADownwardCorrectionSurvivesTheSameReading(t *testing.T) {
 	c.correct("nmap", "10.2", "")
 	c.report(observe.Nmap, "OpenSSH", "10.5", "")
 	c.report(observe.Agent, "OpenSSH", "10.2p1", "")
-	if l := c.oneLine("manual", 2); l.Version != "10.2" {
+	if l := c.oneLine("agent", 2); l.Version != "10.2p1" { // the agent confirms the person's release: its reading is the line
 		t.Fatalf("%+v", l)
 	}
 }
@@ -137,6 +138,10 @@ func TestINV52_CorrectedOSLapsesOnANewerReading(t *testing.T) {
 			t.Fatalf("%q from %s must keep the person's OS, the device says %q", keep.v, keep.src, v)
 		}
 	}
+	rec("Alpine Linux 3.22", observe.Nmap) // a scan's guess never ends it
+	if v, corrected := osNow(); v != "Alpine Linux 3.20" || !corrected {
+		t.Fatalf("a scan guess must keep the person's OS, the device says %q", v)
+	}
 	rec("Alpine Linux 3.23", observe.Agent)
 	if v, corrected := osNow(); v != "Alpine Linux 3.23" || corrected {
 		t.Fatalf("a newer version ends the correction: %q %v", v, corrected)
@@ -175,5 +180,54 @@ func TestINV52_TwoInstallsOfOneSourceAreOneLine(t *testing.T) {
 				t.Fatalf("both installs still match: %+v", m.Software)
 			}
 		})
+	}
+}
+
+// A person who corrects a reading down is not undone when the source drops that reading and reads it again later (INV-52): only a
+// release newer than both the person's and the one they overrode is an update.
+func TestINV52_AReadingReadAgainIsNotAnUpdate(t *testing.T) {
+	t.Parallel()
+	c := newSoftwareCase(t)
+	c.report(observe.Nmap, "OpenSSH", "10.3", "")
+	c.correct("nmap", "10.1", "")
+	c.report(observe.Nmap, "Dropbear", "2024.86", "") // the scan misses OpenSSH once: its row goes
+	c.report(observe.Nmap, "OpenSSH", "10.3", "")     // and reads the same wrong banner again
+	if l := c.sshLine(); l.Source != "manual" || l.Version != "10.1" {
+		t.Fatalf("the reading the person overrode, read again, keeps their version: %+v", l)
+	}
+	c.report(observe.Nmap, "OpenSSH", "10.4", "")
+	if l := c.sshLine(); l.Source != "nmap" || l.Version != "10.4" {
+		t.Fatalf("a newer release than both ends it: %+v", l)
+	}
+}
+
+// A distribution's security update of the same upstream version is a newer release (INV-52): Debian and Alpine package revisions.
+func TestINV52_APackageRevisionUpdateEndsACorrection(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct{ upstream, old, person, newer string }{
+		{"9.2p1", "1:9.2p1-2+deb12u1", "1:9.2p1-2+deb12u2", "1:9.2p1-2+deb12u4"},
+		{"10.2p1", "10.2_p1-r0", "10.2_p1-r1", "10.2_p1-r3"},
+	} {
+		c := newSoftwareCase(t)
+		pkg := func(release string) { // the agent's package database row (the package source is the distribution's lower-case name)
+			t.Helper()
+			c.e.tick(time.Minute)
+			it := observe.Software{Display: "OpenSSH", Vendor: "Vendor OpenSSH", Product: "OpenSSH", Version: tc.upstream, Confidence: 0.9,
+				Packaged: true, PkgVersion: release, PkgSource: "openssh"}
+			if err := c.e.svc.ReplaceSoftware(c.e.ctx(), c.hint, observe.Agent, []observe.Software{it}); err != nil {
+				t.Fatal(err)
+			}
+			c.dev = deviceAt(t, c.e, c.hint.IP)
+		}
+		pkg(tc.old)
+		c.correct("agent", tc.upstream, tc.person)
+		pkg(tc.old) // the old package again: kept
+		if l := c.sshLine(); l.Source != "manual" || l.PkgVersion != tc.person {
+			t.Fatalf("%s: %+v", tc.person, l)
+		}
+		pkg(tc.newer)
+		if l := c.sshLine(); l.Source != "agent" || l.PkgVersion != tc.newer || l.Corrected {
+			t.Fatalf("%s: the update ends the correction: %+v", tc.newer, l)
+		}
 	}
 }

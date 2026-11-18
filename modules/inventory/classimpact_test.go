@@ -308,6 +308,7 @@ func measureClass(t *testing.T, devices []classDevice, check bool) {
 				f := swFacts{id: r.ID, display: r.Display, vendor: r.Vendor, product: r.Product, cpe: r.CPE, version: r.Version, pkg: r.PkgVersion, source: r.Source}
 				if r.corrects != "" {
 					f.setAt = r.SeenAt
+					_, _, _, f.overrode = correctedFrom(r.corrects)
 					corrections = append(corrections, f)
 				} else if r.Source != "manual" {
 					f.setAt = d.first[r.ID]
@@ -348,7 +349,7 @@ func measureClass(t *testing.T, devices []classDevice, check bool) {
 			old := winners(slices.Clone(all))["os"]
 			lapsedOS := false
 			for _, o := range d.os {
-				if person != nil && o.obs.source != "manual" && o.first != "" && o.first > person.obs.seenAt && osNewer(o.obs.value, person.obs.value) {
+				if person != nil && (o.obs.source == "agent" || o.obs.source == "snmp") && o.first != "" && o.first > person.obs.seenAt && osNewer(o.obs.value, person.obs.value) {
 					lapsedOS = true
 				}
 			}

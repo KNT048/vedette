@@ -34,7 +34,7 @@ func (s *Service) gate(ctx context.Context, actor, id string) (Target, BlockedRe
 	switch r := t.blocked(s.clock()); {
 	case r == BlockedUnverified || r == BlockedExpired:
 		return t, r, nil
-	case t.Typed: // a typed IP: its proof is looked for now, right before the scan, like a domain's record (INV-1, INV-35)
+	case t.Typed && r != BlockedNoCommitment: // a typed IP: its proof is looked for now, right before the scan, like a domain's record (INV-1, INV-35); not before the confirmation is there
 		if t, err = s.liveTypedProof(ctx, actor, t); err != nil {
 			return Target{}, "", err
 		}

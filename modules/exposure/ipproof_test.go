@@ -72,11 +72,11 @@ func (f *fileSite) serve(ip, scheme, body string) {
 	f.files[scheme+"://"+ip+ipProofPath] = body
 }
 
-func (f *fileSite) remove(ip string) {
+func (f *fileSite) remove() {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	delete(f.files, "http://"+ip+ipProofPath)
-	delete(f.files, "https://"+ip+ipProofPath)
+	delete(f.files, "http://"+ipC+ipProofPath)
+	delete(f.files, "https://"+ipC+ipProofPath)
 }
 
 func (f *fileSite) fetched() int { f.mu.Lock(); defer f.mu.Unlock(); return len(f.asks) }
@@ -182,7 +182,7 @@ func TestTypedIP_AFileWithAnotherTokenProvesNothing(t *testing.T) {
 	w := newIPWorld(t)
 	v := w.addIP(ipC)
 	w.files.serve(ipC, "http", "0123456789abcdef")
-	if r := w.verify(v.ID); r.Verified || !strings.Contains(r.Message, "does not contain the token "+v.Token) {
+	if r := w.verify(v.ID); r.Verified || !strings.Contains(r.Message, "does not contain this target's token") || strings.Contains(r.Message, v.Token) {
 		t.Fatalf("%+v", r)
 	}
 }
@@ -355,7 +355,7 @@ func TestTypedIP_TheProofIsLookedForAgainRightBeforeEveryScan(t *testing.T) {
 	if _, err := w.scanErr(v.ID); err != nil {
 		t.Fatal(err)
 	}
-	w.files.remove(ipC) // the file is taken down after the proof
+	w.files.remove() // the file is taken down after the proof
 	if code, _ := w.scanErr(v.ID); code != "proof_missing" || run.calls != 1 {
 		t.Fatalf("scan code %q, runner calls %d: nothing is scanned without a live proof", code, run.calls)
 	}
@@ -395,7 +395,7 @@ func TestTypedIP_AProofThatIsNotFoundAtTheBoxsCheckIsRetriedEverySixHoursUntilIt
 	v := w.addIP(ipC)
 	w.files.serve(ipC, "http", v.Token)
 	w.verify(v.ID)
-	w.files.remove(ipC)
+	w.files.remove()
 	w.advance(24 * 24 * time.Hour)
 	_ = w.svc.RunIPRecheck(w.ctx())
 	n := w.files.fetched()
@@ -517,5 +517,123 @@ func TestTypedIP_TheListRowSaysKindOriginProofExpiryStateAndOpenExposures(t *tes
 		t.Errorf("typed IP row %+v", ty)
 	case box.Origin != "box" || box.Terms != nil || box.ScanState != "needs_terms":
 		t.Errorf("auto-detected row %+v", box)
+	}
+}
+
+func TestTypedIP_AFileBehindARedirectToAnotherPortIsNotFollowed(t *testing.T) {
+	t.Parallel()
+	u, ip := redirectWorld(t, func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "http://"+ip127()+":22/"+"x", http.StatusFound)
+	})
+	if _, err := (httpIPFetcher{}).Fetch(t.Context(), u, ip); err == nil || !strings.Contains(err.Error(), "another port") {
+		t.Fatalf("err %v", err)
+	}
+}
+
+func ip127() string { return "127.0.0.1" }
+
+func TestTypedIP_OneLiveResultServesTheGateAndEveryStepOfAScan(t *testing.T) {
+	t.Parallel()
+	w := newIPWorld(t)
+	v := w.addIP(ipC)
+	w.files.serve(ipC, "http", v.Token)
+	w.verify(v.ID)
+	if _, err := w.commit(v.ID); err != nil {
+		t.Fatal(err)
+	}
+	n := w.files.fetched()
+	ip := netip.MustParseAddr(ipC)
+	for range 5 { // the gate, ScannableIP of each step, the terms
+		if ok, err := w.svc.ScannableIP(w.ctx(), "operator@acme.example", ip); err != nil || !ok {
+			t.Fatalf("scannable %v %v", ok, err)
+		}
+	}
+	if w.files.fetched() != n {
+		t.Fatalf("%d more requests inside the live window", w.files.fetched()-n)
+	}
+	w.advance(6 * time.Minute)
+	for range 5 {
+		if ok, _ := w.svc.ScannableIP(w.ctx(), "operator@acme.example", ip); !ok {
+			t.Fatal("not scannable")
+		}
+	}
+	if got := w.files.fetched() - n; got != 2 { // one look: the file over http and https
+		t.Fatalf("%d requests for one look, want 2", got)
+	}
+}
+
+func TestTypedIP_AFailureIsReusedOnlyForThePerTargetPause(t *testing.T) {
+	t.Parallel()
+	w := newIPWorld(t)
+	v := w.addIP(ipC)
+	w.files.serve(ipC, "http", v.Token)
+	w.verify(v.ID)
+	if _, err := w.commit(v.ID); err != nil {
+		t.Fatal(err)
+	}
+	ip := netip.MustParseAddr(ipC)
+	w.files.remove()
+	w.advance(6 * time.Minute)
+	if ok, _ := w.svc.ScannableIP(w.ctx(), "op@acme.example", ip); ok {
+		t.Fatal("scannable without the file")
+	}
+	w.files.serve(ipC, "http", v.Token) // the person fixed it
+	w.advance(10 * time.Second)
+	if ok, _ := w.svc.ScannableIP(w.ctx(), "op@acme.example", ip); ok {
+		t.Fatal("the failure was not reused inside the pause")
+	}
+	w.advance(DomainCheckEvery)
+	if ok, _ := w.svc.ScannableIP(w.ctx(), "op@acme.example", ip); !ok {
+		t.Fatal("still refused after the pause")
+	}
+}
+
+func TestTypedIP_TheSentencesSayOwnOrAuthorisedAndTheSharedAddressWarningShows(t *testing.T) {
+	t.Parallel()
+	w := newIPWorld(t)
+	v := w.addIP(ipC)
+	if !strings.Contains(v.CommitmentNotice.Text, "I own "+ipC+" or am authorised to have it tested") || strings.Contains(v.CommitmentNotice.Text, "my company") {
+		t.Fatalf("notice: %s", v.CommitmentNotice.Text)
+	}
+	if !strings.Contains(v.TermsNotice.Text, "I own "+ipC+" or am authorised to have it tested in depth") {
+		t.Fatalf("terms: %s", v.TermsNotice.Text)
+	}
+	got, err := w.svc.Target(w.ctx(), v.ID)
+	if err != nil || got.TermsWarning == nil || !strings.Contains(*got.TermsWarning, "web service only") {
+		t.Fatalf("warning: %+v %v", got.TermsWarning, err)
+	}
+	box := w.detect(ipA)
+	if strings.Contains(box[0].CommitmentNotice.Text, "or am authorised") {
+		t.Fatal("the box's own IP got the typed sentence")
+	}
+}
+
+func TestTypedIP_OpenVASLooksForTheProofAgainAndRefusesWhenItIsGone(t *testing.T) {
+	t.Parallel()
+	e, _ := gbEnv(t)
+	files := &fileSite{files: map[string]string{}}
+	e.svc.cfg.IPFetch = files
+	v, err := e.svc.AddTarget(e.ctx(), "admin@acme.example", KindIP, ipC)
+	if err != nil {
+		t.Fatal(err)
+	}
+	files.serve(ipC, "http", v.Token)
+	e.advance(DomainCheckEvery)
+	if r, err := e.svc.Verify(e.ctx(), "operator@acme.example", v.ID); err != nil || !r.Verified {
+		t.Fatalf("%+v %v", r, err)
+	}
+	if _, err := e.commit(v.ID); err != nil {
+		t.Fatal(err)
+	}
+	e.acceptTerms(v.ID, false)
+	e.enable()
+	st := ScanTarget{ID: v.ID, Kind: KindIP, Value: ipC, User: "operator@acme.example", Mode: ScanMode{Full: true}, Typed: true}
+	if run, line, err := e.svc.greenbonePlan(e.ctx(), st); err != nil || !run {
+		t.Fatalf("with the proof: %v %q %v", run, line, err)
+	}
+	files.remove()
+	e.advance(10 * time.Minute)
+	if run, line, err := e.svc.greenbonePlan(e.ctx(), st); err != nil || run || line != notGBProof {
+		t.Fatalf("without it: %v %q %v", run, line, err)
 	}
 }

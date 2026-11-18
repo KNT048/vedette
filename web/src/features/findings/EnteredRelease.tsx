@@ -1,4 +1,4 @@
-// S-MIT-1: what a version or package release a person entered did. The box saves it on the software row and closes the CVEs it proves
+// What a version or package release a person entered did. The box saves it on the software row and closes the CVEs it proves
 // the device is not affected by; this says so where the person is, from the device's findings (GET /findings?asset=: each finding names
 // the software row the matcher matched it on and, when Vedette closed it by proof, the version it compared). A CVE counts as closed by
 // the entry only when that version IS the entry: a closure by another rule (name only, age, an open platform question) or on another

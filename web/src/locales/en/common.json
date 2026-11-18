@@ -250,7 +250,10 @@
   "tokenSearch": {
     "clear": "Clear search",
     "suggestions": "Filters",
-    "chips": "Common filters"
+    "chips": "Common filters",
+    "filters": "Filters",
+    "removeFilter": "Remove filter {{name}}",
+    "clearFilters": "Clear filters"
   },
   "creatable": {
     "added": "{{label}} added and selected."

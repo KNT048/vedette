@@ -114,6 +114,10 @@ type SourcesView struct {
 	Box           BoxInfo  `json:"box"`
 	Sources       []Source `json:"sources"`
 	RetentionDays int      `json:"retention_days"`
+	// LogsBytes is the disk space the kept logs take (logs.db and its write-ahead log); DiskFreeBytes is the space left on the filesystem of the
+	// box data directory. Each is null when it cannot be read.
+	LogsBytes     *int64 `json:"logs_bytes"`
+	DiskFreeBytes *int64 `json:"disk_free_bytes"`
 }
 
 // UnknownSender is a sender whose syslog was dropped because no source declares it with the protocol it used (UnknownSender of contract.ts).

@@ -32,12 +32,14 @@ const noHScroll = async (page: Page) => expect(await page.evaluate(() => documen
 /** Mọi chữ hiển thị là tiếng Anh: không dấu tiếng Việt trong phần nội dung. */
 const expectEnglishOnly = async (page: Page, label: string) => expect(await page.locator('body').innerText(), `${label}: Vietnamese text on the page`).not.toMatch(DIACRITICS)
 const h1 = (page: Page) => page.getByRole('heading', { level: 1 })
-const countOf = async (page: Page) => { await expect(h1(page)).toHaveText(/^\d+ devices?,/); return Number((await h1(page).innerText()).match(/^(\d+)/)![1]) }
+// the small "N devices, M not yet approved" line of the list's toolbar (the title is just "Devices")
+const countLine = (page: Page) => page.getByText(/^\d+ devices?, /)
+const countOf = async (page: Page) => { await expect(countLine(page)).toHaveText(/^\d+ devices?,/); return Number((await countLine(page).innerText()).match(/^(\d+)/)![1]) }
 
 /** Bật module trong kho mock (agent-intake mặc định tắt ở dữ liệu mẫu), ghi trước khi trang tải. */
 async function enableModule(page: Page, id: string) {
   await page.goto('/devices')
-  await expect(h1(page)).toHaveText(/^\d+ devices?,/) // the module table exists in the mock db once the app has loaded
+  await expect(countLine(page)).toHaveText(/^\d+ devices?,/) // the module table exists in the mock db once the app has loaded
   const token = `mod-${id}-${Date.now()}`
   await page.addInitScript(([k, m, tok]) => {
     if (sessionStorage.getItem(`__seed_${tok}`)) return
@@ -123,7 +125,7 @@ test.describe('P2 IT person, day to day: list, add manually, CSV, detail', () =>
     await dialog.getByLabel('IP address', { exact: true }).fill('192.168.10.99') // free in the sample data (.250 is the box itself, other addresses belong to sample devices)
     await dialog.getByRole('button', { name: 'Add', exact: true }).click()
     await expect(dialog).toBeHidden()
-    await expect(h1(page)).toContainText(String(before + 1))
+    await expect(countLine(page)).toContainText(String(before + 1))
     // typing shows suggestions; Escape twice closes everything
     await page.getByRole('button', { name: 'Add a device' }).click()
     await page.getByRole('dialog').getByRole('combobox').fill('forti')
@@ -139,9 +141,9 @@ test.describe('P2 IT person, day to day: list, add manually, CSV, detail', () =>
     await page.getByRole('dialog').getByRole('option').first().click()
     await page.getByRole('dialog').getByRole('button', { name: 'Add', exact: true }).click()
     await expect(page.getByRole('dialog')).toBeHidden()
-    await expect(h1(page)).toContainText(String(before + 2))
+    await expect(countLine(page)).toContainText(String(before + 2))
     await page.reload()
-    await expect(h1(page)).toContainText(String(before + 2))
+    await expect(countLine(page)).toContainText(String(before + 2))
     expect(errors).toEqual([])
   })
 
@@ -179,7 +181,7 @@ test.describe('P2 IT person, day to day: list, add manually, CSV, detail', () =>
     await dialog.getByLabel('Host name', { exact: true }).fill('Lab firewall')
     await dialog.getByRole('button', { name: 'Add', exact: true }).click()
     await expect(dialog).toBeHidden()
-    await expect(h1(page)).toContainText(String(before + 1))
+    await expect(countLine(page)).toContainText(String(before + 1))
     await page.getByRole('link', { name: 'Lab firewall' }).first().click()
     await expect(page.getByText('Fortinet FortiGate-Lab').first()).toBeVisible()
   })
@@ -196,7 +198,7 @@ test.describe('P2 IT person, day to day: list, add manually, CSV, detail', () =>
     await expect(dlg.getByText('Line 7:')).toBeVisible()
     await shot(page, 'inventory', 'import-result')
     await dlg.getByRole('button', { name: 'Close', exact: true }).first().click()
-    await expect(h1(page)).toContainText(String(before + 3))
+    await expect(countLine(page)).toContainText(String(before + 3))
     await expect(page.getByRole('link', { name: 'Branch firewall' }).first()).toBeVisible()
     const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Export CSV' }).click()])
     const text = (await import('node:fs')).readFileSync((await download.path())!, 'utf8')
@@ -208,7 +210,7 @@ test.describe('P2 IT person, day to day: list, add manually, CSV, detail', () =>
     await page.getByLabel('Choose a CSV file', { exact: true }).setInputFiles({ name: 'export.csv', mimeType: 'text/csv', buffer: Buffer.from(text, 'utf8') })
     await expect(page.getByRole('dialog').getByText(/Added 0 devices/)).toBeVisible()
     await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).first().click()
-    await expect(h1(page)).toContainText(String(before + 3))
+    await expect(countLine(page)).toContainText(String(before + 3))
     await page.getByRole('button', { name: 'Add a device' }).click()
     await page.getByRole('dialog').getByRole('radio', { name: /^CSV import/ }).click() // #849: CSV import is a method of Add a device
     await page.getByLabel('Choose a CSV file', { exact: true }).setInputFiles({ name: 'empty.csv', mimeType: 'text/csv', buffer: Buffer.from('', 'utf8') })
@@ -221,7 +223,7 @@ test.describe('P2 IT person, day to day: list, add manually, CSV, detail', () =>
     const errors = collectErrors(page)
     const long = 'Z'.repeat(64)
     await page.goto('/devices')
-    await expect(h1(page)).toHaveText(/^\d+ devices?,/) // mock API ready
+    await expect(countLine(page)).toHaveText(/^\d+ devices?,/) // mock API ready
     const r = await page.evaluate(async (n) => {
       const res = await fetch('/api/v1/inventory/devices', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ catalog_id: 'synology-nas-dsm', name: n, ip: '192.168.55.5' }) })
       return res.json() as Promise<{ id: string }>
@@ -260,7 +262,7 @@ test.describe('P2 IT person, day to day: list, add manually, CSV, detail', () =>
     await pending.getByRole('button', { name: 'Mark unknown' }).first().click()
     await expect(pending.getByText('Marked unknown').first()).toBeVisible()
     await pending.getByRole('button', { name: 'Approve' }).first().click()
-    await expect(h1(page)).toContainText('1 not yet approved')
+    await expect(countLine(page)).toContainText('1 not yet approved')
     await page.goto('/devices/a-nas02')
     await page.getByRole('button', { name: 'Remove from list' }).click()
     const dlg = page.getByRole('dialog')
@@ -291,7 +293,7 @@ test.describe('P1 director, view only', () => {
     await expect(b).toBeDisabled()
     await expect(b).toHaveAttribute('title', /Operator/)
     await expect(page.getByRole('button', { name: 'Export CSV' })).toBeEnabled()
-    await expect(page.getByRole('link', { name: 'Scope, sensors and agents' })).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'Device discovery settings' })).toHaveCount(0)
     await page.goto('/devices/setup')
     await expect(page.getByText('You do not have access to this page')).toBeVisible()
     await page.goto('/devices/a-nas02')
@@ -447,7 +449,7 @@ test.describe('Admin: scan scope, sensor, agents', () => {
     await enableModule(page, 'agent-intake')
     // item 26b: /devices leads to the setup page, and the packages are on the page itself (step 1) before any token exists
     await page.goto('/devices')
-    await page.getByRole('link', { name: 'Scope, sensors and agents' }).click()
+    await page.getByRole('link', { name: 'Device discovery settings' }).click()
     await expect(page).toHaveURL(/\/devices\/setup$/)
     await page.getByRole('tab', { name: 'Agents', exact: true }).click() // agents have their own tab
     await expect(page).toHaveURL(/\/devices\/setup\?tab=agents$/)
@@ -583,7 +585,7 @@ test.describe('Clean install: first-time user', () => {
     await page.getByRole('dialog').getByRole('combobox').fill('forti')
     await page.getByRole('dialog').getByRole('option').first().click()
     await page.getByRole('dialog').getByRole('button', { name: 'Add', exact: true }).click()
-    await expect(h1(page)).toContainText('2 devices') // the box and the one just added
+    await expect(countLine(page)).toContainText('2 devices') // the box and the one just added
     expect(errors).toEqual([])
   })
 

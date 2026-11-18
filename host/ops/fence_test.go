@@ -248,6 +248,20 @@ func TestExposureFenceCheck(t *testing.T) {
 	if _, err := fenceJob(api.ExposureFenceCheckArgs{Domain: "example.com", Name: "www.evil.example", IP: zapTestIP, Token: zapTestTok}); err == nil {
 		t.Fatal("a name outside the domain was accepted")
 	}
+	// A name under the proof name is covered by the record of a domain beside it; never one outside it, above it, or across a suffix
+	if j, err := fenceJob(api.ExposureFenceCheckArgs{Domain: "git.example.com", Name: "www.example.com", IP: zapTestIP, Token: zapTestTok, ProofAt: "example.com"}); err != nil || j.Name != "www.example.com" {
+		t.Fatalf("a name under the proof name: %+v %v", j, err)
+	}
+	for _, bad := range []struct{ domain, name, at string }{
+		{"git.example.com", "www.example.org", "example.com"},
+		{"git.example.com", "notexample.com", "example.com"},
+		{"a.b.example.com", "example.com", "b.example.com"},
+		{"x.beyondhcm.ddns.net", "y.ddns.net", "beyondhcm.ddns.net"},
+	} {
+		if _, err := fenceJob(api.ExposureFenceCheckArgs{Domain: bad.domain, Name: bad.name, IP: zapTestIP, Token: zapTestTok, ProofAt: bad.at}); err == nil {
+			t.Fatalf("name %s with proof name %s for %s accepted", bad.name, bad.at, bad.domain)
+		}
+	}
 	if _, err := fenceJob(api.ExposureFenceCheckArgs{Domain: "example.com", Name: "www.example.com", IP: "10.0.0.1", Token: zapTestTok}); err == nil {
 		t.Fatal("a private address was accepted")
 	}
@@ -488,6 +502,23 @@ func TestZapBaselineProofAtGoesThroughTheFence(t *testing.T) {
 	old.token = "00112233aabbccdd" // an older token: no parent-name proof outside the fence
 	if _, err := w.o.zapBaseline(t.Context(), nolog, old); fenceCode(err) != api.CodeTokenForeign {
 		t.Fatalf("an older token with ProofAt: %v", err)
+	}
+	// a page of a name beside the donor, covered by the donor's token on the shared name: accepted by the host's own re-check; a host outside it is not
+	sib := args
+	sib.URL, sib.Host = "https://www.example.com/", "www.example.com"
+	ps, err := zapArgs(sib)
+	if err != nil {
+		t.Fatalf("a page under the proof name: %v", err)
+	}
+	if _, err := w.o.zapBaseline(t.Context(), nolog, ps); err != nil {
+		t.Fatalf("the page of a name under the proof name: %v", err)
+	}
+	for _, host := range []string{"www.example.org", "notexample.com", "example.com.evil.net"} {
+		out := sib
+		out.URL, out.Host = "https://"+host+"/", host
+		if _, err := zapArgs(out); err == nil {
+			t.Fatalf("the page of %s accepted with proof_at example.com", host)
+		}
 	}
 	for _, bad := range []struct{ domain, host, at string }{
 		{"bucket.s3.amazonaws.com", "bucket.s3.amazonaws.com", "amazonaws.com"},

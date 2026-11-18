@@ -1,6 +1,7 @@
 package exposure
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -124,52 +125,54 @@ func TestReuse_NamesAreNormalisedAsTargetsAre(t *testing.T) {
 	}
 }
 
-// reuses is the one place that decides which stored proofs count: each way a proof must not count, one by one.
-func TestReuse_OnlyAPassingUnexpiredProofOfADomainOnAProperNameCounts(t *testing.T) {
+// reuseCands is the one place that decides whose token is looked for above the checked name: each way a target must not be a donor.
+func TestReuse_OnlyADomainStrictlyUnderTheNameOfTheChainIsADonor(t *testing.T) {
 	t.Parallel()
-	now := time.Date(2026, 11, 18, 10, 0, 0, 0, time.UTC)
-	ok := func(value, at string) Target {
-		return Target{ID: "xt-" + value, Kind: KindDomain, Value: value, Token: "tok", VerifiedAt: now.Add(-time.Hour),
-			LastCheck: &Check{At: "2026-11-18T09:00:00.000Z", OK: true, ProofName: at}}
+	dom := func(value string) Target {
+		return Target{ID: "xt-" + value, Kind: KindDomain, Value: value, Token: "tok"}
 	}
-	count := func(name string, ts ...Target) int { return len(reuses(name, ts, now)) }
-	if count("example.com", ok("git.example.com", "example.com")) != 1 {
-		t.Fatal("a good proof does not count")
+	names := func(name string, ts ...Target) []string {
+		var out []string
+		for _, c := range reuseCands(Target{ID: "xt-" + name, Kind: KindDomain, Value: name}, proofChain(name), ts) {
+			out = append(out, c.t.Value+"@"+c.name)
+		}
+		return out
+	}
+	if got := names("example.com", dom("git.example.com")); len(got) != 1 || got[0] != "git.example.com@example.com" {
+		t.Fatalf("a target under the registered domain: %v", got)
+	}
+	if got := names("www.example.com", dom("git.example.com"), dom("a.www.example.com")); len(got) != 3 {
+		t.Fatalf("a sibling (apex only) and a child (the name and the apex): %v", got)
+	}
+	// nothing stored matters: an unverified target, an expired one, one that failed its last check are donors all the same, because
+	// the record is looked up now
+	failed := dom("git.example.com")
+	failed.LastCheck = &Check{OK: false}
+	if got := names("example.com", failed); len(got) != 1 {
+		t.Fatalf("a donor with a failed last check: %v", got)
 	}
 	for name, d := range map[string]Target{
-		"an older release stored no name":    ok("git.example.com", ""),
-		"the record was on the name itself":  ok("git.example.com", "git.example.com"),
-		"a name that is not above the donor": ok("git.example.com", "mail.example.com"),
-		"a public suffix":                    ok("git.example.co.uk", "co.uk"),
-		"a private public suffix":            ok("x.github.io", "github.io"),
-		"a suffix of the string only":        ok("git.example.com", "xample.com"),
-		"the check failed": func() Target {
-			x := ok("git.example.com", "example.com")
-			x.LastCheck.OK = false
-			return x
-		}(),
-		"never verified": func() Target { x := ok("git.example.com", "example.com"); x.VerifiedAt = time.Time{}; return x }(),
-		"an IP": func() Target {
-			x := ok("203.0.113.9", "example.com")
-			x.Kind = KindIP
-			return x
-		}(),
-		"no check": func() Target { x := ok("git.example.com", "example.com"); x.LastCheck = nil; return x }(),
+		"the target of that very name (the parent candidate)": dom("example.com"),
+		"an IP":                       {ID: "xt-ip", Kind: KindIP, Value: "203.0.113.9"},
+		"another registered domain":   dom("git.example.org"),
+		"a name that only ends alike": dom("gitexample.com"),
+		"across a private suffix":     dom("x.github.io"),
 	} {
-		if n := count("example.com", d); n != 0 {
-			t.Errorf("%s: counted", name)
+		if got := names("example.com", d); len(got) != 0 {
+			t.Errorf("%s: %v", name, got)
 		}
 	}
-	for _, name := range []string{"co.uk", "github.io", "other.github.io", "x.co.uk"} {
-		if n := count(name, ok("git.example.com", "example.com"), ok("a.x.github.io", "x.github.io"), ok("a.example.co.uk", "example.co.uk")); n != 0 && name != "x.co.uk" {
-			t.Errorf("%s: %d proofs cover a name on or across a public suffix", name, n)
+	for _, c := range []struct{ name, donor string }{{"x.co.uk", "a.example.co.uk"}, {"other.github.io", "a.x.github.io"}, {"co.uk", "a.example.co.uk"}, {"github.io", "x.github.io"}} {
+		if got := names(c.name, dom(c.donor)); len(got) != 0 {
+			t.Errorf("%s with the target %s: %v", c.name, c.donor, got)
 		}
 	}
-	if count("x.co.uk", ok("a.example.co.uk", "example.co.uk")) != 0 {
-		t.Error("a proof of example.co.uk covers x.co.uk")
+	var many []Target
+	for i := range 15 {
+		many = append(many, dom(fmt.Sprintf("h%d.example.com", i)))
 	}
-	if count("other.github.io", ok("a.x.github.io", "x.github.io")) != 0 {
-		t.Error("a proof of x.github.io covers other.github.io")
+	if got := names("example.com", many...); len(got) != maxReuse {
+		t.Errorf("%d donors, want the bound %d", len(got), maxReuse)
 	}
 }
 

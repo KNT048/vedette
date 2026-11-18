@@ -138,6 +138,16 @@ func TestDomainNmapJobRefusals(t *testing.T) {
 			j.Domain.Domain, j.Domain.Name, j.Domain.ProofAt = "bucket.s3.amazonaws.com", "bucket.s3.amazonaws.com", "amazonaws.com"
 			return j
 		}(), func(*fakeZone) {}, "invalid_job"},
+		"a name outside the proof name": {func() sensorlink.Job {
+			j := domainNmapJob(nmapargv.ExternalFull, fenceKey)
+			j.Domain.Domain, j.Domain.Name, j.Domain.ProofAt = "git.acme.example", "www.evil.example", "acme.example"
+			return j
+		}(), func(*fakeZone) {}, "invalid_job"},
+		"a name above the proof name": {func() sensorlink.Job {
+			j := domainNmapJob(nmapargv.ExternalFull, fenceKey)
+			j.Domain.Domain, j.Domain.Name, j.Domain.ProofAt = "a.b.acme.example", "acme.example", "b.acme.example"
+			return j
+		}(), func(*fakeZone) {}, "invalid_job"},
 		"a name outside the domain": {func() sensorlink.Job {
 			j := domainNmapJob(nmapargv.ExternalFull, fenceKey)
 			j.Domain.Name = "www.evil.example"

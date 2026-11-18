@@ -141,7 +141,7 @@ func webReason(code string, t exposure.ScanTarget, page exposure.WebPage) string
 	case api.CodeTargetNotOwned:
 		if t.Kind == exposure.KindDomain {
 			if p := t.Proof; p != nil && p.ProofAt != "" { // Its record on the parent name is the one that went
-				return fmt.Sprintf(webNotOwnAt, p.ProofAt, t.Value)
+				return fmt.Sprintf(webNotOwnAt, p.ProofAt, p.Domain)
 			}
 			return fmt.Sprintf(webNotOwnDom, t.Value)
 		}
@@ -150,7 +150,7 @@ func webReason(code string, t exposure.ScanTarget, page exposure.WebPage) string
 		return webUnchecked
 	case api.CodeTokenForeign:
 		if p := t.Proof; p != nil && p.ProofAt != "" { // An older target's own token cannot prove pages through a parent name
-			return fmt.Sprintf(webForeignAt, t.Value, p.ProofAt)
+			return fmt.Sprintf(webForeignAt, p.Domain, p.ProofAt)
 		}
 		return webForeign
 	case api.CodeFenceUnavailable:

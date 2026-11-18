@@ -180,14 +180,20 @@ func zapArgs(a api.ZapBaselineArgs) (zapPage, error) {
 		if len(a.Domain) > 253 || !zapHostRE.MatchString(a.Domain) {
 			return zapPage{}, server.Invalid("domain", "must be a domain name")
 		}
-		if len(a.Host) > 253 || !zapHostRE.MatchString(a.Host) || (a.Host != a.Domain && !strings.HasSuffix(a.Host, "."+a.Domain)) {
-			return zapPage{}, server.Invalid("host", "must be the domain or a name under it")
+		// The page's host is the domain or a name under it; with a proof name (ProofAt, a name above the domain where its token sits)
+		// it may be any name under that name, the record covering them all (the same bound as domainfence.Job.Valid).
+		bound := a.Domain
+		if a.ProofAt != "" {
+			bound = a.ProofAt
+		}
+		if len(a.Host) > 253 || !zapHostRE.MatchString(a.Host) || (a.Host != bound && !strings.HasSuffix(a.Host, "."+bound)) {
+			return zapPage{}, server.Invalid("host", "must be the domain or a name under it (under the proof name when there is one)")
 		}
 		if !zapTokenRE.MatchString(a.TXTToken) {
 			return zapPage{}, server.Invalid("txt_token", "must be the hex token of the domain")
 		}
-		if a.ProofAt != "" && (a.ProofAt == a.Domain || !proofat.Within(a.Domain, a.ProofAt)) { // the same bound as core (review r1 L1 of #960)
-			return zapPage{}, server.Invalid("proof_at", "must be a parent name of the domain, down to its registered domain")
+		if a.ProofAt != "" && (a.ProofAt == a.Domain || !proofat.Within(a.Domain, a.ProofAt) || !proofat.Within(a.Host, a.ProofAt)) { // the same bound as core
+			return zapPage{}, server.Invalid("proof_at", "must be a parent name of the domain and of the page's host, down to its registered domain")
 		}
 		p.domain, p.token, p.proofAt = a.Domain, a.TXTToken, a.ProofAt
 	default:

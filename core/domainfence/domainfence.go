@@ -26,6 +26,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/knt048/vedette/core/domainfence/proofat"
 	"github.com/knt048/vedette/core/localnet"
 )
 
@@ -89,10 +90,13 @@ type Job struct {
 	IP         netip.Addr
 	Token      string
 	Disruptive bool
-	// ProofAt is a parent name of Domain where Domain's own record sits (the zone apex: a name that is a CNAME can hold no
+	// ProofAt is a parent name of Domain where Domain's token sits (the zone apex: a name that is a CNAME can hold no
 	// TXT, and control of the apex proves every name of the zone, the Google Workspace and Microsoft 365 model): the record
 	// vedette-verify=<Token> is looked for there instead of on Domain, with the same rules (Owned). "" = on Domain. The token stays
-	// Domain's; ProofAt is never Domain itself, and never a name of one label (vedette-host also refuses a public suffix there).
+	// Domain's; ProofAt is never Domain itself, and never on or above a public suffix. With ProofAt set, Name is bounded by ProofAt, not
+	// by Domain: the record of one domain of the box on a name above both covers every name under that name (a name proved by the
+	// record of a sibling target, the domain being that target's). Whoever answers for ProofAt's DNS put this box's token there, and
+	// could as well have put the token of Name itself, so no name is covered that the same person could not have proved.
 	ProofAt string
 }
 
@@ -102,13 +106,15 @@ func (j Job) Valid() error {
 	switch {
 	case !ValidDomain(j.Domain):
 		return errors.New("the domain is not a domain name")
-	case !Under(j.Name, j.Domain):
+	case j.ProofAt == "" && !Under(j.Name, j.Domain):
 		return errors.New("the name is not the domain or a name under it")
+	case j.ProofAt != "" && !(Under(j.Name, j.ProofAt) && proofat.Within(j.Name, j.ProofAt)):
+		return errors.New("the name is not under the proof name, down to its registered domain")
 	case !j.IP.Is4() || !localnet.Public(j.IP):
 		return errors.New("the address is not a public IPv4 address")
 	case !tokenRE.MatchString(j.Token):
 		return errors.New("the token is not 16 hex digits")
-	case j.ProofAt != "" && (j.ProofAt == j.Domain || !ValidDomain(j.ProofAt) || !Under(j.Domain, j.ProofAt)):
+	case j.ProofAt != "" && (j.ProofAt == j.Domain || !ValidDomain(j.ProofAt) || !proofat.Within(j.Domain, j.ProofAt)):
 		return errors.New("the proof name is not a parent name of the domain")
 	}
 	return nil
@@ -250,9 +256,13 @@ func (f *Fence) check(ctx context.Context, j Job) (Outcome, cacheEntry) {
 		}
 		chain = append(chain, cn)
 	}
-	e := cacheEntry{chain: chain, out: !Under(chain[len(chain)-1], j.Domain)}
+	bound := j.Domain // a name under the domain stays inside the domain; a name covered through ProofAt, inside ProofAt
+	if !Under(j.Name, j.Domain) {
+		bound = j.ProofAt
+	}
+	e := cacheEntry{chain: chain, out: !Under(chain[len(chain)-1], bound)}
 	if j.Disruptive && e.out {
-		return Outcome{Reason: CNAMEOutside, Chain: chain, Detail: j.Name + " points (CNAME) outside " + j.Domain}, e
+		return Outcome{Reason: CNAMEOutside, Chain: chain, Detail: j.Name + " points (CNAME) outside " + bound}, e
 	}
 	return Outcome{Chain: chain}, e
 }

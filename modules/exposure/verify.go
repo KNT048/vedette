@@ -52,8 +52,10 @@ func (s *Service) attempt(ctx context.Context) error {
 }
 
 // domainCheckAllowed lets a person check one domain target once every DomainCheckEvery: a check is DNS lookups only, so the limit is
-// per target and short, and says in seconds when the next check is allowed.
-func (s *Service) domainCheckAllowed(id string) error {
+// per target and short, and says in seconds when the next check is allowed. perTarget false (the box's own check of a name just
+// added) skips the per-target slot. Every check counts against the box-wide bound too (DomainCheckBurst, one more every
+// DomainCheckRefill), so a loop over many targets, or adding and deleting names, cannot make the resolver and the audit log work without limit.
+func (s *Service) domainCheckAllowed(id string, perTarget bool) error {
 	now := s.clock()
 	s.checkMu.Lock()
 	defer s.checkMu.Unlock()
@@ -62,10 +64,23 @@ func (s *Service) domainCheckAllowed(id string) error {
 			delete(s.lastCheck, k)
 		}
 	}
-	if at, ok := s.lastCheck[id]; ok {
-		return checkedTooSoon(int((DomainCheckEvery - now.Sub(at) + time.Second - 1) / time.Second))
+	if perTarget {
+		if at, ok := s.lastCheck[id]; ok {
+			return checkedTooSoon(int((DomainCheckEvery - now.Sub(at) + time.Second - 1) / time.Second))
+		}
 	}
-	s.lastCheck[id] = now
+	if s.bucketAt.IsZero() || now.Before(s.bucketAt) { // the first check, or a clock set back: a full bucket
+		s.bucket, s.bucketAt = DomainCheckBurst, now
+	}
+	s.bucket = min(DomainCheckBurst, s.bucket+float64(now.Sub(s.bucketAt))/float64(DomainCheckRefill))
+	s.bucketAt = now
+	if s.bucket < 1 {
+		return checksTooBusy(int((time.Duration((1-s.bucket)*float64(DomainCheckRefill)) + time.Second - 1) / time.Second))
+	}
+	s.bucket--
+	if perTarget {
+		s.lastCheck[id] = now
+	}
 	return nil
 }
 
@@ -89,9 +104,11 @@ func (s *Service) verify(ctx context.Context, user, id string, limited bool) (Ve
 		defer s.detectMu.Unlock()
 	}
 	switch {
+	case !limited && t.Kind == KindDomain: // the box's own check of a name just added: counted by the box-wide bound only
+		err = s.domainCheckAllowed(id, false)
 	case !limited:
 	case t.Kind == KindDomain:
-		err = s.domainCheckAllowed(id)
+		err = s.domainCheckAllowed(id, true)
 	default:
 		err = s.attempt(ctx)
 	}
@@ -160,7 +177,7 @@ func (s *Service) verify(ctx context.Context, user, id string, limited bool) (Ve
 		if ok {
 			setMethod = method
 		}
-		if err := updateCheck(ctx, tx, id, Check{At: store.FormatTS(now), OK: ok, Message: message, Covers: ok && pr.coversBelow(cur.Value), ProofName: pr.recordName()}, verifiedAt, setMethod); err != nil {
+		if err := updateCheck(ctx, tx, id, Check{At: store.FormatTS(now), OK: ok, Message: message, Covers: ok && pr.coversBelow(cur.Value), Via: pr.via}, verifiedAt, setMethod); err != nil {
 			return err
 		}
 		action := "exposure.verify_fail"
@@ -209,10 +226,7 @@ func (s *Service) boundTokenNote(ctx context.Context, t Target, p proof) string 
 // message and audit row; one already verified and passing is left as it is. The record is checked again for each of them right
 // before each of their scans (INV-1 (c)), so a record removed, or the parent target removed with its token, covers them no more.
 func (s *Service) coverOthers(ctx context.Context, tx *sql.Tx, user string, t Target, p proof, now time.Time, emit func(string, any)) error {
-	if p.reused {
-		return nil // t is covered by another target's proof: the targets under it are covered by that proof, not by t
-	}
-	if owner := map[bool]string{true: t.Value, false: p.via}[p.own]; p.proven != owner && !p.own {
+	if !p.own && !p.reused && p.proven != p.via { // a parent target's record counts only on that target's own name
 		return nil
 	}
 	all, err := listTargets(ctx, tx)
@@ -228,10 +242,14 @@ func (s *Service) coverOthers(ctx context.Context, tx *sql.Tx, user string, t Ta
 			verifiedAt = now
 		}
 		msg := fmt.Sprintf("Covered by the TXT record on %s, found when %s was checked: it proves %s and every name under it.", p.at, t.Value, p.proven)
-		if p.own && p.proven != t.Value { // the record of t's own token on a parent name: the zone's, so it proves every name under that name
+		if p.own && p.proven != t.Value || p.reused { // a record on a parent name: the zone's, so it proves every name under that name
 			msg = reusedMessage(p.proven, s.momentText(now))
 		}
-		if err := updateCheck(ctx, tx, o.ID, Check{At: store.FormatTS(now), OK: true, Message: msg}, verifiedAt, methodDNS); err != nil {
+		via := p.via // the target whose token proved o: t itself when its own token sits on a parent name
+		if p.own {
+			via = t.Value
+		}
+		if err := updateCheck(ctx, tx, o.ID, Check{At: store.FormatTS(now), OK: true, Message: msg, Via: via}, verifiedAt, methodDNS); err != nil {
 			return err
 		}
 		if err := s.audit(ctx, tx, user, "exposure.verify_ok", o.Value, methodDNS+", covered by "+p.proven); err != nil {

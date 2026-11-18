@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/netip"
+	"slices"
 	"sync"
 	"time"
 
@@ -72,6 +73,8 @@ type Service struct {
 
 	checkMu   sync.Mutex           // guards lastCheck
 	lastCheck map[string]time.Time // when each domain target's ownership was last checked by a person (DomainCheckEvery; in memory, a restart forgets it)
+	bucket    float64              // the box-wide bound of those checks: whole checks left (DomainCheckBurst at most), guarded by checkMu
+	bucketAt  time.Time            // when bucket was last topped up
 
 	gbOnce sync.Once
 	gbs    *gbState // Greenbone's state in memory (INV-25); made by gb()
@@ -447,13 +450,20 @@ func (s *Service) AddDomain(ctx context.Context, user, raw string) (TargetView, 
 	return s.Target(ctx, id)
 }
 
-// coverAdded checks a name just added when the proof of another target of the box already covers it (reuses): the person put no
+// coverAdded checks a name just added when the proof of another target of the box already covers it (reuseCands): the person put no
 // record for it and is asked for none. The check looks the record up again (DNS only); if it is gone the target stays unverified with the
 // usual explanation. It is the box's own check, not an attempt of a person, and never fails the add.
 func (s *Service) coverAdded(ctx context.Context, user, id, value string) {
 	all, err := listTargets(ctx, s.cfg.DB.Reader())
-	if err == nil && len(reuses(value, all, s.clock())) > 0 {
-		_, err = s.verify(ctx, user, id, false)
+	if err == nil {
+		// Only a lookup is saved here, never a decision: the record decides at the check. A name no target of the box that was ever
+		// verified could cover is left for the person's own check.
+		t := Target{ID: id, Kind: KindDomain, Value: value}
+		maybe := func(o Target) bool { return o.Kind == KindDomain && !o.VerifiedAt.IsZero() }
+		if slices.ContainsFunc(reuseCands(t, proofChain(value), all), func(c candidate) bool { return maybe(c.t) }) ||
+			slices.ContainsFunc(all, func(o Target) bool { return o.ID != id && maybe(o) && under(value, o.Value) }) {
+			_, err = s.verify(ctx, user, id, false)
+		}
 	}
 	if err != nil {
 		s.cfg.Log.WarnContext(ctx, "exposure: checking a name an earlier proof covers", "domain", value, "error", err)

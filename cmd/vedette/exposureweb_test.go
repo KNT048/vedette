@@ -95,6 +95,19 @@ func TestExposureWeb_AReportComesBack(t *testing.T) {
 	if ho.got.Domain != "git.example.com" || ho.got.ProofAt != "example.com" || ho.got.TXTToken != "0123456789abcdef" {
 		t.Fatalf("own record on the apex: %+v", ho.got)
 	}
+	// A name proved by the token of another target on the name above both: the host gets that target's domain and token, the shared
+	// name as proof_at, and the page's own name; a refusal names the donor, not the scanned name
+	sib := exposure.ScanTarget{ID: "t4", Kind: exposure.KindDomain, Value: "example.com", User: "us_admin", Proof: &exposure.ProofOwner{Domain: "git.example.com", Token: "0123456789abcdef", ProofAt: "example.com"}}
+	hs := &fakeZapHost{run: zapRun(t, api.StatusSucceeded, "", &api.ZapBaselineResult{ReportID: rid}), report: []byte(`{}`)}
+	if _, err := (exposureWebScan{host: hs}).Baseline(t.Context(), sib, exposure.WebPage{URL: "https://example.com/", Host: "example.com", IP: netip.MustParseAddr("93.184.216.34"), Port: 443}); err != nil {
+		t.Fatal(err)
+	}
+	if hs.got.Domain != "git.example.com" || hs.got.ProofAt != "example.com" || hs.got.Host != "example.com" || hs.got.TXTToken != "0123456789abcdef" {
+		t.Fatalf("a name proved by another target's token: %+v", hs.got)
+	}
+	if why := webReason(api.CodeTargetNotOwned, sib, childPage); !strings.Contains(why, "example.com no longer has the vedette-verify TXT record of git.example.com") {
+		t.Fatalf("refusal text: %q", why)
+	}
 	h := &fakeZapHost{run: zapRun(t, api.StatusSucceeded, "", &api.ZapBaselineResult{ReportID: rid}), report: []byte(`{}`)}
 	if _, err := (exposureWebScan{host: h}).Baseline(t.Context(), webIPTarget, webIPPage); err != nil {
 		t.Fatal(err)

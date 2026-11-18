@@ -61,7 +61,7 @@ func (s *Service) gate(ctx context.Context, actor, id string) (Target, BlockedRe
 			if !found {
 				msg, action = pr.failure, "exposure.verify_fail"
 			}
-			if err := updateCheck(ctx, tx, id, Check{At: store.FormatTS(now), OK: found, Message: msg, Covers: pr.coversBelow(t.Value), ProofName: pr.recordName()}, time.Time{}, ""); err != nil {
+			if err := updateCheck(ctx, tx, id, Check{At: store.FormatTS(now), OK: found, Message: msg, Covers: pr.coversBelow(t.Value), Via: pr.via}, time.Time{}, ""); err != nil {
 				return err
 			}
 			if t.LastCheck != nil && t.LastCheck.OK == found { // nothing changed: the check is not a row of its own (L5)
@@ -75,9 +75,8 @@ func (s *Service) gate(ctx context.Context, actor, id string) (Target, BlockedRe
 		if t, err = loadTarget(ctx, s.cfg.DB.Reader(), id); err != nil {
 			return Target{}, "", err
 		}
-		if pr.found && !pr.reused { // the target whose record proved it now: the executors' fence checks that domain and token
-			t.proofDomain, t.proofToken, t.proofOwn = pr.proven, pr.token, pr.own
-		}
+		// the target whose token proved it now, and the name the record sits on: what the executors' fence checks
+		t.proofDomain, t.proofToken, t.proofAt = pr.gate(t)
 	}
 	return t, t.blocked(s.clock()), nil
 }

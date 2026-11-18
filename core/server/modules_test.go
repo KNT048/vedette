@@ -213,6 +213,8 @@ var contractRoutes = map[string][]string{
 		"GET /findings/summary",
 		"POST /findings/status",
 		"POST /findings/{id}/status",
+		"POST /findings/{id}/confirm",
+		"POST /findings/{id}/unconfirm",
 	},
 	"honeypot": {
 		"DELETE /honeypot/tokens/{id}",

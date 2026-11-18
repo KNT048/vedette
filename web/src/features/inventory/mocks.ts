@@ -1095,7 +1095,7 @@ export const handlers = [
       const at = (x: typeof top) => x.set_at ?? nowIso()
       const also = rest.map((o) => ({ id: o.id, source: o.source, version: o.version ?? '', pkg_version: o.pkg_version ?? '', seen_at: at(o), same_release: same(top, o) }))
       return [{ id: top.id, vendor: top.vendor, product: top.product, display: top.display, version: top.version ?? '', pkg_version: top.pkg_version ?? '', packaged: top.source === 'agent', cpe: '', source: top.source,
-        set_by: top.source === 'manual' ? (currentUser()?.email ?? '') : '', seen_at: at(top), also_seen: also, differs: also.some((o) => !o.same_release && o.seen_at > at(top)) }]
+        set_by: top.source === 'manual' ? (currentUser()?.email ?? '') : '', seen_at: at(top), also_seen: also, differs: also.some((o) => !o.same_release && o.source !== 'manual' && o.id !== top.corrects) }]
     })
     return HttpResponse.json({ items })
   }),

@@ -345,7 +345,7 @@ function SoftwareList({ d }: { d: DeviceDetail }) {
     }
     const eff = lineOf.get(sw.id)?.eff
     // INV-50: the one notice, only when another source reads another release (`differs`); the same release is quiet evidence below
-    const differing = eff?.differs ? eff.also_seen.find((o) => !o.same_release) : undefined
+    const differing = eff?.differs ? eff.also_seen.find((o) => !o.same_release && o.source !== 'manual') : undefined
     const v = differing?.version ?? ''
     return (
       <div className="grid gap-1">

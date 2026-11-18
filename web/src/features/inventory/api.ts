@@ -6,7 +6,7 @@ import type { AssetKind } from '@/lib/types'
 import type {
   AddDeviceInput, AddDeviceResult, AgentKind, AgentReport, AgentsResponse, CatalogResponse, CreateTokenResult, DeviceDetail, DevicesResponse,
   ImportResult, InventorySettings, KeepSeparateInput, MergeInput, RegularScan, SamePairs, SampleResult, Sensor, SensorPatch, SensorsResponse, SettingsInput, SettingsSaved, SourcesInput, SourcesState, SnmpResponse,
-  DeviceSnmp, DeviceSnmpInput, SnmpCheckResult, SnmpSimilarResponse, SnmpApplyResponse,
+  DeviceSnmp, DeviceSnmpInput, DetectedField, SnmpCheckResult, SnmpSimilarResponse, SnmpApplyResponse,
   WazuhConnection, WazuhInput, WazuhTestResult,
 } from './types'
 
@@ -73,6 +73,9 @@ export function useDeviceAction(id: string) {
     /** Ignore (known, not watched) or stop ignoring (back to To review). */
     ignore: useMutation({ mutationFn: (ignored: boolean) => api.post(`${base}/ignore`, { ignored }), onSuccess: inv }),
     remove: useMutation({ mutationFn: () => api.del(base), onSuccess: inv }),
+    /** A trusted source reads another value than the one a person entered (INV-47): use the detected one, or keep the entered one. */
+    useDetected: useMutation({ mutationFn: (b: { field: DetectedField; detected: string }) => api.post(`${base}/differs/${b.field}/use`, { detected: b.detected }), onSuccess: inv }),
+    keepEntered: useMutation({ mutationFn: (b: { field: DetectedField; detected: string }) => api.post(`${base}/differs/${b.field}/keep`, { detected: b.detected }), onSuccess: inv }),
     patch: useMutation({ mutationFn: (b: { name?: string; kind?: AssetKind; fragile?: boolean; regular_scan?: RegularScan; notes?: string; os?: string }) => api.patch(base, b), onSuccess: inv }),
     addSoftware: useMutation({ mutationFn: (b: Omit<AddDeviceInput, 'name' | 'ip'>) => api.post<{ kev_cves: number }>(`${base}/software`, b), onSuccess: inv }),
     removeSoftware: useMutation({ mutationFn: (sid: string) => api.del(`${base}/software/${encodeURIComponent(sid)}`), onSuccess: inv }),

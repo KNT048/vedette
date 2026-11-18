@@ -52220,6 +52220,34 @@ func (s *InventoryGetInventoryDevicesIDOK) Validate() error {
 		})
 	}
 	if err := func() error {
+		if s.DetectedDiffers == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.DetectedDiffers {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "detected_differs",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.Int{
 			MinSet:        true,
 			Min:           -9007199254740991,
@@ -53950,6 +53978,109 @@ func (s InventoryGetInventoryDevicesIDOKAssetVendorBasis) Validate() error {
 }
 
 func (s InventoryGetInventoryDevicesIDOKAssetVendorSource) Validate() error {
+	switch s {
+	case "manual":
+		return nil
+	case "agent":
+		return nil
+	case "snmp":
+		return nil
+	case "nmap":
+		return nil
+	case "passive":
+		return nil
+	case "scan":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *InventoryGetInventoryDevicesIDOKDetectedDiffersItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.Basis.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "basis",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Field.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "field",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Source.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "source",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis) Validate() error {
+	switch s {
+	case "stated":
+		return nil
+	case "stated_web":
+		return nil
+	case "stated_sip":
+		return nil
+	case "guess":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s InventoryGetInventoryDevicesIDOKDetectedDiffersItemField) Validate() error {
+	switch s {
+	case "hostname":
+		return nil
+	case "vendor":
+		return nil
+	case "model":
+		return nil
+	case "os":
+		return nil
+	case "kind":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource) Validate() error {
 	switch s {
 	case "manual":
 		return nil
@@ -58942,6 +59073,110 @@ func (s *InventoryPostInventoryDevicesCreated) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "kev_cves",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s InventoryPostInventoryDevicesIDDiffersFieldKeepField) Validate() error {
+	switch s {
+	case "hostname":
+		return nil
+	case "vendor":
+		return nil
+	case "model":
+		return nil
+	case "os":
+		return nil
+	case "kind":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *InventoryPostInventoryDevicesIDDiffersFieldKeepReq) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:     1,
+			MinLengthSet:  true,
+			MaxLength:     253,
+			MaxLengthSet:  true,
+			Email:         false,
+			Hostname:      false,
+			Regex:         nil,
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.Detected)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "detected",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s InventoryPostInventoryDevicesIDDiffersFieldUseField) Validate() error {
+	switch s {
+	case "hostname":
+		return nil
+	case "vendor":
+		return nil
+	case "model":
+		return nil
+	case "os":
+		return nil
+	case "kind":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *InventoryPostInventoryDevicesIDDiffersFieldUseReq) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:     1,
+			MinLengthSet:  true,
+			MaxLength:     253,
+			MaxLengthSet:  true,
+			Email:         false,
+			Hostname:      false,
+			Regex:         nil,
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.Detected)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "detected",
 			Error: err,
 		})
 	}

@@ -246,6 +246,8 @@ var Operations = map[string]Operation{
 	"inventory_post_inventory_agents_wazuh_test":             {Method: "POST", Path: "/inventory/agents/wazuh/test", MinRole: Admin, Tag: "inventory"},
 	"inventory_post_inventory_devices":                       {Method: "POST", Path: "/inventory/devices", MinRole: Operator, Tag: "inventory"},
 	"inventory_post_inventory_devices_id_approve":            {Method: "POST", Path: "/inventory/devices/{id}/approve", MinRole: Operator, Tag: "inventory"},
+	"inventory_post_inventory_devices_id_differs_field_keep": {Method: "POST", Path: "/inventory/devices/{id}/differs/{field}/keep", MinRole: Operator, Tag: "inventory"},
+	"inventory_post_inventory_devices_id_differs_field_use":  {Method: "POST", Path: "/inventory/devices/{id}/differs/{field}/use", MinRole: Operator, Tag: "inventory"},
 	"inventory_post_inventory_devices_id_ignore":             {Method: "POST", Path: "/inventory/devices/{id}/ignore", MinRole: Operator, Tag: "inventory"},
 	"inventory_post_inventory_devices_id_keep_separate":      {Method: "POST", Path: "/inventory/devices/{id}/keep-separate", MinRole: Admin, Tag: "inventory"},
 	"inventory_post_inventory_devices_id_merge":              {Method: "POST", Path: "/inventory/devices/{id}/merge", MinRole: Admin, Tag: "inventory"},

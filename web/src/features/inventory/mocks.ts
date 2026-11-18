@@ -216,7 +216,54 @@ function derive(a: Asset): StoredObs[] {
     if (f === 'os' && o.source !== 'passive' && o.source !== 'manual') push('os', 'Unknown OS (guessed from packet TTL)', 'passive', 0.2, new Date(new Date(o.seen_at).getTime() - 7 * 864e5).toISOString())
   }
   push('kind', a.kind, src, conf, a.first_seen)
+  // A device a person adds by hand under a name SNMP_READS knows reads back what that device answers over SNMP (dev data).
+  const read = manual && !own && a.hostname ? SNMP_READS[a.hostname.toLowerCase()] : undefined
+  if (read) for (const [f, v] of Object.entries(read) as [ObsField, string][]) push(f, v, 'snmp', 0.9, daysAgo(0))
   return out
+}
+/** What a device of a given hand-entered host name answers over SNMP: `make dev` then shows the notice "Detected host name ...". */
+export const SNMP_READS: Record<string, Partial<Record<ObsField, string>>> = {
+  'edge-fw': { hostname: 'fw-edge-01', vendor: 'Fortinet', model: 'FortiGate-500E', os: 'FortiOS 7.2.13', kind: 'firewall' },
+}
+
+// INV-47 (modules/inventory/detected.go): a value a person entered wins; a trusted source (agent, SNMP) that reads another one is a difference.
+const keptStore = collection<Record<string, string[]>>('inv_detected_keep', () => ({}))
+const DETECTED_FIELDS = ['hostname', 'vendor', 'model', 'os', 'kind'] as const
+type DetectedField = (typeof DETECTED_FIELDS)[number]
+const foldText = (v: string) => v.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim()
+const MAKER_SUFFIX = ['inc', 'incorporated', 'corp', 'corporation', 'co', 'company', 'ltd', 'limited', 'llc', 'gmbh', 'sa', 'ag', 'plc', 'bv', 'pte', 'networks', 'network', 'technologies', 'technology', 'systems', 'communications']
+const makerWords = (v: string) => { const w = foldText(v).split(' '); while (w.length > 1 && MAKER_SUFFIX.includes(w[w.length - 1]!)) w.pop(); return w.join(' ') }
+function sameValue(field: DetectedField, a: string, b: string, makerOf = ''): boolean {
+  if (field === 'hostname') { const x = a.trim().toLowerCase(), y = b.trim().toLowerCase(); return x === y || x.startsWith(`${y}.`) || y.startsWith(`${x}.`) || /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[0-9a-f]{32})$/.test(y) }
+  if (field === 'vendor') return makerWords(a) === makerWords(b)
+  if (field === 'model') { const x = foldText(a), y = foldText(b); return x.replace(/ /g, '') === y.replace(/ /g, '') || x === `${foldText(makerOf)} ${y}` || y === `${foldText(makerOf)} ${x}` }
+  if (field === 'os') { // only a detected name that extends the entered one without being a version is asked about: a contradicted OS has its own block (INV-41)
+    const x = foldText(a.replace(/^microsoft /i, '')), y = foldText(b.replace(/^microsoft /i, ''))
+    if (x === y || x.startsWith(`${y} `) || !y.startsWith(`${x} `)) return true
+    const w = y.slice(x.length + 1).split(' ')[0]!
+    return w === 'build' || /^v?\d/.test(w)
+  }
+  return a.trim().toLowerCase() === b.trim().toLowerCase()
+}
+const rows0 = (list: { field: string; value: string }[]) => list.find((o) => o.field === 'vendor')?.value ?? ''
+function differsOf(a: Asset): NonNullable<DeviceDetail['detected_differs']> {
+  const list = markCurrent(obsOf(a))
+  const kept = keptStore.get()[a.id] ?? []
+  const out: NonNullable<DeviceDetail['detected_differs']> = []
+  for (const field of DETECTED_FIELDS) {
+    const rows = list.filter((o) => o.field === field)
+    const entered = rows.filter((o) => o.source === 'manual').sort((x, y) => -compareObs(x, y))[0]
+    const detected = rows.filter((o) => o.source === 'agent' || o.source === 'snmp').sort((x, y) => -compareObs(x, y))[0]
+    if (!entered || !detected || sameValue(field, entered.value, detected.value, rows0(list)) || kept.includes(`${field}\u0000${detected.value}`)) continue
+    out.push({ field, entered: entered.value, detected: detected.value, source: detected.source, seen_at: detected.seen_at })
+  }
+  return out
+}
+function detectedChoice(request: Request, a: Asset, field: string, detected: unknown): Response | DetectedField {
+  if (!(DETECTED_FIELDS as readonly string[]).includes(field)) return fail(400, 'bad_field', 'The field is one of hostname, vendor, model, os or kind.')
+  if (!differsOf(a).some((d) => d.field === field && d.detected === detected)) return fail(409, 'detected_changed', 'The detected value is no longer different from yours, or it changed. Reload the page to see what the device reads now.')
+  void request
+  return field as DetectedField
 }
 
 function obsOf(a: Asset): StoredObs[] {
@@ -800,7 +847,7 @@ export const handlers = [
     // INV-46: the newest manual observation or manual software row; a device added by hand with neither: when it was added
     const manualAt = [...observations.filter((o) => o.source === 'manual').map((o) => o.seen_at), ...a.software.filter((s) => s.source === 'manual' && s.set_at).map((s) => s.set_at!)]
       .reduce<string | null>((m, t) => (!m || t > m ? t : m), null) ?? (a.origin === 'manual' ? a.first_seen : null)
-    return HttpResponse.json({ asset: { ...live(a), ...scanInfo(a), software }, suspicious: !!metaStore.get()[a.id]?.suspicious, findings_count: findingsOf(a.id), risk: deviceRisk(a.id), risk_unavailable: false, observations, manual_at: manualAt, kinds: KINDS, possible_same: possibleSameAs(a.id) } satisfies DeviceDetail)
+    return HttpResponse.json({ asset: { ...live(a), ...scanInfo(a), software }, suspicious: !!metaStore.get()[a.id]?.suspicious, findings_count: findingsOf(a.id), risk: deviceRisk(a.id), risk_unavailable: false, observations, manual_at: manualAt, detected_differs: differsOf(a), kinds: KINDS, possible_same: possibleSameAs(a.id) } satisfies DeviceDetail)
   }),
 
   http.get(`${API}/inventory/possible-same`, () => {
@@ -936,6 +983,34 @@ export const handlers = [
     assetsStore.update((l) => l.map((x) => (x.id === a.id ? { ...x, approved: true } : x)))
     metaStore.update((m) => ({ ...m, [a.id]: { ...m[a.id], suspicious: false, approved_at: m[a.id]?.approved_at ?? (a.approved ? undefined : nowIso()) } }))
     audit('inventory.approve', nameOf(a, a.kind), a.id)
+    return HttpResponse.json({ ok: true })
+  }),
+
+  // INV-47: use the detected value of a field (drops the entered one), or keep the entered one against it.
+  http.post(`${API}/inventory/devices/:id/differs/:field/use`, async ({ params, request }) => {
+    const denied = guard('operator'); if (denied) return denied
+    const a = find(String(params.id))
+    if (!a) return notFound(request)
+    const detected = (await body<{ detected: string }>(request)).detected
+    const field = detectedChoice(request, a, String(params.field), detected)
+    if (field instanceof Response) return field
+    const d = differsOf(a).find((x) => x.field === field)!
+    obsStore.update((m) => ({ ...m, [a.id]: obsOf(a).filter((o) => !(o.field === field && o.source === 'manual')) }))
+    const read = { value: d.detected, source: d.source, confidence: 0.9, seen_at: d.seen_at }
+    assetsStore.update((l) => l.map((x) => (x.id !== a.id ? x : field === 'hostname' ? { ...x, hostname: d.detected } : field === 'kind' ? { ...x, kind: d.detected as AssetKind } : { ...x, [field]: read })))
+    audit('inventory.use_detected', nameOf(a, a.kind), `${field}: ${d.entered} → ${d.detected}`)
+    return HttpResponse.json({ ok: true })
+  }),
+
+  http.post(`${API}/inventory/devices/:id/differs/:field/keep`, async ({ params, request }) => {
+    const denied = guard('operator'); if (denied) return denied
+    const a = find(String(params.id))
+    if (!a) return notFound(request)
+    const detected = (await body<{ detected: string }>(request)).detected
+    const field = detectedChoice(request, a, String(params.field), detected)
+    if (field instanceof Response) return field
+    keptStore.update((m) => ({ ...m, [a.id]: [...(m[a.id] ?? []), `${field}\u0000${detected}`] }))
+    audit('inventory.keep_entered', nameOf(a, a.kind), `${field}: kept your value, not ${detected}`)
     return HttpResponse.json({ ok: true })
   }),
 

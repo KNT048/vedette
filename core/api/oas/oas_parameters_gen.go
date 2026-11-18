@@ -8175,6 +8175,258 @@ func decodeInventoryPostInventoryDevicesIDApproveParams(args [1]string, argsEsca
 	return params, nil
 }
 
+// InventoryPostInventoryDevicesIDDiffersFieldKeepParams is parameters of inventory_post_inventory_devices_id_differs_field_keep operation.
+type InventoryPostInventoryDevicesIDDiffersFieldKeepParams struct {
+	ID    string
+	Field InventoryPostInventoryDevicesIDDiffersFieldKeepField
+}
+
+func unpackInventoryPostInventoryDevicesIDDiffersFieldKeepParams(packed middleware.Parameters) (params InventoryPostInventoryDevicesIDDiffersFieldKeepParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "field",
+			In:   "path",
+		}
+		params.Field = packed[key].(InventoryPostInventoryDevicesIDDiffersFieldKeepField)
+	}
+	return params
+}
+
+func decodeInventoryPostInventoryDevicesIDDiffersFieldKeepParams(args [2]string, argsEscaped bool, r *http.Request) (params InventoryPostInventoryDevicesIDDiffersFieldKeepParams, _ error) {
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode path: field.
+	if err := func() error {
+		param := args[1]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[1])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "field",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.Field = InventoryPostInventoryDevicesIDDiffersFieldKeepField(c)
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := params.Field.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "field",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// InventoryPostInventoryDevicesIDDiffersFieldUseParams is parameters of inventory_post_inventory_devices_id_differs_field_use operation.
+type InventoryPostInventoryDevicesIDDiffersFieldUseParams struct {
+	ID    string
+	Field InventoryPostInventoryDevicesIDDiffersFieldUseField
+}
+
+func unpackInventoryPostInventoryDevicesIDDiffersFieldUseParams(packed middleware.Parameters) (params InventoryPostInventoryDevicesIDDiffersFieldUseParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "field",
+			In:   "path",
+		}
+		params.Field = packed[key].(InventoryPostInventoryDevicesIDDiffersFieldUseField)
+	}
+	return params
+}
+
+func decodeInventoryPostInventoryDevicesIDDiffersFieldUseParams(args [2]string, argsEscaped bool, r *http.Request) (params InventoryPostInventoryDevicesIDDiffersFieldUseParams, _ error) {
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode path: field.
+	if err := func() error {
+		param := args[1]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[1])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "field",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.Field = InventoryPostInventoryDevicesIDDiffersFieldUseField(c)
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := params.Field.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "field",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // InventoryPostInventoryDevicesIDIgnoreParams is parameters of inventory_post_inventory_devices_id_ignore operation.
 type InventoryPostInventoryDevicesIDIgnoreParams struct {
 	ID string

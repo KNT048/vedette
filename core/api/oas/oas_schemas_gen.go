@@ -100662,6 +100662,10 @@ func (s *InventoryGetInventoryDevicesHasFindings) UnmarshalText(data []byte) err
 
 type InventoryGetInventoryDevicesIDOK struct {
 	Asset InventoryGetInventoryDevicesIDOKAsset `json:"asset"`
+	// INV-47: fields where a trusted source reads another value than the one a person entered, which still
+	// wins. The page offers Use detected / Keep mine next to each; empty when none or when the person kept
+	// their value for the value now detected.
+	DetectedDiffers []InventoryGetInventoryDevicesIDOKDetectedDiffersItem `json:"detected_differs"`
 	// Number of findings attached to the device; deleting the device also deletes these findings.
 	FindingsCount int                                         `json:"findings_count"`
 	Kinds         []InventoryGetInventoryDevicesIDOKKindsItem `json:"kinds"`
@@ -100686,6 +100690,11 @@ type InventoryGetInventoryDevicesIDOK struct {
 // GetAsset returns the value of Asset.
 func (s *InventoryGetInventoryDevicesIDOK) GetAsset() InventoryGetInventoryDevicesIDOKAsset {
 	return s.Asset
+}
+
+// GetDetectedDiffers returns the value of DetectedDiffers.
+func (s *InventoryGetInventoryDevicesIDOK) GetDetectedDiffers() []InventoryGetInventoryDevicesIDOKDetectedDiffersItem {
+	return s.DetectedDiffers
 }
 
 // GetFindingsCount returns the value of FindingsCount.
@@ -100731,6 +100740,11 @@ func (s *InventoryGetInventoryDevicesIDOK) GetSuspicious() bool {
 // SetAsset sets the value of Asset.
 func (s *InventoryGetInventoryDevicesIDOK) SetAsset(val InventoryGetInventoryDevicesIDOKAsset) {
 	s.Asset = val
+}
+
+// SetDetectedDiffers sets the value of DetectedDiffers.
+func (s *InventoryGetInventoryDevicesIDOK) SetDetectedDiffers(val []InventoryGetInventoryDevicesIDOKDetectedDiffersItem) {
+	s.DetectedDiffers = val
 }
 
 // SetFindingsCount sets the value of FindingsCount.
@@ -104924,6 +104938,268 @@ func (s *InventoryGetInventoryDevicesIDOKAssetVendorSource) UnmarshalText(data [
 		return nil
 	case InventoryGetInventoryDevicesIDOKAssetVendorSourceScan:
 		*s = InventoryGetInventoryDevicesIDOKAssetVendorSourceScan
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Never raised against a scan guess or a passive hint, nor when the two only differ by case, a domain,
+// a legal suffix such as Inc., or a version the entered OS leaves out.
+type InventoryGetInventoryDevicesIDOKDetectedDiffersItem struct {
+	Basis OptInventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis `json:"basis"`
+	// What the trusted source reads now.
+	Detected string `json:"detected"`
+	// What the person entered: the value in use.
+	Entered string                                                   `json:"entered"`
+	Field   InventoryGetInventoryDevicesIDOKDetectedDiffersItemField `json:"field"`
+	// When the source last read that value.
+	SeenAt time.Time `json:"seen_at"`
+	// Agent, snmp, or passive (the device's own LLDP statement: basis stated).
+	Source InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource `json:"source"`
+}
+
+// GetBasis returns the value of Basis.
+func (s *InventoryGetInventoryDevicesIDOKDetectedDiffersItem) GetBasis() OptInventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis {
+	return s.Basis
+}
+
+// GetDetected returns the value of Detected.
+func (s *InventoryGetInventoryDevicesIDOKDetectedDiffersItem) GetDetected() string {
+	return s.Detected
+}
+
+// GetEntered returns the value of Entered.
+func (s *InventoryGetInventoryDevicesIDOKDetectedDiffersItem) GetEntered() string {
+	return s.Entered
+}
+
+// GetField returns the value of Field.
+func (s *InventoryGetInventoryDevicesIDOKDetectedDiffersItem) GetField() InventoryGetInventoryDevicesIDOKDetectedDiffersItemField {
+	return s.Field
+}
+
+// GetSeenAt returns the value of SeenAt.
+func (s *InventoryGetInventoryDevicesIDOKDetectedDiffersItem) GetSeenAt() time.Time {
+	return s.SeenAt
+}
+
+// GetSource returns the value of Source.
+func (s *InventoryGetInventoryDevicesIDOKDetectedDiffersItem) GetSource() InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource {
+	return s.Source
+}
+
+// SetBasis sets the value of Basis.
+func (s *InventoryGetInventoryDevicesIDOKDetectedDiffersItem) SetBasis(val OptInventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis) {
+	s.Basis = val
+}
+
+// SetDetected sets the value of Detected.
+func (s *InventoryGetInventoryDevicesIDOKDetectedDiffersItem) SetDetected(val string) {
+	s.Detected = val
+}
+
+// SetEntered sets the value of Entered.
+func (s *InventoryGetInventoryDevicesIDOKDetectedDiffersItem) SetEntered(val string) {
+	s.Entered = val
+}
+
+// SetField sets the value of Field.
+func (s *InventoryGetInventoryDevicesIDOKDetectedDiffersItem) SetField(val InventoryGetInventoryDevicesIDOKDetectedDiffersItemField) {
+	s.Field = val
+}
+
+// SetSeenAt sets the value of SeenAt.
+func (s *InventoryGetInventoryDevicesIDOKDetectedDiffersItem) SetSeenAt(val time.Time) {
+	s.SeenAt = val
+}
+
+// SetSource sets the value of Source.
+func (s *InventoryGetInventoryDevicesIDOKDetectedDiffersItem) SetSource(val InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource) {
+	s.Source = val
+}
+
+type InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis string
+
+const (
+	InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasisStated    InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis = "stated"
+	InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasisStatedWeb InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis = "stated_web"
+	InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasisStatedSip InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis = "stated_sip"
+	InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasisGuess     InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis = "guess"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis values.
+func (InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis) AllValues() []InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis {
+	return []InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis{
+		InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasisStated,
+		InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasisStatedWeb,
+		InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasisStatedSip,
+		InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasisGuess,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasisStated:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasisStatedWeb:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasisStatedSip:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasisGuess:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis(data) {
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasisStated:
+		*s = InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasisStated
+		return nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasisStatedWeb:
+		*s = InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasisStatedWeb
+		return nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasisStatedSip:
+		*s = InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasisStatedSip
+		return nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasisGuess:
+		*s = InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasisGuess
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryGetInventoryDevicesIDOKDetectedDiffersItemField string
+
+const (
+	InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldHostname InventoryGetInventoryDevicesIDOKDetectedDiffersItemField = "hostname"
+	InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldVendor   InventoryGetInventoryDevicesIDOKDetectedDiffersItemField = "vendor"
+	InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldModel    InventoryGetInventoryDevicesIDOKDetectedDiffersItemField = "model"
+	InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldOs       InventoryGetInventoryDevicesIDOKDetectedDiffersItemField = "os"
+	InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldKind     InventoryGetInventoryDevicesIDOKDetectedDiffersItemField = "kind"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesIDOKDetectedDiffersItemField values.
+func (InventoryGetInventoryDevicesIDOKDetectedDiffersItemField) AllValues() []InventoryGetInventoryDevicesIDOKDetectedDiffersItemField {
+	return []InventoryGetInventoryDevicesIDOKDetectedDiffersItemField{
+		InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldHostname,
+		InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldVendor,
+		InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldModel,
+		InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldOs,
+		InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldKind,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesIDOKDetectedDiffersItemField) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldHostname:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldVendor:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldModel:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldOs:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldKind:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesIDOKDetectedDiffersItemField) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesIDOKDetectedDiffersItemField(data) {
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldHostname:
+		*s = InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldHostname
+		return nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldVendor:
+		*s = InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldVendor
+		return nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldModel:
+		*s = InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldModel
+		return nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldOs:
+		*s = InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldOs
+		return nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldKind:
+		*s = InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldKind
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Agent, snmp, or passive (the device's own LLDP statement: basis stated).
+type InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource string
+
+const (
+	InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceManual  InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource = "manual"
+	InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceAgent   InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource = "agent"
+	InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceSnmp    InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource = "snmp"
+	InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceNmap    InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource = "nmap"
+	InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourcePassive InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource = "passive"
+	InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceScan    InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource = "scan"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource values.
+func (InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource) AllValues() []InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource {
+	return []InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource{
+		InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceManual,
+		InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceAgent,
+		InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceSnmp,
+		InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceNmap,
+		InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourcePassive,
+		InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceScan,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceManual:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceAgent:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceSnmp:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceNmap:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourcePassive:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceScan:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource(data) {
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceManual:
+		*s = InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceManual
+		return nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceAgent:
+		*s = InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceAgent
+		return nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceSnmp:
+		*s = InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceSnmp
+		return nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceNmap:
+		*s = InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceNmap
+		return nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourcePassive:
+		*s = InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourcePassive
+		return nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceScan:
+		*s = InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceScan
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -115000,6 +115276,190 @@ func (s *InventoryPostInventoryDevicesIDApproveOK) GetOk() bool {
 // SetOk sets the value of Ok.
 func (s *InventoryPostInventoryDevicesIDApproveOK) SetOk(val bool) {
 	s.Ok = val
+}
+
+type InventoryPostInventoryDevicesIDDiffersFieldKeepField string
+
+const (
+	InventoryPostInventoryDevicesIDDiffersFieldKeepFieldHostname InventoryPostInventoryDevicesIDDiffersFieldKeepField = "hostname"
+	InventoryPostInventoryDevicesIDDiffersFieldKeepFieldVendor   InventoryPostInventoryDevicesIDDiffersFieldKeepField = "vendor"
+	InventoryPostInventoryDevicesIDDiffersFieldKeepFieldModel    InventoryPostInventoryDevicesIDDiffersFieldKeepField = "model"
+	InventoryPostInventoryDevicesIDDiffersFieldKeepFieldOs       InventoryPostInventoryDevicesIDDiffersFieldKeepField = "os"
+	InventoryPostInventoryDevicesIDDiffersFieldKeepFieldKind     InventoryPostInventoryDevicesIDDiffersFieldKeepField = "kind"
+)
+
+// AllValues returns all InventoryPostInventoryDevicesIDDiffersFieldKeepField values.
+func (InventoryPostInventoryDevicesIDDiffersFieldKeepField) AllValues() []InventoryPostInventoryDevicesIDDiffersFieldKeepField {
+	return []InventoryPostInventoryDevicesIDDiffersFieldKeepField{
+		InventoryPostInventoryDevicesIDDiffersFieldKeepFieldHostname,
+		InventoryPostInventoryDevicesIDDiffersFieldKeepFieldVendor,
+		InventoryPostInventoryDevicesIDDiffersFieldKeepFieldModel,
+		InventoryPostInventoryDevicesIDDiffersFieldKeepFieldOs,
+		InventoryPostInventoryDevicesIDDiffersFieldKeepFieldKind,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPostInventoryDevicesIDDiffersFieldKeepField) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPostInventoryDevicesIDDiffersFieldKeepFieldHostname:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDDiffersFieldKeepFieldVendor:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDDiffersFieldKeepFieldModel:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDDiffersFieldKeepFieldOs:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDDiffersFieldKeepFieldKind:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPostInventoryDevicesIDDiffersFieldKeepField) UnmarshalText(data []byte) error {
+	switch InventoryPostInventoryDevicesIDDiffersFieldKeepField(data) {
+	case InventoryPostInventoryDevicesIDDiffersFieldKeepFieldHostname:
+		*s = InventoryPostInventoryDevicesIDDiffersFieldKeepFieldHostname
+		return nil
+	case InventoryPostInventoryDevicesIDDiffersFieldKeepFieldVendor:
+		*s = InventoryPostInventoryDevicesIDDiffersFieldKeepFieldVendor
+		return nil
+	case InventoryPostInventoryDevicesIDDiffersFieldKeepFieldModel:
+		*s = InventoryPostInventoryDevicesIDDiffersFieldKeepFieldModel
+		return nil
+	case InventoryPostInventoryDevicesIDDiffersFieldKeepFieldOs:
+		*s = InventoryPostInventoryDevicesIDDiffersFieldKeepFieldOs
+		return nil
+	case InventoryPostInventoryDevicesIDDiffersFieldKeepFieldKind:
+		*s = InventoryPostInventoryDevicesIDDiffersFieldKeepFieldKind
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryPostInventoryDevicesIDDiffersFieldKeepOK struct {
+	Ok bool `json:"ok"`
+}
+
+// GetOk returns the value of Ok.
+func (s *InventoryPostInventoryDevicesIDDiffersFieldKeepOK) GetOk() bool {
+	return s.Ok
+}
+
+// SetOk sets the value of Ok.
+func (s *InventoryPostInventoryDevicesIDDiffersFieldKeepOK) SetOk(val bool) {
+	s.Ok = val
+}
+
+type InventoryPostInventoryDevicesIDDiffersFieldKeepReq struct {
+	// The detected value the person saw. 409 detected_changed when the sources read another value now or
+	// it no longer differs: reload.
+	Detected string `json:"detected"`
+}
+
+// GetDetected returns the value of Detected.
+func (s *InventoryPostInventoryDevicesIDDiffersFieldKeepReq) GetDetected() string {
+	return s.Detected
+}
+
+// SetDetected sets the value of Detected.
+func (s *InventoryPostInventoryDevicesIDDiffersFieldKeepReq) SetDetected(val string) {
+	s.Detected = val
+}
+
+type InventoryPostInventoryDevicesIDDiffersFieldUseField string
+
+const (
+	InventoryPostInventoryDevicesIDDiffersFieldUseFieldHostname InventoryPostInventoryDevicesIDDiffersFieldUseField = "hostname"
+	InventoryPostInventoryDevicesIDDiffersFieldUseFieldVendor   InventoryPostInventoryDevicesIDDiffersFieldUseField = "vendor"
+	InventoryPostInventoryDevicesIDDiffersFieldUseFieldModel    InventoryPostInventoryDevicesIDDiffersFieldUseField = "model"
+	InventoryPostInventoryDevicesIDDiffersFieldUseFieldOs       InventoryPostInventoryDevicesIDDiffersFieldUseField = "os"
+	InventoryPostInventoryDevicesIDDiffersFieldUseFieldKind     InventoryPostInventoryDevicesIDDiffersFieldUseField = "kind"
+)
+
+// AllValues returns all InventoryPostInventoryDevicesIDDiffersFieldUseField values.
+func (InventoryPostInventoryDevicesIDDiffersFieldUseField) AllValues() []InventoryPostInventoryDevicesIDDiffersFieldUseField {
+	return []InventoryPostInventoryDevicesIDDiffersFieldUseField{
+		InventoryPostInventoryDevicesIDDiffersFieldUseFieldHostname,
+		InventoryPostInventoryDevicesIDDiffersFieldUseFieldVendor,
+		InventoryPostInventoryDevicesIDDiffersFieldUseFieldModel,
+		InventoryPostInventoryDevicesIDDiffersFieldUseFieldOs,
+		InventoryPostInventoryDevicesIDDiffersFieldUseFieldKind,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPostInventoryDevicesIDDiffersFieldUseField) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPostInventoryDevicesIDDiffersFieldUseFieldHostname:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDDiffersFieldUseFieldVendor:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDDiffersFieldUseFieldModel:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDDiffersFieldUseFieldOs:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDDiffersFieldUseFieldKind:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPostInventoryDevicesIDDiffersFieldUseField) UnmarshalText(data []byte) error {
+	switch InventoryPostInventoryDevicesIDDiffersFieldUseField(data) {
+	case InventoryPostInventoryDevicesIDDiffersFieldUseFieldHostname:
+		*s = InventoryPostInventoryDevicesIDDiffersFieldUseFieldHostname
+		return nil
+	case InventoryPostInventoryDevicesIDDiffersFieldUseFieldVendor:
+		*s = InventoryPostInventoryDevicesIDDiffersFieldUseFieldVendor
+		return nil
+	case InventoryPostInventoryDevicesIDDiffersFieldUseFieldModel:
+		*s = InventoryPostInventoryDevicesIDDiffersFieldUseFieldModel
+		return nil
+	case InventoryPostInventoryDevicesIDDiffersFieldUseFieldOs:
+		*s = InventoryPostInventoryDevicesIDDiffersFieldUseFieldOs
+		return nil
+	case InventoryPostInventoryDevicesIDDiffersFieldUseFieldKind:
+		*s = InventoryPostInventoryDevicesIDDiffersFieldUseFieldKind
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryPostInventoryDevicesIDDiffersFieldUseOK struct {
+	Ok bool `json:"ok"`
+}
+
+// GetOk returns the value of Ok.
+func (s *InventoryPostInventoryDevicesIDDiffersFieldUseOK) GetOk() bool {
+	return s.Ok
+}
+
+// SetOk sets the value of Ok.
+func (s *InventoryPostInventoryDevicesIDDiffersFieldUseOK) SetOk(val bool) {
+	s.Ok = val
+}
+
+type InventoryPostInventoryDevicesIDDiffersFieldUseReq struct {
+	// The detected value the person saw. 409 detected_changed when the sources read another value now or
+	// it no longer differs: reload.
+	Detected string `json:"detected"`
+}
+
+// GetDetected returns the value of Detected.
+func (s *InventoryPostInventoryDevicesIDDiffersFieldUseReq) GetDetected() string {
+	return s.Detected
+}
+
+// SetDetected sets the value of Detected.
+func (s *InventoryPostInventoryDevicesIDDiffersFieldUseReq) SetDetected(val string) {
+	s.Detected = val
 }
 
 type InventoryPostInventoryDevicesIDIgnoreOK struct {
@@ -152195,6 +152655,52 @@ func (o OptInventoryGetInventoryDevicesIDOKAssetVendorBasis) Get() (v InventoryG
 
 // Or returns value if set, or given parameter if does not.
 func (o OptInventoryGetInventoryDevicesIDOKAssetVendorBasis) Or(d InventoryGetInventoryDevicesIDOKAssetVendorBasis) InventoryGetInventoryDevicesIDOKAssetVendorBasis {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis returns new OptInventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis with value set to v.
+func NewOptInventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis(v InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis) OptInventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis {
+	return OptInventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis is optional InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis.
+type OptInventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis struct {
+	Value InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis was set.
+func (o OptInventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis) Reset() {
+	var v InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis) SetTo(v InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis) Get() (v InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis) Or(d InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis) InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis {
 	if v, ok := o.Get(); ok {
 		return v
 	}

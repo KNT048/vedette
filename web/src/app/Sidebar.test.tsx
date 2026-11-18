@@ -87,16 +87,31 @@ describe('sidebar groups (docs/UI.md §2)', () => {
 })
 
 describe('badges from one summary read', () => {
-  it('Findings and Devices carry their counts; a closed group shows the urgent total and names its parts', async () => {
+  it('Findings and Incidents carry their counts; Devices has none, and a closed group sums only the urgent ones', async () => {
     server.use(http.get(`${API}/findings/summary`, () => HttpResponse.json({ open: { total: 9, confirmed: 3, devices: 2, ransomware: 0 }, top: [], trend: [], devices: { total: 30, pending: 15 }, incidents: { open: 4, urgent: 2 }, alerts: null, generated_at: '2026-11-16T00:00:00Z' })))
     renderApp('/')
     const nav = within(await mainNav())
-    expect(await nav.findByRole('button', { name: 'Assets 15 waiting: Devices 15 to review' }, { timeout: 3000 })).toHaveAttribute('aria-expanded', 'false')
-    expect(nav.getByRole('link', { name: /^Findings/ })).toHaveAccessibleName('Findings 3 confirmed to handle')
+    expect(await nav.findByRole('link', { name: 'Findings 3 confirmed to handle' }, { timeout: 3000 })).toBeInTheDocument()
+    const assets = nav.getByRole('button', { name: 'Assets' }) // no count and no "waiting" words: pending devices are not an alarm
+    expect(assets).toHaveAttribute('aria-expanded', 'false')
+    await userEvent.setup().click(assets)
+    expect(nav.getByRole('link', { name: 'Devices' })).toHaveAccessibleName('Devices')
+    expect(nav.getByRole('link', { name: 'Devices' })).not.toHaveTextContent(/\d/)
     // WCAG 2.5.3: every name starts with its visible text (axe's label-content-name-mismatch, off by default, is turned on here).
     const r = await axe.run(await mainNav(), { runOnly: ['label-content-name-mismatch'] })
     expect(r.violations.map((v) => v.nodes.map((n) => n.target.join(' ')).join(', '))).toEqual([])
     expect(nav.getByRole('link', { name: /^Incidents/ })).toHaveAccessibleName('Incidents 2 high or critical open')
+  })
+})
+
+describe('icon rail without a Devices count', () => {
+  it('the collapsed Devices link carries no count either', async () => {
+    server.use(http.get(`${API}/findings/summary`, () => HttpResponse.json({ open: { total: 9, confirmed: 3, devices: 2, ransomware: 0 }, top: [], trend: [], devices: { total: 30, pending: 15 }, incidents: { open: 4, urgent: 2 }, alerts: null, generated_at: '2026-11-16T00:00:00Z' })))
+    localStorage.setItem('vedette.nav.u-admin', JSON.stringify({ rail: true, open: [] }))
+    renderApp('/')
+    const nav = within(await mainNav())
+    expect(await nav.findByRole('link', { name: /^Findings 3/ }, { timeout: 3000 })).toBeInTheDocument()
+    expect(nav.getByRole('link', { name: 'Devices' })).toHaveAccessibleName('Devices')
   })
 })
 

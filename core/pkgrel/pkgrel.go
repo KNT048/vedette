@@ -12,7 +12,11 @@ import (
 
 var (
 	epochRE = regexp.MustCompile(`^[0-9]+:`)
-	patchRE = regexp.MustCompile(`^p[0-9]*$`)
+	// a distribution's package revision after the last hyphen: Debian "2", "2ubuntu3.8", "2+deb12u3", RPM "38.el9"; never a
+	// pre-release ("rc1", "beta") or a date part
+	revisionRE = regexp.MustCompile(`^[0-9][A-Za-z0-9._+~]*$`)
+	bareRE     = regexp.MustCompile(`^[0-9]+$`)
+	patchRE    = regexp.MustCompile(`^p[0-9]*$`)
 )
 
 // Upstream is the upstream version a release text names, lower case: a banner's extra words are dropped ("10.2p1 Ubuntu
@@ -27,7 +31,7 @@ func Upstream(v string) string {
 		return strings.ToLower(apkver.NVDVersion(v))
 	}
 	v = epochRE.ReplaceAllString(v, "")
-	if i := strings.LastIndexByte(v, '-'); i > 0 {
+	if i := strings.LastIndexByte(v, '-'); i > 0 && revisionRE.MatchString(v[i+1:]) && !strings.Contains(v[:i], "-") && !bareRE.MatchString(v[:i]) {
 		v = v[:i]
 	}
 	return strings.ToLower(v)
@@ -37,6 +41,9 @@ func Upstream(v string) string {
 // "10.2" and "10.2p1" are the same (the shorter one omits the patch level); 10.2 and 9.8, or 10.2 and 10.3, are not. An empty
 // reading is never the same as anything.
 func Same(aVersion, aPkg, bVersion, bPkg string) bool {
+	if ea, eb := epochOf(pick(aPkg, aVersion)), epochOf(pick(bPkg, bVersion)); ea != "" && eb != "" && ea != eb {
+		return false // another epoch is another package line
+	}
 	a, b := Upstream(pick(aPkg, aVersion)), Upstream(pick(bPkg, bVersion))
 	if a == "" || b == "" {
 		return false
@@ -66,4 +73,12 @@ func pick(pkg, version string) string {
 // lessPrecise: long is short followed only by a patch level ("10.2" and "10.2p1").
 func lessPrecise(short, long string) bool {
 	return strings.HasPrefix(long, short) && patchRE.MatchString(long[len(short):])
+}
+
+// epochOf is the epoch of a release text ("1" of "1:9.2p1-2"), "" when it has none.
+func epochOf(v string) string {
+	if e := epochRE.FindString(strings.TrimSpace(v)); e != "" {
+		return e
+	}
+	return ""
 }

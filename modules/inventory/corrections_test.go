@@ -151,25 +151,11 @@ func TestINV41_CorrectedSoftwareReplacesTheScannedRow(t *testing.T) {
 	if sw := matchRows(t, e, dev); len(sw) != 1 || sw[0].Source != "manual" {
 		t.Fatalf("the correction must survive the next scan: %+v", sw)
 	}
-	// The source now reads another version: the person's entry stays in use (INV-50); the 10.3 row is shadowed by it and the device says
-	// what the scan reads now.
+	// The source now reads another version: the person's entry stays in use and the row matching follows (INV-50); the 10.3 row is
+	// listed under it and the device says what the scan reads now.
 	scan("10.3")
-	rows := matchRows(t, e, dev)
-	var entry, banner string
-	for _, r := range rows {
-		if r.Source == "manual" {
-			entry = r.ID
-		}
-	}
-	if len(rows) != 2 || entry == "" {
-		t.Fatalf("the entry stays in use next to the new reading: %+v", rows)
-	}
-	for _, r := range rows {
-		switch {
-		case r.Source == "manual" && (r.ShadowedBy != "" || r.Version != "10.2p1"), r.Source == "nmap" && (r.ShadowedBy != entry || r.Version != "10.3"):
-			t.Fatalf("the entry outranks the banner: %+v", r)
-		}
-		banner += r.Source
+	if rows := matchRows(t, e, dev); len(rows) != 1 || rows[0].Source != "manual" || rows[0].Version != "10.2p1" || rows[0].ShadowedBy != "" {
+		t.Fatalf("matching follows the entry; the 10.3 reading is listed under it, not matched: %+v", rows)
 	}
 	if m, _, _ := e.svc.MatchInput(e.ctx(), dev); len(m.StaleCorrections) != 0 {
 		t.Fatalf("stale corrections %v", m.StaleCorrections)
@@ -246,8 +232,12 @@ func TestINV41_ACorrectionReplacesOnlyItsRow(t *testing.T) {
 	dev := deviceAt(t, e, at)
 	idOf := func(source, version string) string {
 		t.Helper()
-		for _, r := range matchRows(t, e, dev) {
-			if r.Source == source && r.Version == version {
+		d, err := e.svc.Detail(e.ctx(), dev)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, r := range d.Asset.Software {
+			if r.Source == source && r.Version != nil && *r.Version == version {
 				return r.ID
 			}
 		}
@@ -267,7 +257,7 @@ func TestINV41_ACorrectionReplacesOnlyItsRow(t *testing.T) {
 		got = append(got, r.Source+" "+r.Version)
 	}
 	slices.Sort(got)
-	want := []string{"agent 10.2p1", "agent 6.12.117", "manual 10.2p1", "manual 6.12.116", "nmap 8.9p1"}
+	want := []string{"agent 10.2p1", "agent 6.12.117", "manual 6.12.116"}
 	if !slices.Equal(got, want) {
 		t.Fatalf("rows matched %v, want %v (only the two corrected rows go)", got, want)
 	}
@@ -280,7 +270,7 @@ func TestINV41_ACorrectionReplacesOnlyItsRow(t *testing.T) {
 		got = append(got, r.Source+" "+r.Version+" "+r.ReportedSource+" "+r.PkgVersion)
 	}
 	slices.Sort(got)
-	want = []string{"agent 6.12.117  6.12.117-1", "manual 10.2p1 agent 1:10.2p1-2ubuntu3.9", "manual 10.2p1 nmap 9.9-1", "manual 6.12.116 agent 9.9-1", "nmap 8.9p1  "}
+	want = []string{"agent 6.12.117  6.12.117-1", "manual 10.2p1 agent 1:10.2p1-2ubuntu3.9", "manual 6.12.116 agent 9.9-1"}
 	if !slices.Equal(got, want) {
 		t.Fatalf("rows matched %q, want %q", got, want)
 	}
@@ -299,14 +289,18 @@ func TestINV41_TwoSourcesCorrectedToTheSameVersion(t *testing.T) {
 		}
 	}
 	dev := deviceAt(t, e, at)
-	for _, r := range matchRows(t, e, dev) {
+	detail, err := e.svc.Detail(e.ctx(), dev)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range detail.Asset.Software {
 		if err := e.svc.EditSoftware(e.ctx(), "op@example.com", dev, r.ID, inventory.SoftwareEdit{Version: ptr("9.6"), PkgVersion: ptr("1:9.6p1-3ubuntu13.14")}); err != nil {
 			t.Fatalf("%s: %v", r.Source, err)
 		}
 	}
 	sw := matchRows(t, e, dev)
-	if len(sw) != 2 || sw[0].Source != "manual" || sw[1].Source != "manual" || sw[0].Version != "9.6" || sw[1].Version != "9.6" || sw[0].ReportedSource == sw[1].ReportedSource {
-		t.Fatalf("both corrections match, no original does: %+v", sw)
+	if len(sw) != 1 || sw[0].Source != "manual" || sw[0].Version != "9.6" || sw[0].ReportedSource != "agent" { // the agent's entry is the one effective row (INV-50)
+		t.Fatalf("one effective row, no original matches: %+v", sw)
 	}
 	if e.count(`SELECT count(*) FROM inv_software WHERE corrects IS NOT NULL`) != 2 {
 		t.Fatal("one correction per reported row")

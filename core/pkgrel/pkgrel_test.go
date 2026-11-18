@@ -26,6 +26,11 @@ func TestSame(t *testing.T) {
 		{"10.2", "", "10.2.1", "", false},
 		{"9.2", "", "", "1:9.6p1-3ubuntu13", false},
 		{"", "", "10.2", "", false},
+		{"2.4.0-rc1", "", "2.4.0", "", false},
+		{"1.0-beta", "", "1.0", "", false},
+		{"2024-01-15", "", "2024-01-20", "", false},
+		{"2:2.3-1", "", "1:2.3-1", "", false},
+		{"", "2:2.3-1", "", "2.3-1", true},
 	} {
 		if got := pkgrel.Same(tc.av, tc.ap, tc.bv, tc.bp); got != tc.want {
 			t.Errorf("Same(%q,%q,%q,%q) = %v, want %v", tc.av, tc.ap, tc.bv, tc.bp, got, tc.want)

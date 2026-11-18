@@ -143,18 +143,32 @@ func effectiveOf(all []EffectiveSoftware) []EffectiveSoftware {
 				}
 			}
 		}
+		// an entry that corrects an agent's row is that agent install's own value: it ranks with the agent rows (another agent row of the
+		// product, a second kernel, does not hide it); once the corrected row is gone, it is an entry like any other
+		rank := func(i int) int {
+			for _, c := range corrected {
+				if c == i && all[i].Source == "manual" {
+					for r, cc := range corrected {
+						if cc == i && all[r].Source == "agent" {
+							return softwareRank("agent")
+						}
+					}
+				}
+			}
+			return softwareRank(all[i].Source)
+		}
 		var cand []int
 		for _, i := range idx {
 			if _, ok := corrected[i]; !ok {
 				cand = append(cand, i)
 			}
 		}
-		slices.SortStableFunc(cand, func(a, b int) int { return softwareRank(all[b].Source) - softwareRank(all[a].Source) }) // newest first kept
-		top := softwareRank(all[cand[0]].Source)
+		slices.SortStableFunc(cand, func(a, b int) int { return rank(b) - rank(a) }) // newest first kept
+		top := rank(cand[0])
 		var shown []EffectiveSoftware
 		var rest []int
 		for _, i := range cand {
-			if softwareRank(all[i].Source) == top {
+			if rank(i) == top {
 				r := all[i]
 				r.AlsoSeen = []AlsoSeen{}
 				shown = append(shown, r)
@@ -229,21 +243,21 @@ func (s *Service) EffectiveSoftware(ctx context.Context, assetID string) ([]Effe
 	return out, err
 }
 
-// markShadowed sets ShadowedBy on the rows of a device that another source of the same software outranks (INV-50), from the
-// effective rows, so it always agrees with them.
+// markShadowed makes matching follow the effective rows (INV-50): a row another row of the same software outranks (it is listed
+// under that row's AlsoSeen) is left out of what MatchInput returns, so findings matches the effective row of each software and every
+// row of another product or install as before. ShadowedBy is therefore "" on every returned row; it names the effective row only
+// while the row is in the list.
 func markShadowed(ctx context.Context, q querier, assetID string, d *MatchDevice) error {
 	eff, err := effectiveSoftware(ctx, q, assetID)
 	if err != nil {
 		return err
 	}
-	by := map[string]string{}
+	shadowed := map[string]bool{}
 	for _, e := range eff {
 		for _, o := range e.AlsoSeen {
-			by[o.ID] = e.ID
+			shadowed[o.ID] = true
 		}
 	}
-	for i := range d.Software {
-		d.Software[i].ShadowedBy = by[d.Software[i].ID]
-	}
+	d.Software = slices.DeleteFunc(d.Software, func(sw MatchSoftware) bool { return shadowed[sw.ID] })
 	return nil
 }

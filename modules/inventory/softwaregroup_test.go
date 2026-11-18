@@ -87,12 +87,8 @@ func TestINV50_ThreeSourcesOneLine(t *testing.T) {
 	if err != nil || !ok {
 		t.Fatal(ok, err)
 	}
-	shadowed := map[string]string{}
-	for _, sw := range m.Software {
-		shadowed[sw.Source] = sw.ShadowedBy
-	}
-	if len(m.Software) != 2 || shadowed["agent"] != "" || shadowed["manual"] != l.ID {
-		t.Fatalf("matching rows: %+v", m.Software)
+	if len(m.Software) != 1 || m.Software[0].ID != l.ID || m.Software[0].ShadowedBy != "" {
+		t.Fatalf("matching reads the effective row alone: %+v", m.Software)
 	}
 	for _, s := range l.AlsoSeen {
 		if !s.SameRelease || s.Source == "agent" {
@@ -146,10 +142,8 @@ func TestINV50_EntryStaysWhenTheBannerChanges(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, sw := range m.Software {
-		if (sw.Source == "manual") != (sw.ShadowedBy == "") || sw.Source == "nmap" && sw.ShadowedBy != l.ID {
-			t.Fatalf("matching rows follow the effective row: %+v", m.Software)
-		}
+	if len(m.Software) != 1 || m.Software[0].ID != l.ID {
+		t.Fatalf("matching follows the effective row, the entry: %+v", m.Software)
 	}
 }
 
@@ -250,7 +244,16 @@ func TestINV50_EntryBeatsTheAgentRowItCorrects(t *testing.T) {
 	}
 	// the agent reads another version: that row is not the one corrected, so the agent outranks the entry
 	c.report(observe.Agent, "Kernel", "6.12.118", "6.12.118-1")
-	if l := c.oneLine("agent", 1); l.Version != "6.12.118" || l.AlsoSeen[0].Source != "manual" {
+	l = c.oneLine("agent", 1)
+	if l.Version != "6.12.118" || l.AlsoSeen[0].Source != "manual" {
 		t.Fatalf("%+v", l)
+	}
+	// matching sees the new release only: what the upgrade fixed no longer matches through the old entry
+	m, _, err = c.e.svc.MatchInput(c.e.ctx(), c.dev)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(m.Software) != 1 || m.Software[0].Version != "6.12.118" || m.Software[0].Source != "agent" {
+		t.Fatalf("matching rows: %+v", m.Software)
 	}
 }

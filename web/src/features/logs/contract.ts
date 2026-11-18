@@ -10,13 +10,18 @@ export const SourceKind = z.enum(KIND_IDS)
 export const Proto = z.enum(['udp', 'tcp', 'tls'])
 export const SourceState = z.enum(['receiving', 'silent', 'never'])
 
+export const AssetVia = z.enum(['snmp_read'])
+export const AssetMatch = z.object({ id: z.string(), name: z.string(), via: AssetVia.nullable() })
+
 export const LogSource = z.object({
   id: z.string(),
   kind: SourceKind,
   name: z.string(),
   sender_ip: ipv4,
-  asset_id: z.string().nullable().describe('Inventory device with the same IP; null when none'),
+  asset_id: z.string().nullable().describe('The one inventory device that has this address (its listed IP, or the address its SNMP is read from); null when none, or when two do (see asset_matches)'),
   asset_name: z.string().nullable(),
+  asset_via: AssetVia.nullable().describe('How the device was found when it is not by its listed IP; null for a listed IP or no device'),
+  asset_matches: z.array(AssetMatch).describe('Every device that has the address when more than one does (asset_id and asset_name are then null); empty otherwise'),
   proto: Proto,
   port: z.number().int().min(1).max(65535),
   last_received: iso.nullable(),

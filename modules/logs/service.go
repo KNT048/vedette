@@ -269,9 +269,25 @@ func (s *Service) Sources(ctx context.Context) (SourcesView, error) {
 			pin := r.ClientCert
 			src.ClientCert = &pin
 		}
-		if d, ok := devices[r.SenderIP]; ok {
-			id, name := d.ID, d.Name
+		src.AssetMatches = []AssetMatch{}
+		switch found := devices[r.SenderIP]; len(found) {
+		case 0:
+		case 1:
+			id, name := found[0].ID, found[0].Name
 			src.AssetID, src.AssetName = &id, &name
+			if found[0].Via != ViaListedIP {
+				via := found[0].Via
+				src.AssetVia = &via
+			}
+		default: // two devices have this address: say so, the customer picks
+			for _, m := range found {
+				am := AssetMatch{ID: m.ID, Name: m.Name}
+				if m.Via != ViaListedIP {
+					via := m.Via
+					am.Via = &via
+				}
+				src.AssetMatches = append(src.AssetMatches, am)
+			}
 		}
 		out.Sources = append(out.Sources, src)
 	}
@@ -408,7 +424,7 @@ func (s *Service) hostname(ctx context.Context) string {
 	return "vedette"
 }
 
-func (s *Service) devicesFor(ctx context.Context, rows []sourceRow) (map[string]Device, error) {
+func (s *Service) devicesFor(ctx context.Context, rows []sourceRow) (map[string][]DeviceMatch, error) {
 	if s.cfg.Inventory == nil || len(rows) == 0 {
 		return nil, nil
 	}
@@ -416,7 +432,7 @@ func (s *Service) devicesFor(ctx context.Context, rows []sourceRow) (map[string]
 	for i, r := range rows {
 		ips[i] = r.SenderIP
 	}
-	d, err := s.cfg.Inventory.DevicesByIP(ctx, ips)
+	d, err := s.cfg.Inventory.DevicesAt(ctx, ips)
 	if err != nil {
 		return nil, fmt.Errorf("logs: reading devices: %w", err)
 	}

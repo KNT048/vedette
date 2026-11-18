@@ -92,6 +92,30 @@ func (s *Service) SNMPDevices(ctx context.Context) ([]SNMPDevice, error) {
 	return out, nil
 }
 
+// ReadAddresses returns, by device id, the address a person typed as the device's SNMP read address. A read address left to the
+// device's own IP is not here (it is only the IP the device had when saved, and says nothing once the device moves). Nothing else of
+// the settings is read: no secret is opened and no policy is checked, so a caller that only matches addresses to devices (logs) costs
+// the device nothing. A device the inventory no longer has may still be listed until inventory.asset.deleted is handled; the caller
+// matches against its own device list.
+func (s *Service) ReadAddresses(ctx context.Context) (map[string]netip.Addr, error) {
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT asset_id, read_from FROM sa_snmp_device WHERE read_from_default = 0`)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	out := map[string]netip.Addr{}
+	for rows.Next() {
+		var id, from string
+		if err := rows.Scan(&id, &from); err != nil {
+			return nil, err
+		}
+		if a, err := netip.ParseAddr(from); err == nil {
+			out[id] = a
+		}
+	}
+	return out, rows.Err()
+}
+
 // snmpView is what a person reads of row r of device a. Blocked says why nothing is sent now: a lost secret first, then the rules of
 // snmpAllowed; a failure to decide is logged and says nothing (this only adds words, never stops a page).
 func (s *Service) snmpView(ctx context.Context, a Asset, r snmpRow, box []netip.Addr, sc scope) SNMPDevice {

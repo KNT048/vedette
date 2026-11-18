@@ -120733,9 +120733,15 @@ func (s *LogsGetLogsSourcesOKBoxTLSKind) UnmarshalText(data []byte) error {
 }
 
 type LogsGetLogsSourcesOKSourcesItem struct {
-	// Inventory device with the same IP; null when none.
-	AssetID   NilString `json:"asset_id"`
-	AssetName NilString `json:"asset_name"`
+	// The one inventory device that has this address (its listed IP, or the address its SNMP is read
+	// from); null when none, or when two do (see asset_matches).
+	AssetID NilString `json:"asset_id"`
+	// Every device that has the address when more than one does (asset_id and asset_name are then null);
+	// empty otherwise.
+	AssetMatches []LogsGetLogsSourcesOKSourcesItemAssetMatchesItem `json:"asset_matches"`
+	AssetName    NilString                                         `json:"asset_name"`
+	// How the device was found when it is not by its listed IP; null for a listed IP or no device.
+	AssetVia NilLogsGetLogsSourcesOKSourcesItemAssetVia `json:"asset_via"`
 	// TLS sources only: the SHA-256 of the client certificate the device must present (64 lowercase hex
 	// characters); null = the sender is known by its IP address alone.
 	ClientCertSHA256 NilString                            `json:"client_cert_sha256"`
@@ -120756,9 +120762,19 @@ func (s *LogsGetLogsSourcesOKSourcesItem) GetAssetID() NilString {
 	return s.AssetID
 }
 
+// GetAssetMatches returns the value of AssetMatches.
+func (s *LogsGetLogsSourcesOKSourcesItem) GetAssetMatches() []LogsGetLogsSourcesOKSourcesItemAssetMatchesItem {
+	return s.AssetMatches
+}
+
 // GetAssetName returns the value of AssetName.
 func (s *LogsGetLogsSourcesOKSourcesItem) GetAssetName() NilString {
 	return s.AssetName
+}
+
+// GetAssetVia returns the value of AssetVia.
+func (s *LogsGetLogsSourcesOKSourcesItem) GetAssetVia() NilLogsGetLogsSourcesOKSourcesItemAssetVia {
+	return s.AssetVia
 }
 
 // GetClientCertSHA256 returns the value of ClientCertSHA256.
@@ -120821,9 +120837,19 @@ func (s *LogsGetLogsSourcesOKSourcesItem) SetAssetID(val NilString) {
 	s.AssetID = val
 }
 
+// SetAssetMatches sets the value of AssetMatches.
+func (s *LogsGetLogsSourcesOKSourcesItem) SetAssetMatches(val []LogsGetLogsSourcesOKSourcesItemAssetMatchesItem) {
+	s.AssetMatches = val
+}
+
 // SetAssetName sets the value of AssetName.
 func (s *LogsGetLogsSourcesOKSourcesItem) SetAssetName(val NilString) {
 	s.AssetName = val
+}
+
+// SetAssetVia sets the value of AssetVia.
+func (s *LogsGetLogsSourcesOKSourcesItem) SetAssetVia(val NilLogsGetLogsSourcesOKSourcesItemAssetVia) {
+	s.AssetVia = val
 }
 
 // SetClientCertSHA256 sets the value of ClientCertSHA256.
@@ -120879,6 +120905,110 @@ func (s *LogsGetLogsSourcesOKSourcesItem) SetSenderIP(val string) {
 // SetState sets the value of State.
 func (s *LogsGetLogsSourcesOKSourcesItem) SetState(val LogsGetLogsSourcesOKSourcesItemState) {
 	s.State = val
+}
+
+type LogsGetLogsSourcesOKSourcesItemAssetMatchesItem struct {
+	ID   string                                                `json:"id"`
+	Name string                                                `json:"name"`
+	Via  NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia `json:"via"`
+}
+
+// GetID returns the value of ID.
+func (s *LogsGetLogsSourcesOKSourcesItemAssetMatchesItem) GetID() string {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *LogsGetLogsSourcesOKSourcesItemAssetMatchesItem) GetName() string {
+	return s.Name
+}
+
+// GetVia returns the value of Via.
+func (s *LogsGetLogsSourcesOKSourcesItemAssetMatchesItem) GetVia() NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia {
+	return s.Via
+}
+
+// SetID sets the value of ID.
+func (s *LogsGetLogsSourcesOKSourcesItemAssetMatchesItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *LogsGetLogsSourcesOKSourcesItemAssetMatchesItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetVia sets the value of Via.
+func (s *LogsGetLogsSourcesOKSourcesItemAssetMatchesItem) SetVia(val NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) {
+	s.Via = val
+}
+
+type LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia string
+
+const (
+	LogsGetLogsSourcesOKSourcesItemAssetMatchesItemViaSnmpRead LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia = "snmp_read"
+)
+
+// AllValues returns all LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia values.
+func (LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) AllValues() []LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia {
+	return []LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia{
+		LogsGetLogsSourcesOKSourcesItemAssetMatchesItemViaSnmpRead,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) MarshalText() ([]byte, error) {
+	switch s {
+	case LogsGetLogsSourcesOKSourcesItemAssetMatchesItemViaSnmpRead:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) UnmarshalText(data []byte) error {
+	switch LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia(data) {
+	case LogsGetLogsSourcesOKSourcesItemAssetMatchesItemViaSnmpRead:
+		*s = LogsGetLogsSourcesOKSourcesItemAssetMatchesItemViaSnmpRead
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type LogsGetLogsSourcesOKSourcesItemAssetVia string
+
+const (
+	LogsGetLogsSourcesOKSourcesItemAssetViaSnmpRead LogsGetLogsSourcesOKSourcesItemAssetVia = "snmp_read"
+)
+
+// AllValues returns all LogsGetLogsSourcesOKSourcesItemAssetVia values.
+func (LogsGetLogsSourcesOKSourcesItemAssetVia) AllValues() []LogsGetLogsSourcesOKSourcesItemAssetVia {
+	return []LogsGetLogsSourcesOKSourcesItemAssetVia{
+		LogsGetLogsSourcesOKSourcesItemAssetViaSnmpRead,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s LogsGetLogsSourcesOKSourcesItemAssetVia) MarshalText() ([]byte, error) {
+	switch s {
+	case LogsGetLogsSourcesOKSourcesItemAssetViaSnmpRead:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *LogsGetLogsSourcesOKSourcesItemAssetVia) UnmarshalText(data []byte) error {
+	switch LogsGetLogsSourcesOKSourcesItemAssetVia(data) {
+	case LogsGetLogsSourcesOKSourcesItemAssetViaSnmpRead:
+		*s = LogsGetLogsSourcesOKSourcesItemAssetViaSnmpRead
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type LogsGetLogsSourcesOKSourcesItemKind string
@@ -121492,9 +121622,15 @@ func (s *LogsPostLogsSiemTestOK) SetOk(val bool) {
 }
 
 type LogsPostLogsSourcesCreated struct {
-	// Inventory device with the same IP; null when none.
-	AssetID   NilString `json:"asset_id"`
-	AssetName NilString `json:"asset_name"`
+	// The one inventory device that has this address (its listed IP, or the address its SNMP is read
+	// from); null when none, or when two do (see asset_matches).
+	AssetID NilString `json:"asset_id"`
+	// Every device that has the address when more than one does (asset_id and asset_name are then null);
+	// empty otherwise.
+	AssetMatches []LogsPostLogsSourcesCreatedAssetMatchesItem `json:"asset_matches"`
+	AssetName    NilString                                    `json:"asset_name"`
+	// How the device was found when it is not by its listed IP; null for a listed IP or no device.
+	AssetVia NilLogsPostLogsSourcesCreatedAssetVia `json:"asset_via"`
 	// TLS sources only: the SHA-256 of the client certificate the device must present (64 lowercase hex
 	// characters); null = the sender is known by its IP address alone.
 	ClientCertSHA256 NilString                       `json:"client_cert_sha256"`
@@ -121515,9 +121651,19 @@ func (s *LogsPostLogsSourcesCreated) GetAssetID() NilString {
 	return s.AssetID
 }
 
+// GetAssetMatches returns the value of AssetMatches.
+func (s *LogsPostLogsSourcesCreated) GetAssetMatches() []LogsPostLogsSourcesCreatedAssetMatchesItem {
+	return s.AssetMatches
+}
+
 // GetAssetName returns the value of AssetName.
 func (s *LogsPostLogsSourcesCreated) GetAssetName() NilString {
 	return s.AssetName
+}
+
+// GetAssetVia returns the value of AssetVia.
+func (s *LogsPostLogsSourcesCreated) GetAssetVia() NilLogsPostLogsSourcesCreatedAssetVia {
+	return s.AssetVia
 }
 
 // GetClientCertSHA256 returns the value of ClientCertSHA256.
@@ -121580,9 +121726,19 @@ func (s *LogsPostLogsSourcesCreated) SetAssetID(val NilString) {
 	s.AssetID = val
 }
 
+// SetAssetMatches sets the value of AssetMatches.
+func (s *LogsPostLogsSourcesCreated) SetAssetMatches(val []LogsPostLogsSourcesCreatedAssetMatchesItem) {
+	s.AssetMatches = val
+}
+
 // SetAssetName sets the value of AssetName.
 func (s *LogsPostLogsSourcesCreated) SetAssetName(val NilString) {
 	s.AssetName = val
+}
+
+// SetAssetVia sets the value of AssetVia.
+func (s *LogsPostLogsSourcesCreated) SetAssetVia(val NilLogsPostLogsSourcesCreatedAssetVia) {
+	s.AssetVia = val
 }
 
 // SetClientCertSHA256 sets the value of ClientCertSHA256.
@@ -121638,6 +121794,110 @@ func (s *LogsPostLogsSourcesCreated) SetSenderIP(val string) {
 // SetState sets the value of State.
 func (s *LogsPostLogsSourcesCreated) SetState(val LogsPostLogsSourcesCreatedState) {
 	s.State = val
+}
+
+type LogsPostLogsSourcesCreatedAssetMatchesItem struct {
+	ID   string                                           `json:"id"`
+	Name string                                           `json:"name"`
+	Via  NilLogsPostLogsSourcesCreatedAssetMatchesItemVia `json:"via"`
+}
+
+// GetID returns the value of ID.
+func (s *LogsPostLogsSourcesCreatedAssetMatchesItem) GetID() string {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *LogsPostLogsSourcesCreatedAssetMatchesItem) GetName() string {
+	return s.Name
+}
+
+// GetVia returns the value of Via.
+func (s *LogsPostLogsSourcesCreatedAssetMatchesItem) GetVia() NilLogsPostLogsSourcesCreatedAssetMatchesItemVia {
+	return s.Via
+}
+
+// SetID sets the value of ID.
+func (s *LogsPostLogsSourcesCreatedAssetMatchesItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *LogsPostLogsSourcesCreatedAssetMatchesItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetVia sets the value of Via.
+func (s *LogsPostLogsSourcesCreatedAssetMatchesItem) SetVia(val NilLogsPostLogsSourcesCreatedAssetMatchesItemVia) {
+	s.Via = val
+}
+
+type LogsPostLogsSourcesCreatedAssetMatchesItemVia string
+
+const (
+	LogsPostLogsSourcesCreatedAssetMatchesItemViaSnmpRead LogsPostLogsSourcesCreatedAssetMatchesItemVia = "snmp_read"
+)
+
+// AllValues returns all LogsPostLogsSourcesCreatedAssetMatchesItemVia values.
+func (LogsPostLogsSourcesCreatedAssetMatchesItemVia) AllValues() []LogsPostLogsSourcesCreatedAssetMatchesItemVia {
+	return []LogsPostLogsSourcesCreatedAssetMatchesItemVia{
+		LogsPostLogsSourcesCreatedAssetMatchesItemViaSnmpRead,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s LogsPostLogsSourcesCreatedAssetMatchesItemVia) MarshalText() ([]byte, error) {
+	switch s {
+	case LogsPostLogsSourcesCreatedAssetMatchesItemViaSnmpRead:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *LogsPostLogsSourcesCreatedAssetMatchesItemVia) UnmarshalText(data []byte) error {
+	switch LogsPostLogsSourcesCreatedAssetMatchesItemVia(data) {
+	case LogsPostLogsSourcesCreatedAssetMatchesItemViaSnmpRead:
+		*s = LogsPostLogsSourcesCreatedAssetMatchesItemViaSnmpRead
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type LogsPostLogsSourcesCreatedAssetVia string
+
+const (
+	LogsPostLogsSourcesCreatedAssetViaSnmpRead LogsPostLogsSourcesCreatedAssetVia = "snmp_read"
+)
+
+// AllValues returns all LogsPostLogsSourcesCreatedAssetVia values.
+func (LogsPostLogsSourcesCreatedAssetVia) AllValues() []LogsPostLogsSourcesCreatedAssetVia {
+	return []LogsPostLogsSourcesCreatedAssetVia{
+		LogsPostLogsSourcesCreatedAssetViaSnmpRead,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s LogsPostLogsSourcesCreatedAssetVia) MarshalText() ([]byte, error) {
+	switch s {
+	case LogsPostLogsSourcesCreatedAssetViaSnmpRead:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *LogsPostLogsSourcesCreatedAssetVia) UnmarshalText(data []byte) error {
+	switch LogsPostLogsSourcesCreatedAssetVia(data) {
+	case LogsPostLogsSourcesCreatedAssetViaSnmpRead:
+		*s = LogsPostLogsSourcesCreatedAssetViaSnmpRead
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type LogsPostLogsSourcesCreatedKind string
@@ -123176,9 +123436,15 @@ func (s *LogsPutLogsSiemReqProto) UnmarshalText(data []byte) error {
 }
 
 type LogsPutLogsSourcesIDOK struct {
-	// Inventory device with the same IP; null when none.
-	AssetID   NilString `json:"asset_id"`
-	AssetName NilString `json:"asset_name"`
+	// The one inventory device that has this address (its listed IP, or the address its SNMP is read
+	// from); null when none, or when two do (see asset_matches).
+	AssetID NilString `json:"asset_id"`
+	// Every device that has the address when more than one does (asset_id and asset_name are then null);
+	// empty otherwise.
+	AssetMatches []LogsPutLogsSourcesIDOKAssetMatchesItem `json:"asset_matches"`
+	AssetName    NilString                                `json:"asset_name"`
+	// How the device was found when it is not by its listed IP; null for a listed IP or no device.
+	AssetVia NilLogsPutLogsSourcesIDOKAssetVia `json:"asset_via"`
 	// TLS sources only: the SHA-256 of the client certificate the device must present (64 lowercase hex
 	// characters); null = the sender is known by its IP address alone.
 	ClientCertSHA256 NilString                   `json:"client_cert_sha256"`
@@ -123199,9 +123465,19 @@ func (s *LogsPutLogsSourcesIDOK) GetAssetID() NilString {
 	return s.AssetID
 }
 
+// GetAssetMatches returns the value of AssetMatches.
+func (s *LogsPutLogsSourcesIDOK) GetAssetMatches() []LogsPutLogsSourcesIDOKAssetMatchesItem {
+	return s.AssetMatches
+}
+
 // GetAssetName returns the value of AssetName.
 func (s *LogsPutLogsSourcesIDOK) GetAssetName() NilString {
 	return s.AssetName
+}
+
+// GetAssetVia returns the value of AssetVia.
+func (s *LogsPutLogsSourcesIDOK) GetAssetVia() NilLogsPutLogsSourcesIDOKAssetVia {
+	return s.AssetVia
 }
 
 // GetClientCertSHA256 returns the value of ClientCertSHA256.
@@ -123264,9 +123540,19 @@ func (s *LogsPutLogsSourcesIDOK) SetAssetID(val NilString) {
 	s.AssetID = val
 }
 
+// SetAssetMatches sets the value of AssetMatches.
+func (s *LogsPutLogsSourcesIDOK) SetAssetMatches(val []LogsPutLogsSourcesIDOKAssetMatchesItem) {
+	s.AssetMatches = val
+}
+
 // SetAssetName sets the value of AssetName.
 func (s *LogsPutLogsSourcesIDOK) SetAssetName(val NilString) {
 	s.AssetName = val
+}
+
+// SetAssetVia sets the value of AssetVia.
+func (s *LogsPutLogsSourcesIDOK) SetAssetVia(val NilLogsPutLogsSourcesIDOKAssetVia) {
+	s.AssetVia = val
 }
 
 // SetClientCertSHA256 sets the value of ClientCertSHA256.
@@ -123322,6 +123608,110 @@ func (s *LogsPutLogsSourcesIDOK) SetSenderIP(val string) {
 // SetState sets the value of State.
 func (s *LogsPutLogsSourcesIDOK) SetState(val LogsPutLogsSourcesIDOKState) {
 	s.State = val
+}
+
+type LogsPutLogsSourcesIDOKAssetMatchesItem struct {
+	ID   string                                       `json:"id"`
+	Name string                                       `json:"name"`
+	Via  NilLogsPutLogsSourcesIDOKAssetMatchesItemVia `json:"via"`
+}
+
+// GetID returns the value of ID.
+func (s *LogsPutLogsSourcesIDOKAssetMatchesItem) GetID() string {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *LogsPutLogsSourcesIDOKAssetMatchesItem) GetName() string {
+	return s.Name
+}
+
+// GetVia returns the value of Via.
+func (s *LogsPutLogsSourcesIDOKAssetMatchesItem) GetVia() NilLogsPutLogsSourcesIDOKAssetMatchesItemVia {
+	return s.Via
+}
+
+// SetID sets the value of ID.
+func (s *LogsPutLogsSourcesIDOKAssetMatchesItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *LogsPutLogsSourcesIDOKAssetMatchesItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetVia sets the value of Via.
+func (s *LogsPutLogsSourcesIDOKAssetMatchesItem) SetVia(val NilLogsPutLogsSourcesIDOKAssetMatchesItemVia) {
+	s.Via = val
+}
+
+type LogsPutLogsSourcesIDOKAssetMatchesItemVia string
+
+const (
+	LogsPutLogsSourcesIDOKAssetMatchesItemViaSnmpRead LogsPutLogsSourcesIDOKAssetMatchesItemVia = "snmp_read"
+)
+
+// AllValues returns all LogsPutLogsSourcesIDOKAssetMatchesItemVia values.
+func (LogsPutLogsSourcesIDOKAssetMatchesItemVia) AllValues() []LogsPutLogsSourcesIDOKAssetMatchesItemVia {
+	return []LogsPutLogsSourcesIDOKAssetMatchesItemVia{
+		LogsPutLogsSourcesIDOKAssetMatchesItemViaSnmpRead,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s LogsPutLogsSourcesIDOKAssetMatchesItemVia) MarshalText() ([]byte, error) {
+	switch s {
+	case LogsPutLogsSourcesIDOKAssetMatchesItemViaSnmpRead:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *LogsPutLogsSourcesIDOKAssetMatchesItemVia) UnmarshalText(data []byte) error {
+	switch LogsPutLogsSourcesIDOKAssetMatchesItemVia(data) {
+	case LogsPutLogsSourcesIDOKAssetMatchesItemViaSnmpRead:
+		*s = LogsPutLogsSourcesIDOKAssetMatchesItemViaSnmpRead
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type LogsPutLogsSourcesIDOKAssetVia string
+
+const (
+	LogsPutLogsSourcesIDOKAssetViaSnmpRead LogsPutLogsSourcesIDOKAssetVia = "snmp_read"
+)
+
+// AllValues returns all LogsPutLogsSourcesIDOKAssetVia values.
+func (LogsPutLogsSourcesIDOKAssetVia) AllValues() []LogsPutLogsSourcesIDOKAssetVia {
+	return []LogsPutLogsSourcesIDOKAssetVia{
+		LogsPutLogsSourcesIDOKAssetViaSnmpRead,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s LogsPutLogsSourcesIDOKAssetVia) MarshalText() ([]byte, error) {
+	switch s {
+	case LogsPutLogsSourcesIDOKAssetViaSnmpRead:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *LogsPutLogsSourcesIDOKAssetVia) UnmarshalText(data []byte) error {
+	switch LogsPutLogsSourcesIDOKAssetVia(data) {
+	case LogsPutLogsSourcesIDOKAssetViaSnmpRead:
+		*s = LogsPutLogsSourcesIDOKAssetViaSnmpRead
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type LogsPutLogsSourcesIDOKKind string
@@ -137181,6 +137571,186 @@ func (o NilLogsGetLogsSiemOKLastTest) Or(d LogsGetLogsSiemOKLastTest) LogsGetLog
 	return d
 }
 
+// NewNilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia returns new NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia with value set to v.
+func NewNilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia(v LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia {
+	return NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia{
+		Value: v,
+	}
+}
+
+// NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia is nullable LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia.
+type NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia struct {
+	Value LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) SetTo(v LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) SetToNull() {
+	o.Null = true
+	var v LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) Get() (v LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) Or(d LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilLogsGetLogsSourcesOKSourcesItemAssetVia returns new NilLogsGetLogsSourcesOKSourcesItemAssetVia with value set to v.
+func NewNilLogsGetLogsSourcesOKSourcesItemAssetVia(v LogsGetLogsSourcesOKSourcesItemAssetVia) NilLogsGetLogsSourcesOKSourcesItemAssetVia {
+	return NilLogsGetLogsSourcesOKSourcesItemAssetVia{
+		Value: v,
+	}
+}
+
+// NilLogsGetLogsSourcesOKSourcesItemAssetVia is nullable LogsGetLogsSourcesOKSourcesItemAssetVia.
+type NilLogsGetLogsSourcesOKSourcesItemAssetVia struct {
+	Value LogsGetLogsSourcesOKSourcesItemAssetVia
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilLogsGetLogsSourcesOKSourcesItemAssetVia) SetTo(v LogsGetLogsSourcesOKSourcesItemAssetVia) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilLogsGetLogsSourcesOKSourcesItemAssetVia) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilLogsGetLogsSourcesOKSourcesItemAssetVia) SetToNull() {
+	o.Null = true
+	var v LogsGetLogsSourcesOKSourcesItemAssetVia
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilLogsGetLogsSourcesOKSourcesItemAssetVia) Get() (v LogsGetLogsSourcesOKSourcesItemAssetVia, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilLogsGetLogsSourcesOKSourcesItemAssetVia) Or(d LogsGetLogsSourcesOKSourcesItemAssetVia) LogsGetLogsSourcesOKSourcesItemAssetVia {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilLogsPostLogsSourcesCreatedAssetMatchesItemVia returns new NilLogsPostLogsSourcesCreatedAssetMatchesItemVia with value set to v.
+func NewNilLogsPostLogsSourcesCreatedAssetMatchesItemVia(v LogsPostLogsSourcesCreatedAssetMatchesItemVia) NilLogsPostLogsSourcesCreatedAssetMatchesItemVia {
+	return NilLogsPostLogsSourcesCreatedAssetMatchesItemVia{
+		Value: v,
+	}
+}
+
+// NilLogsPostLogsSourcesCreatedAssetMatchesItemVia is nullable LogsPostLogsSourcesCreatedAssetMatchesItemVia.
+type NilLogsPostLogsSourcesCreatedAssetMatchesItemVia struct {
+	Value LogsPostLogsSourcesCreatedAssetMatchesItemVia
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilLogsPostLogsSourcesCreatedAssetMatchesItemVia) SetTo(v LogsPostLogsSourcesCreatedAssetMatchesItemVia) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilLogsPostLogsSourcesCreatedAssetMatchesItemVia) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilLogsPostLogsSourcesCreatedAssetMatchesItemVia) SetToNull() {
+	o.Null = true
+	var v LogsPostLogsSourcesCreatedAssetMatchesItemVia
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilLogsPostLogsSourcesCreatedAssetMatchesItemVia) Get() (v LogsPostLogsSourcesCreatedAssetMatchesItemVia, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilLogsPostLogsSourcesCreatedAssetMatchesItemVia) Or(d LogsPostLogsSourcesCreatedAssetMatchesItemVia) LogsPostLogsSourcesCreatedAssetMatchesItemVia {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilLogsPostLogsSourcesCreatedAssetVia returns new NilLogsPostLogsSourcesCreatedAssetVia with value set to v.
+func NewNilLogsPostLogsSourcesCreatedAssetVia(v LogsPostLogsSourcesCreatedAssetVia) NilLogsPostLogsSourcesCreatedAssetVia {
+	return NilLogsPostLogsSourcesCreatedAssetVia{
+		Value: v,
+	}
+}
+
+// NilLogsPostLogsSourcesCreatedAssetVia is nullable LogsPostLogsSourcesCreatedAssetVia.
+type NilLogsPostLogsSourcesCreatedAssetVia struct {
+	Value LogsPostLogsSourcesCreatedAssetVia
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilLogsPostLogsSourcesCreatedAssetVia) SetTo(v LogsPostLogsSourcesCreatedAssetVia) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilLogsPostLogsSourcesCreatedAssetVia) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilLogsPostLogsSourcesCreatedAssetVia) SetToNull() {
+	o.Null = true
+	var v LogsPostLogsSourcesCreatedAssetVia
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilLogsPostLogsSourcesCreatedAssetVia) Get() (v LogsPostLogsSourcesCreatedAssetVia, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilLogsPostLogsSourcesCreatedAssetVia) Or(d LogsPostLogsSourcesCreatedAssetVia) LogsPostLogsSourcesCreatedAssetVia {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilLogsPutLogsSiemOKLastTest returns new NilLogsPutLogsSiemOKLastTest with value set to v.
 func NewNilLogsPutLogsSiemOKLastTest(v LogsPutLogsSiemOKLastTest) NilLogsPutLogsSiemOKLastTest {
 	return NilLogsPutLogsSiemOKLastTest{
@@ -137220,6 +137790,96 @@ func (o NilLogsPutLogsSiemOKLastTest) Get() (v LogsPutLogsSiemOKLastTest, ok boo
 
 // Or returns value if set, or given parameter if does not.
 func (o NilLogsPutLogsSiemOKLastTest) Or(d LogsPutLogsSiemOKLastTest) LogsPutLogsSiemOKLastTest {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilLogsPutLogsSourcesIDOKAssetMatchesItemVia returns new NilLogsPutLogsSourcesIDOKAssetMatchesItemVia with value set to v.
+func NewNilLogsPutLogsSourcesIDOKAssetMatchesItemVia(v LogsPutLogsSourcesIDOKAssetMatchesItemVia) NilLogsPutLogsSourcesIDOKAssetMatchesItemVia {
+	return NilLogsPutLogsSourcesIDOKAssetMatchesItemVia{
+		Value: v,
+	}
+}
+
+// NilLogsPutLogsSourcesIDOKAssetMatchesItemVia is nullable LogsPutLogsSourcesIDOKAssetMatchesItemVia.
+type NilLogsPutLogsSourcesIDOKAssetMatchesItemVia struct {
+	Value LogsPutLogsSourcesIDOKAssetMatchesItemVia
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilLogsPutLogsSourcesIDOKAssetMatchesItemVia) SetTo(v LogsPutLogsSourcesIDOKAssetMatchesItemVia) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilLogsPutLogsSourcesIDOKAssetMatchesItemVia) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilLogsPutLogsSourcesIDOKAssetMatchesItemVia) SetToNull() {
+	o.Null = true
+	var v LogsPutLogsSourcesIDOKAssetMatchesItemVia
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilLogsPutLogsSourcesIDOKAssetMatchesItemVia) Get() (v LogsPutLogsSourcesIDOKAssetMatchesItemVia, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilLogsPutLogsSourcesIDOKAssetMatchesItemVia) Or(d LogsPutLogsSourcesIDOKAssetMatchesItemVia) LogsPutLogsSourcesIDOKAssetMatchesItemVia {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilLogsPutLogsSourcesIDOKAssetVia returns new NilLogsPutLogsSourcesIDOKAssetVia with value set to v.
+func NewNilLogsPutLogsSourcesIDOKAssetVia(v LogsPutLogsSourcesIDOKAssetVia) NilLogsPutLogsSourcesIDOKAssetVia {
+	return NilLogsPutLogsSourcesIDOKAssetVia{
+		Value: v,
+	}
+}
+
+// NilLogsPutLogsSourcesIDOKAssetVia is nullable LogsPutLogsSourcesIDOKAssetVia.
+type NilLogsPutLogsSourcesIDOKAssetVia struct {
+	Value LogsPutLogsSourcesIDOKAssetVia
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilLogsPutLogsSourcesIDOKAssetVia) SetTo(v LogsPutLogsSourcesIDOKAssetVia) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilLogsPutLogsSourcesIDOKAssetVia) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilLogsPutLogsSourcesIDOKAssetVia) SetToNull() {
+	o.Null = true
+	var v LogsPutLogsSourcesIDOKAssetVia
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilLogsPutLogsSourcesIDOKAssetVia) Get() (v LogsPutLogsSourcesIDOKAssetVia, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilLogsPutLogsSourcesIDOKAssetVia) Or(d LogsPutLogsSourcesIDOKAssetVia) LogsPutLogsSourcesIDOKAssetVia {
 	if v, ok := o.Get(); ok {
 		return v
 	}

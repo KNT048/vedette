@@ -54255,7 +54255,7 @@
                             "pattern": "^(25[0-5]|2[0-4]\\d|1?\\d?\\d)(\\.(25[0-5]|2[0-4]\\d|1?\\d?\\d)){3}$"
                           },
                           "asset_id": {
-                            "description": "Inventory device with the same IP; null when none",
+                            "description": "The one inventory device that has this address (its listed IP, or the address its SNMP is read from); null when none, or when two do (see asset_matches)",
                             "type": [
                               "string",
                               "null"
@@ -54266,6 +54266,54 @@
                               "string",
                               "null"
                             ]
+                          },
+                          "asset_via": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "snmp_read"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "How the device was found when it is not by its listed IP; null for a listed IP or no device"
+                          },
+                          "asset_matches": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "type": "string"
+                                },
+                                "via": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "snmp_read"
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "name",
+                                "via"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "description": "Every device that has the address when more than one does (asset_id and asset_name are then null); empty otherwise"
                           },
                           "proto": {
                             "type": "string",
@@ -54325,6 +54373,8 @@
                           "sender_ip",
                           "asset_id",
                           "asset_name",
+                          "asset_via",
+                          "asset_matches",
                           "proto",
                           "port",
                           "last_received",
@@ -54552,7 +54602,7 @@
                       "pattern": "^(25[0-5]|2[0-4]\\d|1?\\d?\\d)(\\.(25[0-5]|2[0-4]\\d|1?\\d?\\d)){3}$"
                     },
                     "asset_id": {
-                      "description": "Inventory device with the same IP; null when none",
+                      "description": "The one inventory device that has this address (its listed IP, or the address its SNMP is read from); null when none, or when two do (see asset_matches)",
                       "type": [
                         "string",
                         "null"
@@ -54563,6 +54613,54 @@
                         "string",
                         "null"
                       ]
+                    },
+                    "asset_via": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "snmp_read"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "How the device was found when it is not by its listed IP; null for a listed IP or no device"
+                    },
+                    "asset_matches": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "via": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "snmp_read"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "via"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Every device that has the address when more than one does (asset_id and asset_name are then null); empty otherwise"
                     },
                     "proto": {
                       "type": "string",
@@ -54622,6 +54720,8 @@
                     "sender_ip",
                     "asset_id",
                     "asset_name",
+                    "asset_via",
+                    "asset_matches",
                     "proto",
                     "port",
                     "last_received",
@@ -54883,7 +54983,7 @@
                       "pattern": "^(25[0-5]|2[0-4]\\d|1?\\d?\\d)(\\.(25[0-5]|2[0-4]\\d|1?\\d?\\d)){3}$"
                     },
                     "asset_id": {
-                      "description": "Inventory device with the same IP; null when none",
+                      "description": "The one inventory device that has this address (its listed IP, or the address its SNMP is read from); null when none, or when two do (see asset_matches)",
                       "type": [
                         "string",
                         "null"
@@ -54894,6 +54994,54 @@
                         "string",
                         "null"
                       ]
+                    },
+                    "asset_via": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "snmp_read"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "How the device was found when it is not by its listed IP; null for a listed IP or no device"
+                    },
+                    "asset_matches": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "via": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "snmp_read"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "via"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Every device that has the address when more than one does (asset_id and asset_name are then null); empty otherwise"
                     },
                     "proto": {
                       "type": "string",
@@ -54953,6 +55101,8 @@
                     "sender_ip",
                     "asset_id",
                     "asset_name",
+                    "asset_via",
+                    "asset_matches",
                     "proto",
                     "port",
                     "last_received",

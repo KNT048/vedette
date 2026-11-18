@@ -2,9 +2,8 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Globe } from 'lucide-react'
-import { Link } from 'react-router'
 import { Panel, Section } from '@/components/common/PageHeader'
-import { EmptyState, ErrorState, Loading } from '@/components/common/States'
+import { ErrorState, Loading } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
 import { BusyNote } from '@/components/common/BusyNote'
@@ -24,8 +23,8 @@ export function OutsidePanel({ target }: { target: Target }) {
   const q = useOutside(target.id)
   const check = useCheckOutside()
   const [confirm, setConfirm] = useState(false)
-  // Only the box's own verified IP that it still goes out through is sent (the server checks again, INV-21).
-  const eligible = target.status === 'verified' && target.blocked_reason !== 'ip_not_current'
+  // Only a verified IP is sent: the box's own that it still goes out through, or a typed one whose proof is found now (the server checks again, INV-21).
+  const eligible = target.status === 'verified' && target.blocked_reason !== 'ip_not_current' && target.blocked_reason !== 'proof_missing'
   const reason = !admin ? t('common:needRole', { role: t('common:role.admin') }) : !eligible ? t('outside.notEligible') : undefined
   const v = q.data ?? null
   function send() {
@@ -100,31 +99,6 @@ export function Answer({ v }: { v: OutsideView }) {
           <ul className="grid gap-0.5 text-sm">{v.vulns.map((c) => <li key={c}>{t('outside.vuln', { cve: c })}</li>)}</ul>
         </Panel>
       ) : null}
-    </div>
-  )
-}
-
-/** The list page's "What the Internet sees" tab: the newest answer for each public IP of this box, read only; asking again happens on the IP's own page. */
-export function OutsideList({ items }: { items: Target[] }) {
-  const { t } = useTranslation('exposure')
-  return (
-    <Section id="outside-list" title={t('tabs.outside')} description={t('outsideList.description')} info={t('outsideList.descriptionInfo')}>
-      {items.length === 0 ? <EmptyState title={t('outsideList.emptyTitle')}>{t('outsideList.emptyBody')}</EmptyState> : (
-        <div className="grid gap-6">{items.map((x) => <OutsideOne key={x.id} target={x} />)}</div>
-      )}
-    </Section>
-  )
-}
-
-function OutsideOne({ target }: { target: Target }) {
-  const { t } = useTranslation('exposure')
-  const q = useOutside(target.id)
-  return (
-    <div className="grid gap-2">
-      <h3 className="flex flex-wrap items-center gap-3 text-sm font-medium">{target.value}
-        <Link className="text-meta font-normal text-accent underline-offset-4 hover:underline" to={`/exposure/${target.id}?tab=outside`}>{t('outsideList.open', { ip: target.value })}</Link>
-      </h3>
-      {q.isPending ? <Loading /> : q.error ? <ErrorState error={q.error} onRetry={() => void q.refetch()} /> : q.data ? <Answer v={q.data} /> : <Never ip={target.value} />}
     </div>
   )
 }

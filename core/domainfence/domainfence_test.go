@@ -298,7 +298,7 @@ func TestLoadKey(t *testing.T) {
 	}
 }
 
-// The sensor binary links this package: its non-test files import the standard library and core/localnet only.
+// The sensor binary links this package: its non-test files import the standard library, core/localnet and its sibling leaf proofat only.
 func TestIsALeaf(t *testing.T) {
 	t.Parallel()
 	files, err := filepath.Glob("*.go")
@@ -315,8 +315,8 @@ func TestIsALeaf(t *testing.T) {
 		}
 		for _, im := range af.Imports {
 			p, _ := strconv.Unquote(im.Path.Value)
-			if strings.Contains(p, ".") && p != "github.com/knt048/vedette/core/localnet" {
-				t.Errorf("%s imports %q: only the standard library and core/localnet", f, p)
+			if strings.Contains(p, ".") && p != "github.com/knt048/vedette/core/localnet" && p != "github.com/knt048/vedette/core/domainfence/proofat" {
+				t.Errorf("%s imports %q: only the standard library, core/localnet and core/domainfence/proofat", f, p)
 			}
 		}
 	}
@@ -339,7 +339,7 @@ func TestDomainList(t *testing.T) {
 		t.Fatal("a line that is not a domain was accepted")
 	}
 	p := filepath.Join(t.TempDir(), "domains")
-	listed := fileList(p, func() {})
+	listed := fileList(p, ParseList, func() {})
 	if listed("a.example") {
 		t.Fatal("a missing list listed a domain")
 	}
@@ -358,7 +358,7 @@ func TestFileListReadsAMissingCopyAgain(t *testing.T) {
 	t.Parallel()
 	p := filepath.Join(t.TempDir(), "domains")
 	waited := 0
-	listed := fileList(p, func() { waited++; _ = writeFile(p, []byte("acme.example\n")) })
+	listed := fileList(p, ParseList, func() { waited++; _ = writeFile(p, []byte("acme.example\n")) })
 	if !listed("acme.example") || waited != 1 {
 		t.Fatalf("waited %d", waited)
 	}
@@ -436,5 +436,57 @@ func TestCheckProofAtAParentName(t *testing.T) {
 	j.ProofAt = "acme.example"
 	if o := f.Check(t.Context(), j, false); o.Reason != NotOwned {
 		t.Fatalf("apex through a CNAME: %+v", o)
+	}
+}
+
+// A proof name above both the domain and the name covers the name although it is not under the domain: the record of a sibling target
+// (git.acme.example's token on acme.example) lets the fence scan www.acme.example, bounded by ProofAt, never beyond it, never
+// across a public suffix, and never with another box's token.
+func TestCheckNameUnderProofAtOutsideTheDomain(t *testing.T) {
+	t.Parallel()
+	d := world()
+	tok := Token(key1, "git.acme.example")
+	d.txt["acme.example"] = append(d.txt["acme.example"], "vedette-verify="+tok)
+	d.a["acme.example"] = []netip.Addr{ip}
+	d.a["x.other.example"] = []netip.Addr{ip}
+	d.a["acme.example.evil.net"] = []netip.Addr{ip}
+	d.cname["www.acme.example"] = "www.acme.example"
+	f, err := New(key1, d, func(dom string) bool { return dom == "git.acme.example" }, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	j := Job{Domain: "git.acme.example", Name: "www.acme.example", IP: ip, Token: tok, ProofAt: "acme.example"}
+	for _, name := range []string{"www.acme.example", "acme.example"} {
+		j.Name = name
+		if o := f.Check(t.Context(), j, false); o.Reason != "" {
+			t.Fatalf("%s under the proof name: %+v", name, o)
+		}
+	}
+	j.Name = "www.acme.example"
+	for name, bad := range map[string]Job{
+		"a name outside the proof name":   {Domain: j.Domain, Name: "x.other.example", IP: ip, Token: tok, ProofAt: "acme.example"},
+		"a name that only ends the same":  {Domain: j.Domain, Name: "acme.example.evil.net", IP: ip, Token: tok, ProofAt: "acme.example"},
+		"no proof name: the domain bound": {Domain: j.Domain, Name: "www.acme.example", IP: ip, Token: tok},
+		"a public suffix as proof name":   {Domain: "a.b.ddns.net", Name: "c.ddns.net", IP: ip, Token: tok, ProofAt: "ddns.net"},
+		"the proof name above the domain": {Domain: "acme.example", Name: "www.acme.example", IP: ip, Token: Token(key1, "acme.example"), ProofAt: "git.acme.example"},
+	} {
+		if o := f.Check(t.Context(), bad, false); o.Reason != InvalidJob && o.Reason != NotOwned {
+			t.Errorf("%s: %+v", name, o)
+		}
+	}
+	other := j
+	other.Token = Token(key2, "git.acme.example") // another box's token
+	if o := f.Check(t.Context(), other, false); o.Reason != TokenForeign {
+		t.Fatalf("a foreign token: %+v", o)
+	}
+	// a disruptive job whose CNAME leaves the proof name is refused, one that stays inside it is not
+	j.Disruptive = true
+	d.cname["www.acme.example"] = "edge.other.example"
+	if o := f.Check(t.Context(), j, false); o.Reason != CNAMEOutside {
+		t.Fatalf("CNAME outside the proof name: %+v", o)
+	}
+	d.cname["www.acme.example"] = "shop.acme.example"
+	if o := f.Check(t.Context(), j, false); o.Reason != "" {
+		t.Fatalf("CNAME inside the proof name: %+v", o)
 	}
 }

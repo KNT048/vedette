@@ -49,3 +49,23 @@ func isIPv6(v string) bool {
 // IsPublicIPv4 reports whether a is a global unicast IPv4 address the box may verify (INV-3): egressip.IsPublicIPv4, the rule the
 // scan container's own-IP fence and nmapargv's external shape use too.
 func IsPublicIPv4(a netip.Addr) bool { return egressip.IsPublicIPv4(a) }
+
+// normalizeIP checks what the add-target form sent for a public IP: one canonical public IPv4 address (INV-3). IPv6, a private or
+// reserved address and anything that is not an address are refused.
+func normalizeIP(raw string) (string, error) {
+	v := strings.TrimSpace(raw)
+	switch {
+	case v == "":
+		return "", ErrEmpty
+	case isIPv6(v):
+		return "", ErrIPNotPublic
+	}
+	a, err := netip.ParseAddr(v)
+	if err != nil || !a.Is4() {
+		return "", ErrNotAnIP
+	}
+	if !IsPublicIPv4(a) {
+		return "", ErrIPNotPublic
+	}
+	return a.String(), nil
+}

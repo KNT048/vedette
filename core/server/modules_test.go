@@ -17,6 +17,7 @@ import (
 //   - POST /findings/{id}/applied and /ai sit under /findings but belong to mitigation.
 var contractRoutes = map[string][]string{
 	"agent-intake": {
+		"DELETE /inventory/agents/nodes/{id}",
 		"DELETE /inventory/agents/tokens/{id}",
 		"DELETE /inventory/agents/wazuh",
 		"GET /install/osquery.ps1",

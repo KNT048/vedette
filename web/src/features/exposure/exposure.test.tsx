@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { screen, waitFor, within } from '@testing-library/react'
+import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
@@ -7,6 +7,7 @@ import { server } from '@/test/server'
 import { eachOption } from '@/test/formMatrix'
 import { auditStore, modulesStore, sessionStore, usersStore } from '@/mocks/stores'
 import { scanPoll } from './api'
+import { checkPause } from './useCooldown'
 import { NOTICE_VERSION } from './contract'
 import { feature } from './index'
 import { portLabel, riskOf } from './services'
@@ -20,52 +21,64 @@ async function call(method: string, path: string, body?: unknown, role: keyof ty
 }
 const setEgress = (ip: string | null) => { if (ip) localStorage.setItem('vedette-mock-egress', ip); else localStorage.removeItem('vedette-mock-egress') }
 scanPoll.ms = 2000 // the page reads every 5 s while a scan runs (#830); the tests' mock scan lasts 2 s
-beforeEach(() => setEgress(null))
+beforeEach(() => { setEgress(null); checkPause.seconds = 0 }) // the 30 s pause between two checks of a target is shown by its own test
 afterEach(() => vi.useRealTimers())
-const targetsTable = () => screen.findByRole('table', { name: 'Declared domains' })
-const ipTable = () => screen.findByRole('table', { name: 'Public IPs of this box' })
+const targetsTable = () => screen.findByRole('table', { name: 'Targets' })
+const ipTable = targetsTable // the list holds domains and public IPs alike
 
 describe('exposure: list (S-EXP-1)', () => {
   it('first sentence counts exposed admin interfaces; the table says why a target cannot be scanned; axe clean', async () => {
     renderApp('/exposure')
     expect(await screen.findByRole('heading', { level: 1, name: '2 admin interfaces are exposed to the Internet' })).toBeInTheDocument()
     const table = await targetsTable()
-    expect(within(table).getAllByRole('row')).toHaveLength(4) // header + the three domains; public IPs have their own table
+    expect(within(table).getAllByRole('row')).toHaveLength(8) // header + the three domains and the four public IPs: one list
     const demo = within(table).getByRole('row', { name: /acme-demo\.example/ })
     expect(within(demo).getByText('Awaiting ownership proof')).toBeInTheDocument()
     expect(within(demo).getByText('Needs ownership proof')).toBeInTheDocument()
     expect(within(within(table).getByRole('row', { name: /old-site\.example/ })).getByText('TXT record missing')).toBeInTheDocument()
-    expect(within(within(table).getByRole('row', { name: /^acme\.example/ })).getByText('Ready to scan')).toBeInTheDocument()
+    const acme = within(table).getByRole('row', { name: /^acme\.example/ })
+    expect(within(acme).getByText('Ready to scan')).toBeInTheDocument()
+    expect(within(acme).getByText('Domain')).toBeInTheDocument() // the type of each row
     // The IPs the box found: two valid (load balancer), one it has not seen for 26 days (expiring), one not seen for 40 days (expired).
-    const ips = await ipTable()
-    expect(within(ips).getAllByRole('row')).toHaveLength(5)
-    expect(within(within(ips).getByRole('row', { name: /203\.0\.113\.10/ })).getByText('Ownership verified')).toBeInTheDocument()
-    expect(within(within(ips).getByRole('row', { name: /203\.0\.113\.11/ })).getByText('Ownership verified')).toBeInTheDocument()
-    expect(within(within(ips).getByRole('row', { name: /203\.0\.113\.12/ })).getByText('Expires in 4 days')).toBeInTheDocument()
-    expect(within(within(ips).getByRole('row', { name: /203\.0\.113\.55/ })).getAllByText('Verification expired').length).toBeGreaterThan(0)
+    const ten = within(table).getByRole('row', { name: /203\.0\.113\.10/ })
+    expect(within(ten).getByText('Public IP')).toBeInTheDocument()
+    expect(within(ten).getByText('Ownership verified')).toBeInTheDocument()
+    expect(within(ten).getByText(/^Proof until /)).toBeInTheDocument() // every IP proof says when it runs out
+        const eleven = within(table).getByRole('row', { name: /203\.0\.113\.11/ })
+    expect(within(eleven).getByText('Ownership verified')).toBeInTheDocument()
+    expect(within(eleven).getByText('Terms not accepted')).toBeInTheDocument() // found by the box, terms not accepted yet: a small note, not a warning
+    expect(within(within(table).getByRole('row', { name: /203\.0\.113\.12/ })).getByText('Expires in 4 days')).toBeInTheDocument()
+    expect(within(within(table).getByRole('row', { name: /203\.0\.113\.55/ })).getAllByText('Verification expired').length).toBeGreaterThan(0)
     expect(screen.getByText(/Only what you have proven you own and confirmed is scanned/)).toBeInTheDocument()
     await expectNoA11yViolations()
   })
 
-  it('adds a domain, lowercases it and goes to its verification page', async () => {
+  it('adds a domain, lowercases it and goes to its page to prove ownership there', async () => {
     renderApp('/exposure')
-    await userEvent.click(await screen.findByRole('button', { name: 'Add domain' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Add target' }))
     await userEvent.type(screen.getByRole('textbox', { name: 'Domain' }), 'Shop.Acme.Example')
     await userEvent.click(screen.getByRole('button', { name: 'Add' }))
     expect(await screen.findByRole('heading', { level: 1, name: 'shop.acme.example cannot be scanned yet: awaiting ownership proof' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /Ownership/ })).toHaveAttribute('aria-selected', 'true') // the proof steps are already open
+    expect(screen.getByText('vedette-verify=' + (await call('GET', '/exposure/targets')).json.items.find((x: { value: string }) => x.value === 'shop.acme.example').token)).toBeInTheDocument()
     expect(auditStore.get().some((a) => a.action === 'exposure.target_add' && a.target === 'shop.acme.example')).toBe(true)
   })
 
   it.each([
-    ['', /Enter a domain, for example example\.com/],
-    ['https://acme.example/admin', /without http:\/\/, a path/],
-    ['203.0.113.5', /Public IPs are not typed in/],
-    ['not-a-domain', /Not a valid domain/],
-    ['acme.example', /acme\.example is already in the list/],
-  ])('rejects "%s" and says how to fix it', async (value, message) => {
+    ['Domain', '', /Enter a domain, for example example\.com/],
+    ['Domain', 'https://acme.example/admin', /without http:\/\/, a path/],
+    ['Domain', '203.0.113.5', /That is an IP address, not a domain/],
+    ['Domain', 'not-a-domain', /Not a valid domain/],
+    ['Domain', 'acme.example', /acme\.example is already in the list/],
+    ['Public IP', '', /Enter a public IPv4 address/],
+    ['Public IP', '10.0.0.5', /Private, reserved, carrier-grade NAT and IPv6 addresses cannot be scanned/],
+    ['Public IP', '2001:4860:4860::8888', /Private, reserved, carrier-grade NAT and IPv6 addresses cannot be scanned/],
+    ['Public IP', '203.0.113.10', /203\.0\.113\.10 is already in the list/],
+  ])('rejects %s "%s" and says how to fix it', async (kind, value, message) => {
     renderApp('/exposure')
-    await userEvent.click(await screen.findByRole('button', { name: 'Add domain' }))
-    const input = screen.getByRole('textbox', { name: 'Domain' })
+    await userEvent.click(await screen.findByRole('button', { name: 'Add target' }))
+    await userEvent.click(screen.getByRole('button', { name: kind }))
+    const input = screen.getByRole('textbox', { name: kind === 'Domain' ? 'Domain' : 'Public IP address' })
     if (value) await userEvent.type(input, value)
     await userEvent.click(screen.getByRole('button', { name: 'Add' }))
     expect(await screen.findByText(message)).toBeInTheDocument()
@@ -82,19 +95,40 @@ describe('exposure: list (S-EXP-1)', () => {
     server.use(http.get('*/api/v1/exposure/targets', () => HttpResponse.json({ items: [], box_ip: { auto: true, interval_min: 60, last_run: null }, ignored: [] })))
     renderApp('/exposure')
     expect(await screen.findByRole('heading', { level: 1, name: 'No domain or verified public IP yet' })).toBeInTheDocument()
-    expect(screen.getAllByText(/Select Detect now to look right away/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/Select Add target, choose Domain or Public IP/).length).toBeGreaterThan(0)
   })
 
-  it('with no admin page, the first sentence says what is open and SIP is called out with "is that on purpose?"', async () => {
-    const at = '2026-11-13T06:02:00.000Z'
-    const ip = { id: 't-ip', kind: 'ip', value: '203.0.113.10', status: 'verified', method: 'box_egress', token: '', verified_at: at, expires_at: '2026-12-13T06:02:00.000Z', validity: 'valid', last_check: null,
-      commitment: { by: 'An', at }, scannable: true, blocked_reason: null, created_at: at, last_scan_at: at,
-      latest: { subdomains: 0, ips: 1, ports: 2, admin_panels: 0, certs_expiring: 0 },
-      open_ports: [{ ip: '203.0.113.10', port: 5060, service: 'sip' }, { ip: '203.0.113.10', port: 10443, service: 'https', product: 'nginx' }] }
-    server.use(http.get('*/api/v1/exposure/targets', () => HttpResponse.json({ items: [ip], box_ip: { auto: true, interval_min: 60, last_run: null, retry_in_min: null }, ignored: [] })))
-    renderApp('/exposure?tab=open')
+  // A row of the target list as the API sends it (the fields the list reads).
+  const rowOf = (over: Record<string, unknown>) => ({ id: 't-ip', kind: 'ip', origin: 'box', value: '203.0.113.10', status: 'verified', method: 'box_egress', token: '', verified_at: '2026-11-13T06:02:00.000Z', expires_at: '2026-12-13T06:02:00.000Z', validity: 'valid', last_check: null,
+    commitment: { by: 'An', at: '2026-11-13T06:02:00.000Z' }, scannable: true, blocked_reason: null, scan_state: 'ready', created_at: '2026-11-13T06:02:00.000Z', last_scan_at: '2026-11-13T06:02:00.000Z', ...over })
+  const BOX = { auto: true, interval_min: 60, last_run: null, retry_in_min: null }
+  // The target's own page, as the API sends it: the real sample row of the box IP with what the case changes.
+  async function targetPage(over: Record<string, unknown>, gateway: unknown = null) {
+    const real = (await call('GET', '/exposure/targets/xt-2')).json
+    const row = { ...real, ...over }
+    server.use(
+      http.get('*/api/v1/exposure/targets/xt-2', () => HttpResponse.json(row)),
+      http.get('*/api/v1/exposure/targets', () => HttpResponse.json({ items: [row], box_ip: BOX, ignored: [], gateway })),
+    )
+    renderApp('/exposure/xt-2?tab=exposures')
+  }
+
+  it('with no admin page, the first sentence says what is open; the row counts it and its count opens that target', async () => {
+    const ip = rowOf({ latest: { subdomains: 0, ips: 1, ports: 2, admin_panels: 0, certs_expiring: 0 }, open_exposures: 2,
+      open_ports: [{ ip: '203.0.113.10', port: 5060, service: 'sip' }, { ip: '203.0.113.10', port: 10443, service: 'https', product: 'nginx' }] })
+    server.use(http.get('*/api/v1/exposure/targets', () => HttpResponse.json({ items: [ip], box_ip: BOX, ignored: [] })))
+    renderApp('/exposure')
     expect(await screen.findByRole('heading', { level: 1, name: '2 ports are open to the Internet: SIP 5060, HTTPS 10443' })).toBeInTheDocument()
-    const open = screen.getByRole('region', { name: '2 ports open to the Internet' })
+    const row = within(await targetsTable()).getByRole('row', { name: /203\.0\.113\.10/ })
+    expect(within(row).getByRole('link', { name: '2 open exposures on 203.0.113.10' })).toHaveAttribute('href', '/exposure/t-ip?tab=exposures')
+    // the KPI tile of open exposures goes to the one target that has some
+    expect(within(screen.getByRole('list', { name: 'External exposure at a glance' })).getByRole('link', { name: /open exposures/ })).toHaveAttribute('href', '/exposure/t-ip?tab=exposures')
+  })
+
+  it('SIP is called out with "is that on purpose?" on the target that has it', async () => {
+    await targetPage({ origin: 'box', latest: { subdomains: 0, ips: 1, ports: 2, admin_panels: 0, certs_expiring: 0 }, open_exposures: 2,
+      open_ports: [{ ip: '203.0.113.10', port: 5060, service: 'sip' }, { ip: '203.0.113.10', port: 10443, service: 'https', product: 'nginx' }] })
+    const open = await screen.findByRole('region', { name: '2 ports open to the Internet' })
     expect(within(open).getAllByText('Commonly attacked')).toHaveLength(1) // SIP only; HTTPS is not called out
     expect(within(open).getByRole('button', { name: 'About Commonly attacked' })).toHaveAccessibleDescription(/toll fraud/) // #824: the why is behind the chip's ⓘ
     expect(within(open).getAllByText('Is that on purpose? If not, close it on your router or firewall.')).toHaveLength(2)
@@ -104,19 +138,13 @@ describe('exposure: list (S-EXP-1)', () => {
   })
 
   it('a port only the port number names says "probably" and is attacked only "if it is" that; an unidentified port says so with its certificate names; no raw nmap names', async () => {
-    const at = '2026-11-16T06:41:00.000Z'
-    const ip = { id: 't-ip', kind: 'ip', value: '203.0.113.10', status: 'verified', method: 'box_egress', token: '', verified_at: at, expires_at: '2026-12-16T06:41:00.000Z', validity: 'valid', last_check: null,
-      commitment: { by: 'An', at }, scannable: true, blocked_reason: null, created_at: at, last_scan_at: at,
-      latest: { subdomains: 0, ips: 1, ports: 6, admin_panels: 0, certs_expiring: 0 },
+    await targetPage({ origin: 'box', latest: { subdomains: 0, ips: 1, ports: 6, admin_panels: 0, certs_expiring: 0 }, open_exposures: 6,
       open_ports: [
         { ip: '203.0.113.10', port: 5060, service: 'sip', ident: 'port' }, { ip: '203.0.113.10', port: 10443, service: 'https', product: 'nginx', ident: 'probed', title: 'Sign in · GitLab' },
         { ip: '203.0.113.10', port: 2000, service: 'cisco-sccp', ident: 'port' }, { ip: '203.0.113.10', port: 10022, service: 'ssh', product: 'OpenSSH 9.6p1 Ubuntu 3ubuntu13.20', ident: 'probed' },
         { ip: '203.0.113.10', port: 11080, service: 'unknown', ident: 'none', server: 'Caddy' }, { ip: '203.0.113.10', port: 11443, service: 'ssl/unknown', ident: 'none', cert_names: ['gw.example.net', 'vpn.example.net'] },
-      ] }
-    server.use(http.get('*/api/v1/exposure/targets', () => HttpResponse.json({ items: [ip], box_ip: { auto: true, interval_min: 60, last_run: null, retry_in_min: null }, ignored: [] })))
-    renderApp('/exposure?tab=open')
-    expect(await screen.findByRole('heading', { level: 1, name: '6 ports are open to the Internet: Probably SIP 5060, HTTPS 10443, Probably Cisco SCCP (IP phones) 2000 and 3 more' })).toBeInTheDocument()
-    const open = screen.getByRole('region', { name: '6 ports open to the Internet' })
+      ] })
+    const open = await screen.findByRole('region', { name: '6 ports open to the Internet' })
     for (const label of ['Probably SIP 5060', 'HTTPS 10443', 'Probably Cisco SCCP (IP phones) 2000', 'SSH 10022', 'Unidentified service 11080', 'Unidentified TLS service 11443']) expect(within(open).getByText(label)).toBeInTheDocument()
     expect(within(open).queryByText(/UNKNOWN|CISCO-SCCP/)).toBeNull()
     expect(within(open).getAllByText('by port number, not confirmed')).toHaveLength(2)
@@ -131,12 +159,7 @@ describe('exposure: list (S-EXP-1)', () => {
     expect([portLabel({ service: 'ssl/unknown', port: 11443 }), portLabel({ service: 'cisco-sccp', port: 2000 }), riskOf({ service: 'sip', ident: 'none' })]).toEqual(['Unidentified TLS service 11443', 'Cisco SCCP (IP phones) 2000', null])
   })
 
-  const gwTarget = () => {
-    const at = '2026-11-13T06:02:00.000Z'
-    return { id: 't-ip', kind: 'ip', value: '203.0.113.10', status: 'verified', method: 'box_egress', token: '', verified_at: at, expires_at: '2026-12-13T06:02:00.000Z', validity: 'valid', last_check: null,
-      commitment: { by: 'An', at }, scannable: true, blocked_reason: null, created_at: at, last_scan_at: at,
-      latest: { subdomains: 0, ips: 1, ports: 1, admin_panels: 0, certs_expiring: 0 }, open_ports: [{ ip: '203.0.113.10', port: 10443, service: 'https', product: 'nginx' }] }
-  }
+  const gwTarget = () => ({ origin: 'box', latest: { subdomains: 0, ips: 1, ports: 1, admin_panels: 0, certs_expiring: 0 }, open_exposures: 1, open_ports: [{ ip: '203.0.113.10', port: 10443, service: 'https', product: 'nginx' }] })
   it.each([
     ['known with findings', { ip: '192.168.18.1', device_id: 'd-gw', name: 'fortigate-hq', open_exploited: 2 },
       'Your gateway fortigate-hq (192.168.18.1) has 2 open exploited vulnerabilities: fix these first.', /answered by your gateway, or a device it forwards them to/, '/findings?tab=open&device=d-gw'],
@@ -151,8 +174,7 @@ describe('exposure: list (S-EXP-1)', () => {
     ['gateway unknown', { ip: null, device_id: null, name: null, open_exploited: 0 },
       'Vedette cannot see which gateway your network uses from here.', /cannot say which device answers these ports/, null],
   ])('open ports and the gateway, %s', async (_n, gateway, text, info, href) => {
-    server.use(http.get('*/api/v1/exposure/targets', () => HttpResponse.json({ items: [gwTarget()], box_ip: { auto: true, interval_min: 60, last_run: null, retry_in_min: null }, ignored: [], gateway })))
-    renderApp('/exposure?tab=open')
+    await targetPage(gwTarget(), gateway)
     const note = await screen.findByTestId('gateway-note')
     expect(within(note).getByText(text)).toBeInTheDocument()
     expect(within(note).getByRole('button', { name: 'More about this' })).toHaveAccessibleDescription(info) // #824: the explanation is behind ⓘ
@@ -169,41 +191,33 @@ describe('exposure: list (S-EXP-1)', () => {
     ['not in the inventory', [], 'No device in your list is recognised as FortiGate, so Vedette cannot say which exploited vulnerabilities it has. If you have one, add it under Devices.', null],
     ['inventory unknown', null, null, null],
   ])('an appliance certificate on an open port, %s', async (_n, devices, line, href) => {
-    const target = { ...gwTarget(), latest: { subdomains: 0, ips: 1, ports: 2, admin_panels: 1, certs_expiring: 0 },
-      open_ports: [{ ip: '203.0.113.10', port: 10443, service: 'https', product: 'nginx' }, fortiPort(devices)] }
     const gateway = { ip: '192.168.1.1', device_id: 'd-gw', name: 'edge-router', open_exploited: 0 }
-    server.use(http.get('*/api/v1/exposure/targets', () => HttpResponse.json({ items: [target], box_ip: { auto: true, interval_min: 60, last_run: null, retry_in_min: null }, ignored: [], gateway })))
-    renderApp('/exposure?tab=open')
+    await targetPage({ ...gwTarget(), latest: { subdomains: 0, ips: 1, ports: 2, admin_panels: 1, certs_expiring: 0 }, open_exposures: 2,
+      open_ports: [{ ip: '203.0.113.10', port: 10443, service: 'https', product: 'nginx' }, fortiPort(devices)] }, gateway)
     const note = await screen.findByTestId('appliance-note')
     expect(within(note).getByText('Likely the FortiGate admin or SSL-VPN page: its certificate names it.')).toBeInTheDocument()
     if (line) expect(within(note).getByText(line)).toBeInTheDocument()
     if (href) expect(within(note).getByRole('link', { name: 'Open Edge firewall' })).toHaveAttribute('href', href)
     else expect(within(note).queryByRole('link')).toBeNull()
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('1 admin interface is exposed to the Internet')
-    expect(within(screen.getByTestId('gateway-note')).getByText('Your gateway edge-router (192.168.1.1) answers the other ports; no open exploited vulnerability is known on it.')).toBeInTheDocument()
+    expect(within(await screen.findByTestId('gateway-note')).getByText('Your gateway edge-router (192.168.1.1) answers the other ports; no open exploited vulnerability is known on it.')).toBeInTheDocument()
   })
 
   it('an appliance with more devices than the list shows says how many more', async () => {
     const port = { ...fortiPort([{ device_id: 'dev-1', name: 'Branch firewall', open_exploited: 0 }]), appliance: { ...fortiPort([]).appliance, devices: [{ device_id: 'dev-1', name: 'Branch firewall', open_exploited: 0 }], more: 4 } }
-    const target = { ...gwTarget(), latest: { subdomains: 0, ips: 1, ports: 1, admin_panels: 1, certs_expiring: 0 }, open_ports: [port] }
-    server.use(http.get('*/api/v1/exposure/targets', () => HttpResponse.json({ items: [target], box_ip: { auto: true, interval_min: 60, last_run: null, retry_in_min: null }, ignored: [], gateway: null })))
-    renderApp('/exposure?tab=open')
+    await targetPage({ ...gwTarget(), latest: { subdomains: 0, ips: 1, ports: 1, admin_panels: 1, certs_expiring: 0 }, open_ports: [port] })
     const note = await screen.findByTestId('appliance-note')
     expect(within(note).getByText('Your device Branch firewall (FortiGate): no open exploited vulnerability is known on it.')).toBeInTheDocument()
     expect(within(note).getByText('and 4 more FortiGate devices in your list.')).toBeInTheDocument()
   })
 
   it('no gateway note when every open port names its appliance', async () => {
-    const target = { ...gwTarget(), latest: { subdomains: 0, ips: 1, ports: 1, admin_panels: 1, certs_expiring: 0 }, open_ports: [fortiPort([])] }
-    server.use(http.get('*/api/v1/exposure/targets', () => HttpResponse.json({ items: [target], box_ip: { auto: true, interval_min: 60, last_run: null, retry_in_min: null }, ignored: [], gateway: { ip: '192.168.1.1', device_id: null, name: null, open_exploited: 0 } })))
-    renderApp('/exposure?tab=open')
+    await targetPage({ ...gwTarget(), latest: { subdomains: 0, ips: 1, ports: 1, admin_panels: 1, certs_expiring: 0 }, open_ports: [fortiPort([])] }, { ip: '192.168.1.1', device_id: null, name: null, open_exploited: 0 })
     await screen.findByTestId('appliance-note')
     expect(screen.queryByTestId('gateway-note')).toBeNull()
   })
 
   it('no gateway note when the server sends none', async () => {
-    server.use(http.get('*/api/v1/exposure/targets', () => HttpResponse.json({ items: [gwTarget()], box_ip: { auto: true, interval_min: 60, last_run: null, retry_in_min: null }, ignored: [], gateway: null })))
-    renderApp('/exposure?tab=open')
+    await targetPage(gwTarget(), null)
     await screen.findByRole('region', { name: '1 port open to the Internet' })
     expect(screen.queryByTestId('gateway-note')).toBeNull()
   })
@@ -213,7 +227,7 @@ describe('exposure: list (S-EXP-1)', () => {
     const seen = ({ request }: { request: Request }) => { if (new URL(request.url).pathname.startsWith('/api/v1/exposure/')) calls.push(request.url) }
     server.events.on('request:start', seen)
     modulesStore.update((l) => l.map((m) => (m.id === 'exposure' ? { ...m, enabled: false } : m)))
-    const list = renderApp('/exposure?tab=open')
+    const list = renderApp('/exposure?tab=targets')
     expect(await screen.findByText('External exposure module is off')).toBeInTheDocument()
     list.unmount()
     renderApp('/exposure/xt-1')
@@ -376,7 +390,7 @@ describe('exposure: domain ownership = DNS TXT only', () => {
     ['a.b.example.com', 'Add a TXT record at @ of the DNS zone example.com, where you manage a.b.example.com: a record there proves a.b.example.com, and a.b.example.com itself needs no record.', '_vedette-verify.a.b'],
   ])('%s shows the Name @ of its zone', async (value, intro, alt) => {
     renderApp('/exposure')
-    await userEvent.click(await screen.findByRole('button', { name: 'Add domain' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Add target' }))
     await userEvent.type(screen.getByRole('textbox', { name: 'Domain' }), value)
     await userEvent.click(screen.getByRole('button', { name: 'Add' }))
     await userEvent.click(await screen.findByRole('tab', { name: /Ownership/ }))
@@ -395,7 +409,7 @@ describe('exposure: domain ownership = DNS TXT only', () => {
 
   it('a subdomain of a verified domain says it is covered, and one Check verifies it', async () => {
     renderApp('/exposure')
-    await userEvent.click(await screen.findByRole('button', { name: 'Add domain' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Add target' }))
     await userEvent.type(screen.getByRole('textbox', { name: 'Domain' }), 'git.acme.example')
     await userEvent.click(screen.getByRole('button', { name: 'Add' }))
     await userEvent.click(await screen.findByRole('tab', { name: /Ownership/ }))
@@ -419,11 +433,34 @@ describe('exposure: domain ownership = DNS TXT only', () => {
 })
 
 describe('exposure: public IP = only an IP this box uses to reach the Internet', () => {
-  it('no IP input: typing an IP is refused and points to the box', async () => {
-    const r = await call('POST', '/exposure/targets', { value: '198.51.100.7' })
+  it('a typed public IP is in the list at once, never scanned until it is proved, and its proof is a token file or a reverse DNS name', async () => {
+    const added = await call('POST', '/exposure/targets', { value: '198.51.100.7', kind: 'ip' })
+    expect(added.status).toBe(201)
+    expect(added.json).toMatchObject({ kind: 'ip', origin: 'person', status: 'unverified', blocked_reason: 'unverified', scan_state: 'unproved', method: null })
+    expect(added.json.ip_proof).toMatchObject({ path: '/.well-known/vedette-verify.txt', content: added.json.token })
+    expect((await call('GET', '/exposure/targets')).json.items.map((x: { value: string }) => x.value)).toContain('198.51.100.7')
+    const id = added.json.id as string
+    expect((await call('POST', `/exposure/targets/${id}/scan`)).json.error.code).toBe('not_verified') // not scanned until proved
+    const first = await call('POST', `/exposure/targets/${id}/verify`)
+    expect(first.json).toMatchObject({ verified: false })
+    expect(first.json.message).toMatch(/Vedette found no proof of 198\.51\.100\.7/)
+    const second = await call('POST', `/exposure/targets/${id}/verify`) // the file is served by now
+    expect(second.json).toMatchObject({ verified: true, target: { status: 'verified', method: 'ip_file', origin: 'person' } })
+    expect(Math.round((Date.parse(second.json.target.expires_at) - Date.parse(second.json.target.verified_at)) / 864e5)).toBe(30)
+    expect(second.json.target.next_check_at).not.toBeNull()
+  })
+
+  it.each([['10.0.0.5'], ['192.168.1.9'], ['100.64.0.1'], ['2001:4860:4860::8888']])('a typed address %s that cannot be scanned from the Internet is refused', async (v) => {
+    const r = await call('POST', '/exposure/targets', { value: v, kind: 'ip' })
     expect(r.status).toBe(400)
     expect(r.json.error.code).toBe('ip_not_allowed')
-    expect(r.json.error.message).toMatch(/Detect now/)
+  })
+
+  it('an address typed as a domain is refused and points to Public IP', async () => {
+    const r = await call('POST', '/exposure/targets', { value: '198.51.100.7', kind: 'domain' })
+    expect(r.status).toBe(400)
+    expect(r.json.error.code).toBe('ip_not_allowed')
+    expect(r.json.error.message).toMatch(/Choose Public IP/)
   })
 
   it('detects the IP the box uses and verifies it for 30 days from the sighting; detecting again renews the same target', async () => {
@@ -692,23 +729,23 @@ describe('exposure: auto-detect of the box public IPs', () => {
     expect((await state()).box_ip.auto).toBe(true)
   })
 
-  it('the panel: first line says what the box does; the list shows last seen, expiry and a way to remove each IP; axe clean', async () => {
-    renderApp('/exposure')
+  it('the Settings tab: first line says what the box does; the IPs it finds are rows of the target list; axe clean', async () => {
+    renderApp('/exposure?tab=settings')
     expect(await screen.findByText('Auto-detect is on: the box checks its public IPs every hour.')).toBeInTheDocument()
     expect(screen.getByText(/The box reaches the Internet via 2 public IPs: 203\.0\.113\.10, 203\.0\.113\.11/)).toBeInTheDocument()
-    const ips = await ipTable()
-    for (const col of ['Public IP', 'Status', 'Last seen', 'Expires', 'Scan', 'Remove']) expect(within(ips).getByRole('columnheader', { name: col })).toBeInTheDocument()
-    expect(within(ips).getByRole('button', { name: 'Remove 203.0.113.11' })).toBeInTheDocument()
     expect(screen.getByText('Removed IPs come back if the box keeps using them while auto-detect is on, unless you chose not to add them again.')).toBeInTheDocument()
     expect(screen.queryByRole('textbox', { name: /IP/ })).toBeNull()
+    expect(screen.queryByRole('table', { name: 'Targets' })).toBeNull() // the list is the other tab
     await expectNoA11yViolations()
+    await userEvent.click(screen.getByRole('tab', { name: 'Targets' }))
+    const list = await targetsTable()
+    for (const col of ['Target', 'Ownership', 'Commitment', 'Scan', 'Latest result', 'Open exposures']) expect(within(list).getByRole('columnheader', { name: col })).toBeInTheDocument()
+    expect(within(list).getByRole('link', { name: '203.0.113.11' })).toBeInTheDocument()
   })
 
-  it('form matrix: auto on shows the interval, auto off hides it, the list and Detect now stay', async () => {
-    renderApp('/exposure')
+  it('form matrix: auto on shows the interval, auto off hides it, Detect now stays and the list keeps its IPs', async () => {
+    renderApp('/exposure?tab=settings')
     const toggle = await screen.findByRole('switch', { name: "Detect the box's public IPs automatically" })
-    const rows = () => within(screen.getByRole('table', { name: 'Public IPs of this box' })).getAllByRole('row').length
-    const n = rows()
     await eachOption([
       { option: 'on', shown: ['Check every', 'Detect now', /Auto-detect is on: the box checks/], hidden: [/Auto-detect is off: the box checks only/] },
       { option: 'off', shown: ['Detect now', /Auto-detect is off: the box checks only when you select Detect now/], hidden: ['Check every', /Auto-detect is on: the box checks/] },
@@ -717,52 +754,58 @@ describe('exposure: auto-detect of the box public IPs', () => {
       if ((toggle.getAttribute('aria-checked') === 'true') !== (o === 'on')) await userEvent.click(toggle)
       await screen.findByText(o === 'on' ? /Auto-detect is on/ : /Auto-detect is off/)
     })
-    expect(rows()).toBe(n) // switching off kept the list
+    await userEvent.click(screen.getByRole('tab', { name: 'Targets' }))
+    expect(within(await targetsTable()).getAllByRole('row')).toHaveLength(8) // switching off kept the list
+    await userEvent.click(screen.getByRole('tab', { name: 'Settings' }))
     expect(screen.getByRole('combobox', { name: 'Check every' })).toHaveValue('60') // and the interval
   })
 
   it('changing the interval saves it and the first line follows', async () => {
-    renderApp('/exposure')
+    renderApp('/exposure?tab=settings')
     await userEvent.selectOptions(await screen.findByRole('combobox', { name: 'Check every' }), '15')
     expect(await screen.findByText('Auto-detect is on: the box checks its public IPs every 15 minutes.')).toBeInTheDocument()
     expect((await state()).box_ip.interval_min).toBe(15)
   })
 
-  it('a load balancer: both IPs show up, one is removed after a confirmation, Detect now brings it back', async () => {
+  it('a load balancer: both IPs show up, one is removed from its page after a confirmation, Detect now brings it back', async () => {
     await clean()
     setEgress('198.51.100.7,198.51.100.8')
     renderApp('/exposure')
-    const ips = await ipTable()
-    expect(await within(ips).findByRole('link', { name: '198.51.100.8' })).toBeInTheDocument()
-    expect(within(ips).getByRole('link', { name: '198.51.100.7' })).toBeInTheDocument()
-    await userEvent.click(within(ips).getByRole('button', { name: 'Remove 198.51.100.8' }))
+    expect(await within(await targetsTable()).findByRole('link', { name: '198.51.100.8' })).toBeInTheDocument()
+    expect(within(await targetsTable()).getByRole('link', { name: '198.51.100.7' })).toBeInTheDocument()
+    await userEvent.click(within(await targetsTable()).getByRole('link', { name: '198.51.100.8' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Delete target' }))
     const dlg = await screen.findByRole('dialog', { name: 'Remove 198.51.100.8 from the list?' })
     expect(within(dlg).getByRole('checkbox', { name: "Don't add it again if detected" })).toBeChecked() // On by default
     await userEvent.click(within(dlg).getByRole('button', { name: 'Cancel' }))
     expect(screen.queryByRole('dialog')).toBeNull()
-    await userEvent.click(within(ips).getByRole('button', { name: 'Remove 198.51.100.8' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Delete target' }))
     const again = await screen.findByRole('dialog')
     await userEvent.click(within(again).getByRole('checkbox', { name: "Don't add it again if detected" })) // untick: this one may come back
     await userEvent.click(within(again).getByRole('button', { name: 'Remove' }))
-    await waitFor(() => expect(within(screen.getByRole('table', { name: 'Public IPs of this box' })).queryByRole('link', { name: '198.51.100.8' })).toBeNull())
+    await waitFor(() => expect(within(screen.getByRole('table', { name: 'Targets' })).queryByRole('link', { name: '198.51.100.8' })).toBeNull())
+    await userEvent.click(screen.getByRole('tab', { name: 'Settings' }))
     await userEvent.click(screen.getByRole('button', { name: 'Detect now' }))
-    expect(await within(await ipTable()).findByRole('link', { name: '198.51.100.8' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('tab', { name: 'Targets' }))
+    expect(await within(await targetsTable()).findByRole('link', { name: '198.51.100.8' })).toBeInTheDocument()
   })
 
   it('a viewer sees everything but every control is locked with a visible reason', async () => {
-    renderApp('/exposure', { role: 'viewer' })
+    renderApp('/exposure?tab=settings', { role: 'viewer' })
     expect(await screen.findByRole('switch', { name: "Detect the box's public IPs automatically" })).toBeDisabled()
     expect(screen.getByRole('combobox', { name: 'Check every' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Detect now' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Remove 203.0.113.11' })).toBeDisabled()
     expect(screen.getAllByText('Requires Admin role').length).toBeGreaterThan(0)
+    cleanup()
+    renderApp('/exposure/xt-6', { role: 'viewer' }) // removing an IP is on its own page
+    expect(await screen.findByRole('button', { name: 'Delete target' })).toBeDisabled()
   })
 
   it('while Detect now runs the button is busy and a note says what the box is doing and how long it may take', async () => {
     let answer!: () => void
     const held = new Promise<void>((r) => { answer = r })
     server.use(http.post('*/api/v1/exposure/box-ip/verify', async () => { await held; return HttpResponse.json({ message: 'Done.' }) }))
-    renderApp('/exposure')
+    renderApp('/exposure?tab=settings')
     await userEvent.click(await screen.findByRole('button', { name: 'Detect now' }))
     expect(await screen.findByRole('button', { name: 'Detecting…' })).toHaveAttribute('aria-busy', 'true')
     expect(screen.getByText(/this can take up to 30 seconds/)).toBeInTheDocument()
@@ -786,7 +829,7 @@ describe('exposure: the Ignored list', () => {
   const actions = () => auditStore.get().map((a) => `${a.action} ${a.target}`)
 
   it('the sample shows an Ignored section with a Restore button; the list only blocks, it is never an input', async () => {
-    renderApp('/exposure')
+    renderApp('/exposure?tab=settings')
     const section = (await screen.findByRole('heading', { name: 'Ignored IPs' })).closest('section')!
     const table = within(section).getByRole('table', { name: 'IPs on the Ignored list' })
     expect(within(table).getByText('203.0.113.77')).toBeInTheDocument()
@@ -796,12 +839,15 @@ describe('exposure: the Ignored list', () => {
     await expectNoA11yViolations()
   })
 
+  // Removing an IP is done on its own page; the dialog is the same wherever it opens.
+  const openIp = async (ip: string) => { await userEvent.click(await within(await targetsTable()).findByRole('link', { name: ip })); return screen.findByRole('button', { name: 'Delete target' }) }
+  const back = async () => userEvent.click(await screen.findByRole('link', { name: 'Back to external exposure' }))
+
   it('removing an IP: the box "Don\'t add it again if detected" is ticked by default, comes back for the next IP, and the hint follows it (form matrix)', async () => {
     await clean()
     setEgress('198.51.100.7,198.51.100.8')
     renderApp('/exposure')
-    const ips = await ipTable()
-    await userEvent.click(await within(ips).findByRole('button', { name: 'Remove 198.51.100.8' }))
+    await userEvent.click(await openIp('198.51.100.8'))
     const dlg = await screen.findByRole('dialog', { name: 'Remove 198.51.100.8 from the list?' })
     const box = within(dlg).getByRole('checkbox', { name: LABEL })
     expect(box).toBeChecked()
@@ -812,14 +858,15 @@ describe('exposure: the Ignored list', () => {
     ], async (o) => { if ((box.getAttribute('aria-checked') === 'true') !== (o === 'ignore')) await userEvent.click(box) }, dlg)
     await userEvent.click(within(dlg).getByRole('button', { name: 'Cancel' }))
     // Cancel, then Remove on the same IP: ticked again (the answer is not remembered)
-    await userEvent.click(await within(await ipTable()).findByRole('button', { name: 'Remove 198.51.100.8' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Delete target' }))
     await userEvent.click(within(await screen.findByRole('dialog')).getByRole('checkbox', { name: LABEL })) // untick
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }))
-    await userEvent.click(within(await ipTable()).getByRole('button', { name: 'Remove 198.51.100.8' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Delete target' }))
     expect(within(await screen.findByRole('dialog')).getByRole('checkbox', { name: LABEL })).toBeChecked()
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }))
     // the next IP starts ticked again, whatever was chosen before
-    await userEvent.click(within(ips).getByRole('button', { name: 'Remove 198.51.100.7' }))
+    await back()
+    await userEvent.click(await openIp('198.51.100.7'))
     expect(within(await screen.findByRole('dialog', { name: 'Remove 198.51.100.7 from the list?' })).getByRole('checkbox', { name: LABEL })).toBeChecked()
   })
 
@@ -827,17 +874,17 @@ describe('exposure: the Ignored list', () => {
     await clean()
     setEgress('198.51.100.7,198.51.100.8')
     renderApp('/exposure')
-    const ips = await ipTable()
-    await userEvent.click(await within(ips).findByRole('button', { name: 'Remove 198.51.100.8' }))
+    await userEvent.click(await openIp('198.51.100.8'))
     await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Remove' }))
+    await waitFor(async () => expect(within(await targetsTable()).queryByRole('link', { name: '198.51.100.8' })).toBeNull()) // back on the list
+    await userEvent.click(screen.getByRole('tab', { name: 'Settings' }))
     const ignored = async () => within(await screen.findByRole('table', { name: 'IPs on the Ignored list' }))
     expect(await (await ignored()).findByText('198.51.100.8')).toBeInTheDocument()
-    expect(within(await ipTable()).queryByRole('link', { name: '198.51.100.8' })).toBeNull()
 
     await userEvent.click(screen.getByRole('button', { name: 'Detect now' }))
     expect((await screen.findAllByText(/Not added, on your Ignored list: 198\.51\.100\.8\./)).length).toBeGreaterThan(0) // the toast and the last-check panel
-    expect(within(await ipTable()).queryByRole('link', { name: '198.51.100.8' })).toBeNull()
-    expect(within(await ipTable()).getByRole('link', { name: '198.51.100.7' })).toBeInTheDocument()
+    expect((await list()).items.map((t) => t.value)).not.toContain('198.51.100.8')
+    expect((await list()).items.map((t) => t.value)).toContain('198.51.100.7')
 
     await userEvent.click((await ignored()).getByRole('button', { name: 'Restore 198.51.100.8' }))
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Restore 198.51.100.8' })).toBeNull())
@@ -845,7 +892,8 @@ describe('exposure: the Ignored list', () => {
     // restoring adds nothing by itself: the IP is still not in the list until detection sees it
     expect((await list()).items.map((t) => t.value)).not.toContain('198.51.100.8')
     await userEvent.click(screen.getByRole('button', { name: 'Detect now' }))
-    expect(await within(await ipTable()).findByRole('link', { name: '198.51.100.8' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('tab', { name: 'Targets' }))
+    expect(await within(await targetsTable()).findByRole('link', { name: '198.51.100.8' })).toBeInTheDocument()
     expect(actions()).toEqual(expect.arrayContaining(['exposure.ip_ignore 198.51.100.8', 'exposure.ip_restore 198.51.100.8']))
   })
 
@@ -886,7 +934,7 @@ describe('exposure: the Ignored list', () => {
   })
 
   it('a viewer sees the Ignored list, but Restore is locked with a visible reason', async () => {
-    renderApp('/exposure', { role: 'viewer' })
+    renderApp('/exposure?tab=settings', { role: 'viewer' })
     expect(await screen.findByRole('button', { name: 'Restore 203.0.113.77' })).toBeDisabled()
   })
 })
@@ -1065,22 +1113,68 @@ describe('exposure: delete and roles', () => {
 })
 
 describe('exposure: add target form matrix', () => {
-  it('a domain is typed in; an IP has its own button with no input, so the Add dialog never offers an IP field, and it can be cancelled', async () => {
+  it('Add target asks Domain or Public IP, shows the field of the one chosen, and can be cancelled', async () => {
     renderApp('/exposure')
-    await userEvent.click(await screen.findByRole('button', { name: 'Add domain' }))
-    const dlg = await screen.findByRole('dialog', { name: 'Add a domain' })
-    await eachOption([{ option: 'domain', shown: ['Domain', 'Add', 'Cancel'], hidden: ['IP address', 'Public IP', 'Type'] }], () => undefined, dlg)
+    await userEvent.click(await screen.findByRole('button', { name: 'Add target' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Add a target' })
+    expect(within(dlg).getByRole('button', { name: 'Domain' })).toHaveAttribute('aria-pressed', 'true') // a domain unless the person chooses an address
+    await eachOption([
+      { option: 'domain', shown: ['What to add', 'Add', 'Cancel', 'For example example.com, without http:// or a path.'], hidden: ['Public IP address', 'A public IPv4 address, for example 203.0.113.10.'] },
+      { option: 'ip', shown: ['What to add', 'Public IP address', 'A public IPv4 address, for example 203.0.113.10.'], hidden: ['For example example.com, without http:// or a path.'] },
+    ], async (o) => { await userEvent.click(within(dlg).getByRole('button', { name: o === 'ip' ? 'Public IP' : 'Domain' })) }, dlg)
     await userEvent.click(within(dlg).getByRole('button', { name: 'Cancel' }))
     expect(screen.queryByRole('dialog')).toBeNull()
-    // An IP has no field anywhere: the box section only has a switch, a select and buttons.
+    // The box's own IP is never typed: its section has only a switch, a select and buttons.
+    await userEvent.click(screen.getByRole('tab', { name: 'Settings' }))
     const section = document.getElementById('box-ip')!
     expect(within(section).queryByRole('textbox')).toBeNull()
     expect(within(section).getByRole('button', { name: 'Detect now' })).toBeInTheDocument()
   })
+
+  it('a public IP typed in goes to its page, shows the token file and the reverse DNS option, and the box proves it once the file is served', async () => {
+    renderApp('/exposure')
+    await userEvent.click(await screen.findByRole('button', { name: 'Add target' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Public IP' }))
+    await userEvent.type(screen.getByRole('textbox', { name: 'Public IP address' }), '198.51.100.7')
+    await userEvent.click(screen.getByRole('button', { name: 'Add' }))
+    expect(await screen.findByRole('heading', { level: 1, name: '198.51.100.7 cannot be scanned yet: awaiting ownership proof' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /Ownership/, selected: true })).toBeInTheDocument() // taken into the target to prove it in place
+    expect(screen.getByTestId('proof-path')).toHaveTextContent('/.well-known/vedette-verify.txt')
+    const token = (await call('GET', '/exposure/targets')).json.items.find((x: { value: string }) => x.value === '198.51.100.7').token as string
+    expect(screen.getByText(token)).toBeInTheDocument() // the whole content of the file
+    expect(screen.getByText('http://198.51.100.7/.well-known/vedette-verify.txt')).toBeInTheDocument()
+    expect(screen.getByTestId('proof-ptr')).toHaveTextContent(/under acme\.example/) // the domains of this box that can carry the name
+    expect(screen.getByText(/An A record of one of your domains pointing at this address is not proof/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Scan now' })).toBeDisabled() // nothing is scanned until it is proved
+    await userEvent.click(screen.getByRole('button', { name: 'Check' }))
+    expect(await screen.findByText(/Vedette found no proof of 198\.51\.100\.7/)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Check' })) // the file is served by now
+    expect(await screen.findByText(/198\.51\.100\.7 is proved: the token file was found/)).toBeInTheDocument()
+    expect(screen.getByTestId('proof-expires')).toHaveTextContent(/\d{1,2} \w{3} \d{4}/)
+    expect(screen.getByTestId('proof-next')).toHaveTextContent(/\d{1,2} \w{3} \d{4}/) // when the box checks it again by itself
+  })
+
+  it('the ownership check pauses for 30 seconds: the button counts it down', async () => {
+    checkPause.seconds = 3
+    renderApp('/exposure/xt-3?tab=ownership')
+    await userEvent.click(await screen.findByRole('button', { name: 'Check' }))
+    const wait = await screen.findByRole('button', { name: /^Check again in \d s$/ })
+    expect(wait).toBeDisabled()
+    await waitFor(() => expect(screen.queryByRole('button', { name: /^Check again in/ })).toBeNull(), { timeout: 5000 })
+    expect(screen.getByRole('button', { name: /^Check/ })).toBeEnabled()
+  })
+
+  it('the box rate limit of a check shows its seconds on the button', async () => {
+    checkPause.seconds = 30
+    server.use(http.post('*/api/v1/exposure/targets/xt-3/verify', () => HttpResponse.json({ error: { code: 'rate_limited', message: 'This target was checked a moment ago. The next check is allowed in 4 seconds.' } }, { status: 429 })))
+    renderApp('/exposure/xt-3?tab=ownership')
+    await userEvent.click(await screen.findByRole('button', { name: 'Check' }))
+    expect(await screen.findByRole('button', { name: /^Check again in [34] s$/ })).toBeDisabled()
+  })
 })
 
 describe('exposure: QA pass fixes (paused IP, copy, dates, IPv6, remove dialog, rate limit)', () => {
-  const human = /\b\d{1,2} (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4}\b/
+  const human = /\b\d{1,2} (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4}/ // table cells join without a space
   const numeric = /\b\d{1,2}\/\d{1,2}\/\d{4}\b/
   const iso = /\b\d{4}-\d{2}-\d{2}\b/
   const pause = async () => {
@@ -1163,11 +1257,11 @@ describe('exposure: QA pass fixes (paused IP, copy, dates, IPv6, remove dialog, 
 
   it('4. the help and the "no check yet" text say what is a full check and name the services', async () => {
     server.use(http.get('*/api/v1/exposure/targets', () => HttpResponse.json({ items: [], box_ip: { auto: true, interval_min: 60, last_run: null, retry_in_min: null }, ignored: [] })))
-    renderApp('/exposure')
+    renderApp('/exposure?tab=settings')
     expect(await screen.findByText('No check yet.')).toBeInTheDocument()
     const never = screen.getByRole('button', { name: 'About Last check' }) // #824: the detail is behind ⓘ
     for (const re of [/first check/, /full check/, /15 requests/, /checkip\.amazonaws\.com/, /icanhazip\.com/, /ifconfig\.me\/ip/]) expect(never).toHaveAccessibleDescription(re)
-    const help = screen.getByRole('button', { name: 'About Public IPs of this box' }).getAttribute('aria-describedby')!
+    const help = screen.getByRole('button', { name: 'About Public IP of this box' }).getAttribute('aria-describedby')!
     const helpText = document.getElementById(help)!.textContent!
     expect(helpText).toMatch(/first check after install, Detect now and Verify again are full checks/)
     expect(helpText).toMatch(/checkip\.amazonaws\.com/)
@@ -1206,16 +1300,16 @@ describe('exposure: QA pass fixes (paused IP, copy, dates, IPv6, remove dialog, 
     const r = await call('POST', '/exposure/targets', { value: v })
     expect(r.status).toBe(400)
     expect(r.json.error.code).toBe('ip_not_allowed')
-    expect(r.json.error.message).toMatch(/Public IPs are not typed in/)
+    expect(r.json.error.message).toMatch(/That is an IP address, not a domain/)
   })
 
   it('7. a domain with a colon is still a plain bad value; the dialog shows the IP message for IPv6', async () => {
     expect((await call('POST', '/exposure/targets', { value: 'acme.example:8080' })).json.error.code).toBe('bad_value')
     renderApp('/exposure')
-    await userEvent.click(await screen.findByRole('button', { name: 'Add domain' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Add target' }))
     await userEvent.type(screen.getByRole('textbox', { name: 'Domain' }), '2001:4860:4860::8888')
     await userEvent.click(screen.getByRole('button', { name: 'Add' }))
-    expect(await screen.findByText(/Public IPs are not typed in/)).toBeInTheDocument()
+    expect(await screen.findByText(/That is an IP address, not a domain/)).toBeInTheDocument()
   })
 
   it('8. deleting an IP from its page opens the same dialog as the list, with "Don\'t add it again" ticked', async () => {
@@ -1241,15 +1335,15 @@ describe('exposure: QA pass fixes (paused IP, copy, dates, IPv6, remove dialog, 
     const box = (await call('GET', '/exposure/targets')).json.box_ip
     expect(box.retry_in_min).toBeGreaterThanOrEqual(1)
     expect(box.retry_in_min).toBeLessThanOrEqual(60)
-    renderApp('/exposure')
+    renderApp('/exposure?tab=settings')
     const detect = await screen.findByRole('button', { name: 'Detect now' })
     expect(detect).toBeDisabled()
     expect(screen.getByText(/Try again in about \d+ minutes?\./)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'About Public IPs of this box' })).toHaveAccessibleDescription(/Detect now, Verify again and the DNS Check of a domain share 10 attempts per hour/)
+    expect(screen.getByRole('button', { name: 'About Public IP of this box' })).toHaveAccessibleDescription(/Detect now, Verify again and the DNS Check of a domain share 10 attempts per hour/)
   })
 
   it('9. with attempts left, Detect now is enabled and no wait is shown', async () => {
-    renderApp('/exposure')
+    renderApp('/exposure?tab=settings')
     expect(await screen.findByRole('button', { name: 'Detect now' })).toBeEnabled()
     expect(screen.queryByText(/Try again in about/)).toBeNull()
   })
@@ -1258,12 +1352,12 @@ describe('exposure: QA pass fixes (paused IP, copy, dates, IPv6, remove dialog, 
 describe('exposure: Add a domain form matrix', () => {
   it('Cancel drops the text and its error: the next opening is empty', async () => {
     renderApp('/exposure')
-    const add = await screen.findByRole('button', { name: 'Add domain' })
+    const add = await screen.findByRole('button', { name: 'Add target' })
     await userEvent.click(add)
     await userEvent.type(screen.getByRole('textbox', { name: 'Domain' }), 'shop.example.com:8443')
     await userEvent.click(screen.getByRole('button', { name: 'Add' }))
     await screen.findByText(/without http:\/\/, a path/)
-    await eachOption([{ option: 'Cancel, open again', shown: ['Domain'], hidden: [/without http:\/\/, a path/] }], async () => {
+    await eachOption([{ option: 'Cancel, open again', shown: ['What to add'], hidden: [/without http:\/\/, a path/] }], async () => {
       await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
       await userEvent.click(add)
     })
@@ -1536,7 +1630,7 @@ describe('exposure: optional deep scan with Greenbone (S-EXP-2, INV-25)', () => 
   const section = () => screen.findByRole('region', { name: 'Optional deep scan: OpenVAS' })
 
   it('off by default: shows the box\'s numbers and what it needs before Enable; an administrator enables it and it starts; axe clean', async () => {
-    renderApp('/exposure')
+    renderApp('/exposure?tab=settings')
     const s = await section()
     expect(await within(s).findByText('Off')).toBeInTheDocument()
     expect(within(s).getByText('Needs about 50 GB of disk and about 2 hours to load the OpenVAS feed the first time.')).toBeInTheDocument()
@@ -1556,7 +1650,7 @@ describe('exposure: optional deep scan with Greenbone (S-EXP-2, INV-25)', () => 
 
   it('a 7.1 GB box may enable it, with the swap note', async () => {
     localStorage.setItem('vedette-mock-box-memory', '7100000000')
-    renderApp('/exposure')
+    renderApp('/exposure?tab=settings')
     const s = await section()
     expect(await within(s).findByText('The first feed load uses swap on a box under 8 GB.')).toBeInTheDocument()
     expect(within(s).getByRole('button', { name: 'About Memory of this box' })).toHaveAccessibleDescription('On a 7 GB box it used about 2 GB of swap.')
@@ -1567,7 +1661,7 @@ describe('exposure: optional deep scan with Greenbone (S-EXP-2, INV-25)', () => 
   it('under 8 GB without 2 GB of swap it is refused with both numbers; at exactly 8 GB no swap is needed and no note shows', async () => {
     localStorage.setItem('vedette-mock-box-memory', '7100000000')
     localStorage.setItem('vedette-mock-box-swap', '0')
-    const { unmount } = renderApp('/exposure')
+    const { unmount } = renderApp('/exposure?tab=settings')
     let s = await section()
     expect(await within(s).findByRole('alert')).toHaveTextContent('This box has 7.1 GB of memory and 0.0 GB of swap; with less than 8.0 GB of memory OpenVAS needs at least 2.0 GB of swap for its first feed load.')
     expect(within(s).getByRole('button', { name: 'Enable OpenVAS' })).toBeDisabled()
@@ -1575,7 +1669,7 @@ describe('exposure: optional deep scan with Greenbone (S-EXP-2, INV-25)', () => 
     expect([r.status, r.json.error.code]).toEqual([409, 'low_memory'])
     unmount()
     localStorage.setItem('vedette-mock-box-memory', '8000000000')
-    renderApp('/exposure')
+    renderApp('/exposure?tab=settings')
     s = await section()
     expect(await within(s).findByText('8.0 GB')).toBeInTheDocument()
     expect(within(s).queryByText(/uses swap/)).toBeNull()
@@ -1584,7 +1678,7 @@ describe('exposure: optional deep scan with Greenbone (S-EXP-2, INV-25)', () => 
 
   it('the refusal shows the measured numbers: 5.9 GB of memory, then too little disk', async () => {
     localStorage.setItem('vedette-mock-box-memory', '5900000000')
-    renderApp('/exposure')
+    renderApp('/exposure?tab=settings')
     const s = await section()
     expect(await within(s).findByRole('alert')).toHaveTextContent('This box has 5.9 GB of memory; OpenVAS needs at least 6.0 GB.')
     expect(within(s).getByRole('button', { name: 'Enable OpenVAS' })).toBeDisabled()
@@ -1600,7 +1694,7 @@ describe('exposure: optional deep scan with Greenbone (S-EXP-2, INV-25)', () => 
   it('loading its feed is a visible phase; only an administrator can change it', async () => {
     server.use(http.get('*/api/v1/exposure/greenbone', () => HttpResponse.json({ state: 'loading', reason: 'OpenVAS is loading its feed (first time takes about 2 hours)', changed_by: 'admin@acme.example', changed_at: new Date().toISOString(),
       preflight: { memory_bytes: 16e9, disk_free_bytes: 120e9, ok: true, reason: null }, feed_sync: { last_at: null, ok: null, note: null, next_at: null }, feed: null, enabled: true })))
-    renderApp('/exposure', { role: 'viewer' })
+    renderApp('/exposure?tab=settings', { role: 'viewer' })
     const s = await section()
     expect(await within(s).findByText('OpenVAS is loading its feed (first time takes about 2 hours)')).toBeInTheDocument()
     expect(within(s).getByRole('button', { name: 'Turn off OpenVAS' })).toBeDisabled()
@@ -1609,7 +1703,7 @@ describe('exposure: optional deep scan with Greenbone (S-EXP-2, INV-25)', () => 
   it('ready before its first weekly update: the first full feed load is done, never "not yet"', async () => {
     server.use(http.get('*/api/v1/exposure/greenbone', () => HttpResponse.json({ state: 'ready', reason: null, changed_by: 'admin@acme.example', changed_at: '2026-11-14T13:00:00Z',
       preflight: { memory_bytes: 16e9, disk_free_bytes: 120e9, ok: true, reason: null }, feed_sync: { last_at: null, ok: null, note: null, next_at: '2026-11-21T13:00:00Z' }, feed: null, enabled: true })))
-    renderApp('/exposure')
+    renderApp('/exposure?tab=settings')
     const s = await section()
     expect(await within(s).findByText(/^First full feed load done \(OpenVAS turned on .+\); the weekly update has not run yet$/)).toBeInTheDocument()
     expect(within(s).queryByText(/^Not yet: the first one/)).toBeNull()
@@ -1619,7 +1713,7 @@ describe('exposure: optional deep scan with Greenbone (S-EXP-2, INV-25)', () => 
     server.use(http.get('*/api/v1/exposure/greenbone', () => HttpResponse.json({ state: 'ready', reason: null, changed_by: 'admin@acme.example', changed_at: '2026-11-14T12:31:49Z',
       preflight: { memory_bytes: 16e9, disk_free_bytes: 120e9, ok: true, reason: null }, feed_sync: { last_at: null, ok: null, note: null, next_at: '2026-11-21T12:31:49Z' },
       feed: { nvt_version: '202611141200', nvt_date: '2026-11-14T12:00:00.000Z', checked_at: '2026-11-16T09:00:00.000Z' }, enabled: true })))
-    renderApp('/exposure')
+    renderApp('/exposure?tab=settings')
     const s = await section()
     const tests = (await within(s).findByText('Vulnerability tests')).nextElementSibling as HTMLElement
     expect(tests).toHaveTextContent(/^14 Nov 2026/)
@@ -1633,7 +1727,7 @@ describe('exposure: optional deep scan with Greenbone (S-EXP-2, INV-25)', () => 
   it('not available on this box: says so and offers nothing', async () => {
     server.use(http.get('*/api/v1/exposure/greenbone', () => HttpResponse.json({ state: 'unavailable', reason: 'OpenVAS is not available on this box.', changed_by: null, changed_at: null,
       preflight: { memory_bytes: 16e9, disk_free_bytes: 120e9, ok: true, reason: null }, feed_sync: { last_at: null, ok: null, note: null, next_at: null }, feed: null, enabled: false })))
-    renderApp('/exposure')
+    renderApp('/exposure?tab=settings')
     const s = await section()
     expect(await within(s).findByText('OpenVAS is not available on this box.')).toBeInTheDocument()
     expect(within(s).queryAllByRole('button').filter((b) => !b.getAttribute('aria-label')?.startsWith('About '))).toEqual([]) // only the section's ⓘ
@@ -2008,29 +2102,55 @@ describe('exposure: deep scan of a domain\'s addresses (S-EXP-2)', () => {
 })
 
 describe('exposure: one page style (S-UI-1)', () => {
-  it('the list has a KPI strip and Targets / Open exposures / What the Internet sees tabs; old #anchors land on their tab', async () => {
+  it('the list has a KPI strip and two tabs, Targets and Settings; the old Open exposures and What the Internet sees links land on Targets with a note; old #anchors land on their tab', async () => {
     const view = renderApp('/exposure')
     const strip = await screen.findByRole('list', { name: 'External exposure at a glance' })
-    expect(within(strip).getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(['/exposure?tab=targets', '/exposure?tab=open', '/exposure?tab=targets'])
+    expect(within(strip).getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(['/exposure?tab=targets', '/exposure?tab=targets', '/exposure?tab=targets'])
+    expect(screen.getAllByRole('tab').map((x) => x.textContent?.trim())).toEqual(['Targets', 'Settings'])
     expect(screen.getByRole('tab', { name: 'Targets', selected: true })).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('tab', { name: 'What the Internet sees' }))
-    expect(await screen.findByTestId('outside-answer')).toBeInTheDocument()
+    expect(screen.queryByText(/are now on each target/)).toBeNull()
     view.unmount()
-    for (const [hash, tab] of [['open', 'Open exposures'], ['box-ip', 'Targets'], ['outside-list', 'What the Internet sees']] as const) {
+    for (const tab of ['open', 'outside']) {
+      const v = renderApp(`/exposure?tab=${tab}`)
+      expect(await screen.findByRole('tab', { name: 'Targets', selected: true })).toBeInTheDocument()
+      expect(screen.getByText('Open exposures and What the Internet sees are now on each target.')).toBeInTheDocument()
+      v.unmount()
+    }
+    for (const [hash, tab] of [['open', 'Targets'], ['box-ip', 'Settings'], ['box-ignored', 'Settings'], ['greenbone', 'Settings'], ['outside-list', 'Targets']] as const) {
       const v = renderApp(`/exposure?x=1#${hash}`)
       expect(await screen.findByRole('tab', { name: tab, selected: true })).toBeInTheDocument()
       v.unmount()
     }
   })
 
-  it('an IP page has Results / Ownership / Outside view; a domain page has no Outside view; old #anchors land on their tab', async () => {
+  it('Settings holds the public-IP auto-detect, the Ignored IPs, OpenVAS and a link to the shared scan settings', async () => {
+    renderApp('/exposure?tab=settings')
+    expect(await screen.findByRole('heading', { name: 'Public IP of this box' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Ignored IPs' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /OpenVAS/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Open Settings, Scanning' })).toHaveAttribute('href', '/settings/scanning')
+  })
+
+  it('the open-exposures tile opens the one target that has some', async () => {
+    const items = ((await call('GET', '/exposure/targets')).json.items as { id: string }[]).map((x) => ({ ...x, open_exposures: x.id === 'xt-2' ? 3 : 0 }))
+    server.use(http.get('*/api/v1/exposure/targets', () => HttpResponse.json({ items, box_ip: { auto: true, interval_min: 60, last_run: null, retry_in_min: null }, ignored: [] })))
+    renderApp('/exposure')
+    const strip = await screen.findByRole('list', { name: 'External exposure at a glance' })
+    expect(within(strip).getByRole('link', { name: /open exposures/ })).toHaveAttribute('href', '/exposure/xt-2?tab=exposures')
+  })
+
+  it('a target page has Results / Open exposures / Ownership, an IP page also Outside view; a domain page has no Outside view; old #anchors land on their tab', async () => {
     const ip = renderApp('/exposure/xt-2')
     expect(await screen.findByRole('tab', { name: 'Outside view' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /Open exposures/ })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Results', selected: true })).toBeInTheDocument()
     ip.unmount()
     const v = renderApp('/exposure/xt-2#step-verify')
     expect(await screen.findByRole('tab', { name: 'Ownership', selected: true })).toBeInTheDocument()
     v.unmount()
+    const o = renderApp('/exposure/xt-2#open')
+    expect(await screen.findByRole('tab', { name: /Open exposures/, selected: true })).toBeInTheDocument()
+    o.unmount()
     renderApp('/exposure/xt-1')
     expect(await screen.findByRole('tab', { name: 'Ownership' })).toBeInTheDocument()
     expect(screen.queryByRole('tab', { name: 'Outside view' })).not.toBeInTheDocument()

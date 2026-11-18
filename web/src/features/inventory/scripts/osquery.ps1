@@ -3,7 +3,7 @@
 # What it does, in order:
 #   1. downloads osquery @@VERSION@@ (MSI) and SHA256SUMS from the box (the box mirrors the official osquery release),
 #      checks the SHA-256 of the MSI, installs it silently with msiexec /qn
-#   2. writes the Vedette box CA certificate (embedded below) to C:\Program Files\osquery\vedette-ca.pem, the enroll secret and osquery.flags, sets the osqueryd service to Automatic and starts it; with a token this machine does
+#   2. writes the Vedette box CA certificate (embedded below) to C:\Program Files\osquery\vedette-ca.pem, the enroll secret and osquery.flags, sets the osqueryd service to start automatically (delayed) and to restart itself after a failure, checks those settings, and starts it; with a token this machine does
 #      not hold yet, it first removes osquery's database (osquery.db: the old node key and unsent results) so that it enrols under the new token
 #   3. waits until this machine has enrolled (not for its first report, due within a few minutes) and exits 0
 # Every request to the box checks that its certificate chains to the CA embedded below. Nothing is added to the Windows certificate
@@ -244,7 +244,31 @@ try {
     .\manage-osqueryd.ps1 -install -startupArgs ('--flagfile="' + $Dir + '\osquery.flags"')
     Pop-Location
   }
-  Set-Service osqueryd -StartupType Automatic
+  # The agent keeps itself running: osqueryd restarts after a failure (1 minute, 1 minute, then 5 minutes every time; the failure count
+  # resets after a day without one), also when it exits with an error code instead of crashing (failureflag), and starts automatically,
+  # delayed until the boot is done. The settings are read back from the service's registry key (not from sc.exe's text, which is
+  # translated). A setting that did not apply does not stop this run (the service may already be stopped and its database removed above,
+  # and the agent must come back and enrol): the problem is kept, the agent is started, and the run ends with a warning and exit code 4.
+  $recoveryProblem = ''
+  $scOut = @()
+  $eap = $ErrorActionPreference; $ErrorActionPreference = 'Continue' # a native command's stderr must not end the run before the read-back
+  $scOut += (sc.exe config osqueryd start= delayed-auto 2>&1)
+  $scOut += (sc.exe failure osqueryd reset= 86400 actions= restart/60000/restart/60000/restart/300000 2>&1)
+  $scOut += (sc.exe failureflag osqueryd 1 2>&1)
+  $ErrorActionPreference = $eap
+  $svc = Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\osqueryd'
+  $fa = $svc.FailureActions
+  $restarts = 0
+  if ($fa -and $fa.Length -ge 28) {
+    $n = [BitConverter]::ToUInt32($fa, 12)
+    for ($k = 0; $k -lt $n -and (20 + 8 * $k + 8) -le $fa.Length; $k++) { if ([BitConverter]::ToUInt32($fa, 20 + 8 * $k) -eq 1) { $restarts++ } }
+  }
+  if ($svc.Start -ne 2 -or $svc.DelayedAutostart -ne 1 -or -not $fa -or $fa.Length -lt 28 -or [BitConverter]::ToUInt32($fa, 0) -ne 86400 -or $restarts -ne 3 -or $svc.FailureActionsOnNonCrashFailures -ne 1) {
+    $recoveryProblem = "The osqueryd service did not take its recovery settings (restart on failure, delayed automatic start), so nothing restarts the agent if it stops. sc.exe said: $(($scOut | Where-Object { $_ }) -join ' ')  Check them with: sc.exe qfailure osqueryd ; sc.exe qc osqueryd"
+  }
+  function Show-RecoveryProblem {
+    if ($recoveryProblem) { Write-Warning "The agent is running and enrolled, but it will NOT restart itself. $recoveryProblem" }
+  }
   # status for THIS machine: sent its name (the host_identifier set above), it returns host_last_seen, when the box last heard from a machine of
   # this token with that name (null = none yet). Success = osqueryd runs and that value appeared or moved since before the restart.
   function Get-Seen {
@@ -259,9 +283,13 @@ try {
   Write-Host 'Waiting for this machine to enrol with Vedette (up to 2 minutes)...'
   for ($i = 0; $i -lt 24; $i++) {
     $now = Get-Seen
-    if ($hostId -and $now -and $now -ne $base -and (Get-Service osqueryd).Status -eq 'Running') { Write-Host "Installed and enrolled; this machine's operating system and packages appear in Vedette within a few minutes."; return }
+    if ($hostId -and $now -and $now -ne $base -and (Get-Service osqueryd).Status -eq 'Running') {
+      if ($recoveryProblem) { Show-RecoveryProblem; exit 4 }
+      Write-Host "Installed and enrolled; this machine's operating system and packages appear in Vedette within a few minutes."; return
+    }
     Start-Sleep -Seconds 5
   }
   Write-Warning 'osquery is installed, but this machine did not enrol with Vedette within 2 minutes. Check that the box address is reachable from here and the token is still valid, then: Get-Service osqueryd'
+  Show-RecoveryProblem
   exit 3
 } finally { Remove-Item -Recurse -Force $Tmp -ErrorAction SilentlyContinue }

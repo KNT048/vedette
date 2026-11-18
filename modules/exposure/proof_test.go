@@ -120,6 +120,7 @@ func (e *env) add(user, name string) TargetView {
 
 func (e *env) verify(id string) VerifyResult {
 	e.t.Helper()
+	e.advance(DomainCheckEvery) // a target is checked at most once every DomainCheckEvery
 	r, err := e.svc.Verify(e.ctx(), "operator@acme.example", id)
 	if err != nil {
 		e.t.Fatal(err)

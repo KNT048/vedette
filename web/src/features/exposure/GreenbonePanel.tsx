@@ -116,7 +116,7 @@ function OpenVasOffLink() {
   const { t } = useTranslation('exposure')
   const q = useGreenbone()
   if (q.data?.state !== 'off') return null
-  return <DependencyLink className="mt-2" reason={t('greenbone.offReason')} to="/exposure?tab=targets#greenbone" label={t('greenbone.offLink')} />
+  return <DependencyLink className="mt-2" reason={t('greenbone.offReason')} to="/exposure?tab=settings#greenbone" label={t('greenbone.offLink')} />
 }
 
 /** A snapshot read from a box older than greenbone_run (or the mock's stored days) has none: the lines say what happened. */
@@ -251,8 +251,8 @@ function OpenVasAgain({ target, s }: { target: Target; s: Snapshot }) {
     : last?.status === 'running' ? { text: t('greenbone.again.busy') }
     : target.blocked_reason ? { text: t(`blocked.reasonLong.${blockedKey(target)}`, { value: target.value }), link: { to: '?tab=ownership#step-verify', label: t('greenbone.again.ownershipLink') } }
     : !target.full_scan ? { text: t('greenbone.again.terms'), link: { to: '?tab=ownership#step-terms', label: t('greenbone.again.termsLink') } }
-    : openvas === 'off' ? { text: t('greenbone.offReason'), link: { to: '/exposure?tab=targets#greenbone', label: t('greenbone.offLink') } }
-    : openvas !== undefined && openvas !== 'ready' ? { text: t('greenbone.again.notReady'), link: { to: '/exposure?tab=targets#greenbone', label: t('greenbone.again.notReadyLink') } }
+    : openvas === 'off' ? { text: t('greenbone.offReason'), link: { to: '/exposure?tab=settings#greenbone', label: t('greenbone.offLink') } }
+    : openvas !== undefined && openvas !== 'ready' ? { text: t('greenbone.again.notReady'), link: { to: '/exposure?tab=settings#greenbone', label: t('greenbone.again.notReadyLink') } }
     : Date.now() - since < SCAN_EVERY_MS ? { text: t('greenbone.again.wait', { time: fmtDateTime(new Date(since + SCAN_EVERY_MS).toISOString()) }) }
     : null
   return (

@@ -215,7 +215,6 @@
     "version": "Version",
     "badge": {
       "findings": "confirmed to handle",
-      "devices": "to review",
       "incidents": "high or critical open"
     },
     "groupWaiting": "waiting: {{parts}}",

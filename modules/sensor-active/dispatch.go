@@ -84,6 +84,7 @@ type Dispatcher struct {
 	nuclei   sensorlink.HeartbeatNuclei
 	snmp     bool // the worker's heartbeat says it runs snmp jobs (protocol 5)
 	domainIP bool // the worker's heartbeat says it runs domain_ip jobs: it holds the fence key
+	typedIP  bool // and checks the proof of a typed public IP in them
 
 	packInvalid    bool   // the worker found the image's pack damaged (pack_invalid): not trusted until the image holds another pack
 	packInvalidSHA string // the pack hash the heartbeat reported when it happened
@@ -314,11 +315,8 @@ func (d *Dispatcher) probe(ctx context.Context, argv []string, scope *sensorlink
 		if !kind.IsFull() || len(targets) != 1 {
 			return Output{}, fmt.Errorf("sensoractive: a domain_ip job is a full shape on one address, not %s on %d", kind.Name(), len(targets))
 		}
-		d.mu.Lock()
-		ok := d.domainIP
-		d.mu.Unlock()
-		if !ok {
-			return Output{}, ErrDomainUnsupported
+		if err := d.domainSupported(scope); err != nil {
+			return Output{}, err
 		}
 	}
 	if err := ctx.Err(); err != nil {
@@ -583,7 +581,7 @@ func (d *Dispatcher) pollLocked(running []string) (rep sensorlink.JobsReply, rea
 		if n := s.pending.spec.Nuclei; n != nil && n.Depth != "" && !d.nuclei.Full {
 			continue // The same for a job of depth full and nuclei.full
 		}
-		if (s.pending.spec.Domain != nil || s.pending.spec.Nuclei != nil && s.pending.spec.Nuclei.Domain != nil) && !d.domainIP {
+		if (s.pending.spec.Domain != nil || s.pending.spec.Nuclei != nil && s.pending.spec.Nuclei.Domain != nil) && (!d.domainIP || typedOf(s.pending.spec) && !d.typedIP) {
 			continue // The latest heartbeat says this worker holds no fence key (or a downgrade since the job was asked): wait
 		}
 		if k, _ := nmapargv.KindOf(s.pending.spec.Shape); s == d.nmapSlot && k == nmapargv.PortVersions && !d.nmap.Ports {
@@ -710,7 +708,7 @@ func (d *Dispatcher) JobResultRejected(id string, e *sensorlink.Error) {
 func (d *Dispatcher) ActiveHeartbeat(_ context.Context, hb *sensorlink.ActiveHeartbeat) (string, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	d.beatAt, d.haveBeat, d.nmap, d.nuclei, d.snmp, d.domainIP = d.now(), true, hb.Nmap, hb.Nuclei, hb.SNMP, hb.DomainIP
+	d.beatAt, d.haveBeat, d.nmap, d.nuclei, d.snmp, d.domainIP, d.typedIP = d.now(), true, hb.Nmap, hb.Nuclei, hb.SNMP, hb.DomainIP, hb.TypedIP
 	return d.instance, nil
 }
 
@@ -720,6 +718,8 @@ var (
 	// ErrDomainUnsupported is returned when the worker's latest heartbeat does not say domain_ip (it holds no fence key: a remote sensor, a container-only
 	// install, or an older worker). A domain_ip job is never sent to it. Nothing was sent.
 	ErrDomainUnsupported = errors.New("sensoractive: the scan container's worker runs no domain_ip job (it has no fence key, or it is older)")
+	// ErrTypedUnsupported is returned when the worker's heartbeat does not say typed_ip (an older worker): a job for a typed public IP is not sent.
+	ErrTypedUnsupported = errors.New("sensoractive: the scan container's worker does not check the proof of a typed public IP (it is older)")
 	// ErrDomainRefused is the refusal of the worker's own domain fence (DomainRefusedError says why), also when it stopped a job while
 	// it ran (then the error is ErrStoppedMidRun too).
 	ErrDomainRefused = errors.New("sensoractive: the scan container's domain fence refused the job")
@@ -752,4 +752,23 @@ func domainReason(res *sensorlink.JobResult) bool {
 func (d *Dispatcher) domainRefused(res *sensorlink.JobResult) error {
 	d.log.Warn("sensor_active_worker_refused_domain_job", "status", res.Status, "reason", res.Reason)
 	return &DomainRefusedError{Reason: res.Reason, MidRun: res.Status == "stopped"}
+}
+
+// domainSupported says whether the worker's latest heartbeat allows a domain_ip job of this scope: it holds the fence key, and for a typed
+// IP it also says typed_ip.
+func (d *Dispatcher) domainSupported(scope *sensorlink.DomainScope) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	switch {
+	case !d.domainIP:
+		return ErrDomainUnsupported
+	case scope != nil && scope.Typed != nil && !d.typedIP:
+		return ErrTypedUnsupported
+	}
+	return nil
+}
+
+// typedOf says whether a job is for a typed public IP.
+func typedOf(j sensorlink.Job) bool {
+	return j.Domain != nil && j.Domain.Typed != nil || j.Nuclei != nil && j.Nuclei.Domain != nil && j.Nuclei.Domain.Typed != nil
 }

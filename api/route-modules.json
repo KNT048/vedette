@@ -14,6 +14,7 @@
   "DELETE /feeds/custom/{id}": "feeds",
   "DELETE /honeypot/tokens/{id}": "honeypot",
   "DELETE /honeypot/trap-ips/{id}": "honeypot",
+  "DELETE /inventory/agents/nodes/{id}": "agent-intake",
   "DELETE /inventory/agents/tokens/{id}": "agent-intake",
   "DELETE /inventory/agents/wazuh": "agent-intake",
   "DELETE /inventory/devices/{id}": "inventory",

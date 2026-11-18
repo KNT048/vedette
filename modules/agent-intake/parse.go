@@ -51,6 +51,14 @@ var columns = map[string][]string{
 	"listening_ports_windows": {"port", "protocol", "address", "name"},
 }
 
+// reporterColumns are the lists only the package reporter sends (scripts/osquery.sh, a POSIX sh script for systems osquery does not run on); they
+// are not scheduled queries. apk_packages carries the full apk release ("10.2_p1-r1") and its origin (the source package Alpine's data is keyed
+// by); pacman_packages the version pacman prints. The reporter's deb_packages and rpm_packages are the osquery tables' own columns.
+var reporterColumns = map[string][]string{
+	"apk_packages":    {"name", "version", "arch", "origin"},
+	"pacman_packages": {"name", "version", "arch"},
+}
+
 // cleanValue trims a text from a node and reports whether it can be kept: valid UTF-8, at most max runes, no control or invisible
 // character (the same rule as the inventory's cleanText, with core/observe.Ignorable for the invisible ones). Empty is clean.
 func cleanValue(s string, limit int) (string, bool) {
@@ -197,6 +205,9 @@ func (in *logIn) readEvent(item oas.InventoryPostIntakeOsqueryLogReqDataItem) {
 		return
 	}
 	cols, known := columns[ev.Name]
+	if !known {
+		cols, known = reporterColumns[ev.Name]
+	}
 	if !known || ev.Action != "snapshot" {
 		in.dropped++
 		return

@@ -47,8 +47,12 @@ func (g exposureGreenbone) CheckDomainIP(ctx context.Context, scope exposure.Dom
 	if err != nil {
 		return err
 	}
-	_, err = g.fence.ExposureFenceCheck(ctx, api.ExposureFenceCheckArgs{Domain: scope.Domain, Name: scope.Name, IP: ip.String(), Token: scope.Token,
-		ProofAt: scope.ProofAt, Disruptive: c.Disruptive, Recheck: c.Recheck}, id, gbActor) // review r1 M3 (the CNAME rule) and M2 (a re-check asks DNS again)
+	args := api.ExposureFenceCheckArgs{Domain: scope.Domain, Name: scope.Name, IP: ip.String(), Token: scope.Token,
+		ProofAt: scope.ProofAt, Disruptive: c.Disruptive, Recheck: c.Recheck}
+	if t := scope.Typed; t != nil { // a typed IP: the host checks its own proof
+		args.Typed = &api.ExposureTyped{Method: t.Method, PTRName: t.PTRName, CoverDomain: t.CoverDomain, CoverToken: t.CoverToken, CoverProofAt: t.CoverProofAt}
+	}
+	_, err = g.fence.ExposureFenceCheck(ctx, args, id, gbActor) // review r1 M3 (the CNAME rule) and M2 (a re-check asks DNS again)
 	return err
 }
 

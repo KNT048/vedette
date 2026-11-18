@@ -17,7 +17,7 @@ export interface Content { hosts: HostRow[]; ports: PortRow[]; admin_panels: Adm
   /** The lines of a domain's deep scan (set by withDeep when its testing terms are accepted). */
   deep?: { checks: CheckRow[]; lines: NotCheckedRow[] } }
 /** txt_ok = the DNS TXT record is currently present (domains). expires_at = verified_at + 30 days (IPs; verified_at is the last time the box saw the IP). The scan module reads this shape. */
-export interface StoredTarget { id: string; kind: TargetKind; value: string; token: string; method: Target['method']; verified_at: string | null; expires_at: string | null; txt_ok: boolean; checks: number; last_check: Target['last_check']; created_at: string; last_scan_at: string | null }
+export interface StoredTarget { id: string; kind: TargetKind; /** a public IP a person typed in (proved by a token file or reverse DNS), not one the box found */ typed?: boolean; value: string; token: string; method: Target['method']; verified_at: string | null; expires_at: string | null; txt_ok: boolean; checks: number; last_check: Target['last_check']; created_at: string; last_scan_at: string | null }
 export const VERIFY_DAYS = 30
 export const EXPIRING_DAYS = 5
 /** Auto-detect: check interval bounds and default, in minutes. */

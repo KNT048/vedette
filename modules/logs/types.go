@@ -67,19 +67,24 @@ type Input struct {
 
 // Source is a log source as the API shows it (LogSource of contract.ts).
 type Source struct {
-	ID           string     `json:"id"`
-	Kind         string     `json:"kind"`
-	Name         string     `json:"name"`
-	SenderIP     string     `json:"sender_ip"`
-	AssetID      *string    `json:"asset_id"`
-	AssetName    *string    `json:"asset_name"`
-	Proto        string     `json:"proto"`
-	Port         int        `json:"port"`
-	LastReceived *time.Time `json:"last_received"`
-	LinesPerHour int        `json:"lines_per_hour"`
-	State        string     `json:"state"` // receiving | silent | never
-	CreatedAt    time.Time  `json:"created_at"`
-	ClientCert   *string    `json:"client_cert_sha256"` // nil: no pin
+	ID        string  `json:"id"`
+	Kind      string  `json:"kind"`
+	Name      string  `json:"name"`
+	SenderIP  string  `json:"sender_ip"`
+	AssetID   *string `json:"asset_id"`
+	AssetName *string `json:"asset_name"`
+	// AssetVia is how the device above was found when it is not by its listed IP (ViaSNMPRead); nil for a listed IP or no device.
+	AssetVia *string `json:"asset_via"`
+	// AssetMatches lists every device that has the address when it is more than one (AssetID and AssetName are then nil: the customer
+	// picks); empty otherwise.
+	AssetMatches []AssetMatch `json:"asset_matches"`
+	Proto        string       `json:"proto"`
+	Port         int          `json:"port"`
+	LastReceived *time.Time   `json:"last_received"`
+	LinesPerHour int          `json:"lines_per_hour"`
+	State        string       `json:"state"` // receiving | silent | never
+	CreatedAt    time.Time    `json:"created_at"`
+	ClientCert   *string      `json:"client_cert_sha256"` // nil: no pin
 }
 
 // BoxInfo says where the box listens (SourcesResponse.box).
@@ -241,10 +246,31 @@ type IngestResult struct {
 // Device is an inventory device as the sources list names it.
 type Device struct{ ID, Name string }
 
-// Inventory is what logs reads from the inventory: the device with a given IP, to name the sender of a source.
+// How an address belongs to a device (DeviceMatch.Via).
+const (
+	ViaListedIP = "listed_ip" // the IP the Devices page lists for the device
+	ViaSNMPRead = "snmp_read" // the address the device's SNMP is read from (a management address)
+)
+
+// DeviceMatch is a device that has an address, and by which kind of address.
+type DeviceMatch struct {
+	Device
+	Via string
+}
+
+// AssetMatch is one of several devices that have a source's address (LogSource.asset_matches).
+type AssetMatch struct {
+	ID   string  `json:"id"`
+	Name string  `json:"name"`
+	Via  *string `json:"via"` // nil: the listed IP
+}
+
+// Inventory is what logs reads about devices: every device a sender address belongs to, to name the sender of a source.
 type Inventory interface {
-	// DevicesByIP returns the devices with these IPv4 addresses; an address with no device is absent.
-	DevicesByIP(ctx context.Context, ips []string) (map[string]Device, error)
+	// DevicesAt returns, for each of these IPv4 addresses, every device the box knows by it (its listed IP, its SNMP read address),
+	// ordered by device id; an address no device has is absent. An address that two devices have is returned with both: the caller
+	// never picks one silently.
+	DevicesAt(ctx context.Context, ips []string) (map[string][]DeviceMatch, error)
 }
 
 // Box says where the box listens; nil Box in Config means "unknown" (the page then says no LAN range is declared).

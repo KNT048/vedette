@@ -125,6 +125,8 @@ type zapPage struct {
 	domain  string
 	token   string
 	proofAt string // The parent name where the domain's own record sits; "" = on the domain
+	// typed is the proof of an IP page's typed IP (kind ip); token is then its box-bound token. nil for the box's own IP.
+	typed *api.ExposureTyped
 }
 
 // zapURL checks that raw is exactly http(s)://host[:port]/ as exposure writes it (the port only when it is not the scheme's own) and
@@ -173,6 +175,16 @@ func zapArgs(a api.ZapBaselineArgs) (zapPage, error) {
 		if a.Host != ip.String() {
 			return zapPage{}, server.Invalid("host", "must be the IP itself for an IP target")
 		}
+		if a.Typed != nil { // a typed public IP: the host checks its own proof, with the token bound to this box
+			if a.Domain != "" || a.ProofAt != "" || !zapTokenRE.MatchString(a.TXTToken) {
+				return zapPage{}, server.Invalid("txt_token", "must be the hex token of the typed IP, with no domain")
+			}
+			if err := (domainfence.Job{Domain: a.Host, Name: a.Host, IP: ip, Token: a.TXTToken, Typed: typedProof(a.Typed)}).Valid(); err != nil {
+				return zapPage{}, server.Invalid("typed", err.Error())
+			}
+			p.token, p.typed = a.TXTToken, a.Typed
+			break
+		}
 		if a.Domain != "" || a.TXTToken != "" {
 			return zapPage{}, server.Invalid("domain", "is for a domain target only")
 		}
@@ -180,14 +192,20 @@ func zapArgs(a api.ZapBaselineArgs) (zapPage, error) {
 		if len(a.Domain) > 253 || !zapHostRE.MatchString(a.Domain) {
 			return zapPage{}, server.Invalid("domain", "must be a domain name")
 		}
-		if len(a.Host) > 253 || !zapHostRE.MatchString(a.Host) || (a.Host != a.Domain && !strings.HasSuffix(a.Host, "."+a.Domain)) {
-			return zapPage{}, server.Invalid("host", "must be the domain or a name under it")
+		// The page's host is the domain or a name under it; with a proof name (ProofAt, a name above the domain where its token sits)
+		// it may be any name under that name, the record covering them all (the same bound as domainfence.Job.Valid).
+		bound := a.Domain
+		if a.ProofAt != "" {
+			bound = a.ProofAt
+		}
+		if len(a.Host) > 253 || !zapHostRE.MatchString(a.Host) || (a.Host != bound && !strings.HasSuffix(a.Host, "."+bound)) {
+			return zapPage{}, server.Invalid("host", "must be the domain or a name under it (under the proof name when there is one)")
 		}
 		if !zapTokenRE.MatchString(a.TXTToken) {
 			return zapPage{}, server.Invalid("txt_token", "must be the hex token of the domain")
 		}
-		if a.ProofAt != "" && (a.ProofAt == a.Domain || !proofat.Within(a.Domain, a.ProofAt)) { // the same bound as core (review r1 L1 of #960)
-			return zapPage{}, server.Invalid("proof_at", "must be a parent name of the domain, down to its registered domain")
+		if a.ProofAt != "" && (a.ProofAt == a.Domain || !proofat.Within(a.Domain, a.ProofAt) || !proofat.Within(a.Host, a.ProofAt)) { // the same bound as core
+			return zapPage{}, server.Invalid("proof_at", "must be a parent name of the domain and of the page's host, down to its registered domain")
 		}
 		p.domain, p.token, p.proofAt = a.Domain, a.TXTToken, a.ProofAt
 	default:
@@ -604,6 +622,9 @@ func (o *Ops) zapPull() {
 func (o *Ops) zapOwned(ctx context.Context, logf func(string), p zapPage) error {
 	cctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
+	if p.kind == api.ZapKindIP && p.typed != nil {
+		return o.zapTypedOwned(cctx, logf, p)
+	}
 	if p.kind == api.ZapKindIP {
 		got, err := o.zapEgress(cctx)
 		switch {
@@ -945,4 +966,22 @@ func zapOutTail(wrk string) string {
 	b := make([]byte, tail)
 	n, _ := f.ReadAt(b, off)
 	return lastLines(b[:n], 15, tail)
+}
+
+// zapTypedOwned is the host's own re-check of a typed IP page: the fence (the box-bound token, the host's list, the IP's proof now).
+func (o *Ops) zapTypedOwned(ctx context.Context, logf func(string), p zapPage) error {
+	if o.fence == nil {
+		return fail(api.CodeFenceUnavailable, "The host has no usable domain fence key; its log says why.")
+	}
+	res := o.fence.Check(ctx, domainfence.Job{Domain: p.host, Name: p.host, IP: p.ip, Token: p.token, Typed: typedProof(p.typed)}, true)
+	logf("typed IP fence of " + p.ip.String() + " (" + p.typed.Method + "): " + orYes(res.Reason))
+	switch res.Reason {
+	case "":
+		return nil
+	case domainfence.TokenForeign, domainfence.InvalidJob:
+		return refuse412(api.CodeTokenForeign, "The host has not issued the token of "+p.ip.String()+", so its pages were not scanned.")
+	case domainfence.Unchecked:
+		return fail(api.CodeOwnershipUnchecked, "The host could not check the proof of "+p.ip.String()+", so nothing was sent.")
+	}
+	return refuse412(api.CodeTargetNotOwned, "The proof of "+p.ip.String()+" (its token file or reverse DNS name) is not found now, so its pages were not scanned.")
 }

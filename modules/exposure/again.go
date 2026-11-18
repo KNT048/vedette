@@ -131,7 +131,7 @@ func (s *Service) busy() bool {
 
 // againReady is greenbonePlan as an answer: nil when OpenVAS may scan t now, else 503 scanner_unavailable with its reason.
 func (s *Service) againReady(ctx context.Context, t Target) error {
-	ok, line, err := s.greenbonePlan(ctx, ScanTarget{ID: t.ID, Kind: t.Kind, Value: t.Value, Mode: t.mode()})
+	ok, line, err := s.greenbonePlan(ctx, ScanTarget{ID: t.ID, Kind: t.Kind, Value: t.Value, Mode: t.mode(), Typed: t.Typed})
 	if err != nil || ok {
 		return err
 	}
@@ -151,8 +151,15 @@ func (s *Service) executeAgain(ctx context.Context, run *scanRun, user string, t
 			s.finish(ctx, run, user, t, fmt.Errorf("%w: %v", errScanPanicked, p))
 		}
 	}()
-	st := ScanTarget{ID: t.ID, Kind: t.Kind, Value: t.Value, User: user, Mode: run.mode}
+	st := ScanTarget{ID: t.ID, Kind: t.Kind, Value: t.Value, User: user, Mode: run.mode, Typed: t.Typed}
 	err := s.againReady(ctx, t) // the terms may have changed between the answer and now
+	if err == nil && t.Typed {  // a typed IP: OpenVAS goes through the host's fence with its live proof
+		if sc, why := s.typedScope(ctx, t); sc != nil {
+			st.Domain = sc
+		} else {
+			err = apiErr(409, "proof_missing", "OpenVAS did not run: %s", why)
+		}
+	}
 	if err == nil {
 		err = s.resetOpenVAS(ctx, run, user, t, a)
 	}

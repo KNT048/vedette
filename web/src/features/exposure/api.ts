@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { BoxIpDetectResult, BoxIpSettings, Diff, Greenbone, OutsideView, ScanRun, Snapshot, SnapshotMeta, Target, TargetList, VerifyResult } from './types'
+import type { BoxIpDetectResult, BoxIpSettings, Diff, Greenbone, OutsideView, ScanRun, Snapshot, SnapshotMeta, Target, TargetKind, TargetList, VerifyResult } from './types'
 
-export const useTargets = () => useQuery({ queryKey: ['exposure', 'targets'], queryFn: () => api.get<TargetList>('/exposure/targets') })
+export const useTargets = (o: { enabled?: boolean } = {}) => useQuery({ queryKey: ['exposure', 'targets'], queryFn: () => api.get<TargetList>('/exposure/targets'), enabled: o.enabled ?? true })
 export const useTarget = (id: string) => useQuery({ queryKey: ['exposure', 'target', id], queryFn: () => api.get<Target>(`/exposure/targets/${encodeURIComponent(id)}`), retry: false })
 export const useSnapshots = (id: string) => useQuery({ queryKey: ['exposure', 'snapshots', id], queryFn: () => api.get<{ items: SnapshotMeta[] }>(`/exposure/targets/${encodeURIComponent(id)}/snapshots`) })
 export const useSnapshot = (id: string, date: string | null) =>
@@ -25,7 +25,7 @@ function useInvalidate() {
 
 export function useAddTarget() {
   const inv = useInvalidate()
-  return useMutation({ mutationFn: (value: string) => api.post<Target>('/exposure/targets', { value }), onSuccess: inv })
+  return useMutation({ mutationFn: (b: { value: string; kind: TargetKind }) => api.post<Target>('/exposure/targets', b), onSuccess: inv })
 }
 export function useDeleteTarget() {
   const qc = useQueryClient()

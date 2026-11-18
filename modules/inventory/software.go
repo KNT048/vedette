@@ -9,6 +9,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/knt048/vedette/core/apkver"
 	"github.com/knt048/vedette/core/debver"
 	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/core/store"
@@ -79,7 +80,7 @@ func checkItem(i int, it SoftwareItem) (SoftwareItem, error) {
 		if it.Confidence < 0 || it.Confidence > 1 || it.Confidence != it.Confidence {
 			return it, invalid("software %d: confidence must be between 0 and 1", i)
 		}
-		if !debver.Valid(it.PkgVersion) || !pkgSourceRE.MatchString(it.PkgSource) || !it.Packaged {
+		if !debver.Valid(it.PkgVersion) && !apkver.Valid(it.PkgVersion) || !pkgSourceRE.MatchString(it.PkgSource) || !it.Packaged {
 			it.PkgVersion, it.PkgSource = "", "" // Only a well-formed pair of a package database row is kept
 		}
 		if len(it.KevKeys) > maxKeys {
@@ -107,7 +108,7 @@ func checkItem(i int, it SoftwareItem) (SoftwareItem, error) {
 }
 
 // pkgSourceRE is a Debian source package name (Policy §5.6.1).
-var pkgSourceRE = regexp.MustCompile(`^[a-z0-9][a-z0-9+.-]{0,99}$`)
+var pkgSourceRE = regexp.MustCompile(`^[a-z0-9][a-z0-9+._-]{0,99}$`)
 
 func swKey(vendor, product, version string) string {
 	return strings.ToLower(vendor) + "\x00" + strings.ToLower(product) + "\x00" + version
@@ -257,6 +258,9 @@ func (s *Service) replaceSoftwareTx(ctx context.Context, tx *sql.Tx, o *outbox, 
 	if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET last_seen = max(last_seen, ?) WHERE id = ?`, seenAt, assetID); err != nil {
 		return fmt.Errorf("inventory: touch device: %w", err)
 	}
+	if err := s.earnReview(ctx, tx, o, assetID, false); err != nil { // the sync moved last_seen (INV-49)
+		return err
+	}
 	if !changed && !pkgChanged {
 		return nil
 	}
@@ -404,7 +408,11 @@ func (s *Service) deviceFor(ctx context.Context, tx *sql.Tx, o *outbox, c cleanO
 	if err != nil || kept != id { // joined into a known device in the same write: never announced
 		return kept, err
 	}
-	o.add(EventAssetDiscovered, AssetEvent{AssetID: id, Notify: notify, Learning: learning})
+	quiet, err := isQuiet(ctx, tx, id) // a rotating private address is announced only once it earns a look (INV-49)
+	if err != nil {
+		return "", err
+	}
+	o.add(EventAssetDiscovered, AssetEvent{AssetID: id, Notify: notify && !quiet, Learning: learning})
 	return id, nil
 }
 
@@ -430,6 +438,9 @@ func (s *Service) settle(ctx context.Context, tx *sql.Tx, o *outbox, id string, 
 			return "", err
 		}
 		o.add(EventAssetUpdated, AssetEvent{AssetID: j, Match: true})
+		if err := s.earnReview(ctx, tx, o, j, false); err != nil {
+			return "", err
+		}
 	}
 	if gone[id] && len(joined) > 0 {
 		return joined[len(joined)-1], nil

@@ -344,9 +344,13 @@ const approvedInDevices = "Closed by Vedette: the device was approved in Devices
 func (s *Service) assetUpdated(ctx context.Context, data any) error {
 	var e struct {
 		AssetID string `json:"asset_id"`
+		Notify  bool   `json:"notify"`
 	}
 	if err := decode(data, &e); err != nil {
 		return err
+	}
+	if e.Notify { // a quiet device (a private Wi-Fi address nobody looked at) earned its new-device notice: inventory INV-49
+		return s.assetEvent(ctx, data)
 	}
 	if e.AssetID == "" || s.cfg.Devices == nil {
 		return nil

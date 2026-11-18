@@ -37,12 +37,12 @@ test('clean install: no sample targets, the box finds its two IPs by itself; a d
   await page.goto('/exposure')
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/2 items cannot be scanned yet/)
   await expect(page.getByText('acme.example')).toHaveCount(0)
-  await expect(page.locator('#box-ip').getByRole('link', { name: '203.0.113.10' })).toBeVisible() // found at first start, nothing was clicked
+  await expect(page.getByRole('table', { name: 'Targets' }).getByRole('link', { name: '203.0.113.10' })).toBeVisible() // found at first start, nothing was clicked
   await shot(page, 'exposure', `clean-empty-${isMobile ? 'mobile' : 'desktop'}`)
   await expectAccessible(page, 'exposure empty')
 
   // Bad input: error in the field, typed value kept, Enter submits, IPs cannot be typed.
-  await page.getByRole('button', { name: 'Add domain' }).first().click()
+  await page.getByRole('button', { name: 'Add target' }).first().click()
   const input = page.getByRole('textbox', { name: 'Domain' })
   await input.press('Enter')
   await expect(page.getByText('Enter a domain, for example example.com.')).toBeVisible()
@@ -52,11 +52,11 @@ test('clean install: no sample targets, the box finds its two IPs by itself; a d
   await expect(input).toHaveValue('https://example.com/')
   await input.fill('203.0.113.5')
   await input.press('Enter')
-  await expect(page.getByText(/Public IPs are not typed in/)).toBeVisible()
+  await expect(page.getByText(/That is an IP address, not a domain/)).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(page.getByRole('dialog')).toHaveCount(0)
 
-  await page.getByRole('button', { name: 'Add domain' }).first().click()
+  await page.getByRole('button', { name: 'Add target' }).first().click()
   await page.getByRole('textbox', { name: 'Domain' }).fill('Shop-Test.Example')
   await page.getByRole('textbox', { name: 'Domain' }).press('Enter')
   await expect(page).toHaveURL(/\/exposure\/xt-/)
@@ -135,28 +135,31 @@ test('clean install, two public IPs behind a load balancer: auto-detect finds bo
   const size = isMobile ? 'mobile' : 'desktop'
   await finishClean(page)
   await setEgress(page, '198.51.100.7,198.51.100.8')
-  await page.goto('/exposure')
-  const box = page.locator('#box-ip')
-  const link = (ip: string) => box.getByRole('link', { name: ip })
+  const box = page.locator('#box-ip') // the Settings tab
+  const list = page.getByRole('table', { name: 'Targets' }) // the Targets tab: domains and public IPs in one list
+  const link = (ip: string) => list.getByRole('link', { name: ip })
   const toggle = page.getByRole('switch', { name: "Detect the box's public IPs automatically" })
+  const settings = async () => { await page.goto('/exposure?tab=settings') }
+  const targets = async () => { await page.goto('/exposure?tab=targets') }
+  await targets()
 
   // First start: nothing was clicked, both IPs are in the list and the last check says so.
-  await expect(box.getByText('Auto-detect is on: the box checks its public IPs every hour.')).toBeVisible()
   await expect(link('198.51.100.7')).toBeVisible()
   await expect(link('198.51.100.8')).toBeVisible()
+  await settings()
+  await expect(box.getByText('Auto-detect is on: the box checks its public IPs every hour.')).toBeVisible()
   await expect(box.getByRole('status')).toContainText('The box reaches the Internet via 2 public IPs: 198.51.100.7, 198.51.100.8.')
   // #824: the rule is behind the section's ⓘ; its text is the button's accessible description
-  await expect(box.getByRole('button', { name: 'About Public IPs of this box' })).toHaveAccessibleDescription(/Removed IPs come back if the box keeps using them while auto-detect is on, unless you chose not to add them again\./)
-  await expect(box.getByRole('textbox')).toHaveCount(0) // an IP is never typed in
+  await expect(box.getByRole('button', { name: 'About Public IP of this box' })).toHaveAccessibleDescription(/Removed IPs come back if the box keeps using them while auto-detect is on, unless you chose not to add them again/)
+  await expect(box.getByRole('textbox')).toHaveCount(0) // the box's own IP is never typed in
   await shot(page, 'exposure', `box-ip-two-ips-${size}`)
   await expectAccessible(page, 'exposure box ips')
 
-  // Manual mode: the interval goes away, the list and Detect now stay.
+  // Manual mode: the interval goes away, Detect now stays, and the list keeps its IPs.
   await toggle.click()
   await expect(box.getByText('Auto-detect is off: the box checks only when you select Detect now.')).toBeVisible()
   await expect(box.getByRole('combobox', { name: 'Check every' })).toHaveCount(0)
   await expect(box.getByRole('button', { name: 'Detect now' })).toBeEnabled()
-  await expect(link('198.51.100.8')).toBeVisible()
   await shot(page, 'exposure', `box-ip-auto-off-${size}`)
   await toggle.click()
   await expect(box.getByRole('combobox', { name: 'Check every' })).toHaveValue('60')
@@ -164,11 +167,14 @@ test('clean install, two public IPs behind a load balancer: auto-detect finds bo
   await expect(box.getByText('Auto-detect is on: the box checks its public IPs every 15 minutes.')).toBeVisible()
   await page.reload()
   await expect(box.getByRole('combobox', { name: 'Check every' })).toHaveValue('15') // saved
+  await targets()
+  await expect(link('198.51.100.8')).toBeVisible()
 
-  // Remove one IP: the confirmation asks "Don't add it again if detected" (ticked), the hint says what happens; Cancel keeps the IP.
+  // Remove one IP from its own page: the confirmation asks "Don't add it again if detected" (ticked), the hint says what happens; Cancel keeps the IP.
   const KEEP_OFF = "Don't add it again if detected"
   const ignoredBox = page.locator('#box-ignored')
-  await box.getByRole('button', { name: 'Remove 198.51.100.8' }).click()
+  const removeIp = async (ip: string) => { await targets(); await link(ip).click(); await page.getByRole('button', { name: 'Delete target' }).click() }
+  await removeIp('198.51.100.8')
   const dialog = page.getByRole('dialog')
   await expect(dialog).toContainText('Remove 198.51.100.8 from the list?')
   await expect(dialog.getByRole('checkbox', { name: KEEP_OFF })).toBeChecked()
@@ -178,36 +184,47 @@ test('clean install, two public IPs behind a load balancer: auto-detect finds bo
   await expect(dialog).toContainText('it is added again as a new target')
   await dialog.getByRole('button', { name: 'Cancel' }).click()
   await expect(dialog).toHaveCount(0)
+  await targets()
   await expect(link('198.51.100.8')).toBeVisible()
 
   // Unticked: the IP is only removed, and auto-detect brings it back when the box still uses it.
-  await box.getByRole('button', { name: 'Remove 198.51.100.8' }).click()
+  await removeIp('198.51.100.8')
   await expect(dialog.getByRole('checkbox', { name: KEEP_OFF })).toBeChecked() // ticked again for every removal
   await dialog.getByRole('checkbox', { name: KEEP_OFF }).uncheck()
   await dialog.getByRole('button', { name: 'Remove', exact: true }).click()
+  await expect(page).toHaveURL(/\/exposure$/)
   await expect(link('198.51.100.8')).toHaveCount(0)
   await expect(link('198.51.100.7')).toBeVisible()
+  await settings()
   await expect(ignoredBox.getByText('198.51.100.8')).toHaveCount(0)
   await box.getByRole('button', { name: 'Detect now' }).click()
+  await targets()
   await expect(link('198.51.100.8')).toBeVisible()
+  await settings()
   await expect(page.getByText('The box reaches the Internet via 2 public IPs: 198.51.100.7, 198.51.100.8. Each is verified until').first()).toBeVisible()
 
   // Ticked (the default): the IP goes on the Ignored list. Detect now does not add it back; Restore lets the next Detect now add it again.
-  await box.getByRole('button', { name: 'Remove 198.51.100.8' }).click()
+  await removeIp('198.51.100.8')
   await dialog.getByRole('button', { name: 'Remove', exact: true }).click()
   await expect(link('198.51.100.8')).toHaveCount(0)
+  await settings()
   await expect(ignoredBox.getByText('198.51.100.8')).toBeVisible()
   await expect(ignoredBox.getByRole('textbox')).toHaveCount(0) // the list only blocks: an IP is never typed in
   await shot(page, 'exposure', `box-ip-ignored-${size}`)
   await expectAccessible(page, 'exposure ignored list')
   await box.getByRole('button', { name: 'Detect now' }).click()
   await expect(box.getByRole('status')).toContainText('Not added, on your Ignored list: 198.51.100.8.')
+  await targets()
   await expect(link('198.51.100.8')).toHaveCount(0)
   await expect(link('198.51.100.7')).toBeVisible()
+  await settings()
   await ignoredBox.getByRole('button', { name: 'Restore 198.51.100.8' }).click()
   await expect(ignoredBox.getByText('No ignored IPs')).toBeVisible()
+  await targets()
   await expect(link('198.51.100.8')).toHaveCount(0) // restoring adds nothing by itself
+  await settings()
   await box.getByRole('button', { name: 'Detect now' }).click()
+  await targets()
   await expect(link('198.51.100.8')).toBeVisible()
 
   // Both audited: the first start by the box itself ("system"), the removal and the click by the person.
@@ -217,8 +234,9 @@ test('clean install, two public IPs behind a load balancer: auto-detect finds bo
   expect(audit).toContain('exposure.target_delete')
   expect(audit).toContain('exposure.ip_ignore')
   expect(audit).toContain('exposure.ip_restore')
-  // Typing an IP is still refused by the server.
-  expect((await api(page, 'POST', '/exposure/targets', { value: '198.51.100.9' })).body.error.code).toBe('ip_not_allowed')
+  // An address typed as a domain, or a private one typed as an IP, is refused by the server.
+  expect((await api(page, 'POST', '/exposure/targets', { value: '198.51.100.9', kind: 'domain' })).body.error.code).toBe('ip_not_allowed')
+  expect((await api(page, 'POST', '/exposure/targets', { value: '10.0.0.9', kind: 'ip' })).body.error.code).toBe('ip_not_allowed')
   expect((await api(page, 'PUT', '/exposure/box-ip/settings', { auto: true, interval_min: 0 })).body.error.code).toBe('bad_interval')
 
   // Dark: same page, same answer, readable.
@@ -239,12 +257,12 @@ test('clean install: Detect now refuses private and CGNAT results; a public IP g
   page.on('response', (r) => { if (r.status() === 502 && r.request().method() === 'POST' && r.url().endsWith('/api/v1/exposure/box-ip/verify')) detect502++ })
   await page.clock.install() // time flows; the test jumps past the 5-minute window of the scan-time check (INV-13) below
   await finishClean(page)
-  await page.goto('/exposure')
+  await page.goto('/exposure?tab=settings')
   const box = page.locator('#box-ip')
   await box.getByRole('button', { name: 'Detect now' }).waitFor()
   // #824: how the box finds its IPs is behind the section's ⓘ; its text is the button's accessible description
-  const help = box.getByRole('button', { name: 'About Public IPs of this box' })
-  for (const t of [/You cannot type an IP/, /Private, reserved and shared carrier \(CGNAT/, /Detect now, Verify again and the DNS Check of a domain share 10 attempts per hour/]) await expect(help).toHaveAccessibleDescription(t)
+  const help = box.getByRole('button', { name: 'About Public IP of this box' })
+  for (const t of [/Private, reserved and shared carrier \(CGNAT/, /Detect now, Verify again and the DNS Check of a domain share 10 attempts per hour/]) await expect(help).toHaveAccessibleDescription(t)
   await setEgress(page, '100.64.20.7')
   await box.getByRole('button', { name: 'Detect now' }).click()
   await expect(box.getByRole('status')).toContainText('private, reserved or shared carrier (CGNAT) address')
@@ -293,18 +311,18 @@ test('clean install: Detect now refuses private and CGNAT results; a public IP g
   await expect(page.getByText(/The box reaches the Internet via 198\.51\.100\.7\. Verified until/)).toHaveCount(0) // no stale green result next to the pause
   await shot(page, 'exposure', `scan-paused-${isMobile ? 'mobile' : 'desktop'}`)
   await expectAccessible(page, 'ip target paused')
-  await page.goto('/exposure')
-  await expect(page.locator('#box-ip').getByText('Paused').first()).toBeVisible()
-  await expect(page.locator('#box-ip').getByText('Ready to scan')).toHaveCount(0)
+  await page.goto('/exposure?tab=targets')
+  await expect(page.getByRole('table', { name: 'Targets' }).getByText('Paused').first()).toBeVisible()
+  await expect(page.getByRole('table', { name: 'Targets' }).getByText('Ready to scan')).toHaveCount(0)
   await shot(page, 'exposure', `list-paused-${isMobile ? 'mobile' : 'desktop'}`)
   // The pause rests on stored facts, not on a window: it is still there 10 minutes later, until a check sees the IP again (INV-13).
   await page.clock.fastForward('10:00')
   await page.reload()
-  await expect(page.locator('#box-ip').getByText('Paused').first()).toBeVisible()
-  await expect(page.locator('#box-ip').getByText('Ready to scan')).toHaveCount(0)
+  await expect(page.getByRole('table', { name: 'Targets' }).getByText('Paused').first()).toBeVisible()
+  await expect(page.getByRole('table', { name: 'Targets' }).getByText('Ready to scan')).toHaveCount(0)
   // The box is back: Verify again (a full check) sees the IP and the pause ends.
   await setEgress(page, '198.51.100.7')
-  await page.locator('#box-ip').getByRole('link', { name: '198.51.100.7' }).click()
+  await page.getByRole('table', { name: 'Targets' }).getByRole('link', { name: '198.51.100.7' }).click()
   await page.getByRole('tab', { name: /^Ownership/ }).click()
   await page.getByRole('button', { name: 'Verify again', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Scan now', exact: true })).toBeEnabled()
@@ -324,8 +342,7 @@ test('sample: expired IP, expiring IP, missing TXT record and unverified domain 
   await sampleStart(page)
   await page.goto('/exposure')
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/2 admin interfaces are exposed to the Internet/)
-  await expect(page.locator('#box-ip').getByText('Auto-detect is on: the box checks its public IPs every hour.')).toBeVisible()
-  await expect(page.locator('#box-ip').getByRole('link', { name: '203.0.113.11' })).toBeVisible() // the sample company has two live IPs behind a load balancer
+  await expect(page.getByRole('table', { name: 'Targets' }).getByRole('link', { name: '203.0.113.11' })).toBeVisible() // the sample company has two live IPs behind a load balancer
   await expect(visible(page, /Expires in \d+ days/)).toBeVisible()
   await shot(page, 'exposure', `list-${isMobile ? 'mobile' : 'desktop'}`)
   await expectAccessible(page, 'exposure list')
@@ -386,11 +403,11 @@ test('viewer: results are visible, every action is locked with a visible reason'
   await expect(page.getByRole('button', { name: 'Scan now', exact: true })).toBeDisabled()
   await expect(page.getByRole('button', { name: 'Delete target' })).toBeDisabled()
   await expect(page.getByText(/You have view-only access/)).toBeVisible()
-  await page.goto('/exposure')
-  await expect(page.getByRole('button', { name: 'Add domain' }).first()).toBeDisabled()
+  await page.goto('/exposure/xt-6') // removing an IP is on its own page
+  await expect(page.getByRole('button', { name: 'Delete target' })).toBeDisabled()
+  await page.goto('/exposure?tab=settings')
   await expect(page.getByRole('switch', { name: "Detect the box's public IPs automatically" })).toBeDisabled()
   await expect(page.getByRole('button', { name: 'Detect now' })).toBeDisabled()
-  await expect(page.getByRole('button', { name: 'Remove 203.0.113.11' })).toBeDisabled()
   await expect(page.getByRole('button', { name: 'Restore 203.0.113.77' })).toBeDisabled()
   await expect(page.getByText('Requires Admin role').first()).toBeVisible()
 })
@@ -416,11 +433,12 @@ test('clean install: IPv6 is refused like IPv4, an IP page offers the same Remov
   const errors = collectErrors(page)
   await finishClean(page)
   await page.goto('/exposure')
-  const box = page.locator('#box-ip')
-  await expect(box.getByRole('link').first()).toBeVisible() // the box found its IPs by itself at first start
+  const list = page.getByRole('table', { name: 'Targets' })
+  const box = page.locator('#box-ip') // on the Settings tab
+  await expect(list.getByRole('link', { name: /^\d+\.\d+\.\d+\.\d+$/ }).first()).toBeVisible() // the box found its IPs by itself at first start
 
   // IPv6 gets the IP-specific answer, in the dialog.
-  await page.getByRole('button', { name: 'Add domain' }).first().click()
+  await page.getByRole('button', { name: 'Add target' }).first().click()
   const input = page.getByRole('textbox', { name: 'Domain' })
   for (const v of ['2001:4860:4860::8888', '[::1]']) {
     await input.fill(v)
@@ -431,7 +449,7 @@ test('clean install: IPv6 is refused like IPv4, an IP page offers the same Remov
   await page.keyboard.press('Escape')
 
   // The IP's own page: Delete opens the same dialog as the list, ticked by default.
-  await box.getByRole('link').first().click()
+  await list.getByRole('link', { name: /^\d+\.\d+\.\d+\.\d+$/ }).first().click()
   await expect(page).toHaveURL(/\/exposure\/xt-/)
   await page.getByRole('tab', { name: /^Ownership/ }).click()
   await expect(page.getByText(/verified because (this|the) box reaches the Internet through it/i)).toHaveCount(1)
@@ -449,8 +467,8 @@ test('clean install: IPv6 is refused like IPv4, an IP page offers the same Remov
   expect(main).toMatch(/\b\d{1,2} (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4}\b/)
 
   // The 10 attempts an hour are shared; when they are used up the button says so and stays locked.
-  await page.goto('/exposure')
-  await expect(box.getByRole('link').first()).toBeVisible() // the mock API answers only once the page has started
+  await page.goto('/exposure?tab=settings')
+  await expect(box.getByRole('button', { name: 'Detect now' })).toBeVisible() // the mock API answers only once the page has started
   for (let i = 0; i < 10; i++) expect((await api(page, 'POST', '/exposure/box-ip/verify')).status).toBe(200)
   await page.reload()
   await expect(box.getByRole('button', { name: 'Detect now' })).toBeDisabled()

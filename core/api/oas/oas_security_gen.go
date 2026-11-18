@@ -208,6 +208,7 @@ var operationRolesSession = map[string][]string{
 	HoneypotPostHoneypotTokensIDTestOperation:                []string{},
 	HoneypotPostHoneypotTrapIpsOperation:                     []string{},
 	HoneypotPutHoneypotTrapIpsIDOperation:                    []string{},
+	InventoryDeleteInventoryAgentsNodesIDOperation:           []string{},
 	InventoryDeleteInventoryAgentsTokensIDOperation:          []string{},
 	InventoryDeleteInventoryAgentsWazuhOperation:             []string{},
 	InventoryDeleteInventoryDevicesIDOperation:               []string{},

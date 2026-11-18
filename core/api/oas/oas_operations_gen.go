@@ -192,6 +192,7 @@ const (
 	HoneypotPostHoneypotTokensIDTestOperation                OperationName = "HoneypotPostHoneypotTokensIDTest"
 	HoneypotPostHoneypotTrapIpsOperation                     OperationName = "HoneypotPostHoneypotTrapIps"
 	HoneypotPutHoneypotTrapIpsIDOperation                    OperationName = "HoneypotPutHoneypotTrapIpsID"
+	InventoryDeleteInventoryAgentsNodesIDOperation           OperationName = "InventoryDeleteInventoryAgentsNodesID"
 	InventoryDeleteInventoryAgentsTokensIDOperation          OperationName = "InventoryDeleteInventoryAgentsTokensID"
 	InventoryDeleteInventoryAgentsWazuhOperation             OperationName = "InventoryDeleteInventoryAgentsWazuh"
 	InventoryDeleteInventoryDevicesIDOperation               OperationName = "InventoryDeleteInventoryDevicesID"

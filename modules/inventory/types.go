@@ -68,7 +68,7 @@ const (
 // notify_new setting at that moment (INV-9), so notify need not read inventory settings.
 type AssetEvent struct {
 	AssetID string `json:"asset_id"`
-	Notify  bool   `json:"notify,omitempty"`
+	Notify  bool   `json:"notify,omitempty"` // on discovered: the new-device setting was on; on updated: the device now deserves its new-device notice (it was quiet, INV-49)
 	// Match is set when what the findings matcher reads of the device besides its software changed: the folded OS,
 	// the model, or the OS the device states itself (MatchDevice.StatedOS). Only observations set it.
 	Match bool `json:"match,omitempty"`
@@ -309,6 +309,12 @@ type AssetCore struct {
 	SNMPSource string `json:"snmp_source"`
 	// IgnoredAt is when a person ignored the device: known, not watched. nil = watched.
 	IgnoredAt *string `json:"ignored_at"`
+	// PrivateMAC: its MAC is a private (randomised) address the device picks for itself and changes, not one a maker burned in or a
+	// stable virtual one (PrivateMAC).
+	PrivateMAC bool `json:"private_mac"`
+	// Quiet: not approved, but not in To review either: a private-address device with no open service that has not stayed past
+	// a day (INV-49). It is listed with the approved devices and moves to To review when it earns a look.
+	Quiet bool `json:"quiet"`
 }
 
 // Summary is the source of the most trusted value and the confidence of the weakest (DATA_MODEL 5.1 (5)).

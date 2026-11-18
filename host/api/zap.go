@@ -56,9 +56,13 @@ type ZapBaselineArgs struct {
 	Kind     string `json:"kind"`
 	Domain   string `json:"domain,omitempty"`
 	TXTToken string `json:"txt_token,omitempty"`
-	// ProofAt: the parent name of Domain (the zone apex) where Domain's own record sits; "" = on Domain. Only with the token
-	// bound to this box for Domain (the domain fence), and between Domain and its registered domain.
+	// ProofAt: the name above Domain (the zone apex or a parent name) where the token of Domain sits; "" = on Domain. Host may then
+	// be any name under ProofAt, not only under Domain. Only with the token bound to this box for Domain (the domain fence), and
+	// between Domain and its registered domain.
 	ProofAt string `json:"proof_at,omitempty"`
+	// Typed, with Kind ip, says the IP is one a person typed in: TXTToken is the box-bound token of the IP and the host checks the IP's
+	// own proof (the token file, or reverse DNS) itself before ZAP starts.
+	Typed *ExposureTyped `json:"typed,omitempty"`
 }
 
 // ZapBaselineResult is the result of a zap.baseline that produced a report: zap-baseline.py's exit code (0 no rule matched, 1 a FAIL

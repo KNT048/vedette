@@ -55,6 +55,11 @@ type ScanTarget struct {
 	// Mode is what this scan may do: Full once the target's testing terms are accepted, else the basic scope. Every
 	// scanner seam reads it here, and only here.
 	Mode ScanMode
+	// Typed: the target is a public IP a person typed in (INV-35); its proof is looked for again before the steps that reach the address.
+	Typed bool
+	// TypedWhy is, for a typed IP whose deep steps cannot run, the line that says why (no testing terms, no fence, the proof not found): the
+	// executors take nothing without a scope, so the steps say this instead of reaching the box-only fence.
+	TypedWhy string
 	// Domain is set on a deep step of a domain's scan sent to a public address that is not the box's own verified IP:
 	// the domain, the name under it that resolved to the address at the core-side re-check right before the step, and the
 	// domain's box-bound token from DomainFence. The scanner then runs the job with scope domain_ip and its executor checks the fence
@@ -81,6 +86,19 @@ type DomainScope struct {
 	// Chain is Name's CNAME chain as core saw it right before the step ("www.acme.example -> acme.edge.example.net"; just the name
 	// without a CNAME; "" when the lookup failed), written in the step's probe-log row.
 	Chain string
+	// Typed is set for a step to a public IP a person typed in (INV-35): Domain, Name and Chain are then the IP literal, Token is the
+	// box-bound token of that literal, and the executors check the IP's own proof (the token file, or reverse DNS) instead of a domain's record.
+	Typed *TypedScope
+}
+
+// TypedScope is the proof the executors check again for a typed IP: the method, and for reverse DNS the PTR name and the domain of this box
+// that proves it (its box-bound token, and the parent name its record sits on when it is not its own).
+type TypedScope struct {
+	Method       string // "file" or "ptr"
+	PTRName      string
+	CoverDomain  string
+	CoverToken   string
+	CoverProofAt string
 }
 
 // DomainFence gives the box-bound token of a verified domain (host op exposure.token: hex HMAC-SHA256 of the

@@ -29,7 +29,10 @@ export const windowsInstallScript = (box: string, ca: string) => fill(PWSH, box,
 export function linuxOneLiner(box: string, sha256: string, token: string, action: 'install' | 'uninstall' = 'install') {
   const arg = action === 'install' ? `--token ${token}` : '--uninstall'
   // In a subshell, so the exit status of the download, the check or the install survives the cleanup and `exit` never closes the admin's terminal.
-  return `(f=$(mktemp) && curl -fsSLk ${box}/api/v1/install/osquery.sh -o "$f" && echo "${sha256}  $f" | sha256sum -c - && sudo sh "$f" ${arg}; r=$?; rm -f "$f"; exit $r)`
+  // One command for every common Linux. A system without sudo (Alpine as root) runs the script itself; one without curl (Alpine) downloads with
+  // busybox wget. The script's checksum is checked either way, and it then decides by itself between osquery and the package reporter.
+  const url = `${box}/api/v1/install/osquery.sh`
+  return `(command -v sudo >/dev/null 2>&1 || sudo() { "$@"; }; f=$(mktemp) && { curl -fsSLk ${url} -o "$f" || wget -qO "$f" --no-check-certificate ${url}; } && echo "${sha256}  $f" | sha256sum -c - && sudo sh "$f" ${arg}; r=$?; rm -f "$f"; exit $r)`
 }
 /** Windows PowerShell 5.1: không có -SkipCertificateCheck, nên chỉ lần tải script đầu tiên dùng curl.exe -k (chưa có CA); script đã nhúng CA và ghim nó cho mọi lần tải sau (.NET).
  *  Tên tệp mới mỗi lần (GUID, đuôi .ps1 vì -File cần nó) và xoá sau khi chạy, như bản Linux. */

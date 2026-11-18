@@ -291,8 +291,8 @@ func (s *Service) enrollTx(ctx context.Context, tx *sql.Tx, t tokenRow, in enrol
 		}
 	}
 	ts := store.FormatTS(now)
-	if _, err := tx.ExecContext(ctx, `INSERT INTO intake_osquery_nodes (id, token_id, node_key_hash, host_identifier, hostname, platform, osquery_version, enrolled_at, last_seen) VALUES (?, ?, ?, ?, NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), ?, ?)`,
-		store.NewID("node"), t.id, hashHex(nodeKey), in.hostIdentifier, in.hostname, in.platform, in.osqueryVersion, ts, ts); err != nil {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO intake_osquery_nodes (id, token_id, node_key_hash, host_identifier, hostname, platform, osquery_version, enrolled_at, last_seen, last_call_at) VALUES (?, ?, ?, ?, NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), ?, ?, ?)`,
+		store.NewID("node"), t.id, hashHex(nodeKey), in.hostIdentifier, in.hostname, in.platform, in.osqueryVersion, ts, ts, ts); err != nil {
 		return "", fmt.Errorf("agentintake: insert node: %w", err)
 	}
 	if replaced && now.Sub(oldAt) < auditEnrollEvery { // one audit row per node per day (a flapping client must not fill core_audit)
@@ -416,7 +416,7 @@ func (s *Service) touch(ctx context.Context, n nodeRow, every time.Duration) err
 		return nil
 	}
 	return s.db.Write(ctx, func(tx *sql.Tx) error {
-		if _, err := tx.ExecContext(ctx, `UPDATE intake_osquery_nodes SET last_seen = ? WHERE id = ?`, store.FormatTS(now), n.id); err != nil {
+		if _, err := tx.ExecContext(ctx, `UPDATE intake_osquery_nodes SET last_seen = ?1, last_call_at = ?1 WHERE id = ?2`, store.FormatTS(now), n.id); err != nil {
 			return fmt.Errorf("agentintake: touch node: %w", err)
 		}
 		return nil

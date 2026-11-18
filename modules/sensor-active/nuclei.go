@@ -159,12 +159,9 @@ func (d *Dispatcher) RunNuclei(ctx context.Context, r NucleiRequest) (nucleiout.
 			return nucleiout.Outcome{}, ErrOwnIPUnsupported
 		}
 	}
-	if r.Domain != nil { // Only a worker that holds the fence key
-		d.mu.Lock()
-		ok := d.domainIP
-		d.mu.Unlock()
-		if !ok {
-			return nucleiout.Outcome{}, ErrDomainUnsupported
+	if r.Domain != nil { // Only a worker that holds the fence key (and, for a typed IP, says it checks that proof)
+		if err := d.domainSupported(r.Domain); err != nil {
+			return nucleiout.Outcome{}, err
 		}
 	}
 	if r.Depth != "" { // Only a worker that said full

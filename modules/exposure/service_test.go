@@ -688,12 +688,14 @@ func TestContract_POST2_NotFoundIsNotAnError(t *testing.T) {
 		t.Fatal("a different value verified the domain")
 	}
 	e.dns.err = errors.New("servfail")
+	e.advance(DomainCheckEvery)
 	r, err = e.svc.Verify(e.ctx(), "operator@acme.example", d.ID)
 	if err != nil || r.Verified || !strings.Contains(r.Message, "acme.example: the lookup failed") {
 		t.Fatalf("lookup failure = %+v %v", r, err)
 	}
 	e.dns.err = nil
 	e.dns.put("acme.example", " "+txtRecord(d.Token)+" ")
+	e.advance(DomainCheckEvery)
 	r, err = e.svc.Verify(e.ctx(), "operator@acme.example", d.ID)
 	if err != nil || !r.Verified || r.Message != "Found the TXT record vedette-verify="+d.Token+" on acme.example." || r.Target.VerifiedAt == nil {
 		t.Fatalf("found = %+v %v", r, err)

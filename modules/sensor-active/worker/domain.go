@@ -44,7 +44,11 @@ func (w *Worker) domainJob(j sensorlink.Job) domainfence.Job {
 		disruptive = kind == nmapargv.ExternalDisruptive
 	}
 	ip, _ := netip.ParseAddr(target) // a bad one stays the zero address, which the grammar refuses
-	return domainfence.Job{Domain: d.Domain, Name: d.Name, IP: ip, Token: d.Token, Disruptive: disruptive, ProofAt: d.ProofAt}
+	dj := domainfence.Job{Domain: d.Domain, Name: d.Name, IP: ip, Token: d.Token, Disruptive: disruptive, ProofAt: d.ProofAt}
+	if t := d.Typed; t != nil { // a typed IP: its own proof instead of a domain's record
+		dj.Typed = &domainfence.TypedProof{Method: t.Method, PTRName: t.PTRName, CoverDomain: t.CoverDomain, CoverToken: t.CoverToken, CoverProofAt: t.CoverProofAt}
+	}
+	return dj
 }
 
 // domainFence is the check right before the tool: nil to go on, or the result to post (refused with the fence's reason; stopped when
@@ -54,8 +58,8 @@ func (w *Worker) domainFence(ctx, rctx, jctx context.Context, cur *activeJob, dj
 		w.log.ErrorContext(ctx, "sensor_active_domain_job_refused", "id", cur.job.ID, "tool", tool, "reason", domainfence.InvalidJob, "error", "this worker has no fence key")
 		return refusal(domainfence.InvalidJob)
 	}
-	if dj.ProofAt != "" && !proofat.Within(dj.Domain, dj.ProofAt) { // The bound core and vedette-host apply (review r1 L1 of #960)
-		w.log.ErrorContext(ctx, "sensor_active_domain_job_refused", "id", cur.job.ID, "tool", tool, "reason", domainfence.InvalidJob, "error", "proof_at is not between the domain and its registered domain")
+	if dj.ProofAt != "" && (!proofat.Within(dj.Domain, dj.ProofAt) || !proofat.Within(dj.Name, dj.ProofAt)) { // Domain and Name both lie under ProofAt, down to its registered domain, never on or above a public suffix: the bound core and vedette-host apply
+		w.log.ErrorContext(ctx, "sensor_active_domain_job_refused", "id", cur.job.ID, "tool", tool, "reason", domainfence.InvalidJob, "error", "proof_at is not between the domain, the name and their registered domain")
 		return refusal(domainfence.InvalidJob)
 	}
 	o := w.fence.Check(rctx, dj, true)

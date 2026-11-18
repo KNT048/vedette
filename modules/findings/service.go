@@ -551,9 +551,18 @@ func (s *Service) autoResolve(ctx context.Context, tx *sql.Tx, assetID string, p
 			f, h, ok = r.SettleAsked(p.Evidence.Summary, now) // Closed while waiting for an answer; the answer proves it
 		}
 		if !ok {
+			// already closed by proof: keep where it rests and the version that proves it current (the entry changed, or an older row
+			// predates the columns); no history, no event
+			if !retired && r.AutoResolved() && (r.SoftwareID != orKeep(p.SoftwareID, r.SoftwareID) || r.ProvedVersion != p.provedOn) {
+				r.SoftwareID, r.ProvedVersion = orKeep(p.SoftwareID, r.SoftwareID), p.provedOn
+				if err := updateRecord(ctx, tx, r); err != nil {
+					return closed, err
+				}
+			}
 			continue
 		}
 		r.Finding = f
+		r.SoftwareID, r.ProvedVersion = orKeep(p.SoftwareID, r.SoftwareID), p.provedOn
 		if err := updateRecord(ctx, tx, r); err != nil {
 			return closed, err
 		}
@@ -607,6 +616,7 @@ func (s *Service) closeAged(ctx context.Context, tx *sql.Tx, assetID string, age
 			continue
 		}
 		r.Finding = f
+		r.SoftwareID = orKeep(p.SoftwareID, r.SoftwareID)
 		if err := updateRecord(ctx, tx, r); err != nil {
 			return closed, err
 		}
@@ -652,6 +662,7 @@ func (s *Service) closeNameOnly(ctx context.Context, tx *sql.Tx, assetID string,
 			continue
 		}
 		r.Finding = f
+		r.SoftwareID = orKeep(p.SoftwareID, r.SoftwareID)
 		if err := updateRecord(ctx, tx, r); err != nil {
 			return closed, err
 		}
@@ -697,6 +708,7 @@ func (s *Service) closeAsked(ctx context.Context, tx *sql.Tx, assetID string, as
 			continue
 		}
 		r.Finding = f
+		r.SoftwareID = orKeep(p.SoftwareID, r.SoftwareID)
 		if err := updateRecord(ctx, tx, r); err != nil {
 			return closed, err
 		}
@@ -711,6 +723,14 @@ func (s *Service) closeAsked(ctx context.Context, tx *sql.Tx, assetID string, as
 		closed++
 	}
 	return closed, nil
+}
+
+// orKeep is the matcher's software row id, or the stored one when the match names none.
+func orKeep(id, stored string) string {
+	if id != "" {
+		return id
+	}
+	return stored
 }
 
 // personKept says a person kept the finding open: reopened it, or accepted its risk (#939: an expired acceptance reopens

@@ -590,6 +590,9 @@ func (s *Service) Merge(ctx context.Context, actor, into, from string) error {
 			o.add(watch, AssetEvent{AssetID: into, Actor: actor})
 		}
 		o.add(EventAssetUpdated, AssetEvent{AssetID: into, Match: true})
+		if err := s.earnReview(ctx, tx, o, into, false); err != nil { // the merge may carry the first sighting past a day (INV-49)
+			return err
+		}
 		if gains {
 			o.add(EventAssetApproved, AssetEvent{AssetID: into, Actor: actor})
 		}

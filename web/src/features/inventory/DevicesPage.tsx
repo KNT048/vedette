@@ -141,6 +141,7 @@ function NameChips({ d, dense }: { d: DeviceRow; dense?: boolean }) {
       {d.is_box ? tip(<Chip tone="accent">{t('box.badge')}</Chip>, t('box.badge'), t('box.noDelete')) : null}
       {d.suspicious ? <Chip tone="warn">{t('chip.suspicious')}</Chip> : null}
       {d.fragile ? tip(<Chip tone="off">{t('chip.fragile')}</Chip>, t('chip.fragile'), t('chip.fragileHint')) : null}
+      {d.private_mac ? tip(<Chip tone="off">{t('chip.privateMac')}</Chip>, t('chip.privateMac'), d.quiet ? t('chip.quietHint') : t('chip.privateMacHint')) : null}
     </>
   )
 }
@@ -353,7 +354,8 @@ function Body() {
   const lists = useMemo(() => {
     const items = q.data?.items ?? []
     const real = items.filter((d) => !declaredSoftwareOnly(d))
-    return { approved: real.filter((d) => d.approved), pending: real.filter((d) => !d.approved), declared: items.length - real.length }
+    // A quiet private-address device is listed with the devices and counts as To review only once it earns a look (the server decides: `quiet`)
+    return { approved: real.filter((d) => d.approved || d.quiet), pending: real.filter((d) => !d.approved && !d.quiet), declared: items.length - real.length }
   }, [q.data])
   if (old) return <Navigate replace to={{ search: `?${old}` }} />
   const all = lists.approved.length + lists.pending.length
@@ -394,7 +396,7 @@ function Body() {
               {d.risk_unavailable ? <p role="status" className="mb-3 text-meta text-muted">{t('risk.unavailable')}</p> : null}
               <PageTabs label={t('tabs.label')} tabs={[
                 { id: 'devices', label: t('tabs.devices'), panel: <DevicesList rows={lists.approved} now={now} query={query} same={same} /> },
-                { id: 'review', label: t('tabs.review'), panel: <ReviewList rows={lists.pending} now={now} notifyNew={d.notify_new} notifyAvailable={d.notify_available} query={query} same={same} />, badge: { count: pending, label: t('tabs.reviewBadge') } },
+                { id: 'review', label: t('tabs.review'), panel: <ReviewList rows={lists.pending} now={now} notifyNew={d.notify_new} notifyAvailable={d.notify_available} query={query} same={same} />, badge: { count: pending, label: t('tabs.reviewBadge'), tone: 'off' } },
                 // The devices a person ignored, only while there are any (an old ?tab=ignored link lands on Devices then)
                 ...(d.counts.ignored > 0 ? [{ id: 'ignored', label: t('tabs.ignoredCount', { count: d.counts.ignored }), panel: <IgnoredPanel /> }] : []),
               ]} />

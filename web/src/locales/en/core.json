@@ -546,6 +546,7 @@
       "inventory.agent_token_create": "Create agent enrolment token",
       "inventory.agent_token_revoke": "Revoke agent enrolment token",
       "inventory.agent_report_now": "Ask a device's agent to send its software now",
+      "inventory.agent_node_remove": "Remove a machine's agent entry",
       "inventory.wazuh_connect": "Connect Wazuh",
       "inventory.wazuh_disconnect": "Disconnect Wazuh",
       "inventory.snmp_add": "Add SNMP credential",

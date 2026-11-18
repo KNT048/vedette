@@ -12,13 +12,24 @@ const (
 	MaxIntervalMin     = 1440
 	DefaultIntervalMin = 60
 	MaxTargets         = 20
-	MaxAttemptsPerHour = 10
+	MaxAttemptsPerHour = 10 // Detect now and the check of an IP, which ask public services: shared, per box
 	CertWarnDays       = 30
 	DeepEvery          = time.Hour       // a full check runs at most this often by itself; shorter intervals do light checks
 	EnableGap          = 5 * time.Minute // turning auto-detect on checks at once, unless it checked within this time
 	ModuleID           = "exposure"
 	// SystemUser is the actor of everything the box does by itself (the audit trail of auto-detect).
 	SystemUser = "system"
+)
+
+// DomainCheckEvery is the least time between two ownership checks of one domain target: a check is a few DNS lookups, so a person
+// who just changed a record can check again soon, and a loop cannot hammer the resolver.
+const DomainCheckEvery = 30 * time.Second
+
+// The box-wide bound of the ownership checks people trigger (the button, and the check of a name just added): a burst of
+// DomainCheckBurst, then one more every DomainCheckRefill. Per target there is still one check every DomainCheckEvery.
+const (
+	DomainCheckBurst  = 20
+	DomainCheckRefill = 10 * time.Second
 )
 
 // Kind is what a target is: a domain or a public IP.
@@ -35,9 +46,11 @@ type BlockedReason string
 
 // The values of Target.blocked_reason.
 const (
-	BlockedUnverified   BlockedReason = "unverified"
-	BlockedExpired      BlockedReason = "expired"
-	BlockedTxtMissing   BlockedReason = "txt_missing"
+	BlockedUnverified BlockedReason = "unverified"
+	BlockedExpired    BlockedReason = "expired"
+	BlockedTxtMissing BlockedReason = "txt_missing"
+	// BlockedProofMissing: a typed public IP's proof (the token file, or the reverse DNS name) is not found now (INV-35).
+	BlockedProofMissing BlockedReason = "proof_missing"
 	BlockedNoCommitment BlockedReason = "no_commitment"
 	// BlockedNotCurrent: the latest full check did not see this IP, so the box no longer
 	// reaches the Internet through this IP (INV-13).
@@ -47,6 +60,8 @@ const (
 const (
 	methodDNS        = "dns_txt"
 	methodBoxEgress  = "box_egress"
+	methodIPFile     = "ip_file" // a typed IP, proved by the token file served on it (INV-35)
+	methodIPPTR      = "ip_ptr"  // a typed IP, proved by forward-confirmed reverse DNS (INV-35)
 	validityValid    = "valid"
 	validityExpiring = "expiring"
 	validityExpired  = "expired"
@@ -68,6 +83,10 @@ type Check struct {
 	// name or its _vedette-verify name, which covers the names under it. A record of its own token on a parent name
 	// proves it only, so covered_by never names it.
 	Covers bool `json:"-"`
+	// Via (stored with the check, never in the API) is the value of the other domain target of the box whose token proved this one
+	// at its last passing check, "" when the target's own token did. It only labels the proof (covered_by); coverage is decided
+	// by the record found now, never by this.
+	Via string `json:"-"`
 }
 
 // Commitment is who ticked "my company owns it and I am authorized to scan it", and when.
@@ -107,14 +126,16 @@ type Target struct {
 	LastCheck  *Check
 	Commitment *Commitment
 	Terms      *Terms // the testing terms; nil when not accepted
+	// Typed: a public IP a person typed in (INV-35), proved by a token file on it or by reverse DNS. false for a domain and for an IP
+	// the box found as its own egress address. Its Token is the one the proof file carries.
+	Typed      bool
 	CreatedAt  time.Time
 	LastScanAt time.Time // zero when never scanned
-	// proofDomain and proofToken are, after the scan gate, the domain target whose record proved this one now (itself, or a parent
-	// of the box that covers it) and its token: the domain and token the executors' fence checks. Never stored.
-	proofDomain, proofToken string
-	// proofOwn: the record is this target's own token (on its name, or on a parent name down to its registered domain); false:
-	// a parent target's record that covers it.
-	proofOwn bool
+	// proofDomain and proofToken are, after the scan gate, the domain target whose token proved this one now (itself, a parent target
+	// of the box, or a target of the box that sits under the name where its record was found) and that token: the domain and token the
+	// executors' fence checks. proofAt is the name the record sits on when it is not proofDomain itself (the zone apex, or a parent
+	// name of this target): the executors look for the token there and accept any name under it. Never stored.
+	proofDomain, proofToken, proofAt string
 }
 
 // TargetView is the API shape of a target (contract.ts Target), with the derived fields filled in.
@@ -154,6 +175,17 @@ type TargetView struct {
 	OpenPorts []PortRow `json:"open_ports"`
 	// Proof says where a domain's TXT record goes and which verified domain of the box covers it already; nil for an IP.
 	Proof *ProofHint `json:"proof"`
+	// Origin says who added the target: "person" (typed in) or "box" (a public IP the box found as its own egress address).
+	Origin string `json:"origin"`
+	// IPProof tells a typed IP's person where the token file goes and which reverse DNS names would prove it; nil for a domain and for
+	// an IP the box found.
+	IPProof *IPProofHint `json:"ip_proof"`
+	// NextCheckAt is when a typed IP's proof is looked at again by itself (INV-35); nil for any other target and while unproved.
+	NextCheckAt *string `json:"next_check_at"`
+	// ScanState is where the target stands for scanning: unproved, expired, paused, needs_terms, ready or scanning.
+	ScanState string `json:"scan_state"`
+	// OpenExposures is the number of open ports of the newest scan (0 when never scanned): the count the target row shows.
+	OpenExposures int `json:"open_exposures"`
 }
 
 // MaxOpenPorts bounds TargetView.OpenPorts (a domain can have hundreds of names on 80 and 443).

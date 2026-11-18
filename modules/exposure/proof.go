@@ -176,12 +176,18 @@ type candidate struct {
 	got    domainfence.Proof
 }
 
-// maxReuse bounds the other targets' tokens a check looks for on the names above the checked one.
-const maxReuse = 8
+// maxReuse bounds the other targets' tokens a check looks for on the names above the checked one: every other target of the box (the
+// per-check lookup memo makes each extra token free: a name is asked once whatever the number of tokens). A smaller bound would let
+// coverOthers verify names whose own gate then cannot find the donor.
+const maxReuse = MaxTargets
+
+// maxReuseListed is how many other targets' tokens a failed check names one by one; more are said in one line.
+const maxReuseListed = 3
 
 // reuseCands lists, for the chain name n, the other domain targets of the box that sit strictly under n: their token on n proves
 // the checked name too (n is the checked name or above it, down to its registered domain, so under n are all names n covers). The
-// target whose own name is n is the parent candidate, not this one. At most maxReuse in all, the nearest names first.
+// target whose own name is n is the parent candidate, not this one. The donor must be under n by the executors' own bound
+// (proofat.Within: never across a private public suffix below the registered domain). The nearest names first.
 func reuseCands(t Target, chain []string, all []Target) []candidate {
 	var out []candidate
 	for _, n := range chain {
@@ -189,7 +195,7 @@ func reuseCands(t Target, chain []string, all []Target) []candidate {
 			if len(out) == maxReuse {
 				return out
 			}
-			if o.Kind == KindDomain && o.ID != t.ID && o.Value != n && under(o.Value, n) {
+			if o.Kind == KindDomain && o.ID != t.ID && o.Value != n && proofat.Within(o.Value, n) {
 				out = append(out, candidate{name: n, t: o, reused: true})
 			}
 		}
@@ -394,14 +400,18 @@ func (s *Service) whyNot(ctx context.Context, memo *memoResolver, t Target, cand
 	var above, viaRecords []string
 	for _, c := range cands {
 		switch {
-		case c.reused: // another target's token on a name above it: said with what Owned found there
+		case c.reused:
 			viaRecords = append(viaRecords, fmt.Sprintf("%s's token on %s (%s)", c.t.Value, c.name, cleanDNS(c.got.Detail, 200)))
 		case c.t.ID != t.ID:
 			above = append(above, c.t.Value)
 		}
 	}
-	if len(viaRecords) > 0 {
+	switch n := len(viaRecords); {
+	case n == 0:
+	case n <= maxReuseListed: // a few: each with what was found there
 		b.WriteString("Also looked for the record of another target of this box that would cover it: " + strings.Join(viaRecords, "; ") + ". ")
+	default: // many: one line
+		b.WriteString(fmt.Sprintf("Also looked for the tokens of the %s of this box on the names above it: none of them is there now. ", plural(n, "other target")))
 	}
 	if len(above) == 0 {
 		b.WriteString("No domain of this box above it covers it. ")

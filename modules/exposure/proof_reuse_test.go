@@ -168,7 +168,7 @@ func TestReuse_OnlyADomainStrictlyUnderTheNameOfTheChainIsADonor(t *testing.T) {
 		}
 	}
 	var many []Target
-	for i := range 15 {
+	for i := range 25 {
 		many = append(many, dom(fmt.Sprintf("h%d.example.com", i)))
 	}
 	if got := names("example.com", many...); len(got) != maxReuse {

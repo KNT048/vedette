@@ -256,7 +256,7 @@ func TestExposureFenceCheck(t *testing.T) {
 		{"git.example.com", "www.example.org", "example.com"},
 		{"git.example.com", "notexample.com", "example.com"},
 		{"a.b.example.com", "example.com", "b.example.com"},
-		{"x.beyondhcm.ddns.net", "y.ddns.net", "beyondhcm.ddns.net"},
+		{"x.example.ddns.net", "y.ddns.net", "example.ddns.net"},
 	} {
 		if _, err := fenceJob(api.ExposureFenceCheckArgs{Domain: bad.domain, Name: bad.name, IP: zapTestIP, Token: zapTestTok, ProofAt: bad.at}); err == nil {
 			t.Fatalf("name %s with proof name %s for %s accepted", bad.name, bad.at, bad.domain)

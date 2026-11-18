@@ -19501,11 +19501,12 @@ func (s *Server) handleExposurePostExposureTargetsIDScanRequest(args [1]string, 
 //
 // Re-check ownership: domain = DNS TXT record; IP = the box must currently egress through this same IP
 // (renews it for 30 days). Not found is a normal answer (verified:false). Rate limited: a domain once
-// every 30 seconds per target (429 rate_limited says in how many seconds the next check is allowed),
-// an IP within the 10 attempts an hour of the box. A domain already covered by the proof of another
-// target of the box (a TXT record on its registered domain covers that name and the names under it) is
-// verified with the message "Ownership already proven by the TXT record at example.com (checked 18 Nov
-// 2026, 10:00)".
+// every 30 seconds per target, and a box-wide burst of 20 domain checks then one more every 10
+// seconds, the check of a name just added included (429 rate_limited says in how many seconds the next
+// check is allowed), an IP within the 10 attempts an hour of the box. A domain already covered by the
+// proof of another target of the box (a TXT record on its registered domain covers that name and the
+// names under it) is verified with the message "Ownership already proven by the TXT record at
+// example.com (checked 18 Nov 2026, 10:00)".
 //
 // POST /exposure/targets/{id}/verify
 func (s *Server) handleExposurePostExposureTargetsIDVerifyRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -19584,7 +19585,7 @@ func (s *Server) handleExposurePostExposureTargetsIDVerifyRequest(args [1]string
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ExposurePostExposureTargetsIDVerifyOperation,
-			OperationSummary: "Re-check ownership: domain = DNS TXT record; IP = the box must currently egress through this same IP (renews it for 30 days). Not found is a normal answer (verified:false). Rate limited: a domain once every 30 seconds per target (429 rate_limited says in how many seconds the next check is allowed), an IP within the 10 attempts an hour of the box. A domain already covered by the proof of another target of the box (a TXT record on its registered domain covers that name and the names under it) is verified with the message \"Ownership already proven by the TXT record at example.com (checked 18 Nov 2026, 10:00)\"",
+			OperationSummary: "Re-check ownership: domain = DNS TXT record; IP = the box must currently egress through this same IP (renews it for 30 days). Not found is a normal answer (verified:false). Rate limited: a domain once every 30 seconds per target, and a box-wide burst of 20 domain checks then one more every 10 seconds, the check of a name just added included (429 rate_limited says in how many seconds the next check is allowed), an IP within the 10 attempts an hour of the box. A domain already covered by the proof of another target of the box (a TXT record on its registered domain covers that name and the names under it) is verified with the message \"Ownership already proven by the TXT record at example.com (checked 18 Nov 2026, 10:00)\"",
 			OperationID:      "exposure_post_exposure_targets_id_verify",
 			Body:             nil,
 			RawBody:          rawBody,

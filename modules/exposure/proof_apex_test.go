@@ -33,12 +33,6 @@ func TestProof_OwnTokenOnAParentName(t *testing.T) {
 		{"on an intermediate parent", "a.b.beyondnetglobal.com", func(e *env, _ *cnameDNS, own string, _ map[string]TargetView) {
 			e.dns.put("b.beyondnetglobal.com", txtRecord(own))
 		}, true, "on b.beyondnetglobal.com: this target's own record on a parent name"},
-		{"another target's token on the apex covers it (the same box's record, looked up now)", "git.beyondnetglobal.com", func(e *env, _ *cnameDNS, _ string, o map[string]TargetView) {
-			e.dns.put("beyondnetglobal.com", txtRecord(o["www.beyondnetglobal.com"].Token))
-		}, true, "Ownership already proven by the TXT record at beyondnetglobal.com"},
-		{"a token of no target of this box on the apex", "git.beyondnetglobal.com", func(e *env, _ *cnameDNS, _ string, _ map[string]TargetView) {
-			e.dns.put("beyondnetglobal.com", txtRecord("0123456789abcdef"))
-		}, false, "beyondnetglobal.com: one TXT record, not this one"},
 		{"the apex answers through a CNAME", "git.beyondnetglobal.com", func(e *env, d *cnameDNS, own string, _ map[string]TargetView) {
 			d.cname["beyondnetglobal.com"] = "lb.lapsed-vendor.example"
 			e.dns.put("lb.lapsed-vendor.example", txtRecord(own))

@@ -88,7 +88,9 @@ func (w exposureWebScan) Baseline(ctx context.Context, t exposure.ScanTarget, pa
 		switch {
 		case ctx.Err() != nil: // exposure's 8 minutes, or the run was stopped: exposure tells them apart
 			return exposure.WebScan{}, ctx.Err()
-		case errors.As(err, &he) && he.Code == api.CodeUnknownCommand:
+		case errors.As(err, &he) && (he.Code == api.CodeUnknownCommand ||
+			he.Code == api.CodeInvalidArgs && t.Proof != nil && t.Proof.ProofAt != ""): // an older host refuses a proof name it does not know
+
 			return exposure.WebScan{}, &exposure.Unavailable{Reason: webOldHost}
 		}
 		return exposure.WebScan{}, err

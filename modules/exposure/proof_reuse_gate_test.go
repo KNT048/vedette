@@ -325,3 +325,106 @@ func TestVerify_ANameAddedWhileTheBoxIsOverTheBoundWaits(t *testing.T) {
 		t.Fatalf("%+v", r)
 	}
 }
+
+// Another target's token on the apex covers the name (the record is the box's, looked up now); a token of no target of this box does not.
+func TestReuse_AnotherTargetsTokenOnTheApexCoversOnlyWhenItIsATarget(t *testing.T) {
+	t.Parallel()
+	e, _ := newProofEnv(t)
+	git := e.add("admin@acme.example", "git.example.net")
+	www := e.add("admin@acme.example", "www.example.net")
+	e.dns.put("example.net", txtRecord(www.Token))
+	if r := e.verify(git.ID); !r.Verified || !strings.Contains(r.Message, "Ownership already proven by the TXT record at example.net") {
+		t.Fatalf("%+v", r)
+	}
+	e.dns.put("example.net", txtRecord("0123456789abcdef"))
+	if r := e.verify(git.ID); r.Verified || !strings.Contains(r.Message, "example.net: one TXT record, not this one") {
+		t.Fatalf("%+v", r)
+	}
+}
+
+// Ten subdomains and a donor added last with its token on the apex: every one is scannable at its own gate, and a name added later is
+// covered at its add (no cap on the donors a check looks for).
+func TestReuse_TenSubdomainsAndALateDonorAreAllScannable(t *testing.T) {
+	t.Parallel()
+	e, _ := newProofEnv(t)
+	var subs []TargetView
+	for i := range 10 {
+		subs = append(subs, e.add("admin@acme.example", string(rune('a'+i))+".example.com"))
+	}
+	donor := e.add("admin@acme.example", "git.example.com")
+	e.dns.put("example.com", txtRecord(donor.Token))
+	if r := e.verify(donor.ID); !r.Verified {
+		t.Fatalf("%+v", r)
+	}
+	for _, v := range subs {
+		if e.target(v.ID).Status != "verified" {
+			t.Errorf("%s not covered", v.Value)
+		}
+		if _, why, err := e.svc.CheckScannable(e.ctx(), "scan", v.ID); err != nil || why == BlockedTxtMissing || why == BlockedUnverified {
+			t.Errorf("%s: its own gate refuses: %v %v", v.Value, why, err)
+		}
+	}
+	late := e.add("admin@acme.example", "late.example.com")
+	if e.target(late.ID).Status != "verified" {
+		t.Fatalf("a name added later: %+v", e.target(late.ID).LastCheck)
+	}
+	if _, why, err := e.svc.CheckScannable(e.ctx(), "scan", late.ID); err != nil || why == BlockedTxtMissing {
+		t.Fatalf("late: %v %v", why, err)
+	}
+}
+
+// A donor under a private suffix below the checked registered domain is never a donor: the executors would refuse that shape.
+func TestReuse_ADonorAcrossAPrivateSuffixDoesNotVerifyTheParent(t *testing.T) {
+	t.Parallel()
+	e, _ := newProofEnv(t)
+	bucket := e.add("admin@acme.example", "bucket.s3.amazonaws.com")
+	parent, err := e.svc.AddDomain(e.ctx(), "admin@acme.example", "amazonaws.com")
+	if err == nil {
+		e.dns.put("amazonaws.com", txtRecord(bucket.Token))
+		if r := e.verify(parent.ID); r.Verified {
+			t.Fatalf("verified across a private suffix: %+v", r)
+		}
+	}
+	if got := reuseCands(Target{ID: "x", Kind: KindDomain, Value: "example.com"}, proofChain("example.com"), []Target{{ID: "b", Kind: KindDomain, Value: "b.s3.amazonaws.com"}}); len(got) != 0 {
+		t.Fatalf("candidates: %v", got)
+	}
+}
+
+// The wait the box-wide bound states is never 0 seconds, and the refill is exact: one more check every DomainCheckRefill, however the
+// checks are spaced.
+func TestVerify_TheBoxBoundRefillsExactlyAndNeverSaysZeroSeconds(t *testing.T) {
+	t.Parallel()
+	e, _ := newProofEnv(t)
+	for range DomainCheckBurst {
+		if err := e.svc.domainCheckAllowed("a", false); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for range 3 { // polled every second: the refill after ten of them must let one through, and no wait says 0 seconds
+		for range int(DomainCheckRefill/time.Second) - 1 {
+			e.advance(time.Second)
+			err := e.svc.domainCheckAllowed("a", false)
+			if err == nil || strings.Contains(err.Error(), "in 0 second") {
+				t.Fatalf("%v", err)
+			}
+		}
+		e.advance(time.Second)
+		if err := e.svc.domainCheckAllowed("a", false); err != nil {
+			t.Fatalf("after a full refill: %v", err)
+		}
+	}
+}
+
+// A name covered by the record of a donor with an older random token passes its check and the message names the bound value to add.
+func TestReuse_ADonorWithAnOlderTokenNamesTheBoundValue(t *testing.T) {
+	t.Parallel()
+	e, _ := newProofEnv(t)
+	donor := e.add("admin@acme.example", "git.example.com") // random token: no fence at add time
+	root := e.add("admin@acme.example", "example.com")
+	e.svc.cfg.DomainFence = &fakeFence{}
+	e.dns.put("example.com", txtRecord(donor.Token))
+	r := e.verify(root.ID)
+	if !r.Verified || !strings.Contains(r.Message, "The record is git.example.com's, whose token is older") || !strings.Contains(r.Message, "add the TXT record vedette-verify="+deepToken+" on example.com too") {
+		t.Fatalf("%+v", r)
+	}
+}

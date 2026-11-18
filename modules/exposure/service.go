@@ -71,10 +71,9 @@ type Service struct {
 	lastScan    map[string]time.Time // when each target's last scan started (ScanEvery; kept in memory, a restart forgets it)
 	lastOutside time.Time            // when the box last asked Shodan (OutsideEvery; kept in memory, a restart forgets it)
 
-	checkMu   sync.Mutex           // guards lastCheck
-	lastCheck map[string]time.Time // when each domain target's ownership was last checked by a person (DomainCheckEvery; in memory, a restart forgets it)
-	bucket    float64              // the box-wide bound of those checks: whole checks left (DomainCheckBurst at most), guarded by checkMu
-	bucketAt  time.Time            // when bucket was last topped up
+	checkMu    sync.Mutex           // guards lastCheck
+	lastCheck  map[string]time.Time // when each domain target's ownership was last checked by a person (DomainCheckEvery; in memory, a restart forgets it)
+	bucketFull time.Time            // the box-wide bound of those checks: when the bucket would be full again (zero: it is), guarded by checkMu
 
 	gbOnce sync.Once
 	gbs    *gbState // Greenbone's state in memory (INV-25); made by gb()

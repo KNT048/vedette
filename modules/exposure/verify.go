@@ -69,15 +69,16 @@ func (s *Service) domainCheckAllowed(id string, perTarget bool) error {
 			return checkedTooSoon(int((DomainCheckEvery - now.Sub(at) + time.Second - 1) / time.Second))
 		}
 	}
-	if s.bucketAt.IsZero() || now.Before(s.bucketAt) { // the first check, or a clock set back: a full bucket
-		s.bucket, s.bucketAt = DomainCheckBurst, now
+	// The bucket in integer time: each check adds DomainCheckRefill to the moment it would be full again, and it holds at most
+	// DomainCheckBurst checks, so a check is allowed while that moment is no more than (burst-1) refills ahead.
+	full := s.bucketFull
+	if full.Before(now) || full.After(now.Add(DomainCheckBurst*DomainCheckRefill)) { // empty, or a clock set back
+		full = now
 	}
-	s.bucket = min(DomainCheckBurst, s.bucket+float64(now.Sub(s.bucketAt))/float64(DomainCheckRefill))
-	s.bucketAt = now
-	if s.bucket < 1 {
-		return checksTooBusy(int((time.Duration((1-s.bucket)*float64(DomainCheckRefill)) + time.Second - 1) / time.Second))
+	if wait := full.Add(DomainCheckRefill).Sub(now) - DomainCheckBurst*DomainCheckRefill; wait > 0 {
+		return checksTooBusy(max(1, int((wait+time.Second-1)/time.Second)))
 	}
-	s.bucket--
+	s.bucketFull = full.Add(DomainCheckRefill)
 	if perTarget {
 		s.lastCheck[id] = now
 	}
@@ -211,12 +212,16 @@ func (s *Service) verify(ctx context.Context, user, id string, limited bool) (Ve
 // host gave no token (a logged fallback), keeps a random one. Check keeps passing on the stored token (nothing that works breaks); the
 // note names the record to add next to it so those steps pass too. "" when the two are the same, there is no fence, or it gave none.
 func (s *Service) boundTokenNote(ctx context.Context, t Target, p proof) string {
-	if s.cfg.DomainFence == nil || !p.own {
+	if s.cfg.DomainFence == nil {
 		return ""
 	}
-	tok, err := s.cfg.DomainFence.Token(ctx, t.Value)
-	if err != nil || !fenceTokenRE.MatchString(tok) || tok == t.Token {
+	dom, stored, _ := p.gate(t) // the domain whose token it is, and that token
+	tok, err := s.cfg.DomainFence.Token(ctx, dom)
+	if err != nil || !fenceTokenRE.MatchString(tok) || tok == stored {
 		return ""
+	}
+	if !p.own { // a name covered by another target's record: that target's older token is what the executors cannot use
+		return fmt.Sprintf(" The record is %s's, whose token is older than the value this box binds to it, which deep scans of addresses that are not this box's and web pages check: add the TXT record %s on %s too, keeping the current one.", dom, txtRecord(tok), p.proven)
 	}
 	return fmt.Sprintf(" This target's token is older than the value this box binds to %s, which deep scans of addresses that are not this box's (and web pages, when the record is on a parent name) check: add the TXT record %s on %s too, keeping the current one.", t.Value, txtRecord(tok), p.proven)
 }

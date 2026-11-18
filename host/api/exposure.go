@@ -48,7 +48,8 @@ type ExposureFenceCheckArgs struct {
 	IP         string `json:"ip"`
 	Token      string `json:"token"`
 	Disruptive bool   `json:"disruptive,omitempty"`
-	// ProofAt: the parent name of Domain where Domain's own record sits (the zone apex); "" = on Domain. Never a public suffix.
+	// ProofAt: the name above Domain where the token of Domain sits (the zone apex or a parent name); "" = on Domain. Name may then be
+	// any name under ProofAt, not only under Domain (a name covered by the record of another domain of the box). Never on or above a public suffix.
 	ProofAt string `json:"proof_at,omitempty"`
 	// Recheck: the check of a task that runs (every 3 minutes): the host asks DNS again instead of answering from its 5-minute cache.
 	Recheck bool `json:"recheck,omitempty"`

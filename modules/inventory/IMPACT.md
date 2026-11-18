@@ -1,5 +1,11 @@
 # Inventory — Change Impact Map
 
+## Modifying: quiet private-address devices (`quiet.go`: `PrivateMAC`, `stablePrefixes`, `quietSQL`, `toReviewSQL`, `isQuiet`, `announceIfEarned`; `Asset.private_mac`/`quiet`; INV-49)
+- **Every reader of "not approved" that means To review** uses `toReviewSQL` (list filter `approved=false`, `Counts.Pending`, `DeviceCounts` for Home and findings' summary); a new reader that tests `approved = 0` counts quiet devices as To review again. Readers that mean "a person has not approved it" (SNMP, scans, `ApproveEnrolled`, hand binds) keep `approved`.
+- **notify** opens the new-device incident for `inventory.asset.updated` with `notify: true` (`assetUpdated` calls `assetEvent`); a discovered event of a quiet device has `Notify` false. Changing what makes a device quiet changes when that notice goes out: both read the same SQL.
+- **Adding a stable prefix** keeps a virtual machine out of the quiet set; the join rules (`macKinds`, `sameMachine`) still treat every locally administered MAC as private, so VM rows fold exactly as before.
+- **Web** (`DevicesPage.tsx` lists, `NameChips` Private address chip, `DevicePage.tsx` notice and note, locale `chip.privateMac`, `approval.quiet`, `privateMac.note`; `mocks.ts` `isPrivateMac`/`isQuiet`): the Devices tab holds approved and quiet rows, To review the rest.
+
 ## Modifying: nmap's OS guesses (`osguess.go`: `guessFamilies`, `guessContradicts`, `dropContradictedOS`, `hiddenGuess`; `ObservationRow.ContradictsType`; INV-42)
 - **Every reader of a device's software** must add `NOT hiddenGuess` (alias `s`) or go through `liveSW`/`loadSoftware`; a new reader without it shows a guess the device does not use.
 - **findings** sees the change only through `MatchInput`: guess rows have no match key, so no finding comes or goes with them; a device whose OS changes (the guess no longer wins) is matched again through `inventory.asset.updated` `match: true` and findings' normal re-evaluate path (platform rules read `MatchDevice.OS`).

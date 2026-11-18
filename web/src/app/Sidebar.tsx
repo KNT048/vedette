@@ -39,8 +39,8 @@ function useEntries(): { pinned: Entry[]; groups: { id: ShellGroup; entries: Ent
 
 const itemClass = (rail: boolean, drawer: boolean) => ({ isActive }: { isActive: boolean }) => cn(
   // -outline-offset-2: the ring is drawn inside, so a group's overflow (its open/close animation) never clips it (as PageTabs).
-  'relative flex items-center rounded-md text-sm text-muted hover:bg-sunken hover:text-ink focus-visible:-outline-offset-2 [&_svg]:size-4 [&_svg]:shrink-0',
-  rail ? 'size-10 justify-center' : cn('gap-2.5 px-2.5 py-1.5 leading-tight', drawer ? 'min-h-10' : 'min-h-9'),
+  'relative flex items-center rounded-md text-meta text-muted hover:bg-sunken hover:text-ink focus-visible:-outline-offset-2 [&_svg]:size-4 [&_svg]:shrink-0',
+  rail ? 'size-10 justify-center' : cn('gap-2.5 px-2.5 py-1.5', drawer ? 'min-h-10' : 'min-h-9'),
   // UI.md §1: the fill alone is 1.2:1, so the current entry also has a 3 px accent bar (8:1) and aria-current (NavLink).
   isActive && 'nav-current bg-accent-soft font-medium text-ink [&_svg]:text-accent',
 )
@@ -93,7 +93,7 @@ function Group({ id, entries, nav, current, drawer, onNavigate }: { id: ShellGro
         // The group holding the current page stays open (closing it would hide where you are), so its header says so and does nothing.
         aria-disabled={current || undefined}
         onClick={() => { if (!current) { setMoved(true); nav.toggle(id, !open) } }}
-        className={cn('flex h-8 items-center gap-1.5 rounded-md px-2.5 text-left text-caption text-muted hover:text-ink', current && 'cursor-default hover:text-muted')}
+        className={cn('flex h-8 items-center gap-1.5 rounded-md px-2.5 text-left text-caption font-medium text-muted hover:text-ink', current && 'cursor-default hover:text-muted')}
       >
         <span className="min-w-0 flex-1 truncate">{name}{current ? <span className="sr-only">, {t('layout.groupHere')}</span> : null}</span>
         {/* No aria-label: the name is the visible text (WCAG 2.5.3) plus sr-only words after it: "Assets 2 waiting: Devices 2 to review". */}

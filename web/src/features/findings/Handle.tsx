@@ -103,9 +103,15 @@ export function RowActions({ f, device = false }: { f: RowFinding; device?: bool
   const needOperator = operator ? undefined : t('common:needRole', { role: t('common:role.operator') })
   const needAdmin = admin ? undefined : t('common:needRole', { role: t('common:role.admin') })
   const handle = (from: RefObject<HTMLButtonElement | null>) => { opener.current = from.current; setHandling(true) }
+  // a menu pick that runs at once (Undo confirm, Add device): what the row shows while it runs
+  const working = undo.isPending || dev.act.approve.isPending
+  const doing = undo.isPending ? { label: t('confirm.undo'), busy: t('confirm.undoing') } : { label: t('notAdded.add'), busy: t('common:busy.approving') }
   return (
     <span onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1">
-      {confirmFirst ? (
+      {/* the menu closes on a pick: while Undo confirm or Add device runs, the row shows it in place of its action */}
+      {working ? (
+        <Button size="sm" disabled busy={working} busyLabel={doing.busy}>{doing.label}</Button>
+      ) : confirmFirst ? (
         <Button ref={primary} size="sm" disabled={!admin} title={needAdmin} aria-label={t('confirm.buttonOn', on)}
           onClick={() => { opener.current = primary.current; setConfirming(true) }}>{t('confirm.button')}</Button>
       ) : open ? (
@@ -119,12 +125,15 @@ export function RowActions({ f, device = false }: { f: RowFinding; device?: bool
           <DropdownMenuContent align="end">
             {confirmFirst ? <DropdownMenuItem disabled={!operator} title={needOperator} onSelect={() => handle(more)}>{t('status.markOne')}</DropdownMenuItem> : null}
             {undoable ? (
+              // busy-guard: the row shows a busy button in place of its action while Undo confirm runs
               <DropdownMenuItem disabled={!admin || undo.isPending} title={needAdmin}
                 onSelect={() => undo.mutate(undefined, { onSuccess: () => toast.success(t('confirm.undone')), onError: (e) => toast.error(errMsg(e)) })}>{t('confirm.undo')}</DropdownMenuItem>
             ) : null}
             {deviceItems ? (
               <>
+                {/* busy-guard: the row shows a busy button in place of its action while Add device runs */}
                 <DropdownMenuItem disabled={!dev.can || dev.act.approve.isPending} title={dev.title} onSelect={dev.add}>{t('notAdded.add')}</DropdownMenuItem>
+                {/* busy-guard: Ignore only opens the inventory's Ignore dialog, whose Ignore button carries the busy state */}
                 <DropdownMenuItem disabled={!dev.can || dev.act.ignore.isPending} title={dev.title} onSelect={dev.ignore}>{t('notAdded.ignore')}</DropdownMenuItem>
               </>
             ) : null}

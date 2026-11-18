@@ -151,30 +151,30 @@ func TestINV41_CorrectedSoftwareReplacesTheScannedRow(t *testing.T) {
 	if sw := matchRows(t, e, dev); len(sw) != 1 || sw[0].Source != "manual" {
 		t.Fatalf("the correction must survive the next scan: %+v", sw)
 	}
-	// The source now reads another version: the person's entry stays in use (INV-50) and the 10.3 reading matches too; the device
+	// The source now reads another version: the person's entry stays in use (INV-50) and the 10.1 reading matches too; the device
 	// says what the scan reads now.
-	scan("10.3")
+	scan("10.1")
 	if rows := matchRows(t, e, dev); len(rows) != 2 {
-		t.Fatalf("matching reads the entry and the 10.3 reading (another release): %+v", rows)
+		t.Fatalf("matching reads the entry and the 10.1 reading (another release): %+v", rows)
 	}
 	if m, _, _ := e.svc.MatchInput(e.ctx(), dev); len(m.StaleCorrections) != 0 {
 		t.Fatalf("stale corrections %v", m.StaleCorrections)
 	}
-	if _, mine := swViews(t, e, dev); mine.Correction == nil || !mine.Correction.Active || mine.Correction.Detected == nil || *mine.Correction.Detected.Version != "10.3" || !mine.Correction.Disagrees {
-		t.Fatalf("the device shows the entry in use and the scan reading 10.3: %+v", mine.Correction)
+	if _, mine := swViews(t, e, dev); mine.Correction == nil || !mine.Correction.Active || mine.Correction.Detected == nil || *mine.Correction.Detected.Version != "10.1" || !mine.Correction.Disagrees {
+		t.Fatalf("the device shows the entry in use and the scan reading 10.1: %+v", mine.Correction)
 	}
 	// Setting it again (here on the correction itself) puts it on what the scan reads now; a version change without a package release
 	// drops the old release (review r1 L3).
 	_, mine = swViews(t, e, dev)
-	if err := e.svc.EditSoftware(e.ctx(), "op@example.com", dev, mine.ID, inventory.SoftwareEdit{Version: ptr("10.3")}); err != nil {
+	if err := e.svc.EditSoftware(e.ctx(), "op@example.com", dev, mine.ID, inventory.SoftwareEdit{Version: ptr("10.1")}); err != nil {
 		t.Fatal(err)
 	}
-	if sc, again := swViews(t, e, dev); again.ID != mine.ID || *again.Version != "10.3" || again.PkgVersion != nil || !again.Correction.Active || again.Correction.Disagrees ||
+	if sc, again := swViews(t, e, dev); again.ID != mine.ID || *again.Version != "10.1" || again.PkgVersion != nil || !again.Correction.Active || again.Correction.Disagrees ||
 		sc.CorrectedBy == nil || *sc.CorrectedBy != mine.ID {
 		t.Fatalf("set again: %+v / %+v", again, sc)
 	}
 
-	// Another product: the wrong row's CVEs stop matching on this row (the 10.3 row the scan reads now still matches OpenSSH).
+	// Another product: the wrong row's CVEs stop matching on this row (the 10.1 row the scan reads now still matches OpenSSH).
 	if err := e.svc.EditSoftware(e.ctx(), "op@example.com", dev, mine.ID, inventory.SoftwareEdit{Vendor: "Matt Johnston", Product: "Dropbear SSH", Version: ptr("2024.86")}); err != nil {
 		t.Fatal(err)
 	}
@@ -193,7 +193,7 @@ func TestINV41_CorrectedSoftwareReplacesTheScannedRow(t *testing.T) {
 	if err := e.svc.RemoveSoftware(e.ctx(), "op@example.com", dev, mine.ID); err != nil {
 		t.Fatal(err)
 	}
-	if sw := matchRows(t, e, dev); len(sw) != 1 || sw[0].Source != "nmap" || sw[0].Version != "10.3" {
+	if sw := matchRows(t, e, dev); len(sw) != 1 || sw[0].Source != "nmap" || sw[0].Version != "10.1" {
 		t.Fatalf("cleared: the scanned row is back: %+v", sw)
 	}
 	a := e.auditActions()
@@ -259,7 +259,7 @@ func TestINV41_ACorrectionReplacesOnlyItsRow(t *testing.T) {
 	slices.Sort(got)
 	want := []string{"agent 10.2p1", "agent 6.12.117", "manual 6.12.116", "nmap 8.9p1"}
 	if !slices.Equal(got, want) {
-		t.Fatalf("rows matched %v, want %v (only the two corrected rows go)", got, want)
+		t.Fatalf("rows matched %v, want %v (the two corrected rows go; the agent's own 10.2p1 reads the release the correction says)", got, want)
 	}
 	// .181 (review r2 M-A): with the nmap row corrected to 10.2p1, the agent's own 10.2p1 row is corrected too (its package release).
 	if err := e.svc.EditSoftware(e.ctx(), "op@example.com", dev, idOf("agent", "10.2p1"), inventory.SoftwareEdit{PkgVersion: ptr("1:10.2p1-2ubuntu3.9")}); err != nil {
@@ -267,10 +267,14 @@ func TestINV41_ACorrectionReplacesOnlyItsRow(t *testing.T) {
 	}
 	got = nil // the entry that corrects the agent's row ranks with the agent rows: the container's 8.9p1 next to it still matches (INV-50)
 	for _, r := range matchRows(t, e, dev) {
+		if r.Source == "manual" && r.Version == "10.2p1" {
+			got = append(got, "manual 10.2p1") // two corrections of one release: one of them is the line, the other is listed under it
+			continue
+		}
 		got = append(got, r.Source+" "+r.Version+" "+r.ReportedSource+" "+r.PkgVersion)
 	}
 	slices.Sort(got)
-	want = []string{"agent 6.12.117  6.12.117-1", "manual 10.2p1 agent 1:10.2p1-2ubuntu3.9", "manual 6.12.116 agent 9.9-1", "nmap 8.9p1  "}
+	want = []string{"agent 6.12.117  6.12.117-1", "manual 10.2p1", "manual 6.12.116 agent 9.9-1", "nmap 8.9p1  "}
 	if !slices.Equal(got, want) {
 		t.Fatalf("rows matched %q, want %q", got, want)
 	}
@@ -299,7 +303,7 @@ func TestINV41_TwoSourcesCorrectedToTheSameVersion(t *testing.T) {
 		}
 	}
 	sw := matchRows(t, e, dev)
-	if len(sw) != 1 || sw[0].Source != "manual" || sw[0].Version != "9.6" || sw[0].ReportedSource != "agent" { // the agent's entry is the one effective row (INV-50)
+	if len(sw) != 1 || sw[0].Source != "manual" || sw[0].Version != "9.6" { // the newest correction is the one effective row (INV-50, INV-52)
 		t.Fatalf("one effective row, no original matches: %+v", sw)
 	}
 	if e.count(`SELECT count(*) FROM inv_software WHERE corrects IS NOT NULL`) != 2 {

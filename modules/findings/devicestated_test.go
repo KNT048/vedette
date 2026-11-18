@@ -274,20 +274,23 @@ func TestMatchAsset_APersonsOSCorrectionNeverConfirms(t *testing.T) {
 	}
 }
 
-// Review M1: an SNMP answer older than SNMPFresh (or of unknown age) does not confirm: the device may run another version by now.
+// An SNMP answer older than SNMPFresh (or of unknown age) does not confirm: the device may run another version by now. A weekly scan
+// window (an answer 7 days and a few hours ago) keeps it confirmed, so findings do not flip every week.
 func TestMatchAsset_AnOldSNMPAnswerDoesNotConfirm(t *testing.T) {
 	t.Parallel()
-	for name, at := range map[string]time.Time{"eight days ago": t0.Add(-8 * 24 * time.Hour), "unknown": {}} {
+	for name, at := range map[string]time.Time{"sixteen days ago": t0.Add(-16 * 24 * time.Hour), "unknown": {}} {
 		a := fortiSNMP("7.2.13")
 		a.SNMPOSAt = at
 		if m, ok := byCVE(MatchAsset(a, fortiVulns(), nil, t0).New, "CVE-2025-61624"); !ok || m.Basis != BasisVersion || m.Evidence.Source != "" {
 			t.Errorf("%s: %+v", name, m)
 		}
 	}
-	a := fortiSNMP("7.2.13")
-	a.SNMPOSAt = t0.Add(-6 * 24 * time.Hour)
-	if m, _ := byCVE(MatchAsset(a, fortiVulns(), nil, t0).New, "CVE-2025-61624"); m.Evidence.Source != SourceSNMP {
-		t.Errorf("six days ago: %+v", m)
+	for name, at := range map[string]time.Time{"7 days and 5 hours ago": t0.Add(-7*24*time.Hour - 5*time.Hour), "14 days ago": t0.Add(-14 * 24 * time.Hour)} {
+		a := fortiSNMP("7.2.13")
+		a.SNMPOSAt = at
+		if m, _ := byCVE(MatchAsset(a, fortiVulns(), nil, t0).New, "CVE-2025-61624"); m.Evidence.Source != SourceSNMP {
+			t.Errorf("%s: %+v", name, m)
+		}
 	}
 }
 

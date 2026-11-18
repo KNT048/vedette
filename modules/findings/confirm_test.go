@@ -196,7 +196,7 @@ func b2status(b Basis) Status {
 func TestWhySuspected(t *testing.T) {
 	t.Parallel()
 	banner := &KnownVersion{Software: "web server", Version: "2.4.49", Source: VersionByScan}
-	fresh, old := t0.Add(-time.Hour), t0.Add(-8*24*time.Hour)
+	fresh, old := t0.Add(-7*24*time.Hour-5*time.Hour), t0.Add(-16*24*time.Hour) // a weekly read is fresh; 16 days is not
 	snmp := &KnownVersion{Software: "edge firewall OS", Version: "7.2.13", Source: VersionBySNMP, SeenAt: &fresh}
 	staleSNMP := &KnownVersion{Software: "edge firewall OS", Version: "7.2.13", Source: VersionBySNMP, SeenAt: &old}
 	const scanHead = "Version match only: A network scan (a guess from what a service answers) states web server 2.4.49, inside NVD's affected range."

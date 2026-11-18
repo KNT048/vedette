@@ -127,9 +127,10 @@ func TestReconcile_FirstPassOnANewBoxSendsNoSummary(t *testing.T) {
 	}
 }
 
-// Review L2: a pass that could not match every device does not end the first pass (its summary would miss findings), but a box with
-// no finding at all drops the marker even before an exploited list is loaded, so a fresh install never sends the summary.
-func TestReconcile_FirstPassEndsOnlyWhenComplete(t *testing.T) {
+// The first pass with an exploited list ends the first pass even when something failed (a device that fails every pass must not
+// silence every later confirmation); a pass without the list does not, but a box with no finding at all drops the marker even then,
+// so a fresh install never sends the summary.
+func TestReconcile_FirstPassEndsWithTheExploitedList(t *testing.T) {
 	t.Parallel()
 	marker := func(e *env) int { return e.count(`SELECT count(*) FROM fnd_device_backfill_pending`) }
 	fresh := newEnv(t)
@@ -157,16 +158,65 @@ func TestReconcile_FirstPassEndsOnlyWhenComplete(t *testing.T) {
 	if _, err := e.svc.Reconcile(t.Context()); err == nil {
 		t.Fatal("the pass with an error reported none")
 	}
-	if n := marker(e); n != 1 {
-		t.Fatalf("a pass with an error ended the first pass: %d", n)
+	if n := marker(e); n != 0 {
+		t.Fatalf("a pass with the exploited list and an error kept the marker: %d", n)
 	}
-	e.inv.mu.Lock()
-	e.inv.ignoredErr = nil
-	e.inv.mu.Unlock()
-	if _, err := e.svc.Reconcile(t.Context()); err != nil {
+}
+
+// A device that fails every pass: the first pass with the exploited list still sends the summary of what it recorded and ends; the
+// next confirmation by a device's stated version is told on its own.
+func TestReconcile_ADeviceThatAlwaysFailsDoesNotHoldTheMarker(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	vulns := fortiVulns()
+	e.feeds.vulns = vulns
+	banner := fortiRow("nmap")
+	if _, err := e.svc.UpsertFromMatch(t.Context(), banner, vulns); err != nil { // suspected before the rule
 		t.Fatal(err)
 	}
-	if n := marker(e); n != 0 {
-		t.Fatalf("a complete pass kept the marker: %d", n)
+	e.pub.take()
+	e.inv.mu.Lock()
+	e.inv.match = map[string]Asset{"a-1": fortiSNMP("7.2.13"), "a-bad": {ID: "a-bad", Name: "broken"}}
+	e.inv.matchErr = map[string]error{"a-bad": errors.New("the device cannot be read")}
+	e.inv.mu.Unlock()
+	e.advance(time.Hour)
+	if _, err := e.svc.Reconcile(t.Context()); err == nil {
+		t.Fatal("the failing device reported no error")
+	}
+	var summaries int
+	for _, p := range e.pub.take() {
+		switch p.Name {
+		case EventStatusChanged:
+			t.Fatalf("a first-pass confirmation sent its own event: %+v", p.Payload)
+		case EventDeviceBackfill:
+			summaries++
+			if s := p.Payload.(DeviceBackfillEvent); s.Findings != 2 || s.Devices != 1 {
+				t.Fatalf("summary %+v", s)
+			}
+		}
+	}
+	if summaries != 1 || e.count(`SELECT count(*) FROM fnd_device_backfill_pending`) != 0 {
+		t.Fatalf("summaries %d, marker %d", summaries, e.count(`SELECT count(*) FROM fnd_device_backfill_pending`))
+	}
+	// later: the banner again, then SNMP again: told on its own, while a-bad still fails
+	e.inv.mu.Lock()
+	e.inv.match["a-1"] = banner
+	e.inv.mu.Unlock()
+	e.advance(time.Hour)
+	_, _ = e.svc.Reconcile(t.Context())
+	e.pub.take()
+	e.inv.mu.Lock()
+	e.inv.match["a-1"] = fortiSNMP("7.2.13")
+	e.inv.mu.Unlock()
+	e.advance(time.Hour)
+	_, _ = e.svc.Reconcile(t.Context())
+	var told int
+	for _, p := range e.pub.take() {
+		if p.Name == EventStatusChanged && p.Payload.(StatusChangedEvent).Reason == ReasonDeviceVersion && p.Payload.(StatusChangedEvent).To == StatusConfirmed {
+			told++
+		}
+	}
+	if told != 2 {
+		t.Fatalf("confirmations after the first pass told: %d", told)
 	}
 }

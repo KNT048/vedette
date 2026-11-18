@@ -178,9 +178,11 @@ func (s *Service) Reconcile(ctx context.Context) (ReconcileResult, error) {
 		}
 		res.Orphans += n
 	}
-	// Only a pass that matched every device without an error ends the first pass after the device-version rule arrived; a box with no
-	// finding yet drops the marker at once, so a fresh install never sends the "already open" summary.
-	if err := s.finishBackfill(ctx, len(vulns) > 0 && len(failed) == 0); err != nil {
+	// The first pass with the exploited list loaded ends the first pass after the device-version rule arrived, whatever failed: its
+	// summary tells what it recorded, and a device that failed it tells its confirmations one by one later (a device that fails every
+	// pass must not keep the marker and silence every later confirmation). A box with no finding yet drops the marker even before the
+	// list is loaded, so a fresh install never sends the "already open" summary.
+	if err := s.finishBackfill(ctx, len(vulns) > 0); err != nil {
 		if ctx.Err() != nil {
 			return res, ctx.Err()
 		}

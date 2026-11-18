@@ -30,6 +30,8 @@ type fakeInv struct {
 	ignoredErr error // IgnoredIDs fails with it (review r2 N1 of #945)
 	// onMatch runs (without the lock) when MatchInput reads a device: a test can change the world while a pass reads it.
 	onMatch func(id string)
+	// matchErr makes MatchInput of a device fail (a device that cannot be read).
+	matchErr map[string]error
 }
 
 func (f *fakeInv) Assets(_ context.Context, ids []string) (map[string]AssetView, error) {
@@ -48,9 +50,13 @@ func (f *fakeInv) MatchInput(_ context.Context, id string) (Asset, bool, error) 
 	f.mu.Lock()
 	a, ok := f.match[id]
 	hook := f.onMatch
+	err := f.matchErr[id]
 	f.mu.Unlock()
 	if hook != nil {
 		hook(id)
+	}
+	if err != nil {
+		return Asset{}, false, err
 	}
 	return a, ok, nil
 }

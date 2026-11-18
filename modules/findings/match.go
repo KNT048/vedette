@@ -1122,7 +1122,7 @@ func judge(a Asset, s Software, in swInfo, v Vuln, key []identity, now time.Time
 	// correction stands (inventory INV-41 puts the person's value in every reading of the device), never an SNMP answer older than
 	// SNMPFresh, and for a distribution's package only the distribution's own fix (distroMatch, ps.below), never NVD's upstream
 	// range, which ignores the distribution's backports (a packaged OpenSSH 8.7p1 on Rocky 9 carries the fix of CVE-2024-6387).
-	packaged := s.Packaged || strings.TrimSpace(s.PkgVersion) != ""
+	packaged := in.pkgBuilt() || s.Packaged || strings.TrimSpace(s.PkgVersion) != "" // the same "distribution package" the fix names read (pkgBuilt)
 	switch {
 	case m.Basis != BasisVersion || !deviceSays(a):
 	case m.Evidence.Agent && ps.below:
@@ -1137,9 +1137,11 @@ func judge(a Asset, s Software, in swInfo, v Vuln, key []identity, now time.Time
 	return m, outMatch
 }
 
-// SNMPFresh is how recent the device's SNMP answer must be for the version it states to confirm a finding: a device that has not
-// answered Vedette's SNMP read for longer may run another version by now.
-const SNMPFresh = 7 * 24 * time.Hour
+// SNMPFresh is how recent the device's last successful SNMP answer must be for the version it states to confirm a finding: a device
+// that has not answered Vedette's SNMP read for longer may run another version by now. Fifteen days, so a scan window open one day a
+// week (a read about every 7 days) and one missed read never flip a finding between confirmed and suspected; a failed attempt does
+// not move the time (only an answer does, the observation's seen_at).
+const SNMPFresh = 15 * 24 * time.Hour
 
 // snmpFresh says whether an SNMP answer seen at at is recent enough to confirm (SNMPFresh); an unknown time is not.
 func snmpFresh(at, now time.Time) bool {

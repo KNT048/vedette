@@ -21,7 +21,7 @@
     "certs_other": "{{count}} certificates are about to expire.",
     "rule": "Only what you have proven you own and confirmed is scanned."
   },
-  "rule": "Scanning your external surface is active scanning, so Vedette sets two conditions. First, you prove ownership: a domain with a DNS TXT record (re-checked right before every scan), a public IP only when this box itself reaches the Internet through it (the box finds it by itself and renews it each time it sees it; 30 days after it last saw it, it expires). Second, an administrator with two-step sign-in confirms that your company owns it and that the scan is authorized: the first Scan now of a target records that confirmation, with the exact sentence shown beside the button. Until then the button stays locked for everyone else. Every verification and scan is written to the audit log.",
+  "rule": "Scanning your external surface is active scanning, so Vedette sets two conditions. First, you prove ownership of each target: a domain with a DNS TXT record (re-checked right before every scan); a public IP you type in with a token file served on it or a reverse DNS name under one of your proved domains (re-checked right before every scan; the proof lasts 30 days and the box checks it again by itself); a public IP the box finds as its own egress address is proved by that detection and renewed each time the box sees it. Second, an administrator with two-step sign-in confirms that your company owns it and that the scan is authorized: the first Scan now of a target records that confirmation, with the exact sentence shown beside the button. Until then the button stays locked for everyone else. Every verification and scan is written to the audit log.",
   "open": {
     "title_one": "{{count}} port open to the Internet",
     "title_other": "{{count}} ports open to the Internet",
@@ -57,12 +57,13 @@
     "label": "External exposure sections",
     "targets": "Targets",
     "open": "Open exposures",
-    "outside": "What the Internet sees",
     "results": "Results",
     "ownership": "Ownership",
     "outsideView": "Outside view",
     "needsYou": "needs you",
-    "surface": "Surface"
+    "surface": "Surface",
+    "settings": "Settings",
+    "openCount": "open exposures"
   },
   "outsideList": {
     "description": "What Shodan InternetDB sees from outside for each public IP of this box.",
@@ -124,7 +125,7 @@
   },
   "kind": {
     "domain": "Domain",
-    "ip": "Public IP (this box)"
+    "ip": "Public IP"
   },
   "status": {
     "verified": "Ownership verified",
@@ -149,40 +150,66 @@
       "txt_missing": "Cannot scan yet: Vedette no longer finds the DNS TXT record on {{value}}. Add it back in step 1 below, then check again.",
       "ip_not_current": "Cannot scan right now: the box no longer goes out through {{value}}. Step 1 below says how to check again.",
       "no_commitment_again": "Cannot scan yet: the confirmation text changed. An administrator confirms {{value}} once with the next Scan now.",
-      "no_commitment": "Cannot scan yet: an administrator must run the first scan of {{value}}. Pressing Scan now records that your company owns it and that the scan is authorized."
-    }
+      "no_commitment": "Cannot scan yet: an administrator must run the first scan of {{value}}. Pressing Scan now records that your company owns it and that the scan is authorized.",
+      "proof_missing": "Cannot scan yet: Vedette no longer finds the proof of {{value}} (its token file or reverse DNS name). Put it back in step 1 below, then check again."
+    },
+    "proof_missing": "Proof not found"
   },
   "targets": {
-    "title": "Domains",
-    "description": "Select a name to verify it, scan it and read its results.",
-    "descriptionInfo": "An administrator runs the first scan of each name.",
-    "caption": "Declared domains",
+    "title": "Targets",
+    "description": "Domains and public IPs in one list. Select a target to prove it, scan it and read its results, open exposures and what the Internet sees.",
+    "descriptionInfo": "An administrator runs the first scan of each target. A public IP is never scanned until it is proved.",
+    "caption": "Targets",
     "col": {
       "target": "Target",
       "owner": "Ownership",
       "commit": "Commitment",
       "scan": "Scan",
-      "latest": "Latest result"
+      "latest": "Latest result",
+      "open": "Open exposures"
     },
     "neverScanned": "Never scanned",
     "ready": "Ready to scan",
     "latest": "{{admin}} admin interfaces, {{ports}} open ports, {{certs}} certificates expiring",
     "noResult": "No result yet",
-    "emptyTitle": "No domain yet",
-    "emptyBody": "Select Add domain and follow the DNS TXT steps.",
-    "emptyBodyInfo": "Then confirm your authorization and scan. Public IPs are found by the box itself, further down."
+    "emptyTitle": "No target yet",
+    "emptyBody": "Select Add target, choose Domain or Public IP and follow the ownership steps.",
+    "emptyBodyInfo": "Then confirm your authorization and scan. The box also adds its own public IP by itself when it finds one.",
+    "scanning": "Scanning now",
+    "neverScannedShort": "Not scanned yet",
+    "termsNotAccepted": "Terms not accepted",
+    "proofUntil": "Proof until {{date}}",
+    "openLabel_one": "{{count}} open exposure on {{value}}",
+    "openLabel_other": "{{count}} open exposures on {{value}}"
   },
   "add": {
-    "button": "Add domain",
-    "title": "Add a domain",
-    "description": "Only enter a domain your company owns.",
-    "descriptionInfo": "After adding it you will prove ownership with a DNS TXT record and an administrator's first Scan now confirms your authorization.",
-    "label": "Domain",
-    "hint": "For example example.com, without http:// or a path.",
-    "hintInfo": "Public IPs cannot be typed in: the box finds its own, under Public IPs of this box.",
-    "empty": "Enter a domain, for example example.com.",
+    "button": "Add target",
+    "title": "Add a target",
+    "description": "Only add a domain or a public IP your company owns.",
+    "descriptionInfo": "After adding it you prove ownership right there: a DNS TXT record for a domain, a token file or a reverse DNS name for a public IP. An administrator's first Scan now confirms your authorization. A public IP is never scanned until it is proved.",
+    "kind": "What to add",
+    "kindOption": {
+      "domain": "Domain",
+      "ip": "Public IP"
+    },
+    "label": {
+      "domain": "Domain",
+      "ip": "Public IP address"
+    },
+    "hint": {
+      "domain": "For example example.com, without http:// or a path.",
+      "ip": "A public IPv4 address, for example 203.0.113.10."
+    },
+    "hintInfo": {
+      "domain": "To add an address, choose Public IP.",
+      "ip": "Private, reserved and carrier-grade NAT addresses cannot be scanned from the Internet. The box adds its own public IP by itself: you do not need to type it."
+    },
+    "empty": {
+      "domain": "Enter a domain, for example example.com.",
+      "ip": "Enter a public IPv4 address, for example 203.0.113.10."
+    },
     "submit": "Add",
-    "toast": "Added {{value}}. Next step: verify ownership."
+    "toast": "Added {{value}}. Next step: prove ownership."
   },
   "target": {
     "back": "Back to external exposure",
@@ -195,7 +222,8 @@
       "no_commitment": "{{value}} cannot be scanned yet: an administrator must run the first scan",
       "result": "{{value}}: {{subs}} subdomain(s), {{admin}} admin interface(s) exposed to the Internet",
       "resultIp": "{{value}}: {{ports}} open port(s), {{admin}} admin interface(s) exposed to the Internet",
-      "ready": "{{value}} is ready for its first scan"
+      "ready": "{{value}} is ready for its first scan",
+      "proof_missing": "{{value}} cannot be scanned yet: its proof was not found"
     },
     "lastScan": "Last scanned {{time}}",
     "lastScanEnd": "Last scanned {{time}}, finished {{end}}",
@@ -232,7 +260,9 @@
     "verifyHintIpInfo": "It stays valid for 30 days after the box last saw it, and every sighting renews it.",
     "commit": "Authorization record",
     "commitHint": "Recorded by the first Scan now of an administrator.",
-    "commitHintInfo": "Vedette keeps who, when and the exact sentence."
+    "commitHintInfo": "Vedette keeps who, when and the exact sentence.",
+    "verifyHintTypedIp": "Prove this address is yours with a token file served on it, or with a reverse DNS name.",
+    "verifyHintTypedIpInfo": "Either one is enough. The proof holds for 30 days and the box checks it again by itself before it runs out. It is looked for again right before every scan."
   },
   "verify": {
     "goOwnership": "Open Ownership",
@@ -282,7 +312,38 @@
     "notFound": "Not found",
     "checkedAt": "Checked {{time}}",
     "passed": "Verified",
-    "failed": "Not verified"
+    "failed": "Not verified",
+    "wait": "Check again in {{count}} s",
+    "typed": {
+      "topic": "Proof of a public IP",
+      "intro": "Prove {{value}} is yours: serve a file with the token on it, or set its reverse DNS name. One of the two is enough.",
+      "introExpired": "The proof of {{value}} ran out. Serve the token file again, or set its reverse DNS name, then check.",
+      "introInfo": "Like the HTTP check Let's Encrypt makes: Vedette asks the address itself, over http or https, for the file below and takes it as proof when it holds the token. The name option is forward-confirmed reverse DNS: the address's PTR is a name under one of your proved domains and that name points back to the address.",
+      "fileTitle": "Option 1: a token file",
+      "path": "File path",
+      "urls": "Vedette asks",
+      "contentLabel": "The whole content of the file",
+      "fileHint": "Serve it at that path on the address, over http or https. A redirect is followed only to the same address. Nothing else is needed in the file.",
+      "ptrTitle": "Option 2: a reverse DNS name",
+      "ptr": "Ask whoever owns the address (your provider) to set the reverse DNS (PTR) of {{value}} to a name under {{domains}}, and make that name's A record point to {{value}}.",
+      "ptrNone": "Prove a domain of yours first (add it as a target and prove it): the reverse DNS name of {{value}} must be a name under a domain proved on this box, and point back to {{value}}.",
+      "aRecord": "An A record of one of your domains pointing at this address is not proof: whoever runs a name can point it anywhere.",
+      "recheckHint": "Select it after the file is served or the name is set.",
+      "done": "{{value}} is proved: {{by}}.",
+      "by": {
+        "ip_file": "the token file was found",
+        "ip_ptr": "its reverse DNS name belongs to a proved domain and points back to it",
+        "box_egress": "this box goes out through it",
+        "dns_txt": "its DNS record was found"
+      },
+      "verifiedOn": "Last proved",
+      "nextCheck": "The box checks it again on",
+      "keep": "Keep the file or the name in place: the box looks for it again before the proof runs out and right before every scan.",
+      "expired": "The proof of this IP ran out (30 days), so it cannot be scanned.",
+      "expiredInfo": "Serve the token file again or set its reverse DNS name, then select Check.",
+      "missing": "Vedette could not find the proof of this IP at the last check, so scanning is blocked.",
+      "missingInfo": "Put the token file back (or set the reverse DNS name), then select Check again."
+    }
   },
   "results": {
     "title": "Scan results",
@@ -465,8 +526,8 @@
     "toast": "Deleted {{value}}"
   },
   "boxIp": {
-    "title": "Public IPs of this box",
-    "description": "The box finds its own public IPs. You cannot type one in.",
+    "title": "Public IP of this box",
+    "description": "The box finds its own public IPs and adds each one to the list of targets.",
     "caption": "Public IPs of this box",
     "state": {
       "on": "Auto-detect is on: the box checks its public IPs {{every}}.",
@@ -906,5 +967,16 @@
       "refused": "The check right before the scan refused it (the name moved, or the terms changed), so nothing was sent.",
       "incomplete": "Service identification did not finish, so its ports are not known this run; it goes back in line."
     }
+  },
+  "moved": {
+    "title": "Open exposures and What the Internet sees are now on each target.",
+    "info": "Select a target in the list to read its results, its open exposures and, for a public IP, what the Internet sees. The number in the last column is that target's open exposures."
+  },
+  "openNever": "This target has not been scanned yet, so no open port is known.",
+  "settings": {
+    "scanTitle": "Other scan settings",
+    "scanDescription": "Scan speed and the addresses a scan never touches are shared by every scan of the box.",
+    "scanReason": "They are set once for the whole box.",
+    "scanLink": "Open Settings, Scanning"
   }
 }

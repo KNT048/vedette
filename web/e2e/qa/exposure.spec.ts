@@ -42,7 +42,7 @@ test('clean install: no sample targets, the box finds its two IPs by itself; a d
   await expectAccessible(page, 'exposure empty')
 
   // Bad input: error in the field, typed value kept, Enter submits, IPs cannot be typed.
-  await page.getByRole('button', { name: 'Add domain' }).first().click()
+  await page.getByRole('button', { name: 'Add target' }).first().click()
   const input = page.getByRole('textbox', { name: 'Domain' })
   await input.press('Enter')
   await expect(page.getByText('Enter a domain, for example example.com.')).toBeVisible()
@@ -56,7 +56,7 @@ test('clean install: no sample targets, the box finds its two IPs by itself; a d
   await page.keyboard.press('Escape')
   await expect(page.getByRole('dialog')).toHaveCount(0)
 
-  await page.getByRole('button', { name: 'Add domain' }).first().click()
+  await page.getByRole('button', { name: 'Add target' }).first().click()
   await page.getByRole('textbox', { name: 'Domain' }).fill('Shop-Test.Example')
   await page.getByRole('textbox', { name: 'Domain' }).press('Enter')
   await expect(page).toHaveURL(/\/exposure\/xt-/)
@@ -146,7 +146,7 @@ test('clean install, two public IPs behind a load balancer: auto-detect finds bo
   await expect(link('198.51.100.8')).toBeVisible()
   await expect(box.getByRole('status')).toContainText('The box reaches the Internet via 2 public IPs: 198.51.100.7, 198.51.100.8.')
   // #824: the rule is behind the section's ⓘ; its text is the button's accessible description
-  await expect(box.getByRole('button', { name: 'About Public IPs of this box' })).toHaveAccessibleDescription(/Removed IPs come back if the box keeps using them while auto-detect is on, unless you chose not to add them again\./)
+  await expect(box.getByRole('button', { name: 'About Public IP of this box' })).toHaveAccessibleDescription(/Removed IPs come back if the box keeps using them while auto-detect is on, unless you chose not to add them again\./)
   await expect(box.getByRole('textbox')).toHaveCount(0) // an IP is never typed in
   await shot(page, 'exposure', `box-ip-two-ips-${size}`)
   await expectAccessible(page, 'exposure box ips')
@@ -243,7 +243,7 @@ test('clean install: Detect now refuses private and CGNAT results; a public IP g
   const box = page.locator('#box-ip')
   await box.getByRole('button', { name: 'Detect now' }).waitFor()
   // #824: how the box finds its IPs is behind the section's ⓘ; its text is the button's accessible description
-  const help = box.getByRole('button', { name: 'About Public IPs of this box' })
+  const help = box.getByRole('button', { name: 'About Public IP of this box' })
   for (const t of [/You cannot type an IP/, /Private, reserved and shared carrier \(CGNAT/, /Detect now, Verify again and the DNS Check of a domain share 10 attempts per hour/]) await expect(help).toHaveAccessibleDescription(t)
   await setEgress(page, '100.64.20.7')
   await box.getByRole('button', { name: 'Detect now' }).click()
@@ -387,7 +387,7 @@ test('viewer: results are visible, every action is locked with a visible reason'
   await expect(page.getByRole('button', { name: 'Delete target' })).toBeDisabled()
   await expect(page.getByText(/You have view-only access/)).toBeVisible()
   await page.goto('/exposure')
-  await expect(page.getByRole('button', { name: 'Add domain' }).first()).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Add target' }).first()).toBeDisabled()
   await expect(page.getByRole('switch', { name: "Detect the box's public IPs automatically" })).toBeDisabled()
   await expect(page.getByRole('button', { name: 'Detect now' })).toBeDisabled()
   await expect(page.getByRole('button', { name: 'Remove 203.0.113.11' })).toBeDisabled()
@@ -420,7 +420,7 @@ test('clean install: IPv6 is refused like IPv4, an IP page offers the same Remov
   await expect(box.getByRole('link').first()).toBeVisible() // the box found its IPs by itself at first start
 
   // IPv6 gets the IP-specific answer, in the dialog.
-  await page.getByRole('button', { name: 'Add domain' }).first().click()
+  await page.getByRole('button', { name: 'Add target' }).first().click()
   const input = page.getByRole('textbox', { name: 'Domain' })
   for (const v of ['2001:4860:4860::8888', '[::1]']) {
     await input.fill(v)

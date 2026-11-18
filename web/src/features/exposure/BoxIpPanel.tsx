@@ -1,8 +1,6 @@
-import { useState } from 'react'
-import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { RefreshCw, Trash2 } from 'lucide-react'
+import { RefreshCw } from 'lucide-react'
 import { Panel, Section } from '@/components/common/PageHeader'
 import { EmptyState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
@@ -12,23 +10,21 @@ import { Field, Label, Select } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { InfoTip } from '@/components/common/InfoTip'
 import { BusyNote } from '@/components/common/BusyNote'
-import { fmtDate, fmtDateTime, fmtRelative } from '@/lib/format'
+import { fmtDate, fmtDateTime } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { InfoLine } from './InfoLine'
-import { OwnerChip } from './OwnerChip'
-import { RemoveDialog } from './RemoveDialog'
 import { useDetectBoxIp, useRestoreIgnored, useSaveBoxIpSettings } from './api'
-import type { BoxIpSettings, IgnoredIp, Target } from './types'
-import { blockedKey } from './types'
+import type { BoxIpSettings, IgnoredIp } from './types'
 
 const PRESETS = [1, 5, 10, 15, 30, 60, 120, 360, 720, 1440]
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
 /**
- * S-EXP-1, public IPs of this box. The box finds its own public IPs (first at start, then every interval, three probes each) and renews each one it
- * sees for 30 days. The customer can turn auto-detect off, change the interval, run a check now and remove an IP. No IP is ever typed in.
+ * S-EXP-1, the box's public-IP settings (the Settings tab). The box finds its own public IPs (first at start, then every interval, three probes each),
+ * adds each one to the target list and renews it for 30 days each time it sees it. The customer can turn auto-detect off, change the interval and run a
+ * check now; the IPs themselves are rows of the target list, and the Ignored list below keeps the ones detection must not add again.
  */
-export function BoxIpPanel({ items, settings, ignored }: { items: Target[]; settings: BoxIpSettings; ignored: IgnoredIp[] }) {
+export function BoxIpPanel({ settings, ignored }: { settings: BoxIpSettings; ignored: IgnoredIp[] }) {
   const { t } = useTranslation('exposure')
   const can = useCan('admin')
   const save = useSaveBoxIpSettings()
@@ -40,23 +36,11 @@ export function BoxIpPanel({ items, settings, ignored }: { items: Target[]; sett
   // The 10 attempts an hour are used up: say so on the button and next to it, not only in a toast.
   const wait = settings.retry_in_min ?? null
   const waitText = wait === null ? undefined : t('boxIp.retry', { count: wait })
-  // The dialog state lives here, not in a table cell: `columns` is rebuilt on every render, which remounts the cells and would close an open dialog on any refetch.
-  const [removing, setRemoving] = useState<Target | null>(null)
-
   const setAuto = (auto: boolean) =>
     save.mutate({ auto, interval_min: settings.interval_min }, { onSuccess: () => toast.success(auto ? t('boxIp.toastOn') : t('boxIp.toastOff')), onError: (e) => toast.error(errMsg(e)) })
   const changeInterval = (n: number) =>
     save.mutate({ auto: settings.auto, interval_min: n }, { onSuccess: () => toast.success(t('boxIp.toastInterval', { every: every(n) })), onError: (e) => toast.error(errMsg(e)) })
   const detectNow = () => detect.mutate(undefined, { onSuccess: (r) => toast.success(t('boxIp.toast', { message: r.message })), onError: (e) => toast.error(errMsg(e)) })
-
-  const columns: ColumnDef<Target>[] = [
-    { id: 'ip', header: t('boxIp.col.ip'), accessorFn: (r) => r.value, cell: ({ row }) => <Link className="font-medium text-accent underline-offset-4 hover:underline" to={`/exposure/${row.original.id}`}>{row.original.value}</Link> },
-    { id: 'status', header: t('boxIp.col.status'), accessorFn: (r) => r.status, cell: ({ row }) => <OwnerChip target={row.original} /> },
-    { id: 'seen', header: t('boxIp.col.seen'), accessorFn: (r) => r.verified_at ?? '', cell: ({ row }) => <span title={fmtDateTime(row.original.verified_at)}>{fmtRelative(row.original.verified_at)}</span> },
-    { id: 'expires', header: t('boxIp.col.expires'), accessorFn: (r) => r.expires_at ?? '', cell: ({ row }) => <span>{fmtDate(row.original.expires_at)}</span> },
-    { id: 'scan', header: t('boxIp.col.scan'), enableSorting: false, cell: ({ row }) => (row.original.blocked_reason ? <span className="text-meta text-warn">{t(`blocked.${blockedKey(row.original)}`)}</span> : <span className="text-meta">{t('targets.ready')}</span>) },
-    { id: 'remove', header: t('boxIp.col.remove'), enableSorting: false, cell: ({ row }) => <RemoveButton target={row.original} onRemove={setRemoving} /> },
-  ]
 
   return (
     <>
@@ -96,31 +80,11 @@ export function BoxIpPanel({ items, settings, ignored }: { items: Target[]; sett
             </div>
           ) : <InfoLine className="text-meta text-muted" topic={t('boxIp.last.title')} info={t('boxIp.last.neverInfo')}>{t('boxIp.last.never')}</InfoLine>}
         </Panel>
-        <DataTable caption={t('boxIp.caption')} data={items} columns={columns} pageSize={20}
-          mobileRow={(r) => (
-            <div className="grid gap-1.5">
-              <div className="flex items-center justify-between gap-2">
-                <Link className="break-all font-medium text-accent underline-offset-4 hover:underline" to={`/exposure/${r.id}`}>{r.value}</Link>
-                <RemoveButton target={r} onRemove={setRemoving} />
-              </div>
-              <div className="flex flex-wrap items-center gap-2"><OwnerChip target={r} /></div>
-              <p className="text-meta text-muted">{t('boxIp.col.seen')}: {fmtRelative(r.verified_at)}. {t('boxIp.col.expires')}: {fmtDate(r.expires_at)}.</p>
-              <p className="text-meta text-muted">{r.blocked_reason ? t(`blocked.${blockedKey(r)}`) : t('targets.ready')}</p>
-            </div>
-          )}
-          empty={<EmptyState title={t('boxIp.empty.title')}>{settings.auto ? <InfoLine topic={t('boxIp.empty.title')} info={t('boxIp.empty.onInfo', { every: every(settings.interval_min) })}>{t('boxIp.empty.on')}</InfoLine> : t('boxIp.empty.off')}</EmptyState>} />
       </div>
-      <RemoveDialog target={removing} onClose={() => setRemoving(null)} />
     </Section>
     <IgnoredList ignored={ignored} />
     </>
   )
-}
-
-function RemoveButton({ target, onRemove }: { target: Target; onRemove: (t: Target) => void }) {
-  const { t } = useTranslation('exposure')
-  const can = useCan('admin')
-  return <Button onClick={() => onRemove(target)} disabled={!can} aria-label={t('boxIp.removeLabel', { value: target.value })} title={can ? undefined : t('common:needRole', { role: t('common:role.admin') })}><Trash2 />{t('boxIp.col.remove')}</Button>
 }
 
 /** The Ignored list. It only blocks: Restore lets detection add the IP again, it never adds or allows anything itself. */

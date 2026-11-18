@@ -113,8 +113,8 @@ test('twenty targets at most: the 21st is refused with the exact answer, in the 
 
     await page.goto('/exposure')
     await expect(h1(page)).toHaveText(headline((await list(admin)).items))
-    await expect(page.getByRole('table', { name: 'Declared domains' }).getByRole('row')).toHaveCount(domains + 1) // header + the domains
-    await page.getByRole('button', { name: 'Add domain' }).first().click()
+    await expect(page.getByRole('table', { name: 'Targets' }).getByRole('row')).toHaveCount(domains + 1) // header + the domains
+    await page.getByRole('button', { name: 'Add target' }).first().click()
     const dlg = page.getByRole('dialog', { name: 'Add a domain' })
     await dlg.getByRole('textbox', { name: 'Domain' }).fill(extra)
     const reply = page.waitForResponse((r) => r.url().endsWith('/api/v1/exposure/targets') && r.request().method() === 'POST')

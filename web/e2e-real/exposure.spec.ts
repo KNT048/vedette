@@ -15,8 +15,8 @@ test.use({ actionTimeout: 10_000 })
 test.afterEach(sweep)
 
 const toast = (page: Page, re: RegExp) => expect(page.locator('[data-sonner-toast]').filter({ hasText: re }).first()).toBeVisible()
-const domainTable = (page: Page) => page.getByRole('table', { name: 'Declared domains' })
-const ipTable = (page: Page) => page.getByRole('table', { name: 'Public IPs of this box' })
+const domainTable = (page: Page) => page.getByRole('table', { name: 'Targets' })
+const ipTable = (page: Page) => page.getByRole('table', { name: 'Targets' })
 const addPost = (page: Page) => page.waitForResponse((r) => r.url().endsWith('/api/v1/exposure/targets') && r.request().method() === 'POST')
 const NEEDS_ADMIN = 'Requires Admin role'
 const NEEDS_OPERATOR = 'Requires Operator role'
@@ -71,7 +71,7 @@ test.describe('the page, read as a viewer (S-EXP-1)', () => {
     const domains = d.items.filter((i) => i.kind === 'domain')
     if (domains.length === 0) {
       await expect(page.getByText('No domain yet')).toBeVisible()
-      await expect(page.getByText('Select Add domain and follow the DNS TXT steps.')).toBeVisible()
+      await expect(page.getByText('Select Add target, choose Domain or Public IP and follow the ownership steps.')).toBeVisible()
     } else {
       await expect(domainTable(page).getByRole('row')).toHaveCount(domains.length + 1)
       for (const t of domains) {
@@ -172,7 +172,7 @@ test.describe('domains as an administrator (S-EXP-1, INV-1, INV-6, INV-7, PRE-4)
       expect(await snapshot(admin), 'a refusal saves nothing').toBe(before)
       // the form shows the server's own sentence in the field, keeps what was typed, and Enter submits
       await page.goto('/exposure')
-      await page.getByRole('button', { name: 'Add domain' }).first().click()
+      await page.getByRole('button', { name: 'Add target' }).first().click()
       const dlg = page.getByRole('dialog', { name: 'Add a domain' })
       const input = dlg.getByRole('textbox', { name: 'Domain' })
       const posts: string[] = []
@@ -212,7 +212,7 @@ test.describe('domains as an administrator (S-EXP-1, INV-1, INV-6, INV-7, PRE-4)
     try {
       const auditBefore = await auditIds(admin, value)
       await page.goto('/exposure')
-      await page.getByRole('button', { name: 'Add domain' }).first().click()
+      await page.getByRole('button', { name: 'Add target' }).first().click()
       const dlg = page.getByRole('dialog', { name: 'Add a domain' })
       await dlg.getByRole('textbox', { name: 'Domain' }).fill(` ${value.toUpperCase()} `) // the box keeps the lower-case name without the spaces
       await expect(dlg.getByRole('textbox', { name: 'Domain' })).toHaveValue(` ${value.toUpperCase()} `)
@@ -360,8 +360,8 @@ test.describe('roles (PRE-4, PRE-1, PRE-2)', () => {
         // the list: the results are there, every control of the administrator is locked and says why
         await page.goto('/exposure')
         await expect(h1(page)).toHaveText(headline((await list(admin)).items))
-        await expect(page.getByRole('button', { name: 'Add domain' }).first()).toBeDisabled()
-        await expect(page.getByRole('button', { name: 'Add domain' }).first()).toHaveAttribute('title', NEEDS_ADMIN)
+        await expect(page.getByRole('button', { name: 'Add target' }).first()).toBeDisabled()
+        await expect(page.getByRole('button', { name: 'Add target' }).first()).toHaveAttribute('title', NEEDS_ADMIN)
         await expect(page.getByRole('switch', { name: "Detect the box's public IPs automatically" })).toBeDisabled()
         await expect(page.getByRole('button', { name: 'Detect now' })).toBeDisabled()
         await expect(page.getByRole('button', { name: 'Detect now' })).toHaveAttribute('title', NEEDS_ADMIN)

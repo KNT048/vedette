@@ -79,7 +79,7 @@ func TestINV50_ThreeSourcesOneLine(t *testing.T) {
 	c.report(observe.Nmap, "OpenSSH", "10.2", "")
 	c.enter()
 	c.report(observe.Agent, "OpenSSH", "10.2p1", "10.2_p1-r1")
-	l := c.oneLine("agent", 2)
+	l := c.oneLine("agent", 2) // the agent reads the release the person said, with its package release: its reading is the line
 	if l.Differs {
 		t.Fatalf("the same release read three ways is not a disagreement: %+v", l)
 	}
@@ -126,16 +126,16 @@ func TestINV50_RealDifferenceIsNoticed(t *testing.T) {
 	}
 }
 
-// The person's entry stays the effective row when its scan later reads another version (INV-50): the banner is listed as another
+// The person's entry stays the effective row when its scan later reads an older version (INV-50): the banner is listed as another
 // release and differs is set; matching follows the same row.
 func TestINV50_EntryStaysWhenTheBannerChanges(t *testing.T) {
 	t.Parallel()
 	c := newSoftwareCase(t)
 	c.report(observe.Nmap, "OpenSSH", "10.2", "")
 	c.enter()
-	c.report(observe.Nmap, "OpenSSH", "10.3", "")
+	c.report(observe.Nmap, "OpenSSH", "10.1", "")
 	l := c.oneLine("manual", 1)
-	if !l.Differs || l.Version != "10.2" || l.AlsoSeen[0].Version != "10.3" || l.AlsoSeen[0].SameRelease {
+	if !l.Differs || l.Version != "10.2" || l.AlsoSeen[0].Version != "10.1" || l.AlsoSeen[0].SameRelease {
 		t.Fatalf("%+v", l)
 	}
 	m, _, err := c.e.svc.MatchInput(c.e.ctx(), c.dev)
@@ -268,8 +268,8 @@ func TestINV50_TwoProductsStayTwoLines(t *testing.T) {
 	}
 }
 
-// An entry that corrects an agent's row beats that row (INV-41, INV-50), where an agent row the entry does not correct outranks it.
-func TestINV50_EntryBeatsTheAgentRowItCorrects(t *testing.T) {
+// A correction of an agent's row is the line's value; an older reading keeps it, a newer one lapses it (INV-41, INV-52).
+func TestINV52_ACorrectionOfTheAgentHoldsUntilANewerReading(t *testing.T) {
 	t.Parallel()
 	c := newSoftwareCase(t)
 	c.report(observe.Agent, "Kernel", "6.12.116", "6.12.116-1")
@@ -293,19 +293,22 @@ func TestINV50_EntryBeatsTheAgentRowItCorrects(t *testing.T) {
 	if len(m.Software) != 1 || m.Software[0].ID != l.ID || m.Software[0].ShadowedBy != "" {
 		t.Fatalf("matching reads the entry alone: %+v", m.Software)
 	}
-	// the agent reads another version: that row is not the one corrected, so the agent outranks the entry
-	c.report(observe.Agent, "Kernel", "6.12.118", "6.12.118-1")
-	l = c.oneLine("agent", 1)
-	if l.Version != "6.12.118" || l.AlsoSeen[0].Source != "manual" {
+	// the agent reads an older version: the person's value stays, the reading is listed under it and still matches
+	c.e.tick(time.Minute)
+	c.report(observe.Agent, "Kernel", "6.12.115", "6.12.115-1")
+	l = c.oneLine("manual", 1)
+	if l.Version != "6.12.117" || !l.Differs || l.AlsoSeen[0].Version != "6.12.115" {
 		t.Fatalf("%+v", l)
 	}
-	// matching sees the new release only: what the upgrade fixed no longer matches through the old entry
-	m, _, err = c.e.svc.MatchInput(c.e.ctx(), c.dev)
-	if err != nil {
-		t.Fatal(err)
+	// the agent reads a newer version: the correction lapses, the history says so, and the line is the agent's
+	c.e.tick(time.Minute)
+	c.report(observe.Agent, "Kernel", "6.12.118", "6.12.118-1")
+	l = c.oneLine("agent", 0)
+	if l.Version != "6.12.118" || l.Corrected {
+		t.Fatalf("%+v", l)
 	}
-	if len(m.Software) != 1 || m.Software[0].Version != "6.12.118" || m.Software[0].Source != "agent" {
-		t.Fatalf("matching rows: %+v", m.Software)
+	if countOf(c.e.auditActions(), "inventory.software_correction_lapsed") != 1 {
+		t.Fatalf("the lapse is in the history: %v", c.e.auditActions())
 	}
 }
 

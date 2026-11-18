@@ -144,8 +144,8 @@ func insertKeys(ctx context.Context, tx *sql.Tx, softwareID string, keys []strin
 func insertSoftware(ctx context.Context, tx *sql.Tx, assetID string, it SoftwareItem, source, seenAt string) error {
 	id := store.NewID("s")
 	pv, ps := pkgOf(it, source)
-	_, err := tx.ExecContext(ctx, `INSERT INTO inv_software (id, asset_id, display, vendor, product, version, cpe, source, confidence, seen_at, packaged, pkg_version, pkg_source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		id, assetID, it.Display, it.Vendor, it.Product, nullStr(it.Version), nullStr(it.CPE), source, it.Confidence, seenAt, packaged(it, source), pv, ps)
+	_, err := tx.ExecContext(ctx, `INSERT INTO inv_software (id, asset_id, display, vendor, product, version, cpe, source, confidence, seen_at, first_seen, packaged, pkg_version, pkg_source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		id, assetID, it.Display, it.Vendor, it.Product, nullStr(it.Version), nullStr(it.CPE), source, it.Confidence, seenAt, seenAt, packaged(it, source), pv, ps)
 	if err != nil {
 		return fmt.Errorf("inventory: store software: %w", err)
 	}
@@ -228,6 +228,9 @@ func (s *Service) replaceSoftwareTx(ctx context.Context, tx *sql.Tx, o *outbox, 
 			pv, ps := pkgOf(it, source)
 			if now, _ := pv.(string); now != havePkg[id] { // 1:9.6p1-3ubuntu13.5 -> 13.14: the same row, a different package
 				pkgChanged = true
+				if _, err := tx.ExecContext(ctx, `UPDATE inv_software SET first_seen = ? WHERE id = ?`, seenAt, id); err != nil { // a new reading (INV-52)
+					return fmt.Errorf("inventory: refresh software: %w", err)
+				}
 			}
 			if _, err := tx.ExecContext(ctx, `UPDATE inv_software SET display = ?, cpe = ?, confidence = ?, seen_at = ?, packaged = ?, pkg_version = ?, pkg_source = ? WHERE id = ?`,
 				it.Display, nullStr(it.CPE), it.Confidence, seenAt, packaged(it, source), pv, ps, id); err != nil {
@@ -261,7 +264,11 @@ func (s *Service) replaceSoftwareTx(ctx context.Context, tx *sql.Tx, o *outbox, 
 	if err := s.earnReview(ctx, tx, o, assetID, false); err != nil { // the sync moved last_seen (INV-49)
 		return err
 	}
-	if !changed && !pkgChanged {
+	lapsed, err := s.lapseCorrections(ctx, tx, assetID)
+	if err != nil {
+		return err
+	}
+	if !changed && !pkgChanged && !lapsed {
 		return nil
 	}
 	if err := s.auditTx(ctx, tx, systemActor, "inventory.software_sync", deviceName(ctx, tx, assetID), fmt.Sprintf("%s: %d items", source, len(items))); err != nil {

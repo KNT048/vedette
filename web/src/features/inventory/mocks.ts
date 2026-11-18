@@ -859,7 +859,7 @@ export const handlers = [
       const orig = s.corrects ? a.software.find((x) => x.id === s.corrects) : undefined
       // INV-41 (6): a "not installed" correction matches nothing and, while in use, does not disagree with the row it says is not there
       const disagrees = !!orig && !s.not_installed && (orig.version !== s.version || (orig.pkg_version ?? null) !== (s.pkg_version ?? null))
-      return { id: s.id, display: s.display, vendor: s.vendor, product: s.product, version: s.version, source: s.source, confidence: s.confidence, kev_cves: s.not_installed ? [] : cvesFor(s.kev),
+      return { id: s.id, display: s.display, vendor: s.vendor, product: s.product, version: s.version, source: s.source, confidence: s.confidence, kev_cves: s.not_installed ? [] : cvesFor(s.kev), can_correct: true,
         ...(s.pkg_version ? { pkg_version: s.pkg_version } : {}), ...(by ? { corrected_by: by.id } : {}),
         ...(s.corrects ? { correction: { set_at: s.set_at ?? nowIso(), set_by: currentUser()?.email ?? '', active: !!orig, disagrees: disagrees || !orig, ...(s.not_installed ? { not_installed: true } : {}),
           detected: orig ? { id: orig.id, display: orig.display, version: orig.version, pkg_version: orig.pkg_version ?? null, source: orig.source, seen_at: nowIso() } : null } } : {}) }
@@ -1095,7 +1095,8 @@ export const handlers = [
       const at = (x: typeof top) => x.set_at ?? nowIso()
       const also = rest.map((o) => ({ id: o.id, source: o.source, version: o.version ?? '', pkg_version: o.pkg_version ?? '', seen_at: at(o), same_release: same(top, o) }))
       return [{ id: top.id, vendor: top.vendor, product: top.product, display: top.display, version: top.version ?? '', pkg_version: top.pkg_version ?? '', packaged: top.source === 'agent', cpe: '', source: top.source,
-        set_by: top.source === 'manual' ? (currentUser()?.email ?? '') : '', seen_at: at(top), also_seen: also, differs: also.some((o) => !o.same_release && o.source !== 'manual' && o.id !== top.corrects) }]
+        set_by: top.source === 'manual' ? (currentUser()?.email ?? '') : '', seen_at: at(top), also_seen: also, differs: also.some((o) => !o.same_release && o.source !== 'manual' && o.id !== top.corrects),
+        can_correct: true, corrected: !!top.corrects, corrected_from: null }]
     })
     return HttpResponse.json({ items })
   }),

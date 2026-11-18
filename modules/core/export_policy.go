@@ -105,7 +105,7 @@ var exportPolicy = map[string]tablePolicy{
 	"fnd_device_backfill_pending":  {export: "id"},                                                                                    // a one-time marker of the first pass after the device-version rule
 	"fnd_device_backfill":          {export: "finding_id"},                                                                            // its findings until the summary is sent (each finding's history says it)
 	"fnd_patched_backfill_pending": {export: "id"},                                                                                    // a one-time marker of the pass that relabels earlier closures after an update
-	"fnd_plan_done":                {export: "item_key asset_id version note done_by done_at", json: "cves"},                          // INV-29: recommended updates a person marked done
+	"fnd_plan_done":                {export: "item_key asset_id version note done_by done_at", json: "cves"},                          // recommended updates a person marked done
 	"fnd_reach_run":                {export: "id ran_at stamp total", json: "counts unreachable added"},                               // INV-4e, #910: the KEV reachability audit, public feed data only
 	"hp_config":                    {export: "key updated_at updated_by", json: "value"},
 	"hp_hits":                      {export: "id ts kind service label port src_ip is_test excerpt trap_ip trap_hostname token_id conn_key conn_count handshake", json: "events"},
@@ -113,10 +113,10 @@ var exportPolicy = map[string]tablePolicy{
 	"hp_tokens":                    {export: "id type name value plant_at created_at", skip: "secret_id"},
 	"hp_trap_ips":                  {export: "id name ip preset vendor enabled mac created_at enabled_at", json: "services"},
 	"inv_asset":                    {export: "id ip mac hostname kind vendor model os vendor_obs_id model_obs_id os_obs_id kind_obs_id hostname_obs_id mac_obs_id origin approved approved_at fragile fragile_manual regular_scan first_scan_at suspicious is_box notes first_seen last_seen agent_key agent_ip ip_confirmed_at user_name scan_source snmp_source ignored_at review_earned_at"},
-	"inv_observation":              {export: "id asset_id field value source confidence seen_at evidence"},
+	"inv_observation":              {export: "id asset_id field value source confidence seen_at evidence first_seen"},
 	"inv_service":                  {export: "id asset_id port proto name product version detail source confidence seen_at"},
 	"inv_setting":                  {export: "key updated_at updated_by", json: "value"},
-	"inv_software":                 {export: "id asset_id display vendor product version cpe source confidence seen_at packaged pkg_version pkg_source corrects set_by not_installed"},
+	"inv_software":                 {export: "id asset_id display vendor product version cpe source confidence seen_at packaged pkg_version pkg_source corrects set_by not_installed first_seen"},
 	"inv_source":                   {export: "source first_seen"},
 	"inv_detected_keep":            {export: "asset_id field detected kept_at kept_by"}, // detected values a person chose not to switch to
 	"inv_separate":                 {export: "a b decided_by decided_at"},               // pairs a person kept separate

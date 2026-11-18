@@ -29,10 +29,17 @@ import (
 //   - A target is proved by its own token on its own name, or on any parent name down to its registered
 //     domain, the zone apex "@" first among them in the instructions: control of the apex TXT proves every name of the zone, the
 //     Google Workspace and Microsoft 365 model, and a name that is a CNAME can hold no TXT. It is also proved by the record of a
-//     domain target of this box on a parent name, with that target's own token. Every token is the box's own (random, or
+//     domain target of this box on its own name, with that target's own token. Every token is the box's own (random, or
 //     bound to the box by the domain fence), so a record with it was put there by whoever runs that name's DNS for this box. A
 //     parent target removed from the box takes its token with it: names it covered are covered no more at their next check
 //     (before every scan, INV-1 (c)).
+//   - A proof is stateless: the record found now is the only fact used. The token of any domain target of this box, on any name
+//     above that target (down to the registered domain) that is also the checked name or above it, proves the checked name and
+//     every name under that name: a TXT record on example.com with the token of git.example.com proves example.com, www.example.com
+//     and git.example.com's siblings, with no second record. Nothing stored decides it: no last check of the other target, no name
+//     remembered. A target removed from the box takes its token with it. The executors (core/domainfence) accept the same shape: the
+//     token bound to the other target's domain, looked up on that name, for any name under it. A box holds one organisation's
+//     targets: there is no other tenant's proof to meet.
 
 // verifyLabel is the label of the dedicated proof name: _vedette-verify.<name> (domainfence.VerifyLabel, the executors' copy).
 const verifyLabel = domainfence.VerifyLabel
@@ -109,6 +116,13 @@ func proofHint(t Target, others []Target) *ProofHint {
 			best = o.Value
 		}
 	}
+	if best == "" && t.LastCheck != nil && t.LastCheck.OK && t.LastCheck.Via != "" { // proved by another target's token at its last check
+		for _, o := range others {
+			if o.Kind == KindDomain && o.ID != t.ID && o.Value == t.LastCheck.Via {
+				best = o.Value
+			}
+		}
+	}
 	if best != "" {
 		h.CoveredBy = &best
 	}
@@ -125,6 +139,9 @@ type proof struct {
 	owner, token string
 	// own: the token is the checked target's own; with proven a parent name, its record on that parent.
 	own bool
+	// reused: the record is another target's own token on a name above that target which is the checked name or above it (proven is
+	// that name, via the other target's value): not a parent target's own name and not the checked target's own token.
+	reused bool
 	// failure says, when nothing was found, which names were asked and what came back (cleaned, bounded).
 	failure string
 }
@@ -153,9 +170,86 @@ func (p proofResolver) LookupCNAME(ctx context.Context, name string) (string, er
 // candidate is a record that would prove the checked target: a token (the checked target's own, or a parent target's) on a name of
 // its chain (its own name, or a parent name down to its registered domain).
 type candidate struct {
-	name string
-	t    Target // whose token
-	got  domainfence.Proof
+	name   string
+	t      Target // whose token
+	reused bool   // t's token on a name above t (name) that is the checked name or above it
+	got    domainfence.Proof
+}
+
+// maxReuse bounds the other targets' tokens a check looks for on the names above the checked one: every other target of the box (the
+// per-check lookup memo makes each extra token free: a name is asked once whatever the number of tokens). A smaller bound would let
+// coverOthers verify names whose own gate then cannot find the donor.
+const maxReuse = MaxTargets
+
+// maxReuseListed is how many other targets' tokens a failed check names one by one; more are said in one line.
+const maxReuseListed = 3
+
+// reuseCands lists, for the chain name n, the other domain targets of the box that sit strictly under n: their token on n proves
+// the checked name too (n is the checked name or above it, down to its registered domain, so under n are all names n covers). The
+// target whose own name is n is the parent candidate, not this one. The donor must be under n by the executors' own bound
+// (proofat.Within: never across a private public suffix below the registered domain). The nearest names first.
+func reuseCands(t Target, chain []string, all []Target) []candidate {
+	var out []candidate
+	for _, n := range chain {
+		for _, o := range all {
+			if len(out) == maxReuse {
+				return out
+			}
+			if o.Kind == KindDomain && o.ID != t.ID && o.Value != n && proofat.Within(o.Value, n) {
+				out = append(out, candidate{name: n, t: o, reused: true})
+			}
+		}
+	}
+	return out
+}
+
+// memoResolver is the box's resolver for the lookups of one check: the same name asked for several tokens (the checked
+// target's and each other target's at the same name) is looked up once, the answer shared.
+type memoResolver struct {
+	r     proofResolver
+	mu    sync.Mutex
+	txt   map[string]*memoTXT
+	cname map[string]*memoCNAME
+}
+
+type memoTXT struct {
+	once sync.Once
+	vals []string
+	err  error
+}
+
+type memoCNAME struct {
+	once sync.Once
+	cn   string
+	err  error
+}
+
+func newMemoResolver(r Resolver) *memoResolver {
+	return &memoResolver{r: proofResolver{r}, txt: map[string]*memoTXT{}, cname: map[string]*memoCNAME{}}
+}
+
+func (m *memoResolver) LookupTXT(ctx context.Context, name string) ([]string, error) {
+	m.mu.Lock()
+	e, ok := m.txt[name]
+	if !ok {
+		e = &memoTXT{}
+		m.txt[name] = e
+	}
+	m.mu.Unlock()
+	e.once.Do(func() { e.vals, e.err = m.r.LookupTXT(ctx, name) })
+	return e.vals, e.err
+}
+
+func (m *memoResolver) LookupCNAME(ctx context.Context, name string) (string, error) {
+	m.mu.Lock()
+	e, ok := m.cname[name]
+	if !ok {
+		e = &memoCNAME{}
+		m.cname[name] = e
+	}
+	m.mu.Unlock()
+	e.once.Do(func() { e.cn, e.err = m.r.LookupCNAME(ctx, name) })
+	return e.cn, e.err
 }
 
 // prove looks for a record proving t with the one rule of core/domainfence.Owned, which the executors apply too: t's own
@@ -173,13 +267,20 @@ func (s *Service) prove(ctx context.Context, t Target, all []Target) proof {
 			byValue[o.Value] = o
 		}
 	}
+	reused := reuseCands(t, chain, all)
 	var cands []candidate
-	for _, n := range chain { // the nearest first; on each name the target's own token, then a parent target's
+	for _, n := range chain { // the nearest first; on each name the target's own token, a parent target's, then the tokens of targets under it
 		cands = append(cands, candidate{name: n, t: t})
 		if o, ok := byValue[n]; ok && o.ID != t.ID {
 			cands = append(cands, candidate{name: n, t: o})
 		}
+		for _, c := range reused {
+			if c.name == n {
+				cands = append(cands, c)
+			}
+		}
 	}
+	memo := newMemoResolver(s.cfg.Resolver)
 	// One DNS budget for the whole check: every lookup, the explanation of a failure included, ends by one
 	// deadline, and the lookups still running stop as soon as the nearest valid record is known.
 	bctx, cancel := context.WithTimeout(ctx, dnsTimeout)
@@ -189,7 +290,7 @@ func (s *Service) prove(ctx context.Context, t Target, all []Target) proof {
 		done[i] = make(chan struct{})
 		go func() {
 			defer close(done[i])
-			cands[i].got = domainfence.Owned(bctx, proofResolver{s.cfg.Resolver}, cands[i].name, cands[i].t.Token, dnsTimeout)
+			cands[i].got = domainfence.Owned(bctx, memo, cands[i].name, cands[i].t.Token, dnsTimeout)
 		}()
 	}
 	for i := range cands { // the nearest first: the target's own record, then the nearest parent's
@@ -199,13 +300,31 @@ func (s *Service) prove(ctx context.Context, t Target, all []Target) proof {
 			continue
 		}
 		cancel()
-		p := proof{found: true, at: c.got.At, proven: c.name, owner: c.t.ID, token: c.t.Token, own: c.t.ID == t.ID}
+		p := proof{found: true, at: c.got.At, proven: c.name, owner: c.t.ID, token: c.t.Token, own: c.t.ID == t.ID, reused: c.reused}
 		if !p.own {
 			p.via = c.t.Value
 		}
 		return p
 	}
-	return proof{failure: s.whyNot(bctx, t, cands)}
+	return proof{failure: s.whyNot(bctx, memo, t, cands)}
+}
+
+// gate is what the executors' fence checks for a scan of t once p proved it: the domain whose token it is, that token, and the name the
+// record sits on when it is not the domain itself (at). The target's own token on its own name: itself; on a parent name: itself with at
+// that name; a parent target's: that target; another target's token on a name above both: that target with at that name.
+func (p proof) gate(t Target) (domain, token, at string) {
+	switch {
+	case !p.found:
+		return "", "", ""
+	case p.own:
+		if p.proven != t.Value {
+			at = p.proven
+		}
+		return t.Value, p.token, at
+	case p.reused:
+		return p.via, p.token, p.proven
+	}
+	return p.via, p.token, ""
 }
 
 // coversBelow says the record found is the checked target's own on its own name (or its _vedette-verify name), which covers the
@@ -223,10 +342,10 @@ func stillOwner(ctx context.Context, tx *sql.Tx, checked string, p proof) (proof
 	case errors.Is(err, ErrNotFound):
 	case err != nil:
 		return p, err
-	case o.Token == p.token && o.Value == p.proven:
+	case o.Token == p.token && o.Value == p.via:
 		return p, nil
 	}
-	return proof{failure: fmt.Sprintf("The record of %s covered this name, but %s was removed from the box while it was checked, so it covers it no more.", p.proven, p.proven)}, nil
+	return proof{failure: fmt.Sprintf("The TXT record of %s on %s covered this name, but %s was removed from the box while it was checked (or given a new token), so it covers it no more.", p.via, p.proven, p.via)}, nil
 }
 
 // publicSuffixText is the check message, and the scan refusal, of a target that is a public suffix (stored by an older release, or one a
@@ -239,7 +358,7 @@ func publicSuffixText(name string) string {
 // record that is not this one, none, a CNAME to another name, a name that does not exist, a timeout, or a record refused (reached
 // through a CNAME, or a wildcard); then each domain of the box above it that could cover it. Every value from DNS is untrusted
 // (INV-10): cleaned and bounded before it is shown or stored.
-func (s *Service) whyNot(ctx context.Context, t Target, cands []candidate) string {
+func (s *Service) whyNot(ctx context.Context, memo *memoResolver, t Target, cands []candidate) string {
 	names := []string{t.Value}
 	if alt := verifyLabel + "." + t.Value; len(alt) <= 253 {
 		names = append(names, alt)
@@ -253,7 +372,7 @@ func (s *Service) whyNot(ctx context.Context, t Target, cands []candidate) strin
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			got[i].vals, got[i].err = s.cfg.Resolver.LookupTXT(ctx, n+".") // rooted: no search domain (as domainfence.Owned); ctx: the check's budget
+			got[i].vals, got[i].err = memo.LookupTXT(ctx, n+".") // rooted: no search domain (as domainfence.Owned); ctx: the check's budget
 		}()
 	}
 	wg.Wait()
@@ -278,11 +397,21 @@ func (s *Service) whyNot(ctx context.Context, t Target, cands []candidate) strin
 			b.WriteString("Not counted: " + cleanDNS(d, 200) + ". ")
 		}
 	}
-	var above []string
+	var above, viaRecords []string
 	for _, c := range cands {
-		if c.t.ID != t.ID {
+		switch {
+		case c.reused:
+			viaRecords = append(viaRecords, fmt.Sprintf("%s's token on %s (%s)", c.t.Value, c.name, cleanDNS(c.got.Detail, 200)))
+		case c.t.ID != t.ID:
 			above = append(above, c.t.Value)
 		}
+	}
+	switch n := len(viaRecords); {
+	case n == 0:
+	case n <= maxReuseListed: // a few: each with what was found there
+		b.WriteString("Also looked for the record of another target of this box that would cover it: " + strings.Join(viaRecords, "; ") + ". ")
+	default: // many: one line
+		fmt.Fprintf(&b, "Also looked for the tokens of the %s of this box on the names above it: none of them is there now. ", plural(n, "other target"))
 	}
 	if len(above) == 0 {
 		b.WriteString("No domain of this box above it covers it. ")
@@ -379,9 +508,16 @@ func cleanDNS(v string, n int) string {
 	return v
 }
 
+// reusedMessage is the check message of a name covered by a record that proved another target of the box.
+func reusedMessage(name, when string) string {
+	return fmt.Sprintf("Ownership already proven by the TXT record at %s (checked %s).", name, when)
+}
+
 // proofMessage is the check message of a found proof.
-func proofMessage(t Target, p proof) string {
+func proofMessage(t Target, p proof, when string) string {
 	switch {
+	case p.reused:
+		return reusedMessage(p.proven, when)
 	case p.own && p.proven != t.Value:
 		return fmt.Sprintf("Found the TXT record %s on %s: this target's own record on a parent name, which proves %s.", txtRecord(t.Token), p.at, t.Value)
 	case p.via != "":

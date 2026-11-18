@@ -51,10 +51,50 @@ func (s *Service) attempt(ctx context.Context) error {
 	})
 }
 
-// Verify re-checks ownership of one target (POST …/verify, PRE-2). A domain: its TXT record. An IP:
-// the box must leave the Internet through it now; seeing it renews it for 30 days (INV-4). "Not found"
-// is verified:false, not an error.
+// domainCheckAllowed lets a person check one domain target once every DomainCheckEvery: a check is DNS lookups only, so the limit is
+// per target and short, and says in seconds when the next check is allowed. perTarget false (the box's own check of a name just
+// added) skips the per-target slot. Every check counts against the box-wide bound too (DomainCheckBurst, one more every
+// DomainCheckRefill), so a loop over many targets, or adding and deleting names, cannot make the resolver and the audit log work without limit.
+func (s *Service) domainCheckAllowed(id string, perTarget bool) error {
+	now := s.clock()
+	s.checkMu.Lock()
+	defer s.checkMu.Unlock()
+	for k, at := range s.lastCheck { // bounded by the targets: forget what no longer limits anything
+		if d := now.Sub(at); d >= DomainCheckEvery || d < 0 {
+			delete(s.lastCheck, k)
+		}
+	}
+	if perTarget {
+		if at, ok := s.lastCheck[id]; ok {
+			return checkedTooSoon(int((DomainCheckEvery - now.Sub(at) + time.Second - 1) / time.Second))
+		}
+	}
+	// The bucket in integer time: each check adds DomainCheckRefill to the moment it would be full again, and it holds at most
+	// DomainCheckBurst checks, so a check is allowed while that moment is no more than (burst-1) refills ahead.
+	full := s.bucketFull
+	if full.Before(now) || full.After(now.Add(DomainCheckBurst*DomainCheckRefill)) { // empty, or a clock set back
+		full = now
+	}
+	if wait := full.Add(DomainCheckRefill).Sub(now) - DomainCheckBurst*DomainCheckRefill; wait > 0 {
+		return checksTooBusy(max(1, int((wait+time.Second-1)/time.Second)))
+	}
+	s.bucketFull = full.Add(DomainCheckRefill)
+	if perTarget {
+		s.lastCheck[id] = now
+	}
+	return nil
+}
+
+// Verify re-checks ownership of one target (POST …/verify, PRE-2). A domain: its TXT record, at most once every DomainCheckEvery per
+// target. An IP: the box must leave the Internet through it now; seeing it renews it for 30 days (INV-4), and counts among the
+// MaxAttemptsPerHour of the box. "Not found" is verified:false, not an error.
 func (s *Service) Verify(ctx context.Context, user, id string) (VerifyResult, error) {
+	return s.verify(ctx, user, id, true)
+}
+
+// verify is Verify; limited false is the box's own check of a name a proof already covers (right after it is added), which is no
+// attempt of a person.
+func (s *Service) verify(ctx context.Context, user, id string, limited bool) (VerifyResult, error) {
 	t, err := loadTarget(ctx, s.cfg.DB.Reader(), id)
 	if err != nil {
 		return VerifyResult{}, fmt.Errorf("exposure: verifying: %w", err)
@@ -64,7 +104,16 @@ func (s *Service) Verify(ctx context.Context, user, id string) (VerifyResult, er
 		s.detectMu.Lock()
 		defer s.detectMu.Unlock()
 	}
-	if err := s.attempt(ctx); err != nil {
+	switch {
+	case !limited && t.Kind == KindDomain: // the box's own check of a name just added: counted by the box-wide bound only
+		err = s.domainCheckAllowed(id, false)
+	case !limited:
+	case t.Kind == KindDomain:
+		err = s.domainCheckAllowed(id, true)
+	default:
+		err = s.attempt(ctx)
+	}
+	if err != nil {
 		return VerifyResult{}, fmt.Errorf("exposure: verifying: %w", err)
 	}
 	var ok bool
@@ -112,7 +161,7 @@ func (s *Service) Verify(ctx context.Context, user, id string) (VerifyResult, er
 		case ok && cur.Kind == KindIP:
 			message, verifiedAt = fmt.Sprintf("The box reaches the Internet via %s. Verified until %s.", cur.Value, s.dayText(now.Add(ValidDays*24*time.Hour))), now
 		case ok:
-			message = proofMessage(cur, pr) + bound
+			message = proofMessage(cur, pr, s.momentText(now)) + bound
 			if cur.VerifiedAt.IsZero() {
 				verifiedAt = now
 			}
@@ -129,7 +178,7 @@ func (s *Service) Verify(ctx context.Context, user, id string) (VerifyResult, er
 		if ok {
 			setMethod = method
 		}
-		if err := updateCheck(ctx, tx, id, Check{At: store.FormatTS(now), OK: ok, Message: message, Covers: ok && pr.coversBelow(cur.Value)}, verifiedAt, setMethod); err != nil {
+		if err := updateCheck(ctx, tx, id, Check{At: store.FormatTS(now), OK: ok, Message: message, Covers: ok && pr.coversBelow(cur.Value), Via: pr.via}, verifiedAt, setMethod); err != nil {
 			return err
 		}
 		action := "exposure.verify_fail"
@@ -163,12 +212,16 @@ func (s *Service) Verify(ctx context.Context, user, id string) (VerifyResult, er
 // host gave no token (a logged fallback), keeps a random one. Check keeps passing on the stored token (nothing that works breaks); the
 // note names the record to add next to it so those steps pass too. "" when the two are the same, there is no fence, or it gave none.
 func (s *Service) boundTokenNote(ctx context.Context, t Target, p proof) string {
-	if s.cfg.DomainFence == nil || !p.own {
+	if s.cfg.DomainFence == nil {
 		return ""
 	}
-	tok, err := s.cfg.DomainFence.Token(ctx, t.Value)
-	if err != nil || !fenceTokenRE.MatchString(tok) || tok == t.Token {
+	dom, stored, _ := p.gate(t) // the domain whose token it is, and that token
+	tok, err := s.cfg.DomainFence.Token(ctx, dom)
+	if err != nil || !fenceTokenRE.MatchString(tok) || tok == stored {
 		return ""
+	}
+	if !p.own { // a name covered by another target's record: that target's older token is what the executors cannot use
+		return fmt.Sprintf(" The record is %s's, whose token is older than the value this box binds to it, which deep scans of addresses that are not this box's and web pages check: add the TXT record %s on %s too, keeping the current one.", dom, txtRecord(tok), p.proven)
 	}
 	return fmt.Sprintf(" This target's token is older than the value this box binds to %s, which deep scans of addresses that are not this box's (and web pages, when the record is on a parent name) check: add the TXT record %s on %s too, keeping the current one.", t.Value, txtRecord(tok), p.proven)
 }
@@ -178,8 +231,7 @@ func (s *Service) boundTokenNote(ctx context.Context, t Target, p proof) string 
 // message and audit row; one already verified and passing is left as it is. The record is checked again for each of them right
 // before each of their scans (INV-1 (c)), so a record removed, or the parent target removed with its token, covers them no more.
 func (s *Service) coverOthers(ctx context.Context, tx *sql.Tx, user string, t Target, p proof, now time.Time, emit func(string, any)) error {
-	if owner := map[bool]string{true: t.Value, false: p.via}[p.own]; p.proven != owner {
-		// T's own token on a parent name proves t only: the other targets under that parent need their own token there
+	if !p.own && !p.reused && p.proven != p.via { // a parent target's record counts only on that target's own name
 		return nil
 	}
 	all, err := listTargets(ctx, tx)
@@ -195,7 +247,14 @@ func (s *Service) coverOthers(ctx context.Context, tx *sql.Tx, user string, t Ta
 			verifiedAt = now
 		}
 		msg := fmt.Sprintf("Covered by the TXT record on %s, found when %s was checked: it proves %s and every name under it.", p.at, t.Value, p.proven)
-		if err := updateCheck(ctx, tx, o.ID, Check{At: store.FormatTS(now), OK: true, Message: msg}, verifiedAt, methodDNS); err != nil {
+		if p.own && p.proven != t.Value || p.reused { // a record on a parent name: the zone's, so it proves every name under that name
+			msg = reusedMessage(p.proven, s.momentText(now))
+		}
+		via := p.via // the target whose token proved o: t itself when its own token sits on a parent name
+		if p.own {
+			via = t.Value
+		}
+		if err := updateCheck(ctx, tx, o.ID, Check{At: store.FormatTS(now), OK: true, Message: msg, Via: via}, verifiedAt, methodDNS); err != nil {
 			return err
 		}
 		if err := s.audit(ctx, tx, user, "exposure.verify_ok", o.Value, methodDNS+", covered by "+p.proven); err != nil {

@@ -143,8 +143,9 @@ type DomainScope struct {
 	Domain string `json:"domain"`
 	Name   string `json:"name"`
 	Token  string `json:"token"`
-	// ProofAt: the parent name of Domain where Domain's own record sits (the zone apex), checked there by the worker's fence;
-	// omitted when the record is on Domain. A worker that does not know the field refuses the job (the check fails closed).
+	// ProofAt: the name above Domain where Domain's token sits (the zone apex or a parent name), checked there by the worker's fence;
+	// Name may then be any name under ProofAt, not only under Domain. Omitted when the record is on Domain. A worker that does not
+	// know the field, or this meaning of it, refuses the job as invalid_job (the check fails closed).
 	ProofAt string `json:"proof_at,omitempty"`
 }
 

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/netip"
+	"slices"
 	"sync"
 	"time"
 
@@ -70,6 +71,10 @@ type Service struct {
 	lastScan    map[string]time.Time // when each target's last scan started (ScanEvery; kept in memory, a restart forgets it)
 	lastOutside time.Time            // when the box last asked Shodan (OutsideEvery; kept in memory, a restart forgets it)
 
+	checkMu    sync.Mutex           // guards lastCheck
+	lastCheck  map[string]time.Time // when each domain target's ownership was last checked by a person (DomainCheckEvery; in memory, a restart forgets it)
+	bucketFull time.Time            // the box-wide bound of those checks: when the bucket would be full again (zero: it is), guarded by checkMu
+
 	gbOnce sync.Once
 	gbs    *gbState // Greenbone's state in memory (INV-25); made by gb()
 
@@ -90,7 +95,7 @@ func NewService(cfg Config) (*Service, error) {
 	if cfg.Location == nil {
 		cfg.Location = time.Local
 	}
-	return &Service{cfg: cfg, now: now, runner: cfg.Runner, lastScan: map[string]time.Time{}, bg: context.Background()}, nil
+	return &Service{cfg: cfg, now: now, runner: cfg.Runner, lastScan: map[string]time.Time{}, lastCheck: map[string]time.Time{}, bg: context.Background()}, nil
 }
 
 // SetRunner registers the scanner (the scan module does it at start-up). Nil removes it.
@@ -440,7 +445,28 @@ func (s *Service) AddDomain(ctx context.Context, user, raw string) (TargetView, 
 		}
 		return TargetView{}, fmt.Errorf("exposure: adding domain: %w", err)
 	}
+	s.coverAdded(ctx, user, id, value)
 	return s.Target(ctx, id)
+}
+
+// coverAdded checks a name just added when the proof of another target of the box already covers it (reuseCands): the person put no
+// record for it and is asked for none. The check looks the record up again (DNS only); if it is gone the target stays unverified with the
+// usual explanation. It is the box's own check, not an attempt of a person, and never fails the add.
+func (s *Service) coverAdded(ctx context.Context, user, id, value string) {
+	all, err := listTargets(ctx, s.cfg.DB.Reader())
+	if err == nil {
+		// Only a lookup is saved here, never a decision: the record decides at the check. A name no target of the box that was ever
+		// verified could cover is left for the person's own check.
+		t := Target{ID: id, Kind: KindDomain, Value: value}
+		maybe := func(o Target) bool { return o.Kind == KindDomain && !o.VerifiedAt.IsZero() }
+		if slices.ContainsFunc(reuseCands(t, proofChain(value), all), func(c candidate) bool { return maybe(c.t) }) ||
+			slices.ContainsFunc(all, func(o Target) bool { return o.ID != id && maybe(o) && under(value, o.Value) }) {
+			_, err = s.verify(ctx, user, id, false)
+		}
+	}
+	if err != nil {
+		s.cfg.Log.WarnContext(ctx, "exposure: checking a name an earlier proof covers", "domain", value, "error", err)
+	}
 }
 
 // Delete removes a target with its snapshots and its commitment; the audit log stays (INV-7). For an

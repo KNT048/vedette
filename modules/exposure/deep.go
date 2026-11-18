@@ -195,14 +195,16 @@ func (s *Service) deepGate(ctx context.Context, st ScanTarget, ip netip.Addr, na
 	case name == "":
 		return st, deepMoved, nil
 	}
-	// The domain whose record proves the target now: the target itself, with its own record there or on a parent name of it
-	// (proofAt, checked there by the executors with the target's own token), or a parent target of the box covering it.
+	// The domain whose token proves the target now, and the name its record sits on when that is not the domain itself (checked there
+	// by the executors, which accept any name under it): the target itself, with its own record there or on a parent name of it; a
+	// parent target of the box; or another target of the box whose token sits on a name above both. A gate result that does not fit
+	// the target (no proof, a name not above it) falls back to the target's own token, which the executors then check as it is.
 	fd, proofAt := st.Value, ""
 	switch {
-	case t.proofDomain == "" || t.proofDomain == st.Value || !underDomain(st.Value, t.proofDomain):
-	case t.proofOwn:
-		proofAt = t.proofDomain
-	default:
+	case t.proofDomain == "":
+	case t.proofAt != "" && underDomain(st.Value, t.proofAt) && underDomain(t.proofDomain, t.proofAt):
+		fd, proofAt = t.proofDomain, t.proofAt
+	case t.proofAt == "" && underDomain(st.Value, t.proofDomain):
 		fd = t.proofDomain
 	}
 	tok, err := s.cfg.DomainFence.Token(ctx, fd)

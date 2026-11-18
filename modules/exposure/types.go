@@ -12,13 +12,24 @@ const (
 	MaxIntervalMin     = 1440
 	DefaultIntervalMin = 60
 	MaxTargets         = 20
-	MaxAttemptsPerHour = 10
+	MaxAttemptsPerHour = 10 // Detect now and the check of an IP, which ask public services: shared, per box
 	CertWarnDays       = 30
 	DeepEvery          = time.Hour       // a full check runs at most this often by itself; shorter intervals do light checks
 	EnableGap          = 5 * time.Minute // turning auto-detect on checks at once, unless it checked within this time
 	ModuleID           = "exposure"
 	// SystemUser is the actor of everything the box does by itself (the audit trail of auto-detect).
 	SystemUser = "system"
+)
+
+// DomainCheckEvery is the least time between two ownership checks of one domain target: a check is a few DNS lookups, so a person
+// who just changed a record can check again soon, and a loop cannot hammer the resolver.
+const DomainCheckEvery = 30 * time.Second
+
+// The box-wide bound of the ownership checks people trigger (the button, and the check of a name just added): a burst of
+// DomainCheckBurst, then one more every DomainCheckRefill. Per target there is still one check every DomainCheckEvery.
+const (
+	DomainCheckBurst  = 20
+	DomainCheckRefill = 10 * time.Second
 )
 
 // Kind is what a target is: a domain or a public IP.
@@ -68,6 +79,10 @@ type Check struct {
 	// name or its _vedette-verify name, which covers the names under it. A record of its own token on a parent name
 	// proves it only, so covered_by never names it.
 	Covers bool `json:"-"`
+	// Via (stored with the check, never in the API) is the value of the other domain target of the box whose token proved this one
+	// at its last passing check, "" when the target's own token did. It only labels the proof (covered_by); coverage is decided
+	// by the record found now, never by this.
+	Via string `json:"-"`
 }
 
 // Commitment is who ticked "my company owns it and I am authorized to scan it", and when.
@@ -109,12 +124,11 @@ type Target struct {
 	Terms      *Terms // the testing terms; nil when not accepted
 	CreatedAt  time.Time
 	LastScanAt time.Time // zero when never scanned
-	// proofDomain and proofToken are, after the scan gate, the domain target whose record proved this one now (itself, or a parent
-	// of the box that covers it) and its token: the domain and token the executors' fence checks. Never stored.
-	proofDomain, proofToken string
-	// proofOwn: the record is this target's own token (on its name, or on a parent name down to its registered domain); false:
-	// a parent target's record that covers it.
-	proofOwn bool
+	// proofDomain and proofToken are, after the scan gate, the domain target whose token proved this one now (itself, a parent target
+	// of the box, or a target of the box that sits under the name where its record was found) and that token: the domain and token the
+	// executors' fence checks. proofAt is the name the record sits on when it is not proofDomain itself (the zone apex, or a parent
+	// name of this target): the executors look for the token there and accept any name under it. Never stored.
+	proofDomain, proofToken, proofAt string
 }
 
 // TargetView is the API shape of a target (contract.ts Target), with the derived fields filled in.

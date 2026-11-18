@@ -122,7 +122,7 @@ function isPublicIp(ip: string) {
   return true
 }
 
-/** Minutes until the next of the 10 attempts an hour is possible; null while attempts are left (Detect now, Verify again and the DNS Check share them). */
+/** Minutes until the next of the 10 attempts an hour is possible; null while attempts are left (Detect now and the Verify again of an IP share them; a domain's DNS Check is limited per target, every 30 seconds, on the box). */
 function retryInMin(): number | null {
   const hourAgo = Date.now() - 3_600_000
   const recent = attempts.get().filter((x) => Date.parse(x) > hourAgo)
@@ -513,7 +513,7 @@ export const handlers = [
     const denied = guard('operator'); if (denied) return denied
     const t = find(params.id)
     if (!t) return notFound()
-    const limited = rateLimit(); if (limited) return limited
+    const limited = t.kind === 'ip' ? rateLimit() : null; if (limited) return limited
     const at = nowIso()
     const checks = t.checks + 1
     let ok: boolean

@@ -33,9 +33,6 @@ func TestProof_OwnTokenOnAParentName(t *testing.T) {
 		{"on an intermediate parent", "a.b.beyondnetglobal.com", func(e *env, _ *cnameDNS, own string, _ map[string]TargetView) {
 			e.dns.put("b.beyondnetglobal.com", txtRecord(own))
 		}, true, "on b.beyondnetglobal.com: this target's own record on a parent name"},
-		{"another target's token on the apex, that target not on the apex", "git.beyondnetglobal.com", func(e *env, _ *cnameDNS, _ string, o map[string]TargetView) {
-			e.dns.put("beyondnetglobal.com", txtRecord(o["www.beyondnetglobal.com"].Token))
-		}, false, "beyondnetglobal.com: one TXT record, not this one"},
 		{"the apex answers through a CNAME", "git.beyondnetglobal.com", func(e *env, d *cnameDNS, own string, _ map[string]TargetView) {
 			d.cname["beyondnetglobal.com"] = "lb.lapsed-vendor.example"
 			e.dns.put("lb.lapsed-vendor.example", txtRecord(own))
@@ -141,31 +138,6 @@ func TestContract_INV28_Deep_OwnTokenOnTheApexSetsProofAt(t *testing.T) {
 	}
 }
 
-// git proved by its own token at the apex covers nothing under it. ci.git gets no "covered by git" note, the
-// "@" instruction, and a failed Check that does not claim git has no record.
-func TestProof_AnApexProvedTargetCoversNothingBelow(t *testing.T) {
-	t.Parallel()
-	e, _ := newProofEnv(t)
-	git := e.add("admin@acme.example", "git.beyondnetglobal.com")
-	e.dns.put("beyondnetglobal.com", "v=spf1 -all", txtRecord(git.Token))
-	if r := e.verify(git.ID); !r.Verified {
-		t.Fatalf("%+v", r)
-	}
-	ci := e.add("admin@acme.example", "ci.git.beyondnetglobal.com")
-	if p := e.target(ci.ID).Proof; p == nil || p.CoveredBy != nil || p.Host != "@" || p.Zone != "beyondnetglobal.com" {
-		t.Fatalf("hint %+v", p)
-	}
-	r := e.verify(ci.ID)
-	if r.Verified || !strings.Contains(r.Message, "The box's git.beyondnetglobal.com would cover it only with its own record on that name itself") {
-		t.Fatalf("%+v", r)
-	}
-	// with ci's own token at the apex too, ci is proved by itself
-	e.dns.put("beyondnetglobal.com", "v=spf1 -all", txtRecord(git.Token), txtRecord(ci.Token))
-	if r := e.verify(ci.ID); !r.Verified {
-		t.Fatalf("%+v", r)
-	}
-}
-
 // deadlineDNS records the deadline of every lookup; names in block wait until their context ends and report how it ended.
 type deadlineDNS struct {
 	*cnameDNS
@@ -201,7 +173,7 @@ func TestProof_OneBudgetAndTheRestStop(t *testing.T) {
 	all := slices.Clone(d.deadlines)
 	d.deadlines = nil
 	d.mu.Unlock()
-	if r.Verified || len(all) < 7 {
+	if r.Verified || len(all) < 6 {
 		t.Fatalf("%+v, %d lookups", r, len(all))
 	}
 	for _, dl := range all {

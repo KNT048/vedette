@@ -54,8 +54,8 @@ func (w *Worker) domainFence(ctx, rctx, jctx context.Context, cur *activeJob, dj
 		w.log.ErrorContext(ctx, "sensor_active_domain_job_refused", "id", cur.job.ID, "tool", tool, "reason", domainfence.InvalidJob, "error", "this worker has no fence key")
 		return refusal(domainfence.InvalidJob)
 	}
-	if dj.ProofAt != "" && !proofat.Within(dj.Domain, dj.ProofAt) { // The bound core and vedette-host apply (review r1 L1 of #960)
-		w.log.ErrorContext(ctx, "sensor_active_domain_job_refused", "id", cur.job.ID, "tool", tool, "reason", domainfence.InvalidJob, "error", "proof_at is not between the domain and its registered domain")
+	if dj.ProofAt != "" && (!proofat.Within(dj.Domain, dj.ProofAt) || !proofat.Within(dj.Name, dj.ProofAt)) { // Domain and Name both lie under ProofAt, down to its registered domain, never on or above a public suffix: the bound core and vedette-host apply
+		w.log.ErrorContext(ctx, "sensor_active_domain_job_refused", "id", cur.job.ID, "tool", tool, "reason", domainfence.InvalidJob, "error", "proof_at is not between the domain, the name and their registered domain")
 		return refusal(domainfence.InvalidJob)
 	}
 	o := w.fence.Check(rctx, dj, true)

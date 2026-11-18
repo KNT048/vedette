@@ -50243,8 +50243,9 @@ type ExposureGetExposureTargetsOKBoxIP struct {
 	IntervalMin int `json:"interval_min"`
 	// The last automatic or manual detection; null before the first one.
 	LastRun NilExposureGetExposureTargetsOKBoxIPLastRun `json:"last_run"`
-	// Null while attempts are left. When the 10 attempts an hour (shared by Detect now, Verify again and
-	// the DNS Check of a domain) are used up: minutes until the next one is possible, 1 or more.
+	// Null while attempts are left. When the 10 attempts an hour (shared by Detect now and the Verify
+	// again of an IP; the DNS Check of a domain has its own limit of one per 30 seconds per target) are
+	// used up: minutes until the next one is possible, 1 or more.
 	RetryInMin NilInt `json:"retry_in_min"`
 }
 
@@ -57605,8 +57606,9 @@ type ExposurePutExposureBoxIPSettingsOK struct {
 	IntervalMin int `json:"interval_min"`
 	// The last automatic or manual detection; null before the first one.
 	LastRun NilExposurePutExposureBoxIPSettingsOKLastRun `json:"last_run"`
-	// Null while attempts are left. When the 10 attempts an hour (shared by Detect now, Verify again and
-	// the DNS Check of a domain) are used up: minutes until the next one is possible, 1 or more.
+	// Null while attempts are left. When the 10 attempts an hour (shared by Detect now and the Verify
+	// again of an IP; the DNS Check of a domain has its own limit of one per 30 seconds per target) are
+	// used up: minutes until the next one is possible, 1 or more.
 	RetryInMin NilInt `json:"retry_in_min"`
 }
 

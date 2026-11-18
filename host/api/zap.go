@@ -56,8 +56,9 @@ type ZapBaselineArgs struct {
 	Kind     string `json:"kind"`
 	Domain   string `json:"domain,omitempty"`
 	TXTToken string `json:"txt_token,omitempty"`
-	// ProofAt: the parent name of Domain (the zone apex) where Domain's own record sits; "" = on Domain. Only with the token
-	// bound to this box for Domain (the domain fence), and between Domain and its registered domain.
+	// ProofAt: the name above Domain (the zone apex or a parent name) where the token of Domain sits; "" = on Domain. Host may then
+	// be any name under ProofAt, not only under Domain. Only with the token bound to this box for Domain (the domain fence), and
+	// between Domain and its registered domain.
 	ProofAt string `json:"proof_at,omitempty"`
 }
 

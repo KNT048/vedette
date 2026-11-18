@@ -459,17 +459,19 @@ export const handlers = [
       if (isIPv6Text(value) || (IPV4_RE.test(value) && !isPublicIp(value))) return fail(400, 'ip_not_allowed', IP_NOT_PUBLIC)
       if (!IPV4_RE.test(value)) return fail(400, 'bad_value', 'Not an IP address. Example: 203.0.113.10.')
       if (ignored.get().some((x) => x.value === value)) return fail(400, 'bad_value', `${value} is on your Ignored list. Restore it in Settings first.`)
-      const typed: StoredTarget = { id: newId('xt'), kind: 'ip', typed: true, value, token: randomToken(), method: null, verified_at: null, expires_at: null, txt_ok: false, checks: 0, last_check: null, created_at: nowIso(), last_scan_at: null }
-      targets.update((l) => [...l, typed])
-      audit('exposure.target_add', value, 'public IP, typed in; not scanned until proved')
-      return HttpResponse.json(view(typed), { status: 201 })
     }
-    if (isIPv6Text(value) || IPV4_RE.test(value)) return fail(400, 'ip_not_allowed', IP_NOT_A_DOMAIN)
-    if (/[/:@\s]/.test(value)) return fail(400, 'bad_value', 'Enter only a domain name, without http://, a path, a port or spaces. Example: example.com.')
-    if (!DOMAIN_RE.test(value)) return fail(400, 'bad_value', 'Not a valid domain. Example: example.com.')
-    const t: StoredTarget = { id: newId('xt'), kind: 'domain', value, token: randomToken(), method: 'dns_txt', verified_at: null, expires_at: null, txt_ok: false, checks: 0, last_check: null, created_at: nowIso(), last_scan_at: null }
+    let t: StoredTarget
+    if (kind === 'ip') {
+      t = { id: newId('xt'), kind: 'ip', typed: true, value, token: randomToken(), method: null, verified_at: null, expires_at: null, txt_ok: false, checks: 0, last_check: null, created_at: nowIso(), last_scan_at: null }
+      audit('exposure.target_add', value, 'public IP, typed in; not scanned until proved')
+    } else {
+      if (isIPv6Text(value) || IPV4_RE.test(value)) return fail(400, 'ip_not_allowed', IP_NOT_A_DOMAIN)
+      if (/[/:@\s]/.test(value)) return fail(400, 'bad_value', 'Enter only a domain name, without http://, a path, a port or spaces. Example: example.com.')
+      if (!DOMAIN_RE.test(value)) return fail(400, 'bad_value', 'Not a valid domain. Example: example.com.')
+      t = { id: newId('xt'), kind: 'domain', value, token: randomToken(), method: 'dns_txt', verified_at: null, expires_at: null, txt_ok: false, checks: 0, last_check: null, created_at: nowIso(), last_scan_at: null }
+      audit('exposure.target_add', value)
+    }
     targets.update((l) => [...l, t])
-    audit('exposure.target_add', value)
     return HttpResponse.json(view(t), { status: 201 })
   }),
 

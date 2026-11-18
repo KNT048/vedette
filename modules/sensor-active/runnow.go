@@ -298,8 +298,11 @@ func (s *Service) runManual(ctx context.Context, m *manualRun) {
 			return
 		}
 		dctx, cancel := context.WithTimeout(ctx, left)
-		res, err := s.IdentifyDevice(dctx, id)
+		res, err := s.identifyDevice(dctx, id, left, true) // behind a busy scanner it waits its turn, as long as the run lasts (INV-28)
 		cancel()
+		if !errors.Is(err, ErrStopped) && res.Why != WhyBusy {
+			s.dropWaiting(ctx, id) // it ran, or was refused: nothing waits any more
+		}
 		switch {
 		case errors.Is(err, ErrStopped):
 			if ctx.Err() == nil && s.clock().Before(m.Until) && !s.off.Load() {
@@ -313,8 +316,8 @@ func (s *Service) runManual(ctx context.Context, m *manualRun) {
 			s.log.WarnContext(ctx, "sensoractive: a device check a person started failed", "asset", id, "error", err)
 		case res.Why == reasonScanningOff || res.Why == reasonScopeNotConfirmed: // discovery turned off, or the scope, since it started
 			return
-		case res.Why == WhyBusy: // another run kept nmap (an exposure scan): the window's queue takes it, never a silent skip (L5)
-			s.queueRest(ctx, []string{id}, "nmap was busy")
+		case res.Why == WhyBusy: // the slot did not come free within the run's own hour: the window's queue takes it, never a silent skip (L5)
+			s.queueRest(ctx, []string{id}, "nmap was busy for the whole run")
 		case res.Why != "":
 			s.log.InfoContext(ctx, "sensoractive: a device check a person started found nothing to record", "asset", id, "why", res.Why)
 		}
@@ -330,6 +333,56 @@ func (s *Service) queueRest(ctx context.Context, ids []string, why string) {
 		}
 	}
 	s.log.WarnContext(ctx, "sensoractive: devices a person asked to check wait for the next window", "devices", len(ids), "why", why)
+}
+
+// dropWaiting forgets the row a check a person started kept in the queue while it waited for nmap.
+func (s *Service) dropWaiting(ctx context.Context, id string) {
+	err := s.db.Write(context.WithoutCancel(ctx), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx, `DELETE FROM sa_queue WHERE asset_id = ? AND reason = ?`, id, reasonCheckWait)
+		return err
+	})
+	if err != nil {
+		s.log.WarnContext(ctx, "sensoractive: forgetting a waiting device check failed", "asset", id, "error", err)
+	}
+}
+
+// resumeChecks starts again the checks a person started that were waiting for nmap when the process stopped (their rows are
+// check_wait): at the first ticks after a restart, whatever the window, as the person's own run (INV-28). A refusal that is the
+// device's (no longer scannable, out of scope) forgets the row; one that is the box's (scanning off, nmap missing, a run going on)
+// leaves it for a later tick.
+func (s *Service) resumeChecks(ctx context.Context) {
+	s.mu.Lock()
+	busy := s.manual != nil
+	s.mu.Unlock()
+	if busy || s.off.Load() {
+		return
+	}
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT asset_id FROM sa_queue WHERE reason = ? ORDER BY queued_at, asset_id LIMIT ?`, reasonCheckWait, MaxManualTargets)
+	if err != nil {
+		s.log.WarnContext(ctx, "sensoractive: reading the waiting device checks failed", "error", err)
+		return
+	}
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err == nil {
+			ids = append(ids, id)
+		}
+	}
+	_ = rows.Close()
+	if len(ids) == 0 {
+		return
+	}
+	_, err = s.StartManual(ctx, ids, nil)
+	var te *TargetError
+	switch {
+	case err == nil:
+		s.log.InfoContext(ctx, "sensoractive: device checks a person started were waiting for nmap before the restart; they run now", "devices", len(ids))
+	case errors.As(err, &te):
+		s.dropWaiting(ctx, te.Target) // the target is the id the row holds
+	case errors.Is(err, ErrNotFound):
+		// the next tick meets it again through the policy
+	}
 }
 
 // manualSweep is "Scan the LAN now": the sweep from the first address of the scope, then the scans of the devices it queued (the

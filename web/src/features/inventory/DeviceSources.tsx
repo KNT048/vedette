@@ -14,7 +14,9 @@ import { SnmpSourceActions, SnmpSourceBody, useSnmpSource } from './SnmpCard'
 import { TurnOnModule } from './Inline'
 import { useAgentReport, useAgents, useDeviceAction, useDeviceSources, useSettings } from './api'
 import { AgentQuietNote } from './AgentQuiet'
-import { useScanningHistory } from '@/features/scanning/api'
+import { useScanning, useScanningHistory } from '@/features/scanning/api'
+import { ScanNowButton } from '@/features/scanning/ScanNow'
+import { firstCheck } from './firstCheck'
 import { inRanges } from './AddToScopeDialog'
 import { nameOf } from './nameOf'
 import { actsAs, kindLabel } from '@/lib/deviceTypes'
@@ -83,6 +85,22 @@ function When({ at, text }: { at: string; text: string }) {
   return <time className="text-caption text-muted" dateTime={at} title={fmtDateTime(at)}>{text}</time>
 }
 
+/** The network scan's words while the switch is on and no check has reached the device: when its first check happens, from the scan
+ *  window of Settings › Scanning (never "Not set up" while the switch is on), and why not when something stops it. */
+function FirstCheckText({ d }: { d: DeviceDetail }) {
+  const { t } = useTranslation('inventory')
+  const q = useScanning()
+  if (!q.data) return <span className="text-meta text-muted">{t('sources.scan.firstNext')}</span>
+  const disc = q.data.engines.find((e) => e.id === 'nmap-discovery') ?? null
+  const f = firstCheck({ ip: d.asset.ip, window: q.data.safety.window, scope: q.data.safety.scope, discovery: disc, now: new Date() })
+  const text = f.when === 'waiting' ? t(`sources.scan.waiting.${f.why}`)
+    : f.when === 'now' ? t('sources.scan.firstNow')
+    : f.when === 'next' ? t('sources.scan.firstNext')
+    : f.when === 'day' ? t('sources.scan.firstDay', { day: f.day, time: f.time })
+    : t(f.when === 'tonight' ? 'sources.scan.firstTonight' : 'sources.scan.firstTomorrow', { time: f.time })
+  return <span className="text-meta text-muted">{text}</span>
+}
+
 /** The person's switch of one active source of the box for this device (network scan, SNMP), with what on and off mean in one
  *  line. Admin only; others see it locked with the reason. An agent has no switch: it is installed or uninstalled on the machine.
  *  The SNMP switch is drawn only for a device with SNMP settings (DeviceSources): without them "On" would claim reads that never happen. */
@@ -121,6 +139,9 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
   const approve = useDeviceAction(d.asset.id).approve
   const a = d.asset
   const feeds = feedsOf(d)
+  // The switch is on and nothing has reached the device yet (no report, no device check): its first check is the next window's.
+  const history = useScanningHistory(d.asset.id)
+  const firstDue = a.scan_source === 'on' && !feeds.has('scan') && !!history.data && !history.data.items.some((r) => r.kind === 'device')
   const ip = a.ip && IPV4.test(a.ip) ? a.ip : ''
   const declared = a.origin === 'manual'
   // Whether the device has SNMP settings of its own (the same query as its SNMP card): true, false, or null when not known (loading,
@@ -168,6 +189,8 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
       const setUp = snmpHere ? <Button size="sm" variant="primary" onClick={() => snmp.setEditing(true)}>{t('sources.snmp.setUp')}</Button> : null
       return <span className="flex flex-wrap items-center gap-2">{setUp}{undecided ? install : null}</span>
     }
+    // the first check is the window's; a person may ask for it now
+    if (f === 'scan' && firstDue && admin) return <ScanNowButton targets={[a.id]} size="sm" variant="secondary" showProgress={false} />
     return null
   }
   // A person's entry is the manual source in use (INV-46): manual_at says so even for a hand-added device with no manual row left.
@@ -190,7 +213,10 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
               <span className="text-sm font-medium" title={act ? undefined : t(`sources.what.${f}`)}>{t(`sources.name.${f}`)}</span>
               {act ? <InfoTip topic={t(`sources.name.${f}`)}>{t(`sources.what.${f}`)}</InfoTip> : null}
               {/* the SNMP row says its own state below (working, waiting, not set up...): a second word here would contradict it */}
-              {f === 'snmp' && ownState ? null : <span className="text-meta text-muted">{on ? t('sources.feeds') : t('sources.notYet')}</span>}
+              {f === 'snmp' && ownState ? null
+                : f === 'scan' && firstDue ? <FirstCheckText d={d} />
+                : f === 'scan' && a.scan_source === 'on' ? <span className="text-meta text-muted">{on ? t('sources.feeds') : t('sources.scan.on')}</span>
+                : <span className="text-meta text-muted">{on ? t('sources.feeds') : t('sources.notYet')}</span>}
               {f === 'scan' ? <ScanTimes id={a.id} seen={at} />
                 : f === 'manual' ? <ManualTime d={d} />
                 : at ? <When at={at} text={t('sources.lastSeen', { when: fmtRelative(at) })} /> : null}

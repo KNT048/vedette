@@ -179,6 +179,9 @@ type running struct {
 	started time.Time // when it was registered (setCur), for Settings › Scanning
 	// manual: a run of a person's "Scan the LAN now" (INV-21): the window it is checked against is its manualUntil too (windowNow).
 	manual bool
+	// view is the run's own progress (the exposure scan reports it through the Tracker of its context), for the person's check that
+	// waits behind it (INV-28); nil when the run reports none.
+	view func() *progress.View
 }
 
 // New returns the service.
@@ -1377,8 +1380,9 @@ func (s *Service) lockRun(ctx context.Context) {
 
 // lockWithin takes runMu, trying every half second for at most d; false when it could not (or ctx ended). Its callers (a Scan now
 // identification, an exposure scan) go before the weekly scan of every port: a weekly run that holds the slot is
-// stopped (it stays due; its partial result is dropped), and the weekly round starts no device while one waits.
-func (s *Service) lockWithin(ctx context.Context, d time.Duration) bool {
+// stopped (it stays due; its partial result is dropped), and the weekly round starts no device while one waits. onWait, when set, is
+// called when the slot is found taken and every waitNote after.
+func (s *Service) lockWithin(ctx context.Context, d time.Duration, onWait func()) bool {
 	if s.runMu.TryLock() {
 		return true
 	}
@@ -1389,6 +1393,10 @@ func (s *Service) lockWithin(ctx context.Context, d time.Duration) bool {
 	defer give.Stop()
 	tick := time.NewTicker(500 * time.Millisecond)
 	defer tick.Stop()
+	last := time.Now()
+	if onWait != nil {
+		onWait()
+	}
 	for {
 		select {
 		case <-ctx.Done():
@@ -1400,8 +1408,50 @@ func (s *Service) lockWithin(ctx context.Context, d time.Duration) bool {
 			if s.runMu.TryLock() {
 				return true
 			}
+			if onWait != nil && time.Since(last) >= waitNote {
+				last = time.Now()
+				onWait()
+			}
 		}
 	}
+}
+
+// waitNote is how often the page's words about a wait for the nmap slot are made again (the estimate moves).
+const waitNote = 5 * time.Second
+
+// reasonCheckWait is the queue reason of a device check a person started that waits for the nmap slot.
+const reasonCheckWait = "check_wait"
+
+// waitingFor says what a person's check waits for, in the words of the page: the running exposure scan with its estimate when the
+// scan reports one (rounded up to a minute), without a time when it does not.
+func (s *Service) waitingFor() string {
+	s.mu.Lock()
+	cur := s.cur
+	var view func() *progress.View
+	external := false
+	if cur != nil {
+		view, external = cur.view, cur.external
+	}
+	s.mu.Unlock()
+	switch {
+	case cur == nil:
+		return "Waiting for the scanner to be free"
+	case !external:
+		return "Waiting for the running network scan to finish"
+	}
+	msg := "Waiting for the running external scan to finish"
+	if view != nil {
+		if v := view(); v != nil && v.ETA != nil {
+			if at, err := time.Parse(time.RFC3339Nano, *v.ETA); err == nil {
+				if left := at.Sub(s.clock()); left > time.Minute {
+					msg += fmt.Sprintf(", about %d min", int((left+time.Minute-1)/time.Minute))
+				} else if left > 0 {
+					msg += ", less than a minute"
+				}
+			}
+		}
+	}
+	return msg
 }
 
 // stopWeekly cancels the weekly scan of every port that holds the slot, if one does.
@@ -1421,8 +1471,28 @@ func (s *Service) stopWeekly() {
 // A refusal publishes sensor.scan.blocked and sends nothing. The result says what was recorded, or why nothing was; err is
 // ErrStopped when the run was stopped, ErrNotFound for an unknown device, or a failure of nmap, the worker or storage.
 func (s *Service) IdentifyDevice(ctx context.Context, assetID string) (Identification, error) {
+	return s.identifyDevice(ctx, assetID, busyWait, false)
+}
+
+// identifyDevice is IdentifyDevice that waits up to wait for the slot. person is a check a person started (Check this device now):
+// it waits right behind whatever holds nmap, for as long as its run lasts (INV-28), says on its progress what it waits for, and keeps
+// a row in the queue while it waits so a restart does not lose it.
+func (s *Service) identifyDevice(ctx context.Context, assetID string, wait time.Duration, person bool) (Identification, error) {
 	stops := s.stops.Load()
-	if !s.lockWithin(ctx, busyWait) { // discovery is running nmap: Scan now does not wait for a sweep that may last the whole window
+	var onWait func()
+	waited := false
+	if person {
+		onWait = func() {
+			if !waited {
+				waited = true
+				if err := s.Enqueue(context.WithoutCancel(ctx), assetID, reasonCheckWait); err != nil {
+					s.log.WarnContext(ctx, "sensoractive: keeping a device check a person started while it waits failed", "asset", assetID, "error", err)
+				}
+			}
+			progress.Report(ctx, progress.Update{Phase: progress.PhaseDiscovery, Percent: -1, Message: s.waitingFor()})
+		}
+	}
+	if !s.lockWithin(ctx, wait, onWait) { // discovery is running nmap: Scan now does not wait for a sweep that may last the whole window
 		if ctx.Err() != nil {
 			return Identification{}, ErrStopped
 		}
@@ -1431,6 +1501,9 @@ func (s *Service) IdentifyDevice(ctx context.Context, assetID string) (Identific
 	defer s.runMu.Unlock()
 	if s.stops.Load() != stops { // the module was turned off while it waited (#723)
 		return Identification{}, ErrStopped
+	}
+	if waited {
+		progress.Report(ctx, progress.Phase(progress.PhaseDiscovery, "")) // the waiting words go
 	}
 	jctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -1645,6 +1718,7 @@ func (s *Service) Tick(ctx context.Context) error {
 	if st.allowed() != nil {
 		return nil
 	}
+	s.resumeChecks(ctx)
 	start, _, ok := st.window(s.local())
 	if !ok {
 		due, err := s.firstPassDue(ctx)
@@ -1656,6 +1730,14 @@ func (s *Service) Tick(ctx context.Context) error {
 	if err := s.available(ctx); err != nil {
 		return err
 	}
+	// The devices a person turned the network scan on for, that a new range now covers, or that no check ever reached are checked
+	// first, before the sweep: a sweep of wide ranges takes the whole window and the queue behind it would wait for the next one (INV-27).
+	if err := s.queueOwedNormal(ctx, start); err != nil {
+		s.log.WarnContext(ctx, "sensoractive: queueing the devices that owe a scan failed; tried again in the next window", "error", err)
+	}
+	if err := s.drainQueue(ctx, firstReasons, firstBeforeSweep); err != nil {
+		return err
+	}
 	var done int
 	err = s.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM sa_job WHERE kind = 'sweep' AND status IN ('running', 'done', 'failed') AND started_at >= ?`, store.FormatTS(start)).Scan(&done)
 	if err != nil {
@@ -1665,9 +1747,6 @@ func (s *Service) Tick(ctx context.Context) error {
 		if _, err := s.DiscoverRanges(ctx); err != nil && !errors.Is(err, ErrStopped) && !errors.Is(err, ErrOutsideWindow) {
 			s.log.WarnContext(ctx, "sensoractive: the sweep did not run", "error", err)
 		}
-	}
-	if err := s.queueOwedNormal(ctx, start); err != nil {
-		s.log.WarnContext(ctx, "sensoractive: queueing the devices that owe a normal scan failed; tried again in the next window", "error", err)
 	}
 	if err := s.drain(ctx); err != nil {
 		return err
@@ -1736,16 +1815,34 @@ func (s *Service) firstPass(ctx context.Context) error {
 	return s.drain(ctx)
 }
 
+// firstReasons are the queue reasons of a device whose first check is owed (INV-27): its network scan was turned on, a range now
+// covers it, no check ever reached it, or a person's check had to wait. firstBeforeSweep is the most of them one tick scans before the
+// window's sweep; the rest follow the sweep as every queued device does.
+var firstReasons = []string{"scan_on", "first_check", "check_wait", "check_now"}
+
+const firstBeforeSweep = 25
+
 // drain scans the queued devices in order while the window is open.
-func (s *Service) drain(ctx context.Context) error {
+func (s *Service) drain(ctx context.Context) error { return s.drainQueue(ctx, nil, 0) }
+
+// drainQueue is drain for the queued devices with one of reasons (all when nil), at most limit of them (all when 0).
+func (s *Service) drainQueue(ctx context.Context, reasons []string, limit int) error {
 	list, err := s.queue(ctx)
 	if err != nil {
 		return err
 	}
+	scanned := 0
 	for _, q := range list {
 		if ctx.Err() != nil {
 			return nil
 		}
+		if reasons != nil && !slices.Contains(reasons, q.reason) {
+			continue
+		}
+		if limit > 0 && scanned >= limit {
+			return nil
+		}
+		scanned++
 		err := s.ScanDevice(ctx, q.id, q.reason)
 		switch {
 		case err == nil, errors.Is(err, ErrBlocked), errors.Is(err, ErrNotFound):
@@ -1769,6 +1866,12 @@ func (s *Service) drain(ctx context.Context) error {
 // now. The next batch reads the new settings by itself.
 func (s *Service) SettingsChanged(ctx context.Context) error {
 	s.ver.Add(1)
+	// A range added or changed, the window or the rate: the devices it now covers owe their first check, so the next window tick
+	// looks at every device again (INV-27).
+	s.owedQueued.Store(nil)
+	s.mu.Lock()
+	s.owedTried = nil
+	s.mu.Unlock()
 	s.snmpChanged(ctx, "")
 	s.mu.Lock()
 	cur := s.cur

@@ -297,6 +297,7 @@ func (s *Service) Record(ctx context.Context, batch []observe.Observation) error
 		touched := []string{}
 		evidence := map[string]bool{}  // devices an observation found by its MAC, address or agent: only those run the join rules
 		before := map[string]string{}  // what the findings matcher reads of each device (matchView), before the batch
+		wasQuiet := map[string]bool{}  // devices that were quiet (INV-49) before the batch: one that is not after it gets its new-device notice
 		binds := map[string]cleanObs{} // device → an observation of the agent that reported on it
 		for _, c := range clean {
 			if c.source != string(observe.Agent) {
@@ -334,6 +335,11 @@ func (s *Service) Record(ctx context.Context, batch []observe.Observation) error
 				touched = append(touched, id)
 				if before[id], err = matchView(ctx, tx, id); err != nil {
 					return err
+				}
+				if !isNew {
+					if wasQuiet[id], err = isQuiet(ctx, tx, id); err != nil {
+						return err
+					}
 				}
 			}
 			if err := insertPruned(ctx, tx, id, c.field, c.value, c.source, c.conf, c.seenAt); err != nil {
@@ -381,9 +387,18 @@ func (s *Service) Record(ctx context.Context, batch []observe.Observation) error
 			match := after != before[id] || slices.Contains(joined, id) // findings matches the device again only when its OS or model changed; or another device joined it
 			switch {
 			case created[id] != "":
-				o.add(EventAssetDiscovered, AssetEvent{AssetID: id, Notify: notify, Match: match, Learning: learn[created[id]]})
+				quiet, err := isQuiet(ctx, tx, id) // a rotating private address is announced only once it earns a look (INV-49)
+				if err != nil {
+					return err
+				}
+				o.add(EventAssetDiscovered, AssetEvent{AssetID: id, Notify: notify && !quiet, Match: match, Learning: learn[created[id]]})
 			case changed || match:
 				o.add(EventAssetUpdated, AssetEvent{AssetID: id, Match: match})
+			}
+			if created[id] == "" {
+				if err := announceIfEarned(ctx, tx, o, id, wasQuiet[id]); err != nil {
+					return err
+				}
 			}
 		}
 		return nil

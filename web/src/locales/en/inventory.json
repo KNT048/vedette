@@ -11,6 +11,9 @@
     "suspicious": "Marked unknown",
     "fragile": "Fragile",
     "fragileHint": "Passive listening only, never actively scanned, so it does not hang.",
+    "privateMac": "Private address",
+    "privateMacHint": "Its MAC is a private (randomised) address the device picks for itself and changes, so it may show up again under a new one.",
+    "quietHint": "Private address, not approved. It is not in To review: it has no open service and has not stayed long. It moves to To review if it opens a service or keeps coming back for more than a day.",
     "declared": "Declared software",
     "declaredHint": "A product you said you run, with no address or name. Nothing scans it; it is checked against exploited vulnerabilities by its product."
   },
@@ -316,7 +319,12 @@
     "pending": "This device is not approved yet",
     "suspicious": "This device is marked unknown",
     "body": "Approve it if you recognise it.",
-    "bodyInfo": "Until then it is still tracked but stays in the waiting list."
+    "bodyInfo": "Until then it is still tracked but stays in the waiting list.",
+    "quiet": "This device uses a private address and is not approved yet",
+    "quietBody": "Phones and laptops change their private address, so this one is not in To review while it shows nothing to look at. It moves there if it opens a service or keeps coming back for more than a day. Approve it if you recognise it."
+  },
+  "privateMac": {
+    "note": "This device uses a private (randomised) MAC address. Phones and laptops pick one per network and may change it, so the address can differ the next time and a device seen again under a new address is joined to this one by its host name when that name is its own."
   },
   "obs": {
     "title": "All observations",

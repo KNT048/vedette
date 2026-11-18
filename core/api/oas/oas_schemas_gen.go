@@ -100535,7 +100535,8 @@ func (s *InventoryGetInventoryCatalogOKItemsItemKind) UnmarshalText(data []byte)
 	}
 }
 
-// True: the Devices list (approved); false: To review.
+// True: the Devices list (approved, and quiet private-address devices); false: To review (not
+// approved, not quiet).
 type InventoryGetInventoryDevicesApproved string
 
 const (
@@ -100813,6 +100814,13 @@ type InventoryGetInventoryDevicesIDOKAsset struct {
 	Os     NilInventoryGetInventoryDevicesIDOKAssetOs  `json:"os"`
 	// The OS a person set (PATCH os, INV-41); absent when none: os is then what the sources read.
 	OsCorrection OptInventoryGetInventoryDevicesIDOKAssetOsCorrection `json:"os_correction"`
+	// The MAC is a private (randomised) address the device picks for itself and changes (locally
+	// administered, not a stable virtual prefix such as QEMU/KVM, Docker or VirtualBox).
+	PrivateMAC bool `json:"private_mac"`
+	// Not approved, but held out of To review and of the new-device notice: a private-address device with
+	// no open service that has not stayed past a day. It is listed with the approved devices and moves to
+	// To review when it earns a look; false for every approved device.
+	Quiet bool `json:"quiet"`
 	// Per-device override of the type setting for regular scans after the one gentle scan; never = never
 	// actively scanned again, for every kind of device.
 	RegularScan InventoryGetInventoryDevicesIDOKAssetRegularScan `json:"regular_scan"`
@@ -100933,6 +100941,16 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) GetOs() NilInventoryGetInventory
 // GetOsCorrection returns the value of OsCorrection.
 func (s *InventoryGetInventoryDevicesIDOKAsset) GetOsCorrection() OptInventoryGetInventoryDevicesIDOKAssetOsCorrection {
 	return s.OsCorrection
+}
+
+// GetPrivateMAC returns the value of PrivateMAC.
+func (s *InventoryGetInventoryDevicesIDOKAsset) GetPrivateMAC() bool {
+	return s.PrivateMAC
+}
+
+// GetQuiet returns the value of Quiet.
+func (s *InventoryGetInventoryDevicesIDOKAsset) GetQuiet() bool {
+	return s.Quiet
 }
 
 // GetRegularScan returns the value of RegularScan.
@@ -101073,6 +101091,16 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) SetOs(val NilInventoryGetInvento
 // SetOsCorrection sets the value of OsCorrection.
 func (s *InventoryGetInventoryDevicesIDOKAsset) SetOsCorrection(val OptInventoryGetInventoryDevicesIDOKAssetOsCorrection) {
 	s.OsCorrection = val
+}
+
+// SetPrivateMAC sets the value of PrivateMAC.
+func (s *InventoryGetInventoryDevicesIDOKAsset) SetPrivateMAC(val bool) {
+	s.PrivateMAC = val
+}
+
+// SetQuiet sets the value of Quiet.
+func (s *InventoryGetInventoryDevicesIDOKAsset) SetQuiet(val bool) {
+	s.Quiet = val
 }
 
 // SetRegularScan sets the value of RegularScan.
@@ -106155,6 +106183,13 @@ type InventoryGetInventoryDevicesOKItemsItem struct {
 	Notes  OptString                                     `json:"notes"`
 	Origin InventoryGetInventoryDevicesOKItemsItemOrigin `json:"origin"`
 	Os     NilInventoryGetInventoryDevicesOKItemsItemOs  `json:"os"`
+	// The MAC is a private (randomised) address the device picks for itself and changes (locally
+	// administered, not a stable virtual prefix such as QEMU/KVM, Docker or VirtualBox).
+	PrivateMAC bool `json:"private_mac"`
+	// Not approved, but held out of To review and of the new-device notice: a private-address device with
+	// no open service that has not stayed past a day. It is listed with the approved devices and moves to
+	// To review when it earns a look; false for every approved device.
+	Quiet bool `json:"quiet"`
 	// Per-device override of the type setting for regular scans after the one gentle scan; never = never
 	// actively scanned again, for every kind of device.
 	RegularScan InventoryGetInventoryDevicesOKItemsItemRegularScan `json:"regular_scan"`
@@ -106283,6 +106318,16 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) GetOrigin() InventoryGetInvent
 // GetOs returns the value of Os.
 func (s *InventoryGetInventoryDevicesOKItemsItem) GetOs() NilInventoryGetInventoryDevicesOKItemsItemOs {
 	return s.Os
+}
+
+// GetPrivateMAC returns the value of PrivateMAC.
+func (s *InventoryGetInventoryDevicesOKItemsItem) GetPrivateMAC() bool {
+	return s.PrivateMAC
+}
+
+// GetQuiet returns the value of Quiet.
+func (s *InventoryGetInventoryDevicesOKItemsItem) GetQuiet() bool {
+	return s.Quiet
 }
 
 // GetRegularScan returns the value of RegularScan.
@@ -106443,6 +106488,16 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) SetOrigin(val InventoryGetInve
 // SetOs sets the value of Os.
 func (s *InventoryGetInventoryDevicesOKItemsItem) SetOs(val NilInventoryGetInventoryDevicesOKItemsItemOs) {
 	s.Os = val
+}
+
+// SetPrivateMAC sets the value of PrivateMAC.
+func (s *InventoryGetInventoryDevicesOKItemsItem) SetPrivateMAC(val bool) {
+	s.PrivateMAC = val
+}
+
+// SetQuiet sets the value of Quiet.
+func (s *InventoryGetInventoryDevicesOKItemsItem) SetQuiet(val bool) {
+	s.Quiet = val
 }
 
 // SetRegularScan sets the value of RegularScan.
@@ -109994,7 +110049,8 @@ func (s *InventoryGetInventoryDevicesOKItemsItemVendorSource) UnmarshalText(data
 	}
 }
 
-// True: the Devices list (approved); false: To review.
+// True: the Devices list (approved, and quiet private-address devices); false: To review (not
+// approved, not quiet).
 type InventoryGetInventoryExportCsvApproved string
 
 const (

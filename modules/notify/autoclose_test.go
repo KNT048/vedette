@@ -371,6 +371,31 @@ func TestApprovedInDevicesClosesTheNewDeviceIncident(t *testing.T) {
 	}
 }
 
+// A quiet device (a private Wi-Fi address nobody had a reason to look at) sends its new-device notice with the update that
+// says it earned one (inventory INV-49): the incident opens then, and a plain update opens none.
+func TestAQuietDeviceEarnsItsNotice(t *testing.T) {
+	devs := &stateDevices{m: map[string]notify.DeviceState{"p1": {Name: "Johns-iPhone", Address: "192.168.18.129"}}}
+	e := newEnv(t, func(c *notify.Config) { c.Devices = devs })
+	e.firstRunAt(e.clock.Now().Add(-48 * time.Hour))
+	e.svc.Subscribe(e.bus)
+	publish := func(name string, data any) {
+		t.Helper()
+		if err := e.bus.Publish(e.ctx(), eventOf(name, data)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	publish(inventory.EventAssetDiscovered, inventory.AssetEvent{AssetID: "p1", Notify: false})
+	publish(inventory.EventAssetUpdated, inventory.AssetEvent{AssetID: "p1"})
+	if l, _ := e.svc.Incidents(e.ctx()); len(l) != 0 {
+		t.Fatalf("incidents before it earned a notice: %+v", l)
+	}
+	publish(inventory.EventAssetUpdated, inventory.AssetEvent{AssetID: "p1", Notify: true})
+	l, _ := e.svc.Incidents(e.ctx())
+	if len(l) != 1 || l[0].Title != "A new unknown device appeared: Johns-iPhone (192.168.18.129)" {
+		t.Fatalf("incidents after: %+v", l)
+	}
+}
+
 // devices approved before this version (no event will come) leave their new-device incidents on the next autoclose
 // run; a device not approved stays open with its current name, and a device the inventory no longer has is left to INV-20.
 func TestAutoCloseClosesNewDeviceIncidentsOfApprovedDevices(t *testing.T) {

@@ -21,7 +21,7 @@ const phone = (p: Partial<Asset> & { id: string }): Asset => ({
 })
 // The approved phone, then the same phone back with a new private Wi-Fi address (locally administered MACs), waiting for review.
 const KNOWN = phone({ id: 'a-ph1', hostname: 'iPhone.lan', mac: 'da:a1:19:00:00:01', last_seen: ago(2) })
-const BACK = phone({ id: 'a-ph2', ip: '192.168.10.161', mac: '6a:b2:19:00:00:02', approved: false, first_seen: ago(0) })
+const BACK = phone({ id: 'a-ph2', ip: '192.168.10.161', mac: '6a:b2:19:00:00:02', approved: false, first_seen: ago(3) }) // stayed past a day: in To review, not quiet
 
 beforeEach(() => {
   ensureBox()

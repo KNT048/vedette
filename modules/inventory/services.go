@@ -125,7 +125,14 @@ func (s *Service) services(ctx context.Context, hint observe.AssetHint, source o
 		if err != nil || id == "" { // "": no device may take the list (resolve)
 			return err
 		}
-		return replaceServicesTx(ctx, tx, id, clean, string(source), now, replace)
+		quiet, err := isQuiet(ctx, tx, id)
+		if err != nil {
+			return err
+		}
+		if err := replaceServicesTx(ctx, tx, id, clean, string(source), now, replace); err != nil {
+			return err
+		}
+		return announceIfEarned(ctx, tx, o, id, quiet) // an open service is a reason to look (INV-49)
 	})
 }
 

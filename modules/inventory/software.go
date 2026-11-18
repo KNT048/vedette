@@ -404,7 +404,11 @@ func (s *Service) deviceFor(ctx context.Context, tx *sql.Tx, o *outbox, c cleanO
 	if err != nil || kept != id { // joined into a known device in the same write: never announced
 		return kept, err
 	}
-	o.add(EventAssetDiscovered, AssetEvent{AssetID: id, Notify: notify, Learning: learning})
+	quiet, err := isQuiet(ctx, tx, id) // a rotating private address is announced only once it earns a look (INV-49)
+	if err != nil {
+		return "", err
+	}
+	o.add(EventAssetDiscovered, AssetEvent{AssetID: id, Notify: notify && !quiet, Learning: learning})
 	return id, nil
 }
 

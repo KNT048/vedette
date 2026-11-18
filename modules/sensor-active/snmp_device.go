@@ -102,7 +102,7 @@ func (s *Service) ReadAddresses(ctx context.Context) (map[string]netip.Addr, err
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	out := map[string]netip.Addr{}
 	for rows.Next() {
 		var id, from string

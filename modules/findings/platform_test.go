@@ -355,6 +355,20 @@ func TestPlatform_PackageFormatOnlyRulesOutNonDebRPMEntries(t *testing.T) {
 	}
 }
 
+// An agent row whose package release is an Alpine apk release (the package reporter's) is Alpine evidence, not "deb or rpm": a limit that
+// excludes Alpine rules it out, and one that names only Alpine does not.
+func TestPlatform_AgentApkReleaseIsAlpineEvidence(t *testing.T) {
+	t.Parallel()
+	apk := swInfo{ver: "10.2p1", packaged: true, pkgVer: "10.2_p1-r1"}
+	if _, out := ruledOut(platformLimit{Only: []string{"alpine"}, Affects: "x"}, evidenceOf(apk), "CVE-2099-0001"); out {
+		t.Error("an Alpine-only entry was ruled out by the device's apk package")
+	}
+	why, out := ruledOut(platformLimit{Only: []string{"debian"}, Affects: "x"}, evidenceOf(apk), "CVE-2099-0001")
+	if !out || !strings.Contains(why, "Alpine apk database") || strings.Contains(why, "deb or rpm") {
+		t.Errorf("debian-only entry: %q %v", why, out)
+	}
+}
+
 // Review r1 #4: the word that rules a CVE out is always in the sentence shown: one past the shown text decides nothing.
 func TestPlatform_RulingWordIsInTheReason(t *testing.T) {
 	t.Parallel()

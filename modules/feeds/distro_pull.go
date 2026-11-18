@@ -329,12 +329,13 @@ func (s *Store) DistroFixes(ctx context.Context) (map[string][]DistroFix, error)
 	return s.distroFixes(ctx, "")
 }
 
-// DistroLoading lists the distributions one of whose feeds is on but holds no row: never filled, or every
-// pull failed. findings then keeps an Alpine CVE of the platform list a question ("not loaded yet") instead of letting NVD decide; a
+// DistroLoading lists the distributions one of whose feeds is on but holds no row while a first pull can still come: never
+// completed, not yet failed DistroGiveUpFailures times in a row, and the CISA list it waits for on the box or still coming
+// (kevCanArrive). findings then keeps an Alpine CVE of the platform list a question ("not loaded yet") instead of letting NVD decide; a
 // feed that is off is not loading (its distribution falls back to NVD), and one with rows from an earlier good pull decides with them.
 func (s *Store) DistroLoading(ctx context.Context) (map[string]bool, error) {
 	rows, err := s.db.Reader().QueryContext(ctx, `SELECT id FROM feeds_source s WHERE s.enabled = 1 AND s.builtin = 1 AND s.id IN ('alpine-osv', 'debian-tracker', 'ubuntu-osv', 'ubuntu-vex')
-AND NOT EXISTS (SELECT 1 FROM feeds_distro_fix d WHERE d.source_id = s.id)`)
+AND NOT EXISTS (SELECT 1 FROM feeds_distro_fix d WHERE d.source_id = s.id) AND s.last_success IS NULL AND s.failures < ? AND `+kevCanArrive, DistroGiveUpFailures, DistroGiveUpFailures)
 	if err != nil {
 		return nil, fmt.Errorf("feeds: distro loading: %w", err)
 	}
@@ -350,6 +351,13 @@ AND NOT EXISTS (SELECT 1 FROM feeds_distro_fix d WHERE d.source_id = s.id)`)
 	return out, rows.Err()
 }
 
+// kevCanArrive is true while the CISA list the distribution feeds wait for (errDistroWaits) is on the box or can still come: its
+// feed is on and has either rows or not yet failed DistroGiveUpFailures times in a row with none completed. A distribution feed
+// that waits on a list that cannot come (turned off, blocked) records nothing, so without this it would be loading for good.
+// It takes one argument: DistroGiveUpFailures.
+const kevCanArrive = `(EXISTS (SELECT 1 FROM feeds_vuln WHERE source_id = 'cisa-kev') OR EXISTS (SELECT 1 FROM feeds_source k WHERE k.id = 'cisa-kev'
+AND k.enabled = 1 AND k.last_success IS NULL AND k.failures < ?))`
+
 // DistroGiveUpFailures is how many pulls in a row may fail, with none ever completed, before the plan stops waiting for a
 // distribution feed (KEVStaleChecks: the same count of checks after which the exploited list is called stale).
 const DistroGiveUpFailures = KEVStaleChecks
@@ -360,7 +368,7 @@ const DistroGiveUpFailures = KEVStaleChecks
 // security updates" for its devices instead of leaving them unchecked for good.
 func (s *Store) DistroPlanLoading(ctx context.Context) (map[string]bool, error) {
 	rows, err := s.db.Reader().QueryContext(ctx, `SELECT id FROM feeds_source WHERE enabled = 1 AND builtin = 1 AND id IN ('alpine-osv', 'debian-tracker', 'ubuntu-osv')
-AND last_success IS NULL AND failures < ?`, DistroGiveUpFailures)
+AND last_success IS NULL AND failures < ? AND `+kevCanArrive, DistroGiveUpFailures, DistroGiveUpFailures)
 	if err != nil {
 		return nil, fmt.Errorf("feeds: distro plan loading: %w", err)
 	}

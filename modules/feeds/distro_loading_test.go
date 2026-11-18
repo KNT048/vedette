@@ -56,4 +56,25 @@ func TestDistroPlanLoading(t *testing.T) {
 	if loading()[DistroDebian] {
 		t.Fatalf("a feed that is off is loading: %v", loading())
 	}
+	// a feed that waits for the CISA list records nothing: it is loading only while that list can still come
+	set(debianTrackerFeedID, `enabled = 1`)
+	if !loading()[DistroDebian] {
+		t.Fatalf("waiting for a CISA list still coming: %v", loading())
+	}
+	set(kevFeedID, `enabled = 0`)
+	if loading()[DistroDebian] {
+		t.Fatalf("the CISA list is off, the distribution waits for good: %v", loading())
+	}
+	set(kevFeedID, `enabled = 1, failures = 6, status = 'error'`)
+	if loading()[DistroDebian] {
+		t.Fatalf("the CISA list is blocked, the distribution waits for good: %v", loading())
+	}
+	// the platform question's reading follows the same rule
+	if l, err := e.svc.st.DistroLoading(t.Context()); err != nil || l[DistroDebian] {
+		t.Fatalf("platform loading with the CISA list blocked: %v %v", l, err)
+	}
+	set(kevFeedID, `failures = 0, status = 'never'`)
+	if l, err := e.svc.st.DistroLoading(t.Context()); err != nil || !l[DistroDebian] {
+		t.Fatalf("platform loading while the first pulls can come: %v %v", l, err)
+	}
 }

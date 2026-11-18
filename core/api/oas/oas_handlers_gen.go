@@ -29861,6 +29861,330 @@ func (s *Server) handleInventoryPostInventoryDevicesIDApproveRequest(args [1]str
 	}
 }
 
+// handleInventoryPostInventoryDevicesIDDiffersFieldKeepRequest handles inventory_post_inventory_devices_id_differs_field_keep operation.
+//
+// Keep the person's value against the detected one (INV-47): the notice stays hidden until the sources
+// read another value. Nothing else changes. One audit row. 400 bad_field. 404 not_found. 409
+// detected_changed.
+//
+// POST /inventory/devices/{id}/differs/{field}/keep
+func (s *Server) handleInventoryPostInventoryDevicesIDDiffersFieldKeepRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: InventoryPostInventoryDevicesIDDiffersFieldKeepOperation,
+			ID:   "inventory_post_inventory_devices_id_differs_field_keep",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, InventoryPostInventoryDevicesIDDiffersFieldKeepOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+	params, err := decodeInventoryPostInventoryDevicesIDDiffersFieldKeepParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeInventoryPostInventoryDevicesIDDiffersFieldKeepRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response *InventoryPostInventoryDevicesIDDiffersFieldKeepOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    InventoryPostInventoryDevicesIDDiffersFieldKeepOperation,
+			OperationSummary: "Keep the person's value against the detected one (INV-47): the notice stays hidden until the sources read another value. Nothing else changes. One audit row. 400 bad_field. 404 not_found. 409 detected_changed",
+			OperationID:      "inventory_post_inventory_devices_id_differs_field_keep",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+				{
+					Name: "field",
+					In:   "path",
+				}: params.Field,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *InventoryPostInventoryDevicesIDDiffersFieldKeepReq
+			Params   = InventoryPostInventoryDevicesIDDiffersFieldKeepParams
+			Response = *InventoryPostInventoryDevicesIDDiffersFieldKeepOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackInventoryPostInventoryDevicesIDDiffersFieldKeepParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.InventoryPostInventoryDevicesIDDiffersFieldKeep(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.InventoryPostInventoryDevicesIDDiffersFieldKeep(ctx, request, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeInventoryPostInventoryDevicesIDDiffersFieldKeepResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleInventoryPostInventoryDevicesIDDiffersFieldUseRequest handles inventory_post_inventory_devices_id_differs_field_use operation.
+//
+// Use the detected value: the person's own value of that field is removed, so the sources' reading is
+// the one shown and used (INV-47). One audit row with the person. 400 bad_field. 404 not_found. 409
+// detected_changed.
+//
+// POST /inventory/devices/{id}/differs/{field}/use
+func (s *Server) handleInventoryPostInventoryDevicesIDDiffersFieldUseRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: InventoryPostInventoryDevicesIDDiffersFieldUseOperation,
+			ID:   "inventory_post_inventory_devices_id_differs_field_use",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, InventoryPostInventoryDevicesIDDiffersFieldUseOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+	params, err := decodeInventoryPostInventoryDevicesIDDiffersFieldUseParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeInventoryPostInventoryDevicesIDDiffersFieldUseRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response *InventoryPostInventoryDevicesIDDiffersFieldUseOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    InventoryPostInventoryDevicesIDDiffersFieldUseOperation,
+			OperationSummary: "Use the detected value: the person's own value of that field is removed, so the sources' reading is the one shown and used (INV-47). One audit row with the person. 400 bad_field. 404 not_found. 409 detected_changed",
+			OperationID:      "inventory_post_inventory_devices_id_differs_field_use",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+				{
+					Name: "field",
+					In:   "path",
+				}: params.Field,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *InventoryPostInventoryDevicesIDDiffersFieldUseReq
+			Params   = InventoryPostInventoryDevicesIDDiffersFieldUseParams
+			Response = *InventoryPostInventoryDevicesIDDiffersFieldUseOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackInventoryPostInventoryDevicesIDDiffersFieldUseParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.InventoryPostInventoryDevicesIDDiffersFieldUse(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.InventoryPostInventoryDevicesIDDiffersFieldUse(ctx, request, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeInventoryPostInventoryDevicesIDDiffersFieldUseResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleInventoryPostInventoryDevicesIDIgnoreRequest handles inventory_post_inventory_devices_id_ignore operation.
 //
 // Ignore a device that needs no watching, such as a staff phone, or stop ignoring it. Ignored: it

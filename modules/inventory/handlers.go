@@ -218,6 +218,30 @@ func (h *Handlers) InventoryPostInventoryDevicesIDIgnore(ctx context.Context, re
 	return &oas.InventoryPostInventoryDevicesIDIgnoreOK{Ok: true}, nil
 }
 
+// InventoryPostInventoryDevicesIDDiffersFieldUse implements POST /inventory/devices/{id}/differs/{field}/use (operator).
+func (h *Handlers) InventoryPostInventoryDevicesIDDiffersFieldUse(ctx context.Context, req *oas.InventoryPostInventoryDevicesIDDiffersFieldUseReq, params oas.InventoryPostInventoryDevicesIDDiffersFieldUseParams) (*oas.InventoryPostInventoryDevicesIDDiffersFieldUseOK, error) {
+	who, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := h.svc.UseDetected(ctx, who, params.ID, string(params.Field), req.Detected); err != nil {
+		return nil, fail(err)
+	}
+	return &oas.InventoryPostInventoryDevicesIDDiffersFieldUseOK{Ok: true}, nil
+}
+
+// InventoryPostInventoryDevicesIDDiffersFieldKeep implements POST /inventory/devices/{id}/differs/{field}/keep (operator).
+func (h *Handlers) InventoryPostInventoryDevicesIDDiffersFieldKeep(ctx context.Context, req *oas.InventoryPostInventoryDevicesIDDiffersFieldKeepReq, params oas.InventoryPostInventoryDevicesIDDiffersFieldKeepParams) (*oas.InventoryPostInventoryDevicesIDDiffersFieldKeepOK, error) {
+	who, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := h.svc.KeepEntered(ctx, who, params.ID, string(params.Field), req.Detected); err != nil {
+		return nil, fail(err)
+	}
+	return &oas.InventoryPostInventoryDevicesIDDiffersFieldKeepOK{Ok: true}, nil
+}
+
 // InventoryPostInventoryDevicesIDSuspicious implements POST /inventory/devices/{id}/suspicious (operator).
 func (h *Handlers) InventoryPostInventoryDevicesIDSuspicious(ctx context.Context, req *oas.InventoryPostInventoryDevicesIDSuspiciousReq, params oas.InventoryPostInventoryDevicesIDSuspiciousParams) (*oas.InventoryPostInventoryDevicesIDSuspiciousOK, error) {
 	who, err := actor(ctx)

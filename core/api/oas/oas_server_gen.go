@@ -1534,6 +1534,22 @@ type Handler interface {
 	//
 	// POST /inventory/devices/{id}/approve
 	InventoryPostInventoryDevicesIDApprove(ctx context.Context, params InventoryPostInventoryDevicesIDApproveParams) (*InventoryPostInventoryDevicesIDApproveOK, error)
+	// InventoryPostInventoryDevicesIDDiffersFieldKeep implements inventory_post_inventory_devices_id_differs_field_keep operation.
+	//
+	// Keep the person's value against the detected one (INV-47): the notice stays hidden until the sources
+	// read another value. Nothing else changes. One audit row. 400 bad_field. 404 not_found. 409
+	// detected_changed.
+	//
+	// POST /inventory/devices/{id}/differs/{field}/keep
+	InventoryPostInventoryDevicesIDDiffersFieldKeep(ctx context.Context, req *InventoryPostInventoryDevicesIDDiffersFieldKeepReq, params InventoryPostInventoryDevicesIDDiffersFieldKeepParams) (*InventoryPostInventoryDevicesIDDiffersFieldKeepOK, error)
+	// InventoryPostInventoryDevicesIDDiffersFieldUse implements inventory_post_inventory_devices_id_differs_field_use operation.
+	//
+	// Use the detected value: the person's own value of that field is removed, so the sources' reading is
+	// the one shown and used (INV-47). One audit row with the person. 400 bad_field. 404 not_found. 409
+	// detected_changed.
+	//
+	// POST /inventory/devices/{id}/differs/{field}/use
+	InventoryPostInventoryDevicesIDDiffersFieldUse(ctx context.Context, req *InventoryPostInventoryDevicesIDDiffersFieldUseReq, params InventoryPostInventoryDevicesIDDiffersFieldUseParams) (*InventoryPostInventoryDevicesIDDiffersFieldUseOK, error)
 	// InventoryPostInventoryDevicesIDIgnore implements inventory_post_inventory_devices_id_ignore operation.
 	//
 	// Ignore a device that needs no watching, such as a staff phone, or stop ignoring it. Ignored: it

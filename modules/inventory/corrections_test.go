@@ -265,12 +265,12 @@ func TestINV41_ACorrectionReplacesOnlyItsRow(t *testing.T) {
 	if err := e.svc.EditSoftware(e.ctx(), "op@example.com", dev, idOf("agent", "10.2p1"), inventory.SoftwareEdit{PkgVersion: ptr("1:10.2p1-2ubuntu3.9")}); err != nil {
 		t.Fatalf("the second source's row must be correctable: %v", err)
 	}
-	got = nil
+	got = nil // the entry that corrects the agent's row ranks with the agent rows: the container's 8.9p1 next to it still matches (INV-50)
 	for _, r := range matchRows(t, e, dev) {
 		got = append(got, r.Source+" "+r.Version+" "+r.ReportedSource+" "+r.PkgVersion)
 	}
 	slices.Sort(got)
-	want = []string{"agent 6.12.117  6.12.117-1", "manual 10.2p1 agent 1:10.2p1-2ubuntu3.9", "manual 6.12.116 agent 9.9-1"}
+	want = []string{"agent 6.12.117  6.12.117-1", "manual 10.2p1 agent 1:10.2p1-2ubuntu3.9", "manual 6.12.116 agent 9.9-1", "nmap 8.9p1  "}
 	if !slices.Equal(got, want) {
 		t.Fatalf("rows matched %q, want %q", got, want)
 	}

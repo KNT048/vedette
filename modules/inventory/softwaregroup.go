@@ -31,6 +31,7 @@ type EffectiveSoftware struct {
 	// source did; the strongest such source is the first AlsoSeen with SameRelease false.
 	Differs bool `json:"differs"`
 
+	agentEntry    bool   // a person's entry that corrects an agent's row: it ranks with the agent rows
 	key, corrects string // the row's identity (rowKey) and, on a person's correction, the row it corrects
 }
 
@@ -170,6 +171,7 @@ func effectiveOf(all []EffectiveSoftware) []EffectiveSoftware {
 		for _, i := range cand {
 			if rank(i) == top {
 				r := all[i]
+				r.agentEntry = r.Source == "manual" && rank(i) == softwareRank("agent")
 				r.AlsoSeen = []AlsoSeen{}
 				shown = append(shown, r)
 			} else {
@@ -248,7 +250,7 @@ func (s *Service) EffectiveSoftware(ctx context.Context, assetID string) ([]Effe
 // of another product or install as before. A missed CVE is worse than a duplicate, so a row stays when it is a scan, SNMP or passive
 // reading of another release under an agent's row (an install on another port next to the agent's package): both are matched. It goes
 // when it is the same release as the effective row, when the effective row is a person's entry (the entry holds), or when it is itself a
-// person's entry (the agent outranks it). ShadowedBy is "" on every row returned.
+// person's entry (the agent outranks it); an entry that corrects an agent row ranks with the agent rows and keeps them too. ShadowedBy is "" on every row returned.
 func markShadowed(ctx context.Context, q querier, assetID string, d *MatchDevice) error {
 	eff, err := effectiveSoftware(ctx, q, assetID)
 	if err != nil {
@@ -257,7 +259,7 @@ func markShadowed(ctx context.Context, q querier, assetID string, d *MatchDevice
 	shadowed := map[string]bool{}
 	for _, e := range eff {
 		for _, o := range e.AlsoSeen {
-			if e.Source == "agent" && o.Source != "manual" && !o.SameRelease {
+			if (e.Source == "agent" || e.agentEntry) && o.Source != "manual" && !o.SameRelease {
 				continue
 			}
 			shadowed[o.ID] = true

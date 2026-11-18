@@ -158,7 +158,7 @@ func TestInstall_VersionsAgree(t *testing.T) {
 	}
 	sh := readFile(t, "scripts/osquery.sh")
 	for _, want := range []string{`FILE="osquery_${OSQ_VERSION}-1.linux_${DEB_ARCH}.deb"`, `FILE="osquery-${OSQ_VERSION}-1.linux.${RPM_ARCH}.rpm"`,
-		"x86_64|amd64) DEB_ARCH=amd64; RPM_ARCH=x86_64 ;;", "aarch64|arm64) DEB_ARCH=arm64; RPM_ARCH=aarch64 ;;"} { // The six names of mirrorFiles
+		"x86_64|amd64) DEB_ARCH=amd64; RPM_ARCH=x86_64; GLIBC_LOADER", "aarch64|arm64) DEB_ARCH=arm64; RPM_ARCH=aarch64; GLIBC_LOADER"} { // The six names of mirrorFiles
 		if !strings.Contains(sh, want) {
 			t.Errorf("the Linux script does not ask for %s", want)
 		}
@@ -311,11 +311,46 @@ func TestInstall_NewTokenEnrolsAgain(t *testing.T) {
 		}
 	}
 	inOrder("sh", sh, `DB=/var/osquery/osquery.db`, `if [ "$ACTION" = uninstall ]`, `rm -rf "$DB"`, `exit 0`,
-		`if [ "$(cat "$DIR/enroll.secret" 2>/dev/null || true)" != "$TOKEN" ]; then`, `systemctl stop osqueryd`, `rm -rf "$DB"`, `fi`,
-		`printf '%s' "$TOKEN" > "$DIR/enroll.secret"`, `systemctl restart osqueryd`)
+		`if [ "$(cat "$DIR/enroll.secret" 2>/dev/null || true)" != "$TOKEN" ]; then`, `svc_stop`, `rm -rf "$DB"`, `fi`,
+		`printf '%s' "$TOKEN" > "$DIR/enroll.secret"`, `svc_enable_restart`)
 	inOrder("ps1", ps1, `$Db = Join-Path $Dir 'osquery.db'`, `if ($Uninstall)`, `Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $Db`, `return`,
 		`if ($held -cne $Token) {`, `Stop-Service osqueryd -Force`, `Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $Db`, `if (Test-Path $Db) { throw`, `}`,
 		`Set-Content -Path $Secret -Value $Token`, `Restart-Service osqueryd`)
+}
+
+// The Linux script decides by what the machine has, not by the name of its distribution: the package format from dpkg or rpm (so SUSE and
+// Amazon Linux work like RHEL), the service manager from the running init, and it refuses early, in one line naming the missing thing,
+// when the machine cannot run osquery: no glibc (Alpine and other musl systems: the official build is dynamically linked against glibc;
+// checked with gcompat on alpine:3.20, it fails on missing glibc symbols; with gcompat installed the loader file exists and the refusal comes at the dpkg/rpm check), no dpkg or rpm, no service manager, no curl.
+// ponytail: text checks (module tests may not run a shell, SYS-1); the detection was run under busybox ash and dash in alpine:3.20, debian:12,
+// rockylinux:9, opensuse/leap:15.6, amazonlinux:2023 and archlinux for the PR; the SysV calls were run against the real .deb and .rpm
+// (/etc/init.d/osqueryd in both; status exits 0 running and 7 stopped, stop exits 0 when not running, ps and pkill are required).
+func TestInstall_LinuxScriptDetectsByCapability(t *testing.T) {
+	sh := readFile(t, "scripts/osquery.sh")
+	for _, bad := range []string{"OS_IDS", `*" debian "*`, `*" rhel "*`, "Unsupported Linux distribution"} {
+		if strings.Contains(sh, bad) {
+			t.Errorf("the Linux script still decides by distribution name: %q", bad)
+		}
+	}
+	at := 0
+	for _, step := range []string{
+		`GLIBC_LOADER=/lib64/ld-linux-x86-64.so.2`, `GLIBC_LOADER=/lib/ld-linux-aarch64.so.1`,
+		`[ -e "$GLIBC_LOADER" ] || { echo "Cannot install osquery on ${OS_NAME}: its official build needs glibc`,
+		`command -v dpkg >/dev/null 2>&1 && [ -e /var/lib/dpkg/status ]; then FMT=deb`, `elif command -v rpm >/dev/null 2>&1; then FMT=rpm`,
+		`neither dpkg nor rpm is present`, `no service manager found`, `for NEED in curl sha256sum mktemp`,
+		`mkdir -p "$DIR"`, `curl -fsS --cacert "$CA" "$BOX/api/v1/install/osquery/SHA256SUMS"`,
+	} {
+		i := strings.Index(sh[at:], step)
+		if i < 0 {
+			t.Fatalf("the Linux script: %q is missing or comes before an earlier check; every refusal must come before anything is written or downloaded", step)
+		}
+		at += i + len(step)
+	}
+	for _, want := range []string{`[ -d /run/systemd/system ] && command -v systemctl`, `INIT=sysv`, `SYSV=/etc/init.d/osqueryd`, `"$SYSV" restart`, `"$SYSV" status`, "command -v pkill", `"$SYSV" stop >/dev/null 2>&1 || ! svc_active`} {
+		if !strings.Contains(sh, want) {
+			t.Errorf("the Linux script lost its service-manager handling: %q", want)
+		}
+	}
 }
 
 // An arbitrary Host header is never put into a script: the Box address when the box has one, else only a name the server's

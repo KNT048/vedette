@@ -257,6 +257,9 @@ func (s *Service) replaceSoftwareTx(ctx context.Context, tx *sql.Tx, o *outbox, 
 	if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET last_seen = max(last_seen, ?) WHERE id = ?`, seenAt, assetID); err != nil {
 		return fmt.Errorf("inventory: touch device: %w", err)
 	}
+	if err := s.earnReview(ctx, tx, o, assetID, false); err != nil { // the sync moved last_seen (INV-49)
+		return err
+	}
 	if !changed && !pkgChanged {
 		return nil
 	}
@@ -434,6 +437,9 @@ func (s *Service) settle(ctx context.Context, tx *sql.Tx, o *outbox, id string, 
 			return "", err
 		}
 		o.add(EventAssetUpdated, AssetEvent{AssetID: j, Match: true})
+		if err := s.earnReview(ctx, tx, o, j, false); err != nil {
+			return "", err
+		}
 	}
 	if gone[id] && len(joined) > 0 {
 		return joined[len(joined)-1], nil

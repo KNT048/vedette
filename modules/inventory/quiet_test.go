@@ -15,6 +15,7 @@ import (
 const (
 	qemuMAC = "52:54:00:76:6e:02" // a QEMU/KVM guest: locally administered but stable
 	dockMAC = "02:42:ac:11:00:02" // Docker's default bridge
+	cniMAC  = "0a:58:0a:f4:00:05" // a Kubernetes CNI pod interface
 )
 
 func (e *env) quietEnv() *env {
@@ -39,8 +40,8 @@ func TestPrivateMAC(t *testing.T) {
 	t.Parallel()
 	for mac, want := range map[string]bool{
 		"c2:31:86:3f:8c:a0": true, "86:52:d9:85:7f:a9": true, "7e:ca:40:4d:93:b1": true, "ca:fe:85:f7:61:fb": true,
-		"3c:22:fb:00:00:01": false,                                             // burned in
-		qemuMAC:             false, dockMAC: false, "0a:00:27:00:00:05": false, // stable virtual prefixes
+		"3c:22:fb:00:00:01": false,                                                            // burned in
+		qemuMAC:             false, dockMAC: false, "0a:00:27:00:00:05": false, cniMAC: false, // stable virtual prefixes
 		"": false, "bad": false,
 	} {
 		if got := inventory.PrivateMAC(mac); got != want {
@@ -74,14 +75,14 @@ func TestContract_AQuietPrivateDeviceIsNotToReview(t *testing.T) {
 	if got := e.discoveredNotify(); !slices.Equal(got, []bool{false}) {
 		t.Fatalf("discovered notify flags = %v, want [false]", got)
 	}
-	if total, err := e.svc.DevicesPage(e.ctx(), mustFilter(t, "q=iphone")); err != nil || len(total.Items) != 1 {
+	if total, err := e.svc.DevicesPage(e.ctx(), searchFor(t, "iphone")); err != nil || len(total.Items) != 1 {
 		t.Fatalf("search: %v, %v", total.Items, err)
 	}
 }
 
-func mustFilter(t *testing.T, _ string) inventory.DeviceFilter {
+func searchFor(t *testing.T, q string) inventory.DeviceFilter {
 	t.Helper()
-	f, err := inventory.ParseDeviceFilter("", "", "", "", "", "", "iphone")
+	f, err := inventory.ParseDeviceFilter("", "", "", "", "", "", q)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -131,16 +132,16 @@ func TestContract_APrivateDeviceWithAServiceIsToReview(t *testing.T) {
 func TestContract_APrivateDeviceThatStaysIsToReview(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t).quietEnv()
-	e.record(dhcp(phoneMAC, "192.168.18.129", "Johns-iPhone")...)
+	e.record(dhcp(phoneMAC, "192.168.18.129", "phone-01")...)
 	id := e.idByMAC(phoneMAC)
 	e.tick(23 * time.Hour)
-	e.record(dhcp(phoneMAC, "192.168.18.129", "Johns-iPhone")...)
+	e.record(dhcp(phoneMAC, "192.168.18.129", "phone-01")...)
 	if l := e.review(); len(l.Items) != 0 {
 		t.Fatalf("after 23 h: To review = %v", ids(l))
 	}
 	e.ev.reset()
 	e.tick(2 * time.Hour)
-	e.record(dhcp(phoneMAC, "192.168.18.129", "Johns-iPhone")...)
+	e.record(dhcp(phoneMAC, "192.168.18.129", "phone-01")...)
 	if l := e.review(); !slices.Contains(ids(l), id) {
 		t.Fatalf("after 25 h: To review = %v", ids(l))
 	}
@@ -159,8 +160,8 @@ func TestContract_APrivateDeviceThatStaysIsToReview(t *testing.T) {
 func TestContract_OnlyARandomPrivateAddressIsQuiet(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t).quietEnv()
-	e.record(dhcp(qemuMAC, "192.168.18.10", "winlab01")...)
-	e.record(dhcp(dockMAC, "192.168.18.11", "runner01")...)
+	e.record(dhcp(qemuMAC, "192.168.18.10", "vm-01")...)
+	e.record(dhcp(dockMAC, "192.168.18.11", "runner-01")...)
 	e.record(dhcp(burnt1, "192.168.18.12", "accounting-pc")...)
 	if l := e.review(); len(l.Items) != 3 || l.Counts.Pending != 3 {
 		t.Fatalf("To review = %v, counts %+v; want all three", ids(l), l.Counts)
@@ -195,19 +196,19 @@ func TestContract_APrivateDeviceThatShowedABurnedInMACIsToReview(t *testing.T) {
 func TestContract_FoldByDistinctiveNameNeverByGenericName(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t).quietEnv()
-	e.record(dhcp(privMac1, "192.168.18.145", "Annas-MacBook-Air")...)
+	e.record(dhcp(privMac1, "192.168.18.145", "office-ultrabook")...)
 	id := e.idOf("192.168.18.145")
-	if err := e.svc.Approve(e.ctx(), "anna", id); err != nil {
+	if err := e.svc.Approve(e.ctx(), "user-a", id); err != nil {
 		t.Fatal(err)
 	}
 	e.record(dhcp(privMac3, "192.168.18.150", "iPhone")...)
 	e.tick(time.Hour)
-	e.record(dhcp(privMac2, "192.168.18.138", "Annas-MacBook-Air")...)
+	e.record(dhcp(privMac2, "192.168.18.138", "office-ultrabook")...)
 	e.record(dhcp(burnt2, "192.168.18.151", "iPhone")...)
 	e.tick(time.Hour)
 	e.record(dhcp("86:52:d9:85:7f:a9", "192.168.18.152", "iPhone")...)
 	// The laptop folded into its approved device (history kept); the three "iPhone" rows stayed three devices.
-	if n := e.count(`SELECT count(*) FROM inv_asset WHERE lower(hostname) LIKE 'annas-macbook-air%'`); n != 1 {
+	if n := e.count(`SELECT count(*) FROM inv_asset WHERE lower(hostname) LIKE 'office-ultrabook%'`); n != 1 {
 		t.Fatalf("%d laptop rows, want 1", n)
 	}
 	d := e.detail(id)
@@ -223,5 +224,103 @@ func TestContract_FoldByDistinctiveNameNeverByGenericName(t *testing.T) {
 	// Only the burned-in-MAC one is reviewed at once; the two private ones are quiet.
 	if l := e.review(); l.Counts.Pending != 1 {
 		t.Fatalf("To review %v, counts %+v; want the burned-in one only", ids(l), l.Counts)
+	}
+}
+
+func (e *env) notices() int {
+	n := 0
+	for _, ev := range e.ev.named(inventory.EventAssetUpdated) {
+		if ev.Data.(inventory.AssetEvent).Notify {
+			n++
+		}
+	}
+	return n
+}
+
+func (e *env) port(ip netip.Addr, open bool) {
+	e.t.Helper()
+	var list []observe.Service
+	if open {
+		list = []observe.Service{{Port: 22, Proto: "tcp", Name: "ssh", Confidence: 0.9}}
+	}
+	if err := e.svc.ReplaceServices(e.ctx(), observe.AssetHint{IP: ip, MAC: phoneMAC}, observe.Nmap, list); err != nil {
+		e.t.Fatal(err)
+	}
+}
+
+// Earned review is sticky: a port that opens, closes and opens again sends one notice, and the device stays in To review in between.
+func TestContract_EarnedReviewStaysAndNoticesOnce(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t).quietEnv()
+	ip := netip.MustParseAddr("192.168.18.129")
+	e.record(dhcp(phoneMAC, ip.String(), "phone-01")...)
+	id := e.idByMAC(phoneMAC)
+	for round := range 3 {
+		e.tick(time.Minute)
+		e.port(ip, true)
+		if l := e.review(); !slices.Contains(ids(l), id) || l.Counts.Pending != 1 {
+			t.Fatalf("round %d open: To review %v counts %+v", round, ids(l), l.Counts)
+		}
+		e.tick(time.Minute)
+		e.port(ip, false)
+		if l := e.review(); !slices.Contains(ids(l), id) || l.Counts.Pending != 1 {
+			t.Fatalf("round %d closed: the device left To review: %v counts %+v", round, ids(l), l.Counts)
+		}
+	}
+	if n := e.notices(); n != 1 {
+		t.Fatalf("%d notices over three open/close rounds, want 1", n)
+	}
+	if err := e.svc.Approve(e.ctx(), "user-a", id); err != nil {
+		t.Fatal(err)
+	}
+	if l := e.review(); len(l.Items) != 0 {
+		t.Fatalf("approved device still in To review: %v", ids(l))
+	}
+}
+
+// A device that folds into a quiet one and so has stayed past a day is To review with its one notice.
+func TestContract_AFoldPastADayEarnsReview(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t).quietEnv()
+	e.record(dhcp(privMac1, "192.168.18.145", "office-ultrabook")...)
+	id := e.idOf("192.168.18.145")
+	e.ev.reset()
+	e.tick(26 * time.Hour)
+	e.record(dhcp(privMac2, "192.168.18.138", "office-ultrabook")...)
+	d := e.only()
+	if d.ID != id || d.Quiet {
+		t.Fatalf("after the fold: id %s quiet %v", d.ID, d.Quiet)
+	}
+	if l := e.review(); !slices.Contains(ids(l), id) || l.Counts.Pending != 1 {
+		t.Fatalf("To review %v counts %+v", ids(l), l.Counts)
+	}
+	if n := e.notices(); n != 1 {
+		t.Fatalf("%d notices after the fold, want 1", n)
+	}
+	e.tick(time.Hour)
+	e.record(dhcp(privMac2, "192.168.18.138", "office-ultrabook")...)
+	if n := e.notices(); n != 1 {
+		t.Fatalf("%d notices after another sighting, want 1", n)
+	}
+}
+
+// A finding or a honeypot hit on a quiet device is a reason too: one notice, To review.
+func TestContract_AFindingOrAHitEarnsReview(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t).quietEnv()
+	e.record(dhcp(phoneMAC, "192.168.18.129", "phone-01")...)
+	id := e.idByMAC(phoneMAC)
+	e.ev.reset()
+	if err := e.svc.EarnReview(e.ctx(), id); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.EarnReview(e.ctx(), id); err != nil {
+		t.Fatal(err)
+	}
+	if l := e.review(); !slices.Contains(ids(l), id) || e.notices() != 1 {
+		t.Fatalf("To review %v, %d notices", ids(l), e.notices())
+	}
+	if err := e.svc.EarnReview(e.ctx(), "a-unknown"); err != nil {
+		t.Fatal(err)
 	}
 }

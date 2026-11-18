@@ -522,7 +522,7 @@ func TestWiringALearningSensorFoldsItsDevicesIntoTheSummary(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := s.d.Inventory.Record(ctx, []observe.Observation{
-		{AssetHint: observe.AssetHint{MAC: "aa:bb:cc:00:01:46", IP: netip.MustParseAddr("192.168.18.146")}, Field: observe.Hostname, Value: "printer-2", Source: observe.Passive, Confidence: 0.7},
+		{AssetHint: observe.AssetHint{MAC: "a4:bb:cc:00:01:46", IP: netip.MustParseAddr("192.168.18.146")}, Field: observe.Hostname, Value: "printer-2", Source: observe.Passive, Confidence: 0.7},
 	}); err != nil {
 		t.Fatal(err)
 	}

@@ -297,7 +297,6 @@ func (s *Service) Record(ctx context.Context, batch []observe.Observation) error
 		touched := []string{}
 		evidence := map[string]bool{}  // devices an observation found by its MAC, address or agent: only those run the join rules
 		before := map[string]string{}  // what the findings matcher reads of each device (matchView), before the batch
-		wasQuiet := map[string]bool{}  // devices that were quiet (INV-49) before the batch: one that is not after it gets its new-device notice
 		binds := map[string]cleanObs{} // device → an observation of the agent that reported on it
 		for _, c := range clean {
 			if c.source != string(observe.Agent) {
@@ -335,11 +334,6 @@ func (s *Service) Record(ctx context.Context, batch []observe.Observation) error
 				touched = append(touched, id)
 				if before[id], err = matchView(ctx, tx, id); err != nil {
 					return err
-				}
-				if !isNew {
-					if wasQuiet[id], err = isQuiet(ctx, tx, id); err != nil {
-						return err
-					}
 				}
 			}
 			if err := insertPruned(ctx, tx, id, c.field, c.value, c.source, c.conf, c.seenAt); err != nil {
@@ -395,8 +389,8 @@ func (s *Service) Record(ctx context.Context, batch []observe.Observation) error
 			case changed || match:
 				o.add(EventAssetUpdated, AssetEvent{AssetID: id, Match: match})
 			}
-			if created[id] == "" {
-				if err := announceIfEarned(ctx, tx, o, id, wasQuiet[id]); err != nil {
+			if created[id] == "" { // a stay past a day, also of the device a fold kept (INV-49)
+				if err := s.earnReview(ctx, tx, o, id, false); err != nil {
 					return err
 				}
 			}

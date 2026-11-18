@@ -374,7 +374,7 @@ func TestApprovedInDevicesClosesTheNewDeviceIncident(t *testing.T) {
 // A quiet device (a private Wi-Fi address nobody had a reason to look at) sends its new-device notice with the update that
 // says it earned one (inventory INV-49): the incident opens then, and a plain update opens none.
 func TestAQuietDeviceEarnsItsNotice(t *testing.T) {
-	devs := &stateDevices{m: map[string]notify.DeviceState{"p1": {Name: "Johns-iPhone", Address: "192.168.18.129"}}}
+	devs := &stateDevices{m: map[string]notify.DeviceState{"p1": {Name: "phone-01", Address: "192.168.18.129"}}}
 	e := newEnv(t, func(c *notify.Config) { c.Devices = devs })
 	e.firstRunAt(e.clock.Now().Add(-48 * time.Hour))
 	e.svc.Subscribe(e.bus)
@@ -391,7 +391,7 @@ func TestAQuietDeviceEarnsItsNotice(t *testing.T) {
 	}
 	publish(inventory.EventAssetUpdated, inventory.AssetEvent{AssetID: "p1", Notify: true})
 	l, _ := e.svc.Incidents(e.ctx())
-	if len(l) != 1 || l[0].Title != "A new unknown device appeared: Johns-iPhone (192.168.18.129)" {
+	if len(l) != 1 || l[0].Title != "A new unknown device appeared: phone-01 (192.168.18.129)" {
 		t.Fatalf("incidents after: %+v", l)
 	}
 }

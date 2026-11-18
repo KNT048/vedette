@@ -542,12 +542,18 @@ func (s *Service) assetsFor(ctx context.Context, ips []string) map[string]Device
 	if s.cfg.Inventory == nil || len(ips) == 0 {
 		return nil
 	}
-	found, err := s.cfg.Inventory.DevicesByIP(ctx, slices.Compact(slices.Sorted(slices.Values(ips))))
+	found, err := s.cfg.Inventory.DevicesAt(ctx, slices.Compact(slices.Sorted(slices.Values(ips))))
 	if err != nil {
 		s.cfg.Log.WarnContext(ctx, "logs: could not look up the devices of the bad connections", "err", err)
 		return nil
 	}
-	return found
+	out := make(map[string]Device, len(found))
+	for ip, ms := range found {
+		if len(ms) == 1 { // a hit names one device: an address two devices have names none rather than a guess
+			out[ip] = ms[0].Device
+		}
+	}
+	return out
 }
 
 const iocColumns = `id, ts, src_ip, dest, dest_kind, seen_via, feeds, confidence, blocked, listed_as`

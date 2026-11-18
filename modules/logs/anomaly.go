@@ -892,7 +892,7 @@ func (s *Service) devicesByIP(ctx context.Context, ips []string, have []DeviceIn
 	if s.cfg.Inventory == nil {
 		return out
 	}
-	found, err := s.cfg.Inventory.DevicesByIP(ctx, ips)
+	found, err := s.cfg.Inventory.DevicesAt(ctx, ips)
 	if err != nil {
 		s.cfg.Log.WarnContext(ctx, "logs: could not look up the devices of an anomaly", "err", err)
 		return out
@@ -902,9 +902,11 @@ func (s *Service) devicesByIP(ctx context.Context, ips []string, have []DeviceIn
 		seen[h.ID] = true
 	}
 	for _, ip := range ips {
-		if d, ok := found[ip]; ok && !seen[d.ID] && d.ID != "" && len(d.ID) <= MaxDeviceID && strings.TrimSpace(d.Name) != "" { // a device notify would refuse makes the whole incident fail
-			seen[d.ID] = true
-			out = append(out, DeviceInfo{ID: d.ID, Name: clipRunes(d.Name, MaxDeviceName)})
+		for _, d := range found[ip] { // every device that has the address: with two, the incident names both
+			if !seen[d.ID] && d.ID != "" && len(d.ID) <= MaxDeviceID && strings.TrimSpace(d.Name) != "" { // a device notify would refuse makes the whole incident fail
+				seen[d.ID] = true
+				out = append(out, DeviceInfo{ID: d.ID, Name: clipRunes(d.Name, MaxDeviceName)})
+			}
 		}
 	}
 	return out

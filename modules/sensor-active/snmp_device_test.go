@@ -472,3 +472,20 @@ func TestSNMPTheMoveFinishesWithDamagedCredentials(t *testing.T) {
 		t.Fatalf("a tick after the move: %v", err)
 	}
 }
+
+// Logs matches an address to a device by the read address a person typed: a default read address (the device's IP at save time) is
+// not one, and a device that moved does not keep its old address.
+func TestSNMPReadAddressesAreOnlyWhatAPersonTyped(t *testing.T) {
+	t.Parallel()
+	w := newSNMPWorld(t, &fakeReader{})
+	ctx := t.Context()
+	w.set("a-sw", v2c("s3cret-community")) // read from its own IP
+	typed := v2c("community-2")
+	typed.ReadFrom = "192.168.10.50"
+	w.set("a-printer", typed)
+	w.inv.moveTo("a-sw", "192.168.10.33")
+	got, err := w.svc.ReadAddresses(ctx)
+	if err != nil || len(got) != 1 || got["a-printer"] != netip.MustParseAddr("192.168.10.50") {
+		t.Fatalf("read addresses %v %v, want only a-printer at 192.168.10.50", got, err)
+	}
+}

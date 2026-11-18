@@ -52,10 +52,9 @@ export default function ConnectionsSection() {
     setResult(null)
     test.mutate(c.id, { onSuccess: (r) => setResult({ id: c.id, ok: r.message }), onError: (e) => setResult({ id: c.id, error: errMsg(e, t) }) })
   }
-  const count = conns.data?.items.length ?? 0
   return (
     <>
-      <PageHeader title={t('connections.title')} meta={t('connections.meta')} info={t('connections.metaInfo')} stories={['S-AI-7', 'S-RESP-4']} actions={count > 0 ? <Button id="connections-add" variant="primary" onClick={() => setEdit('new')}>{t('connections.add')}</Button> : undefined} />
+      <PageHeader title={t('connections.title')} meta={t('connections.meta')} info={t('connections.metaInfo')} stories={['S-AI-7', 'S-RESP-4']} />
       <Notice tone="off" role="note" title={t('connections.writeNoteLead')} info={t('connections.writeNote')}>
         <span className="inline-flex flex-wrap items-center gap-1">{t('connections.privacyNote')} <Link className="text-accent underline underline-offset-4" to="/settings/privacy#flow-12">{t('connections.privacyLink')}</Link><InfoTip topic={t('connections.privacyNote')}>{t('connections.privacyNoteInfo')}</InfoTip></span>
       </Notice>
@@ -63,6 +62,12 @@ export default function ConnectionsSection() {
         {({ items }) => items.length === 0 ? (
           <EmptyState title={t('connections.empty')} info={t('connections.emptyInfo')} action={<Button id="connections-add" variant="primary" onClick={() => setEdit('new')}>{t('connections.add')}</Button>}>{t('connections.emptyBody')}</EmptyState>
         ) : (
+          <>
+          {/* The list's toolbar: its count and Add connection (with none, the empty state carries Add) */}
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <span className="text-meta text-muted tabular-nums">{t('connections.count', { count: items.length })}</span>
+            <Button id="connections-add" variant="primary" className="ml-auto" onClick={() => setEdit('new')}>{t('connections.add')}</Button>
+          </div>
           <ul aria-label={t('connections.title')} className="grid gap-4">
             {items.map((c) => {
               const unsupported = c.kind === 'mcp-stdio'
@@ -124,6 +129,7 @@ export default function ConnectionsSection() {
               )
             })}
           </ul>
+          </>
         )}
       </QueryState>
       {edit ? <ConnDialog conn={edit === 'new' ? null : edit} onClose={() => setEdit(null)} onSaved={() => setResult(null)} /> : null}

@@ -24,7 +24,8 @@ import type { IncidentDetail, IncidentStatus, SendRecord } from './types'
 const errMsg = (e: unknown) => (e instanceof ApiError ? e.message : String(e))
 const link = 'text-accent underline-offset-4 hover:underline'
 
-function Handle({ d }: { d: IncidentDetail }) {
+/** Acknowledge, resolve or reopen; Respond (the response module) is one more way to handle an open incident, so it sits here too. */
+function Handle({ d, respond }: { d: IncidentDetail; respond: boolean }) {
   const { t } = useTranslation('notify')
   const can = useCan('operator')
   const set = useSetStatus()
@@ -33,7 +34,8 @@ function Handle({ d }: { d: IncidentDetail }) {
   const need = can ? undefined : t('common:needRole', { role: t('common:role.operator') })
   const go = (status: IncidentStatus) => set.mutate({ id: a.id, status, note }, { onSuccess: () => { setNote(''); toast.success(t('detail.updated')) }, onError: (e) => toast.error(errMsg(e)) })
   return (
-    <Section id="handle" title={t('detail.handleTitle')}>
+    <Section id="handle" title={t('detail.handleTitle')}
+      actions={respond && a.status !== 'resolved' ? <Button asChild><Link to={`/response?incident=${encodeURIComponent(a.id)}`}>{t('detail.respond')}</Link></Button> : undefined}>
       <div className="grid max-w-xl gap-3">
         {a.status !== 'resolved' ? (
           <>
@@ -81,8 +83,7 @@ function Content() {
         ]
         return (
           <>
-            <PageHeader breadcrumbs={crumbs} title={a.title} meta={t('detail.meta', { time: fmtDateTime(a.first_seen) })} stories={['S-ALERT-3']}
-              actions={respond && a.status !== 'resolved' ? <Button asChild><Link to={`/response?incident=${encodeURIComponent(a.id)}`}>{t('detail.respond')}</Link></Button> : undefined} />
+            <PageHeader breadcrumbs={crumbs} title={a.title} meta={t('detail.meta', { time: fmtDateTime(a.first_seen) })} stories={['S-ALERT-3']} />
             <Section id="summary" title={t('detail.summary')}>
               <Card>
               <KeyValue items={[
@@ -116,7 +117,7 @@ function Content() {
               {a.not_sent?.reason === 'failed' ? <Notice tone="warn" title={a.not_sent.text} actions={<NotSentFix notSent={a.not_sent} admin={admin} />} /> : null}
               {a.sends.length ? <DataTable caption={t('detail.logCaption')} data={a.sends} columns={log} initialSort={[{ id: 'time', desc: true }]} /> : <EmptyState title={t('detail.noSendsTitle')} />}
             </Section>
-            <Handle d={d} />
+            <Handle d={d} respond={respond} />
           </>
         )
       }}

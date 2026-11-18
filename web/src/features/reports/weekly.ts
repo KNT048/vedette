@@ -16,7 +16,7 @@ export const vulnOf = (cve: string) => data.vulns.find((v) => v.cve === cve)
 export function rowOf(f: Finding): FindingRow {
   const a = assetsStore.get().find((x) => x.id === f.asset_id)
   const v = vulnOf(f.cve)
-  return { id: f.id, cve: f.cve, device: a?.name ?? a?.hostname ?? a?.ip ?? f.asset_id, asset_id: f.asset_id, product: v ? displayOf(v.vendor, v.product) : f.cve, status: f.status, severity: f.severity, since: f.first_seen, ...(f.evidence?.agent ? { agent: true } : {}) }
+  return { id: f.id, cve: f.cve, device: a?.name ?? a?.hostname ?? a?.ip ?? f.asset_id, asset_id: f.asset_id, product: v ? displayOf(v.vendor, v.product) : f.cve, status: f.status, severity: f.severity, since: f.first_seen, ...(f.evidence?.agent ? { agent: true } : {}), device_approved: a?.approved !== false }
 }
 
 const SEV = { critical: 0, high: 1, medium: 2, low: 3, info: 4 } as const
@@ -40,17 +40,25 @@ export function topRisks(open: FindingRow[]): TopRisk[] {
 
 export const EOL_OS = /windows 10|server 2016/i
 
+/** The report, with its approved-only view (the counts, top risks and actions without the devices not approved yet), as weekly.go. */
 export function buildWeekly(asOf = Date.now()): WeeklyReport {
+  const r = computeWeekly(asOf, false)
+  const a = r.counts.devices_unapproved ? computeWeekly(asOf, true) : r
+  return { ...r, approved_only: { counts: a.counts, top_risks: a.top_risks ?? [], actions: a.actions } }
+}
+
+function computeWeekly(asOf: number, approvedOnly: boolean): WeeklyReport {
   const from = asOf - 7 * DAY
   const t = (iso: string | null) => (iso ? new Date(iso).getTime() : null)
-  const assets = assetsStore.get().filter((a) => new Date(a.first_seen).getTime() <= asOf)
-  const findings = findingsStore.get().filter((f) => new Date(f.first_seen).getTime() <= asOf)
+  const left = new Set(approvedOnly ? assetsStore.get().filter((a) => !a.approved).map((a) => a.id) : [])
+  const assets = assetsStore.get().filter((a) => new Date(a.first_seen).getTime() <= asOf && !left.has(a.id))
+  const findings = findingsStore.get().filter((f) => new Date(f.first_seen).getTime() <= asOf && !left.has(f.asset_id))
   const isOpenAt = (f: Finding) => { const r = t(f.resolved_at); return r === null || r > asOf }
   const inWeek = (ms: number | null) => ms !== null && ms > from && ms <= asOf
   const open = findings.filter((f) => isOpenAt(f) && (f.status === 'confirmed' || f.status === 'suspected' || t(f.resolved_at) !== null))
   const openRows = open.map((f) => ({ ...rowOf(f), status: f.status === 'confirmed' ? ('confirmed' as const) : ('suspected' as const) }))
   const newRows = findings.filter((f) => inWeek(t(f.first_seen))).map(rowOf)
-  const resolvedRows = findingsStore.get().filter((f) => inWeek(t(f.resolved_at))).map((f) => ({ ...rowOf(f), ...(f.resolved_by ? { by: f.resolved_by } : {}) }))
+  const resolvedRows = findingsStore.get().filter((f) => inWeek(t(f.resolved_at)) && !left.has(f.asset_id)).map((f) => ({ ...rowOf(f), ...(f.resolved_by ? { by: f.resolved_by } : {}) }))
   const order = (rows: FindingRow[]) => rows.slice().sort((a, b) => SEV[a.severity] - SEV[b.severity] || b.since.localeCompare(a.since) || a.id.localeCompare(b.id))
 
   // The same board as Home (feeds hotRows, 7 days), moved back for an older week.
@@ -77,6 +85,9 @@ export function buildWeekly(asOf = Date.now()): WeeklyReport {
       open_confirmed: openRows.filter((r) => r.status === 'confirmed').length, open_suspected: openRows.filter((r) => r.status === 'suspected').length,
       devices: assets.length, devices_unapproved: unapproved, devices_new: assets.filter((a) => new Date(a.first_seen).getTime() > from).length,
       kev_new: kevNew, kev_matched: kevInUse,
+      not_relevant: new Set([...newRows, ...resolvedRows].filter((f) => f.status === 'not_relevant').map((f) => f.id)).size,
+      not_relevant_new: newRows.filter((f) => f.status === 'not_relevant').length,
+      not_relevant_resolved: resolvedRows.filter((f) => f.status === 'not_relevant').length,
     },
     top_risks: risks,
     new_findings: newRows, resolved: resolvedRows, open: openRows, actions,

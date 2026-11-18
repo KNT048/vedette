@@ -36,9 +36,34 @@ type pdplInput struct {
 	now      time.Time
 }
 
-// buildPdpl computes the self-assessment from what the box sees. It says what is seen and never that the organisation complies
-// (FORBID-3): a measure without data is unknown, and duties that need a person stay done=null.
+// buildPdpl computes the self-assessment from what the box sees, with its ApprovedOnly view (the inventory, measures and risks of
+// the approved devices only). It says what is seen and never that the organisation complies (FORBID-3): a measure without data is
+// unknown, and duties that need a person stay done=null.
 func buildPdpl(in pdplInput) PdplReport {
+	r := computePdpl(in)
+	a := r
+	if r.Inventory.Unapproved > 0 {
+		w := approvedOnly(weeklyInput{devices: in.devices, findings: in.findings})
+		sub := in
+		sub.devices, sub.findings = w.devices, w.findings
+		a = computePdpl(sub)
+		// Leaving the devices out of the view does not approve them: the measure stays the full report's.
+		for i, m := range a.Measures {
+			if m.ID != "unapproved" {
+				continue
+			}
+			for _, full := range r.Measures {
+				if full.ID == "unapproved" {
+					a.Measures[i] = full
+				}
+			}
+		}
+	}
+	r.ApprovedOnly = &PdplView{Inventory: a.Inventory, Measures: a.Measures, Risks: a.Risks}
+	return r
+}
+
+func computePdpl(in pdplInput) PdplReport {
 	var unapproved, fragile int
 	var eol, rdp, unapprovedNames []string
 	kinds := map[string]int{}
@@ -70,7 +95,7 @@ func buildPdpl(in pdplInput) PdplReport {
 			}
 		}
 	}
-	w := buildWeekly(weeklyInput{devices: in.devices, findings: in.findings, kev: in.kev, now: in.now})
+	w := computeWeekly(weeklyInput{devices: in.devices, findings: in.findings, kev: in.kev, now: in.now})
 	var risks []FindingRow
 	var cves []string
 	for _, f := range in.findings {
@@ -78,7 +103,7 @@ func buildPdpl(in pdplInput) PdplReport {
 			cves = append(cves, clip(f.CVE, 40))
 		}
 	}
-	risks = w.Open // already ordered and capped
+	risks = capRows(w.Open) // already ordered; the approved-only view is computed and cut on its own
 
 	m := func(id, status string, list []string) Measure {
 		n := len(list)

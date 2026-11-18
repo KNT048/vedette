@@ -5,6 +5,11 @@
 ## Modifying: `Service.Weekly(ctx) (WeeklyReport, error)` (`buildWeekly`) — 3 người gọi
 - **HTTP** `/reports/weekly/preview`, **job gửi theo lịch**, **`/reports/weekly/send`**: đổi cấu trúc `counts`/`actions` → GUI `WeeklyDocument` + trang in + email đều đổi; lịch sử cũ (`HistoryEntry.report`) phải đọc được (số liệu lưu theo phiên bản schema).
 
+## Modifying: `buildWeekly` / `buildPdpl` → `computeWeekly` / `computePdpl` + `approvedOnly(weeklyInput)` (INV-16)
+- `buildWeekly`/`buildPdpl` tính hai lần khi có thiết bị chưa duyệt: bản đầy đủ và `approved_only` (không thiết bị chưa duyệt, không finding của chúng). Lần hai đọc lại bản sửa (`fixesFor`) cho top risks của nó; không có thiết bị chưa duyệt thì không tính lại. `buildPdpl` gọi `computeWeekly` (không cần khung nhìn tuần).
+- **web** `features/reports/filters.tsx` (`weeklyView`, `pdplView`) đọc `approved_only`, `device_approved`, `not_relevant*`: đổi tên/nghĩa các trường này → công tắc trên trang, trang in và lịch sử lọc sai mà không báo lỗi.
+- Đổi nghĩa `Device.Approved` ở adapter `cmd/vedette/reports.go` (từ `inventory` `Approved`) → "devices not in the Devices list" đổi theo.
+
 ## Modifying: `Service.GeneratePdpl(ctx, actor) (PdplReport, error)` (`buildPdpl`, `Regime`) — 1 người gọi
 - **HTTP** `/reports/pdpl/generate`. Đổi luật/quy tắc tính `regime`, `measures` → nội dung pháp lý thay đổi: phải kiểm lại với nguồn chính thức và ghi ngày vào CONTRACT.
 

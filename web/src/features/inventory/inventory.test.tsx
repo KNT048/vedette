@@ -26,6 +26,8 @@ afterEach(() => { server.events.removeAllListeners() }) // #849: a failing test 
 
 const BASE = `${location.origin}/api/v1/inventory`
 const T = { timeout: 5000 }
+/** The device list's own count line ("34 devices, 2 not yet approved"); the pager next to it has a status of its own ("1–34 of 34"). */
+const countLine = () => { const l = screen.queryAllByRole('status').filter((s) => /devices/.test(s.textContent ?? '')); expect(l).toHaveLength(1); return l[0] }
 const asAdmin = () => sessionStore.set({ userId: 'u-admin' })
 async function call(method: string, path: string, body?: unknown) {
   const res = await fetch(`${BASE}${path}`, { method, headers: { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) })
@@ -87,7 +89,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     await toggleFilter(user, new RegExp(`^Fragile ${fragile}$`))
     table = screen.getByRole('table', { name: DEVICE_TABLE })
     expect(within(table).getAllByRole('row')).toHaveLength(fragile + 1)
-    expect(screen.getByRole('status')).toHaveTextContent(`${fragile} of `)
+    expect(countLine()).toHaveTextContent(`${fragile} of `)
     // a token typed by hand, offered by the list: type: then a value
     await user.clear(box)
     await user.type(box, 'type:')
@@ -406,11 +408,11 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     await deviceTable()
     const total = assetsStore.get().length
     const approved = assetsStore.get().filter((a) => a.approved).length
-    expect(await screen.findByRole('status')).toHaveTextContent(`${total} devices, 2 not yet approved`)
+    await waitFor(() => expect(countLine()).toHaveTextContent(`${total} devices, 2 not yet approved`), T)
     await toggleFilter(user, /^Fragile/)
     const fragile = assetsStore.get().filter((a) => a.fragile && a.approved).length
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(`${fragile} of ${approved} devices shown · 2 not yet approved`), T)
-    expect(screen.getAllByRole('status')).toHaveLength(1)
+    await waitFor(() => expect(countLine()).toHaveTextContent(`${fragile} of ${approved} devices shown · 2 not yet approved`), T)
+    expect(screen.getAllByRole('status').filter((s) => /devices/.test(s.textContent ?? ''))).toHaveLength(1) // the pager's range names rows, not devices
     await user.type(screen.getByRole('combobox', { name: 'Search devices' }), 'zzz')
     await user.click(await screen.findByRole('button', { name: 'Clear filters' }, T))
     expect(screen.getByRole('combobox', { name: 'Search devices' })).toHaveValue('')
@@ -873,10 +875,10 @@ describe('inventory: device detail (S-INV-1)', () => {
     findingsStore.update((l) => l.map((f) => (f.id === 'f-1' ? { ...f, status: 'suspected' as const, basis: 'version' as const } : f)))
     openSoftwareTab()
     await waitFor(() => expect(within(photoStation()).getByRole('link', { name: '1 exploited CVE' })).toBeInTheDocument(), T) // the row is settled: findings arrived
-    // an unmarked row offers the action as a button; no status text until a person marks it
-    expect(within(photoStation()).getByRole('button', { name: 'Mark not installed: QNAP Photo Station' })).toHaveTextContent('Mark not installed…')
+    // an unmarked row offers the action in its menu; no status text until a person marks it
     expect(within(photoStation()).queryByText(/^Not installed/)).toBeNull()
-    await user.click(within(photoStation()).getByRole('button', { name: 'Mark not installed: QNAP Photo Station' }))
+    await user.click(within(photoStation()).getByRole('button', { name: 'Actions for QNAP Photo Station' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Mark not installed…' }, T))
     const dialog = await screen.findByRole('dialog', undefined, T)
     expect(dialog).toHaveAccessibleName('Is QNAP Photo Station 6.0.20 not installed on NAS-PHOTOS?')
     expect(dialog).toHaveTextContent('Vedette stops matching it and closes the findings only it produced, as long as the scan or agent reads this same version.')
@@ -888,12 +890,12 @@ describe('inventory: device detail (S-INV-1)', () => {
     // one row: the person's word, with Clear; the reported row it replaces is not listed again
     await waitFor(() => expect(within(screen.getByRole('table', { name: 'Software on the device' })).getAllByText('QNAP Photo Station')).toHaveLength(1), T)
     expect(within(photoStation()).getByText(/^Not installed \(you said, .+\)$/)).toBeInTheDocument()
-    expect(within(photoStation()).queryByRole('button', { name: /Change the version/ })).toBeNull()
+    expect(within(photoStation()).queryByRole('button', { name: /^Actions for/ })).toBeNull()
     expect(auditStore.get().some((a) => a.action === 'inventory.mark_not_installed')).toBe(true)
     await expectNoA11yViolations()
     await user.click(within(photoStation()).getByRole('button', { name: 'Clear "not installed" for QNAP Photo Station' }))
     expect(await screen.findByText('QNAP Photo Station is back as the scan or agent reads it. Its findings are checked again.', undefined, T)).toBeInTheDocument()
-    await waitFor(() => expect(within(photoStation()).getByRole('button', { name: 'Mark not installed: QNAP Photo Station' })).toBeInTheDocument(), T)
+    await waitFor(() => expect(within(photoStation()).getByRole('button', { name: 'Actions for QNAP Photo Station' })).toBeInTheDocument(), T)
     expect(f1().status).toBe('suspected')
     expect(find('a-nas02').software.some((s) => s.corrects)).toBe(false)
   })
@@ -902,7 +904,8 @@ describe('inventory: device detail (S-INV-1)', () => {
     const user = userEvent.setup()
     openSoftwareTab() // f-1 on Photo Station is confirmed by a scan
     await waitFor(() => expect(within(photoStation()).getByRole('link', { name: '1 exploited CVE' })).toBeInTheDocument(), T)
-    await user.click(within(photoStation()).getByRole('button', { name: 'Mark not installed: QNAP Photo Station' }))
+    await user.click(within(photoStation()).getByRole('button', { name: 'Actions for QNAP Photo Station' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Mark not installed…' }, T))
     await user.click(within(await screen.findByRole('dialog', undefined, T)).getByRole('button', { name: 'Not installed' }))
     expect(await screen.findByText('QNAP Photo Station 6.0.20 is marked not installed on NAS-PHOTOS. 1 stays open: a scan confirmed it.', undefined, T)).toBeInTheDocument()
     expect(findingsStore.get().find((f) => f.id === 'f-1')!.status).toBe('confirmed')
@@ -910,7 +913,7 @@ describe('inventory: device detail (S-INV-1)', () => {
 
   it('INV-41 (6): a viewer sees Not installed locked; a row a person added is removed, never marked; the API refuses mixing it with a version', async () => {
     renderApp('/devices/a-nas02?tab=software', { role: 'viewer' })
-    await waitFor(() => expect(within(photoStation()).getByRole('button', { name: 'Mark not installed: QNAP Photo Station' })).toBeDisabled(), T)
+    await waitFor(() => expect(within(photoStation()).getByRole('button', { name: 'Actions for QNAP Photo Station' })).toBeDisabled(), T)
     asAdmin()
     expect((await call('PATCH', '/devices/a-nas02/software/s-nas02-ps', { not_installed: true, version: '6.1' })).json?.error.code).toBe('bad_edit')
     expect((await call('PATCH', '/devices/a-nas02/software/s-nas02-ps', { not_installed: true, vendor: 'QNAP', product: 'QTS' })).json?.error.code).toBe('bad_edit')
@@ -967,7 +970,8 @@ describe('inventory: device detail (S-INV-1)', () => {
     await waitFor(() => expect(find('a-pc01').software).toHaveLength(before + 1), T)
     expect(screen.queryByRole('button', { name: /Remove Windows from/ })).not.toBeInTheDocument()
     const added = find('a-pc01').software.find((s) => s.source === 'manual')!
-    await user.click((await screen.findAllByRole('button', { name: `Remove ${added.display} from the device` }, T))[0]!)
+    await user.click((await screen.findAllByRole('button', { name: `Actions for ${added.display}` }, T))[0]!)
+    await user.click(await screen.findByRole('menuitem', { name: 'Remove from the device' }, T))
     await waitFor(() => expect(find('a-pc01').software).toHaveLength(before), T)
     asAdmin()
     const r = await call('DELETE', `/devices/a-pc01/software/${find('a-pc01').software[0]!.id}`)

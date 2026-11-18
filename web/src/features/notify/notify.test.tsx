@@ -393,9 +393,9 @@ describe('notify: why not sent, bulk acknowledge and resolve (S-ALERT-3)', () =>
     const bar = screen.getByRole('region', { name: 'Selected incidents' })
     expect(within(bar).getByText('50 incidents selected')).toBeInTheDocument()
     expect(within(bar).getByText('All 50 incidents on this page are selected.')).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Next' })) // another page: no banner about the old one
+    await userEvent.click(screen.getAllByRole('button', { name: 'Next' })[0]!) // another page (the pager above the list): no banner about the old one
     await waitFor(() => expect(within(bar).queryByText('All 50 incidents on this page are selected.')).toBeNull())
-    await userEvent.click(screen.getByRole('button', { name: 'Previous' }))
+    await userEvent.click(screen.getAllByRole('button', { name: 'Previous' })[0]!)
     await userEvent.click(screen.getByRole('checkbox', { name: 'Select all 50 incidents on this page' })) // all selected: unselect the page
     await userEvent.click(screen.getByRole('checkbox', { name: 'Select all 50 incidents on this page' }))
     expect(within(screen.getByRole('region', { name: 'Selected incidents' })).getByText('All 50 incidents on this page are selected.')).toBeInTheDocument()

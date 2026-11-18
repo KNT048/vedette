@@ -244,7 +244,6 @@
     "export": "Export CSV",
     "empty": "No log lines yet. Each configuration change adds one here.",
     "emptyFiltered": "No line matches the filters. Remove a condition or widen the dates.",
-    "truncated": "Showing the latest {{shown}} of {{total}} matching lines. Export CSV for all of them.",
     "col": {
       "time": "When",
       "user": "Who",

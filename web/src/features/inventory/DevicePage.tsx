@@ -2,7 +2,7 @@ import { useRef, useState, type RefObject } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { EyeOff, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react'
+import { EyeOff, MoreHorizontal, Pencil, Plus, RefreshCw, Trash2, Undo2 } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Breadcrumbs } from '@/components/common/Breadcrumbs'
 import { Card } from '@/components/common/Card'
@@ -23,13 +23,13 @@ import { useCan } from '@/lib/session'
 import type { AssetKind, Service } from '@/lib/types'
 import { categoryLabel, categoryOf, kindLabel, TYPES_BY_CATEGORY } from '@/lib/deviceTypes'
 import { AddDeviceDialog } from './AddDeviceDialog'
-import { useDevice, useDeviceAction, useEffectiveSoftware } from './api'
+import { useAgentReport, useAskReport, useDevice, useDeviceAction, useEffectiveSoftware } from './api'
 import { DetectedNotice } from './DetectedNotice'
 import { useScanning } from '@/features/scanning/api'
 import { scanRefusal } from '@/features/scanning/canScan'
 import type { Scanning } from '@/features/scanning/types'
 import { useModuleEnabled } from '@/lib/modules'
-import { OsNeeds, SoftwareNeeds, useSoftwareNeeds } from '@/features/findings/SoftwareNeeds'
+import { needsByLine, needsRank, OsNeeds, SoftwareNeeds, useSoftwareNeeds } from '@/features/findings/SoftwareNeeds'
 import { useDeviceFindingCounts } from '@/features/findings/notRelevant'
 import { DeleteDialog } from './DeleteDialog'
 import { VersionDialog } from './VersionDialog'
@@ -311,13 +311,21 @@ function SoftwareList({ d }: { d: DeviceDetail }) {
   const act = useDeviceAction(d.asset.id)
   const [editing, setEditing] = useState<SoftwareView | null>(null)
   const [gone, setGone] = useState<SoftwareView | null>(null)
-  // What each software row needs, from the same answer as Findings › To fix
-  const needs = useSoftwareNeeds(d.asset.id)
+  // "Ask the agent now" (agent-intake INV-23) for the agent's rows: only while an osquery agent reads the device and a new ask is possible
+  const agentOn = useModuleEnabled('agent-intake')
+  const report = useAgentReport(d.asset.id, agentOn === true && !d.asset.is_box && d.asset.software.some((sw) => sw.source === 'agent'))
+  const ask = useAskReport(d.asset.id)
+  const r = report.data
+  const canAsk = r?.agent === 'osquery' && !r.asked_at && !(r.ask_again_at && Date.parse(r.ask_again_at) > Date.now())
   // INV-41 (6): a reported row a person said is not installed is shown once, as that "not installed" row (with Clear)
   const effective = useEffectiveSoftware(d.asset.id)
   const lines = softwareLines(d.asset.software, effective.data?.items)
   const list = lines.map((l) => l.sw)
   const lineOf = new Map(lines.map((l) => [l.sw.id, l]))
+  // What each software line needs, from the same answer as Findings › To fix. Its actions name the row their findings or plan item
+  // rest on, which may be another source's row of the same software (listed under the line): those count on the line.
+  const lineIdOf = new Map(lines.flatMap((l) => [[l.sw.id, l.sw.id] as const, ...(l.eff?.also_seen ?? []).map((o) => [o.id, l.sw.id] as const)]))
+  const needs = needsByLine(useSoftwareNeeds(d.asset.id), lineIdOf)
   // The OS the device uses has a line of its own when no row shows it (an OS from the agent, SNMP or the device's LLDP statement);
   // a network scan's OS guess, or the OS row a person declared, is its own row, never also a line. The box's own OS is its package list.
   const os = d.asset.os
@@ -329,7 +337,6 @@ function SoftwareList({ d }: { d: DeviceDetail }) {
     </div>
   ) : null
   if (!list.length) return <>{osBox}<EmptyState title={t('software.empty')} info={t('software.emptyBodyInfo')}>{t('software.emptyBody')}</EmptyState></>
-  const needCount = (sw: SoftwareView) => (needs instanceof Map ? (needs.get(sw.id)?.exploited.reduce((n, a) => n + a.cves.length, 0) ?? 0) : 0)
   const needRole = can ? undefined : t('common:needRole', { role: t('common:role.operator') })
   const version = (sw: SoftwareView) => {
     const c = sw.correction
@@ -367,26 +374,61 @@ function SoftwareList({ d }: { d: DeviceDetail }) {
       </div>
     )
   }
-  const actions = (sw: SoftwareView) => (sw.correction?.not_installed ? (
-    <Button size="sm" variant="secondary" disabled={!can || act.removeSoftware.isPending} busy={act.removeSoftware.isPending && act.removeSoftware.variables === sw.id} busyLabel={t('common:busy.saving')}
-      title={needRole} aria-label={t('software.clearLabel', { name: sw.display })}
-      onClick={() => act.removeSoftware.mutate(sw.id, { onSuccess: () => toast.success(t('software.cleared', { name: sw.display })), onError: (e) => toast.error(errMsg(e)) })}>{t('software.clear')}</Button>
-  ) : sw.source !== 'manual' && !d.asset.is_box ? (
-    <Button size="sm" variant="secondary" disabled={!can} title={needRole} aria-label={t('software.notInstalledActionLabel', { name: sw.display })} onClick={() => setGone(sw)}>{t('software.notInstalledAction')}</Button>
-  ) : sw.source === 'manual' ? (
-    <div className="flex">
-      <Button size="sm" variant="ghost" disabled={!can} aria-label={t('software.edit', { name: sw.display })} title={needRole ?? t('software.edit', { name: sw.display })} onClick={() => setEditing(sw)}><Pencil /></Button>
-      <Button size="sm" variant="ghost" disabled={!can || act.removeSoftware.isPending} busy={act.removeSoftware.isPending && act.removeSoftware.variables === sw.id} aria-label={t('software.remove', { name: sw.display })} title={t('software.remove', { name: sw.display })}
-        onClick={() => act.removeSoftware.mutate(sw.id, { onSuccess: () => toast.success(t('software.removed', { name: sw.display })), onError: (e) => toast.error(errMsg(e)) })}><Trash2 /></Button>
-    </div>
-  ) : null)
+  // The row's actions in one "More" menu. Every line can be corrected (INV-41): the version a person gives stands until a source
+  // reports a newer one. A person's correction can be changed or undone; software a person declared is changed or removed; a reported
+  // line can also be marked not installed, and an agent's line can ask the agent to report now. "Not installed" keeps its Clear button.
+  // `can_correct` false (the box refuses a correction of that line) hides "Correct version…"; absent, it is offered.
+  const remove = (sw: SoftwareView, done: string) => act.removeSoftware.mutate(sw.id, { onSuccess: () => toast.success(t(done, { name: sw.display })), onError: (e) => toast.error(errMsg(e)) })
+  const actions = (sw: SoftwareView) => {
+    if (sw.correction?.not_installed) {
+      return (
+        <Button size="sm" variant="secondary" disabled={!can || act.removeSoftware.isPending} busy={act.removeSoftware.isPending && act.removeSoftware.variables === sw.id} busyLabel={t('common:busy.saving')}
+          title={needRole} aria-label={t('software.clearLabel', { name: sw.display })}
+          onClick={() => remove(sw, 'software.cleared')}>{t('software.clear')}</Button>
+      )
+    }
+    const manual = sw.source === 'manual'
+    // The box's own packages can be corrected like any line; they are never marked not installed (the box reads its package database)
+    const notInstalled = !manual && !d.asset.is_box
+    if (!manual && sw.can_correct === false && !notInstalled) return null
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button size="sm" variant="ghost" disabled={!can} title={needRole ?? t('software.menu', { name: sw.display })} aria-label={t('software.menu', { name: sw.display })}
+            busy={(act.removeSoftware.isPending && act.removeSoftware.variables === sw.id) || (sw.source === 'agent' && ask.isPending)}><MoreHorizontal /></Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {manual && sw.correction ? (
+            <>
+              <DropdownMenuItem onSelect={() => setEditing(sw)}><Pencil />{t('software.correctAction')}</DropdownMenuItem>
+              {/* busy-guard: the line's More button shows the wait (busy) while the correction is undone */}
+              <DropdownMenuItem onSelect={() => remove(sw, 'software.correctionUndone')}><Undo2 />{t('software.undoCorrection')}</DropdownMenuItem>
+            </>
+          ) : manual ? (
+            <>
+              <DropdownMenuItem onSelect={() => setEditing(sw)}><Pencil />{t('software.editAction')}</DropdownMenuItem>
+              {/* busy-guard: the line's More button shows the wait (busy) while the software is removed */}
+              <DropdownMenuItem onSelect={() => remove(sw, 'software.removed')}><Trash2 />{t('software.removeAction')}</DropdownMenuItem>
+            </>
+          ) : (
+            <>
+              {sw.can_correct !== false ? <DropdownMenuItem onSelect={() => setEditing(sw)}><Pencil />{t('software.correctAction')}</DropdownMenuItem> : null}
+              {/* busy-guard: the agent line's More button shows the wait (busy) while the agent is asked */}
+              {sw.source === 'agent' && canAsk ? <DropdownMenuItem onSelect={() => ask.mutate(undefined, { onSuccess: () => toast.success(t('software.askedAgent')), onError: (e) => toast.error(errMsg(e)) })}><RefreshCw />{t('software.askAgent')}</DropdownMenuItem> : null}
+              {notInstalled ? <DropdownMenuItem onSelect={() => setGone(sw)}><EyeOff />{t('software.notInstalledAction')}</DropdownMenuItem> : null}
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    )
+  }
   const columns: ColumnDef<SoftwareView>[] = [
     { id: 'name', header: t('software.name'), accessorFn: (s) => s.display, cell: ({ row }) => {
       const raw = rawProductLine(row.original.display, row.original.vendor, row.original.product)
       return <div className="grid"><span className="font-medium">{row.original.display}</span>{raw ? <span className="text-caption text-muted">{raw}</span> : null}</div>
     } },
     { id: 'version', header: t('software.version'), accessorFn: (s) => s.version ?? '', cell: ({ row }) => version(row.original) },
-    { id: 'kev', header: t('findings:needs.column'), accessorFn: needCount, cell: ({ row }) => <SoftwareNeeds assetId={d.asset.id} softwareId={row.original.id} needs={needs} /> },
+    { id: 'kev', header: t('findings:needs.column'), accessorFn: (sw) => needsRank(needs, sw.id), sortDescFirst: true, cell: ({ row }) => <SoftwareNeeds assetId={d.asset.id} softwareId={row.original.id} needs={needs} /> },
     { id: 'source', header: t('obs.source'), accessorFn: (s) => s.confidence, cell: ({ row }) => (d.asset.is_box ? <span className="text-caption text-muted">{t('box.source')}</span> : <SourceBadge source={row.original.source} confidence={row.original.confidence} basis={row.original.basis} />) },
     { id: 'actions', header: () => <span className="sr-only">{t('software.actions')}</span>, enableSorting: false, cell: ({ row }) => actions(row.original) },
   ]

@@ -205,21 +205,20 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     expect(await screen.findByRole('tab', { name: 'Digest', selected: true })).toBeInTheDocument()
   })
 
-  it('bad connections point to the source device in the inventory', async () => {
-    renderApp('/logs')
+  it('bad connections point to the source device in the inventory, and the destination to its log lines', async () => {
+    renderApp('/logs?bad.window=24h')
     const table = await screen.findByRole('table', { name: 'Connections to bad IPs or domains' })
     const nas = assetsStore.get().find((a) => a.ip === '192.168.10.20')!
     expect(within(table).getByRole('link', { name: nas.hostname! })).toHaveAttribute('href', `/devices/${nas.id}`)
-    expect(within(table).getByRole('link', { name: 'Look up 185.220.101.47' })).toHaveAttribute('href', '/lookup?q=185.220.101.47')
+    expect(within(table).getByRole('link', { name: 'Show the log lines of 185.220.101.47' })).toHaveAttribute('href', '/logs?tab=events&events.q=185.220.101.47&events.window=1h')
+    expect(within(table).queryByRole('link', { name: /^Look up/ })).toBeNull()
   })
 
-  it('a subdomain of a name listed with all of its subdomains says the listed name, and Look up goes to it', async () => {
-    renderApp('/logs')
+  it('a subdomain of a name listed with all of its subdomains says the listed name; its log lines are those of the name asked for', async () => {
+    renderApp('/logs?bad.window=24h')
     const table = await screen.findByRole('table', { name: 'Connections to bad IPs or domains' })
-    expect(within(table).getByText('a7k2q.update-dsm-synology.com')).toBeInTheDocument()
+    expect(within(table).getByRole('link', { name: 'Show the log lines of a7k2q.update-dsm-synology.com' })).toHaveAttribute('href', '/logs?tab=events&events.q=a7k2q.update-dsm-synology.com&events.window=24h')
     expect(within(table).getByText('listed as update-dsm-synology.com')).toBeInTheDocument()
-    expect(within(table).getByRole('link', { name: 'Look up update-dsm-synology.com' })).toHaveAttribute('href', '/lookup?q=update-dsm-synology.com')
-    expect(within(table).queryByRole('link', { name: 'Look up a7k2q.update-dsm-synology.com' })).toBeNull()
   })
 
   it('a source found by the address its SNMP is read from is the device, not "Not in the inventory"', async () => {
@@ -250,7 +249,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
 
   it('a machine that is not in the inventory is said so', async () => {
     assetsStore.update((l) => l.filter((a) => a.ip !== '192.168.10.157'))
-    renderApp('/logs')
+    renderApp('/logs?bad.window=24h')
     const table = await screen.findByRole('table', { name: 'Connections to bad IPs or domains' })
     expect(within(table).getByText('Not in the inventory')).toBeInTheDocument()
   })
@@ -616,14 +615,15 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
 
   it('an empty list of bad connections says plainly that nothing was found, and says why when Feeds is off', async () => {
     const digest = { generated_at: '2026-11-12T01:00:00Z', lines_24h: 5, baseline_days: 7, history_days: 7, new: [], spikes: [], bad_connections: [], ioc_matching: true }
-    server.use(http.get('*/api/v1/logs/digest', () => HttpResponse.json(digest)))
-    const first = renderApp('/logs')
+    server.use(http.get('*/api/v1/logs/digest', () => HttpResponse.json(digest)),
+      http.get('*/api/v1/logs/bad-connections', () => HttpResponse.json({ items: [], total: 0, hits: 0, ioc_matching: true })))
+    const first = renderApp('/logs?bad.window=24h')
     expect(await screen.findByText('None of your devices connected to a listed bad address in the last 24 hours.')).toBeInTheDocument()
     expect(screen.queryByText(/not switched on yet/)).not.toBeInTheDocument()
     expect(screen.queryByText(/The Feeds module is off/)).not.toBeInTheDocument()
     first.unmount()
     modulesStore.update((l) => l.map((m) => (m.id === 'feeds' ? { ...m, enabled: false } : m)))
-    renderApp('/logs')
+    renderApp('/logs?bad.window=24h')
     expect(await screen.findByText(/The Feeds module is off, so no connection can be matched/)).toBeInTheDocument()
     // with Feeds off nothing was matched, so the list must not read as "no device connected"
     expect(screen.queryByText(/None of your devices connected/)).not.toBeInTheDocument()
@@ -631,19 +631,20 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
 
   it('Feeds on but no switched-on feed lists an indicator: the empty list says nothing could be matched', async () => {
     const digest = { generated_at: '2026-11-12T01:00:00Z', lines_24h: 5, baseline_days: 7, history_days: 7, new: [], spikes: [], bad_connections: [], ioc_matching: false }
-    server.use(http.get('*/api/v1/logs/digest', () => HttpResponse.json(digest)))
+    server.use(http.get('*/api/v1/logs/digest', () => HttpResponse.json(digest)),
+      http.get('*/api/v1/logs/bad-connections', () => HttpResponse.json({ items: [], total: 0, hits: 0, ioc_matching: false })))
     renderApp('/logs')
     expect(await screen.findByText(/No switched-on threat feed lists any IP address or domain yet/)).toBeInTheDocument()
     expect(screen.queryByText(/None of your devices connected/)).not.toBeInTheDocument()
   })
 
-  it('the digest shows the hits of the last 24 hours only, newest first, with the device resolved when it is read', async () => {
+  it('the 24-hour list shows the hits of the last 24 hours only, newest first, with the device resolved when it is read', async () => {
     const row = (id: string, hours: number, ip: string, dest: string, blocked = false) => ({ id, ts: new Date(Date.now() - hours * 3600e3).toISOString(), src_ip: ip, dest, dest_kind: 'ip' as const, seen_via: 'syslog:FW-HQ', feeds: ['x'], confidence: 0.5, blocked })
     collection<ReturnType<typeof row>[]>('logs_ioc_hits', () => []).set([row('b-old', 30, '192.168.10.20', '203.0.113.99'), row('b-a', 5, '192.168.10.20', '203.0.113.51', true), row('b-b', 1, '192.168.10.20', '203.0.113.50')])
-    renderApp('/logs')
+    renderApp('/logs?bad.window=24h')
     const table = await screen.findByRole('table', { name: 'Connections to bad IPs or domains' })
     expect(within(table).queryByText('203.0.113.99')).not.toBeInTheDocument()
-    expect(within(table).getAllByRole('link', { name: /^Look up / }).map((a) => a.textContent)).toEqual(['Look up 203.0.113.50', 'Look up 203.0.113.51'])
+    expect(within(table).getAllByRole('link', { name: /^Show the log lines of / }).map((a) => a.textContent)).toEqual(['203.0.113.50', '203.0.113.51'])
     const nas = assetsStore.get().find((a) => a.ip === '192.168.10.20')!
     expect(within(table).getAllByRole('link', { name: nas.hostname! })).toHaveLength(2)
     // A line the firewall blocked is an attempt, marked Blocked; the one that went through is not

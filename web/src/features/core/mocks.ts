@@ -585,7 +585,11 @@ const auditHandlers = [
     if (denied) return denied
     const all = auditStore.get()
     const rows = filterAudit(qOf(request.url))
-    const items = rows.slice(0, 200)
+    // Like the box: one page, newest first (offset, limit at most 200)
+    const p = new URL(request.url).searchParams
+    const skip = Number(p.get('offset') ?? 0) || 0
+    const limit = Math.min(200, Number(p.get('limit') ?? 200) || 200)
+    const items = rows.slice(skip, skip + limit)
     return HttpResponse.json({ items, total: rows.length, users: [...new Set(all.map((r) => r.user))].sort(), groups: [...new Set(all.map((r) => r.action.split('.')[0] ?? ''))].sort(), names: auditNames(items) })
   }),
   http.get(`${API}/core/audit/export`, ({ request }) => {

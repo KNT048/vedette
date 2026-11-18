@@ -28,8 +28,64 @@ const iocHits = collection<StoredIoc[]>('logs_ioc_hits', () => {
     { id: 'b-1', ts: daysAgo(0, 0.2), src_ip: '192.168.10.105', dest: '185.220.101.47', dest_kind: 'ip', seen_via: 'span_flow', feeds: ['Tor exit list', 'IPsum'], confidence: 0.9, blocked: false, listed_as: null },
     { id: 'b-2', ts: daysAgo(0, 1.6), src_ip: '192.168.10.20', dest: 'a7k2q.update-dsm-synology.com', dest_kind: 'domain', seen_via: 'span_dns', feeds: ['hagezi TIF'], confidence: 0.95, blocked: false, listed_as: 'update-dsm-synology.com' },
     { id: 'b-3', ts: daysAgo(0, 3), src_ip: '192.168.10.157', dest: '45.148.10.95', dest_kind: 'ip', seen_via: 'syslog:FW-HQ', feeds: ['ET Open compromised', 'IPsum'], confidence: 0.6, blocked: true, listed_as: null },
+    ...sampleHits(),
   ]
 }, () => [])
+
+/** A week of a busy network: several devices reach the same listed addresses day after day (one hit per pair per day, as on the box). */
+function sampleHits(): StoredIoc[] {
+  const out: StoredIoc[] = []
+  const srcs = ['192.168.10.105', '192.168.10.20', '192.168.10.157', '192.168.10.108', '192.168.10.113', '192.168.10.31']
+  for (let d = 0; d < 40; d++) {
+    const dest = `198.51.100.${10 + d}`
+    for (let k = 0; k <= d % 3; k++) {
+      const src = srcs[(d + k) % srcs.length]!
+      for (let day = 1; day <= 1 + ((d + k) % 6); day++) {
+        out.push({ id: `bs-${d}-${k}-${day}`, ts: daysAgo(day, (d % 11) + k + 1), src_ip: src, dest, dest_kind: 'ip', seen_via: k % 2 ? 'syslog:FW-HQ' : 'span_flow',
+          feeds: d % 4 ? ['IPsum'] : ['IPsum', 'Feodo Tracker'], confidence: 0.5 + (d % 5) / 10, blocked: k % 2 === 1, listed_as: null })
+      }
+    }
+  }
+  return out
+}
+
+/** GET /logs/bad-connections, as IocPairs builds it: the hits of the range grouped by source address and destination, the devices named
+ *  from the inventory, then searched, ordered and paged. */
+export function badConnections(p: URLSearchParams) {
+  const w = p.get('window')
+  if (w !== '24h' && w !== '7d') return null
+  const feedsOff = modulesStore.get().find((m) => m.id === 'feeds')?.enabled === false
+  const matching = !feedsOff && iocListed()
+  if (feedsOff) return { items: [], total: 0, hits: 0, ioc_matching: matching }
+  const since = Date.now() - (w === '24h' ? 1 : 7) * 86400e3
+  const assets = assetsStore.get()
+  const groups = new Map<string, StoredIoc[]>()
+  for (const h of iocHits.get().filter((r) => new Date(r.ts).getTime() >= since)) {
+    const k = `${h.src_ip}|${h.dest_kind}|${h.dest}`
+    groups.set(k, [...(groups.get(k) ?? []), h])
+  }
+  const perDest = new Map<string, number>()
+  for (const l of groups.values()) perDest.set(`${l[0]!.dest_kind}|${l[0]!.dest}`, (perDest.get(`${l[0]!.dest_kind}|${l[0]!.dest}`) ?? 0) + 1)
+  const all = [...groups.values()].map((l) => {
+    const h = l[0]!
+    const a = assets.find((x) => x.ip === h.src_ip)
+    const ts = l.map((x) => x.ts).sort()
+    return {
+      src_ip: h.src_ip, asset_id: a?.id ?? null, asset_name: a ? (a.hostname ?? a.ip) : null, dest: h.dest, dest_kind: h.dest_kind,
+      listed_as: l.find((x) => x.listed_as)?.listed_as ?? null, hits: l.length, first_seen: ts[0]!, last_seen: ts.at(-1)!,
+      feeds: [...new Set(l.flatMap((x) => x.feeds))].sort(), confidence: Math.max(...l.map((x) => x.confidence)),
+      seen_via: [...new Set(l.map((x) => x.seen_via))].sort(), blocked: l.filter((x) => x.blocked).length,
+      other_devices: (perDest.get(`${h.dest_kind}|${h.dest}`) ?? 1) - 1,
+    }
+  })
+  const q = (p.get('q') ?? '').trim().toLowerCase()
+  const shown = all.filter((r) => !q || [r.src_ip, r.dest, r.asset_name ?? '', r.listed_as ?? '', ...r.feeds].some((v) => v.toLowerCase().includes(q)))
+  const byHits = p.get('sort') === 'hits'
+  shown.sort((a, b) => (byHits ? b.hits - a.hits || b.last_seen.localeCompare(a.last_seen) : b.last_seen.localeCompare(a.last_seen) || b.hits - a.hits) || a.dest.localeCompare(b.dest) || a.src_ip.localeCompare(b.src_ip))
+  const offset = Number(p.get('offset') ?? 0) || 0
+  const limit = Math.min(200, Number(p.get('limit') ?? 200) || 200)
+  return { items: shown.slice(offset, offset + limit), total: shown.length, hits: all.reduce((n, r) => n + r.hits, 0), ioc_matching: matching }
+}
 // Senders whose syslog the box dropped because no source declares them (S-LOG-1, FORBID-5): kept in memory on the box, so a clean install has none.
 const unknownSenders = collection<UnknownSender[]>('logs_unknown_senders', () => [
   { ip: '192.168.10.3', proto: 'udp', count: 418, last_seen: new Date(Date.now() - 45e3).toISOString() },
@@ -237,6 +293,12 @@ export const handlers = [
   http.get(`${API}/logs/digest`, () => {
     const denied = guard('viewer'); if (denied) return denied
     return HttpResponse.json(digest())
+  }),
+
+  http.get(`${API}/logs/bad-connections`, ({ request }) => {
+    const denied = guard('viewer'); if (denied) return denied
+    const r = badConnections(new URL(request.url).searchParams)
+    return r ? HttpResponse.json(r) : fail(400, 'bad_window', 'The time range must be 24h or 7d.')
   }),
 
   http.get(`${API}/logs/events`, ({ request }) => {

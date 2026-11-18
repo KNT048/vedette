@@ -45,6 +45,9 @@ type Rule = keyof typeof RULES
 const ALLOWED: { file: string; text: string; count: number; why: string }[] = [
   { file: 'components/ui/button.tsx', text: '<button className', count: 1, why: 'the Button itself: its native button is the one that draws the busy state' },
   { file: 'features/core/SetupPage.tsx', text: 'key="next"', count: 1, why: 'Continue only moves to the next step of the wizard; Finish (busy) is the step that calls the server' },
+  { file: 'features/inventory/DevicePage.tsx', text: "remove(sw, 'software.correctionUndone')", count: 1, why: 'Undo correction in a software line\'s menu: the line\'s More button shows the wait' },
+  { file: 'features/inventory/DevicePage.tsx', text: "remove(sw, 'software.removed')", count: 1, why: 'Remove in a software line\'s menu: the line\'s More button shows the wait' },
+  { file: 'features/inventory/DevicePage.tsx', text: 'ask.mutate(undefined', count: 1, why: 'Ask the agent now in an agent line\'s menu: the line\'s More button shows the wait' },
   { file: 'features/findings/Handle.tsx', text: 'undo.isPending} title={needAdmin}', count: 1, why: 'Undo confirm in a finding row\'s menu: the row shows a busy button in place of its action while it runs' },
   { file: 'features/findings/Handle.tsx', text: 'onSelect={dev.add}', count: 1, why: 'Add device in a finding row\'s menu: the row shows a busy button in place of its action while it runs' },
   { file: 'features/findings/Handle.tsx', text: 'onSelect={dev.ignore}', count: 1, why: 'Ignore in a finding row\'s menu only opens the inventory\'s Ignore dialog, whose Ignore button carries the busy state' },

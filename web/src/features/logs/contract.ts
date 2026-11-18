@@ -84,6 +84,27 @@ export const IocHit = z.object({
   blocked: z.boolean().describe('The device that sent the log blocked the connection (the line records an attempt, for example a FortiGate deny or a blocked web-filter request); false when the line went through or does not say'),
   listed_as: z.string().nullable().describe('The name a feed lists for itself and all of its subdomains when dest is one of them (hagezi TIF): look this name up in Feeds. null when a feed lists dest itself'),
 })
+// The hits as a person reads them (GET /logs/bad-connections): one row per source address and destination over a time range.
+export const IocPair = z.object({
+  src_ip: ipv4,
+  asset_id: z.string().nullable().describe('Inventory device with this IP; null when it is not in the inventory'),
+  asset_name: z.string().nullable(),
+  dest: z.string(),
+  dest_kind: z.enum(['ip', 'domain']),
+  listed_as: z.string().nullable().describe('IocHit.listed_as of the hits (the name a feed lists with all of its subdomains); null when a feed lists dest itself'),
+  hits: z.number().int().min(1).describe('Hits of the pair in the range (one per pair per 24 hours, INV-7)'),
+  first_seen: iso, last_seen: iso,
+  feeds: z.array(z.string()).describe('Every feed that listed the destination in one of the hits, sorted'),
+  confidence: z.number().min(0).max(1).describe('The highest confidence of the hits'),
+  seen_via: z.array(z.string()).describe('IocHit.seen_via of the hits, distinct, sorted'),
+  blocked: z.number().int().min(0).describe('How many of the hits the device that logged them blocked'),
+  other_devices: z.number().int().min(0).describe('Other source addresses with hits on the same destination in the range'),
+})
+export const IocPairs = z.object({
+  items: z.array(IocPair), total: z.number().int().min(0).describe('Rows that match the search, every page'),
+  hits: z.number().int().min(0).describe('Hits in the range, whatever the search'),
+  ioc_matching: z.boolean().describe('As Digest.ioc_matching'),
+})
 export const Digest = z.object({ generated_at: iso, lines_24h: z.number().int(), baseline_days: z.number().int(), history_days: z.number().int().min(0).describe('Whole days of logs so far, at most baseline_days: from the first line of the source heard from the longest. Below baseline_days the digest is still learning what is normal'), new: z.array(NewItem), spikes: z.array(SpikeItem), bad_connections: z.array(IocHit), ioc_matching: z.boolean().describe('false when no connection can be matched: Feeds off, or no switched-on feed lists an indicator (every IOC feed off, or none loaded yet)') })
 
 export const LogEvent = z.object({
@@ -135,6 +156,10 @@ export const endpoints = defineEndpoints([
   { method: 'delete', path: '/logs/sources/{id}', summary: 'Delete a log source; already received logs are kept until retention expires', stories: ['S-LOG-1'], role: 'admin', params: id, response: null },
   { method: 'get', path: '/logs/unknown-senders', summary: 'Senders whose syslog was dropped because no source declares them (the 10 seen most recently since the listener started)', stories: ['S-LOG-1'], role: 'operator', response: UnknownSendersResponse },
   { method: 'get', path: '/logs/digest', summary: 'Digest: connections to known-bad addresses (from SPAN metadata and syslog), new log types, spikes', stories: ['S-LOG-1', 'S-LOG-2', 'S-LOG-4'], role: 'viewer', response: Digest },
+  { method: 'get', path: '/logs/bad-connections', summary: 'Connections to known-bad addresses, one row per source address and destination over the range (grouped by the box): hits, first and last seen, feeds, highest confidence. Searched by the box over the device address and name, the destination, the listed name and the feed names; ordered by the newest last hit (sort=last) or the most hits (sort=hits); paged by offset and limit (at most 200). Empty while the Feeds module is off (PRE-3). 400 bad_window', stories: ['S-LOG-2', 'S-LOG-4'], role: 'viewer',
+    query: z.object({ window: z.enum(['24h', '7d']), q: z.string().max(200).optional(), sort: z.enum(['last', 'hits']).optional().describe('Default last'),
+      offset: z.string().regex(/^[0-9]{1,6}$/).optional().describe('Rows to skip, default 0'), limit: z.string().regex(/^[0-9]{1,3}$/).optional().describe('Rows of the page, 1 to 200 (default and above: 200)') }),
+    response: IocPairs, example: { query: { window: '7d', q: '', sort: 'last', offset: '0', limit: '25' } } },
   { method: 'get', path: '/logs/events', summary: 'Search stored log events by time range, source and keyword', stories: ['S-LOG-1'], role: 'viewer',
     query: z.object({ window: EventWindow, source: z.string().optional(), q: z.string().max(200).optional(), cursor: z.string().max(64).optional().describe('The next_cursor of a previous answer: search the lines older than it. Only with q (else 400 bad_cursor)') }), response: EventsResponse, example: { query: { window: '24h', source: '', q: '' } } },
   { method: 'put', path: '/logs/retention', summary: 'Change log retention (7, 30, 90 or 180 days)', stories: ['S-LOG-1'], role: 'admin', body: z.object({ days: z.union([z.literal(7), z.literal(30), z.literal(90), z.literal(180)]) }), response: z.object({ retention_days: z.number().int() }) },

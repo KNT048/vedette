@@ -260,6 +260,7 @@ var operationRolesSession = map[string][]string{
 	InventoryPutInventorySettingsOperation:                   []string{},
 	InventoryPutInventorySnmpDevicesIDOperation:              []string{},
 	LogsDeleteLogsSourcesIDOperation:                         []string{},
+	LogsGetLogsBadConnectionsOperation:                       []string{},
 	LogsGetLogsDigestOperation:                               []string{},
 	LogsGetLogsEventsOperation:                               []string{},
 	LogsGetLogsSiemOperation:                                 []string{},

@@ -1,13 +1,15 @@
-import { useState, useSyncExternalStore, type ReactNode } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, getSortedRowModel, useReactTable,
   type ColumnDef, type SortingState, type Row,
 } from '@tanstack/react-table'
 import { ArrowDown, ArrowUp } from 'lucide-react'
-import { Input, Select } from '@/components/ui/input'
+import { Select } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { ListSearch, Pager, RangeText } from './Pager'
+import { listKey, useListParams, type ListParams } from './listParams'
 
 export type { ColumnDef }
 
@@ -25,8 +27,10 @@ function useNarrow() {
 /**
  * Bảng là thành phần chính (FRONTEND §3): 40px/dòng, header dính, sắp xếp, lọc chữ, phân trang 50.
  * `rowTone` tô viền trái cho dòng cần chú ý (ví dụ "Anh có" + đang bị khai thác).
+ * A list that pages has a search box and the same pager above and below it (First, Previous, numbered pages, Next, Last, Go to
+ * page, rows per page); the search, the page and the size live in the URL under `urlKey`, so back, reload and a shared link keep them.
  */
-export function DataTable<T>({ data, columns, filterPlaceholder, onRowClick, rowTone, empty, emptyFiltered, filtered, onClearFilters, toolbar, pageSize = 50, initialSort, caption, mobileRow, sortSelect, hiddenColumns, fillColumn }: {
+export function DataTable<T>({ data, columns, filterPlaceholder, onRowClick, rowTone, empty, emptyFiltered, filtered, onClearFilters, toolbar, pageSize = 50, initialSort, caption, mobileRow, sortSelect, hiddenColumns, fillColumn, search = true, urlKey, resetPageOn, server }: {
   data: T[]
   columns: ColumnDef<T, any>[] // eslint-disable-line @typescript-eslint/no-explicit-any
   filterPlaceholder?: string
@@ -54,19 +58,60 @@ export function DataTable<T>({ data, columns, filterPlaceholder, onRowClick, row
   /** The column that takes the width the others leave and cuts its content to it (the cell must truncate or wrap), so a long value
    *  never widens the table past its container. */
   fillColumn?: string
+  /** false: the page has a search of its own for this list (it filters `data` itself), so the table shows none. */
+  search?: boolean
+  /** The list's key in the URL query (`<key>.q`, `<key>.page`, `<key>.size`); default: from the caption. */
+  urlKey?: string
+  /** A value of the page's own filters: when it changes the list goes back to page 1. */
+  resetPageOn?: unknown
+  /** The server pages the list: `data` is one page, `total` the rows of every page, and `list` (the page's useListParams) the page
+   *  and size the page asked for. No search, sort or filter of the table's own: they would act on one page only. */
+  server?: { total: number; list: ListParams }
 }) {
   const { t } = useTranslation()
   const [sorting, setSorting] = useState<SortingState>(initialSort ?? [])
-  const [filter, setFilter] = useState('')
+  const own = useListParams(urlKey ?? listKey(caption))
+  const list = server?.list ?? own
+  const filter = server || !search ? '' : list.q
+  const size = list.size ?? pageSize
+  // The page and size are the list's (URL) state; the server's page is `data` itself (manualPagination)
+  const pagination = (pageIndex: number) => ({ pageIndex, pageSize: size })
   const table = useReactTable({
-    data, columns, state: { sorting, globalFilter: filter },
-    onSortingChange: setSorting, onGlobalFilterChange: setFilter,
-    getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(), getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(), initialState: { pagination: { pageSize }, columnVisibility: Object.fromEntries((hiddenColumns ?? []).map((id) => [id, false])) },
+    data, columns, state: { sorting, globalFilter: filter, pagination: pagination(list.page) },
+    onSortingChange: setSorting, enableSorting: !server, manualPagination: !!server, autoResetPageIndex: false,
+    getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(), getFilteredRowModel: getFilteredRowModel(), getPaginationRowModel: getPaginationRowModel(),
+    initialState: { columnVisibility: Object.fromEntries((hiddenColumns ?? []).map((id) => [id, false])) },
   })
+  const count = server ? server.total : table.getPrePaginationRowModel().rows.length
+  const pages = Math.max(1, Math.ceil(count / size))
+  // A page beyond the last (a shorter list after a filter, an old link) shows the last page; a column header that reads the shown
+  // rows (table.getRowModel(), "Select all on this page") reads that page too
+  const page = Math.min(list.page, pages - 1)
+  if (page !== list.page) table.setOptions((o) => ({ ...o, state: { ...o.state, pagination: pagination(page) } }))
   const rows = table.getRowModel().rows
+  // A server-paged list asked for a page past the last (an old link, rows that aged out): the server returned none, so ask for the
+  // last page instead of showing an empty table under a pager that says otherwise
+  const pastEnd = !!server && list.page > pages - 1 && data.length === 0
+  useEffect(() => { if (pastEnd) list.set({ page: pages - 1 }) }, [pastEnd, pages, list])
+  // The page's own filters changed: back to page 1
+  const lastReset = useRef(resetPageOn)
+  useEffect(() => {
+    if (Object.is(lastReset.current, resetPageOn)) return
+    lastReset.current = resetPageOn
+    if (list.page !== 0) list.set({ page: 0 })
+  }, [resetPageOn, list])
+  const top = useRef<HTMLDivElement>(null)
+  const setPage = (p: number, fromBottom = false) => {
+    list.set({ page: p })
+    if (fromBottom) top.current?.scrollIntoView?.({ block: 'start', behavior: 'smooth' })
+  }
+  const setSize = (n: number) => list.set({ size: n === pageSize ? undefined : n, page: 0 })
+  const sizeChanged = list.size !== undefined && list.size !== pageSize
+  const paged = pages > 1 || sizeChanged
+  // A list that pages has a search box (and keeps it while a search is on); a short list has none unless the page asks for one
+  const showSearch = !server && search && (!!filterPlaceholder || data.length > pageSize || !!list.q)
   const noMatch = filtered || (data.length > 0 && !!filter)
-  const clear = () => { setFilter(''); onClearFilters?.() }
+  const clear = () => { list.set({ q: '', page: 0 }); onClearFilters?.() }
   const none = noMatch
     ? (emptyFiltered ?? (
       <span className="inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
@@ -78,15 +123,20 @@ export function DataTable<T>({ data, columns, filterPlaceholder, onRowClick, row
   // Chỉ dựng MỘT bố cục (danh sách trên màn hẹp, bảng trên màn rộng): không có nút trùng lặp trong DOM.
   const narrow = useNarrow()
   const asList = !!mobileRow && narrow
-  const pages = table.getPageCount()
   const sortable = sortSelect ? table.getAllLeafColumns().filter((c) => c.getCanSort() && typeof c.columnDef.header === 'string') : []
 
   return (
-    <div className="grid gap-3">
-      {filterPlaceholder || toolbar ? (
+    <div ref={top} className="grid scroll-mt-4 gap-3">
+      {showSearch || toolbar || paged || filtered ? (
         <div className="flex min-w-0 flex-wrap items-center gap-2">
-          {filterPlaceholder ? <Input className="h-9 max-w-xs sm:h-8" value={filter} onChange={(e) => setFilter(e.target.value)} placeholder={filterPlaceholder} aria-label={filterPlaceholder} /> : null}
+          {showSearch ? <ListSearch value={list.q} onChange={(q) => list.set({ q, page: 0 })} label={filterPlaceholder ?? t('table.searchIn', { caption })} placeholder={filterPlaceholder ?? t('table.search')} /> : null}
           {toolbar}
+          {paged || filter || (filtered && count > 0) ? (
+            <div className="ml-auto flex flex-wrap items-center justify-end gap-x-3 gap-y-2">
+              <RangeText page={page} size={size} count={count} total={filter ? data.length : undefined} />
+              <Pager page={page} pages={pages} onPage={(p) => setPage(p)} label={t('table.pagesTop', { caption })} size={size} onSize={setSize} sizeChanged={sizeChanged} />
+            </div>
+          ) : null}
         </div>
       ) : null}
       {sortable.length > 0 ? (
@@ -146,10 +196,9 @@ export function DataTable<T>({ data, columns, filterPlaceholder, onRowClick, row
       </div>
       )}
       {pages > 1 ? (
-        <div className="flex items-center justify-end gap-2 text-meta text-muted">
-          <span>{t('table.page', { page: table.getState().pagination.pageIndex + 1, pages })}</span>
-          <Button size="sm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>{t('table.prev')}</Button>
-          <Button size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>{t('table.next')}</Button>
+        <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2">
+          <RangeText page={page} size={size} count={count} total={filter ? data.length : undefined} />
+          <Pager page={page} pages={pages} onPage={(p) => setPage(p, true)} label={t('table.pagesBottom', { caption })} />
         </div>
       ) : null}
     </div>

@@ -112,6 +112,7 @@
   "GET /inventory/snmp": "sensor-active",
   "GET /inventory/snmp/devices/{id}": "sensor-active",
   "GET /inventory/snmp/devices/{id}/similar": "sensor-active",
+  "GET /logs/bad-connections": "logs",
   "GET /logs/digest": "logs",
   "GET /logs/events": "logs",
   "GET /logs/siem": "logs",

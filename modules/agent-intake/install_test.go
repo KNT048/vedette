@@ -321,9 +321,10 @@ func TestInstall_NewTokenEnrolsAgain(t *testing.T) {
 // The Linux script decides by what the machine has, not by the name of its distribution: the package format from dpkg or rpm (so SUSE and
 // Amazon Linux work like RHEL), the service manager from the running init, and it refuses early, in one line naming the missing thing,
 // when the machine cannot run osquery: no glibc (Alpine and other musl systems: the official build is dynamically linked against glibc;
-// checked with gcompat on alpine:3.20, it fails on missing glibc symbols), no dpkg or rpm, no service manager, no curl.
+// checked with gcompat on alpine:3.20, it fails on missing glibc symbols; with gcompat installed the loader file exists and the refusal comes at the dpkg/rpm check), no dpkg or rpm, no service manager, no curl.
 // ponytail: text checks (module tests may not run a shell, SYS-1); the detection was run under busybox ash and dash in alpine:3.20, debian:12,
-// rockylinux:9, opensuse/leap:15.6, amazonlinux:2023 and archlinux for the PR.
+// rockylinux:9, opensuse/leap:15.6, amazonlinux:2023 and archlinux for the PR; the SysV calls were run against the real .deb and .rpm
+// (/etc/init.d/osqueryd in both; status exits 0 running and 7 stopped, stop exits 0 when not running, ps and pkill are required).
 func TestInstall_LinuxScriptDetectsByCapability(t *testing.T) {
 	sh := readFile(t, "scripts/osquery.sh")
 	for _, bad := range []string{"OS_IDS", `*" debian "*`, `*" rhel "*`, "Unsupported Linux distribution"} {
@@ -345,7 +346,7 @@ func TestInstall_LinuxScriptDetectsByCapability(t *testing.T) {
 		}
 		at += i + len(step)
 	}
-	for _, want := range []string{`[ -d /run/systemd/system ] && command -v systemctl`, `INIT=sysv`, "service osqueryd restart", "service osqueryd status"} {
+	for _, want := range []string{`[ -d /run/systemd/system ] && command -v systemctl`, `INIT=sysv`, `SYSV=/etc/init.d/osqueryd`, `"$SYSV" restart`, `"$SYSV" status`, "command -v pkill", `"$SYSV" stop >/dev/null 2>&1 || ! svc_active`} {
 		if !strings.Contains(sh, want) {
 			t.Errorf("the Linux script lost its service-manager handling: %q", want)
 		}

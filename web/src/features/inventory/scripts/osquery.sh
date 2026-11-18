@@ -7,7 +7,7 @@
 #      checks the SHA-256 of the package, installs it with dpkg or rpm (chosen by what this machine has, not by its name)
 #   3. writes the enroll secret (mode 600) and /etc/osquery/osquery.flags; with a token this machine does not hold yet, it first removes
 #      osquery's database (/var/osquery/osquery.db: the old node key and unsent results) so that the machine enrols under the new token
-#   4. enables and starts the osqueryd service (systemd, else a SysV init script), then waits until this machine has enrolled (not for its first report, due within a few minutes) and exits 0
+#   4. enables and starts the osqueryd service (systemd, else the SysV init script), then waits until this machine has enrolled (not for its first report, due within a few minutes) and exits 0
 set -eu
 BOX='@@BOX@@'
 OSQ_VERSION='@@VERSION@@'
@@ -25,17 +25,21 @@ DIR=/etc/osquery
 CA=$DIR/vedette-ca.pem
 DB=/var/osquery/osquery.db # osqueryd's default --database_path: its node key and its unsent results
 
-# Service manager, by capability: systemd only when it is the running init (not merely installed), else a SysV init script (osquery's
-# packages ship /etc/init.d/osqueryd).
+# Service manager, by capability: systemd only when it is the running init (not merely installed), else the SysV init script that both
+# osquery packages ship (/etc/init.d/osqueryd, run directly: Rocky and others have no 'service' command). That script needs ps and
+# pkill (checked on debian:12 and rockylinux:9 with the real packages: status exits 0 while running and 7 when stopped, stop exits 0
+# when not running; without procps its stop hangs), so SysV is used only where both exist.
+SYSV=/etc/init.d/osqueryd
 if [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1; then INIT=systemd
-elif command -v service >/dev/null 2>&1; then INIT=sysv
+elif [ -d /etc/init.d ] && command -v ps >/dev/null 2>&1 && command -v pkill >/dev/null 2>&1; then INIT=sysv
 else INIT=none; fi
-svc_known() { if [ "$INIT" = systemd ]; then systemctl cat osqueryd >/dev/null 2>&1; else [ -x /etc/init.d/osqueryd ]; fi; }
-svc_stop() { if [ "$INIT" = systemd ]; then systemctl stop osqueryd; else service osqueryd stop; fi; }
+svc_known() { if [ "$INIT" = systemd ]; then systemctl cat osqueryd >/dev/null 2>&1; else [ -x "$SYSV" ]; fi; }
+# Stopping something that is not running is not a failure (set -e): a SysV stop may exit non-zero then; it fails only if osqueryd still runs.
+svc_stop() { if [ "$INIT" = systemd ]; then systemctl stop osqueryd; else "$SYSV" stop >/dev/null 2>&1 || ! svc_active; fi; }
 svc_disable_stop() {
   if [ "$INIT" = systemd ]; then systemctl disable --now osqueryd 2>/dev/null || true
   else
-    service osqueryd stop >/dev/null 2>&1 || true
+    "$SYSV" stop >/dev/null 2>&1 || true
     if command -v update-rc.d >/dev/null 2>&1; then update-rc.d -f osqueryd remove >/dev/null 2>&1 || true
     elif command -v chkconfig >/dev/null 2>&1; then chkconfig osqueryd off >/dev/null 2>&1 || true; fi
   fi
@@ -44,9 +48,9 @@ svc_enable_restart() {
   if [ "$INIT" = systemd ]; then systemctl enable --quiet osqueryd; systemctl restart osqueryd; return; fi
   if command -v update-rc.d >/dev/null 2>&1; then update-rc.d osqueryd defaults >/dev/null 2>&1 || true
   elif command -v chkconfig >/dev/null 2>&1; then chkconfig osqueryd on >/dev/null 2>&1 || true; fi
-  service osqueryd restart
+  "$SYSV" restart >/dev/null 2>&1
 }
-svc_active() { if [ "$INIT" = systemd ]; then systemctl is-active --quiet osqueryd; else service osqueryd status >/dev/null 2>&1; fi; }
+svc_active() { if [ "$INIT" = systemd ]; then systemctl is-active --quiet osqueryd; else "$SYSV" status >/dev/null 2>&1; fi; }
 
 if [ "$ACTION" = uninstall ]; then
   [ "$INIT" = none ] || svc_disable_stop
@@ -76,7 +80,7 @@ OS_NAME=$( . "$OSF" 2>/dev/null; printf '%s' "${PRETTY_NAME:-unknown}" ) || OS_N
 if command -v dpkg >/dev/null 2>&1 && [ -e /var/lib/dpkg/status ]; then FMT=deb; FILE="osquery_${OSQ_VERSION}-1.linux_${DEB_ARCH}.deb"
 elif command -v rpm >/dev/null 2>&1; then FMT=rpm; FILE="osquery-${OSQ_VERSION}-1.linux.${RPM_ARCH}.rpm"
 else echo "Cannot install osquery on ${OS_NAME}: neither dpkg nor rpm is present, and the osquery package of this box is a .deb or .rpm." >&2; exit 1; fi
-[ "$INIT" != none ] || { echo "Cannot install osquery on ${OS_NAME}: no service manager found (systemd, or the 'service' command with SysV init scripts)." >&2; exit 1; }
+[ "$INIT" != none ] || { echo "Cannot install osquery on ${OS_NAME}: no service manager found (systemd, or SysV init scripts with ps and pkill installed)." >&2; exit 1; }
 for NEED in curl sha256sum mktemp; do
   command -v "$NEED" >/dev/null 2>&1 || { echo "Cannot install osquery on ${OS_NAME}: '$NEED' is required and is not installed." >&2; exit 1; }
 done
@@ -108,7 +112,7 @@ if [ "$FMT" = deb ]; then set -- dpkg -i "$TMP/$FILE"; else set -- rpm -Uvh --re
 if [ "$(cat "$DIR/enroll.secret" 2>/dev/null || true)" != "$TOKEN" ]; then
   [ ! -s "$DIR/enroll.secret" ] || echo "This machine was enrolled with another token; it enrols again under this one. The old token lists it until it has been silent for 90 days or you revoke that token in Vedette."
   # stopped whenever the unit exists (also while it is activating or restarting); a failed stop ends the script: a running osqueryd keeps its key
-  if svc_known; then svc_stop; fi
+  if svc_known; then svc_stop || { echo "osqueryd is still running and could not be stopped; stop it and run this command again." >&2; exit 1; }; fi
   rm -rf "$DB"
 fi
 ( umask 077; printf '%s' "$TOKEN" > "$DIR/enroll.secret" )
@@ -144,6 +148,6 @@ while [ $i -lt 24 ]; do
   fi
   i=$((i+1)); sleep 5
 done
-if [ "$INIT" = systemd ]; then STATUS_CMD='systemctl status osqueryd'; else STATUS_CMD='service osqueryd status'; fi
+if [ "$INIT" = systemd ]; then STATUS_CMD='systemctl status osqueryd'; else STATUS_CMD="$SYSV status"; fi
 echo "osquery is installed, but this machine did not enrol with Vedette within 2 minutes. Check that the box address is reachable from here and the token is still valid, then: ${STATUS_CMD}" >&2
 exit 3

@@ -142,8 +142,8 @@ func TestINV50_EntryStaysWhenTheBannerChanges(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(m.Software) != 1 || m.Software[0].ID != l.ID {
-		t.Fatalf("matching follows the effective row, the entry: %+v", m.Software)
+	if len(m.Software) != 2 { // the entry, and the scan's other release
+		t.Fatalf("matching reads the entry and the other release: %+v", m.Software)
 	}
 }
 
@@ -166,21 +166,72 @@ func TestINV50_SameCPEIsOneSoftware(t *testing.T) {
 	}
 }
 
-// The strongest reading that disagrees decides; a weaker newer one does not replace it.
-func TestINV50_StrongestDisagreeingSourceDecides(t *testing.T) {
+// Readings of other releases are listed strongest source first, and the row says they differ.
+func TestINV50_StrongestDisagreeingSourceIsListedFirst(t *testing.T) {
 	t.Parallel()
 	c := newSoftwareCase(t)
 	c.report(observe.SNMP, "OpenSSH", "9.8", "")
 	c.report(observe.Nmap, "OpenSSH", "10.3", "")
 	c.report(observe.Agent, "OpenSSH", "10.2p1", "10.2_p1-r1")
-	// the agent is the shown row and is the newest, so no weaker reading is newer: no notice
-	if l := c.oneLine("agent", 2); l.Differs {
+	l := c.oneLine("agent", 2)
+	if !l.Differs || l.AlsoSeen[0].Source != "snmp" || l.AlsoSeen[1].Source != "nmap" {
 		t.Fatalf("%+v", l)
 	}
-	c.report(observe.SNMP, "OpenSSH", "9.8", "") // snmp reads again, now newer than the agent
-	l := c.oneLine("agent", 2)
-	if !l.Differs || l.AlsoSeen[0].Source != "snmp" {
-		t.Fatalf("the strongest disagreeing source is snmp: %+v", l.Differs)
+}
+
+// What matching reads next to an entry: a reading of another release stays (a missed CVE is worse than a duplicate) and the row says
+// they differ; a reading of the same release does not repeat it.
+func TestINV50_MatchingKeepsOtherReleasesNextToAnEntry(t *testing.T) {
+	t.Parallel()
+	matched := func(c *softwareCase) map[string]bool {
+		m, _, err := c.e.svc.MatchInput(c.e.ctx(), c.dev)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := map[string]bool{}
+		for _, sw := range m.Software {
+			got[sw.Source+" "+sw.Version] = true
+		}
+		if len(got) != len(m.Software) {
+			t.Fatalf("a row twice: %+v", m.Software)
+		}
+		return got
+	}
+	// the entry, then SNMP reads 9.8
+	c := newSoftwareCase(t)
+	c.report(observe.Nmap, "OpenSSH", "10.2", "")
+	c.enter()
+	c.report(observe.SNMP, "OpenSSH", "9.8", "")
+	if l := c.oneLine("manual", 2); !l.Differs {
+		t.Fatalf("%+v", l)
+	}
+	if got := matched(c); len(got) != 2 || !got["manual 10.2"] || !got["snmp 9.8"] {
+		t.Fatalf("the entry and the SNMP reading match: %v", got)
+	}
+	// another install: nmap reads 8.9p1 next to the entry
+	c = newSoftwareCase(t)
+	c.report(observe.Nmap, "OpenSSH", "10.2", "")
+	c.enter()
+	c.e.tick(time.Minute)
+	if err := c.e.svc.ReplaceSoftware(c.e.ctx(), c.hint, observe.Nmap, []observe.Software{
+		{Display: "OpenSSH", Vendor: "Vendor OpenSSH", Product: "OpenSSH", Version: "10.2", Confidence: 0.9},
+		{Display: "OpenSSH", Vendor: "Vendor OpenSSH", Product: "OpenSSH", Version: "8.9p1", Confidence: 0.9},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if got := matched(c); len(got) != 2 || !got["manual 10.2"] || !got["nmap 8.9p1"] {
+		t.Fatalf("the entry and the other install match, the corrected row and the same release do not: %v", got)
+	}
+	// a banner of the same release is the entry's own
+	c = newSoftwareCase(t)
+	c.report(observe.Nmap, "OpenSSH", "10.2", "")
+	c.enter()
+	c.report(observe.SNMP, "OpenSSH", "10.2p1", "")
+	if l := c.oneLine("manual", 2); l.Differs {
+		t.Fatalf("%+v", l)
+	}
+	if got := matched(c); len(got) != 1 || !got["manual 10.2"] {
+		t.Fatalf("the entry alone: %v", got)
 	}
 }
 

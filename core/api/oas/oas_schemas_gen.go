@@ -116967,8 +116967,8 @@ type InventoryGetInventoryDevicesIDSoftwareOKItemsItem struct {
 	AlsoSeen []InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItem `json:"also_seen"`
 	// "" when none.
 	Cpe string `json:"cpe"`
-	// A weaker source reads another release, newer than this row's source did: the first also_seen with
-	// same_release false.
+	// A scan, SNMP or passive reading reads another release than this row (matching keeps that reading
+	// too): the first also_seen of such a source with same_release false.
 	Differs bool   `json:"differs"`
 	Display string `json:"display"`
 	// The software row the values are read from.

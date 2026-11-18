@@ -134,7 +134,7 @@ export const EffectiveSoftware = z.object({
   packaged: z.boolean().describe('Read from the operating system\'s package database'),
   cpe: z.string().describe('"" when none'), source: ObsSource, set_by: z.string().describe('Who entered it (a person\'s entry or correction); "" otherwise'), seen_at: dt,
   also_seen: z.array(AlsoSeen).describe('The other rows of the same software, strongest source first'),
-  differs: z.boolean().describe('A weaker source reads another release, newer than this row\'s source did: the first also_seen with same_release false'),
+  differs: z.boolean().describe('A scan, SNMP or passive reading reads another release than this row (matching keeps that reading too): the first also_seen of such a source with same_release false'),
 })
 /** INV-41: the OS a person set on the device; it wins over every source and drives matching while it stands. */
 export const OsCorrection = z.object({

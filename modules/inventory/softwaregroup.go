@@ -27,11 +27,10 @@ type EffectiveSoftware struct {
 	SeenAt     string `json:"seen_at"`
 	// AlsoSeen lists the other rows of the same software, strongest source first, never as rows of their own.
 	AlsoSeen []AlsoSeen `json:"also_seen"`
-	// Differs: a weaker source reads another release (not the same one with more or less detail) and read it after this row's
-	// source did; the strongest such source is the first AlsoSeen with SameRelease false.
+	// Differs: a scan, SNMP or passive reading reads another release (not the same one with more or less detail); matching keeps that
+	// reading too. The first AlsoSeen of such a source with SameRelease false is the one to name.
 	Differs bool `json:"differs"`
 
-	agentEntry    bool   // a person's entry that corrects an agent's row: it ranks with the agent rows
 	key, corrects string // the row's identity (rowKey) and, on a person's correction, the row it corrects
 }
 
@@ -171,7 +170,6 @@ func effectiveOf(all []EffectiveSoftware) []EffectiveSoftware {
 		for _, i := range cand {
 			if rank(i) == top {
 				r := all[i]
-				r.agentEntry = r.Source == "manual" && rank(i) == softwareRank("agent")
 				r.AlsoSeen = []AlsoSeen{}
 				shown = append(shown, r)
 			} else {
@@ -183,7 +181,6 @@ func effectiveOf(all []EffectiveSoftware) []EffectiveSoftware {
 				rest = append(rest, r)
 			}
 		}
-		decided := map[int]bool{} // the strongest reading of another release is the one that counts
 		for _, w := range rest {
 			ti := 0
 			if c, ok := corrected[w]; ok {
@@ -206,9 +203,8 @@ func effectiveOf(all []EffectiveSoftware) []EffectiveSoftware {
 			t := &shown[ti]
 			same := pkgrel.Same(t.Version, t.PkgVersion, all[w].Version, all[w].PkgVersion)
 			t.AlsoSeen = append(t.AlsoSeen, AlsoSeen{ID: all[w].ID, Source: all[w].Source, Version: all[w].Version, PkgVersion: all[w].PkgVersion, SeenAt: all[w].SeenAt, SameRelease: same})
-			if !same && !decided[ti] {
-				decided[ti] = true
-				t.Differs = all[w].SeenAt > t.SeenAt
+			if !same && all[w].Source != "manual" { // a reading of another release, which matching keeps too
+				t.Differs = true
 			}
 		}
 		out = append(out, shown...)
@@ -246,11 +242,11 @@ func (s *Service) EffectiveSoftware(ctx context.Context, assetID string) ([]Effe
 }
 
 // markShadowed makes matching follow the effective rows (INV-50): a row another row of the same software outranks (it is listed under
-// that row's AlsoSeen) is left out of what MatchInput returns, so findings matches the effective row of each software and every row
-// of another product or install as before. A missed CVE is worse than a duplicate, so a row stays when it is a scan, SNMP or passive
-// reading of another release under an agent's row (an install on another port next to the agent's package): both are matched. It goes
-// when it is the same release as the effective row, when the effective row is a person's entry (the entry holds), or when it is itself a
-// person's entry (the agent outranks it); an entry that corrects an agent row ranks with the agent rows and keeps them too. ShadowedBy is "" on every row returned.
+// that row's AlsoSeen) is left out of what MatchInput returns when it is the same release as the effective row, or when it is itself a
+// person's entry (the agent outranks it); the exact row an entry corrects is not a matching row to begin with. A missed CVE is worse
+// than a duplicate, so a scan, SNMP or passive reading of another release stays in matching whatever the effective row is (an agent's
+// package or a person's entry): an install on another port, or a device that now reads another version, is matched and its CVEs open,
+// and the effective row says so (Differs). ShadowedBy is "" on every row returned.
 func markShadowed(ctx context.Context, q querier, assetID string, d *MatchDevice) error {
 	eff, err := effectiveSoftware(ctx, q, assetID)
 	if err != nil {
@@ -259,7 +255,7 @@ func markShadowed(ctx context.Context, q querier, assetID string, d *MatchDevice
 	shadowed := map[string]bool{}
 	for _, e := range eff {
 		for _, o := range e.AlsoSeen {
-			if (e.Source == "agent" || e.agentEntry) && o.Source != "manual" && !o.SameRelease {
+			if o.Source != "manual" && !o.SameRelease {
 				continue
 			}
 			shadowed[o.ID] = true

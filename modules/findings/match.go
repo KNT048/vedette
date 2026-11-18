@@ -77,6 +77,9 @@ type Software struct {
 	// SeenAt is when the row's source last reported it (zero when unknown): for an agent's row, the day of the list its version
 	// comes from, which the plan names once no agent reports the device (PlanItem.Reported).
 	SeenAt time.Time
+	// Shadowed: inventory's effective-row resolver says another row of the device describes this software (a stronger source, or the
+	// same release given more precisely). Every surface reads the device without it (effectiveSoftware).
+	Shadowed bool
 }
 
 // builtBy is the source whose build rules the row follows: the reported row's for a person's correction of it, else its own.
@@ -1162,6 +1165,12 @@ type swInfo struct {
 	// evidence of its platform.
 	personPkg string
 }
+
+// pkgBuilt says the row is a distribution's package: an agent read it from the package database (packaged), or a person gave its
+// package release (personPkg: "10.2_p1-r1", "1:10.2p1-2ubuntu3.8"). The distribution's own updates fix it, under its own release
+// numbers, so an upstream release is never the update to name for it (fixedInSoftware, groupFixOf, the plan's tierInfo). It does not
+// change how the matcher compares the row: a person's release still goes by NVD's range unless the distribution's data decides.
+func (in swInfo) pkgBuilt() bool { return in.packaged || in.personPkg != "" }
 
 func newSWInfo(s Software, osName string) swInfo {
 	var in swInfo

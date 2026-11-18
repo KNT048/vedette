@@ -447,7 +447,7 @@ func haveScope(a Asset, vulns []Vuln, m MatchResult, since map[string]Have, have
 	}
 	key := NormalizeKevKey(h.Key)
 	scoped := map[string]Software{} // software rows under the scope
-	for _, sw := range a.Software {
+	for _, sw := range effectiveSoftware(a) {
 		if strings.TrimSpace(sw.Version) != "" {
 			continue
 		}

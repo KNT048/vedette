@@ -91,16 +91,18 @@ func tierSource(s Software) bool {
 }
 
 // tierInfo is the swInfo of a row the plan compares with NVD's ranges, false when it compares none: a source tierSource refuses, no
-// readable version, or a distribution's package (an agent's deb/rpm row, or a version with a distribution's mark): the distributions
-// backport fixes, so NVD's upstream ranges would put a patched package inside. An agent's deb row on Ubuntu or Debian is
-// compared with the distribution's own data instead (distroTierItems).
+// readable version, or a distribution's package (an agent's deb/rpm/apk row, a package release a person gave, or a version with a
+// distribution's mark): the distributions backport fixes, so NVD's upstream ranges would put a patched package inside and the
+// upgrade to name is the distribution's, not an upstream release. An agent's deb row on Ubuntu or Debian is compared with the
+// distribution's own data instead (distroTierItems); a package of a distribution Vedette has no tier data for (Alpine, Red Hat, a
+// release a person typed) gives no item.
 func tierInfo(a Asset, s Software) (swInfo, bool) {
 	if !tierSource(s) {
 		return swInfo{}, false
 	}
 	in := newSWInfo(s, a.OS)
 	in.platformOS = platformOS(s, a)
-	if !in.given || !versionKnown(in.ver) || in.packaged || distroMarked(in.ver) || distroMarked(s.Version) {
+	if !in.given || !versionKnown(in.ver) || in.pkgBuilt() || distroMarked(in.ver) || distroMarked(s.Version) {
 		return swInfo{}, false
 	}
 	return in, true

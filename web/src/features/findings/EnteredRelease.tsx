@@ -38,12 +38,14 @@ export function enteredResult(items: FindingRow[], rowIds: readonly string[], en
 export const readDeviceFindings = (assetId: string) =>
   api.get<{ items: FindingRow[] }>(`/findings?asset=${encodeURIComponent(assetId)}`).then((d) => d.items, () => null)
 
-/** Whether the re-match after the save has run: a finding of the row is new or changed (status, last match, the version it was proved on). */
-export function rematched(before: FindingRow[], rows: FindingRow[]): boolean {
+/** Whether the re-match after the save has run: a finding of the device is new, gone, or changed (status, last match, the version it
+ *  was proved on, the row it is on). The whole device, not only the row: the box matches a device as a whole, and a finding can move to
+ *  the row that describes the software now (another source's) and leave this one. */
+export function rematched(before: FindingRow[], items: FindingRow[]): boolean {
   const old = new Map(before.map((f) => [f.id, f]))
-  return rows.some((f) => {
+  return items.length !== before.length || items.some((f) => {
     const b = old.get(f.id)
-    return !b || b.status !== f.status || b.last_seen !== f.last_seen || b.proved_version !== f.proved_version
+    return !b || b.status !== f.status || b.last_seen !== f.last_seen || b.proved_version !== f.proved_version || b.software_id !== f.software_id
   })
 }
 
@@ -60,8 +62,9 @@ function CveLinks({ items }: { items: FindingRow[] }) {
 /**
  * The one-line result: what the entry closed (with links to those findings) and what is still affected.
  * `before` (right after a save): the device's findings read before it. Nothing is said until the box has matched the device again
- * (a finding of the row changed), read every few seconds for about 15 s, then "still checking, reload later". Mount it with a key that
- * changes with every save so a second entry starts over. Without `before` (the Software tab) it only reads.
+ * (a finding of the device changed), read every few seconds for about 15 s; then it always ends: the findings as they are now are the
+ * answer, and with nothing closed it says no CVE changed (never a message that waits for a reload). Mount it with a key that changes
+ * with every save so a second entry starts over. Without `before` (the Software tab) it only reads.
  * `always`: say so when nothing is closed or open too (a row that carries an entry).
  */
 export function EnteredOutcome({ assetId, rowIds, entered, before, always = false }: { assetId: string; rowIds: readonly string[]; entered: readonly string[]; before?: FindingRow[] | null; always?: boolean }) {
@@ -69,20 +72,26 @@ export function EnteredOutcome({ assetId, rowIds, entered, before, always = fals
   const q = useFindings(assetId)
   const qc = useQueryClient()
   const waiting = before !== undefined
-  const r = enteredResult(q.data?.items ?? [], rowIds, entered)
-  const done = !waiting || (before ? rematched(before, r.rows) : false) || r.closed.length > 0
+  const items = q.data?.items ?? []
+  const r = enteredResult(items, rowIds, entered)
+  const done = !waiting || (before ? rematched(before, items) : false) || r.closed.length > 0
   const [tries, setTries] = useState(0)
+  const timedOut = !done && tries >= ENTRY_POLLS
   useEffect(() => {
     if (done || tries >= ENTRY_POLLS) return
     const timer = setTimeout(() => { setTries((n) => n + 1); void qc.invalidateQueries({ queryKey: ['findings', 'list', assetId] }) }, ENTRY_POLL_MS)
     return () => clearTimeout(timer)
   }, [done, tries, qc, assetId])
   if (q.isError) return null
-  if (q.isPending) return waiting ? <p className="text-meta text-muted">{t('entered.checking')}</p> : null
-  if (!done) {
-    if (tries < ENTRY_POLLS) return <p className="text-meta text-muted">{t('entered.checking')}</p>
-    // out of time: with nothing on the row there is nothing to wait for; otherwise it has not been checked again yet
-    return r.rows.length || r.unknown ? <p className="text-meta text-muted">{t('entered.stillChecking')}</p> : <p className="text-meta">{t('entered.none')}</p>
+  if (q.isPending && !timedOut) return waiting ? <p className="text-meta text-muted">{t('entered.checking')}</p> : null
+  if (!done && !timedOut) return <p className="text-meta text-muted">{t('entered.checking')}</p>
+  if (timedOut) { // no match changed a finding of the device in time: nothing closed, the open ones stay as they are
+    return (
+      <div className="grid gap-0.5 text-meta">
+        <p>{t('entered.unchanged')}</p>
+        {r.open.length ? <p className="text-warn">{t('entered.stillOpen', { count: r.open.length })}<CveLinks items={r.open} /></p> : null}
+      </div>
+    )
   }
   if (!r.closed.length && !r.open.length) {
     return (waiting || always) && !r.unknown && !r.otherProof ? <p className="text-meta">{t('entered.none')}</p> : null

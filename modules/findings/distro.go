@@ -100,7 +100,7 @@ func distroRows(a Asset) (distro, release string, rows []distroPkgRow) {
 	}
 	var ksrc, kver string
 	var all []distroPkgRow
-	for _, s := range a.Software {
+	for _, s := range effectiveSoftware(a) {
 		if !s.Packaged || s.builtBy() != "agent" || s.PkgVersion == "" || s.PkgSource == "" {
 			continue
 		}

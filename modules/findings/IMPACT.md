@@ -6,6 +6,11 @@
 - **inventory** shows it on the Devices list, the device page and the CSV (inventory INV-40, through cmd/vedette `findingCounts.RiskByAsset`) and filters on it (`?risk=`).
 - **web**: `features/inventory/RiskMarker.tsx`; the Findings page (device column and filter from `risks`, To fix cards from each card's `risk`) and Recommended updates (`risk` of each item); the mocks' `deviceRisk`/`riskOfCard` mirror `RiskOf`.
 
+## Modifying: `effectiveSoftware`, `Software.Shadowed`, `pkgBuilt` (INV-28)
+- **inventory** owns which row describes a software (its effective-row resolver); **cmd/vedette** `findingsSoftware` (wiring.go) must copy its answer into `findings.Software.Shadowed`, the one place the module learns it. Until that adapter sets it, every row is read as before (nothing is shadowed).
+- Every findings surface reads rows through `effectiveSoftware` (`deviceSoftware`, `deviceOS`, `distroRows`, `haveScope`): a new loop over `Asset.Software` for matching, fixes or the plan must use it too, or that surface describes a software by another row than the rest (`TestStrongestRow_EveryCombination`). A finding stored on a row that becomes shadowed is matched on the effective row at the next match (its `software_id` moves; the web's entered-release result reads the whole device for that reason, `EnteredRelease.tsx` `rematched`).
+- `pkgBuilt` (a person's package release counts as a package): the finding page, To fix, the weekly report and the assistant say "install the distribution's security updates" instead of an upstream release for such a row, and the plan lists no upstream upgrade for it.
+
 ## Modifying: `deviceOS`, `deviceSoftware`, `withoutCoveredWindows`, `osRow.reads`, `OSVersion` (INV-4c (2))
 - **inventory** shows the OS these keep as the device's OS (`DeclaredOSRow` through `Config.DeclaredOS`): a change of which row decides changes the device page in the same commit. `cmd/vedette` `TestWiringDeclaredOSPageIsTheMatchersOS` must still pass.
 

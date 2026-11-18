@@ -170,11 +170,26 @@ describe('An entered package release › the result is the answer to this entry'
     expect(saved).not.toHaveTextContent(/Closed/)
   }, 30000)
 
-  it('after about 15 seconds without a new match it says it is still checking, and to reload later', async () => {
+  it('after about 15 seconds without a new match it ends: no CVE changed, and the CVE still open is named', async () => {
     box([F({})], () => [F({})])
     await enterRelease('10.2_p1-r1')
     const saved = await result()
-    expect(await within(saved).findByText(/Still checking\. Reload this page in a minute/, undefined, { timeout: 25000 })).toBeInTheDocument()
-    expect(saved).not.toHaveTextContent(/still affected/)
+    expect(await within(saved).findByText('No CVE changed with this entry.', undefined, { timeout: 25000 })).toBeInTheDocument()
+    expect(saved).toHaveTextContent(/1 CVE is still affected:/)
+    expect(saved).not.toHaveTextContent(/Checking which CVEs/)
   }, 40000)
+
+  it('ends with no CVE changed also when the device has no finding on the row at all', async () => {
+    box([], () => [])
+    await enterRelease('10.2_p1-r1')
+    const saved = await result()
+    expect(await within(saved).findByText('No CVE changed with this entry.', undefined, { timeout: 25000 })).toBeInTheDocument()
+  }, 40000)
+
+  it('a finding that moves to the row now describing the software (another source) counts as the match having run', async () => {
+    box([F({})], () => [F({ software_id: 's-bn340-agent', last_seen: '2026-11-18T02:00:00.000Z' })])
+    await enterRelease('10.2_p1-r1')
+    const saved = await result()
+    expect(await within(saved).findByText(/found no exploited CVE left/, undefined, SLOW)).toBeInTheDocument()
+  }, 30000)
 })

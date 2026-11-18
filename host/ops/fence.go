@@ -100,6 +100,9 @@ func (o *Ops) initFence() {
 		o.log.Error("the domain fence cannot start: domain_ip scans are refused", "error", err.Error())
 		return
 	}
+	if o.d.FenceFetcher != nil {
+		f.SetFetcher(o.d.FenceFetcher)
+	}
 	o.fence = f
 	if scan {
 		if err := o.fenceScanCopy(fenceKeyName, key); err != nil {
@@ -332,8 +335,8 @@ func (o *Ops) cmdExposureToken() server.Command {
 }
 
 func tokenArgs(a api.ExposureTokenArgs) error {
-	if !domainfence.ValidDomain(a.Domain) {
-		return server.Invalid("domain", "must be a domain name")
+	if !domainfence.ValidDomain(a.Domain) && !domainfence.ValidIPLiteral(a.Domain) { // a typed public IP is listed like a domain
+		return server.Invalid("domain", "must be a domain name or a public IPv4 address")
 	}
 	return nil
 }
@@ -345,7 +348,7 @@ func (o *Ops) exposureToken(a api.ExposureTokenArgs) (any, error) {
 	// The host does not trust core, so it never issues a token for a public suffix (co.uk, ddns.net,
 	// github.io: the Public Suffix List, both sections), whose record at _vedette-verify.<suffix> could otherwise prove every customer's
 	// name under it at the fence. Forgetting one stays possible.
-	if proofat.IsPublicSuffix(a.Domain) {
+	if !domainfence.ValidIPLiteral(a.Domain) && proofat.IsPublicSuffix(a.Domain) {
 		return nil, server.Invalid("domain", "is a public suffix (like co.uk or ddns.net), under which many owners register their names; no token is issued for it")
 	}
 	if o.fence == nil {
@@ -358,13 +361,29 @@ func (o *Ops) exposureToken(a api.ExposureTokenArgs) (any, error) {
 	return api.ExposureTokenResult{Token: tok}, nil
 }
 
+// typedProof is the fence's form of a typed IP's proof, nil for none.
+func typedProof(t *api.ExposureTyped) *domainfence.TypedProof {
+	if t == nil {
+		return nil
+	}
+	return &domainfence.TypedProof{Method: t.Method, PTRName: t.PTRName, CoverDomain: t.CoverDomain, CoverToken: t.CoverToken, CoverProofAt: t.CoverProofAt}
+}
+
+// LookupAddr is the fence resolver's reverse DNS (a typed IP proved by its PTR name).
+func (r fenceResolver) LookupAddr(ctx context.Context, addr string) ([]string, error) {
+	if r.o.d.FenceAddr != nil {
+		return r.o.d.FenceAddr(ctx, addr)
+	}
+	return net.DefaultResolver.LookupAddr(ctx, addr)
+}
+
 // fenceJob validates exposure.fence_check's args at the edge.
 func fenceJob(a api.ExposureFenceCheckArgs) (domainfence.Job, error) {
 	ip, err := netip.ParseAddr(a.IP)
 	if err != nil || ip.String() != a.IP {
 		return domainfence.Job{}, server.Invalid(fieldIP, "must be a public IPv4 address")
 	}
-	j := domainfence.Job{Domain: a.Domain, Name: a.Name, IP: ip, Token: a.Token, Disruptive: a.Disruptive, ProofAt: a.ProofAt}
+	j := domainfence.Job{Domain: a.Domain, Name: a.Name, IP: ip, Token: a.Token, Disruptive: a.Disruptive, ProofAt: a.ProofAt, Typed: typedProof(a.Typed)}
 	if err := j.Valid(); err != nil {
 		return domainfence.Job{}, server.Invalid("domain", err.Error())
 	}

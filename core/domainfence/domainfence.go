@@ -159,10 +159,10 @@ type cacheEntry struct {
 
 // Fence checks domain_ip jobs. Create it with New.
 type Fence struct {
-	key    []byte
-	r      Resolver
-	now    func() time.Time
-	listed func(domain string) bool
+	key     []byte
+	r       Resolver
+	now     func() time.Time
+	listed  func(domain string) bool
 	fetcher FileFetcher
 
 	mu    sync.Mutex

@@ -130,6 +130,9 @@ type ActiveHeartbeat struct {
 	// (core/domainfence). A worker without the key (a remote sensor, a container-only install, an older worker) leaves it out: core
 	// then never sends it one.
 	DomainIP bool `json:"domain_ip,omitempty"`
+	// TypedIP says the worker also checks the proof of a typed public IP in a domain_ip job (a job with DomainScope.Typed). A worker
+	// with DomainIP and without TypedIP never gets one.
+	TypedIP bool `json:"typed_ip,omitempty"`
 }
 
 // ScopeDomainIP is the scope of a domain_ip job: one public IPv4 target that is not the box's own egress, reached because a
@@ -147,6 +150,21 @@ type DomainScope struct {
 	// Name may then be any name under ProofAt, not only under Domain. Omitted when the record is on Domain. A worker that does not
 	// know the field, or this meaning of it, refuses the job as invalid_job (the check fails closed).
 	ProofAt string `json:"proof_at,omitempty"`
+	// Typed (protocol 5, heartbeat typed_ip): the job is for a public IP a person typed in, proved by its own token file or by reverse
+	// DNS instead of a domain's record. Domain and Name are then the IP literal and Token is the box-bound token of that literal; the
+	// worker checks the proof itself (core/domainfence). A worker that does not know the field refuses the job (invalid_job), and core
+	// sends it only to a worker whose heartbeat says typed_ip.
+	Typed *TypedScope `json:"typed,omitempty"`
+}
+
+// TypedScope is the proof of a typed IP a job carries: Method "file" (the token file served on the IP) or "ptr" (the IP's reverse DNS
+// name, proved by a domain of this box: its box-bound token and, when its record sits on a parent name, that name).
+type TypedScope struct {
+	Method       string `json:"method"`
+	PTRName      string `json:"ptr_name,omitempty"`
+	CoverDomain  string `json:"cover_domain,omitempty"`
+	CoverToken   string `json:"cover_token,omitempty"`
+	CoverProofAt string `json:"cover_proof_at,omitempty"`
 }
 
 // HeartbeatNmap says whether the worker can run nmap.

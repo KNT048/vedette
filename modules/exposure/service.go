@@ -479,9 +479,21 @@ func (s *Service) addIP(ctx context.Context, user, raw string) (TargetView, erro
 	if err != nil {
 		return TargetView{}, err
 	}
+	if err := addChecks(ctx, s.cfg.DB.Reader(), value); err != nil {
+		return TargetView{}, fmt.Errorf("exposure: adding public IP: %w", err)
+	}
+	// With a domain fence the IP's token is the one the host binds to this box for the address (listed like a domain), so the executors
+	// derive it themselves and check the IP's own proof; without one it is random and the deep steps say they need the fence.
+	token, fromHost, err := s.domainToken(ctx, value)
+	if err != nil {
+		return TargetView{}, fmt.Errorf("exposure: adding public IP: %w", err)
+	}
 	var id string
+	dupNow := false
 	err = s.write(ctx, func(tx *sql.Tx, _ func(string, any)) error {
 		if err := addChecks(ctx, tx, value); err != nil {
+			var ae *APIError
+			dupNow = errors.As(err, &ae) && ae.Code == "duplicate"
 			return err
 		}
 		if ign, err := ignoredSet(ctx, tx); err != nil {
@@ -490,12 +502,15 @@ func (s *Service) addIP(ctx context.Context, user, raw string) (TargetView, erro
 			return apiErr(400, "bad_value", "%s is on your Ignored list. Restore it in Settings first.", value)
 		}
 		id = store.NewID("xt")
-		if err := insertTarget(ctx, tx, Target{ID: id, Kind: KindIP, Typed: true, Value: value, Token: newToken(), CreatedAt: s.clock()}); err != nil {
+		if err := insertTarget(ctx, tx, Target{ID: id, Kind: KindIP, Typed: true, Value: value, Token: token, CreatedAt: s.clock()}); err != nil {
 			return err
 		}
 		return s.audit(ctx, tx, user, "exposure.target_add", value, "public IP, typed in; not scanned until proved")
 	})
 	if err != nil {
+		if fromHost && !dupNow {
+			s.forgetDomain(ctx, value)
+		}
 		return TargetView{}, fmt.Errorf("exposure: adding public IP: %w", err)
 	}
 	return s.Target(ctx, id)
@@ -570,12 +585,13 @@ func (s *Service) Delete(ctx context.Context, user, id string) error {
 func (s *Service) Remove(ctx context.Context, user, id string, ignore bool) error {
 	var kind Kind
 	var value string
+	typed := false
 	err := s.write(ctx, func(tx *sql.Tx, _ func(string, any)) error {
 		t, err := loadTarget(ctx, tx, id)
 		if err != nil {
 			return err
 		}
-		kind, value = t.Kind, t.Value
+		kind, value, typed = t.Kind, t.Value, t.Typed
 		if ignore {
 			if t.Kind != KindIP {
 				return ErrOnlyIPCanBeIgnored
@@ -607,7 +623,7 @@ func (s *Service) Remove(ctx context.Context, user, id string, ignore bool) erro
 	if err != nil {
 		return fmt.Errorf("exposure: deleting target: %w", err)
 	}
-	if kind == KindDomain { // the deleted domain's fence slot goes back to the host
+	if kind == KindDomain || typed { // the deleted domain's (or typed IP's) fence slot goes back to the host
 		s.forgetDomain(ctx, value)
 	}
 	return nil

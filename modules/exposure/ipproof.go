@@ -32,8 +32,6 @@ const (
 	// ipProofTimeout bounds each request or lookup of a check; ipProofBudget the whole check.
 	ipProofTimeout = domainfence.ProofTimeout
 	ipProofBudget  = 20 * time.Second
-	// ipProofMaxRedirects bounds the redirects followed, all of them staying on the IP (http to https, a trailing slash).
-	ipProofMaxRedirects = 3
 	// maxPTRNames bounds the PTR names looked at (an address can have many) and ptrCoverers the domains asked to prove one name.
 	maxPTRNames  = 5
 	ptrCoverers  = 3

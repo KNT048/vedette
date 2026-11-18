@@ -35,7 +35,7 @@ const (
 	// ProofMaxBody bounds what is read of the file: a token is 16 digits.
 	ProofMaxBody = 512
 	// ProofTimeout bounds one request of the file.
-	ProofTimeout = 5 * time.Second
+	ProofTimeout   = 5 * time.Second
 	proofRedirects = 3
 )
 
@@ -201,6 +201,9 @@ func (HTTPFetcher) Fetch(ctx context.Context, rawURL string, ip netip.Addr) ([]b
 			}
 			if req.URL.Hostname() != ip.String() {
 				return errors.New("redirected to another host")
+			}
+			if p := req.URL.Port(); (req.URL.Scheme != "http" && req.URL.Scheme != "https") || (p != "" && p != "80" && p != "443" && p != via[0].URL.Port()) {
+				return errors.New("redirected to another port") // like ACME: only the web ports
 			}
 			return nil
 		},

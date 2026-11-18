@@ -620,7 +620,7 @@ func (w *Worker) beat(ctx context.Context) {
 	// their grammar is nmapargv's, and the own-IP fence covers them like the external shape; they are advertised only with the
 	// nmap version their script lists were reviewed against (review r2 LOW-3).
 	full := present && ver == nmapargv.ReviewedNmapVersion
-	hb := &sensorlink.ActiveHeartbeat{Version: w.version, Nmap: sensorlink.HeartbeatNmap{Present: present, Version: ver, Full: full, Ports: true}, Nuclei: w.nucleiStatus(ctx), SNMP: true, DomainIP: w.fence != nil}
+	hb := &sensorlink.ActiveHeartbeat{Version: w.version, Nmap: sensorlink.HeartbeatNmap{Present: present, Version: ver, Full: full, Ports: true}, Nuclei: w.nucleiStatus(ctx), SNMP: true, DomainIP: w.fence != nil, TypedIP: w.fence != nil}
 	inst, err := w.link.ActiveHeartbeat(ctx, hb)
 	if err != nil {
 		if ctx.Err() == nil {

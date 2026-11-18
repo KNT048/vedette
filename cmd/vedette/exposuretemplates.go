@@ -95,6 +95,9 @@ func (a exposureTemplateScan) ScanTemplates(ctx context.Context, t exposure.Scan
 	if a.run == nil {
 		return exposure.TemplateScan{}, &exposure.Unavailable{Reason: templatesNoWork}
 	}
+	if t.Typed && t.Domain == nil {
+		return exposure.TemplateScan{}, &exposure.Unavailable{Reason: orText(t.TypedWhy, webTypedNoScope)}
+	}
 	ix, err := a.pack()
 	if err != nil {
 		return exposure.TemplateScan{}, err

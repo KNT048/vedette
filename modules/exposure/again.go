@@ -153,6 +153,13 @@ func (s *Service) executeAgain(ctx context.Context, run *scanRun, user string, t
 	}()
 	st := ScanTarget{ID: t.ID, Kind: t.Kind, Value: t.Value, User: user, Mode: run.mode, Typed: t.Typed}
 	err := s.againReady(ctx, t) // the terms may have changed between the answer and now
+	if err == nil && t.Typed {  // a typed IP: OpenVAS goes through the host's fence with its live proof
+		if sc, why := s.typedScope(ctx, t); sc != nil {
+			st.Domain = sc
+		} else {
+			err = apiErr(409, "proof_missing", "OpenVAS did not run: %s", why)
+		}
+	}
 	if err == nil {
 		err = s.resetOpenVAS(ctx, run, user, t, a)
 	}

@@ -375,6 +375,13 @@ func (s *Service) liveResult(t Target) (ipProof, bool) {
 	return e.pr, now.Sub(e.at) < window
 }
 
+// liveProof is the live proof of a typed IP that is not older than liveFor: what the steps of a scan hand the executors, which check the
+// same proof again.
+func (s *Service) liveProof(t Target) (ipProof, bool) {
+	pr, ok := s.liveResult(t)
+	return pr, ok && pr.ok
+}
+
 // liveTypedProof is the proof of a typed IP right before something is sent to it (a scan, a step of it, a question to Shodan, OpenVAS):
 // one live result per target is looked for and reused for liveFor, so the gate, ScannableIP, every step and the terms of one scan ask the
 // third party once. A look that is not cached takes the per-target pause and the box-wide bound of a person's check; when they are used up

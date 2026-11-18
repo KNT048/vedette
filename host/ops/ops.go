@@ -141,6 +141,9 @@ type Deps struct {
 	// FenceCNAME is the CNAME lookup of the domain fence (default: the system resolver).
 	FenceKey   []byte
 	FenceCNAME func(ctx context.Context, name string) (string, error)
+	// FenceFetcher gets the proof file of a typed IP and FenceAddr is the fence's reverse DNS lookup (default: the real ones).
+	FenceFetcher domainfence.FileFetcher
+	FenceAddr    func(ctx context.Context, addr string) ([]string, error)
 	// GreenboneUID owns gvmd's socket directory (default 1001, the user gvmd of Greenbone's image); tests give their own uid.
 	GreenboneUID int
 }

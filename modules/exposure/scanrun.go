@@ -215,6 +215,15 @@ func (s *Service) execute(ctx context.Context, run *scanRun, r Runner, user stri
 	if t.proofDomain != "" { // the domain whose token proved the target at the gate, and the name its record sits on when not that domain's own
 		st.Proof = &ProofOwner{Domain: t.proofDomain, Token: t.proofToken, ProofAt: t.proofAt}
 	}
+	if t.Typed && st.Mode.Full { // the deep steps of a typed IP carry its live proof to the executors
+		if scope, why := s.typedScope(ctx, t); scope != nil {
+			st.Domain = scope
+		} else {
+			st.Mode, st.TypedWhy = ScanMode{}, why
+		}
+	} else if t.Typed {
+		st.TypedWhy = typedTerms
+	}
 	content, err := r.Scan(ctx, st)
 	content.Hosts = clearDeep(content.Hosts) // The deep state of a run is exposure's own, never the runner's
 	deepDomain := st.Kind == KindDomain && st.Mode.Full

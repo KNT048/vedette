@@ -225,3 +225,58 @@ func TestWeeklyOpenRowSaysTheAgentDetectedIt(t *testing.T) {
 		t.Fatalf("PDPL risks = %+v", p.Risks)
 	}
 }
+
+// A row says whether its device is approved, and the ApprovedOnly view counts again without the devices not approved yet (pc-old,
+// a2) and their findings: a reader that leaves them out shows these figures, top risks and actions.
+func TestWeeklyApprovedOnlyView(t *testing.T) {
+	t.Parallel()
+	r := buildWeekly(sampleInput())
+	if r.Open[0].AssetID != "a2" || r.Open[0].DeviceApproved || !r.Open[1].DeviceApproved {
+		t.Fatalf("open rows = %+v", r.Open)
+	}
+	v := r.ApprovedOnly
+	if v == nil {
+		t.Fatal("no approved-only view")
+	}
+	want := Counts{NewFindings: 0, Resolved: 1, OpenConfirmed: 0, OpenSuspected: 1, Devices: 2, DevicesUnapprove: 0, DevicesNew: 0, KevNew: 2, KevMatched: 1}
+	if v.Counts != want {
+		t.Fatalf("approved-only counts = %+v, want %+v", v.Counts, want)
+	}
+	if len(v.TopRisks) != 1 || v.TopRisks[0].FindingID != "f2" {
+		t.Fatalf("approved-only top risks = %+v", v.TopRisks)
+	}
+	for _, a := range v.Actions {
+		if a.Kind == "review_devices" || a.FindingID == "f1" {
+			t.Fatalf("approved-only actions = %+v", v.Actions)
+		}
+	}
+	// With every device approved the view is the report itself.
+	in := sampleInput()
+	in.devices[1].Approved = true
+	all := buildWeekly(in)
+	if all.ApprovedOnly.Counts != all.Counts || len(all.ApprovedOnly.TopRisks) != len(all.TopRisks) {
+		t.Fatalf("view %+v differs from %+v", all.ApprovedOnly.Counts, all.Counts)
+	}
+}
+
+// The not relevant findings among the figures are counted so a reader can leave them out: one new and closed in the week counts
+// once in not_relevant and in both of the others.
+func TestWeeklyCountsNotRelevant(t *testing.T) {
+	t.Parallel()
+	in := sampleInput()
+	in.findings = append(in.findings,
+		Finding{ID: "n1", AssetID: "a1", CVE: "CVE-2026-0101", Status: "not_relevant", Severity: "high", FirstSeen: day0(2), ResolvedAt: day0(1)},
+		Finding{ID: "n2", AssetID: "a3", CVE: "CVE-2026-0102", Status: "not_relevant", Severity: "low", FirstSeen: day0(30), ResolvedAt: day0(2)},
+		Finding{ID: "n3", AssetID: "a2", CVE: "CVE-2026-0103", Status: "not_relevant", Severity: "low", FirstSeen: day0(3)},
+		Finding{ID: "n4", AssetID: "a3", CVE: "CVE-2026-0104", Status: "not_relevant", Severity: "low", FirstSeen: day0(30), ResolvedAt: day0(20)}, // outside the week
+	)
+	r := buildWeekly(in)
+	c := r.Counts
+	if c.NotRelevant != 3 || c.NotRelevantNew != 2 || c.NotRelevantResolved != 2 || c.NewFindings != 3 || c.Resolved != 3 {
+		t.Fatalf("counts = %+v", c)
+	}
+	a := r.ApprovedOnly.Counts // n3 is on the device not approved yet
+	if a.NotRelevant != 2 || a.NotRelevantNew != 1 || a.NotRelevantResolved != 2 {
+		t.Fatalf("approved-only counts = %+v", a)
+	}
+}

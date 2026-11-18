@@ -60786,6 +60786,10 @@
                                   "agent": {
                                     "description": "The version compared is the one the device's own agent reports (findings evidence.agent): the status reads \"Detected by the agent\", not \"Suspected\"; absent in reports sent before it",
                                     "type": "boolean"
+                                  },
+                                  "device_approved": {
+                                    "description": "False when the device is still to review, not in the Devices list yet; absent in reports made before it (read as approved)",
+                                    "type": "boolean"
                                   }
                                 },
                                 "required": [
@@ -60917,6 +60921,233 @@
                                   "type": "null"
                                 }
                               ]
+                            },
+                            "approved_only": {
+                              "description": "The inventory, measures and risks again without the devices not in the Devices list (not approved yet) and their findings; the unapproved measure stays the full one. Absent in reports generated before it",
+                              "type": "object",
+                              "properties": {
+                                "inventory": {
+                                  "type": "object",
+                                  "properties": {
+                                    "total": {
+                                      "type": "number"
+                                    },
+                                    "approved": {
+                                      "type": "number"
+                                    },
+                                    "unapproved": {
+                                      "type": "number"
+                                    },
+                                    "fragile": {
+                                      "type": "number"
+                                    },
+                                    "by_kind": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "kind": {
+                                            "type": "string"
+                                          },
+                                          "n": {
+                                            "type": "number"
+                                          }
+                                        },
+                                        "required": [
+                                          "kind",
+                                          "n"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "key_systems": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "id": {
+                                            "type": "string"
+                                          },
+                                          "name": {
+                                            "type": "string"
+                                          },
+                                          "ip": {
+                                            "type": "string"
+                                          },
+                                          "kind": {
+                                            "type": "string"
+                                          },
+                                          "os": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "id",
+                                          "name",
+                                          "ip",
+                                          "kind",
+                                          "os"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "sources": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "source": {
+                                            "type": "string"
+                                          },
+                                          "n": {
+                                            "type": "number"
+                                          }
+                                        },
+                                        "required": [
+                                          "source",
+                                          "n"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "total",
+                                    "approved",
+                                    "unapproved",
+                                    "fragile",
+                                    "by_kind",
+                                    "key_systems",
+                                    "sources"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                "measures": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "id": {
+                                        "type": "string",
+                                        "enum": [
+                                          "firewall",
+                                          "patching",
+                                          "eol",
+                                          "unapproved",
+                                          "remote",
+                                          "logging",
+                                          "honeypot",
+                                          "scan",
+                                          "backup"
+                                        ]
+                                      },
+                                      "status": {
+                                        "type": "string",
+                                        "enum": [
+                                          "ok",
+                                          "attention",
+                                          "unknown"
+                                        ]
+                                      },
+                                      "n": {
+                                        "type": "number"
+                                      },
+                                      "names": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "id",
+                                      "status",
+                                      "n",
+                                      "names"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "risks": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "id": {
+                                        "type": "string"
+                                      },
+                                      "cve": {
+                                        "type": "string"
+                                      },
+                                      "device": {
+                                        "type": "string"
+                                      },
+                                      "asset_id": {
+                                        "type": "string"
+                                      },
+                                      "product": {
+                                        "type": "string"
+                                      },
+                                      "status": {
+                                        "type": "string",
+                                        "enum": [
+                                          "confirmed",
+                                          "suspected",
+                                          "mitigated",
+                                          "patched",
+                                          "false_positive",
+                                          "not_relevant",
+                                          "risk_accepted"
+                                        ]
+                                      },
+                                      "severity": {
+                                        "type": "string",
+                                        "enum": [
+                                          "critical",
+                                          "high",
+                                          "medium",
+                                          "low",
+                                          "info"
+                                        ]
+                                      },
+                                      "since": {
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                      },
+                                      "by": {
+                                        "description": "Who closed it (rows of what was done)",
+                                        "type": "string"
+                                      },
+                                      "agent": {
+                                        "description": "The version compared is the one the device's own agent reports (findings evidence.agent): the status reads \"Detected by the agent\", not \"Suspected\"; absent in reports sent before it",
+                                        "type": "boolean"
+                                      },
+                                      "device_approved": {
+                                        "description": "False when the device is still to review, not in the Devices list yet; absent in reports made before it (read as approved)",
+                                        "type": "boolean"
+                                      }
+                                    },
+                                    "required": [
+                                      "id",
+                                      "cve",
+                                      "device",
+                                      "asset_id",
+                                      "product",
+                                      "status",
+                                      "severity",
+                                      "since"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                }
+                              },
+                              "required": [
+                                "inventory",
+                                "measures",
+                                "risks"
+                              ],
+                              "additionalProperties": false
                             }
                           },
                           "required": [
@@ -61361,6 +61592,10 @@
                           "agent": {
                             "description": "The version compared is the one the device's own agent reports (findings evidence.agent): the status reads \"Detected by the agent\", not \"Suspected\"; absent in reports sent before it",
                             "type": "boolean"
+                          },
+                          "device_approved": {
+                            "description": "False when the device is still to review, not in the Devices list yet; absent in reports made before it (read as approved)",
+                            "type": "boolean"
                           }
                         },
                         "required": [
@@ -61492,6 +61727,233 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "approved_only": {
+                      "description": "The inventory, measures and risks again without the devices not in the Devices list (not approved yet) and their findings; the unapproved measure stays the full one. Absent in reports generated before it",
+                      "type": "object",
+                      "properties": {
+                        "inventory": {
+                          "type": "object",
+                          "properties": {
+                            "total": {
+                              "type": "number"
+                            },
+                            "approved": {
+                              "type": "number"
+                            },
+                            "unapproved": {
+                              "type": "number"
+                            },
+                            "fragile": {
+                              "type": "number"
+                            },
+                            "by_kind": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string"
+                                  },
+                                  "n": {
+                                    "type": "number"
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "n"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "key_systems": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "ip": {
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "type": "string"
+                                  },
+                                  "os": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "name",
+                                  "ip",
+                                  "kind",
+                                  "os"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "sources": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "source": {
+                                    "type": "string"
+                                  },
+                                  "n": {
+                                    "type": "number"
+                                  }
+                                },
+                                "required": [
+                                  "source",
+                                  "n"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "total",
+                            "approved",
+                            "unapproved",
+                            "fragile",
+                            "by_kind",
+                            "key_systems",
+                            "sources"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "measures": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "enum": [
+                                  "firewall",
+                                  "patching",
+                                  "eol",
+                                  "unapproved",
+                                  "remote",
+                                  "logging",
+                                  "honeypot",
+                                  "scan",
+                                  "backup"
+                                ]
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "ok",
+                                  "attention",
+                                  "unknown"
+                                ]
+                              },
+                              "n": {
+                                "type": "number"
+                              },
+                              "names": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "status",
+                              "n",
+                              "names"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "risks": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "cve": {
+                                "type": "string"
+                              },
+                              "device": {
+                                "type": "string"
+                              },
+                              "asset_id": {
+                                "type": "string"
+                              },
+                              "product": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "confirmed",
+                                  "suspected",
+                                  "mitigated",
+                                  "patched",
+                                  "false_positive",
+                                  "not_relevant",
+                                  "risk_accepted"
+                                ]
+                              },
+                              "severity": {
+                                "type": "string",
+                                "enum": [
+                                  "critical",
+                                  "high",
+                                  "medium",
+                                  "low",
+                                  "info"
+                                ]
+                              },
+                              "since": {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              "by": {
+                                "description": "Who closed it (rows of what was done)",
+                                "type": "string"
+                              },
+                              "agent": {
+                                "description": "The version compared is the one the device's own agent reports (findings evidence.agent): the status reads \"Detected by the agent\", not \"Suspected\"; absent in reports sent before it",
+                                "type": "boolean"
+                              },
+                              "device_approved": {
+                                "description": "False when the device is still to review, not in the Devices list yet; absent in reports made before it (read as approved)",
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "cve",
+                              "device",
+                              "asset_id",
+                              "product",
+                              "status",
+                              "severity",
+                              "since"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "inventory",
+                        "measures",
+                        "risks"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -62247,6 +62709,18 @@
                             "kev_matched": {
                               "type": "number",
                               "description": "Products you use among them, as Home counts them (earlier reports: their CVEs on a device)"
+                            },
+                            "not_relevant": {
+                              "description": "Different findings closed as not relevant among the figures; absent in reports sent before it",
+                              "type": "number"
+                            },
+                            "not_relevant_new": {
+                              "description": "Of new_findings, the ones closed as not relevant",
+                              "type": "number"
+                            },
+                            "not_relevant_resolved": {
+                              "description": "Of resolved, the ones closed as not relevant",
+                              "type": "number"
                             }
                           },
                           "required": [
@@ -62383,6 +62857,10 @@
                               "agent": {
                                 "description": "The version compared is the one the device's own agent reports (findings evidence.agent): the status reads \"Detected by the agent\", not \"Suspected\"; absent in reports sent before it",
                                 "type": "boolean"
+                              },
+                              "device_approved": {
+                                "description": "False when the device is still to review, not in the Devices list yet; absent in reports made before it (read as approved)",
+                                "type": "boolean"
                               }
                             },
                             "required": [
@@ -62452,6 +62930,10 @@
                               "agent": {
                                 "description": "The version compared is the one the device's own agent reports (findings evidence.agent): the status reads \"Detected by the agent\", not \"Suspected\"; absent in reports sent before it",
                                 "type": "boolean"
+                              },
+                              "device_approved": {
+                                "description": "False when the device is still to review, not in the Devices list yet; absent in reports made before it (read as approved)",
+                                "type": "boolean"
                               }
                             },
                             "required": [
@@ -62520,6 +63002,10 @@
                               },
                               "agent": {
                                 "description": "The version compared is the one the device's own agent reports (findings evidence.agent): the status reads \"Detected by the agent\", not \"Suspected\"; absent in reports sent before it",
+                                "type": "boolean"
+                              },
+                              "device_approved": {
+                                "description": "False when the device is still to review, not in the Devices list yet; absent in reports made before it (read as approved)",
                                 "type": "boolean"
                               }
                             },
@@ -62834,6 +63320,273 @@
                               "type": "null"
                             }
                           ]
+                        },
+                        "approved_only": {
+                          "description": "The counts, top risks and actions again without the devices not in the Devices list (not approved yet) and their findings; the lists are filtered by device_approved. Absent in reports sent before it",
+                          "type": "object",
+                          "properties": {
+                            "counts": {
+                              "type": "object",
+                              "properties": {
+                                "new_findings": {
+                                  "type": "number"
+                                },
+                                "resolved": {
+                                  "type": "number",
+                                  "description": "Closed this week; accepted risks are counted in accepted"
+                                },
+                                "open_confirmed": {
+                                  "type": "number"
+                                },
+                                "open_suspected": {
+                                  "type": "number"
+                                },
+                                "accepted": {
+                                  "description": "Risks accepted this week; absent when none or in reports sent before it",
+                                  "type": "number"
+                                },
+                                "accepted_until": {
+                                  "description": "The earliest day one of those acceptances ends",
+                                  "type": "string",
+                                  "format": "date",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                                },
+                                "devices": {
+                                  "type": "number",
+                                  "description": "Devices as the Devices page counts them, this box included"
+                                },
+                                "devices_unapproved": {
+                                  "type": "number"
+                                },
+                                "devices_new": {
+                                  "type": "number"
+                                },
+                                "kev_new": {
+                                  "type": "number",
+                                  "description": "Vulnerabilities newly exploited in the last 7 days, as Home counts them"
+                                },
+                                "kev_matched": {
+                                  "type": "number",
+                                  "description": "Products you use among them, as Home counts them (earlier reports: their CVEs on a device)"
+                                },
+                                "not_relevant": {
+                                  "description": "Different findings closed as not relevant among the figures; absent in reports sent before it",
+                                  "type": "number"
+                                },
+                                "not_relevant_new": {
+                                  "description": "Of new_findings, the ones closed as not relevant",
+                                  "type": "number"
+                                },
+                                "not_relevant_resolved": {
+                                  "description": "Of resolved, the ones closed as not relevant",
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "new_findings",
+                                "resolved",
+                                "open_confirmed",
+                                "open_suspected",
+                                "devices",
+                                "devices_unapproved",
+                                "devices_new",
+                                "kev_new",
+                                "kev_matched"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "top_risks": {
+                              "maxItems": 3,
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "product": {
+                                    "type": "string",
+                                    "description": "The product as Findings names it"
+                                  },
+                                  "device": {
+                                    "type": "string",
+                                    "description": "The device, or the first names and how many more"
+                                  },
+                                  "devices": {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "open": {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "confirmed": {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991,
+                                    "description": "Open findings a scan confirmed"
+                                  },
+                                  "severity": {
+                                    "type": "string",
+                                    "enum": [
+                                      "critical",
+                                      "high",
+                                      "medium",
+                                      "low",
+                                      "info"
+                                    ],
+                                    "description": "The worst severity"
+                                  },
+                                  "cve": {
+                                    "type": "string"
+                                  },
+                                  "finding_id": {
+                                    "type": "string",
+                                    "description": "Its worst finding"
+                                  },
+                                  "action": {
+                                    "description": "What to do this week, one sentence naming the device(s) and the fixed version when NVD says; absent in reports sent before it",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "product",
+                                  "device",
+                                  "devices",
+                                  "open",
+                                  "confirmed",
+                                  "severity",
+                                  "cve",
+                                  "finding_id"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "actions": {
+                              "type": "array",
+                              "items": {
+                                "oneOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "type": "string",
+                                        "const": "fix"
+                                      },
+                                      "cve": {
+                                        "type": "string"
+                                      },
+                                      "device": {
+                                        "type": "string"
+                                      },
+                                      "finding_id": {
+                                        "type": "string"
+                                      },
+                                      "product": {
+                                        "type": "string"
+                                      },
+                                      "count": {
+                                        "type": "integer",
+                                        "minimum": -9007199254740991,
+                                        "maximum": 9007199254740991
+                                      },
+                                      "text": {
+                                        "description": "The sentence of the top risk action",
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "cve",
+                                      "device",
+                                      "finding_id"
+                                    ],
+                                    "additionalProperties": false,
+                                    "description": "One top risk: product and count (its open findings) are set; cve and finding_id are its worst finding"
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "type": "string",
+                                        "const": "verify"
+                                      },
+                                      "cve": {
+                                        "type": "string"
+                                      },
+                                      "device": {
+                                        "type": "string"
+                                      },
+                                      "finding_id": {
+                                        "type": "string"
+                                      },
+                                      "product": {
+                                        "type": "string"
+                                      },
+                                      "count": {
+                                        "type": "integer",
+                                        "minimum": -9007199254740991,
+                                        "maximum": 9007199254740991
+                                      },
+                                      "text": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "cve",
+                                      "device",
+                                      "finding_id"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "type": "string",
+                                        "const": "review_devices"
+                                      },
+                                      "count": {
+                                        "type": "integer",
+                                        "minimum": -9007199254740991,
+                                        "maximum": 9007199254740991
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "count"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "type": "string",
+                                        "const": "plan_os"
+                                      },
+                                      "count": {
+                                        "type": "integer",
+                                        "minimum": -9007199254740991,
+                                        "maximum": 9007199254740991
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "count"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                ]
+                              }
+                            }
+                          },
+                          "required": [
+                            "counts",
+                            "top_risks",
+                            "actions"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
@@ -62966,6 +63719,18 @@
                             "kev_matched": {
                               "type": "number",
                               "description": "Products you use among them, as Home counts them (earlier reports: their CVEs on a device)"
+                            },
+                            "not_relevant": {
+                              "description": "Different findings closed as not relevant among the figures; absent in reports sent before it",
+                              "type": "number"
+                            },
+                            "not_relevant_new": {
+                              "description": "Of new_findings, the ones closed as not relevant",
+                              "type": "number"
+                            },
+                            "not_relevant_resolved": {
+                              "description": "Of resolved, the ones closed as not relevant",
+                              "type": "number"
                             }
                           },
                           "required": [
@@ -63102,6 +63867,10 @@
                               "agent": {
                                 "description": "The version compared is the one the device's own agent reports (findings evidence.agent): the status reads \"Detected by the agent\", not \"Suspected\"; absent in reports sent before it",
                                 "type": "boolean"
+                              },
+                              "device_approved": {
+                                "description": "False when the device is still to review, not in the Devices list yet; absent in reports made before it (read as approved)",
+                                "type": "boolean"
                               }
                             },
                             "required": [
@@ -63171,6 +63940,10 @@
                               "agent": {
                                 "description": "The version compared is the one the device's own agent reports (findings evidence.agent): the status reads \"Detected by the agent\", not \"Suspected\"; absent in reports sent before it",
                                 "type": "boolean"
+                              },
+                              "device_approved": {
+                                "description": "False when the device is still to review, not in the Devices list yet; absent in reports made before it (read as approved)",
+                                "type": "boolean"
                               }
                             },
                             "required": [
@@ -63239,6 +64012,10 @@
                               },
                               "agent": {
                                 "description": "The version compared is the one the device's own agent reports (findings evidence.agent): the status reads \"Detected by the agent\", not \"Suspected\"; absent in reports sent before it",
+                                "type": "boolean"
+                              },
+                              "device_approved": {
+                                "description": "False when the device is still to review, not in the Devices list yet; absent in reports made before it (read as approved)",
                                 "type": "boolean"
                               }
                             },
@@ -63553,6 +64330,273 @@
                               "type": "null"
                             }
                           ]
+                        },
+                        "approved_only": {
+                          "description": "The counts, top risks and actions again without the devices not in the Devices list (not approved yet) and their findings; the lists are filtered by device_approved. Absent in reports sent before it",
+                          "type": "object",
+                          "properties": {
+                            "counts": {
+                              "type": "object",
+                              "properties": {
+                                "new_findings": {
+                                  "type": "number"
+                                },
+                                "resolved": {
+                                  "type": "number",
+                                  "description": "Closed this week; accepted risks are counted in accepted"
+                                },
+                                "open_confirmed": {
+                                  "type": "number"
+                                },
+                                "open_suspected": {
+                                  "type": "number"
+                                },
+                                "accepted": {
+                                  "description": "Risks accepted this week; absent when none or in reports sent before it",
+                                  "type": "number"
+                                },
+                                "accepted_until": {
+                                  "description": "The earliest day one of those acceptances ends",
+                                  "type": "string",
+                                  "format": "date",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                                },
+                                "devices": {
+                                  "type": "number",
+                                  "description": "Devices as the Devices page counts them, this box included"
+                                },
+                                "devices_unapproved": {
+                                  "type": "number"
+                                },
+                                "devices_new": {
+                                  "type": "number"
+                                },
+                                "kev_new": {
+                                  "type": "number",
+                                  "description": "Vulnerabilities newly exploited in the last 7 days, as Home counts them"
+                                },
+                                "kev_matched": {
+                                  "type": "number",
+                                  "description": "Products you use among them, as Home counts them (earlier reports: their CVEs on a device)"
+                                },
+                                "not_relevant": {
+                                  "description": "Different findings closed as not relevant among the figures; absent in reports sent before it",
+                                  "type": "number"
+                                },
+                                "not_relevant_new": {
+                                  "description": "Of new_findings, the ones closed as not relevant",
+                                  "type": "number"
+                                },
+                                "not_relevant_resolved": {
+                                  "description": "Of resolved, the ones closed as not relevant",
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "new_findings",
+                                "resolved",
+                                "open_confirmed",
+                                "open_suspected",
+                                "devices",
+                                "devices_unapproved",
+                                "devices_new",
+                                "kev_new",
+                                "kev_matched"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "top_risks": {
+                              "maxItems": 3,
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "product": {
+                                    "type": "string",
+                                    "description": "The product as Findings names it"
+                                  },
+                                  "device": {
+                                    "type": "string",
+                                    "description": "The device, or the first names and how many more"
+                                  },
+                                  "devices": {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "open": {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "confirmed": {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991,
+                                    "description": "Open findings a scan confirmed"
+                                  },
+                                  "severity": {
+                                    "type": "string",
+                                    "enum": [
+                                      "critical",
+                                      "high",
+                                      "medium",
+                                      "low",
+                                      "info"
+                                    ],
+                                    "description": "The worst severity"
+                                  },
+                                  "cve": {
+                                    "type": "string"
+                                  },
+                                  "finding_id": {
+                                    "type": "string",
+                                    "description": "Its worst finding"
+                                  },
+                                  "action": {
+                                    "description": "What to do this week, one sentence naming the device(s) and the fixed version when NVD says; absent in reports sent before it",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "product",
+                                  "device",
+                                  "devices",
+                                  "open",
+                                  "confirmed",
+                                  "severity",
+                                  "cve",
+                                  "finding_id"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "actions": {
+                              "type": "array",
+                              "items": {
+                                "oneOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "type": "string",
+                                        "const": "fix"
+                                      },
+                                      "cve": {
+                                        "type": "string"
+                                      },
+                                      "device": {
+                                        "type": "string"
+                                      },
+                                      "finding_id": {
+                                        "type": "string"
+                                      },
+                                      "product": {
+                                        "type": "string"
+                                      },
+                                      "count": {
+                                        "type": "integer",
+                                        "minimum": -9007199254740991,
+                                        "maximum": 9007199254740991
+                                      },
+                                      "text": {
+                                        "description": "The sentence of the top risk action",
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "cve",
+                                      "device",
+                                      "finding_id"
+                                    ],
+                                    "additionalProperties": false,
+                                    "description": "One top risk: product and count (its open findings) are set; cve and finding_id are its worst finding"
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "type": "string",
+                                        "const": "verify"
+                                      },
+                                      "cve": {
+                                        "type": "string"
+                                      },
+                                      "device": {
+                                        "type": "string"
+                                      },
+                                      "finding_id": {
+                                        "type": "string"
+                                      },
+                                      "product": {
+                                        "type": "string"
+                                      },
+                                      "count": {
+                                        "type": "integer",
+                                        "minimum": -9007199254740991,
+                                        "maximum": 9007199254740991
+                                      },
+                                      "text": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "cve",
+                                      "device",
+                                      "finding_id"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "type": "string",
+                                        "const": "review_devices"
+                                      },
+                                      "count": {
+                                        "type": "integer",
+                                        "minimum": -9007199254740991,
+                                        "maximum": 9007199254740991
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "count"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "type": "string",
+                                        "const": "plan_os"
+                                      },
+                                      "count": {
+                                        "type": "integer",
+                                        "minimum": -9007199254740991,
+                                        "maximum": 9007199254740991
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "count"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                ]
+                              }
+                            }
+                          },
+                          "required": [
+                            "counts",
+                            "top_risks",
+                            "actions"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [

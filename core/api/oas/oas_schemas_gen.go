@@ -158421,6 +158421,190 @@ func (o OptNotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel) Or(d NotifyPatc
 	return d
 }
 
+// NewOptReportsGetReportsPdplOKReportApprovedOnly returns new OptReportsGetReportsPdplOKReportApprovedOnly with value set to v.
+func NewOptReportsGetReportsPdplOKReportApprovedOnly(v ReportsGetReportsPdplOKReportApprovedOnly) OptReportsGetReportsPdplOKReportApprovedOnly {
+	return OptReportsGetReportsPdplOKReportApprovedOnly{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptReportsGetReportsPdplOKReportApprovedOnly is optional ReportsGetReportsPdplOKReportApprovedOnly.
+type OptReportsGetReportsPdplOKReportApprovedOnly struct {
+	Value ReportsGetReportsPdplOKReportApprovedOnly
+	Set   bool
+}
+
+// IsSet returns true if OptReportsGetReportsPdplOKReportApprovedOnly was set.
+func (o OptReportsGetReportsPdplOKReportApprovedOnly) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptReportsGetReportsPdplOKReportApprovedOnly) Reset() {
+	var v ReportsGetReportsPdplOKReportApprovedOnly
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptReportsGetReportsPdplOKReportApprovedOnly) SetTo(v ReportsGetReportsPdplOKReportApprovedOnly) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptReportsGetReportsPdplOKReportApprovedOnly) Get() (v ReportsGetReportsPdplOKReportApprovedOnly, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptReportsGetReportsPdplOKReportApprovedOnly) Or(d ReportsGetReportsPdplOKReportApprovedOnly) ReportsGetReportsPdplOKReportApprovedOnly {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly returns new OptReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly with value set to v.
+func NewOptReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly(v ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly) OptReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly {
+	return OptReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly is optional ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly.
+type OptReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly struct {
+	Value ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly
+	Set   bool
+}
+
+// IsSet returns true if OptReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly was set.
+func (o OptReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly) Reset() {
+	var v ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly) SetTo(v ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly) Get() (v ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly) Or(d ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly) ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptReportsGetReportsWeeklyPreviewOKReportApprovedOnly returns new OptReportsGetReportsWeeklyPreviewOKReportApprovedOnly with value set to v.
+func NewOptReportsGetReportsWeeklyPreviewOKReportApprovedOnly(v ReportsGetReportsWeeklyPreviewOKReportApprovedOnly) OptReportsGetReportsWeeklyPreviewOKReportApprovedOnly {
+	return OptReportsGetReportsWeeklyPreviewOKReportApprovedOnly{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptReportsGetReportsWeeklyPreviewOKReportApprovedOnly is optional ReportsGetReportsWeeklyPreviewOKReportApprovedOnly.
+type OptReportsGetReportsWeeklyPreviewOKReportApprovedOnly struct {
+	Value ReportsGetReportsWeeklyPreviewOKReportApprovedOnly
+	Set   bool
+}
+
+// IsSet returns true if OptReportsGetReportsWeeklyPreviewOKReportApprovedOnly was set.
+func (o OptReportsGetReportsWeeklyPreviewOKReportApprovedOnly) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptReportsGetReportsWeeklyPreviewOKReportApprovedOnly) Reset() {
+	var v ReportsGetReportsWeeklyPreviewOKReportApprovedOnly
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptReportsGetReportsWeeklyPreviewOKReportApprovedOnly) SetTo(v ReportsGetReportsWeeklyPreviewOKReportApprovedOnly) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptReportsGetReportsWeeklyPreviewOKReportApprovedOnly) Get() (v ReportsGetReportsWeeklyPreviewOKReportApprovedOnly, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptReportsGetReportsWeeklyPreviewOKReportApprovedOnly) Or(d ReportsGetReportsWeeklyPreviewOKReportApprovedOnly) ReportsGetReportsWeeklyPreviewOKReportApprovedOnly {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptReportsPostReportsPdplGenerateOKApprovedOnly returns new OptReportsPostReportsPdplGenerateOKApprovedOnly with value set to v.
+func NewOptReportsPostReportsPdplGenerateOKApprovedOnly(v ReportsPostReportsPdplGenerateOKApprovedOnly) OptReportsPostReportsPdplGenerateOKApprovedOnly {
+	return OptReportsPostReportsPdplGenerateOKApprovedOnly{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptReportsPostReportsPdplGenerateOKApprovedOnly is optional ReportsPostReportsPdplGenerateOKApprovedOnly.
+type OptReportsPostReportsPdplGenerateOKApprovedOnly struct {
+	Value ReportsPostReportsPdplGenerateOKApprovedOnly
+	Set   bool
+}
+
+// IsSet returns true if OptReportsPostReportsPdplGenerateOKApprovedOnly was set.
+func (o OptReportsPostReportsPdplGenerateOKApprovedOnly) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptReportsPostReportsPdplGenerateOKApprovedOnly) Reset() {
+	var v ReportsPostReportsPdplGenerateOKApprovedOnly
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptReportsPostReportsPdplGenerateOKApprovedOnly) SetTo(v ReportsPostReportsPdplGenerateOKApprovedOnly) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptReportsPostReportsPdplGenerateOKApprovedOnly) Get() (v ReportsPostReportsPdplGenerateOKApprovedOnly, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptReportsPostReportsPdplGenerateOKApprovedOnly) Or(d ReportsPostReportsPdplGenerateOKApprovedOnly) ReportsPostReportsPdplGenerateOKApprovedOnly {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptResponsePostResponseActionsIDRejectReqRemember returns new OptResponsePostResponseActionsIDRejectReqRemember with value set to v.
 func NewOptResponsePostResponseActionsIDRejectReqRemember(v ResponsePostResponseActionsIDRejectReqRemember) OptResponsePostResponseActionsIDRejectReqRemember {
 	return OptResponsePostResponseActionsIDRejectReqRemember{
@@ -159352,20 +159536,29 @@ func (s *ReportsGetReportsPdplOKOrgSize) UnmarshalText(data []byte) error {
 }
 
 type ReportsGetReportsPdplOKReport struct {
-	AiSummary   NilReportsGetReportsPdplOKReportAiSummary      `json:"ai_summary"`
-	Coverage    []ReportsGetReportsPdplOKReportCoverageItem    `json:"coverage"`
-	GeneratedAt time.Time                                      `json:"generated_at"`
-	ID          string                                         `json:"id"`
-	Inventory   ReportsGetReportsPdplOKReportInventory         `json:"inventory"`
-	Measures    []ReportsGetReportsPdplOKReportMeasuresItem    `json:"measures"`
-	Obligations []ReportsGetReportsPdplOKReportObligationsItem `json:"obligations"`
-	Org         ReportsGetReportsPdplOKReportOrg               `json:"org"`
-	Risks       []ReportsGetReportsPdplOKReportRisksItem       `json:"risks"`
+	AiSummary NilReportsGetReportsPdplOKReportAiSummary `json:"ai_summary"`
+	// The inventory, measures and risks again without the devices not in the Devices list (not approved
+	// yet) and their findings; the unapproved measure stays the full one. Absent in reports generated
+	// before it.
+	ApprovedOnly OptReportsGetReportsPdplOKReportApprovedOnly   `json:"approved_only"`
+	Coverage     []ReportsGetReportsPdplOKReportCoverageItem    `json:"coverage"`
+	GeneratedAt  time.Time                                      `json:"generated_at"`
+	ID           string                                         `json:"id"`
+	Inventory    ReportsGetReportsPdplOKReportInventory         `json:"inventory"`
+	Measures     []ReportsGetReportsPdplOKReportMeasuresItem    `json:"measures"`
+	Obligations  []ReportsGetReportsPdplOKReportObligationsItem `json:"obligations"`
+	Org          ReportsGetReportsPdplOKReportOrg               `json:"org"`
+	Risks        []ReportsGetReportsPdplOKReportRisksItem       `json:"risks"`
 }
 
 // GetAiSummary returns the value of AiSummary.
 func (s *ReportsGetReportsPdplOKReport) GetAiSummary() NilReportsGetReportsPdplOKReportAiSummary {
 	return s.AiSummary
+}
+
+// GetApprovedOnly returns the value of ApprovedOnly.
+func (s *ReportsGetReportsPdplOKReport) GetApprovedOnly() OptReportsGetReportsPdplOKReportApprovedOnly {
+	return s.ApprovedOnly
 }
 
 // GetCoverage returns the value of Coverage.
@@ -159411,6 +159604,11 @@ func (s *ReportsGetReportsPdplOKReport) GetRisks() []ReportsGetReportsPdplOKRepo
 // SetAiSummary sets the value of AiSummary.
 func (s *ReportsGetReportsPdplOKReport) SetAiSummary(val NilReportsGetReportsPdplOKReportAiSummary) {
 	s.AiSummary = val
+}
+
+// SetApprovedOnly sets the value of ApprovedOnly.
+func (s *ReportsGetReportsPdplOKReport) SetApprovedOnly(val OptReportsGetReportsPdplOKReportApprovedOnly) {
+	s.ApprovedOnly = val
 }
 
 // SetCoverage sets the value of Coverage.
@@ -159535,6 +159733,685 @@ func (s *ReportsGetReportsPdplOKReportAiSummaryTokens) SetInput(val float64) {
 // SetOutput sets the value of Output.
 func (s *ReportsGetReportsPdplOKReportAiSummaryTokens) SetOutput(val float64) {
 	s.Output = val
+}
+
+// The inventory, measures and risks again without the devices not in the Devices list (not approved
+// yet) and their findings; the unapproved measure stays the full one. Absent in reports generated
+// before it.
+type ReportsGetReportsPdplOKReportApprovedOnly struct {
+	Inventory ReportsGetReportsPdplOKReportApprovedOnlyInventory      `json:"inventory"`
+	Measures  []ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItem `json:"measures"`
+	Risks     []ReportsGetReportsPdplOKReportApprovedOnlyRisksItem    `json:"risks"`
+}
+
+// GetInventory returns the value of Inventory.
+func (s *ReportsGetReportsPdplOKReportApprovedOnly) GetInventory() ReportsGetReportsPdplOKReportApprovedOnlyInventory {
+	return s.Inventory
+}
+
+// GetMeasures returns the value of Measures.
+func (s *ReportsGetReportsPdplOKReportApprovedOnly) GetMeasures() []ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItem {
+	return s.Measures
+}
+
+// GetRisks returns the value of Risks.
+func (s *ReportsGetReportsPdplOKReportApprovedOnly) GetRisks() []ReportsGetReportsPdplOKReportApprovedOnlyRisksItem {
+	return s.Risks
+}
+
+// SetInventory sets the value of Inventory.
+func (s *ReportsGetReportsPdplOKReportApprovedOnly) SetInventory(val ReportsGetReportsPdplOKReportApprovedOnlyInventory) {
+	s.Inventory = val
+}
+
+// SetMeasures sets the value of Measures.
+func (s *ReportsGetReportsPdplOKReportApprovedOnly) SetMeasures(val []ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItem) {
+	s.Measures = val
+}
+
+// SetRisks sets the value of Risks.
+func (s *ReportsGetReportsPdplOKReportApprovedOnly) SetRisks(val []ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) {
+	s.Risks = val
+}
+
+type ReportsGetReportsPdplOKReportApprovedOnlyInventory struct {
+	Approved   float64                                                            `json:"approved"`
+	ByKind     []ReportsGetReportsPdplOKReportApprovedOnlyInventoryByKindItem     `json:"by_kind"`
+	Fragile    float64                                                            `json:"fragile"`
+	KeySystems []ReportsGetReportsPdplOKReportApprovedOnlyInventoryKeySystemsItem `json:"key_systems"`
+	Sources    []ReportsGetReportsPdplOKReportApprovedOnlyInventorySourcesItem    `json:"sources"`
+	Total      float64                                                            `json:"total"`
+	Unapproved float64                                                            `json:"unapproved"`
+}
+
+// GetApproved returns the value of Approved.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventory) GetApproved() float64 {
+	return s.Approved
+}
+
+// GetByKind returns the value of ByKind.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventory) GetByKind() []ReportsGetReportsPdplOKReportApprovedOnlyInventoryByKindItem {
+	return s.ByKind
+}
+
+// GetFragile returns the value of Fragile.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventory) GetFragile() float64 {
+	return s.Fragile
+}
+
+// GetKeySystems returns the value of KeySystems.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventory) GetKeySystems() []ReportsGetReportsPdplOKReportApprovedOnlyInventoryKeySystemsItem {
+	return s.KeySystems
+}
+
+// GetSources returns the value of Sources.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventory) GetSources() []ReportsGetReportsPdplOKReportApprovedOnlyInventorySourcesItem {
+	return s.Sources
+}
+
+// GetTotal returns the value of Total.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventory) GetTotal() float64 {
+	return s.Total
+}
+
+// GetUnapproved returns the value of Unapproved.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventory) GetUnapproved() float64 {
+	return s.Unapproved
+}
+
+// SetApproved sets the value of Approved.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventory) SetApproved(val float64) {
+	s.Approved = val
+}
+
+// SetByKind sets the value of ByKind.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventory) SetByKind(val []ReportsGetReportsPdplOKReportApprovedOnlyInventoryByKindItem) {
+	s.ByKind = val
+}
+
+// SetFragile sets the value of Fragile.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventory) SetFragile(val float64) {
+	s.Fragile = val
+}
+
+// SetKeySystems sets the value of KeySystems.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventory) SetKeySystems(val []ReportsGetReportsPdplOKReportApprovedOnlyInventoryKeySystemsItem) {
+	s.KeySystems = val
+}
+
+// SetSources sets the value of Sources.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventory) SetSources(val []ReportsGetReportsPdplOKReportApprovedOnlyInventorySourcesItem) {
+	s.Sources = val
+}
+
+// SetTotal sets the value of Total.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventory) SetTotal(val float64) {
+	s.Total = val
+}
+
+// SetUnapproved sets the value of Unapproved.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventory) SetUnapproved(val float64) {
+	s.Unapproved = val
+}
+
+type ReportsGetReportsPdplOKReportApprovedOnlyInventoryByKindItem struct {
+	Kind string  `json:"kind"`
+	N    float64 `json:"n"`
+}
+
+// GetKind returns the value of Kind.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventoryByKindItem) GetKind() string {
+	return s.Kind
+}
+
+// GetN returns the value of N.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventoryByKindItem) GetN() float64 {
+	return s.N
+}
+
+// SetKind sets the value of Kind.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventoryByKindItem) SetKind(val string) {
+	s.Kind = val
+}
+
+// SetN sets the value of N.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventoryByKindItem) SetN(val float64) {
+	s.N = val
+}
+
+type ReportsGetReportsPdplOKReportApprovedOnlyInventoryKeySystemsItem struct {
+	ID   string `json:"id"`
+	IP   string `json:"ip"`
+	Kind string `json:"kind"`
+	Name string `json:"name"`
+	Os   string `json:"os"`
+}
+
+// GetID returns the value of ID.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventoryKeySystemsItem) GetID() string {
+	return s.ID
+}
+
+// GetIP returns the value of IP.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventoryKeySystemsItem) GetIP() string {
+	return s.IP
+}
+
+// GetKind returns the value of Kind.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventoryKeySystemsItem) GetKind() string {
+	return s.Kind
+}
+
+// GetName returns the value of Name.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventoryKeySystemsItem) GetName() string {
+	return s.Name
+}
+
+// GetOs returns the value of Os.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventoryKeySystemsItem) GetOs() string {
+	return s.Os
+}
+
+// SetID sets the value of ID.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventoryKeySystemsItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetIP sets the value of IP.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventoryKeySystemsItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventoryKeySystemsItem) SetKind(val string) {
+	s.Kind = val
+}
+
+// SetName sets the value of Name.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventoryKeySystemsItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetOs sets the value of Os.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventoryKeySystemsItem) SetOs(val string) {
+	s.Os = val
+}
+
+type ReportsGetReportsPdplOKReportApprovedOnlyInventorySourcesItem struct {
+	N      float64 `json:"n"`
+	Source string  `json:"source"`
+}
+
+// GetN returns the value of N.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventorySourcesItem) GetN() float64 {
+	return s.N
+}
+
+// GetSource returns the value of Source.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventorySourcesItem) GetSource() string {
+	return s.Source
+}
+
+// SetN sets the value of N.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventorySourcesItem) SetN(val float64) {
+	s.N = val
+}
+
+// SetSource sets the value of Source.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyInventorySourcesItem) SetSource(val string) {
+	s.Source = val
+}
+
+type ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItem struct {
+	ID     ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemID     `json:"id"`
+	N      float64                                                     `json:"n"`
+	Names  []string                                                    `json:"names"`
+	Status ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatus `json:"status"`
+}
+
+// GetID returns the value of ID.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItem) GetID() ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemID {
+	return s.ID
+}
+
+// GetN returns the value of N.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItem) GetN() float64 {
+	return s.N
+}
+
+// GetNames returns the value of Names.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItem) GetNames() []string {
+	return s.Names
+}
+
+// GetStatus returns the value of Status.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItem) GetStatus() ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatus {
+	return s.Status
+}
+
+// SetID sets the value of ID.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItem) SetID(val ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemID) {
+	s.ID = val
+}
+
+// SetN sets the value of N.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItem) SetN(val float64) {
+	s.N = val
+}
+
+// SetNames sets the value of Names.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItem) SetNames(val []string) {
+	s.Names = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItem) SetStatus(val ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatus) {
+	s.Status = val
+}
+
+type ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemID string
+
+const (
+	ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDFirewall   ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemID = "firewall"
+	ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDPatching   ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemID = "patching"
+	ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDEol        ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemID = "eol"
+	ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDUnapproved ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemID = "unapproved"
+	ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDRemote     ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemID = "remote"
+	ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDLogging    ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemID = "logging"
+	ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDHoneypot   ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemID = "honeypot"
+	ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDScan       ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemID = "scan"
+	ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDBackup     ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemID = "backup"
+)
+
+// AllValues returns all ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemID values.
+func (ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemID) AllValues() []ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemID {
+	return []ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemID{
+		ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDFirewall,
+		ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDPatching,
+		ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDEol,
+		ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDUnapproved,
+		ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDRemote,
+		ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDLogging,
+		ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDHoneypot,
+		ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDScan,
+		ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDBackup,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemID) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDFirewall:
+		return []byte(s), nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDPatching:
+		return []byte(s), nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDEol:
+		return []byte(s), nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDUnapproved:
+		return []byte(s), nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDRemote:
+		return []byte(s), nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDLogging:
+		return []byte(s), nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDHoneypot:
+		return []byte(s), nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDScan:
+		return []byte(s), nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDBackup:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemID) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemID(data) {
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDFirewall:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDFirewall
+		return nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDPatching:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDPatching
+		return nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDEol:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDEol
+		return nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDUnapproved:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDUnapproved
+		return nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDRemote:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDRemote
+		return nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDLogging:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDLogging
+		return nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDHoneypot:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDHoneypot
+		return nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDScan:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDScan
+		return nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDBackup:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemIDBackup
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatus string
+
+const (
+	ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatusOk        ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatus = "ok"
+	ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatusAttention ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatus = "attention"
+	ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatusUnknown   ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatus = "unknown"
+)
+
+// AllValues returns all ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatus values.
+func (ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatus) AllValues() []ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatus {
+	return []ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatus{
+		ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatusOk,
+		ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatusAttention,
+		ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatusUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatusOk:
+		return []byte(s), nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatusAttention:
+		return []byte(s), nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatusUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatus) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatus(data) {
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatusOk:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatusOk
+		return nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatusAttention:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatusAttention
+		return nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatusUnknown:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyMeasuresItemStatusUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsPdplOKReportApprovedOnlyRisksItem struct {
+	// The version compared is the one the device's own agent reports (findings evidence.agent): the status
+	// reads "Detected by the agent", not "Suspected"; absent in reports sent before it.
+	Agent   OptBool `json:"agent"`
+	AssetID string  `json:"asset_id"`
+	// Who closed it (rows of what was done).
+	By     OptString `json:"by"`
+	Cve    string    `json:"cve"`
+	Device string    `json:"device"`
+	// False when the device is still to review, not in the Devices list yet; absent in reports made before
+	// it (read as approved).
+	DeviceApproved OptBool                                                    `json:"device_approved"`
+	ID             string                                                     `json:"id"`
+	Product        string                                                     `json:"product"`
+	Severity       ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverity `json:"severity"`
+	Since          time.Time                                                  `json:"since"`
+	Status         ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatus   `json:"status"`
+}
+
+// GetAgent returns the value of Agent.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) GetAgent() OptBool {
+	return s.Agent
+}
+
+// GetAssetID returns the value of AssetID.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) GetAssetID() string {
+	return s.AssetID
+}
+
+// GetBy returns the value of By.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) GetBy() OptString {
+	return s.By
+}
+
+// GetCve returns the value of Cve.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) GetCve() string {
+	return s.Cve
+}
+
+// GetDevice returns the value of Device.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) GetDevice() string {
+	return s.Device
+}
+
+// GetDeviceApproved returns the value of DeviceApproved.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) GetDeviceApproved() OptBool {
+	return s.DeviceApproved
+}
+
+// GetID returns the value of ID.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) GetID() string {
+	return s.ID
+}
+
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) GetProduct() string {
+	return s.Product
+}
+
+// GetSeverity returns the value of Severity.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) GetSeverity() ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverity {
+	return s.Severity
+}
+
+// GetSince returns the value of Since.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) GetSince() time.Time {
+	return s.Since
+}
+
+// GetStatus returns the value of Status.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) GetStatus() ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatus {
+	return s.Status
+}
+
+// SetAgent sets the value of Agent.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) SetAgent(val OptBool) {
+	s.Agent = val
+}
+
+// SetAssetID sets the value of AssetID.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) SetAssetID(val string) {
+	s.AssetID = val
+}
+
+// SetBy sets the value of By.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) SetBy(val OptString) {
+	s.By = val
+}
+
+// SetCve sets the value of Cve.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetDevice sets the value of Device.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) SetDevice(val string) {
+	s.Device = val
+}
+
+// SetDeviceApproved sets the value of DeviceApproved.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) SetDeviceApproved(val OptBool) {
+	s.DeviceApproved = val
+}
+
+// SetID sets the value of ID.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) SetSeverity(val ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverity) {
+	s.Severity = val
+}
+
+// SetSince sets the value of Since.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) SetSince(val time.Time) {
+	s.Since = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItem) SetStatus(val ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatus) {
+	s.Status = val
+}
+
+type ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverity string
+
+const (
+	ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityCritical ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverity = "critical"
+	ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityHigh     ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverity = "high"
+	ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityMedium   ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverity = "medium"
+	ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityLow      ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverity = "low"
+	ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityInfo     ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverity = "info"
+)
+
+// AllValues returns all ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverity values.
+func (ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverity) AllValues() []ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverity {
+	return []ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverity{
+		ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityCritical,
+		ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityHigh,
+		ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityMedium,
+		ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityLow,
+		ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityInfo,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverity) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityCritical:
+		return []byte(s), nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityHigh:
+		return []byte(s), nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityMedium:
+		return []byte(s), nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityLow:
+		return []byte(s), nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityInfo:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverity) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverity(data) {
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityCritical:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityCritical
+		return nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityHigh:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityHigh
+		return nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityMedium:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityMedium
+		return nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityLow:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityLow
+		return nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityInfo:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyRisksItemSeverityInfo
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatus string
+
+const (
+	ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusConfirmed     ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatus = "confirmed"
+	ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusSuspected     ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatus = "suspected"
+	ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusMitigated     ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatus = "mitigated"
+	ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusPatched       ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatus = "patched"
+	ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusFalsePositive ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatus = "false_positive"
+	ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusNotRelevant   ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatus = "not_relevant"
+	ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusRiskAccepted  ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatus = "risk_accepted"
+)
+
+// AllValues returns all ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatus values.
+func (ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatus) AllValues() []ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatus {
+	return []ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatus{
+		ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusConfirmed,
+		ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusSuspected,
+		ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusMitigated,
+		ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusPatched,
+		ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusFalsePositive,
+		ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusNotRelevant,
+		ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusRiskAccepted,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusConfirmed:
+		return []byte(s), nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusSuspected:
+		return []byte(s), nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusMitigated:
+		return []byte(s), nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusPatched:
+		return []byte(s), nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusFalsePositive:
+		return []byte(s), nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusNotRelevant:
+		return []byte(s), nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusRiskAccepted:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatus) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatus(data) {
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusConfirmed:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusConfirmed
+		return nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusSuspected:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusSuspected
+		return nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusMitigated:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusMitigated
+		return nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusPatched:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusPatched
+		return nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusFalsePositive:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusFalsePositive
+		return nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusNotRelevant:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusNotRelevant
+		return nil
+	case ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusRiskAccepted:
+		*s = ReportsGetReportsPdplOKReportApprovedOnlyRisksItemStatusRiskAccepted
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ReportsGetReportsPdplOKReportCoverageItem struct {
@@ -160479,14 +161356,17 @@ type ReportsGetReportsPdplOKReportRisksItem struct {
 	Agent   OptBool `json:"agent"`
 	AssetID string  `json:"asset_id"`
 	// Who closed it (rows of what was done).
-	By       OptString                                      `json:"by"`
-	Cve      string                                         `json:"cve"`
-	Device   string                                         `json:"device"`
-	ID       string                                         `json:"id"`
-	Product  string                                         `json:"product"`
-	Severity ReportsGetReportsPdplOKReportRisksItemSeverity `json:"severity"`
-	Since    time.Time                                      `json:"since"`
-	Status   ReportsGetReportsPdplOKReportRisksItemStatus   `json:"status"`
+	By     OptString `json:"by"`
+	Cve    string    `json:"cve"`
+	Device string    `json:"device"`
+	// False when the device is still to review, not in the Devices list yet; absent in reports made before
+	// it (read as approved).
+	DeviceApproved OptBool                                        `json:"device_approved"`
+	ID             string                                         `json:"id"`
+	Product        string                                         `json:"product"`
+	Severity       ReportsGetReportsPdplOKReportRisksItemSeverity `json:"severity"`
+	Since          time.Time                                      `json:"since"`
+	Status         ReportsGetReportsPdplOKReportRisksItemStatus   `json:"status"`
 }
 
 // GetAgent returns the value of Agent.
@@ -160512,6 +161392,11 @@ func (s *ReportsGetReportsPdplOKReportRisksItem) GetCve() string {
 // GetDevice returns the value of Device.
 func (s *ReportsGetReportsPdplOKReportRisksItem) GetDevice() string {
 	return s.Device
+}
+
+// GetDeviceApproved returns the value of DeviceApproved.
+func (s *ReportsGetReportsPdplOKReportRisksItem) GetDeviceApproved() OptBool {
+	return s.DeviceApproved
 }
 
 // GetID returns the value of ID.
@@ -160562,6 +161447,11 @@ func (s *ReportsGetReportsPdplOKReportRisksItem) SetCve(val string) {
 // SetDevice sets the value of Device.
 func (s *ReportsGetReportsPdplOKReportRisksItem) SetDevice(val string) {
 	s.Device = val
+}
+
+// SetDeviceApproved sets the value of DeviceApproved.
+func (s *ReportsGetReportsPdplOKReportRisksItem) SetDeviceApproved(val OptBool) {
+	s.DeviceApproved = val
 }
 
 // SetID sets the value of ID.
@@ -161003,6 +161893,223 @@ func (s *ReportsGetReportsWeeklyHistoryID1Verify) SetText(val OptString) {
 	s.Text = val
 }
 
+// One top risk: product and count (its open findings) are set; cve and finding_id are its worst
+// finding.
+// Ref: #/components/schemas/reports_get_reports_weekly_history_id_2_fix
+type ReportsGetReportsWeeklyHistoryID2Fix struct {
+	Count     OptInt    `json:"count"`
+	Cve       string    `json:"cve"`
+	Device    string    `json:"device"`
+	FindingID string    `json:"finding_id"`
+	Kind      string    `json:"kind"`
+	Product   OptString `json:"product"`
+	// The sentence of the top risk action.
+	Text OptString `json:"text"`
+}
+
+// GetCount returns the value of Count.
+func (s *ReportsGetReportsWeeklyHistoryID2Fix) GetCount() OptInt {
+	return s.Count
+}
+
+// GetCve returns the value of Cve.
+func (s *ReportsGetReportsWeeklyHistoryID2Fix) GetCve() string {
+	return s.Cve
+}
+
+// GetDevice returns the value of Device.
+func (s *ReportsGetReportsWeeklyHistoryID2Fix) GetDevice() string {
+	return s.Device
+}
+
+// GetFindingID returns the value of FindingID.
+func (s *ReportsGetReportsWeeklyHistoryID2Fix) GetFindingID() string {
+	return s.FindingID
+}
+
+// GetKind returns the value of Kind.
+func (s *ReportsGetReportsWeeklyHistoryID2Fix) GetKind() string {
+	return s.Kind
+}
+
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsWeeklyHistoryID2Fix) GetProduct() OptString {
+	return s.Product
+}
+
+// GetText returns the value of Text.
+func (s *ReportsGetReportsWeeklyHistoryID2Fix) GetText() OptString {
+	return s.Text
+}
+
+// SetCount sets the value of Count.
+func (s *ReportsGetReportsWeeklyHistoryID2Fix) SetCount(val OptInt) {
+	s.Count = val
+}
+
+// SetCve sets the value of Cve.
+func (s *ReportsGetReportsWeeklyHistoryID2Fix) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetDevice sets the value of Device.
+func (s *ReportsGetReportsWeeklyHistoryID2Fix) SetDevice(val string) {
+	s.Device = val
+}
+
+// SetFindingID sets the value of FindingID.
+func (s *ReportsGetReportsWeeklyHistoryID2Fix) SetFindingID(val string) {
+	s.FindingID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ReportsGetReportsWeeklyHistoryID2Fix) SetKind(val string) {
+	s.Kind = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsWeeklyHistoryID2Fix) SetProduct(val OptString) {
+	s.Product = val
+}
+
+// SetText sets the value of Text.
+func (s *ReportsGetReportsWeeklyHistoryID2Fix) SetText(val OptString) {
+	s.Text = val
+}
+
+// Ref: #/components/schemas/reports_get_reports_weekly_history_id_2_plan_os
+type ReportsGetReportsWeeklyHistoryID2PlanOs struct {
+	Count int    `json:"count"`
+	Kind  string `json:"kind"`
+}
+
+// GetCount returns the value of Count.
+func (s *ReportsGetReportsWeeklyHistoryID2PlanOs) GetCount() int {
+	return s.Count
+}
+
+// GetKind returns the value of Kind.
+func (s *ReportsGetReportsWeeklyHistoryID2PlanOs) GetKind() string {
+	return s.Kind
+}
+
+// SetCount sets the value of Count.
+func (s *ReportsGetReportsWeeklyHistoryID2PlanOs) SetCount(val int) {
+	s.Count = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ReportsGetReportsWeeklyHistoryID2PlanOs) SetKind(val string) {
+	s.Kind = val
+}
+
+// Ref: #/components/schemas/reports_get_reports_weekly_history_id_2_review_devices
+type ReportsGetReportsWeeklyHistoryID2ReviewDevices struct {
+	Count int    `json:"count"`
+	Kind  string `json:"kind"`
+}
+
+// GetCount returns the value of Count.
+func (s *ReportsGetReportsWeeklyHistoryID2ReviewDevices) GetCount() int {
+	return s.Count
+}
+
+// GetKind returns the value of Kind.
+func (s *ReportsGetReportsWeeklyHistoryID2ReviewDevices) GetKind() string {
+	return s.Kind
+}
+
+// SetCount sets the value of Count.
+func (s *ReportsGetReportsWeeklyHistoryID2ReviewDevices) SetCount(val int) {
+	s.Count = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ReportsGetReportsWeeklyHistoryID2ReviewDevices) SetKind(val string) {
+	s.Kind = val
+}
+
+// Ref: #/components/schemas/reports_get_reports_weekly_history_id_2_verify
+type ReportsGetReportsWeeklyHistoryID2Verify struct {
+	Count     OptInt    `json:"count"`
+	Cve       string    `json:"cve"`
+	Device    string    `json:"device"`
+	FindingID string    `json:"finding_id"`
+	Kind      string    `json:"kind"`
+	Product   OptString `json:"product"`
+	Text      OptString `json:"text"`
+}
+
+// GetCount returns the value of Count.
+func (s *ReportsGetReportsWeeklyHistoryID2Verify) GetCount() OptInt {
+	return s.Count
+}
+
+// GetCve returns the value of Cve.
+func (s *ReportsGetReportsWeeklyHistoryID2Verify) GetCve() string {
+	return s.Cve
+}
+
+// GetDevice returns the value of Device.
+func (s *ReportsGetReportsWeeklyHistoryID2Verify) GetDevice() string {
+	return s.Device
+}
+
+// GetFindingID returns the value of FindingID.
+func (s *ReportsGetReportsWeeklyHistoryID2Verify) GetFindingID() string {
+	return s.FindingID
+}
+
+// GetKind returns the value of Kind.
+func (s *ReportsGetReportsWeeklyHistoryID2Verify) GetKind() string {
+	return s.Kind
+}
+
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsWeeklyHistoryID2Verify) GetProduct() OptString {
+	return s.Product
+}
+
+// GetText returns the value of Text.
+func (s *ReportsGetReportsWeeklyHistoryID2Verify) GetText() OptString {
+	return s.Text
+}
+
+// SetCount sets the value of Count.
+func (s *ReportsGetReportsWeeklyHistoryID2Verify) SetCount(val OptInt) {
+	s.Count = val
+}
+
+// SetCve sets the value of Cve.
+func (s *ReportsGetReportsWeeklyHistoryID2Verify) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetDevice sets the value of Device.
+func (s *ReportsGetReportsWeeklyHistoryID2Verify) SetDevice(val string) {
+	s.Device = val
+}
+
+// SetFindingID sets the value of FindingID.
+func (s *ReportsGetReportsWeeklyHistoryID2Verify) SetFindingID(val string) {
+	s.FindingID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ReportsGetReportsWeeklyHistoryID2Verify) SetKind(val string) {
+	s.Kind = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsWeeklyHistoryID2Verify) SetProduct(val OptString) {
+	s.Product = val
+}
+
+// SetText sets the value of Text.
+func (s *ReportsGetReportsWeeklyHistoryID2Verify) SetText(val OptString) {
+	s.Text = val
+}
+
 type ReportsGetReportsWeeklyHistoryIDOK struct {
 	Error      OptString                                 `json:"error"`
 	ID         string                                    `json:"id"`
@@ -161084,10 +162191,13 @@ func (s *ReportsGetReportsWeeklyHistoryIDOK) SetTs(val time.Time) {
 }
 
 type ReportsGetReportsWeeklyHistoryIDOKReport struct {
-	Actions     []ReportsGetReportsWeeklyHistoryIDOKReportActionsItem `json:"actions"`
-	AiSummary   NilReportsGetReportsWeeklyHistoryIDOKReportAiSummary  `json:"ai_summary"`
-	Counts      ReportsGetReportsWeeklyHistoryIDOKReportCounts        `json:"counts"`
-	GeneratedAt time.Time                                             `json:"generated_at"`
+	Actions   []ReportsGetReportsWeeklyHistoryIDOKReportActionsItem `json:"actions"`
+	AiSummary NilReportsGetReportsWeeklyHistoryIDOKReportAiSummary  `json:"ai_summary"`
+	// The counts, top risks and actions again without the devices not in the Devices list (not approved
+	// yet) and their findings; the lists are filtered by device_approved. Absent in reports sent before it.
+	ApprovedOnly OptReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly `json:"approved_only"`
+	Counts       ReportsGetReportsWeeklyHistoryIDOKReportCounts          `json:"counts"`
+	GeneratedAt  time.Time                                               `json:"generated_at"`
 	// Absent or null when notify is off, or in reports sent by an older version.
 	Happened    OptNilReportsGetReportsWeeklyHistoryIDOKReportHappened    `json:"happened"`
 	NewFindings []ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem `json:"new_findings"`
@@ -161108,6 +162218,11 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReport) GetActions() []ReportsGetRepo
 // GetAiSummary returns the value of AiSummary.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReport) GetAiSummary() NilReportsGetReportsWeeklyHistoryIDOKReportAiSummary {
 	return s.AiSummary
+}
+
+// GetApprovedOnly returns the value of ApprovedOnly.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReport) GetApprovedOnly() OptReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly {
+	return s.ApprovedOnly
 }
 
 // GetCounts returns the value of Counts.
@@ -161163,6 +162278,11 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReport) SetActions(val []ReportsGetRe
 // SetAiSummary sets the value of AiSummary.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReport) SetAiSummary(val NilReportsGetReportsWeeklyHistoryIDOKReportAiSummary) {
 	s.AiSummary = val
+}
+
+// SetApprovedOnly sets the value of ApprovedOnly.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReport) SetApprovedOnly(val OptReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly) {
+	s.ApprovedOnly = val
 }
 
 // SetCounts sets the value of Counts.
@@ -161419,6 +162539,507 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportAiSummaryTokens) SetOutput(val 
 	s.Output = val
 }
 
+// The counts, top risks and actions again without the devices not in the Devices list (not approved
+// yet) and their findings; the lists are filtered by device_approved. Absent in reports sent before it.
+type ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly struct {
+	Actions  []ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem  `json:"actions"`
+	Counts   ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts         `json:"counts"`
+	TopRisks []ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem `json:"top_risks"`
+}
+
+// GetActions returns the value of Actions.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly) GetActions() []ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem {
+	return s.Actions
+}
+
+// GetCounts returns the value of Counts.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly) GetCounts() ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts {
+	return s.Counts
+}
+
+// GetTopRisks returns the value of TopRisks.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly) GetTopRisks() []ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem {
+	return s.TopRisks
+}
+
+// SetActions sets the value of Actions.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly) SetActions(val []ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem) {
+	s.Actions = val
+}
+
+// SetCounts sets the value of Counts.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly) SetCounts(val ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) {
+	s.Counts = val
+}
+
+// SetTopRisks sets the value of TopRisks.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnly) SetTopRisks(val []ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem) {
+	s.TopRisks = val
+}
+
+// ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem represents sum type.
+type ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem struct {
+	// Type selects the active sum variant, switch on this field.
+	Type                                           ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItemType
+	ReportsGetReportsWeeklyHistoryID2Fix           ReportsGetReportsWeeklyHistoryID2Fix
+	ReportsGetReportsWeeklyHistoryID2Verify        ReportsGetReportsWeeklyHistoryID2Verify
+	ReportsGetReportsWeeklyHistoryID2ReviewDevices ReportsGetReportsWeeklyHistoryID2ReviewDevices
+	ReportsGetReportsWeeklyHistoryID2PlanOs        ReportsGetReportsWeeklyHistoryID2PlanOs
+}
+
+// ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItemType is oneOf type of ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem.
+type ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItemType string
+
+// Possible values for ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItemType.
+const (
+	ReportsGetReportsWeeklyHistoryID2FixReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem           ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItemType = "fix"
+	ReportsGetReportsWeeklyHistoryID2VerifyReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem        ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItemType = "verify"
+	ReportsGetReportsWeeklyHistoryID2ReviewDevicesReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItemType = "review_devices"
+	ReportsGetReportsWeeklyHistoryID2PlanOsReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem        ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItemType = "plan_os"
+)
+
+// IsReportsGetReportsWeeklyHistoryID2Fix reports whether ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem is ReportsGetReportsWeeklyHistoryID2Fix.
+func (s ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem) IsReportsGetReportsWeeklyHistoryID2Fix() bool {
+	return s.Type == ReportsGetReportsWeeklyHistoryID2FixReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem
+}
+
+// IsReportsGetReportsWeeklyHistoryID2Verify reports whether ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem is ReportsGetReportsWeeklyHistoryID2Verify.
+func (s ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem) IsReportsGetReportsWeeklyHistoryID2Verify() bool {
+	return s.Type == ReportsGetReportsWeeklyHistoryID2VerifyReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem
+}
+
+// IsReportsGetReportsWeeklyHistoryID2ReviewDevices reports whether ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem is ReportsGetReportsWeeklyHistoryID2ReviewDevices.
+func (s ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem) IsReportsGetReportsWeeklyHistoryID2ReviewDevices() bool {
+	return s.Type == ReportsGetReportsWeeklyHistoryID2ReviewDevicesReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem
+}
+
+// IsReportsGetReportsWeeklyHistoryID2PlanOs reports whether ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem is ReportsGetReportsWeeklyHistoryID2PlanOs.
+func (s ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem) IsReportsGetReportsWeeklyHistoryID2PlanOs() bool {
+	return s.Type == ReportsGetReportsWeeklyHistoryID2PlanOsReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem
+}
+
+// SetReportsGetReportsWeeklyHistoryID2Fix sets ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem to ReportsGetReportsWeeklyHistoryID2Fix.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem) SetReportsGetReportsWeeklyHistoryID2Fix(v ReportsGetReportsWeeklyHistoryID2Fix) {
+	s.Type = ReportsGetReportsWeeklyHistoryID2FixReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem
+	s.ReportsGetReportsWeeklyHistoryID2Fix = v
+}
+
+// GetReportsGetReportsWeeklyHistoryID2Fix returns ReportsGetReportsWeeklyHistoryID2Fix and true boolean if ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem is ReportsGetReportsWeeklyHistoryID2Fix.
+func (s ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem) GetReportsGetReportsWeeklyHistoryID2Fix() (v ReportsGetReportsWeeklyHistoryID2Fix, ok bool) {
+	if !s.IsReportsGetReportsWeeklyHistoryID2Fix() {
+		return v, false
+	}
+	return s.ReportsGetReportsWeeklyHistoryID2Fix, true
+}
+
+// NewReportsGetReportsWeeklyHistoryID2FixReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem returns new ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem from ReportsGetReportsWeeklyHistoryID2Fix.
+func NewReportsGetReportsWeeklyHistoryID2FixReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem(v ReportsGetReportsWeeklyHistoryID2Fix) ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem {
+	var s ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem
+	s.SetReportsGetReportsWeeklyHistoryID2Fix(v)
+	return s
+}
+
+// SetReportsGetReportsWeeklyHistoryID2Verify sets ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem to ReportsGetReportsWeeklyHistoryID2Verify.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem) SetReportsGetReportsWeeklyHistoryID2Verify(v ReportsGetReportsWeeklyHistoryID2Verify) {
+	s.Type = ReportsGetReportsWeeklyHistoryID2VerifyReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem
+	s.ReportsGetReportsWeeklyHistoryID2Verify = v
+}
+
+// GetReportsGetReportsWeeklyHistoryID2Verify returns ReportsGetReportsWeeklyHistoryID2Verify and true boolean if ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem is ReportsGetReportsWeeklyHistoryID2Verify.
+func (s ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem) GetReportsGetReportsWeeklyHistoryID2Verify() (v ReportsGetReportsWeeklyHistoryID2Verify, ok bool) {
+	if !s.IsReportsGetReportsWeeklyHistoryID2Verify() {
+		return v, false
+	}
+	return s.ReportsGetReportsWeeklyHistoryID2Verify, true
+}
+
+// NewReportsGetReportsWeeklyHistoryID2VerifyReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem returns new ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem from ReportsGetReportsWeeklyHistoryID2Verify.
+func NewReportsGetReportsWeeklyHistoryID2VerifyReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem(v ReportsGetReportsWeeklyHistoryID2Verify) ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem {
+	var s ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem
+	s.SetReportsGetReportsWeeklyHistoryID2Verify(v)
+	return s
+}
+
+// SetReportsGetReportsWeeklyHistoryID2ReviewDevices sets ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem to ReportsGetReportsWeeklyHistoryID2ReviewDevices.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem) SetReportsGetReportsWeeklyHistoryID2ReviewDevices(v ReportsGetReportsWeeklyHistoryID2ReviewDevices) {
+	s.Type = ReportsGetReportsWeeklyHistoryID2ReviewDevicesReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem
+	s.ReportsGetReportsWeeklyHistoryID2ReviewDevices = v
+}
+
+// GetReportsGetReportsWeeklyHistoryID2ReviewDevices returns ReportsGetReportsWeeklyHistoryID2ReviewDevices and true boolean if ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem is ReportsGetReportsWeeklyHistoryID2ReviewDevices.
+func (s ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem) GetReportsGetReportsWeeklyHistoryID2ReviewDevices() (v ReportsGetReportsWeeklyHistoryID2ReviewDevices, ok bool) {
+	if !s.IsReportsGetReportsWeeklyHistoryID2ReviewDevices() {
+		return v, false
+	}
+	return s.ReportsGetReportsWeeklyHistoryID2ReviewDevices, true
+}
+
+// NewReportsGetReportsWeeklyHistoryID2ReviewDevicesReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem returns new ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem from ReportsGetReportsWeeklyHistoryID2ReviewDevices.
+func NewReportsGetReportsWeeklyHistoryID2ReviewDevicesReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem(v ReportsGetReportsWeeklyHistoryID2ReviewDevices) ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem {
+	var s ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem
+	s.SetReportsGetReportsWeeklyHistoryID2ReviewDevices(v)
+	return s
+}
+
+// SetReportsGetReportsWeeklyHistoryID2PlanOs sets ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem to ReportsGetReportsWeeklyHistoryID2PlanOs.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem) SetReportsGetReportsWeeklyHistoryID2PlanOs(v ReportsGetReportsWeeklyHistoryID2PlanOs) {
+	s.Type = ReportsGetReportsWeeklyHistoryID2PlanOsReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem
+	s.ReportsGetReportsWeeklyHistoryID2PlanOs = v
+}
+
+// GetReportsGetReportsWeeklyHistoryID2PlanOs returns ReportsGetReportsWeeklyHistoryID2PlanOs and true boolean if ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem is ReportsGetReportsWeeklyHistoryID2PlanOs.
+func (s ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem) GetReportsGetReportsWeeklyHistoryID2PlanOs() (v ReportsGetReportsWeeklyHistoryID2PlanOs, ok bool) {
+	if !s.IsReportsGetReportsWeeklyHistoryID2PlanOs() {
+		return v, false
+	}
+	return s.ReportsGetReportsWeeklyHistoryID2PlanOs, true
+}
+
+// NewReportsGetReportsWeeklyHistoryID2PlanOsReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem returns new ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem from ReportsGetReportsWeeklyHistoryID2PlanOs.
+func NewReportsGetReportsWeeklyHistoryID2PlanOsReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem(v ReportsGetReportsWeeklyHistoryID2PlanOs) ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem {
+	var s ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyActionsItem
+	s.SetReportsGetReportsWeeklyHistoryID2PlanOs(v)
+	return s
+}
+
+type ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts struct {
+	// Risks accepted this week; absent when none or in reports sent before it.
+	Accepted OptFloat64 `json:"accepted"`
+	// The earliest day one of those acceptances ends.
+	AcceptedUntil OptDate `json:"accepted_until"`
+	// Devices as the Devices page counts them, this box included.
+	Devices           float64 `json:"devices"`
+	DevicesNew        float64 `json:"devices_new"`
+	DevicesUnapproved float64 `json:"devices_unapproved"`
+	// Products you use among them, as Home counts them (earlier reports: their CVEs on a device).
+	KevMatched float64 `json:"kev_matched"`
+	// Vulnerabilities newly exploited in the last 7 days, as Home counts them.
+	KevNew      float64 `json:"kev_new"`
+	NewFindings float64 `json:"new_findings"`
+	// Different findings closed as not relevant among the figures; absent in reports sent before it.
+	NotRelevant OptFloat64 `json:"not_relevant"`
+	// Of new_findings, the ones closed as not relevant.
+	NotRelevantNew OptFloat64 `json:"not_relevant_new"`
+	// Of resolved, the ones closed as not relevant.
+	NotRelevantResolved OptFloat64 `json:"not_relevant_resolved"`
+	OpenConfirmed       float64    `json:"open_confirmed"`
+	OpenSuspected       float64    `json:"open_suspected"`
+	// Closed this week; accepted risks are counted in accepted.
+	Resolved float64 `json:"resolved"`
+}
+
+// GetAccepted returns the value of Accepted.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) GetAccepted() OptFloat64 {
+	return s.Accepted
+}
+
+// GetAcceptedUntil returns the value of AcceptedUntil.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) GetAcceptedUntil() OptDate {
+	return s.AcceptedUntil
+}
+
+// GetDevices returns the value of Devices.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) GetDevices() float64 {
+	return s.Devices
+}
+
+// GetDevicesNew returns the value of DevicesNew.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) GetDevicesNew() float64 {
+	return s.DevicesNew
+}
+
+// GetDevicesUnapproved returns the value of DevicesUnapproved.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) GetDevicesUnapproved() float64 {
+	return s.DevicesUnapproved
+}
+
+// GetKevMatched returns the value of KevMatched.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) GetKevMatched() float64 {
+	return s.KevMatched
+}
+
+// GetKevNew returns the value of KevNew.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) GetKevNew() float64 {
+	return s.KevNew
+}
+
+// GetNewFindings returns the value of NewFindings.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) GetNewFindings() float64 {
+	return s.NewFindings
+}
+
+// GetNotRelevant returns the value of NotRelevant.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) GetNotRelevant() OptFloat64 {
+	return s.NotRelevant
+}
+
+// GetNotRelevantNew returns the value of NotRelevantNew.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) GetNotRelevantNew() OptFloat64 {
+	return s.NotRelevantNew
+}
+
+// GetNotRelevantResolved returns the value of NotRelevantResolved.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) GetNotRelevantResolved() OptFloat64 {
+	return s.NotRelevantResolved
+}
+
+// GetOpenConfirmed returns the value of OpenConfirmed.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) GetOpenConfirmed() float64 {
+	return s.OpenConfirmed
+}
+
+// GetOpenSuspected returns the value of OpenSuspected.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) GetOpenSuspected() float64 {
+	return s.OpenSuspected
+}
+
+// GetResolved returns the value of Resolved.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) GetResolved() float64 {
+	return s.Resolved
+}
+
+// SetAccepted sets the value of Accepted.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) SetAccepted(val OptFloat64) {
+	s.Accepted = val
+}
+
+// SetAcceptedUntil sets the value of AcceptedUntil.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) SetAcceptedUntil(val OptDate) {
+	s.AcceptedUntil = val
+}
+
+// SetDevices sets the value of Devices.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) SetDevices(val float64) {
+	s.Devices = val
+}
+
+// SetDevicesNew sets the value of DevicesNew.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) SetDevicesNew(val float64) {
+	s.DevicesNew = val
+}
+
+// SetDevicesUnapproved sets the value of DevicesUnapproved.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) SetDevicesUnapproved(val float64) {
+	s.DevicesUnapproved = val
+}
+
+// SetKevMatched sets the value of KevMatched.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) SetKevMatched(val float64) {
+	s.KevMatched = val
+}
+
+// SetKevNew sets the value of KevNew.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) SetKevNew(val float64) {
+	s.KevNew = val
+}
+
+// SetNewFindings sets the value of NewFindings.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) SetNewFindings(val float64) {
+	s.NewFindings = val
+}
+
+// SetNotRelevant sets the value of NotRelevant.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) SetNotRelevant(val OptFloat64) {
+	s.NotRelevant = val
+}
+
+// SetNotRelevantNew sets the value of NotRelevantNew.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) SetNotRelevantNew(val OptFloat64) {
+	s.NotRelevantNew = val
+}
+
+// SetNotRelevantResolved sets the value of NotRelevantResolved.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) SetNotRelevantResolved(val OptFloat64) {
+	s.NotRelevantResolved = val
+}
+
+// SetOpenConfirmed sets the value of OpenConfirmed.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) SetOpenConfirmed(val float64) {
+	s.OpenConfirmed = val
+}
+
+// SetOpenSuspected sets the value of OpenSuspected.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) SetOpenSuspected(val float64) {
+	s.OpenSuspected = val
+}
+
+// SetResolved sets the value of Resolved.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyCounts) SetResolved(val float64) {
+	s.Resolved = val
+}
+
+type ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem struct {
+	// What to do this week, one sentence naming the device(s) and the fixed version when NVD says; absent
+	// in reports sent before it.
+	Action OptString `json:"action"`
+	// Open findings a scan confirmed.
+	Confirmed int    `json:"confirmed"`
+	Cve       string `json:"cve"`
+	// The device, or the first names and how many more.
+	Device  string `json:"device"`
+	Devices int    `json:"devices"`
+	// Its worst finding.
+	FindingID string `json:"finding_id"`
+	Open      int    `json:"open"`
+	// The product as Findings names it.
+	Product string `json:"product"`
+	// The worst severity.
+	Severity ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverity `json:"severity"`
+}
+
+// GetAction returns the value of Action.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem) GetAction() OptString {
+	return s.Action
+}
+
+// GetConfirmed returns the value of Confirmed.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem) GetConfirmed() int {
+	return s.Confirmed
+}
+
+// GetCve returns the value of Cve.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem) GetCve() string {
+	return s.Cve
+}
+
+// GetDevice returns the value of Device.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem) GetDevice() string {
+	return s.Device
+}
+
+// GetDevices returns the value of Devices.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem) GetDevices() int {
+	return s.Devices
+}
+
+// GetFindingID returns the value of FindingID.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem) GetFindingID() string {
+	return s.FindingID
+}
+
+// GetOpen returns the value of Open.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem) GetOpen() int {
+	return s.Open
+}
+
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem) GetProduct() string {
+	return s.Product
+}
+
+// GetSeverity returns the value of Severity.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem) GetSeverity() ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverity {
+	return s.Severity
+}
+
+// SetAction sets the value of Action.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem) SetAction(val OptString) {
+	s.Action = val
+}
+
+// SetConfirmed sets the value of Confirmed.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem) SetConfirmed(val int) {
+	s.Confirmed = val
+}
+
+// SetCve sets the value of Cve.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetDevice sets the value of Device.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem) SetDevice(val string) {
+	s.Device = val
+}
+
+// SetDevices sets the value of Devices.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem) SetDevices(val int) {
+	s.Devices = val
+}
+
+// SetFindingID sets the value of FindingID.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem) SetFindingID(val string) {
+	s.FindingID = val
+}
+
+// SetOpen sets the value of Open.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem) SetOpen(val int) {
+	s.Open = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItem) SetSeverity(val ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverity) {
+	s.Severity = val
+}
+
+// The worst severity.
+type ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverity string
+
+const (
+	ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityCritical ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverity = "critical"
+	ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityHigh     ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverity = "high"
+	ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityMedium   ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverity = "medium"
+	ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityLow      ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverity = "low"
+	ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityInfo     ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverity = "info"
+)
+
+// AllValues returns all ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverity values.
+func (ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverity) AllValues() []ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverity {
+	return []ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverity{
+		ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityCritical,
+		ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityHigh,
+		ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityMedium,
+		ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityLow,
+		ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityInfo,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverity) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityCritical:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityHigh:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityMedium:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityLow:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityInfo:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverity) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverity(data) {
+	case ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityCritical:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityCritical
+		return nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityHigh:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityHigh
+		return nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityMedium:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityMedium
+		return nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityLow:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityLow
+		return nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityInfo:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportApprovedOnlyTopRisksItemSeverityInfo
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ReportsGetReportsWeeklyHistoryIDOKReportCounts struct {
 	// Risks accepted this week; absent when none or in reports sent before it.
 	Accepted OptFloat64 `json:"accepted"`
@@ -161431,10 +163052,16 @@ type ReportsGetReportsWeeklyHistoryIDOKReportCounts struct {
 	// Products you use among them, as Home counts them (earlier reports: their CVEs on a device).
 	KevMatched float64 `json:"kev_matched"`
 	// Vulnerabilities newly exploited in the last 7 days, as Home counts them.
-	KevNew        float64 `json:"kev_new"`
-	NewFindings   float64 `json:"new_findings"`
-	OpenConfirmed float64 `json:"open_confirmed"`
-	OpenSuspected float64 `json:"open_suspected"`
+	KevNew      float64 `json:"kev_new"`
+	NewFindings float64 `json:"new_findings"`
+	// Different findings closed as not relevant among the figures; absent in reports sent before it.
+	NotRelevant OptFloat64 `json:"not_relevant"`
+	// Of new_findings, the ones closed as not relevant.
+	NotRelevantNew OptFloat64 `json:"not_relevant_new"`
+	// Of resolved, the ones closed as not relevant.
+	NotRelevantResolved OptFloat64 `json:"not_relevant_resolved"`
+	OpenConfirmed       float64    `json:"open_confirmed"`
+	OpenSuspected       float64    `json:"open_suspected"`
 	// Closed this week; accepted risks are counted in accepted.
 	Resolved float64 `json:"resolved"`
 }
@@ -161477,6 +163104,21 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) GetKevNew() float64 {
 // GetNewFindings returns the value of NewFindings.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) GetNewFindings() float64 {
 	return s.NewFindings
+}
+
+// GetNotRelevant returns the value of NotRelevant.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) GetNotRelevant() OptFloat64 {
+	return s.NotRelevant
+}
+
+// GetNotRelevantNew returns the value of NotRelevantNew.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) GetNotRelevantNew() OptFloat64 {
+	return s.NotRelevantNew
+}
+
+// GetNotRelevantResolved returns the value of NotRelevantResolved.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) GetNotRelevantResolved() OptFloat64 {
+	return s.NotRelevantResolved
 }
 
 // GetOpenConfirmed returns the value of OpenConfirmed.
@@ -161532,6 +163174,21 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) SetKevNew(val float64) 
 // SetNewFindings sets the value of NewFindings.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) SetNewFindings(val float64) {
 	s.NewFindings = val
+}
+
+// SetNotRelevant sets the value of NotRelevant.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) SetNotRelevant(val OptFloat64) {
+	s.NotRelevant = val
+}
+
+// SetNotRelevantNew sets the value of NotRelevantNew.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) SetNotRelevantNew(val OptFloat64) {
+	s.NotRelevantNew = val
+}
+
+// SetNotRelevantResolved sets the value of NotRelevantResolved.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) SetNotRelevantResolved(val OptFloat64) {
+	s.NotRelevantResolved = val
 }
 
 // SetOpenConfirmed sets the value of OpenConfirmed.
@@ -161809,14 +163466,17 @@ type ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem struct {
 	Agent   OptBool `json:"agent"`
 	AssetID string  `json:"asset_id"`
 	// Who closed it (rows of what was done).
-	By       OptString                                                       `json:"by"`
-	Cve      string                                                          `json:"cve"`
-	Device   string                                                          `json:"device"`
-	ID       string                                                          `json:"id"`
-	Product  string                                                          `json:"product"`
-	Severity ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemSeverity `json:"severity"`
-	Since    time.Time                                                       `json:"since"`
-	Status   ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemStatus   `json:"status"`
+	By     OptString `json:"by"`
+	Cve    string    `json:"cve"`
+	Device string    `json:"device"`
+	// False when the device is still to review, not in the Devices list yet; absent in reports made before
+	// it (read as approved).
+	DeviceApproved OptBool                                                         `json:"device_approved"`
+	ID             string                                                          `json:"id"`
+	Product        string                                                          `json:"product"`
+	Severity       ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemSeverity `json:"severity"`
+	Since          time.Time                                                       `json:"since"`
+	Status         ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemStatus   `json:"status"`
 }
 
 // GetAgent returns the value of Agent.
@@ -161842,6 +163502,11 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem) GetCve() strin
 // GetDevice returns the value of Device.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem) GetDevice() string {
 	return s.Device
+}
+
+// GetDeviceApproved returns the value of DeviceApproved.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem) GetDeviceApproved() OptBool {
+	return s.DeviceApproved
 }
 
 // GetID returns the value of ID.
@@ -161892,6 +163557,11 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem) SetCve(val str
 // SetDevice sets the value of Device.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem) SetDevice(val string) {
 	s.Device = val
+}
+
+// SetDeviceApproved sets the value of DeviceApproved.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem) SetDeviceApproved(val OptBool) {
+	s.DeviceApproved = val
 }
 
 // SetID sets the value of ID.
@@ -162063,14 +163733,17 @@ type ReportsGetReportsWeeklyHistoryIDOKReportOpenItem struct {
 	Agent   OptBool `json:"agent"`
 	AssetID string  `json:"asset_id"`
 	// Who closed it (rows of what was done).
-	By       OptString                                                `json:"by"`
-	Cve      string                                                   `json:"cve"`
-	Device   string                                                   `json:"device"`
-	ID       string                                                   `json:"id"`
-	Product  string                                                   `json:"product"`
-	Severity ReportsGetReportsWeeklyHistoryIDOKReportOpenItemSeverity `json:"severity"`
-	Since    time.Time                                                `json:"since"`
-	Status   ReportsGetReportsWeeklyHistoryIDOKReportOpenItemStatus   `json:"status"`
+	By     OptString `json:"by"`
+	Cve    string    `json:"cve"`
+	Device string    `json:"device"`
+	// False when the device is still to review, not in the Devices list yet; absent in reports made before
+	// it (read as approved).
+	DeviceApproved OptBool                                                  `json:"device_approved"`
+	ID             string                                                   `json:"id"`
+	Product        string                                                   `json:"product"`
+	Severity       ReportsGetReportsWeeklyHistoryIDOKReportOpenItemSeverity `json:"severity"`
+	Since          time.Time                                                `json:"since"`
+	Status         ReportsGetReportsWeeklyHistoryIDOKReportOpenItemStatus   `json:"status"`
 }
 
 // GetAgent returns the value of Agent.
@@ -162096,6 +163769,11 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportOpenItem) GetCve() string {
 // GetDevice returns the value of Device.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReportOpenItem) GetDevice() string {
 	return s.Device
+}
+
+// GetDeviceApproved returns the value of DeviceApproved.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportOpenItem) GetDeviceApproved() OptBool {
+	return s.DeviceApproved
 }
 
 // GetID returns the value of ID.
@@ -162146,6 +163824,11 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportOpenItem) SetCve(val string) {
 // SetDevice sets the value of Device.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReportOpenItem) SetDevice(val string) {
 	s.Device = val
+}
+
+// SetDeviceApproved sets the value of DeviceApproved.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportOpenItem) SetDeviceApproved(val OptBool) {
+	s.DeviceApproved = val
 }
 
 // SetID sets the value of ID.
@@ -162342,14 +164025,17 @@ type ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem struct {
 	Agent   OptBool `json:"agent"`
 	AssetID string  `json:"asset_id"`
 	// Who closed it (rows of what was done).
-	By       OptString                                                    `json:"by"`
-	Cve      string                                                       `json:"cve"`
-	Device   string                                                       `json:"device"`
-	ID       string                                                       `json:"id"`
-	Product  string                                                       `json:"product"`
-	Severity ReportsGetReportsWeeklyHistoryIDOKReportResolvedItemSeverity `json:"severity"`
-	Since    time.Time                                                    `json:"since"`
-	Status   ReportsGetReportsWeeklyHistoryIDOKReportResolvedItemStatus   `json:"status"`
+	By     OptString `json:"by"`
+	Cve    string    `json:"cve"`
+	Device string    `json:"device"`
+	// False when the device is still to review, not in the Devices list yet; absent in reports made before
+	// it (read as approved).
+	DeviceApproved OptBool                                                      `json:"device_approved"`
+	ID             string                                                       `json:"id"`
+	Product        string                                                       `json:"product"`
+	Severity       ReportsGetReportsWeeklyHistoryIDOKReportResolvedItemSeverity `json:"severity"`
+	Since          time.Time                                                    `json:"since"`
+	Status         ReportsGetReportsWeeklyHistoryIDOKReportResolvedItemStatus   `json:"status"`
 }
 
 // GetAgent returns the value of Agent.
@@ -162375,6 +164061,11 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem) GetCve() string {
 // GetDevice returns the value of Device.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem) GetDevice() string {
 	return s.Device
+}
+
+// GetDeviceApproved returns the value of DeviceApproved.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem) GetDeviceApproved() OptBool {
+	return s.DeviceApproved
 }
 
 // GetID returns the value of ID.
@@ -162425,6 +164116,11 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem) SetCve(val string
 // SetDevice sets the value of Device.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem) SetDevice(val string) {
 	s.Device = val
+}
+
+// SetDeviceApproved sets the value of DeviceApproved.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem) SetDeviceApproved(val OptBool) {
+	s.DeviceApproved = val
 }
 
 // SetID sets the value of ID.
@@ -163313,6 +165009,223 @@ func (s *ReportsGetReportsWeeklyPreview1Verify) SetText(val OptString) {
 	s.Text = val
 }
 
+// One top risk: product and count (its open findings) are set; cve and finding_id are its worst
+// finding.
+// Ref: #/components/schemas/reports_get_reports_weekly_preview_2_fix
+type ReportsGetReportsWeeklyPreview2Fix struct {
+	Count     OptInt    `json:"count"`
+	Cve       string    `json:"cve"`
+	Device    string    `json:"device"`
+	FindingID string    `json:"finding_id"`
+	Kind      string    `json:"kind"`
+	Product   OptString `json:"product"`
+	// The sentence of the top risk action.
+	Text OptString `json:"text"`
+}
+
+// GetCount returns the value of Count.
+func (s *ReportsGetReportsWeeklyPreview2Fix) GetCount() OptInt {
+	return s.Count
+}
+
+// GetCve returns the value of Cve.
+func (s *ReportsGetReportsWeeklyPreview2Fix) GetCve() string {
+	return s.Cve
+}
+
+// GetDevice returns the value of Device.
+func (s *ReportsGetReportsWeeklyPreview2Fix) GetDevice() string {
+	return s.Device
+}
+
+// GetFindingID returns the value of FindingID.
+func (s *ReportsGetReportsWeeklyPreview2Fix) GetFindingID() string {
+	return s.FindingID
+}
+
+// GetKind returns the value of Kind.
+func (s *ReportsGetReportsWeeklyPreview2Fix) GetKind() string {
+	return s.Kind
+}
+
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsWeeklyPreview2Fix) GetProduct() OptString {
+	return s.Product
+}
+
+// GetText returns the value of Text.
+func (s *ReportsGetReportsWeeklyPreview2Fix) GetText() OptString {
+	return s.Text
+}
+
+// SetCount sets the value of Count.
+func (s *ReportsGetReportsWeeklyPreview2Fix) SetCount(val OptInt) {
+	s.Count = val
+}
+
+// SetCve sets the value of Cve.
+func (s *ReportsGetReportsWeeklyPreview2Fix) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetDevice sets the value of Device.
+func (s *ReportsGetReportsWeeklyPreview2Fix) SetDevice(val string) {
+	s.Device = val
+}
+
+// SetFindingID sets the value of FindingID.
+func (s *ReportsGetReportsWeeklyPreview2Fix) SetFindingID(val string) {
+	s.FindingID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ReportsGetReportsWeeklyPreview2Fix) SetKind(val string) {
+	s.Kind = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsWeeklyPreview2Fix) SetProduct(val OptString) {
+	s.Product = val
+}
+
+// SetText sets the value of Text.
+func (s *ReportsGetReportsWeeklyPreview2Fix) SetText(val OptString) {
+	s.Text = val
+}
+
+// Ref: #/components/schemas/reports_get_reports_weekly_preview_2_plan_os
+type ReportsGetReportsWeeklyPreview2PlanOs struct {
+	Count int    `json:"count"`
+	Kind  string `json:"kind"`
+}
+
+// GetCount returns the value of Count.
+func (s *ReportsGetReportsWeeklyPreview2PlanOs) GetCount() int {
+	return s.Count
+}
+
+// GetKind returns the value of Kind.
+func (s *ReportsGetReportsWeeklyPreview2PlanOs) GetKind() string {
+	return s.Kind
+}
+
+// SetCount sets the value of Count.
+func (s *ReportsGetReportsWeeklyPreview2PlanOs) SetCount(val int) {
+	s.Count = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ReportsGetReportsWeeklyPreview2PlanOs) SetKind(val string) {
+	s.Kind = val
+}
+
+// Ref: #/components/schemas/reports_get_reports_weekly_preview_2_review_devices
+type ReportsGetReportsWeeklyPreview2ReviewDevices struct {
+	Count int    `json:"count"`
+	Kind  string `json:"kind"`
+}
+
+// GetCount returns the value of Count.
+func (s *ReportsGetReportsWeeklyPreview2ReviewDevices) GetCount() int {
+	return s.Count
+}
+
+// GetKind returns the value of Kind.
+func (s *ReportsGetReportsWeeklyPreview2ReviewDevices) GetKind() string {
+	return s.Kind
+}
+
+// SetCount sets the value of Count.
+func (s *ReportsGetReportsWeeklyPreview2ReviewDevices) SetCount(val int) {
+	s.Count = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ReportsGetReportsWeeklyPreview2ReviewDevices) SetKind(val string) {
+	s.Kind = val
+}
+
+// Ref: #/components/schemas/reports_get_reports_weekly_preview_2_verify
+type ReportsGetReportsWeeklyPreview2Verify struct {
+	Count     OptInt    `json:"count"`
+	Cve       string    `json:"cve"`
+	Device    string    `json:"device"`
+	FindingID string    `json:"finding_id"`
+	Kind      string    `json:"kind"`
+	Product   OptString `json:"product"`
+	Text      OptString `json:"text"`
+}
+
+// GetCount returns the value of Count.
+func (s *ReportsGetReportsWeeklyPreview2Verify) GetCount() OptInt {
+	return s.Count
+}
+
+// GetCve returns the value of Cve.
+func (s *ReportsGetReportsWeeklyPreview2Verify) GetCve() string {
+	return s.Cve
+}
+
+// GetDevice returns the value of Device.
+func (s *ReportsGetReportsWeeklyPreview2Verify) GetDevice() string {
+	return s.Device
+}
+
+// GetFindingID returns the value of FindingID.
+func (s *ReportsGetReportsWeeklyPreview2Verify) GetFindingID() string {
+	return s.FindingID
+}
+
+// GetKind returns the value of Kind.
+func (s *ReportsGetReportsWeeklyPreview2Verify) GetKind() string {
+	return s.Kind
+}
+
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsWeeklyPreview2Verify) GetProduct() OptString {
+	return s.Product
+}
+
+// GetText returns the value of Text.
+func (s *ReportsGetReportsWeeklyPreview2Verify) GetText() OptString {
+	return s.Text
+}
+
+// SetCount sets the value of Count.
+func (s *ReportsGetReportsWeeklyPreview2Verify) SetCount(val OptInt) {
+	s.Count = val
+}
+
+// SetCve sets the value of Cve.
+func (s *ReportsGetReportsWeeklyPreview2Verify) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetDevice sets the value of Device.
+func (s *ReportsGetReportsWeeklyPreview2Verify) SetDevice(val string) {
+	s.Device = val
+}
+
+// SetFindingID sets the value of FindingID.
+func (s *ReportsGetReportsWeeklyPreview2Verify) SetFindingID(val string) {
+	s.FindingID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ReportsGetReportsWeeklyPreview2Verify) SetKind(val string) {
+	s.Kind = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsWeeklyPreview2Verify) SetProduct(val OptString) {
+	s.Product = val
+}
+
+// SetText sets the value of Text.
+func (s *ReportsGetReportsWeeklyPreview2Verify) SetText(val OptString) {
+	s.Text = val
+}
+
 type ReportsGetReportsWeeklyPreviewOK struct {
 	AiAvailable bool                                   `json:"ai_available"`
 	Report      ReportsGetReportsWeeklyPreviewOKReport `json:"report"`
@@ -163339,10 +165252,13 @@ func (s *ReportsGetReportsWeeklyPreviewOK) SetReport(val ReportsGetReportsWeekly
 }
 
 type ReportsGetReportsWeeklyPreviewOKReport struct {
-	Actions     []ReportsGetReportsWeeklyPreviewOKReportActionsItem `json:"actions"`
-	AiSummary   NilReportsGetReportsWeeklyPreviewOKReportAiSummary  `json:"ai_summary"`
-	Counts      ReportsGetReportsWeeklyPreviewOKReportCounts        `json:"counts"`
-	GeneratedAt time.Time                                           `json:"generated_at"`
+	Actions   []ReportsGetReportsWeeklyPreviewOKReportActionsItem `json:"actions"`
+	AiSummary NilReportsGetReportsWeeklyPreviewOKReportAiSummary  `json:"ai_summary"`
+	// The counts, top risks and actions again without the devices not in the Devices list (not approved
+	// yet) and their findings; the lists are filtered by device_approved. Absent in reports sent before it.
+	ApprovedOnly OptReportsGetReportsWeeklyPreviewOKReportApprovedOnly `json:"approved_only"`
+	Counts       ReportsGetReportsWeeklyPreviewOKReportCounts          `json:"counts"`
+	GeneratedAt  time.Time                                             `json:"generated_at"`
 	// Absent or null when notify is off, or in reports sent by an older version.
 	Happened    OptNilReportsGetReportsWeeklyPreviewOKReportHappened    `json:"happened"`
 	NewFindings []ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem `json:"new_findings"`
@@ -163363,6 +165279,11 @@ func (s *ReportsGetReportsWeeklyPreviewOKReport) GetActions() []ReportsGetReport
 // GetAiSummary returns the value of AiSummary.
 func (s *ReportsGetReportsWeeklyPreviewOKReport) GetAiSummary() NilReportsGetReportsWeeklyPreviewOKReportAiSummary {
 	return s.AiSummary
+}
+
+// GetApprovedOnly returns the value of ApprovedOnly.
+func (s *ReportsGetReportsWeeklyPreviewOKReport) GetApprovedOnly() OptReportsGetReportsWeeklyPreviewOKReportApprovedOnly {
+	return s.ApprovedOnly
 }
 
 // GetCounts returns the value of Counts.
@@ -163418,6 +165339,11 @@ func (s *ReportsGetReportsWeeklyPreviewOKReport) SetActions(val []ReportsGetRepo
 // SetAiSummary sets the value of AiSummary.
 func (s *ReportsGetReportsWeeklyPreviewOKReport) SetAiSummary(val NilReportsGetReportsWeeklyPreviewOKReportAiSummary) {
 	s.AiSummary = val
+}
+
+// SetApprovedOnly sets the value of ApprovedOnly.
+func (s *ReportsGetReportsWeeklyPreviewOKReport) SetApprovedOnly(val OptReportsGetReportsWeeklyPreviewOKReportApprovedOnly) {
+	s.ApprovedOnly = val
 }
 
 // SetCounts sets the value of Counts.
@@ -163674,6 +165600,507 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportAiSummaryTokens) SetOutput(val fl
 	s.Output = val
 }
 
+// The counts, top risks and actions again without the devices not in the Devices list (not approved
+// yet) and their findings; the lists are filtered by device_approved. Absent in reports sent before it.
+type ReportsGetReportsWeeklyPreviewOKReportApprovedOnly struct {
+	Actions  []ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem  `json:"actions"`
+	Counts   ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts         `json:"counts"`
+	TopRisks []ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem `json:"top_risks"`
+}
+
+// GetActions returns the value of Actions.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnly) GetActions() []ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem {
+	return s.Actions
+}
+
+// GetCounts returns the value of Counts.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnly) GetCounts() ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts {
+	return s.Counts
+}
+
+// GetTopRisks returns the value of TopRisks.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnly) GetTopRisks() []ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem {
+	return s.TopRisks
+}
+
+// SetActions sets the value of Actions.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnly) SetActions(val []ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem) {
+	s.Actions = val
+}
+
+// SetCounts sets the value of Counts.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnly) SetCounts(val ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) {
+	s.Counts = val
+}
+
+// SetTopRisks sets the value of TopRisks.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnly) SetTopRisks(val []ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem) {
+	s.TopRisks = val
+}
+
+// ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem represents sum type.
+type ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem struct {
+	// Type selects the active sum variant, switch on this field.
+	Type                                         ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItemType
+	ReportsGetReportsWeeklyPreview2Fix           ReportsGetReportsWeeklyPreview2Fix
+	ReportsGetReportsWeeklyPreview2Verify        ReportsGetReportsWeeklyPreview2Verify
+	ReportsGetReportsWeeklyPreview2ReviewDevices ReportsGetReportsWeeklyPreview2ReviewDevices
+	ReportsGetReportsWeeklyPreview2PlanOs        ReportsGetReportsWeeklyPreview2PlanOs
+}
+
+// ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItemType is oneOf type of ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem.
+type ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItemType string
+
+// Possible values for ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItemType.
+const (
+	ReportsGetReportsWeeklyPreview2FixReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem           ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItemType = "fix"
+	ReportsGetReportsWeeklyPreview2VerifyReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem        ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItemType = "verify"
+	ReportsGetReportsWeeklyPreview2ReviewDevicesReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItemType = "review_devices"
+	ReportsGetReportsWeeklyPreview2PlanOsReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem        ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItemType = "plan_os"
+)
+
+// IsReportsGetReportsWeeklyPreview2Fix reports whether ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem is ReportsGetReportsWeeklyPreview2Fix.
+func (s ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem) IsReportsGetReportsWeeklyPreview2Fix() bool {
+	return s.Type == ReportsGetReportsWeeklyPreview2FixReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem
+}
+
+// IsReportsGetReportsWeeklyPreview2Verify reports whether ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem is ReportsGetReportsWeeklyPreview2Verify.
+func (s ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem) IsReportsGetReportsWeeklyPreview2Verify() bool {
+	return s.Type == ReportsGetReportsWeeklyPreview2VerifyReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem
+}
+
+// IsReportsGetReportsWeeklyPreview2ReviewDevices reports whether ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem is ReportsGetReportsWeeklyPreview2ReviewDevices.
+func (s ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem) IsReportsGetReportsWeeklyPreview2ReviewDevices() bool {
+	return s.Type == ReportsGetReportsWeeklyPreview2ReviewDevicesReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem
+}
+
+// IsReportsGetReportsWeeklyPreview2PlanOs reports whether ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem is ReportsGetReportsWeeklyPreview2PlanOs.
+func (s ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem) IsReportsGetReportsWeeklyPreview2PlanOs() bool {
+	return s.Type == ReportsGetReportsWeeklyPreview2PlanOsReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem
+}
+
+// SetReportsGetReportsWeeklyPreview2Fix sets ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem to ReportsGetReportsWeeklyPreview2Fix.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem) SetReportsGetReportsWeeklyPreview2Fix(v ReportsGetReportsWeeklyPreview2Fix) {
+	s.Type = ReportsGetReportsWeeklyPreview2FixReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem
+	s.ReportsGetReportsWeeklyPreview2Fix = v
+}
+
+// GetReportsGetReportsWeeklyPreview2Fix returns ReportsGetReportsWeeklyPreview2Fix and true boolean if ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem is ReportsGetReportsWeeklyPreview2Fix.
+func (s ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem) GetReportsGetReportsWeeklyPreview2Fix() (v ReportsGetReportsWeeklyPreview2Fix, ok bool) {
+	if !s.IsReportsGetReportsWeeklyPreview2Fix() {
+		return v, false
+	}
+	return s.ReportsGetReportsWeeklyPreview2Fix, true
+}
+
+// NewReportsGetReportsWeeklyPreview2FixReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem returns new ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem from ReportsGetReportsWeeklyPreview2Fix.
+func NewReportsGetReportsWeeklyPreview2FixReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem(v ReportsGetReportsWeeklyPreview2Fix) ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem {
+	var s ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem
+	s.SetReportsGetReportsWeeklyPreview2Fix(v)
+	return s
+}
+
+// SetReportsGetReportsWeeklyPreview2Verify sets ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem to ReportsGetReportsWeeklyPreview2Verify.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem) SetReportsGetReportsWeeklyPreview2Verify(v ReportsGetReportsWeeklyPreview2Verify) {
+	s.Type = ReportsGetReportsWeeklyPreview2VerifyReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem
+	s.ReportsGetReportsWeeklyPreview2Verify = v
+}
+
+// GetReportsGetReportsWeeklyPreview2Verify returns ReportsGetReportsWeeklyPreview2Verify and true boolean if ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem is ReportsGetReportsWeeklyPreview2Verify.
+func (s ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem) GetReportsGetReportsWeeklyPreview2Verify() (v ReportsGetReportsWeeklyPreview2Verify, ok bool) {
+	if !s.IsReportsGetReportsWeeklyPreview2Verify() {
+		return v, false
+	}
+	return s.ReportsGetReportsWeeklyPreview2Verify, true
+}
+
+// NewReportsGetReportsWeeklyPreview2VerifyReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem returns new ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem from ReportsGetReportsWeeklyPreview2Verify.
+func NewReportsGetReportsWeeklyPreview2VerifyReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem(v ReportsGetReportsWeeklyPreview2Verify) ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem {
+	var s ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem
+	s.SetReportsGetReportsWeeklyPreview2Verify(v)
+	return s
+}
+
+// SetReportsGetReportsWeeklyPreview2ReviewDevices sets ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem to ReportsGetReportsWeeklyPreview2ReviewDevices.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem) SetReportsGetReportsWeeklyPreview2ReviewDevices(v ReportsGetReportsWeeklyPreview2ReviewDevices) {
+	s.Type = ReportsGetReportsWeeklyPreview2ReviewDevicesReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem
+	s.ReportsGetReportsWeeklyPreview2ReviewDevices = v
+}
+
+// GetReportsGetReportsWeeklyPreview2ReviewDevices returns ReportsGetReportsWeeklyPreview2ReviewDevices and true boolean if ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem is ReportsGetReportsWeeklyPreview2ReviewDevices.
+func (s ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem) GetReportsGetReportsWeeklyPreview2ReviewDevices() (v ReportsGetReportsWeeklyPreview2ReviewDevices, ok bool) {
+	if !s.IsReportsGetReportsWeeklyPreview2ReviewDevices() {
+		return v, false
+	}
+	return s.ReportsGetReportsWeeklyPreview2ReviewDevices, true
+}
+
+// NewReportsGetReportsWeeklyPreview2ReviewDevicesReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem returns new ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem from ReportsGetReportsWeeklyPreview2ReviewDevices.
+func NewReportsGetReportsWeeklyPreview2ReviewDevicesReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem(v ReportsGetReportsWeeklyPreview2ReviewDevices) ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem {
+	var s ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem
+	s.SetReportsGetReportsWeeklyPreview2ReviewDevices(v)
+	return s
+}
+
+// SetReportsGetReportsWeeklyPreview2PlanOs sets ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem to ReportsGetReportsWeeklyPreview2PlanOs.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem) SetReportsGetReportsWeeklyPreview2PlanOs(v ReportsGetReportsWeeklyPreview2PlanOs) {
+	s.Type = ReportsGetReportsWeeklyPreview2PlanOsReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem
+	s.ReportsGetReportsWeeklyPreview2PlanOs = v
+}
+
+// GetReportsGetReportsWeeklyPreview2PlanOs returns ReportsGetReportsWeeklyPreview2PlanOs and true boolean if ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem is ReportsGetReportsWeeklyPreview2PlanOs.
+func (s ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem) GetReportsGetReportsWeeklyPreview2PlanOs() (v ReportsGetReportsWeeklyPreview2PlanOs, ok bool) {
+	if !s.IsReportsGetReportsWeeklyPreview2PlanOs() {
+		return v, false
+	}
+	return s.ReportsGetReportsWeeklyPreview2PlanOs, true
+}
+
+// NewReportsGetReportsWeeklyPreview2PlanOsReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem returns new ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem from ReportsGetReportsWeeklyPreview2PlanOs.
+func NewReportsGetReportsWeeklyPreview2PlanOsReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem(v ReportsGetReportsWeeklyPreview2PlanOs) ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem {
+	var s ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyActionsItem
+	s.SetReportsGetReportsWeeklyPreview2PlanOs(v)
+	return s
+}
+
+type ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts struct {
+	// Risks accepted this week; absent when none or in reports sent before it.
+	Accepted OptFloat64 `json:"accepted"`
+	// The earliest day one of those acceptances ends.
+	AcceptedUntil OptDate `json:"accepted_until"`
+	// Devices as the Devices page counts them, this box included.
+	Devices           float64 `json:"devices"`
+	DevicesNew        float64 `json:"devices_new"`
+	DevicesUnapproved float64 `json:"devices_unapproved"`
+	// Products you use among them, as Home counts them (earlier reports: their CVEs on a device).
+	KevMatched float64 `json:"kev_matched"`
+	// Vulnerabilities newly exploited in the last 7 days, as Home counts them.
+	KevNew      float64 `json:"kev_new"`
+	NewFindings float64 `json:"new_findings"`
+	// Different findings closed as not relevant among the figures; absent in reports sent before it.
+	NotRelevant OptFloat64 `json:"not_relevant"`
+	// Of new_findings, the ones closed as not relevant.
+	NotRelevantNew OptFloat64 `json:"not_relevant_new"`
+	// Of resolved, the ones closed as not relevant.
+	NotRelevantResolved OptFloat64 `json:"not_relevant_resolved"`
+	OpenConfirmed       float64    `json:"open_confirmed"`
+	OpenSuspected       float64    `json:"open_suspected"`
+	// Closed this week; accepted risks are counted in accepted.
+	Resolved float64 `json:"resolved"`
+}
+
+// GetAccepted returns the value of Accepted.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) GetAccepted() OptFloat64 {
+	return s.Accepted
+}
+
+// GetAcceptedUntil returns the value of AcceptedUntil.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) GetAcceptedUntil() OptDate {
+	return s.AcceptedUntil
+}
+
+// GetDevices returns the value of Devices.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) GetDevices() float64 {
+	return s.Devices
+}
+
+// GetDevicesNew returns the value of DevicesNew.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) GetDevicesNew() float64 {
+	return s.DevicesNew
+}
+
+// GetDevicesUnapproved returns the value of DevicesUnapproved.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) GetDevicesUnapproved() float64 {
+	return s.DevicesUnapproved
+}
+
+// GetKevMatched returns the value of KevMatched.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) GetKevMatched() float64 {
+	return s.KevMatched
+}
+
+// GetKevNew returns the value of KevNew.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) GetKevNew() float64 {
+	return s.KevNew
+}
+
+// GetNewFindings returns the value of NewFindings.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) GetNewFindings() float64 {
+	return s.NewFindings
+}
+
+// GetNotRelevant returns the value of NotRelevant.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) GetNotRelevant() OptFloat64 {
+	return s.NotRelevant
+}
+
+// GetNotRelevantNew returns the value of NotRelevantNew.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) GetNotRelevantNew() OptFloat64 {
+	return s.NotRelevantNew
+}
+
+// GetNotRelevantResolved returns the value of NotRelevantResolved.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) GetNotRelevantResolved() OptFloat64 {
+	return s.NotRelevantResolved
+}
+
+// GetOpenConfirmed returns the value of OpenConfirmed.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) GetOpenConfirmed() float64 {
+	return s.OpenConfirmed
+}
+
+// GetOpenSuspected returns the value of OpenSuspected.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) GetOpenSuspected() float64 {
+	return s.OpenSuspected
+}
+
+// GetResolved returns the value of Resolved.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) GetResolved() float64 {
+	return s.Resolved
+}
+
+// SetAccepted sets the value of Accepted.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) SetAccepted(val OptFloat64) {
+	s.Accepted = val
+}
+
+// SetAcceptedUntil sets the value of AcceptedUntil.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) SetAcceptedUntil(val OptDate) {
+	s.AcceptedUntil = val
+}
+
+// SetDevices sets the value of Devices.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) SetDevices(val float64) {
+	s.Devices = val
+}
+
+// SetDevicesNew sets the value of DevicesNew.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) SetDevicesNew(val float64) {
+	s.DevicesNew = val
+}
+
+// SetDevicesUnapproved sets the value of DevicesUnapproved.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) SetDevicesUnapproved(val float64) {
+	s.DevicesUnapproved = val
+}
+
+// SetKevMatched sets the value of KevMatched.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) SetKevMatched(val float64) {
+	s.KevMatched = val
+}
+
+// SetKevNew sets the value of KevNew.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) SetKevNew(val float64) {
+	s.KevNew = val
+}
+
+// SetNewFindings sets the value of NewFindings.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) SetNewFindings(val float64) {
+	s.NewFindings = val
+}
+
+// SetNotRelevant sets the value of NotRelevant.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) SetNotRelevant(val OptFloat64) {
+	s.NotRelevant = val
+}
+
+// SetNotRelevantNew sets the value of NotRelevantNew.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) SetNotRelevantNew(val OptFloat64) {
+	s.NotRelevantNew = val
+}
+
+// SetNotRelevantResolved sets the value of NotRelevantResolved.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) SetNotRelevantResolved(val OptFloat64) {
+	s.NotRelevantResolved = val
+}
+
+// SetOpenConfirmed sets the value of OpenConfirmed.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) SetOpenConfirmed(val float64) {
+	s.OpenConfirmed = val
+}
+
+// SetOpenSuspected sets the value of OpenSuspected.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) SetOpenSuspected(val float64) {
+	s.OpenSuspected = val
+}
+
+// SetResolved sets the value of Resolved.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyCounts) SetResolved(val float64) {
+	s.Resolved = val
+}
+
+type ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem struct {
+	// What to do this week, one sentence naming the device(s) and the fixed version when NVD says; absent
+	// in reports sent before it.
+	Action OptString `json:"action"`
+	// Open findings a scan confirmed.
+	Confirmed int    `json:"confirmed"`
+	Cve       string `json:"cve"`
+	// The device, or the first names and how many more.
+	Device  string `json:"device"`
+	Devices int    `json:"devices"`
+	// Its worst finding.
+	FindingID string `json:"finding_id"`
+	Open      int    `json:"open"`
+	// The product as Findings names it.
+	Product string `json:"product"`
+	// The worst severity.
+	Severity ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverity `json:"severity"`
+}
+
+// GetAction returns the value of Action.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem) GetAction() OptString {
+	return s.Action
+}
+
+// GetConfirmed returns the value of Confirmed.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem) GetConfirmed() int {
+	return s.Confirmed
+}
+
+// GetCve returns the value of Cve.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem) GetCve() string {
+	return s.Cve
+}
+
+// GetDevice returns the value of Device.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem) GetDevice() string {
+	return s.Device
+}
+
+// GetDevices returns the value of Devices.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem) GetDevices() int {
+	return s.Devices
+}
+
+// GetFindingID returns the value of FindingID.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem) GetFindingID() string {
+	return s.FindingID
+}
+
+// GetOpen returns the value of Open.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem) GetOpen() int {
+	return s.Open
+}
+
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem) GetProduct() string {
+	return s.Product
+}
+
+// GetSeverity returns the value of Severity.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem) GetSeverity() ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverity {
+	return s.Severity
+}
+
+// SetAction sets the value of Action.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem) SetAction(val OptString) {
+	s.Action = val
+}
+
+// SetConfirmed sets the value of Confirmed.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem) SetConfirmed(val int) {
+	s.Confirmed = val
+}
+
+// SetCve sets the value of Cve.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetDevice sets the value of Device.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem) SetDevice(val string) {
+	s.Device = val
+}
+
+// SetDevices sets the value of Devices.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem) SetDevices(val int) {
+	s.Devices = val
+}
+
+// SetFindingID sets the value of FindingID.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem) SetFindingID(val string) {
+	s.FindingID = val
+}
+
+// SetOpen sets the value of Open.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem) SetOpen(val int) {
+	s.Open = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItem) SetSeverity(val ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverity) {
+	s.Severity = val
+}
+
+// The worst severity.
+type ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverity string
+
+const (
+	ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityCritical ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverity = "critical"
+	ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityHigh     ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverity = "high"
+	ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityMedium   ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverity = "medium"
+	ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityLow      ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverity = "low"
+	ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityInfo     ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverity = "info"
+)
+
+// AllValues returns all ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverity values.
+func (ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverity) AllValues() []ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverity {
+	return []ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverity{
+		ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityCritical,
+		ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityHigh,
+		ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityMedium,
+		ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityLow,
+		ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityInfo,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverity) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityCritical:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityHigh:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityMedium:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityLow:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityInfo:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverity) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverity(data) {
+	case ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityCritical:
+		*s = ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityCritical
+		return nil
+	case ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityHigh:
+		*s = ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityHigh
+		return nil
+	case ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityMedium:
+		*s = ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityMedium
+		return nil
+	case ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityLow:
+		*s = ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityLow
+		return nil
+	case ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityInfo:
+		*s = ReportsGetReportsWeeklyPreviewOKReportApprovedOnlyTopRisksItemSeverityInfo
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ReportsGetReportsWeeklyPreviewOKReportCounts struct {
 	// Risks accepted this week; absent when none or in reports sent before it.
 	Accepted OptFloat64 `json:"accepted"`
@@ -163686,10 +166113,16 @@ type ReportsGetReportsWeeklyPreviewOKReportCounts struct {
 	// Products you use among them, as Home counts them (earlier reports: their CVEs on a device).
 	KevMatched float64 `json:"kev_matched"`
 	// Vulnerabilities newly exploited in the last 7 days, as Home counts them.
-	KevNew        float64 `json:"kev_new"`
-	NewFindings   float64 `json:"new_findings"`
-	OpenConfirmed float64 `json:"open_confirmed"`
-	OpenSuspected float64 `json:"open_suspected"`
+	KevNew      float64 `json:"kev_new"`
+	NewFindings float64 `json:"new_findings"`
+	// Different findings closed as not relevant among the figures; absent in reports sent before it.
+	NotRelevant OptFloat64 `json:"not_relevant"`
+	// Of new_findings, the ones closed as not relevant.
+	NotRelevantNew OptFloat64 `json:"not_relevant_new"`
+	// Of resolved, the ones closed as not relevant.
+	NotRelevantResolved OptFloat64 `json:"not_relevant_resolved"`
+	OpenConfirmed       float64    `json:"open_confirmed"`
+	OpenSuspected       float64    `json:"open_suspected"`
 	// Closed this week; accepted risks are counted in accepted.
 	Resolved float64 `json:"resolved"`
 }
@@ -163732,6 +166165,21 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) GetKevNew() float64 {
 // GetNewFindings returns the value of NewFindings.
 func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) GetNewFindings() float64 {
 	return s.NewFindings
+}
+
+// GetNotRelevant returns the value of NotRelevant.
+func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) GetNotRelevant() OptFloat64 {
+	return s.NotRelevant
+}
+
+// GetNotRelevantNew returns the value of NotRelevantNew.
+func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) GetNotRelevantNew() OptFloat64 {
+	return s.NotRelevantNew
+}
+
+// GetNotRelevantResolved returns the value of NotRelevantResolved.
+func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) GetNotRelevantResolved() OptFloat64 {
+	return s.NotRelevantResolved
 }
 
 // GetOpenConfirmed returns the value of OpenConfirmed.
@@ -163787,6 +166235,21 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) SetKevNew(val float64) {
 // SetNewFindings sets the value of NewFindings.
 func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) SetNewFindings(val float64) {
 	s.NewFindings = val
+}
+
+// SetNotRelevant sets the value of NotRelevant.
+func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) SetNotRelevant(val OptFloat64) {
+	s.NotRelevant = val
+}
+
+// SetNotRelevantNew sets the value of NotRelevantNew.
+func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) SetNotRelevantNew(val OptFloat64) {
+	s.NotRelevantNew = val
+}
+
+// SetNotRelevantResolved sets the value of NotRelevantResolved.
+func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) SetNotRelevantResolved(val OptFloat64) {
+	s.NotRelevantResolved = val
 }
 
 // SetOpenConfirmed sets the value of OpenConfirmed.
@@ -164064,14 +166527,17 @@ type ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem struct {
 	Agent   OptBool `json:"agent"`
 	AssetID string  `json:"asset_id"`
 	// Who closed it (rows of what was done).
-	By       OptString                                                     `json:"by"`
-	Cve      string                                                        `json:"cve"`
-	Device   string                                                        `json:"device"`
-	ID       string                                                        `json:"id"`
-	Product  string                                                        `json:"product"`
-	Severity ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemSeverity `json:"severity"`
-	Since    time.Time                                                     `json:"since"`
-	Status   ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemStatus   `json:"status"`
+	By     OptString `json:"by"`
+	Cve    string    `json:"cve"`
+	Device string    `json:"device"`
+	// False when the device is still to review, not in the Devices list yet; absent in reports made before
+	// it (read as approved).
+	DeviceApproved OptBool                                                       `json:"device_approved"`
+	ID             string                                                        `json:"id"`
+	Product        string                                                        `json:"product"`
+	Severity       ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemSeverity `json:"severity"`
+	Since          time.Time                                                     `json:"since"`
+	Status         ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemStatus   `json:"status"`
 }
 
 // GetAgent returns the value of Agent.
@@ -164097,6 +166563,11 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem) GetCve() string 
 // GetDevice returns the value of Device.
 func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem) GetDevice() string {
 	return s.Device
+}
+
+// GetDeviceApproved returns the value of DeviceApproved.
+func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem) GetDeviceApproved() OptBool {
+	return s.DeviceApproved
 }
 
 // GetID returns the value of ID.
@@ -164147,6 +166618,11 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem) SetCve(val strin
 // SetDevice sets the value of Device.
 func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem) SetDevice(val string) {
 	s.Device = val
+}
+
+// SetDeviceApproved sets the value of DeviceApproved.
+func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem) SetDeviceApproved(val OptBool) {
+	s.DeviceApproved = val
 }
 
 // SetID sets the value of ID.
@@ -164318,14 +166794,17 @@ type ReportsGetReportsWeeklyPreviewOKReportOpenItem struct {
 	Agent   OptBool `json:"agent"`
 	AssetID string  `json:"asset_id"`
 	// Who closed it (rows of what was done).
-	By       OptString                                              `json:"by"`
-	Cve      string                                                 `json:"cve"`
-	Device   string                                                 `json:"device"`
-	ID       string                                                 `json:"id"`
-	Product  string                                                 `json:"product"`
-	Severity ReportsGetReportsWeeklyPreviewOKReportOpenItemSeverity `json:"severity"`
-	Since    time.Time                                              `json:"since"`
-	Status   ReportsGetReportsWeeklyPreviewOKReportOpenItemStatus   `json:"status"`
+	By     OptString `json:"by"`
+	Cve    string    `json:"cve"`
+	Device string    `json:"device"`
+	// False when the device is still to review, not in the Devices list yet; absent in reports made before
+	// it (read as approved).
+	DeviceApproved OptBool                                                `json:"device_approved"`
+	ID             string                                                 `json:"id"`
+	Product        string                                                 `json:"product"`
+	Severity       ReportsGetReportsWeeklyPreviewOKReportOpenItemSeverity `json:"severity"`
+	Since          time.Time                                              `json:"since"`
+	Status         ReportsGetReportsWeeklyPreviewOKReportOpenItemStatus   `json:"status"`
 }
 
 // GetAgent returns the value of Agent.
@@ -164351,6 +166830,11 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportOpenItem) GetCve() string {
 // GetDevice returns the value of Device.
 func (s *ReportsGetReportsWeeklyPreviewOKReportOpenItem) GetDevice() string {
 	return s.Device
+}
+
+// GetDeviceApproved returns the value of DeviceApproved.
+func (s *ReportsGetReportsWeeklyPreviewOKReportOpenItem) GetDeviceApproved() OptBool {
+	return s.DeviceApproved
 }
 
 // GetID returns the value of ID.
@@ -164401,6 +166885,11 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportOpenItem) SetCve(val string) {
 // SetDevice sets the value of Device.
 func (s *ReportsGetReportsWeeklyPreviewOKReportOpenItem) SetDevice(val string) {
 	s.Device = val
+}
+
+// SetDeviceApproved sets the value of DeviceApproved.
+func (s *ReportsGetReportsWeeklyPreviewOKReportOpenItem) SetDeviceApproved(val OptBool) {
+	s.DeviceApproved = val
 }
 
 // SetID sets the value of ID.
@@ -164597,14 +167086,17 @@ type ReportsGetReportsWeeklyPreviewOKReportResolvedItem struct {
 	Agent   OptBool `json:"agent"`
 	AssetID string  `json:"asset_id"`
 	// Who closed it (rows of what was done).
-	By       OptString                                                  `json:"by"`
-	Cve      string                                                     `json:"cve"`
-	Device   string                                                     `json:"device"`
-	ID       string                                                     `json:"id"`
-	Product  string                                                     `json:"product"`
-	Severity ReportsGetReportsWeeklyPreviewOKReportResolvedItemSeverity `json:"severity"`
-	Since    time.Time                                                  `json:"since"`
-	Status   ReportsGetReportsWeeklyPreviewOKReportResolvedItemStatus   `json:"status"`
+	By     OptString `json:"by"`
+	Cve    string    `json:"cve"`
+	Device string    `json:"device"`
+	// False when the device is still to review, not in the Devices list yet; absent in reports made before
+	// it (read as approved).
+	DeviceApproved OptBool                                                    `json:"device_approved"`
+	ID             string                                                     `json:"id"`
+	Product        string                                                     `json:"product"`
+	Severity       ReportsGetReportsWeeklyPreviewOKReportResolvedItemSeverity `json:"severity"`
+	Since          time.Time                                                  `json:"since"`
+	Status         ReportsGetReportsWeeklyPreviewOKReportResolvedItemStatus   `json:"status"`
 }
 
 // GetAgent returns the value of Agent.
@@ -164630,6 +167122,11 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportResolvedItem) GetCve() string {
 // GetDevice returns the value of Device.
 func (s *ReportsGetReportsWeeklyPreviewOKReportResolvedItem) GetDevice() string {
 	return s.Device
+}
+
+// GetDeviceApproved returns the value of DeviceApproved.
+func (s *ReportsGetReportsWeeklyPreviewOKReportResolvedItem) GetDeviceApproved() OptBool {
+	return s.DeviceApproved
 }
 
 // GetID returns the value of ID.
@@ -164680,6 +167177,11 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportResolvedItem) SetCve(val string) 
 // SetDevice sets the value of Device.
 func (s *ReportsGetReportsWeeklyPreviewOKReportResolvedItem) SetDevice(val string) {
 	s.Device = val
+}
+
+// SetDeviceApproved sets the value of DeviceApproved.
+func (s *ReportsGetReportsWeeklyPreviewOKReportResolvedItem) SetDeviceApproved(val OptBool) {
+	s.DeviceApproved = val
 }
 
 // SetID sets the value of ID.
@@ -165189,20 +167691,29 @@ func (s *ReportsPostReportsPdplAiSummaryOKTokens) SetOutput(val float64) {
 }
 
 type ReportsPostReportsPdplGenerateOK struct {
-	AiSummary   NilReportsPostReportsPdplGenerateOKAiSummary      `json:"ai_summary"`
-	Coverage    []ReportsPostReportsPdplGenerateOKCoverageItem    `json:"coverage"`
-	GeneratedAt time.Time                                         `json:"generated_at"`
-	ID          string                                            `json:"id"`
-	Inventory   ReportsPostReportsPdplGenerateOKInventory         `json:"inventory"`
-	Measures    []ReportsPostReportsPdplGenerateOKMeasuresItem    `json:"measures"`
-	Obligations []ReportsPostReportsPdplGenerateOKObligationsItem `json:"obligations"`
-	Org         ReportsPostReportsPdplGenerateOKOrg               `json:"org"`
-	Risks       []ReportsPostReportsPdplGenerateOKRisksItem       `json:"risks"`
+	AiSummary NilReportsPostReportsPdplGenerateOKAiSummary `json:"ai_summary"`
+	// The inventory, measures and risks again without the devices not in the Devices list (not approved
+	// yet) and their findings; the unapproved measure stays the full one. Absent in reports generated
+	// before it.
+	ApprovedOnly OptReportsPostReportsPdplGenerateOKApprovedOnly   `json:"approved_only"`
+	Coverage     []ReportsPostReportsPdplGenerateOKCoverageItem    `json:"coverage"`
+	GeneratedAt  time.Time                                         `json:"generated_at"`
+	ID           string                                            `json:"id"`
+	Inventory    ReportsPostReportsPdplGenerateOKInventory         `json:"inventory"`
+	Measures     []ReportsPostReportsPdplGenerateOKMeasuresItem    `json:"measures"`
+	Obligations  []ReportsPostReportsPdplGenerateOKObligationsItem `json:"obligations"`
+	Org          ReportsPostReportsPdplGenerateOKOrg               `json:"org"`
+	Risks        []ReportsPostReportsPdplGenerateOKRisksItem       `json:"risks"`
 }
 
 // GetAiSummary returns the value of AiSummary.
 func (s *ReportsPostReportsPdplGenerateOK) GetAiSummary() NilReportsPostReportsPdplGenerateOKAiSummary {
 	return s.AiSummary
+}
+
+// GetApprovedOnly returns the value of ApprovedOnly.
+func (s *ReportsPostReportsPdplGenerateOK) GetApprovedOnly() OptReportsPostReportsPdplGenerateOKApprovedOnly {
+	return s.ApprovedOnly
 }
 
 // GetCoverage returns the value of Coverage.
@@ -165248,6 +167759,11 @@ func (s *ReportsPostReportsPdplGenerateOK) GetRisks() []ReportsPostReportsPdplGe
 // SetAiSummary sets the value of AiSummary.
 func (s *ReportsPostReportsPdplGenerateOK) SetAiSummary(val NilReportsPostReportsPdplGenerateOKAiSummary) {
 	s.AiSummary = val
+}
+
+// SetApprovedOnly sets the value of ApprovedOnly.
+func (s *ReportsPostReportsPdplGenerateOK) SetApprovedOnly(val OptReportsPostReportsPdplGenerateOKApprovedOnly) {
+	s.ApprovedOnly = val
 }
 
 // SetCoverage sets the value of Coverage.
@@ -165372,6 +167888,685 @@ func (s *ReportsPostReportsPdplGenerateOKAiSummaryTokens) SetInput(val float64) 
 // SetOutput sets the value of Output.
 func (s *ReportsPostReportsPdplGenerateOKAiSummaryTokens) SetOutput(val float64) {
 	s.Output = val
+}
+
+// The inventory, measures and risks again without the devices not in the Devices list (not approved
+// yet) and their findings; the unapproved measure stays the full one. Absent in reports generated
+// before it.
+type ReportsPostReportsPdplGenerateOKApprovedOnly struct {
+	Inventory ReportsPostReportsPdplGenerateOKApprovedOnlyInventory      `json:"inventory"`
+	Measures  []ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItem `json:"measures"`
+	Risks     []ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem    `json:"risks"`
+}
+
+// GetInventory returns the value of Inventory.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnly) GetInventory() ReportsPostReportsPdplGenerateOKApprovedOnlyInventory {
+	return s.Inventory
+}
+
+// GetMeasures returns the value of Measures.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnly) GetMeasures() []ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItem {
+	return s.Measures
+}
+
+// GetRisks returns the value of Risks.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnly) GetRisks() []ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem {
+	return s.Risks
+}
+
+// SetInventory sets the value of Inventory.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnly) SetInventory(val ReportsPostReportsPdplGenerateOKApprovedOnlyInventory) {
+	s.Inventory = val
+}
+
+// SetMeasures sets the value of Measures.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnly) SetMeasures(val []ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItem) {
+	s.Measures = val
+}
+
+// SetRisks sets the value of Risks.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnly) SetRisks(val []ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) {
+	s.Risks = val
+}
+
+type ReportsPostReportsPdplGenerateOKApprovedOnlyInventory struct {
+	Approved   float64                                                               `json:"approved"`
+	ByKind     []ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryByKindItem     `json:"by_kind"`
+	Fragile    float64                                                               `json:"fragile"`
+	KeySystems []ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryKeySystemsItem `json:"key_systems"`
+	Sources    []ReportsPostReportsPdplGenerateOKApprovedOnlyInventorySourcesItem    `json:"sources"`
+	Total      float64                                                               `json:"total"`
+	Unapproved float64                                                               `json:"unapproved"`
+}
+
+// GetApproved returns the value of Approved.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventory) GetApproved() float64 {
+	return s.Approved
+}
+
+// GetByKind returns the value of ByKind.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventory) GetByKind() []ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryByKindItem {
+	return s.ByKind
+}
+
+// GetFragile returns the value of Fragile.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventory) GetFragile() float64 {
+	return s.Fragile
+}
+
+// GetKeySystems returns the value of KeySystems.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventory) GetKeySystems() []ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryKeySystemsItem {
+	return s.KeySystems
+}
+
+// GetSources returns the value of Sources.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventory) GetSources() []ReportsPostReportsPdplGenerateOKApprovedOnlyInventorySourcesItem {
+	return s.Sources
+}
+
+// GetTotal returns the value of Total.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventory) GetTotal() float64 {
+	return s.Total
+}
+
+// GetUnapproved returns the value of Unapproved.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventory) GetUnapproved() float64 {
+	return s.Unapproved
+}
+
+// SetApproved sets the value of Approved.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventory) SetApproved(val float64) {
+	s.Approved = val
+}
+
+// SetByKind sets the value of ByKind.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventory) SetByKind(val []ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryByKindItem) {
+	s.ByKind = val
+}
+
+// SetFragile sets the value of Fragile.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventory) SetFragile(val float64) {
+	s.Fragile = val
+}
+
+// SetKeySystems sets the value of KeySystems.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventory) SetKeySystems(val []ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryKeySystemsItem) {
+	s.KeySystems = val
+}
+
+// SetSources sets the value of Sources.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventory) SetSources(val []ReportsPostReportsPdplGenerateOKApprovedOnlyInventorySourcesItem) {
+	s.Sources = val
+}
+
+// SetTotal sets the value of Total.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventory) SetTotal(val float64) {
+	s.Total = val
+}
+
+// SetUnapproved sets the value of Unapproved.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventory) SetUnapproved(val float64) {
+	s.Unapproved = val
+}
+
+type ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryByKindItem struct {
+	Kind string  `json:"kind"`
+	N    float64 `json:"n"`
+}
+
+// GetKind returns the value of Kind.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryByKindItem) GetKind() string {
+	return s.Kind
+}
+
+// GetN returns the value of N.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryByKindItem) GetN() float64 {
+	return s.N
+}
+
+// SetKind sets the value of Kind.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryByKindItem) SetKind(val string) {
+	s.Kind = val
+}
+
+// SetN sets the value of N.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryByKindItem) SetN(val float64) {
+	s.N = val
+}
+
+type ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryKeySystemsItem struct {
+	ID   string `json:"id"`
+	IP   string `json:"ip"`
+	Kind string `json:"kind"`
+	Name string `json:"name"`
+	Os   string `json:"os"`
+}
+
+// GetID returns the value of ID.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryKeySystemsItem) GetID() string {
+	return s.ID
+}
+
+// GetIP returns the value of IP.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryKeySystemsItem) GetIP() string {
+	return s.IP
+}
+
+// GetKind returns the value of Kind.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryKeySystemsItem) GetKind() string {
+	return s.Kind
+}
+
+// GetName returns the value of Name.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryKeySystemsItem) GetName() string {
+	return s.Name
+}
+
+// GetOs returns the value of Os.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryKeySystemsItem) GetOs() string {
+	return s.Os
+}
+
+// SetID sets the value of ID.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryKeySystemsItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetIP sets the value of IP.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryKeySystemsItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryKeySystemsItem) SetKind(val string) {
+	s.Kind = val
+}
+
+// SetName sets the value of Name.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryKeySystemsItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetOs sets the value of Os.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventoryKeySystemsItem) SetOs(val string) {
+	s.Os = val
+}
+
+type ReportsPostReportsPdplGenerateOKApprovedOnlyInventorySourcesItem struct {
+	N      float64 `json:"n"`
+	Source string  `json:"source"`
+}
+
+// GetN returns the value of N.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventorySourcesItem) GetN() float64 {
+	return s.N
+}
+
+// GetSource returns the value of Source.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventorySourcesItem) GetSource() string {
+	return s.Source
+}
+
+// SetN sets the value of N.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventorySourcesItem) SetN(val float64) {
+	s.N = val
+}
+
+// SetSource sets the value of Source.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyInventorySourcesItem) SetSource(val string) {
+	s.Source = val
+}
+
+type ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItem struct {
+	ID     ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemID     `json:"id"`
+	N      float64                                                        `json:"n"`
+	Names  []string                                                       `json:"names"`
+	Status ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatus `json:"status"`
+}
+
+// GetID returns the value of ID.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItem) GetID() ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemID {
+	return s.ID
+}
+
+// GetN returns the value of N.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItem) GetN() float64 {
+	return s.N
+}
+
+// GetNames returns the value of Names.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItem) GetNames() []string {
+	return s.Names
+}
+
+// GetStatus returns the value of Status.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItem) GetStatus() ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatus {
+	return s.Status
+}
+
+// SetID sets the value of ID.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItem) SetID(val ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemID) {
+	s.ID = val
+}
+
+// SetN sets the value of N.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItem) SetN(val float64) {
+	s.N = val
+}
+
+// SetNames sets the value of Names.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItem) SetNames(val []string) {
+	s.Names = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItem) SetStatus(val ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatus) {
+	s.Status = val
+}
+
+type ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemID string
+
+const (
+	ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDFirewall   ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemID = "firewall"
+	ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDPatching   ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemID = "patching"
+	ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDEol        ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemID = "eol"
+	ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDUnapproved ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemID = "unapproved"
+	ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDRemote     ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemID = "remote"
+	ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDLogging    ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemID = "logging"
+	ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDHoneypot   ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemID = "honeypot"
+	ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDScan       ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemID = "scan"
+	ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDBackup     ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemID = "backup"
+)
+
+// AllValues returns all ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemID values.
+func (ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemID) AllValues() []ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemID {
+	return []ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemID{
+		ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDFirewall,
+		ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDPatching,
+		ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDEol,
+		ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDUnapproved,
+		ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDRemote,
+		ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDLogging,
+		ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDHoneypot,
+		ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDScan,
+		ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDBackup,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemID) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDFirewall:
+		return []byte(s), nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDPatching:
+		return []byte(s), nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDEol:
+		return []byte(s), nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDUnapproved:
+		return []byte(s), nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDRemote:
+		return []byte(s), nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDLogging:
+		return []byte(s), nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDHoneypot:
+		return []byte(s), nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDScan:
+		return []byte(s), nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDBackup:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemID) UnmarshalText(data []byte) error {
+	switch ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemID(data) {
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDFirewall:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDFirewall
+		return nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDPatching:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDPatching
+		return nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDEol:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDEol
+		return nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDUnapproved:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDUnapproved
+		return nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDRemote:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDRemote
+		return nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDLogging:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDLogging
+		return nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDHoneypot:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDHoneypot
+		return nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDScan:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDScan
+		return nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDBackup:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemIDBackup
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatus string
+
+const (
+	ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatusOk        ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatus = "ok"
+	ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatusAttention ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatus = "attention"
+	ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatusUnknown   ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatus = "unknown"
+)
+
+// AllValues returns all ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatus values.
+func (ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatus) AllValues() []ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatus {
+	return []ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatus{
+		ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatusOk,
+		ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatusAttention,
+		ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatusUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatusOk:
+		return []byte(s), nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatusAttention:
+		return []byte(s), nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatusUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatus) UnmarshalText(data []byte) error {
+	switch ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatus(data) {
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatusOk:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatusOk
+		return nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatusAttention:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatusAttention
+		return nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatusUnknown:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyMeasuresItemStatusUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem struct {
+	// The version compared is the one the device's own agent reports (findings evidence.agent): the status
+	// reads "Detected by the agent", not "Suspected"; absent in reports sent before it.
+	Agent   OptBool `json:"agent"`
+	AssetID string  `json:"asset_id"`
+	// Who closed it (rows of what was done).
+	By     OptString `json:"by"`
+	Cve    string    `json:"cve"`
+	Device string    `json:"device"`
+	// False when the device is still to review, not in the Devices list yet; absent in reports made before
+	// it (read as approved).
+	DeviceApproved OptBool                                                       `json:"device_approved"`
+	ID             string                                                        `json:"id"`
+	Product        string                                                        `json:"product"`
+	Severity       ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverity `json:"severity"`
+	Since          time.Time                                                     `json:"since"`
+	Status         ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatus   `json:"status"`
+}
+
+// GetAgent returns the value of Agent.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) GetAgent() OptBool {
+	return s.Agent
+}
+
+// GetAssetID returns the value of AssetID.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) GetAssetID() string {
+	return s.AssetID
+}
+
+// GetBy returns the value of By.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) GetBy() OptString {
+	return s.By
+}
+
+// GetCve returns the value of Cve.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) GetCve() string {
+	return s.Cve
+}
+
+// GetDevice returns the value of Device.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) GetDevice() string {
+	return s.Device
+}
+
+// GetDeviceApproved returns the value of DeviceApproved.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) GetDeviceApproved() OptBool {
+	return s.DeviceApproved
+}
+
+// GetID returns the value of ID.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) GetID() string {
+	return s.ID
+}
+
+// GetProduct returns the value of Product.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) GetProduct() string {
+	return s.Product
+}
+
+// GetSeverity returns the value of Severity.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) GetSeverity() ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverity {
+	return s.Severity
+}
+
+// GetSince returns the value of Since.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) GetSince() time.Time {
+	return s.Since
+}
+
+// GetStatus returns the value of Status.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) GetStatus() ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatus {
+	return s.Status
+}
+
+// SetAgent sets the value of Agent.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) SetAgent(val OptBool) {
+	s.Agent = val
+}
+
+// SetAssetID sets the value of AssetID.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) SetAssetID(val string) {
+	s.AssetID = val
+}
+
+// SetBy sets the value of By.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) SetBy(val OptString) {
+	s.By = val
+}
+
+// SetCve sets the value of Cve.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetDevice sets the value of Device.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) SetDevice(val string) {
+	s.Device = val
+}
+
+// SetDeviceApproved sets the value of DeviceApproved.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) SetDeviceApproved(val OptBool) {
+	s.DeviceApproved = val
+}
+
+// SetID sets the value of ID.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) SetSeverity(val ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverity) {
+	s.Severity = val
+}
+
+// SetSince sets the value of Since.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) SetSince(val time.Time) {
+	s.Since = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItem) SetStatus(val ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatus) {
+	s.Status = val
+}
+
+type ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverity string
+
+const (
+	ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityCritical ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverity = "critical"
+	ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityHigh     ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverity = "high"
+	ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityMedium   ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverity = "medium"
+	ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityLow      ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverity = "low"
+	ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityInfo     ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverity = "info"
+)
+
+// AllValues returns all ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverity values.
+func (ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverity) AllValues() []ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverity {
+	return []ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverity{
+		ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityCritical,
+		ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityHigh,
+		ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityMedium,
+		ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityLow,
+		ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityInfo,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverity) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityCritical:
+		return []byte(s), nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityHigh:
+		return []byte(s), nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityMedium:
+		return []byte(s), nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityLow:
+		return []byte(s), nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityInfo:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverity) UnmarshalText(data []byte) error {
+	switch ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverity(data) {
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityCritical:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityCritical
+		return nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityHigh:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityHigh
+		return nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityMedium:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityMedium
+		return nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityLow:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityLow
+		return nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityInfo:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemSeverityInfo
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatus string
+
+const (
+	ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusConfirmed     ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatus = "confirmed"
+	ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusSuspected     ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatus = "suspected"
+	ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusMitigated     ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatus = "mitigated"
+	ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusPatched       ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatus = "patched"
+	ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusFalsePositive ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatus = "false_positive"
+	ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusNotRelevant   ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatus = "not_relevant"
+	ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusRiskAccepted  ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatus = "risk_accepted"
+)
+
+// AllValues returns all ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatus values.
+func (ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatus) AllValues() []ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatus {
+	return []ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatus{
+		ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusConfirmed,
+		ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusSuspected,
+		ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusMitigated,
+		ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusPatched,
+		ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusFalsePositive,
+		ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusNotRelevant,
+		ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusRiskAccepted,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusConfirmed:
+		return []byte(s), nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusSuspected:
+		return []byte(s), nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusMitigated:
+		return []byte(s), nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusPatched:
+		return []byte(s), nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusFalsePositive:
+		return []byte(s), nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusNotRelevant:
+		return []byte(s), nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusRiskAccepted:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatus) UnmarshalText(data []byte) error {
+	switch ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatus(data) {
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusConfirmed:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusConfirmed
+		return nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusSuspected:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusSuspected
+		return nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusMitigated:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusMitigated
+		return nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusPatched:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusPatched
+		return nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusFalsePositive:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusFalsePositive
+		return nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusNotRelevant:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusNotRelevant
+		return nil
+	case ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusRiskAccepted:
+		*s = ReportsPostReportsPdplGenerateOKApprovedOnlyRisksItemStatusRiskAccepted
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ReportsPostReportsPdplGenerateOKCoverageItem struct {
@@ -166316,14 +169511,17 @@ type ReportsPostReportsPdplGenerateOKRisksItem struct {
 	Agent   OptBool `json:"agent"`
 	AssetID string  `json:"asset_id"`
 	// Who closed it (rows of what was done).
-	By       OptString                                         `json:"by"`
-	Cve      string                                            `json:"cve"`
-	Device   string                                            `json:"device"`
-	ID       string                                            `json:"id"`
-	Product  string                                            `json:"product"`
-	Severity ReportsPostReportsPdplGenerateOKRisksItemSeverity `json:"severity"`
-	Since    time.Time                                         `json:"since"`
-	Status   ReportsPostReportsPdplGenerateOKRisksItemStatus   `json:"status"`
+	By     OptString `json:"by"`
+	Cve    string    `json:"cve"`
+	Device string    `json:"device"`
+	// False when the device is still to review, not in the Devices list yet; absent in reports made before
+	// it (read as approved).
+	DeviceApproved OptBool                                           `json:"device_approved"`
+	ID             string                                            `json:"id"`
+	Product        string                                            `json:"product"`
+	Severity       ReportsPostReportsPdplGenerateOKRisksItemSeverity `json:"severity"`
+	Since          time.Time                                         `json:"since"`
+	Status         ReportsPostReportsPdplGenerateOKRisksItemStatus   `json:"status"`
 }
 
 // GetAgent returns the value of Agent.
@@ -166349,6 +169547,11 @@ func (s *ReportsPostReportsPdplGenerateOKRisksItem) GetCve() string {
 // GetDevice returns the value of Device.
 func (s *ReportsPostReportsPdplGenerateOKRisksItem) GetDevice() string {
 	return s.Device
+}
+
+// GetDeviceApproved returns the value of DeviceApproved.
+func (s *ReportsPostReportsPdplGenerateOKRisksItem) GetDeviceApproved() OptBool {
+	return s.DeviceApproved
 }
 
 // GetID returns the value of ID.
@@ -166399,6 +169602,11 @@ func (s *ReportsPostReportsPdplGenerateOKRisksItem) SetCve(val string) {
 // SetDevice sets the value of Device.
 func (s *ReportsPostReportsPdplGenerateOKRisksItem) SetDevice(val string) {
 	s.Device = val
+}
+
+// SetDeviceApproved sets the value of DeviceApproved.
+func (s *ReportsPostReportsPdplGenerateOKRisksItem) SetDeviceApproved(val OptBool) {
+	s.DeviceApproved = val
 }
 
 // SetID sets the value of ID.

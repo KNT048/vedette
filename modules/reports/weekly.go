@@ -55,15 +55,51 @@ type weeklyInput struct {
 	incidentsOn bool // notify answered: the report has a "what happened" section even when it is empty
 }
 
-// buildWeekly computes the weekly report (INV-1) at in.now. No AI text is in it.
+// buildWeekly computes the weekly report (INV-1) at in.now, with its ApprovedOnly view: the same figures over the approved devices
+// and their findings, for a reader who leaves the devices not in the Devices list out. No AI text is in it.
 func buildWeekly(in weeklyInput) WeeklyReport {
+	r := computeWeekly(in)
+	a := r
+	if r.Counts.DevicesUnapprove > 0 { // otherwise the view is the report itself: no second read of the fixes
+		a = computeWeekly(approvedOnly(in))
+	}
+	r.ApprovedOnly = &WeeklyView{Counts: a.Counts, TopRisks: a.TopRisks, Actions: a.Actions}
+	return r
+}
+
+// approvedOnly is in without the devices not approved yet and their findings (a finding whose device is unknown stays, as its row
+// says approved). The incidents are not device data: the view does not carry them.
+func approvedOnly(in weeklyInput) weeklyInput {
+	out := in
+	out.devices, out.findings = nil, nil
+	out.incidentsOn = false
+	left := map[string]bool{}
+	for _, d := range in.devices {
+		if d.Approved {
+			out.devices = append(out.devices, d)
+		} else {
+			left[d.ID] = true
+		}
+	}
+	for _, f := range in.findings {
+		if !left[f.AssetID] {
+			out.findings = append(out.findings, f)
+		}
+	}
+	return out
+}
+
+// computeWeekly computes the figures and lists of the weekly report over the devices and findings it is given.
+func computeWeekly(in weeklyInput) WeeklyReport {
 	now, from := in.now.UTC(), in.now.UTC().Add(-7*day)
 	inWeek := func(t time.Time) bool { return !t.IsZero() && t.After(from) && !t.After(now) }
 	names := make(map[string]string, len(in.devices))
 	noDevice := map[string]bool{}
+	unapprovedDev := map[string]bool{}
 	for _, d := range in.devices {
 		names[d.ID] = clip(d.Name, 80)
 		noDevice[d.ID] = d.NoDevice
+		unapprovedDev[d.ID] = !d.Approved
 	}
 	products := make(map[string]string, len(in.kev))
 	for _, k := range in.kev {
@@ -82,7 +118,7 @@ func buildWeekly(in weeklyInput) WeeklyReport {
 		if !ok {
 			prod = clip(f.CVE, 40)
 		}
-		return FindingRow{ID: f.ID, CVE: clip(f.CVE, 40), Device: dev, AssetID: f.AssetID, Product: prod, Status: status, Severity: f.Severity, Since: ts(f.FirstSeen), Agent: f.Agent, noDevice: noDevice[f.AssetID]}
+		return FindingRow{ID: f.ID, CVE: clip(f.CVE, 40), Device: dev, AssetID: f.AssetID, Product: prod, Status: status, Severity: f.Severity, Since: ts(f.FirstSeen), Agent: f.Agent, DeviceApproved: !unapprovedDev[f.AssetID], noDevice: noDevice[f.AssetID]}
 	}
 	order := func(rows []FindingRow) []FindingRow {
 		sort.SliceStable(rows, func(i, j int) bool {
@@ -98,11 +134,20 @@ func buildWeekly(in weeklyInput) WeeklyReport {
 		return rows
 	}
 	var newRows, resolvedRows, openRows []FindingRow
-	var openConfirmed, openSuspected, accepted int
+	var openConfirmed, openSuspected, accepted, nr, nrNew, nrResolved int
 	var acceptedUntil time.Time
 	for _, f := range in.findings {
 		if f.FirstSeen.After(now) {
 			continue
+		}
+		if f.Status == "not_relevant" && (inWeek(f.FirstSeen) || inWeek(f.ResolvedAt)) {
+			nr++
+			if inWeek(f.FirstSeen) {
+				nrNew++
+			}
+			if inWeek(f.ResolvedAt) {
+				nrResolved++
+			}
 		}
 		if inWeek(f.FirstSeen) {
 			newRows = append(newRows, row(f, f.Status))
@@ -199,7 +244,8 @@ func buildWeekly(in weeklyInput) WeeklyReport {
 	return WeeklyReport{
 		Period: Period{From: ts(from), To: ts(now)}, GeneratedAt: ts(now),
 		Counts: Counts{NewFindings: newN, Resolved: resolvedN, Accepted: accepted, AcceptedUntil: isoDay(acceptedUntil), OpenConfirmed: openConfirmed, OpenSuspected: openSuspected,
-			Devices: len(in.devices), DevicesUnapprove: unapproved, DevicesNew: devicesNew, KevNew: in.kevNew, KevMatched: in.kevInUse},
+			Devices: len(in.devices), DevicesUnapprove: unapproved, DevicesNew: devicesNew, KevNew: in.kevNew, KevMatched: in.kevInUse,
+			NotRelevant: nr, NotRelevantNew: nrNew, NotRelevantResolved: nrResolved},
 		TopRisks: risks, NewFindings: nonNil(newRows), Resolved: nonNil(resolvedRows), Open: nonNil(openRows), Actions: nonNilA(actions),
 		Happened: happened, Sources: sources,
 	}

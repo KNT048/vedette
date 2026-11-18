@@ -18,6 +18,9 @@ type FindingRow struct {
 	Since    string `json:"since"`
 	By       string `json:"by,omitempty"`    // who closed it, on the rows of what was done
 	Agent    bool   `json:"agent,omitempty"` // the device's own agent reported the version compared: "Detected by the agent", not "Suspected"
+	// DeviceApproved is false when the device is still to review (inventory not approved), so not in the Devices list yet. A finding
+	// whose device inventory does not know counts as approved.
+	DeviceApproved bool `json:"device_approved"`
 
 	noDevice bool // the device is a product added by hand with no device (Device.NoDevice)
 }
@@ -105,6 +108,20 @@ type Counts struct {
 	DevicesNew       int    `json:"devices_new"`
 	KevNew           int    `json:"kev_new"`     // newly exploited in the last 7 days, as Home counts them
 	KevMatched       int    `json:"kev_matched"` // their products in use, as Home counts them (before it, CVEs on a device)
+	// The findings closed as not relevant among the figures above: NotRelevant different findings, NotRelevantNew of NewFindings and
+	// NotRelevantResolved of Resolved. A reader that leaves them out subtracts these.
+	NotRelevant         int `json:"not_relevant"`
+	NotRelevantNew      int `json:"not_relevant_new"`
+	NotRelevantResolved int `json:"not_relevant_resolved"`
+}
+
+// WeeklyView is the part of the weekly report that changes when the devices not approved yet (not in the Devices list) are left
+// out: the counts, the top risks and the actions computed again over the approved devices and their findings. The lists are not
+// repeated; a reader filters them by FindingRow.DeviceApproved.
+type WeeklyView struct {
+	Counts   Counts       `json:"counts"`
+	TopRisks []TopRisk    `json:"top_risks"`
+	Actions  []ActionItem `json:"actions"`
 }
 
 // Source says where a group of figures came from and when (INV-1).
@@ -126,6 +143,8 @@ type WeeklyReport struct {
 	Happened    *Happened    `json:"happened"` // nil when notify is off or the report was sent by an older release
 	Sources     []Source     `json:"sources"`
 	AISummary   *AiSummary   `json:"ai_summary"`
+	// ApprovedOnly is the report without the devices not approved yet and their findings; nil in reports sent before it.
+	ApprovedOnly *WeeklyView `json:"approved_only,omitempty"`
 }
 
 // WeeklyPreview is GET /reports/weekly/preview.
@@ -252,6 +271,17 @@ type PdplReport struct {
 	Obligations []Obligation  `json:"obligations"`
 	Coverage    []Coverage    `json:"coverage"`
 	AISummary   *AiSummary    `json:"ai_summary"`
+	// ApprovedOnly is the inventory, measures and risks without the devices not approved yet and their findings; nil in reports
+	// generated before it.
+	ApprovedOnly *PdplView `json:"approved_only,omitempty"`
+}
+
+// PdplView is the part of the assessment that changes when the devices not approved yet are left out. Its "unapproved" measure is
+// the full report's: leaving those devices out of the view does not approve them.
+type PdplView struct {
+	Inventory PdplInventory `json:"inventory"`
+	Measures  []Measure     `json:"measures"`
+	Risks     []FindingRow  `json:"risks"`
 }
 
 // PdplDefaults are values the form starts with.

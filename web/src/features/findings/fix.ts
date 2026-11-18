@@ -26,12 +26,18 @@ export function useFixAction() {
   }
 }
 
+/** What a recommended update clears, in words: "fixes N CVEs", or, for a distribution's package, that its data has no fix yet, or that
+ *  only NVD's upstream ranges list them (never "fixes" when nothing says an update does). */
+export const planCountKey = (i: Pick<PlanItem, 'kind' | 'distro_data' | 'nvd_lag'>) =>
+  i.kind === 'distro' && i.distro_data === 'no_fix' ? 'plan.noFixCount' : i.kind === 'distro' && i.distro_data === 'none' ? 'plan.noDataCount' : i.nvd_lag ? 'plan.fixesAtLeast' : 'plan.fixes'
+
 /** Updates to plan: what to install for one item, as a sentence. */
 export function usePlanAction() {
   const { t } = useTranslation('findings')
   return (i: PlanItem) => {
     const win = i.kind === 'windows' || i.kind === 'esu'
     const v = { software: i.software, version: win ? build(i.version) : i.version, fixed: win ? build(i.fixed) : i.fixed, kb: kbNote(i.kb), distro: i.distro }
+    if (i.kind === 'distro' && i.distro_data === 'no_fix') return t(i.distro ? 'plan.action.distroNoFix' : 'plan.action.distroNoFixAny', v)
     if (i.kind === 'distro') return t(!i.fixed ? (i.distro ? 'plan.action.distroNamed' : 'plan.action.distro') : i.pro ? 'plan.action.distroPro' : 'plan.action.distroFixed', v)
     if (i.kind === 'windows') return t(v.version ? 'plan.action.windows' : 'plan.action.windowsBuild', v)
     if (i.kind === 'esu') return t(v.version ? 'fix.windowsEsu' : 'fix.windowsEsuBuild', v) // #804: never a plain "install the latest cumulative update"

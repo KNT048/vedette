@@ -75,9 +75,10 @@ func TestPlan_DistroPackages(t *testing.T) {
 	if zlib.Group != "a-u/s6/pro" || !zlib.Pro || zlib.Fixed != "1:1.3.dfsg-3.1ubuntu2.1+esm1" || cvesOf(zlib)[0] != "CVE-2026-50009/recent/distro" {
 		t.Fatalf("zlib %+v", zlib)
 	}
-	// a release the feeds hold no row for: not compared, nothing listed (drop when unsure)
+	// a release the feeds hold no row for: its packages are not compared, nothing listed (drop when unsure); the PPA build is compared
+	// with NVD (no data for it here)
 	a.OS = "Ubuntu 22.04 LTS"
-	if items, compared = matchTiers(a, x, nil, t0); compared || len(items) != 0 {
+	if items, compared = matchTiers(a, x, nil, t0); len(items) != 0 {
 		t.Fatalf("22.04 not covered: compared %v, %+v", compared, items)
 	}
 }

@@ -281,3 +281,24 @@ func TestWeeklyCountsNotRelevant(t *testing.T) {
 		t.Fatalf("approved-only counts = %+v", a)
 	}
 }
+
+// A finding Vedette closed as patched because the device's version moved out of the range is "resolved" this week, shown whatever the
+// "Include not relevant" switch says (only not_relevant is subtracted), and its line says Vedette closed it, not an account named system.
+func TestWeeklyPatchedByAnUpdateIsResolvedByVedette(t *testing.T) {
+	t.Parallel()
+	in := sampleInput()
+	in.findings = append(in.findings, Finding{ID: "u1", AssetID: "a3", CVE: "CVE-2025-8088", Status: "patched", Severity: "high", FirstSeen: day0(20), ResolvedAt: day0(1), ResolvedBy: "system"})
+	r := buildWeekly(in)
+	if r.Counts.Resolved != 2 || r.Counts.NotRelevantResolved != 0 {
+		t.Fatalf("counts = %+v", r.Counts)
+	}
+	found := false
+	for _, f := range r.Resolved {
+		if f.ID == "u1" {
+			found = f.Status == "patched" && f.By == "Vedette"
+		}
+	}
+	if !found {
+		t.Fatalf("resolved rows = %+v", r.Resolved)
+	}
+}

@@ -79654,6 +79654,48 @@ func (s *FindingsGetFindingsOKVersionNeededItemAssetKind) UnmarshalText(data []b
 	}
 }
 
+// True: only the items a person marked done (Done); default false: the items to plan, without them.
+type FindingsGetFindingsPlanDone string
+
+const (
+	FindingsGetFindingsPlanDoneTrue  FindingsGetFindingsPlanDone = "true"
+	FindingsGetFindingsPlanDoneFalse FindingsGetFindingsPlanDone = "false"
+)
+
+// AllValues returns all FindingsGetFindingsPlanDone values.
+func (FindingsGetFindingsPlanDone) AllValues() []FindingsGetFindingsPlanDone {
+	return []FindingsGetFindingsPlanDone{
+		FindingsGetFindingsPlanDoneTrue,
+		FindingsGetFindingsPlanDoneFalse,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsPlanDone) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsPlanDoneTrue:
+		return []byte(s), nil
+	case FindingsGetFindingsPlanDoneFalse:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsPlanDone) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsPlanDone(data) {
+	case FindingsGetFindingsPlanDoneTrue:
+		*s = FindingsGetFindingsPlanDoneTrue
+		return nil
+	case FindingsGetFindingsPlanDoneFalse:
+		*s = FindingsGetFindingsPlanDoneFalse
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type FindingsGetFindingsPlanOK struct {
 	// False = no comparison of tier 2 and 3 CVEs with the devices has run since the box started (the plan
 	// job runs within minutes); the page says so instead of "no update to plan".
@@ -79746,6 +79788,8 @@ func (s *FindingsGetFindingsPlanOK) SetUncheckedDevices(val int) {
 type FindingsGetFindingsPlanOKCounts struct {
 	// Items the tier=all answer lists.
 	All int `json:"all"`
+	// Items a person marked done (whatever tier), listed with ?done=true.
+	Done int `json:"done"`
 	// Items the tier=likely answer lists.
 	Likely int `json:"likely"`
 	// Items the tier=recent answer lists.
@@ -79755,6 +79799,11 @@ type FindingsGetFindingsPlanOKCounts struct {
 // GetAll returns the value of All.
 func (s *FindingsGetFindingsPlanOKCounts) GetAll() int {
 	return s.All
+}
+
+// GetDone returns the value of Done.
+func (s *FindingsGetFindingsPlanOKCounts) GetDone() int {
+	return s.Done
 }
 
 // GetLikely returns the value of Likely.
@@ -79770,6 +79819,11 @@ func (s *FindingsGetFindingsPlanOKCounts) GetRecent() int {
 // SetAll sets the value of All.
 func (s *FindingsGetFindingsPlanOKCounts) SetAll(val int) {
 	s.All = val
+}
+
+// SetDone sets the value of Done.
+func (s *FindingsGetFindingsPlanOKCounts) SetDone(val int) {
+	s.Done = val
 }
 
 // SetLikely sets the value of Likely.
@@ -79961,9 +80015,20 @@ type FindingsGetFindingsPlanOKItemsItem struct {
 	// old ("its CVEs are not yet analysed by NVD"), false after ("NVD lists no CVE of it for this release
 	// yet").
 	Cves []FindingsGetFindingsPlanOKItemsItemCvesItem `json:"cves"`
-	// Distro with `fixed` empty: the distribution whose security updates to install ("Alpine Linux",
-	// "Ubuntu", "Debian"); empty for "the distribution's" and for every other kind.
+	// Distro with `fixed` empty (distro_data no_fix or none): the distribution ("Alpine Linux", "Ubuntu",
+	// "Debian"); empty for "the distribution's" and for every other kind.
 	Distro string `json:"distro"`
+	// Kind distro: fixed = upgrade the source package `software` from `version` to the distribution's
+	// fixed release `fixed` or later (Ubuntu, Debian, Alpine data); no_fix = the distribution's data says
+	// these CVEs have no fix from it yet (`distro` names it): nothing to install yet; none = the
+	// distribution's data has no word on the package (Red Hat, SUSE and others Vedette reads no data for,
+	// a package the data never names, another build): NVD lists these CVEs for its upstream version, so
+	// the page says to check `distro`'s security updates, never that an update fixes them. "" for every
+	// other kind.
+	DistroData FindingsGetFindingsPlanOKItemsItemDistroData `json:"distro_data"`
+	// A person marked this item done and the mark still holds (the same version, no new CVE): listed only
+	// with ?done=true; null otherwise.
+	Done NilFindingsGetFindingsPlanOKItemsItemDone `json:"done"`
 	// Fixed: the version that fixes every CVE of the item; windows, esu: the build of the cumulative
 	// update; distro: the distribution's package version that fixes every CVE of the item on the device's
 	// release.
@@ -79973,14 +80038,10 @@ type FindingsGetFindingsPlanOKItemsItem struct {
 	// Windows, esu: the KB number of `fixed` when Microsoft's release information lists that build
 	// ("KB5131080"), named next to the build; "" otherwise.
 	KB string `json:"kb"`
-	// Fixed = upgrade the software to `fixed`; distro = with `fixed`, upgrade the Ubuntu or Debian source
-	// package `software` from `version` to `fixed` or later (the distribution's security update); with
-	// `fixed` empty, a package of a distribution whose data Vedette does not read (Alpine, Red Hat, a
-	// package without its source name; an agent's package row or a package release a person gave): install
-	// `distro`'s security updates for `software` (`version` is the package release when known), never an
-	// upstream release; windows = the monthly cumulative update with build `fixed` or later; esu = the
-	// same on a Windows release past its end of support: the update comes only with Extended Security
-	// Updates.
+	// Fixed = upgrade the software to `fixed`; distro = a distribution's package, judged by the
+	// distribution's own fix data (`distro_data`), never moved to an upstream release; windows = the
+	// monthly cumulative update with build `fixed` or later; esu = the same on a Windows release past its
+	// end of support: the update comes only with Extended Security Updates.
 	Kind   FindingsGetFindingsPlanOKItemsItemKind `json:"kind"`
 	Likely int                                    `json:"likely"`
 	// Windows, esu: `fixed` is the newest monthly update Microsoft's release information lists for the
@@ -80024,6 +80085,16 @@ func (s *FindingsGetFindingsPlanOKItemsItem) GetCves() []FindingsGetFindingsPlan
 // GetDistro returns the value of Distro.
 func (s *FindingsGetFindingsPlanOKItemsItem) GetDistro() string {
 	return s.Distro
+}
+
+// GetDistroData returns the value of DistroData.
+func (s *FindingsGetFindingsPlanOKItemsItem) GetDistroData() FindingsGetFindingsPlanOKItemsItemDistroData {
+	return s.DistroData
+}
+
+// GetDone returns the value of Done.
+func (s *FindingsGetFindingsPlanOKItemsItem) GetDone() NilFindingsGetFindingsPlanOKItemsItemDone {
+	return s.Done
 }
 
 // GetFixed returns the value of Fixed.
@@ -80104,6 +80175,16 @@ func (s *FindingsGetFindingsPlanOKItemsItem) SetCves(val []FindingsGetFindingsPl
 // SetDistro sets the value of Distro.
 func (s *FindingsGetFindingsPlanOKItemsItem) SetDistro(val string) {
 	s.Distro = val
+}
+
+// SetDistroData sets the value of DistroData.
+func (s *FindingsGetFindingsPlanOKItemsItem) SetDistroData(val FindingsGetFindingsPlanOKItemsItemDistroData) {
+	s.DistroData = val
+}
+
+// SetDone sets the value of Done.
+func (s *FindingsGetFindingsPlanOKItemsItem) SetDone(val NilFindingsGetFindingsPlanOKItemsItemDone) {
+	s.Done = val
 }
 
 // SetFixed sets the value of Fixed.
@@ -80451,14 +80532,124 @@ func (s *FindingsGetFindingsPlanOKItemsItemCvesItemTier) UnmarshalText(data []by
 	}
 }
 
-// Fixed = upgrade the software to `fixed`; distro = with `fixed`, upgrade the Ubuntu or Debian source
-// package `software` from `version` to `fixed` or later (the distribution's security update); with
-// `fixed` empty, a package of a distribution whose data Vedette does not read (Alpine, Red Hat, a
-// package without its source name; an agent's package row or a package release a person gave): install
-// `distro`'s security updates for `software` (`version` is the package release when known), never an
-// upstream release; windows = the monthly cumulative update with build `fixed` or later; esu = the
-// same on a Windows release past its end of support: the update comes only with Extended Security
-// Updates.
+// Kind distro: fixed = upgrade the source package `software` from `version` to the distribution's
+// fixed release `fixed` or later (Ubuntu, Debian, Alpine data); no_fix = the distribution's data says
+// these CVEs have no fix from it yet (`distro` names it): nothing to install yet; none = the
+// distribution's data has no word on the package (Red Hat, SUSE and others Vedette reads no data for,
+// a package the data never names, another build): NVD lists these CVEs for its upstream version, so
+// the page says to check `distro`'s security updates, never that an update fixes them. "" for every
+// other kind.
+type FindingsGetFindingsPlanOKItemsItemDistroData string
+
+const (
+	FindingsGetFindingsPlanOKItemsItemDistroDataFixed FindingsGetFindingsPlanOKItemsItemDistroData = "fixed"
+	FindingsGetFindingsPlanOKItemsItemDistroDataNoFix FindingsGetFindingsPlanOKItemsItemDistroData = "no_fix"
+	FindingsGetFindingsPlanOKItemsItemDistroDataNone  FindingsGetFindingsPlanOKItemsItemDistroData = "none"
+	FindingsGetFindingsPlanOKItemsItemDistroDataEmpty FindingsGetFindingsPlanOKItemsItemDistroData = ""
+)
+
+// AllValues returns all FindingsGetFindingsPlanOKItemsItemDistroData values.
+func (FindingsGetFindingsPlanOKItemsItemDistroData) AllValues() []FindingsGetFindingsPlanOKItemsItemDistroData {
+	return []FindingsGetFindingsPlanOKItemsItemDistroData{
+		FindingsGetFindingsPlanOKItemsItemDistroDataFixed,
+		FindingsGetFindingsPlanOKItemsItemDistroDataNoFix,
+		FindingsGetFindingsPlanOKItemsItemDistroDataNone,
+		FindingsGetFindingsPlanOKItemsItemDistroDataEmpty,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsPlanOKItemsItemDistroData) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsPlanOKItemsItemDistroDataFixed:
+		return []byte(s), nil
+	case FindingsGetFindingsPlanOKItemsItemDistroDataNoFix:
+		return []byte(s), nil
+	case FindingsGetFindingsPlanOKItemsItemDistroDataNone:
+		return []byte(s), nil
+	case FindingsGetFindingsPlanOKItemsItemDistroDataEmpty:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsPlanOKItemsItemDistroData) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsPlanOKItemsItemDistroData(data) {
+	case FindingsGetFindingsPlanOKItemsItemDistroDataFixed:
+		*s = FindingsGetFindingsPlanOKItemsItemDistroDataFixed
+		return nil
+	case FindingsGetFindingsPlanOKItemsItemDistroDataNoFix:
+		*s = FindingsGetFindingsPlanOKItemsItemDistroDataNoFix
+		return nil
+	case FindingsGetFindingsPlanOKItemsItemDistroDataNone:
+		*s = FindingsGetFindingsPlanOKItemsItemDistroDataNone
+		return nil
+	case FindingsGetFindingsPlanOKItemsItemDistroDataEmpty:
+		*s = FindingsGetFindingsPlanOKItemsItemDistroDataEmpty
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsGetFindingsPlanOKItemsItemDone struct {
+	// When.
+	At time.Time `json:"at"`
+	// Who marked it done.
+	By string `json:"by"`
+	// The note they gave; "" when none.
+	Note string `json:"note"`
+	// The version of the software when it was marked: the mark holds while the device reports this version
+	// and no new CVE joins the item.
+	Version string `json:"version"`
+}
+
+// GetAt returns the value of At.
+func (s *FindingsGetFindingsPlanOKItemsItemDone) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *FindingsGetFindingsPlanOKItemsItemDone) GetBy() string {
+	return s.By
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsGetFindingsPlanOKItemsItemDone) GetNote() string {
+	return s.Note
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsGetFindingsPlanOKItemsItemDone) GetVersion() string {
+	return s.Version
+}
+
+// SetAt sets the value of At.
+func (s *FindingsGetFindingsPlanOKItemsItemDone) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *FindingsGetFindingsPlanOKItemsItemDone) SetBy(val string) {
+	s.By = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsGetFindingsPlanOKItemsItemDone) SetNote(val string) {
+	s.Note = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsGetFindingsPlanOKItemsItemDone) SetVersion(val string) {
+	s.Version = val
+}
+
+// Fixed = upgrade the software to `fixed`; distro = a distribution's package, judged by the
+// distribution's own fix data (`distro_data`), never moved to an upstream release; windows = the
+// monthly cumulative update with build `fixed` or later; esu = the same on a Windows release past its
+// end of support: the update comes only with Extended Security Updates.
 type FindingsGetFindingsPlanOKItemsItemKind string
 
 const (
@@ -83007,6 +83198,9 @@ type FindingsGetFindingsToFixOKDevicesItemExploitedItem struct {
 	Cves     []string `json:"cves"`
 	Detected int      `json:"detected"`
 	Distro   string   `json:"distro"`
+	// Planned distro: PlanItem.distro_data (no_fix: nothing to install yet; none: NVD's upstream ranges,
+	// check the distribution's updates); "" otherwise.
+	DistroData FindingsGetFindingsToFixOKDevicesItemExploitedItemDistroData `json:"distro_data"`
 	// The open findings of the CVEs, same order (exploited only; empty for planned).
 	FindingIds []string `json:"finding_ids"`
 	// The release or build to install; "" for a distribution's updates and when no update is named.
@@ -83078,6 +83272,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetDetected() int {
 // GetDistro returns the value of Distro.
 func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetDistro() string {
 	return s.Distro
+}
+
+// GetDistroData returns the value of DistroData.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetDistroData() FindingsGetFindingsToFixOKDevicesItemExploitedItemDistroData {
+	return s.DistroData
 }
 
 // GetFindingIds returns the value of FindingIds.
@@ -83200,6 +83399,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetDistro(val strin
 	s.Distro = val
 }
 
+// SetDistroData sets the value of DistroData.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetDistroData(val FindingsGetFindingsToFixOKDevicesItemExploitedItemDistroData) {
+	s.DistroData = val
+}
+
 // SetFindingIds sets the value of FindingIds.
 func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetFindingIds(val []string) {
 	s.FindingIds = val
@@ -83290,6 +83494,63 @@ func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetWorst(val string
 	s.Worst = val
 }
 
+// Planned distro: PlanItem.distro_data (no_fix: nothing to install yet; none: NVD's upstream ranges,
+// check the distribution's updates); "" otherwise.
+type FindingsGetFindingsToFixOKDevicesItemExploitedItemDistroData string
+
+const (
+	FindingsGetFindingsToFixOKDevicesItemExploitedItemDistroDataFixed FindingsGetFindingsToFixOKDevicesItemExploitedItemDistroData = "fixed"
+	FindingsGetFindingsToFixOKDevicesItemExploitedItemDistroDataNoFix FindingsGetFindingsToFixOKDevicesItemExploitedItemDistroData = "no_fix"
+	FindingsGetFindingsToFixOKDevicesItemExploitedItemDistroDataNone  FindingsGetFindingsToFixOKDevicesItemExploitedItemDistroData = "none"
+	FindingsGetFindingsToFixOKDevicesItemExploitedItemDistroDataEmpty FindingsGetFindingsToFixOKDevicesItemExploitedItemDistroData = ""
+)
+
+// AllValues returns all FindingsGetFindingsToFixOKDevicesItemExploitedItemDistroData values.
+func (FindingsGetFindingsToFixOKDevicesItemExploitedItemDistroData) AllValues() []FindingsGetFindingsToFixOKDevicesItemExploitedItemDistroData {
+	return []FindingsGetFindingsToFixOKDevicesItemExploitedItemDistroData{
+		FindingsGetFindingsToFixOKDevicesItemExploitedItemDistroDataFixed,
+		FindingsGetFindingsToFixOKDevicesItemExploitedItemDistroDataNoFix,
+		FindingsGetFindingsToFixOKDevicesItemExploitedItemDistroDataNone,
+		FindingsGetFindingsToFixOKDevicesItemExploitedItemDistroDataEmpty,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsToFixOKDevicesItemExploitedItemDistroData) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsToFixOKDevicesItemExploitedItemDistroDataFixed:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemExploitedItemDistroDataNoFix:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemExploitedItemDistroDataNone:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemExploitedItemDistroDataEmpty:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItemDistroData) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsToFixOKDevicesItemExploitedItemDistroData(data) {
+	case FindingsGetFindingsToFixOKDevicesItemExploitedItemDistroDataFixed:
+		*s = FindingsGetFindingsToFixOKDevicesItemExploitedItemDistroDataFixed
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemExploitedItemDistroDataNoFix:
+		*s = FindingsGetFindingsToFixOKDevicesItemExploitedItemDistroDataNoFix
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemExploitedItemDistroDataNone:
+		*s = FindingsGetFindingsToFixOKDevicesItemExploitedItemDistroDataNone
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemExploitedItemDistroDataEmpty:
+		*s = FindingsGetFindingsToFixOKDevicesItemExploitedItemDistroDataEmpty
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // None: no update is named that fixes these findings (follow the vendor's advice).
 type FindingsGetFindingsToFixOKDevicesItemExploitedItemKind string
 
@@ -83371,6 +83632,9 @@ type FindingsGetFindingsToFixOKDevicesItemNoUpdateItem struct {
 	Cves     []string `json:"cves"`
 	Detected int      `json:"detected"`
 	Distro   string   `json:"distro"`
+	// Planned distro: PlanItem.distro_data (no_fix: nothing to install yet; none: NVD's upstream ranges,
+	// check the distribution's updates); "" otherwise.
+	DistroData FindingsGetFindingsToFixOKDevicesItemNoUpdateItemDistroData `json:"distro_data"`
 	// The open findings of the CVEs, same order (exploited only; empty for planned).
 	FindingIds []string `json:"finding_ids"`
 	// The release or build to install; "" for a distribution's updates and when no update is named.
@@ -83442,6 +83706,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetDetected() int {
 // GetDistro returns the value of Distro.
 func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetDistro() string {
 	return s.Distro
+}
+
+// GetDistroData returns the value of DistroData.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetDistroData() FindingsGetFindingsToFixOKDevicesItemNoUpdateItemDistroData {
+	return s.DistroData
 }
 
 // GetFindingIds returns the value of FindingIds.
@@ -83564,6 +83833,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetDistro(val string
 	s.Distro = val
 }
 
+// SetDistroData sets the value of DistroData.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetDistroData(val FindingsGetFindingsToFixOKDevicesItemNoUpdateItemDistroData) {
+	s.DistroData = val
+}
+
 // SetFindingIds sets the value of FindingIds.
 func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetFindingIds(val []string) {
 	s.FindingIds = val
@@ -83654,6 +83928,63 @@ func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetWorst(val string)
 	s.Worst = val
 }
 
+// Planned distro: PlanItem.distro_data (no_fix: nothing to install yet; none: NVD's upstream ranges,
+// check the distribution's updates); "" otherwise.
+type FindingsGetFindingsToFixOKDevicesItemNoUpdateItemDistroData string
+
+const (
+	FindingsGetFindingsToFixOKDevicesItemNoUpdateItemDistroDataFixed FindingsGetFindingsToFixOKDevicesItemNoUpdateItemDistroData = "fixed"
+	FindingsGetFindingsToFixOKDevicesItemNoUpdateItemDistroDataNoFix FindingsGetFindingsToFixOKDevicesItemNoUpdateItemDistroData = "no_fix"
+	FindingsGetFindingsToFixOKDevicesItemNoUpdateItemDistroDataNone  FindingsGetFindingsToFixOKDevicesItemNoUpdateItemDistroData = "none"
+	FindingsGetFindingsToFixOKDevicesItemNoUpdateItemDistroDataEmpty FindingsGetFindingsToFixOKDevicesItemNoUpdateItemDistroData = ""
+)
+
+// AllValues returns all FindingsGetFindingsToFixOKDevicesItemNoUpdateItemDistroData values.
+func (FindingsGetFindingsToFixOKDevicesItemNoUpdateItemDistroData) AllValues() []FindingsGetFindingsToFixOKDevicesItemNoUpdateItemDistroData {
+	return []FindingsGetFindingsToFixOKDevicesItemNoUpdateItemDistroData{
+		FindingsGetFindingsToFixOKDevicesItemNoUpdateItemDistroDataFixed,
+		FindingsGetFindingsToFixOKDevicesItemNoUpdateItemDistroDataNoFix,
+		FindingsGetFindingsToFixOKDevicesItemNoUpdateItemDistroDataNone,
+		FindingsGetFindingsToFixOKDevicesItemNoUpdateItemDistroDataEmpty,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsToFixOKDevicesItemNoUpdateItemDistroData) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsToFixOKDevicesItemNoUpdateItemDistroDataFixed:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemNoUpdateItemDistroDataNoFix:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemNoUpdateItemDistroDataNone:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemNoUpdateItemDistroDataEmpty:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItemDistroData) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsToFixOKDevicesItemNoUpdateItemDistroData(data) {
+	case FindingsGetFindingsToFixOKDevicesItemNoUpdateItemDistroDataFixed:
+		*s = FindingsGetFindingsToFixOKDevicesItemNoUpdateItemDistroDataFixed
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemNoUpdateItemDistroDataNoFix:
+		*s = FindingsGetFindingsToFixOKDevicesItemNoUpdateItemDistroDataNoFix
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemNoUpdateItemDistroDataNone:
+		*s = FindingsGetFindingsToFixOKDevicesItemNoUpdateItemDistroDataNone
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemNoUpdateItemDistroDataEmpty:
+		*s = FindingsGetFindingsToFixOKDevicesItemNoUpdateItemDistroDataEmpty
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // None: no update is named that fixes these findings (follow the vendor's advice).
 type FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKind string
 
@@ -83735,6 +84066,9 @@ type FindingsGetFindingsToFixOKDevicesItemPlannedItem struct {
 	Cves     []string `json:"cves"`
 	Detected int      `json:"detected"`
 	Distro   string   `json:"distro"`
+	// Planned distro: PlanItem.distro_data (no_fix: nothing to install yet; none: NVD's upstream ranges,
+	// check the distribution's updates); "" otherwise.
+	DistroData FindingsGetFindingsToFixOKDevicesItemPlannedItemDistroData `json:"distro_data"`
 	// The open findings of the CVEs, same order (exploited only; empty for planned).
 	FindingIds []string `json:"finding_ids"`
 	// The release or build to install; "" for a distribution's updates and when no update is named.
@@ -83806,6 +84140,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetDetected() int {
 // GetDistro returns the value of Distro.
 func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetDistro() string {
 	return s.Distro
+}
+
+// GetDistroData returns the value of DistroData.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetDistroData() FindingsGetFindingsToFixOKDevicesItemPlannedItemDistroData {
+	return s.DistroData
 }
 
 // GetFindingIds returns the value of FindingIds.
@@ -83928,6 +84267,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetDistro(val string)
 	s.Distro = val
 }
 
+// SetDistroData sets the value of DistroData.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetDistroData(val FindingsGetFindingsToFixOKDevicesItemPlannedItemDistroData) {
+	s.DistroData = val
+}
+
 // SetFindingIds sets the value of FindingIds.
 func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetFindingIds(val []string) {
 	s.FindingIds = val
@@ -84016,6 +84360,63 @@ func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetWindows(val bool) 
 // SetWorst sets the value of Worst.
 func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetWorst(val string) {
 	s.Worst = val
+}
+
+// Planned distro: PlanItem.distro_data (no_fix: nothing to install yet; none: NVD's upstream ranges,
+// check the distribution's updates); "" otherwise.
+type FindingsGetFindingsToFixOKDevicesItemPlannedItemDistroData string
+
+const (
+	FindingsGetFindingsToFixOKDevicesItemPlannedItemDistroDataFixed FindingsGetFindingsToFixOKDevicesItemPlannedItemDistroData = "fixed"
+	FindingsGetFindingsToFixOKDevicesItemPlannedItemDistroDataNoFix FindingsGetFindingsToFixOKDevicesItemPlannedItemDistroData = "no_fix"
+	FindingsGetFindingsToFixOKDevicesItemPlannedItemDistroDataNone  FindingsGetFindingsToFixOKDevicesItemPlannedItemDistroData = "none"
+	FindingsGetFindingsToFixOKDevicesItemPlannedItemDistroDataEmpty FindingsGetFindingsToFixOKDevicesItemPlannedItemDistroData = ""
+)
+
+// AllValues returns all FindingsGetFindingsToFixOKDevicesItemPlannedItemDistroData values.
+func (FindingsGetFindingsToFixOKDevicesItemPlannedItemDistroData) AllValues() []FindingsGetFindingsToFixOKDevicesItemPlannedItemDistroData {
+	return []FindingsGetFindingsToFixOKDevicesItemPlannedItemDistroData{
+		FindingsGetFindingsToFixOKDevicesItemPlannedItemDistroDataFixed,
+		FindingsGetFindingsToFixOKDevicesItemPlannedItemDistroDataNoFix,
+		FindingsGetFindingsToFixOKDevicesItemPlannedItemDistroDataNone,
+		FindingsGetFindingsToFixOKDevicesItemPlannedItemDistroDataEmpty,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsToFixOKDevicesItemPlannedItemDistroData) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsToFixOKDevicesItemPlannedItemDistroDataFixed:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemPlannedItemDistroDataNoFix:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemPlannedItemDistroDataNone:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemPlannedItemDistroDataEmpty:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItemDistroData) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsToFixOKDevicesItemPlannedItemDistroData(data) {
+	case FindingsGetFindingsToFixOKDevicesItemPlannedItemDistroDataFixed:
+		*s = FindingsGetFindingsToFixOKDevicesItemPlannedItemDistroDataFixed
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemPlannedItemDistroDataNoFix:
+		*s = FindingsGetFindingsToFixOKDevicesItemPlannedItemDistroDataNoFix
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemPlannedItemDistroDataNone:
+		*s = FindingsGetFindingsToFixOKDevicesItemPlannedItemDistroDataNone
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemPlannedItemDistroDataEmpty:
+		*s = FindingsGetFindingsToFixOKDevicesItemPlannedItemDistroDataEmpty
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // None: no update is named that fixes these findings (follow the vendor's advice).
@@ -105175,6 +105576,114 @@ func (s *FindingsPostFindingsIDUnconfirmOKStatus) UnmarshalText(data []byte) err
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type FindingsPostFindingsPlanDoneOK struct {
+	// When.
+	At time.Time `json:"at"`
+	// Who marked it done.
+	By string `json:"by"`
+	// The note they gave; "" when none.
+	Note string `json:"note"`
+	// The version of the software when it was marked: the mark holds while the device reports this version
+	// and no new CVE joins the item.
+	Version string `json:"version"`
+}
+
+// GetAt returns the value of At.
+func (s *FindingsPostFindingsPlanDoneOK) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *FindingsPostFindingsPlanDoneOK) GetBy() string {
+	return s.By
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsPlanDoneOK) GetNote() string {
+	return s.Note
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsPostFindingsPlanDoneOK) GetVersion() string {
+	return s.Version
+}
+
+// SetAt sets the value of At.
+func (s *FindingsPostFindingsPlanDoneOK) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *FindingsPostFindingsPlanDoneOK) SetBy(val string) {
+	s.By = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsPlanDoneOK) SetNote(val string) {
+	s.Note = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsPostFindingsPlanDoneOK) SetVersion(val string) {
+	s.Version = val
+}
+
+type FindingsPostFindingsPlanDoneReq struct {
+	// PlanItem.group.
+	Group string `json:"group"`
+	// Optional: why (already updated, fixed another way).
+	Note string `json:"note"`
+}
+
+// GetGroup returns the value of Group.
+func (s *FindingsPostFindingsPlanDoneReq) GetGroup() string {
+	return s.Group
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsPlanDoneReq) GetNote() string {
+	return s.Note
+}
+
+// SetGroup sets the value of Group.
+func (s *FindingsPostFindingsPlanDoneReq) SetGroup(val string) {
+	s.Group = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsPlanDoneReq) SetNote(val string) {
+	s.Note = val
+}
+
+type FindingsPostFindingsPlanUndoneOK struct {
+	Group string `json:"group"`
+}
+
+// GetGroup returns the value of Group.
+func (s *FindingsPostFindingsPlanUndoneOK) GetGroup() string {
+	return s.Group
+}
+
+// SetGroup sets the value of Group.
+func (s *FindingsPostFindingsPlanUndoneOK) SetGroup(val string) {
+	s.Group = val
+}
+
+type FindingsPostFindingsPlanUndoneReq struct {
+	// PlanItem.group.
+	Group string `json:"group"`
+}
+
+// GetGroup returns the value of Group.
+func (s *FindingsPostFindingsPlanUndoneReq) GetGroup() string {
+	return s.Group
+}
+
+// SetGroup sets the value of Group.
+func (s *FindingsPostFindingsPlanUndoneReq) SetGroup(val string) {
+	s.Group = val
 }
 
 type FindingsPostFindingsStatusOK struct {
@@ -149013,6 +149522,51 @@ func (o NilFindingsGetFindingsPlanOKItemsItemCvesItemSeverity) Or(d FindingsGetF
 	return d
 }
 
+// NewNilFindingsGetFindingsPlanOKItemsItemDone returns new NilFindingsGetFindingsPlanOKItemsItemDone with value set to v.
+func NewNilFindingsGetFindingsPlanOKItemsItemDone(v FindingsGetFindingsPlanOKItemsItemDone) NilFindingsGetFindingsPlanOKItemsItemDone {
+	return NilFindingsGetFindingsPlanOKItemsItemDone{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsPlanOKItemsItemDone is nullable FindingsGetFindingsPlanOKItemsItemDone.
+type NilFindingsGetFindingsPlanOKItemsItemDone struct {
+	Value FindingsGetFindingsPlanOKItemsItemDone
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsPlanOKItemsItemDone) SetTo(v FindingsGetFindingsPlanOKItemsItemDone) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsPlanOKItemsItemDone) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsPlanOKItemsItemDone) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsPlanOKItemsItemDone
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsPlanOKItemsItemDone) Get() (v FindingsGetFindingsPlanOKItemsItemDone, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsPlanOKItemsItemDone) Or(d FindingsGetFindingsPlanOKItemsItemDone) FindingsGetFindingsPlanOKItemsItemDone {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilFindingsGetFindingsPlanOKItemsItemRisk returns new NilFindingsGetFindingsPlanOKItemsItemRisk with value set to v.
 func NewNilFindingsGetFindingsPlanOKItemsItemRisk(v FindingsGetFindingsPlanOKItemsItemRisk) NilFindingsGetFindingsPlanOKItemsItemRisk {
 	return NilFindingsGetFindingsPlanOKItemsItemRisk{
@@ -169728,6 +170282,52 @@ func (o OptFindingsGetFindingsOKUncheckedItemQuestion) Get() (v FindingsGetFindi
 
 // Or returns value if set, or given parameter if does not.
 func (o OptFindingsGetFindingsOKUncheckedItemQuestion) Or(d FindingsGetFindingsOKUncheckedItemQuestion) FindingsGetFindingsOKUncheckedItemQuestion {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptFindingsGetFindingsPlanDone returns new OptFindingsGetFindingsPlanDone with value set to v.
+func NewOptFindingsGetFindingsPlanDone(v FindingsGetFindingsPlanDone) OptFindingsGetFindingsPlanDone {
+	return OptFindingsGetFindingsPlanDone{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptFindingsGetFindingsPlanDone is optional FindingsGetFindingsPlanDone.
+type OptFindingsGetFindingsPlanDone struct {
+	Value FindingsGetFindingsPlanDone
+	Set   bool
+}
+
+// IsSet returns true if OptFindingsGetFindingsPlanDone was set.
+func (o OptFindingsGetFindingsPlanDone) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptFindingsGetFindingsPlanDone) Reset() {
+	var v FindingsGetFindingsPlanDone
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptFindingsGetFindingsPlanDone) SetTo(v FindingsGetFindingsPlanDone) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptFindingsGetFindingsPlanDone) Get() (v FindingsGetFindingsPlanDone, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptFindingsGetFindingsPlanDone) Or(d FindingsGetFindingsPlanDone) FindingsGetFindingsPlanDone {
 	if v, ok := o.Get(); ok {
 		return v
 	}

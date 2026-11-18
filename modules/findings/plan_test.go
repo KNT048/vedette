@@ -79,15 +79,18 @@ func TestPlan_VersionConfirmedOnly(t *testing.T) {
 			t.Fatalf("source %q: compared %v, %+v", src, compared, items)
 		}
 	}
-	// A distribution's package: its fixes are backported, NVD's upstream range would put a patched build inside.
+	// A distribution's package: its fixes are backported, NVD's upstream range would put a patched build inside. With no data from
+	// Ubuntu for it, the item only says to check Ubuntu's security updates (DistroDataNone), never an upstream release; a version typed
+	// with a distribution's mark and no package release is not compared at all.
 	pkg := nginxRow("1.18.0", "agent")
 	pkg.Packaged, pkg.PkgVersion, pkg.PkgSource = true, "1.18.0-6ubuntu14.6", "nginx"
-	marked := nginxRow("1.18.0-6ubuntu14.6", "manual")
-	for _, s := range []Software{pkg, marked} {
-		a.Software = []Software{s}
-		if items, _ = planOf(a, tv, kev); len(items) != 0 {
-			t.Fatalf("package %+v: %+v", s, items)
-		}
+	a.Software = []Software{pkg}
+	if items, _ = planOf(a, tv, kev); len(items) != 1 || items[0].Kind != "distro" || items[0].Fixed != "" || items[0].DistroData != DistroDataNone || items[0].Distro != "Ubuntu" {
+		t.Fatalf("package without Ubuntu's data: %+v", items)
+	}
+	a.Software = []Software{nginxRow("1.18.0-6ubuntu14.6", "manual")}
+	if items, _ = planOf(a, tv, kev); len(items) != 0 {
+		t.Fatalf("marked version: %+v", items)
 	}
 }
 

@@ -86,8 +86,8 @@ func (fakeFeeds) TierVulns(context.Context, func(string) bool) ([]findings.TierV
 
 func (fakeFeeds) TierStamp(context.Context) (string, error) { return "", nil }
 
-func (fakeFeeds) TierDistro(context.Context, []findings.DistroPackage) ([]findings.TierVuln, map[string]bool, error) {
-	return nil, nil, nil
+func (fakeFeeds) TierDistro(context.Context, []findings.DistroPackage) (findings.DistroTier, error) {
+	return findings.DistroTier{}, nil
 }
 
 type fakeVendors map[string]bool

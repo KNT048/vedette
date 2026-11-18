@@ -39,20 +39,37 @@ type evidenceDoc struct {
 	AgentRow  bool      `json:"agent_row,omitempty"` // A product-only match on a row the agent reported with its version
 	Prior     string    `json:"prior,omitempty"`     // Stored only (Evidence.Prior); newRow leaves it out of the API
 	Source    string    `json:"source,omitempty"`    // snmp or agent: the device itself stated the version (Evidence.Source); the CHECK reads it
+	Read      *readDoc  `json:"read,omitempty"`      // Stored only (Evidence.Read); apiEvidence leaves it out
+}
+
+// readDoc is the JSON of Evidence.Read.
+type readDoc struct {
+	Software string    `json:"software,omitempty"`
+	Source   string    `json:"source,omitempty"`
+	Version  string    `json:"version,omitempty"`
+	Pkg      string    `json:"pkg,omitempty"`
+	At       time.Time `json:"at,omitzero"`
 }
 
 func newEvidenceDoc(e *Evidence) *evidenceDoc {
 	if e == nil {
 		return nil
 	}
-	return &evidenceDoc{Summary: e.Summary, Template: e.Template, Request: e.Request, Response: e.Response, CheckedAt: e.CheckedAt.UTC(), Agent: e.Agent, AgentRow: e.AgentRow, Prior: string(e.Prior), Source: e.Source}
+	d := &evidenceDoc{Summary: e.Summary, Template: e.Template, Request: e.Request, Response: e.Response, CheckedAt: e.CheckedAt.UTC(), Agent: e.Agent, AgentRow: e.AgentRow, Prior: string(e.Prior), Source: e.Source}
+	if r := e.Read; r != nil {
+		d.Read = &readDoc{Software: r.Software, Source: r.Source, Version: r.Version, Pkg: r.Pkg, At: r.At.UTC()}
+		if r.At.IsZero() {
+			d.Read.At = time.Time{}
+		}
+	}
+	return d
 }
 
 // apiEvidence is the evidence as the API shows it: without what is only stored.
 func apiEvidence(e *Evidence) *evidenceDoc {
 	d := newEvidenceDoc(e)
 	if d != nil {
-		d.Prior = ""
+		d.Prior, d.Read = "", nil
 	}
 	return d
 }
@@ -61,7 +78,11 @@ func (d *evidenceDoc) evidence() *Evidence {
 	if d == nil {
 		return nil
 	}
-	return &Evidence{Summary: d.Summary, Template: d.Template, Request: d.Request, Response: d.Response, CheckedAt: d.CheckedAt, Agent: d.Agent, AgentRow: d.AgentRow, Prior: Basis(d.Prior), Source: d.Source}
+	e := &Evidence{Summary: d.Summary, Template: d.Template, Request: d.Request, Response: d.Response, CheckedAt: d.CheckedAt, Agent: d.Agent, AgentRow: d.AgentRow, Prior: Basis(d.Prior), Source: d.Source}
+	if r := d.Read; r != nil {
+		e.Read = &Reading{Software: r.Software, Source: r.Source, Version: r.Version, Pkg: r.Pkg, At: r.At}
+	}
+	return e
 }
 
 const findingColumns = `id, asset_id, cve, status, severity, confidence, basis, evidence, first_seen, last_seen, resolved_by, resolved_at, resolution_note, resolution_reason, accepted_until, software_id, proved_version`

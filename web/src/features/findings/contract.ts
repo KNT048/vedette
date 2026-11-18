@@ -209,6 +209,13 @@ export const PlanCve = z.object({
  * itself, or when the marker could not be read. */
 export const DeviceRiskView = z.object({ level: z.enum(['exploited', 'update']), exploited: z.number().int(), updates: z.number().int() }).nullable()
   .describe('The device\'s risk marker: exploited = open exploited findings To fix lists; update = none, but a recommended update fixes a CVE likely to be exploited or of High or Critical severity; null when clean, for the Vedette box itself, or when it could not be read')
+/** A recommended update a person marked as done (POST /findings/plan/done). */
+export const PlanDone = z.object({
+  by: z.string().describe('Who marked it done'),
+  at: iso.describe('When'),
+  note: z.string().describe('The note they gave; "" when none'),
+  version: z.string().describe('The version of the software when it was marked: the mark holds while the device reports this version and no new CVE joins the item'),
+})
 export const PlanItem = z.object({
   group: z.string().describe('"<device id>/<software id>", as RowFix.group'),
   asset: z.object({ id: z.string(), name: z.string().describe('The name the Devices page shows, never the internal id') }),
@@ -216,9 +223,10 @@ export const PlanItem = z.object({
   software: z.string().describe('Display name of the software row'),
   version: z.string().describe('The installed version'),
   fixed: z.string().describe('fixed: the version that fixes every CVE of the item; windows, esu: the build of the cumulative update; distro: the distribution\'s package version that fixes every CVE of the item on the device\'s release'),
-  kind: z.enum(['fixed', 'distro', 'windows', 'esu']).describe('fixed = upgrade the software to `fixed`; distro = with `fixed`, upgrade the Ubuntu or Debian source package `software` from `version` to `fixed` or later (the distribution\'s security update); with `fixed` empty, a package of a distribution whose data Vedette does not read (Alpine, Red Hat, a package without its source name; an agent\'s package row or a package release a person gave): install `distro`\'s security updates for `software` (`version` is the package release when known), never an upstream release; windows = the monthly cumulative update with build `fixed` or later; esu = the same on a Windows release past its end of support: the update comes only with Extended Security Updates'),
+  kind: z.enum(['fixed', 'distro', 'windows', 'esu']).describe('fixed = upgrade the software to `fixed`; distro = a distribution\'s package, judged by the distribution\'s own fix data (`distro_data`), never moved to an upstream release; windows = the monthly cumulative update with build `fixed` or later; esu = the same on a Windows release past its end of support: the update comes only with Extended Security Updates'),
+  distro_data: z.enum(['fixed', 'no_fix', 'none', '']).describe('kind distro: fixed = upgrade the source package `software` from `version` to the distribution\'s fixed release `fixed` or later (Ubuntu, Debian, Alpine data); no_fix = the distribution\'s data says these CVEs have no fix from it yet (`distro` names it): nothing to install yet; none = the distribution\'s data has no word on the package (Red Hat, SUSE and others Vedette reads no data for, a package the data never names, another build): NVD lists these CVEs for its upstream version, so the page says to check `distro`\'s security updates, never that an update fixes them. "" for every other kind'),
   pro: z.boolean().describe('distro only: `fixed` is in Ubuntu Pro (ESM) only; false otherwise'),
-  distro: z.string().describe('distro with `fixed` empty: the distribution whose security updates to install ("Alpine Linux", "Ubuntu", "Debian"); empty for "the distribution\'s" and for every other kind'),
+  distro: z.string().describe('distro with `fixed` empty (distro_data no_fix or none): the distribution ("Alpine Linux", "Ubuntu", "Debian"); empty for "the distribution\'s" and for every other kind'),
   nvd_lag: z.boolean().describe('windows, esu: `fixed` is the newest monthly update Microsoft\'s release information lists for the release, newer than the update that carries every fixed build NVD names for these CVEs. The item fixes at least `cves`; the newest update\'s CVEs are not yet analysed by NVD, so the page says "at least". false otherwise'),
   kb: z.string().describe('windows, esu: the KB number of `fixed` when Microsoft\'s release information lists that build ("KB5131080"), named next to the build; "" otherwise'),
   cves: z.array(PlanCve).describe('Likely first, by EPSS; then the recent ones by CVSS score, then EPSS; then newest. Empty only for a Windows release below the newest monthly update Microsoft lists for it while no CVE NVD has analysed gives the device an item (kind windows or esu): the item names the update, lists under All and Recent, and ranks after every item with a CVE; nvd_lag is true while the update is under six weeks old ("its CVEs are not yet analysed by NVD"), false after ("NVD lists no CVE of it for this release yet")'),
@@ -226,6 +234,7 @@ export const PlanItem = z.object({
   recent: z.number().int().min(0),
   agent_gone: z.boolean().describe('A CVE of the item rests on an agent\'s row and no agent of this box reports the device now (agent-intake off, no agent bound, the agent silent past its stale limit; the same answer as the finding page\'s "No agent reports" line): `version` is the last one an agent reported'),
   agent_reported: z.iso.date().nullable().describe('With agent_gone: the day the agent last reported the row (YYYY-MM-DD); null otherwise or when not known'),
+  done: PlanDone.nullable().describe('A person marked this item done and the mark still holds (the same version, no new CVE): listed only with ?done=true; null otherwise'),
 })
 export const PlanFeed = z.enum(['module_off', 'off', 'loading', 'ready']).describe('module_off = the feeds module is off (SYS-5: its data is not read); off = an admin has not turned the feed on; loading = on, first fill not finished; ready = loaded')
 export const Plan = z.object({
@@ -234,6 +243,7 @@ export const Plan = z.object({
     likely: z.number().int().min(0).describe('Items the tier=likely answer lists'),
     recent: z.number().int().min(0).describe('Items the tier=recent answer lists'),
     all: z.number().int().min(0).describe('Items the tier=all answer lists'),
+    done: z.number().int().min(0).describe('Items a person marked done (whatever tier), listed with ?done=true'),
   }).describe('The number of items each tier filter lists, for the same device filter, whatever tier was asked: one answer gives every tab its count'),
   compared: z.boolean().describe('false = no comparison of tier 2 and 3 CVEs with the devices has run since the box started (the plan job runs within minutes); the page says so instead of "no update to plan"'),
   compared_devices: z.number().int().min(0).describe('Devices with at least one version Vedette can compare'),
@@ -288,6 +298,7 @@ export const ToFixAction = z.object({
   fixed: z.string().describe('The release or build to install; "" for a distribution\'s updates and when no update is named'),
   kind: z.enum(['fixed', 'esu', 'feature_update', 'distro', 'windows', 'none']).describe('none: no update is named that fixes these findings (follow the vendor\'s advice)'),
   windows: z.boolean().describe('The monthly cumulative update of a Windows release'), distro: z.string(), pro: z.boolean(),
+  distro_data: z.enum(['fixed', 'no_fix', 'none', '']).describe('Planned distro: PlanItem.distro_data (no_fix: nothing to install yet; none: NVD\'s upstream ranges, check the distribution\'s updates); "" otherwise'),
   action: z.string().describe('The sentence the page shows: "Upgrade RARLAB WinRAR from 7.01 to 7.13 or later"'),
   cves: z.array(z.string()).describe('Worst first'),
   finding_ids: z.array(z.string()).describe('The open findings of the CVEs, same order (exploited only; empty for planned)'),
@@ -338,5 +349,10 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/findings/summary', summary: 'Home at a glance (#825): open findings, the few to fix first with their CVSS, 30 days of trend, device and alert counts; one cached read', stories: ['S-FEED-1', 'S-MIT-1', 'S-UI-1'], role: 'viewer',
     response: HomeSummary },
   { method: 'get', path: '/findings/plan', summary: 'Updates to plan: one item per update on one device that fixes CVEs likely to be exploited (EPSS 10 % or more) or published in the last 12 months, version-confirmed only; never findings, never alerts', stories: ['S-TIER-1', 'S-TIER-2'], role: 'viewer',
-    query: z.object({ tier: PlanFilter.optional().describe('Default all'), asset: z.string().max(64).optional().describe('One device') }), response: Plan },
+    query: z.object({ tier: PlanFilter.optional().describe('Default all'), asset: z.string().max(64).optional().describe('One device'),
+      done: z.enum(['true', 'false']).optional().describe('true: only the items a person marked done (Done); default false: the items to plan, without them') }), response: Plan },
+  { method: 'post', path: '/findings/plan/done', summary: 'Mark a recommended update as done (operator, audited): it leaves the plan, the device\'s To fix card and its risk marker, and is listed under Done; it comes back by itself when the device reports another version of that software or a new CVE joins the item', stories: ['S-TIER-1'], role: 'operator',
+    body: z.object({ group: z.string().min(1).max(400).describe('PlanItem.group'), note: z.string().max(500).describe('Optional: why (already updated, fixed another way)') }), response: PlanDone },
+  { method: 'post', path: '/findings/plan/undone', summary: 'Put a recommended update a person marked done back on the plan (operator, audited)', stories: ['S-TIER-1'], role: 'operator',
+    body: z.object({ group: z.string().min(1).max(400).describe('PlanItem.group') }), response: z.object({ group: z.string() }) },
 ])

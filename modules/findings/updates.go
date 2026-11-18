@@ -56,6 +56,8 @@ type UpdateAction struct {
 	Windows bool   // a Windows release row: the update is the monthly cumulative update
 	Distro  string // distro: "Ubuntu" or "Debian", "" for the distribution's
 	Pro     bool   // distro: a fix is in Ubuntu Pro (ESM) only
+	// DistroData (planned distro): PlanItem.DistroData: the distribution's fixed release, no fix from it yet, or no data from it.
+	DistroData string
 	// Action is the sentence the pages use ("Upgrade Mozilla Firefox from 115.0 to 128.1 or later").
 	Action string
 	// CVEs are the CVEs the update clears, worst first; FindingIDs the open findings of them in the same order (exploited only).
@@ -300,7 +302,7 @@ func (s *Service) plannedUpdates(assetID string) (out []UpdateAction, ran, compa
 	ran, compared = s.plan.ran, d.compared
 	items := slices.Clone(d.items)
 	s.plan.mu.RUnlock()
-	kept := listedPlanItems(items, s.now())
+	kept := s.notDone(listedPlanItems(items, s.now())) // an item a person marked done leaves To fix and the risk marker
 	sortPlanItems(kept)
 	for _, it := range kept {
 		u := planAction(it)
@@ -335,7 +337,7 @@ func listedPlanItems(items []PlanItem, now time.Time) []PlanItem {
 // planAction is the action of one plan item (without its sentence): its CVEs, how many are likely, and the worst severity.
 func planAction(it PlanItem) UpdateAction {
 	u := UpdateAction{Group: it.Group, SoftwareID: it.SoftwareID, Software: it.Software, Version: it.Version, Fixed: it.Fixed, Kind: it.Kind,
-		Windows: it.Kind == "windows" || it.Kind == "esu", Distro: it.Distro, Pro: it.Pro, NVDLag: it.NVDLag, KB: it.KB}
+		Windows: it.Kind == "windows" || it.Kind == "esu", Distro: it.Distro, Pro: it.Pro, NVDLag: it.NVDLag, KB: it.KB, DistroData: it.DistroData}
 	worst := -1
 	for _, c := range it.CVEs {
 		u.CVEs = append(u.CVEs, c.CVE)
@@ -380,7 +382,17 @@ func updateSentence(u UpdateAction) string {
 	case "none":
 		return "No update is named that fixes these: follow the vendor's advice for " + sw
 	case "distro":
+		dist := "the distribution"
+		if u.Distro != "" {
+			dist = u.Distro
+		}
 		switch {
+		case u.DistroData == DistroDataNoFix: // the distribution's data says affected, with no fix yet
+			return fmt.Sprintf("No fix from %s yet for %s (%s)", dist, sw, u.Version)
+		case u.DistroData == DistroDataNone && u.Distro != "": // no data from the distribution: NVD's upstream ranges, so check, never "install"
+			return fmt.Sprintf("Check %s's security updates for %s", u.Distro, sw)
+		case u.DistroData == DistroDataNone:
+			return "Check the distribution's security updates for " + sw
 		case fixed != "" && u.Pro:
 			return fmt.Sprintf("Upgrade the %s package from %s to %s or later (Ubuntu Pro)", sw, u.Version, fixed)
 		case fixed != "":

@@ -81,8 +81,33 @@ func TestParseAlpineOSV(t *testing.T) {
 			t.Errorf("%s: %v, want %v", cve, got[cve], w)
 		}
 	}
-	if len(got) != 3 || res.Accepted != 3 || res.Rejected != 8 || len(res.Reasons) != 1 || !strings.Contains(res.Reasons[0].Example, `1.9.5p2-r0`) {
+	// the tier CVE is read but keeps no row: no Alpine device runs apache2
+	if len(got) != 3 || res.Accepted != 4 || res.Rejected != 8 || len(res.Reasons) != 1 || !strings.Contains(res.Reasons[0].Example, `1.9.5p2-r0`) {
 		t.Errorf("%d CVEs, accepted %d, rejected %d, reasons %+v", len(got), res.Accepted, res.Rejected, res.Reasons)
+	}
+}
+
+// A tier CVE (nvd-recent's 12 months, on no exploited list) keeps its rows for the source packages the Alpine devices run, like the
+// Ubuntu and Debian feeds do, so "Updates to plan" judges an apk package by Alpine's own fixed releases.
+func TestParseAlpineOSV_TierRowsOfTheDevicesPackages(t *testing.T) {
+	t.Parallel()
+	want := alpineKEV
+	want.Packages = map[string]bool{"apache2": true}
+	res, err := ParseAlpineOSV(bytes.NewReader(alpineRecords(t)), want)
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := 0
+	for _, r := range res.Rows {
+		if r.CVE == "CVE-2006-20001" {
+			if r.Package != "apache2" || r.Status != DistroFixed || r.Fixed == "" {
+				t.Errorf("row %+v", r)
+			}
+			n++
+		}
+	}
+	if n != 4 { // v3.14 to v3.17
+		t.Fatalf("%d rows of the tier CVE", n)
 	}
 }
 

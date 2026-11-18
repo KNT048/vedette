@@ -34,6 +34,7 @@ export type ApplyItem = z.infer<typeof C.ApplyItem>
 /** Updates to plan: tier 2 and 3 CVEs grouped by the update that fixes them. */
 export type Plan = z.infer<typeof C.Plan>
 export type PlanItem = z.infer<typeof C.PlanItem>
+export type PlanDone = z.infer<typeof C.PlanDone>
 export type ToFix = z.infer<typeof C.ToFix>
 export type ToFixDevice = z.infer<typeof C.ToFixDevice>
 export type ToFixAction = z.infer<typeof C.ToFixAction>

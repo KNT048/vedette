@@ -359,9 +359,56 @@ func distroFixes(cve string, rows []DistroFix) *platformFix {
 }
 
 // branches are the fixed list's branches, newest first ("edge", "3.24", …).
-func (f *platformFix) branches() []string {
+func (f *platformFix) branches() []string { return branchesOf(f.Releases) }
+
+// How alpineFixBranch chose the branch whose fix a release is compared with.
+const (
+	branchNone    = iota // no branch's fix can judge the release: NVD's range decides
+	branchOwn            // the device's branch
+	branchOther          // another branch than the device's: the one whose fix has the release's upstream version
+	branchUnnamed        // the device's OS names no branch: the one whose fix has the release's upstream version
+)
+
+// alpineFixBranch is the branch of releases (branch → first fixed release) whose fix an Alpine package release is compared with: a
+// release proves fixed only against a fix of the SAME upstream version (review r2 H-1 of #961). The device's branch when its fix has
+// the release's upstream; else the branch whose fix has it (a package from another branch's repository: 3.23's 10.2_p1-r0 on a 3.20 box;
+// of two, the later fix); else, an upstream older than the device's branch's fix is below that fix (3.21's 9.9_p1-r5 against
+// 9.9_p2-r1: affected, never fixed); else none. The exploited path (platformCheck) and the plan (alpineData.choose) use it.
+func alpineFixBranch(releases map[string]string, osBranch string, rel apkVer, relText string) (string, int) {
+	up := apkUpstream(relText)
+	fx, osFix := parseAPK(releases[osBranch])
+	if osFix && apkUpstream(releases[osBranch]) == up {
+		return osBranch, branchOwn
+	}
+	branch := ""
+	for _, b := range branchesOf(releases) {
+		if apkUpstream(releases[b]) != up {
+			continue
+		}
+		if branch == "" {
+			branch = b
+			continue
+		}
+		x, _ := parseAPK(releases[b]) // two branches with that upstream: the later fix of the two must be met
+		if y, _ := parseAPK(releases[branch]); compareAPK(x, y) > 0 {
+			branch = b
+		}
+	}
+	switch {
+	case branch == "" && osFix && upstreamOrder(rel, fx) < 0:
+		return osBranch, branchOwn
+	case branch == "":
+		return "", branchNone
+	case osBranch != "":
+		return branch, branchOther
+	}
+	return branch, branchUnnamed
+}
+
+// branchesOf are the branches of a fixed list, newest first ("edge", "3.24", …).
+func branchesOf(releases map[string]string) []string {
 	var out []string
-	for b := range f.Releases {
+	for b := range releases {
 		out = append(out, b)
 	}
 	slices.SortFunc(out, func(x, y string) int {
@@ -531,35 +578,16 @@ func platformCheck(a Asset, s Software, in swInfo, cve string, rows []DistroFix,
 	// 3.20 box); else, an upstream older than the device's branch's fix is below that fix (3.21's 9.9_p1-r5 against 9.9_p2-r1:
 	// affected, never fixed); else NVD's range decides, with why.
 	up := apkUpstream(relText)
-	branch, how := "", ""
-	fx, osFix := parseAPK(f.Releases[osBranch])
-	if osFix && apkUpstream(f.Releases[osBranch]) == up {
-		branch = osBranch
-	} else {
-		for _, b := range f.branches() {
-			if apkUpstream(f.Releases[b]) != up {
-				continue
-			}
-			if branch == "" {
-				branch = b
-				continue
-			}
-			x, _ := parseAPK(f.Releases[b]) // two branches with that upstream: the later fix of the two must be met
-			if y, _ := parseAPK(f.Releases[branch]); compareAPK(x, y) > 0 {
-				branch = b
-			}
-		}
-		switch {
-		case branch == "" && osFix && upstreamOrder(rel, fx) < 0:
-			branch = osBranch
-		case branch == "":
-			return platformState{note: fmt.Sprintf(" No %s branch's fixed release has the upstream version %s of the release %s (%s fixed it in %s), so NVD's range decides.",
-				dist, up, clean(relText), dist, f.fixList())}
-		case osBranch != "":
-			how = fmt.Sprintf(" (release %s is %s %s's version, not %s %s's: the fix of the branch it comes from applies)", up, dist, branch, dist, osBranch)
-		default:
-			how = " (the branch whose fixed release has the same upstream version; the device's OS names no branch)"
-		}
+	branch, by := alpineFixBranch(f.Releases, osBranch, rel, relText)
+	how := ""
+	switch by {
+	case branchNone:
+		return platformState{note: fmt.Sprintf(" No %s branch's fixed release has the upstream version %s of the release %s (%s fixed it in %s), so NVD's range decides.",
+			dist, up, clean(relText), dist, f.fixList())}
+	case branchOther:
+		how = fmt.Sprintf(" (release %s is %s %s's version, not %s %s's: the fix of the branch it comes from applies)", up, dist, branch, dist, osBranch)
+	case branchUnnamed:
+		how = " (the branch whose fixed release has the same upstream version; the device's OS names no branch)"
 	}
 	fix := f.Releases[branch]
 	want, _ := parseAPK(fix)

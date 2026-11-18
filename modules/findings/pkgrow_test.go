@@ -27,7 +27,8 @@ func sshCorrection(pkg string) Software {
 
 // A distribution's package is never told to move to an upstream release: on the plan it is the distribution's own fixed version
 // (Ubuntu, Debian: their data, for an agent's row and for a Debian release a person gave) or, for a distribution whose data Vedette
-// does not read (Alpine, Rocky, a row without its source package), one item "install <distribution>'s security updates". To fix and
+// does not read or that has no word on the package (Alpine without its data, Rocky, a row without its source package), one item "check
+// <distribution>'s security updates" with the CVEs NVD's upstream range lists. To fix and
 // the finding page say the same. A typed upstream version keeps its upstream upgrade.
 func TestPackageRow_NoUpstreamUpgradeForAPackage(t *testing.T) {
 	t.Parallel()
@@ -59,7 +60,7 @@ func TestPackageRow_NoUpstreamUpgradeForAPackage(t *testing.T) {
 		}
 		if len(items) == 1 {
 			u := planAction(items[0])
-			if s := updateSentence(u); tc.kind == "distro" && tc.fixed == "" && s != "Install "+map[bool]string{true: tc.distro + "'s", false: "the distribution's"}[tc.distro != ""]+" security updates for OpenSSH"+map[bool]string{true: " 10.2", false: ""}[tc.row.Source == "manual"] {
+			if s := updateSentence(u); tc.kind == "distro" && tc.fixed == "" && s != "Check "+map[bool]string{true: tc.distro + "'s", false: "the distribution's"}[tc.distro != ""]+" security updates for OpenSSH"+map[bool]string{true: " 10.2", false: ""}[tc.row.Source == "manual"] {
 				t.Errorf("%s: sentence %q", tc.name, s)
 			}
 		}

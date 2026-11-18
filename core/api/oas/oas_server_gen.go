@@ -1249,6 +1249,20 @@ type Handler interface {
 	//
 	// POST /findings/{id}/unconfirm
 	FindingsPostFindingsIDUnconfirm(ctx context.Context, params FindingsPostFindingsIDUnconfirmParams) (*FindingsPostFindingsIDUnconfirmOK, error)
+	// FindingsPostFindingsPlanDone implements findings_post_findings_plan_done operation.
+	//
+	// Mark a recommended update as done (operator, audited): it leaves the plan, the device's To fix card
+	// and its risk marker, and is listed under Done; it comes back by itself when the device reports
+	// another version of that software or a new CVE joins the item.
+	//
+	// POST /findings/plan/done
+	FindingsPostFindingsPlanDone(ctx context.Context, req *FindingsPostFindingsPlanDoneReq) (*FindingsPostFindingsPlanDoneOK, error)
+	// FindingsPostFindingsPlanUndone implements findings_post_findings_plan_undone operation.
+	//
+	// Put a recommended update a person marked done back on the plan (operator, audited).
+	//
+	// POST /findings/plan/undone
+	FindingsPostFindingsPlanUndone(ctx context.Context, req *FindingsPostFindingsPlanUndoneReq) (*FindingsPostFindingsPlanUndoneOK, error)
 	// FindingsPostFindingsStatus implements findings_post_findings_status operation.
 	//
 	// Change the status of the open findings among the ids (at most 500) with one note; one history and

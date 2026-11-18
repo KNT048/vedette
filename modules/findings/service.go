@@ -399,7 +399,9 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, whole *Matc
 		}
 		for _, list := range [][]Match{m.NotAffected, m.Retired, m.Aged, m.NameOnly} { // the close note names a person's correction
 			for i := range list {
-				list[i].Evidence.Summary = withCorrection(list[i].Evidence.Summary, correctionWhy(a, list[i].SoftwareID))
+				why := correctionWhy(a, list[i].SoftwareID)
+				list[i].Evidence.Summary = withCorrection(list[i].Evidence.Summary, why)
+				list[i].corrected = why != "" // a person's correction is no update the device got (fixedByUpdate)
 			}
 		}
 		if res.Closed, err = s.autoResolve(ctx, tx, a.ID, m.NotAffected, false, now, emit); err != nil {
@@ -580,14 +582,25 @@ func (s *Service) autoResolve(ctx context.Context, tx *sql.Tx, assetID string, p
 			continue // Product findings only, and a person's reopen always stands
 		}
 		was := r.Status
-		f, h, ok := r.AutoResolve(p.Evidence.Summary, now)
+		reason := ReasonNotAffectedVersion
+		var f Finding
+		var h HistoryEntry
+		ok := false
+		if fixed, yes := fixedByUpdate(r, p, orgtime.At(ctx, s.cfg.Zone)); yes && !retired { // the version moved out of the range: an update
+			if f, h, ok = r.FixedByUpdate(fixed, now); ok {
+				reason = ReasonFixedByUpdate
+			}
+		}
+		if !ok {
+			f, h, ok = r.AutoResolve(p.Evidence.Summary, now)
+		}
 		if !ok && !retired {
 			f, h, ok = r.SettleAsked(p.Evidence.Summary, now) // Closed while waiting for an answer; the answer proves it
 		}
 		if !ok {
 			// already closed by proof: keep where it rests and the version that proves it current (the entry changed, or an older row
 			// predates the columns); no history, no event
-			if !retired && r.AutoResolved() && (r.SoftwareID != orKeep(p.SoftwareID, r.SoftwareID) || r.ProvedVersion != p.provedOn) {
+			if !retired && (r.AutoResolved() || r.PatchedByUpdate()) && (r.SoftwareID != orKeep(p.SoftwareID, r.SoftwareID) || r.ProvedVersion != p.provedOn) {
 				r.SoftwareID, r.ProvedVersion = orKeep(p.SoftwareID, r.SoftwareID), p.provedOn
 				if err := updateRecord(ctx, tx, r); err != nil {
 					return closed, err
@@ -603,8 +616,10 @@ func (s *Service) autoResolve(ctx context.Context, tx *sql.Tx, assetID string, p
 		if err := insertHistory(ctx, tx, r.ID, h); err != nil {
 			return closed, err
 		}
-		detail := r.CVE + ": " + ReasonNotAffectedVersion
+		detail := r.CVE + ": " + reason
 		switch {
+		case reason == ReasonFixedByUpdate:
+			detail += " (" + r.ResolutionNote + ")"
 		case p.pkgFixed:
 			detail += " (D-604: the package release is at or above the distribution's fix for the device's branch)"
 		case retired:
@@ -615,7 +630,7 @@ func (s *Service) autoResolve(ctx context.Context, tx *sql.Tx, assetID string, p
 		if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.auto_resolved", Target: r.ID, Detail: detail}); err != nil {
 			return closed, err
 		}
-		emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: was, To: r.Status, Reason: ReasonNotAffectedVersion})
+		emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: was, To: r.Status, Reason: reason})
 		closed++
 	}
 	return closed, nil
@@ -1411,6 +1426,9 @@ func (s *Service) deleteAsset(ctx context.Context, assetID string) (int, error) 
 		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM fnd_unchecked_seen WHERE asset_id = ?`, assetID); err != nil {
 			return fmt.Errorf("findings: deleting unchecked rows of device: %w", err)
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM fnd_plan_done WHERE asset_id = ?`, assetID); err != nil {
+			return fmt.Errorf("findings: deleting the done marks of device: %w", err)
 		}
 		if n == 0 {
 			return nil

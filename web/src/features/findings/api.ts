@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { ApplyItem, BulkAction, FindingDetail, FindingRow, Plan, PlanFilter, StatusAction, ToFix, UncheckedItem, VersionNeeded } from './types'
+import type { ApplyItem, BulkAction, FindingDetail, FindingRow, Plan, PlanDone, PlanFilter, StatusAction, ToFix, UncheckedItem, VersionNeeded } from './types'
 
 export const useFindings = (asset?: string, enabled = true) =>
   useQuery({ queryKey: ['findings', 'list', asset ?? null], enabled, queryFn: () => api.get<{ items: FindingRow[]; version_needed: VersionNeeded[]; unchecked: UncheckedItem[] }>(asset ? `/findings?asset=${encodeURIComponent(asset)}` : '/findings') })
@@ -10,12 +10,23 @@ export const useToFix = (asset?: string, enabled = true) =>
   useQuery({ queryKey: ['findings', 'to-fix', asset ?? null], enabled, queryFn: () => api.get<ToFix>(asset ? `/findings/to-fix?asset=${encodeURIComponent(asset)}` : '/findings/to-fix') })
 
 /** Updates to plan: tier 2 and 3 CVEs grouped by update; all devices or one. */
-export const usePlan = (tier: PlanFilter = 'all', asset?: string, enabled = true) => {
+export const usePlan = (tier: PlanFilter = 'all', asset?: string, enabled = true, done = false) => {
   const q = new URLSearchParams()
   if (tier !== 'all') q.set('tier', tier)
   if (asset) q.set('asset', asset)
+  if (done) q.set('done', 'true')
   const qs = q.toString()
-  return useQuery({ queryKey: ['findings', 'plan', tier, asset ?? null], queryFn: () => api.get<Plan>(`/findings/plan${qs ? `?${qs}` : ''}`), enabled })
+  return useQuery({ queryKey: ['findings', 'plan', tier, asset ?? null, done], queryFn: () => api.get<Plan>(`/findings/plan${qs ? `?${qs}` : ''}`), enabled })
+}
+
+/** A person marks a recommended update done, or puts it back: the plan, To fix and the risk markers read again. */
+export function usePlanDone() {
+  const qc = useQueryClient()
+  const refresh = () => { void qc.invalidateQueries({ queryKey: ['findings'] }) }
+  return {
+    mark: useMutation({ mutationFn: (v: { group: string; note: string }) => api.post<PlanDone>('/findings/plan/done', v), onSuccess: refresh }),
+    undo: useMutation({ mutationFn: (group: string) => api.post<{ group: string }>('/findings/plan/undone', { group }), onSuccess: refresh }),
+  }
 }
 
 export const useFinding = (id: string) =>

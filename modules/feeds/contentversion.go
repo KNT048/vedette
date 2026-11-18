@@ -29,10 +29,10 @@ var contentVersions = map[Decoder]int{
 	DecoderNVD:           1,
 	DecoderCVEOrg:        1,
 	DecoderVulnCheck:     1,
-	DecoderUbuntuOSV:     1,
+	DecoderUbuntuOSV:     2, // 2: open entries (no fixed event) of the tier CVEs of the devices' packages
 	DecoderUbuntuVEX:     1,
-	DecoderDebianTracker: 1,
-	DecoderAlpineOSV:     1,
+	DecoderDebianTracker: 2, // 2: open entries, and the not-affected rows, of the tier CVEs of the devices' packages
+	DecoderAlpineOSV:     2, // 2: the tier CVEs of the packages of the Alpine devices, not only the CISA list
 	DecoderEPSSAll:       2, // 2: FIRST's day of the scores (feeds_epss_baseline.score_date)
 	DecoderNVDRecent:     1,
 	DecoderWinRel:        2, // 2: the monthly updates and hotpatches of the release pages (feeds_winrel_update)

@@ -305,7 +305,7 @@ type TierRecord struct {
 	Score            *float64 // its base score
 	EPSS, Percentile *float64 // nil when epss-all is not ready or has no score for the CVE
 	Affected         []AffectedRow
-	// Distro is, for TierDistroRecords, the distributions' fixed rows of the packages asked for; nil for TierRecords.
+	// Distro is, for TierDistroRecords, the distributions' rows (fixed, not affected, open) of the packages asked for; nil for TierRecords.
 	Distro []DistroFix
 	// Platforms is, per entry, NVD's "running on" operating systems ("microsoft:windows"); empty for none; ["?"] for an entry stored
 	// before Vedette kept them (migration 0013 refills nvd-recent, so it shows only on a box mid-refill).
@@ -451,65 +451,105 @@ func (s *Store) hasTierCVEs(ctx context.Context, now time.Time) (bool, error) {
 }
 
 // DistroPackage is a source package of one release as the distributions' security data names it ("ubuntu", "24.04", "openssl").
+// Release "" asks for every release of the distribution (an Alpine device whose OS names no branch: findings picks the branch).
 type DistroPackage struct{ Distro, Release, Package string }
 
-// TierDistroRecords reads, for "Updates to plan", the CVEs of nvd-recent published since now minus 365 days for which a
-// distribution feed that is on has a fixed row of one of pkgs, each with those rows only (Distro; no NVD entries), and with EPSS
-// while epss-all is ready. covered holds the releases ("ubuntu/24.04") among pkgs' for which a feed that is on stored fixed rows
-// in a pull made with the tier want-set (distro_packages set): a device of another release is not compared (loading or failing). Nothing while nvd-recent is not ready. CVEs of the CISA list are in the
-// answer too: findings drops them (they are findings).
-func (s *Store) TierDistroRecords(ctx context.Context, now time.Time, pkgs []DistroPackage) (recs []TierRecord, covered map[string]bool, err error) {
-	covered = map[string]bool{}
+// TierDistro is the distributions' data for "Updates to plan" (TierDistroRecords).
+type TierDistro struct {
+	// Records are the CVEs of nvd-recent published since now minus 365 days for which a distribution feed that is on has a row (fixed,
+	// not affected or open) of one of the packages asked for, each with those rows only (Distro; no NVD entries), and EPSS while
+	// epss-all is ready. CVEs of the CISA list are in the answer too: findings drops them (they are findings).
+	Records []TierRecord
+	// Covered holds the releases ("ubuntu/24.04"; "alpine/" for a package asked with no release) among the packages' for which a feed
+	// that is on stored rows in a pull made with the tier want-set (distro_packages set): a device of another release is not compared
+	// (loading or failing).
+	Covered map[string]bool
+	// Known holds the packages ("alpine/openssh") a feed that is on has any row of, for any CVE and release: a package the
+	// distribution's data never names has no word from it at all, and findings compares it with NVD's upstream ranges instead.
+	Known map[string]bool
+	// Loading holds the distributions one of whose feeds is on but holds no row yet (DistroLoading).
+	Loading map[string]bool
+}
+
+// TierDistroRecords reads the distributions' data of pkgs for "Updates to plan" (TierDistro). Nothing but Loading while nvd-recent is
+// not ready.
+func (s *Store) TierDistroRecords(ctx context.Context, now time.Time, pkgs []DistroPackage) (TierDistro, error) {
+	out := TierDistro{Covered: map[string]bool{}, Known: map[string]bool{}}
+	var err error
+	if out.Loading, err = s.DistroLoading(ctx); err != nil {
+		return out, err
+	}
 	st, err := s.TierStatus(ctx, now)
 	if err != nil || st.Recent != TierReady || len(pkgs) == 0 {
-		return nil, covered, err
+		return out, err
 	}
 	byRel := map[[2]string][]string{}
+	byDistro := map[string][]string{}
 	for _, p := range pkgs {
 		k := [2]string{p.Distro, p.Release}
 		byRel[k] = append(byRel[k], p.Package)
+		byDistro[p.Distro] = append(byDistro[p.Distro], p.Package)
 	}
 	db := s.db.Reader()
 	cutoff := store.FormatTS(now.AddDate(0, 0, -recentDays))
 	epssOn := st.EPSS == TierReady
 	at := map[string]int{}
+	seen := map[string]bool{} // cve/distro/release/package: a package asked under its release and with none is read once
+	for _, d := range slices.Sorted(maps.Keys(byDistro)) {
+		if err := eachChunk(byDistro[d], func(part string) error {
+			rs, err := db.QueryContext(ctx, `SELECT DISTINCT d.package FROM feeds_distro_fix d JOIN feeds_source s ON s.id = d.source_id
+WHERE s.enabled = 1 AND d.distro = ? AND d.package IN (SELECT value FROM json_each(?))`, d, part)
+			if err != nil {
+				return err
+			}
+			defer func() { _ = rs.Close() }()
+			for rs.Next() {
+				var p string
+				if err := rs.Scan(&p); err != nil {
+					return err
+				}
+				out.Known[d+"/"+p] = true
+			}
+			return rs.Err()
+		}); err != nil {
+			return out, fmt.Errorf("feeds: tier distro: %w", err)
+		}
+	}
 	for _, rel := range slices.SortedFunc(maps.Keys(byRel), func(a, b [2]string) int { return strings.Compare(a[0]+"/"+a[1], b[0]+"/"+b[1]) }) {
 		var has bool
 		// covered only once a pull made with the tier want-set stored rows for the release (distro_packages set, review r1 #3 of
 		// #808): the CISA list's rows alone would show its devices compared with nothing to plan while the feed loads or fails
 		if err := db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM feeds_distro_fix d JOIN feeds_source s ON s.id = d.source_id
-WHERE s.enabled = 1 AND s.distro_packages IS NOT NULL AND d.distro = ? AND d.release = ? AND d.status = 'fixed')`, rel[0], rel[1]).Scan(&has); err != nil {
-			return nil, nil, fmt.Errorf("feeds: tier distro: %w", err)
+WHERE s.enabled = 1 AND s.distro_packages IS NOT NULL AND d.distro = ? AND (? = '' OR d.release = ?))`, rel[0], rel[1], rel[1]).Scan(&has); err != nil {
+			return out, fmt.Errorf("feeds: tier distro: %w", err)
 		}
 		if !has {
 			continue
 		}
-		covered[rel[0]+"/"+rel[1]] = true
-		names := slices.Compact(slices.Sorted(slices.Values(byRel[rel])))
-		for len(names) > 0 {
-			n := min(len(names), tierChunk)
-			part, err := json.Marshal(names[:n]) // one parameter: the packages as a JSON array (json_each), no SQL built from strings
-			if err != nil {
-				return nil, nil, fmt.Errorf("feeds: tier distro: %w", err)
-			}
-			names = names[n:]
-			rs, err := db.QueryContext(ctx, `SELECT d.cve, d.package, d.fixed_version, d.pro, r.published, r.severity, r.score, e.epss, e.percentile
+		out.Covered[rel[0]+"/"+rel[1]] = true
+		if err := eachChunk(byRel[rel], func(part string) error {
+			rs, err := db.QueryContext(ctx, `SELECT d.cve, d.release, d.package, d.status, COALESCE(d.fixed_version, ''), d.pro, r.published, r.severity, r.score, e.epss, e.percentile
 FROM feeds_distro_fix d JOIN feeds_source s ON s.id = d.source_id JOIN feeds_recent_cve r ON r.cve = d.cve LEFT JOIN feeds_epss e ON e.cve = d.cve
-WHERE s.enabled = 1 AND d.distro = ? AND d.release = ? AND d.package IN (SELECT value FROM json_each(?)) AND d.status = 'fixed' AND r.published >= ?
-ORDER BY d.cve, d.package, d.source_id`, rel[0], rel[1], string(part), cutoff)
+WHERE s.enabled = 1 AND d.distro = ? AND (? = '' OR d.release = ?) AND d.package IN (SELECT value FROM json_each(?)) AND r.published >= ?
+ORDER BY d.cve, d.release, d.package, d.source_id`, rel[0], rel[1], rel[1], part, cutoff)
 			if err != nil {
-				return nil, nil, fmt.Errorf("feeds: tier distro: %w", err)
+				return err
 			}
+			defer func() { _ = rs.Close() }()
 			for rs.Next() {
 				var (
-					cve, pkg, fixed, pub string
-					pro                  bool
-					sev                  sql.NullString
-					score, ep, pc        sql.NullFloat64
+					cve, release, pkg, status, fixed, pub string
+					pro                                   bool
+					sev                                   sql.NullString
+					score, ep, pc                         sql.NullFloat64
 				)
-				if err := rs.Scan(&cve, &pkg, &fixed, &pro, &pub, &sev, &score, &ep, &pc); err != nil {
-					_ = rs.Close()
-					return nil, nil, fmt.Errorf("feeds: tier distro: %w", err)
+				if err := rs.Scan(&cve, &release, &pkg, &status, &fixed, &pro, &pub, &sev, &score, &ep, &pc); err != nil {
+					return err
+				}
+				if k := cve + "/" + rel[0] + "/" + release + "/" + pkg + "/" + status + "/" + fixed; seen[k] {
+					continue
+				} else {
+					seen[k] = true
 				}
 				i, ok := at[cve]
 				if !ok {
@@ -528,19 +568,34 @@ ORDER BY d.cve, d.package, d.source_id`, rel[0], rel[1], string(part), cutoff)
 							r.Tier = "likely"
 						}
 					}
-					i = len(recs)
+					i = len(out.Records)
 					at[cve] = i
-					recs = append(recs, r)
+					out.Records = append(out.Records, r)
 				}
-				recs[i].Distro = append(recs[i].Distro, DistroFix{Distro: rel[0], Release: rel[1], Package: pkg, CVE: cve, Status: DistroFixed, Fixed: fixed, Pro: pro})
+				out.Records[i].Distro = append(out.Records[i].Distro, DistroFix{Distro: rel[0], Release: release, Package: pkg, CVE: cve, Status: status, Fixed: fixed, Pro: pro})
 			}
-			if err := rs.Close(); err != nil {
-				return nil, nil, fmt.Errorf("feeds: tier distro: %w", err)
-			}
-			if err := rs.Err(); err != nil {
-				return nil, nil, fmt.Errorf("feeds: tier distro: %w", err)
-			}
+			return rs.Err()
+		}); err != nil {
+			return out, fmt.Errorf("feeds: tier distro: %w", err)
 		}
 	}
-	return recs, covered, nil
+	return out, nil
+}
+
+// eachChunk calls fn with the sorted, distinct names as JSON arrays of at most tierChunk names (one parameter for json_each: no SQL
+// built from strings).
+func eachChunk(names []string, fn func(part string) error) error {
+	names = slices.Compact(slices.Sorted(slices.Values(names)))
+	for len(names) > 0 {
+		n := min(len(names), tierChunk)
+		part, err := json.Marshal(names[:n])
+		if err != nil {
+			return err
+		}
+		names = names[n:]
+		if err := fn(string(part)); err != nil {
+			return err
+		}
+	}
+	return nil
 }

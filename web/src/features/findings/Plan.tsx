@@ -16,7 +16,8 @@ import { useCan } from '@/lib/session'
 import { useModules } from '@/lib/modules'
 import { useToggleModule } from '@/features/core/api'
 import { usePatchFeed } from '@/features/feeds/api'
-import { noCvesKey, usePlanAction } from './fix'
+import { noCvesKey, planCountKey, usePlanAction } from './fix'
+import { DoneLine, MarkDoneButton } from './PlanDone'
 import type { Plan, PlanCve, PlanItem } from './types'
 import { InfoTip } from '@/components/common/InfoTip'
 import { RiskMarker } from '@/features/inventory/RiskMarker'
@@ -130,14 +131,16 @@ function PlanRow({ i, action, showDevice, likelyOnly }: { i: PlanItem; action: s
         {/* Microsoft's newest Windows update with none of its CVEs analysed by NVD yet: no count, no list */}
         {i.cves.length === 0 ? t(noCvesKey(i.nvd_lag)) : likelyOnly ? <span className="text-warn">{t('plan.fixesOnlyLikely', { count: i.cves.length })}</span> : (
           <>
-            {t(i.nvd_lag ? 'plan.fixesAtLeast' : 'plan.fixes', { count: i.cves.length })}
+            {t(planCountKey(i), { count: i.cves.length })}
             {i.likely > 0 ? <> <span className="text-warn">{t('plan.fixesLikely', { count: i.likely })}</span></> : null}
             {/* Microsoft's newest update is newer than every fix NVD names: the count is the CVEs NVD has analysed so far */}
             {i.nvd_lag ? t('plan.nvdLag') : null}
           </>
         )}
         {gone ? <span className="block text-meta text-muted">{i.agent_reported ? t('plan.lastReported', { date: fmtDate(i.agent_reported) }) : t('plan.lastReportedNoDate')}</span> : null}
+        {i.kind === 'distro' && i.distro_data === 'none' ? <span className="block text-meta text-muted">{t('plan.noDataNote')}</span> : null}
       </p>
+      {i.done ? <DoneLine group={i.group} action={action} done={i.done} /> : <MarkDoneButton group={i.group} action={action} software={i.software} />}
       {i.cves.length > 0 ? (
         <details className="min-w-0">
           <summary className="w-fit cursor-pointer text-meta text-accent underline-offset-4 hover:underline">{t('plan.show', { count: i.cves.length })}</summary>

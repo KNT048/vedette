@@ -15,6 +15,7 @@ import { useDevice, useDevices } from '@/features/inventory/api'
 import { deviceName } from './basis'
 import { kbNote, noCvesKey } from './fix'
 import type { ToFix, ToFixAction, ToFixDevice } from './types'
+import { MarkDoneButton } from './PlanDone'
 import type { SoftwareView } from '@/features/inventory/types'
 import { isOsSoftware, IUpdated, TypedVersionDialog, type UpdatedSoftware } from './Updated'
 import { RiskMarker } from '@/features/inventory/RiskMarker'
@@ -65,7 +66,7 @@ function TypedUpdated({ asset, software }: Typed) {
 function Action({ a, planned, box, asset, typed }: { a: ToFixAction; planned: boolean; box: boolean; asset: ToFixDevice['asset']; typed?: UpdatedSoftware }) {
   const { t } = useTranslation('findings')
   const what = planned
-    ? t(a.nvd_lag ? 'toFix.plannedFixesAtLeast' : 'toFix.plannedFixes', { count: a.cves.length })
+    ? t(a.distro_data === 'no_fix' ? 'toFix.plannedNoFix' : a.distro_data === 'none' ? 'toFix.plannedNoData' : a.nvd_lag ? 'toFix.plannedFixesAtLeast' : 'toFix.plannedFixes', { count: a.cves.length })
     : a.kind === 'none' ? t('toFix.noUpdateCount', { count: a.cves.length }) : t('toFix.fixes', { count: a.cves.length })
   if (planned && a.cves.length === 0) { // Microsoft's newest Windows update, none of its CVEs analysed by NVD yet: nothing to open
     return (
@@ -103,6 +104,7 @@ function Action({ a, planned, box, asset, typed }: { a: ToFixAction; planned: bo
         ) : null}
       </details>
       <ActionButton a={a} box={box} />
+      {planned ? <MarkDoneButton group={a.group} action={a.action} software={a.software} /> : null}
       {/* The same "I updated it" as the finding page: a typed version once per software, under its last row (typedSoftware); an
           agent or a check reads the whole device (DeviceUpdated, once per device) */}
       {typed ? <TypedUpdated asset={asset} software={typed} /> : null}

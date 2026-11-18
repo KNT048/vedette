@@ -64,12 +64,12 @@ func (s *Service) setDistroIdle(id string, idle bool) {
 // downloads a day per feed, and a device's new package waits at most this long instead of the feed's daily interval.
 const distroBehindFloor = 6 * time.Hour
 
-// distroKeep is the sorted list of the packages a pull keeps tier rows for: only names a Debian source package can have
+// distroKeep is the sorted list of the packages a pull keeps tier rows for: only names a Debian or Alpine source package can have
 // (the inventory's names come from agents: untrusted); nil for none.
 func distroKeep(pkgs map[string]bool) []string {
 	var out []string
 	for p := range pkgs {
-		if debPackageRE.MatchString(p) {
+		if debPackageRE.MatchString(p) || apkPackageRE.MatchString(p) {
 			out = append(out, p)
 		}
 	}
@@ -177,10 +177,10 @@ func (s *Service) buildDistro(ctx context.Context, src sourceRow, p pullPlan, de
 	for _, c := range cves {
 		want.KEV[c] = true
 	}
-	// ubuntu-vex keeps only "not affected", which never makes a plan item (the plan lists packages below a fixed version, and a
-	// fixed version beats not affected): its tier rows would cost 561,161 rows and 485 MB of peak RSS for nothing (2026-11-15).
-	// alpine-osv keeps none either: the plan reads no apk package, and Alpine's lister names no package.
-	if dec != DecoderUbuntuVEX && dec != DecoderAlpineOSV && len(pkgs) > 0 {
+	// ubuntu-vex keeps only "not affected", which never makes a plan item for Ubuntu (Ubuntu's own OSV data lists every release it
+	// tracks, so a CVE it does not list for a package is no item): its tier rows would cost 561,161 rows and 485 MB of peak RSS for
+	// nothing (2026-11-15). alpine-osv keeps the tier rows of the apk source packages the Alpine devices run, like the others.
+	if dec != DecoderUbuntuVEX && len(pkgs) > 0 {
 		if want.Tier, err = s.st.tierCVEs(ctx, s.now()); err != nil {
 			return p, err
 		}
@@ -359,7 +359,7 @@ func (s *Store) DistroFixesOf(ctx context.Context, cve string) ([]DistroFix, err
 // distroFixes reads DistroFixes, of one CVE when cve is not "".
 func (s *Store) distroFixes(ctx context.Context, cve string) (map[string][]DistroFix, error) {
 	rows, err := s.db.Reader().QueryContext(ctx, `SELECT d.distro, d.release, d.package, d.cve, d.status, COALESCE(d.fixed_version, ''), d.pro
-FROM feeds_distro_fix d JOIN feeds_source s ON s.id = d.source_id WHERE s.enabled = 1 AND d.cve IN (SELECT cve FROM feeds_vuln WHERE source_id = 'cisa-kev')
+FROM feeds_distro_fix d JOIN feeds_source s ON s.id = d.source_id WHERE s.enabled = 1 AND d.status IN ('fixed', 'not_affected') AND d.cve IN (SELECT cve FROM feeds_vuln WHERE source_id = 'cisa-kev')
 AND (? = '' OR d.cve = ?) ORDER BY d.cve, d.distro, d.release, d.package, d.source_id`, cve, cve)
 	if err != nil {
 		return nil, fmt.Errorf("feeds: read distro: %w", err)

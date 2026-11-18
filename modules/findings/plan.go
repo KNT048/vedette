@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/knt048/vedette/core/debver"
 	"github.com/knt048/vedette/core/winrel"
 )
 
@@ -55,9 +54,13 @@ type PlanItem struct {
 	Fixed      string `json:"fixed"`
 	Kind       string `json:"kind"` // fixed, windows, esu, distro
 	Pro        bool   `json:"pro"`  // distro: the fixed version is in Ubuntu Pro (ESM) only
-	// Distro (distro without Fixed, pkgTierItem): the distribution whose security updates to install ("Alpine Linux"); "" for the
+	// Distro (distro without Fixed: the fallback, pkgTierItem, or no fix yet): the distribution ("Alpine Linux"); "" for the
 	// distribution's.
 	Distro string `json:"distro"`
+	// DistroData (kind distro): what the distribution's own data says (plandistro.go): DistroDataFixed (Fixed is its fixed release),
+	// DistroDataNoFix (no fix from it yet for these CVEs), DistroDataNone (no data from it for the package: NVD's upstream ranges); ""
+	// for another kind.
+	DistroData string `json:"distro_data"`
 	// NVDLag (windows, esu): Fixed is the newest monthly update Microsoft lists for the release, newer than the update that carries
 	// every fixed build NVD names (GroupFix.NVDLag): the item fixes at least its CVEs; the newest update's are not analysed by NVD yet.
 	NVDLag bool `json:"nvd_lag"`
@@ -70,6 +73,9 @@ type PlanItem struct {
 	// Reported is, for an agent's row, when the agent last reported it (Software.SeenAt): the day of the list the version comes from,
 	// which GET /findings/plan names once no agent reports the device (agent_reported). Zero otherwise. Not in the pass's JSON.
 	Reported time.Time `json:"-"`
+	// agentRow: the item rests on a row the device's agent reported (a distribution's package judged by its data): GET /findings/plan
+	// names the day of that report once no agent reports the device. Not in the API.
+	agentRow bool
 }
 
 // Basis values of a plan CVE.
@@ -97,7 +103,7 @@ func tierSource(s Software) bool {
 // readable version, or a version with a distribution's mark and no package release ("1.18.0-6ubuntu14.6" typed as the version).
 // pkg says the row is a distribution's package (pkgBuilt: an agent's deb/rpm/apk row, a package release a person gave): the
 // distributions backport fixes, so the update to name is the distribution's, never an upstream release. An Ubuntu or Debian
-// package is compared with the distribution's own data (distroTierItems, distroRows); any other package is compared by its
+// package is judged by the distribution's own data (plandistro.go, distroRows); any other package is compared by its
 // upstream version and, inside a range, gets one item "install <distribution>'s security updates" (pkgTierItem).
 func tierInfo(a Asset, s Software) (in swInfo, pkg, ok bool) {
 	if !tierSource(s) {
@@ -158,15 +164,16 @@ type TierScope struct {
 }
 
 // NewTierScope collects the products of the devices' rows that the plan compares.
-func NewTierScope(assets []Asset) *TierScope {
+func NewTierScope(assets []Asset) *TierScope { return newTierScope(assets, nil) }
+
+// newTierScope is NewTierScope without the rows of skip (device -> software ids): a distribution's package its data alone decides
+// (TierSkip), whose NVD entries the plan never reads.
+func newTierScope(assets []Asset, skip map[string]map[string]bool) *TierScope {
 	t := &TierScope{keys: map[string]bool{}}
 	for _, a := range assets {
-		deb := debOS(a.OS)
 		for _, s := range deviceSoftware(a) {
-			in, pkg, ok := tierInfo(a, s)
-			// an agent's Ubuntu or Debian package reads the distribution's data (Feeds.TierDistro), not NVD's; a person's release may
-			// fall back to NVD (byDistroData: another build, a guessed source name without rows), so its product is in the scope too
-			if _, _, _, byDistro := debPkg(s); !ok || pkg && deb && byDistro && s.Packaged && s.builtBy() == "agent" {
+			in, _, ok := tierInfo(a, s)
+			if !ok || skip[a.ID][s.ID] {
 				continue
 			}
 			if _, win := winDevice(in); win {
@@ -222,8 +229,11 @@ type tierIndex struct {
 	// The distributions' fixed rows of the tier CVEs for the devices' packages (withDistro): dtier by CVE, its indexes by
 	// "distro/release/package", and the releases ("ubuntu/24.04") the feeds hold rows for.
 	dtier   []TierVuln
-	dby     map[string][]int
+	dpkg    map[string][]int // "distro/package" -> indexes of dtier with a row of that package (any release)
+	dname   map[string]int   // CVE -> index of dtier
 	covered map[string]bool
+	known   map[string]bool // "distro/package" a feed has any row of (withKnown); nil: the packages of dtier's rows
+	loading map[string]bool // distributions whose feed is on but not loaded yet
 	// kevWin are the exploited-list entries with a Windows release row, and open the CVEs of each device's open findings (withKEV): a
 	// Windows row inside one of them with a fix and an open finding has an exploited update To fix names (the same target), so the plan
 	// names no newest update for it (newestUpdateItem).
@@ -257,12 +267,17 @@ func (x *tierIndex) exploitedFix(assetID string, in swInfo, now time.Time) bool 
 
 // withDistro adds the distributions' fixed rows (Feeds.TierDistro) to the index.
 func (x *tierIndex) withDistro(dv []TierVuln, covered map[string]bool) *tierIndex {
-	x.dtier, x.dby, x.covered = dv, map[string][]int{}, covered
+	x.dtier, x.dpkg, x.dname, x.covered = dv, map[string][]int{}, map[string]int{}, covered
+	if x.known == nil {
+		x.known = map[string]bool{}
+	}
 	for i, t := range dv {
+		x.dname[t.CVE] = i
 		for _, f := range t.Distro {
-			k := f.Distro + "/" + f.Release + "/" + f.Package
-			if l := x.dby[k]; len(l) == 0 || l[len(l)-1] != i {
-				x.dby[k] = append(l, i)
+			k := f.Distro + "/" + f.Package
+			x.known[k] = true
+			if l := x.dpkg[k]; len(l) == 0 || l[len(l)-1] != i {
+				x.dpkg[k] = append(l, i)
 			}
 		}
 	}
@@ -388,7 +403,7 @@ func onPlatform(v Vuln, t TierVuln, in swInfo, win bool) (Vuln, bool) {
 // that fixes them (GroupFix, Ranged only). Windows release rows read NVD's entries by their monthly update.
 // Platform-limited CVEs count only when the row names a platform they affect (the platform rules, and NVD's own "running on" conditions,
 // onPlatform). A CVE two rows of the device match at the same version is listed once, under the agent's row first (review r1 #10 of
-// #804). Ubuntu and Debian packages go by the distribution's data (distroTierItems). compared says the device has a row the
+// #804). A distribution's package goes by its data (plandistro.go). compared says the device has a row the
 // plan compares. Nothing is a guess: an Unknown, a product-only match or a range with no end gives no item.
 func matchTiers(a Asset, x *tierIndex, kev map[string]bool, now time.Time) (items []PlanItem, compared bool) {
 	cut := now.Add(-AgeLimit)
@@ -398,10 +413,16 @@ func matchTiers(a Asset, x *tierIndex, kev map[string]bool, now time.Time) (item
 	})
 	listed := map[string]bool{}
 	winItem := map[string]bool{} // a Windows install (its version) that has an item: one row per install, never a second one
+	d, rel, judged, wait := x.distroWords(a)
+	nvd := map[string][]Vuln{} // a judged row of a distribution whose data lists fixed releases only: the CVEs NVD puts it inside
 	for _, s := range sws {
 		in, pkg, ok := tierInfo(a, s)
-		if !ok || pkg && x.byDistroData(a, s) {
-			continue // an Ubuntu or Debian package: distroTierItems
+		if !ok || pkg && wait[s.ID] {
+			continue // the distribution's data is loading: no item on a guess
+		}
+		_, byData := judged[s.ID]
+		if pkg && byData && !d.fixedOnly {
+			continue // the distribution's data alone decides: distroItems
 		}
 		compared = true
 		d, win := winDevice(in)
@@ -432,7 +453,11 @@ func matchTiers(a Asset, x *tierIndex, kev map[string]bool, now time.Time) (item
 			}
 			mine = append(mine, v)
 		}
-		if pkg { // a package of a distribution whose data Vedette does not read: its security updates, never an upstream release
+		if pkg && byData { // judged by the distribution's data, with these CVEs as the ones it may have no fix for yet
+			nvd[s.ID] = mine
+			continue
+		}
+		if pkg { // a package of a distribution whose data has no word on it: its security updates, never an upstream release
 			if it, ok := pkgTierItem(a, s, in, x, mine); ok {
 				for _, c := range it.CVEs {
 					listed[c.CVE+"|"+clean(in.ver)] = true
@@ -457,37 +482,16 @@ func matchTiers(a Asset, x *tierIndex, kev map[string]bool, now time.Time) (item
 		}
 		items = append(items, its...)
 	}
-	its, dc := distroTierItems(a, x, kev, cut)
-	return append(items, its...), compared || dc
+	return append(items, x.distroItems(a, d, rel, judged, nvd, kev, cut)...), compared || len(judged) > 0
 }
 
-// byDistroData says the distribution's own data decides the row on the plan (distroTierItems): an Ubuntu or Debian package with its
-// source package (debPkg). A source name guessed from the product (a person's release without one) decides only when the feeds hold
-// rows under that name for the device's release; otherwise the row is compared with NVD like any other package (pkgTierItem), never
-// left out: "postgresql" or "bind" are not Debian's source names (postgresql-16, bind9), and an empty answer is no answer.
-func (x *tierIndex) byDistroData(a Asset, s Software) bool {
-	if !debOS(a.OS) {
-		return false
-	}
-	ver, src, guessed, ok := debPkg(s)
-	if !ok || s.Packaged && s.builtBy() == "agent" {
-		return ok // an agent's deb row: the distribution's data, as before (a PPA build there gives nothing, distroTierItems)
-	}
-	d, rel := distroOf(newSWInfo(s, a.OS))
-	if d == "" || rel == "" {
-		return false
-	}
-	pkg := securitySource(d, src)
-	// a person's release: the distribution's data speaks only for its own build of that release (a Debian build on Ubuntu, a PPA
-	// build fall back to NVD instead of vanishing at distroTierItems' ownBuild), and a guessed source name only when it holds rows
-	return ownBuild(d, pkg, ver, false) && (!guessed || len(x.dby[d+"/"+rel+"/"+pkg]) > 0)
-}
-
-// pkgTierItem is the item of a distribution's package whose distribution's data Vedette does not read (Alpine, Red Hat, SUSE, an
-// Ubuntu or Debian package without a source package): its upstream version is inside a range with an end for these CVEs, but the
-// distribution backports fixes under its own release numbers, so the update to install is the distribution's security update for the
-// package, never the upstream release NVD names (kind distro, Fixed ""; Distro names the distribution when known). Version is the
-// package release when known (the one a person gave or the agent read), else the version. No item when no CVE is inside a range.
+// pkgTierItem is the fallback item of a distribution's package its distribution's data has no word on (Red Hat, SUSE and the others the
+// feeds supply no data for; an Ubuntu, Debian or Alpine package their data never names, another build such as a PPA, a row without its
+// source package): its upstream version is inside NVD's range with an end for these CVEs, but the distribution backports fixes under its
+// own release numbers, so the page says to check the distribution's security updates for the package and that NVD lists these CVEs for
+// its upstream version, never that an update fixes them nor an upstream release (kind distro, Fixed "", DistroData DistroDataNone;
+// Distro names the distribution when known). Version is the package release when known (the one a person gave or the agent read), else
+// the version. No item when no CVE is inside a range.
 func pkgTierItem(a Asset, s Software, in swInfo, x *tierIndex, vulns []Vuln) (PlanItem, bool) {
 	if len(vulns) == 0 {
 		return PlanItem{}, false
@@ -497,7 +501,7 @@ func pkgTierItem(a Asset, s Software, in swInfo, x *tierIndex, vulns []Vuln) (Pl
 		basis = planAgent
 	}
 	it := PlanItem{Group: a.ID + "/" + s.ID + "/distro", AssetID: a.ID, SoftwareID: s.ID, Software: clean(s.Display),
-		Version: clean(cmp.Or(strings.TrimSpace(s.PkgVersion), in.ver)), Kind: "distro",
+		Version: clean(cmp.Or(strings.TrimSpace(s.PkgVersion), in.ver)), Kind: "distro", DistroData: DistroDataNone,
 		Distro: distroLabel(linuxDistro(cmp.Or(a.ManualOS, a.AgentOS, a.SNMPOS, a.OS))), Basis: basis}
 	if s.Source == "agent" {
 		it.Reported = s.SeenAt
@@ -545,97 +549,6 @@ func newestUpdateItem(a Asset, s Software, in swInfo, d winDev, now time.Time) (
 // it is listed with no CVE, under the tiers all and recent, and ranks after every item with a CVE (no severity or EPSS to rank by).
 func awaitsNVD(it PlanItem) bool {
 	return len(it.CVEs) == 0 && (it.Kind == "windows" || it.Kind == "esu")
-}
-
-// distroTierItems is the plan of a device's Ubuntu or Debian packages: an agent's deb row (full version and source package)
-// on a device whose OS names the release is compared with the distribution's own first fixed version for that release and source
-// package (the feeds keep only fixed rows of tier CVEs; a public fix over one only Ubuntu Pro has). Below it, and
-// the installed revision is the distribution's own build (ownBuild: never a PPA or a vendor's .deb), the CVE is listed with basis
-// distro. A CVE the distribution's data does not name for that release and package is left out (drop when unsure). One item per
-// source package (and per Pro-only fixes), naming the highest fixed version: a distribution's updates within a release are
-// cumulative, so that one version fixes every CVE of the item (the one update that fixes them all). A kernel's packages count
-// only for the running kernel (distroRows). compared says the device has such a row of a release the feeds stored tier rows for.
-func distroTierItems(a Asset, x *tierIndex, kev map[string]bool, cut time.Time) (items []PlanItem, compared bool) {
-	if len(x.dtier) == 0 && len(x.covered) == 0 {
-		return nil, false
-	}
-	type key struct {
-		pkg string
-		pro bool
-	}
-	var order []key
-	got := map[key]*PlanItem{}
-	seen := map[key]map[string]bool{}
-	d, rel, rows := distroRows(a)
-	if len(rows) == 0 || !x.covered[d+"/"+rel] {
-		return nil, false
-	}
-	for _, r := range rows {
-		s, in, pkg := r.s, r.in, r.pkg
-		compared = true
-		if !ownBuild(d, pkg, in.pkgVer, false) {
-			continue
-		}
-		for _, i := range x.dby[d+"/"+rel+"/"+pkg] {
-			t := x.dtier[i]
-			if kev[t.CVE] || t.Published.Before(cut) || !ValidCVE(t.CVE) {
-				continue
-			}
-			fix := distroFixOf(t.Distro, d, rel, pkg)
-			if fix == nil {
-				continue
-			}
-			if c, err := debver.Compare(in.pkgVer, fix.Fixed); err != nil || c >= 0 {
-				continue // fixed here, or a version Vedette cannot compare: nothing to plan
-			}
-			k := key{pkg, fix.Pro}
-			it := got[k]
-			if it == nil {
-				group := a.ID + "/" + s.ID
-				if fix.Pro {
-					group += "/pro"
-				}
-				it = &PlanItem{Group: group, AssetID: a.ID, SoftwareID: s.ID, Software: clean(pkg), Version: in.pkgVer, Fixed: fix.Fixed, Kind: "distro", Pro: fix.Pro}
-				got[k], seen[k] = it, map[string]bool{}
-				order = append(order, k)
-			}
-			if c, err := debver.Compare(in.pkgVer, it.Version); err == nil && c < 0 { // two installs of one source: the oldest
-				it.Version = in.pkgVer
-			}
-			if c, err := debver.Compare(fix.Fixed, it.Fixed); err == nil && c > 0 {
-				it.Fixed = fix.Fixed
-			}
-			if s.SeenAt.After(it.Reported) {
-				it.Reported = s.SeenAt
-			}
-			if !seen[k][t.CVE] {
-				seen[k][t.CVE] = true
-				it.CVEs = append(it.CVEs, planCVE(t, planDistro))
-			}
-		}
-	}
-	for _, k := range order {
-		it := got[k]
-		it.Version, it.Fixed = clean(it.Version), clean(it.Fixed)
-		sortPlanCVEs(it.CVEs)
-		items = append(items, *it)
-	}
-	return items, compared
-}
-
-// distroFixOf is the fixed row of the release and source package among a CVE's rows, a public fix over one only Ubuntu Pro has.
-func distroFixOf(rows []DistroFix, distro, release, pkg string) *DistroFix {
-	var fix *DistroFix
-	for i := range rows {
-		f := &rows[i]
-		if f.Distro != distro || f.Release != release || f.Package != pkg || f.Status != "fixed" || f.Fixed == "" {
-			continue
-		}
-		if fix == nil || fix.Pro && !f.Pro {
-			fix = f
-		}
-	}
-	return fix
 }
 
 func boolInt(b bool) int {
@@ -710,7 +623,7 @@ func tierItems(a Asset, s Software, in swInfo, win bool, x *tierIndex, vulns []V
 }
 
 // namesFix says the group names an update a person can install (RowFix kinds; a distribution's package is planned by
-// distroTierItems).
+// distroItems or pkgTierItem).
 func namesFix(g *GroupFix) bool {
 	switch g.Kind {
 	case "fixed", "esu", "feature_update":

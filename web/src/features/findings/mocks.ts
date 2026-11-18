@@ -10,7 +10,7 @@ import type { Asset, Finding } from '@/lib/types'
 import { untilOk } from './accept'
 import { compromise, packs } from './packs'
 import { mockHardening } from './hardeningMock'
-import type { AiResult, ApplyItem, Cvss, FindingAsset, FindingDetail, FindingRow, FirewallGuide, HomeSummary, KevInfo, KnownVersion, MitigationPack, Plan, PlanCve, PlanItem, RowFix, StatusAction, ToFix, ToFixAction, ToFixDevice, UncheckedItem } from './types'
+import type { AiResult, ApplyItem, Cvss, FindingAsset, FindingDetail, FindingRow, FirewallGuide, HomeSummary, KevInfo, KnownVersion, MitigationPack, Plan, PlanCve, PlanDone, PlanItem, RowFix, StatusAction, ToFix, ToFixAction, ToFixDevice, UncheckedItem } from './types'
 import { fmtDate } from '@/lib/format'
 import { displayName } from '@/features/inventory/nameOf'
 import { metaStore } from '@/features/inventory/mocks'
@@ -80,12 +80,26 @@ function riskOfCard(d: Omit<ToFixDevice, 'risk'> | null): Risk | null {
   return updates > 0 ? { level: 'update', exploited: 0, updates } : null
 }
 
-/** GET /findings/plan: the sample items, filtered by tier and device; a CVE older than 12 months only with basis scan. */
-function plan(tier: string, asset: string | null): Plan {
-  const n = (t: string) => tierPlan(t, asset).items.length // every tab's number in one answer, as the box gives it
+/** The recommended updates a person marked done (POST /findings/plan/done), by item key, with the CVEs the item had then. */
+const planDone = new Map<string, PlanDone & { cves: string[] }>()
+/** As the box: a mark holds while the item has the same version and no CVE it did not have. */
+const doneOf = (i: PlanItem) => {
+  const m = planDone.get(i.group)
+  return m && m.version === i.version && i.cves.every((c) => m.cves.includes(c.cve)) ? m : null
+}
+
+/** GET /findings/plan: the sample items, filtered by tier and device; a CVE older than 12 months only with basis scan. Items marked
+ *  done are listed only with done. */
+function plan(tier: string, asset: string | null, done = false): Plan {
+  const shown = (t: string) => tierPlan(t, asset).items.filter((i) => !!doneOf(i) === done)
+  const n = (t: string) => shown(t).length // every tab's number in one answer, as the box gives it
   const base = tierPlan(tier, asset)
+  const doneN = tierPlan('all', asset).items.filter((i) => !!doneOf(i)).length
   // Each item carries its device's risk marker, so the page needs no device list
-  return { ...base, items: base.items.map((i) => ({ ...i, risk: deviceRisk(i.asset.id) })), counts: { likely: n('likely'), recent: n('recent'), all: n('all') } }
+  return { ...base, items: base.items.filter((i) => !!doneOf(i) === done).map((i) => {
+    const m = doneOf(i)
+    return { ...i, risk: deviceRisk(i.asset.id), done: m ? { by: m.by, at: m.at, note: m.note, version: m.version } : null }
+  }), counts: { likely: n('likely'), recent: n('recent'), all: n('all'), done: doneN } }
 }
 
 function tierPlan(tier: string, asset: string | null): Omit<Plan, 'counts'> {
@@ -119,6 +133,7 @@ function tierPlan(tier: string, asset: string | null): Omit<Plan, 'counts'> {
       // agent row: the inventory mock binds an osquery agent to a device with one; the box reads its own packages)
       const gone = cves.some((c) => c.basis === 'agent') && a.id !== 'a-box' && !(isOn('agent-intake') && a.software.some((s) => s.source === 'agent'))
       items.push({ group: `${a.id}/${p.software_id}`, asset: { id: a.id, name: nameOf(a) }, risk: null, software: p.software, version: p.version, fixed: p.fixed, kind: p.kind, pro: p.pro ?? false, distro: p.distro ?? '', nvd_lag: p.nvd_lag ?? false, kb: p.kb ?? '',
+        distro_data: p.kind === 'distro' ? (p.fixed ? 'fixed' : 'none') : '', done: null,
         cves, likely: cves.filter((c) => c.tier === 'likely').length, recent: cves.filter((c) => c.tier === 'recent').length,
         agent_gone: gone, agent_reported: gone ? p.reported ?? null : null })
     }
@@ -535,8 +550,8 @@ function toFix(asset: string | null): ToFix {
       let g = groups.get(key)
       if (!g) {
         g = f
-          ? { group: f.group, software_id: '', software: f.software, version: f.version, product: kevKey, source: a.software.find((x) => `${id}/${x.id}` === f.group)?.source ?? '', fixed: f.fixed, kind: f.kind, windows: f.windows, distro: f.distro, pro: f.pro, action: '', cves: [], finding_ids: [], worst: '', ransomware: 0, likely: 0, confirmed: 0, detected: 0, reported: 0, suspected: 0, checkable: 0, nvd_lag: false, kb: '' }
-          : { group: `${id}/${swRow?.id ?? ''}`, software_id: swRow?.id ?? '', software: sw, version: swRow?.version ?? '', product: swRow ? `${swRow.vendor}|${swRow.product}`.toLowerCase() : '', source: swRow?.source ?? '', fixed: '', kind: 'none', windows: false, distro: '', pro: false, action: '', cves: [], finding_ids: [], worst: '', ransomware: 0, likely: 0, confirmed: 0, detected: 0, reported: 0, suspected: 0, checkable: 0, nvd_lag: false, kb: '' }
+          ? { group: f.group, software_id: '', software: f.software, version: f.version, product: kevKey, source: a.software.find((x) => `${id}/${x.id}` === f.group)?.source ?? '', fixed: f.fixed, kind: f.kind, windows: f.windows, distro: f.distro, pro: f.pro, distro_data: '', action: '', cves: [], finding_ids: [], worst: '', ransomware: 0, likely: 0, confirmed: 0, detected: 0, reported: 0, suspected: 0, checkable: 0, nvd_lag: false, kb: '' }
+          : { group: `${id}/${swRow?.id ?? ''}`, software_id: swRow?.id ?? '', software: sw, version: swRow?.version ?? '', product: swRow ? `${swRow.vendor}|${swRow.product}`.toLowerCase() : '', source: swRow?.source ?? '', fixed: '', kind: 'none', windows: false, distro: '', pro: false, distro_data: '', action: '', cves: [], finding_ids: [], worst: '', ransomware: 0, likely: 0, confirmed: 0, detected: 0, reported: 0, suspected: 0, checkable: 0, nvd_lag: false, kb: '' }
         if (f) g.software_id = a.software.find((s) => `${id}/${s.id}` === f.group)?.id ?? ''
         groups.set(key, g)
       }
@@ -553,7 +568,7 @@ function toFix(asset: string | null): ToFix {
     const planned: ToFixAction[] = planItems.filter((i) => i.asset.id === id).map((i) => {
       const worst = i.cves.reduce((w, c) => (c.severity && sevRank(c.severity) > sevRank(w) ? c.severity : w), '')
       const row = a.software.find((x) => x.id === (i.group.split('/')[1] ?? ''))
-      const u = { group: i.group, software_id: i.group.split('/')[1] ?? '', software: i.software, version: i.version, product: row ? `${row.vendor}|${row.product}`.toLowerCase() : '', source: row?.source ?? '', fixed: i.fixed, kind: i.kind, windows: i.kind === 'windows' || i.kind === 'esu', distro: i.distro, pro: i.pro, action: '', cves: i.cves.map((c) => c.cve), finding_ids: [], worst, ransomware: 0, likely: i.likely, confirmed: 0, detected: 0, reported: 0, suspected: 0, checkable: 0, nvd_lag: i.nvd_lag, kb: i.kb }
+      const u = { group: i.group, software_id: i.group.split('/')[1] ?? '', software: i.software, version: i.version, product: row ? `${row.vendor}|${row.product}`.toLowerCase() : '', source: row?.source ?? '', fixed: i.fixed, kind: i.kind, windows: i.kind === 'windows' || i.kind === 'esu', distro: i.distro, pro: i.pro, distro_data: i.distro_data, action: '', cves: i.cves.map((c) => c.cve), finding_ids: [], worst, ransomware: 0, likely: i.likely, confirmed: 0, detected: 0, reported: 0, suspected: 0, checkable: 0, nvd_lag: i.nvd_lag, kb: i.kb }
       return { ...u, action: sentence(u) }
     })
     const card = { asset: view, open: rows.filter((x) => x.asset_id === id).length, exploited: acts.filter((x) => x.kind !== 'none').sort(order), no_update: acts.filter((x) => x.kind === 'none').sort(order), planned, plan_compared: true }
@@ -601,7 +616,24 @@ export const handlers = [
     const q = new URL(request.url).searchParams
     const tier = q.get('tier') ?? 'all'
     if (!['likely', 'recent', 'all'].includes(tier)) return fail(400, 'invalid', 'tier must be likely, recent or all.')
-    return HttpResponse.json(plan(tier, q.get('asset')))
+    return HttpResponse.json(plan(tier, q.get('asset'), q.get('done') === 'true'))
+  }),
+  http.post(`${API}/findings/plan/done`, async ({ request }) => {
+    const denied = guard('operator'); if (denied) return denied
+    const b = (await request.json()) as { group?: string; note?: string }
+    const it = tierPlan('all', null).items.find((i) => i.group === b.group)
+    if (!it) return fail(404, 'not_found', 'No such recommended update: the plan may have changed. Reload the page.')
+    const note = (b.note ?? '').trim()
+    if (note.length > 500) return fail(400, 'note_too_long', 'The note can be at most 500 characters. Shorten it.')
+    const m = { by: currentUser()?.email ?? 'someone', at: nowIso(), note, version: it.version, cves: it.cves.map((c) => c.cve) }
+    planDone.set(it.group, m)
+    return HttpResponse.json({ by: m.by, at: m.at, note: m.note, version: m.version })
+  }),
+  http.post(`${API}/findings/plan/undone`, async ({ request }) => {
+    const denied = guard('operator'); if (denied) return denied
+    const b = (await request.json()) as { group?: string }
+    if (!b.group || !planDone.delete(b.group)) return fail(404, 'not_found', 'No such recommended update: the plan may have changed. Reload the page.')
+    return HttpResponse.json({ group: b.group })
   }),
 
   http.get(`${API}/findings/:id`, ({ params }) => {

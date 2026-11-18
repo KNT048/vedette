@@ -101,10 +101,10 @@ func (a feedsInventory) Settle(ctx context.Context, tx *sql.Tx, committed bool) 
 	a.inv.Settle(ctx, tx, committed)
 }
 
-// Distros implements feeds.DistroLister: the distributions of the devices whose deb packages an agent read, as
+// Distros implements feeds.DistroLister: the distributions of the devices whose packages the distributions' data names, as
 // findings decides it (findings.DeviceDistro), each with those devices' source packages as the security data names them
 // (findings.DevicePackages), so a distribution feed is pulled only while a device needs it and keeps tier rows for those packages;
-// and "alpine", with no package, while a device states Alpine Linux (findings.StatesAlpine).
+// and "alpine" while a device states Alpine Linux (findings.StatesAlpine), with its apk source packages when an agent read them.
 func (a feedsInventory) Distros(ctx context.Context) (map[string]map[string]bool, error) {
 	ids, err := a.inv.AssetIDs(ctx)
 	if err != nil {
@@ -121,7 +121,7 @@ func (a feedsInventory) Distros(ctx context.Context) (map[string]map[string]bool
 		}
 		// the same rows as the matcher's (vendor and product too: a person's Debian release names its source package by them)
 		fa := findingsAsset(d)
-		if findings.StatesAlpine(fa) && out[findings.DistroAlpine] == nil { // Alpine's feed keeps no package rows
+		if findings.StatesAlpine(fa) && out[findings.DistroAlpine] == nil { // fetched while a device states Alpine, even with no apk row yet
 			out[findings.DistroAlpine] = map[string]bool{}
 		}
 		dist, _, pkgs := findings.DevicePackages(fa)
@@ -401,9 +401,9 @@ func (a findingsFeeds) TierVulns(ctx context.Context, keep func(cpe string) bool
 }
 
 // TierDistro is the distributions' tier data for "Updates to plan": nothing while the feeds module is off.
-func (a findingsFeeds) TierDistro(ctx context.Context, pkgs []findings.DistroPackage) ([]findings.TierVuln, map[string]bool, error) {
+func (a findingsFeeds) TierDistro(ctx context.Context, pkgs []findings.DistroPackage) (findings.DistroTier, error) {
 	if a.on != nil && !a.on() {
-		return nil, nil, nil
+		return findings.DistroTier{}, nil
 	}
 	now := time.Now()
 	if a.clock != nil {
@@ -413,19 +413,19 @@ func (a findingsFeeds) TierDistro(ctx context.Context, pkgs []findings.DistroPac
 	for i, p := range pkgs {
 		in[i] = feeds.DistroPackage{Distro: p.Distro, Release: p.Release, Package: p.Package}
 	}
-	recs, covered, err := a.st.TierDistroRecords(ctx, now, in)
+	td, err := a.st.TierDistroRecords(ctx, now, in)
 	if err != nil {
-		return nil, nil, err
+		return findings.DistroTier{}, err
 	}
-	out := make([]findings.TierVuln, len(recs))
-	for i, r := range recs {
+	out := make([]findings.TierVuln, len(td.Records))
+	for i, r := range td.Records {
 		out[i] = findings.TierVuln{CVE: r.CVE, Tier: r.Tier, Published: r.Published, Severity: strings.ToLower(r.Severity), Score: r.Score, EPSS: r.EPSS, Percentile: r.Percentile,
 			Distro: make([]findings.DistroFix, len(r.Distro))}
 		for j, d := range r.Distro {
 			out[i].Distro[j] = findings.DistroFix{Distro: d.Distro, Release: d.Release, Package: d.Package, Status: d.Status, Fixed: d.Fixed, Pro: d.Pro}
 		}
 	}
-	return out, covered, nil
+	return findings.DistroTier{Vulns: out, Covered: td.Covered, Known: td.Known, Loading: td.Loading}, nil
 }
 
 // Vulns returns the CISA list for matching, each CVE with the NVD affected versions feeds pulled (nvd-kev), or

@@ -491,10 +491,10 @@ func TestContract_INV28_Deep_WithdrawStopsTheDeepStep(t *testing.T) {
 
 // LEGAL-2, reviews r1 H1 and r2: a domain's terms say the scan reaches third-party hosting, CDN and proxies, name the IP-level
 // tools, the customer's responsibility and the CNAME rule; an IP keeps its "yours alone" sentence; both say what runs without the tick
-// and what the tick adds; the version is 2026-11-14e.
+// and what the tick adds; the version is 2026-11-18.
 func TestContract_INV28_Deep_DomainTermsText(t *testing.T) {
 	t.Parallel()
-	if TermsVersion != "2026-11-14e" {
+	if TermsVersion != "2026-11-18" {
 		t.Fatalf("version %s", TermsVersion)
 	}
 	dom := termsFor(KindDomain, "acme.example").Text

@@ -1355,7 +1355,7 @@ describe('response: screens', () => {
     await waitFor(() => expect(sw).toBeEnabled())
     await userEvent.click(sw)
     const dialog = await screen.findByRole('dialog')
-    expect(dialog).toHaveTextContent('This is a high-risk feature. Your AI can be wrong and can change your network devices. You carry the risk yourself. Vedette is provided as is under the Apache-2.0 license; its author, Kien Nguyen, is not responsible for actions your AI takes.')
+    expect(dialog).toHaveTextContent('This is a high-risk feature. Your AI can be wrong and can change your network devices. You carry the risk yourself. Vedette is provided as is under the Apache-2.0 license; the Vedette authors are not responsible for actions your AI takes.')
     expect(screen.getByRole('link', { name: 'Turn it on in My account' })).toHaveAttribute('href', '/settings/account?tab=sign-in#twofa-start-pw')
     await userEvent.type(screen.getByLabelText(`Type ${PHRASE} to confirm`), PHRASE)
     expect(screen.getByRole('button', { name: 'Turn on AI execution' })).toBeDisabled() // two-step sign-in is off

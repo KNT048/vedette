@@ -515,7 +515,7 @@
     "confirm": "I confirm these network ranges belong to my company and I am allowed to scan them.",
     "confirmedAt": "Confirmed by {{who}} on {{when}}.",
     "notConfirmed": "Not confirmed yet. Active scanning can only be saved after you confirm the ranges.",
-    "asIs": "Vedette is provided as is. Its author is not responsible for how you use it, including scanning.",
+    "asIs": "Vedette is provided as is. Its authors are not responsible for how you use it, including scanning.",
     "rangesChanged": "You added or changed ranges. Tick to confirm before saving.",
     "willConfirm": "Will be recorded as confirmed by you when you save."
   },

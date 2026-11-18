@@ -78,6 +78,9 @@ type Service struct {
 	lastCheck  map[string]time.Time // when each domain target's ownership was last checked by a person (DomainCheckEvery; in memory, a restart forgets it)
 	bucketFull time.Time            // the box-wide bound of those checks: when the bucket would be full again (zero: it is), guarded by checkMu
 
+	liveMu sync.Mutex
+	live   map[string]liveEntry // the last live result of each typed IP's proof (liveFor), guarded by liveMu
+
 	gbOnce sync.Once
 	gbs    *gbState // Greenbone's state in memory (INV-25); made by gb()
 
@@ -98,7 +101,7 @@ func NewService(cfg Config) (*Service, error) {
 	if cfg.Location == nil {
 		cfg.Location = time.Local
 	}
-	return &Service{cfg: cfg, now: now, runner: cfg.Runner, lastScan: map[string]time.Time{}, lastCheck: map[string]time.Time{}, bg: context.Background()}, nil
+	return &Service{cfg: cfg, now: now, runner: cfg.Runner, lastScan: map[string]time.Time{}, lastCheck: map[string]time.Time{}, live: map[string]liveEntry{}, bg: context.Background()}, nil
 }
 
 // SetRunner registers the scanner (the scan module does it at start-up). Nil removes it.
@@ -263,10 +266,10 @@ func (s *Service) view(t Target, all []Target, latest map[string]latestResult, c
 		v.Validity = &val
 	}
 	if !t.Commitment.current() {
-		n := noticeFor(t.Value)
+		n := noticeOf(t)
 		v.CommitmentNotice = &n
 	}
-	v.Terms, v.TermsNotice, v.FullScan = t.Terms, termsFor(t.Kind, t.Value), t.mode().Full
+	v.Terms, v.TermsNotice, v.FullScan = t.Terms, termsOf(t), t.mode().Full
 	v.Proof = proofHint(t, all)
 	v.Origin = "person"
 	if t.Kind == KindIP && !t.Typed {

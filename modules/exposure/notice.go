@@ -87,7 +87,7 @@ func (s *Service) confirmByScan(ctx context.Context, who Actor, t Target, versio
 	case version != NoticeVersion:
 		return errNoticeChanged()
 	}
-	return s.commit(ctx, who, method, t.ID, noticeFor(t.Value))
+	return s.commit(ctx, who, method, t.ID, noticeOf(t))
 }
 
 // commit stores the commitment of a verified target with the sentence it was given (INV-7). It is a no-op when one of the same

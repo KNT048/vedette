@@ -27,7 +27,7 @@ import (
 
 const (
 	ipProofPath = domainfence.ProofPath
-	// ipProofMaxBody bounds what is read of the proof file; a token is 16 digits, so anything longer is not it.
+	// ipProofMaxBody bounds what is read of the proof file; a token is 16 hex digits, so anything longer is not it.
 	ipProofMaxBody = domainfence.ProofMaxBody
 	// ipProofTimeout bounds each request or lookup of a check; ipProofBudget the whole check.
 	ipProofTimeout = domainfence.ProofTimeout
@@ -61,7 +61,7 @@ type ReverseResolver interface {
 }
 
 // httpIPFetcher is the real IPFetcher, the executors' own (domainfence.HTTPFetcher): it dials the IP whatever the URL says, never uses a
-// proxy, takes no certificate as proof and follows a redirect only to the same IP.
+// proxy, takes no certificate as proof and follows a redirect only to the same IP and a web port.
 type httpIPFetcher = domainfence.HTTPFetcher
 
 // IPProofHint is where the token file of a typed IP goes and the names that could prove it by reverse DNS.
@@ -92,6 +92,9 @@ type ipProof struct {
 	ok      bool
 	method  string // methodIPFile or methodIPPTR when ok
 	message string // what was found, or why nothing was (cleaned, bounded)
+	// ptrName, coverDomain and coverAt are, for methodIPPTR, the PTR name, the domain whose token proved it now and the name that record sits
+	// on when it is not that domain's own: what the executors check again.
+	ptrName, coverDomain, coverAt string
 }
 
 // proveIP looks for the proof of the typed IP t among the box's targets: the token file first (both schemes at once), then reverse
@@ -122,7 +125,7 @@ func (s *Service) proveIP(ctx context.Context, t Target, all []Target) ipProof {
 			case err != nil:
 				notes[i] = fmt.Sprintf("%s: %s.", u, cleanDNS(err.Error(), 160))
 			case !tokenMatches(body, t.Token):
-				notes[i] = fmt.Sprintf("%s: the file is there but does not contain the token %s.", u, t.Token)
+				notes[i] = fmt.Sprintf("%s: the file is there but does not contain this target's token.", u)
 			default:
 				okAt[i] = true
 			}
@@ -134,11 +137,11 @@ func (s *Service) proveIP(ctx context.Context, t Target, all []Target) ipProof {
 			return ipProof{ok: true, method: methodIPFile, message: fmt.Sprintf("Found the token file at %s://%s%s.", scheme, t.Value, ipProofPath)}
 		}
 	}
-	ptr, via := s.proveByPTR(ctx, ip, all)
+	ptr, via, at := s.proveByPTR(ctx, ip, all)
 	if via != "" {
-		return ipProof{ok: true, method: methodIPPTR, message: fmt.Sprintf("The reverse DNS name of %s is %s, which belongs to %s, a domain this box has proved, and it resolves back to %s.", t.Value, ptr, via, t.Value)}
+		return ipProof{ok: true, method: methodIPPTR, ptrName: ptr, coverDomain: via, coverAt: at, message: fmt.Sprintf("The reverse DNS name of %s is %s, which belongs to %s, a domain this box has proved, and it resolves back to %s.", t.Value, ptr, via, t.Value)}
 	}
-	return ipProof{message: fmt.Sprintf("Vedette found no proof of %s. Token file: put the token %s as the only content of %s on that address, over http or https. %s %s Reverse DNS: %s", t.Value, t.Token, ipProofPath, notes[0], notes[1], ptr)}
+	return ipProof{message: fmt.Sprintf("Vedette found no proof of %s. Token file: put this target's token as the only content of %s on that address, over http or https. %s %s Reverse DNS: %s", t.Value, ipProofPath, notes[0], notes[1], ptr)}
 }
 
 func tokenMatches(body []byte, token string) bool { return domainfence.TokenInFile(body, token) }
@@ -146,10 +149,10 @@ func tokenMatches(body []byte, token string) bool { return domainfence.TokenInFi
 // proveByPTR is forward-confirmed reverse DNS: ip has a PTR name under a domain of this box that is proved right now (its own proof
 // covers the names under it), and that name resolves back to ip. It answers the name and the domain that covers it, or, when nothing
 // proves the IP, "" and the sentence that says why.
-func (s *Service) proveByPTR(ctx context.Context, ip netip.Addr, all []Target) (name, via string) {
+func (s *Service) proveByPTR(ctx context.Context, ip netip.Addr, all []Target) (name, via, at string) {
 	rr, ok := s.cfg.Resolver.(ReverseResolver)
 	if !ok {
-		return "The resolver of this box cannot look up reverse DNS.", ""
+		return "The resolver of this box cannot look up reverse DNS.", "", ""
 	}
 	lctx, cancel := context.WithTimeout(ctx, ipProofTimeout)
 	names, err := rr.LookupAddr(lctx, ip.String())
@@ -157,9 +160,9 @@ func (s *Service) proveByPTR(ctx context.Context, ip netip.Addr, all []Target) (
 	var dnsErr *net.DNSError
 	switch {
 	case errors.As(err, &dnsErr) && dnsErr.IsNotFound:
-		return fmt.Sprintf("%s has no reverse DNS (PTR) name.", ip), ""
+		return fmt.Sprintf("%s has no reverse DNS (PTR) name.", ip), "", ""
 	case err != nil && len(names) == 0:
-		return fmt.Sprintf("the reverse DNS lookup of %s failed (%s).", ip, cleanDNS(err.Error(), 120)), ""
+		return fmt.Sprintf("the reverse DNS lookup of %s failed (%s).", ip, cleanDNS(err.Error(), 120)), "", ""
 	}
 	var why []string
 	for _, raw := range names {
@@ -171,7 +174,7 @@ func (s *Service) proveByPTR(ctx context.Context, ip netip.Addr, all []Target) (
 			why = append(why, fmt.Sprintf("%q is not a host name", cleanDNS(raw, 60)))
 			continue
 		}
-		dom := s.coveringDomain(ctx, n, all)
+		dom, domAt := s.coveringDomain(ctx, n, all)
 		if dom == "" {
 			why = append(why, fmt.Sprintf("%s is not under a domain this box has proved", n))
 			continue
@@ -185,19 +188,19 @@ func (s *Service) proveByPTR(ctx context.Context, ip netip.Addr, all []Target) (
 		case !slices.ContainsFunc(addrs, func(a netip.Addr) bool { return a.Unmap() == ip }):
 			why = append(why, fmt.Sprintf("%s does not resolve back to %s", n, ip))
 		default:
-			return n, dom
+			return n, dom, domAt
 		}
 	}
 	if len(why) == 0 {
-		return fmt.Sprintf("%s has no reverse DNS (PTR) name.", ip), ""
+		return fmt.Sprintf("%s has no reverse DNS (PTR) name.", ip), "", ""
 	}
-	return cleanDNS(fmt.Sprintf("the PTR name of %s was not accepted: %s.", ip, strings.Join(why, "; ")), 400), ""
+	return cleanDNS(fmt.Sprintf("the PTR name of %s was not accepted: %s.", ip, strings.Join(why, "; ")), 400), "", ""
 }
 
-// coveringDomain is the domain target of this box whose proof, checked now, covers name (name is the domain or under it): its own
+// coveringDomain is the domain (and the name its record sits on when not its own) of the target of this box whose proof, checked now, covers name (name is the domain or under it): its own
 // record on its own name (which covers the names under it), or the record of another target on a name above it. A target proved
 // only by its own token on a parent name proves that target alone, not what sits under it. "" when none does.
-func (s *Service) coveringDomain(ctx context.Context, name string, all []Target) string {
+func (s *Service) coveringDomain(ctx context.Context, name string, all []Target) (domain, at string) {
 	n := 0
 	for _, d := range all {
 		if d.Kind != KindDomain || d.VerifiedAt.IsZero() || !Covers(d.Value, name) {
@@ -208,10 +211,11 @@ func (s *Service) coveringDomain(ctx context.Context, name string, all []Target)
 		}
 		pr := s.prove(ctx, d, all)
 		if pr.found && Covers(pr.proven, name) && (!pr.own || pr.coversBelow(d.Value)) {
-			return d.Value
+			dom, _, at := pr.gate(d) // the domain whose token it is and where it sits: what the executors check
+			return dom, at
 		}
 	}
-	return ""
+	return "", ""
 }
 
 // ipNext is when the box looks at a typed IP's proof again by itself: IPRecheckLeft before it expires, then every IPRecheckRetry

@@ -73,12 +73,19 @@ func (n notifyFindings) Finding(ctx context.Context, id string) (notify.FindingI
 	}
 	if ok && name != "" {
 		info.Devices = []string{plainText(name, 120)}
-		// A device nobody approved yet is marked the way the finding is in the app: "Device not added yet"
-		if refs, err := n.d.Inventory.DeviceRefs(ctx, []string{rec.AssetID}); err == nil {
-			if r, found := refs[rec.AssetID]; found && !r.Approved && !r.Ignored {
-				info.Devices = []string{plainText(name, 100) + " (device not added yet)"}
-				info.What += " The device is not added yet: open the finding to add it or ignore it."
+	}
+	// A device nobody approved yet is marked the way the finding is in the app: "Device not added yet", also when it has no name
+	if refs, err := n.d.Inventory.DeviceRefs(ctx, []string{rec.AssetID}); err == nil {
+		if r, found := refs[rec.AssetID]; found && !r.Approved && !r.Ignored {
+			label := plainText(name, 100)
+			if label == "" && r.IP != "" && r.IP != "—" {
+				label = plainText(r.IP, 100)
 			}
+			if label == "" {
+				label = "a device"
+			}
+			info.Devices = []string{label + " (device not added yet)"}
+			info.What += " The device is not added yet: open the finding to add it or ignore it."
 		}
 	}
 	return info, true, nil

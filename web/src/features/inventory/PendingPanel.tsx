@@ -96,7 +96,7 @@ export function PendingPanel({ items, total, notifyNew, notifyAvailable, search,
         </div>
       </div>
       <Dialog open={confirmAll} onOpenChange={setConfirmAll}>
-        <DialogContent title={t('pending.approveAllTitle', { count: ready.length })} description={t('pending.approveAllBody')}>
+        <DialogContent title={t('pending.approveAllTitle', { count: ready.length })} description={t('pending.approveAllBody', { count: ready.length })}>
           <DialogFooter>
             <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
             <Button variant="primary" busy={approveAll.isPending} busyLabel={t('common:busy.approving')}

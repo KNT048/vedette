@@ -559,12 +559,15 @@ func (s *Service) SetSources(ctx context.Context, actor, id string, scan, snmp *
 // not a person and publishes only inventory.asset.updated.
 func (s *Service) Approve(ctx context.Context, actor, id string) error {
 	return s.write(ctx, func(tx *sql.Tx, o *outbox) error {
-		var was bool
-		err := tx.QueryRowContext(ctx, `SELECT approved FROM inv_asset WHERE id = ?`, id).Scan(&was)
+		var was, ignored bool
+		err := tx.QueryRowContext(ctx, `SELECT approved, ignored_at IS NOT NULL FROM inv_asset WHERE id = ?`, id).Scan(&was, &ignored)
 		if errors.Is(err, sql.ErrNoRows) {
 			return notFoundDevice()
 		} else if err != nil {
 			return fmt.Errorf("inventory: inventory.approve: %w", err)
+		}
+		if ignored {
+			return conflict("device_ignored", "This device is ignored. Stop ignoring it first, then approve it.")
 		}
 		// approved_at keeps the first approval: approving again (to clear the unknown mark) does not move the device to "approved in the last 24 h".
 		if err := s.flagTx(ctx, tx, o, actor, id, `UPDATE inv_asset SET approved_at = CASE WHEN approved = 1 THEN approved_at ELSE ? END, approved = 1, suspicious = 0 WHERE id = ?`, []any{s.now(), id}, "inventory.approve"); err != nil {

@@ -132,8 +132,9 @@ function List() {
   const open = items?.filter((f) => shownHere(f) && isOpen(f.status)).length ?? 0
   const confirmed = items?.filter((f) => shownHere(f) && f.status === 'confirmed').length ?? 0
   const name = (r: FindingRow) => deviceName(r.asset, t('removedDevice'))
-  const devices = [...new Map((items ?? []).map((f) => [f.asset_id, name(f)])).entries()].sort((a, b) => a[1].localeCompare(b[1]))
-  const products = [...new Set((items ?? []).map((f) => f.kev?.display ?? '').filter(Boolean))].sort()
+  const here = (items ?? []).filter(shownHere) // an ignored device is offered nowhere but under Ignored
+  const devices = [...new Map(here.map((f) => [f.asset_id, name(f)])).entries()].sort((a, b) => a[1].localeCompare(b[1]))
+  const products = [...new Set(here.map((f) => f.kev?.display ?? '').filter(Boolean))].sort()
   const s = search.trim().toLowerCase()
   const rowsFor = (tab: Tab, notRelevant = showNotRelevant) => (items ?? []).filter(inTab[tab]).filter((f) => notRelevant || !isNotRelevant(f)).filter(certain[certainty])
     .filter((f) => tab !== 'open' || status === 'all' || f.status === status)

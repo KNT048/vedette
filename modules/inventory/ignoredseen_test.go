@@ -10,12 +10,12 @@ import (
 // An ignored device is the same device when it is seen again, by its MAC alone (a passive LLDP frame), by MAC and address, or at
 // another address: it stays ignored, is never announced as new, never reaches To review, and no second row appears. A removed
 // device, by contrast, is a new device in To review.
-func TestContract_INV38_IgnoredDeviceStaysIgnoredWhenSeenAgain(t *testing.T) {
+func TestContract_INV51_IgnoredDeviceStaysIgnoredWhenSeenAgain(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.record(dhcp(burnt1, "192.168.18.205", "switch")...)
 	id := e.idOf("192.168.18.205")
-	if err := e.svc.SetIgnored(e.ctx(), "anna", id, true); err != nil {
+	if err := e.svc.SetIgnored(e.ctx(), "user-a", id, true); err != nil {
 		t.Fatal(err)
 	}
 	e.ev.reset()
@@ -45,16 +45,16 @@ func TestContract_INV38_IgnoredDeviceStaysIgnoredWhenSeenAgain(t *testing.T) {
 
 // A phone that changes its private address under the same host name is folded into the row a person ignored: still one device,
 // still ignored, nothing new in To review.
-func TestContract_INV38_IgnoredDeviceFoldsAPrivateAddressChange(t *testing.T) {
+func TestContract_INV51_IgnoredDeviceFoldsAPrivateAddressChange(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	e.record(dhcp(privMac1, "192.168.18.137", "annas-macbook-air.local")...)
+	e.record(dhcp(privMac1, "192.168.18.137", "studio-mac.local")...)
 	id := e.idOf("192.168.18.137")
-	if err := e.svc.SetIgnored(e.ctx(), "anna", id, true); err != nil {
+	if err := e.svc.SetIgnored(e.ctx(), "user-a", id, true); err != nil {
 		t.Fatal(err)
 	}
 	e.tick(3 * 3600 * 1e9)
-	e.record(dhcp(privMac2, "192.168.18.138", "annas-macbook-air.local")...)
+	e.record(dhcp(privMac2, "192.168.18.138", "studio-mac.local")...)
 	if n := e.devices(); n != 1 {
 		t.Fatalf("%d devices, want the ignored one only", n)
 	}
@@ -63,5 +63,19 @@ func TestContract_INV38_IgnoredDeviceFoldsAPrivateAddressChange(t *testing.T) {
 	}
 	if got := e.list("true", ""); len(got.Items) != 1 {
 		t.Fatalf("ignored list: %d", len(got.Items))
+	}
+}
+
+// An ignored device is not approved by Approve (Approve all in another tab, a stale page): Stop ignoring comes first.
+func TestContract_INV51_ApproveRefusesAnIgnoredDevice(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.record(dhcp(burnt1, "192.168.18.205", "switch")...)
+	id := e.idOf("192.168.18.205")
+	if err := e.svc.SetIgnored(e.ctx(), "user-a", id, true); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.Approve(e.ctx(), "user-a", id); err == nil {
+		t.Fatal("an ignored device was approved")
 	}
 }

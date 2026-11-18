@@ -159,3 +159,37 @@ func TestWiringNoticeNamesVulnCheckAsTheSource(t *testing.T) {
 		t.Fatalf("notices: %+v", got)
 	}
 }
+
+// An alert about a finding of a device nobody approved says so ("device not added yet"), also for a device with no name; an
+// approved device and an ignored one get no mark.
+func TestWiringAlertMarksADeviceNotAddedYet(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	s.kev("CVE-2026-4010", "Fortinet", "FortiOS")
+	id := s.addFortiGate() // hand-added: approved
+	recs, _ := s.d.Findings.List(t.Context(), id)
+	if len(recs) != 1 {
+		t.Fatalf("findings: %v", recs)
+	}
+	info, _, err := notifyFindings{s.d}.Finding(t.Context(), recs[0].ID)
+	if err != nil || strings.Contains(strings.Join(info.Devices, ","), "not added yet") {
+		t.Fatalf("an approved device is marked: %+v %v", info, err)
+	}
+	// Stop ignoring sends a device back through review: not approved
+	ign := func(on bool) {
+		t.Helper()
+		if err := s.d.Inventory.SetIgnored(t.Context(), "it@acme.example", id, on); err != nil {
+			t.Fatal(err)
+		}
+	}
+	ign(true)
+	ign(false)
+	info, _, err = notifyFindings{s.d}.Finding(t.Context(), recs[0].ID)
+	if err != nil || len(info.Devices) != 1 || !strings.HasSuffix(info.Devices[0], " (device not added yet)") || !strings.Contains(info.What, "not added yet") {
+		t.Fatalf("an unapproved device: %+v %v", info, err)
+	}
+	ign(true)
+	if info, _, _ = (notifyFindings{s.d}).Finding(t.Context(), recs[0].ID); strings.Contains(strings.Join(info.Devices, ","), "not added yet") {
+		t.Fatalf("an ignored device is marked: %+v", info)
+	}
+}

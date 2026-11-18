@@ -4,7 +4,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Chip } from '@/components/common/StatusChip'
 import { useCan } from '@/lib/session'
-import { useDeviceAction } from '@/features/inventory/api'
+import { useDevice, useDeviceAction } from '@/features/inventory/api'
 import { IgnoreDialog } from '@/features/inventory/IgnoreDevice'
 import { errMsg } from './errors'
 import type { FindingAsset } from './types'
@@ -16,6 +16,8 @@ export function NotAdded({ asset, findings = 1 }: { asset: FindingAsset | null; 
   const can = useCan('operator')
   const act = useDeviceAction(asset?.id ?? '')
   const [ign, setIgn] = useState(false)
+  // the Ignore dialog says what Ignore does to this device: its real finding count and, for a private address, the warning
+  const detail = useDevice(asset?.id ?? '', ign)
   if (!asset || asset.approved || asset.ignored) return null
   const title = can ? undefined : t('common:needRole', { role: t('common:role.operator') })
   const fail = (e: unknown) => toast.error(errMsg(e))
@@ -26,7 +28,7 @@ export function NotAdded({ asset, findings = 1 }: { asset: FindingAsset | null; 
       <Button size="sm" variant="primary" disabled={!can} busy={act.approve.isPending} busyLabel={t('common:busy.approving')} title={title}
         onClick={() => act.approve.mutate(undefined, { onSuccess: () => toast.success(t('notAdded.added', { name: asset.name })), onError: fail })}>{t('notAdded.add')}</Button>
       <Button size="sm" disabled={!can} busy={act.ignore.isPending} busyLabel={t('common:busy.saving')} title={title} onClick={() => setIgn(true)}>{t('notAdded.ignore')}</Button>
-      <IgnoreDialog open={ign} onOpenChange={setIgn} name={asset.name} mac={null} findings={findings} pending={act.ignore.isPending}
+      <IgnoreDialog open={ign} onOpenChange={setIgn} name={asset.name} mac={detail.data?.asset.mac ?? null} findings={detail.data?.findings_count ?? findings} pending={act.ignore.isPending}
         onConfirm={() => act.ignore.mutate(true, { onSuccess: () => { setIgn(false); toast.success(t('notAdded.ignored', { name: asset.name })) }, onError: fail })} />
     </span>
   )

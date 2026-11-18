@@ -139,6 +139,7 @@ function DeviceVulnChecks({ assetId, vuln }: { assetId: string; vuln: VulnButton
   const list = useFindings(assetId, findingsOn)
   if (vuln === 'off') return null
   if (vuln) return <p className="text-meta text-muted">{t(`scan:reason.${vuln}`)}</p>
+  if (findingsOn && list.isPending) return null // the count decides whether a run is offered: wait for it
   // How many of the device's suspected findings have a safe check (the KEV entry's has_template): the run can only confirm those
   const suspected = (list.data?.items ?? []).filter((f) => f.status === 'suspected')
   const checkable = suspected.filter((f) => f.kev?.has_template).length

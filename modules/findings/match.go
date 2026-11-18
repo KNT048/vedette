@@ -1443,6 +1443,8 @@ func decide(in swInfo, v Vuln, key []identity) (t Tri, within VersionRange, ever
 				jl.ownDash = jl.ownDash || c.Update.Kind == NA
 			} else if e, ok := junosEnd(af.Range); ok && c.Version.Kind == Any {
 				jl.ends = append(jl.ends, e)
+			} else if e, ok := junosRelOf(rel); ok && af.Range.IsZero() && junosRelCmp(jv, e) != 0 {
+				jl.rels = append(jl.rels, e) // "12.1r": a row of another release, in a form junosRow does not read
 			}
 		}
 		t, r := evalAffected(c, af.Range, in.ver, in.cpe, in.hasCPE)
@@ -1632,6 +1634,9 @@ func evalAffected(c CPE, r VersionRange, ver string, sw CPE, hasSW bool) (Tri, V
 		t = r.Contains(ver)
 		if t == No && exact {
 			t = looseExact(r, ver)
+		}
+		if t == Unknown && osScheme(c) == schemeDotted { // "up to 15.2(6)e0a" on IOS XE 17.3.1: decided by its numbers
+			t = dottedOutside(r, exact, ver)
 		}
 	} else {
 		t = evalUpdate(c, r, ver, sw, hasSW)

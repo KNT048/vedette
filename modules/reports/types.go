@@ -109,10 +109,12 @@ type Counts struct {
 	KevNew           int    `json:"kev_new"`     // newly exploited in the last 7 days, as Home counts them
 	KevMatched       int    `json:"kev_matched"` // their products in use, as Home counts them (before it, CVEs on a device)
 	// The findings closed as not relevant among the figures above: NotRelevant different findings, NotRelevantNew of NewFindings and
-	// NotRelevantResolved of Resolved. A reader that leaves them out subtracts these.
-	NotRelevant         int `json:"not_relevant"`
-	NotRelevantNew      int `json:"not_relevant_new"`
-	NotRelevantResolved int `json:"not_relevant_resolved"`
+	// NotRelevantResolved of Resolved. A reader that leaves them out subtracts these. omitempty: a sent report is read back into this
+	// struct and written out again, and one sent before these counts must stay without them (a 0 would read as "none" and stop the
+	// reader counting its rows); a real 0 left out reads the same, as its rows hold no not relevant finding either.
+	NotRelevant         int `json:"not_relevant,omitempty"`
+	NotRelevantNew      int `json:"not_relevant_new,omitempty"`
+	NotRelevantResolved int `json:"not_relevant_resolved,omitempty"`
 }
 
 // WeeklyView is the part of the weekly report that changes when the devices not approved yet (not in the Devices list) are left

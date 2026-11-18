@@ -86,6 +86,58 @@ func approvedOnly(in weeklyInput) weeklyInput {
 			out.findings = append(out.findings, f)
 		}
 	}
+	// kevInUse is Home's count of newly exploited products in use (feeds groups the last 7 days' KEV entries by key, as below). The
+	// view takes off the products only devices not approved yet have; kevNew is about the list, not the devices, and stays.
+	now, cutoff := in.now.UTC(), in.now.UTC().Add(-7*day)
+	newKey := map[string]bool{}
+	for _, k := range in.kev {
+		if !k.DateAdded.Add(day-time.Second).Before(cutoff) && !k.DateAdded.After(now) {
+			newKey[k.Key] = true
+		}
+	}
+	onApproved, onLeft := map[string]bool{}, map[string]bool{}
+	for _, d := range in.devices {
+		for _, k := range d.KevKeys {
+			if !newKey[k] {
+				continue
+			}
+			if d.Approved {
+				onApproved[k] = true
+			} else {
+				onLeft[k] = true
+			}
+		}
+	}
+	for k := range onLeft {
+		if !onApproved[k] && out.kevInUse > 0 {
+			out.kevInUse--
+		}
+	}
+	return out
+}
+
+// capViews keeps, of rows already in report order, the first MaxRows of each view a reader can pick (all, approved devices only,
+// not relevant left out, both): filtering a list cut for one view must not leave another view short (INV-11, INV-16). At most
+// 4 × MaxRows rows; the reader cuts its view to MaxRows again.
+func capViews(rows []FindingRow) []FindingRow {
+	var all, appr, rel, both int
+	out := rows[:0:0]
+	for _, r := range rows {
+		relevant := r.Status != "not_relevant"
+		if all < MaxRows || (r.DeviceApproved && appr < MaxRows) || (relevant && rel < MaxRows) || (r.DeviceApproved && relevant && both < MaxRows) {
+			out = append(out, r)
+		}
+		all++
+		if r.DeviceApproved {
+			appr++
+		}
+		if relevant {
+			rel++
+		}
+		if r.DeviceApproved && relevant {
+			both++
+		}
+	}
 	return out
 }
 
@@ -172,7 +224,7 @@ func computeWeekly(in weeklyInput) WeeklyReport {
 		}
 	}
 	newN, resolvedN := len(newRows), len(resolvedRows)
-	newRows, resolvedRows, openRows = capRows(order(newRows)), capRows(order(resolvedRows)), order(openRows)
+	newRows, resolvedRows, openRows = capViews(order(newRows)), capViews(order(resolvedRows)), order(openRows)
 
 	var unapproved, eol, devicesNew int
 	for _, d := range in.devices {
@@ -223,7 +275,7 @@ func computeWeekly(in weeklyInput) WeeklyReport {
 	if eol > 0 {
 		actions = append(actions, ActionItem{Kind: "plan_os", Count: eol})
 	}
-	openRows = capRows(openRows)
+	openRows = capViews(openRows)
 
 	kevAt := in.kevAt
 	if kevAt.IsZero() {

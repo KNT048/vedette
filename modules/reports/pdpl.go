@@ -103,7 +103,7 @@ func computePdpl(in pdplInput) PdplReport {
 			cves = append(cves, clip(f.CVE, 40))
 		}
 	}
-	risks = w.Open // already ordered and capped
+	risks = capRows(w.Open) // already ordered; the approved-only view is computed and cut on its own
 
 	m := func(id, status string, list []string) Measure {
 		n := len(list)

@@ -5,7 +5,7 @@ import { renderApp } from '@/test/render'
 import { assetsStore, findingsStore } from '@/mocks/stores'
 import { buildWeekly } from './weekly'
 import { buildPdpl } from './pdpl'
-import { DEFAULT_FILTERS, FILTERS_KEY, pdplView, weeklyView } from './filters'
+import { DEFAULT_FILTERS, FILTERS_KEY, MAX_ROWS, pdplView, weeklyView } from './filters'
 import type { PdplOrg } from './types'
 
 // Two switches over a report: devices not in the Devices list (not approved yet; in by default) and findings closed as not
@@ -31,7 +31,20 @@ describe('report include switches: the view', () => {
     expect(report.counts.new_findings).toBe(full.counts.new_findings - 2)
     expect(report.new_findings.some((f) => f.status === 'not_relevant')).toBe(false)
     expect(left).toEqual({ devices: null, notRelevant: 2 })
-    expect(weeklyView(full, { unapproved: true, notRelevant: true }).report).toBe(full)
+    expect(weeklyView(full, { unapproved: true, notRelevant: true }).report).toEqual(full)
+  })
+
+  it('each list is cut to 100 rows after filtering (the box sends the first 100 of every view)', () => {
+    const full = buildWeekly()
+    const tpl = full.open[0]!
+    const rows = [
+      ...Array.from({ length: 120 }, (_, i) => ({ ...tpl, id: `u${i}`, device_approved: false })),
+      ...Array.from({ length: 10 }, (_, i) => ({ ...tpl, id: `p${i}`, device_approved: true })),
+    ]
+    const big = { ...full, open: rows }
+    expect(weeklyView(big, { unapproved: true, notRelevant: true }).report.open).toHaveLength(MAX_ROWS)
+    const out = weeklyView(big, { unapproved: false, notRelevant: true }).report.open
+    expect(out.map((r) => r.id)).toEqual(rows.slice(120).map((r) => r.id))
   })
 
   it('leaves out the devices not approved yet with the approved-only counts, top risks and actions', () => {
@@ -49,7 +62,10 @@ describe('report include switches: the view', () => {
   it('a report sent before the choice keeps its devices and hides not relevant by its rows', () => {
     seed([{ id: 'nr-old', asset: approvedAsset(), status: 'not_relevant' }])
     const { approved_only: _a, ...old } = buildWeekly()
-    const legacy = { ...old, counts: { ...old.counts, not_relevant: undefined, not_relevant_new: undefined, not_relevant_resolved: undefined } }
+    // As the box returns it (reports TestHistoryEntryKeepsTheNotRelevantCountsAsSent): the counts are absent, not 0.
+    const { not_relevant: _n, not_relevant_new: _nn, not_relevant_resolved: _nr, ...oldCounts } = old.counts
+    const legacy = JSON.parse(JSON.stringify({ ...old, counts: oldCounts })) as typeof old
+    expect('not_relevant_new' in legacy.counts).toBe(false)
     const { report, left } = weeklyView(legacy, { unapproved: false, notRelevant: false })
     expect(left).toEqual({ devices: null, notRelevant: 1 })
     expect(report.counts.devices).toBe(old.counts.devices)

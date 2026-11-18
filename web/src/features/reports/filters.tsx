@@ -16,8 +16,14 @@ export const DEFAULT_FILTERS: ReportFilters = { unapproved: true, notRelevant: f
 export const FILTERS_KEY = 'vedette.reports.include'
 
 const listeners = new Set<() => void>()
+// The choice when the browser will not store it (storage blocked or full): kept for as long as the page is open.
+let memory: string | null = null
 function readRaw(): string {
+  if (memory !== null) return memory
   try { return localStorage.getItem(FILTERS_KEY) ?? '' } catch { return '' }
+}
+function writeRaw(v: string) {
+  try { localStorage.setItem(FILTERS_KEY, v); memory = null } catch { memory = v }
 }
 function subscribe(fn: () => void) {
   listeners.add(fn)
@@ -39,7 +45,7 @@ export function useReportFilters(): [ReportFilters, (change: Partial<ReportFilte
   const raw = useSyncExternalStore(subscribe, readRaw, () => '')
   const f = useMemo(() => parse(raw), [raw])
   const set = (change: Partial<ReportFilters>) => {
-    try { localStorage.setItem(FILTERS_KEY, JSON.stringify({ ...parse(readRaw()), ...change })) } catch { /* kept for this page only */ }
+    writeRaw(JSON.stringify({ ...parse(readRaw()), ...change }))
     for (const l of listeners) l()
   }
   return [f, set]
@@ -51,7 +57,10 @@ export function useReportFilters(): [ReportFilters, (change: Partial<ReportFilte
  */
 export interface LeftOut { devices: number | null; notRelevant?: number | null }
 
-const approvedRow = (r: FindingRow) => r.device_approved !== false
+/** A report view lists this many rows of each list at most (modules/reports MaxRows); its counts are of everything. */
+export const MAX_ROWS = 100
+
+const approvedRow =(r: FindingRow) => r.device_approved !== false
 
 /**
  * The weekly report as the filters show it. The counts, top risks and actions without the devices not approved yet come from the
@@ -76,6 +85,8 @@ export function weeklyView(full: WeeklyReport, f: ReportFilters): { report: Week
     r = { ...r, counts: { ...c, new_findings: c.new_findings - nrNew, resolved: c.resolved - nrDone },
       new_findings: r.new_findings.filter((x) => !isNotRelevant(x)), resolved: r.resolved.filter((x) => !isNotRelevant(x)) }
   }
+  // The box sends the first MAX_ROWS rows of each view (weekly.go capViews), so a filtered list is never short; cut to the view.
+  r = { ...r, new_findings: r.new_findings.slice(0, MAX_ROWS), resolved: r.resolved.slice(0, MAX_ROWS), open: r.open.slice(0, MAX_ROWS) }
   return { report: r, left: { devices, notRelevant } }
 }
 

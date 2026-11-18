@@ -110,8 +110,9 @@ func TestWeeklyListsAreCappedButCountsAreNot(t *testing.T) {
 		in.findings = append(in.findings, Finding{ID: fmt.Sprintf("n%03d", i), AssetID: "a1", CVE: "CVE-2026-2", Status: "suspected", Severity: "info", FirstSeen: day0(1)})
 	}
 	r := buildWeekly(in)
-	if len(r.NewFindings) != MaxRows || len(r.Open) != MaxRows {
-		t.Fatalf("rows = %d new, %d open, want %d", len(r.NewFindings), len(r.Open), MaxRows)
+	// MaxRows rows for the whole view, and the one more the approved-devices view needs: its list has no f1 (pc-old, not approved).
+	if len(r.NewFindings) != MaxRows+1 || len(r.Open) != MaxRows+1 {
+		t.Fatalf("rows = %d new, %d open, want %d", len(r.NewFindings), len(r.Open), MaxRows+1)
 	}
 	if r.Counts.NewFindings != MaxRows+51 || r.Counts.OpenSuspected != MaxRows+51 {
 		t.Fatalf("counts must be of everything: %+v", r.Counts)
@@ -238,7 +239,7 @@ func TestWeeklyApprovedOnlyView(t *testing.T) {
 	if v == nil {
 		t.Fatal("no approved-only view")
 	}
-	want := Counts{NewFindings: 0, Resolved: 1, OpenConfirmed: 0, OpenSuspected: 1, Devices: 2, DevicesUnapprove: 0, DevicesNew: 0, KevNew: 2, KevMatched: 1}
+	want := Counts{NewFindings: 0, Resolved: 1, OpenConfirmed: 0, OpenSuspected: 1, Devices: 2, DevicesUnapprove: 0, DevicesNew: 0, KevNew: 2, KevMatched: 0} // Windows (KEV new this week) is only on pc-old
 	if v.Counts != want {
 		t.Fatalf("approved-only counts = %+v, want %+v", v.Counts, want)
 	}

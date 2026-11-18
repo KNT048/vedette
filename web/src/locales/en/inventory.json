@@ -759,7 +759,7 @@
     "unknownMaker": "Not recorded",
     "removeUnused": {
       "button": "Remove unused tokens",
-      "hint": "Removes every token that no machine enrolled with. Tokens with machines stay.",
+      "hint": "Removes every token with no machine enrolled now. Tokens with machines stay, and so do tokens made in the last hour, in case their command is still on screen.",
       "done_one": "Removed {{count}} unused token.",
       "done_other": "Removed {{count}} unused tokens."
     },

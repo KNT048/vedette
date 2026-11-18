@@ -1698,7 +1698,8 @@ describe('inventory: agents (S-INV-4)', () => {
     await user.click(within(dialog).getAllByRole('button', { name: 'Close' })[0]!)
     await clickUntil(user, () => screen.getAllByRole('button', { name: `Revoke token ${OSQ}` })[0]!, () => screen.getByRole('dialog'))
     await user.click(await screen.findByRole('button', { name: 'Revoke' }, T))
-    expect(await screen.findByText('No enrollment tokens yet', undefined, T)).toBeInTheDocument()
+    const table = await screen.findByRole('table', { name: 'Enrollment tokens' }, T)
+    await waitFor(() => expect(within(table).queryByText(OSQ)).toBeNull(), T)
   })
 
   it('token API: only osquery uses a token; name and lifetime are validated; default 7 days, 0 means never', async () => {

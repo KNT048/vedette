@@ -36,7 +36,7 @@ func (s *Service) Jobs() []jobs.Job {
 	}
 }
 
-// Prune deletes the nodes silent for NodeSilentDays and the tokens that expired more than 30 days ago and have no node left. A token with
+// Prune deletes the nodes silent for NodeSilentDays and the tokens that have no node and are past their expiry (a token no machine ever enrolled with: a day after it was made). A token with
 // nodes stays, listed as expired, until it is revoked: deleting it would cut machines that expiry must not cut (POST-4).
 // Silence counts only while the module is on. The time of the last run is kept in intake_prune_clock: at the first run after a gap of
 // more than pruneGap (the module was off, or the box was down or restarting) the gap is added to every node's last_seen, so the 90 days
@@ -46,7 +46,7 @@ func (s *Service) Prune(ctx context.Context) error {
 	now := s.now()
 	silent := now.Add(-NodeSilentDays * 24 * time.Hour)
 	cutoff := store.FormatTS(silent)
-	expired := store.FormatTS(now.Add(-expiredTokenGrace))
+	ts, day := store.FormatTS(now), store.FormatTS(now.Add(-unusedTokenLife))
 	var nodes, tokens int64
 	var gone []string // the pruned nodes, released in the inventory after the commit
 	err := s.db.Write(ctx, func(tx *sql.Tx) error {
@@ -80,10 +80,10 @@ func (s *Service) Prune(ctx context.Context) error {
 			return fmt.Errorf("agentintake: prune nodes: %w", err)
 		}
 		nodes, _ = r.RowsAffected()
-		// A token with no machine goes when it expired long ago, or a day after it was made if no machine ever enrolled with it. A token
-		// that has machines stays, whatever its expiry: their node_keys do not depend on it.
+		// A token with no machine now goes once it is past its expiry: its set expiry, or a day after it was made if no machine ever
+		// enrolled with it. A token that has machines stays, whatever its expiry: their node_keys do not depend on it.
 		r, err = tx.ExecContext(ctx, `DELETE FROM intake_agent_tokens WHERE NOT EXISTS (SELECT 1 FROM intake_osquery_nodes n WHERE n.token_id = intake_agent_tokens.id)
-			AND ((expires_at IS NOT NULL AND expires_at < ?) OR (first_enrolled_at IS NULL AND created_at < ?))`, expired, store.FormatTS(now.Add(-unusedTokenLife)))
+			AND ((expires_at IS NOT NULL AND expires_at < ?) OR (first_enrolled_at IS NULL AND created_at < ?))`, ts, day)
 		if err != nil {
 			return fmt.Errorf("agentintake: prune tokens: %w", err)
 		}

@@ -62,27 +62,66 @@ func TestPrune_RemovesExpiredUnusedTokensButNotEnrolledMachines(t *testing.T) {
 	_ = key
 }
 
-// Remove unused tokens: admin only, audited, and tokens that enrolled a machine stay.
+// Remove unused tokens: admin only, audited. "Unused" means no machine enrolled now: a token whose machines were all removed goes too, a token
+// with a machine stays, and a token made in the last hour stays (its command may be on screen).
 func TestAdmin_RemoveUnusedTokens(t *testing.T) {
 	w := newWorld(t)
-	w.token("a", 7)
-	w.token("b", 7)
+	w.token("never used", 7)
+	_, emptied := w.token("emptied", 7)
+	w.enroll(emptied, "srv-gone", peerA)
+	w.exec(`DELETE FROM intake_osquery_nodes`) // its machine was removed since
 	_, used := w.token("used", 7)
 	w.enroll(used, "srv-1", peerA)
+	w.clock.Advance(2 * time.Hour)
+	w.token("just made", 7)
 	for _, u := range []string{"viewer", "operator"} {
 		if r := w.as(u, "POST", "/inventory/agents/tokens/remove-unused", true); r.code != 403 {
 			t.Fatalf("%s: %d", u, r.code)
 		}
 	}
+	w.exec(`DELETE FROM intake_osquery_nodes WHERE host_identifier <> 'srv-1'`)
 	r := w.admin("POST", "/inventory/agents/tokens/remove-unused", nil)
 	if r.code != 200 || r.body["removed"] != float64(2) {
 		t.Fatalf("remove unused: %d %s", r.code, r.raw)
 	}
-	if w.count(`SELECT count(*) FROM intake_agent_tokens`) != 1 || w.count(`SELECT count(*) FROM intake_agent_tokens WHERE name = 'used'`) != 1 {
-		t.Fatal("remove unused touched a used token")
+	if w.count(`SELECT count(*) FROM intake_agent_tokens WHERE name IN ('used', 'just made')`) != 2 || w.count(`SELECT count(*) FROM intake_agent_tokens`) != 2 {
+		t.Fatal("remove unused touched a token with a machine or a token made in the last hour")
 	}
 	if w.count(`SELECT count(*) FROM core_audit WHERE action = 'inventory.agent_tokens_remove_unused' AND user = 'admin@acme.example'`) != 1 {
 		t.Fatal("remove unused was not audited")
+	}
+}
+
+// Prune also removes a token whose machines were all removed once it is past its own expiry, and keeps it before.
+func TestPrune_EmptiedTokenGoesAtItsOwnExpiry(t *testing.T) {
+	w := newWorld(t)
+	_, secret := w.token("emptied", 7)
+	w.enroll(secret, "srv-1", peerA)
+	w.exec(`DELETE FROM intake_osquery_nodes`)
+	w.pruneFor(3 * 24 * time.Hour)
+	if w.count(`SELECT count(*) FROM intake_agent_tokens`) != 1 {
+		t.Fatal("prune removed an emptied token before its expiry")
+	}
+	w.pruneFor(5 * 24 * time.Hour)
+	if w.count(`SELECT count(*) FROM intake_agent_tokens`) != 0 {
+		t.Fatal("an emptied token past its expiry survived prune")
+	}
+}
+
+// The cap is hit by tokens whose machines were removed: the 409 says to use Remove unused tokens, and that action frees the room.
+func TestToken_CapReachedByEmptiedTokensIsFreedByRemoveUnused(t *testing.T) {
+	w := newWorld(t)
+	w.exec(`WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 500)
+		INSERT INTO intake_agent_tokens (id, name, token_hash, last4, created_at, expires_at, first_enrolled_at) SELECT 'e' || i, 'emptied ' || i, printf('%064d', i), 'abcd', '2000-01-01T00:00:00.000Z', '2999-01-01T00:00:00.000Z', '2000-01-01T01:00:00.000Z' FROM n`)
+	r := w.admin("POST", "/inventory/agents/tokens", map[string]any{"name": "one too many"})
+	if r.code != 409 || r.errCode() != "too_many_tokens" || !strings.Contains(r.raw, "Remove unused tokens") {
+		t.Fatalf("at the cap: %d %s", r.code, r.raw)
+	}
+	if r := w.admin("POST", "/inventory/agents/tokens/remove-unused", nil); r.code != 200 || r.body["removed"] != float64(500) {
+		t.Fatalf("remove unused: %d %s", r.code, r.raw)
+	}
+	if r := w.admin("POST", "/inventory/agents/tokens", map[string]any{"name": "fits now"}); r.code != 201 {
+		t.Fatalf("after remove unused: %d %s", r.code, r.raw)
 	}
 }
 
@@ -100,7 +139,7 @@ func TestToken_LimitMessageAndDeadTokensDoNotCount(t *testing.T) {
 	if r.code != 409 || r.errCode() != "too_many_tokens" {
 		t.Fatalf("501st token: %d %s", r.code, r.raw)
 	}
-	if msg, _ := r.body["error"].(map[string]any); msg == nil || !strings.Contains(r.raw, "500") || !strings.Contains(r.raw, "Remove the unused ones") {
+	if msg, _ := r.body["error"].(map[string]any); msg == nil || !strings.Contains(r.raw, "500") || !strings.Contains(r.raw, "Remove unused tokens") {
 		t.Fatalf("the limit message does not say the limit and the way out: %s", r.raw)
 	}
 }

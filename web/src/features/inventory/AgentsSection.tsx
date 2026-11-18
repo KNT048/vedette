@@ -483,7 +483,7 @@ export function AgentsSection() {
                       <p className="max-w-3xl text-meta text-muted">{t('agents.page.tokenBody')}</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      {d.tokens.some((k) => k.hosts === 0) ? <Button busy={removeUnused.isPending} busyLabel={t('common:busy.removing')} title={t('agents.removeUnused.hint')}
+                      {d.tokens.some((k) => k.hosts === 0 && Date.now() - Date.parse(k.created_at) > 3_600_000) ? <Button busy={removeUnused.isPending} busyLabel={t('common:busy.removing')} title={t('agents.removeUnused.hint')}
                         onClick={() => removeUnused.mutate(undefined, { onSuccess: (r) => toast.success(t('agents.removeUnused.done', { count: r.removed })), onError: (e) => toast.error(errMsg(e)) })}>{t('agents.removeUnused.button')}</Button> : null}
                       <Button onClick={() => setCreating(true)}><Plus />{t('agents.create')}</Button>
                     </div>

@@ -27,17 +27,17 @@ import (
 
 // Caps and timings of the intake.
 const (
-	MaxTokens         = 500
-	MaxNodesPerToken  = 500
-	MaxNodes          = 5000
-	enrollCooldown    = 60 * time.Second // the same (token, host_identifier) cannot enrol again sooner
-	auditEnrollEvery  = 24 * time.Hour   // one enrol audit row per node per day
-	touchEvery        = time.Minute      // last_seen is written at most this often per node (log path)
-	configTouch       = 10 * time.Second // the same on the config path (a restart is seen quickly)
-	NodeSilentDays    = 90               // a node silent this long is deleted by the node-prune job
-	expiredTokenGrace = 30 * 24 * time.Hour
-	unusedTokenLife   = 24 * time.Hour // a token that has enrolled no machine this long after it was made expires
-	systemActor       = "system"
+	MaxTokens        = 500
+	MaxNodesPerToken = 500
+	MaxNodes         = 5000
+	enrollCooldown   = 60 * time.Second // the same (token, host_identifier) cannot enrol again sooner
+	auditEnrollEvery = 24 * time.Hour   // one enrol audit row per node per day
+	touchEvery       = time.Minute      // last_seen is written at most this often per node (log path)
+	configTouch      = 10 * time.Second // the same on the config path (a restart is seen quickly)
+	NodeSilentDays   = 90               // a node silent this long is deleted by the node-prune job
+	freshTokenAge    = time.Hour        // Remove unused tokens leaves a token younger than this alone: its command may be on screen
+	unusedTokenLife  = 24 * time.Hour   // a token that has enrolled no machine this long after it was made expires
+	systemActor      = "system"
 )
 
 // Config is what New needs. DB, Audit, Sink, Software and Approver are required. Secrets and Conn are the Wazuh pull's (slice 4):

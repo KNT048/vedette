@@ -29619,8 +29619,9 @@ func (s *Server) handleInventoryPostInventoryAgentsTokensIDSampleDataRequest(arg
 
 // handleInventoryPostInventoryAgentsTokensRemoveUnusedRequest handles inventory_post_inventory_agents_tokens_remove_unused operation.
 //
-// Remove every token no machine enrolled with (tokens with machines stay). Audited. Also offered when
-// 409 too_many_tokens says the limit of 50 is reached.
+// Remove every token with no machine enrolled now, made over an hour ago (tokens with machines and
+// tokens made in the last hour stay). Audited. Also offered when 409 too_many_tokens says the limit of
+// 500 is reached.
 //
 // POST /inventory/agents/tokens/remove-unused
 func (s *Server) handleInventoryPostInventoryAgentsTokensRemoveUnusedRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -29689,7 +29690,7 @@ func (s *Server) handleInventoryPostInventoryAgentsTokensRemoveUnusedRequest(arg
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    InventoryPostInventoryAgentsTokensRemoveUnusedOperation,
-			OperationSummary: "Remove every token no machine enrolled with (tokens with machines stay). Audited. Also offered when 409 too_many_tokens says the limit of 50 is reached",
+			OperationSummary: "Remove every token with no machine enrolled now, made over an hour ago (tokens with machines and tokens made in the last hour stay). Audited. Also offered when 409 too_many_tokens says the limit of 500 is reached",
 			OperationID:      "inventory_post_inventory_agents_tokens_remove_unused",
 			Body:             nil,
 			RawBody:          rawBody,

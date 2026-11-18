@@ -77,25 +77,26 @@ describe('Install dialogs make a token on the click only', () => {
 })
 
 describe('Agents and tokens list', () => {
-  it('shows who made each token and when, and Remove unused tokens removes only tokens without machines', async () => {
+  it('shows who made each token and when, and Remove unused tokens removes tokens without machines, not ones with machines or made in the last hour', async () => {
     enableModule('agent-intake', true)
     const user = userEvent.setup()
     sessionStore.set({ userId: 'u-admin' })
-    await fetch(`${location.origin}/api/v1/inventory/agents/tokens`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'never used' }) })
+    await fetch(`${location.origin}/api/v1/inventory/agents/tokens`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'just made' }) })
     renderApp('/devices/setup?tab=agents', { role: 'admin' })
     const table = await screen.findByRole('table', { name: 'Enrollment tokens' }, T)
     for (const h of ['Made by', '^Made$', 'Expires', 'Last data received', 'Machines enrolled']) expect(within(table).getByRole('columnheader', { name: new RegExp(h) })).toBeInTheDocument()
-    expect(within(table).getByText('never used')).toBeInTheDocument()
+    expect(within(table).getByText('osquery install (never run)')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Remove unused tokens' }))
-    await waitFor(() => expect(within(table).queryByText('never used')).toBeNull(), T)
+    await waitFor(() => expect(within(table).queryByText('osquery install (never run)')).toBeNull(), T)
+    expect(within(table).getByText('just made')).toBeInTheDocument() // made in the last hour: its command may still be on screen
     expect(within(table).getByText('osquery on SRV-AD and SRV-FILE')).toBeInTheDocument() // it has machines: it stays
-    expect((await tokens()).every((t) => t.hosts > 0)).toBe(true)
+    expect((await tokens()).map((t) => t.name).sort()).toEqual(['just made', 'osquery on SRV-AD and SRV-FILE'])
   })
 
   it('at the limit the error says so in words and Remove unused tokens is offered right there', async () => {
     enableModule('agent-intake', true)
     const user = userEvent.setup()
-    server.use(http.post('*/api/v1/inventory/agents/tokens', () => HttpResponse.json({ error: { code: 'too_many_tokens', message: 'There are already 500 enrollment tokens, the most there can be. Remove the unused ones or revoke a token you no longer need, then create the install command again.' } }, { status: 409 })))
+    server.use(http.post('*/api/v1/inventory/agents/tokens', () => HttpResponse.json({ error: { code: 'too_many_tokens', message: 'There are already 500 enrollment tokens, the most there can be. Use Remove unused tokens or revoke a token you no longer need, then create the install command again.' } }, { status: 409 })))
     renderApp('/devices/setup?tab=agents', { role: 'admin' })
     await user.click(await screen.findByRole('button', { name: 'Create agent token' }, T))
     const dlg = await screen.findByRole('dialog', undefined, T)

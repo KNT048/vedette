@@ -98,6 +98,7 @@ function containerSensors() {
 }
 const agentsStore = collection<AgentToken[]>('intake_agent_tokens', () => [
   { id: 'tk-osquery', name: 'osquery on SRV-AD and SRV-FILE', kind: 'osquery', last4: 'k3Pq', created_at: daysAgo(12), created_by: 'admin@example.test', last_received: daysAgo(0, 3), hosts: 2, expires_at: new Date(Date.now() + 5 * 864e5).toISOString() },
+  { id: 'tk-old-unused', name: 'osquery install (never run)', kind: 'osquery', last4: 'u9Zx', created_at: daysAgo(3), created_by: 'admin@example.test', last_received: null, hosts: 0, expires_at: new Date(Date.now() - 2 * 864e5).toISOString() },
 ], () => [])
 type StoredWazuh = WazuhConnection & { password: string }
 // Chứng chỉ CA của hộp (mock: giá trị giả, nhúng trong script như bản thật sẽ nhúng CA tự ký của hộp).
@@ -1381,8 +1382,9 @@ export const handlers = [
   }),
   http.post(`${API}/inventory/agents/tokens/remove-unused`, () => {
     const denied = guard('admin'); if (denied) return denied
-    const gone = agentsStore.get().filter((x) => x.hosts === 0)
-    agentsStore.update((l) => l.filter((x) => x.hosts > 0))
+    const fresh = (x: AgentToken) => Date.now() - Date.parse(x.created_at) < 3_600_000
+    const gone = agentsStore.get().filter((x) => x.hosts === 0 && !fresh(x))
+    agentsStore.update((l) => l.filter((x) => x.hosts > 0 || fresh(x)))
     audit('inventory.agent_tokens_remove_unused', 'unused tokens', `${gone.length} removed`)
     return HttpResponse.json({ removed: gone.length })
   }),

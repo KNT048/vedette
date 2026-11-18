@@ -329,3 +329,103 @@ func TestWiringRouterWithThreeSourcesOfOpenSSH(t *testing.T) {
 		t.Fatalf("finding %+v %v, want one on the agent's row", recs, err)
 	}
 }
+
+// A Debian release a person gave on an Ubuntu host that has no agent (Needs your input, a correction of the scan's row): the feeds
+// are asked for its source package by the product's name (feedsInventory.Distros reads the row's vendor and product), and Ubuntu's own
+// data decides the plan item ("Upgrade the openssh package … to 1:10.2p1-2ubuntu3.9"). On a release the feeds hold no Ubuntu rows for
+// under that name, the row is not dropped: it is compared with NVD and gets "install Ubuntu's security updates".
+func TestWiringPersonsUbuntuReleaseUsesUbuntusData(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	ctx := t.Context()
+	sshFeeds(t, s)
+	const ubuntuCVE = "CVE-2026-60003"
+	now := time.Now().UTC()
+	err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
+		res, err := tx.ExecContext(ctx, `UPDATE feeds_source SET enabled = 1, distro_packages = '["openssh"]' WHERE id = 'ubuntu-osv'`)
+		if err != nil {
+			return err
+		}
+		if n, _ := res.RowsAffected(); n != 1 {
+			return fmt.Errorf("ubuntu-osv: %d rows", n)
+		}
+		for _, q := range []struct {
+			sql  string
+			args []any
+		}{
+			{`INSERT INTO feeds_recent_cve (cve, published, last_modified, status, severity, score) VALUES (?, ?, ?, 'Analyzed', 'HIGH', 7.5)`,
+				[]any{ubuntuCVE, store.FormatTS(now.AddDate(0, 0, -15)), store.FormatTS(now.AddDate(0, 0, -10))}},
+			{`INSERT INTO feeds_distro_fix (source_id, distro, release, package, cve, status, fixed_version) VALUES ('ubuntu-osv', 'ubuntu', '24.04', 'openssh', ?, 'fixed', '1:10.2p1-2ubuntu3.9')`, []any{ubuntuCVE}},
+		} {
+			if _, err := tx.ExecContext(ctx, q.sql, q.args...); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	noble := addSSHDevice(t, s, "192.168.18.51", sshRows{os: "Ubuntu 24.04 LTS", banner: "10.2p1 Ubuntu 2ubuntu3.8", manual: "pkg", manualPkg: "1:10.2p1-2ubuntu3.8"})
+	jammy := addSSHDevice(t, s, "192.168.18.52", sshRows{os: "Ubuntu 22.04 LTS", banner: "10.2p1 Ubuntu 2ubuntu3.8", manual: "pkg", manualPkg: "1:10.2p1-2ubuntu3.8"})
+	dist, err := feedsInventory{inv: s.d.Inventory}.Distros(ctx)
+	if err != nil || !dist["ubuntu"]["openssh"] {
+		t.Fatalf("Distros = %v %v, want ubuntu openssh (the person's row names its source by its product)", dist, err)
+	}
+	if err := findingsJobs(*s.d)[1].Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+	plan := s.d.Findings.Plan()
+	byDevice := map[string][]findings.PlanItem{}
+	for _, it := range plan.Items {
+		byDevice[it.AssetID] = append(byDevice[it.AssetID], it)
+	}
+	if its := byDevice[noble]; len(its) != 1 || its[0].Kind != "distro" || its[0].Fixed != "1:10.2p1-2ubuntu3.9" || its[0].Software != "openssh" ||
+		len(its[0].CVEs) != 1 || its[0].CVEs[0].CVE != ubuntuCVE {
+		t.Errorf("24.04, Ubuntu's data: %+v", its)
+	}
+	if its := byDevice[jammy]; len(its) != 1 || its[0].Kind != "distro" || its[0].Fixed != "" || its[0].Distro != "Ubuntu" || len(its[0].CVEs) != 1 || its[0].CVEs[0].CVE != sshTierCVE {
+		t.Errorf("22.04, no Ubuntu rows: %+v, want NVD's CVE with Ubuntu's security updates", its)
+	}
+	if plan.Unchecked != 0 {
+		t.Errorf("a device was left not compared: %+v", plan)
+	}
+}
+
+// Another install of the software that inventory keeps in matching (a scan reads OpenSSH 8.9p1 on another port next to the agent's
+// 10.2p1 package) stays in the assistant's context and names the finding's own install; a same-release banner does not.
+func TestWiringAssistantKeepsAnotherInstall(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	ctx := t.Context()
+	sshFeeds(t, s)
+	other := addSSHDevice(t, s, "192.168.18.61", sshRows{os: "Ubuntu 24.04 LTS", banner: "8.9p1", agent: "packaged", agentVersion: "10.2p1", agentPkg: "1:10.2p1-2ubuntu3.8"})
+	same := addSSHDevice(t, s, "192.168.18.62", sshRows{os: "Ubuntu 24.04 LTS", banner: "10.2p1 Ubuntu 2ubuntu3.8", agent: "packaged", agentVersion: "10.2p1", agentPkg: "1:10.2p1-2ubuntu3.8"})
+	sshRowsOf := func(id string) (rows []inventory.Software, banner string) {
+		t.Helper()
+		dev, err := s.d.Inventory.Device(ctx, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, sw := range effectiveDevice(ctx, s.d.Inventory, dev).Software {
+			if strings.EqualFold(sw.Product, "openssh") {
+				rows = append(rows, sw)
+				if sw.Source == "nmap" {
+					banner = sw.ID
+				}
+			}
+		}
+		return rows, banner
+	}
+	rows, banner := sshRowsOf(other)
+	if len(rows) != 2 || banner == "" {
+		t.Fatalf("another release: %+v, want the agent's row and the 8.9p1 install", rows)
+	}
+	dev, _ := s.d.Inventory.Device(ctx, other)
+	if got := aiMatched(findings.Row{SoftwareID: banner}, effectiveDevice(ctx, s.d.Inventory, dev)); !strings.Contains(got, "8.9p1") || strings.Contains(got, "10.2") {
+		t.Errorf("aiMatched = %q, want the 8.9p1 install", got)
+	}
+	if rows, _ := sshRowsOf(same); len(rows) != 1 || rows[0].Source != "agent" {
+		t.Errorf("same release: %+v, want the agent's row alone", rows)
+	}
+}

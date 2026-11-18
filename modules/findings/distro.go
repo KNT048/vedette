@@ -1,7 +1,6 @@
 package findings
 
 import (
-	"cmp"
 	"fmt"
 	"regexp"
 	"slices"
@@ -53,18 +52,22 @@ func personDeb(p string) bool {
 // debPkg is the full Debian version and source package of a row the Ubuntu or Debian data can decide on the plan: an agent's deb row
 // (both read from the package database), or a Debian release a person gave (Needs your input, a correction), which the
 // distribution's word decides like an agent's row: its source package is the row's when inventory kept one, else the product's own
-// name as Debian and Ubuntu name most sources ("openssh"); a name the security data does not hold finds no row (nothing is guessed
-// affected).
-func debPkg(s Software) (version, source string, ok bool) {
+// name as Debian and Ubuntu name many sources ("openssh"; guessed true). A guessed name is only a key to ask the feeds for: many
+// sources are named otherwise (postgresql-16, bind9, exim4, php8.3), so the plan reads the distribution's data for such a row only
+// when the feeds hold rows under that name, and otherwise compares its upstream version with NVD (tierIndex.byDistroData).
+func debPkg(s Software) (version, source string, guessed, ok bool) {
 	switch {
 	case s.Packaged && s.builtBy() == "agent" && s.PkgVersion != "" && s.PkgSource != "":
-		return s.PkgVersion, s.PkgSource, true
+		return s.PkgVersion, s.PkgSource, false, true
 	case s.Source == "manual" && personDeb(s.PkgVersion):
-		if src := cmp.Or(s.PkgSource, debSourceName(s.Product)); src != "" {
-			return strings.TrimSpace(s.PkgVersion), src, true
+		if src := strings.TrimSpace(s.PkgSource); src != "" {
+			return strings.TrimSpace(s.PkgVersion), src, false, true
+		}
+		if src := debSourceName(s.Product); src != "" {
+			return strings.TrimSpace(s.PkgVersion), src, true, true
 		}
 	}
-	return "", "", false
+	return "", "", false, false
 }
 
 // debOS says the device's OS is Ubuntu or Debian: the distributions whose own data the plan reads for their packages.
@@ -182,7 +185,7 @@ func distroRows(a Asset) (distro, release string, rows []distroPkgRow) {
 	var ksrc, kver string
 	var all []distroPkgRow
 	for _, s := range a.Software {
-		ver, src, ok := debPkg(s)
+		ver, src, _, ok := debPkg(s)
 		if !ok {
 			continue
 		}

@@ -108,3 +108,31 @@ func TestPackageRow_OnlyADistributionsReleaseIsAPackage(t *testing.T) {
 		t.Errorf("FortiGate To fix %+v", f)
 	}
 }
+
+// A person's Debian release names no source package; the product's own name is only a guess ("postgresql" is postgresql-16 in Ubuntu,
+// "bind" is bind9). The distribution's data decides only when the feeds hold rows under the guessed name; otherwise the row is compared
+// with NVD (an item "install Ubuntu's security updates"), never dropped while the device counts as compared. The guessed product is in
+// the tier scope so NVD's data for it is read.
+func TestPackageRow_GuessedSourceWithoutDataFallsBackToNVD(t *testing.T) {
+	t.Parallel()
+	pg := Software{ID: "s-pg", Display: "PostgreSQL 16.2", Vendor: "PostgreSQL", Product: "PostgreSQL", Version: "16.2", Source: "manual", PkgVersion: "16.2-1ubuntu4"}
+	a := Asset{ID: "db", Name: "db", OS: "Ubuntu 24.04 LTS", Software: []Software{pg}}
+	tier := tierV("CVE-2026-61001", "recent", 30, 0.01, Affected{CPE: "cpe:2.3:a:postgresql:postgresql:*:*:*:*:*:*:*:*", Range: VersionRange{StartIncl: "16.0", EndExcl: "16.4"}})
+	if !NewTierScope([]Asset{a}).Keep("cpe:2.3:a:postgresql:postgresql:*:*:*:*:*:*:*:*") {
+		t.Fatal("the guessed product is not in the tier scope")
+	}
+	// Ubuntu's data holds the CVE under postgresql-16, not under the guessed "postgresql"
+	ubuntu := distroV("CVE-2026-61001", "recent", 30, 0.01, noble("postgresql-16", "16.4-0ubuntu0.24.04.1", false))
+	x := newTierIndex([]TierVuln{tier}).withDistro([]TierVuln{ubuntu}, map[string]bool{"ubuntu/24.04": true})
+	items, compared := matchTiers(a, x, nil, t0)
+	if !compared || len(items) != 1 || items[0].Kind != "distro" || items[0].Fixed != "" || items[0].Distro != "Ubuntu" || items[0].SoftwareID != "s-pg" {
+		t.Fatalf("compared %v, items %+v; want one NVD item with Ubuntu's security updates", compared, items)
+	}
+	// a row whose guessed name holds Ubuntu rows: Ubuntu's own fixed version
+	a.Software = []Software{sshCorrection("1:10.2p1-2ubuntu3.8")}
+	x = newTierIndex([]TierVuln{sshTier}).withDistro([]TierVuln{distroV("CVE-2026-60002", "recent", 20, 0.01, noble("openssh", "1:10.2p1-2ubuntu3.9", false))},
+		map[string]bool{"ubuntu/24.04": true})
+	if items, _ := matchTiers(a, x, nil, t0); len(items) != 1 || items[0].Fixed != "1:10.2p1-2ubuntu3.9" || items[0].Software != "openssh" {
+		t.Fatalf("openssh with Ubuntu rows: %+v", items)
+	}
+}

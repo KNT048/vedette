@@ -43,17 +43,18 @@ export const readDeviceFindings = (assetId: string) =>
 
 /** One software of the device as inventory gives it (GET /inventory/devices/{id}/software, inventory INV-50): the effective row and the
  *  other sources' rows of the same software. */
-type EffectiveRow = { id: string; also_seen: { id: string }[] }
+type EffectiveRow = { id: string; vendor: string; product: string; also_seen: { id: string }[] }
 
 /** The ids of every row of the software the entry was made on: the edited row, its correction, and, from inventory's effective rows,
- *  the row that describes that software now and the other sources' rows of it. The matcher matches the effective row (the agent's
- *  package row on a device that has one), so a finding of the software can be on any of them. */
+ *  every row of that software: the row that describes it now, the other sources' rows of it, and any other install of the same vendor
+ *  and product (a second agent row at another version). The matcher matches the effective rows (the agent's package row on a device
+ *  that has one), so a finding of the software can be on any of them. */
 export function softwareRowIds(rowIds: readonly string[], effective: readonly EffectiveRow[] | undefined): string[] {
   const ids = new Set(rowIds)
-  for (const e of effective ?? []) {
-    const group = [e.id, ...e.also_seen.map((o) => o.id)]
-    if (group.some((id) => ids.has(id))) group.forEach((id) => ids.add(id))
-  }
+  const rows = (e: EffectiveRow) => [e.id, ...e.also_seen.map((o) => o.id)]
+  const product = (e: EffectiveRow) => `${e.vendor}|${e.product}`.trim().toLowerCase()
+  const mine = new Set((effective ?? []).filter((e) => rows(e).some((id) => ids.has(id))).map(product))
+  for (const e of effective ?? []) if (mine.has(product(e))) rows(e).forEach((id) => ids.add(id))
   return [...ids]
 }
 
@@ -105,7 +106,7 @@ export function EnteredOutcome({ assetId, rowIds, entered, before, always = fals
   const [since] = useState(() => Date.now())
   const waiting = before !== undefined
   const items = q.data?.items ?? []
-  const ids = softwareRowIds(rowIds, eff.data) // inventory unreadable: the edited row and its correction only
+  const ids = softwareRowIds(rowIds, eff.data)
   const r = enteredResult(items, ids, entered)
   const done = !waiting || (before ? rematched(before, items, ids, since) : false) || r.closed.length > 0
   const [tries, setTries] = useState(0)
@@ -119,7 +120,7 @@ export function EnteredOutcome({ assetId, rowIds, entered, before, always = fals
     }, tries < ENTRY_POLLS ? ENTRY_POLL_MS : ENTRY_SLOW_MS)
     return () => clearTimeout(timer)
   }, [done, tries, qc, assetId])
-  if (q.isError) return null
+  if (q.isError || eff.isError) return null // either list unreadable: nothing is claimed, as for a failed read of the findings
   if (q.isPending || eff.isPending) return waiting ? <p className="text-meta text-muted">{t('entered.checking')}</p> : null
   if (late) return <p className="text-meta text-muted">{t('entered.notYet')}</p>
   if (!done) return <p className="text-meta text-muted">{t('entered.checking')}</p>

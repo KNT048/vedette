@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { server } from '@/test/server'
 import { assetsStore } from '@/mocks/stores'
+import { softwareRowIds } from './EnteredRelease'
 
 // A package release a person enters says it was saved and which CVEs it closed: in place on Needs your input, and for good on the
 // device's Software tab (the release, who entered it and when, the result), with the same words wherever the value is saved.
@@ -197,6 +198,26 @@ describe('An entered package release › the result is the answer to this entry'
     expect(saved).toHaveTextContent('Checking which CVEs this closes…')
     expect(saved).not.toHaveTextContent(/found no exploited CVE/)
   }, 30000)
+
+  it('when the device\'s software cannot be read it claims nothing, as for a failed read of the findings', async () => {
+    server.use(http.get('*/api/v1/inventory/devices/:id/software', () => HttpResponse.json({ error: { code: 'internal', message: 'down' } }, { status: 500 })))
+    box([F({})], () => [F({ status: 'not_relevant', last_seen: '2026-11-18T02:00:00.000Z' })])
+    await enterRelease('10.2_p1-r1')
+    const saved = await result()
+    await new Promise((r) => setTimeout(r, 3000))
+    expect(saved).toHaveTextContent('Saved OpenSSH 10.2_p1-r1 on BN340.')
+    for (const t of [/Closed/, /still affected/, /found no exploited CVE/]) expect(saved).not.toHaveTextContent(t)
+  }, 30000)
+
+  it('every row of the software counts: the effective row, the other sources, and a second install of the same product', () => {
+    const eff = [
+      { id: 's-agent-1', vendor: 'OpenBSD', product: 'OpenSSH', also_seen: [{ id: 's-nmap' }] },
+      { id: 's-agent-2', vendor: 'OpenBSD', product: 'OpenSSH', also_seen: [] }, // another install, another version
+      { id: 's-nginx', vendor: 'F5', product: 'nginx', also_seen: [] },
+    ]
+    expect(softwareRowIds(['s-nmap'], eff).sort()).toEqual(['s-agent-1', 's-agent-2', 's-nmap'])
+    expect(softwareRowIds(['s-nmap'], undefined)).toEqual(['s-nmap'])
+  })
 
   it('a CVE still open on the row that describes the software now (the agent\'s) is still affected, never "no CVE left"', async () => {
     server.use(http.get('*/api/v1/inventory/devices/:id/software', () => HttpResponse.json({ items: [{ id: 's-bn340-agent', vendor: 'OpenBSD', product: 'OpenSSH', display: 'OpenSSH',

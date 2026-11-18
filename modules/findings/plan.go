@@ -164,8 +164,10 @@ func NewTierScope(assets []Asset) *TierScope {
 		deb := debOS(a.OS)
 		for _, s := range deviceSoftware(a) {
 			in, pkg, ok := tierInfo(a, s)
-			if _, _, byDistro := debPkg(s); !ok || pkg && deb && byDistro {
-				continue // an Ubuntu or Debian package reads the distribution's data (Feeds.TierDistro), not NVD's
+			// an Ubuntu or Debian package reads the distribution's data (Feeds.TierDistro), not NVD's; a source name guessed from the
+			// product may hold no data and fall back to NVD (byDistroData), so its product is in the scope too
+			if _, _, guessed, byDistro := debPkg(s); !ok || pkg && deb && byDistro && !guessed {
+				continue
 			}
 			if _, win := winDevice(in); win {
 				t.windows = true
@@ -396,10 +398,9 @@ func matchTiers(a Asset, x *tierIndex, kev map[string]bool, now time.Time) (item
 	})
 	listed := map[string]bool{}
 	winItem := map[string]bool{} // a Windows install (its version) that has an item: one row per install, never a second one
-	deb := debOS(a.OS)
 	for _, s := range sws {
 		in, pkg, ok := tierInfo(a, s)
-		if _, _, byDistro := debPkg(s); !ok || pkg && deb && byDistro {
+		if !ok || pkg && x.byDistroData(a, s) {
 			continue // an Ubuntu or Debian package: distroTierItems
 		}
 		compared = true
@@ -458,6 +459,22 @@ func matchTiers(a Asset, x *tierIndex, kev map[string]bool, now time.Time) (item
 	}
 	its, dc := distroTierItems(a, x, kev, cut)
 	return append(items, its...), compared || dc
+}
+
+// byDistroData says the distribution's own data decides the row on the plan (distroTierItems): an Ubuntu or Debian package with its
+// source package (debPkg). A source name guessed from the product (a person's release without one) decides only when the feeds hold
+// rows under that name for the device's release; otherwise the row is compared with NVD like any other package (pkgTierItem), never
+// left out: "postgresql" or "bind" are not Debian's source names (postgresql-16, bind9), and an empty answer is no answer.
+func (x *tierIndex) byDistroData(a Asset, s Software) bool {
+	if !debOS(a.OS) {
+		return false
+	}
+	_, src, guessed, ok := debPkg(s)
+	if !ok || !guessed {
+		return ok
+	}
+	d, rel := distroOf(newSWInfo(s, a.OS))
+	return d != "" && rel != "" && len(x.dby[d+"/"+rel+"/"+securitySource(d, src)]) > 0
 }
 
 // pkgTierItem is the item of a distribution's package whose distribution's data Vedette does not read (Alpine, Red Hat, SUSE, an

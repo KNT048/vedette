@@ -28,6 +28,7 @@ type Token struct {
 	Kind         string
 	Last4        string
 	CreatedAt    time.Time
+	CreatedBy    string
 	ExpiresAt    time.Time // zero = never
 	LastReceived time.Time // zero = never
 	Hosts        int
@@ -69,8 +70,17 @@ func (s *Service) IssueToken(ctx context.Context, actor, name string, ttlDays in
 		if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM intake_agent_tokens`).Scan(&n); err != nil {
 			return fmt.Errorf("agentintake: count tokens: %w", err)
 		}
+		if n >= MaxTokens { // expired tokens with no machine first: they do not count against the limit
+			if _, err := tx.ExecContext(ctx, `DELETE FROM intake_agent_tokens WHERE NOT EXISTS (SELECT 1 FROM intake_osquery_nodes n WHERE n.token_id = intake_agent_tokens.id)
+				AND ((expires_at IS NOT NULL AND expires_at < ?) OR (first_enrolled_at IS NULL AND created_at < ?))`, store.FormatTS(now), store.FormatTS(now.Add(-unusedTokenLife))); err != nil {
+				return fmt.Errorf("agentintake: drop dead tokens: %w", err)
+			}
+			if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM intake_agent_tokens`).Scan(&n); err != nil {
+				return fmt.Errorf("agentintake: count tokens: %w", err)
+			}
+		}
 		if n >= MaxTokens {
-			return apierr.New(409, "too_many_tokens", fmt.Sprintf("There are already %d enrollment tokens. Revoke one you no longer use.", MaxTokens))
+			return apierr.New(409, "too_many_tokens", fmt.Sprintf("There are already %d enrollment tokens, the most there can be. Use Remove unused tokens (every token with no machine, made over an hour ago) or revoke a token you no longer need, then create the install command again.", MaxTokens))
 		}
 		var exp any
 		if !t.ExpiresAt.IsZero() {
@@ -117,6 +127,21 @@ func (s *Service) RevokeToken(ctx context.Context, actor, id string) error {
 	return err
 }
 
+// RemoveUnusedTokens deletes every token that has no machine enrolled now, including one whose machines were all removed. A token with a
+// machine is left alone, so no node_key is cut. A token made in the last hour is left alone too: its command may be on screen. It returns how many went.
+func (s *Service) RemoveUnusedTokens(ctx context.Context, actor string) (int, error) {
+	var n int64
+	err := s.db.Write(ctx, func(tx *sql.Tx) error {
+		r, err := tx.ExecContext(ctx, `DELETE FROM intake_agent_tokens WHERE created_at < ? AND NOT EXISTS (SELECT 1 FROM intake_osquery_nodes n WHERE n.token_id = intake_agent_tokens.id)`, store.FormatTS(s.now().Add(-freshTokenAge)))
+		if err != nil {
+			return fmt.Errorf("agentintake: remove unused tokens: %w", err)
+		}
+		n, _ = r.RowsAffected()
+		return s.auditTx(ctx, tx, actor, "inventory.agent_tokens_remove_unused", "unused tokens", fmt.Sprintf("%d removed", n))
+	})
+	return int(n), err
+}
+
 // nodeIDs lists node ids by a query.
 func nodeIDs(ctx context.Context, tx *sql.Tx, q string, args ...any) ([]string, error) {
 	rows, err := tx.QueryContext(ctx, q, args...)
@@ -137,7 +162,7 @@ func nodeIDs(ctx context.Context, tx *sql.Tx, q string, args ...any) ([]string, 
 
 // ListTokens returns the tokens, newest first, with the number of nodes each has.
 func (s *Service) ListTokens(ctx context.Context) ([]Token, error) {
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT t.id, t.name, t.kind, t.last4, t.created_at, t.expires_at, t.last_received,
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT t.id, t.name, t.kind, t.last4, t.created_at, t.expires_at, t.last_received, t.first_enrolled_at, coalesce(t.created_by, ''),
 		(SELECT count(*) FROM intake_osquery_nodes n WHERE n.token_id = t.id) FROM intake_agent_tokens t ORDER BY t.created_at DESC, t.id`)
 	if err != nil {
 		return nil, fmt.Errorf("agentintake: list tokens: %w", err)
@@ -147,12 +172,13 @@ func (s *Service) ListTokens(ctx context.Context) ([]Token, error) {
 	for rows.Next() {
 		var t Token
 		var created string
-		var exp, rec sql.NullString
-		if err := rows.Scan(&t.ID, &t.Name, &t.Kind, &t.Last4, &created, &exp, &rec, &t.Hosts); err != nil {
+		var exp, rec, first sql.NullString
+		if err := rows.Scan(&t.ID, &t.Name, &t.Kind, &t.Last4, &created, &exp, &rec, &first, &t.CreatedBy, &t.Hosts); err != nil {
 			return nil, fmt.Errorf("agentintake: list tokens: %w", err)
 		}
 		t.CreatedAt, _ = time.Parse(time.RFC3339Nano, created)
 		t.ExpiresAt, t.LastReceived = parseTS(exp), parseTS(rec)
+		t.ExpiresAt = effectiveExpiry(t.ExpiresAt, t.CreatedAt.UTC(), first.Valid)
 		out = append(out, t)
 	}
 	return out, rows.Err()

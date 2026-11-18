@@ -27,16 +27,17 @@ import (
 
 // Caps and timings of the intake.
 const (
-	MaxTokens         = 50
-	MaxNodesPerToken  = 500
-	MaxNodes          = 5000
-	enrollCooldown    = 60 * time.Second // the same (token, host_identifier) cannot enrol again sooner
-	auditEnrollEvery  = 24 * time.Hour   // one enrol audit row per node per day
-	touchEvery        = time.Minute      // last_seen is written at most this often per node (log path)
-	configTouch       = 10 * time.Second // the same on the config path (a restart is seen quickly)
-	NodeSilentDays    = 90               // a node silent this long is deleted by the node-prune job
-	expiredTokenGrace = 30 * 24 * time.Hour
-	systemActor       = "system"
+	MaxTokens        = 500
+	MaxNodesPerToken = 500
+	MaxNodes         = 5000
+	enrollCooldown   = 60 * time.Second // the same (token, host_identifier) cannot enrol again sooner
+	auditEnrollEvery = 24 * time.Hour   // one enrol audit row per node per day
+	touchEvery       = time.Minute      // last_seen is written at most this often per node (log path)
+	configTouch      = 10 * time.Second // the same on the config path (a restart is seen quickly)
+	NodeSilentDays   = 90               // a node silent this long is deleted by the node-prune job
+	freshTokenAge    = time.Hour        // Remove unused tokens leaves a token younger than this alone: its command may be on screen
+	unusedTokenLife  = 24 * time.Hour   // a token that has enrolled no machine this long after it was made expires
+	systemActor      = "system"
 )
 
 // Config is what New needs. DB, Audit, Sink, Software and Approver are required. Secrets and Conn are the Wazuh pull's (slice 4):
@@ -173,6 +174,19 @@ type tokenRow struct {
 	id, name string
 	expires  time.Time // zero = never
 	received time.Time // zero = never
+	used     bool      // a machine has enrolled with it
+}
+
+// effectiveExpiry is when a token stops enrolling machines: its set expiry, or, while no machine has enrolled with it, a day after it was made
+// when that is sooner. The set expiry is the normal lifetime (default 7 days) a token keeps once it has enrolled a machine.
+func effectiveExpiry(set, created time.Time, used bool) time.Time {
+	if used || created.IsZero() {
+		return set
+	}
+	if short := created.Add(unusedTokenLife); set.IsZero() || short.Before(set) {
+		return short
+	}
+	return set
 }
 
 func parseTS(s sql.NullString) time.Time {
@@ -191,8 +205,9 @@ func (s *Service) tokenBySecret(ctx context.Context, q querier, secret string) (
 	want := hashHex(secret)
 	var t tokenRow
 	var got string
-	var exp, rec sql.NullString
-	err := q.QueryRowContext(ctx, `SELECT id, name, token_hash, expires_at, last_received FROM intake_agent_tokens WHERE token_hash = ?`, want).Scan(&t.id, &t.name, &got, &exp, &rec)
+	var exp, rec, first sql.NullString
+	var created string
+	err := q.QueryRowContext(ctx, `SELECT id, name, token_hash, expires_at, last_received, created_at, first_enrolled_at FROM intake_agent_tokens WHERE token_hash = ?`, want).Scan(&t.id, &t.name, &got, &exp, &rec, &created, &first)
 	if errors.Is(err, sql.ErrNoRows) {
 		return tokenRow{}, errNodeInvalid
 	}
@@ -202,7 +217,8 @@ func (s *Service) tokenBySecret(ctx context.Context, q querier, secret string) (
 	if !sameHash(got, want) {
 		return tokenRow{}, errNodeInvalid
 	}
-	t.expires, t.received = parseTS(exp), parseTS(rec)
+	t.expires, t.received = effectiveExpiry(parseTS(exp), parseTS(sql.NullString{String: created, Valid: true}), first.Valid), parseTS(rec)
+	t.used = first.Valid
 	return t, nil
 }
 
@@ -291,6 +307,9 @@ func (s *Service) enrollTx(ctx context.Context, tx *sql.Tx, t tokenRow, in enrol
 		}
 	}
 	ts := store.FormatTS(now)
+	if _, err := tx.ExecContext(ctx, `UPDATE intake_agent_tokens SET first_enrolled_at = ? WHERE id = ? AND first_enrolled_at IS NULL`, ts, t.id); err != nil {
+		return "", fmt.Errorf("agentintake: mark token used: %w", err)
+	}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO intake_osquery_nodes (id, token_id, node_key_hash, host_identifier, hostname, platform, osquery_version, enrolled_at, last_seen, last_call_at) VALUES (?, ?, ?, ?, NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), ?, ?, ?)`,
 		store.NewID("node"), t.id, hashHex(nodeKey), in.hostIdentifier, in.hostname, in.platform, in.osqueryVersion, ts, ts, ts); err != nil {
 		return "", fmt.Errorf("agentintake: insert node: %w", err)

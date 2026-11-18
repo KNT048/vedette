@@ -15,7 +15,7 @@
 
 ## Modifying: `IssueToken(ctx, actor, name, ttlDays) (Token, secret string, error)` — 1 người gọi: `AdminHandlers.InventoryPostInventoryAgentsTokens` (lát 3)
 - **web/features/inventory/AgentsSection**: `CreateTokenResult` hiện secret một lần; đổi định dạng token (`vdt_osquery_` + 32 ký tự) → regex trong `parse.go`, script cài và `/intake/osquery/status` vỡ.
-- Mã lỗi `bad_name`, `bad_expiry`, `too_many_tokens` (409) là của GUI tạo token.
+- Mã lỗi `bad_name`, `bad_expiry`, `too_many_tokens` (409, hạn mức 500) là của GUI tạo token; `POST /inventory/agents/tokens/remove-unused` là nút gỡ trong chính hộp thoại đó.
 - `actor` được lưu ở `created_by`: dòng audit duyệt thiết bị của mọi máy đăng ký bằng token này ghi tên người đó.
 
 ## Modifying: `RevokeToken` — thu hồi xoá hàng token và (khoá ngoại) các máy của nó

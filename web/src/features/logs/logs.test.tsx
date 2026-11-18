@@ -222,6 +222,32 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     expect(within(table).queryByRole('link', { name: 'Look up a7k2q.update-dsm-synology.com' })).toBeNull()
   })
 
+  it('a source found by the address its SNMP is read from is the device, not "Not in the inventory"', async () => {
+    server.use(http.get('*/api/v1/logs/sources', () => HttpResponse.json({
+      box: { ip: '192.168.10.250', hostname: 'vedette-hq' }, retention_days: 30,
+      sources: [{ id: 'ls-1', kind: 'fortigate', name: 'Edge firewall', sender_ip: '192.168.20.1', asset_id: 'a-fw', asset_name: 'Edge firewall', asset_via: 'snmp_read', asset_matches: [], proto: 'udp', port: 514, last_received: null, lines_per_hour: 0, state: 'never', created_at: '2026-11-12T00:00:00Z' }],
+    })))
+    renderApp('/logs')
+    await userEvent.click(await screen.findByRole('tab', { name: 'Sources' }))
+    const table = await screen.findByRole('table', { name: 'Log sources currently received' })
+    expect(within(table).getByRole('link', { name: 'Edge firewall' })).toHaveAttribute('href', '/devices/a-fw')
+    expect(within(table).getByText(/found by the address its SNMP is read from/)).toBeInTheDocument()
+    expect(within(table).queryByText(/Not in the inventory/)).toBeNull()
+  })
+
+  it('a source address that two devices have lists both and does not say it is missing', async () => {
+    server.use(http.get('*/api/v1/logs/sources', () => HttpResponse.json({
+      box: { ip: '192.168.10.250', hostname: 'vedette-hq' }, retention_days: 30,
+      sources: [{ id: 'ls-1', kind: 'fortigate', name: 'FW', sender_ip: '192.168.20.1', asset_id: null, asset_name: null, asset_via: null, asset_matches: [{ id: 'a-1', name: 'Core switch', via: null }, { id: 'a-2', name: 'Edge firewall', via: 'snmp_read' }], proto: 'udp', port: 514, last_received: null, lines_per_hour: 0, state: 'never', created_at: '2026-11-12T00:00:00Z' }],
+    })))
+    renderApp('/logs')
+    await userEvent.click(await screen.findByRole('tab', { name: 'Sources' }))
+    const table = await screen.findByRole('table', { name: 'Log sources currently received' })
+    expect(within(table).getByRole('link', { name: 'Core switch' })).toHaveAttribute('href', '/devices/a-1')
+    expect(within(table).getByRole('link', { name: 'Edge firewall' })).toHaveAttribute('href', '/devices/a-2')
+    expect(within(table).queryByText(/Not in the inventory/)).toBeNull()
+  })
+
   it('a machine that is not in the inventory is said so', async () => {
     assetsStore.update((l) => l.filter((a) => a.ip !== '192.168.10.157'))
     renderApp('/logs')
@@ -451,7 +477,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
   it('the box address is unknown (no LAN range yet): the page says so and the setup shows a clear placeholder', async () => {
     server.use(http.get('*/api/v1/logs/sources', () => HttpResponse.json({
       box: { ip: null, hostname: 'vedette', lan: null, iface: 'eth0' }, retention_days: 30,
-      sources: [{ id: 'ls-9', kind: 'nginx', name: 'WEB-1', sender_ip: '10.0.0.5', asset_id: null, asset_name: null, proto: 'udp', port: 514, last_received: null, lines_per_hour: 0, state: 'never', created_at: new Date().toISOString() }],
+      sources: [{ id: 'ls-9', kind: 'nginx', name: 'WEB-1', sender_ip: '10.0.0.5', asset_id: null, asset_name: null, asset_via: null, asset_matches: [], proto: 'udp', port: 514, last_received: null, lines_per_hour: 0, state: 'never', created_at: new Date().toISOString() }],
     })))
     renderApp('/logs?tab=sources')
     expect(await screen.findByText(/add your LAN range first \(Devices, Scope and sensors\)/)).toBeInTheDocument()
@@ -468,7 +494,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
   it('the box address is unknown and the reader is not an administrator: no link to the administrator\'s Devices setup, who to ask instead (#875)', async () => {
     server.use(http.get('*/api/v1/logs/sources', () => HttpResponse.json({
       box: { ip: null, hostname: 'vedette', lan: null, iface: 'eth0' }, retention_days: 30,
-      sources: [{ id: 'ls-9', kind: 'nginx', name: 'WEB-1', sender_ip: '10.0.0.5', asset_id: null, asset_name: null, proto: 'udp', port: 514, last_received: null, lines_per_hour: 0, state: 'never', created_at: new Date().toISOString() }],
+      sources: [{ id: 'ls-9', kind: 'nginx', name: 'WEB-1', sender_ip: '10.0.0.5', asset_id: null, asset_name: null, asset_via: null, asset_matches: [], proto: 'udp', port: 514, last_received: null, lines_per_hour: 0, state: 'never', created_at: new Date().toISOString() }],
     })))
     renderApp('/logs?tab=sources', { role: 'operator' })
     expect(await screen.findByText(/Ask an administrator to add the LAN range in Devices, Scope and sensors\./)).toBeInTheDocument()
@@ -482,7 +508,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
   it('a container that cannot see its own address in the declared LAN range says to use the address of the machine, not to add a range', async () => {
     server.use(http.get('*/api/v1/logs/sources', () => HttpResponse.json({
       box: { ip: null, hostname: 'vedette', lan: '192.168.50.0/24', iface: 'eth0' }, retention_days: 30,
-      sources: [{ id: 'ls-9', kind: 'nginx', name: 'WEB-1', sender_ip: '192.168.50.5', asset_id: null, asset_name: null, proto: 'udp', port: 514, last_received: null, lines_per_hour: 0, state: 'never', created_at: new Date().toISOString() }],
+      sources: [{ id: 'ls-9', kind: 'nginx', name: 'WEB-1', sender_ip: '192.168.50.5', asset_id: null, asset_name: null, asset_via: null, asset_matches: [], proto: 'udp', port: 514, last_received: null, lines_per_hour: 0, state: 'never', created_at: new Date().toISOString() }],
     })))
     renderApp('/logs?tab=sources')
     expect(await screen.findByText(/cannot see its own address in your LAN range 192\.168\.50\.0\/24.*the one you open this page on/)).toBeInTheDocument()
@@ -545,8 +571,8 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     server.use(
       http.get('*/api/v1/logs/sources', () => HttpResponse.json({
         box: { ip: null, hostname: 'vedette', lan: '192.168.1.0/24', iface: 'eth0' }, retention_days: 30,
-        sources: [{ id: 'ls-1', kind: 'fortigate', name: 'FW-HQ', sender_ip: '192.168.1.1', asset_id: null, asset_name: null, proto: 'udp', port: 514, last_received: null, lines_per_hour: 0, state: 'never', created_at: '2026-11-12T00:00:00Z' },
-          { id: 'ls-2', kind: 'cisco-asa', name: 'RT-1', sender_ip: '192.168.1.2', asset_id: null, asset_name: null, proto: 'tcp', port: 514, last_received: null, lines_per_hour: 0, state: 'never', created_at: '2026-11-12T00:00:00Z' }],
+        sources: [{ id: 'ls-1', kind: 'fortigate', name: 'FW-HQ', sender_ip: '192.168.1.1', asset_id: null, asset_name: null, asset_via: null, asset_matches: [], proto: 'udp', port: 514, last_received: null, lines_per_hour: 0, state: 'never', created_at: '2026-11-12T00:00:00Z' },
+          { id: 'ls-2', kind: 'cisco-asa', name: 'RT-1', sender_ip: '192.168.1.2', asset_id: null, asset_name: null, asset_via: null, asset_matches: [], proto: 'tcp', port: 514, last_received: null, lines_per_hour: 0, state: 'never', created_at: '2026-11-12T00:00:00Z' }],
       })),
       http.get('*/api/v1/logs/unknown-senders', () => HttpResponse.json({ items: [
         { ip: '172.18.0.1', proto: 'udp', count: 5, last_seen: new Date().toISOString() },

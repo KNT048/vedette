@@ -256,6 +256,7 @@ func (s *Service) joinAs(ctx context.Context, tx *sql.Tx, from, into, why string
 		`UPDATE inv_asset SET agent_key = NULL, agent_ip = NULL WHERE id = ?2`, // the key is unique: free it before into takes it
 		`UPDATE OR IGNORE inv_software SET asset_id = ?1 WHERE asset_id = ?2`,
 		`UPDATE OR IGNORE inv_service SET asset_id = ?1 WHERE asset_id = ?2`,
+		`UPDATE OR IGNORE inv_detected_keep SET asset_id = ?1 WHERE asset_id = ?2`, // a notice a person dismissed stays dismissed (INV-47)
 		`UPDATE inv_asset SET
 			suspicious = max(suspicious, (SELECT suspicious FROM inv_asset WHERE id = ?2)),
 			notes = coalesce(notes, (SELECT notes FROM inv_asset WHERE id = ?2)),

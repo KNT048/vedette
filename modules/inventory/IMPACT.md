@@ -28,6 +28,13 @@
 - **Every write a person makes** to a manual observation or a manual software row must set `seen_at` to now (`insertObs`, `insertSoftware`, `SetSoftwareVersion`, `EditSoftware`, `setOSTx`); a new person-made write that keeps an old `seen_at` leaves the Manual source's time behind.
 - **Web**: `DeviceSources.tsx` `ManualTime` ("added" / "last changed", locale `sources.added`/`sources.lastChanged`); the mock computes `manual_at` from manual observations and the mock-only `Software.set_at`.
 
+## Modifying: detected values that differ from an entered one (`differences`, `sameValue`, `UseDetected`, `KeepEntered`, `Detail.DetectedDiffers`, `inv_detected_keep`; INV-47)
+- **Trusted sources** are decided in `trustedRead`: a new source or a new statement that should count is added there, and `TestINV47_EachFieldAgainstEachSource` lists which sources raise a notice and which never do.
+- **Noise rules** are `sameValue` and `makerSuffixes`; a rule that is too loose hides a real difference, one too tight raises a notice on every device: add a case to `TestINV47_NotADifference` with the change.
+- **Export**: `inv_detected_keep` is classified in `modules/core/export_policy.go` (a column added later needs its entry; `TestExport_PolicyClassifiesEveryColumn`). A merge moves its rows in `joinAs`.
+- **Use detected** deletes manual observations of one field, so anything else that writes a manual observation of that field (a new edit path) must keep working with that delete.
+- **Web**: `DetectedNotice.tsx` (own component, Overview rows), `useDeviceAction().useDetected/keepEntered`, locale `detectedNotice.*`; the mock computes the list in `differsOf` and gives a device entered as "edge-fw" an SNMP reading (`SNMP_READS`).
+
 ## Modifying: the risk marker (`Config.Risk`, `RiskSource`, `RiskCounts`, `Risk`, `riskOf`, `RiskLevels`, `DeviceFilter.Risks`, `ParseDeviceSearch`, `filtered`'s `withRisk`, `risk_unavailable`; INV-40)
 - **findings** owns the rule (`RiskMap` = `RiskOf` of To fix's own cached classification; findings INV-26); inventory only maps the counts to a level. A second rule here would let the Devices marker and Findings › To fix disagree: change findings, never `riskOf`'s thresholds.
 - **Opt-in** (#949): `filtered` reads the markers only with `withRisk` (the Devices page, the device page, the CSV export with its `risk` column). A risk filter that cannot be applied is 503 `risk_unavailable` (docs/API_CONVENTIONS.md), never every device. The honeypot ingest, scans, reports and MCP read `Devices`/`AllDevices`/`Device` without it: a new caller that needs markers asks for them, and a findings failure must never fail its list (the trap-hit path is P0).

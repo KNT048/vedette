@@ -66726,13 +66726,26 @@ type FindingsGetFindingsIDOK struct {
 	// known_version.seen_at says when the version was reported.
 	LastSeen time.Time `json:"last_seen"`
 	// Null = no recommendation confirmed by Vedette maintainers yet.
-	Pack           NilFindingsGetFindingsIDOKPack  `json:"pack"`
-	Recheck        FindingsGetFindingsIDOKRecheck  `json:"recheck"`
-	ResolutionNote NilString                       `json:"resolution_note"`
-	ResolvedAt     NilDateTime                     `json:"resolved_at"`
-	ResolvedBy     NilString                       `json:"resolved_by"`
-	Severity       FindingsGetFindingsIDOKSeverity `json:"severity"`
-	Status         FindingsGetFindingsIDOKStatus   `json:"status"`
+	Pack NilFindingsGetFindingsIDOKPack `json:"pack"`
+	// A finding closed by proof (resolution_reason set): the version or package release the matcher
+	// compared to rule it out, as the device row gives it; null when the closure compared none (name only,
+	// age, an open platform question, another platform) or it is not closed by Vedette. An entry a person
+	// typed closed it only when this equals the entry.
+	ProvedVersion  NilString                      `json:"proved_version"`
+	Recheck        FindingsGetFindingsIDOKRecheck `json:"recheck"`
+	ResolutionNote NilString                      `json:"resolution_note"`
+	// Not_affected_version when Vedette closed the finding by itself (a matcher proof, or one of its rules
+	// that compares no version); null for a person's own action and for open findings. A string, not an
+	// enum: a new reason must not break the list.
+	ResolutionReason NilString                       `json:"resolution_reason"`
+	ResolvedAt       NilDateTime                     `json:"resolved_at"`
+	ResolvedBy       NilString                       `json:"resolved_by"`
+	Severity         FindingsGetFindingsIDOKSeverity `json:"severity"`
+	// The device's software row the matcher matched the finding on (the id FindingRow.fix.group and
+	// ToFixAction use), stored when it opens, touches or closes the finding; "" until the next match
+	// reaches an older finding. Never guessed from the product.
+	SoftwareID string                        `json:"software_id"`
+	Status     FindingsGetFindingsIDOKStatus `json:"status"`
 }
 
 // GetAcceptedUntil returns the value of AcceptedUntil.
@@ -66845,6 +66858,11 @@ func (s *FindingsGetFindingsIDOK) GetPack() NilFindingsGetFindingsIDOKPack {
 	return s.Pack
 }
 
+// GetProvedVersion returns the value of ProvedVersion.
+func (s *FindingsGetFindingsIDOK) GetProvedVersion() NilString {
+	return s.ProvedVersion
+}
+
 // GetRecheck returns the value of Recheck.
 func (s *FindingsGetFindingsIDOK) GetRecheck() FindingsGetFindingsIDOKRecheck {
 	return s.Recheck
@@ -66853,6 +66871,11 @@ func (s *FindingsGetFindingsIDOK) GetRecheck() FindingsGetFindingsIDOKRecheck {
 // GetResolutionNote returns the value of ResolutionNote.
 func (s *FindingsGetFindingsIDOK) GetResolutionNote() NilString {
 	return s.ResolutionNote
+}
+
+// GetResolutionReason returns the value of ResolutionReason.
+func (s *FindingsGetFindingsIDOK) GetResolutionReason() NilString {
+	return s.ResolutionReason
 }
 
 // GetResolvedAt returns the value of ResolvedAt.
@@ -66868,6 +66891,11 @@ func (s *FindingsGetFindingsIDOK) GetResolvedBy() NilString {
 // GetSeverity returns the value of Severity.
 func (s *FindingsGetFindingsIDOK) GetSeverity() FindingsGetFindingsIDOKSeverity {
 	return s.Severity
+}
+
+// GetSoftwareID returns the value of SoftwareID.
+func (s *FindingsGetFindingsIDOK) GetSoftwareID() string {
+	return s.SoftwareID
 }
 
 // GetStatus returns the value of Status.
@@ -66985,6 +67013,11 @@ func (s *FindingsGetFindingsIDOK) SetPack(val NilFindingsGetFindingsIDOKPack) {
 	s.Pack = val
 }
 
+// SetProvedVersion sets the value of ProvedVersion.
+func (s *FindingsGetFindingsIDOK) SetProvedVersion(val NilString) {
+	s.ProvedVersion = val
+}
+
 // SetRecheck sets the value of Recheck.
 func (s *FindingsGetFindingsIDOK) SetRecheck(val FindingsGetFindingsIDOKRecheck) {
 	s.Recheck = val
@@ -66993,6 +67026,11 @@ func (s *FindingsGetFindingsIDOK) SetRecheck(val FindingsGetFindingsIDOKRecheck)
 // SetResolutionNote sets the value of ResolutionNote.
 func (s *FindingsGetFindingsIDOK) SetResolutionNote(val NilString) {
 	s.ResolutionNote = val
+}
+
+// SetResolutionReason sets the value of ResolutionReason.
+func (s *FindingsGetFindingsIDOK) SetResolutionReason(val NilString) {
+	s.ResolutionReason = val
 }
 
 // SetResolvedAt sets the value of ResolvedAt.
@@ -67008,6 +67046,11 @@ func (s *FindingsGetFindingsIDOK) SetResolvedBy(val NilString) {
 // SetSeverity sets the value of Severity.
 func (s *FindingsGetFindingsIDOK) SetSeverity(val FindingsGetFindingsIDOKSeverity) {
 	s.Severity = val
+}
+
+// SetSoftwareID sets the value of SoftwareID.
+func (s *FindingsGetFindingsIDOK) SetSoftwareID(val string) {
+	s.SoftwareID = val
 }
 
 // SetStatus sets the value of Status.
@@ -70726,12 +70769,25 @@ type FindingsGetFindingsOKItemsItem struct {
 	// When Vedette last matched it: each re-match (after a change to the device's software, and every
 	// hour) or scan that still finds it moves it. Not when the device or its software was last seen;
 	// known_version.seen_at says when the version was reported.
-	LastSeen       time.Time                              `json:"last_seen"`
-	ResolutionNote NilString                              `json:"resolution_note"`
-	ResolvedAt     NilDateTime                            `json:"resolved_at"`
-	ResolvedBy     NilString                              `json:"resolved_by"`
-	Severity       FindingsGetFindingsOKItemsItemSeverity `json:"severity"`
-	Status         FindingsGetFindingsOKItemsItemStatus   `json:"status"`
+	LastSeen time.Time `json:"last_seen"`
+	// A finding closed by proof (resolution_reason set): the version or package release the matcher
+	// compared to rule it out, as the device row gives it; null when the closure compared none (name only,
+	// age, an open platform question, another platform) or it is not closed by Vedette. An entry a person
+	// typed closed it only when this equals the entry.
+	ProvedVersion  NilString `json:"proved_version"`
+	ResolutionNote NilString `json:"resolution_note"`
+	// Not_affected_version when Vedette closed the finding by itself (a matcher proof, or one of its rules
+	// that compares no version); null for a person's own action and for open findings. A string, not an
+	// enum: a new reason must not break the list.
+	ResolutionReason NilString                              `json:"resolution_reason"`
+	ResolvedAt       NilDateTime                            `json:"resolved_at"`
+	ResolvedBy       NilString                              `json:"resolved_by"`
+	Severity         FindingsGetFindingsOKItemsItemSeverity `json:"severity"`
+	// The device's software row the matcher matched the finding on (the id FindingRow.fix.group and
+	// ToFixAction use), stored when it opens, touches or closes the finding; "" until the next match
+	// reaches an older finding. Never guessed from the product.
+	SoftwareID string                               `json:"software_id"`
+	Status     FindingsGetFindingsOKItemsItemStatus `json:"status"`
 }
 
 // GetAcceptedUntil returns the value of AcceptedUntil.
@@ -70804,9 +70860,19 @@ func (s *FindingsGetFindingsOKItemsItem) GetLastSeen() time.Time {
 	return s.LastSeen
 }
 
+// GetProvedVersion returns the value of ProvedVersion.
+func (s *FindingsGetFindingsOKItemsItem) GetProvedVersion() NilString {
+	return s.ProvedVersion
+}
+
 // GetResolutionNote returns the value of ResolutionNote.
 func (s *FindingsGetFindingsOKItemsItem) GetResolutionNote() NilString {
 	return s.ResolutionNote
+}
+
+// GetResolutionReason returns the value of ResolutionReason.
+func (s *FindingsGetFindingsOKItemsItem) GetResolutionReason() NilString {
+	return s.ResolutionReason
 }
 
 // GetResolvedAt returns the value of ResolvedAt.
@@ -70822,6 +70888,11 @@ func (s *FindingsGetFindingsOKItemsItem) GetResolvedBy() NilString {
 // GetSeverity returns the value of Severity.
 func (s *FindingsGetFindingsOKItemsItem) GetSeverity() FindingsGetFindingsOKItemsItemSeverity {
 	return s.Severity
+}
+
+// GetSoftwareID returns the value of SoftwareID.
+func (s *FindingsGetFindingsOKItemsItem) GetSoftwareID() string {
+	return s.SoftwareID
 }
 
 // GetStatus returns the value of Status.
@@ -70899,9 +70970,19 @@ func (s *FindingsGetFindingsOKItemsItem) SetLastSeen(val time.Time) {
 	s.LastSeen = val
 }
 
+// SetProvedVersion sets the value of ProvedVersion.
+func (s *FindingsGetFindingsOKItemsItem) SetProvedVersion(val NilString) {
+	s.ProvedVersion = val
+}
+
 // SetResolutionNote sets the value of ResolutionNote.
 func (s *FindingsGetFindingsOKItemsItem) SetResolutionNote(val NilString) {
 	s.ResolutionNote = val
+}
+
+// SetResolutionReason sets the value of ResolutionReason.
+func (s *FindingsGetFindingsOKItemsItem) SetResolutionReason(val NilString) {
+	s.ResolutionReason = val
 }
 
 // SetResolvedAt sets the value of ResolvedAt.
@@ -70917,6 +70998,11 @@ func (s *FindingsGetFindingsOKItemsItem) SetResolvedBy(val NilString) {
 // SetSeverity sets the value of Severity.
 func (s *FindingsGetFindingsOKItemsItem) SetSeverity(val FindingsGetFindingsOKItemsItemSeverity) {
 	s.Severity = val
+}
+
+// SetSoftwareID sets the value of SoftwareID.
+func (s *FindingsGetFindingsOKItemsItem) SetSoftwareID(val string) {
+	s.SoftwareID = val
 }
 
 // SetStatus sets the value of Status.
@@ -78958,13 +79044,26 @@ type FindingsPostFindingsIDAiOK struct {
 	// known_version.seen_at says when the version was reported.
 	LastSeen time.Time `json:"last_seen"`
 	// Null = no recommendation confirmed by Vedette maintainers yet.
-	Pack           NilFindingsPostFindingsIDAiOKPack  `json:"pack"`
-	Recheck        FindingsPostFindingsIDAiOKRecheck  `json:"recheck"`
-	ResolutionNote NilString                          `json:"resolution_note"`
-	ResolvedAt     NilDateTime                        `json:"resolved_at"`
-	ResolvedBy     NilString                          `json:"resolved_by"`
-	Severity       FindingsPostFindingsIDAiOKSeverity `json:"severity"`
-	Status         FindingsPostFindingsIDAiOKStatus   `json:"status"`
+	Pack NilFindingsPostFindingsIDAiOKPack `json:"pack"`
+	// A finding closed by proof (resolution_reason set): the version or package release the matcher
+	// compared to rule it out, as the device row gives it; null when the closure compared none (name only,
+	// age, an open platform question, another platform) or it is not closed by Vedette. An entry a person
+	// typed closed it only when this equals the entry.
+	ProvedVersion  NilString                         `json:"proved_version"`
+	Recheck        FindingsPostFindingsIDAiOKRecheck `json:"recheck"`
+	ResolutionNote NilString                         `json:"resolution_note"`
+	// Not_affected_version when Vedette closed the finding by itself (a matcher proof, or one of its rules
+	// that compares no version); null for a person's own action and for open findings. A string, not an
+	// enum: a new reason must not break the list.
+	ResolutionReason NilString                          `json:"resolution_reason"`
+	ResolvedAt       NilDateTime                        `json:"resolved_at"`
+	ResolvedBy       NilString                          `json:"resolved_by"`
+	Severity         FindingsPostFindingsIDAiOKSeverity `json:"severity"`
+	// The device's software row the matcher matched the finding on (the id FindingRow.fix.group and
+	// ToFixAction use), stored when it opens, touches or closes the finding; "" until the next match
+	// reaches an older finding. Never guessed from the product.
+	SoftwareID string                           `json:"software_id"`
+	Status     FindingsPostFindingsIDAiOKStatus `json:"status"`
 }
 
 // GetAcceptedUntil returns the value of AcceptedUntil.
@@ -79077,6 +79176,11 @@ func (s *FindingsPostFindingsIDAiOK) GetPack() NilFindingsPostFindingsIDAiOKPack
 	return s.Pack
 }
 
+// GetProvedVersion returns the value of ProvedVersion.
+func (s *FindingsPostFindingsIDAiOK) GetProvedVersion() NilString {
+	return s.ProvedVersion
+}
+
 // GetRecheck returns the value of Recheck.
 func (s *FindingsPostFindingsIDAiOK) GetRecheck() FindingsPostFindingsIDAiOKRecheck {
 	return s.Recheck
@@ -79085,6 +79189,11 @@ func (s *FindingsPostFindingsIDAiOK) GetRecheck() FindingsPostFindingsIDAiOKRech
 // GetResolutionNote returns the value of ResolutionNote.
 func (s *FindingsPostFindingsIDAiOK) GetResolutionNote() NilString {
 	return s.ResolutionNote
+}
+
+// GetResolutionReason returns the value of ResolutionReason.
+func (s *FindingsPostFindingsIDAiOK) GetResolutionReason() NilString {
+	return s.ResolutionReason
 }
 
 // GetResolvedAt returns the value of ResolvedAt.
@@ -79100,6 +79209,11 @@ func (s *FindingsPostFindingsIDAiOK) GetResolvedBy() NilString {
 // GetSeverity returns the value of Severity.
 func (s *FindingsPostFindingsIDAiOK) GetSeverity() FindingsPostFindingsIDAiOKSeverity {
 	return s.Severity
+}
+
+// GetSoftwareID returns the value of SoftwareID.
+func (s *FindingsPostFindingsIDAiOK) GetSoftwareID() string {
+	return s.SoftwareID
 }
 
 // GetStatus returns the value of Status.
@@ -79217,6 +79331,11 @@ func (s *FindingsPostFindingsIDAiOK) SetPack(val NilFindingsPostFindingsIDAiOKPa
 	s.Pack = val
 }
 
+// SetProvedVersion sets the value of ProvedVersion.
+func (s *FindingsPostFindingsIDAiOK) SetProvedVersion(val NilString) {
+	s.ProvedVersion = val
+}
+
 // SetRecheck sets the value of Recheck.
 func (s *FindingsPostFindingsIDAiOK) SetRecheck(val FindingsPostFindingsIDAiOKRecheck) {
 	s.Recheck = val
@@ -79225,6 +79344,11 @@ func (s *FindingsPostFindingsIDAiOK) SetRecheck(val FindingsPostFindingsIDAiOKRe
 // SetResolutionNote sets the value of ResolutionNote.
 func (s *FindingsPostFindingsIDAiOK) SetResolutionNote(val NilString) {
 	s.ResolutionNote = val
+}
+
+// SetResolutionReason sets the value of ResolutionReason.
+func (s *FindingsPostFindingsIDAiOK) SetResolutionReason(val NilString) {
+	s.ResolutionReason = val
 }
 
 // SetResolvedAt sets the value of ResolvedAt.
@@ -79240,6 +79364,11 @@ func (s *FindingsPostFindingsIDAiOK) SetResolvedBy(val NilString) {
 // SetSeverity sets the value of Severity.
 func (s *FindingsPostFindingsIDAiOK) SetSeverity(val FindingsPostFindingsIDAiOKSeverity) {
 	s.Severity = val
+}
+
+// SetSoftwareID sets the value of SoftwareID.
+func (s *FindingsPostFindingsIDAiOK) SetSoftwareID(val string) {
+	s.SoftwareID = val
 }
 
 // SetStatus sets the value of Status.
@@ -82991,13 +83120,26 @@ type FindingsPostFindingsIDAppliedOK struct {
 	// known_version.seen_at says when the version was reported.
 	LastSeen time.Time `json:"last_seen"`
 	// Null = no recommendation confirmed by Vedette maintainers yet.
-	Pack           NilFindingsPostFindingsIDAppliedOKPack  `json:"pack"`
-	Recheck        FindingsPostFindingsIDAppliedOKRecheck  `json:"recheck"`
-	ResolutionNote NilString                               `json:"resolution_note"`
-	ResolvedAt     NilDateTime                             `json:"resolved_at"`
-	ResolvedBy     NilString                               `json:"resolved_by"`
-	Severity       FindingsPostFindingsIDAppliedOKSeverity `json:"severity"`
-	Status         FindingsPostFindingsIDAppliedOKStatus   `json:"status"`
+	Pack NilFindingsPostFindingsIDAppliedOKPack `json:"pack"`
+	// A finding closed by proof (resolution_reason set): the version or package release the matcher
+	// compared to rule it out, as the device row gives it; null when the closure compared none (name only,
+	// age, an open platform question, another platform) or it is not closed by Vedette. An entry a person
+	// typed closed it only when this equals the entry.
+	ProvedVersion  NilString                              `json:"proved_version"`
+	Recheck        FindingsPostFindingsIDAppliedOKRecheck `json:"recheck"`
+	ResolutionNote NilString                              `json:"resolution_note"`
+	// Not_affected_version when Vedette closed the finding by itself (a matcher proof, or one of its rules
+	// that compares no version); null for a person's own action and for open findings. A string, not an
+	// enum: a new reason must not break the list.
+	ResolutionReason NilString                               `json:"resolution_reason"`
+	ResolvedAt       NilDateTime                             `json:"resolved_at"`
+	ResolvedBy       NilString                               `json:"resolved_by"`
+	Severity         FindingsPostFindingsIDAppliedOKSeverity `json:"severity"`
+	// The device's software row the matcher matched the finding on (the id FindingRow.fix.group and
+	// ToFixAction use), stored when it opens, touches or closes the finding; "" until the next match
+	// reaches an older finding. Never guessed from the product.
+	SoftwareID string                                `json:"software_id"`
+	Status     FindingsPostFindingsIDAppliedOKStatus `json:"status"`
 }
 
 // GetAcceptedUntil returns the value of AcceptedUntil.
@@ -83110,6 +83252,11 @@ func (s *FindingsPostFindingsIDAppliedOK) GetPack() NilFindingsPostFindingsIDApp
 	return s.Pack
 }
 
+// GetProvedVersion returns the value of ProvedVersion.
+func (s *FindingsPostFindingsIDAppliedOK) GetProvedVersion() NilString {
+	return s.ProvedVersion
+}
+
 // GetRecheck returns the value of Recheck.
 func (s *FindingsPostFindingsIDAppliedOK) GetRecheck() FindingsPostFindingsIDAppliedOKRecheck {
 	return s.Recheck
@@ -83118,6 +83265,11 @@ func (s *FindingsPostFindingsIDAppliedOK) GetRecheck() FindingsPostFindingsIDApp
 // GetResolutionNote returns the value of ResolutionNote.
 func (s *FindingsPostFindingsIDAppliedOK) GetResolutionNote() NilString {
 	return s.ResolutionNote
+}
+
+// GetResolutionReason returns the value of ResolutionReason.
+func (s *FindingsPostFindingsIDAppliedOK) GetResolutionReason() NilString {
+	return s.ResolutionReason
 }
 
 // GetResolvedAt returns the value of ResolvedAt.
@@ -83133,6 +83285,11 @@ func (s *FindingsPostFindingsIDAppliedOK) GetResolvedBy() NilString {
 // GetSeverity returns the value of Severity.
 func (s *FindingsPostFindingsIDAppliedOK) GetSeverity() FindingsPostFindingsIDAppliedOKSeverity {
 	return s.Severity
+}
+
+// GetSoftwareID returns the value of SoftwareID.
+func (s *FindingsPostFindingsIDAppliedOK) GetSoftwareID() string {
+	return s.SoftwareID
 }
 
 // GetStatus returns the value of Status.
@@ -83250,6 +83407,11 @@ func (s *FindingsPostFindingsIDAppliedOK) SetPack(val NilFindingsPostFindingsIDA
 	s.Pack = val
 }
 
+// SetProvedVersion sets the value of ProvedVersion.
+func (s *FindingsPostFindingsIDAppliedOK) SetProvedVersion(val NilString) {
+	s.ProvedVersion = val
+}
+
 // SetRecheck sets the value of Recheck.
 func (s *FindingsPostFindingsIDAppliedOK) SetRecheck(val FindingsPostFindingsIDAppliedOKRecheck) {
 	s.Recheck = val
@@ -83258,6 +83420,11 @@ func (s *FindingsPostFindingsIDAppliedOK) SetRecheck(val FindingsPostFindingsIDA
 // SetResolutionNote sets the value of ResolutionNote.
 func (s *FindingsPostFindingsIDAppliedOK) SetResolutionNote(val NilString) {
 	s.ResolutionNote = val
+}
+
+// SetResolutionReason sets the value of ResolutionReason.
+func (s *FindingsPostFindingsIDAppliedOK) SetResolutionReason(val NilString) {
+	s.ResolutionReason = val
 }
 
 // SetResolvedAt sets the value of ResolvedAt.
@@ -83273,6 +83440,11 @@ func (s *FindingsPostFindingsIDAppliedOK) SetResolvedBy(val NilString) {
 // SetSeverity sets the value of Severity.
 func (s *FindingsPostFindingsIDAppliedOK) SetSeverity(val FindingsPostFindingsIDAppliedOKSeverity) {
 	s.Severity = val
+}
+
+// SetSoftwareID sets the value of SoftwareID.
+func (s *FindingsPostFindingsIDAppliedOK) SetSoftwareID(val string) {
+	s.SoftwareID = val
 }
 
 // SetStatus sets the value of Status.
@@ -87045,13 +87217,26 @@ type FindingsPostFindingsIDStatusOK struct {
 	// known_version.seen_at says when the version was reported.
 	LastSeen time.Time `json:"last_seen"`
 	// Null = no recommendation confirmed by Vedette maintainers yet.
-	Pack           NilFindingsPostFindingsIDStatusOKPack  `json:"pack"`
-	Recheck        FindingsPostFindingsIDStatusOKRecheck  `json:"recheck"`
-	ResolutionNote NilString                              `json:"resolution_note"`
-	ResolvedAt     NilDateTime                            `json:"resolved_at"`
-	ResolvedBy     NilString                              `json:"resolved_by"`
-	Severity       FindingsPostFindingsIDStatusOKSeverity `json:"severity"`
-	Status         FindingsPostFindingsIDStatusOKStatus   `json:"status"`
+	Pack NilFindingsPostFindingsIDStatusOKPack `json:"pack"`
+	// A finding closed by proof (resolution_reason set): the version or package release the matcher
+	// compared to rule it out, as the device row gives it; null when the closure compared none (name only,
+	// age, an open platform question, another platform) or it is not closed by Vedette. An entry a person
+	// typed closed it only when this equals the entry.
+	ProvedVersion  NilString                             `json:"proved_version"`
+	Recheck        FindingsPostFindingsIDStatusOKRecheck `json:"recheck"`
+	ResolutionNote NilString                             `json:"resolution_note"`
+	// Not_affected_version when Vedette closed the finding by itself (a matcher proof, or one of its rules
+	// that compares no version); null for a person's own action and for open findings. A string, not an
+	// enum: a new reason must not break the list.
+	ResolutionReason NilString                              `json:"resolution_reason"`
+	ResolvedAt       NilDateTime                            `json:"resolved_at"`
+	ResolvedBy       NilString                              `json:"resolved_by"`
+	Severity         FindingsPostFindingsIDStatusOKSeverity `json:"severity"`
+	// The device's software row the matcher matched the finding on (the id FindingRow.fix.group and
+	// ToFixAction use), stored when it opens, touches or closes the finding; "" until the next match
+	// reaches an older finding. Never guessed from the product.
+	SoftwareID string                               `json:"software_id"`
+	Status     FindingsPostFindingsIDStatusOKStatus `json:"status"`
 }
 
 // GetAcceptedUntil returns the value of AcceptedUntil.
@@ -87164,6 +87349,11 @@ func (s *FindingsPostFindingsIDStatusOK) GetPack() NilFindingsPostFindingsIDStat
 	return s.Pack
 }
 
+// GetProvedVersion returns the value of ProvedVersion.
+func (s *FindingsPostFindingsIDStatusOK) GetProvedVersion() NilString {
+	return s.ProvedVersion
+}
+
 // GetRecheck returns the value of Recheck.
 func (s *FindingsPostFindingsIDStatusOK) GetRecheck() FindingsPostFindingsIDStatusOKRecheck {
 	return s.Recheck
@@ -87172,6 +87362,11 @@ func (s *FindingsPostFindingsIDStatusOK) GetRecheck() FindingsPostFindingsIDStat
 // GetResolutionNote returns the value of ResolutionNote.
 func (s *FindingsPostFindingsIDStatusOK) GetResolutionNote() NilString {
 	return s.ResolutionNote
+}
+
+// GetResolutionReason returns the value of ResolutionReason.
+func (s *FindingsPostFindingsIDStatusOK) GetResolutionReason() NilString {
+	return s.ResolutionReason
 }
 
 // GetResolvedAt returns the value of ResolvedAt.
@@ -87187,6 +87382,11 @@ func (s *FindingsPostFindingsIDStatusOK) GetResolvedBy() NilString {
 // GetSeverity returns the value of Severity.
 func (s *FindingsPostFindingsIDStatusOK) GetSeverity() FindingsPostFindingsIDStatusOKSeverity {
 	return s.Severity
+}
+
+// GetSoftwareID returns the value of SoftwareID.
+func (s *FindingsPostFindingsIDStatusOK) GetSoftwareID() string {
+	return s.SoftwareID
 }
 
 // GetStatus returns the value of Status.
@@ -87304,6 +87504,11 @@ func (s *FindingsPostFindingsIDStatusOK) SetPack(val NilFindingsPostFindingsIDSt
 	s.Pack = val
 }
 
+// SetProvedVersion sets the value of ProvedVersion.
+func (s *FindingsPostFindingsIDStatusOK) SetProvedVersion(val NilString) {
+	s.ProvedVersion = val
+}
+
 // SetRecheck sets the value of Recheck.
 func (s *FindingsPostFindingsIDStatusOK) SetRecheck(val FindingsPostFindingsIDStatusOKRecheck) {
 	s.Recheck = val
@@ -87312,6 +87517,11 @@ func (s *FindingsPostFindingsIDStatusOK) SetRecheck(val FindingsPostFindingsIDSt
 // SetResolutionNote sets the value of ResolutionNote.
 func (s *FindingsPostFindingsIDStatusOK) SetResolutionNote(val NilString) {
 	s.ResolutionNote = val
+}
+
+// SetResolutionReason sets the value of ResolutionReason.
+func (s *FindingsPostFindingsIDStatusOK) SetResolutionReason(val NilString) {
+	s.ResolutionReason = val
 }
 
 // SetResolvedAt sets the value of ResolvedAt.
@@ -87327,6 +87537,11 @@ func (s *FindingsPostFindingsIDStatusOK) SetResolvedBy(val NilString) {
 // SetSeverity sets the value of Severity.
 func (s *FindingsPostFindingsIDStatusOK) SetSeverity(val FindingsPostFindingsIDStatusOKSeverity) {
 	s.Severity = val
+}
+
+// SetSoftwareID sets the value of SoftwareID.
+func (s *FindingsPostFindingsIDStatusOK) SetSoftwareID(val string) {
+	s.SoftwareID = val
 }
 
 // SetStatus sets the value of Status.
@@ -100662,6 +100877,10 @@ func (s *InventoryGetInventoryDevicesHasFindings) UnmarshalText(data []byte) err
 
 type InventoryGetInventoryDevicesIDOK struct {
 	Asset InventoryGetInventoryDevicesIDOKAsset `json:"asset"`
+	// INV-47: fields where a trusted source reads another value than the one a person entered, which still
+	// wins. The page offers Use detected / Keep mine next to each; empty when none or when the person kept
+	// their value for the value now detected.
+	DetectedDiffers []InventoryGetInventoryDevicesIDOKDetectedDiffersItem `json:"detected_differs"`
 	// Number of findings attached to the device; deleting the device also deletes these findings.
 	FindingsCount int                                         `json:"findings_count"`
 	Kinds         []InventoryGetInventoryDevicesIDOKKindsItem `json:"kinds"`
@@ -100686,6 +100905,11 @@ type InventoryGetInventoryDevicesIDOK struct {
 // GetAsset returns the value of Asset.
 func (s *InventoryGetInventoryDevicesIDOK) GetAsset() InventoryGetInventoryDevicesIDOKAsset {
 	return s.Asset
+}
+
+// GetDetectedDiffers returns the value of DetectedDiffers.
+func (s *InventoryGetInventoryDevicesIDOK) GetDetectedDiffers() []InventoryGetInventoryDevicesIDOKDetectedDiffersItem {
+	return s.DetectedDiffers
 }
 
 // GetFindingsCount returns the value of FindingsCount.
@@ -100731,6 +100955,11 @@ func (s *InventoryGetInventoryDevicesIDOK) GetSuspicious() bool {
 // SetAsset sets the value of Asset.
 func (s *InventoryGetInventoryDevicesIDOK) SetAsset(val InventoryGetInventoryDevicesIDOKAsset) {
 	s.Asset = val
+}
+
+// SetDetectedDiffers sets the value of DetectedDiffers.
+func (s *InventoryGetInventoryDevicesIDOK) SetDetectedDiffers(val []InventoryGetInventoryDevicesIDOKDetectedDiffersItem) {
+	s.DetectedDiffers = val
 }
 
 // SetFindingsCount sets the value of FindingsCount.
@@ -104854,6 +105083,254 @@ func (s *InventoryGetInventoryDevicesIDOKAssetVendorSource) UnmarshalText(data [
 		return nil
 	case InventoryGetInventoryDevicesIDOKAssetVendorSourceScan:
 		*s = InventoryGetInventoryDevicesIDOKAssetVendorSourceScan
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Never raised against a scan guess or a passive hint, nor when the two only differ by case, a domain,
+// a legal suffix such as Inc., or a version the entered OS leaves out.
+type InventoryGetInventoryDevicesIDOKDetectedDiffersItem struct {
+	Basis OptInventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis `json:"basis"`
+	// What the trusted source reads now.
+	Detected string `json:"detected"`
+	// What the person entered: the value in use.
+	Entered string                                                   `json:"entered"`
+	Field   InventoryGetInventoryDevicesIDOKDetectedDiffersItemField `json:"field"`
+	// When the source last read that value.
+	SeenAt time.Time `json:"seen_at"`
+	// Agent, snmp, or passive (the device's own LLDP statement: basis stated).
+	Source InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource `json:"source"`
+}
+
+// GetBasis returns the value of Basis.
+func (s *InventoryGetInventoryDevicesIDOKDetectedDiffersItem) GetBasis() OptInventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis {
+	return s.Basis
+}
+
+// GetDetected returns the value of Detected.
+func (s *InventoryGetInventoryDevicesIDOKDetectedDiffersItem) GetDetected() string {
+	return s.Detected
+}
+
+// GetEntered returns the value of Entered.
+func (s *InventoryGetInventoryDevicesIDOKDetectedDiffersItem) GetEntered() string {
+	return s.Entered
+}
+
+// GetField returns the value of Field.
+func (s *InventoryGetInventoryDevicesIDOKDetectedDiffersItem) GetField() InventoryGetInventoryDevicesIDOKDetectedDiffersItemField {
+	return s.Field
+}
+
+// GetSeenAt returns the value of SeenAt.
+func (s *InventoryGetInventoryDevicesIDOKDetectedDiffersItem) GetSeenAt() time.Time {
+	return s.SeenAt
+}
+
+// GetSource returns the value of Source.
+func (s *InventoryGetInventoryDevicesIDOKDetectedDiffersItem) GetSource() InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource {
+	return s.Source
+}
+
+// SetBasis sets the value of Basis.
+func (s *InventoryGetInventoryDevicesIDOKDetectedDiffersItem) SetBasis(val OptInventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis) {
+	s.Basis = val
+}
+
+// SetDetected sets the value of Detected.
+func (s *InventoryGetInventoryDevicesIDOKDetectedDiffersItem) SetDetected(val string) {
+	s.Detected = val
+}
+
+// SetEntered sets the value of Entered.
+func (s *InventoryGetInventoryDevicesIDOKDetectedDiffersItem) SetEntered(val string) {
+	s.Entered = val
+}
+
+// SetField sets the value of Field.
+func (s *InventoryGetInventoryDevicesIDOKDetectedDiffersItem) SetField(val InventoryGetInventoryDevicesIDOKDetectedDiffersItemField) {
+	s.Field = val
+}
+
+// SetSeenAt sets the value of SeenAt.
+func (s *InventoryGetInventoryDevicesIDOKDetectedDiffersItem) SetSeenAt(val time.Time) {
+	s.SeenAt = val
+}
+
+// SetSource sets the value of Source.
+func (s *InventoryGetInventoryDevicesIDOKDetectedDiffersItem) SetSource(val InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource) {
+	s.Source = val
+}
+
+type InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis string
+
+const (
+	InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasisStated InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis = "stated"
+	InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasisGuess  InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis = "guess"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis values.
+func (InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis) AllValues() []InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis {
+	return []InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis{
+		InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasisStated,
+		InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasisGuess,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasisStated:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasisGuess:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis(data) {
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasisStated:
+		*s = InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasisStated
+		return nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasisGuess:
+		*s = InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasisGuess
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryGetInventoryDevicesIDOKDetectedDiffersItemField string
+
+const (
+	InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldHostname InventoryGetInventoryDevicesIDOKDetectedDiffersItemField = "hostname"
+	InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldVendor   InventoryGetInventoryDevicesIDOKDetectedDiffersItemField = "vendor"
+	InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldModel    InventoryGetInventoryDevicesIDOKDetectedDiffersItemField = "model"
+	InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldOs       InventoryGetInventoryDevicesIDOKDetectedDiffersItemField = "os"
+	InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldKind     InventoryGetInventoryDevicesIDOKDetectedDiffersItemField = "kind"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesIDOKDetectedDiffersItemField values.
+func (InventoryGetInventoryDevicesIDOKDetectedDiffersItemField) AllValues() []InventoryGetInventoryDevicesIDOKDetectedDiffersItemField {
+	return []InventoryGetInventoryDevicesIDOKDetectedDiffersItemField{
+		InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldHostname,
+		InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldVendor,
+		InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldModel,
+		InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldOs,
+		InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldKind,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesIDOKDetectedDiffersItemField) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldHostname:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldVendor:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldModel:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldOs:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldKind:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesIDOKDetectedDiffersItemField) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesIDOKDetectedDiffersItemField(data) {
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldHostname:
+		*s = InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldHostname
+		return nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldVendor:
+		*s = InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldVendor
+		return nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldModel:
+		*s = InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldModel
+		return nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldOs:
+		*s = InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldOs
+		return nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldKind:
+		*s = InventoryGetInventoryDevicesIDOKDetectedDiffersItemFieldKind
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Agent, snmp, or passive (the device's own LLDP statement: basis stated).
+type InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource string
+
+const (
+	InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceManual  InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource = "manual"
+	InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceAgent   InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource = "agent"
+	InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceSnmp    InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource = "snmp"
+	InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceNmap    InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource = "nmap"
+	InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourcePassive InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource = "passive"
+	InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceScan    InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource = "scan"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource values.
+func (InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource) AllValues() []InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource {
+	return []InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource{
+		InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceManual,
+		InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceAgent,
+		InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceSnmp,
+		InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceNmap,
+		InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourcePassive,
+		InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceScan,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceManual:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceAgent:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceSnmp:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceNmap:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourcePassive:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceScan:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource(data) {
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceManual:
+		*s = InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceManual
+		return nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceAgent:
+		*s = InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceAgent
+		return nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceSnmp:
+		*s = InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceSnmp
+		return nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceNmap:
+		*s = InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceNmap
+		return nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourcePassive:
+		*s = InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourcePassive
+		return nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceScan:
+		*s = InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceScan
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -114748,6 +115225,190 @@ func (s *InventoryPostInventoryDevicesIDApproveOK) SetOk(val bool) {
 	s.Ok = val
 }
 
+type InventoryPostInventoryDevicesIDDiffersFieldKeepField string
+
+const (
+	InventoryPostInventoryDevicesIDDiffersFieldKeepFieldHostname InventoryPostInventoryDevicesIDDiffersFieldKeepField = "hostname"
+	InventoryPostInventoryDevicesIDDiffersFieldKeepFieldVendor   InventoryPostInventoryDevicesIDDiffersFieldKeepField = "vendor"
+	InventoryPostInventoryDevicesIDDiffersFieldKeepFieldModel    InventoryPostInventoryDevicesIDDiffersFieldKeepField = "model"
+	InventoryPostInventoryDevicesIDDiffersFieldKeepFieldOs       InventoryPostInventoryDevicesIDDiffersFieldKeepField = "os"
+	InventoryPostInventoryDevicesIDDiffersFieldKeepFieldKind     InventoryPostInventoryDevicesIDDiffersFieldKeepField = "kind"
+)
+
+// AllValues returns all InventoryPostInventoryDevicesIDDiffersFieldKeepField values.
+func (InventoryPostInventoryDevicesIDDiffersFieldKeepField) AllValues() []InventoryPostInventoryDevicesIDDiffersFieldKeepField {
+	return []InventoryPostInventoryDevicesIDDiffersFieldKeepField{
+		InventoryPostInventoryDevicesIDDiffersFieldKeepFieldHostname,
+		InventoryPostInventoryDevicesIDDiffersFieldKeepFieldVendor,
+		InventoryPostInventoryDevicesIDDiffersFieldKeepFieldModel,
+		InventoryPostInventoryDevicesIDDiffersFieldKeepFieldOs,
+		InventoryPostInventoryDevicesIDDiffersFieldKeepFieldKind,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPostInventoryDevicesIDDiffersFieldKeepField) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPostInventoryDevicesIDDiffersFieldKeepFieldHostname:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDDiffersFieldKeepFieldVendor:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDDiffersFieldKeepFieldModel:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDDiffersFieldKeepFieldOs:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDDiffersFieldKeepFieldKind:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPostInventoryDevicesIDDiffersFieldKeepField) UnmarshalText(data []byte) error {
+	switch InventoryPostInventoryDevicesIDDiffersFieldKeepField(data) {
+	case InventoryPostInventoryDevicesIDDiffersFieldKeepFieldHostname:
+		*s = InventoryPostInventoryDevicesIDDiffersFieldKeepFieldHostname
+		return nil
+	case InventoryPostInventoryDevicesIDDiffersFieldKeepFieldVendor:
+		*s = InventoryPostInventoryDevicesIDDiffersFieldKeepFieldVendor
+		return nil
+	case InventoryPostInventoryDevicesIDDiffersFieldKeepFieldModel:
+		*s = InventoryPostInventoryDevicesIDDiffersFieldKeepFieldModel
+		return nil
+	case InventoryPostInventoryDevicesIDDiffersFieldKeepFieldOs:
+		*s = InventoryPostInventoryDevicesIDDiffersFieldKeepFieldOs
+		return nil
+	case InventoryPostInventoryDevicesIDDiffersFieldKeepFieldKind:
+		*s = InventoryPostInventoryDevicesIDDiffersFieldKeepFieldKind
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryPostInventoryDevicesIDDiffersFieldKeepOK struct {
+	Ok bool `json:"ok"`
+}
+
+// GetOk returns the value of Ok.
+func (s *InventoryPostInventoryDevicesIDDiffersFieldKeepOK) GetOk() bool {
+	return s.Ok
+}
+
+// SetOk sets the value of Ok.
+func (s *InventoryPostInventoryDevicesIDDiffersFieldKeepOK) SetOk(val bool) {
+	s.Ok = val
+}
+
+type InventoryPostInventoryDevicesIDDiffersFieldKeepReq struct {
+	// The detected value the person saw. 409 detected_changed when the sources read another value now or
+	// it no longer differs: reload.
+	Detected string `json:"detected"`
+}
+
+// GetDetected returns the value of Detected.
+func (s *InventoryPostInventoryDevicesIDDiffersFieldKeepReq) GetDetected() string {
+	return s.Detected
+}
+
+// SetDetected sets the value of Detected.
+func (s *InventoryPostInventoryDevicesIDDiffersFieldKeepReq) SetDetected(val string) {
+	s.Detected = val
+}
+
+type InventoryPostInventoryDevicesIDDiffersFieldUseField string
+
+const (
+	InventoryPostInventoryDevicesIDDiffersFieldUseFieldHostname InventoryPostInventoryDevicesIDDiffersFieldUseField = "hostname"
+	InventoryPostInventoryDevicesIDDiffersFieldUseFieldVendor   InventoryPostInventoryDevicesIDDiffersFieldUseField = "vendor"
+	InventoryPostInventoryDevicesIDDiffersFieldUseFieldModel    InventoryPostInventoryDevicesIDDiffersFieldUseField = "model"
+	InventoryPostInventoryDevicesIDDiffersFieldUseFieldOs       InventoryPostInventoryDevicesIDDiffersFieldUseField = "os"
+	InventoryPostInventoryDevicesIDDiffersFieldUseFieldKind     InventoryPostInventoryDevicesIDDiffersFieldUseField = "kind"
+)
+
+// AllValues returns all InventoryPostInventoryDevicesIDDiffersFieldUseField values.
+func (InventoryPostInventoryDevicesIDDiffersFieldUseField) AllValues() []InventoryPostInventoryDevicesIDDiffersFieldUseField {
+	return []InventoryPostInventoryDevicesIDDiffersFieldUseField{
+		InventoryPostInventoryDevicesIDDiffersFieldUseFieldHostname,
+		InventoryPostInventoryDevicesIDDiffersFieldUseFieldVendor,
+		InventoryPostInventoryDevicesIDDiffersFieldUseFieldModel,
+		InventoryPostInventoryDevicesIDDiffersFieldUseFieldOs,
+		InventoryPostInventoryDevicesIDDiffersFieldUseFieldKind,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPostInventoryDevicesIDDiffersFieldUseField) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPostInventoryDevicesIDDiffersFieldUseFieldHostname:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDDiffersFieldUseFieldVendor:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDDiffersFieldUseFieldModel:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDDiffersFieldUseFieldOs:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDDiffersFieldUseFieldKind:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPostInventoryDevicesIDDiffersFieldUseField) UnmarshalText(data []byte) error {
+	switch InventoryPostInventoryDevicesIDDiffersFieldUseField(data) {
+	case InventoryPostInventoryDevicesIDDiffersFieldUseFieldHostname:
+		*s = InventoryPostInventoryDevicesIDDiffersFieldUseFieldHostname
+		return nil
+	case InventoryPostInventoryDevicesIDDiffersFieldUseFieldVendor:
+		*s = InventoryPostInventoryDevicesIDDiffersFieldUseFieldVendor
+		return nil
+	case InventoryPostInventoryDevicesIDDiffersFieldUseFieldModel:
+		*s = InventoryPostInventoryDevicesIDDiffersFieldUseFieldModel
+		return nil
+	case InventoryPostInventoryDevicesIDDiffersFieldUseFieldOs:
+		*s = InventoryPostInventoryDevicesIDDiffersFieldUseFieldOs
+		return nil
+	case InventoryPostInventoryDevicesIDDiffersFieldUseFieldKind:
+		*s = InventoryPostInventoryDevicesIDDiffersFieldUseFieldKind
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryPostInventoryDevicesIDDiffersFieldUseOK struct {
+	Ok bool `json:"ok"`
+}
+
+// GetOk returns the value of Ok.
+func (s *InventoryPostInventoryDevicesIDDiffersFieldUseOK) GetOk() bool {
+	return s.Ok
+}
+
+// SetOk sets the value of Ok.
+func (s *InventoryPostInventoryDevicesIDDiffersFieldUseOK) SetOk(val bool) {
+	s.Ok = val
+}
+
+type InventoryPostInventoryDevicesIDDiffersFieldUseReq struct {
+	// The detected value the person saw. 409 detected_changed when the sources read another value now or
+	// it no longer differs: reload.
+	Detected string `json:"detected"`
+}
+
+// GetDetected returns the value of Detected.
+func (s *InventoryPostInventoryDevicesIDDiffersFieldUseReq) GetDetected() string {
+	return s.Detected
+}
+
+// SetDetected sets the value of Detected.
+func (s *InventoryPostInventoryDevicesIDDiffersFieldUseReq) SetDetected(val string) {
+	s.Detected = val
+}
+
 type InventoryPostInventoryDevicesIDIgnoreOK struct {
 	Ok bool `json:"ok"`
 }
@@ -120072,9 +120733,15 @@ func (s *LogsGetLogsSourcesOKBoxTLSKind) UnmarshalText(data []byte) error {
 }
 
 type LogsGetLogsSourcesOKSourcesItem struct {
-	// Inventory device with the same IP; null when none.
-	AssetID   NilString `json:"asset_id"`
-	AssetName NilString `json:"asset_name"`
+	// The one inventory device that has this address (its listed IP, or the address its SNMP is read
+	// from); null when none, or when two do (see asset_matches).
+	AssetID NilString `json:"asset_id"`
+	// Every device that has the address when more than one does (asset_id and asset_name are then null);
+	// empty otherwise.
+	AssetMatches []LogsGetLogsSourcesOKSourcesItemAssetMatchesItem `json:"asset_matches"`
+	AssetName    NilString                                         `json:"asset_name"`
+	// How the device was found when it is not by its listed IP; null for a listed IP or no device.
+	AssetVia NilLogsGetLogsSourcesOKSourcesItemAssetVia `json:"asset_via"`
 	// TLS sources only: the SHA-256 of the client certificate the device must present (64 lowercase hex
 	// characters); null = the sender is known by its IP address alone.
 	ClientCertSHA256 NilString                            `json:"client_cert_sha256"`
@@ -120095,9 +120762,19 @@ func (s *LogsGetLogsSourcesOKSourcesItem) GetAssetID() NilString {
 	return s.AssetID
 }
 
+// GetAssetMatches returns the value of AssetMatches.
+func (s *LogsGetLogsSourcesOKSourcesItem) GetAssetMatches() []LogsGetLogsSourcesOKSourcesItemAssetMatchesItem {
+	return s.AssetMatches
+}
+
 // GetAssetName returns the value of AssetName.
 func (s *LogsGetLogsSourcesOKSourcesItem) GetAssetName() NilString {
 	return s.AssetName
+}
+
+// GetAssetVia returns the value of AssetVia.
+func (s *LogsGetLogsSourcesOKSourcesItem) GetAssetVia() NilLogsGetLogsSourcesOKSourcesItemAssetVia {
+	return s.AssetVia
 }
 
 // GetClientCertSHA256 returns the value of ClientCertSHA256.
@@ -120160,9 +120837,19 @@ func (s *LogsGetLogsSourcesOKSourcesItem) SetAssetID(val NilString) {
 	s.AssetID = val
 }
 
+// SetAssetMatches sets the value of AssetMatches.
+func (s *LogsGetLogsSourcesOKSourcesItem) SetAssetMatches(val []LogsGetLogsSourcesOKSourcesItemAssetMatchesItem) {
+	s.AssetMatches = val
+}
+
 // SetAssetName sets the value of AssetName.
 func (s *LogsGetLogsSourcesOKSourcesItem) SetAssetName(val NilString) {
 	s.AssetName = val
+}
+
+// SetAssetVia sets the value of AssetVia.
+func (s *LogsGetLogsSourcesOKSourcesItem) SetAssetVia(val NilLogsGetLogsSourcesOKSourcesItemAssetVia) {
+	s.AssetVia = val
 }
 
 // SetClientCertSHA256 sets the value of ClientCertSHA256.
@@ -120218,6 +120905,110 @@ func (s *LogsGetLogsSourcesOKSourcesItem) SetSenderIP(val string) {
 // SetState sets the value of State.
 func (s *LogsGetLogsSourcesOKSourcesItem) SetState(val LogsGetLogsSourcesOKSourcesItemState) {
 	s.State = val
+}
+
+type LogsGetLogsSourcesOKSourcesItemAssetMatchesItem struct {
+	ID   string                                                `json:"id"`
+	Name string                                                `json:"name"`
+	Via  NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia `json:"via"`
+}
+
+// GetID returns the value of ID.
+func (s *LogsGetLogsSourcesOKSourcesItemAssetMatchesItem) GetID() string {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *LogsGetLogsSourcesOKSourcesItemAssetMatchesItem) GetName() string {
+	return s.Name
+}
+
+// GetVia returns the value of Via.
+func (s *LogsGetLogsSourcesOKSourcesItemAssetMatchesItem) GetVia() NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia {
+	return s.Via
+}
+
+// SetID sets the value of ID.
+func (s *LogsGetLogsSourcesOKSourcesItemAssetMatchesItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *LogsGetLogsSourcesOKSourcesItemAssetMatchesItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetVia sets the value of Via.
+func (s *LogsGetLogsSourcesOKSourcesItemAssetMatchesItem) SetVia(val NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) {
+	s.Via = val
+}
+
+type LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia string
+
+const (
+	LogsGetLogsSourcesOKSourcesItemAssetMatchesItemViaSnmpRead LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia = "snmp_read"
+)
+
+// AllValues returns all LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia values.
+func (LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) AllValues() []LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia {
+	return []LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia{
+		LogsGetLogsSourcesOKSourcesItemAssetMatchesItemViaSnmpRead,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) MarshalText() ([]byte, error) {
+	switch s {
+	case LogsGetLogsSourcesOKSourcesItemAssetMatchesItemViaSnmpRead:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) UnmarshalText(data []byte) error {
+	switch LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia(data) {
+	case LogsGetLogsSourcesOKSourcesItemAssetMatchesItemViaSnmpRead:
+		*s = LogsGetLogsSourcesOKSourcesItemAssetMatchesItemViaSnmpRead
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type LogsGetLogsSourcesOKSourcesItemAssetVia string
+
+const (
+	LogsGetLogsSourcesOKSourcesItemAssetViaSnmpRead LogsGetLogsSourcesOKSourcesItemAssetVia = "snmp_read"
+)
+
+// AllValues returns all LogsGetLogsSourcesOKSourcesItemAssetVia values.
+func (LogsGetLogsSourcesOKSourcesItemAssetVia) AllValues() []LogsGetLogsSourcesOKSourcesItemAssetVia {
+	return []LogsGetLogsSourcesOKSourcesItemAssetVia{
+		LogsGetLogsSourcesOKSourcesItemAssetViaSnmpRead,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s LogsGetLogsSourcesOKSourcesItemAssetVia) MarshalText() ([]byte, error) {
+	switch s {
+	case LogsGetLogsSourcesOKSourcesItemAssetViaSnmpRead:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *LogsGetLogsSourcesOKSourcesItemAssetVia) UnmarshalText(data []byte) error {
+	switch LogsGetLogsSourcesOKSourcesItemAssetVia(data) {
+	case LogsGetLogsSourcesOKSourcesItemAssetViaSnmpRead:
+		*s = LogsGetLogsSourcesOKSourcesItemAssetViaSnmpRead
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type LogsGetLogsSourcesOKSourcesItemKind string
@@ -120831,9 +121622,15 @@ func (s *LogsPostLogsSiemTestOK) SetOk(val bool) {
 }
 
 type LogsPostLogsSourcesCreated struct {
-	// Inventory device with the same IP; null when none.
-	AssetID   NilString `json:"asset_id"`
-	AssetName NilString `json:"asset_name"`
+	// The one inventory device that has this address (its listed IP, or the address its SNMP is read
+	// from); null when none, or when two do (see asset_matches).
+	AssetID NilString `json:"asset_id"`
+	// Every device that has the address when more than one does (asset_id and asset_name are then null);
+	// empty otherwise.
+	AssetMatches []LogsPostLogsSourcesCreatedAssetMatchesItem `json:"asset_matches"`
+	AssetName    NilString                                    `json:"asset_name"`
+	// How the device was found when it is not by its listed IP; null for a listed IP or no device.
+	AssetVia NilLogsPostLogsSourcesCreatedAssetVia `json:"asset_via"`
 	// TLS sources only: the SHA-256 of the client certificate the device must present (64 lowercase hex
 	// characters); null = the sender is known by its IP address alone.
 	ClientCertSHA256 NilString                       `json:"client_cert_sha256"`
@@ -120854,9 +121651,19 @@ func (s *LogsPostLogsSourcesCreated) GetAssetID() NilString {
 	return s.AssetID
 }
 
+// GetAssetMatches returns the value of AssetMatches.
+func (s *LogsPostLogsSourcesCreated) GetAssetMatches() []LogsPostLogsSourcesCreatedAssetMatchesItem {
+	return s.AssetMatches
+}
+
 // GetAssetName returns the value of AssetName.
 func (s *LogsPostLogsSourcesCreated) GetAssetName() NilString {
 	return s.AssetName
+}
+
+// GetAssetVia returns the value of AssetVia.
+func (s *LogsPostLogsSourcesCreated) GetAssetVia() NilLogsPostLogsSourcesCreatedAssetVia {
+	return s.AssetVia
 }
 
 // GetClientCertSHA256 returns the value of ClientCertSHA256.
@@ -120919,9 +121726,19 @@ func (s *LogsPostLogsSourcesCreated) SetAssetID(val NilString) {
 	s.AssetID = val
 }
 
+// SetAssetMatches sets the value of AssetMatches.
+func (s *LogsPostLogsSourcesCreated) SetAssetMatches(val []LogsPostLogsSourcesCreatedAssetMatchesItem) {
+	s.AssetMatches = val
+}
+
 // SetAssetName sets the value of AssetName.
 func (s *LogsPostLogsSourcesCreated) SetAssetName(val NilString) {
 	s.AssetName = val
+}
+
+// SetAssetVia sets the value of AssetVia.
+func (s *LogsPostLogsSourcesCreated) SetAssetVia(val NilLogsPostLogsSourcesCreatedAssetVia) {
+	s.AssetVia = val
 }
 
 // SetClientCertSHA256 sets the value of ClientCertSHA256.
@@ -120977,6 +121794,110 @@ func (s *LogsPostLogsSourcesCreated) SetSenderIP(val string) {
 // SetState sets the value of State.
 func (s *LogsPostLogsSourcesCreated) SetState(val LogsPostLogsSourcesCreatedState) {
 	s.State = val
+}
+
+type LogsPostLogsSourcesCreatedAssetMatchesItem struct {
+	ID   string                                           `json:"id"`
+	Name string                                           `json:"name"`
+	Via  NilLogsPostLogsSourcesCreatedAssetMatchesItemVia `json:"via"`
+}
+
+// GetID returns the value of ID.
+func (s *LogsPostLogsSourcesCreatedAssetMatchesItem) GetID() string {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *LogsPostLogsSourcesCreatedAssetMatchesItem) GetName() string {
+	return s.Name
+}
+
+// GetVia returns the value of Via.
+func (s *LogsPostLogsSourcesCreatedAssetMatchesItem) GetVia() NilLogsPostLogsSourcesCreatedAssetMatchesItemVia {
+	return s.Via
+}
+
+// SetID sets the value of ID.
+func (s *LogsPostLogsSourcesCreatedAssetMatchesItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *LogsPostLogsSourcesCreatedAssetMatchesItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetVia sets the value of Via.
+func (s *LogsPostLogsSourcesCreatedAssetMatchesItem) SetVia(val NilLogsPostLogsSourcesCreatedAssetMatchesItemVia) {
+	s.Via = val
+}
+
+type LogsPostLogsSourcesCreatedAssetMatchesItemVia string
+
+const (
+	LogsPostLogsSourcesCreatedAssetMatchesItemViaSnmpRead LogsPostLogsSourcesCreatedAssetMatchesItemVia = "snmp_read"
+)
+
+// AllValues returns all LogsPostLogsSourcesCreatedAssetMatchesItemVia values.
+func (LogsPostLogsSourcesCreatedAssetMatchesItemVia) AllValues() []LogsPostLogsSourcesCreatedAssetMatchesItemVia {
+	return []LogsPostLogsSourcesCreatedAssetMatchesItemVia{
+		LogsPostLogsSourcesCreatedAssetMatchesItemViaSnmpRead,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s LogsPostLogsSourcesCreatedAssetMatchesItemVia) MarshalText() ([]byte, error) {
+	switch s {
+	case LogsPostLogsSourcesCreatedAssetMatchesItemViaSnmpRead:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *LogsPostLogsSourcesCreatedAssetMatchesItemVia) UnmarshalText(data []byte) error {
+	switch LogsPostLogsSourcesCreatedAssetMatchesItemVia(data) {
+	case LogsPostLogsSourcesCreatedAssetMatchesItemViaSnmpRead:
+		*s = LogsPostLogsSourcesCreatedAssetMatchesItemViaSnmpRead
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type LogsPostLogsSourcesCreatedAssetVia string
+
+const (
+	LogsPostLogsSourcesCreatedAssetViaSnmpRead LogsPostLogsSourcesCreatedAssetVia = "snmp_read"
+)
+
+// AllValues returns all LogsPostLogsSourcesCreatedAssetVia values.
+func (LogsPostLogsSourcesCreatedAssetVia) AllValues() []LogsPostLogsSourcesCreatedAssetVia {
+	return []LogsPostLogsSourcesCreatedAssetVia{
+		LogsPostLogsSourcesCreatedAssetViaSnmpRead,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s LogsPostLogsSourcesCreatedAssetVia) MarshalText() ([]byte, error) {
+	switch s {
+	case LogsPostLogsSourcesCreatedAssetViaSnmpRead:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *LogsPostLogsSourcesCreatedAssetVia) UnmarshalText(data []byte) error {
+	switch LogsPostLogsSourcesCreatedAssetVia(data) {
+	case LogsPostLogsSourcesCreatedAssetViaSnmpRead:
+		*s = LogsPostLogsSourcesCreatedAssetViaSnmpRead
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type LogsPostLogsSourcesCreatedKind string
@@ -122515,9 +123436,15 @@ func (s *LogsPutLogsSiemReqProto) UnmarshalText(data []byte) error {
 }
 
 type LogsPutLogsSourcesIDOK struct {
-	// Inventory device with the same IP; null when none.
-	AssetID   NilString `json:"asset_id"`
-	AssetName NilString `json:"asset_name"`
+	// The one inventory device that has this address (its listed IP, or the address its SNMP is read
+	// from); null when none, or when two do (see asset_matches).
+	AssetID NilString `json:"asset_id"`
+	// Every device that has the address when more than one does (asset_id and asset_name are then null);
+	// empty otherwise.
+	AssetMatches []LogsPutLogsSourcesIDOKAssetMatchesItem `json:"asset_matches"`
+	AssetName    NilString                                `json:"asset_name"`
+	// How the device was found when it is not by its listed IP; null for a listed IP or no device.
+	AssetVia NilLogsPutLogsSourcesIDOKAssetVia `json:"asset_via"`
 	// TLS sources only: the SHA-256 of the client certificate the device must present (64 lowercase hex
 	// characters); null = the sender is known by its IP address alone.
 	ClientCertSHA256 NilString                   `json:"client_cert_sha256"`
@@ -122538,9 +123465,19 @@ func (s *LogsPutLogsSourcesIDOK) GetAssetID() NilString {
 	return s.AssetID
 }
 
+// GetAssetMatches returns the value of AssetMatches.
+func (s *LogsPutLogsSourcesIDOK) GetAssetMatches() []LogsPutLogsSourcesIDOKAssetMatchesItem {
+	return s.AssetMatches
+}
+
 // GetAssetName returns the value of AssetName.
 func (s *LogsPutLogsSourcesIDOK) GetAssetName() NilString {
 	return s.AssetName
+}
+
+// GetAssetVia returns the value of AssetVia.
+func (s *LogsPutLogsSourcesIDOK) GetAssetVia() NilLogsPutLogsSourcesIDOKAssetVia {
+	return s.AssetVia
 }
 
 // GetClientCertSHA256 returns the value of ClientCertSHA256.
@@ -122603,9 +123540,19 @@ func (s *LogsPutLogsSourcesIDOK) SetAssetID(val NilString) {
 	s.AssetID = val
 }
 
+// SetAssetMatches sets the value of AssetMatches.
+func (s *LogsPutLogsSourcesIDOK) SetAssetMatches(val []LogsPutLogsSourcesIDOKAssetMatchesItem) {
+	s.AssetMatches = val
+}
+
 // SetAssetName sets the value of AssetName.
 func (s *LogsPutLogsSourcesIDOK) SetAssetName(val NilString) {
 	s.AssetName = val
+}
+
+// SetAssetVia sets the value of AssetVia.
+func (s *LogsPutLogsSourcesIDOK) SetAssetVia(val NilLogsPutLogsSourcesIDOKAssetVia) {
+	s.AssetVia = val
 }
 
 // SetClientCertSHA256 sets the value of ClientCertSHA256.
@@ -122661,6 +123608,110 @@ func (s *LogsPutLogsSourcesIDOK) SetSenderIP(val string) {
 // SetState sets the value of State.
 func (s *LogsPutLogsSourcesIDOK) SetState(val LogsPutLogsSourcesIDOKState) {
 	s.State = val
+}
+
+type LogsPutLogsSourcesIDOKAssetMatchesItem struct {
+	ID   string                                       `json:"id"`
+	Name string                                       `json:"name"`
+	Via  NilLogsPutLogsSourcesIDOKAssetMatchesItemVia `json:"via"`
+}
+
+// GetID returns the value of ID.
+func (s *LogsPutLogsSourcesIDOKAssetMatchesItem) GetID() string {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *LogsPutLogsSourcesIDOKAssetMatchesItem) GetName() string {
+	return s.Name
+}
+
+// GetVia returns the value of Via.
+func (s *LogsPutLogsSourcesIDOKAssetMatchesItem) GetVia() NilLogsPutLogsSourcesIDOKAssetMatchesItemVia {
+	return s.Via
+}
+
+// SetID sets the value of ID.
+func (s *LogsPutLogsSourcesIDOKAssetMatchesItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *LogsPutLogsSourcesIDOKAssetMatchesItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetVia sets the value of Via.
+func (s *LogsPutLogsSourcesIDOKAssetMatchesItem) SetVia(val NilLogsPutLogsSourcesIDOKAssetMatchesItemVia) {
+	s.Via = val
+}
+
+type LogsPutLogsSourcesIDOKAssetMatchesItemVia string
+
+const (
+	LogsPutLogsSourcesIDOKAssetMatchesItemViaSnmpRead LogsPutLogsSourcesIDOKAssetMatchesItemVia = "snmp_read"
+)
+
+// AllValues returns all LogsPutLogsSourcesIDOKAssetMatchesItemVia values.
+func (LogsPutLogsSourcesIDOKAssetMatchesItemVia) AllValues() []LogsPutLogsSourcesIDOKAssetMatchesItemVia {
+	return []LogsPutLogsSourcesIDOKAssetMatchesItemVia{
+		LogsPutLogsSourcesIDOKAssetMatchesItemViaSnmpRead,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s LogsPutLogsSourcesIDOKAssetMatchesItemVia) MarshalText() ([]byte, error) {
+	switch s {
+	case LogsPutLogsSourcesIDOKAssetMatchesItemViaSnmpRead:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *LogsPutLogsSourcesIDOKAssetMatchesItemVia) UnmarshalText(data []byte) error {
+	switch LogsPutLogsSourcesIDOKAssetMatchesItemVia(data) {
+	case LogsPutLogsSourcesIDOKAssetMatchesItemViaSnmpRead:
+		*s = LogsPutLogsSourcesIDOKAssetMatchesItemViaSnmpRead
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type LogsPutLogsSourcesIDOKAssetVia string
+
+const (
+	LogsPutLogsSourcesIDOKAssetViaSnmpRead LogsPutLogsSourcesIDOKAssetVia = "snmp_read"
+)
+
+// AllValues returns all LogsPutLogsSourcesIDOKAssetVia values.
+func (LogsPutLogsSourcesIDOKAssetVia) AllValues() []LogsPutLogsSourcesIDOKAssetVia {
+	return []LogsPutLogsSourcesIDOKAssetVia{
+		LogsPutLogsSourcesIDOKAssetViaSnmpRead,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s LogsPutLogsSourcesIDOKAssetVia) MarshalText() ([]byte, error) {
+	switch s {
+	case LogsPutLogsSourcesIDOKAssetViaSnmpRead:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *LogsPutLogsSourcesIDOKAssetVia) UnmarshalText(data []byte) error {
+	switch LogsPutLogsSourcesIDOKAssetVia(data) {
+	case LogsPutLogsSourcesIDOKAssetViaSnmpRead:
+		*s = LogsPutLogsSourcesIDOKAssetViaSnmpRead
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type LogsPutLogsSourcesIDOKKind string
@@ -136520,6 +137571,186 @@ func (o NilLogsGetLogsSiemOKLastTest) Or(d LogsGetLogsSiemOKLastTest) LogsGetLog
 	return d
 }
 
+// NewNilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia returns new NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia with value set to v.
+func NewNilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia(v LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia {
+	return NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia{
+		Value: v,
+	}
+}
+
+// NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia is nullable LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia.
+type NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia struct {
+	Value LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) SetTo(v LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) SetToNull() {
+	o.Null = true
+	var v LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) Get() (v LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilLogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) Or(d LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia) LogsGetLogsSourcesOKSourcesItemAssetMatchesItemVia {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilLogsGetLogsSourcesOKSourcesItemAssetVia returns new NilLogsGetLogsSourcesOKSourcesItemAssetVia with value set to v.
+func NewNilLogsGetLogsSourcesOKSourcesItemAssetVia(v LogsGetLogsSourcesOKSourcesItemAssetVia) NilLogsGetLogsSourcesOKSourcesItemAssetVia {
+	return NilLogsGetLogsSourcesOKSourcesItemAssetVia{
+		Value: v,
+	}
+}
+
+// NilLogsGetLogsSourcesOKSourcesItemAssetVia is nullable LogsGetLogsSourcesOKSourcesItemAssetVia.
+type NilLogsGetLogsSourcesOKSourcesItemAssetVia struct {
+	Value LogsGetLogsSourcesOKSourcesItemAssetVia
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilLogsGetLogsSourcesOKSourcesItemAssetVia) SetTo(v LogsGetLogsSourcesOKSourcesItemAssetVia) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilLogsGetLogsSourcesOKSourcesItemAssetVia) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilLogsGetLogsSourcesOKSourcesItemAssetVia) SetToNull() {
+	o.Null = true
+	var v LogsGetLogsSourcesOKSourcesItemAssetVia
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilLogsGetLogsSourcesOKSourcesItemAssetVia) Get() (v LogsGetLogsSourcesOKSourcesItemAssetVia, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilLogsGetLogsSourcesOKSourcesItemAssetVia) Or(d LogsGetLogsSourcesOKSourcesItemAssetVia) LogsGetLogsSourcesOKSourcesItemAssetVia {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilLogsPostLogsSourcesCreatedAssetMatchesItemVia returns new NilLogsPostLogsSourcesCreatedAssetMatchesItemVia with value set to v.
+func NewNilLogsPostLogsSourcesCreatedAssetMatchesItemVia(v LogsPostLogsSourcesCreatedAssetMatchesItemVia) NilLogsPostLogsSourcesCreatedAssetMatchesItemVia {
+	return NilLogsPostLogsSourcesCreatedAssetMatchesItemVia{
+		Value: v,
+	}
+}
+
+// NilLogsPostLogsSourcesCreatedAssetMatchesItemVia is nullable LogsPostLogsSourcesCreatedAssetMatchesItemVia.
+type NilLogsPostLogsSourcesCreatedAssetMatchesItemVia struct {
+	Value LogsPostLogsSourcesCreatedAssetMatchesItemVia
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilLogsPostLogsSourcesCreatedAssetMatchesItemVia) SetTo(v LogsPostLogsSourcesCreatedAssetMatchesItemVia) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilLogsPostLogsSourcesCreatedAssetMatchesItemVia) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilLogsPostLogsSourcesCreatedAssetMatchesItemVia) SetToNull() {
+	o.Null = true
+	var v LogsPostLogsSourcesCreatedAssetMatchesItemVia
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilLogsPostLogsSourcesCreatedAssetMatchesItemVia) Get() (v LogsPostLogsSourcesCreatedAssetMatchesItemVia, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilLogsPostLogsSourcesCreatedAssetMatchesItemVia) Or(d LogsPostLogsSourcesCreatedAssetMatchesItemVia) LogsPostLogsSourcesCreatedAssetMatchesItemVia {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilLogsPostLogsSourcesCreatedAssetVia returns new NilLogsPostLogsSourcesCreatedAssetVia with value set to v.
+func NewNilLogsPostLogsSourcesCreatedAssetVia(v LogsPostLogsSourcesCreatedAssetVia) NilLogsPostLogsSourcesCreatedAssetVia {
+	return NilLogsPostLogsSourcesCreatedAssetVia{
+		Value: v,
+	}
+}
+
+// NilLogsPostLogsSourcesCreatedAssetVia is nullable LogsPostLogsSourcesCreatedAssetVia.
+type NilLogsPostLogsSourcesCreatedAssetVia struct {
+	Value LogsPostLogsSourcesCreatedAssetVia
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilLogsPostLogsSourcesCreatedAssetVia) SetTo(v LogsPostLogsSourcesCreatedAssetVia) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilLogsPostLogsSourcesCreatedAssetVia) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilLogsPostLogsSourcesCreatedAssetVia) SetToNull() {
+	o.Null = true
+	var v LogsPostLogsSourcesCreatedAssetVia
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilLogsPostLogsSourcesCreatedAssetVia) Get() (v LogsPostLogsSourcesCreatedAssetVia, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilLogsPostLogsSourcesCreatedAssetVia) Or(d LogsPostLogsSourcesCreatedAssetVia) LogsPostLogsSourcesCreatedAssetVia {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilLogsPutLogsSiemOKLastTest returns new NilLogsPutLogsSiemOKLastTest with value set to v.
 func NewNilLogsPutLogsSiemOKLastTest(v LogsPutLogsSiemOKLastTest) NilLogsPutLogsSiemOKLastTest {
 	return NilLogsPutLogsSiemOKLastTest{
@@ -136559,6 +137790,96 @@ func (o NilLogsPutLogsSiemOKLastTest) Get() (v LogsPutLogsSiemOKLastTest, ok boo
 
 // Or returns value if set, or given parameter if does not.
 func (o NilLogsPutLogsSiemOKLastTest) Or(d LogsPutLogsSiemOKLastTest) LogsPutLogsSiemOKLastTest {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilLogsPutLogsSourcesIDOKAssetMatchesItemVia returns new NilLogsPutLogsSourcesIDOKAssetMatchesItemVia with value set to v.
+func NewNilLogsPutLogsSourcesIDOKAssetMatchesItemVia(v LogsPutLogsSourcesIDOKAssetMatchesItemVia) NilLogsPutLogsSourcesIDOKAssetMatchesItemVia {
+	return NilLogsPutLogsSourcesIDOKAssetMatchesItemVia{
+		Value: v,
+	}
+}
+
+// NilLogsPutLogsSourcesIDOKAssetMatchesItemVia is nullable LogsPutLogsSourcesIDOKAssetMatchesItemVia.
+type NilLogsPutLogsSourcesIDOKAssetMatchesItemVia struct {
+	Value LogsPutLogsSourcesIDOKAssetMatchesItemVia
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilLogsPutLogsSourcesIDOKAssetMatchesItemVia) SetTo(v LogsPutLogsSourcesIDOKAssetMatchesItemVia) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilLogsPutLogsSourcesIDOKAssetMatchesItemVia) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilLogsPutLogsSourcesIDOKAssetMatchesItemVia) SetToNull() {
+	o.Null = true
+	var v LogsPutLogsSourcesIDOKAssetMatchesItemVia
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilLogsPutLogsSourcesIDOKAssetMatchesItemVia) Get() (v LogsPutLogsSourcesIDOKAssetMatchesItemVia, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilLogsPutLogsSourcesIDOKAssetMatchesItemVia) Or(d LogsPutLogsSourcesIDOKAssetMatchesItemVia) LogsPutLogsSourcesIDOKAssetMatchesItemVia {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilLogsPutLogsSourcesIDOKAssetVia returns new NilLogsPutLogsSourcesIDOKAssetVia with value set to v.
+func NewNilLogsPutLogsSourcesIDOKAssetVia(v LogsPutLogsSourcesIDOKAssetVia) NilLogsPutLogsSourcesIDOKAssetVia {
+	return NilLogsPutLogsSourcesIDOKAssetVia{
+		Value: v,
+	}
+}
+
+// NilLogsPutLogsSourcesIDOKAssetVia is nullable LogsPutLogsSourcesIDOKAssetVia.
+type NilLogsPutLogsSourcesIDOKAssetVia struct {
+	Value LogsPutLogsSourcesIDOKAssetVia
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilLogsPutLogsSourcesIDOKAssetVia) SetTo(v LogsPutLogsSourcesIDOKAssetVia) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilLogsPutLogsSourcesIDOKAssetVia) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilLogsPutLogsSourcesIDOKAssetVia) SetToNull() {
+	o.Null = true
+	var v LogsPutLogsSourcesIDOKAssetVia
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilLogsPutLogsSourcesIDOKAssetVia) Get() (v LogsPutLogsSourcesIDOKAssetVia, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilLogsPutLogsSourcesIDOKAssetVia) Or(d LogsPutLogsSourcesIDOKAssetVia) LogsPutLogsSourcesIDOKAssetVia {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -151848,6 +153169,52 @@ func (o OptInventoryGetInventoryDevicesIDOKAssetVendorBasis) Get() (v InventoryG
 
 // Or returns value if set, or given parameter if does not.
 func (o OptInventoryGetInventoryDevicesIDOKAssetVendorBasis) Or(d InventoryGetInventoryDevicesIDOKAssetVendorBasis) InventoryGetInventoryDevicesIDOKAssetVendorBasis {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis returns new OptInventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis with value set to v.
+func NewOptInventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis(v InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis) OptInventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis {
+	return OptInventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis is optional InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis.
+type OptInventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis struct {
+	Value InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis was set.
+func (o OptInventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis) Reset() {
+	var v InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis) SetTo(v InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis) Get() (v InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis) Or(d InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis) InventoryGetInventoryDevicesIDOKDetectedDiffersItemBasis {
 	if v, ok := o.Get(); ok {
 		return v
 	}

@@ -42,7 +42,7 @@ export function KpiStrip({ items: all, label }: { items: Kpi[]; label: string })
 
 /** `badge`: việc đang chờ người dùng ở tab đó (số đỏ). `label` là phần đọc sau con số cho trình đọc màn hình, ví dụ "waiting for a decision"
  *  → tên tab "Requests 3 waiting for a decision" (chứa đúng chữ nhìn thấy, WCAG 2.5.3). */
-export type PageTab = { id: string; label: string; panel: ReactNode; badge?: { count: number; label: string } }
+export type PageTab = { id: string; label: string; panel: ReactNode; badge?: { count: number; label: string; tone?: 'danger' | 'off' } }
 
 /** Tab đang mở ở `?tab=<id>`: tải lại và quay lại giữ tab; id lạ hoặc không được phép → tab đầu. */
 export function PageTabs({ tabs, label }: { tabs: PageTab[]; label: string }) {
@@ -73,7 +73,7 @@ export function PageTabs({ tabs, label }: { tabs: PageTab[]; label: string }) {
         {tabs.map((x) => (
           <TabsTrigger key={x.id} value={x.id} className="mb-0 inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap focus-visible:-outline-offset-2">
             {x.label}{' '}
-            {x.badge ? <Counter count={x.badge.count} label={x.badge.label} tone="danger" /> : null}
+            {x.badge ? <Counter count={x.badge.count} label={x.badge.label} tone={x.badge.tone ?? 'danger'} /> : null}
           </TabsTrigger>
         ))}
       </TabsList>

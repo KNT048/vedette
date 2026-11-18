@@ -1421,9 +1421,9 @@ type countInv struct {
 	calls *atomic.Int32
 }
 
-func (c countInv) DevicesByIP(ctx context.Context, ips []string) (map[string]Device, error) {
+func (c countInv) DevicesAt(ctx context.Context, ips []string) (map[string][]DeviceMatch, error) {
 	c.calls.Add(1)
-	return c.fakeInv.DevicesByIP(ctx, ips)
+	return c.fakeInv.DevicesAt(ctx, ips)
 }
 
 // The inventory is asked once for the device that sends the log, not once for every event.

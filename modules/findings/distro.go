@@ -245,11 +245,13 @@ func distroMatch(a Asset, s Software, in swInfo, v Vuln, d distroAnswer, now tim
 	if d.kind != distroNeeded {
 		note := fmt.Sprintf("Not affected: %s %s fixed %s in %s %s, and this device has %s (%s). Vedette closed this by itself and reopens it if a later match says the device is affected.",
 			d.name, d.release, v.CVE, clean(d.pkg), clean(d.fixed), clean(in.pkgVer), src)
-		if d.kind == distroNotAffected {
+		provedOn := strings.TrimSpace(in.pkgVer)
+		if d.kind == distroNotAffected { // the distribution's word on the package, no version compared
+			provedOn = ""
 			note = fmt.Sprintf("Not affected: %s says its %s package of %s %s is not affected by %s (%s). Vedette closed this by itself and reopens it if a later match says the device is affected.",
 				d.name, clean(d.pkg), d.name, d.release, v.CVE, src)
 		}
-		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}}, outNotAffected
+		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}, provedOn: provedOn}, outNotAffected
 	}
 	m := Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Basis: BasisVersion, Confidence: ConfVersion, Severity: SeverityHigh, bounded: true}
 	if v.Ransomware || v.EPSS >= 0.5 {

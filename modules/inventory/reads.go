@@ -443,14 +443,22 @@ func (s *Service) Detail(ctx context.Context, id string) (Detail, error) {
 	if err != nil {
 		return Detail{}, err
 	}
+	differs, err := deviceDifferences(ctx, db, id)
+	if err != nil {
+		return Detail{}, err
+	}
+	if differs == nil {
+		differs = []Differs{}
+	}
 	return Detail{
-		ManualAt:      manualAt,
-		PossibleSame:  same,
-		Asset:         DetailAsset{AssetCore: d.AssetCore, Software: views, OSCorrection: osc},
-		Suspicious:    d.Suspicious,
-		FindingsCount: d.FindingsCount,
-		Observations:  list,
-		Kinds:         devicetypes.IDs(),
+		DetectedDiffers: differs,
+		ManualAt:        manualAt,
+		PossibleSame:    same,
+		Asset:           DetailAsset{AssetCore: d.AssetCore, Software: views, OSCorrection: osc},
+		Suspicious:      d.Suspicious,
+		FindingsCount:   d.FindingsCount,
+		Observations:    list,
+		Kinds:           devicetypes.IDs(),
 	}, nil
 }
 

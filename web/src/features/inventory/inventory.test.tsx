@@ -95,6 +95,10 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     renderApp('/devices')
     const table = await deviceTable()
     expect(screen.getAllByRole('tab').map((x) => x.textContent?.trim())).toEqual(['Devices', 'To review 2 waiting for your approval'])
+    // The count is a plain grey one, not the red alarm style: pending devices come and go.
+    const count = screen.getByRole('tab', { name: /To review/ }).querySelector('span.rounded-full')
+    expect(count).toHaveClass('bg-off-soft', 'text-off')
+    expect(count).not.toHaveClass('bg-danger')
     expect(within(table).queryByRole('link', { name: 'BROTHER-STORE' })).toBeNull() // not approved
     expect(screen.queryByRole('list', { name: 'Devices at a glance' })).toBeNull() // no KPI links
   })

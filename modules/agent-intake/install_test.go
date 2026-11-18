@@ -913,6 +913,25 @@ func TestInstall_ReporterIsSafe(t *testing.T) {
 	if strings.Contains(rep, `sub(/ .*/, "", src)`) {
 		t.Error("the reporter strips the version from the dpkg source")
 	}
+	// root-script guarantees of the review: the binary is replaced through an exclusive temp file, the busybox crontab is rewritten only after
+	// grep ran, a customer's own osqueryd is left alone, and the restart drop-in is read back and cleaned up
+	for _, want := range []string{
+		`mktemp "$RBIN.XXXXXX"`, `mv -f "$RTMP" "$RBIN"`, `rc=0; grep -v '# vedette-reporter$' "$BB_CRON"`, `if [ "$rc" -le 1 ]; then cat`,
+		`if osq_ours; then svc_disable_stop; else echo "osqueryd is installed here and is not managed by Vedette`,
+		`[ "$(systemctl show -p Restart osqueryd 2>/dev/null)" = Restart=on-failure ]`, "osquery is installed but was not started",
+		`rmdir /etc/systemd/system/osqueryd.service.d`, `--capath "$D/capath"`,
+	} {
+		if !strings.Contains(sh, want) {
+			t.Errorf("the script lost %q", want)
+		}
+	}
+	if strings.Contains(sh, `$RBIN.new`) {
+		t.Error("the reporter is written to a fixed name")
+	}
+	// the reporter is removed only after the package's checksum matched
+	if c, r := strings.Index(sh, `sha256sum -c -`), strings.LastIndex(sh, "\nreporter_remove\n"); c < 0 || r < c {
+		t.Error("the osquery path removes the reporter before its download is verified")
+	}
 	// the endpoints are the osquery ones the box already serves
 	if !strings.Contains(sh, "--enroll_tls_endpoint=/api/v1/intake/osquery/enroll") || !strings.Contains(sh, "--logger_tls_endpoint=/api/v1/intake/osquery/log") {
 		t.Error("the endpoints of the osquery path changed: the reporter must use the same ones")

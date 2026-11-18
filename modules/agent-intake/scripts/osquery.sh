@@ -42,6 +42,8 @@ else INIT=none; fi
 svc_known() { if [ "$INIT" = systemd ]; then systemctl cat osqueryd >/dev/null 2>&1; else [ -x "$SYSV" ]; fi; }
 # Stopping something that is not running is not a failure (set -e): a SysV stop may exit non-zero then; it fails only if osqueryd still runs.
 svc_stop() { if [ "$INIT" = systemd ]; then systemctl stop osqueryd; else "$SYSV" stop >/dev/null 2>&1 || ! svc_active; fi; }
+# An osqueryd is Vedette's when this installer wrote its CA, or its flags point at this box.
+osq_ours() { [ -f "$CA" ] || { [ -f "$DIR/osquery.flags" ] && grep -q "^--tls_hostname=${BOX#https://}\$" "$DIR/osquery.flags"; }; }
 svc_disable_stop() {
   if [ "$INIT" = systemd ]; then systemctl disable --now osqueryd 2>/dev/null || true
   else
@@ -56,7 +58,7 @@ svc_enable_restart() {
     mkdir -p /etc/systemd/system/osqueryd.service.d
     printf '[Service]\nRestart=on-failure\nRestartSec=10\n' > /etc/systemd/system/osqueryd.service.d/vedette-restart.conf
     systemctl daemon-reload
-    [ "$(systemctl show -p Restart osqueryd 2>/dev/null)" = Restart=on-failure ] || { echo "systemd did not apply Restart=on-failure to osqueryd (see /etc/systemd/system/osqueryd.service.d/vedette-restart.conf); osqueryd would not come back after a crash." >&2; exit 1; }
+    [ "$(systemctl show -p Restart osqueryd 2>/dev/null)" = Restart=on-failure ] || { echo "systemd did not apply Restart=on-failure to osqueryd (see /etc/systemd/system/osqueryd.service.d/vedette-restart.conf); osquery is installed but was not started, because it would not come back after a crash." >&2; exit 1; }
     systemctl enable --quiet osqueryd; systemctl restart osqueryd; return
   fi
   if command -v update-rc.d >/dev/null 2>&1; then update-rc.d osqueryd defaults >/dev/null 2>&1 || true
@@ -90,7 +92,9 @@ reporter_remove() {
 if [ "$ACTION" = uninstall ]; then
   reporter_remove
   [ "$INIT" = none ] || svc_disable_stop
-  rm -rf /etc/systemd/system/osqueryd.service.d/vedette-restart.conf
+  rm -f /etc/systemd/system/osqueryd.service.d/vedette-restart.conf
+  rmdir /etc/systemd/system/osqueryd.service.d 2>/dev/null || true
+  if [ "$INIT" = systemd ]; then systemctl daemon-reload >/dev/null 2>&1 || true; fi
   if command -v dpkg >/dev/null 2>&1 && dpkg -s osquery >/dev/null 2>&1; then dpkg -r osquery 2>/dev/null || true
   elif command -v rpm >/dev/null 2>&1; then rpm -e osquery 2>/dev/null || true; fi
   rm -f "$DIR/osquery.flags" "$DIR/enroll.secret" "$CA"
@@ -118,7 +122,6 @@ install_reporter() {
   # With a token this machine does not hold yet the reporter's node key is dropped, so that it enrols under the new token.
   if [ "$(cat "$RDIR/enroll.secret" 2>/dev/null || true)" != "$TOKEN" ]; then rm -f "$RSTATE/node-key"; fi
   # osquery and the reporter never both enrol this machine: the box keeps one node per host name, so each enrolment would replace the other's.
-  if [ "$INIT" != none ] && svc_known; then svc_disable_stop; fi
   mkdir -p "$RDIR" "$RSTATE" "$RDIR/capath" /usr/local/sbin
   chmod 700 "$RDIR" "$RSTATE"
   chmod 755 "$RDIR/capath"
@@ -129,8 +132,8 @@ VEDETTE_CA
   printf '%s\n' "$BOX" > "$RDIR/box"
   printf '%s\n' "$HOSTID" > "$RDIR/host-id"
   ( umask 077; printf '%s\n' "$TOKEN" > "$RDIR/enroll.secret" )
-  rm -f "$RBIN.new"
-  cat > "$RBIN.new" <<'VEDETTE_REPORTER'
+  RTMP=$(mktemp "$RBIN.XXXXXX") # created exclusively in the target directory: no name another user can plant a link at
+  cat > "$RTMP" <<'VEDETTE_REPORTER'
 #!/bin/sh
 # Vedette package reporter. Installed by the Vedette install command on Linux systems osquery cannot run on (Alpine and other musl
 # systems, Arch, other architectures). It enrols with the box like an osquery node, then sends this machine's operating system, network
@@ -296,7 +299,12 @@ if grep -q '"node_invalid" *: *true' "$TMP/resp"; then NODEKEY=''; enrol; send; 
 if grep -q '"node_invalid" *: *true' "$TMP/resp"; then fail "the box refused this machine's node key twice" 2; fi
 printf '%s %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "sent $PKQ to $BOX" > "$S/last-run"
 VEDETTE_REPORTER
-  chmod 755 "$RBIN.new"; mv -f "$RBIN.new" "$RBIN"
+  chmod 755 "$RTMP"; mv -f "$RTMP" "$RBIN"
+  # osquery and the reporter never both enrol this machine (the box keeps one node per host name). Only an osqueryd that Vedette's own install
+  # set up is stopped; one that belongs to the customer (Fleet, Kolide, a hand-built one) is left running.
+  if [ "$INIT" != none ] && svc_known; then
+    if osq_ours; then svc_disable_stop; else echo "osqueryd is installed here and is not managed by Vedette; the reporter was installed next to it and osqueryd was left as it is."; fi
+  fi
   # one minute of the hour per machine, so that a fleet does not report in the same second
   MIN=$(printf '%s' "$HOSTID" | cksum | awk '{ print $1 % 60 }')
   case "$SCHED" in
@@ -394,13 +402,14 @@ chmod 644 "$CA"
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 mkdir "$TMP/capath" # empty: --cacert alone leaves the system's CA directory trusted too (Debian and Ubuntu curl), so only the box's own certificate is accepted
-# One machine runs one agent: a reporter from an earlier run is removed, since both enrol under this machine's name and would replace each other's node.
-reporter_remove
 curl -fsS --cacert "$CA" --capath "$TMP/capath" "$BOX/api/v1/install/osquery/SHA256SUMS" -o "$TMP/SHA256SUMS"
 curl -fsS --cacert "$CA" --capath "$TMP/capath" "$BOX/api/v1/install/osquery/$FILE" -o "$TMP/$FILE"
 ( cd "$TMP" && grep " $FILE\$" SHA256SUMS | sha256sum -c - ) || { echo "Checksum of $FILE does not match. Nothing was installed." >&2; exit 1; }
 # The package manager's output (and whatever osquery's own package scripts print, such as a bare line of numbers) goes to a log shown
 # only when the install fails, so a normal run prints Vedette's lines only.
+# One machine runs one agent: a reporter from an earlier run is removed, since both enrol under this machine's name and would replace each other's node.
+# Only now, after the package is downloaded and its checksum matched, so a failed download leaves what the machine had.
+reporter_remove
 echo "Installing osquery $OSQ_VERSION..."
 if [ "$FMT" = deb ]; then set -- dpkg -i "$TMP/$FILE"; else set -- rpm -Uvh --replacepkgs "$TMP/$FILE"; fi
 "$@" >"$TMP/install.log" 2>&1 || { cat "$TMP/install.log" >&2; echo "Installing $FILE failed (output above)." >&2; exit 1; }

@@ -1,6 +1,7 @@
 package findings
 
 import (
+	"bytes"
 	"encoding/csv"
 	"fmt"
 	"maps"
@@ -11,16 +12,15 @@ import (
 )
 
 // testdata/nvd-network-os-kev.csv is every NVD affected row of the exploited CVEs that name one of the network OSes of
-// network-os.json (juniper:junos, fortinet:fortios, cisco:ios_xe, cisco:ios, mikrotik:routeros): one row per cpeMatch entry,
-// columns cve, cpe, start_incl, start_excl, end_incl, end_excl.
+// network-os.json (Junos, FortiOS, IOS XE, IOS, RouterOS): one row per cpeMatch entry, columns cve, cpe, start_incl, start_excl,
+// end_incl, end_excl.
 func loadNetworkOSRows(t *testing.T) map[string][]Affected {
 	t.Helper()
-	f, err := os.Open("testdata/nvd-network-os-kev.csv")
+	b, err := os.ReadFile("testdata/nvd-network-os-kev.csv")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
-	recs, err := csv.NewReader(f).ReadAll()
+	recs, err := csv.NewReader(bytes.NewReader(b)).ReadAll()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,7 +94,7 @@ func TestNetworkOS_TrainBoundsClass(t *testing.T) {
 			[]string{"12.1R11", "12.3X48-D10", "15.1R7.9", "18.4R3-S1", "20.4R3-S8", "21.2R3", "22.4R2-S1", "23.2R1"}},
 		{"o:fortinet:fortios", "Fortinet", "FortiOS", "FortiOS %s", []string{"6.0.4", "6.4.9", "7.0.12", "7.2.13", "7.4.3"}},
 		{"o:cisco:ios_xe", "Cisco", "IOS XE Software", "Cisco IOS XE %s", []string{"16.9.4", "17.3.1", "17.9.4a"}},
-		{"o:mikrotik:routeros", "MikroTik", "RouterOS", "RouterOS %s", []string{"6.48", "7.12.1"}},
+		{"o:mikrotik:routeros", "MikroTik", "RouterOS", "RouterOS %s", []string{"6.48", "7.12.1"}}, //nolint:misspell // RouterOS is the product name
 		{"o:cisco:ios", "Cisco", "IOS", "Cisco IOS %s", []string{"15.2(4)M3"}},
 	}
 	// Per stated OS: the findings (basis version) it must get, and the most not_comparable outcomes it may have. Before train

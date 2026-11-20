@@ -8,8 +8,7 @@ import { networkStore, SILENT_DEVICES } from '@/mocks/network'
 import { GUIDES } from './guideData'
 
 vi.setConfig({ testTimeout: 30_000 })
-// SPAN is hidden in the GUI for v1 (SPAN_IN_UI false) but its code is kept, so this file runs the SPAN pages as offered
-// (post-v1); "SPAN hidden for v1" at the end runs the v1 setting.
+// The SPAN pages run as offered (SPAN_IN_UI true); "SPAN switched off in the GUI" at the end runs the setting that hides them.
 const span = vi.hoisted(() => ({ SPAN_IN_UI: true }))
 vi.mock('@/lib/span', () => span)
 const T = { timeout: 5000 }
@@ -557,7 +556,7 @@ describe('box network: the rules of the host (L1)', () => {
   })
 })
 
-describe('box network: SPAN hidden for v1', () => {
+describe('box network: SPAN switched off in the GUI', () => {
   beforeEach(() => { span.SPAN_IN_UI = false })
   afterEach(() => { span.SPAN_IN_UI = true })
   const main = () => document.getElementById('main')!

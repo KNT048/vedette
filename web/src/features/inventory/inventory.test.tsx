@@ -20,9 +20,12 @@ import type { DevicesResponse, OsqueryPackage } from './types'
 import { normalizeRange, rangeProblem } from './validate'
 
 vi.setConfig({ testTimeout: 30_000 })
+// SPAN is offered (SPAN_IN_UI true); the tests that cover the setting that hides it switch it off for their own run.
+const span = vi.hoisted(() => ({ SPAN_IN_UI: true }))
+vi.mock('@/lib/span', () => span)
 // The box is always the first device; the store gets it on the first inventory call, so counts taken before the page loads need it already there.
 beforeEach(() => ensureBox())
-afterEach(() => { server.events.removeAllListeners() }) // #849: a failing test never leaks its request listener
+afterEach(() => { server.events.removeAllListeners(); span.SPAN_IN_UI = true }) // #849: a failing test never leaks its request listener
 
 const BASE = `${location.origin}/api/v1/inventory`
 const T = { timeout: 5000 }
@@ -1530,8 +1533,9 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
     expect((await call('GET', `/devices/${f.id}`)).json!.asset.regular_scan).toBe('never')
   })
 
-  // The sample box already listens on a SPAN card (eth1): with SPAN hidden for v1 it still shows that state, read-only.
-  it('the sensor dialog shows the SPAN status a box already has and links to Box network; it has no SPAN switch', async () => {
+  // The sample box already listens on a SPAN card (eth1): with SPAN switched off in the GUI it still shows that state, read-only.
+  it('SPAN switched off: the sensor dialog shows the SPAN status a box already has and links to Box network; it has no SPAN switch', async () => {
+    span.SPAN_IN_UI = false
     const user = userEvent.setup()
     renderApp('/devices/setup?tab=sensor')
     await screen.findAllByRole('button', { name: 'Configure sensor vedette-hq' }, T)
@@ -1543,7 +1547,8 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
     expect(within(dlg).getByRole('link', { name: 'Open Settings → Box network' })).toHaveAttribute('href', '/settings/network')
   })
 
-  it('SPAN hidden for v1: a box without SPAN says the sensor listens on the management port, with no word about SPAN or mirrored traffic', async () => {
+  it('SPAN switched off: a box without SPAN says the sensor listens on the management port, with no word about SPAN or mirrored traffic', async () => {
+    span.SPAN_IN_UI = false
     const user = userEvent.setup()
     asAdmin()
     const r = await fetch(`${location.origin}/api/v1/core/network/interfaces`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ roles: { eth0: 'management', eth1: 'unused', eth2: 'unused' } }) })

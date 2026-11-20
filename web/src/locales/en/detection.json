@@ -1,0 +1,122 @@
+{
+  "nav": "Overview",
+  "title": "Intrusion detection",
+  "meta": "What is watching your network, and what it found in the last 7 days.",
+  "watching": {
+    "title": "What is watching",
+    "last": "Last input {{when}}",
+    "never": "Nothing received yet",
+    "raised_one": "{{count}} detection in 7 days",
+    "raised_other": "{{count}} detections in 7 days"
+  },
+  "watcher": {
+    "traps": "Internal traps",
+    "logs": "Received logs",
+    "mirror_port": "Mirror port",
+    "ips_events": "Firewall IPS events"
+  },
+  "state": {
+    "watching": "Watching",
+    "quiet": "Quiet",
+    "failed": "Failed",
+    "not_set_up": "Not set up",
+    "off": "Off",
+    "unavailable": "Not available on this install"
+  },
+  "action": {
+    "view": { "traps": "Open traps", "logs": "Open logs", "mirror_port": "Open mirror port", "ips_events": "See alerts" },
+    "set_up": { "traps": "Add a Trap IP", "logs": "Add a log source", "mirror_port": "Set up a mirror port", "ips_events": "Add a firewall log source" },
+    "fix": { "traps": "Fix traps", "logs": "Check log sources", "mirror_port": "Fix the mirror port", "ips_events": "Check the firewall log source" },
+    "turn_on": { "traps": "Turn on Honeypot", "logs": "Turn on Logs", "mirror_port": "Turn on the network sensor", "ips_events": "Turn on IPS events" }
+  },
+  "kinds": {
+    "title": "Last 7 days",
+    "new_one": "{{count}} new",
+    "new_other": "{{count}} new",
+    "none": "Nothing new"
+  },
+  "kind": {
+    "trap": "Trap hits",
+    "bad_address": "Bad addresses",
+    "log_anomaly": "Log anomalies",
+    "unknown_device": "Unknown devices",
+    "intrusion": "Intrusion alerts"
+  },
+  "mirror": {
+    "title_one": "Bad address seen on the mirror port: {{count}}",
+    "title_other": "Bad addresses seen on the mirror port: {{count}}",
+    "all": "All bad connections"
+  },
+  "via": {
+    "span_dns": "DNS name",
+    "span_sni": "TLS name",
+    "span_http": "HTTP host",
+    "span_flow": "Connection"
+  },
+  "alerts": {
+    "title": "Intrusion alerts",
+    "caption": "Intrusion alerts",
+    "search": "Search alerts",
+    "window": "Time range",
+    "w24h": "24 hours",
+    "w7d": "7 days",
+    "w30d": "30 days",
+    "sortLabel": "Order",
+    "sortLast": "Newest first",
+    "sortCount": "Most events first",
+    "empty": "No intrusion alerts in this range.",
+    "noCve": "No CVE named",
+    "incident": "Incident {{status}}",
+    "noIncident": "No incident",
+    "findings_one": "{{count}} finding",
+    "findings_other": "{{count}} findings",
+    "mobileLine_one": "{{count}} event, last {{time}}",
+    "mobileLine_other": "{{count}} events, last {{time}}",
+    "col": { "severity": "Severity", "signature": "Alert", "flow": "From to", "count": "Events", "seen": "Last seen", "handling": "Handling" }
+  },
+  "alert": {
+    "meta_one": "{{count}} event, last {{time}}",
+    "meta_other": "{{count}} events, last {{time}}",
+    "facts": "What was seen",
+    "flow": "From to",
+    "attacked": "Attacked device",
+    "source": "Source",
+    "outside": "{{ip}}, not in the inventory",
+    "notInInventory": "{{ip}}, not in the inventory",
+    "rule": "Rule number",
+    "noSid": "None given",
+    "category": "Rule class",
+    "noCategory": "None given",
+    "priority": "Priority (1 is most urgent)",
+    "events": "Events",
+    "first": "First seen",
+    "last": "Last seen",
+    "seenBy": "Seen by",
+    "cves": "CVEs named",
+    "noCve": "The event names no CVE.",
+    "finding": "Finding on {{device}}",
+    "notAffected": "{{device}} is not affected by this CVE.",
+    "noDevice": "The attacked address is not a device in the inventory.",
+    "handling": "Handling",
+    "incidentIs": "Repeats of this alert are one incident, {{status}}.",
+    "openIncident": "Handle it on the incident",
+    "noIncident": "No incident was opened for this alert."
+  },
+  "seenBy": {
+    "log": "An IPS or IDS event in a log the firewall sent",
+    "other": "Another source"
+  },
+  "incidentStatus": { "new": "new", "acknowledged": "acknowledged", "resolved": "resolved" },
+  "findingStatus": {
+    "under_attack": "under attack here",
+    "exploited": "exploited in the wild",
+    "public_exploit": "public exploit",
+    "critical_edge": "critical, reachable",
+    "update_recommended": "update recommended",
+    "patched": "patched",
+    "mitigated": "mitigated",
+    "accepted": "accepted risk",
+    "not_relevant": "not relevant",
+    "false_positive": "false positive"
+  }
+}

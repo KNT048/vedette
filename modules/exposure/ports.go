@@ -10,15 +10,21 @@ import (
 
 // Event names published by this module (CONTRACT, Events).
 const (
-	EventSnapshotCreated = "exposure.snapshot.created"
-	EventTargetVerified  = "exposure.target.verified"
+	EventScanWritten    = "exposure.scan.written"
+	EventTargetVerified = "exposure.target.verified"
 )
 
-// SnapshotCreatedEvent is the payload of exposure.snapshot.created.
-type SnapshotCreatedEvent struct {
-	TargetID string `json:"target_id"`
-	Date     string `json:"date"`
-	Counts   Counts `json:"counts"`
+// ScanWrittenEvent is the payload of exposure.scan.written: a scan wrote its rows. Opened are the services that are open now and
+// were not before this scan (new, or open again after a scan had closed them); First says the target had no rows before, so
+// everything it found is new and nothing is a change (the baseline).
+type ScanWrittenEvent struct {
+	TargetID  string     `json:"target_id"`
+	RunID     string     `json:"run_id"`
+	At        string     `json:"at"` // when the rows were written (RFC 3339 UTC, milliseconds)
+	First     bool       `json:"first"`
+	Counts    ScanCounts `json:"counts"`
+	Opened    []PortRow  `json:"opened"`
+	NewIssues []string   `json:"new_issues"` // the ids of the issues that are open now and were not before this scan
 }
 
 // TargetVerifiedEvent is the payload of exposure.target.verified: a domain proved, an IP found for the

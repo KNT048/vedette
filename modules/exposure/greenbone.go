@@ -171,8 +171,6 @@ const (
 	notGBGate     = "OpenVAS did not scan: this IP can no longer be scanned (it was removed, paused, no longer verified or needs the scan confirmed again), so nothing was sent."
 	notGBNoLog    = "OpenVAS did not scan: the probe log is not available, and nothing is sent without it."
 	notGBSlow     = "OpenVAS did not finish within 90 minutes, and what it had found by then could not be read, so its results are not shown."
-	// notGBSlowOld is the older notGBSlow, read only to give a snapshot older than greenbone_run its state.
-	notGBSlowOld = "OpenVAS did not finish within 90 minutes, so its results are not shown."
 	// notGBPartial and notGBPartialNone: the cap stopped the task and its report was read: the rows found by then are shown.
 	notGBPartial     = "OpenVAS was stopped after 90 minutes; these are the results it had found by then."
 	notGBPartialNone = "OpenVAS was stopped after 90 minutes; by then it had found no result with QoD 70 or more. Finding nothing is not proof the services are not affected."
@@ -199,9 +197,6 @@ const (
 	notGBSlowAnswer   = "OpenVAS did not answer within 2 minutes, so its results are not shown."
 	notGBStopped      = "OpenVAS was stopped before it finished, so its results are not shown. The results of the other checks above are kept."
 	notGBStoppedSome  = "OpenVAS was stopped before it had scanned every address; the results of the addresses it finished are shown. The results of the other checks above are kept."
-	// notGBCutOff is the line older versions stored in place of the waiting line of a step nothing ran any more (Vedette stopped in the
-	// middle of it); read as StopRestart (oldStop) and replaced by that reason's line when read.
-	notGBCutOff = "OpenVAS was stopped before it finished (the box restarted or the scan was stopped), so its results are not shown. The results of the other checks above are kept."
 	// notGBTerms: Greenbone runs only on a target whose testing terms are accepted.
 	notGBTerms      = "OpenVAS did not scan: accept the testing terms for this target to run OpenVAS (Ownership tab)."
 	gbSyncingReason = "OpenVAS is loading its weekly feed update"
@@ -518,78 +513,6 @@ func (s *Service) GreenboneAtStart(ctx context.Context) {
 	if on {
 		s.gbStartUp(ctx)
 	}
-}
-
-// CutOffAtStart corrects, in the database, the snapshots whose OpenVAS step a restart of the box left "running":
-// at process start no run scans them, so they are stopped, with the line that says so, for every reader (the page, an export, a
-// backup), not only when the page reads them. The box calls it once at start-up with the module on, never from the module switch
-// (the registry's goroutine must not wait on the writer); a module turned on later keeps such a row until the next
-// start, and SnapshotOf reads it as stopped meanwhile. Failures are logged.
-func (s *Service) CutOffAtStart(ctx context.Context) {
-	live := s.gbLive()
-	now := store.FormatTS(s.clock()) // when the restart was seen: the step's end as far as anyone can tell
-	err := s.write(ctx, func(tx *sql.Tx, _ func(string, any)) error {
-		rows, err := tx.QueryContext(ctx, `SELECT target_id, date FROM exp_snapshot WHERE json_extract(greenbone_run, '$.state') = 'running'`)
-		if err != nil {
-			return err
-		}
-		type day struct{ target, date string }
-		var days []day
-		for rows.Next() {
-			var d day
-			if err := rows.Scan(&d.target, &d.date); err != nil {
-				_ = rows.Close()
-				return err
-			}
-			days = append(days, d)
-		}
-		if err := errors.Join(rows.Err(), rows.Close()); err != nil {
-			return err
-		}
-		for _, d := range days {
-			snap, ok, err := loadSnapshot(ctx, tx, d.target, d.date)
-			if err != nil || !ok || snap.ID == live {
-				if err != nil {
-					return err
-				}
-				continue
-			}
-			if err := storeCut(ctx, tx, d.target, snap, now, &GreenboneStop{Reason: StopRestart}); err != nil {
-				return err
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		s.cfg.Log.ErrorContext(ctx, "exposure: marking OpenVAS steps a restart cut off as stopped failed", "error", err)
-	}
-}
-
-// storeCut stores snap's OpenVAS step, which nothing runs any more, as stopped at now for stop (cutOff), and Settings › Scanning's
-// OpenVAS card with it, as a Stop or a shutdown does (INV-30).
-func storeCut(ctx context.Context, tx *sql.Tx, target string, snap Snapshot, now string, stop *GreenboneStop) error {
-	cutOff(&snap, &now, stop)
-	docs, err := snapshotDocs(snap.Content, snap.Counts)
-	if err != nil {
-		return err
-	}
-	run, err := json.Marshal(snap.GreenboneRun)
-	if err != nil {
-		return err
-	}
-	if _, err := tx.ExecContext(ctx, `UPDATE exp_snapshot SET not_checked = ?, greenbone_run = ?, finished_at = coalesce(finished_at, ?) WHERE id = ?`, docs[7], string(run), now, snap.ID); err != nil {
-		return err
-	}
-	var value string
-	if err := tx.QueryRowContext(ctx, `SELECT value FROM exp_target WHERE id = ?`, target).Scan(&value); err != nil {
-		return err
-	}
-	_, text := openVASStep(GBRunStopped, 0, snap.GreenboneRun.Stop)
-	_, err = tx.ExecContext(ctx, `INSERT INTO exp_engine_run (engine, run_id, target, at, outcome, text) VALUES (?, ?, ?, ?, ?, ?)
-		ON CONFLICT (engine) DO UPDATE SET run_id = excluded.run_id, target = excluded.target, at = excluded.at, outcome = excluded.outcome, text = excluded.text
-		WHERE excluded.at >= exp_engine_run.at`,
-		StepOpenVAS, snap.ID, value, now, StepStopped, clipText("External scan of "+value+": "+text, maxLineText))
-	return err
 }
 
 // gbModuleOff stops Greenbone's containers when the External exposure module is switched off while Greenbone is enabled: no
@@ -1143,55 +1066,6 @@ func (s *Service) greenboneAt(ctx context.Context, st ScanTarget, ip netip.Addr,
 	return out, nil
 }
 
-// addGreenbone writes the outcome of the Greenbone step into the snapshot stored before it: the pending line is replaced
-// by the outcome's lines, its rows and check are added, and one exposure.greenbone_scan audit row says how it ended, in the same
-// transaction. It runs on its own context, so a stop or a shutdown still records it. A snapshot that is gone (the target was deleted
-// meanwhile) is left alone.
-func (s *Service) addGreenbone(ctx context.Context, user string, t Target, snap *Snapshot, o gbOutcome) {
-	not := []NotCheckedRow{}
-	for _, n := range snap.NotChecked {
-		if n.Kind != "greenbone" || n.Text != gbPending {
-			not = append(not, n)
-		}
-	}
-	snap.GreenboneRun.State, snap.GreenboneRun.Addresses = o.state, o.addrs // The heading follows this, the one state of the step
-	if !slices.Contains(gbRunStates, o.state) || o.state == GBRunRunning {
-		snap.GreenboneRun.State = GBRunFailed // never reached: every outcome names its state
-	}
-	end := store.FormatTS(s.clock()) // the step, and with it the scan, ends now
-	snap.GreenboneRun.EndedAt, snap.GreenboneRun.Stop, snap.FinishedAt = &end, nil, &end
-	if snap.GreenboneRun.State == GBRunStopped {
-		snap.GreenboneRun.Stop = o.stop
-	}
-	run, err := json.Marshal(snap.GreenboneRun)
-	if err != nil {
-		s.cfg.Log.ErrorContext(ctx, "exposure: encoding Greenbone's state failed", "target", t.Value, "error", err)
-		return
-	}
-	c := snap.Content
-	c.NotChecked = append(not, o.not...)
-	c.Checks = append(slices.Clone(snap.Checks), o.checks...)
-	c.Greenbone = append(slices.Clone(snap.Greenbone), o.rows...) // a domain's addresses add theirs; an IP has none before
-	c = sanitize(c)
-	snap.Content = c
-	wctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), saveTimeout)
-	defer cancel()
-	err = s.write(wctx, func(tx *sql.Tx, _ func(string, any)) error {
-		d, err := snapshotDocs(c, snap.Counts)
-		if err != nil {
-			return err
-		}
-		// "Last scanned" stays the scan's start (upsertSnapshot); its end is the snapshot's finished_at
-		if _, err := tx.ExecContext(wctx, `UPDATE exp_snapshot SET checks = ?, not_checked = ?, greenbone = ?, greenbone_run = ?, finished_at = ? WHERE id = ?`, d[6], d[7], d[9], string(run), end, snap.ID); err != nil {
-			return fmt.Errorf("adding Greenbone's results: %w", err)
-		}
-		return s.audit(wctx, tx, user, "exposure.greenbone_scan", t.Value, clipText(o.audit, 500))
-	})
-	if err != nil {
-		s.cfg.Log.ErrorContext(wctx, "exposure: storing Greenbone's results failed", "target", t.Value, "error", err)
-	}
-}
-
 var errGBNoLog = errors.New("exposure: the Greenbone probe log row could not be written")
 
 // errGBCap: the cap ended the scan and what it had found could not be read (it ended before the task started, or the stop or the
@@ -1594,7 +1468,7 @@ func greenbonePort(p string) int {
 // withGreenboneVulns adds an exploited-CVE row of basis "greenbone" for each CVE Greenbone named that is on today's list (INV-25).
 // They are added after every other row and never change one: a CVE matched by version and also named by Greenbone shows twice,
 // once for each basis, and a version row is never closed or hidden because Greenbone did not name its CVE.
-func (s *Service) withGreenboneVulns(ctx context.Context, snap *Snapshot) {
+func (s *Service) withGreenboneVulns(ctx context.Context, snap *vulnSet) {
 	var ids []string
 	for _, r := range snap.Greenbone {
 		for _, id := range r.CVEs {
@@ -1715,18 +1589,18 @@ func (s *Service) RunGreenboneSync(ctx context.Context) error {
 		return nil
 	}
 	s.runMu.Lock()
-	if s.off || s.closed || s.feedSync || (s.run != nil && s.run.view.Status == RunRunning) {
+	if s.off || s.closed || s.feedSync || s.scanning() {
 		s.runMu.Unlock()
 		return nil
 	}
-	s.feedSync, s.feedSyncAt = true, s.clock()
+	held := make(chan struct{})
+	s.feedSync, s.feedSyncAt, s.syncDone = true, s.clock(), held
 	s.runMu.Unlock()
-	// INV-36: once the slot is free again (the defer below runs first), the scans that waited start on the service's own context
-	defer s.dispatch() //nolint:contextcheck // the queue never runs on the job's context
-	defer func() {
+	defer func() { // a scan that started meanwhile waited for this update (waitFeedSync)
 		s.runMu.Lock()
-		s.feedSync = false
+		s.feedSync, s.syncDone = false, nil
 		s.runMu.Unlock()
+		close(held)
 	}()
 	g := s.gb()
 	free, derr := g.diskFree(s.cfg.DataDir)

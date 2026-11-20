@@ -271,21 +271,21 @@ func (s *Service) outsideView(ctx context.Context, q querier, id string) (*Outsi
 	}
 	v.Found = found == 1
 	v.Ports, v.Hostnames, v.CPEs, v.Tags, v.Vulns = nz(v.Ports), nz(v.Hostnames), nz(v.CPEs), nz(v.Tags), nz(v.Vulns)
-	// Our own side, read now: the open ports of the newest scan of this IP.
-	var at, ports string
-	err = q.QueryRowContext(ctx, `SELECT coalesce(started_at, scanned_at), ports FROM exp_snapshot WHERE target_id = ? ORDER BY date DESC LIMIT 1`, id).Scan(&at, &ports)
-	if errors.Is(err, sql.ErrNoRows) {
+	// Our own side, read now: the services open on this IP, as of the newest scan that wrote rows.
+	var at sql.NullString
+	if err := q.QueryRowContext(ctx, `SELECT max(r.started_at) FROM exp_scan x JOIN core_run r ON r.id = x.run_id
+		WHERE x.target_id = ? AND EXISTS (SELECT 1 FROM core_run_step st WHERE st.run_id = r.id AND st.name = ? AND st.status = 'done')`, id, stepSurface).Scan(&at); err != nil {
+		return nil, err
+	}
+	if !at.Valid {
 		return &v, nil
 	}
+	open, err := servicesOf(ctx, q, id, true)
 	if err != nil {
 		return nil, err
 	}
-	var rows []PortRow
-	if err := json.Unmarshal([]byte(ports), &rows); err != nil {
-		return nil, fmt.Errorf("snapshot ports of %s: %w", id, err)
-	}
-	v.ScanPorts, v.ScanAt = []int{}, &at
-	for _, r := range rows {
+	v.ScanPorts, v.ScanAt = []int{}, &at.String
+	for _, r := range open {
 		if r.IP == v.IP {
 			v.ScanPorts = append(v.ScanPorts, r.Port)
 		}

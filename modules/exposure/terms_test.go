@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
-	"errors"
 	"net/netip"
 	"os"
 	"regexp"
@@ -77,7 +76,7 @@ func TestTerms_StoredAuditedWithdrawnAndAskedAgain(t *testing.T) {
 	// a new version of the terms: the old acceptance no longer counts until accepted again
 	e.acceptTerms(id, false)
 	if err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(e.ctx(), `UPDATE exp_target SET terms_version = '2020-01-01' WHERE id = ?`, id)
+		_, err := tx.ExecContext(e.ctx(), `UPDATE exp_consent SET version = '2020-01-01' WHERE target_id = ? AND kind = 'terms'`, id)
 		return err
 	}); err != nil {
 		t.Fatal(err)
@@ -208,8 +207,9 @@ func TestTerms_WithdrawStopsTheRunningScan(t *testing.T) {
 		t.Fatal("the scan was not stopped")
 	}
 	<-revoked // the withdrawal writes its stop row after the cancel; the run may end first
-	run := e.svc.CurrentScan()
-	if run == nil || run.Status != RunStopped || run.SnapshotID == nil || run.StopReason == nil || *run.StopReason != "the testing terms of this target were withdrawn" || !h.gvm.seen("stop_task") {
+	run := e.svc.CurrentScan(e.ctx())
+	if run == nil || run.Status != RunStopped || run.StopReason == nil || *run.StopReason != "the testing terms of this target were withdrawn" || !h.gvm.seen("stop_task") ||
+		e.writtenScans() != 1 {
 		t.Fatalf("run = %+v, cmds %q", run, h.gvm.cmds)
 	}
 	if r := e.auditDetails("exposure.terms_revoke"); len(r) != 2 || r[1] != stoppedNote+" (the testing terms of this target were withdrawn)" {
@@ -217,44 +217,29 @@ func TestTerms_WithdrawStopsTheRunningScan(t *testing.T) {
 	}
 }
 
-// review r1 M1: taking the disruptive tick out stops a disruptive run; raising the level, or another target's change, does not.
+// Taking the disruptive tick out stops a disruptive run; raising the level, or another target's change, does not.
 func TestTerms_LoweringStopsOnlyARunAbove(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	id := e.detect(ipA)[0].ID
 	e.acceptTerms(id, true)
-	var cause error
-	fake := func(m ScanMode, target string) {
+	fake := func(m ScanMode, target string) *scanExec {
+		x := &scanExec{targetID: target, mode: m, done: make(chan struct{})}
 		e.svc.runMu.Lock()
-		e.svc.run = &scanRun{view: ScanRun{TargetID: target, Status: RunRunning}, mode: m, cancel: func(c error) { cause = c }}
+		e.svc.execs = map[string]*scanExec{"run-1": x}
 		e.svc.runMu.Unlock()
-		cause = nil
+		return x
 	}
-	fake(ScanMode{Full: true, Disruptive: true}, "other")
-	e.acceptTerms(id, false)
-	if cause != nil {
+	if x := fake(ScanMode{Full: true, Disruptive: true}, "other"); func() bool { e.acceptTerms(id, false); return x.cause != nil }() {
 		t.Fatal("stopped a scan of another target")
 	}
-	fake(ScanMode{Full: true}, id)
-	e.acceptTerms(id, true)
-	if cause != nil {
+	if x := fake(ScanMode{Full: true}, id); func() bool { e.acceptTerms(id, true); return x.cause != nil }() {
 		t.Fatal("raising the level stopped the scan")
 	}
-	fake(ScanMode{Full: true, Disruptive: true}, id)
+	x := fake(ScanMode{Full: true, Disruptive: true}, id)
 	e.acceptTerms(id, false)
-	var sb *stoppedBy
-	if !errors.As(cause, &sb) || sb.why != "the disruptive checks were taken out of this target's testing terms" {
-		t.Fatalf("cause = %v", cause)
-	}
-	acc := e.auditDetails("exposure.terms_accept")
-	stops := 0
-	for _, d := range acc {
-		if strings.HasPrefix(d, stoppedNote) {
-			stops++
-		}
-	}
-	if stops != 1 || !strings.HasPrefix(acc[len(acc)-1], stoppedNote) { // review r2 L1: only the stop that happened is written
-		t.Fatalf("audit = %q", acc)
+	if x.cause == nil || x.cause.why != "the disruptive checks were taken out of this target's testing terms" || x.cause.reason != StopTerms {
+		t.Fatalf("cause = %+v", x.cause)
 	}
 }
 

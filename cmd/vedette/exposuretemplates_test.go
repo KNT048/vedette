@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/netip"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"testing/synctest"
@@ -382,5 +383,64 @@ func TestRefusedBeforeSending(t *testing.T) {
 		if got := refusedBeforeSending(err); got != want {
 			t.Errorf("%v: %v, want %v", err, got, want)
 		}
+	}
+}
+
+// What the adapter reports as run decides which template issues a scan may close (exposure.TemplatesCovered): only a template that
+// ran on its port and found nothing. (a) A later run that failed sends nothing, so its port is not covered; (b) an error line, and a
+// template nuclei printed nothing for, are not covered; (c) a deep scan whose terms were withdrawn runs the safe checks instead, so
+// only those templates are covered, never the deep templates it did not send.
+func TestExposureTemplatesCoverOnlyWhatRan(t *testing.T) {
+	t.Parallel()
+	noMatch := func(r sensoractive.NucleiRequest) nucleiout.Outcome {
+		var o nucleiout.Outcome
+		for _, id := range r.Templates {
+			o.Results = append(o.Results, nucleiout.Result{Template: id, Target: fmt.Sprintf("8.8.8.8:%d", r.Targets[0].Port)})
+		}
+		return o
+	}
+	own := func(port int) string { return ownPublicIP.String() + ":" + strconv.Itoa(port) }
+	// (a)
+	jobs := []exposure.TemplateJob{ownJob("CVE-2018-13379"), ownJob("CVE-2019-19781")}
+	jobs[1].Port = 18444
+	f := &templatesFake{gateOK: true, answer: noMatch, runErrs: map[int]error{2: sensoractive.ErrNucleiBusy}}
+	got, err := f.scanner().ScanTemplates(t.Context(), exposure.ScanTarget{}, ownPublicIP, jobs)
+	if cov := exposure.TemplatesCovered(ownPublicIP, jobs, got); err != nil || !slices.Equal(cov, []string{own(18443) + "|CVE-2018-13379"}) {
+		t.Fatalf("(a) a later run that failed: covered %q, %v", cov, err)
+	}
+	// (b)
+	jobs = []exposure.TemplateJob{ownJob("CVE-2018-13379", "CVE-2019-19781")}
+	f = &templatesFake{gateOK: true, answer: func(sensoractive.NucleiRequest) nucleiout.Outcome {
+		return nucleiout.Outcome{Results: []nucleiout.Result{{Template: "CVE-2018-13379", Target: "8.8.8.8:18443", Error: "context deadline exceeded"}}}
+	}}
+	got, err = f.scanner().ScanTemplates(t.Context(), exposure.ScanTarget{}, ownPublicIP, jobs)
+	if cov := exposure.TemplatesCovered(ownPublicIP, jobs, got); err != nil || len(cov) != 0 {
+		t.Fatalf("(b) an error and a silent template: covered %q, %v", cov, err)
+	}
+	// (c)
+	jobs = []exposure.TemplateJob{fullJobOf("CVE-2018-13379")}
+	f = &templatesFake{gateOK: true, answer: noMatch}
+	a := f.scanner()
+	a.mode = (&modes{list: []exposure.ScanMode{{}}}).now
+	got, err = a.ScanTemplates(t.Context(), fullTarget(false), ownPublicIP, jobs)
+	if cov := exposure.TemplatesCovered(ownPublicIP, jobs, got); err != nil || !slices.Equal(cov, []string{own(18443) + "|CVE-2018-13379"}) {
+		t.Fatalf("(c) the safe checks instead of the deep templates: covered %q, %v", cov, err)
+	}
+}
+
+// A template whose only line named another port (here the line nuclei prints for a host it found unresponsive) is shown as no match
+// reported, but it does not cover its port: an earlier issue of that template stays open.
+func TestExposureTemplatesALineOfAnotherPortCoversNothing(t *testing.T) {
+	t.Parallel()
+	jobs := []exposure.TemplateJob{ownJob("CVE-2018-13379")}
+	f := &templatesFake{gateOK: true, answer: func(sensoractive.NucleiRequest) nucleiout.Outcome {
+		return nucleiout.Outcome{Skipped: nucleiout.Skipped{Lines: 1, Templates: []string{"CVE-2018-13379"}, Template: "CVE-2018-13379", Host: "8.8.8.8", Port: "18444"}}
+	}}
+	got, err := f.scanner().ScanTemplates(t.Context(), exposure.ScanTarget{User: "u"}, ownPublicIP, jobs)
+	if err != nil || len(got.Results) != 1 || got.Results[0].Outcome != exposure.OutcomeNoMatch || !got.Results[0].Elsewhere {
+		t.Fatalf("%+v %v", got, err)
+	}
+	if cov := exposure.TemplatesCovered(ownPublicIP, jobs, got); len(cov) != 0 {
+		t.Fatalf("covered %q", cov)
 	}
 }

@@ -106,7 +106,7 @@ func (c *Commitment) current() bool {
 	return c != nil && c.Version != nil && *c.Version == NoticeVersion
 }
 
-// Counts are the numbers of one snapshot (INV-8).
+// Counts are the numbers of one scan (INV-8), kept with the scan (exp_scan.summary) and shown on a target.
 type Counts struct {
 	Subdomains    int `json:"subdomains"`
 	IPs           int `json:"ips"`
@@ -130,7 +130,13 @@ type Target struct {
 	// the box found as its own egress address. Its Token is the one the proof file carries.
 	Typed      bool
 	CreatedAt  time.Time
-	LastScanAt time.Time // zero when never scanned
+	LastScanAt time.Time // zero when never scanned: the start of its newest run
+	// Origin says who added it; ParentID is the domain target it sits under ("" at the top of the tree); ScopeMode is what a scan of
+	// a domain covers ("" for an IP); Enabled says the node is scanned.
+	Origin    Origin
+	ParentID  string
+	ScopeMode ScopeMode
+	Enabled   bool
 	// proofDomain and proofToken are, after the scan gate, the domain target whose token proved this one now (itself, a parent target
 	// of the box, or a target of the box that sits under the name where its record was found) and that token: the domain and token the
 	// executors' fence checks. proofAt is the name the record sits on when it is not proofDomain itself (the zone apex, or a parent
@@ -322,67 +328,19 @@ type Content struct {
 	NotChecked  []NotCheckedRow `json:"not_checked"`
 	WebFindings []WebFindingRow `json:"web_findings"` // INV-24: alerts of the passive web scan (ZAP), not exploited CVEs
 	Greenbone   []GreenboneRow  `json:"greenbone"`    // INV-25: results of the optional deep scan (Greenbone, QoD >= 70)
-	// Unresolved are the names whose address lookup got no clear answer this time (INV-27): not stored as such; saveScan carries
-	// their previous rows forward (carryHosts).
+	// WebPages are the pages ZAP scanned this run (it answered for them): a ZAP alert of another page that no longer comes is not
+	// "gone", since ZAP did not look there.
+	WebPages []string `json:"-"`
+	// TemplatesRan are the "ip:port|template" of the templates that ran to the end this run and found nothing (TemplatesCovered);
+	// ScriptsRan the addresses whose deep nmap step ran its scripts to the end. An issue of those engines elsewhere is not "gone":
+	// they did not look there.
+	TemplatesRan []string `json:"-"`
+	ScriptsRan   []string `json:"-"`
+	// Unresolved are the names whose address lookup got no clear answer this time (INV-27): their rows keep what the scan before
+	// saw, and their addresses are not taken as checked.
 	Unresolved []string `json:"-"`
-	// The NSE script results of a deep scan, stored in exp_snapshot.scripts (migration 0010).
-	// Not in the API yet ("-"): the snapshot schema of api/openapi.json has no such field and the response decoder refuses unknown
-	// ones; showing them is the page's step (contract.ts, openapi, then this tag becomes "scripts").
+	// The NSE script results of a deep scan: a confirmed finding becomes an issue of the surface engine.
 	Scripts []ScriptRow `json:"-"`
-}
-
-// Snapshot is the result of one scan day (contract.ts Snapshot). Vulns and VersionGaps are not stored: they are computed when the
-// snapshot is read, from its services and the current list of exploited vulnerabilities (INV-20), so a new KEV entry shows without
-// a rescan.
-type Snapshot struct {
-	ID        string `json:"id"`
-	Date      string `json:"date"`
-	ScannedAt string `json:"scanned_at"`
-	// StartedAt is when the scan started (the name of the scan on every page) and FinishedAt when its last step ended; FinishedAt
-	// is nil while OpenVAS still runs, and on a snapshot stored before these times were kept whose end is not known.
-	StartedAt  string  `json:"started_at"`
-	FinishedAt *string `json:"finished_at"`
-	Content
-	// GreenboneRun is the state of the snapshot's OpenVAS step and when it started: the page's OpenVAS heading
-	// follows it, and shows the start in the viewer's time zone.
-	GreenboneRun GreenboneRun `json:"greenbone_run"`
-	Vulns        []VulnRow    `json:"vulns"`
-	VersionGaps  []GapRow     `json:"version_gaps"`
-	Counts       Counts       `json:"counts"`
-}
-
-// SnapshotMeta is a snapshot without its lists.
-type SnapshotMeta struct {
-	ID         string  `json:"id"`
-	Date       string  `json:"date"`
-	ScannedAt  string  `json:"scanned_at"`
-	StartedAt  string  `json:"started_at"`
-	FinishedAt *string `json:"finished_at"`
-	Counts     Counts  `json:"counts"`
-}
-
-// DiffItem is one thing that appeared or disappeared between two days.
-type DiffItem struct {
-	Kind   string `json:"kind"`
-	Key    string `json:"key"`
-	Label  string `json:"label"`
-	Detail string `json:"detail"`
-}
-
-// DiffChange is a thing that changed between two days, with what it changed from and to.
-type DiffChange struct {
-	DiffItem
-	From string `json:"from"`
-	To   string `json:"to"`
-}
-
-// Diff compares two scan days (contract.ts Diff).
-type Diff struct {
-	From    string       `json:"from"`
-	To      string       `json:"to"`
-	Added   []DiffItem   `json:"added"`
-	Removed []DiffItem   `json:"removed"`
-	Changed []DiffChange `json:"changed"`
 }
 
 // MaxIgnored is the most IPs the Ignored list holds; a full list refuses to take one more (400 too_many).

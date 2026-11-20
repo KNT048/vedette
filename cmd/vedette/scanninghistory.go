@@ -463,7 +463,7 @@ func exposureHistory(s exposure.ScanRecord) (core.HistoryRun, bool) {
 	} else if end == nil { // a scan stored before its end was kept
 		end = &at
 	}
-	id := "exp-" + s.TargetID + "-" + orDefault(s.Date, at.Format(time.DateOnly)) // one snapshot per target and day
+	id := s.RunID // the scan's shared run
 	return core.HistoryRun{ID: id, Kind: "external", Engine: "nuclei", Trigger: "person", Label: s.Target, TargetID: s.TargetID,
 		StartedAt: at, EndedAt: end, Outcome: outcome, Text: text}, true
 }

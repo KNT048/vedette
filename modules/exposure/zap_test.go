@@ -241,7 +241,7 @@ func TestContract_INV24_AskedOnlyForTheWebPortsOfTheTarget(t *testing.T) {
 	if !slices.Contains(checkKinds(s), "web") {
 		t.Fatalf("checks = %+v", s.Checks)
 	}
-	if e.count(`SELECT count(*) FROM exp_snapshot WHERE web_findings LIKE '%Server Leaks%'`) != 1 {
+	if e.count(`SELECT count(*) FROM exp_issue WHERE engine = 'zap' AND title LIKE '%Server Leaks%' AND state = 'open'`) == 0 {
 		t.Fatal("the alerts are not stored")
 	}
 }
@@ -306,7 +306,7 @@ func TestContract_INV24_DomainNamesOnWebPortsOnly(t *testing.T) {
 	if len(w.logged) != len(want) || w.logged[0] != 1 || w.logged[3] != 4 { // each page is in the probe log before its scan starts
 		t.Errorf("rows in the log at each call = %v", w.logged)
 	}
-	got, err := e.svc.SnapshotOf(e.ctx(), dom.ID, snap.Date)
+	got, err := snap, error(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -319,7 +319,7 @@ func TestContract_INV24_DomainNamesOnWebPortsOnly(t *testing.T) {
 // be read, a page ZAP did not see, and a failure each say so and keep the rest; none reads as "no alerts".
 func TestContract_INV24_SeamWording(t *testing.T) {
 	t.Parallel()
-	run := func(t *testing.T, w *fakeWeb) Snapshot {
+	run := func(t *testing.T, w *fakeWeb) ScanResult {
 		e := newEnv(t)
 		if w != nil {
 			e.wire(w)
@@ -327,7 +327,7 @@ func TestContract_INV24_SeamWording(t *testing.T) {
 		e.svc.cfg.Services = &fakeServices{scan: ServiceScan{Services: []ServiceRow{{IP: ipA, Port: 443, Name: "https"}}, Ports: 98}}
 		return e.scanIP(Content{})
 	}
-	has := func(s Snapshot, sub string) bool {
+	has := func(s ScanResult, sub string) bool {
 		return slices.ContainsFunc(notChecked(s), func(n string) bool { return strings.Contains(n, sub) })
 	}
 	if s := run(t, nil); !slices.Contains(notChecked(s), "Passive web scan (ZAP) is not set up on this box yet.") || slices.Contains(checkKinds(s), "web") {

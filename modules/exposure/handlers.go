@@ -174,18 +174,10 @@ func (h *ExposureHandlers) ExposurePostExposureTargetsIDScan(ctx context.Context
 	return into[oas.ExposurePostExposureTargetsIDScanAccepted](run)
 }
 
-// ExposurePostExposureTargetsIDOpenvas implements exposure_post_exposure_targets_id_openvas (operator): OpenVAS again for the newest
-// scan of a public IP of the box whose OpenVAS step did not finish; 202 with the run, which goes on in the background.
-func (h *ExposureHandlers) ExposurePostExposureTargetsIDOpenvas(ctx context.Context, params oas.ExposurePostExposureTargetsIDOpenvasParams) (*oas.ExposurePostExposureTargetsIDOpenvasAccepted, error) {
-	p, ok := server.PrincipalFrom(ctx)
-	if !ok {
-		return nil, apierr.Unauthenticated()
-	}
-	run, err := h.svc.StartOpenVAS(ctx, Actor{ID: p.ID, Email: p.Email, Admin: p.Role == routes.Admin}, params.ID)
-	if err != nil {
-		return nil, ToAPIError(err)
-	}
-	return into[oas.ExposurePostExposureTargetsIDOpenvasAccepted](run)
+// ExposurePostExposureTargetsIDOpenvas implements exposure_post_exposure_targets_id_openvas: OpenVAS on its own is not a kind of
+// run yet, so it answers 501 not_implemented.
+func (h *ExposureHandlers) ExposurePostExposureTargetsIDOpenvas(context.Context, oas.ExposurePostExposureTargetsIDOpenvasParams) (*oas.ExposurePostExposureTargetsIDOpenvasAccepted, error) {
+	return nil, ToAPIError(ErrNotImplemented)
 }
 
 // ExposurePutExposureTargetsIDTerms implements exposure_put_exposure_targets_id_terms (admin with two-step): accept the testing terms
@@ -202,18 +194,10 @@ func (h *ExposureHandlers) ExposurePutExposureTargetsIDTerms(ctx context.Context
 	return into[oas.ExposurePutExposureTargetsIDTermsOK](v)
 }
 
-// ExposurePutExposureTargetsIDSchedule implements exposure_put_exposure_targets_id_schedule (admin): how often the box scans the
-// target by itself (INV-36).
-func (h *ExposureHandlers) ExposurePutExposureTargetsIDSchedule(ctx context.Context, req *oas.ExposurePutExposureTargetsIDScheduleReq, params oas.ExposurePutExposureTargetsIDScheduleParams) (*oas.ExposurePutExposureTargetsIDScheduleOK, error) {
-	user, err := actor(ctx)
-	if err != nil {
-		return nil, err
-	}
-	v, err := h.svc.SetSchedule(ctx, user, params.ID, Every(req.Every))
-	if err != nil {
-		return nil, ToAPIError(err)
-	}
-	return into[oas.ExposurePutExposureTargetsIDScheduleOK](v)
+// ExposurePutExposureTargetsIDSchedule implements exposure_put_exposure_targets_id_schedule: the schedule of a target is the shared
+// schedule exposure.target:<id>, so this answers 501 not_implemented.
+func (h *ExposureHandlers) ExposurePutExposureTargetsIDSchedule(context.Context, *oas.ExposurePutExposureTargetsIDScheduleReq, oas.ExposurePutExposureTargetsIDScheduleParams) (*oas.ExposurePutExposureTargetsIDScheduleOK, error) {
+	return nil, ToAPIError(ErrNotImplemented)
 }
 
 // ExposureDeleteExposureTargetsIDQueue implements exposure_delete_exposure_targets_id_queue (operator): the scan of the target that
@@ -240,8 +224,8 @@ func (h *ExposureHandlers) ExposureDeleteExposureTargetsIDTerms(ctx context.Cont
 }
 
 // ExposureGetExposureScan implements exposure_get_exposure_scan (viewer): the run that runs now or the last one, null before the first.
-func (h *ExposureHandlers) ExposureGetExposureScan(_ context.Context) (oas.NilExposureGetExposureScanOK, error) {
-	run := h.svc.CurrentScan()
+func (h *ExposureHandlers) ExposureGetExposureScan(ctx context.Context) (oas.NilExposureGetExposureScanOK, error) {
+	run := h.svc.CurrentScan(ctx)
 	if run == nil {
 		return oas.NilExposureGetExposureScanOK{Null: true}, nil
 	}
@@ -265,33 +249,21 @@ func (h *ExposureHandlers) ExposurePostExposureScanStop(ctx context.Context) (*o
 	return into[oas.ExposurePostExposureScanStopOK](run)
 }
 
-// ExposureGetExposureTargetsIDSnapshots implements exposure_get_exposure_targets_id_snapshots.
-func (h *ExposureHandlers) ExposureGetExposureTargetsIDSnapshots(ctx context.Context, params oas.ExposureGetExposureTargetsIDSnapshotsParams) (*oas.ExposureGetExposureTargetsIDSnapshotsOK, error) {
-	items, err := h.svc.Snapshots(ctx, params.ID)
-	if err != nil {
-		return nil, ToAPIError(err)
-	}
-	return into[oas.ExposureGetExposureTargetsIDSnapshotsOK](struct {
-		Items []SnapshotMeta `json:"items"`
-	}{items})
+// ExposureGetExposureTargetsIDSnapshots implements exposure_get_exposure_targets_id_snapshots: results are rows now
+// (GET /exposure/tree/{id}/services, issues, hosts, addresses, scans), so the snapshots answer 501 not_implemented.
+func (h *ExposureHandlers) ExposureGetExposureTargetsIDSnapshots(context.Context, oas.ExposureGetExposureTargetsIDSnapshotsParams) (*oas.ExposureGetExposureTargetsIDSnapshotsOK, error) {
+	return nil, ToAPIError(ErrNotImplemented)
 }
 
-// ExposureGetExposureTargetsIDSnapshotsDate implements exposure_get_exposure_targets_id_snapshots_date.
-func (h *ExposureHandlers) ExposureGetExposureTargetsIDSnapshotsDate(ctx context.Context, params oas.ExposureGetExposureTargetsIDSnapshotsDateParams) (*oas.ExposureGetExposureTargetsIDSnapshotsDateOK, error) {
-	s, err := h.svc.SnapshotOf(ctx, params.ID, params.Date)
-	if err != nil {
-		return nil, ToAPIError(err)
-	}
-	return into[oas.ExposureGetExposureTargetsIDSnapshotsDateOK](s)
+// ExposureGetExposureTargetsIDSnapshotsDate implements exposure_get_exposure_targets_id_snapshots_date: 501, see the snapshots.
+func (h *ExposureHandlers) ExposureGetExposureTargetsIDSnapshotsDate(context.Context, oas.ExposureGetExposureTargetsIDSnapshotsDateParams) (*oas.ExposureGetExposureTargetsIDSnapshotsDateOK, error) {
+	return nil, ToAPIError(ErrNotImplemented)
 }
 
-// ExposureGetExposureTargetsIDDiff implements exposure_get_exposure_targets_id_diff.
-func (h *ExposureHandlers) ExposureGetExposureTargetsIDDiff(ctx context.Context, params oas.ExposureGetExposureTargetsIDDiffParams) (*oas.ExposureGetExposureTargetsIDDiffOK, error) {
-	d, err := h.svc.Diff(ctx, params.ID, params.From, params.To)
-	if err != nil {
-		return nil, ToAPIError(err)
-	}
-	return into[oas.ExposureGetExposureTargetsIDDiffOK](d)
+// ExposureGetExposureTargetsIDDiff implements exposure_get_exposure_targets_id_diff: what changed is first and last seen and the
+// state of each row, so the diff of two days answers 501 not_implemented.
+func (h *ExposureHandlers) ExposureGetExposureTargetsIDDiff(context.Context, oas.ExposureGetExposureTargetsIDDiffParams) (*oas.ExposureGetExposureTargetsIDDiffOK, error) {
+	return nil, ToAPIError(ErrNotImplemented)
 }
 
 // ExposureGetExposureTargetsIDOutside implements exposure_get_exposure_targets_id_outside (viewer): Shodan's last answer about this
@@ -345,4 +317,75 @@ func (h *ExposureHandlers) ExposurePutExposureGreenbone(ctx context.Context, req
 		return nil, ToAPIError(err)
 	}
 	return into[oas.ExposurePutExposureGreenboneOK](v)
+}
+
+// ---- the target tree: the rows of a node ----
+
+// items is the {items} answer of a list.
+type items[T any] struct {
+	Items []T `json:"items"`
+}
+
+// ExposureGetExposureTreeIDScans implements exposure_get_exposure_tree_id_scans (viewer): the runs of the node, newest first.
+func (h *ExposureHandlers) ExposureGetExposureTreeIDScans(ctx context.Context, params oas.ExposureGetExposureTreeIDScansParams) (*oas.ExposureGetExposureTreeIDScansOK, error) {
+	v, err := h.svc.Scans(ctx, params.ID)
+	if err != nil {
+		return nil, ToAPIError(err)
+	}
+	return into[oas.ExposureGetExposureTreeIDScansOK](items[ScanView]{v})
+}
+
+// ExposureGetExposureTreeIDHosts implements exposure_get_exposure_tree_id_hosts (viewer): the names found under the node.
+func (h *ExposureHandlers) ExposureGetExposureTreeIDHosts(ctx context.Context, params oas.ExposureGetExposureTreeIDHostsParams) (*oas.ExposureGetExposureTreeIDHostsOK, error) {
+	v, err := h.svc.Hosts(ctx, params.ID)
+	if err != nil {
+		return nil, ToAPIError(err)
+	}
+	return into[oas.ExposureGetExposureTreeIDHostsOK](items[HostView]{v})
+}
+
+// ExposureGetExposureTreeIDAddresses implements exposure_get_exposure_tree_id_addresses (viewer): the addresses of the node and its names.
+func (h *ExposureHandlers) ExposureGetExposureTreeIDAddresses(ctx context.Context, params oas.ExposureGetExposureTreeIDAddressesParams) (*oas.ExposureGetExposureTreeIDAddressesOK, error) {
+	v, err := h.svc.Addresses(ctx, params.ID)
+	if err != nil {
+		return nil, ToAPIError(err)
+	}
+	return into[oas.ExposureGetExposureTreeIDAddressesOK](items[AddressView]{v})
+}
+
+// ExposureGetExposureTreeIDServices implements exposure_get_exposure_tree_id_services (viewer): the services, open and closed.
+func (h *ExposureHandlers) ExposureGetExposureTreeIDServices(ctx context.Context, params oas.ExposureGetExposureTreeIDServicesParams) (*oas.ExposureGetExposureTreeIDServicesOK, error) {
+	v, err := h.svc.Services(ctx, params.ID)
+	if err != nil {
+		return nil, ToAPIError(err)
+	}
+	return into[oas.ExposureGetExposureTreeIDServicesOK](items[ServiceView]{v})
+}
+
+// ExposureGetExposureTreeIDIssues implements exposure_get_exposure_tree_id_issues (viewer): the issues of every engine.
+func (h *ExposureHandlers) ExposureGetExposureTreeIDIssues(ctx context.Context, params oas.ExposureGetExposureTreeIDIssuesParams) (*oas.ExposureGetExposureTreeIDIssuesOK, error) {
+	v, err := h.svc.Issues(ctx, params.ID)
+	if err != nil {
+		return nil, ToAPIError(err)
+	}
+	return into[oas.ExposureGetExposureTreeIDIssuesOK](items[IssueView]{v})
+}
+
+// ExposurePostExposureTreeIDScan implements exposure_post_exposure_tree_id_scan (operator): Scan now queues a run of the node; 202 with
+// the scan. The refusals are those of POST /exposure/targets/{id}/scan.
+func (h *ExposureHandlers) ExposurePostExposureTreeIDScan(ctx context.Context, req oas.OptExposurePostExposureTreeIDScanReq, params oas.ExposurePostExposureTreeIDScanParams) (*oas.ExposurePostExposureTreeIDScanAccepted, error) {
+	p, ok := server.PrincipalFrom(ctx)
+	if !ok {
+		return nil, apierr.Unauthenticated()
+	}
+	who := Actor{ID: p.ID, Email: p.Email, Admin: p.Role == routes.Admin}
+	run, err := h.svc.StartScan(ctx, who, params.ID, req.Value.NoticeVersion.Value)
+	if err != nil {
+		return nil, ToAPIError(err)
+	}
+	v, err := h.svc.scanView(ctx, run.ID)
+	if err != nil {
+		return nil, ToAPIError(err)
+	}
+	return into[oas.ExposurePostExposureTreeIDScanAccepted](v)
 }

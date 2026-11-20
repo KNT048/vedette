@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Input } from '@/components/ui/input'
 import { ApiError } from '@/lib/api'
 import { useCan } from '@/lib/session'
-import type { SoftwareView } from '@/features/inventory/types'
+import type { SoftwareLine } from '@/features/inventory/types'
 import { deviceName, hasIp, isOpen } from './basis'
 import { errMsg } from './errors'
 import type { FindingAsset, FindingDetail } from './types'
@@ -22,7 +22,7 @@ import { agentNow } from './agentNow'
 const ERRORS = ['bad_version', 'duplicate_software', 'not_manual']
 
 /** What "I updated it" needs of a software row: the finding page passes the row, a To fix action builds it from its own fields. */
-export type UpdatedSoftware = Pick<SoftwareView, 'id' | 'display' | 'version' | 'source' | 'kev_cves'>
+export type UpdatedSoftware = Pick<SoftwareLine, 'id' | 'display' | 'version' | 'source' | 'kev_cves'>
 
 /**
  * "I updated it" for one software of one device, the one control the finding page and each To fix action use: it does

@@ -42,13 +42,13 @@ func ssh(version, instance string) observe.Software {
 }
 
 // line is the device's one line of a product as the device page reads it.
-func (c *lineCase) line(product string) inventory.EffectiveSoftware {
+func (c *lineCase) line(product string) inventory.SoftwareLine {
 	c.t.Helper()
-	l, err := c.e.svc.EffectiveSoftware(c.e.ctx(), c.dev())
+	l, err := c.e.svc.SoftwareLines(c.e.ctx(), c.dev())
 	if err != nil {
 		c.t.Fatal(err)
 	}
-	var out []inventory.EffectiveSoftware
+	var out []inventory.SoftwareLine
 	for _, s := range l {
 		if s.Product == product {
 			out = append(out, s)
@@ -58,6 +58,14 @@ func (c *lineCase) line(product string) inventory.EffectiveSoftware {
 		c.t.Fatalf("%d lines of %s: %+v", len(out), product, l)
 	}
 	return out[0]
+}
+
+// ver is a line's version, "" when none.
+func ver(l inventory.SoftwareLine) string {
+	if l.Version == nil {
+		return ""
+	}
+	return *l.Version
 }
 
 func (c *lineCase) history(id string) []string {
@@ -85,11 +93,11 @@ func TestSoftwareLines_AgentSourcesAreApart(t *testing.T) {
 	c.send(observe.Osquery, nil, ssh("9.6p1", ""))
 	c.send(observe.Wazuh, nil, ssh("10.2p1", ""))
 	l := c.line("OpenSSH")
-	if l.Version != "10.2p1" || l.Source != "agent" || len(l.AlsoSeen) != 1 || l.AlsoSeen[0].Version != "9.6p1" || !l.Differs {
+	if ver(l) != "10.2p1" || l.Source != "agent" || len(l.AlsoSeen) != 1 || l.AlsoSeen[0].Version != "9.6p1" || !l.Differs {
 		t.Fatalf("line %+v", l)
 	}
 	c.send(observe.Wazuh, nil) // Wazuh's empty list removes only what Wazuh read
-	if l2 := c.line("OpenSSH"); l2.ID != l.ID || l2.Version != "9.6p1" || len(l2.AlsoSeen) != 0 {
+	if l2 := c.line("OpenSSH"); l2.ID != l.ID || ver(l2) != "9.6p1" || len(l2.AlsoSeen) != 0 {
 		t.Fatalf("after Wazuh's empty list: %+v", l2)
 	}
 	if err := c.e.svc.ReplaceSoftware(c.e.ctx(), c.hint, observe.Agent, nil, []observe.Software{ssh("1", "")}); err == nil {
@@ -106,14 +114,14 @@ func TestSoftwareLines_PartialReplacementByScope(t *testing.T) {
 	}
 	c.send(observe.Nmap, nil, ssh("9.6p1", "tcp/22"), nginx("1.24.0"))
 	c.send(observe.Nmap, []string{"tcp/80"}, nginx("1.26.1"))
-	if l := c.line("OpenSSH"); l.Version != "9.6p1" {
+	if l := c.line("OpenSSH"); ver(l) != "9.6p1" {
 		t.Fatalf("port 22 must stay: %+v", l)
 	}
-	if l := c.line("nginx"); l.Version != "1.26.1" {
+	if l := c.line("nginx"); ver(l) != "1.26.1" {
 		t.Fatalf("port 80 must move: %+v", l)
 	}
 	c.send(observe.Nmap, []string{"tcp/80"})
-	if l := c.line("OpenSSH"); l.Version != "9.6p1" {
+	if l := c.line("OpenSSH"); ver(l) != "9.6p1" {
 		t.Fatalf("an empty list of port 80 leaves port 22: %+v", l)
 	}
 	if n := c.e.count(`SELECT count(*) FROM inv_software WHERE product = 'nginx' AND state = 'removed'`); n != 1 {
@@ -135,7 +143,7 @@ func TestSoftwareLines_RemovalIsAState(t *testing.T) {
 		t.Fatal("a removed line must not be matched")
 	}
 	c.send(observe.Osquery, nil, ssh("10.2p1", ""))
-	if l := c.line("OpenSSH"); l.ID != id || l.Version != "10.2p1" {
+	if l := c.line("OpenSSH"); l.ID != id || ver(l) != "10.2p1" {
 		t.Fatalf("back: %+v, want the same id %s", l, id)
 	}
 	if h := c.history(id); !slices.Equal(h, []string{"appeared", "removed", "reappeared"}) {
@@ -154,15 +162,15 @@ func TestSoftwareLines_EntryLapsesOnANewerReading(t *testing.T) {
 	if err := c.e.svc.EditSoftware(c.e.ctx(), "op@example.com", c.dev(), id, inventory.SoftwareEdit{Version: &v}); err != nil {
 		t.Fatal(err)
 	}
-	if l := c.line("OpenSSH"); l.Version != "9.6p1" || l.Source != "manual" || l.SetBy != "op@example.com" {
+	if l := c.line("OpenSSH"); ver(l) != "9.6p1" || l.Source != "manual" || l.SetBy != "op@example.com" {
 		t.Fatalf("entry: %+v", l)
 	}
 	c.send(observe.Nmap, nil, ssh("9.5", "tcp/22")) // older: the entry holds; the older reading still matches
-	if l := c.line("OpenSSH"); l.Version != "9.6p1" || !l.Differs {
+	if l := c.line("OpenSSH"); ver(l) != "9.6p1" || !l.Differs {
 		t.Fatalf("an older reading keeps the entry: %+v", l)
 	}
 	c.send(observe.Nmap, nil, ssh("10.2", "tcp/22"))
-	if l := c.line("OpenSSH"); l.ID != id || l.Version != "10.2" || l.Source != "nmap" {
+	if l := c.line("OpenSSH"); l.ID != id || ver(l) != "10.2" || l.Source != "nmap" {
 		t.Fatalf("a newer reading ends the entry: %+v", l)
 	}
 	if countOf(c.e.auditActions(), "inventory.software_correction_lapsed") != 1 || !slices.Contains(c.history(id), "entry_lapsed") {
@@ -189,7 +197,7 @@ func TestSoftwareLines_NotInstalledHoldsUntilANewReading(t *testing.T) {
 		t.Fatal("the same reading again must keep the mark")
 	}
 	c.send(observe.Nmap, nil, ssh("10.2", "tcp/22")) // a new release read: a new install
-	if l := c.line("OpenSSH"); l.ID != id || l.Version != "10.2" {
+	if l := c.line("OpenSSH"); l.ID != id || ver(l) != "10.2" {
 		t.Fatalf("a new reading ends the mark: %+v", l)
 	}
 	if h := c.history(id); !slices.Contains(h, "marked_not_installed") || !slices.Contains(h, "unmarked") {
@@ -227,12 +235,12 @@ func TestSoftwareLines_MergeLosesNoReading(t *testing.T) {
 	if n := e.count(`SELECT count(*) FROM inv_software WHERE asset_id = ?`, into); n != 2 {
 		t.Fatalf("%d lines on the kept device, want OpenSSH and nginx", n)
 	}
-	l, err := e.svc.EffectiveSoftware(e.ctx(), into)
+	l, err := e.svc.SoftwareLines(e.ctx(), into)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, s := range l {
-		if s.Product == "OpenSSH" && (s.Version != "10.2p1" || len(s.AlsoSeen) != 1 || s.AlsoSeen[0].Version != "9.6") {
+		if s.Product == "OpenSSH" && (ver(s) != "10.2p1" || len(s.AlsoSeen) != 1 || s.AlsoSeen[0].Version != "9.6") {
 			t.Fatalf("OpenSSH after the merge: %+v", s)
 		}
 	}
@@ -305,7 +313,7 @@ func TestSoftwareLines_NotInstalledSurvivesARemoval(t *testing.T) {
 		t.Fatal("the same release read again must keep the person's mark")
 	}
 	c.send(observe.Nmap, nil, ssh("10.2", "tcp/22"))
-	if l := c.line("OpenSSH"); l.ID != id || l.Version != "10.2" {
+	if l := c.line("OpenSSH"); l.ID != id || ver(l) != "10.2" {
 		t.Fatalf("a new release lifts the mark: %+v", l)
 	}
 }

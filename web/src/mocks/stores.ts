@@ -41,6 +41,7 @@ const MODULES: Array<Omit<ModuleState, 'enabled_at' | 'available'>> = [
   { id: 'scan-credentialed', enabled: false, tier: 'optional', depends: ['inventory', 'scan'] },
   { id: 'honeypot', enabled: true, tier: 'optional', depends: ['inventory'] },
   { id: 'logs', enabled: true, tier: 'optional', depends: ['feeds', 'inventory'] },
+  { id: 'ids', enabled: true, tier: 'optional', depends: ['inventory', 'logs'] },
   { id: 'agent-intake', enabled: false, tier: 'optional', depends: ['inventory'] },
   { id: 'ai', enabled: true, tier: 'optional', depends: ['core'] },
   { id: 'reports', enabled: true, tier: 'optional', depends: ['inventory', 'feeds', 'notify'] },

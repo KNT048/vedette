@@ -47,7 +47,7 @@
 
 ## Modifying: `signal_public.go`, `signal_metasploit.go`, `signal_exploitdb.go`, `signal_pocgithub.go` (feeds `metasploit`, `exploit-db`, `poc-in-github`), `content/catalog/exploit-authors.json`
 
-- **Danh mục** (`retention`, `keepSetSQL`): CVE có hàng `public_exploit` đạt được giữ ở mọi tuổi ⇒ thêm khoảng 30.000 CVE cũ (bản ghi NVD qua lượt đi qua toàn bộ của `nvd-recent`, `publicListedSQL`). Đổi luật `qualifies` hay danh sách tác giả ⇒ đổi số CVE giữ và số bản ghi NVD/CVE record kéo về.
+- **Danh mục** (`retention`, `keepSetSQL`): CVE có hàng `public_exploit` đạt được giữ ở mọi tuổi ⇒ thêm khoảng 25.000 CVE cũ, 153.000 khoảng phiên bản, 64 MB (đo 21/11/2026) (bản ghi NVD qua lượt đi qua toàn bộ của `nvd-recent`, `publicListedSQL`). Đổi luật `qualifies` hay danh sách tác giả ⇒ đổi số CVE giữ và số bản ghi NVD/CVE record kéo về.
 - **findings** (urgency lớp 3, `Store.Signals`): `first_seen` là ngày hiện trên lý do; `qualifies = 0` không bao giờ là lớp 3.
 - **PRIVACY.md** luồng 1, Settings → Privacy (`privacy.flow.1.to`), `THIRD_PARTY_NOTICES.md` (mục chỉ mục exploit công khai), `sourcesMock.ts` + `conformance.test.ts` (20 feed có sẵn), `sources_test.go` (host `gitlab.com`, `codeload.github.com`), `heldnote.go` (`poc-in-github`: bao nhiêu CVE đạt).
 

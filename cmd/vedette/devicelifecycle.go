@@ -34,6 +34,7 @@ func registerLifecycle(d *deps, notifySvc *notify.Service, fs *feeds.Service) {
 	if fs != nil {
 		h.Register(lifecycle.Participant{Name: "feeds", DeviceMerged: fs.DeviceMerged, DeviceDeleted: fs.DeviceDeleted})
 	}
+	h.Register(idsParticipant(idsService(*d)))
 }
 
 // sensorActiveParticipant is sensor-active's part of a device merge or delete: its queued check, SNMP settings and device checks.

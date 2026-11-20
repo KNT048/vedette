@@ -37,7 +37,7 @@ CREATE TABLE notify_setting (
 
 CREATE TABLE notify_incident (
     id         TEXT    NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 96),
-    kind       TEXT    NOT NULL CHECK (kind IN ('trap', 'bad_address', 'log_anomaly', 'unknown_device')),
+    kind       TEXT    NOT NULL CHECK (length(kind) BETWEEN 1 AND 40 AND kind NOT GLOB '*[^a-z0-9_]*'),
     title      TEXT    NOT NULL CHECK (length(title) BETWEEN 1 AND 400),
     link       TEXT    NOT NULL CHECK (length(link) BETWEEN 1 AND 400),
     severity   TEXT    NOT NULL CHECK (severity IN ('critical', 'high', 'medium', 'low', 'info')),

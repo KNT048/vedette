@@ -245,3 +245,54 @@ func TestDevicesSearchThroughTheAPIAndTheExport(t *testing.T) {
 		t.Fatalf("no filter exports every device: %d lines", n)
 	}
 }
+
+// The search finds a device by the maker and model its row shows, and only then: a person's declared OS row gives a discovered device
+// its maker and model (INV-45) and the search finds it by them; once the person types the device's OS, the row no longer shows them
+// and the search no longer finds it by them.
+func TestDevicesSearchFindsWhatTheRowShows(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, withKEV(fakeKEV{}))
+	ctx := e.ctx()
+	e.record(observe.Observation{AssetHint: observe.AssetHint{IP: netip.MustParseAddr("10.0.0.30")}, Field: observe.Hostname, Value: "edge-30", Source: observe.Nmap, Confidence: 0.7})
+	id := e.idOf("10.0.0.30")
+	if _, err := e.svc.AddSoftware(ctx, "op@example.com", id, inventory.AddInput{CatalogID: "fortigate", Version: "7.2.5"}); err != nil {
+		t.Fatal(err)
+	}
+	find := func(q string) (found bool, model string) {
+		t.Helper()
+		f, err := inventory.ParseDeviceFilter("", "", "", "", "", "", q)
+		if err != nil {
+			t.Fatal(err)
+		}
+		l, err := e.svc.DevicesPage(ctx, f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, d := range l.Items {
+			if d.ID == id {
+				if d.Model != nil {
+					model = d.Model.Value
+				}
+				return true, model
+			}
+		}
+		return false, ""
+	}
+	for _, q := range []string{"fortigate", "fortinet"} {
+		if found, model := find(q); !found || model != "FortiGate" {
+			t.Fatalf("%q before the typed OS: found %v, model %q", q, found, model)
+		}
+	}
+	os := "FortiOS 7.4.1"
+	if err := e.svc.PatchDevice(ctx, "op@example.com", id, inventory.Patch{OS: &os}); err != nil {
+		t.Fatal(err)
+	}
+	for _, q := range []string{"fortigate", "fortinet"} {
+		if found, _ := find(q); found {
+			t.Errorf("%q after the typed OS: the row shows neither, the search must not find it", q)
+		}
+	}
+	if found, _ := find("edge-30"); !found {
+		t.Fatal("the host name still finds it")
+	}
+}

@@ -126,10 +126,7 @@ func mcpAsset(d inventory.Device) mcpserver.Asset {
 	for _, sv := range d.Services {
 		a.Services = append(a.Services, mcpserver.NetService{Port: sv.Port, Proto: sv.Proto, Name: sv.Name, Product: sv.Product, Version: sv.Version})
 	}
-	for _, sw := range d.Software {
-		if sw.NotInstalled { // a person said it is not on the device (inventory INV-41 (6))
-			continue
-		}
+	for _, sw := range d.Running() { // not the software a person said is not on the device (inventory INV-41 (6))
 		a.Software = append(a.Software, mcpserver.Software{Name: sw.Display, Vendor: sw.Vendor, Product: sw.Product, Version: sw.Version})
 	}
 	return a
@@ -145,7 +142,7 @@ func (s mcpSource) Assets(ctx context.Context) ([]mcpserver.Asset, error) {
 	}
 	out := make([]mcpserver.Asset, 0, len(list.Items))
 	for _, d := range list.Items {
-		out = append(out, mcpAsset(effectiveDevice(ctx, s.inv, d))) // one row per software (inventory INV-50)
+		out = append(out, mcpAsset(d))
 	}
 	return out, nil
 }
@@ -161,7 +158,7 @@ func (s mcpSource) Asset(ctx context.Context, id string) (mcpserver.Asset, bool,
 	if err != nil {
 		return mcpserver.Asset{}, false, err
 	}
-	return mcpAsset(effectiveDevice(ctx, s.inv, d)), true, nil
+	return mcpAsset(d), true, nil
 }
 
 const mcpTS = "2006-01-02T15:04:05.000Z"

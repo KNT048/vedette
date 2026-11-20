@@ -209,7 +209,7 @@ func entryRows(a cnaAffected) (rows []Range, complete, ok bool) {
 			}
 			changedAtEnd = true
 		}
-		r := Range{VersionType: recordWord(vt, 40)}
+		r := Range{VersionType: recordWord(vt)}
 		if !bounded {
 			switch w := strings.ToLower(start); {
 			case saysNothing[w]:

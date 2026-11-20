@@ -282,31 +282,39 @@ WHERE k.source_id IN ('cisa-kev', 'vulncheck-kev')
 		}
 		for _, per := range groupByCVE(got) {
 			cve := per[0].CVE
-			o := owners[cve]
-			k := RecordProductKey(o.vendor, o.product)
-			cpeVendor, cpeProduct := productid.Norm(o.vendor), productid.Norm(o.product)
-			if k.Vendor == "" || k.Product == "" || cpeProduct == "multipleproducts" || recordSkipVendors[k.Vendor] {
-				continue
-			}
-			complete := true
-			for _, r := range per {
-				if r.Vendor != k.Vendor || r.Product != k.Product || r.Part != "" {
-					continue
-				}
-				aff[cve] = append(aff[cve], kevRecordRow(r, cpeVendor, cpeProduct))
-				complete = complete && (r.DefaultStatus == DefaultAffected || r.DefaultStatus == DefaultUnaffected)
-			}
-			if len(aff[cve]) == 0 {
-				delete(aff, cve)
-				continue
-			}
-			src[cve] = rangesCVEOrg
-			if !complete {
-				src[cve] = rangesCVEOrgPartial
+			if rows, source := KEVRecordRows(per, owners[cve].vendor, owners[cve].product); len(rows) > 0 {
+				aff[cve], src[cve] = rows, source
 			}
 		}
 	}
 	return aff, src, nil
+}
+
+// KEVRecordRows is the view of kevRecordView for one CVE: of its record ranges, the CNA's rows of the product an exploited-list entry
+// names (vendor, product), as the matcher's CPE entries, with "cve.org" for a complete list or "cve.org-partial"; none for a vendor of
+// recordSkipVendors or a "Multiple Products" entry.
+func KEVRecordRows(ranges []Range, vendor, product string) ([]AffectedRow, string) {
+	k := RecordProductKey(vendor, product)
+	cpeVendor, cpeProduct := productid.Norm(vendor), productid.Norm(product)
+	if k.Vendor == "" || k.Product == "" || cpeProduct == "multipleproducts" || recordSkipVendors[k.Vendor] {
+		return nil, ""
+	}
+	var rows []AffectedRow
+	complete := true
+	for _, r := range ranges {
+		if r.Origin != OriginCNA || r.Vendor != k.Vendor || r.Product != k.Product || r.Part != "" {
+			continue
+		}
+		rows = append(rows, kevRecordRow(r, cpeVendor, cpeProduct))
+		complete = complete && (r.DefaultStatus == DefaultAffected || r.DefaultStatus == DefaultUnaffected)
+	}
+	switch {
+	case len(rows) == 0:
+		return nil, ""
+	case complete:
+		return rows, rangesCVEOrg
+	}
+	return rows, rangesCVEOrgPartial
 }
 
 // kevRecordRow is a record range as the matcher's CPE entry: an exact version ([v, v]) in the CPE, a range beside a CPE of any version.

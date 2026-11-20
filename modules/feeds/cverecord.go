@@ -192,7 +192,7 @@ func ParseCVERecord(data []byte, cve string) (CVERecord, error) {
 	if len(r.Containers.ADP) > recordMaxContainers {
 		return CVERecord{}, fail(ErrBadSample, "The CVE record of %s has more than %d ADP containers.", cve, recordMaxContainers)
 	}
-	out := CVERecord{CVE: cve, State: r.Meta.State, Assigner: recordWord(r.Meta.Assigner, 40), Published: recordTime(r.Meta.Published),
+	out := CVERecord{CVE: cve, State: r.Meta.State, Assigner: recordWord(r.Meta.Assigner), Published: recordTime(r.Meta.Published),
 		Updated: recordTime(r.Meta.Updated)}
 	switch r.Meta.State {
 	case RecordRejected:
@@ -293,8 +293,9 @@ func clipText(s string, n int) string {
 }
 
 // recordWord is a short identifier of a record (a short name, a version type, an SSVC value), lower case, [a-z0-9_-] only; "" when it
-// is anything else or longer than n.
-func recordWord(s string, n int) string {
+// is anything else or longer than 40 bytes.
+func recordWord(s string) string {
+	const n = 40
 	s = strings.ToLower(strings.TrimSpace(s))
 	if s == "" || len(s) > n {
 		return ""
@@ -321,7 +322,7 @@ func addRef(refs []RecordRef, u string, tags []string, src string) []RecordRef {
 		i = len(refs) - 1
 	}
 	for _, t := range tags {
-		if w := recordWord(t, 40); w != "" && !slices.Contains(refs[i].Tags, w) && len(refs[i].Tags) < recordMaxTags {
+		if w := recordWord(t); w != "" && !slices.Contains(refs[i].Tags, w) && len(refs[i].Tags) < recordMaxTags {
 			refs[i].Tags = append(refs[i].Tags, w)
 		}
 	}
@@ -338,7 +339,7 @@ func ssvcOf(c rawContainer) SSVC {
 		}
 		for _, o := range m.Other.Content.Options {
 			for k, v := range o {
-				w := recordWord(strings.ReplaceAll(str(v), " ", "_"), 40)
+				w := recordWord(strings.ReplaceAll(str(v), " ", "_"))
 				switch strings.ToLower(strings.TrimSpace(k)) {
 				case "exploitation":
 					s.Exploitation = w

@@ -448,7 +448,9 @@ func (s *Service) recordsWhole(ctx context.Context, run *recordRun, cur recentCu
 	return s.saveRecordCursor(ctx, run, recentCursor{URL: run.src.URL, Mode: modeDone, From: midnight, To: time.Time{}, Until: until})
 }
 
-// saveRecordCursor writes where the CVE records stand, unless the feed was edited or turned off meanwhile.
+// saveRecordCursor writes where the CVE records stand, unless the feed was edited or turned off meanwhile. The row is selectorRecord of
+// feeds_nvd_cursor, the table of where each paged pull stands: fill (next_index of total bytes of the archive downloaded), done (until =
+// the data is complete up to, win_to = the change log's last read, win_from = the day of the last whole list).
 func (s *Service) saveRecordCursor(ctx context.Context, run *recordRun, c recentCursor) error {
 	stale := false
 	err := s.DB.Write(ctx, func(tx *sql.Tx) error {
@@ -471,7 +473,7 @@ func (s *Service) saveRecordCursor(ctx context.Context, run *recordRun, c recent
 // downloadArchive gets the rest of the daily archive into path (the file's size is where it goes on), at most recordRate bytes a second,
 // until the pull's budget leaves only recordReadReserve. done: the file is whole.
 func (s *Service) downloadArchive(ctx context.Context, run *recordRun, cur *recentCursor, path string) (done bool, err error) {
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0o600)
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0o600) //nolint:gosec // path is the module's own work file (recordWorkDir and a day's name)
 	if err != nil {
 		return false, fmt.Errorf("feeds: CVE records work file: %w", err)
 	}
@@ -562,7 +564,7 @@ func (s *Service) throttledCopy(ctx context.Context, w io.Writer, r io.Reader) (
 // readArchive reads the daily archive at path and stores the records the catalogue keeps, recordBatch a transaction. A record of a CVE
 // the catalogue does not hold is read only to learn whether it was published inside the window.
 func (s *Service) readArchive(ctx context.Context, run *recordRun, path string, now time.Time) error {
-	f, err := os.Open(path)
+	f, err := os.Open(path) //nolint:gosec // path is the module's own work file (recordWorkDir and a day's name)
 	if err != nil {
 		return fmt.Errorf("feeds: CVE records work file: %w", err)
 	}

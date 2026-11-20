@@ -42,18 +42,15 @@ func TestCVEOrgRecordsThroughTheMatcher(t *testing.T) {
 		{"reversed range (M1)", "Acme", "Gateway", reversed, "3.0.2", "product"},
 		{"unaffected backport inside the range (M2)", "Acme", "Gateway", hole, "1.5.3", "product"},
 	} {
-		res, err := feeds.ParseCVERecord(rec(c.affected), cve, c.vendor, c.product)
+		res, err := feeds.ParseCVERecord(rec(c.affected), cve)
 		if err != nil {
 			t.Fatalf("%s: %v", c.name, err)
 		}
 		v := findings.Vuln{CVE: cve, Vendor: c.vendor, Product: c.product}
-		if res.Outcome == feeds.CVEOrgRanges { // as cmd/vedette reads what feeds stored
-			src := "cve.org-partial"
-			if res.Complete {
-				src = "cve.org"
-			}
+		rows, src := feeds.KEVRecordRows(res.Ranges, c.vendor, c.product) // as cmd/vedette reads what feeds stored
+		if len(rows) > 0 {
 			v.RangesFrom = rangesFrom(src)
-			for _, r := range res.Rows {
+			for _, r := range rows {
 				v.Affected = append(v.Affected, findings.Affected{CPE: r.CPE,
 					Range: findings.VersionRange{StartIncl: r.StartIncl, StartExcl: r.StartExcl, EndIncl: r.EndIncl, EndExcl: r.EndExcl}})
 			}
@@ -71,7 +68,7 @@ func TestCVEOrgRecordsThroughTheMatcher(t *testing.T) {
 			got = "product"
 		}
 		if got != c.want {
-			t.Errorf("%s (%s %s): %s, want %s (outcome %s, complete %v)", c.name, c.product, c.version, got, c.want, res.Outcome, res.Complete)
+			t.Errorf("%s (%s %s): %s, want %s (rows %+v, %s)", c.name, c.product, c.version, got, c.want, rows, src)
 		}
 	}
 }

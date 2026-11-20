@@ -87,7 +87,7 @@ func walkDailyArchive(r io.ReaderAt, n int64, fn func(e archiveEntry, body func(
 		return err
 	}
 	// what is left of the inner zip (its central directory) is read so the outer entry's CRC is checked
-	if _, err := io.Copy(io.Discard, rc); err != nil {
+	if _, err := io.Copy(io.Discard, io.LimitReader(rc, archiveMaxInner)); err != nil {
 		return archiveFail("%v", err)
 	}
 	return nil
@@ -98,10 +98,10 @@ func walkDeltaArchive(data []byte, fn func(e archiveEntry, body func() ([]byte, 
 	if len(data) == 0 {
 		return nil
 	}
-	z, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
-	if errors.Is(err, zip.ErrFormat) && len(data) <= 22 { // the archive of the hour after midnight is an empty zip
+	if len(data) == 22 && bytes.HasPrefix(data, []byte("PK\x05\x06")) { // the archive of the hour after midnight: an empty zip
 		return nil
 	}
+	z, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {
 		return archiveFail("%v", err)
 	}
@@ -189,7 +189,7 @@ func walkZipStream(r io.Reader, fn func(e archiveEntry, body func() ([]byte, err
 				return archiveFail("entry %s has no readable sizes", quoteVal(name))
 			}
 		}
-		if method == zip.Store && csize != usize {
+		if method == zip.Store && csize != usize || csize > archiveMaxInner {
 			return archiveFail("entry %s has two sizes", quoteVal(name))
 		}
 		data := io.LimitReader(br, int64(csize))
@@ -199,7 +199,7 @@ func walkZipStream(r io.Reader, fn func(e archiveEntry, body func() ([]byte, err
 				if usize > RecordMaxBytes {
 					return nil, fail(ErrTooLarge, "The CVE record is larger than %d MB.", RecordMaxBytes>>20)
 				}
-				var src io.Reader = data
+				src := io.Reader(data)
 				if method == zip.Deflate {
 					fr := flate.NewReader(data)
 					defer func() { _ = fr.Close() }()

@@ -18,6 +18,7 @@ func TestContract_INV1_BuiltinSourcesAreDeclaredHTTPS(t *testing.T) {
 		"epss.empiricalsecurity.com":                 true, // FIRST's daily file of every EPSS score
 		"learn.microsoft.com":                        true, // Microsoft's Windows release information pages
 		"osv-vulnerabilities.storage.googleapis.com": true, // OSV.dev's Alpine all.zip, only while a device states Alpine
+		"github.com":                                 true, // the CVE Program's cvelistV5 release files (which redirect to GitHub's file host) and record files
 	}
 	seenID, seenName := map[string]bool{}, map[string]bool{}
 	for _, s := range BuiltinSources() {

@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"flag"
+	"maps"
 	"os"
 	"slices"
 	"strings"
@@ -185,13 +186,15 @@ func TestCount_RecordT1_ExploitedListed90Days(t *testing.T) {
 	}
 }
 
-// The after numbers of T1 and T2 (the PR states the before numbers, measured with the reader this one replaced).
+// The numbers of T1 and T2 with this reader. With the reader it replaced (the CISA entry's product only, the whole CVE refused on one
+// unreadable entry, modules and processor platforms refused): T1 22 with record ranges; T2 0 (record ranges were read only for exploited
+// CVEs without NVD ranges).
 const (
-	t1WithRanges      = 0
-	t1Viewed          = 0
+	t1WithRanges      = 23
+	t1Viewed          = 23
 	t1NoNVDWithRanges = 0
-	t2Devices         = 0
-	t2Pairs           = 0
+	t2Devices         = 7
+	t2Pairs           = 708
 	t2KEVPairs        = 0
 )
 
@@ -211,6 +214,7 @@ func TestCount_RecordT2_DevicesMatchedByRecordRanges(t *testing.T) {
 	inv := loadInventory(t)
 	pairs := map[string]bool{}
 	devices := map[string]bool{}
+	byProduct := map[string]int{}
 	kevPairs := 0
 	for _, row := range inv {
 		keys, version := invKeys(row)
@@ -222,6 +226,7 @@ func TestCount_RecordT2_DevicesMatchedByRecordRanges(t *testing.T) {
 				if slices.Contains(keys, ProductKey{x.Vendor, x.Product}) && inRange(version, x) {
 					if p := row.Device + " " + cve; !pairs[p] {
 						pairs[p] = true
+						byProduct[x.Vendor+"|"+x.Product]++
 						if _, isKEV := nvd[cve]; isKEV {
 							kevPairs++
 						}
@@ -234,6 +239,10 @@ func TestCount_RecordT2_DevicesMatchedByRecordRanges(t *testing.T) {
 	}
 	t.Logf("T2: %d of %d devices match %d (device, CVE) pairs through record ranges only (%d on exploited CVEs)",
 		len(devices), len(deviceSet(inv)), len(pairs), kevPairs)
+	top := slices.SortedFunc(maps.Keys(byProduct), func(a, b string) int { return byProduct[b] - byProduct[a] })
+	for _, k := range top[:min(len(top), 12)] {
+		t.Logf("  %s: %d pairs", k, byProduct[k])
+	}
 	if len(devices) != t2Devices || len(pairs) != t2Pairs || kevPairs != t2KEVPairs {
 		t.Errorf("T2 moved: %d devices, %d pairs, %d exploited", len(devices), len(pairs), kevPairs)
 	}
@@ -294,7 +303,7 @@ func TestCount_RecordSampleBuild(t *testing.T) {
 		}
 	}
 	cutoff := time.Date(2025, 11, 20, 0, 0, 0, 0, time.UTC)
-	f, err := os.Open(path)
+	f, err := os.Open(path) //nolint:gosec // the archive named by the person rebuilding the sample
 	if err != nil {
 		t.Fatal(err)
 	}

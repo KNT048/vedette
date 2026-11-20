@@ -215,8 +215,12 @@ func TestWriter_ReplayOfStoredScansWritesTheRows(t *testing.T) {
 		{"the web alerts", `SELECT count(*) FROM exp_issue WHERE target_id = 'xt-ip' AND engine = 'zap' AND state = 'open'`, 4},
 		{"OpenVAS's results", `SELECT count(*) FROM exp_issue WHERE target_id = 'xt-ip' AND engine = 'openvas' AND state = 'open'`, 3},
 		{"the names under the apex", `SELECT count(*) FROM exp_host WHERE target_id = 'xt-apex'`, 20},
-		{"their addresses", `SELECT count(*) FROM exp_address WHERE target_id = 'xt-apex'`, 27},
-		{"the apex's services", `SELECT count(*) FROM exp_service WHERE target_id = 'xt-apex' AND state = 'open'`, 18},
+		// git.<apex> is a target of its own, so the apex keeps its name without its address, and the four services on the address only that
+		// name pointed at are the child's alone (no name scanned by two targets)
+		{"their addresses", `SELECT count(*) FROM exp_address WHERE target_id = 'xt-apex'`, 26},
+		{"the apex's services", `SELECT count(*) FROM exp_service WHERE target_id = 'xt-apex' AND state = 'open'`, 14},
+		{"the child's name under the apex", `SELECT count(*) FROM exp_host WHERE target_id = 'xt-apex' AND child_target_id = 'xt-git'`, 1},
+		{"the child's place", `SELECT count(*) FROM exp_target WHERE id = 'xt-git' AND parent_id = 'xt-apex'`, 1},
 		{"the name under the apex", `SELECT count(*) FROM exp_host WHERE target_id = 'xt-git'`, 1},
 		{"its services", `SELECT count(*) FROM exp_service WHERE target_id = 'xt-git' AND state = 'open'`, 9},
 		{"issues without a run", `SELECT count(*) FROM exp_issue WHERE last_run_id NOT IN (SELECT run_id FROM exp_scan)`, 0},
@@ -232,7 +236,16 @@ func TestWriter_ReplayOfStoredScansWritesTheRows(t *testing.T) {
 		if inv.Name[:len(ModuleID)] != ModuleID {
 			continue
 		}
-		if n := e.count(inv.Query); n != 0 {
+		n := int64(0)
+		if inv.Count != nil {
+			var err error
+			if n, err = inv.Count(e.ctx(), e.db.Reader()); err != nil {
+				t.Fatal(err)
+			}
+		} else {
+			n = int64(e.count(inv.Query))
+		}
+		if n != 0 {
 			t.Errorf("invariant %s: %d rows break it", inv.Name, n)
 		}
 	}

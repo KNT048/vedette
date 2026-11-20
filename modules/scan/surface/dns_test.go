@@ -158,7 +158,7 @@ func TestDiscoveryAndKinds(t *testing.T) {
 		n := &fakeNet{open: map[string]handler{}}
 		log := &probeLog{}
 		got, err := newScanner(t, n, dns, ctAnswer(200, ctNames("www.acme.example", "shop.acme.example", "docs.acme.example", "v6only.acme.example", "intranet.acme.example", "old.acme.example"), &asked), log).
-			Domain(t.Context(), "acme.example", func(_ context.Context, a netip.Addr) bool { return a.String() == "203.0.113.10" })
+			Domain(t.Context(), "acme.example", nil, func(_ context.Context, a netip.Addr) bool { return a.String() == "203.0.113.10" })
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -212,7 +212,7 @@ func TestWildcardSkipsTheWordlist(t *testing.T) {
 		dns := &fakeDNS{a: map[string][]netip.Addr{"acme.example": addrs("198.51.100.20")}, wildcard: "acme.example"}
 		var asked []string
 		got, err := newScanner(t, &fakeNet{open: map[string]handler{}}, dns, ctAnswer(200, "[]", &asked), &probeLog{}).
-			Domain(t.Context(), "acme.example", func(context.Context, netip.Addr) bool { return false })
+			Domain(t.Context(), "acme.example", nil, func(context.Context, netip.Addr) bool { return false })
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -236,7 +236,7 @@ func TestNameCapCountsEverySource(t *testing.T) {
 			n := &fakeNet{open: map[string]handler{}}
 			var asked []string
 			_, err := newScanner(t, n, dns, ctAnswer(200, ctNames(ct...), &asked), &probeLog{}).
-				Domain(t.Context(), "acme.example", func(context.Context, netip.Addr) bool { return true })
+				Domain(t.Context(), "acme.example", nil, func(context.Context, netip.Addr) bool { return true })
 			if mx == 1 && err != nil || mx == 2 && !errors.Is(err, ErrTooManyNames) || len(n.dialed) != 0 {
 				t.Fatalf("%d MX names: err %v, %d dials", mx, err, len(n.dialed))
 			}
@@ -267,7 +267,7 @@ func TestHostileDNSAnswers(t *testing.T) {
 		var asked []string
 		log := &probeLog{}
 		got, err := newScanner(t, &fakeNet{open: map[string]handler{}}, dns, ctAnswer(200, ctNames("www.acme.example"), &asked), log).
-			Domain(t.Context(), "acme.example", func(context.Context, netip.Addr) bool { return false })
+			Domain(t.Context(), "acme.example", nil, func(context.Context, netip.Addr) bool { return false })
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -297,7 +297,7 @@ func TestWordlistFailsClosedAndStaysInItsBudget(t *testing.T) {
 			var asked []string
 			start := time.Now()
 			got, err := newScanner(t, &fakeNet{open: map[string]handler{}}, dns, ctAnswer(200, "[]", &asked), &probeLog{}).
-				Domain(t.Context(), "acme.example", func(context.Context, netip.Addr) bool { return false })
+				Domain(t.Context(), "acme.example", nil, func(context.Context, netip.Addr) bool { return false })
 			if err != nil || got.Wordlist != c.want || len(got.Hosts) != 1 {
 				t.Fatalf("%s: err %v, wordlist %q, hosts %v", c.name, err, got.Wordlist, hostLines(got.Hosts))
 			}
@@ -320,7 +320,7 @@ func TestFailedLookupIsLeftOutNotMoved(t *testing.T) {
 		}
 		var asked []string
 		got, err := newScanner(t, &fakeNet{open: map[string]handler{}}, dns, ctAnswer(200, ctNames("www.acme.example"), &asked), &probeLog{}).
-			Domain(t.Context(), "acme.example", func(context.Context, netip.Addr) bool { return false })
+			Domain(t.Context(), "acme.example", nil, func(context.Context, netip.Addr) bool { return false })
 		if err != nil || !slices.Equal(got.Unresolved, []string{"www.acme.example"}) || len(got.Hosts) != 1 || got.Hosts[0].Name != "acme.example" {
 			t.Fatalf("err %v, unresolved %v, hosts %v", err, got.Unresolved, hostLines(got.Hosts))
 		}
@@ -328,7 +328,7 @@ func TestFailedLookupIsLeftOutNotMoved(t *testing.T) {
 		dns.fail["acme.example"] = true
 		n := &fakeNet{open: map[string]handler{}}
 		if _, err := newScanner(t, n, dns, ctAnswer(200, ctNames("www.acme.example"), &asked), &probeLog{}).
-			Domain(t.Context(), "acme.example", func(context.Context, netip.Addr) bool { return true }); !errors.Is(err, ErrDNS) || len(n.dialed) != 0 {
+			Domain(t.Context(), "acme.example", nil, func(context.Context, netip.Addr) bool { return true }); !errors.Is(err, ErrDNS) || len(n.dialed) != 0 {
 			t.Fatalf("apex failed: err %v, %d dials", err, len(n.dialed))
 		}
 	})

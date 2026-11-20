@@ -184,7 +184,7 @@ func (s *Service) deepGate(ctx context.Context, st ScanTarget, ip netip.Addr, na
 	}
 	name, failed := "", false
 	for _, n := range names {
-		if !underDomain(n, st.Value) {
+		if !underDomain(n, st.Value) || !st.Names.Scans(n) { // a name the scan does not own (a child's) never gets a scope from it
 			continue
 		}
 		lctx, cancel := context.WithTimeout(ctx, nameLookupTimeout)

@@ -176,9 +176,11 @@ type (
 	}
 	// Result is what one scan found. Wordlist: why a domain scan did not try every common name (WordlistWildcard,
 	// WordlistNoAnswer, WordlistCut), "" when it did. Unresolved: names whose address lookup gave no clear answer, sorted; they are
-	// not in Hosts, and exposure carries their earlier rows forward (INV-22, INV-27).
+	// not in Hosts, and exposure carries their earlier rows forward (INV-22, INV-27). Skipped: the names found that the scan was told
+	// not to probe (another target scans them, or the scope leaves them out), with their source and CNAME only.
 	Result struct {
 		Hosts      []Host
+		Skipped    []Host
 		Ports      []Port
 		Admin      []Admin
 		Certs      []Cert
@@ -191,9 +193,10 @@ type (
 // and the common names that resolve (discover), each with its addresses, CNAME and class, listed; HTTP checks by name on 80 and 443
 // for the names on a public IPv4 address; a port scan only of the addresses that mayScanPorts accepts (exposure: a verified IP
 // target that may be scanned now), which are also the ones of kind "box". One probe-log row of kind "dns" is written before the
-// lookups. ErrCT when the search gives no answer, ErrTooManyNames when the domain has more names than one scan reads, ErrTooLong
-// past the time cap.
-func (s *Scanner) Domain(ctx context.Context, domain string, mayScanPorts func(context.Context, netip.Addr) bool) (Result, error) {
+// lookups. scans says which names this scan probes (nil: every one): a name it refuses is listed in Skipped and gets no check by
+// name, and its addresses no port scan through it; the domain itself is always probed. ErrCT when the search gives no answer,
+// ErrTooManyNames when the domain has more names than one scan reads, ErrTooLong past the time cap.
+func (s *Scanner) Domain(ctx context.Context, domain string, scans func(name string) bool, mayScanPorts func(context.Context, netip.Addr) bool) (Result, error) {
 	domain = strings.ToLower(domain)
 	if !nameRE.MatchString(domain) {
 		return Result{}, fmt.Errorf("surface: %q is not a domain name", domain)
@@ -238,6 +241,10 @@ func (s *Scanner) Domain(ctx context.Context, domain string, mayScanPorts func(c
 			continue // a name from an old certificate that no longer resolves
 		}
 		h := Host{Name: n, Source: d.source[n], CNAME: a.cname}
+		if n != domain && scans != nil && !scans(n) { // another target's name, or one the scope leaves out: listed, never probed
+			res.Skipped = append(res.Skipped, h)
+			continue
+		}
 		if i := slices.IndexFunc(a.addrs, netip.Addr.Is4); i >= 0 {
 			h.IP = a.addrs[i]
 		}

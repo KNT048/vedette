@@ -576,6 +576,14 @@ func (s *Service) engines(ctx context.Context, t Target, user string, mode ScanM
 // scanTarget is what the runner and the engines are told about t.
 func (s *Service) scanTarget(ctx context.Context, t Target, user string, mode ScanMode) ScanTarget {
 	st := ScanTarget{ID: t.ID, Kind: t.Kind, Value: t.Value, User: user, Mode: mode, Typed: t.Typed}
+	if t.Kind == KindDomain {
+		plan, err := namePlan(ctx, s.cfg.DB.Reader(), t)
+		if err != nil { // fail closed: the target's own name only
+			s.cfg.Log.ErrorContext(ctx, "exposure: reading the names a domain's children scan failed; this scan reaches its own name only", "target", t.Value, "error", err)
+			plan = &NamePlan{id: t.ID, nodes: []scopeNode{{id: t.ID, value: t.Value, mode: ScopeSelf, enabled: true}}}
+		}
+		st.Names = plan
+	}
 	if t.proofDomain != "" { // the domain whose token proved the target at the gate, and the name its record sits on when not that domain's own
 		st.Proof = &ProofOwner{Domain: t.proofDomain, Token: t.proofToken, ProofAt: t.proofAt}
 	}

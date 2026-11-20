@@ -75,6 +75,9 @@ func (s *Service) writeScan(ctx context.Context, tx *sql.Tx, w scanWrite) (writt
 	if err != nil {
 		return written{}, err
 	}
+	if _, err := writeHosts(ctx, tx, w.target.ID, at, w.c.Listed); err != nil { // found, not probed: rows without addresses
+		return written{}, err
+	}
 	if err := writeAddresses(ctx, tx, w.target, at, w.c.Hosts, hostIDs); err != nil {
 		return written{}, err
 	}
@@ -104,6 +107,14 @@ func (s *Service) writeScan(ctx context.Context, tx *sql.Tx, w scanWrite) (writt
 	if err := goneWithService(ctx, tx, out.closed); err != nil {
 		return written{}, err
 	}
+	// The tree as it is now decides which of these names the target scans: a name another target took over while the scan ran (or one
+	// a runner probed against the plan) keeps its row without addresses, as the other names it does not scan.
+	left, err := settleTree(ctx, tx)
+	if err != nil {
+		return written{}, err
+	}
+	out.closed = append(out.closed, left[w.target.ID]...)
+	out.counts.ClosedServices = len(out.closed)
 	out.counts.NewServices, out.counts.NewIssues = len(out.opened), len(out.newIssues)
 	if err := rowCounts(ctx, tx, w.target.ID, &out.counts); err != nil {
 		return written{}, err

@@ -1,6 +1,7 @@
 package exposure
 
 import (
+	"cmp"
 	"context"
 	"crypto/rand"
 	"database/sql"
@@ -496,17 +497,44 @@ func addChecks(ctx context.Context, q querier, value string) error {
 // taken from the value: an IPv4 address is an IP, anything else a domain. A typed IP is accepted into the list at once and is never
 // scanned until it is proved (token file or reverse DNS); the box does not look for the proof here, the person places it first.
 func (s *Service) AddTarget(ctx context.Context, user string, kind Kind, raw string) (TargetView, error) {
+	return s.AddNode(ctx, user, NewNode{Kind: kind, Value: raw})
+}
+
+// NewNode is a target to add (POST /exposure/tree): its kind (empty: taken from the value), the value as typed, and for a domain the
+// scope of its scans (empty: every name found, ScopeAll).
+type NewNode struct {
+	Kind  Kind
+	Value string
+	Scope ScopeMode
+}
+
+// ErrScopeIP refuses a scope for an IP target: only a domain has names under it.
+var ErrScopeIP = apiErr(400, "bad_value", "A public IP has no names under it: the scope applies to domains only.")
+
+// ErrScope refuses a scope that is not one of the three.
+var ErrScope = apiErr(400, "bad_value", "Choose the scope: only this name, every name found under it, or the names you choose.")
+
+// AddNode adds a target (POST /exposure/tree, PRE-4): a domain goes under the nearest domain target it is a name of, and the targets
+// that are names of it move under it in the same write (settleTree).
+func (s *Service) AddNode(ctx context.Context, user string, n NewNode) (TargetView, error) {
+	kind := n.Kind
 	if kind == "" {
 		kind = KindDomain
-		if a, err := netip.ParseAddr(strings.TrimSpace(raw)); err == nil && a.Is4() {
+		if a, err := netip.ParseAddr(strings.TrimSpace(n.Value)); err == nil && a.Is4() {
 			kind = KindIP
 		}
 	}
+	switch {
+	case n.Scope != "" && kind == KindIP:
+		return TargetView{}, ErrScopeIP
+	case n.Scope != "" && !n.Scope.Valid():
+		return TargetView{}, ErrScope
+	}
 	switch kind {
 	case KindDomain:
-		return s.AddDomain(ctx, user, raw)
+		return s.addDomain(ctx, user, n.Value, n.Scope)
 	case KindIP:
-		return s.addIP(ctx, user, raw)
+		return s.addIP(ctx, user, n.Value)
 	}
 	return TargetView{}, ErrKind
 }
@@ -553,8 +581,12 @@ func (s *Service) addIP(ctx context.Context, user, raw string) (TargetView, erro
 	return s.Target(ctx, id)
 }
 
-// AddDomain adds a domain to prove (PRE-4); AddTarget is the entry of the API.
+// AddDomain adds a domain to prove (PRE-4) with the scope of every name found; AddNode is the entry of the API.
 func (s *Service) AddDomain(ctx context.Context, user, raw string) (TargetView, error) {
+	return s.addDomain(ctx, user, raw, "")
+}
+
+func (s *Service) addDomain(ctx context.Context, user, raw string, scope ScopeMode) (TargetView, error) {
 	value, err := normalizeDomain(raw)
 	if err != nil {
 		return TargetView{}, err
@@ -575,10 +607,13 @@ func (s *Service) AddDomain(ctx context.Context, user, raw string) (TargetView, 
 			return err
 		}
 		id = store.NewID("xt")
-		if err := insertTarget(ctx, tx, Target{ID: id, Kind: KindDomain, Value: value, Token: token, CreatedAt: s.clock()}); err != nil {
+		if err := insertTarget(ctx, tx, Target{ID: id, Kind: KindDomain, Value: value, Token: token, ScopeMode: scope, CreatedAt: s.clock()}); err != nil {
 			return err
 		}
-		return s.audit(ctx, tx, user, "exposure.target_add", value, "")
+		if _, err := settleTree(ctx, tx); err != nil { // under its nearest parent; the targets under it move under it
+			return err
+		}
+		return s.audit(ctx, tx, user, "exposure.target_add", value, "scope "+string(cmp.Or(scope, ScopeAll)))
 	})
 	if err != nil {
 		if fromHost && !dupNow { // a failed add never takes a slot (a target added meanwhile keeps its own)
@@ -645,6 +680,9 @@ func (s *Service) Remove(ctx context.Context, user, id string, ignore bool) erro
 			}
 		}
 		if err := deleteTarget(ctx, tx, id); err != nil {
+			return err
+		}
+		if _, err := settleTree(ctx, tx); err != nil { // its children move up to its parent, and its names go back to whoever scans them
 			return err
 		}
 		if err := s.audit(ctx, tx, user, "exposure.target_delete", t.Value, ""); err != nil {

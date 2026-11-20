@@ -145,16 +145,17 @@ func (h *Handlers) InventoryPutInventoryDevicesIDSources(ctx context.Context, re
 	if err != nil {
 		return nil, err
 	}
-	var scan, snmp *string
+	var ch SourcesChange
 	if v, ok := req.Scan.Get(); ok {
-		x := string(v)
-		scan = &x
+		ch.Scan = ptrTo(string(v))
 	}
 	if v, ok := req.Snmp.Get(); ok {
-		x := string(v)
-		snmp = &x
+		ch.SNMP = ptrTo(string(v))
 	}
-	r, err := h.svc.SetSources(ctx, who, params.ID, scan, snmp)
+	if v, ok := req.Agent.Get(); ok {
+		ch.Agent = ptrTo(string(v))
+	}
+	r, err := h.svc.ChangeSources(ctx, who, params.ID, ch)
 	if err != nil {
 		return nil, fail(err)
 	}

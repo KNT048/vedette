@@ -5,7 +5,6 @@ import { http, HttpResponse } from 'msw'
 import { toast } from 'sonner'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { server } from '@/test/server'
-import { eachOption } from '@/test/formMatrix'
 import { assetsStore, auditStore, findingsStore, modulesStore, sessionStore } from '@/mocks/stores'
 import { engineStore, nextRun, runs, scannerStore, timing, zoneStore } from './mocks'
 import { runsPoll, runsPollMs } from './api'
@@ -366,18 +365,7 @@ describe('scan: lịch và an toàn (S-SCAN-4)', () => {
     expect(alert).toHaveTextContent('Enter an IP (192.168.10.10)')
   })
 
-  it('ngày trong tuần là 1 đến 7 (Thứ Hai = 1, Chủ Nhật = 7), ô chọn ngày chỉ mở khi lịch hằng tuần', async () => {
-    renderApp('/settings/scanning?tab=engines#nuclei')
-    const freq = await screen.findByLabelText('Frequency')
-    const day = screen.getByLabelText('Day of the week') as HTMLSelectElement
-    const opts = [...day.options].map((o) => [o.value, o.textContent])
-    expect(opts).toEqual([['1', 'Monday'], ['2', 'Tuesday'], ['3', 'Wednesday'], ['4', 'Thursday'], ['5', 'Friday'], ['6', 'Saturday'], ['7', 'Sunday']])
-    await eachOption([
-      { option: 'daily', locked: ['Day of the week'] },
-      { option: 'weekly', shown: ['Day of the week'] },
-      { option: 'daily', locked: ['Day of the week'] },
-    ], async (o) => { await userEvent.selectOptions(freq, o) })
-    cleanup()
+  it('ngày trong tuần là 1 đến 7 (Thứ Hai = 1, Chủ Nhật = 7)', async () => {
     renderApp('/settings/scanning?tab=safety')
     await screen.findByLabelText('From')
     expect(screen.getAllByRole('checkbox', { name: /^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)$/ }).map((c) => c.getAttribute('id'))).toEqual(['day-1', 'day-2', 'day-3', 'day-4', 'day-5', 'day-6', 'day-7'])
@@ -390,13 +378,16 @@ describe('scan: lịch và an toàn (S-SCAN-4)', () => {
     expect(((await (await fetch(`${base()}/scans/config`)).json()).config as ScanConfig).schedule.weekday).toBe(7)
   })
 
-  it('giờ chạy lịch phải nằm trong cửa sổ giờ', async () => {
+  it('the regular checks use the shared schedule editor on their card', async () => {
     renderApp('/settings/scanning?tab=engines#nuclei')
-    const at = await screen.findByLabelText('Run at')
-    await userEvent.clear(at)
-    await userEvent.type(at, '12:00')
-    await userEvent.click(screen.getByRole('button', { name: 'Save the schedule' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('The schedule time 12:00 is outside the 22:00 to 05:00 window')
+    expect(await screen.findByText('Weekly on Sun at 23:00, in the scan window', undefined, { timeout: 3000 })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Change the schedule of Vulnerability checks' })).toBeEnabled()
+    // the card's own Run button starts the checks: the schedule line has no second one
+    expect(screen.queryByRole('button', { name: 'Run Vulnerability checks now' })).toBeNull()
+    cleanup()
+    renderApp('/settings/scanning?tab=engines#nmap-discovery')
+    expect(await screen.findByText('Daily at 22:00, in the scan window', undefined, { timeout: 3000 })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Change the schedule of LAN sweep' })).toBeEnabled()
   })
 
   it('API kiểm tra ở biên và không cho bật phép thử nguy hiểm', async () => {

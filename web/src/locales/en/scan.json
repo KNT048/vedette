@@ -196,19 +196,11 @@
     "neverLocked": "Dangerous checks are removed from this Vedette build; there is no switch to turn them on.",
     "schedTitle": "Schedule",
     "schedDescription": "Scan periodically inside the time window above.",
-    "schedSwitch": "Scan on a schedule",
-    "freq": "Frequency",
-    "daily": "Daily",
-    "weekly": "Weekly",
-    "weekday": "Day of the week",
-    "at": "Run at",
-    "next": "Next scan: {{time}}.",
-    "nextNone": "The schedule is off.",
-    "nextScannerDown": "The schedule is on, but nothing runs while the vulnerability scanner is not available. Check the box's services.",
-    "nextBlocked": "The schedule is on, but nothing runs until the scan scope commitment is ticked under Devices, Scope and sensors.",
     "save": "Save settings",
     "saved": "Scan settings saved",
-    "changedElsewhere": "Someone else changed these settings since you opened this page, so nothing was saved. The current values are shown again: check them and save."
+    "changedElsewhere": "Someone else changed these settings since you opened this page, so nothing was saved. The current values are shown again: check them and save.",
+    "nextScannerDown": "The schedule is on, but nothing runs while the vulnerability scanner is not available. Check the box's services.",
+    "nextBlocked": "The schedule is on, but nothing runs until the scan scope commitment is ticked under Devices, Scope and sensors."
   },
   "auto": {
     "title": "Rescan when a new KEV appears",
@@ -327,8 +319,7 @@
     "saved": "Key saved, ends with ••••{{last4}}"
   },
   "nuclei": {
-    "inWindow": "Inside the time window, {{from}} to {{to}}.",
-    "saveSchedule": "Save the schedule"
+    "scheduleName": "Vulnerability checks"
   },
   "checks": {
     "button": "Run vulnerability checks now",

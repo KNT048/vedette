@@ -506,11 +506,13 @@ func (s *Service) WazuhPull(ctx context.Context) error {
 }
 
 // wazuhAgentSeen records the address and card the pull just delivered an agent's data to (#849: the Devices list tells Wazuh from
-// osquery by them), and when Wazuh last heard from the agent (its lastKeepAlive, never after now; the pull's time when Wazuh gave none):
-// the device's agent is judged by it (NodeHealth), so a disconnected agent that Wazuh still lists turns quiet.
-func (s *Service) wazuhAgentSeen(ctx context.Context, id string, generation int64, ip netip.Addr, mac, keepAlive string) error {
+// osquery by them), and when Wazuh last heard from the agent, which the device's agent is judged by (NodeHealth): the pull's time while
+// Wazuh lists the agent active (Wazuh itself says it hears from it, by its own clock, so the manager's clock never meets the box's), its
+// lastKeepAlive while Wazuh lists it disconnected (never after the pull; the pull's time when it does not parse), so a disconnected
+// agent the pull still lists turns quiet.
+func (s *Service) wazuhAgentSeen(ctx context.Context, id string, generation int64, ip netip.Addr, mac, status, keepAlive string) error {
 	heard := s.now()
-	if t, err := time.Parse(time.RFC3339, keepAlive); err == nil && t.Before(heard) {
+	if t, err := time.Parse(time.RFC3339, keepAlive); err == nil && status != "active" && t.Before(heard) {
 		heard = t.UTC()
 	}
 	return s.db.Write(ctx, func(tx *sql.Tx) error {
@@ -728,7 +730,7 @@ func (s *Service) pullAgent(ctx context.Context, c *wazuhClient, a wzAgent, gene
 			return 0, err
 		}
 	}
-	if err := s.wazuhAgentSeen(ctx, a.ID, generation, ip, mac, a.LastKeepAlive); err != nil {
+	if err := s.wazuhAgentSeen(ctx, a.ID, generation, ip, mac, a.Status, a.LastKeepAlive); err != nil {
 		return 0, err
 	}
 	items, dropped := mapPackages(withWindows(wazuhSnaps(pkgs, wazuhKernel(a)), wazuhWindows(a)), maxRows)

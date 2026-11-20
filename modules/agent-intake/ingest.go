@@ -429,12 +429,10 @@ func binding(n nodeRow, src netip.Addr, in logIn) (ip netip.Addr, mac string, up
 
 // markResult stores that the node delivered a result log, and its new binding when the request had an interfaces result.
 func (s *Service) markResult(ctx context.Context, n nodeRow, ip netip.Addr, mac string, update bool) error {
-	now := s.now()
-	ts := store.FormatTS(now)
-	gap := forgetGap(n, now)
+	ts := store.FormatTS(s.now())
 	gone := false
 	err := s.db.Write(ctx, func(tx *sql.Tx) error {
-		r, err := tx.ExecContext(ctx, `UPDATE intake_osquery_nodes SET last_seen = ?1, last_call_at = ?1, last_result_at = ?1, call_gap_s = ?2 WHERE id = ?3`, ts, gapSeconds(gap), n.id)
+		r, err := tx.ExecContext(ctx, `UPDATE intake_osquery_nodes SET last_seen = ?1, last_call_at = ?1, last_result_at = ?1, call_gap_s = `+forgetSQL+` WHERE id = ?2`, ts, n.id)
 		if err != nil {
 			return fmt.Errorf("agentintake: mark node: %w", err)
 		}

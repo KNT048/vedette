@@ -276,13 +276,60 @@ func TestAgentCadence_SlowerThanToldIsNotQuietBetweenItsCalls(t *testing.T) {
 	}
 }
 
-// A device Wazuh reads is judged by when Wazuh last heard from its agent (the keep-alive the pull reads) at the pull's rhythm: reporting
-// while that is within three pull intervals, quiet after, back when a pull reads a new keep-alive. An agent Wazuh lists as disconnected
-// (the pull still reads its inventory for a week) is quiet since its last keep-alive; the device's time is that keep-alive.
-func TestAgentCadence_WazuhByItsKeepAlive(t *testing.T) {
+// An agent without the config refresh whose service starts twice with no result in between (an upgrade, then a reboot; the install
+// command run again) is not taken for a refreshing one: it stays judged by its report schedule and is never quiet before its next
+// hourly result. Only two starts within ten seconds of the 300 s refresh would look like one (refreshSlack). A refreshing agent is
+// still quiet a quarter of an hour after it stops.
+func TestAgentCadence_TwoServiceStartsAreNoRefresh(t *testing.T) {
+	for _, apart := range []time.Duration{time.Minute, 2 * time.Minute, 4*time.Minute + 45*time.Second, 5*time.Minute + 15*time.Second, 10 * time.Minute, 14 * time.Minute} {
+		w := newWorld(t)
+		_, secret := w.token("servers", 7)
+		key := w.enroll(secret, "srv-1", peerA)
+		w.post("/intake/osquery/config", peerA, map[string]any{"node_key": key})
+		w.post("/intake/osquery/log", peerA, logBody(key, snap("interfaces", ifaceRow(macA, peerA))))
+		state := func() agentintake.NodeState {
+			t.Helper()
+			nodes, err := w.svc.Nodes(t.Context())
+			if err != nil || len(nodes) != 1 {
+				t.Fatalf("nodes: %v %v", nodes, err)
+			}
+			return nodes[0]
+		}
+		for h := range 3 {
+			w.clock.Advance(3 * time.Minute) // the service starts, and again
+			w.post("/intake/osquery/config", peerA, map[string]any{"node_key": key})
+			w.clock.Advance(apart)
+			w.post("/intake/osquery/config", peerA, map[string]any{"node_key": key})
+			last := w.clock.Now()
+			for _, at := range []time.Duration{16 * time.Minute, 30 * time.Minute, 45 * time.Minute} {
+				if left := last.Add(at); left.Before(last.Add(57*time.Minute - apart)) {
+					w.clock.Advance(left.Sub(w.clock.Now()))
+					if s := state(); s.State != agentintake.StateReporting {
+						t.Fatalf("starts %v apart, hour %d, %v after the second: %s (rhythm %v)", apart, h, at, s.State, s.Rhythm)
+					}
+				}
+			}
+			w.clock.Advance(last.Add(57*time.Minute - apart).Sub(w.clock.Now())) // its next hourly result
+			w.post("/intake/osquery/log", peerA, logBody(key, snap("interfaces", ifaceRow(macA, peerA))))
+		}
+		w.refresh(key) // it is a refreshing agent after all: two fetches 5 minutes apart
+		w.clock.Advance(16 * time.Minute)
+		if s := state(); s.State != agentintake.StateQuiet {
+			t.Fatalf("starts %v apart, then a refreshing agent that stopped: %s (rhythm %v)", apart, s.State, s.Rhythm)
+		}
+	}
+}
+
+// A device Wazuh reads is judged at the pull's rhythm by when Wazuh last heard from its agent: the pull's time while Wazuh lists the
+// agent active (whatever the manager's clock says: here it runs 20 minutes behind the box's), its keep-alive while Wazuh lists it
+// disconnected (the pull still reads its inventory for a week). Reporting while that is within three pull intervals, quiet after, back
+// with the next pull.
+func TestAgentCadence_WazuhByWhatWazuhHears(t *testing.T) {
 	r := newWzRig(t)
+	r.fake.agents[1]["lastKeepAlive"] = r.clock.Now().Add(-20 * time.Minute).Format(time.RFC3339) // web01, by a manager 20 minutes behind
 	r.save()
 	r.pull()
+	pulled := r.clock.Now()
 	report := func(ip string) map[string]any {
 		t.Helper()
 		d, ok := r.device(ip)
@@ -295,23 +342,21 @@ func TestAgentCadence_WazuhByItsKeepAlive(t *testing.T) {
 		}
 		return g.body
 	}
-	heard := time.Date(2026, 11, 11, 7, 59, 0, 0, time.UTC) // web01's keep-alive in the fake
-	if b := report(ipLinux); b["state"] != "reporting" || b["stale"] != false || b["rhythm_s"] != float64(3600) || !sameInstant(t, b["last_seen"].(string), heard) {
+	if b := report(ipLinux); b["state"] != "reporting" || b["stale"] != false || b["rhythm_s"] != float64(3600) || !sameInstant(t, b["last_seen"].(string), pulled) {
 		t.Fatalf("just pulled: %v", b)
 	}
 	// WIN-FS01 is disconnected since 9 November: quiet since then, and no agent reports the device now
 	if b := report(ipWindows); b["state"] != "quiet" || b["stale"] != true || !sameInstant(t, b["quiet_since"].(string), time.Date(2026, 11, 9, 10, 0, 0, 0, time.UTC)) {
 		t.Fatalf("disconnected agent: %v", b)
 	}
-	r.clock.Advance(heard.Add(3 * time.Hour).Sub(r.clock.Now())) // three pull intervals since web01 was last heard of
+	r.clock.Advance(3 * time.Hour) // three pull intervals with no pull
 	if b := report(ipLinux); b["state"] != "reporting" {
 		t.Fatalf("three intervals: %v", b)
 	}
 	r.clock.Advance(time.Minute)
-	if b := report(ipLinux); b["state"] != "quiet" || b["stale"] != true || !sameInstant(t, b["quiet_since"].(string), heard) {
+	if b := report(ipLinux); b["state"] != "quiet" || b["stale"] != true || !sameInstant(t, b["quiet_since"].(string), pulled) {
 		t.Fatalf("past three intervals: %v", b)
 	}
-	r.fake.agents[1]["lastKeepAlive"] = r.clock.Now().Add(-10 * time.Second).Format(time.RFC3339)
 	r.pull()
 	if b := report(ipLinux); b["state"] != "reporting" {
 		t.Fatalf("pulled again: %v", b)

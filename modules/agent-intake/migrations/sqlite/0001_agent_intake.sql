@@ -79,7 +79,8 @@ CREATE TABLE intake_prune_clock (
 -- reports from one osquery reports (both write source agent; osquery binds its node key, Wazuh cannot: its agent ids are per
 -- manager). A row belongs to the connection generation that wrote it; readers take the saved connection's generation only, so a
 -- deleted or replaced connection names no device. A completed pass deletes the agents it no longer read. seen_at is when Wazuh last
--- heard from the agent (its lastKeepAlive as the pull read it, never after the pull): the device's agent state is judged by it.
+-- heard from the agent: the pull's time while Wazuh lists it active, its lastKeepAlive (never after the pull) while it lists it
+-- disconnected. The device's agent state is judged by it.
 CREATE TABLE intake_wazuh_agent (
     agent_id   TEXT    NOT NULL PRIMARY KEY CHECK (length(agent_id) BETWEEN 3 AND 10 AND agent_id NOT GLOB '*[^0-9]*'),
     generation INTEGER NOT NULL,

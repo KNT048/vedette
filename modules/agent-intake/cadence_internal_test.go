@@ -37,19 +37,22 @@ func TestNodeHealth_Rules(t *testing.T) {
 
 func TestNextGap_Learning(t *testing.T) {
 	t.Parallel()
-	m := time.Minute
+	m, sec := time.Minute, time.Second
 	every := 5 * m
 	for _, c := range []struct {
 		name           string
 		old, gap, want time.Duration
 	}{
-		{"the first fetch after the start", 0, 5 * m, 5 * m},
-		{"a repeated call is no gap", 5 * m, 20 * time.Second, 5 * m},
-		{"a longer gap is learned at once", 5 * m, 12 * m, 12 * m},
-		{"a shorter one by an eighth", 13 * m, 5 * m, 12 * m},
+		{"the first refresh", 0, 300 * sec, 300 * sec},
+		{"a refresh a few seconds late is learned at once", 300 * sec, 304 * sec, 304 * sec},
+		{"a shorter one by an eighth", 308 * sec, 300 * sec, 307 * sec},
+		{"two service starts 4 minutes 45 seconds apart", 0, 285 * sec, 0},
+		{"two service starts 5 minutes 15 seconds apart", 0, 315 * sec, 0},
+		{"a repeated call is no refresh", 5 * m, 20 * sec, 5 * m},
+		{"two service starts 2 minutes apart", 0, 2 * m, 0},
+		{"two service starts 10 minutes apart", 0, 10 * m, 0},
+		{"two service starts 14 minutes apart, after a learned refresh", 5 * m, 14 * m, 5 * m},
 		{"an outage is not learned", 5 * m, 16 * m, 5 * m},
-		{"the first gap may be an outage too", 0, 16 * m, 0},
-		{"a slow agent's own pace", 20 * m, 55 * m, 55 * m},
 	} {
 		if got := nextGap(c.old, c.gap, every); got != c.want {
 			t.Errorf("%s: nextGap(%v, %v) = %v, want %v", c.name, c.old, c.gap, got, c.want)

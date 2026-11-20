@@ -15,7 +15,7 @@ import (
 // agent was told and what it does. call_every_s is how often it was told to call: osquery fetches its config every five minutes
 // (--config_refresh=300 of the install scripts), the package reporter of scripts/osquery.sh (for systems osquery does not run on) runs
 // once an hour, a Wazuh agent is judged at the pull interval by when Wazuh last heard from it. call_gap_s is the agent's own smoothed gap between two config fetches in a row
-// (the calls the refresh promises, at a steady pace), forgotten when results come after a silence it called quiet (forgetGap). report_every_s is the longest interval of its report schedule: it delivers results at least that
+// (the calls the refresh promises, at the pace it was told), forgotten when results come after a silence it called quiet (forgetSQL). report_every_s is the longest interval of its report schedule: it delivers results at least that
 // often whether or not it fetches its config. Quiet is a silence longer than three of the rhythm: the longer of what it was told and
 // what it does, or, while the box has not seen it fetch its config twice, of what it was told and its report schedule. One lost call (a
 // busy box, a network blip) never makes an agent quiet, a stopped osquery service is found within a quarter of an hour, and an agent that
@@ -32,10 +32,10 @@ const (
 	reporterEvery = time.Hour + time.Minute
 	quietCalls    = 3 // missed calls before quiet
 
-	// The learning of call_gap_s (nextGap). A gap shorter than minGap is a repeated call, not the rhythm. A gap is never learned beyond
-	// maxGap (an agent told to call once a day, with its splay).
-	minGap = time.Minute
-	maxGap = 26 * time.Hour
+	// refreshSlack: a gap between two config fetches is the refresh the agent was told when it is within 1/refreshSlack of it (nextGap):
+	// ±10 s of 300 s. osquery's refresh is a timer (the next fetch starts 300 s after the last one ended), so a refreshing agent's
+	// fetches reach the box seconds from 300 s apart; two service starts would have to fall in those 20 s to look like a refresh.
+	refreshSlack = 30
 )
 
 // Cadence is what NodeHealth judges an agent by.
@@ -77,15 +77,15 @@ func NodeHealth(c Cadence, now time.Time) (state string, quietSince time.Time) {
 }
 
 // nextGap is the agent's smoothed gap between config fetches after a fetch gap after the call before (old: what it was, 0 = nothing
-// learned yet; every: how often it was told to call). A longer gap is learned at once, so one long normal gap is never called quiet
-// twice; a shorter one only by an eighth of the difference, so a few quick calls (osquery fetching its config again while it starts,
-// results in between) do not shrink the rhythm. A gap that was quiet already is an outage (the machine was off, the box was down, the
-// service was stopped), not the rhythm, and is not learned.
+// learned yet; every: how often it was told to fetch its config). A gap is learned only when it is the refresh the agent was told,
+// within refreshSlack: osquery refreshes on a timer, so two fetches of a refreshing agent are its --config_refresh apart, while two
+// service starts of an agent without the refresh (an upgrade, then a reboot) are as far apart as they happen to be. Anything else is
+// not learned, and the agent stays judged by its report schedule, which covers any slower refresh. A shorter gap within the slack moves
+// the rhythm by an eighth of the difference, a longer one at once.
 func nextGap(old, gap, every time.Duration) time.Duration {
-	if gap < minGap || gap > quietCalls*max(old, every) {
+	if gap < every-every/refreshSlack || gap > every+every/refreshSlack {
 		return old
 	}
-	gap = min(gap, maxGap)
 	if gap >= old {
 		return gap
 	}
@@ -104,15 +104,12 @@ type NodeState struct {
 	Rhythm                time.Duration // the interval it is judged by (Cadence.Rhythm): quiet after three of it
 }
 
-// forgetGap is the node's learned gap after a result post at now: forgotten (0, judged by its report schedule again) when the post comes
-// after a silence that was quiet by the learned refresh. An agent that delivers results but does not fetch its config at that pace does
-// not refresh it (two service starts close together looked like a refresh); one that does relearns its pace from its next two fetches.
-func forgetGap(n nodeRow, now time.Time) time.Duration {
-	if n.callGap > 0 && now.Sub(n.lastCall) > quietCalls*max(n.callGap, n.callEvery) {
-		return 0
-	}
-	return n.callGap
-}
+// forgetSQL is the call_gap_s a result post leaves (SQL, inside the UPDATE that records the post, ?1 = now): forgotten (NULL, judged by
+// its report schedule again) when the post comes after a silence that was quiet by the learned refresh. An agent that delivers results
+// but does not fetch its config at that pace does not refresh it; one that does relearns its pace from its next two fetches. Computed
+// from the row as it is when written, never from a value read before (a config fetch handled at the same time may have changed it).
+const forgetSQL = `CASE WHEN call_gap_s IS NOT NULL AND (julianday(?1) - julianday(ifnull(last_call_at, last_seen))) * 86400 > 3 * max(call_gap_s, call_every_s)
+	THEN NULL ELSE call_gap_s END`
 
 // supersededBy says whether a newer record is the same machine as this one by what the box itself saw: both are bound to the same
 // source address (bound_ip is the TCP peer address of the node's own reports, set by the binding of INV-12, and an unbound node has

@@ -464,18 +464,22 @@ func (s *Service) touch(ctx context.Context, n nodeRow, every, report time.Durat
 	if now.Sub(n.lastSeen) < every && (report == 0 || report == n.reportEvery) {
 		return nil
 	}
-	gap := n.callGap
 	// Learned only between two config fetches in a row: when the call before was a result post, the gap says nothing about the config
-	// refresh (an agent without it fetches its config only when its service starts, often minutes after a result).
+	// refresh (an agent without it fetches its config only when its service starts, often minutes after a result). Written only when
+	// learned: otherwise the column is left as it is now, never set back to a value read before (a result post at the same time may have
+	// forgotten it).
+	var learned any                                                               // nil: call_gap_s unchanged
 	if report != 0 && (n.lastResult.IsZero() || n.lastCall.After(n.lastResult)) { // a config fetch (the log path's touch is no fetch)
-		gap = nextGap(n.callGap, now.Sub(n.lastCall), n.callEvery)
+		if gap := nextGap(n.callGap, now.Sub(n.lastCall), n.callEvery); gap != n.callGap {
+			learned = gapSeconds(gap)
+		}
 	}
 	if report == 0 {
 		report = n.reportEvery
 	}
 	return s.db.Write(ctx, func(tx *sql.Tx) error {
-		if _, err := tx.ExecContext(ctx, `UPDATE intake_osquery_nodes SET last_seen = ?1, last_call_at = ?1, call_gap_s = ?2, report_every_s = ?3 WHERE id = ?4`,
-			store.FormatTS(now), gapSeconds(gap), int64(report/time.Second), n.id); err != nil {
+		if _, err := tx.ExecContext(ctx, `UPDATE intake_osquery_nodes SET last_seen = ?1, last_call_at = ?1, call_gap_s = coalesce(?2, call_gap_s), report_every_s = ?3 WHERE id = ?4`,
+			store.FormatTS(now), learned, int64(report/time.Second), n.id); err != nil {
 			return fmt.Errorf("agentintake: touch node: %w", err)
 		}
 		return nil

@@ -36,6 +36,8 @@ const (
 	StateNeverReported = "never_reported" // agent: enrolled, never sent its data
 	StateReplaced      = "replaced"       // agent: a newer enrolment of the same machine took over
 	StateUnavailable   = "unavailable"    // the module could not say just now (logged)
+	StateBox           = "box"            // the Vedette box itself: it reads its own packages and ports; it is not scanned or read over SNMP
+	StateIgnored       = "ignored"        // a person ignored the device: the box does not scan or read it until they stop ignoring it
 )
 
 // Dots of a source row: what the state means at a glance.
@@ -134,6 +136,10 @@ func (s *Service) enabled(module string) bool { return s.modules == nil || s.mod
 func (s *Service) scanRow(d Device, times map[string]string) SourceRow {
 	r := SourceRow{Source: RowScan, Switch: ptrTo(d.ScanSource), LastAt: optional(times[RowScan])}
 	switch {
+	case d.IsBox: // the switch would be refused (409 box_device)
+		r.State, r.Switch = StateBox, nil
+	case d.IgnoredAt != nil: // turning it on would be refused (409 device_ignored)
+		r.State, r.Switch = StateIgnored, nil
 	case !s.enabled("sensor-active"):
 		r.State, r.Action = StateModuleOff, ptrTo(ActionTurnOnModule)
 	case d.ScanSource == SourceOff:
@@ -152,6 +158,10 @@ func (s *Service) scanRow(d Device, times map[string]string) SourceRow {
 func (s *Service) snmpRow(ctx context.Context, d Device) SourceRow {
 	r := SourceRow{Source: RowSNMP}
 	switch {
+	case d.IsBox:
+		r.State = StateBox
+	case d.IgnoredAt != nil:
+		r.State = StateIgnored
 	case !s.enabled("sensor-active"):
 		r.State, r.Action = StateModuleOff, ptrTo(ActionTurnOnModule)
 	case !hasAddress(d.IP):

@@ -12,7 +12,7 @@ import (
 	"github.com/knt048/vedette/core/pkgrel"
 )
 
-// The one software line (DB-DESIGN 3.3): every reader of a device's software reads inv_software, whose row is the line and whose
+// The one software line (INV-50, INV-54): every reader of a device's software reads inv_software, whose row is the line and whose
 // columns hold its effective reading (written only by the resolver). This file is the only reader of what each source read
 // (inv_software_reading) outside the write paths and the matcher's input (MatchInput): the other readings of a line, a person's entry
 // and what the sources read against it, the sources that feed a device. A guard test (TestGuard_SoftwareReadingsAreReadOnlyThroughTheLine)

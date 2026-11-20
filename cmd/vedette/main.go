@@ -29,6 +29,7 @@ import (
 	"github.com/knt048/vedette/core/modreg"
 	"github.com/knt048/vedette/core/pdftext"
 	"github.com/knt048/vedette/core/secrets"
+	"github.com/knt048/vedette/core/selfcheck"
 	"github.com/knt048/vedette/core/sensorlink"
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/core/store"
@@ -61,6 +62,9 @@ func main() {
 	stop()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "vedette:", err)
+		if selfcheckCommand(os.Args[1:]) && !errors.Is(err, selfcheck.ErrFailed) {
+			os.Exit(2) // could not check (usage, missing database): different from a check that failed
+		}
 		os.Exit(1)
 	}
 }
@@ -113,6 +117,9 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	}
 	if resetAdminCommand(args) { // The console's way back in for a locked-out administrator
 		return runResetAdmin(ctx, args[1:], stdout, stderr)
+	}
+	if selfcheckCommand(args) {
+		return runSelfcheck(ctx, args[1:], stdout, stderr)
 	}
 	var o options
 	flags, showVersion := newFlags(&o, stdout)

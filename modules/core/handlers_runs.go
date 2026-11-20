@@ -32,6 +32,9 @@ func (h *RunHandlers) ScanningGetRuns(ctx context.Context, params oas.ScanningGe
 	if err != nil {
 		return nil, err
 	}
+	for i := range items {
+		h.forViewer(ctx, &items[i])
+	}
 	return encode[oas.ScanningGetRunsOK](struct {
 		Items []run.Run `json:"items"`
 		Total int       `json:"total"`
@@ -43,6 +46,10 @@ func (h *RunHandlers) ScanningGetRunsID(ctx context.Context, params oas.Scanning
 	d, err := h.runs.Get(ctx, params.ID)
 	if err != nil {
 		return nil, runErr(err)
+	}
+	h.forViewer(ctx, &d.Run)
+	for i := range d.Children {
+		h.forViewer(ctx, &d.Children[i])
 	}
 	return encode[oas.ScanningGetRunsIDOK](d)
 }
@@ -60,6 +67,7 @@ func (h *RunHandlers) ScanningPostRunsIDStop(ctx context.Context, params oas.Sca
 	if err != nil {
 		return nil, runErr(err)
 	}
+	h.forViewer(ctx, &r)
 	return encode[oas.ScanningPostRunsIDStopOK](r)
 }
 
@@ -84,7 +92,17 @@ func (h *RunHandlers) ScanningPostRunsIDResume(ctx context.Context, params oas.S
 	if err != nil {
 		return nil, runErr(err)
 	}
+	h.forViewer(ctx, &r)
 	return encode[oas.ScanningPostRunsIDResumeOK](r)
+}
+
+// forViewer makes can_stop and can_resume the asking person's: Stop needs an operator, and Resume an operator, or an administrator for
+// a kind whose start is an administrator's (a LAN sweep). The page shows the buttons these say, so it never guesses a role per kind.
+func (h *RunHandlers) forViewer(ctx context.Context, r *run.Run) {
+	p, ok := server.PrincipalFrom(ctx)
+	operator := ok && (p.Role == routes.Operator || p.Role == routes.Admin)
+	r.CanStop = r.CanStop && operator
+	r.CanResume = r.CanResume && operator && (!h.runs.AdminResume(*r) || p.Role == routes.Admin)
 }
 
 // runErr maps the errors of core/run to answers.

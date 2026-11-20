@@ -27,6 +27,8 @@ var jsonColumnAllowList = []string{
 	"ai_rule.jobs",
 	"ai_setting.value",
 	"core_connection.allow",
+	"core_schedule.weekdays",
+	"core_schedule.window_days",
 	"core_setting.value",
 	"exp_outside.answer",
 	"exp_snapshot.admin_panels",

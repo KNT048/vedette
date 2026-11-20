@@ -208,7 +208,7 @@ END;
 -- Runs: one model for every piece of scanning work a person can see (core/run). The queue is the rows in status 'queued', so it
 -- survives a restart. kind and status are open vocabularies owned by core/run (shape check only); lane is what a run occupies,
 -- and the database holds one live run per lane (core_run_live). Module detail stays in module tables keyed by run_id.
--- schedule_id names a core_schedule row once schedules exist (that section adds the reference).
+-- schedule_id is the schedule that came due (core_schedule, the section below); a deleted schedule leaves its runs.
 -- ---------------------------------------------------------------------------------------------------------------------------
 
 CREATE TABLE core_run (
@@ -220,7 +220,7 @@ CREATE TABLE core_run (
     trigger       TEXT    NOT NULL CHECK (trigger IN ('manual', 'schedule', 'event')),
     trigger_note  TEXT    CHECK (trigger_note IS NULL OR length(trigger_note) BETWEEN 1 AND 200),
     requested_by  TEXT    NOT NULL CHECK (length(requested_by) BETWEEN 1 AND 320), -- an email, or system
-    schedule_id   TEXT    CHECK (schedule_id IS NULL OR length(schedule_id) BETWEEN 1 AND 96),
+    schedule_id   TEXT    REFERENCES core_schedule (id) ON DELETE SET NULL,
     subject_kind  TEXT    CHECK (subject_kind IS NULL OR (length(subject_kind) BETWEEN 1 AND 40 AND subject_kind NOT GLOB '*[^a-z0-9_]*')),
     subject_id    TEXT    CHECK (subject_id IS NULL OR length(subject_id) BETWEEN 1 AND 96),
     subject_label TEXT    CHECK (subject_label IS NULL OR length(subject_label) BETWEEN 1 AND 200), -- a snapshot: it outlives its subject
@@ -289,3 +289,47 @@ CREATE INDEX core_run_parent_idx ON core_run (parent_id);
 CREATE INDEX core_run_log_run_idx ON core_run_log (run_id, id);
 
 CREATE INDEX core_run_log_ts_idx ON core_run_log (ts);
+
+CREATE INDEX core_run_schedule_idx ON core_run (schedule_id);
+
+-- ---------------------------------------------------------------------------------------------------------------------------
+-- Schedules: one model for every schedule a person can set (core/schedule). owner_key names what the schedule starts
+-- ('scan.vuln', 'exposure.target:<id>', ...); its owner registers in code what it allows. freq is an open vocabulary owned by
+-- core/schedule (shape check only); the rule columns a frequency does not use are NULL. next_due_at is written by core/schedule
+-- alone, in the same transaction as any change of the rule or any due time: it is Next(rule) from the latest of last_due_at,
+-- updated_at and paused_until, and NULL while the schedule is off or never comes due again.
+-- ---------------------------------------------------------------------------------------------------------------------------
+
+CREATE TABLE core_schedule (
+    id               TEXT    NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 96),
+    owner_module     TEXT    NOT NULL CHECK (length(owner_module) BETWEEN 1 AND 32),
+    owner_key        TEXT    NOT NULL UNIQUE CHECK (length(owner_key) BETWEEN 1 AND 160),
+    enabled          INTEGER NOT NULL CHECK (enabled IN (0, 1)),
+    paused_until     TEXT    CHECK (paused_until IS NULL OR paused_until GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    freq             TEXT    NOT NULL CHECK (length(freq) BETWEEN 1 AND 40 AND freq NOT GLOB '*[^a-z0-9_]*'),
+    every_minutes    INTEGER CHECK (every_minutes IS NULL OR every_minutes BETWEEN 1 AND 527040),
+    at_time          TEXT    CHECK (at_time IS NULL OR at_time GLOB '[0-2][0-9]:[0-5][0-9]'),
+    weekdays         TEXT    CHECK (weekdays IS NULL OR (json_valid(weekdays) AND json_type(weekdays) = 'array')), -- [1..7], 1 = Monday
+    month_day        INTEGER CHECK (month_day IS NULL OR month_day BETWEEN 0 AND 31),                                 -- 0 = the last day
+    once_at          TEXT    CHECK (once_at IS NULL OR once_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    tz               TEXT    NOT NULL CHECK (length(tz) BETWEEN 1 AND 64),                                             -- 'org' or an IANA zone
+    window_mode      TEXT    NOT NULL CHECK (window_mode IN ('global', 'none', 'custom')),
+    window_days      TEXT    CHECK (window_days IS NULL OR (json_valid(window_days) AND json_type(window_days) = 'array')),
+    window_from      TEXT    CHECK (window_from IS NULL OR window_from GLOB '[0-2][0-9]:[0-5][0-9]'),
+    window_to        TEXT    CHECK (window_to IS NULL OR window_to GLOB '[0-2][0-9]:[0-5][0-9]'),
+    next_due_at      TEXT    CHECK (next_due_at IS NULL OR next_due_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    last_due_at      TEXT    CHECK (last_due_at IS NULL OR last_due_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    last_run_id      TEXT    REFERENCES core_run (id) ON DELETE SET NULL,
+    last_skip_reason TEXT    CHECK (last_skip_reason IS NULL OR length(last_skip_reason) BETWEEN 1 AND 300),
+    last_skip_at     TEXT    CHECK (last_skip_at IS NULL OR last_skip_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    updated_by       TEXT    NOT NULL CHECK (length(updated_by) BETWEEN 1 AND 320), -- an email, or system
+    updated_at       TEXT    NOT NULL CHECK (updated_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    CHECK (enabled = 1 OR next_due_at IS NULL),
+    CHECK ((last_skip_reason IS NULL) = (last_skip_at IS NULL)),
+    CHECK (window_mode = 'custom' OR (window_days IS NULL AND window_from IS NULL AND window_to IS NULL)),
+    CHECK (window_mode <> 'custom' OR (window_days IS NOT NULL AND window_from IS NOT NULL AND window_to IS NOT NULL))
+);
+
+CREATE INDEX core_schedule_due_idx ON core_schedule (enabled, next_due_at);
+
+CREATE INDEX core_schedule_last_run_idx ON core_schedule (last_run_id);

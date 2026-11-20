@@ -389,6 +389,9 @@ type env struct {
 	ev   *events
 	nm   *fakeNmap
 	svc  *sa.Service
+	// base and t0 are the test's clock (clock): the run manager reads it from its own goroutines, so they are read and written under
+	// clk only (setBase, setClock, baseTime)
+	clk  sync.Mutex
 	base time.Time
 	t0   time.Time
 	loc  func() *time.Location // the organization time zone; nil: the box's
@@ -429,11 +432,36 @@ func newEnv(t *testing.T, o fakeOpts, mut ...func(*env)) *env {
 		m(e)
 	}
 	e.build()
+	e.clk.Lock()
 	e.t0 = time.Now() // the clock starts when the env is ready: starting the remote worker (keys, TLS) must not eat a 2 s window
+	e.clk.Unlock()
 	return e
 }
 
-func (e *env) clock() time.Time { return e.base.Add(time.Since(e.t0)) }
+func (e *env) clock() time.Time {
+	e.clk.Lock()
+	defer e.clk.Unlock()
+	return e.base.Add(time.Since(e.t0))
+}
+
+// setBase moves the clock's base, keeping its start; setClock sets the base and starts the clock again now; baseTime reads the base.
+func (e *env) setBase(t time.Time) {
+	e.clk.Lock()
+	defer e.clk.Unlock()
+	e.base = t
+}
+
+func (e *env) setClock(t time.Time) {
+	e.clk.Lock()
+	defer e.clk.Unlock()
+	e.base, e.t0 = t, time.Now()
+}
+
+func (e *env) baseTime() time.Time {
+	e.clk.Lock()
+	defer e.clk.Unlock()
+	return e.base
+}
 
 // prober is the Prober a Service of this env gets: nil (the local one) normally; in the remote run the Dispatcher with a worker
 // that runs the env's current nmap path. When the path changed since the worker was made (a test that swaps the binary and

@@ -24,7 +24,7 @@ func absFixture(t *testing.T, name string) string {
 // found is recorded (software with its CPE) and said in words; the run is in the probe log like any other.
 func TestIdentifyDevice_UnknownDeviceOutsideTheWindow(t *testing.T) {
 	t.Parallel()
-	e := newEnv(t, fakeOpts{always: absFixture(t, "device.xml")}, func(e *env) { e.base = local(9, 12, 0) }) // 12:00, the window is 01:00-05:00
+	e := newEnv(t, fakeOpts{always: absFixture(t, "device.xml")}, func(e *env) { e.setBase(local(9, 12, 0)) }) // 12:00, the window is 01:00-05:00
 	e.inv.decision["a-web"] = sa.Decision{Reason: "unclassified_passive_only", Unclassified: true}
 	got, err := e.svc.IdentifyDevice(e.ctx(), "a-web")
 	if err != nil {
@@ -82,7 +82,7 @@ func TestIdentifyDevice_FragileGetsTheGentleScanOnly(t *testing.T) {
 // at once, then a later Tick outside the window does nothing more.
 func TestFirstPassOfANewBoxRunsOutsideTheWindow(t *testing.T) {
 	t.Parallel()
-	e := newEnv(t, fakeOpts{}, func(e *env) { e.base = local(9, 12, 0) }) // noon, the window is 01:00-05:00
+	e := newEnv(t, fakeOpts{}, func(e *env) { e.setBase(local(9, 12, 0)) }) // noon, the window is 01:00-05:00
 	if err := e.svc.Enqueue(e.ctx(), "a-web", "discovered"); err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +112,7 @@ func TestFirstPassOfANewBoxRunsOutsideTheWindow(t *testing.T) {
 // outside the window sends nothing; its run waits and goes on from its cursor in the next window.
 func TestFirstPassRunsOnceEvenWhenItWasCut(t *testing.T) {
 	t.Parallel()
-	e := newEnv(t, fakeOpts{slowFrom: 1}, func(e *env) { e.base = local(9, 12, 0) }) // noon; every nmap call sleeps 30 s
+	e := newEnv(t, fakeOpts{slowFrom: 1}, func(e *env) { e.setBase(local(9, 12, 0)) }) // noon; every nmap call sleeps 30 s
 	ctx, cancel := context.WithCancel(e.ctx())
 	done := make(chan error, 1)
 	go func() { done <- e.svc.Tick(ctx) }()

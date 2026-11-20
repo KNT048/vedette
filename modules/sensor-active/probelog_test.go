@@ -24,7 +24,7 @@ func TestProbeLogTellsWhichAddressesWereProbed(t *testing.T) {
 		if _, err := e.svc.DiscoverRanges(e.ctx()); err != nil {
 			t.Fatal(err)
 		}
-		p, err := e.svc.Probes(e.ctx(), e.base.Add(-time.Hour), 100)
+		p, err := e.svc.Probes(e.ctx(), e.baseTime().Add(-time.Hour), 100)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -55,7 +55,7 @@ func TestProbeLogTargetsAreMergedRanges(t *testing.T) {
 	if _, err := e.svc.DiscoverRanges(e.ctx()); err != nil {
 		t.Fatal(err)
 	}
-	p, err := e.svc.Probes(e.ctx(), e.base.Add(-time.Hour), 100)
+	p, err := e.svc.Probes(e.ctx(), e.baseTime().Add(-time.Hour), 100)
 	if err != nil || len(p) != 1 {
 		t.Fatalf("Probes = %d rows, %v", len(p), err)
 	}
@@ -80,7 +80,7 @@ func TestProbeLogKeepsTheFlagsAsApproved(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	p, err := e.svc.Probes(e.ctx(), e.base.Add(-time.Hour), 100)
+	p, err := e.svc.Probes(e.ctx(), e.baseTime().Add(-time.Hour), 100)
 	if err != nil || len(p) != 1 {
 		t.Fatalf("Probes = %d rows, %v", len(p), err)
 	}
@@ -103,7 +103,7 @@ func TestProbeLogFitsSixtyFourScatteredTargets(t *testing.T) {
 	if _, err := e.svc.DiscoverRanges(e.ctx()); err != nil {
 		t.Fatal(err)
 	}
-	p, err := e.svc.Probes(e.ctx(), e.base.Add(-time.Hour), 100)
+	p, err := e.svc.Probes(e.ctx(), e.baseTime().Add(-time.Hour), 100)
 	if err != nil || len(p) < 1 {
 		t.Fatalf("Probes = %d rows, %v", len(p), err)
 	}
@@ -123,7 +123,7 @@ func TestExportProbesIsTheStoredRowsInRange(t *testing.T) {
 	if _, err := e.svc.DiscoverRanges(e.ctx()); err != nil {
 		t.Fatal(err)
 	}
-	stored, err := e.svc.Probes(e.ctx(), e.base.Add(-time.Hour), 100)
+	stored, err := e.svc.Probes(e.ctx(), e.baseTime().Add(-time.Hour), 100)
 	if err != nil || len(stored) == 0 {
 		t.Fatalf("Probes = %d rows, %v", len(stored), err)
 	}
@@ -146,11 +146,11 @@ func TestExportProbesIsTheStoredRowsInRange(t *testing.T) {
 		t.Fatalf("flags = %v, argv = %v", got["flags"], stored[0].Argv)
 	}
 	out.Reset()
-	if err := sa.ExportProbes(e.ctx(), e.db, e.base.Add(time.Hour), time.Time{}, &out); err != nil || out.Len() != 0 {
+	if err := sa.ExportProbes(e.ctx(), e.db, e.baseTime().Add(time.Hour), time.Time{}, &out); err != nil || out.Len() != 0 {
 		t.Fatalf("after the run: %v %q", err, out.String())
 	}
 	out.Reset()
-	if err := sa.ExportProbes(e.ctx(), e.db, time.Time{}, e.base.Add(-time.Hour), &out); err != nil || out.Len() != 0 {
+	if err := sa.ExportProbes(e.ctx(), e.db, time.Time{}, e.baseTime().Add(-time.Hour), &out); err != nil || out.Len() != 0 {
 		t.Fatalf("before the run: %v %q", err, out.String())
 	}
 }

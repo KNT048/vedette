@@ -53,13 +53,13 @@ func TestQueueDeviceStoppedBySettingsKeepsWaiting(t *testing.T) {
 func TestSweepCutByTheWindowResumesWhereItStopped(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, fakeOpts{slowFrom: 2}, func(e *env) {
-		e.base = local(9, 4, 59).Add(57 * time.Second)
+		e.setBase(local(9, 4, 59).Add(57 * time.Second))
 		e.inv.set(func(s *sa.Settings) { s.LANRanges = []string{"192.168.10.0/25"} }) // batches .1-.64 and .65-.126
 	})
 	if _, err := e.svc.DiscoverRanges(e.ctx()); !errors.Is(err, sa.ErrStopped) {
 		t.Fatalf("first window: err = %v, want ErrStopped", err)
 	}
-	e.base, e.t0 = local(10, 4, 59).Add(57*time.Second), time.Now()
+	e.setClock(local(10, 4, 59).Add(57*time.Second))
 	_, _ = e.svc.DiscoverRanges(e.ctx())
 	calls := e.nm.calls(t)
 	if len(calls) < 3 {
@@ -76,7 +76,7 @@ func TestSweepNewPassStartsAfterTheLastEnded(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, fakeOpts{})
 	for day := 9; day <= 10; day++ {
-		e.base, e.t0 = local(day, 2, 0), time.Now()
+		e.setClock(local(day, 2, 0))
 		if _, err := e.svc.DiscoverRanges(e.ctx()); err != nil {
 			t.Fatal(err)
 		}
@@ -184,7 +184,7 @@ func TestContract_INV3_WindowIsReadInTheConfiguredZone(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			e := newEnv(t, fakeOpts{}, func(e *env) {
-				e.base = c.at.UTC() // the clock says UTC; only the zone makes it 03:00 or 12:00
+				e.setBase(c.at.UTC()) // the clock says UTC; only the zone makes it 03:00 or 12:00
 				e.loc = func() *time.Location { return zone }
 			})
 			_, err := e.svc.DiscoverRanges(e.ctx())
@@ -235,7 +235,7 @@ func TestProbeRowsAreCompact(t *testing.T) {
 		"sweep 100 64 192.168.10.1-192.168.10.64; sweep 100 62 192.168.10.65-192.168.10.126; normal 100 1 192.168.10.20; extra_ports 100 1 192.168.10.20" {
 		t.Fatalf("probe rows = %q", got)
 	}
-	probes, err := e.svc.Probes(e.ctx(), e.base.Add(-time.Hour), 100)
+	probes, err := e.svc.Probes(e.ctx(), e.baseTime().Add(-time.Hour), 100)
 	if err != nil || len(probes) != 4 {
 		t.Fatalf("Probes = %d rows, %v", len(probes), err)
 	}
@@ -292,7 +292,7 @@ func TestPendingGentleScanRunsAtTheFirstWindowTick(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	e.base, e.t0 = local(9, 2, 0), time.Now() // inside the 01:00-05:00 window
+	e.setClock(local(9, 2, 0)) // inside the 01:00-05:00 window
 	markSweepDone(t, e, "saj-sweep-p")
 	if err := svc.Tick(e.ctx()); err != nil {
 		t.Fatal(err)
@@ -335,7 +335,7 @@ func TestWindowQueuesTheNormalScanADeviceOwes(t *testing.T) {
 	e.inv.mu.Lock()
 	e.inv.decision = map[string]sa.Decision{"a-printer": {Reason: "fragile_passive_only", Fragile: true}}
 	e.inv.mu.Unlock()
-	e.base, e.t0 = local(10, 2, 0), time.Now()
+	e.setClock(local(10, 2, 0))
 	markSweepDone(t, e, "saj-sweep-b")
 	if err := e.svc.Tick(e.ctx()); err != nil {
 		t.Fatal(err)
@@ -356,7 +356,7 @@ func TestWindowQueuesTheNormalScanADeviceOwes(t *testing.T) {
 		t.Fatalf("%d jobs of the owed scan", n)
 	}
 	// window 3: the scan has run, so nothing is owed
-	e.base, e.t0 = local(11, 2, 0), time.Now()
+	e.setClock(local(11, 2, 0))
 	markSweepDone(t, e, "saj-sweep-c")
 	if err := e.svc.Tick(e.ctx()); err != nil {
 		t.Fatal(err)

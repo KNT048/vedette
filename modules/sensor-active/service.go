@@ -19,7 +19,6 @@ import (
 	"github.com/knt048/vedette/core/exec"
 	"github.com/knt048/vedette/core/logexport"
 	"github.com/knt048/vedette/core/observe"
-	"github.com/knt048/vedette/core/progress"
 	"github.com/knt048/vedette/core/run"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/store"
@@ -123,9 +122,6 @@ type Service struct {
 	off atomic.Bool
 	// beforeSNMPBatch, when set (tests only, export_test.go), runs as a batch starts, before it registers.
 	beforeSNMPBatch func()
-	// urgent counts the runs waiting in lockWithin (a Scan now identification, an exposure scan): while it is above zero the
-	// weekly scan of every port gives the slot up.
-	urgent atomic.Int32
 
 	mu      sync.Mutex
 	cur     *running // the job holding runMu, for SettingsChanged
@@ -185,9 +181,6 @@ type running struct {
 	until time.Time
 	// runID is the run whose work it is (core_run), for Settings › Scanning.
 	runID string
-	// view is the run's own progress (the exposure scan reports it through the Tracker of its context), for the person's check that
-	// waits behind it (INV-28); nil when the run reports none.
-	view func() *progress.View
 }
 
 // New returns the service.
@@ -902,8 +895,10 @@ func (s *Service) scanDevice(ctx context.Context, assetID, reason string, all bo
 	}
 	s.setCur(cur)
 	defer s.setCur(nil)
-	if all && s.urgent.Load() > 0 { // a Scan now identification or an exposure scan waits for the slot: it goes first
-		return ErrStopped
+	if all { // other work waits for the nmap lane (a person's check, a scan for exposure): it goes first
+		if other, _, err := s.laneBusy(jctx, runIDOf(ctx)); err == nil && other != "" {
+			return ErrStopped
+		}
 	}
 	// A run stopped by a settings or device change while it checks is not a failure: whatever the storage
 	// read then returns (context canceled), the caller sees ErrStopped and does not count an attempt.
@@ -1229,82 +1224,6 @@ func (s *Service) lockRun(ctx context.Context) {
 		s.log.InfoContext(ctx, "sensoractive: waiting for the nmap slot: an exposure scan of the box's public IP holds it (a deep scan takes up to an hour)")
 	}
 	s.runMu.Lock()
-}
-
-// lockWithin takes runMu, trying every half second for at most d; false when it could not (or ctx ended). Its callers (a Scan now
-// identification, an exposure scan) go before the weekly scan of every port: a weekly run that holds the slot is
-// stopped (it stays due; its partial result is dropped), and the weekly round starts no device while one waits. onWait, when set, is
-// called when the slot is found taken and every waitNote after.
-func (s *Service) lockWithin(ctx context.Context, d time.Duration, onWait func()) bool {
-	if s.runMu.TryLock() {
-		return true
-	}
-	s.urgent.Add(1)
-	defer s.urgent.Add(-1)
-	s.stopWeekly()
-	give := time.NewTimer(d)
-	defer give.Stop()
-	tick := time.NewTicker(500 * time.Millisecond)
-	defer tick.Stop()
-	last := time.Now()
-	if onWait != nil {
-		onWait()
-	}
-	for {
-		select {
-		case <-ctx.Done():
-			return false
-		case <-give.C:
-			return s.runMu.TryLock()
-		case <-tick.C:
-			s.stopWeekly()
-			if s.runMu.TryLock() {
-				return true
-			}
-			if onWait != nil && time.Since(last) >= waitNote {
-				last = time.Now()
-				onWait()
-			}
-		}
-	}
-}
-
-// waitNote is how often the page's words about a wait for the nmap slot are made again (the estimate moves).
-const waitNote = 5 * time.Second
-
-// reasonCheckWait is the queue reason of a device check a person started that waits for the nmap slot.
-const reasonCheckWait = "check_wait"
-
-// waitingFor says what a person's check waits for, in the words of the page: the running exposure scan with its estimate when the
-// scan reports one (rounded up to a minute), without a time when it does not.
-func (s *Service) waitingFor() string {
-	s.mu.Lock()
-	cur := s.cur
-	var view func() *progress.View
-	external := false
-	if cur != nil {
-		view, external = cur.view, cur.external
-	}
-	s.mu.Unlock()
-	switch {
-	case cur == nil:
-		return "Waiting for the scanner to be free"
-	case !external:
-		return "Waiting for the running network scan to finish"
-	}
-	msg := "Waiting for the running external scan to finish"
-	if view != nil {
-		if v := view(); v != nil && v.ETA != nil {
-			if at, err := time.Parse(time.RFC3339Nano, *v.ETA); err == nil {
-				if left := at.Sub(s.clock()); left > time.Minute {
-					msg += fmt.Sprintf(", about %d min", int((left+time.Minute-1)/time.Minute))
-				} else if left > 0 {
-					msg += ", less than a minute"
-				}
-			}
-		}
-	}
-	return msg
 }
 
 // stopWeekly cancels the weekly scan of every port that holds the slot, if one does.

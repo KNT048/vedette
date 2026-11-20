@@ -11,7 +11,7 @@ import (
 )
 
 // outsideWindow is Monday 12:00: the env's window is every day 01:00 to 05:00.
-func outsideWindow(e *env) { e.base = local(9, 12, 0) }
+func outsideWindow(e *env) { e.setBase(local(9, 12, 0)) }
 
 func waitManual(t *testing.T, e *env) {
 	t.Helper()

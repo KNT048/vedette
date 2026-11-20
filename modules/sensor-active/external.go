@@ -11,7 +11,6 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/knt048/vedette/core/progress"
 	"github.com/knt048/vedette/core/sensorlink"
 	"github.com/knt048/vedette/modules/scan/commonports"
 	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
@@ -252,7 +251,7 @@ func (s *Service) serviceScan(ctx context.Context, ip netip.Addr, kind nmapargv.
 	targets := []netip.Addr{ip}
 	jctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	s.setCur(&running{cancel: cancel, targets: targets, rate: nmapargv.ExternalRateOf(kind), kind: kind, external: true, view: viewOf(ctx), runID: runIDOf(ctx)})
+	s.setCur(&running{cancel: cancel, targets: targets, rate: nmapargv.ExternalRateOf(kind), kind: kind, external: true, runID: runIDOf(ctx)})
 	defer s.setCur(nil)
 	if err := s.available(jctx); err != nil {
 		return External{}, err
@@ -485,10 +484,3 @@ func keepEnd(s string, n int) string {
 	return "…" + string(r[len(r)-n+1:])
 }
 
-// viewOf is the progress of the job whose context this is, when its sink keeps one (the Tracker of an exposure scan); nil otherwise.
-func viewOf(ctx context.Context) func() *progress.View {
-	if t, ok := progress.SinkFrom(ctx).(interface{ View() *progress.View }); ok {
-		return t.View
-	}
-	return nil
-}

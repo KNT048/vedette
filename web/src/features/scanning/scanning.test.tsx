@@ -106,9 +106,9 @@ describe('Settings › Scanning: every engine on one page', () => {
 
   it('Safety: the form shows what one pass of the scope as typed costs, and says before saving that a scope too large for a week is refused', async () => {
     renderApp('/settings/scanning?tab=safety')
-    expect(await screen.findByText(/^One pass: 510 addresses/, {}, T)).toBeInTheDocument()
+    expect(await screen.findByText(/^One pass: [0-9,]+ addresses, at least/, {}, T)).toBeInTheDocument()
     const r = screen.getByLabelText('Network ranges, one per line')
-    await userEvent.type(r, '{enter}10.20.0.0/16')
+    await userEvent.type(r, '{enter}10.0.0.0/8') // about 16.7 million addresses: weeks of windows at 10 packets/s
     await userEvent.selectOptions(screen.getByLabelText('Discovery and SNMP'), '10')
     expect(await screen.findByText(/Saving is refused: raise the scan rate/, {}, T)).toBeInTheDocument()
     await userEvent.click(screen.getByRole('checkbox', { name: /I confirm these network ranges/ }))

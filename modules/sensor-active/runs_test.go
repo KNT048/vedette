@@ -128,7 +128,7 @@ func TestRunsARestartMidSweepGoesOnFromTheCursor(t *testing.T) {
 func TestRunsAWideRangeIsOneRunAcrossWindows(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, fakeOpts{}, func(e *env) {
-		e.base = local(9, 4, 59).Add(50 * time.Second) // 10 s to the end of the window
+		e.setBase(local(9, 4, 59).Add(50 * time.Second)) // 10 s to the end of the window
 		e.inv.set(func(s *sa.Settings) { s.LANRanges = []string{"10.20.0.0/16"}; s.Rate = 1000 })
 		e.inv.assets["a-far"] = netip.MustParseAddr("10.20.7.9") // a device seen before: its /24 is swept first
 	})
@@ -152,7 +152,7 @@ func TestRunsAWideRangeIsOneRunAcrossWindows(t *testing.T) {
 		t.Fatalf("the pass began at %s, want the /24 where a device was seen", first)
 	}
 	// the next window: the same run goes on from its cursor
-	e.base, e.t0 = local(10, 4, 59).Add(50*time.Second), time.Now()
+	e.setClock(local(10, 4, 59).Add(50*time.Second))
 	held2 := newHeld(2)
 	e.withProber(held2)
 	if _, err := e.svc.DiscoverRanges(e.ctx()); !errors.Is(err, sa.ErrStopped) {

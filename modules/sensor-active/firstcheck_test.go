@@ -71,7 +71,7 @@ func TestFirstCheckAfterARangeCoversTheDevice(t *testing.T) {
 	if n := e.count(`SELECT count(*) FROM jobs_v WHERE asset_id = 'a-fw' AND reason = 'first_check'`); n != 1 {
 		t.Fatalf("%d first-check jobs, want 1", n)
 	}
-	e.base, e.t0 = local(10, 2, 0), time.Now() // the next window: it was checked, so nothing is owed
+	e.setClock(local(10, 2, 0)) // the next window: it was checked, so nothing is owed
 	markSweepDone(t, e, "saj-sweep-b")
 	if err := e.svc.SettingsChanged(e.ctx()); err != nil {
 		t.Fatal(err)
@@ -103,7 +103,7 @@ func TestFirstCheckForADeviceNothingQueued(t *testing.T) {
 // when the switch is turned on after the window opened tonight it runs at the next tick, not the next window.
 func TestScanOnRunsInTheNextWindowBeforeTheSweep(t *testing.T) {
 	t.Parallel()
-	e := newEnv(t, fakeOpts{}, func(e *env) { e.base = local(9, 0, 30) }) // before tonight's window (01:00)
+	e := newEnv(t, fakeOpts{}, func(e *env) { e.setBase(local(9, 0, 30)) }) // before tonight's window (01:00)
 	e.sweptBefore()                                                       // not a new box: no first pass outside the window
 	if err := e.svc.Enqueue(e.ctx(), "a-web", "scan_on"); err != nil {
 		t.Fatal(err)
@@ -114,7 +114,7 @@ func TestScanOnRunsInTheNextWindowBeforeTheSweep(t *testing.T) {
 	if n := len(e.nm.calls(t)); n != 0 {
 		t.Fatalf("%d commands before the window opened", n)
 	}
-	e.base, e.t0 = local(9, 3, 0), time.Now() // the window opened two hours ago
+	e.setClock(local(9, 3, 0)) // the window opened two hours ago
 	if err := e.svc.Tick(e.ctx()); err != nil {
 		t.Fatal(err)
 	}
@@ -128,7 +128,7 @@ func TestScanOnRunsInTheNextWindowBeforeTheSweep(t *testing.T) {
 		t.Fatalf("%d scan_on jobs", n)
 	}
 	// turned on at 03:30, after the window opened: the next tick runs it
-	e.base, e.t0 = local(9, 3, 30), time.Now()
+	e.setClock(local(9, 3, 30))
 	if err := e.svc.Enqueue(e.ctx(), "a-printer", "scan_on"); err != nil {
 		t.Fatal(err)
 	}

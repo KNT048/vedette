@@ -122,7 +122,7 @@ func TestContract_INV2_NothingWithoutScopeAndSwitch(t *testing.T) {
 func TestContract_INV3_OnlyInsideTheWindow(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, fakeOpts{}, func(e *env) {
-		e.base = local(9, 12, 0) // Monday noon, window is 01:00-05:00
+		e.setBase(local(9, 12, 0)) // Monday noon, window is 01:00-05:00
 		e.inv.decision["a-printer"] = sa.Decision{Allowed: true, Rate: 1, Reason: "first_gentle_scan", FirstGentle: true}
 	})
 	e.sweptBefore() // not a new box: its first pass is behind it
@@ -148,7 +148,7 @@ func TestContract_INV3_OnlyInsideTheWindow(t *testing.T) {
 func TestContract_INV3_StopsWhenTheWindowCloses(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, fakeOpts{slowFrom: 2}, func(e *env) {
-		e.base = local(9, 4, 59).Add(58 * time.Second)                                // 2 s to the end of the window
+		e.setBase(local(9, 4, 59).Add(58 * time.Second))                                // 2 s to the end of the window
 		e.inv.set(func(s *sa.Settings) { s.LANRanges = []string{"192.168.10.0/25"} }) // 126 hosts: batches of 64 and 62
 	})
 	start := time.Now()
@@ -486,7 +486,7 @@ func TestContract_INV9_ProbeLog(t *testing.T) {
 		t.Fatal(err)
 	}
 	calls := e.nm.calls(t)
-	probes, err := e.svc.Probes(e.ctx(), e.base.Add(-time.Hour), 100)
+	probes, err := e.svc.Probes(e.ctx(), e.baseTime().Add(-time.Hour), 100)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -569,7 +569,7 @@ func TestEventPayloads(t *testing.T) {
 // The queue survives a restart: a new Service on the same database drains it.
 func TestQueueSurvivesARestart(t *testing.T) {
 	t.Parallel()
-	e := newEnv(t, fakeOpts{}, func(e *env) { e.base = local(9, 12, 0) }) // outside the window: it only queues
+	e := newEnv(t, fakeOpts{}, func(e *env) { e.setBase(local(9, 12, 0)) }) // outside the window: it only queues
 	e.sweptBefore()                                                       // not a new box: no first pass
 	if err := e.svc.Enqueue(e.ctx(), "a-web", "discovered"); err != nil {
 		t.Fatal(err)
@@ -580,7 +580,7 @@ func TestQueueSurvivesARestart(t *testing.T) {
 	if err := e.svc.Tick(e.ctx()); err != nil || len(e.nm.calls(t)) != 0 {
 		t.Fatalf("Tick outside the window: %v, %d runs", err, len(e.nm.calls(t)))
 	}
-	e.base, e.t0 = local(9, 2, 0), time.Now() // the window opens; a new process starts
+	e.setClock(local(9, 2, 0)) // the window opens; a new process starts
 	e.build()
 	if n, _ := e.svc.QueueLen(e.ctx()); n != 1 {
 		t.Fatalf("queue length after restart = %d, want 1", n)
@@ -616,7 +616,7 @@ func TestTickSweepsOncePerWindow(t *testing.T) {
 	if n := len(e.nm.calls(t)); n != 1 {
 		t.Fatalf("%d sweeps in one window, want 1", n)
 	}
-	e.base, e.t0 = local(10, 2, 0), time.Now() // next night
+	e.setClock(local(10, 2, 0)) // next night
 	if err := e.svc.Tick(e.ctx()); err != nil {
 		t.Fatal(err)
 	}

@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/knt048/vedette/core/pkgrel"
+	"github.com/knt048/vedette/core/productid"
 )
 
 // TestClassImpact measures the correction rule over every software line and every OS line of a set of devices (INV-52): for each
@@ -176,7 +177,7 @@ func databaseDevices(t *testing.T, path string) []classDevice {
 
 // classKinds is app, os or firmware: the catalog marks a whole operating system or firmware product (declared.go).
 func classKind(vendor, product string) string {
-	p, ok := osProducts[osKey(vendor, product)]
+	p, ok := osProducts[productid.Key(vendor, product)]
 	switch {
 	case !ok:
 		return "app"

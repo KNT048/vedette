@@ -126,6 +126,8 @@ func TestModuleOfOverrides(t *testing.T) {
 		{"/me", "core", "core"},
 		{"/modules/{id}", "core", "core"},
 		{"/setup", "core", "core"},
+		{"/detection/overview", "detection", "core"},
+		{"/detection/alerts/{id}", "detection", "core"},
 		{"/feeds/hot", "feeds", "feeds"},
 		{"/response/approve/{token}", "response", "response"},
 	}

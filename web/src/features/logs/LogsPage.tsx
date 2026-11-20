@@ -148,7 +148,7 @@ function SourcesSection() {
               {d.sources.length === 0 ? (
                 <EmptyState title={t('sources.emptyTitle')} info={t('sources.emptyBodyInfo')} action={addButton}>{t('sources.emptyBody')}</EmptyState>
               ) : (
-                <DataTable caption={t('sources.caption')} data={d.sources} columns={columns} rowTone={(r) => (r.state === 'silent' ? 'warn' : undefined)}
+                <DataTable urlKey="log-sources" caption={t('sources.caption')} data={d.sources} columns={columns} rowTone={(r) => (r.state === 'silent' ? 'warn' : undefined)}
                   mobileRow={(r) => (
                     <div className="grid gap-1.5">
                       <div className="flex items-start justify-between gap-3">
@@ -311,10 +311,10 @@ function DigestSections() {
               <BadConnections feedsOn={feedsOn} />
             </Section>
             <Section id="new" title={learning ? t('digest.new.titleLearning') : t('digest.new.title', { days })} description={t('digest.new.description')} info={t('digest.new.descriptionInfo')} stories={['S-LOG-1']}>
-              {d.new.length ? <DataTable caption={t('digest.new.caption')} data={d.new} columns={fresh} /> : <EmptyState title={learning ? t('digest.new.emptyLearning', { n: d.history_days, days }) : t('digest.new.empty', { days })} />}
+              {d.new.length ? <DataTable urlKey="digest-new" caption={t('digest.new.caption')} data={d.new} columns={fresh} /> : <EmptyState title={learning ? t('digest.new.emptyLearning', { n: d.history_days, days }) : t('digest.new.empty', { days })} />}
             </Section>
             <Section id="spikes" title={t('digest.spikes.title')} description={t('digest.spikes.description', { days })}>
-              {d.spikes.length ? <DataTable caption={t('digest.spikes.caption')} data={d.spikes} columns={spikes} /> : <EmptyState title={t('digest.spikes.empty')} />}
+              {d.spikes.length ? <DataTable urlKey="digest-spikes" caption={t('digest.spikes.caption')} data={d.spikes} columns={spikes} /> : <EmptyState title={t('digest.spikes.empty')} />}
             </Section>
           </>
         )

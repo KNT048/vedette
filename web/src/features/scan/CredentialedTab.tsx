@@ -42,7 +42,7 @@ function Prepare() {
   )
 }
 
-function AddForm({ options }: { options: ScanTarget[] }) {
+function AddForm({ options, onDone }: { options: ScanTarget[]; onDone: () => void }) {
   const { t } = useTranslation('scan')
   const can = useCan('admin')
   const add = useAddCred()
@@ -66,20 +66,13 @@ function AddForm({ options }: { options: ScanTarget[] }) {
     setError(undefined)
     if (!asset) { setError(t('cred.pickHost')); return }
     add.mutate({ asset_id: asset, port: Number(port), username: user.trim(), private_key: key }, {
-      onSuccess: (c) => { toast.success(t('cred.saved', { last4: c.key_last4 })); setKey(''); setFileName(''); setAsset(''); add.reset() },
+      onSuccess: (c) => { toast.success(t('cred.saved', { last4: c.key_last4 })); setKey(''); setFileName(''); setAsset(''); add.reset(); onDone() },
       onError: (err) => setError(errMsg(err)),
     })
   }
-  if (!options.length) return (
-    <div className="flex max-w-2xl flex-wrap items-center gap-x-1 rounded-md border border-dashed border-rule bg-surface px-4 py-3 text-sm text-muted">
-      <span>{t('cred.noHosts')}</span>
-      <InfoTip topic={t('cred.addTitle')}>{t('cred.noHostsInfo')}</InfoTip>
-      <Link to="/devices" className="text-accent underline underline-offset-4">{t('start.openDevices')}</Link>
-    </div>
-  )
   return (
-    <form onSubmit={submit} className="grid max-w-2xl gap-4" noValidate>
-      <div className="grid gap-4 sm:grid-cols-[1fr_100px_1fr]">
+    <form onSubmit={submit} className="grid gap-4" noValidate>
+      <div className="grid gap-4 sm:grid-cols-[1fr_100px]">
         <Field htmlFor="cr-host" label={t('cred.host')}>
           <Select id="cr-host" value={asset} onChange={(e) => setAsset(e.target.value)} disabled={!can}>
             <option value="">{t('cred.hostPlaceholder')}</option>
@@ -99,11 +92,34 @@ function AddForm({ options }: { options: ScanTarget[] }) {
         {fileName ? <span className="text-meta text-muted">{t('cred.fileChosen', { name: fileName })}</span> : null}
       </div>
       {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
-      <div className="flex flex-wrap items-center gap-3">
-        <Button type="submit" variant="primary" disabled={!can} busy={add.isPending} busyLabel={t('common:busy.saving')}>{t('cred.save')}</Button>
+      <DialogFooter className="items-center">
         {!can ? <span className="text-meta text-muted">{t('common:needRole', { role: t('common:role.admin') })}</span> : null}
-      </div>
+        <Button type="button" onClick={onDone}>{t('common:cancel')}</Button>
+        <Button type="submit" variant="primary" disabled={!can} busy={add.isPending} busyLabel={t('common:busy.saving')}>{t('cred.save')}</Button>
+      </DialogFooter>
     </form>
+  )
+}
+
+/** The add-a-server button; the form opens in a dialog over the list. */
+function AddServer({ options }: { options: ScanTarget[] }) {
+  const { t } = useTranslation('scan')
+  const can = useCan('admin')
+  const [open, setOpen] = useState(false)
+  if (!options.length) return (
+    <div className="flex max-w-2xl flex-wrap items-center gap-x-1 rounded-md border border-dashed border-rule bg-surface px-4 py-3 text-sm text-muted">
+      <span>{t('cred.noHosts')}</span>
+      <InfoTip topic={t('cred.addTitle')}>{t('cred.noHostsInfo')}</InfoTip>
+      <Link to="/devices" className="text-accent underline underline-offset-4">{t('start.openDevices')}</Link>
+    </div>
+  )
+  return (
+    <div>
+      <Button variant="primary" disabled={!can} title={!can ? t('common:needRole', { role: t('common:role.admin') }) : undefined} onClick={() => setOpen(true)}>{t('cred.addTitle')}</Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        {open ? <DialogContent title={t('cred.addTitle')}><AddForm options={options} onDone={() => setOpen(false)} /></DialogContent> : null}
+      </Dialog>
+    </div>
   )
 }
 
@@ -136,7 +152,7 @@ function List({ items }: { items: CredTarget[] }) {
   const testing = test.isPending ? items.find((x) => x.id === test.variables) : undefined
   return (
     <>
-      <DataTable caption={t('cred.caption')} data={items} columns={columns} empty={<EmptyState title={t('cred.empty')}>{t('cred.emptyHelp')}</EmptyState>} />
+      <DataTable urlKey="credentialed" caption={t('cred.caption')} data={items} columns={columns} empty={<EmptyState title={t('cred.empty')}>{t('cred.emptyHelp')}</EmptyState>} />
       {/* An SSH login check waits on the server; say so while it runs */}
       <BusyNote busy={test.isPending} className="mt-2">{t('cred.testWaiting', { name: testing?.label ?? '' })}</BusyNote>
       <Dialog open={!!rm} onOpenChange={(o) => { if (!o) setRm(null) }}>
@@ -166,9 +182,8 @@ function Inner() {
             <>
               <List items={c.items} />
               <div className="grid gap-3">
-                <h3 className="text-sm font-semibold">{t('cred.addTitle')}</h3>
                 <QueryState query={targets}>
-                  {(d) => <AddForm options={d.items.filter((x) => x.kind === 'internal' && SSH_KINDS.includes(actsAs(x.device_kind ?? 'unknown')) && x.selectable && !c.items.some((i) => i.asset_id === x.id))} />}
+                  {(d) => <AddServer options={d.items.filter((x) => x.kind === 'internal' && SSH_KINDS.includes(actsAs(x.device_kind ?? 'unknown')) && x.selectable && !c.items.some((i) => i.asset_id === x.id))} />}
                 </QueryState>
               </div>
             </>

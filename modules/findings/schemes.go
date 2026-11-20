@@ -4,6 +4,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/knt048/vedette/core/productid"
 )
 
 // Vendor version schemes the NVD data uses besides plain dotted numbers. Each rule only turns a
@@ -36,7 +38,7 @@ func officeEdition(c CPE, r VersionRange, exact bool, ver string) (Tri, bool) {
 	}
 	v, okV := c.Vendor.Literal()
 	p, okP := c.Product.Literal()
-	if !okV || !okP || norm(v) != "microsoft" || !officeApps[norm(p)] {
+	if !okV || !okP || productid.Norm(v) != "microsoft" || !officeApps[productid.Norm(p)] {
 		return Unknown, false
 	}
 	majors, ok := officeMajors[strings.ToLower(r.StartIncl)]
@@ -76,7 +78,7 @@ var sqlServerMajors = map[string]uint64{"2000": 8, "2005": 9, "2008": 10, "2012"
 	"2022": 16, "2025": 17}
 
 // sqlServerProducts are the releases NVD names as products of their own with build versions (microsoft:sql_server_2016 …
-// _2025, NVD's CPE dictionary, 2026-11-17), the aliases of Microsoft|SQL Server in nvd-cpe.json. sql_server_2000/2005/2008
+// _2025, NVD's CPE dictionary, 2026-11-17), the aliases of Microsoft|SQL Server in content/catalog/products. sql_server_2000/2005/2008
 // write the release in the version ("sql_server_2008:r2:sp1") and are neither.
 var sqlServerProducts = map[string]bool{"2016": true, "2017": true, "2019": true, "2022": true, "2025": true}
 
@@ -85,7 +87,7 @@ var sqlServerProducts = map[string]bool{"2016": true, "2017": true, "2019": true
 //     typed by a person ("2014") must be that release; a build a computer reports ("16.0.4135.4") is compared by major: another
 //     major is No (SQL Server 2022 is not SQL Server 2014), the same major is Unknown (the build does not say which service pack);
 //   - a configuration of a release's own product (microsoft:sql_server_2016 … _2025, aliases of Microsoft|SQL Server in
-//     nvd-cpe.json) with build ranges: a typed release other than that product's is No, the same one Unknown (a year is not a build);
+//     content/catalog/products) with build ranges: a typed release other than that product's is No, the same one Unknown (a year is not a build);
 //     a build of the product's major written with a service-pack minor ("13.2.5026.0", how SQL Server 2016 SP2's programs
 //     read) is Unknown, since NVD writes those builds as 13.0.x; any other build is left to the ranges.
 //
@@ -94,12 +96,12 @@ var sqlServerProducts = map[string]bool{"2016": true, "2017": true, "2019": true
 func sqlServerRelease(c CPE, r VersionRange, exact bool, ver string) (Tri, bool) {
 	v, okV := c.Vendor.Literal()
 	p, okP := c.Product.Literal()
-	if !okV || !okP || norm(v) != "microsoft" {
+	if !okV || !okP || productid.Norm(v) != "microsoft" {
 		return Unknown, false
 	}
 	var rel string // the release the configuration names
 	product := false
-	switch np := norm(p); {
+	switch np := productid.Norm(p); {
 	case np == "sqlserver" && exact:
 		rel = strings.ToLower(r.StartIncl)
 	case strings.HasPrefix(np, "sqlserver") && sqlServerProducts[strings.TrimPrefix(np, "sqlserver")]:
@@ -180,7 +182,7 @@ var distroVendors = map[string]bool{"canonical": true, "debian": true, "redhat":
 // ("o:canonical:ubuntu_linux:22.04"), not a program.
 func distroRelease(c CPE) bool {
 	cv, ok := c.Vendor.Literal()
-	return ok && c.Part.Kind == Value && c.Part.Value == "o" && distroVendors[norm(cv)]
+	return ok && c.Part.Kind == Value && c.Part.Value == "o" && distroVendors[productid.Norm(cv)]
 }
 
 // osRulesOut reports whether an entry whose configurations are ALL operating-system releases (CVE-2021-3493 lists
@@ -200,10 +202,10 @@ func osRulesOut(v Vuln, in swInfo) bool {
 		}
 		cv, okV := c.Vendor.Literal()
 		cp, okP := c.Product.Literal()
-		if !okV || !okP || !distroVendors[norm(cv)] {
+		if !okV || !okP || !distroVendors[productid.Norm(cv)] {
 			return false
 		}
-		if !in.os.matches(norm(cv), norm(cp)) {
+		if !in.os.matches(productid.Norm(cv), productid.Norm(cp)) {
 			continue // another distribution's release
 		}
 		own = true
@@ -286,7 +288,7 @@ func sqlServerLater(c CPE, lit, ver string) (later, ok bool) {
 	v, okV := c.Vendor.Literal()
 	p, okP := c.Product.Literal()
 	major, okM := sqlServerMajors[strings.ToLower(lit)]
-	if !okV || !okP || !okM || norm(v) != "microsoft" || norm(p) != "sqlserver" {
+	if !okV || !okP || !okM || productid.Norm(v) != "microsoft" || productid.Norm(p) != "sqlserver" {
 		return false, false
 	}
 	if m := sqlServerMajors[strings.ToLower(strings.TrimSpace(ver))]; m != 0 {
@@ -307,7 +309,7 @@ var javaUpdateRE = regexp.MustCompile(`^update_?(\d+)(?:_b\d+)?$`)
 func javaEntry(c CPE, lit string) (line, update uint64, java, ok bool) {
 	v, okV := c.Vendor.Literal()
 	p, okP := c.Product.Literal()
-	if !okV || !okP || norm(v) != "oracle" || norm(p) != "jre" && norm(p) != "jdk" || !strings.HasPrefix(lit, "1.") {
+	if !okV || !okP || productid.Norm(v) != "oracle" || productid.Norm(p) != "jre" && productid.Norm(p) != "jdk" || !strings.HasPrefix(lit, "1.") {
 		return 0, 0, false, false
 	}
 	m := javaEntryRE.FindStringSubmatch(lit)

@@ -3,14 +3,12 @@ package sensoractive_test
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"fmt"
 	"io/fs"
 	"net/netip"
 	"slices"
 	"strings"
 	"testing"
-	"testing/fstest"
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
@@ -114,46 +112,6 @@ func TestSNMPRoundEndsWithTheWindow(t *testing.T) {
 	}
 }
 
-// L5: migration 0004 keeps the probe log's counter: the id of a pruned probe row is never handed out again.
-func TestMigration0004KeepsTheProbeCounter(t *testing.T) {
-	t.Parallel()
-	ctx := t.Context()
-	db := storetest.New(t)
-	before := fstest.MapFS{}
-	if err := fs.WalkDir(sa.Migrations, ".", func(p string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() || p >= "0004" { // 0004 and every later one (0005)
-			return err
-		}
-		b, err := fs.ReadFile(sa.Migrations, p)
-		before[p] = &fstest.MapFile{Data: b}
-		return err
-	}); err != nil {
-		t.Fatal(err)
-	}
-	if err := store.Migrate(ctx, db, "sensor-active", before); err != nil {
-		t.Fatal(err)
-	}
-	exec := func(q string) {
-		t.Helper()
-		if err := db.Write(ctx, func(tx *sql.Tx) error { _, err := tx.ExecContext(ctx, q); return err }); err != nil {
-			t.Fatalf("%s: %v", q, err)
-		}
-	}
-	exec(`INSERT INTO sa_job (id, kind, started_at, status) VALUES ('j', 'sweep', '2026-11-01T01:00:00.000Z', 'done')`)
-	for i := 1; i <= 3; i++ {
-		exec(fmt.Sprintf(`INSERT INTO sa_probe (time, job_id, shape, rate, hosts, flags, targets, result) VALUES ('2026-11-01T01:00:00.000Z', 'j', 'sweep', 1, 1, '-sn', '192.168.1.%d', 'ok')`, i))
-	}
-	exec(`DELETE FROM sa_probe WHERE id > 1`) // the prune of old rows
-	if err := store.Migrate(ctx, db, "sensor-active", sa.Migrations); err != nil {
-		t.Fatal(err)
-	}
-	exec(`INSERT INTO sa_probe (time, job_id, shape, rate, hosts, flags, targets, result) VALUES ('2026-11-13T01:00:00.000Z', 'j', 'snmp', 1, 1, 'GET', '192.168.1.9', 'ok')`)
-	var id int
-	if err := db.Reader().QueryRowContext(ctx, `SELECT max(id) FROM sa_probe`).Scan(&id); err != nil || id != 4 {
-		t.Fatalf("the next probe id is %d (%v), want 4", id, err)
-	}
-}
-
 // Review #715 round 2.
 
 // A device's SNMP edited after the batch read it and before its secrets are opened stops the batch: a v3
@@ -246,16 +204,12 @@ func TestSNMPAShorterWindowStopsTheBatch(t *testing.T) {
 	}
 }
 
-// r2 M2: the migrations run in order only (goose has no out-of-order), and 0004_snmp keeps the probe shape of #714's 0003: this
-// branch must carry 0003_gentle_titles, numbered without a gap, or a box that got 0004 first would never start the module.
+// The migrations run in order only (goose has no out-of-order): they are numbered from 0001 without a gap.
 func TestMigrationsKeepTheirOrder(t *testing.T) {
 	t.Parallel()
 	names, err := fs.Glob(sa.Migrations, "*.sql")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !slices.Contains(names, "0003_gentle_titles.sql") {
-		t.Fatalf("0003_gentle_titles.sql (#714) is missing: merge origin/main once #714 has landed (%v)", names)
+	if err != nil || len(names) == 0 {
+		t.Fatalf("%v %v", names, err)
 	}
 	for i, n := range names {
 		if want := fmt.Sprintf("%04d_", i+1); !strings.HasPrefix(n, want) {

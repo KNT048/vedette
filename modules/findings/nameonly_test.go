@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/productid"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -369,7 +370,7 @@ func TestMatchAsset_PinnedEditionStillDecides(t *testing.T) {
 		[3]string{"cpe:2.3:a:atlassian:jira_service_management:*:*:*:*:data_center:*:*:*", "5.0.0", "5.4.17"})
 	row := func(display, vendor, product, ver, source string, v Vuln) Asset {
 		return Asset{ID: "a", Name: "pc", Software: []Software{{ID: "s", Display: display, Vendor: vendor, Product: product, Version: ver, Source: source,
-			KevKeys: []string{KevKey(v.Vendor, v.Product)}}}}
+			KevKeys: []string{productid.Key(v.Vendor, v.Product)}}}}
 	}
 	mac := row("Cisco AnyConnect Secure Mobility Client", "Cisco", "AnyConnect Secure Mobility Client", "4.8.01090", "agent", anyconnect)
 	// Platform pins never lift, even when NVD lists two of them (the narrow check of #939's final H1): WhatsApp for iPhone and macOS

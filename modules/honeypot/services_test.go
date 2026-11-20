@@ -15,7 +15,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/honeypot"
 )
 
@@ -558,83 +557,5 @@ func TestForgedUDPHasItsOwnHitBudget(t *testing.T) {
 	e.poll()
 	if n := e.count(`SELECT COUNT(*) FROM hp_hits WHERE handshake = 0`); n != 21 {
 		t.Fatalf("%d UDP hits in the next hour", n)
-	}
-}
-
-// Review L4: migration 0004 rebuilds hp_hits and hp_config with every row and column as they were; the rows stored before get
-// handshake 1 (every hit before B3 was a TCP one); afterwards a hit may name a new service, hp_config may hold "https", and the CHECKs
-// still refuse what is not one.
-func TestMigration0004KeepsEveryHitAndSetting(t *testing.T) {
-	t.Parallel()
-	db := migratedBeforeV(t, "0004")
-	ctx := t.Context()
-	exec := func(q string, args ...any) error {
-		return db.Write(ctx, func(tx *sqlTx) error { _, err := tx.ExecContext(ctx, q, args...); return err })
-	}
-	const cols = `id, ts, kind, service, label, port, src_ip, is_test, excerpt, trap_ip, trap_hostname, token_id, events, conn_key, conn_count`
-	key := strings.Repeat("a", 64)
-	for _, q := range []string{
-		`INSERT INTO hp_hits (` + cols + `) VALUES ('hit-1', '2026-11-09T10:00:00.000Z', 'service', 'smb', 'SMB', 445, '192.168.10.157', 0, 'share opened', '192.168.10.240', 'FILESRV-OLD', NULL, '[{"ts":"2026-11-09T10:00:00.000Z","source":"honeypot","text":"x","mark":true}]', '` + key + `', 3)`,
-		`INSERT INTO hp_hits (` + cols + `) VALUES ('hit-2', '2026-11-09T10:01:00.000Z', 'token', NULL, 'File token Payroll', NULL, '192.168.10.158', 0, 'File opened', 'Payroll.xlsx', 'File token Payroll', 'tok-1', '[]', NULL, 1)`,
-		`INSERT INTO hp_hits (` + cols + `) VALUES ('hit-3', '2026-11-09T10:02:00.000Z', 'scan', NULL, 'Scan across the Trap IPs', NULL, '192.168.10.159', 1, '[test] sweep', '192.168.10.240, 192.168.10.241', 'Decoy sweep', NULL, '[]', NULL, 1)`,
-		`INSERT INTO hp_config (key, value, updated_at, updated_by) VALUES ('applied', '["192.168.10.240"]', '2026-11-09T10:00:00.000Z', 'system'), ('tail', '{"offset":42}', '2026-11-09T10:00:00.000Z', 'system')`,
-	} {
-		if err := exec(q); err != nil {
-			t.Fatal(err)
-		}
-	}
-	dump := func(q string) string {
-		t.Helper()
-		rows, err := db.Reader().QueryContext(ctx, q)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer func() { _ = rows.Close() }()
-		names, _ := rows.Columns()
-		var out []string
-		for rows.Next() {
-			vals := make([]any, len(names))
-			ptrs := make([]any, len(names))
-			for i := range vals {
-				ptrs[i] = &vals[i]
-			}
-			if err := rows.Scan(ptrs...); err != nil {
-				t.Fatal(err)
-			}
-			out = append(out, fmt.Sprint(vals...))
-		}
-		return strings.Join(out, "\n")
-	}
-	hitsBefore := dump(`SELECT ` + cols + `, source_ip FROM hp_hits ORDER BY id`)
-	confBefore := dump(`SELECT key, value, updated_at, updated_by FROM hp_config ORDER BY key`)
-	if err := store.Migrate(ctx, db, "honeypot", honeypot.Migrations); err != nil {
-		t.Fatal(err)
-	}
-	if got := dump(`SELECT ` + cols + `, source_ip FROM hp_hits ORDER BY id`); got != hitsBefore {
-		t.Fatalf("hp_hits changed:\n%s\nwant\n%s", got, hitsBefore)
-	}
-	if got := dump(`SELECT key, value, updated_at, updated_by FROM hp_config ORDER BY key`); got != confBefore {
-		t.Fatalf("hp_config changed:\n%s\nwant\n%s", got, confBefore)
-	}
-	if got := dump(`SELECT COUNT(*) FROM hp_hits WHERE handshake = 1`); got != "3" {
-		t.Fatalf("%s rows with handshake 1", got)
-	}
-	if err := exec(`INSERT INTO hp_hits (id, ts, kind, service, label, port, src_ip, excerpt, trap_ip, trap_hostname, handshake) VALUES ('hit-4', '2026-11-09T10:03:00.000Z', 'service', 'tftp', 'TFTP', 69, '192.168.10.160', 'x', '192.168.10.240', 'X', 0)`); err != nil {
-		t.Fatalf("a new service: %v", err)
-	}
-	if err := exec(`INSERT INTO hp_config (key, value, updated_at, updated_by) VALUES ('https', '{"secret_id":"sec-1"}', '2026-11-09T10:00:00.000Z', 'system')`); err != nil {
-		t.Fatalf("the https key: %v", err)
-	}
-	for _, q := range []string{
-		`INSERT INTO hp_hits (id, ts, kind, service, label, src_ip, excerpt, trap_ip, trap_hostname) VALUES ('hit-5', '2026-11-09T10:03:00.000Z', 'service', 'snmp', 'SNMP', '192.168.10.160', 'x', 'x', 'X')`,
-		`INSERT INTO hp_hits (id, ts, kind, service, label, src_ip, excerpt, trap_ip, trap_hostname, handshake) VALUES ('hit-6', '2026-11-09T10:03:00.000Z', 'service', 'ssh', 'SSH', '192.168.10.160', 'x', 'x', 'X', 2)`,
-		`INSERT INTO hp_config (key, value, updated_at, updated_by) VALUES ('config', '{}', '2026-11-09T10:00:00.000Z', 'system')`,
-	} {
-		if err := exec(q); err == nil {
-			t.Errorf("accepted: %s", q)
-		}
-	}
-	if got := dump(`SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'hp_hits' AND sql IS NOT NULL ORDER BY name`); got != "hp_hits_src_ix\nhp_hits_token_ix\nhp_hits_ts_ix" {
-		t.Fatalf("indexes: %s", got)
 	}
 }

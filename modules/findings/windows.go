@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/orgtime"
+	"github.com/knt048/vedette/core/productid"
 	"github.com/knt048/vedette/core/winrel"
 )
 
@@ -91,7 +92,7 @@ func winDevice(in swInfo) (winDev, bool) {
 // version (an Insider Preview build, or a release newer than the table and the releases learned from Microsoft's list) and no CPE of a known release, as agent-intake's
 // windowsRow writes it ("Windows (build 26300)"). Vedette cannot place such a build among the releases NVD lists.
 func winUnknownBuild(s Software, in swInfo) (int, bool) {
-	if _, ok := winDevice(in); ok || norm(s.Vendor) != "microsoft" {
+	if _, ok := winDevice(in); ok || productid.Norm(s.Vendor) != "microsoft" {
 		return 0, false
 	}
 	m := winVersionRE.FindStringSubmatch(strings.TrimSpace(in.ver))
@@ -122,7 +123,7 @@ func winrelNewest() int {
 func windowsProduct(c CPE) (string, bool) {
 	cv, okV := c.Vendor.Literal()
 	cp, okP := c.Product.Literal()
-	if c.Part.Kind != Value || c.Part.Value != "o" || !okV || !okP || norm(cv) != "microsoft" || !strings.HasPrefix(cp, "windows") {
+	if c.Part.Kind != Value || c.Part.Value != "o" || !okV || !okP || productid.Norm(cv) != "microsoft" || !strings.HasPrefix(cp, "windows") {
 		return "", false
 	}
 	return cp, true
@@ -306,8 +307,8 @@ func windowsDecide(in swInfo, v Vuln, named bool, now time.Time) (winVerdict, bo
 			allWindows = false
 			vn, okV := c.Vendor.Literal()
 			p, okP := c.Product.Literal()
-			undecidable = undecidable || !okV || !okP                                           // ANY vendor or product: it may be this device
-			ms := okV && norm(vn) == "microsoft" && c.Part.Kind == Value && c.Part.Value == "a" // review r2 #4: Microsoft's own application
+			undecidable = undecidable || !okV || !okP                                                     // ANY vendor or product: it may be this device
+			ms := okV && productid.Norm(vn) == "microsoft" && c.Part.Kind == Value && c.Part.Value == "a" // review r2 #4: Microsoft's own application
 			if ver, okVer := c.Version.Literal(); ms && okP && winGoneProducts[p] != "" && c.Version.Kind == Value && okVer && af.Range.IsZero() {
 				pinned = appendOnce(pinned, winGoneProducts[p]+" "+clean(ver))
 			} else {
@@ -581,7 +582,7 @@ func winCovers(s Software) bool {
 		return false
 	}
 	for _, k := range s.KevKeys {
-		if NormalizeKevKey(k) != "microsoft|windows" {
+		if productid.NormalizeKey(k) != "microsoft|windows" {
 			return false
 		}
 	}
@@ -940,7 +941,7 @@ func winMonthRule(d winDev, b winBuild, v Vuln, now time.Time) (winVerdict, bool
 			switch {
 			case !okV || !okP:
 				return winVerdict{}, false // any vendor or product: it may be this machine
-			case norm(vn) != "microsoft":
+			case productid.Norm(vn) != "microsoft":
 				continue // another vendor's product: not this machine
 			case !winOSComponents[p]:
 				return winVerdict{}, false // a Microsoft product Windows' monthly update does not service

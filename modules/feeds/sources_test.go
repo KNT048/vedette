@@ -77,13 +77,6 @@ func TestBuiltinLookupAndBlockClass(t *testing.T) {
 	}
 }
 
-func TestProductKey(t *testing.T) {
-	t.Parallel()
-	if got := ProductKey("QNAP", "Photo Station"); got != "qnap|photo station" {
-		t.Fatalf("ProductKey = %q", got)
-	}
-}
-
 func TestDefaultParserShape(t *testing.T) {
 	t.Parallel()
 	for _, k := range []Kind{KindVulnerabilities, KindIOC} {

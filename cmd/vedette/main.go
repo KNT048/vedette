@@ -301,6 +301,10 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 		log.ErrorContext(ctx, "the database failed SQLite's check; not starting", "error", err)
 		return err
 	}
+	wired := wiredModules()
+	if err := migrateAll(ctx, db, wired); err != nil {
+		return err
+	}
 	// logs.db: the volume of the logs module (received lines), a database of its own with its own writer, next to the main one.
 	logsDB, err := store.Open(ctx, filepath.Join(filepath.Dir(o.db), "logs.db"), log)
 	if err != nil {
@@ -311,12 +315,8 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 			log.ErrorContext(ctx, "closing the logs database failed", "error", err)
 		}
 	}()
-	if err := store.Migrate(ctx, logsDB, logs.ModuleID, logs.VolumeMigrations); err != nil {
-		return err
-	}
-	wired := wiredModules()
-	if err := migrateAll(ctx, db, wired); err != nil {
-		return err
+	if err := store.MigrateAll(ctx, logsDB, []store.MigrationSet{{Module: logs.ModuleID, FS: logs.VolumeMigrations}}); err != nil {
+		return fmt.Errorf("migrate logs.db: %w", err)
 	}
 	// A purge froze the database at its commit and left a marker: the compaction (VACUUM) that removes the deleted rows from the file
 	// happens here, before anything else writes. A failure is logged and retried at the next start (the marker stays).

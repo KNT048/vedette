@@ -335,6 +335,7 @@
     "value": "Address or domain",
     "valueHint": "IP address, range like 192.168.10.0/24, or a domain.",
     "label": "What it is",
+    "new": "Add an entry",
     "add": "Add"
   },
   "blocklist": {

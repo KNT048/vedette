@@ -18,6 +18,7 @@ import (
 	"github.com/knt048/vedette/core/auth/authtest"
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/modreg"
+	"github.com/knt048/vedette/core/productid"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/core/server/servertest"
@@ -114,7 +115,7 @@ func (s *stack) kev(cve, vendor, product string) {
 	now := time.Now().UTC()
 	err := s.d.DB.Write(s.t.Context(), func(tx *sql.Tx) error {
 		_, err := tx.ExecContext(s.t.Context(), `INSERT INTO feeds_vuln (cve, vendor, product, product_key, name, date_added, ransomware, has_template, source_id, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, 0, 1, 'cisa-kev', ?)`, cve, vendor, product, feeds.ProductKey(vendor, product), vendor+" "+product+" flaw", now.Format("2006-01-02"), store.FormatTS(now))
+			VALUES (?, ?, ?, ?, ?, ?, 0, 1, 'cisa-kev', ?)`, cve, vendor, product, productid.Key(vendor, product), vendor+" "+product+" flaw", now.Format("2006-01-02"), store.FormatTS(now))
 		return err
 	})
 	if err != nil {

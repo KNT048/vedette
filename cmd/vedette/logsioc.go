@@ -2,12 +2,15 @@ package main
 
 import (
 	"context"
+	"net/netip"
 	"slices"
 	"strings"
 
+	"github.com/knt048/vedette/core/sensorlink"
 	"github.com/knt048/vedette/modules/feeds"
 	"github.com/knt048/vedette/modules/logs"
 	"github.com/knt048/vedette/modules/response"
+	sensorpassive "github.com/knt048/vedette/modules/sensor-passive"
 )
 
 // logsFeeds is logs' Feeds port: the listing of an address or a domain in the indicators of the feeds module, read in the box
@@ -86,5 +89,30 @@ func logsIocEvidence(svc *logs.Service, on func() bool) func(ctx context.Context
 			name = *h.AssetName + " (" + h.SrcIP + ")"
 		}
 		return response.EvidenceRef{ID: h.ID, Summary: name + " connected to " + h.Dest + ", listed by " + strings.Join(slices.Clone(h.Feeds), ", "), Relates: []string{h.SrcIP, h.Dest}}, true, nil
+	}
+}
+
+// logsMirror is sensor-passive's MirrorMatcher: the metadata a sensor read on a mirror port goes to the logs module's bad-address
+// matching (logs.MatchMirror), which stores only the matches. With the logs module off nothing is matched and nothing is stored
+// (SYS-5); with the feeds module off logs makes no lookup (PRE-3). The logs service is looked up on each call: it is built
+// once per database, and the sensor link only opens after every service exists.
+func logsMirror(d deps) sensorpassive.MirrorMatcher {
+	return func(ctx context.Context, items []sensorlink.MetadataItem) error {
+		if d.Reg != nil && !d.Reg.Enabled("logs") {
+			return nil
+		}
+		svc := logsService(d)
+		if svc == nil {
+			return nil
+		}
+		in := make([]logs.MirrorItem, 0, len(items))
+		for _, it := range items {
+			src, err := netip.ParseAddr(it.Src)
+			if err != nil {
+				continue
+			}
+			in = append(in, logs.MirrorItem{Kind: it.Kind, At: it.At, Src: src, Dest: it.Dest})
+		}
+		return svc.MatchMirror(ctx, in)
 	}
 }

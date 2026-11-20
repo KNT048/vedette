@@ -1,17 +1,11 @@
 package inventory_test
 
 import (
-	"database/sql"
-	"io/fs"
 	"net/netip"
 	"testing"
-	"testing/fstest"
 	"time"
 
 	"github.com/knt048/vedette/core/observe"
-	"github.com/knt048/vedette/core/store"
-	"github.com/knt048/vedette/core/store/storetest"
-	"github.com/knt048/vedette/modules/core"
 	"github.com/knt048/vedette/modules/inventory"
 )
 
@@ -226,72 +220,6 @@ func TestDeviceRefsCarryModelOriginAndApproval(t *testing.T) {
 	}
 	if m.Model != "" || m.OS != "" || m.Origin != "manual" || m.ApprovedAt != nil {
 		t.Errorf("declared device = model %q os %q origin %q approved_at %v, want none, none, manual, nil", m.Model, m.OS, m.Origin, m.ApprovedAt)
-	}
-}
-
-// migration inventory 0005: a box that ran before the learning window gives every source that already reported its earliest
-// device as first contact, so an upgrade does not start a learning period for sensors that have watched the network for weeks; a
-// source that never reported learns from its first report. Software rows from before say packaged=false until the agent reports again.
-func TestMigration0005SeedsTheFirstContactOfEverySource(t *testing.T) {
-	t.Parallel()
-	ctx := t.Context()
-	db := storetest.New(t)
-	if err := store.Migrate(ctx, db, "core", core.Migrations); err != nil {
-		t.Fatal(err)
-	}
-	upTo4 := fstest.MapFS{}
-	all, _ := fs.Glob(inventory.Migrations, "*.sql")
-	for _, name := range all {
-		if name < "0005" {
-			b, _ := fs.ReadFile(inventory.Migrations, name)
-			upTo4[name] = &fstest.MapFile{Data: b}
-		}
-	}
-	if err := store.Migrate(ctx, db, "inventory", upTo4); err != nil {
-		t.Fatal(err)
-	}
-	const old, older, boxTS = "2026-10-01T08:00:00.000Z", "2026-09-20T08:00:00.000Z", "2026-09-01T08:00:00.000Z"
-	exec := func(q string) error {
-		return db.Write(ctx, func(tx *sql.Tx) error { _, err := tx.ExecContext(ctx, q); return err })
-	}
-	for _, q := range []string{
-		`INSERT INTO inv_asset (id, ip, kind, origin, is_box, approved, first_seen, last_seen) VALUES ('a-box', '192.168.20.2', 'server', 'discovered', 1, 1, '` + boxTS + `', '` + boxTS + `')`,
-		`INSERT INTO inv_asset (id, ip, kind, origin, first_seen, last_seen) VALUES ('a-1', '192.168.20.10', 'unknown', 'discovered', '` + old + `', '` + old + `'),
-			('a-2', '192.168.20.11', 'unknown', 'discovered', '` + older + `', '` + old + `')`,
-		`INSERT INTO inv_observation (id, asset_id, field, value, source, confidence, seen_at) VALUES
-			('o-1', 'a-1', 'mac', '52:54:00:00:00:10', 'passive', 0.9, '2026-11-13T08:00:00.000Z'),
-			('o-2', 'a-2', 'mac', '52:54:00:00:00:11', 'passive', 0.9, '2026-11-13T08:00:00.000Z'),
-			('o-box', 'a-box', 'os', 'Ubuntu 26.04', 'agent', 1, '` + boxTS + `')`,
-		`INSERT INTO inv_service (id, asset_id, port, proto, name, source, confidence, seen_at) VALUES ('sv-1', 'a-1', 22, 'tcp', 'ssh', 'nmap', 0.5, '2026-11-13T08:00:00.000Z')`,
-		`INSERT INTO inv_software (id, asset_id, display, vendor, product, source, confidence, seen_at) VALUES ('s-box', 'a-box', 'OpenSSL', 'OpenSSL', 'OpenSSL', 'agent', 1, '` + boxTS + `')`,
-	} {
-		if err := exec(q); err != nil {
-			t.Fatalf("%s: %v", q, err)
-		}
-	}
-	if err := store.Migrate(ctx, db, "inventory", inventory.Migrations); err != nil {
-		t.Fatal(err)
-	}
-	rows, err := db.Reader().QueryContext(ctx, `SELECT source, first_seen FROM inv_source ORDER BY source`)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got := map[string]string{}
-	for rows.Next() {
-		var s, f string
-		if err := rows.Scan(&s, &f); err != nil {
-			t.Fatal(err)
-		}
-		got[s] = f
-	}
-	_ = rows.Close()
-	// passive: its earliest device; nmap: the device its service is on; agent: only the box's own data, which is no contact
-	if len(got) != 2 || got["passive"] != older || got["nmap"] != old {
-		t.Fatalf("seeded first contacts = %v, want passive %s and nmap %s only", got, older, old)
-	}
-	var packaged bool
-	if err := db.Reader().QueryRowContext(ctx, `SELECT packaged FROM inv_software WHERE id = 's-box'`).Scan(&packaged); err != nil || packaged {
-		t.Fatalf("packaged of an old row = %v, %v; want false", packaged, err)
 	}
 }
 

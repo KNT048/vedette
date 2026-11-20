@@ -32,6 +32,11 @@ import (
 // directive that is not understood, a quote or comment that never ends, a file that is not an NNNN_name.sql, and a trigger
 // outside -- +goose StatementBegin/StatementEnd. Between releases a migration file must also not be removed, edited or
 // inserted below an applied number of its directory, and the number of migrations (db_schema) must not go down.
+//
+// The schema epoch (core/store/SCHEMA_EPOCH; a revision without the file is epoch 1) is the generation of the history. A
+// release whose epoch is above the baseline's starts a new history: its migrations are not compared file by file, and it is
+// never add-only (the newer core refuses the older database and the older core does not know the newer one), so it must
+// declare rollback.safe=false.
 
 // maxMigFile and maxMigFiles bound what the guard reads (a repository is not trusted to be small).
 const (
@@ -39,8 +44,28 @@ const (
 	maxMigFiles = 2000
 )
 
-// Tree is the migration files of one revision: path (slash form, "modules/<m>/migrations/<dir>/<file>") to contents.
+// Tree is the migration files of one revision: path (slash form, "modules/<m>/migrations/<dir>/<file>") to contents, and
+// the schema epoch file (EpochPath) when the revision has one.
 type Tree map[string][]byte
+
+// EpochPath is the file that holds the schema epoch.
+const EpochPath = "core/store/SCHEMA_EPOCH"
+
+var epochRE = regexp.MustCompile(`^([1-9][0-9]{0,5})\n?$`)
+
+// Epoch is the schema epoch of the tree: 1 when it has no epoch file, 0 when the file does not hold a number.
+func (t Tree) Epoch() int {
+	b, ok := t[EpochPath]
+	if !ok {
+		return 1
+	}
+	m := epochRE.FindSubmatch(b)
+	if m == nil {
+		return 0
+	}
+	n, _ := strconv.Atoi(string(m[1]))
+	return n
+}
 
 var migPathRE = regexp.MustCompile(`^modules/[^/]+/migrations/[^/]+/[^/]+$`)
 var migNameRE = regexp.MustCompile(`^([0-9]{1,6})_[A-Za-z0-9_.-]+\.sql$`)
@@ -74,7 +99,19 @@ func DirTree(fsys fs.FS) (Tree, error) {
 		t[p] = b
 		return nil
 	})
-	return t, err
+	if err != nil {
+		return t, err
+	}
+	b, err := fs.ReadFile(fsys, EpochPath)
+	switch {
+	case err == nil && len(b) <= 64:
+		t[EpochPath] = b
+	case err == nil:
+		return t, fmt.Errorf("%s is larger than 64 bytes", EpochPath)
+	case !errors.Is(err, fs.ErrNotExist):
+		return t, err
+	}
+	return t, nil
 }
 
 var gitRefRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._/-]{0,99}$`)
@@ -90,6 +127,18 @@ func GitTree(ctx context.Context, repo, ref string) (Tree, error) {
 		return nil, err
 	}
 	t := Tree{}
+	if has, err := git("ls-tree", "-z", "--name-only", ref, "--", EpochPath); err != nil {
+		return nil, err
+	} else if len(has) > 0 {
+		b, err := git("show", ref+":"+EpochPath)
+		if err != nil {
+			return nil, err
+		}
+		if len(b) > 64 {
+			return nil, fmt.Errorf("%s is larger than 64 bytes", EpochPath)
+		}
+		t[EpochPath] = b
+	}
 	for _, p := range strings.Split(string(list), "\x00") {
 		if p == "" || !migPathRE.MatchString(p) {
 			continue
@@ -181,11 +230,25 @@ func CheckMigrations(prev, cur Tree) []Finding {
 	if prev.Count() == 0 {
 		add("(baseline)", "the baseline revision holds no migrations: wrong ref?")
 	}
+	switch pe, ce := prev.Epoch(), cur.Epoch(); {
+	case pe == 0 || ce == 0:
+		add(EpochPath, "does not hold a schema epoch number")
+		return out
+	case ce < pe:
+		add(EpochPath, "the schema epoch went down from %d to %d", pe, ce)
+		return out
+	case ce > pe:
+		add(EpochPath, "the schema epoch went up from %d to %d: the migration history starts again, so no box can roll back across this release", pe, ce)
+		return out
+	}
 	if cur.Count() < prev.Count() {
 		add("(db_schema)", "the number of migrations went down from %d to %d", prev.Count(), cur.Count())
 	}
 	maxPrev := map[string]int{} // directory -> highest applied number
 	for p, b := range prev {
+		if p == EpochPath {
+			continue
+		}
 		if n, ok := migNumber(p); ok && n > maxPrev[path.Dir(p)] {
 			maxPrev[path.Dir(p)] = n
 		}
@@ -200,7 +263,9 @@ func CheckMigrations(prev, cur Tree) []Finding {
 	seen := map[string]string{} // directory + number -> file
 	paths := make([]string, 0, len(cur))
 	for p := range cur {
-		paths = append(paths, p)
+		if p != EpochPath {
+			paths = append(paths, p)
+		}
 	}
 	slices.Sort(paths)
 	for _, p := range paths {

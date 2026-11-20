@@ -51,6 +51,7 @@ function Body({ s, locked = false }: { s: McpState; locked?: boolean }) {
   const [scopes, setScopes] = useState<string[]>(['assets', 'findings', 'feeds'])
   const [formErr, setFormErr] = useState<string | null>(null)
   const [created, setCreated] = useState<{ token: string; name: string } | null>(null)
+  const [adding, setAdding] = useState(false)
   const [askRevoke, setAskRevoke] = useState<McpToken | null>(null)
 
   async function create(e: React.FormEvent) {
@@ -58,7 +59,7 @@ function Body({ s, locked = false }: { s: McpState; locked?: boolean }) {
     setFormErr(null)
     if (!name.trim()) { setFormErr(t('mcp.token.nameError')); return }
     if (!scopes.length) { setFormErr(t('mcp.token.scopeError')); return }
-    try { const r = await m.create.mutateAsync({ name: name.trim(), scopes }); setName(''); setCreated({ token: r.token, name: r.item.name }) } catch (err) { setFormErr(errMsg(err, t)) }
+    try { const r = await m.create.mutateAsync({ name: name.trim(), scopes }); setName(''); setAdding(false); setCreated({ token: r.token, name: r.item.name }) } catch (err) { setFormErr(errMsg(err, t)) }
   }
   async function revoke(tk: McpToken) {
     try { await m.revoke.mutateAsync(tk.id); setAskRevoke(null); toast.success(t('mcp.token.revoked', { name: tk.name })) } catch (e) { setAskRevoke(null); toast.error(errMsg(e, t)) }
@@ -93,24 +94,34 @@ function Body({ s, locked = false }: { s: McpState; locked?: boolean }) {
           </Section>
 
           <Section title={t('mcp.token.title')} description={t('mcp.token.desc')}>
-            {locked ? null : <form onSubmit={(e) => void create(e)} className="mb-4 grid max-w-xl gap-3" noValidate>
-              <Field label={t('mcp.token.name')} hint={t('mcp.token.nameHint')} htmlFor="mcp-name" error={formErr ?? undefined}><Input id="mcp-name" value={name} disabled={gate.disabled} aria-invalid={!!formErr} onChange={(e) => setName(e.target.value)} /></Field>
-              <fieldset className="grid gap-2">
-                <legend className="text-sm font-medium">{t('mcp.token.scopes')}</legend>
-                {s.scopes.map((sc) => (
-                  <div key={sc} className="flex items-center gap-2">
-                    <Checkbox id={`sc-${sc}`} checked={scopes.includes(sc)} disabled={gate.disabled} onCheckedChange={(v) => setScopes(v === true ? [...scopes, sc] : scopes.filter((x) => x !== sc))} />
-                    <label htmlFor={`sc-${sc}`} className="text-sm">{t(`mcp.scope.${sc}`)}</label>
-                  </div>
-                ))}
-              </fieldset>
-              <div><Button type="submit" variant="primary" disabled={gate.disabled} busy={m.create.isPending} busyLabel={t('common:busy.creating')} title={gate.title}><Plus />{t('mcp.token.create')}</Button></div>
-            </form>}
-            <DataTable data={s.tokens} columns={tokenCols} caption={t('mcp.token.title')} empty={t('mcp.token.empty')} />
+            {locked ? null : <div className="mb-4"><Button variant="primary" disabled={gate.disabled} title={gate.title} onClick={() => { setFormErr(null); setAdding(true) }}><Plus />{t('mcp.token.create')}</Button></div>}
+            <Dialog open={adding} onOpenChange={setAdding}>
+              {adding ? (
+                <DialogContent title={t('mcp.token.create')}>
+                  <form onSubmit={(e) => void create(e)} className="grid gap-4" noValidate>
+                    <Field label={t('mcp.token.name')} hint={t('mcp.token.nameHint')} htmlFor="mcp-name" error={formErr ?? undefined}><Input id="mcp-name" value={name} disabled={gate.disabled} aria-invalid={!!formErr} onChange={(e) => setName(e.target.value)} /></Field>
+                    <fieldset className="grid gap-2">
+                      <legend className="text-sm font-medium">{t('mcp.token.scopes')}</legend>
+                      {s.scopes.map((sc) => (
+                        <div key={sc} className="flex items-center gap-2">
+                          <Checkbox id={`sc-${sc}`} checked={scopes.includes(sc)} disabled={gate.disabled} onCheckedChange={(v) => setScopes(v === true ? [...scopes, sc] : scopes.filter((x) => x !== sc))} />
+                          <label htmlFor={`sc-${sc}`} className="text-sm">{t(`mcp.scope.${sc}`)}</label>
+                        </div>
+                      ))}
+                    </fieldset>
+                    <DialogFooter>
+                      <Button type="button" onClick={() => setAdding(false)}>{t('common:cancel')}</Button>
+                      <Button type="submit" variant="primary" disabled={gate.disabled} busy={m.create.isPending} busyLabel={t('common:busy.creating')} title={gate.title}>{t('mcp.token.create')}</Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              ) : null}
+            </Dialog>
+            <DataTable urlKey="mcp-tokens" data={s.tokens} columns={tokenCols} caption={t('mcp.token.title')} empty={t('mcp.token.empty')} />
           </Section>
 
           <Section title={t('mcp.tools.title')} description={t('mcp.tools.desc')} info={t('mcp.tools.info')}>
-            <DataTable data={s.tools} columns={toolCols} caption={t('mcp.tools.title')} />
+            <DataTable urlKey="mcp-tools" data={s.tools} columns={toolCols} caption={t('mcp.tools.title')} />
           </Section>
         </>
       ) : null}

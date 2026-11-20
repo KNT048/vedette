@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/productid"
 	"github.com/knt048/vedette/modules/feeds"
 	"github.com/knt048/vedette/modules/findings"
 )
@@ -58,7 +59,7 @@ func TestCVEOrgRecordsThroughTheMatcher(t *testing.T) {
 			}
 		}
 		a := findings.Asset{ID: "a", Name: "dev", Software: []findings.Software{{ID: "s", Display: c.product, Vendor: c.vendor, Product: c.product,
-			Version: c.version, KevKeys: []string{findings.KevKey(c.vendor, c.product)}}}}
+			Version: c.version, KevKeys: []string{productid.Key(c.vendor, c.product)}}}}
 		m := findings.MatchAsset(a, []findings.Vuln{v}, map[string]bool{cve: true}, time.Date(2026, 11, 14, 0, 0, 0, 0, time.UTC))
 		got := "none"
 		switch all := append(m.New, m.Existing...); {

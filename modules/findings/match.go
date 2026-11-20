@@ -9,6 +9,7 @@ import (
 	"unicode"
 
 	"github.com/knt048/vedette/core/orgtime"
+	"github.com/knt048/vedette/core/productid"
 )
 
 // Basis says how a finding was established.
@@ -47,7 +48,7 @@ const (
 type Software struct {
 	ID, Display, Vendor, Product, Version string
 	// KevKeys are the KEV keys the inventory matched this software to
-	// ("vendorproject|product", see NormalizeKevKey).
+	// ("vendorproject|product", see productid.NormalizeKey).
 	KevKeys []string
 	// CPE is an optional CPE 2.3 string of the software; a malformed one is ignored.
 	CPE string
@@ -486,18 +487,6 @@ type VersionNeeded struct {
 	CVEs                 []string // the CVEs that the version would decide, in list order, each once
 }
 
-// NormalizeKevKey normalises a KEV key to "vendorproject|product": each part
-// trimmed and lower-cased, exactly as feeds builds the key.
-func NormalizeKevKey(key string) string {
-	v, p, _ := strings.Cut(key, "|")
-	return KevKey(v, p)
-}
-
-// KevKey builds the KEV key from vendorProject and product.
-func KevKey(vendor, product string) string {
-	return strings.ToLower(strings.TrimSpace(vendor)) + "|" + strings.ToLower(strings.TrimSpace(product))
-}
-
 func isMultiProduct(product string) bool {
 	return strings.EqualFold(strings.TrimSpace(product), "multiple products")
 }
@@ -778,7 +767,7 @@ func nvdProducts(vendor string, afs []Affected) string {
 		}
 		seen[p] = true
 		names = append(names, strings.ReplaceAll(p, "_", " "))
-		if cv, _ := c.Vendor.Literal(); norm(cv) == norm(vendor) {
+		if cv, _ := c.Vendor.Literal(); productid.Norm(cv) == productid.Norm(vendor) {
 			own = append(own, names[len(names)-1])
 		}
 	}
@@ -823,10 +812,10 @@ func keyedTo(s Software, v Vuln) bool {
 		return false // the key separator cannot be part of a KEV vendor or product
 	}
 	multi := isMultiProduct(v.Product)
-	vendorPrefix := strings.ToLower(strings.TrimSpace(v.Vendor)) + "|"
-	key := KevKey(v.Vendor, v.Product)
+	vendorPrefix := productid.Key(v.Vendor, "")
+	key := productid.Key(v.Vendor, v.Product)
 	for _, k := range s.KevKeys {
-		k = NormalizeKevKey(k)
+		k = productid.NormalizeKey(k)
 		if multi && strings.HasPrefix(k, vendorPrefix) || !multi && k == key {
 			return true
 		}
@@ -916,7 +905,7 @@ func winNamesWindows(c CPE) bool {
 	}
 	vn, okV := c.Vendor.Literal()
 	p, okP := c.Product.Literal()
-	return okV && okP && norm(vn) == "microsoft" && winOSComponents[p]
+	return okV && okP && productid.Norm(vn) == "microsoft" && winOSComponents[p]
 }
 
 // linuxKernel is NVD's Linux kernel.
@@ -931,7 +920,7 @@ func distroBuilt(in swInfo) bool {
 	}
 	vn, okV := in.cpe.Vendor.Literal()
 	p, okP := in.cpe.Product.Literal()
-	return in.hasCPE && okV && okP && linuxKernel.matches(norm(vn), norm(p))
+	return in.hasCPE && okV && okP && linuxKernel.matches(productid.Norm(vn), productid.Norm(p))
 }
 
 // nvdCandidates is, per row of sws, the entries of vulns whose NVD list names a vendor the row is known by (rowVendors): the only
@@ -961,10 +950,10 @@ func nvdCandidates(sws []Software, vulns []Vuln) []map[int]bool {
 	return out
 }
 
-// rowVendors are the normalised vendors of the names newSWInfo gives the row: its own, its aliases' (nvd-cpe.json) and its CPE's
+// rowVendors are the normalised vendors of the names newSWInfo gives the row: its own, its aliases' (content/catalog/products) and its CPE's
 // (Microsoft for a Windows release row; edgeIDs keeps Microsoft).
 func rowVendors(s Software) []string {
-	n := identity{vendor: norm(s.Vendor), product: norm(s.Product)}
+	n := identity{vendor: productid.Norm(s.Vendor), product: productid.Norm(s.Product)}
 	out := []string{n.vendor}
 	for _, a := range cpeAliases[n] {
 		out = append(out, a.vendor)
@@ -972,7 +961,7 @@ func rowVendors(s Software) []string {
 	if s.CPE != "" {
 		if c, err := ParseCPE(s.CPE); err == nil {
 			if vn, ok := c.Vendor.Literal(); ok {
-				out = append(out, norm(vn))
+				out = append(out, productid.Norm(vn))
 			}
 		}
 	}
@@ -986,7 +975,7 @@ func cpeVendor(af Affected) string {
 		if rest, ok := strings.CutPrefix(af.CPE, "cpe:2.3:"); ok {
 			if _, rest, ok = strings.Cut(rest, ":"); ok {
 				vn, _, _ := strings.Cut(rest, ":")
-				return norm(vn)
+				return productid.Norm(vn)
 			}
 		}
 	}
@@ -995,13 +984,13 @@ func cpeVendor(af Affected) string {
 		return ""
 	}
 	vn, _ := c.Vendor.Literal()
-	return norm(vn)
+	return productid.Norm(vn)
 }
 
 // keyIDs is the KEV entry's own vendor and product as an NVD identity (decide's key: it finds the entry, but a No on it alone
 // proves nothing); nil for "Multiple Products".
 func keyIDs(v Vuln) []identity {
-	if n := (identity{vendor: norm(v.Vendor), product: norm(v.Product)}); !isMultiProduct(v.Product) && n.ok() {
+	if n := (identity{vendor: productid.Norm(v.Vendor), product: productid.Norm(v.Product)}); !isMultiProduct(v.Product) && n.ok() {
 		return []identity{n}
 	}
 	return nil
@@ -1303,7 +1292,7 @@ func newSWInfo(s Software, osName string) swInfo {
 	if in.packaged {
 		in.pkgVer, in.pkgSrc = s.PkgVersion, s.PkgSource
 	}
-	if n := (identity{vendor: norm(s.Vendor), product: norm(s.Product)}); n.ok() {
+	if n := (identity{vendor: productid.Norm(s.Vendor), product: productid.Norm(s.Product)}); n.ok() {
 		in.ids = append(append(append(in.ids, n), cpeAliases[n]...), edgeIDs(s.Vendor, s.Product, in.ver)...)
 	}
 	return in
@@ -1321,17 +1310,17 @@ func nvdOthersOnly(in swInfo, v Vuln) string {
 		return ""
 	}
 	_, win := windowsProduct(in.cpe)
-	win = win && in.hasCPE || norm(v.Vendor) == "microsoft" && norm(v.Product) == "windows"
+	win = win && in.hasCPE || productid.Norm(v.Vendor) == "microsoft" && productid.Norm(v.Product) == "windows"
 	ids := in.ids
 	if in.hasCPE {
 		cv, okV := in.cpe.Vendor.Literal()
 		cp, okP := in.cpe.Product.Literal()
 		if okV && okP {
-			ids = append(slices.Clip(ids), identity{vendor: norm(cv), product: norm(cp)})
+			ids = append(slices.Clip(ids), identity{vendor: productid.Norm(cv), product: productid.Norm(cp)})
 		}
 	}
 	var key []identity
-	if n := (identity{vendor: norm(v.Vendor), product: norm(v.Product)}); !isMultiProduct(v.Product) && n.ok() {
+	if n := (identity{vendor: productid.Norm(v.Vendor), product: productid.Norm(v.Product)}); !isMultiProduct(v.Product) && n.ok() {
 		key = []identity{n}
 	}
 	for _, af := range v.Affected {
@@ -1343,7 +1332,7 @@ func nvdOthersOnly(in swInfo, v Vuln) string {
 			if _, ok := winListedOf(c); ok {
 				return ""
 			}
-			if vn, okV := c.Vendor.Literal(); okV && norm(vn) == "microsoft" {
+			if vn, okV := c.Vendor.Literal(); okV && productid.Norm(vn) == "microsoft" {
 				if p, okP := c.Product.Literal(); okP && winOSComponents[p] {
 					return ""
 				}
@@ -1356,13 +1345,15 @@ func nvdOthersOnly(in swInfo, v Vuln) string {
 		}
 		cv, _ := c.Vendor.Literal()
 		cp, _ := c.Product.Literal()
-		if slices.ContainsFunc(ids, func(i identity) bool { return i.ok() && i.vendor == norm(cv) && strings.HasPrefix(norm(cp), i.product) }) {
+		if slices.ContainsFunc(ids, func(i identity) bool {
+			return i.ok() && i.vendor == productid.Norm(cv) && strings.HasPrefix(productid.Norm(cp), i.product)
+		}) {
 			return ""
 		}
 		if distroRelease(c) && !in.os.ok() { // a distribution's row on a device whose distribution is not read (Mint, Pop!_OS, "Ubuntu", none) may be its own (#909)
 			return ""
 		}
-		if in.os.ok() && in.os.matches(norm(cv), norm(cp)) { // the device's own OS (osRulesOut's identity): CVE-2021-3493 lists Ubuntu releases for a kernel flaw (#909)
+		if in.os.ok() && in.os.matches(productid.Norm(cv), productid.Norm(cp)) { // the device's own OS (osRulesOut's identity): CVE-2021-3493 lists Ubuntu releases for a kernel flaw (#909)
 			return ""
 		}
 	}
@@ -1415,7 +1406,7 @@ func pinnedInside(in swInfo, v Vuln, key []identity) (r VersionRange, editions s
 		}
 		vn, _ := c.Vendor.Literal()
 		p, _ := c.Product.Literal()
-		k := norm(vn) + ":" + norm(p)
+		k := productid.Norm(vn) + ":" + productid.Norm(p)
 		st, seen := byProduct[k]
 		if !seen {
 			st = &state{sets: map[string]bool{}}
@@ -1675,17 +1666,6 @@ func (i identity) matches(vendor, product string) bool {
 	return i.product == product
 }
 
-// norm keeps only [a-z0-9] so "Photo Station" equals "photo_station".
-func norm(s string) string {
-	var sb strings.Builder
-	for _, r := range strings.ToLower(s) {
-		if r >= 'a' && r <= 'z' || r >= '0' && r <= '9' {
-			sb.WriteRune(r)
-		}
-	}
-	return sb.String()
-}
-
 // appliesTo says whether configuration c is about this software. known is false
 // when c names its vendor or product with ANY, NA or a wildcard and the software
 // has no CPE to settle it: such an entry may be about this software.
@@ -1698,7 +1678,7 @@ func appliesTo(c, sw CPE, hasSW bool, ids []identity) (match, known bool) {
 	if !okV || !okP {
 		return false, false
 	}
-	cv, cp = norm(cv), norm(cp)
+	cv, cp = productid.Norm(cv), productid.Norm(cp)
 	for _, i := range ids {
 		if i.matches(cv, cp) {
 			return true, true

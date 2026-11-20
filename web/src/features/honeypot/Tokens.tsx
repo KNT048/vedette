@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { FlaskConical, Trash2 } from 'lucide-react'
+import { FlaskConical, Plus, Trash2 } from 'lucide-react'
 import { InfoTip } from '@/components/common/InfoTip'
 import { Section } from '@/components/common/PageHeader'
 import { Card } from '@/components/common/Card'
@@ -9,6 +9,7 @@ import { EmptyState, QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { CodeBlock } from '@/components/common/CodeBlock'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Input, Select } from '@/components/ui/input'
 import { fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
@@ -34,74 +35,21 @@ function Inner({ items }: { items: Token[] }) {
   const { t } = useTranslation('honeypot')
   const admin = useCan('admin')
   const operator = useCan('operator')
-  const add = useAddToken()
   const del = useDeleteToken()
   const test = useTestToken()
-  // One click on a return visit too (#717 review): start on the first preset whose name is not made yet (the box refuses a
-  // duplicate name per type), the blank form when all are.
-  const [first] = useState(() => TOKEN_PRESETS.find((p) => !items.some((k) => k.type === p.type && k.name.toLowerCase() === tokenPresetName(p).toLowerCase())))
-  const [preset, setPreset] = useState<TokenPreset>(first?.id ?? 'custom')
-  const [type, setType] = useState<OfferedTokenType>(first?.type ?? 'file')
-  const [ext, setExt] = useState<'docx' | 'xlsx'>(first?.ext ?? 'xlsx')
-  const [name, setName] = useState(first ? tokenPresetName(first) : '')
-  const [plant, setPlant] = useState(first ? t(`token.preset.${first.id}.plant`) : '')
-  const [error, setError] = useState<string | null>(null)
-
-  function pickPreset(id: TokenPreset) {
-    setPreset(id)
-    setError(null)
-    const d = TOKEN_PRESETS.find((p) => p.id === id)
-    if (!d) { setName(''); setPlant(''); return } // Custom: the blank form, the type stays
-    setType(d.type)
-    if (d.ext) setExt(d.ext)
-    setName(tokenPresetName(d))
-    setPlant(t(`token.preset.${d.id}.plant`))
-  }
-
-  function submit(e: FormEvent) {
-    e.preventDefault()
-    setError(null)
-    add.mutate({ type, name: name.trim(), plant_at: plant.trim(), ...(type === 'file' ? { ext } : {}) }, {
-      onSuccess: () => { toast.success(t('token.created')); pickPreset('custom') },
-      onError: (er) => setError(errMsg(er)),
-    })
-  }
-
+  const [adding, setAdding] = useState(false)
   return (
     <div className="grid gap-4">
-      <Card>
-        <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1.2fr_auto] lg:items-start" noValidate>
-          <Field label={t('token.form.preset')} htmlFor="tk-preset" hint={t('token.form.presetHint')} info={t('token.form.presetHintInfo')} className="sm:col-span-2 sm:max-w-sm lg:col-span-4">
-            <Select id="tk-preset" value={preset} disabled={!admin} onChange={(e) => pickPreset(e.target.value as TokenPreset)}>
-              {TOKEN_TYPES.map((x) => (
-                <optgroup key={x} label={t(`token.type.${x}`)}>
-                  {TOKEN_PRESETS.filter((p) => p.type === x).map((p) => <option key={p.id} value={p.id}>{t(`token.preset.${p.id}.label`)}</option>)}
-                </optgroup>
-              ))}
-              <option value="custom">{t('token.preset.custom.label')}</option>
-            </Select>
-          </Field>
-          <Field label={t('token.form.type')} htmlFor="tk-type" hint={t(`token.what.${type}`)}>
-            <Select id="tk-type" value={type} disabled={!admin} onChange={(e) => { setType(e.target.value as OfferedTokenType); setPreset('custom'); setName(''); setPlant(''); setError(null) }}>
-              {TOKEN_TYPES.map((x) => <option key={x} value={x}>{t(`token.type.${x}`)}</option>)}
-            </Select>
-          </Field>
-          <Field label={t(`token.form.name.${type}`)} htmlFor="tk-name" error={error ?? undefined} hint={t(`token.form.nameHint.${type}`)} info={type === 'credential' ? t('token.form.nameHint.credentialInfo') : undefined}>
-            <div className="flex gap-2">
-              <Input id="tk-name" value={name} onChange={(e) => setName(e.target.value)} disabled={!admin} autoComplete="off" spellCheck={false} aria-invalid={error ? true : undefined} />
-              {type === 'file' ? (
-                <Select aria-label={t('token.form.ext')} value={ext} disabled={!admin} onChange={(e) => setExt(e.target.value as 'docx' | 'xlsx')} className="w-24">
-                  <option value="xlsx">.xlsx</option><option value="docx">.docx</option>
-                </Select>
-              ) : null}
-            </div>
-          </Field>
-          <Field label={t('token.form.plant')} htmlFor="tk-plant" hint={t(`token.form.plantHint.${type}`)}>
-            <Input id="tk-plant" value={plant} onChange={(e) => setPlant(e.target.value)} disabled={!admin} autoComplete="off" />
-          </Field>
-          <Button type="submit" variant="primary" className="sm:mt-6.5" disabled={!admin} busy={add.isPending} busyLabel={t('common:busy.creating')} title={!admin ? t('common:needRole', { role: t('common:role.admin') }) : undefined}>{t('token.form.create')}</Button>
-        </form>
-      </Card>
+      <div>
+        <Button variant="primary" disabled={!admin} onClick={() => setAdding(true)} title={!admin ? t('common:needRole', { role: t('common:role.admin') }) : undefined}><Plus />{t('token.form.new')}</Button>
+      </div>
+      <Dialog open={adding} onOpenChange={setAdding}>
+        {adding ? (
+          <DialogContent title={t('token.form.new')}>
+            <TokenForm items={items} onDone={() => setAdding(false)} />
+          </DialogContent>
+        ) : null}
+      </Dialog>
 
       {items.length === 0 ? <EmptyState title={t('token.emptyTitle')}>{t('token.emptyBody')}</EmptyState> : (
         <Card flush>
@@ -142,5 +90,78 @@ function Inner({ items }: { items: Token[] }) {
         </Card>
       )}
     </div>
+  )
+}
+
+/** The add form of one honey token: a preset fills a believable token, every field stays editable. Lives in a dialog over the list. */
+function TokenForm({ items, onDone }: { items: Token[]; onDone: () => void }) {
+  const { t } = useTranslation('honeypot')
+  const admin = useCan('admin')
+  const add = useAddToken()
+  // One click on a return visit too: start on the first preset whose name is not made yet (the box refuses a
+  // duplicate name per type), the blank form when all are.
+  const [first] = useState(() => TOKEN_PRESETS.find((p) => !items.some((k) => k.type === p.type && k.name.toLowerCase() === tokenPresetName(p).toLowerCase())))
+  const [preset, setPreset] = useState<TokenPreset>(first?.id ?? 'custom')
+  const [type, setType] = useState<OfferedTokenType>(first?.type ?? 'file')
+  const [ext, setExt] = useState<'docx' | 'xlsx'>(first?.ext ?? 'xlsx')
+  const [name, setName] = useState(first ? tokenPresetName(first) : '')
+  const [plant, setPlant] = useState(first ? t(`token.preset.${first.id}.plant`) : '')
+  const [error, setError] = useState<string | null>(null)
+
+  function pickPreset(id: TokenPreset) {
+    setPreset(id)
+    setError(null)
+    const d = TOKEN_PRESETS.find((p) => p.id === id)
+    if (!d) { setName(''); setPlant(''); return } // Custom: the blank form, the type stays
+    setType(d.type)
+    if (d.ext) setExt(d.ext)
+    setName(tokenPresetName(d))
+    setPlant(t(`token.preset.${d.id}.plant`))
+  }
+
+  function submit(e: FormEvent) {
+    e.preventDefault()
+    setError(null)
+    add.mutate({ type, name: name.trim(), plant_at: plant.trim(), ...(type === 'file' ? { ext } : {}) }, {
+      onSuccess: () => { toast.success(t('token.created')); onDone() },
+      onError: (er) => setError(errMsg(er)),
+    })
+  }
+
+  return (
+    <form onSubmit={submit} className="grid gap-4" noValidate>
+      <Field label={t('token.form.preset')} htmlFor="tk-preset" hint={t('token.form.presetHint')} info={t('token.form.presetHintInfo')}>
+        <Select id="tk-preset" value={preset} disabled={!admin} onChange={(e) => pickPreset(e.target.value as TokenPreset)}>
+          {TOKEN_TYPES.map((x) => (
+            <optgroup key={x} label={t(`token.type.${x}`)}>
+              {TOKEN_PRESETS.filter((p) => p.type === x).map((p) => <option key={p.id} value={p.id}>{t(`token.preset.${p.id}.label`)}</option>)}
+            </optgroup>
+          ))}
+          <option value="custom">{t('token.preset.custom.label')}</option>
+        </Select>
+      </Field>
+      <Field label={t('token.form.type')} htmlFor="tk-type" hint={t(`token.what.${type}`)}>
+        <Select id="tk-type" value={type} disabled={!admin} onChange={(e) => { setType(e.target.value as OfferedTokenType); setPreset('custom'); setName(''); setPlant(''); setError(null) }}>
+          {TOKEN_TYPES.map((x) => <option key={x} value={x}>{t(`token.type.${x}`)}</option>)}
+        </Select>
+      </Field>
+      <Field label={t(`token.form.name.${type}`)} htmlFor="tk-name" error={error ?? undefined} hint={t(`token.form.nameHint.${type}`)} info={type === 'credential' ? t('token.form.nameHint.credentialInfo') : undefined}>
+        <div className="flex gap-2">
+          <Input id="tk-name" value={name} onChange={(e) => setName(e.target.value)} disabled={!admin} autoComplete="off" spellCheck={false} aria-invalid={error ? true : undefined} />
+          {type === 'file' ? (
+            <Select aria-label={t('token.form.ext')} value={ext} disabled={!admin} onChange={(e) => setExt(e.target.value as 'docx' | 'xlsx')} className="w-24">
+              <option value="xlsx">.xlsx</option><option value="docx">.docx</option>
+            </Select>
+          ) : null}
+        </div>
+      </Field>
+      <Field label={t('token.form.plant')} htmlFor="tk-plant" hint={t(`token.form.plantHint.${type}`)}>
+        <Input id="tk-plant" value={plant} onChange={(e) => setPlant(e.target.value)} disabled={!admin} autoComplete="off" />
+      </Field>
+      <DialogFooter>
+        <Button type="button" onClick={onDone}>{t('common:cancel')}</Button>
+        <Button type="submit" variant="primary" disabled={!admin} busy={add.isPending} busyLabel={t('common:busy.creating')}>{t('token.form.create')}</Button>
+      </DialogFooter>
+    </form>
   )
 }

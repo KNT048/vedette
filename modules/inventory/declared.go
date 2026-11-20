@@ -9,6 +9,7 @@ import (
 
 	catalogdata "github.com/knt048/vedette/content/catalog"
 	"github.com/knt048/vedette/content/devicetypes"
+	"github.com/knt048/vedette/core/productid"
 )
 
 // What a person declared is what the device is, where the matcher reads it so (INV-45). A device added by hand as "FortiGate,
@@ -45,9 +46,9 @@ var osProducts, modelProducts = func() (map[string]osProduct, map[string][]strin
 		// own ("Juniper Junos OS", "Windows 11") does not.
 		if appliance(r.Kind) && !strings.Contains(fold(r.Display), fold(r.Product)) {
 			p.model = r.Display
-			models[r.Display] = append(models[r.Display], osKey(r.Vendor, r.Product))
+			models[r.Display] = append(models[r.Display], productid.Key(r.Vendor, r.Product))
 		}
-		out[osKey(r.Vendor, r.Product)] = p
+		out[productid.Key(r.Vendor, r.Product)] = p
 	}
 	var netOS struct {
 		OS []struct{ Vendor, Product string } `json:"os"`
@@ -56,17 +57,12 @@ var osProducts, modelProducts = func() (map[string]osProduct, map[string][]strin
 		panic(fmt.Sprintf("inventory: network-os.json: %v", err))
 	}
 	for _, r := range netOS.OS {
-		if _, ok := out[osKey(r.Vendor, r.Product)]; !ok {
-			out[osKey(r.Vendor, r.Product)] = osProduct{}
+		if _, ok := out[productid.Key(r.Vendor, r.Product)]; !ok {
+			out[productid.Key(r.Vendor, r.Product)] = osProduct{}
 		}
 	}
 	return out, models
 }()
-
-// osKey is lower(vendor) | lower(product), as SQL's lower() folds ASCII.
-func osKey(vendor, product string) string {
-	return strings.ToLower(strings.TrimSpace(vendor)) + "|" + strings.ToLower(strings.TrimSpace(product))
-}
 
 // appliance says whether a catalog kind is a box whose product is the device itself (not a computer that runs it).
 func appliance(kind string) bool {
@@ -85,7 +81,7 @@ func declaredCandidates(sw []Software) []*Software {
 		if s.Source != "manual" || !s.live || s.NotInstalled {
 			continue
 		}
-		if _, ok := osProducts[osKey(s.Vendor, s.Product)]; ok {
+		if _, ok := osProducts[productid.Key(s.Vendor, s.Product)]; ok {
 			out = append(out, s)
 		}
 	}
@@ -152,7 +148,7 @@ func (s *Service) applyDeclared(ctx context.Context, d *Device) {
 		return &Observed{Value: v, Source: "manual", Confidence: row.Confidence, SeenAt: row.seenAt, SoftwareID: row.ID}
 	}
 	d.OS = at(strings.TrimSpace(row.Product + " " + version))
-	if m := osProducts[osKey(row.Vendor, row.Product)].model; d.Model == nil && m != "" {
+	if m := osProducts[productid.Key(row.Vendor, row.Product)].model; d.Model == nil && m != "" {
 		d.Model = at(m)
 	}
 	if d.Vendor == nil {

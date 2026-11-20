@@ -33,6 +33,7 @@ var (
 	_ sensorlink.Backend          = sensorBackend{}
 	_ sensorlink.ResultRejector   = sensorBackend{}
 	_ sensorlink.ProgressReceiver = sensorBackend{}
+	_ sensorlink.MetadataReceiver = sensorBackend{}
 )
 
 // sensorModule is the module a role talks to: the switch behind module_off.

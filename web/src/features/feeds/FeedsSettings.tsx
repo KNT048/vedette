@@ -141,7 +141,7 @@ function Tables({ items }: { items: Feed[] }) {
   return (
     <>
       <Section id="feeds-builtin" title={t('builtin.title')} description={t('builtin.description')} info={t('builtin.descriptionInfo')} stories={['S-FEED-4']}>
-        <DataTable<Feed> caption={t('builtin.caption')} data={builtins} mobileRow={(f) => mobile(f, builtinActions(f))}
+        <DataTable<Feed> urlKey="feeds-builtin" caption={t('builtin.caption')} data={builtins} mobileRow={(f) => mobile(f, builtinActions(f))}
           columns={[
             { id: 'name', header: t('col.feed'), accessorKey: 'name', cell: ({ row }: R) => name(row.original) },
             common.on, common.schedule, common.last, common.records, common.status,
@@ -154,7 +154,7 @@ function Tables({ items }: { items: Feed[] }) {
         ) : (
           <>
           {customs.some((f) => f.kind === 'vulnerabilities') ? <div className="mb-2 flex items-center gap-1 text-meta text-muted"><p>{t('custom.vulnNote')}</p><InfoTip topic={t('custom.title')}>{t('custom.vulnNoteInfo')}</InfoTip></div> : null}
-          <DataTable<Feed> caption={t('custom.caption')} data={customs} mobileRow={(f) => mobile(f, customActions(f))}
+          <DataTable<Feed> urlKey="feeds-custom" caption={t('custom.caption')} data={customs} mobileRow={(f) => mobile(f, customActions(f))}
             columns={[
               { id: 'name', header: t('col.feed'), accessorKey: 'name', cell: ({ row }: R) => name(row.original) },
               common.on, common.schedule, common.last, common.records, common.status,

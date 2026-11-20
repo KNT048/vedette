@@ -3,15 +3,12 @@ package feeds
 import (
 	"database/sql"
 	"fmt"
-	"io/fs"
 	"net/http"
 	"slices"
 	"strings"
 	"testing"
-	"testing/fstest"
 	"time"
 
-	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/core/store/storetest"
 	"github.com/knt048/vedette/modules/core"
 )
@@ -300,47 +297,5 @@ func TestTierRecords_PlatformsAndChunks(t *testing.T) {
 	got, err = e.svc.st.TierRecords(t.Context(), now, func(cpe string) bool { return strings.Contains(cpe, ":many:") })
 	if err != nil || len(got) != 1 || len(got[0].Affected) != tierChunk+1 || len(got[0].Platforms) != tierChunk+1 {
 		t.Fatalf("across chunks: %d records, %v", len(got), err)
-	}
-}
-
-// Migration 0013 (review r1 #6 of #804) on a box with nvd-recent loaded: the rows' condition is not known (NULL) and the cursor goes,
-// so the next pull loads the 12 months again and the feed says it is loading meanwhile.
-func TestMigration0013RefillsNVDRecent(t *testing.T) {
-	t.Parallel()
-	before := fstest.MapFS{}
-	entries, err := fs.ReadDir(Migrations, ".")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, en := range entries {
-		if en.Name() >= "0013" {
-			continue
-		}
-		b, err := fs.ReadFile(Migrations, en.Name())
-		if err != nil {
-			t.Fatal(err)
-		}
-		before[en.Name()] = &fstest.MapFile{Data: b}
-	}
-	db := storetest.Migrated(t, storetest.Migration{Module: "core", FS: core.Migrations}, storetest.Migration{Module: "feeds", FS: before})
-	s := &Store{db: db}
-	now := time.Date(2026, 11, 15, 0, 0, 0, 0, time.UTC)
-	if err := s.SeedBuiltins(t.Context(), now); err != nil {
-		t.Fatal(err)
-	}
-	execSQL(t, db, `INSERT INTO feeds_recent_cve (cve, published, last_modified, status) VALUES ('CVE-2026-0001', '2026-10-01T00:00:00.000Z', '2026-10-01T00:00:00.000Z', 'Analyzed')`)
-	execSQL(t, db, `INSERT INTO feeds_recent_affected (cve, cpe, start_incl, start_excl, end_incl, end_excl) VALUES ('CVE-2026-0001', 'cpe:2.3:a:f5:nginx:*:*:*:*:*:*:*:*', '', '', '', '2.0')`)
-	execSQL(t, db, `INSERT INTO feeds_recent_cursor (id, url, mode, win_from, win_to, until, next_index, total) VALUES (1, 'https://x.test/nvd', 'done', '2026-11-14T00:00:00.000Z', '2026-11-14T00:00:00.000Z', '2026-11-14T00:00:00.000Z', 0, 0)`)
-	if st, _ := s.TierStatus(t.Context(), now); st.Recent != TierReady {
-		t.Fatalf("before: %+v", st)
-	}
-	if err := store.Migrate(t.Context(), db, "feeds", Migrations); err != nil {
-		t.Fatal(err)
-	}
-	if st, _ := s.TierStatus(t.Context(), now); st.Recent != TierLoading {
-		t.Fatalf("after 0013 the feed must load again: %+v", st)
-	}
-	if c, err := s.recentCursor(t.Context()); err != nil || c != nil {
-		t.Fatalf("cursor %+v %v", c, err)
 	}
 }

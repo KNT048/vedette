@@ -260,11 +260,29 @@ type inspection struct {
 	opened           int // of those, how many key opens; 0 without a key
 }
 
+// liveSchema is what a backup is compared with: the live database's migration versions and its schema epoch row.
+type liveSchema struct {
+	versions string      // "module=version,..."
+	epoch    store.Epoch // the row of store.EpochTable
+	stamped  bool        // the live database has that row (every database this build started on has)
+}
+
+func (h *OSHandlers) liveSchema(ctx context.Context) (liveSchema, error) {
+	var l liveSchema
+	var err error
+	if l.versions, err = h.db.SchemaVersions(ctx); err != nil {
+		return l, err //nolint:wrapcheck // store's error names what failed
+	}
+	l.epoch, l.stamped, err = store.EpochOf(ctx, h.db.Reader())
+	return l, err //nolint:wrapcheck // store's error names what failed
+}
+
 // inspectBackup opens the staged database read-only (immutable: SQLite writes nothing, not even a -wal; trusted_schema off:
 // nothing in the file's schema runs a function) and checks it is a Vedette database this software can run: SQLite's
-// quick_check, no module newer than live (409 schema_newer), an organization that finished setup. With key it counts the
-// secrets the key opens. The file is untrusted: only counts and the organization name come out of it.
-func inspectBackup(ctx context.Context, path, live string, key []byte, reference func(context.Context, string) (map[string]string, error)) (inspection, error) {
+// quick_check, the schema epoch and migration files of live (a backup of a pre-release build is refused: this build would
+// not start on it), no module newer than live (409 schema_newer), an organization that finished setup. With key it counts
+// the secrets the key opens. The file is untrusted: only counts and the organization name come out of it.
+func inspectBackup(ctx context.Context, path string, live liveSchema, key []byte, reference func(context.Context, string) (map[string]string, error)) (inspection, error) {
 	var ins inspection
 	damaged := notABackup("The database in this backup is damaged. Choose another backup.")
 	f, err := os.Open(path) //nolint:gosec // a staged upload's fixed name
@@ -295,7 +313,12 @@ func inspectBackup(ctx context.Context, path, live string, key []byte, reference
 	if ins.schema, err = store.SchemaVersionsOf(ctx, db); err != nil || !strings.Contains(","+ins.schema, ",core=") || !archive.ValidSchema(ins.schema) {
 		return ins, notABackup("This file is not a Vedette backup.")
 	}
-	if schemaNewer(ins.schema, live) {
+	if e, ok, err := store.EpochOf(ctx, db); err != nil {
+		return ins, damaged
+	} else if ok != live.stamped || e != live.epoch {
+		return ins, notABackup("This backup was made by a pre-release build of Vedette, which this version cannot restore. Choose a backup made by this version.")
+	}
+	if schemaNewer(ins.schema, live.versions) {
 		return ins, apierr.New(409, api.CodeSchemaNewer, "This backup was made by a newer Vedette. Install that version (or a later one) on this box first, then restore.")
 	}
 	// Triggers and views run on the live box once it is restored: a file changed at rest could plant one (a hidden account made
@@ -422,7 +445,7 @@ func (h *OSHandlers) CorePostCoreSetupRestoreUpload(ctx context.Context, req oas
 			h.log.WarnContext(ctx, "core: the upload keeps the server's read timeout; a large backup may be cut", "error", err)
 		}
 	}
-	live, err := h.db.SchemaVersions(ctx)
+	live, err := h.liveSchema(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -480,7 +503,7 @@ func (h *OSHandlers) CorePostCoreSetupRestore(ctx context.Context, req *oas.Core
 	if err != nil {
 		return nil, err
 	}
-	live, err := h.db.SchemaVersions(ctx)
+	live, err := h.liveSchema(ctx)
 	if err != nil {
 		return nil, err
 	}

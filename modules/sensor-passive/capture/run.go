@@ -40,7 +40,7 @@ type Config struct {
 	Interfaces func(ctx context.Context) ([]Interface, error)
 	// Open opens a Source for an interface name; default OpenLive. Tests pass a replay of a fixture.
 	Open func(iface string) (Source, error)
-	// Meta receives SPAN metadata. On the wire there is none: nil drops it.
+	// Meta receives SPAN metadata (the sensor binary: LinkMetadata). nil drops it.
 	Meta    MetadataSink
 	Clock   func() time.Time
 	Log     *slog.Logger
@@ -555,13 +555,12 @@ func (r *Runner) flush(ctx context.Context, eng *Engine, final bool) {
 	if len(obs) == 0 {
 		r.failures, r.holdUntil, r.poisonN, r.batchMax, r.retryAfter = 0, time.Time{}, 0, 0, 0
 	}
-	for len(meta) > 0 {
-		n := min(len(meta), maxSubmitBatch)
-		batch := meta[:n]
-		meta = meta[n:]
-		if err := r.meta.Metadata(ctx, r.nextSeq(), batch); err != nil {
+	// All of a flush's metadata goes to the sink in one call. The sink must not wait for the network here (this is the capture
+	// loop): LinkMetadata only queues, and its own goroutine posts at its own pace.
+	if len(meta) > 0 {
+		if err := r.meta.Metadata(ctx, r.nextSeq(), meta); err != nil {
 			eng.CountDrop("metadata_failed")
-			r.log.WarnContext(ctx, "sensor-passive: metadata not delivered", "count", len(batch), "error", err)
+			r.log.WarnContext(ctx, "sensor-passive: metadata not delivered", "error", err)
 		}
 	}
 }

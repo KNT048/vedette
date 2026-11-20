@@ -78,6 +78,34 @@ type Rejected struct {
 	Code  string `json:"code"`
 }
 
+// MetadataRequest is the body of POST /metadata (passive role): what the capture read on a mirror port, reduced to what the
+// bad-address matching needs: which LAN address asked for which name, or opened a flow to which address. Nothing else of a
+// packet is on the wire (no port, no counter, no payload), and core keeps none of it: only the matches with a threat feed are
+// stored. There is no epoch and no seq: a batch sent twice makes the same matches, which core keeps once.
+type MetadataRequest struct {
+	Items []MetadataItem `json:"items"`
+}
+
+// MetadataItem is one thing seen on the mirror port. Kind is one of MetaKinds; Src is the IPv4 address of the LAN device; Dest is
+// the name it asked for or connected to (dns, sni, http: lower case, no trailing dot) or the IPv4 address of a flow.
+type MetadataItem struct {
+	Kind string    `json:"kind"`
+	At   time.Time `json:"at"`
+	Src  string    `json:"src"`
+	Dest string    `json:"dest"`
+}
+
+// The kinds of a MetadataItem.
+const (
+	MetaDNS  = "dns"  // a DNS query name
+	MetaSNI  = "sni"  // the server name of a TLS ClientHello
+	MetaHTTP = "http" // the Host header of an HTTP request
+	MetaFlow = "flow" // the destination address of an IPv4 flow
+)
+
+// MetaKinds is the closed set of metadata kinds.
+var MetaKinds = []string{MetaDNS, MetaSNI, MetaHTTP, MetaFlow}
+
 // PassiveHeartbeat is the heartbeat body of the passive role.
 type PassiveHeartbeat struct {
 	Version     string           `json:"version"`
@@ -657,6 +685,70 @@ func decodeObservations(raw []byte) (*ObservationsRequest, error) {
 		return nil, invalid("items")
 	}
 	return &r, nil
+}
+
+// decodeMetadata checks the body of POST /metadata item by item: a sensor sends only items it has already checked, so one item
+// that is not of the protocol's shape refuses the whole body (400) rather than letting a part of it through.
+func decodeMetadata(raw []byte) (*MetadataRequest, error) {
+	var r MetadataRequest
+	if err := jsonstrict.Decode(raw, &r); err != nil {
+		return nil, fmt.Errorf("%w: %w", errInvalid, err)
+	}
+	if len(r.Items) < 1 || len(r.Items) > MaxMetadataItems {
+		return nil, invalid("items")
+	}
+	for _, it := range r.Items {
+		if !ValidMetadataItem(it) {
+			return nil, invalid("metadata item")
+		}
+	}
+	return &r, nil
+}
+
+// ValidMetadataItem reports whether it has the shape of the protocol: a known kind, a time, an IPv4 source in canonical form, and a
+// destination that is an IPv4 address in canonical form (flow) or a host name of at most 253 bytes of lower-case letters, digits,
+// '-', '_' and dots between non-empty labels of at most 63 bytes (the other kinds). The sensor checks its items with it before it
+// sends them, and core checks them again.
+func ValidMetadataItem(it MetadataItem) bool {
+	if !slices.Contains(MetaKinds, it.Kind) || it.At.IsZero() || !canonicalIPv4(it.Src) {
+		return false
+	}
+	if it.Kind == MetaFlow {
+		return canonicalIPv4(it.Dest)
+	}
+	return metaNameOK(it.Dest)
+}
+
+func canonicalIPv4(s string) bool {
+	if len(s) > 15 {
+		return false
+	}
+	a, err := netip.ParseAddr(s)
+	return err == nil && a.Is4() && a.String() == s
+}
+
+func metaNameOK(s string) bool {
+	if s == "" || len(s) > 253 {
+		return false
+	}
+	label := 0
+	for i := 0; i < len(s); i++ {
+		switch c := s[i]; {
+		case c == '.':
+			if label == 0 {
+				return false
+			}
+			label = 0
+			continue
+		case c >= 'a' && c <= 'z', c >= '0' && c <= '9', c == '-', c == '_':
+		default:
+			return false
+		}
+		if label++; label > 63 {
+			return false
+		}
+	}
+	return label > 0
 }
 
 // ValidVersion reports whether s is a SemVer of the form a heartbeat may carry. core checks its own build version with it at start

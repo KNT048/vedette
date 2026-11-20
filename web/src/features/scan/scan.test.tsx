@@ -491,8 +491,8 @@ describe('scan: tự quét lại khi có KEV mới (S-SCAN-2)', () => {
     await expectNoA11yViolations()
     // the run opens on its own page, with why it stopped
     await userEvent.click(within(table).getByRole('link', { name: 'see the run' }))
+    expect(await screen.findByRole('heading', { level: 1, name: /Vulnerability checks of/ }, { timeout: 4000 })).toBeInTheDocument()
     expect(await screen.findByText('You pressed Stop now.', {}, { timeout: 4000 })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { level: 1, name: /Vulnerability checks of/ })).toBeInTheDocument()
   })
 
   it('a rescan dropped after 7 days stays in the log with the reason', async () => {

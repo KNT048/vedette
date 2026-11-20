@@ -11,6 +11,7 @@ import (
 
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/jobs"
+	"github.com/knt048/vedette/core/lifecycle"
 	"github.com/knt048/vedette/core/observe"
 	hostapi "github.com/knt048/vedette/host/api"
 	hostclient "github.com/knt048/vedette/host/client"
@@ -39,8 +40,12 @@ func newInventory(d *deps) *inventory.Service {
 		}
 		return append(d.Honeypot.DecoyIPs(ctx), d.Honeypot.TrapIPAddrs(ctx)...) // a Trap IP not handed over yet is the box's too (B2 lab)
 	}
+	if d.Lifecycle == nil {
+		d.Lifecycle = &lifecycle.Hooks{}
+	}
 	cfg := inventory.Config{Zone: orgTimeZone(d), DB: d.DB, Audit: d.Audit, Modules: d.Reg, Clock: d.Clock, Log: d.Log, Events: pub, KEV: feedsKEV{d}, BoxOwnedIPs: owned,
-		Findings: findingCounts{d}, Risk: findingCounts{d}, WazuhAgents: wazuhAgents{d}.addresses, DeclaredOS: declaredOS, OSVersion: findings.OSVersion}
+		Findings: findingCounts{d}, Risk: findingCounts{d}, WazuhAgents: wazuhAgents{d}.addresses, DeclaredOS: declaredOS, OSVersion: findings.OSVersion,
+		Lifecycle: d.Lifecycle}
 	// The box's own MACs (its cards and the decoys' macvlan links): a foreign MAC on a decoy address is a device (WP-31 M7). Without a
 	// host there is no decoy on the wire, and the MACs stay unknown, so nothing changes.
 	if d.HostSocket != "" {
@@ -203,9 +208,9 @@ func (b boxPorts) Ports(ctx context.Context) ([]observe.Service, error) {
 }
 
 // findingCounts is inventory's FindingCounter: findings is built after inventory, so its service is looked up when asked. The count
-// covers every status, which is what deleting the device deletes. With the findings module off, nothing deletes them (the
-// asset.deleted subscriber runs only while findings is on), so the count is 0 and the delete dialog promises nothing; before the
-// service exists it is 0 too (an empty map, never an error).
+// covers every status, which is what deleting the device deletes (findings' part of the delete runs in the same write, whether the
+// module is on or off). With the findings module off the count is 0 and the delete dialog names none: the person cannot see them;
+// before the service exists it is 0 too (an empty map, never an error).
 type findingCounts struct{ d *deps }
 
 func (f findingCounts) CountByAsset(ctx context.Context) (map[string]int, error) {

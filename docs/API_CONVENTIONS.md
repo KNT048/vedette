@@ -90,7 +90,7 @@ Trích **tĩnh** từ mọi lời gọi `fail(`/`refuse(`/hàm `bad(`/`{status, 
 
 Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCatalog`: `invalid`, `read_only`; `feeds/parsers.ts`: `too_large`, `bad_config`, `bad_sample`) đã được thêm tay.
 
-#### HTTP 400 (254 mã)
+#### HTTP 400 (257 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -213,6 +213,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `invalid_employees` | 400 | Headcount is a whole number from 0 to 1,000,000. | module reports (validator dùng chung) |
 | `invalid_format` | 400 | Choose JSON or CSV. | `GET /core/logs/export`; `POST /feeds/parse-test` |
 | `invalid_from` | 400 | The start of the range must be a date like 2026-11-09 or a UTC time ending in Z, like 2026-11-09T00:00:00Z. | `GET /core/audit`; `GET /core/audit/export`. Mã mới của backend [ĐX]: không dùng `bad_from` vì nó đã nghĩa là "email người gửi sai" ở notify (§3.2 mục 5). Ngày `YYYY-MM-DD` tính theo múi giờ của tổ chức; thời điểm phải tận cùng `Z` (độ lệch như `+07:00` bị từ chối) |
+| `invalid_grouping` | 400 | Group the open findings by device or by CVE. | `PUT /reports/definition` |
 | `invalid_hour` | 400 | The send hour must be 0 to 23. | module reports (validator dùng chung) |
 | `invalid_issuer` | 400 | The issuer must be an https address, for example https://sso.example.com/realms/main. | `PUT /core/oidc` |
 | `invalid_items` | 400 | Pick at least one action of this request. | module response (validator dùng chung) |
@@ -228,8 +229,9 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `invalid_mode` | 400 | The mode is automatic or manual. | `PATCH /core/updates`; `PUT /core/network/management`; `PUT /core/network/ntp` |
 | `invalid_model` | 400 | The model name may only contain letters, digits, dots, dashes, colons and slashes (80 characters at most), for example c | module ai (validator dùng chung) |
 | `invalid_module` | 400 | No module "${unknown}". | `POST /core/setup` |
-| `invalid_name` | 400 | Give the connection a name of 1 to 40 characters, for example "Office FortiGate API". | 5 endpoint (/ai, /core) |
+| `invalid_name` | 400 | Give the connection a name of 1 to 40 characters, for example "Office FortiGate API". | 5 endpoint (/ai, /core); `PUT /reports/definition` ("The report name must be 1 to 80 characters.") |
 | `invalid_org` | 400 | The organization name is 2 to 80 characters. | `POST /core/setup`; `PUT /core/general` |
+| `invalid_period` | 400 | Pick the period: the last 7 days, the last 30 days or the last calendar month. | `PUT /reports/definition` |
 | `invalid_phone` | 400 | The phone number starts with 0 or +84 and has 10 to 11 digits. | module reports (validator dùng chung) |
 | `invalid_question` | 400 | The question must be 3 to 500 characters. For example: "Which machines still expose RDP?" | `POST /ai/ask` |
 | `invalid_range` | 400 | The start date is after the end date. / Dates are written YYYY-MM-DD, for example 2026-11-09, between 2000 and 2100. (backend, `GET /core/logs/export`: a date that is not a day, or outside 2000..2100) | `GET /core/logs/export` |
@@ -274,8 +276,9 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `no_pack` | 400 | This CVE has no confirmed recommendation yet, so there is nothing to mark as applied. | `POST /findings/{id}/applied` |
 | `no_prefix` | 400 | "${r}" has no prefix length. Add it so Vedette scans the right size of network, for example ${r}/24 or ${r}/25. | `PUT /inventory/settings` |
 | `no_ranges` | 400 | Active scanning needs at least one network range. | `PUT /inventory/settings` |
-| `no_recipients` | 400 | Automatic sending needs at least one recipient. Add an email, then save. | `POST /reports/weekly/send` |
+| `no_recipients` | 400 | Automatic sending needs at least one recipient. Add an email, then save. | `POST /reports/weekly/send`; `POST /reports/send` |
 | `no_rows` | 400 | No device rows were found below the column headers. Add at least one row and choose the file again. | `POST /inventory/import` |
+| `no_sections` | 400 | Turn on at least one section; a report with no section would be empty. | `PUT /reports/definition` |
 | `no_such_user` | 400 | One of the approvers does not exist or is disabled. | module notify (validator dùng chung) |
 | `no_targets` | 400 | Choose at least one device to scan. | `POST /scans/runs` |
 | `no_window` | 400 | There is no maintenance window yet. Set the days and hours first, or pick a time yourself. | `POST /core/updates/os/reboot` |
@@ -389,7 +392,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `unknown` | 404 | This link is not valid. | `POST /response/approve/{token}` |
 | `unknown_cve` | 404 | This CVE is not on the exploited list the box holds. The AI only explains CVEs the box has data for. | `POST /ai/cve/{id}/explain`; `POST /ai/cve/{id}/news` |
 
-#### HTTP 409 (110 mã)
+#### HTTP 409 (111 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -447,7 +450,8 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `not_on` | 409 | Two-step sign-in is already off for this user. | `POST /core/users/{id}/2fa/reset` |
 | `not_pending` | 409 | This request is already ${a.status.replace('_', ' ')}. One approval covers one request. | module response (validator dùng chung) |
 | `nothing_to_rerun` | 409 | The newest scan of this target has no OpenVAS step that was stopped or did not finish, so there is nothing to run again. Run a deep scan instead. | `POST /exposure/targets/{id}/openvas` |
-| `not_running` | 409 | This scan has already ended, so there is nothing to stop. Also: No scan is running now. | `POST /scans/runs/{id}/stop`; `POST /exposure/scan/stop` |
+| `not_running` | 409 | This scan has already ended, so there is nothing to stop. Also: No scan is running now. | `POST /scans/runs/{id}/stop`; `POST /runs/{id}/stop` ("This run has already ended, so there is nothing to stop."); `POST /exposure/scan/stop` |
+| `not_resumable` | 409 | This run cannot be resumed: it has no work left, or its engine cannot go on from where it stopped. | `POST /runs/{id}/resume` |
 | `not_queued` | 409 | ${value} is not waiting in the scan queue. | `DELETE /exposure/targets/{id}/queue` (exposure INV-36) |
 | `not_verified` | 409 | Verify ownership first; only then can this target be scanned. | `POST /exposure/targets/{id}/scan` |
 | `nothing_scheduled` | 409 | No reboot is scheduled. | `DELETE /core/updates/os/reboot` |

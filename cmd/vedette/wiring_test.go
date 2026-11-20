@@ -264,7 +264,8 @@ func TestWiringFeedEventsRematchTheInventory(t *testing.T) {
 	}
 }
 
-// A module that is off does not react (SYS-5): no finding while findings is off, no re-match while inventory is off.
+// A module that is off does not react (SYS-5): no finding while findings is off, no re-match while inventory is off. A device delete
+// is not a reaction: every module's rows go with the device in the delete's own write.
 func TestWiringModuleOffNoReaction(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
@@ -285,14 +286,15 @@ func TestWiringModuleOffNoReaction(t *testing.T) {
 	if n := s.nf("", ""); n != 2 {
 		t.Errorf("findings back on: %d findings, want 2", n)
 	}
-	// deleting a device while findings is off leaves its findings; the deletion event is ignored (reconcile is deferred)
+	// deleting a device while findings is off still deletes its findings in the same write: the rows exist whether the module is on
+	// or off, and none is left pointing at a device that is gone
 	s.setModule("mitigation", false)
 	s.setModule("findings", false)
 	if err := s.d.Inventory.DeleteDevice(t.Context(), "it@acme.example", id); err != nil {
 		t.Fatal(err)
 	}
-	if n := s.nf("", ""); n != 2 {
-		t.Errorf("findings off: %d findings after the delete, want the 2 left alone", n)
+	if n := s.count(`SELECT count(*) FROM fnd_finding`); n != 0 {
+		t.Errorf("findings off: %d findings after the delete, want none", n)
 	}
 
 	// inventory off: a new CVE on the bus makes no re-match

@@ -409,16 +409,16 @@ func TestDeletedDeviceLeavesTheNewDeviceIncidents(t *testing.T) {
 	for _, id := range []string{"a1", "a2", "a3"} {
 		publish(inventory.EventAssetDiscovered, id)
 	}
-	publish(inventory.EventAssetDeleted, "a2")
+	e.deleteDevice("a2", "")
 	l, _ := e.svc.Incidents(e.ctx())
 	if len(l) != 1 || l[0].Title != "2 devices found on your network: approve them in Devices" || len(l[0].Devices) != 2 || l[0].Status != notify.StatusNew {
 		t.Fatalf("after deleting a2: %+v", l)
 	}
 	e.clock.Add(37 * time.Hour) // past the first discovery: a new device has its own incident
 	publish(inventory.EventAssetDiscovered, "a9")
-	publish(inventory.EventAssetDeleted, "a9")
-	publish(inventory.EventAssetDeleted, "a1")
-	publish(inventory.EventAssetDeleted, "a3")
+	e.deleteDevice("a9", "")
+	e.deleteDevice("a1", "")
+	e.deleteDevice("a3", "")
 	l, _ = e.svc.Incidents(e.ctx())
 	for _, i := range l {
 		if i.Status != notify.StatusResolved {

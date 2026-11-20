@@ -23,3 +23,4 @@ export type Overview = z.infer<typeof C.Overview>
 
 export const WATCHER_IDS: WatcherId[] = ['traps', 'logs', 'mirror_port', 'ips_events']
 export const DETECTION_KINDS: DetectionKind[] = ['trap', 'bad_address', 'log_anomaly', 'unknown_device', 'intrusion']
+export const ALERT_WINDOWS: AlertWindow[] = ['24h', '7d', '30d']

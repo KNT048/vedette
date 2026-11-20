@@ -89,7 +89,7 @@ func TestApprovedDeviceClosesItsIncidentWithTheApprover(t *testing.T) {
 	if d, err := e.svc.HandleIncident(e.ctx(), "u-op", own.ID, notify.StatusNew, ""); err != nil || d.Incident.ResolvedReason != nil {
 		t.Fatalf("reopened = %+v, %v", d.Incident, err)
 	}
-	publish(inventory.EventAssetDeleted, map[string]string{"asset_id": "a2"})
+	e.deleteDevice("a2", "")
 	if i := e.detail(summary.ID); i.Status != notify.StatusResolved || i.ResolvedReason == nil || *i.ResolvedReason != "Closed by Vedette: every device on it was approved, ignored or deleted in Devices." {
 		t.Fatalf("summary = %+v", i)
 	}

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/content/devicetypes"
+	"github.com/knt048/vedette/core/lifecycle"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -177,14 +178,17 @@ const (
 // A join never changes whether into is watched: into keeps its own ignored_at. When the two rows
 // differ the audit row says so and the caller publishes watchEvent for into, so the findings moved from from follow into's state
 // (inventory.asset.ignored closes them on an ignored into; inventory.asset.unignored reopens on a watched into the ones Ignore closed).
-func (s *Service) joinInto(ctx context.Context, tx *sql.Tx, from, into, why string, mode joinMode) (string, error) {
-	return s.joinAs(ctx, tx, from, into, why, mode, systemActor)
+// Nothing is dropped: a software row or an open port both rows hold is folded into into's (foldSoftware, foldServices), and every
+// module that keeps rows about a device moves them in this same transaction (core/lifecycle, before from's row goes); an error of
+// any of them rolls the whole write back.
+func (s *Service) joinInto(ctx context.Context, tx *sql.Tx, o *outbox, from, into, why string, mode joinMode) (string, error) {
+	return s.joinAs(ctx, tx, o, from, into, why, mode, systemActor)
 }
 
 // joinAs is joinInto with the audit row written as actor: systemActor for the join rules, the person who merged two rows. It
 // returns the event the caller publishes for into after the merge events when the two rows differed in being ignored: ""
 // when they did not.
-func (s *Service) joinAs(ctx context.Context, tx *sql.Tx, from, into, why string, mode joinMode, actor string) (watchEvent string, err error) {
+func (s *Service) joinAs(ctx context.Context, tx *sql.Tx, o *outbox, from, into, why string, mode joinMode, actor string) (watchEvent string, err error) {
 	fromName, intoName := deviceName(ctx, tx, from), deviceName(ctx, tx, into)
 	var fromIgnored, intoIgnored, fromApproved, carry bool
 	var fromApprovedAt sql.NullString
@@ -252,11 +256,29 @@ func (s *Service) joinAs(ctx context.Context, tx *sql.Tx, from, into, why string
 		from, into).Scan(&fromIP, &fromSeen, &fromAgent, &fromAgentIP, &fromConfirmed, &newer); err != nil {
 		return "", fmt.Errorf("inventory: read device: %w", err)
 	}
+	software, err := foldSoftware(ctx, tx, from, into)
+	if err != nil {
+		return "", err
+	}
+	if err := foldServices(ctx, tx, from, into); err != nil {
+		return "", err
+	}
+	m := lifecycle.Merge{From: from, Into: into, FromName: fromName, IntoName: intoName, Software: software}
+	if actor != systemActor {
+		m.Actor = actor
+	}
+	if err := s.lifecycle.DeviceMerged(ctx, tx, m); err != nil {
+		return "", err
+	}
+	if o != nil {
+		o.after = append(o.after, func(ctx context.Context) []Event { s.lifecycle.MergeCommitted(ctx, m); return nil })
+	}
 	for _, q := range []string{
 		`UPDATE inv_asset SET agent_key = NULL, agent_ip = NULL WHERE id = ?2`, // the key is unique: free it before into takes it
-		`UPDATE OR IGNORE inv_software SET asset_id = ?1 WHERE asset_id = ?2`,
-		`UPDATE OR IGNORE inv_service SET asset_id = ?1 WHERE asset_id = ?2`,
-		`UPDATE OR IGNORE inv_detected_keep SET asset_id = ?1 WHERE asset_id = ?2`, // a notice a person dismissed stays dismissed (INV-47)
+		`UPDATE inv_software SET asset_id = ?1 WHERE asset_id = ?2`,            // the rows both held are folded already
+		`UPDATE inv_service SET asset_id = ?1 WHERE asset_id = ?2`,
+		// a notice a person dismissed stays dismissed (INV-47); one both dismissed is the same decision, into's row stays
+		`UPDATE OR IGNORE inv_detected_keep SET asset_id = ?1 WHERE asset_id = ?2`,
 		`UPDATE inv_asset SET
 			suspicious = max(suspicious, (SELECT suspicious FROM inv_asset WHERE id = ?2)),
 			notes = coalesce(notes, (SELECT notes FROM inv_asset WHERE id = ?2)),
@@ -380,7 +402,7 @@ func (s *Service) joinSame(ctx context.Context, tx *sql.Tx, o *outbox, touched [
 				return nil, nil, err
 			}
 		}
-		watch, err := s.joinInto(ctx, tx, from, into, why, mode)
+		watch, err := s.joinInto(ctx, tx, o, from, into, why, mode)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -789,4 +811,96 @@ func agentOrphan(ctx context.Context, tx *sql.Tx, id string) (string, string, er
 		return "", "", err
 	}
 	return ids[0], "the agent bound to this device reports the card " + card.String + " and its address went to this device", nil
+}
+
+// foldSoftware folds each software row device from holds that device into holds too into one row, before from's rows move: the same
+// reading (source, vendor, product, version) or a person's correction of the same reading. It returns the id of every row it removed
+// mapped to the row that stays (lifecycle.Merge.Software), so the modules that point at a software row follow it. Of two readings
+// into's row stays: its times widen (first seen the earlier, last seen the later), its confidence is the higher of the two, the details
+// of the newer reading (name, CPE, package) win, and the other row's exploited-list keys join it. Of two corrections the newer one
+// stays, as if the person had edited the older one then. Nothing else is removed: the rows left on from move with their ids.
+func foldSoftware(ctx context.Context, tx *sql.Tx, from, into string) (map[string]string, error) {
+	rows, err := tx.QueryContext(ctx, `SELECT f.id, i.id, f.corrects IS NOT NULL AND f.seen_at > i.seen_at FROM inv_software f JOIN inv_software i ON i.asset_id = ?2
+		AND ((f.corrects IS NULL AND i.corrects IS NULL AND i.source = f.source AND lower(i.vendor) = lower(f.vendor) AND lower(i.product) = lower(f.product)
+			AND ifnull(i.version, '') = ifnull(f.version, '')) OR (f.corrects IS NOT NULL AND i.corrects = f.corrects))
+		WHERE f.asset_id = ?1 ORDER BY f.id`, from, into)
+	if err != nil {
+		return nil, fmt.Errorf("inventory: read the software both devices hold: %w", err)
+	}
+	type fold struct{ gone, kept string } // two readings: kept takes gone's details; two corrections: the newer stays as it is
+	var folds []fold
+	for rows.Next() {
+		var f, i string
+		var fromNewer bool
+		if err := rows.Scan(&f, &i, &fromNewer); err != nil {
+			_ = rows.Close()
+			return nil, fmt.Errorf("inventory: read the software both devices hold: %w", err)
+		}
+		switch {
+		case fromNewer:
+			folds = append(folds, fold{gone: i, kept: f})
+		default:
+			folds = append(folds, fold{gone: f, kept: i})
+		}
+	}
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+		return nil, fmt.Errorf("inventory: read the software both devices hold: %w", err)
+	}
+	var out map[string]string
+	for _, f := range folds {
+		var corrects sql.NullString
+		if err := tx.QueryRowContext(ctx, `SELECT corrects FROM inv_software WHERE id = ?`, f.kept).Scan(&corrects); err != nil {
+			return nil, fmt.Errorf("inventory: fold software: %w", err)
+		}
+		if !corrects.Valid {
+			if _, err := tx.ExecContext(ctx, `UPDATE inv_software SET
+				display = CASE WHEN g.seen_at > inv_software.seen_at THEN g.display ELSE inv_software.display END,
+				cpe = CASE WHEN g.seen_at > inv_software.seen_at THEN coalesce(g.cpe, inv_software.cpe) ELSE coalesce(inv_software.cpe, g.cpe) END,
+				packaged = CASE WHEN g.seen_at > inv_software.seen_at THEN g.packaged ELSE inv_software.packaged END,
+				pkg_version = CASE WHEN g.seen_at > inv_software.seen_at THEN coalesce(g.pkg_version, inv_software.pkg_version) ELSE coalesce(inv_software.pkg_version, g.pkg_version) END,
+				pkg_source = CASE WHEN g.seen_at > inv_software.seen_at THEN coalesce(g.pkg_source, inv_software.pkg_source) ELSE coalesce(inv_software.pkg_source, g.pkg_source) END,
+				confidence = max(inv_software.confidence, g.confidence),
+				first_seen = CASE WHEN inv_software.first_seen IS NULL OR g.first_seen IS NULL THEN coalesce(inv_software.first_seen, g.first_seen)
+					ELSE min(inv_software.first_seen, g.first_seen) END,
+				seen_at = max(inv_software.seen_at, g.seen_at)
+				FROM (SELECT * FROM inv_software WHERE id = ?2) AS g WHERE inv_software.id = ?1`, f.kept, f.gone); err != nil {
+				return nil, fmt.Errorf("inventory: fold software: %w", err)
+			}
+		}
+		for _, q := range []string{
+			`INSERT OR IGNORE INTO inv_software_kev (software_id, kev_key) SELECT ?1, kev_key FROM inv_software_kev WHERE software_id = ?2`,
+			`DELETE FROM inv_software WHERE id = ?2`,
+		} {
+			if _, err := tx.ExecContext(ctx, q, f.kept, f.gone); err != nil {
+				return nil, fmt.Errorf("inventory: fold software: %w", err)
+			}
+		}
+		if out == nil {
+			out = map[string]string{}
+		}
+		out[f.gone] = f.kept
+	}
+	return out, nil
+}
+
+// foldServices folds each open port device from holds that device into holds too (same port, protocol and source) into into's row
+// before from's rows move: the newer reading's name, product, version and detail win, the time is the later one and the confidence
+// the higher one.
+func foldServices(ctx context.Context, tx *sql.Tx, from, into string) error {
+	if _, err := tx.ExecContext(ctx, `UPDATE inv_service SET
+		name = CASE WHEN g.seen_at > inv_service.seen_at THEN g.name ELSE inv_service.name END,
+		product = CASE WHEN g.seen_at > inv_service.seen_at THEN coalesce(g.product, inv_service.product) ELSE coalesce(inv_service.product, g.product) END,
+		version = CASE WHEN g.seen_at > inv_service.seen_at THEN coalesce(g.version, inv_service.version) ELSE coalesce(inv_service.version, g.version) END,
+		detail = CASE WHEN g.seen_at > inv_service.seen_at THEN coalesce(g.detail, inv_service.detail) ELSE coalesce(inv_service.detail, g.detail) END,
+		confidence = max(inv_service.confidence, g.confidence),
+		seen_at = max(inv_service.seen_at, g.seen_at)
+		FROM inv_service AS g WHERE g.asset_id = ?1 AND inv_service.asset_id = ?2 AND g.port = inv_service.port AND g.proto = inv_service.proto AND g.source = inv_service.source`,
+		from, into); err != nil {
+		return fmt.Errorf("inventory: fold open ports: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM inv_service WHERE asset_id = ?1 AND EXISTS (SELECT 1 FROM inv_service i WHERE i.asset_id = ?2
+		AND i.port = inv_service.port AND i.proto = inv_service.proto AND i.source = inv_service.source)`, from, into); err != nil {
+		return fmt.Errorf("inventory: fold open ports: %w", err)
+	}
+	return nil
 }

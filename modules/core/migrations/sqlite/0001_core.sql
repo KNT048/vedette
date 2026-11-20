@@ -203,3 +203,89 @@ BEGIN
     SELECT RAISE(ABORT, 'core_audit is append-only');
 END;
 -- +goose StatementEnd
+
+-- ---------------------------------------------------------------------------------------------------------------------------
+-- Runs: one model for every piece of scanning work a person can see (core/run). The queue is the rows in status 'queued', so it
+-- survives a restart. kind and status are open vocabularies owned by core/run (shape check only); lane is what a run occupies,
+-- and the database holds one live run per lane (core_run_live). Module detail stays in module tables keyed by run_id.
+-- schedule_id names a core_schedule row once schedules exist (that section adds the reference).
+-- ---------------------------------------------------------------------------------------------------------------------------
+
+CREATE TABLE core_run (
+    id            TEXT    NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 96),
+    module        TEXT    NOT NULL CHECK (length(module) BETWEEN 1 AND 32),
+    kind          TEXT    NOT NULL CHECK (length(kind) BETWEEN 1 AND 40 AND kind NOT GLOB '*[^a-z0-9_]*'),
+    lane          TEXT    NOT NULL CHECK (length(lane) BETWEEN 1 AND 40 AND lane NOT GLOB '*[^a-z0-9_]*'),
+    title         TEXT    NOT NULL CHECK (length(title) BETWEEN 1 AND 200),
+    trigger       TEXT    NOT NULL CHECK (trigger IN ('manual', 'schedule', 'event')),
+    trigger_note  TEXT    CHECK (trigger_note IS NULL OR length(trigger_note) BETWEEN 1 AND 200),
+    requested_by  TEXT    NOT NULL CHECK (length(requested_by) BETWEEN 1 AND 320), -- an email, or system
+    schedule_id   TEXT    CHECK (schedule_id IS NULL OR length(schedule_id) BETWEEN 1 AND 96),
+    subject_kind  TEXT    CHECK (subject_kind IS NULL OR (length(subject_kind) BETWEEN 1 AND 40 AND subject_kind NOT GLOB '*[^a-z0-9_]*')),
+    subject_id    TEXT    CHECK (subject_id IS NULL OR length(subject_id) BETWEEN 1 AND 96),
+    subject_label TEXT    CHECK (subject_label IS NULL OR length(subject_label) BETWEEN 1 AND 200), -- a snapshot: it outlives its subject
+    parent_id     TEXT    REFERENCES core_run (id) ON DELETE CASCADE,
+    status        TEXT    NOT NULL CHECK (length(status) BETWEEN 1 AND 40 AND status NOT GLOB '*[^a-z0-9_]*'),
+    waiting_for   TEXT    CHECK (waiting_for IS NULL OR length(waiting_for) BETWEEN 1 AND 200),
+    stop_reason   TEXT    CHECK (stop_reason IS NULL OR length(stop_reason) BETWEEN 1 AND 500),
+    error         TEXT    CHECK (error IS NULL OR length(error) BETWEEN 1 AND 1000),
+    total         INTEGER NOT NULL DEFAULT 0 CHECK (total >= 0),
+    done          INTEGER NOT NULL DEFAULT 0 CHECK (done >= 0),
+    queued_at     TEXT    NOT NULL CHECK (queued_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    started_at    TEXT    CHECK (started_at IS NULL OR started_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    ended_at      TEXT    CHECK (ended_at IS NULL OR ended_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    updated_at    TEXT    NOT NULL CHECK (updated_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    CHECK ((subject_kind IS NULL) = (subject_id IS NULL))
+);
+
+-- A phase or a range of a run ("192.168.1.0/24", "identify services"): the cursor a resumed run continues from.
+CREATE TABLE core_run_step (
+    run_id     TEXT    NOT NULL REFERENCES core_run (id) ON DELETE CASCADE,
+    seq        INTEGER NOT NULL CHECK (seq >= 1),
+    name       TEXT    NOT NULL CHECK (length(name) BETWEEN 1 AND 200),
+    status     TEXT    NOT NULL CHECK (length(status) BETWEEN 1 AND 40 AND status NOT GLOB '*[^a-z0-9_]*'),
+    total      INTEGER NOT NULL DEFAULT 0 CHECK (total >= 0),
+    done       INTEGER NOT NULL DEFAULT 0 CHECK (done >= 0),
+    note       TEXT    CHECK (note IS NULL OR length(note) BETWEEN 1 AND 500),
+    started_at TEXT    CHECK (started_at IS NULL OR started_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    ended_at   TEXT    CHECK (ended_at IS NULL OR ended_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    PRIMARY KEY (run_id, seq)
+) WITHOUT ROWID;
+
+-- One row per device or host a run touched, as it comes.
+CREATE TABLE core_run_item (
+    run_id       TEXT    NOT NULL REFERENCES core_run (id) ON DELETE CASCADE,
+    seq          INTEGER NOT NULL CHECK (seq >= 1),
+    subject_kind TEXT    NOT NULL CHECK (length(subject_kind) BETWEEN 1 AND 40 AND subject_kind NOT GLOB '*[^a-z0-9_]*'),
+    subject_id   TEXT    CHECK (subject_id IS NULL OR length(subject_id) BETWEEN 1 AND 96), -- NULL: an address no device has yet
+    label        TEXT    NOT NULL CHECK (length(label) BETWEEN 1 AND 200),
+    outcome      TEXT    NOT NULL CHECK (length(outcome) BETWEEN 1 AND 40 AND outcome NOT GLOB '*[^a-z0-9_]*'),
+    note         TEXT    CHECK (note IS NULL OR length(note) BETWEEN 1 AND 500),
+    PRIMARY KEY (run_id, seq)
+) WITHOUT ROWID;
+
+-- The log of a run: at most 2,000 lines per run and 30 days (core/run Prune).
+CREATE TABLE core_run_log (
+    id     INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    run_id TEXT    NOT NULL REFERENCES core_run (id) ON DELETE CASCADE,
+    ts     TEXT    NOT NULL CHECK (ts GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    level  TEXT    NOT NULL CHECK (level IN ('info', 'warn', 'error')),
+    text   TEXT    NOT NULL CHECK (length(text) BETWEEN 1 AND 1000)
+);
+
+-- One live run per lane, held by the database: a second start in the same lane fails here, whatever the code does.
+CREATE UNIQUE INDEX core_run_live ON core_run (lane) WHERE status IN ('running', 'stopping');
+
+CREATE INDEX core_run_queued_idx ON core_run (queued_at);
+
+CREATE INDEX core_run_status_idx ON core_run (status, queued_at);
+
+CREATE INDEX core_run_subject_idx ON core_run (subject_kind, subject_id, queued_at);
+
+CREATE INDEX core_run_kind_idx ON core_run (module, kind, queued_at);
+
+CREATE INDEX core_run_parent_idx ON core_run (parent_id);
+
+CREATE INDEX core_run_log_run_idx ON core_run_log (run_id, id);
+
+CREATE INDEX core_run_log_ts_idx ON core_run_log (ts);

@@ -15,8 +15,8 @@ import { installStore, modulesStore, sessionStore } from '@/mocks/stores'
 import { containerSensorStore } from '@/features/inventory/mocks'
 import { MOCK_SETUP_CODE } from './mocks'
 
-// SPAN is hidden in the GUI for v1 (SPAN_IN_UI false); the SPAN tick of Configure is kept, and one test runs it as offered (post-v1).
-const span = vi.hoisted(() => ({ SPAN_IN_UI: false }))
+// SPAN is offered in the GUI (SPAN_IN_UI true); the tests that cover the setting that hides it switch it off for their own run.
+const span = vi.hoisted(() => ({ SPAN_IN_UI: true }))
 vi.mock('@/lib/span', () => span)
 // The MCP server is hidden in the GUI for v1 (POST_V1_IN_UI false); its page is kept, so this file runs it as offered.
 const postV1 = vi.hoisted(() => ({ POST_V1_IN_UI: true }))
@@ -30,7 +30,7 @@ beforeEach(() => {
   const real = globalThis.fetch
   vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => { calls.push(String(input instanceof Request ? input.url : input)); return real(input, init) })
 })
-afterEach(() => { vi.restoreAllMocks(); span.SPAN_IN_UI = false })
+afterEach(() => { vi.restoreAllMocks(); span.SPAN_IN_UI = true })
 const hostCalls = () => calls.filter((u) => HOST_PATHS.some((p) => new URL(u, location.origin).pathname === `/api/v1${p}`))
 
 describe('container-only install', () => {
@@ -44,8 +44,7 @@ describe('container-only install', () => {
     expect(screen.queryByRole('button', { name: 'Download backup' })).toBeNull()
     expect(screen.queryByText('Backups on this box')).toBeNull()
     renderApp('/settings/network')
-    expect(await screen.findByText('Start the sensor with compose.sensors.yaml, then choose the card it listens on under Sensors. The address, extra IP and time server of the machine are set with its own tools.')).toBeInTheDocument()
-    expect(document.getElementById('main')!.textContent).not.toMatch(/SPAN|mirror/i)
+    expect(await screen.findByText('Prepare the SPAN card on this machine yourself (promiscuous, no address), start the sensor with compose.sensors.yaml, then choose the card under Sensors. The address, extra IP and time server of the machine are set with its own tools.')).toBeInTheDocument()
     expect(hostCalls()).toEqual([])
   })
 
@@ -290,7 +289,7 @@ describe('container-only install', () => {
     await waitFor(async () => { await u.click(screen.getByRole('button', { name: 'Configure sensor vedette-hq' })); screen.getByRole('dialog') }, { timeout: 8000 })
   }
   // S-CORE-8: the card is chosen under Sensors among the cards the sensor reported; Box network has no SPAN here.
-  it('Sensors (SPAN offered, post-v1): Configure picks the SPAN card among the reported cards; the box refuses SPAN on a card with an address', async () => {
+  it('Sensors (SPAN offered): Configure picks the SPAN card among the reported cards; the box refuses SPAN on a card with an address', async () => {
     span.SPAN_IN_UI = true
     const u = userEvent.setup()
     renderApp('/devices/setup?tab=sensor')
@@ -327,8 +326,9 @@ describe('container-only install', () => {
     expect(calls.some((u) => new URL(u, location.origin).pathname.startsWith('/api/v1/core/network'))).toBe(false)
   })
 
-  // SPAN hidden for v1. "Listen on" stays (which card of a machine with two addresses), the SPAN tick goes.
-  it('Sensors (SPAN hidden for v1): Configure chooses the card to listen on with no SPAN tick and no word about SPAN or mirrored traffic', async () => {
+  // SPAN switched off in the GUI. "Listen on" stays (which card of a machine with two addresses), the SPAN tick goes.
+  it('Sensors (SPAN switched off): Configure chooses the card to listen on with no SPAN tick and no word about SPAN or mirrored traffic', async () => {
+    span.SPAN_IN_UI = false
     const u = userEvent.setup()
     renderApp('/devices/setup?tab=sensor')
     await openSensorDialog(u)
@@ -344,7 +344,8 @@ describe('container-only install', () => {
     expect(containerSensorStore.get()).toMatchObject({ chosen: 'eno2', span: false })
   })
 
-  it('Sensors (SPAN hidden for v1): a card already saved as SPAN shows ticked and can be unticked, not ticked again', async () => {
+  it('Sensors (SPAN switched off): a card already saved as SPAN shows ticked and can be unticked, not ticked again', async () => {
+    span.SPAN_IN_UI = false
     containerSensorStore.update((c) => ({ ...c, chosen: 'eno2', span: true }))
     const u = userEvent.setup()
     renderApp('/devices/setup?tab=sensor')

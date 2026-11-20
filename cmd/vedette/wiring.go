@@ -19,7 +19,6 @@ import (
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/logexport"
 	"github.com/knt048/vedette/core/server"
-	"github.com/knt048/vedette/core/store"
 	hostclient "github.com/knt048/vedette/host/client"
 	agentintake "github.com/knt048/vedette/modules/agent-intake"
 	authoidc "github.com/knt048/vedette/modules/auth-oidc"
@@ -559,6 +558,9 @@ func buildServices(ctx context.Context, d *deps) error {
 	// exists and no setter is needed. Without the notify module on, the mailer says it is not available and email
 	// two-step accounts get 503 twofa_email_unavailable (INV-8, never password-only).
 	var err error
+	if d.Runs, err = newRuns(d); err != nil { // before the modules: each registers its kinds of run on it
+		return fmt.Errorf("runs: %w", err)
+	}
 	d.Inventory = newInventory(d) // before feeds: feeds takes the inventory (feeds.Inventory)
 	d.BoxName.useRow(boxRowName(d.Inventory))
 	notifySvc := newNotify(d)
@@ -624,7 +626,8 @@ func buildServices(ctx context.Context, d *deps) error {
 	// Backlog: findings the reconcile job creates for old KEV entries are backlog, silent for notify (findings does not import notify).
 	cfg := findings.ServiceConfig{DB: d.DB, Audit: d.Audit, Inventory: inv, Feeds: feed, Log: d.Log, Clock: d.Clock, Zone: orgTimeZone(d), Backlog: notify.WithBaseline,
 		HaveSince: findingsHave(fs.Store()), // "I have this" on Home scopes the one device it declared
-		Applied:   mitigationApplied(d.DB),  // a merge keeps the finding a person marked a mitigation item applied on
+		Applied:   mitigationApplied,        // a merge keeps the finding a person marked a mitigation item applied on
+		Lifecycle: d.Lifecycle,              // a merge that folds two findings tells mitigation and response (registerLifecycle)
 		SafeCheck: safeCheckFor}             // "a safe check exists": the scan's own pack, the same answer as KevInfo.HasTemplate
 	if d.Bus != nil {
 		cfg.Publisher = findingsPublisher{d.Bus}
@@ -671,6 +674,7 @@ func buildServices(ctx context.Context, d *deps) error {
 		return fmt.Errorf("response: %w", err)
 	}
 	registerLogSources(d)
+	registerLifecycle(d, notifySvc, fs)
 	subscribe(*d)
 	mergeScanningSafety(ctx, d) // #850: once, the scan module's own window, rate and exclusions into the inventory
 	return nil
@@ -752,31 +756,6 @@ func subscribe(d deps) {
 			return nil
 		}))
 	}
-	// A merged device's findings that could not move are not deleted by its asset.deleted, which follows
-	// on the same bus; findings' reconcile deals with them later. The set holds an id only between those two events.
-	var unmoved sync.Map
-	d.Bus.Subscribe(inventory.EventAssetMerged, on("findings", func(ctx context.Context, data any) error {
-		ev, ok := data.(inventory.MergeEvent)
-		if !ok {
-			return fmt.Errorf("unexpected payload %T", data)
-		}
-		_, err := d.Findings.OnAssetMerged(ctx, ev.From, ev.Into)
-		if err != nil {
-			unmoved.Store(ev.From, true)
-		}
-		return err
-	}))
-	d.Bus.Subscribe(inventory.EventAssetDeleted, on("findings", func(ctx context.Context, data any) error {
-		ev, ok := data.(inventory.AssetEvent)
-		if !ok {
-			return fmt.Errorf("unexpected payload %T", data)
-		}
-		if _, skip := unmoved.LoadAndDelete(ev.AssetID); skip {
-			return nil
-		}
-		_, err := d.Findings.OnAssetDeleted(ctx, ev.AssetID)
-		return err
-	}))
 	// An ignored device's open findings close ("Closed by Vedette: the device was ignored by <person>."; what a person settled
 	// keeps its status, nothing is deleted), and while it is ignored nothing new is made (MatchInput says it is not there, AssetIDs
 	// leaves it out). Stopping reopens only what Ignore closed; the inventory.asset.updated with match that follows matches it again.
@@ -1108,28 +1087,26 @@ func inventoryHasAddress(ctx context.Context, inv *inventory.Service, ip netip.A
 }
 
 // mitigationApplied tells findings which findings have a mitigation item a person marked applied (mit_applied): the binary
-// reads mitigation's table so that findings does not.
-func mitigationApplied(db *store.DB) func(ctx context.Context, ids []string) (map[string]bool, error) {
-	return func(ctx context.Context, ids []string) (map[string]bool, error) {
-		out := map[string]bool{}
-		args := make([]any, len(ids))
-		for i, id := range ids {
-			args[i] = id
-		}
-		rows, err := db.Reader().QueryContext(ctx, `SELECT DISTINCT finding_id FROM mit_applied WHERE finding_id IN (`+strings.TrimSuffix(strings.Repeat("?,", len(ids)), ",")+`)`, args...)
-		if err != nil {
+// reads mitigation's table, inside the merge's transaction, so that findings does not.
+func mitigationApplied(ctx context.Context, tx *sql.Tx, ids []string) (map[string]bool, error) {
+	out := map[string]bool{}
+	list, err := json.Marshal(ids)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := tx.QueryContext(ctx, `SELECT DISTINCT finding_id FROM mit_applied WHERE finding_id IN (SELECT value FROM json_each(?))`, string(list))
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
 			return nil, err
 		}
-		defer func() { _ = rows.Close() }()
-		for rows.Next() {
-			var id string
-			if err := rows.Scan(&id); err != nil {
-				return nil, err
-			}
-			out[id] = true
-		}
-		return out, rows.Err()
+		out[id] = true
 	}
+	return out, rows.Err()
 }
 
 // agentReports is findings' AgentReports: whether an agent of this box reads the device's software now, by agent-intake's report

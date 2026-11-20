@@ -158,7 +158,7 @@ func TestAJoinCarriesTheApprovalOntoADeclaredRow(t *testing.T) {
 					t.Fatalf("%s: keptOrder keeps %s, want the declared row", c.name, into)
 				}
 			}
-			watch, err := svc.joinAs(ctx, tx, from, into, "test", c.mode, systemActor)
+			watch, err := svc.joinAs(ctx, tx, nil, from, into, "test", c.mode, systemActor)
 			if err != nil {
 				return err
 			}

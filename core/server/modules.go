@@ -28,6 +28,7 @@ var moduleOverrides = []struct{ prefix, module string }{
 	{"/auth", "core"},
 	{"/me", "core"},
 	{"/modules", "core"},
+	{"/runs", "core"},     // every engine's runs (core/run) answer while any engine's module is off
 	{"/scanning", "core"}, // #850: Settings › Scanning answers while any engine's module is off (modules/core INV-40)
 	{"/setup", "core"},
 }

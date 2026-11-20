@@ -23,10 +23,12 @@ import (
 )
 
 // Invariant is one rule. Name is "<module>.<rule>" in lower case; Query is a single SELECT that returns one integer column
-// with one row: the number of violating rows.
+// with one row: the number of violating rows. A rule SQL cannot state (a value recomputed by a Go function, such as a schedule's
+// next due time across time zones) gives Count instead of Query: it reads through the read-only handle and returns the number.
 type Invariant struct {
 	Name  string
 	Query string
+	Count func(ctx context.Context, db *sql.DB) (int64, error)
 }
 
 var nameRule = regexp.MustCompile(`^[a-z][a-z0-9_-]*\.[a-z][a-z0-9_]*$`)
@@ -43,7 +45,10 @@ func Register(inv Invariant) {
 		panic(fmt.Sprintf("selfcheck: invalid invariant name %q (want module.rule)", inv.Name))
 	}
 	q := strings.TrimSpace(inv.Query)
-	if !strings.HasPrefix(strings.ToUpper(q), "SELECT") || strings.Contains(strings.TrimSuffix(q, ";"), ";") {
+	switch {
+	case inv.Count != nil && q != "":
+		panic(fmt.Sprintf("selfcheck: invariant %q has both a query and a count", inv.Name))
+	case inv.Count == nil && (!strings.HasPrefix(strings.ToUpper(q), "SELECT") || strings.Contains(strings.TrimSuffix(q, ";"), ";")):
 		panic(fmt.Sprintf("selfcheck: invariant %q must be a single SELECT", inv.Name))
 	}
 	mu.Lock()
@@ -53,7 +58,7 @@ func Register(inv Invariant) {
 			panic(fmt.Sprintf("selfcheck: invariant %q registered twice", inv.Name))
 		}
 	}
-	registry = append(registry, Invariant{Name: inv.Name, Query: q})
+	registry = append(registry, Invariant{Name: inv.Name, Query: q, Count: inv.Count})
 }
 
 // Registered returns every invariant, sorted by name.
@@ -106,7 +111,9 @@ func Run(ctx context.Context, db *sql.DB, invs []Invariant) []Result {
 	out := make([]Result, 0, len(invs))
 	for _, inv := range invs {
 		res := Result{Name: inv.Name}
-		if err := db.QueryRowContext(ctx, inv.Query).Scan(&res.Count); err != nil {
+		if inv.Count != nil {
+			res.Count, res.Err = inv.Count(ctx, db)
+		} else if err := db.QueryRowContext(ctx, inv.Query).Scan(&res.Count); err != nil {
 			res.Err = err
 		}
 		out = append(out, res)

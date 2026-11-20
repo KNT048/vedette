@@ -3,7 +3,6 @@ package inventory
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/netip"
@@ -267,8 +266,6 @@ type ChecksInput struct {
 	From, To   string
 	CheckRate  int
 	Exclusions []string // IPv4 or CIDR; host bits are dropped (the scan module accepted them)
-	// CopySavedAt is the updated_at the caller wrote on its own copy (scan_setting) in the same transaction: the copy is taken in.
-	CopySavedAt string
 	// Version is the version of the safety block the page read (GET /scans/config version); "" = none given, no check (the page
 	// of #850 replaces this one). Another one is 409 safety_changed (review #860 M1).
 	Version string
@@ -315,8 +312,6 @@ func (s *Service) SaveChecks(ctx context.Context, tx *sql.Tx, actor string, in C
 	}
 	act.Days = slices.Compact(slices.Sorted(slices.Values(in.Days)))
 	act.From, act.To, act.CheckRate, act.Exclusions = in.From, in.To, in.CheckRate, excl
-	from := in.CopySavedAt // the caller wrote back what it read, the union of both lists while unmerged, and this stamp (M1)
-	act.ChecksMergedFrom = &from
 	if err := putSetting(ctx, tx, "active", act, s.now(), actorOrSystem(actor)); err != nil {
 		return err
 	}
@@ -336,84 +331,6 @@ func normalExclusion(raw string) (string, bool) {
 		return p.Masked().String(), true
 	}
 	return "", false
-}
-
-// LegacyChecks is the scan module's own copy of the window, rate and exclusions (scan_setting) as it stood before #850.
-type LegacyChecks struct {
-	Days       []int
-	From, To   string
-	Rate       int // requests per second
-	Exclusions []string
-	SavedBy    string // who saved it last; "" when nobody did (the defaults of the install)
-	SavedAt    string // when (store timestamp); "" when nobody did
-}
-
-// MergeLegacyChecks takes the scan module's own copy into the one store (#850, INV-32). cmd/vedette runs it at every start and it does
-// something whenever the copy is not the one last taken in (its updated_at differs from ChecksMergedFrom), or none was: the first start
-// after #850, a merge that failed, or a version before #850 that wrote the copy after a rollback (review #857 M1: it can never be
-// skipped for good; the union is safe to repeat). The stamps are compared for equality only, never for order (r2 L1). The check rate becomes the copy's (DefaultCheckRate when out of range); the
-// exclusions become the union of both lists, normalized and each once (nothing either list excluded gets scanned: discovery also
-// skips what only the vulnerability checks skipped); the window stays the inventory's. One audit row scanning.safety.merged names
-// both windows and the exclusions added when that changed anything a person sees: a different window a person had saved, or
-// exclusions added (L10). merged is true when it wrote.
-func (s *Service) MergeLegacyChecks(ctx context.Context, in LegacyChecks) (merged bool, err error) {
-	err = s.write(ctx, func(tx *sql.Tx, o *outbox) error {
-		var act ActiveWindow
-		if err := loadSetting(ctx, tx, "active", &act); err != nil {
-			return err
-		}
-		if act.ChecksMergedFrom != nil && *act.ChecksMergedFrom == in.SavedAt {
-			return nil // this very copy was taken in already
-		}
-		rate := in.Rate
-		if rate < 1 || rate > MaxCheckRate {
-			rate = DefaultCheckRate
-		}
-		if act.CheckRate == 0 || in.SavedAt != "" { // a copy a person saved after the last merge is the newer speed
-			act.CheckRate = rate
-		}
-		excl := slices.Clone(act.Exclusions)
-		if excl == nil {
-			excl = []string{}
-		}
-		for _, raw := range in.Exclusions {
-			if x, ok := normalExclusion(raw); ok && !slices.Contains(excl, x) {
-				excl = append(excl, x)
-			}
-		}
-		added := len(excl) - len(act.Exclusions)
-		act.Exclusions = excl
-		from := in.SavedAt
-		act.ChecksMergedFrom = &from
-		if err := putSetting(ctx, tx, "active", act, s.now(), systemActor); err != nil {
-			return err
-		}
-		days := slices.Compact(slices.Sorted(slices.Values(in.Days)))
-		otherWindow := in.SavedBy != "" && (!slices.Equal(days, act.Days) || in.From != act.From || in.To != act.To)
-		if otherWindow || added > 0 {
-			type window struct {
-				Days []int  `json:"days"`
-				From string `json:"from"`
-				To   string `json:"to"`
-			}
-			detail, err := json.Marshal(struct {
-				Kept      window `json:"kept"`
-				Dropped   window `json:"dropped"`
-				DroppedBy string `json:"dropped_by"`
-				Added     int    `json:"exclusions_added"`
-			}{window{act.Days, act.From, act.To}, window{days, in.From, in.To}, in.SavedBy, added})
-			if err != nil {
-				return fmt.Errorf("inventory: encode the merge detail: %w", err)
-			}
-			if err := s.auditTx(ctx, tx, systemActor, "scanning.safety.merged", "scan window", string(detail)); err != nil {
-				return err
-			}
-		}
-		o.add(EventSettingsChanged, SettingsEvent{Scope: "scan"})
-		merged = true
-		return nil
-	})
-	return merged, err
 }
 
 // FragileCount is how many devices are fragile now (by type or marked by hand): the count of Devices' fragile filter.

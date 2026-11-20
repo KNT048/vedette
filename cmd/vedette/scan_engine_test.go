@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/exec/exectest"
+	corerun "github.com/knt048/vedette/core/run"
 	"github.com/knt048/vedette/core/sensorlink"
 	"github.com/knt048/vedette/core/sensorlink/linktest"
 	"github.com/knt048/vedette/core/store"
@@ -52,6 +54,14 @@ var s5Device = scan.Device{ID: "a-1", Label: "NAS-1", IP: "192.168.10.20", Kind:
 func (*s5Inventory) Scope(context.Context) (scan.Scope, error) {
 	return scan.Scope{Networks: []string{"192.168.10.0/24"}, ConfirmedAt: "2026-11-01T00:00:00.000Z", ConfirmedBy: "it@acme.example"}, nil
 }
+
+func (*s5Inventory) Checks(context.Context) (scan.Checks, error) {
+	return scan.Checks{Window: scan.Window{Days: []int{1, 2, 3, 4, 5, 6, 7}, From: "22:00", To: "05:00"}, Rate: 5, Exclusions: []string{}}, nil
+}
+
+func (*s5Inventory) SaveChecks(context.Context, *sql.Tx, string, scan.Checks) error { return nil }
+
+func (*s5Inventory) Settle(context.Context, *sql.Tx, bool) {}
 
 func (*s5Inventory) Devices(context.Context) ([]scan.Device, error) {
 	return []scan.Device{s5Device}, nil
@@ -170,11 +180,19 @@ func startS5(t *testing.T, body string, corePack func([]byte) []byte) *s5Env {
 	}
 	t.Cleanup(func() { _ = db.Close() })
 	inv, fs := &s5Inventory{}, &s5Findings{}
-	svc, err := scan.NewService(scan.Config{DB: db, Audit: audit.New(nil), Inventory: inv, Findings: fs, Log: log, Pack: ix,
+	runs, err := corerun.New(corerun.Config{DB: db, Audit: audit.New(nil), Log: log})
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc, err := scan.NewService(scan.Config{DB: db, Audit: audit.New(nil), Inventory: inv, Findings: fs, Log: log, Pack: ix, Runs: runs,
 		Engine: orderEngine{Engine: scanEngine{d}, t: t, db: db, inv: inv}})
 	if err != nil {
 		t.Fatal(err)
 	}
+	if err := runs.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(runs.Close) // before the database closes
 	deadline := time.Now().Add(20 * time.Second)
 	for d.Ready(ctx) != nil {
 		if time.Now().After(deadline) {

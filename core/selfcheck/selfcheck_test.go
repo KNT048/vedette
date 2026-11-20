@@ -17,6 +17,7 @@ func TestRegisterRejectsMistakes(t *testing.T) {
 		"not select":  {Name: "mod.a", Query: "DELETE FROM t"},
 		"two queries": {Name: "mod.b", Query: "SELECT 0; DELETE FROM t"},
 		"duplicate":   {Name: "sqlite.foreign_key_violations", Query: "SELECT 0"},
+		"both":        {Name: "mod.c", Query: "SELECT 0", Count: func(context.Context, *sql.DB) (int64, error) { return 0, nil }},
 	} {
 		func() {
 			defer func() {
@@ -43,6 +44,11 @@ func TestCommandReportsCountsAndMissingTables(t *testing.T) {
 		{Name: "t.none", Query: `SELECT count(*) FROM t WHERE v > 5`},
 		{Name: "t.two", Query: `SELECT count(*) FROM t WHERE v > 0`},
 		{Name: "t.missing", Query: `SELECT count(*) FROM absent`},
+		{Name: "t.counted", Count: func(ctx context.Context, db *sql.DB) (int64, error) {
+			var n int64
+			err := db.QueryRowContext(ctx, `SELECT sum(v) FROM t`).Scan(&n)
+			return n, err
+		}},
 	}
 	var out bytes.Buffer
 	err = Command(context.Background(), path, invs, &out)
@@ -50,7 +56,7 @@ func TestCommandReportsCountsAndMissingTables(t *testing.T) {
 		t.Fatalf("want ErrFailed, got %v", err)
 	}
 	got := out.String()
-	for _, want := range []string{" 0  t.none", " 2  t.two", " -  t.missing: ", "2 of 3 invariants"} {
+	for _, want := range []string{" 0  t.none", " 2  t.two", " -  t.missing: ", " 3  t.counted", "3 of 4 invariants"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("output lacks %q:\n%s", want, got)
 		}

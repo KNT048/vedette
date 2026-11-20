@@ -97,12 +97,12 @@ func TestSchedule_FirstRunAfterARecordedSlotWithoutARun(t *testing.T) {
 	ict := time.FixedZone("ICT", 7*3600)
 	cfg := r.svc.cfg
 	cfg.Location = func(context.Context) *time.Location { return ict }
-	svc, err := NewService(cfg)
+	svc, err := r.rebuild(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
 	r.svc = svc
-	r.exec(`UPDATE scan_setting SET days = '[1,2,3,4,5,6,7]', win_from = '22:00', win_to = '05:00', sched_enabled = 1, sched_frequency = 'weekly',
+	r.exec(`UPDATE scan_setting SET sched_enabled = 1, sched_frequency = 'weekly',
 sched_weekday = 7, sched_at = '23:00', updated_at = NULL, updated_by = NULL, sched_last = '2026-11-08T16:00:00.000Z' WHERE id = 1`)
 	r.setNow(time.Date(2026, 11, 12, 3, 0, 0, 0, time.UTC)) // a manual scan on Thursday morning does not end the first-run period
 	r.start("a-web01")

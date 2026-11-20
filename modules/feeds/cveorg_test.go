@@ -189,7 +189,7 @@ func cveOrgEnv(t *testing.T) (*env, *origin, *[]RangesUpdatedEvent) {
 		vuln("CVE-2026-0005", "Acme", "Router", "2026-11-03"),
 	}, false)
 	write(t, e.db, func(tx *sql.Tx) error {
-		_, _, err := applyAffected(t.Context(), tx, map[string][]AffectedRow{"CVE-2026-0005": {{CPE: "cpe:2.3:o:acme:router:*:*:*:*:*:*:*:*", EndExcl: "4.0"}}}, false, epoch0)
+		_, err := applyAffected(t.Context(), tx, map[string][]AffectedRow{"CVE-2026-0005": {{CPE: "cpe:2.3:o:acme:router:*:*:*:*:*:*:*:*", EndExcl: "4.0"}}}, false, epoch0)
 		return err
 	})
 	o.serve("/cves/2024/3xxx/CVE-2024-3400.json", func(w http.ResponseWriter, _ *http.Request) {
@@ -257,7 +257,7 @@ func TestContract_CVEOrgRanges(t *testing.T) {
 
 	// NVD answers without a vulnerable entry: CVE.org's ranges stay; with ranges: NVD's replace them
 	write(t, e.db, func(tx *sql.Tx) error {
-		_, _, err := applyAffected(t.Context(), tx, map[string][]AffectedRow{"CVE-2024-3400": {}}, false, epoch0)
+		_, err := applyAffected(t.Context(), tx, map[string][]AffectedRow{"CVE-2024-3400": {}}, false, epoch0)
 		return err
 	})
 	if src, _ := e.svc.st.RangesFromCVEOrg(t.Context()); src["CVE-2024-3400"] != "cve.org" {
@@ -266,7 +266,7 @@ func TestContract_CVEOrgRanges(t *testing.T) {
 	nvd := []AffectedRow{{CPE: "cpe:2.3:o:paloaltonetworks:pan-os:*:*:*:*:*:*:*:*", StartIncl: "10.2.0", EndExcl: "10.2.9"}}
 	var changed []string
 	write(t, e.db, func(tx *sql.Tx) (err error) {
-		changed, _, err = applyAffected(t.Context(), tx, map[string][]AffectedRow{"CVE-2024-3400": nvd, "CVE-2026-0005": {{CPE: "cpe:2.3:o:acme:router:*:*:*:*:*:*:*:*", EndExcl: "4.0"}}}, true, epoch0)
+		changed, err = applyAffected(t.Context(), tx, map[string][]AffectedRow{"CVE-2024-3400": nvd, "CVE-2026-0005": {{CPE: "cpe:2.3:o:acme:router:*:*:*:*:*:*:*:*", EndExcl: "4.0"}}}, true, epoch0)
 		return err
 	})
 	aff, _ = e.svc.st.KevAffected(t.Context())
@@ -333,7 +333,7 @@ func TestCVEOrgPull_OneBadFileDoesNotStopIt(t *testing.T) {
 	if f.Status != "ok" || *f.Records != 1 || f.Error == nil || !strings.Contains(*f.Error, "1 unreadable") {
 		t.Fatalf("feed = %+v %v", f, *f.Error)
 	}
-	if n := count(t, e.db, `SELECT count(*) FROM feeds_cveorg_checked`); n != 3 {
+	if n := count(t, e.db, `SELECT count(*) FROM feeds_cve WHERE record_at IS NOT NULL`); n != 3 {
 		t.Fatalf("%d CVEs stamped, want 3 (the refused one too, so the next pull does not start with it)", n)
 	}
 	o.serve("/cves/2024/3xxx/CVE-2024-3400.json", func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("<html>sign in</html>")) })
@@ -367,17 +367,16 @@ func TestCVEOrgPublishedDay(t *testing.T) {
 	if day("CVE-2024-3400") != "2024-04-12" || day("CVE-2026-0001") != "" { // the second record gives no datePublished
 		t.Fatalf("CVE.org days: %q %q", day("CVE-2024-3400"), day("CVE-2026-0001"))
 	}
-	if n, err := e.svc.st.publishedCount(t.Context()); err != nil || n != 0 {
-		t.Fatalf("CVE.org's day counted as NVD's: %d %v", n, err)
-	}
-	write(t, e.db, func(tx *sql.Tx) error {
-		return applyPublished(t.Context(), tx, map[string]string{"CVE-2024-3400": "2024-04-11"})
+	write(t, e.db, func(tx *sql.Tx) error { // NVD's record gives another day: it replaces CVE.org's
+		err := storeRecords(t.Context(), tx, []NVDRecord{{CVE: "CVE-2024-3400", Published: time.Date(2024, 4, 11, 5, 0, 0, 0, time.UTC),
+			LastModified: epoch0, Status: "Analyzed", Affected: []AffectedRow{}}}, e.clock())
+		return err
 	})
 	write(t, e.db, func(tx *sql.Tx) error {
 		return applyCVEOrgPublished(t.Context(), tx, map[string]string{"CVE-2024-3400": "2024-04-12"})
 	})
-	if n, _ := e.svc.st.publishedCount(t.Context()); day("CVE-2024-3400") != "2024-04-11" || n != 1 {
-		t.Fatalf("NVD's day did not win: %q, %d", day("CVE-2024-3400"), n)
+	if day("CVE-2024-3400") != "2024-04-11" {
+		t.Fatalf("NVD's day did not win: %q", day("CVE-2024-3400"))
 	}
 	for ts, want := range map[string]string{"2024-04-12T07:20:00.707Z": "2024-04-12", "2024-04-12": "2024-04-12", "2024-13-01T00:00:00Z": "", "x'; DROP": "", "2024-04-12 07:20": ""} {
 		if got := cveDay(ts); got != want {

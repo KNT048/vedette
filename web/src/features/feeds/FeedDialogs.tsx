@@ -7,32 +7,36 @@ import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/u
 import { Field, Input, Select } from '@/components/ui/input'
 import { Segmented } from '@/components/ui/segmented'
 import { ApiError } from '@/lib/api'
+import { useScheduleDraft } from '@/components/schedule/useScheduleDraft'
 import { useFindings } from '@/features/findings/api'
 import { isOpen } from '@/features/findings/basis'
-import { blockedFeedHost, checkFeedUrl, defaultParser, everyLabel, FORMATS } from './defaults'
+import { blockedFeedHost, checkFeedUrl, defaultParser, FORMATS } from './defaults'
 import { useDeleteCustomFeed, usePatchFeed, useSaveCustomFeed } from './api'
 import { ParserEditor } from './ParserEditor'
 import type { Feed, FeedAuthType, FeedFormat, FeedKind, Parser } from './types'
 
-const INTERVALS = [1, 3, 6, 12, 24, 72, 168]
-const intervalOptions = (cur: number) => [...new Set([...INTERVALS, cur])].sort((a, b) => a - b)
 const FIELD_OF: Record<string, 'name' | 'url' | 'auth' | 'parser'> = { invalid_name: 'name', duplicate_name: 'name', invalid_url: 'url', blocked_host: 'url', duplicate_url: 'url', invalid_auth: 'auth', bad_config: 'parser', invalid_format: 'parser' }
 const serverField = (e: unknown) => (e instanceof ApiError ? FIELD_OF[e.code] : undefined)
 
-function Interval({ id, value, onChange }: { id: string; value: number; onChange: (n: number) => void }) {
+/** The feed's fetch schedule (the shared schedule fields, saved with the dialog's Save). The feed's own switch turns fetching on and
+ *  off, so the fields carry no second one. */
+function useFeedSchedule(id: string | undefined, prefix: string) {
   const { t } = useTranslation('feeds')
-  return (
-    <Field label={t('dialog.schedule')} htmlFor={id}>
-      <Select id={id} value={value} onChange={(e) => onChange(Number(e.target.value))}>{intervalOptions(value).map((n) => <option key={n} value={n}>{everyLabel(t, n)}</option>)}</Select>
-    </Field>
-  )
+  const s = useScheduleDraft(`feeds.source:${id ?? ''}`, { idPrefix: prefix, enabled: !!id, onOff: false })
+  const fields = id ? (
+    <fieldset className="m-0 grid min-w-0 gap-3 border-0 p-0">
+      <legend className="mb-1 text-sm font-medium">{t('dialog.schedule')}</legend>
+      {s.fields}
+    </fieldset>
+  ) : null
+  return { ...s, fields }
 }
 
 /** Built-in feed: schedule and mirror address; "Reset to default" restores the original address. */
 export function BuiltinDialog({ feed, onClose }: { feed: Feed; onClose: () => void }) {
   const { t } = useTranslation('feeds')
   const patch = usePatchFeed()
-  const [hours, setHours] = useState(feed.interval_hours)
+  const schedule = useFeedSchedule(feed.id, 'bf-sched')
   const [url, setUrl] = useState(feed.url)
   const [err, setErr] = useState<string>()
   const byok = feed.id === 'vulncheck-kev'
@@ -49,13 +53,14 @@ export function BuiltinDialog({ feed, onClose }: { feed: Feed; onClose: () => vo
     const c = byok ? 'ok' : (checkFeedUrl(url) === 'ok' && blockedFeedHost(url)) || checkFeedUrl(url)
     if (c !== 'ok') { setErr(t(`dialog.err.${c}`)); document.getElementById('bf-url')?.focus(); return }
     if (byok && key && (key.length < 8 || /\s/.test(key))) { setKeyErr(t('dialog.err.secretShape')); document.getElementById('bf-key')?.focus(); return }
-    patch.mutate({ id: feed.id, interval_hours: hours, ...(byok ? {} : { url: url.trim() }), ...(byok && key ? { api_key: key } : {}) }, { onSuccess: () => { toast.success(t('dialog.saved', { name: feed.name })); onClose() }, onError: () => document.getElementById('bf-url')?.focus() })
+    // the schedule first: a rule the box refuses keeps the dialog open with the reason at its field
+    schedule.commit().then(() => patch.mutate({ id: feed.id, ...(byok ? {} : { url: url.trim() }), ...(byok && key ? { api_key: key } : {}) }, { onSuccess: () => { toast.success(t('dialog.saved', { name: feed.name })); onClose() }, onError: () => document.getElementById('bf-url')?.focus() }), () => undefined)
   }
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
       <DialogContent title={t('dialog.builtinTitle', { name: feed.name })} description={t('dialog.builtinBody')}>
         <form noValidate onSubmit={submit} className="grid gap-4" aria-label={t('dialog.builtinTitle', { name: feed.name })}>
-          <Interval id="bf-hours" value={hours} onChange={setHours} />
+          {schedule.fields}
           {byok ? <div className="flex items-center gap-1 text-meta text-muted"><p>{t('dialog.vulncheckNoMirror')}</p><InfoTip topic={t('dialog.address')}>{t('dialog.vulncheckNoMirrorInfo')}</InfoTip></div> : (
             <>
               <Field label={t('dialog.address')} htmlFor="bf-url" hint={t('dialog.mirrorHint')} info={t('dialog.mirrorInfo')} error={urlErr}>
@@ -85,7 +90,7 @@ export function BuiltinDialog({ feed, onClose }: { feed: Feed; onClose: () => vo
           {patch.error && !serverField(patch.error) ? <p role="alert" className="text-sm text-danger">{(patch.error as Error).message}</p> : null}
           <DialogFooter>
             <DialogClose asChild><Button type="button">{t('common:cancel')}</Button></DialogClose>
-            <Button type="submit" variant="primary" busy={patch.isPending && patch.variables?.api_key !== ''} busyLabel={t('common:busy.saving')} disabled={patch.isPending}>{t('common:save')}</Button>
+            <Button type="submit" variant="primary" busy={schedule.pending || (patch.isPending && patch.variables?.api_key !== '')} busyLabel={t('common:busy.saving')} disabled={patch.isPending}>{t('common:save')}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -100,7 +105,7 @@ export function CustomDialog({ feed, onClose }: { feed: Feed | null; onClose: ()
   const [name, setName] = useState(feed?.name ?? '')
   const [kind, setKind] = useState<FeedKind>(feed?.kind ?? 'ioc')
   const [url, setUrl] = useState(feed?.url ?? '')
-  const [hours, setHours] = useState(feed?.interval_hours ?? 6)
+  const schedule = useFeedSchedule(feed?.id, 'cf-sched')
   const [auth, setAuth] = useState<FeedAuthType>(feed?.auth.type ?? 'none')
   // Switching the sign-in type drops what was typed for the other type: back on the saved type, the saved values return.
   const saved = (a: FeedAuthType) => (feed?.auth.type === a ? { header: feed.auth.header_name ?? 'X-Api-Key', user: feed.auth.username ?? '' } : { header: 'X-Api-Key', user: '' })
@@ -142,9 +147,10 @@ export function CustomDialog({ feed, onClose }: { feed: Feed | null; onClose: ()
     setErrs(n)
     const first = (['name', 'url', 'auth', 'parser'] as const).find((k) => n[k])
     if (first) { focusField(first); return }
-    save.mutate({ id: feed?.id, name: name.trim(), kind, url: url.trim(), enabled: feed?.enabled ?? true, interval_hours: hours,
+    // a new feed starts on its default schedule, changed afterwards in this dialog
+    schedule.commit().then(() => save.mutate({ id: feed?.id, name: name.trim(), kind, url: url.trim(), enabled: feed?.enabled ?? true, interval_hours: feed?.interval_hours ?? 6,
       auth: { type: auth, header_name: auth === 'header' ? header : null, username: auth === 'basic' ? user.trim() : null, secret: secret || undefined }, parser },
-    { onSuccess: () => { toast.success(feed ? t('dialog.saved', { name: name.trim() }) : t('dialog.added', { name: name.trim() })); onClose() }, onError: (er) => focusField(serverField(er) ?? 'other') })
+    { onSuccess: () => { toast.success(feed ? t('dialog.saved', { name: name.trim() }) : t('dialog.added', { name: name.trim() })); onClose() }, onError: (er) => focusField(serverField(er) ?? 'other') }), () => undefined)
   }
   // The sign-in error shows under the field that is wrong, not always under the secret.
   const authErr = err('auth')
@@ -168,7 +174,6 @@ export function CustomDialog({ feed, onClose }: { feed: Feed | null; onClose: ()
             <Field label={t('dialog.address')} htmlFor="cf-url" hint={t('dialog.urlHint')} info={t('dialog.urlInfo')} error={err('url')} className="sm:col-span-2">
               <Input id="cf-url" value={url} onChange={(e) => { setUrl(e.target.value); clear('url') }} inputMode="url" autoComplete="off" placeholder="https://" {...aria('url')} />
             </Field>
-            <Interval id="cf-hours" value={hours} onChange={setHours} />
             <Field label={t('dialog.auth')} htmlFor="cf-auth">
               <Select id="cf-auth" value={auth} onChange={(e) => { const a = e.target.value as FeedAuthType; setAuth(a); setSecret(''); setHeader(saved(a).header); setUser(saved(a).user); clear('auth') }}>{(['none', 'header', 'bearer', 'basic'] as const).map((a) => <option key={a} value={a}>{t(`dialog.authType.${a}`)}</option>)}</Select>
             </Field>
@@ -180,12 +185,13 @@ export function CustomDialog({ feed, onClose }: { feed: Feed | null; onClose: ()
               </Field>
             ) : null}
           </div>
+          {schedule.fields}
           <ParserEditor kind={kind} parser={parser} onChange={(p) => { setParser(p); clear('parser') }} onFormat={(f) => { setParser(defaultParser(kind, f)); clear('parser') }} />
           {err('parser') ? <p role="alert" className="text-meta text-danger">{err('parser')}</p> : null}
           {save.error && !serverField(save.error) ? <p role="alert" id="cf-error" tabIndex={-1} className="text-sm text-danger outline-none">{(save.error as Error).message}</p> : null}
           <DialogFooter>
             <DialogClose asChild><Button type="button">{t('common:cancel')}</Button></DialogClose>
-            <Button type="submit" variant="primary" busy={save.isPending} busyLabel={t(feed ? 'common:busy.saving' : 'common:busy.adding')}>{feed ? t('common:save') : t('dialog.addConfirm')}</Button>
+            <Button type="submit" variant="primary" busy={schedule.pending || save.isPending} busyLabel={t(feed ? 'common:busy.saving' : 'common:busy.adding')}>{feed ? t('common:save') : t('dialog.addConfirm')}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

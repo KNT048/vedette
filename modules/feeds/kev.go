@@ -10,7 +10,7 @@ import (
 	"github.com/knt048/vedette/core/productid"
 )
 
-// Vuln is one exploited vulnerability, shaped like a feeds_vuln row (DATA_MODEL §4.1).
+// Vuln is one entry of an exploited list, in the list's own words (a feeds_kev row).
 type Vuln struct {
 	CVE            string   `json:"cve"`
 	Vendor         string   `json:"vendor"`

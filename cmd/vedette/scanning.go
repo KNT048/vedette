@@ -183,7 +183,7 @@ func (s scanInventory) Checks(ctx context.Context) (scan.Checks, error) {
 		return scan.Checks{}, err
 	}
 	return scan.Checks{Window: scan.Window{Days: st.Active.Days, From: st.Active.From, To: st.Active.To}, Rate: st.Active.Checks(), Exclusions: st.Active.Exclusions,
-		MergedFrom: st.Active.ChecksMergedFrom, Version: st.Version}, nil
+		Version: st.Version}, nil
 }
 
 // SaveChecks implements scan.SharedChecks.
@@ -193,9 +193,6 @@ func (s scanInventory) SaveChecks(ctx context.Context, tx *sql.Tx, user string, 
 		return fmt.Errorf("vedette: scan: the inventory cannot store the shared settings")
 	}
 	in := inventory.ChecksInput{Days: c.Window.Days, From: c.Window.From, To: c.Window.To, CheckRate: c.Rate, Exclusions: c.Exclusions, Version: c.Version}
-	if c.MergedFrom != nil {
-		in.CopySavedAt = *c.MergedFrom
-	}
 	return w.SaveChecks(ctx, tx, user, in)
 }
 
@@ -203,29 +200,6 @@ func (s scanInventory) SaveChecks(ctx context.Context, tx *sql.Tx, user string, 
 func (s scanInventory) Settle(ctx context.Context, tx *sql.Tx, committed bool) {
 	if w, ok := s.inv.(scanChecksInv); ok {
 		w.Settle(ctx, tx, committed)
-	}
-}
-
-// mergeScanningSafety takes the scan module's own window, rate and exclusions into the inventory (#850, inventory INV-32) at every start
-// after the migrations: MergeLegacyChecks does it whenever that copy was saved after it was last taken in (#857). A failure
-// is logged and tried again at the next start; until then the scan module reads the union of both lists and the slower rate (scan
-// INV-16), so nothing is scanned that either list excludes.
-func mergeScanningSafety(ctx context.Context, d *deps) {
-	if d.Inventory == nil || d.DB == nil {
-		return
-	}
-	c, by, at, err := scan.LegacyChecks(ctx, d.DB.Reader())
-	if err != nil {
-		d.Log.ErrorContext(ctx, "scanning: reading the scan module's own window to merge it failed; tried again at the next start", "error", err)
-		return
-	}
-	merged, err := d.Inventory.MergeLegacyChecks(ctx, inventory.LegacyChecks{Days: c.Window.Days, From: c.Window.From, To: c.Window.To, Rate: c.Rate, Exclusions: c.Exclusions, SavedBy: by, SavedAt: at})
-	if err != nil {
-		d.Log.ErrorContext(ctx, "scanning: merging the scan module's window, rate and exclusions failed; tried again at the next start", "error", err)
-		return
-	}
-	if merged {
-		d.Log.InfoContext(ctx, "scanning: the vulnerability checks' own window, rate and exclusions were taken into the shared safety settings (#850)", "exclusions", len(c.Exclusions))
 	}
 }
 

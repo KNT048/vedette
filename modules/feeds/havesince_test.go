@@ -20,7 +20,7 @@ func TestHaveSince_FirstHaveScopesTheDeclaredDevice(t *testing.T) {
 		}
 	}
 	var added string
-	if err := e.db.Reader().QueryRowContext(t.Context(), `SELECT max(date_added) FROM feeds_vuln WHERE product_key = 'synology|diskstation manager'`).Scan(&added); err != nil {
+	if err := e.db.Reader().QueryRowContext(t.Context(), `SELECT max(date_added) FROM feeds_kev WHERE lower(vendor) || '|' || lower(product) = 'synology|diskstation manager'`).Scan(&added); err != nil {
 		t.Fatal(err)
 	}
 	d, _ := time.Parse(time.DateOnly, added)

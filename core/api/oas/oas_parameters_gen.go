@@ -2713,6 +2713,91 @@ func decodeCoreGetCoreLogsExportParams(args [0]string, argsEscaped bool, r *http
 	return params, nil
 }
 
+// CoreGetSchedulesOwnerKeyParams is parameters of core_get_schedules_owner_key operation.
+type CoreGetSchedulesOwnerKeyParams struct {
+	OwnerKey string
+}
+
+func unpackCoreGetSchedulesOwnerKeyParams(packed middleware.Parameters) (params CoreGetSchedulesOwnerKeyParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "owner_key",
+			In:   "path",
+		}
+		params.OwnerKey = packed[key].(string)
+	}
+	return params
+}
+
+func decodeCoreGetSchedulesOwnerKeyParams(args [1]string, argsEscaped bool, r *http.Request) (params CoreGetSchedulesOwnerKeyParams, _ error) {
+	// Decode path: owner_key.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "owner_key",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.OwnerKey = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     0,
+					MinLengthSet:  false,
+					MaxLength:     160,
+					MaxLengthSet:  true,
+					Email:         false,
+					Hostname:      false,
+					Regex:         regexMap["^[a-z][a-z0-9_-]*(\\.[a-z0-9_-]+)+(:[A-Za-z0-9._-]{1,96})?$"],
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(params.OwnerKey)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "owner_key",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // CorePatchCoreUsersIDParams is parameters of core_patch_core_users_id operation.
 type CorePatchCoreUsersIDParams struct {
 	ID string
@@ -3100,6 +3185,91 @@ func decodeCorePostCoreUsersIDResetPasswordParams(args [1]string, argsEscaped bo
 	return params, nil
 }
 
+// CorePostSchedulesOwnerKeyRunParams is parameters of core_post_schedules_owner_key_run operation.
+type CorePostSchedulesOwnerKeyRunParams struct {
+	OwnerKey string
+}
+
+func unpackCorePostSchedulesOwnerKeyRunParams(packed middleware.Parameters) (params CorePostSchedulesOwnerKeyRunParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "owner_key",
+			In:   "path",
+		}
+		params.OwnerKey = packed[key].(string)
+	}
+	return params
+}
+
+func decodeCorePostSchedulesOwnerKeyRunParams(args [1]string, argsEscaped bool, r *http.Request) (params CorePostSchedulesOwnerKeyRunParams, _ error) {
+	// Decode path: owner_key.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "owner_key",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.OwnerKey = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     0,
+					MinLengthSet:  false,
+					MaxLength:     160,
+					MaxLengthSet:  true,
+					Email:         false,
+					Hostname:      false,
+					Regex:         regexMap["^[a-z][a-z0-9_-]*(\\.[a-z0-9_-]+)+(:[A-Za-z0-9._-]{1,96})?$"],
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(params.OwnerKey)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "owner_key",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // CorePutCoreConnectionsIDParams is parameters of core_put_core_connections_id operation.
 type CorePutCoreConnectionsIDParams struct {
 	ID string
@@ -3158,6 +3328,91 @@ func decodeCorePutCoreConnectionsIDParams(args [1]string, argsEscaped bool, r *h
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// CorePutSchedulesOwnerKeyParams is parameters of core_put_schedules_owner_key operation.
+type CorePutSchedulesOwnerKeyParams struct {
+	OwnerKey string
+}
+
+func unpackCorePutSchedulesOwnerKeyParams(packed middleware.Parameters) (params CorePutSchedulesOwnerKeyParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "owner_key",
+			In:   "path",
+		}
+		params.OwnerKey = packed[key].(string)
+	}
+	return params
+}
+
+func decodeCorePutSchedulesOwnerKeyParams(args [1]string, argsEscaped bool, r *http.Request) (params CorePutSchedulesOwnerKeyParams, _ error) {
+	// Decode path: owner_key.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "owner_key",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.OwnerKey = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     0,
+					MinLengthSet:  false,
+					MaxLength:     160,
+					MaxLengthSet:  true,
+					Email:         false,
+					Hostname:      false,
+					Regex:         regexMap["^[a-z][a-z0-9_-]*(\\.[a-z0-9_-]+)+(:[A-Za-z0-9._-]{1,96})?$"],
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(params.OwnerKey)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "owner_key",
 			In:   "path",
 			Err:  err,
 		}

@@ -51,7 +51,7 @@ func TestWiringKEVMatchQueuesOneNoticeWithRealTexts(t *testing.T) {
 	s.telegramOn()
 	s.kev("CVE-2026-4001", "Fortinet", "FortiOS")
 	if err := s.d.DB.Write(t.Context(), func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(t.Context(), `UPDATE feeds_vuln SET required_action = ? WHERE cve = 'CVE-2026-4001'`, "Apply updates per vendor instructions.\n<b>now</b>")
+		_, err := tx.ExecContext(t.Context(), `UPDATE feeds_kev SET required_action = ? WHERE cve = 'CVE-2026-4001'`, "Apply updates per vendor instructions.\n<b>now</b>")
 		return err
 	}); err != nil {
 		t.Fatal(err)
@@ -84,7 +84,7 @@ func TestWiringFindingDirectoryClipsHostileFeedText(t *testing.T) {
 	s := newStack(t)
 	s.kev("CVE-2026-4002", "Fortinet", "FortiOS")
 	if err := s.d.DB.Write(t.Context(), func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(t.Context(), `UPDATE feeds_vuln SET required_action = ?, name = ? WHERE cve = 'CVE-2026-4002'`, strings.Repeat("A\r\n", 5000), "x\x00y"+strings.Repeat("N", 5000))
+		_, err := tx.ExecContext(t.Context(), `UPDATE feeds_kev SET required_action = ?, name = ? WHERE cve = 'CVE-2026-4002'`, strings.Repeat("A\r\n", 5000), "x\x00y"+strings.Repeat("N", 5000))
 		return err
 	}); err != nil {
 		t.Fatal(err)
@@ -148,7 +148,7 @@ func TestWiringNoticeNamesVulnCheckAsTheSource(t *testing.T) {
 	s.telegramOn()
 	s.kev("CVE-2026-4003", "Fortinet", "FortiOS")
 	if err := s.d.DB.Write(t.Context(), func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(t.Context(), `UPDATE feeds_vuln SET source_id = 'vulncheck-kev' WHERE cve = 'CVE-2026-4003'`)
+		_, err := tx.ExecContext(t.Context(), `UPDATE feeds_kev SET source_id = 'vulncheck-kev', list = 'vulncheck' WHERE cve = 'CVE-2026-4003'`)
 		return err
 	}); err != nil {
 		t.Fatal(err)

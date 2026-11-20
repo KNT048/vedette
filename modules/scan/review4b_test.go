@@ -40,7 +40,7 @@ func TestReview4b_L1_AnEventMatchesOnlyOnItsOwnFinding(t *testing.T) {
 	}
 	cfg := r.svc.cfg
 	cfg.Pack = ix
-	if r.svc, err = NewService(cfg); err != nil {
+	if r.svc, err = r.rebuild(cfg); err != nil {
 		t.Fatal(err)
 	}
 	r.findings.mu.Lock()

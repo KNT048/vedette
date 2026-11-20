@@ -386,13 +386,19 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	defer d.Response.Close()         // ends the approval requests still being sent before the database closes
 	defer exposureService(d).Close() // OpenVAS's start and feed update end with the box; the run manager ends the scan that runs
 	exposureAtStart(ctx, d)          // OpenVAS enabled before this start runs again
-	defer scanService(d).Close()     // stop a live scan and wait for it before the database closes (scan review M4)
+	scanService(d)                   // builds the scan module's service, which registers its kind of run before the manager starts
 	// Runs: the ones a previous process left are recorded (stopped by the restart, the resumable queued again), then the queue
 	// starts. Closed before the module services above, so a run's work ends before the service it uses.
 	if err := d.Runs.Start(ctx); err != nil {
 		return err
 	}
 	defer d.Runs.Close()
+	// Schedules: the defaults that are on are saved, every next due time is brought up to date, then the ticker starts what
+	// comes due as runs. Closed before the runs, so nothing is started on a manager that is closing.
+	if err := d.Schedules.Start(ctx); err != nil {
+		return err
+	}
+	defer d.Schedules.Close()
 	if o.hostSocket != "" && (filepath.Base(o.db) != "vedette.db" || filepath.Base(o.key) != "vedette.key" || filepath.Dir(o.key) != filepath.Dir(o.db)) {
 		log.WarnContext(ctx, "backup restore through vedette-host needs the database and key at <core_data>/vedette.db and <core_data>/vedette.key", "db", o.db, "key", o.key)
 	}

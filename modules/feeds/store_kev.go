@@ -2,6 +2,7 @@ package feeds
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -9,8 +10,8 @@ import (
 	"time"
 )
 
-// The reads below are for the modules that use the CISA list through their own ports (inventory.KEV,
-// findings.Feeds). They answer from cisa-kev rows only: a custom feed's CVE is not a KEV entry.
+// The reads below are for the modules that use the exploited lists through their own ports (inventory.KEV, findings.Feeds). They
+// answer from the CISA list and VulnCheck KEV only: a custom feed's CVE is not a KEV entry.
 
 // ProductCount is a vendor and product pair of the CISA list with the number of its CVEs.
 type ProductCount struct {
@@ -18,31 +19,46 @@ type ProductCount struct {
 	Count           int
 }
 
-// KevProducts lists every vendor and product pair of the CISA list with its CVE count, and a version that
-// changes whenever the set of rows does (row count and newest update).
+// KevProducts lists every vendor and product pair of the exploited lists with its CVE count, and a version that changes whenever
+// the set of entries does (entry count and newest update).
 func (s *Store) KevProducts(ctx context.Context) (version string, list []ProductCount, err error) {
 	var n int
 	var newest string
-	if err := s.db.Reader().QueryRowContext(ctx, `SELECT count(*), coalesce(max(updated_at), '') FROM feeds_vuln WHERE source_id IN ('cisa-kev', 'vulncheck-kev')`).Scan(&n, &newest); err != nil {
+	if err := s.db.Reader().QueryRowContext(ctx, `SELECT count(*), coalesce(max(updated_at), '') FROM feeds_kev WHERE source_id IN ('cisa-kev', 'vulncheck-kev')`).Scan(&n, &newest); err != nil {
 		return "", nil, fmt.Errorf("feeds: read KEV version: %w", err)
 	}
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT vendor, product, count(*) FROM feeds_vuln WHERE source_id IN ('cisa-kev', 'vulncheck-kev') GROUP BY vendor, product ORDER BY lower(vendor), lower(product)`)
+	all, err := s.KevVulns(ctx)
 	if err != nil {
-		return "", nil, fmt.Errorf("feeds: read KEV products: %w", err)
+		return "", nil, err
 	}
-	defer func() { _ = rows.Close() }()
-	for rows.Next() {
-		var p ProductCount
-		if err := rows.Scan(&p.Vendor, &p.Product, &p.Count); err != nil {
-			return "", nil, fmt.Errorf("feeds: read KEV products: %w", err)
+	at := map[Product]int{}
+	for _, v := range all {
+		p := Product{Vendor: v.Vendor, Product: v.Product}
+		i, ok := at[p]
+		if !ok {
+			i = len(list)
+			at[p] = i
+			list = append(list, ProductCount{Vendor: v.Vendor, Product: v.Product})
 		}
-		list = append(list, p)
+		list[i].Count++
 	}
-	return fmt.Sprintf("%d@%s", n, newest), list, rows.Err()
+	slices.SortFunc(list, func(a, b ProductCount) int {
+		if c := strings.Compare(strings.ToLower(a.Vendor), strings.ToLower(b.Vendor)); c != 0 {
+			return c
+		}
+		if c := strings.Compare(strings.ToLower(a.Product), strings.ToLower(b.Product)); c != 0 {
+			return c
+		}
+		if c := strings.Compare(a.Vendor, b.Vendor); c != 0 {
+			return c
+		}
+		return strings.Compare(a.Product, b.Product)
+	})
+	return fmt.Sprintf("%d@%s", n, newest), list, nil
 }
 
-// KevCVEsByKeys returns the CVEs of the CISA list for these product keys (productid.Key form, lower case). A
-// "Multiple products" entry of a vendor matches every key of that vendor (INV-11).
+// KevCVEsByKeys returns the CVEs of the exploited lists for these product keys (productid.Key form, lower case). A "Multiple
+// products" entry of a vendor matches every key of that vendor (INV-11).
 func (s *Store) KevCVEsByKeys(ctx context.Context, keys []string) ([]string, error) {
 	want := map[string]bool{}
 	for _, k := range keys {
@@ -54,55 +70,34 @@ func (s *Store) KevCVEsByKeys(ctx context.Context, keys []string) ([]string, err
 	if len(want) == 0 {
 		return []string{}, nil
 	}
-	all := slices.Sorted(func(yield func(string) bool) {
-		for k := range want {
-			if !yield(k) {
-				return
-			}
-		}
-	})
+	all, err := s.KevVulns(ctx)
+	if err != nil {
+		return nil, err
+	}
 	out := []string{}
-	for chunk := range slices.Chunk(all, 400) {
-		args := make([]any, len(chunk))
-		for i, k := range chunk {
-			args[i] = k
-		}
-		rows, err := s.db.Reader().QueryContext(ctx, `SELECT cve FROM feeds_vuln WHERE source_id IN ('cisa-kev', 'vulncheck-kev') AND product_key IN (?`+strings.Repeat(`, ?`, len(chunk)-1)+`) ORDER BY cve`, args...)
-		if err != nil {
-			return nil, fmt.Errorf("feeds: read CVEs of products: %w", err)
-		}
-		for rows.Next() {
-			var c string
-			if err := rows.Scan(&c); err != nil {
-				_ = rows.Close()
-				return nil, fmt.Errorf("feeds: read CVEs of products: %w", err)
-			}
-			out = append(out, c)
-		}
-		err = rows.Err()
-		_ = rows.Close()
-		if err != nil {
-			return nil, err
+	for _, v := range all {
+		if want[v.Key()] {
+			out = append(out, v.CVE)
 		}
 	}
 	slices.Sort(out)
 	return slices.Compact(out), nil
 }
 
-// KevVulns returns every row of the CISA list, for matching.
+// KevVulns returns the owner entry of every CVE of the exploited lists (CISA, VulnCheck), for matching.
 func (s *Store) KevVulns(ctx context.Context) ([]VulnRow, error) {
-	return queryVulns(ctx, s.db.Reader(), `WHERE source_id IN ('cisa-kev', 'vulncheck-kev') ORDER BY cve`)
+	return queryVulns(ctx, s.db.Reader(), `AND `+kevSources+` ORDER BY k.cve`)
 }
 
-// KevVulnsByCVE returns the rows of the CISA list for these CVEs (upper case); CVEs not on it are absent.
+// KevVulnsByCVE returns the owner entries of the exploited lists for these CVEs (upper case); CVEs not on them are absent.
 func (s *Store) KevVulnsByCVE(ctx context.Context, cves []string) ([]VulnRow, error) {
 	out := []VulnRow{}
 	for chunk := range slices.Chunk(cves, 400) {
-		args := make([]any, len(chunk))
-		for i, c := range chunk {
-			args[i] = c
+		part, err := json.Marshal(chunk)
+		if err != nil {
+			return nil, fmt.Errorf("feeds: read vulnerabilities: %w", err)
 		}
-		rows, err := queryVulns(ctx, s.db.Reader(), `WHERE source_id IN ('cisa-kev', 'vulncheck-kev') AND cve IN (?`+strings.Repeat(`, ?`, len(chunk)-1)+`)`, args...)
+		rows, err := queryVulns(ctx, s.db.Reader(), `AND `+kevSources+` AND k.cve IN (SELECT value FROM json_each(?))`, string(part))
 		if err != nil {
 			return nil, err
 		}

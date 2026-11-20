@@ -252,65 +252,32 @@ func errCodeOf(body map[string]any) string {
 	return c
 }
 
-// The one-time merge at start on a box that has both copies: the scan module's window and exclusions saved by a person, discovery's
-// own (the defaults here: every day 22:00 to 05:00, no exclusion).
-func TestScanningMergeOfTheTwoCopies(t *testing.T) {
+// The window, rate and exclusions have one home, the inventory's safety settings: the scan module keeps no copy, and what the
+// vulnerability checks read and save is what Settings › Scanning shows.
+func TestScanningSharedChecksHaveOneHome(t *testing.T) {
 	t.Parallel()
-	// a fresh box: merged at start, silently, at the scan module's default rate
-	if s := newStack(t); s.activeSetting().CheckRate != 5 || s.count(`SELECT count(*) FROM core_audit WHERE action = 'scanning.safety.merged'`) != 0 {
-		t.Fatalf("fresh box: %+v", s.activeSetting())
+	s := newStack(t)
+	if s.count(`SELECT count(*) FROM pragma_table_info('scan_setting') WHERE name IN ('days', 'win_from', 'win_to', 'rate', 'exclusions')`) != 0 {
+		t.Fatal("scan_setting still has a copy of the window, rate or exclusions")
 	}
-	s := newStackWith(t, func(d *deps) {
-		err := d.DB.Write(t.Context(), func(tx *sql.Tx) error {
-			_, err := tx.ExecContext(t.Context(), `UPDATE scan_setting SET days = '[6,7]', win_from = '20:00', win_to = '06:00', rate = 11,
-				exclusions = '["192.168.10.9","192.168.10.40/28","192.168.10.32/28"]', updated_by = 'it@acme.example', updated_at = '2026-11-01T00:00:00.000Z'`)
-			return err
-		})
-		if err != nil {
-			t.Fatal(err)
-		}
-	})
+	if a := s.activeSetting(); a.Checks() != 5 {
+		t.Fatalf("a fresh box checks at %d requests per second, want 5", a.Checks())
+	}
+	s.module("scan", true)
+	code, out := s.do("PUT", "/scans/config", "admin", `{"rate":11,"exclusions":["192.168.10.9","192.168.10.40/28","192.168.10.32/28"]}`)
+	if code != http.StatusOK {
+		t.Fatalf("PUT /scans/config: %d %v", code, out)
+	}
 	a := s.activeSetting()
-	if a.CheckRate != 11 || a.From != "22:00" || a.To != "05:00" || len(a.Days) != 7 {
-		t.Fatalf("merged = %+v: the rate is the scan module's, the window discovery's", a)
+	if a.CheckRate != 11 {
+		t.Fatalf("the inventory holds rate %d, want 11", a.CheckRate)
 	}
 	if want := []string{"192.168.10.9", "192.168.10.32/28"}; !slices.Equal(a.Exclusions, want) { // .40/28 is .32/28: once
 		t.Fatalf("exclusions = %v, want %v", a.Exclusions, want)
 	}
-	if s.count(`SELECT count(*) FROM core_audit WHERE action = 'scanning.safety.merged' AND detail LIKE '%"from":"20:00"%' AND detail LIKE '%it@acme.example%'`) != 1 {
-		t.Fatal("no audit row names the dropped window")
-	}
-	if s.count(`SELECT count(*) FROM pragma_table_info('scan_setting') WHERE name IN ('days', 'win_from', 'win_to', 'rate', 'exclusions')`) != 5 ||
-		s.count(`SELECT count(*) FROM scan_setting WHERE win_from = '20:00' AND rate = 11`) != 1 {
-		t.Fatal("scan_setting's columns or values are gone")
-	}
-	// the vulnerability checks read the merged values at once
-	s.module("scan", true)
 	_, cfg := s.do("GET", "/scans/config", "admin", "")
-	if c := cfg["config"].(map[string]any); c["rate"] != 11.0 || c["window"].(map[string]any)["from"] != "22:00" || len(c["exclusions"].([]any)) != 2 {
+	if c := cfg["config"].(map[string]any); c["rate"] != 11.0 || len(c["exclusions"].([]any)) != 2 {
 		t.Fatalf("GET /scans/config = %v", c)
-	}
-	// at the next start nothing happens again
-	mergeScanningSafety(t.Context(), s.d)
-	if s.count(`SELECT count(*) FROM core_audit WHERE action = 'scanning.safety.merged'`) != 1 || s.activeSetting().CheckRate != 11 {
-		t.Fatal("the merge ran twice")
-	}
-	// review #857 M1: a version before #850 after a rollback writes the copy again (a new exclusion): the scan module reads it at once,
-	// and the next start takes it into the one store
-	err := s.d.DB.Write(t.Context(), func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(t.Context(), `UPDATE scan_setting SET exclusions = '["192.168.10.9","192.168.10.50"]', updated_at = '2099-01-01T00:00:00.000Z'`)
-		return err
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, cfg = s.do("GET", "/scans/config", "admin", "")
-	if ex := cfg["config"].(map[string]any)["exclusions"].([]any); !slices.Contains(ex, any("192.168.10.50")) {
-		t.Fatalf("before the next start nuclei skips %v, not the rollback's exclusion", ex)
-	}
-	mergeScanningSafety(t.Context(), s.d)
-	if a := s.activeSetting(); !slices.Contains(a.Exclusions, "192.168.10.50") {
-		t.Fatalf("after the next start: %v", a.Exclusions)
 	}
 }
 
@@ -647,8 +614,8 @@ func TestScanningExternalLastRuns(t *testing.T) {
 	// A LAN run of the vulnerability checks after the external scan is nuclei's last run; one before it is not.
 	lan := func(id, ended string) {
 		t.Helper()
-		exec(`INSERT INTO scan_run (id, trigger, started_at, started_by, ended_at, status, target_ids, total, done, matched) VALUES (?, 'manual', ?, 'admin@acme.example', ?, 'done', '["a"]', 1, 1, 0)`,
-			id, ended, ended)
+		exec(`INSERT INTO core_run (id, module, kind, lane, title, trigger, requested_by, status, total, done, queued_at, started_at, ended_at, updated_at)
+VALUES (?1, 'scan', 'vuln_check', 'nuclei', 'Vulnerability check', 'manual', 'admin@acme.example', 'done', 1, 1, ?2, ?2, ?2, ?2)`, id, ended)
 	}
 	lan("run-old", "2026-11-16T05:00:00.000Z")
 	if last, _ := card("nuclei")["last_run"].(map[string]any); last["at"] != "2026-11-16T06:30:00Z" {

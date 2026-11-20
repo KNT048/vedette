@@ -67,6 +67,7 @@ var exportPolicy = map[string]tablePolicy{
 	"core_run_item":                {export: "run_id seq subject_kind subject_id label outcome note"},
 	"core_run_log":                 {export: "id run_id ts level text"},
 	"core_run_step":                {export: "run_id seq name status total done note started_at ended_at"},
+	"core_schedule":                {export: "id owner_module owner_key enabled paused_until freq every_minutes at_time month_day once_at tz window_mode window_from window_to next_due_at last_due_at last_run_id last_skip_reason last_skip_at updated_by updated_at", json: "weekdays window_days"}, // schedules (core/schedule): when each kind of work runs
 	"core_secret":                  {skipAll: true, skip: "id purpose nonce ciphertext key_version last4 created_at rotated_at"},
 	"core_sensor_cert":             {skipAll: true, skip: "serial role not_after retired_at"},
 	"core_session":                 {skipAll: true, skip: "id user_id token_hash csrf_hash device ip started_at last_seen expires_at revoked_at"},
@@ -84,25 +85,22 @@ var exportPolicy = map[string]tablePolicy{
 	"exp_service":                  {export: "id target_id ip port proto name product version cpe title is_web ident state first_seen last_seen last_run_id", json: "cert"},
 	"exp_setting":                  {export: "id auto interval_min last_run_at last_run_ok last_run_message last_deep_at last_full_ok_at greenbone greenbone_by greenbone_at greenbone_sync_at greenbone_sync_ok greenbone_sync_note"},
 	"exp_target":                   {export: "id parent_id kind value origin scope_mode enabled method verified_at created_at proof_method", json: "last_check", skip: "token ip_token"},
-	"feeds_affected":               {export: "cve cpe start_incl start_excl end_incl end_excl"}, // Public NVD data
-	"feeds_affected_cve":           {export: "cve updated_at source"},
-	"feeds_cveorg_checked":         {export: "cve checked_at"},                                                                                                 // When each CVE.org record was read
-	"feeds_distro_fix":             {export: "source_id distro release package cve status fixed_version pro"},                                                  // Public Ubuntu/Debian data
-	"feeds_epss":                   {skipAll: true, skip: "cve epss percentile gen"},                                                                           // FIRST's public scores of every CVE (400,000 rows), pulled again daily
-	"feeds_epss_baseline":          {skipAll: true, skip: "id url count score_date"},                                                                           // The yardstick of the next EPSS file and FIRST's day of the scores
-	"feeds_recent_affected":        {skipAll: true, skip: "cve cpe start_incl start_excl end_incl end_excl platforms"},                                         // Public NVD data of 100,000 CVEs, pulled again
-	"feeds_recent_cursor":          {skipAll: true, skip: "id url mode win_from win_to until next_index total"},                                                // Where an unfinished pull goes on
-	"feeds_recent_cve":             {skipAll: true, skip: "cve published last_modified status severity score cvss_score cvss_version cvss_source cvss_vector"}, // Public NVD data, pulled again
-	"feeds_cvss":                   {export: "cve score version source vector"},                                                                                // #825: the CVSS score of each KEV CVE, public NVD data
-	"feeds_winrel":                 {export: "build server product display line ga ga_rev"},                                                                    // The Windows releases Microsoft lists; kept so a restore reads the same builds
-	"feeds_winrel_update":          {export: "build server rev kb day hotpatch"},                                                                               // The monthly Windows updates Microsoft lists; kept so a restore names the same target builds
-	"feeds_published":              {export: "cve published source"},                                                                                           // The day each KEV CVE was published; kept so a restore does not reopen age-closed findings
+	"feeds_cve":                    {skipAll: true, skip: "cve published modified nvd_status nvd_at record_at title description cwe solution workaround ssvc_exploitation ssvc_automatable ssvc_impact updated_at"}, // Public NVD and CVE Program data, pulled again
+	"feeds_cve_metric":             {skipAll: true, skip: "cve source version score vector"},                                                                                                                        // Public CVSS scores, pulled again
+	"feeds_cve_range":              {skipAll: true, skip: "id cve origin part vendor product cpe start_incl start_excl end_incl end_excl fixed version_type default_status platforms"},                              // Public affected versions, pulled again
+	"feeds_epss_hist":              {skipAll: true, skip: "cve day epss"},                                                                                                                                           // FIRST's public scores of a few days, pulled again
+	"feeds_kev":                    {export: "cve list source_id vendor product name description required_action date_added due_date ransomware announced_at updated_at", json: "links"},
+	"feeds_nvd_cursor":             {skipAll: true, skip: "selector url mode win_from win_to until next_index total"},        // Where an unfinished pull goes on
+	"feeds_signal":                 {export: "cve kind source first_seen stored_at last_seen qualifies url", json: "detail"}, // Why a CVE is urgent and since when: the box's own first sightings
+	"feeds_distro_fix":             {export: "source_id distro release package cve status fixed_version pro"},                // Public Ubuntu/Debian data
+	"feeds_epss":                   {skipAll: true, skip: "cve epss percentile gen"},                                         // FIRST's public scores of every CVE (400,000 rows), pulled again daily
+	"feeds_epss_baseline":          {skipAll: true, skip: "id url count score_date"},                                         // The yardstick of the next EPSS file and FIRST's day of the scores
+	"feeds_winrel":                 {export: "build server product display line ga ga_rev"},                                  // The Windows releases Microsoft lists; kept so a restore reads the same builds
+	"feeds_winrel_update":          {export: "build server rev kb day hotpatch"},                                             // The monthly Windows updates Microsoft lists; kept so a restore names the same target builds
 	"feeds_fetch_log":              {export: "id source_id started_at finished_at status records_accepted records_rejected error bytes etag last_modified", json: "reject_reasons"},
 	"feeds_ioc":                    {export: "id type value first_seen last_seen"},
 	"feeds_ioc_source":             {export: "ioc_id source_id last_seen confidence seen"},
-	"feeds_source":                 {export: "id builtin name kind format enabled interval_hours auth_type auth_header_name auth_username secret_last4 license created_at last_fetch last_success failures records status error etag last_modified mirror_etag mirror_last_modified catalog_version catalog_released rev answered_by stale_watch_from stale_alerted_at stale_failed_since stale_failed_checks distro_packages full_due content_version", json: "parser kev_copies", url: "url default_url", skip: "secret_id"},
-	"feeds_template":               {export: "cve"},
-	"feeds_vuln":                   {export: "cve vendor product product_key name description required_action date_added due_date ransomware epss epss_7d_ago has_template source_id updated_at kev_announced_at", json: "links"},
+	"feeds_source":                 {export: "id builtin name kind format enabled interval_hours auth_type auth_header_name auth_username secret_last4 license created_at last_fetch last_success failures records status error etag last_modified mirror_etag mirror_last_modified catalog_version catalog_released rev answered_by stale_watch_from stale_alerted_at stale_failed_since stale_failed_checks distro_packages", json: "parser kev_copies", url: "url default_url", skip: "secret_id"},
 	"feeds_weekly_answer":          {export: "key answer user_id answered_at device_added device_id have_since"},
 	"fnd_finding":                  {export: "id asset_id cve status severity confidence basis first_seen last_seen resolved_by resolved_at resolution_note resolution_reason accepted_until software_id proved_version", json: "evidence"}, // accepted_until: the end of an accepted risk
 	"fnd_finding_history":          {export: "id finding_id ts user action note"},
@@ -193,8 +191,7 @@ var exportPolicy = map[string]tablePolicy{
 	"sa_snmp":                      {export: "id name version username auth priv secret_last4 priv_last4 scope created_at updated_at last_answer_at answered port", skip: "secret_id priv_secret_id"},                                                  // the community and v3 passwords stay in core_secret
 	"scan_event":                   {export: "id ts cve product latency_min run_id result", json: "devices"},
 	"scan_probe":                   {export: "id ts run_id ip label template request result"},
-	"scan_run":                     {export: "id trigger trigger_note started_at started_by ended_at status total done stop_reason stop_requested_at matched", json: "picked target_ids current results identification"},
-	"scan_setting":                 {export: "id win_from win_to rate stop_on_unresponsive unresponsive_after auto_rescan sched_enabled sched_frequency sched_weekday sched_at updated_at updated_by sched_last kev_read_at kev_read_cve", json: "days exclusions"},
+	"scan_setting":                 {export: "id stop_on_unresponsive unresponsive_after auto_rescan sched_enabled sched_frequency sched_weekday sched_at updated_at updated_by sched_last kev_read_at kev_read_cve"},
 	"sp_sensor":                    {export: "id name interface span version last_seen devices_seen"},
 	"sp_seq":                       {export: "sensor_id epoch last_seq"},
 	"sp_span_stat":                 {export: "sensor_id packets_per_s other_macs last_packet_at measured_at"},

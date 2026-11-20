@@ -117695,17 +117695,25 @@ type InventoryGetInventoryAgentsDevicesIDReportOK struct {
 	// The open ask: when a person asked the osquery agent to send its software now, until its list (built
 	// with its OS answer: kernel_info, os_revision) arrives or 15 minutes pass; null when none is open.
 	AskedAt NilDateTime `json:"asked_at"`
-	// Agent osquery: when the agent last called the box (config or results); null otherwise.
+	// Agent osquery: when the agent last called the box (config or results); agent wazuh: when a pull last
+	// delivered the device; null otherwise.
 	LastSeen NilDateTime `json:"last_seen"`
+	// A person turned the agent off for this device: its data is refused and it cannot be asked (409
+	// agent_off).
+	Off bool `json:"off"`
 	// Agent osquery: the machine's system, which picks the service commands to show; null otherwise.
 	Os NilInventoryGetInventoryAgentsDevicesIDReportOKOs `json:"os"`
 	// State quiet: when the agent last called the box; null otherwise.
 	QuietSince NilDateTime `json:"quiet_since"`
-	// Agent osquery: the agent has not called for more than 10 minutes (twice its config refresh): an ask
-	// reaches it only when it is back; false otherwise.
+	// Agent osquery or wazuh: the interval its state is judged by, in seconds (osquery: the longer of its
+	// config refresh and how often it really calls; wazuh: the pull interval); null otherwise.
+	RhythmS NilInt `json:"rhythm_s"`
+	// State quiet: no agent reports this device now (an ask reaches an osquery agent only when it is
+	// back); false otherwise.
 	Stale bool `json:"stale"`
-	// Agent osquery: reporting, quiet (no call for three config refreshes: show "quiet since quiet_since"
-	// and the command to check the service) or never_reported; null for the other agents.
+	// Agent osquery or wazuh: reporting, quiet (silent for more than three of its rhythm: show "quiet
+	// since quiet_since" and, for osquery, the command to check the service) or never_reported (osquery);
+	// null for the other agents.
 	State NilInventoryGetInventoryAgentsDevicesIDReportOKState `json:"state"`
 	// Agent wazuh: how often Vedette pulls from the Wazuh server (5, 15, 60, 360 or 1440); null otherwise.
 	WazuhIntervalMinutes NilInt `json:"wazuh_interval_minutes"`
@@ -117731,6 +117739,11 @@ func (s *InventoryGetInventoryAgentsDevicesIDReportOK) GetLastSeen() NilDateTime
 	return s.LastSeen
 }
 
+// GetOff returns the value of Off.
+func (s *InventoryGetInventoryAgentsDevicesIDReportOK) GetOff() bool {
+	return s.Off
+}
+
 // GetOs returns the value of Os.
 func (s *InventoryGetInventoryAgentsDevicesIDReportOK) GetOs() NilInventoryGetInventoryAgentsDevicesIDReportOKOs {
 	return s.Os
@@ -117739,6 +117752,11 @@ func (s *InventoryGetInventoryAgentsDevicesIDReportOK) GetOs() NilInventoryGetIn
 // GetQuietSince returns the value of QuietSince.
 func (s *InventoryGetInventoryAgentsDevicesIDReportOK) GetQuietSince() NilDateTime {
 	return s.QuietSince
+}
+
+// GetRhythmS returns the value of RhythmS.
+func (s *InventoryGetInventoryAgentsDevicesIDReportOK) GetRhythmS() NilInt {
+	return s.RhythmS
 }
 
 // GetStale returns the value of Stale.
@@ -117776,6 +117794,11 @@ func (s *InventoryGetInventoryAgentsDevicesIDReportOK) SetLastSeen(val NilDateTi
 	s.LastSeen = val
 }
 
+// SetOff sets the value of Off.
+func (s *InventoryGetInventoryAgentsDevicesIDReportOK) SetOff(val bool) {
+	s.Off = val
+}
+
 // SetOs sets the value of Os.
 func (s *InventoryGetInventoryAgentsDevicesIDReportOK) SetOs(val NilInventoryGetInventoryAgentsDevicesIDReportOKOs) {
 	s.Os = val
@@ -117784,6 +117807,11 @@ func (s *InventoryGetInventoryAgentsDevicesIDReportOK) SetOs(val NilInventoryGet
 // SetQuietSince sets the value of QuietSince.
 func (s *InventoryGetInventoryAgentsDevicesIDReportOK) SetQuietSince(val NilDateTime) {
 	s.QuietSince = val
+}
+
+// SetRhythmS sets the value of RhythmS.
+func (s *InventoryGetInventoryAgentsDevicesIDReportOK) SetRhythmS(val NilInt) {
+	s.RhythmS = val
 }
 
 // SetStale sets the value of Stale.
@@ -118356,10 +118384,14 @@ type InventoryGetInventoryAgentsOKNodesItem struct {
 	Os       InventoryGetInventoryAgentsOKNodesItemOs `json:"os"`
 	// State quiet: when it was last heard; null otherwise.
 	QuietSince NilDateTime `json:"quiet_since"`
-	// Reporting = it checked in within three of its 5-minute config calls; quiet = it did not (quiet_since
-	// is its last check-in); never_reported = it calls but has delivered no result since it enrolled,
-	// after the first hour; replaced = a newer agent of the same machine (same name, any token) took over,
-	// so this record is only left to remove.
+	// The interval it is judged by, in seconds: the longer of how often it was told to call (osquery: its
+	// 5-minute config refresh; the package reporter: its hourly run) and how often it really calls. Quiet
+	// after three of it.
+	RhythmS int `json:"rhythm_s"`
+	// Reporting = it called within three of its rhythm (rhythm_s); quiet = it did not (quiet_since is its
+	// last call); never_reported = it calls but has delivered no result since it enrolled, after the first
+	// hour; replaced = a newer agent of the same machine (same name, any token) took over, so this record
+	// is only left to remove.
 	State   InventoryGetInventoryAgentsOKNodesItemState `json:"state"`
 	TokenID string                                      `json:"token_id"`
 }
@@ -118397,6 +118429,11 @@ func (s *InventoryGetInventoryAgentsOKNodesItem) GetOs() InventoryGetInventoryAg
 // GetQuietSince returns the value of QuietSince.
 func (s *InventoryGetInventoryAgentsOKNodesItem) GetQuietSince() NilDateTime {
 	return s.QuietSince
+}
+
+// GetRhythmS returns the value of RhythmS.
+func (s *InventoryGetInventoryAgentsOKNodesItem) GetRhythmS() int {
+	return s.RhythmS
 }
 
 // GetState returns the value of State.
@@ -118442,6 +118479,11 @@ func (s *InventoryGetInventoryAgentsOKNodesItem) SetOs(val InventoryGetInventory
 // SetQuietSince sets the value of QuietSince.
 func (s *InventoryGetInventoryAgentsOKNodesItem) SetQuietSince(val NilDateTime) {
 	s.QuietSince = val
+}
+
+// SetRhythmS sets the value of RhythmS.
+func (s *InventoryGetInventoryAgentsOKNodesItem) SetRhythmS(val int) {
+	s.RhythmS = val
 }
 
 // SetState sets the value of State.
@@ -118495,10 +118537,10 @@ func (s *InventoryGetInventoryAgentsOKNodesItemOs) UnmarshalText(data []byte) er
 	}
 }
 
-// Reporting = it checked in within three of its 5-minute config calls; quiet = it did not (quiet_since
-// is its last check-in); never_reported = it calls but has delivered no result since it enrolled,
-// after the first hour; replaced = a newer agent of the same machine (same name, any token) took over,
-// so this record is only left to remove.
+// Reporting = it called within three of its rhythm (rhythm_s); quiet = it did not (quiet_since is its
+// last call); never_reported = it calls but has delivered no result since it enrolled, after the first
+// hour; replaced = a newer agent of the same machine (same name, any token) took over, so this record
+// is only left to remove.
 type InventoryGetInventoryAgentsOKNodesItemState string
 
 const (
@@ -118558,6 +118600,8 @@ type InventoryGetInventoryAgentsOKTokensItem struct {
 	CreatedAt time.Time `json:"created_at"`
 	// Who made it (null for a token made before this was kept).
 	CreatedBy NilString `json:"created_by"`
+	// The device it was made for (its agent row offers Show setup); null = any machine.
+	DeviceID NilString `json:"device_id"`
 	// When it stops enrolling machines. null = never; default 7 days once a machine has enrolled; a token
 	// no machine enrolled with expires 24 hours after it was made. The token only enrolls osquery (it can
 	// read nothing) and can be revoked.
@@ -118578,6 +118622,11 @@ func (s *InventoryGetInventoryAgentsOKTokensItem) GetCreatedAt() time.Time {
 // GetCreatedBy returns the value of CreatedBy.
 func (s *InventoryGetInventoryAgentsOKTokensItem) GetCreatedBy() NilString {
 	return s.CreatedBy
+}
+
+// GetDeviceID returns the value of DeviceID.
+func (s *InventoryGetInventoryAgentsOKTokensItem) GetDeviceID() NilString {
+	return s.DeviceID
 }
 
 // GetExpiresAt returns the value of ExpiresAt.
@@ -118623,6 +118672,11 @@ func (s *InventoryGetInventoryAgentsOKTokensItem) SetCreatedAt(val time.Time) {
 // SetCreatedBy sets the value of CreatedBy.
 func (s *InventoryGetInventoryAgentsOKTokensItem) SetCreatedBy(val NilString) {
 	s.CreatedBy = val
+}
+
+// SetDeviceID sets the value of DeviceID.
+func (s *InventoryGetInventoryAgentsOKTokensItem) SetDeviceID(val NilString) {
+	s.DeviceID = val
 }
 
 // SetExpiresAt sets the value of ExpiresAt.
@@ -125828,17 +125882,24 @@ type InventoryGetInventoryDevicesIDSourcesOKRowsItem struct {
 	// (scan: the first check is the next scan window's; snmp: set up, no read yet). working: the scan read
 	// the device, or SNMP answers. not_approved: SNMP reads approved devices only. not_set_up: no SNMP
 	// settings for this device. not_answering: the last SNMP read got no answer. none: no agent of this
-	// box reads the device. reporting: the agent reports on its rhythm (Wazuh by its pull, the box by its
-	// own hourly list). quiet: an osquery agent silent for longer than its rhythm allows. never_reported:
-	// enrolled, never sent its data. replaced: a newer enrolment of the same machine took over.
-	// unavailable: the module could not say just now. box: the Vedette box itself, which reads its own
-	// packages and ports and is not scanned or read over SNMP (no switch, no button). ignored: a person
-	// ignored the device: the box does not scan or read it until they stop ignoring it (no switch, no
-	// button).
+	// box reads the device. reporting: the agent reports on its rhythm (osquery by its own calls, Wazuh by
+	// its pull, the box by its own hourly list). quiet: an agent (osquery or Wazuh) silent for more than
+	// three of its own rhythm (rhythm_s of the agents list), the same rule everywhere. Agent row: waiting
+	// = a token was made for this device and no agent reads it yet; off = a person turned the agent off
+	// for this device. never_reported: enrolled, never sent its data. replaced: a newer enrolment of the
+	// same machine took over. unavailable: the module could not say just now. box: the Vedette box itself,
+	// which reads its own packages and ports and is not scanned or read over SNMP (no switch, no button).
+	// ignored: a person ignored the device: the box does not scan or read it until they stop ignoring it
+	// (no switch, no button).
 	State InventoryGetInventoryDevicesIDSourcesOKRowsItemState `json:"state"`
 	// The person's switch of this source for this device (PUT /inventory/devices/{id}/sources); null when
-	// the row has none: SNMP before it is set up, the agent, the box itself and an ignored device.
+	// the row has none: SNMP before it is set up, an agent row with no agent (unless it is off), the box
+	// itself and an ignored device.
 	Switch NilInventoryGetInventoryDevicesIDSourcesOKRowsItemSwitch `json:"switch"`
+	// Agent row: the token Show setup shows: the token its osquery agent enrolled with, else the newest
+	// token made for this device that still enrolls machines (the secret is never here: it is shown once,
+	// when the token is made); null otherwise.
+	Token NilInventoryGetInventoryDevicesIDSourcesOKRowsItemToken `json:"token"`
 }
 
 // GetAction returns the value of Action.
@@ -125876,6 +125937,11 @@ func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItem) GetSwitch() NilInvento
 	return s.Switch
 }
 
+// GetToken returns the value of Token.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItem) GetToken() NilInventoryGetInventoryDevicesIDSourcesOKRowsItemToken {
+	return s.Token
+}
+
 // SetAction sets the value of Action.
 func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItem) SetAction(val NilInventoryGetInventoryDevicesIDSourcesOKRowsItemAction) {
 	s.Action = val
@@ -125911,12 +125977,19 @@ func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItem) SetSwitch(val NilInven
 	s.Switch = val
 }
 
+// SetToken sets the value of Token.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItem) SetToken(val NilInventoryGetInventoryDevicesIDSourcesOKRowsItemToken) {
+	s.Token = val
+}
+
 // The one button of the row. turn_on_module: the module is off. scan_now: check the device now instead
 // of at the next window. approve: approve the device (SNMP reads approved devices only). set_up: set
 // up SNMP for this device (PUT /inventory/snmp/devices/{id}). check_now: SNMP Check now (POST
-// /inventory/snmp/devices/{id}/check). create_token: no agent reads the device: create an agent token
-// for it. show_setup: enrolled, never reported: show the token and the install command again. check:
-// the agent reported at least once: the troubleshooting steps.
+// /inventory/snmp/devices/{id}/check). create_token: no agent reads the device and no token was made
+// for it: create an agent token for it (POST /inventory/agents/tokens with device_id). show_setup: a
+// token was made for this device and no agent reads it yet, or its agent enrolled and never reported:
+// show the token (the row's token) and the install command again. check: the agent reported at least
+// once: the troubleshooting steps.
 type InventoryGetInventoryDevicesIDSourcesOKRowsItemAction string
 
 const (
@@ -126165,13 +126238,15 @@ func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemSource) UnmarshalText(da
 // (scan: the first check is the next scan window's; snmp: set up, no read yet). working: the scan read
 // the device, or SNMP answers. not_approved: SNMP reads approved devices only. not_set_up: no SNMP
 // settings for this device. not_answering: the last SNMP read got no answer. none: no agent of this
-// box reads the device. reporting: the agent reports on its rhythm (Wazuh by its pull, the box by its
-// own hourly list). quiet: an osquery agent silent for longer than its rhythm allows. never_reported:
-// enrolled, never sent its data. replaced: a newer enrolment of the same machine took over.
-// unavailable: the module could not say just now. box: the Vedette box itself, which reads its own
-// packages and ports and is not scanned or read over SNMP (no switch, no button). ignored: a person
-// ignored the device: the box does not scan or read it until they stop ignoring it (no switch, no
-// button).
+// box reads the device. reporting: the agent reports on its rhythm (osquery by its own calls, Wazuh by
+// its pull, the box by its own hourly list). quiet: an agent (osquery or Wazuh) silent for more than
+// three of its own rhythm (rhythm_s of the agents list), the same rule everywhere. Agent row: waiting
+// = a token was made for this device and no agent reads it yet; off = a person turned the agent off
+// for this device. never_reported: enrolled, never sent its data. replaced: a newer enrolment of the
+// same machine took over. unavailable: the module could not say just now. box: the Vedette box itself,
+// which reads its own packages and ports and is not scanned or read over SNMP (no switch, no button).
+// ignored: a person ignored the device: the box does not scan or read it until they stop ignoring it
+// (no switch, no button).
 type InventoryGetInventoryDevicesIDSourcesOKRowsItemState string
 
 const (
@@ -126346,6 +126421,158 @@ func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemSwitch) UnmarshalText(da
 		return nil
 	case InventoryGetInventoryDevicesIDSourcesOKRowsItemSwitchOff:
 		*s = InventoryGetInventoryDevicesIDSourcesOKRowsItemSwitchOff
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryGetInventoryDevicesIDSourcesOKRowsItemToken struct {
+	CreatedAt time.Time `json:"created_at"`
+	// Who made it (null for a token made before this was kept).
+	CreatedBy NilString `json:"created_by"`
+	// The device it was made for (its agent row offers Show setup); null = any machine.
+	DeviceID NilString `json:"device_id"`
+	// When it stops enrolling machines. null = never; default 7 days once a machine has enrolled; a token
+	// no machine enrolled with expires 24 hours after it was made. The token only enrolls osquery (it can
+	// read nothing) and can be revoked.
+	ExpiresAt    NilDateTime                                              `json:"expires_at"`
+	Hosts        int                                                      `json:"hosts"`
+	ID           string                                                   `json:"id"`
+	Kind         InventoryGetInventoryDevicesIDSourcesOKRowsItemTokenKind `json:"kind"`
+	Last4        string                                                   `json:"last4"`
+	LastReceived NilDateTime                                              `json:"last_received"`
+	Name         string                                                   `json:"name"`
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetCreatedBy returns the value of CreatedBy.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) GetCreatedBy() NilString {
+	return s.CreatedBy
+}
+
+// GetDeviceID returns the value of DeviceID.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) GetDeviceID() NilString {
+	return s.DeviceID
+}
+
+// GetExpiresAt returns the value of ExpiresAt.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) GetExpiresAt() NilDateTime {
+	return s.ExpiresAt
+}
+
+// GetHosts returns the value of Hosts.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) GetHosts() int {
+	return s.Hosts
+}
+
+// GetID returns the value of ID.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) GetID() string {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) GetKind() InventoryGetInventoryDevicesIDSourcesOKRowsItemTokenKind {
+	return s.Kind
+}
+
+// GetLast4 returns the value of Last4.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) GetLast4() string {
+	return s.Last4
+}
+
+// GetLastReceived returns the value of LastReceived.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) GetLastReceived() NilDateTime {
+	return s.LastReceived
+}
+
+// GetName returns the value of Name.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) GetName() string {
+	return s.Name
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetCreatedBy sets the value of CreatedBy.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) SetCreatedBy(val NilString) {
+	s.CreatedBy = val
+}
+
+// SetDeviceID sets the value of DeviceID.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) SetDeviceID(val NilString) {
+	s.DeviceID = val
+}
+
+// SetExpiresAt sets the value of ExpiresAt.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) SetExpiresAt(val NilDateTime) {
+	s.ExpiresAt = val
+}
+
+// SetHosts sets the value of Hosts.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) SetHosts(val int) {
+	s.Hosts = val
+}
+
+// SetID sets the value of ID.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) SetID(val string) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) SetKind(val InventoryGetInventoryDevicesIDSourcesOKRowsItemTokenKind) {
+	s.Kind = val
+}
+
+// SetLast4 sets the value of Last4.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) SetLast4(val string) {
+	s.Last4 = val
+}
+
+// SetLastReceived sets the value of LastReceived.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) SetLastReceived(val NilDateTime) {
+	s.LastReceived = val
+}
+
+// SetName sets the value of Name.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) SetName(val string) {
+	s.Name = val
+}
+
+type InventoryGetInventoryDevicesIDSourcesOKRowsItemTokenKind string
+
+const (
+	InventoryGetInventoryDevicesIDSourcesOKRowsItemTokenKindOsquery InventoryGetInventoryDevicesIDSourcesOKRowsItemTokenKind = "osquery"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesIDSourcesOKRowsItemTokenKind values.
+func (InventoryGetInventoryDevicesIDSourcesOKRowsItemTokenKind) AllValues() []InventoryGetInventoryDevicesIDSourcesOKRowsItemTokenKind {
+	return []InventoryGetInventoryDevicesIDSourcesOKRowsItemTokenKind{
+		InventoryGetInventoryDevicesIDSourcesOKRowsItemTokenKindOsquery,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesIDSourcesOKRowsItemTokenKind) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesIDSourcesOKRowsItemTokenKindOsquery:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemTokenKind) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesIDSourcesOKRowsItemTokenKind(data) {
+	case InventoryGetInventoryDevicesIDSourcesOKRowsItemTokenKindOsquery:
+		*s = InventoryGetInventoryDevicesIDSourcesOKRowsItemTokenKindOsquery
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -134823,17 +135050,25 @@ type InventoryPostInventoryAgentsDevicesIDReportOK struct {
 	// The open ask: when a person asked the osquery agent to send its software now, until its list (built
 	// with its OS answer: kernel_info, os_revision) arrives or 15 minutes pass; null when none is open.
 	AskedAt NilDateTime `json:"asked_at"`
-	// Agent osquery: when the agent last called the box (config or results); null otherwise.
+	// Agent osquery: when the agent last called the box (config or results); agent wazuh: when a pull last
+	// delivered the device; null otherwise.
 	LastSeen NilDateTime `json:"last_seen"`
+	// A person turned the agent off for this device: its data is refused and it cannot be asked (409
+	// agent_off).
+	Off bool `json:"off"`
 	// Agent osquery: the machine's system, which picks the service commands to show; null otherwise.
 	Os NilInventoryPostInventoryAgentsDevicesIDReportOKOs `json:"os"`
 	// State quiet: when the agent last called the box; null otherwise.
 	QuietSince NilDateTime `json:"quiet_since"`
-	// Agent osquery: the agent has not called for more than 10 minutes (twice its config refresh): an ask
-	// reaches it only when it is back; false otherwise.
+	// Agent osquery or wazuh: the interval its state is judged by, in seconds (osquery: the longer of its
+	// config refresh and how often it really calls; wazuh: the pull interval); null otherwise.
+	RhythmS NilInt `json:"rhythm_s"`
+	// State quiet: no agent reports this device now (an ask reaches an osquery agent only when it is
+	// back); false otherwise.
 	Stale bool `json:"stale"`
-	// Agent osquery: reporting, quiet (no call for three config refreshes: show "quiet since quiet_since"
-	// and the command to check the service) or never_reported; null for the other agents.
+	// Agent osquery or wazuh: reporting, quiet (silent for more than three of its rhythm: show "quiet
+	// since quiet_since" and, for osquery, the command to check the service) or never_reported (osquery);
+	// null for the other agents.
 	State NilInventoryPostInventoryAgentsDevicesIDReportOKState `json:"state"`
 	// Agent wazuh: how often Vedette pulls from the Wazuh server (5, 15, 60, 360 or 1440); null otherwise.
 	WazuhIntervalMinutes NilInt `json:"wazuh_interval_minutes"`
@@ -134859,6 +135094,11 @@ func (s *InventoryPostInventoryAgentsDevicesIDReportOK) GetLastSeen() NilDateTim
 	return s.LastSeen
 }
 
+// GetOff returns the value of Off.
+func (s *InventoryPostInventoryAgentsDevicesIDReportOK) GetOff() bool {
+	return s.Off
+}
+
 // GetOs returns the value of Os.
 func (s *InventoryPostInventoryAgentsDevicesIDReportOK) GetOs() NilInventoryPostInventoryAgentsDevicesIDReportOKOs {
 	return s.Os
@@ -134867,6 +135107,11 @@ func (s *InventoryPostInventoryAgentsDevicesIDReportOK) GetOs() NilInventoryPost
 // GetQuietSince returns the value of QuietSince.
 func (s *InventoryPostInventoryAgentsDevicesIDReportOK) GetQuietSince() NilDateTime {
 	return s.QuietSince
+}
+
+// GetRhythmS returns the value of RhythmS.
+func (s *InventoryPostInventoryAgentsDevicesIDReportOK) GetRhythmS() NilInt {
+	return s.RhythmS
 }
 
 // GetStale returns the value of Stale.
@@ -134904,6 +135149,11 @@ func (s *InventoryPostInventoryAgentsDevicesIDReportOK) SetLastSeen(val NilDateT
 	s.LastSeen = val
 }
 
+// SetOff sets the value of Off.
+func (s *InventoryPostInventoryAgentsDevicesIDReportOK) SetOff(val bool) {
+	s.Off = val
+}
+
 // SetOs sets the value of Os.
 func (s *InventoryPostInventoryAgentsDevicesIDReportOK) SetOs(val NilInventoryPostInventoryAgentsDevicesIDReportOKOs) {
 	s.Os = val
@@ -134912,6 +135162,11 @@ func (s *InventoryPostInventoryAgentsDevicesIDReportOK) SetOs(val NilInventoryPo
 // SetQuietSince sets the value of QuietSince.
 func (s *InventoryPostInventoryAgentsDevicesIDReportOK) SetQuietSince(val NilDateTime) {
 	s.QuietSince = val
+}
+
+// SetRhythmS sets the value of RhythmS.
+func (s *InventoryPostInventoryAgentsDevicesIDReportOK) SetRhythmS(val NilInt) {
+	s.RhythmS = val
 }
 
 // SetStale sets the value of Stale.
@@ -135114,6 +135369,8 @@ type InventoryPostInventoryAgentsTokensCreatedToken struct {
 	CreatedAt time.Time `json:"created_at"`
 	// Who made it (null for a token made before this was kept).
 	CreatedBy NilString `json:"created_by"`
+	// The device it was made for (its agent row offers Show setup); null = any machine.
+	DeviceID NilString `json:"device_id"`
 	// When it stops enrolling machines. null = never; default 7 days once a machine has enrolled; a token
 	// no machine enrolled with expires 24 hours after it was made. The token only enrolls osquery (it can
 	// read nothing) and can be revoked.
@@ -135134,6 +135391,11 @@ func (s *InventoryPostInventoryAgentsTokensCreatedToken) GetCreatedAt() time.Tim
 // GetCreatedBy returns the value of CreatedBy.
 func (s *InventoryPostInventoryAgentsTokensCreatedToken) GetCreatedBy() NilString {
 	return s.CreatedBy
+}
+
+// GetDeviceID returns the value of DeviceID.
+func (s *InventoryPostInventoryAgentsTokensCreatedToken) GetDeviceID() NilString {
+	return s.DeviceID
 }
 
 // GetExpiresAt returns the value of ExpiresAt.
@@ -135179,6 +135441,11 @@ func (s *InventoryPostInventoryAgentsTokensCreatedToken) SetCreatedAt(val time.T
 // SetCreatedBy sets the value of CreatedBy.
 func (s *InventoryPostInventoryAgentsTokensCreatedToken) SetCreatedBy(val NilString) {
 	s.CreatedBy = val
+}
+
+// SetDeviceID sets the value of DeviceID.
+func (s *InventoryPostInventoryAgentsTokensCreatedToken) SetDeviceID(val NilString) {
+	s.DeviceID = val
 }
 
 // SetExpiresAt sets the value of ExpiresAt.
@@ -135290,10 +135557,18 @@ func (s *InventoryPostInventoryAgentsTokensRemoveUnusedOK) SetRemoved(val int) {
 }
 
 type InventoryPostInventoryAgentsTokensReq struct {
+	// The device it is made for: the device's agent row then shows it under Show setup until a machine
+	// enrolls with it. 404 not_found: no such device; 409 box_device: the Vedette box itself.
+	DeviceID OptString `json:"device_id"`
 	// Default 7; 0 = never expires.
 	ExpiresInDays OptInt                                       `json:"expires_in_days"`
 	Kind          OptInventoryPostInventoryAgentsTokensReqKind `json:"kind"`
 	Name          string                                       `json:"name"`
+}
+
+// GetDeviceID returns the value of DeviceID.
+func (s *InventoryPostInventoryAgentsTokensReq) GetDeviceID() OptString {
+	return s.DeviceID
 }
 
 // GetExpiresInDays returns the value of ExpiresInDays.
@@ -135309,6 +135584,11 @@ func (s *InventoryPostInventoryAgentsTokensReq) GetKind() OptInventoryPostInvent
 // GetName returns the value of Name.
 func (s *InventoryPostInventoryAgentsTokensReq) GetName() string {
 	return s.Name
+}
+
+// SetDeviceID sets the value of DeviceID.
+func (s *InventoryPostInventoryAgentsTokensReq) SetDeviceID(val OptString) {
+	s.DeviceID = val
 }
 
 // SetExpiresInDays sets the value of ExpiresInDays.
@@ -137682,8 +137962,15 @@ func (s *InventoryPutInventoryAgentsWazuhReq) SetUsername(val string) {
 }
 
 type InventoryPutInventoryDevicesIDSourcesOK struct {
-	ScanSource InventoryPutInventoryDevicesIDSourcesOKScanSource `json:"scan_source"`
-	SnmpSource InventoryPutInventoryDevicesIDSourcesOKSnmpSource `json:"snmp_source"`
+	// Default on.
+	AgentSource InventoryPutInventoryDevicesIDSourcesOKAgentSource `json:"agent_source"`
+	ScanSource  InventoryPutInventoryDevicesIDSourcesOKScanSource  `json:"scan_source"`
+	SnmpSource  InventoryPutInventoryDevicesIDSourcesOKSnmpSource  `json:"snmp_source"`
+}
+
+// GetAgentSource returns the value of AgentSource.
+func (s *InventoryPutInventoryDevicesIDSourcesOK) GetAgentSource() InventoryPutInventoryDevicesIDSourcesOKAgentSource {
+	return s.AgentSource
 }
 
 // GetScanSource returns the value of ScanSource.
@@ -137696,6 +137983,11 @@ func (s *InventoryPutInventoryDevicesIDSourcesOK) GetSnmpSource() InventoryPutIn
 	return s.SnmpSource
 }
 
+// SetAgentSource sets the value of AgentSource.
+func (s *InventoryPutInventoryDevicesIDSourcesOK) SetAgentSource(val InventoryPutInventoryDevicesIDSourcesOKAgentSource) {
+	s.AgentSource = val
+}
+
 // SetScanSource sets the value of ScanSource.
 func (s *InventoryPutInventoryDevicesIDSourcesOK) SetScanSource(val InventoryPutInventoryDevicesIDSourcesOKScanSource) {
 	s.ScanSource = val
@@ -137704,6 +137996,48 @@ func (s *InventoryPutInventoryDevicesIDSourcesOK) SetScanSource(val InventoryPut
 // SetSnmpSource sets the value of SnmpSource.
 func (s *InventoryPutInventoryDevicesIDSourcesOK) SetSnmpSource(val InventoryPutInventoryDevicesIDSourcesOKSnmpSource) {
 	s.SnmpSource = val
+}
+
+// Default on.
+type InventoryPutInventoryDevicesIDSourcesOKAgentSource string
+
+const (
+	InventoryPutInventoryDevicesIDSourcesOKAgentSourceOn  InventoryPutInventoryDevicesIDSourcesOKAgentSource = "on"
+	InventoryPutInventoryDevicesIDSourcesOKAgentSourceOff InventoryPutInventoryDevicesIDSourcesOKAgentSource = "off"
+)
+
+// AllValues returns all InventoryPutInventoryDevicesIDSourcesOKAgentSource values.
+func (InventoryPutInventoryDevicesIDSourcesOKAgentSource) AllValues() []InventoryPutInventoryDevicesIDSourcesOKAgentSource {
+	return []InventoryPutInventoryDevicesIDSourcesOKAgentSource{
+		InventoryPutInventoryDevicesIDSourcesOKAgentSourceOn,
+		InventoryPutInventoryDevicesIDSourcesOKAgentSourceOff,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPutInventoryDevicesIDSourcesOKAgentSource) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPutInventoryDevicesIDSourcesOKAgentSourceOn:
+		return []byte(s), nil
+	case InventoryPutInventoryDevicesIDSourcesOKAgentSourceOff:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPutInventoryDevicesIDSourcesOKAgentSource) UnmarshalText(data []byte) error {
+	switch InventoryPutInventoryDevicesIDSourcesOKAgentSource(data) {
+	case InventoryPutInventoryDevicesIDSourcesOKAgentSourceOn:
+		*s = InventoryPutInventoryDevicesIDSourcesOKAgentSourceOn
+		return nil
+	case InventoryPutInventoryDevicesIDSourcesOKAgentSourceOff:
+		*s = InventoryPutInventoryDevicesIDSourcesOKAgentSourceOff
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type InventoryPutInventoryDevicesIDSourcesOKScanSource string
@@ -137790,8 +138124,17 @@ func (s *InventoryPutInventoryDevicesIDSourcesOKSnmpSource) UnmarshalText(data [
 
 // At least one; a source left out is left alone.
 type InventoryPutInventoryDevicesIDSourcesReq struct {
-	Scan OptInventoryPutInventoryDevicesIDSourcesReqScan `json:"scan"`
-	Snmp OptInventoryPutInventoryDevicesIDSourcesReqSnmp `json:"snmp"`
+	// The agents' data of this device (osquery, Wazuh). off: every agent's data for it is refused and what
+	// they read stops counting (its software readings and open ports of the agents go); on: taken again,
+	// and an osquery agent is asked to send its software now.
+	Agent OptInventoryPutInventoryDevicesIDSourcesReqAgent `json:"agent"`
+	Scan  OptInventoryPutInventoryDevicesIDSourcesReqScan  `json:"scan"`
+	Snmp  OptInventoryPutInventoryDevicesIDSourcesReqSnmp  `json:"snmp"`
+}
+
+// GetAgent returns the value of Agent.
+func (s *InventoryPutInventoryDevicesIDSourcesReq) GetAgent() OptInventoryPutInventoryDevicesIDSourcesReqAgent {
+	return s.Agent
 }
 
 // GetScan returns the value of Scan.
@@ -137804,6 +138147,11 @@ func (s *InventoryPutInventoryDevicesIDSourcesReq) GetSnmp() OptInventoryPutInve
 	return s.Snmp
 }
 
+// SetAgent sets the value of Agent.
+func (s *InventoryPutInventoryDevicesIDSourcesReq) SetAgent(val OptInventoryPutInventoryDevicesIDSourcesReqAgent) {
+	s.Agent = val
+}
+
 // SetScan sets the value of Scan.
 func (s *InventoryPutInventoryDevicesIDSourcesReq) SetScan(val OptInventoryPutInventoryDevicesIDSourcesReqScan) {
 	s.Scan = val
@@ -137812,6 +138160,50 @@ func (s *InventoryPutInventoryDevicesIDSourcesReq) SetScan(val OptInventoryPutIn
 // SetSnmp sets the value of Snmp.
 func (s *InventoryPutInventoryDevicesIDSourcesReq) SetSnmp(val OptInventoryPutInventoryDevicesIDSourcesReqSnmp) {
 	s.Snmp = val
+}
+
+// The agents' data of this device (osquery, Wazuh). off: every agent's data for it is refused and what
+// they read stops counting (its software readings and open ports of the agents go); on: taken again,
+// and an osquery agent is asked to send its software now.
+type InventoryPutInventoryDevicesIDSourcesReqAgent string
+
+const (
+	InventoryPutInventoryDevicesIDSourcesReqAgentOn  InventoryPutInventoryDevicesIDSourcesReqAgent = "on"
+	InventoryPutInventoryDevicesIDSourcesReqAgentOff InventoryPutInventoryDevicesIDSourcesReqAgent = "off"
+)
+
+// AllValues returns all InventoryPutInventoryDevicesIDSourcesReqAgent values.
+func (InventoryPutInventoryDevicesIDSourcesReqAgent) AllValues() []InventoryPutInventoryDevicesIDSourcesReqAgent {
+	return []InventoryPutInventoryDevicesIDSourcesReqAgent{
+		InventoryPutInventoryDevicesIDSourcesReqAgentOn,
+		InventoryPutInventoryDevicesIDSourcesReqAgentOff,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPutInventoryDevicesIDSourcesReqAgent) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPutInventoryDevicesIDSourcesReqAgentOn:
+		return []byte(s), nil
+	case InventoryPutInventoryDevicesIDSourcesReqAgentOff:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPutInventoryDevicesIDSourcesReqAgent) UnmarshalText(data []byte) error {
+	switch InventoryPutInventoryDevicesIDSourcesReqAgent(data) {
+	case InventoryPutInventoryDevicesIDSourcesReqAgentOn:
+		*s = InventoryPutInventoryDevicesIDSourcesReqAgentOn
+		return nil
+	case InventoryPutInventoryDevicesIDSourcesReqAgentOff:
+		*s = InventoryPutInventoryDevicesIDSourcesReqAgentOff
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type InventoryPutInventoryDevicesIDSourcesReqScan string
@@ -159544,6 +159936,51 @@ func (o NilInventoryGetInventoryDevicesIDSourcesOKRowsItemSwitch) Or(d Inventory
 	return d
 }
 
+// NewNilInventoryGetInventoryDevicesIDSourcesOKRowsItemToken returns new NilInventoryGetInventoryDevicesIDSourcesOKRowsItemToken with value set to v.
+func NewNilInventoryGetInventoryDevicesIDSourcesOKRowsItemToken(v InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) NilInventoryGetInventoryDevicesIDSourcesOKRowsItemToken {
+	return NilInventoryGetInventoryDevicesIDSourcesOKRowsItemToken{
+		Value: v,
+	}
+}
+
+// NilInventoryGetInventoryDevicesIDSourcesOKRowsItemToken is nullable InventoryGetInventoryDevicesIDSourcesOKRowsItemToken.
+type NilInventoryGetInventoryDevicesIDSourcesOKRowsItemToken struct {
+	Value InventoryGetInventoryDevicesIDSourcesOKRowsItemToken
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInventoryGetInventoryDevicesIDSourcesOKRowsItemToken) SetTo(v InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInventoryGetInventoryDevicesIDSourcesOKRowsItemToken) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilInventoryGetInventoryDevicesIDSourcesOKRowsItemToken) SetToNull() {
+	o.Null = true
+	var v InventoryGetInventoryDevicesIDSourcesOKRowsItemToken
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInventoryGetInventoryDevicesIDSourcesOKRowsItemToken) Get() (v InventoryGetInventoryDevicesIDSourcesOKRowsItemToken, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInventoryGetInventoryDevicesIDSourcesOKRowsItemToken) Or(d InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) InventoryGetInventoryDevicesIDSourcesOKRowsItemToken {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilInventoryGetInventoryDevicesOKItemsItemGuess returns new NilInventoryGetInventoryDevicesOKItemsItemGuess with value set to v.
 func NewNilInventoryGetInventoryDevicesOKItemsItemGuess(v InventoryGetInventoryDevicesOKItemsItemGuess) NilInventoryGetInventoryDevicesOKItemsItemGuess {
 	return NilInventoryGetInventoryDevicesOKItemsItemGuess{
@@ -178986,6 +179423,52 @@ func (o OptInventoryPostInventoryAgentsTokensReqKind) Get() (v InventoryPostInve
 
 // Or returns value if set, or given parameter if does not.
 func (o OptInventoryPostInventoryAgentsTokensReqKind) Or(d InventoryPostInventoryAgentsTokensReqKind) InventoryPostInventoryAgentsTokensReqKind {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInventoryPutInventoryDevicesIDSourcesReqAgent returns new OptInventoryPutInventoryDevicesIDSourcesReqAgent with value set to v.
+func NewOptInventoryPutInventoryDevicesIDSourcesReqAgent(v InventoryPutInventoryDevicesIDSourcesReqAgent) OptInventoryPutInventoryDevicesIDSourcesReqAgent {
+	return OptInventoryPutInventoryDevicesIDSourcesReqAgent{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryPutInventoryDevicesIDSourcesReqAgent is optional InventoryPutInventoryDevicesIDSourcesReqAgent.
+type OptInventoryPutInventoryDevicesIDSourcesReqAgent struct {
+	Value InventoryPutInventoryDevicesIDSourcesReqAgent
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryPutInventoryDevicesIDSourcesReqAgent was set.
+func (o OptInventoryPutInventoryDevicesIDSourcesReqAgent) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryPutInventoryDevicesIDSourcesReqAgent) Reset() {
+	var v InventoryPutInventoryDevicesIDSourcesReqAgent
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryPutInventoryDevicesIDSourcesReqAgent) SetTo(v InventoryPutInventoryDevicesIDSourcesReqAgent) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryPutInventoryDevicesIDSourcesReqAgent) Get() (v InventoryPutInventoryDevicesIDSourcesReqAgent, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryPutInventoryDevicesIDSourcesReqAgent) Or(d InventoryPutInventoryDevicesIDSourcesReqAgent) InventoryPutInventoryDevicesIDSourcesReqAgent {
 	if v, ok := o.Get(); ok {
 		return v
 	}

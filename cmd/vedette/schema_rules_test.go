@@ -138,9 +138,9 @@ var longValueListAllowList = []string{
 }
 
 // moduleTables migrates a fresh database module by module, as start-up does, and returns for each table the module that made it.
-func moduleTables(t *testing.T) (db *store.DB, owner map[string]string, tables []storetest.SchemaTable) {
+func moduleTables(t *testing.T) (owner map[string]string, tables []storetest.SchemaTable) {
 	t.Helper()
-	db = storetest.New(t)
+	db := storetest.New(t)
 	owner = map[string]string{}
 	for _, s := range migrationSets(wiredModules()) {
 		if err := store.Migrate(t.Context(), db, s.Module, s.FS); err != nil {
@@ -152,7 +152,7 @@ func moduleTables(t *testing.T) (db *store.DB, owner map[string]string, tables [
 			}
 		}
 	}
-	return db, owner, storetest.Schema(t, db)
+	return owner, storetest.Schema(t, db)
 }
 
 // manifestInfo is what the schema rules read from MANIFEST.yaml.
@@ -190,7 +190,7 @@ func manifestInfos(t *testing.T) map[string]manifestInfo {
 
 // S1: every table carries the prefix of the module that made it, and a foreign key leaves a module only for a module it depends on.
 func TestSchemaTablesUseTheirModulePrefix(t *testing.T) {
-	_, owner, tables := moduleTables(t)
+	owner, tables := moduleTables(t)
 	infos := manifestInfos(t)
 	for _, tb := range tables {
 		if strings.HasPrefix(tb.Name, "core_migration_") || tb.Name == "core_schema_epoch" {
@@ -217,7 +217,7 @@ func TestSchemaTablesUseTheirModulePrefix(t *testing.T) {
 
 // S2: a CHECK that lists more than five text values is on the allow-list.
 func TestLongValueListsAreTheAllowList(t *testing.T) {
-	_, _, tables := moduleTables(t)
+	_, tables := moduleTables(t)
 	var got []string
 	for _, tb := range tables {
 		for _, col := range storetest.LongValueLists(tb.SQL, 5) {
@@ -229,7 +229,7 @@ func TestLongValueListsAreTheAllowList(t *testing.T) {
 
 // S3: the JSON columns are exactly the allow-list.
 func TestJSONColumnsAreTheAllowList(t *testing.T) {
-	_, _, tables := moduleTables(t)
+	_, tables := moduleTables(t)
 	var got []string
 	for _, tb := range tables {
 		for _, col := range storetest.JSONColumns(tb.SQL) {

@@ -64,20 +64,37 @@ function Watchers({ watchers }: { watchers: Watcher[] }) {
   )
 }
 
+function KindTile({ label, incidents, note }: { label: string; incidents: number; note: string }) {
+  return (
+    <>
+      <span className="text-meta text-muted">{label}</span>
+      <span className="text-xl font-semibold tabular-nums">{fmtNumber(incidents)}</span>
+      <span className="text-caption text-muted">{note}</span>
+    </>
+  )
+}
+
 function Kinds({ kinds }: { kinds: { kind: string; incidents: number; new: number }[] }) {
   const { t } = useTranslation('detection')
   return (
     <Section id="kinds" title={t('kinds.title')}>
       <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-        {kinds.map((k) => (
+        {kinds.map((k) => {
+          const note = k.new > 0 ? t('kinds.new', { count: k.new }) : t('kinds.none')
+          return (
           <li key={k.kind}>
-            <Link to="/incidents" className="grid gap-0.5 rounded-md border border-rule p-3 hover:border-accent">
-              <span className="text-meta text-muted">{t(`kind.${k.kind}`)}</span>
-              <span className="text-xl font-semibold tabular-nums">{fmtNumber(k.incidents)}</span>
-              <span className="text-caption text-muted">{k.new > 0 ? t('kinds.new', { count: k.new }) : t('kinds.none')}</span>
-            </Link>
+            {k.incidents > 0 ? (
+              <Link to="/incidents" className="grid gap-0.5 rounded-md border border-rule p-3 hover:border-accent">
+                <KindTile label={t(`kind.${k.kind}`)} incidents={k.incidents} note={note} />
+              </Link>
+            ) : (
+              <div className="grid gap-0.5 rounded-md border border-rule p-3">
+                <KindTile label={t(`kind.${k.kind}`)} incidents={0} note={t('kinds.none')} />
+              </div>
+            )}
           </li>
-        ))}
+          )
+        })}
       </ul>
     </Section>
   )

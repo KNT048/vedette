@@ -110,12 +110,15 @@ func (s *Service) writeScan(ctx context.Context, tx *sql.Tx, w scanWrite) (writt
 	}
 	// The tree as it is now decides which of these names the target scans: the rows of a name another target took over while the scan ran
 	// (or one a runner probed against the plan) go to that target, and what went with them is not new here.
-	if err := settleTree(ctx, tx, ""); err != nil {
+	openedIDs, err := serviceIDs(ctx, tx, w.target.ID, out.opened)
+	if err != nil {
 		return written{}, err
 	}
-	if out.opened, out.newIssues, err = stillHere(ctx, tx, w.target.ID, out.opened, out.newIssues); err != nil {
+	hl, err := settleTree(ctx, tx, "")
+	if err != nil {
 		return written{}, err
 	}
+	out.opened, out.newIssues = stillNew(hl, out.opened, openedIDs, out.newIssues)
 	out.counts.NewServices, out.counts.NewIssues = len(out.opened), len(out.newIssues)
 	if err := rowCounts(ctx, tx, w.target.ID, &out.counts); err != nil {
 		return written{}, err
@@ -132,29 +135,34 @@ func (s *Service) writeScan(ctx context.Context, tx *sql.Tx, w scanWrite) (writt
 	return out, s.audit(ctx, tx, w.user, "exposure.scan", w.target.Value, detail)
 }
 
-// stillHere keeps, of the services opened and the issues new in a write, those target still holds after the tree settled.
-func stillHere(ctx context.Context, tx *sql.Tx, target string, opened []PortRow, fresh []string) ([]PortRow, []string, error) {
-	var ports []PortRow
-	for _, p := range opened {
-		var n int
-		if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM exp_service WHERE target_id = ? AND ip = ? AND port = ?`, target, ipKey(p.IP), p.Port).Scan(&n); err != nil {
-			return nil, nil, fmt.Errorf("services after the tree settled: %w", err)
+// serviceIDs is the id of target's row of each port.
+func serviceIDs(ctx context.Context, tx *sql.Tx, target string, ports []PortRow) ([]string, error) {
+	ids := make([]string, len(ports))
+	for i, p := range ports {
+		err := tx.QueryRowContext(ctx, `SELECT id FROM exp_service WHERE target_id = ? AND ip = ? AND port = ? AND proto = 'tcp'`, target, ipKey(p.IP), p.Port).Scan(&ids[i])
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("the services opened: %w", err)
 		}
-		if n > 0 {
+	}
+	return ids, nil
+}
+
+// stillNew keeps, of the services opened (ids: their rows) and the issues new in a write, those the settle did not fold into a row another
+// target held before: a port or an issue new here stays new (once) when it moves with its name to the target that scans it now.
+func stillNew(hl *handLog, opened []PortRow, ids []string, fresh []string) ([]PortRow, []string) {
+	var ports []PortRow
+	for i, p := range opened {
+		if !hl.merged[ids[i]] {
 			ports = append(ports, p)
 		}
 	}
-	var ids []string
+	var out []string
 	for _, id := range fresh {
-		var n int
-		if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM exp_issue WHERE id = ? AND target_id = ?`, id, target).Scan(&n); err != nil {
-			return nil, nil, fmt.Errorf("issues after the tree settled: %w", err)
-		}
-		if n > 0 {
-			ids = append(ids, id)
+		if !hl.merged[id] {
+			out = append(out, id)
 		}
 	}
-	return ports, ids, nil
+	return ports, out
 }
 
 // writeOpenVAS writes the issues of the OpenVAS step of a scan whose other rows are written. covered is where OpenVAS finished (the

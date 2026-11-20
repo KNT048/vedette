@@ -494,7 +494,7 @@ func contentOf(r surface.Result) exposure.Content {
 		c.Hosts = append(c.Hosts, row)
 	}
 	if text := map[string]string{surface.WordlistWildcard: exposure.NotWordlistWildcard, surface.WordlistNoAnswer: exposure.NotWordlistNoAnswer,
-		surface.WordlistCut: exposure.NotWordlistCut}[r.Wordlist]; text != "" {
+		surface.WordlistCut: exposure.NotWordlistCut, surface.WordlistChosen: exposure.NotWordlistChosen}[r.Wordlist]; text != "" {
 		c.NotChecked = append(c.NotChecked, exposure.NotCheckedRow{Kind: "wordlist", Text: text})
 	}
 	c.Unresolved = r.Unresolved   // exposure carries their previous rows forward and says so (INV-27)

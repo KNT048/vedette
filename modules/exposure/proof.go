@@ -19,9 +19,9 @@ import (
 // Ownership proof of a domain, the way Google Search Console's domain properties, Detectify and Tenable work:
 //
 //   - A TXT record vedette-verify=<token> proves the name it sits on and every name under it, down to any depth. A verified
-//     beyondnetglobal.com covers git.beyondnetglobal.com: no second record.
-//   - The record may also sit at _vedette-verify.<name>: a name that is a CNAME (git.beyondnetglobal.com CNAME beyondhcm.ddns.net)
-//     can hold no other record, so DNS providers refuse a TXT beside it, but _vedette-verify.git.beyondnetglobal.com is a name of its
+//     example.org covers git.example.org: no second record.
+//   - The record may also sit at _vedette-verify.<name>: a name that is a CNAME (git.example.org CNAME example.ddns.net)
+//     can hold no other record, so DNS providers refuse a TXT beside it, but _vedette-verify.git.example.org is a name of its
 //     own and takes one.
 //   - A proof never covers across a public suffix, ICANN's (com, co.uk) or a private one (ddns.net, github.io, herokuapp.com): those
 //     are names many customers register under, and one customer must never cover another's. The registered domain is the name one
@@ -50,8 +50,8 @@ const verifyLabel = domainfence.VerifyLabel
 // that is proved by a record at one of its nearest parents, at itself or at its registered domain.
 const maxProofLevels = 8
 
-// registered is the registered domain of name ("beyondnetglobal.com" for git.beyondnetglobal.com, "beyondhcm.ddns.net" for
-// x.beyondhcm.ddns.net); ok is false when name is a public suffix or not under any.
+// registered is the registered domain of name ("example.org" for git.example.org, "example.ddns.net" for
+// x.example.ddns.net); ok is false when name is a public suffix or not under any.
 func registered(name string) (string, bool) { return proofat.Registered(name) }
 
 // IsPublicSuffix says whether name is itself a public suffix of the list (co.uk, ddns.net, github.io): never a target.
@@ -134,7 +134,7 @@ func proofHint(t Target, others []Target) *ProofHint {
 // proof is the result of looking for a record that proves a domain target.
 type proof struct {
 	found  bool
-	at     string // the name the record sits on ("_vedette-verify.git.beyondnetglobal.com", "beyondnetglobal.com")
+	at     string // the name the record sits on ("_vedette-verify.git.example.org", "example.org")
 	proven string // the name it proves: the value of the target whose record it is (the checked one, or a parent that covers it)
 	via    string // that target's value when it is not the checked one
 	// owner and token are that target's id and token: the domain and token the executors' fence checks for the scan.

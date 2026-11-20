@@ -396,5 +396,11 @@ func TestNameCapCountsOnlyTheNamesTheScopeReaches(t *testing.T) {
 		if err != nil || !got.NamesCut || len(got.Hosts) != 2 || got.Hosts[1].Name != "w1.acme.example" {
 			t.Fatalf("chosen names, too many to list: err %v, cut %v, hosts %+v", err, got.NamesCut, got.Hosts)
 		}
+		// the names chosen on a domain that lists: the common names are not tried for the names nobody chose, and the result says so
+		got, err = newScanner(t, &fakeNet{open: map[string]handler{}}, &fakeDNS{a: a}, ctAnswer(200, ctNames("w1.acme.example", "w2.acme.example"), &asked), &probeLog{}).
+			Domain(t.Context(), "acme.example", Names{Scans: func(n string) bool { return n == "w1.acme.example" }, Find: true, Choose: true, Chosen: []string{"w1.acme.example"}}, may)
+		if err != nil || got.NamesCut || got.Wordlist != WordlistChosen || len(got.Skipped) != 1 {
+			t.Fatalf("chosen names: err %v, wordlist %q, skipped %+v", err, got.Wordlist, got.Skipped)
+		}
 	})
 }

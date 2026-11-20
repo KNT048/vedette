@@ -56,6 +56,7 @@ const (
 	WordlistWildcard = "wildcard"  // the domain answers any name
 	WordlistNoAnswer = "no_answer" // the wildcard check got no clear answer (time-out, server failure): skipped, fail closed
 	WordlistCut      = "cut"       // the DNS phase reached dnsBudget before every common name was tried
+	WordlistChosen   = "chosen"    // the scope is the names chosen: the common names are not tried for the others
 )
 
 // Addr is one address of a name with its kind (ClassBox, ClassPublic or ClassPrivate). Contacted: the check by name (GET / on 80
@@ -151,7 +152,10 @@ func (s *Scanner) discover(ctx context.Context, domain string, ct, other []strin
 		d.answers[name] = a
 	}
 	d.wordlist = wild
-	if wild == "" {
+	if n.Choose && wild == "" { // only the chosen names are scanned: a common name nobody chose is not looked up
+		d.wordlist = WordlistChosen
+	}
+	if d.wordlist == "" {
 		var tries []string
 		for _, l := range wordlist.Labels() {
 			if name := l + "." + domain; len(name) <= 253 && d.source[name] == "" && scans(name) {

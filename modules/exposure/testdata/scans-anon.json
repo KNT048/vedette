@@ -2249,7 +2249,7 @@
       "name": "autodiscover.example.com",
       "ip": "198.51.100.6",
       "source": "wordlist",
-      "cname": "autodiscover.outlook.com",
+      "cname": "autodiscover.example.net",
       "ips": [
        {
         "ip": "198.51.100.6",

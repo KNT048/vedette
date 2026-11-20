@@ -251,10 +251,15 @@ func TestTree_TheParentsScanSkipsItsChildsNames(t *testing.T) {
 type planRunner struct {
 	content Content // every name the domain has, with the ports and certificates of their addresses
 	last    ScanTarget
+	during  func() // runs while the scan runs, after its plan was read
 }
 
 func (r *planRunner) Scan(_ context.Context, st ScanTarget) (Content, error) {
 	r.last = st
+	if r.during != nil {
+		r.during()
+		r.during = nil
+	}
 	out := Content{Hosts: []HostRow{}, Ports: []PortRow{}}
 	reached := map[string]bool{}
 	for _, h := range r.content.Hosts {
@@ -386,6 +391,65 @@ func TestTree_OwnershipMovesWithoutANewPortOrANewIssue(t *testing.T) {
 	}
 }
 
+// A port that opens while the tree changes is reported once: the child is switched on while the apex's scan (planned with the child off)
+// runs and finds RDP newly open on the child's address. The apex's write reports it opened and hands it to the child; the port the apex
+// had already seen there, folded into the child's own row, is not reported again; the child's next scan reports nothing.
+func TestTree_APortNewInAScanThatMovesIsReportedOnce(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	apex, git := e.proveTree()
+	off, on := false, true
+	if _, err := e.svc.EditNode(e.ctx(), "admin@acme.example", git.ID, NodeEdit{Enabled: &off}); err != nil {
+		t.Fatal(err)
+	}
+	host := func(name, ip string) HostRow {
+		return HostRow{Name: name, IP: ip, Source: "ct", IPs: []HostIP{{IP: ip, Family: "ipv4", Class: ClassPublic}}}
+	}
+	run := &planRunner{content: Content{Hosts: []HostRow{host("acme.example", ipA), host("git.acme.example", ipB)},
+		Ports: []PortRow{{IP: ipA, Port: 443, Service: "https"}, {IP: ipB, Port: 22, Service: "ssh"}}}}
+	e.svc.SetRunner(run)
+	scan := func(id string) ScanWrittenEvent {
+		t.Helper()
+		e.advance(ScanEvery)
+		if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", id); err != nil {
+			t.Fatal(err)
+		}
+		return e.lastWritten(id)
+	}
+	scan(apex.ID) // the apex's baseline, git's name its own while git is off
+	run.content.Ports = append(run.content.Ports, PortRow{IP: ipB, Port: 3389, Service: "ms-wbt-server"})
+	run.during = func() {
+		if _, err := e.svc.EditNode(e.ctx(), "admin@acme.example", git.ID, NodeEdit{Enabled: &on}); err != nil {
+			t.Error(err)
+		}
+	}
+	w := scan(apex.ID)
+	if w.First || len(w.Opened) != 1 || w.Opened[0].Port != 3389 {
+		t.Fatalf("the apex's scan reports opened %+v (first %v), want 3389 once", w.Opened, w.First)
+	}
+	if n := e.count(`SELECT count(*) FROM exp_service WHERE target_id = ? AND port = 3389 AND state = 'open'`, git.ID); n != 1 {
+		t.Fatalf("the new port is not the child's: %d", n)
+	}
+	if g := scan(git.ID); len(g.Opened) != 0 {
+		t.Fatalf("the child's scan reports it again: %+v", g.Opened)
+	}
+	alerts := 0
+	e.pub.mu.Lock()
+	for _, ev := range e.pub.got {
+		if x, ok := ev.Data.(ScanWrittenEvent); ok {
+			for _, p := range x.Opened {
+				if p.Port == 3389 {
+					alerts++
+				}
+			}
+		}
+	}
+	e.pub.mu.Unlock()
+	if alerts != 1 {
+		t.Fatalf("3389 reported opened %d times, want 1", alerts)
+	}
+}
+
 // The count of names scanned twice reads what the scans probed: with a runner that probes every name it is handed, the apex's scan of
 // its child's name counts; with the plan obeyed it does not.
 func TestTree_ANameScannedTwiceIsCounted(t *testing.T) {
@@ -414,6 +478,25 @@ func TestTree_ANameScannedTwiceIsCounted(t *testing.T) {
 	}
 	if _, n := e.treeCounts(); n != 0 {
 		t.Fatalf("with the plan obeyed the count is %d, want 0", n)
+	}
+	// A change of who scans the name is no double scan: git off, the apex scans git's name (its own then), git on, git scans it
+	off, on := false, true
+	if _, err := e.svc.EditNode(e.ctx(), "admin@acme.example", git.ID, NodeEdit{Enabled: &off}); err != nil {
+		t.Fatal(err)
+	}
+	e.advance(ScanEvery)
+	if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", apex.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.EditNode(e.ctx(), "admin@acme.example", git.ID, NodeEdit{Enabled: &on}); err != nil {
+		t.Fatal(err)
+	}
+	e.advance(ScanEvery)
+	if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", git.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, n := e.treeCounts(); n != 0 {
+		t.Fatalf("after git was switched off and on the count is %d, want 0", n)
 	}
 }
 

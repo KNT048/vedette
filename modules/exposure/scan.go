@@ -5,13 +5,11 @@ import (
 	"database/sql"
 	"fmt"
 	"net/netip"
-	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/store"
-	"github.com/knt048/vedette/modules/scan/commonports"
 )
 
 // ScanIDPrefix is how the scan module names an external target ("ext:<id>").
@@ -216,90 +214,6 @@ const proofRetry = "Put the token file back (or set the reverse DNS name), then 
 // that repeats is answered 429 rather than sent again.
 const ScanEvery = 10 * time.Minute
 
-// Scan scans one target now for a caller that is not a person at the button (the commitment must already exist). See ScanNow.
-func (s *Service) Scan(ctx context.Context, user, id string) (Snapshot, error) {
-	return s.ScanNow(ctx, Actor{Email: user}, id, "")
-}
-
-// ScanNow scans one target now and waits for the snapshot: it is StartScan followed by waiting for the run, for callers that
-// are not a page (tests, a schedule). The page calls StartScan and polls the run (POST …/scan answers 202).
-func (s *Service) ScanNow(ctx context.Context, who Actor, id, noticeVersion string) (Snapshot, error) {
-	run, _, err := s.startScan(ctx, who, id, noticeVersion, false)
-	if err != nil {
-		return Snapshot{}, err
-	}
-	select {
-	case <-run.done:
-	case <-ctx.Done():
-		return Snapshot{}, fmt.Errorf("exposure: waiting for the scan: %w", context.Cause(ctx))
-	}
-	if run.err != nil {
-		return Snapshot{}, fmt.Errorf("exposure: scanning %s: %w", run.view.TargetValue, run.err)
-	}
-	return run.snap, nil
-}
-
-// StartScan is POST …/scan (PRE-1, INV-1, INV-12, INV-17, INV-18): the gate first, then one scan at a time on the box (409 busy) and at
-// most one per target every ScanEvery (429 rate_limited), then the runner the scan module registered, which runs in the background
-// (execute). It returns the run at once; a refusal is the same error as before and is audited as exposure.scan with its outcome
-// (LEGAL §3). Without a runner the answer is 501 after the gate. When the only thing missing is the commitment and who.Admin is set,
-// this press is the confirmation: it needs two-step sign-in and the notice version the page showed (confirmByScan), then the
-// gate runs again with the commitment in place. For anyone else the answer is 400 commitment_required.
-//
-// INV-36: when another scan runs or others wait, a scan that passed these checks waits in the box's queue instead of 409 busy: the
-// answer is the run with status queued and the queue, the checks run again right before it starts, and it is audited as queued.
-func (s *Service) StartScan(ctx context.Context, who Actor, id, noticeVersion string) (ScanRun, error) {
-	run, queued, err := s.startScan(ctx, who, id, noticeVersion, true)
-	if err != nil {
-		return ScanRun{}, err
-	}
-	if queued != nil {
-		return *queued, nil
-	}
-	return s.runView(run), nil
-}
-
-// startScan is the checks and the start of a scan; with queue, a scan that cannot start now because another runs or others wait is
-// queued (the second result) rather than refused.
-func (s *Service) startScan(ctx context.Context, who Actor, id, noticeVersion string, queue bool) (*scanRun, *ScanRun, error) {
-	t, reason, err := s.gate(ctx, who.Email, id)
-	if err != nil {
-		return nil, nil, fmt.Errorf("exposure: scanning: %w", err)
-	}
-	if reason == BlockedNoCommitment && who.Admin {
-		if err = s.confirmByScan(ctx, who, t, noticeVersion); err == nil {
-			t, reason, err = s.gate(ctx, who.Email, id)
-		}
-		if err != nil {
-			s.auditFailedScan(ctx, who.Email, t, err)
-			return nil, nil, fmt.Errorf("exposure: scanning %s: %w", t.Value, err)
-		}
-	}
-	if reason == "" { // INV-31: the shared block is read before anything is sent, for every kind of target
-		if err = s.checkSafety(ctx, t); err != nil {
-			s.auditFailedScan(ctx, who.Email, t, err)
-			return nil, nil, fmt.Errorf("exposure: scanning %s: %w", t.Value, err)
-		}
-	}
-	if reason == "" && queue { // INV-36: another scan runs or others wait: this one waits for its turn
-		v, err := s.queueIfBusy(who.Email, t)
-		if err != nil {
-			s.auditFailedScan(ctx, who.Email, t, err)
-			return nil, nil, fmt.Errorf("exposure: scanning %s: %w", t.Value, err)
-		}
-		if v != nil {
-			s.auditScanRow(ctx, who.Email, t.Value, "queued: it starts when the scans before it have ended")
-			return nil, v, nil
-		}
-	}
-	run, err := s.begin(ctx, who.Email, t, reason, nil, nil)
-	if err != nil {
-		s.auditFailedScan(ctx, who.Email, t, err)
-		return nil, nil, fmt.Errorf("exposure: scanning %s: %w", t.Value, err)
-	}
-	return run, nil, nil
-}
-
 // checkSafety reads the shared safety block before a scan (INV-31): an unreadable block refuses every scan (503, nothing is sent); an IP
 // target on the exclusion list is refused (400 out_of_scope), the runner's ports included. A domain's excluded addresses are skipped by
 // each step (ScannableIP, the web step, the deep step, the templates).
@@ -322,23 +236,7 @@ func (s *Service) checkSafety(ctx context.Context, t Target) error {
 	return nil
 }
 
-// auditFailedScan writes the exposure.scan row of an attempt that ended without a snapshot: refused by the gate, busy, too soon,
-// the module off, or failed. The write outlives a caller that hung up; a failure to write is logged.
-func (s *Service) auditFailedScan(ctx context.Context, user string, t Target, cause error) {
-	s.auditScanRow(ctx, user, t.Value, failedDetail(cause))
-}
-
-func (s *Service) auditScanRow(ctx context.Context, user, target, detail string) {
-	actx, cancel := context.WithTimeout(context.WithoutCancel(ctx), publishTimeout)
-	defer cancel()
-	err := s.write(actx, func(tx *sql.Tx, _ func(string, any)) error {
-		return s.audit(actx, tx, user, "exposure.scan", target, detail)
-	})
-	if err != nil {
-		s.cfg.Log.ErrorContext(actx, "auditing an exposure scan failed", "target", target, "error", err)
-	}
-}
-
+// clipText cuts v to at most n characters.
 func clipText(v string, n int) string {
 	if r := []rune(v); len(r) > n {
 		return string(r[:n])
@@ -373,7 +271,7 @@ func (s *Service) ScannableIP(ctx context.Context, actor string, ip netip.Addr) 
 	return reason == "", nil
 }
 
-// countsOf computes the numbers of a snapshot (INV-8); certs_expiring counts the certificates that
+// countsOf computes the numbers of what one scan found (INV-8); certs_expiring counts the certificates that
 // expire within CertWarnDays. extraIP is the target itself when it is an IP.
 func countsOf(c Content, extraIP string, now time.Time) Counts {
 	ips := map[string]bool{}
@@ -477,7 +375,9 @@ func ipKey(s string) string {
 // coveredBy decides, for each address of the previous observation that this scan reported no port on, whether the scan checked it.
 // An IP target is checked by every successful scan; a domain scan port-scans only the addresses its names point at that are
 // scannable IP targets (the gate the runner asked, ScannableIP), and the addresses its deep scan reached this run. A scan that did not check an address says nothing about its ports.
-func (s *Service) coveredBy(ctx context.Context, user string, t Target, c Content, prev Snapshot) map[string]scope {
+//
+// prevPorts are the services open before this scan, prevHosts the names and addresses the scans before left.
+func (s *Service) coveredBy(ctx context.Context, user string, t Target, c Content, prevPorts []PortRow, prevHosts []HostRow) map[string]scope {
 	reported := map[string]bool{}
 	for _, p := range c.Ports {
 		reported[ipKey(p.IP)] = true
@@ -492,7 +392,7 @@ func (s *Service) coveredBy(ctx context.Context, user string, t Target, c Conten
 		}
 	}
 	out := map[string]scope{}
-	for _, p := range prev.Ports {
+	for _, p := range prevPorts {
 		k := ipKey(p.IP)
 		if _, done := out[k]; done {
 			continue
@@ -512,7 +412,7 @@ func (s *Service) coveredBy(ctx context.Context, user string, t Target, c Conten
 			out[k] = scopeChecked
 		case reported[k]:
 			out[k] = scopeByName
-		case t.Kind != KindDomain || moved(k, pointed, prev.Hosts, c.Hosts):
+		case t.Kind != KindDomain || moved(k, pointed, prevHosts, c.Hosts):
 			out[k] = scopeGone
 		default:
 			out[k] = scopeKept
@@ -546,305 +446,4 @@ func moved(ip string, pointed map[string]bool, before, now []HostRow) bool {
 		}
 	}
 	return named
-}
-
-// carryNotSeen keeps, in the newest scan, the ports of the previous observation that this scan did not report (INV-22): one
-// scan that missed a port (packet loss, a slow host) must not read as a fix. A port on an address the scan checked gets one more
-// miss and is dropped (closed) at the second miss in a row, scans counted, not days; a port on an address the scan did not check is
-// kept as it was, with no miss; a port the scan reports is a normal row. A port a scan reports again starts from zero. The service
-// read on a kept port is kept too, so its exploited CVEs stay until the port is closed. Kept rows count as open ports.
-func carryNotSeen(c Content, prev Snapshot, how map[string]scope) Content {
-	type key struct {
-		ip   string
-		port int
-	}
-	have := map[key]bool{}
-	for _, p := range c.Ports {
-		have[key{ipKey(p.IP), p.Port}] = true
-	}
-	kept := map[key]bool{}
-	// A scan that says it did not probe every TCP port (not deep, the terms withdrawn or asked again, a deep nmap
-	// that did not finish) did not check a port outside the runner's fixed list, so such a port an earlier deep scan found is kept as
-	// it was, never "missed" or closed.
-	// Per address: one whose deep nmap finished this run (DeepScanned) was probed on every port, whatever another
-	// address of the domain did.
-	partial := slices.ContainsFunc(c.NotChecked, func(n NotCheckedRow) bool { return n.Kind == "ports" })
-	deepNow := map[string]bool{}
-	for _, h := range c.Hosts {
-		for _, a := range h.IPs {
-			if a.Deep == DeepScanned {
-				deepNow[ipKey(a.IP)] = true
-			}
-		}
-	}
-	for _, p := range prev.Ports {
-		k := key{ipKey(p.IP), p.Port}
-		if have[k] || len(c.Ports) >= maxContentRows {
-			continue
-		}
-		if p.LastSeen == "" {
-			p.LastSeen = prev.Date
-		}
-		sc := how[k.ip]
-		if sc == scopeByName {
-			sc = scopeKept
-			if p.Port == 80 || p.Port == 443 {
-				sc = scopeChecked
-			}
-		}
-		if sc == scopeChecked && partial && !deepNow[k.ip] && !slices.Contains(commonports.Numbers(), p.Port) {
-			sc = scopeKept
-		}
-		switch sc {
-		case scopeGone:
-			continue
-		case scopeKept:
-			p.Unchecked = true
-		case scopeChecked:
-			p.Unchecked = false
-			if p.Misses >= 1 {
-				continue // missed by two scans in a row: closed
-			}
-			p.Misses = 1
-		}
-		have[k] = true
-		kept[k] = true
-		c.Ports = append(c.Ports, p)
-	}
-	haveSvc := map[key]bool{}
-	for _, x := range c.Services {
-		haveSvc[key{ipKey(x.IP), x.Port}] = true
-	}
-	for _, x := range prev.Services {
-		k := key{ipKey(x.IP), x.Port}
-		if kept[k] && !haveSvc[k] && len(c.Services) < maxContentRows {
-			haveSvc[k] = true
-			c.Services = append(c.Services, x)
-			for _, t := range prev.Templates { // the port is not probed again (INV-23): what an earlier scan's templates said stays with it
-				if tk := (key{ipKey(t.IP), t.Port}); tk == k {
-					c.Templates = append(c.Templates, t)
-				}
-			}
-		}
-	}
-	return c
-}
-
-// keptPorts counts the rows of a snapshot that an earlier scan reported (INV-22).
-func keptPorts(ports []PortRow) int {
-	n := 0
-	for _, p := range ports {
-		if p.LastSeen != "" {
-			n++
-		}
-	}
-	return n
-}
-
-// ---- reading results (INV-8) ----
-
-// Snapshots lists the scan days of a target, newest first.
-func (s *Service) Snapshots(ctx context.Context, id string) ([]SnapshotMeta, error) {
-	db := s.cfg.DB.Reader()
-	if _, err := loadTarget(ctx, db, id); err != nil {
-		return nil, fmt.Errorf("exposure: listing snapshots: %w", err)
-	}
-	return listSnapshotMetas(ctx, db, id)
-}
-
-// SnapshotOf returns the result of one day, or an error wrapping ErrNoSnapshot.
-func (s *Service) SnapshotOf(ctx context.Context, id, date string) (Snapshot, error) {
-	live := s.gbLive() // before the read: a run that ends between the two has already stored its outcome
-	snap, ok, err := loadSnapshot(ctx, s.cfg.DB.Reader(), id, date)
-	if err != nil {
-		return Snapshot{}, fmt.Errorf("exposure: reading snapshot: %w", err)
-	}
-	if !ok {
-		return Snapshot{}, fmt.Errorf("exposure: reading snapshot: %w", ErrNoSnapshot)
-	}
-	s.withVulns(ctx, &snap)
-	nameAppliances(snap.Ports, snap.AdminPanels, snap.Services)
-	s.tieAppliances(ctx, snap.Ports, snap.AdminPanels)
-	if snap.GreenboneRun.State == GBRunRunning && snap.ID != live {
-		cutOff(&snap, nil, &GreenboneStop{Reason: StopRestart}) // when is not known: CutOffAtStart stores it at the next start
-	}
-	return snap, nil
-}
-
-// gbLive is the snapshot whose OpenVAS step a run of this box scans now ("" none): set from the moment the run stores it until the
-// run ends, after its outcome is stored.
-func (s *Service) gbLive() string {
-	s.runMu.Lock()
-	defer s.runMu.Unlock()
-	if s.run == nil || s.run.view.Status != RunRunning {
-		return ""
-	}
-	return s.run.gbSnap
-}
-
-// cutOff: a snapshot whose OpenVAS step says "running" while no run of this box scans it was left by a restart of the box in the middle
-// of it: it is stopped, so the heading never says "scanning" for ever.
-// at is when the restart was seen (nil when not known); it is the step's end and, when the scan has none, the scan's. stop is why:
-// a restart, or a shutdown whose OpenVAS stop outlasted Close's wait.
-func cutOff(snap *Snapshot, at *string, stop *GreenboneStop) {
-	snap.GreenboneRun.State = GBRunStopped
-	snap.GreenboneRun.Stop = stop
-	snap.GreenboneRun.EndedAt = at
-	if snap.FinishedAt == nil {
-		snap.FinishedAt = at
-	}
-	for i, a := range snap.GreenboneRun.Addresses {
-		if a.State == GBRunRunning {
-			snap.GreenboneRun.Addresses[i].State = GBRunStopped
-		}
-	}
-	snap.NotChecked = gbCutOffWith(snap.NotChecked, gbStoppedLine(stop, false))
-}
-
-// gbCutOffWith replaces the waiting line of an OpenVAS step nothing runs any more (also the older one with a time), and the line an
-// older start-up stored in its place (notGBCutOff, after a domain address's prefix), with line, the one that says why it stopped, so
-// the page never says "scanning" under a "stopped" heading.
-func gbCutOffWith(rows []NotCheckedRow, line string) []NotCheckedRow {
-	out := slices.Clone(rows)
-	for i, n := range out {
-		switch {
-		case n.Kind != "greenbone":
-		case n.Text == gbPending || strings.HasPrefix(n.Text, "OpenVAS started at "):
-			out[i].Text = line
-		case strings.HasSuffix(n.Text, notGBCutOff):
-			out[i].Text = strings.TrimSuffix(n.Text, notGBCutOff) + line
-		}
-	}
-	return out
-}
-
-// cutLine says text is a line of an OpenVAS step that no running Vedette ended: the waiting line (also the older one with a time) or
-// the line an older start-up stored in its place.
-func cutLine(text string) bool {
-	return text == gbPending || strings.HasPrefix(text, "OpenVAS started at ") || strings.HasSuffix(text, notGBCutOff)
-}
-
-// Diff compares two scan days of a target: what appeared, what is gone, what changed (the expiry of a
-// certificate, the product or version of a service). The earlier day is always the "from" side. Both days must exist and differ.
-func (s *Service) Diff(ctx context.Context, id, from, to string) (Diff, error) {
-	db := s.cfg.DB.Reader()
-	a, okA, err := loadSnapshot(ctx, db, id, from)
-	if err != nil {
-		return Diff{}, fmt.Errorf("exposure: comparing: %w", err)
-	}
-	b, okB, err := loadSnapshot(ctx, db, id, to)
-	if err != nil {
-		return Diff{}, fmt.Errorf("exposure: comparing: %w", err)
-	}
-	if !okA || !okB {
-		return Diff{}, fmt.Errorf("exposure: comparing: %w", ErrNoSnapshots)
-	}
-	if a.Date == b.Date {
-		return Diff{}, fmt.Errorf("exposure: comparing: %w", ErrSameDate)
-	}
-	if a.Date > b.Date {
-		a, b = b, a
-	}
-	s.withVulns(ctx, &a) // INV-20: both days against today's list, so a vuln comes or goes with its service
-	s.withVulns(ctx, &b)
-	return diff(a, b), nil
-}
-
-type diffEntry struct {
-	DiffItem
-	exp string
-	// service and vuln entries: where ("ip:port"); service entries: product and version
-	at, product, version string
-	lastSeen             string // port entries kept from an earlier scan: the day a scan last saw it (INV-22)
-	missed               bool   // port entries: the last scan that checked the address missed it
-}
-
-// VersionNotRead is the "to" of a service whose version the newer scan did not read, where the older one did (INV-20): not a
-// change of version, and its exploited CVEs are not "gone".
-const VersionNotRead = "version not read this time"
-
-// PortNotSeen is the "to" of a port that an earlier scan saw and the newer scan missed (INV-22): not "closed" until a second scan also misses it.
-const PortNotSeen = "missed by the last scan"
-
-// entries lists what a snapshot shows, keyed so two days can be compared (the keys are those of the mock).
-func entries(s Snapshot) (map[string]diffEntry, []string) {
-	m := map[string]diffEntry{}
-	var order []string
-	add := func(e diffEntry) {
-		if _, dup := m[e.Key]; !dup {
-			order = append(order, e.Key)
-		}
-		m[e.Key] = e
-	}
-	for _, h := range s.Hosts {
-		add(diffEntry{DiffItem: DiffItem{Kind: "subdomain", Key: "h:" + h.Name, Label: h.Name, Detail: h.IP}})
-	}
-	for _, p := range s.Ports {
-		key := fmt.Sprintf("p:%s:%d", p.IP, p.Port)
-		detail := ServiceLabel(p) // the person's name, "probably SIP" for a guess; the key is unchanged
-		if p.Product != "" {
-			detail += ", " + p.Product
-		}
-		add(diffEntry{DiffItem: DiffItem{Kind: "port", Key: key, Label: fmt.Sprintf("%s:%d", p.IP, p.Port), Detail: strings.TrimPrefix(detail, ", ")}, lastSeen: p.LastSeen, missed: p.Misses > 0})
-	}
-	for _, a := range s.AdminPanels {
-		add(diffEntry{DiffItem: DiffItem{Kind: "admin", Key: "a:" + a.URL, Label: a.URL, Detail: a.Product}})
-	}
-	for _, c := range s.Certs {
-		add(diffEntry{DiffItem: DiffItem{Kind: "cert", Key: "c:" + c.Host, Label: c.Host, Detail: c.Issuer}, exp: c.ExpiresAt})
-	}
-	for _, x := range s.Services {
-		label := fmt.Sprintf("%s:%d", x.IP, x.Port)
-		add(diffEntry{DiffItem: DiffItem{Kind: "service", Key: "s:" + label, Label: label, Detail: serviceText(x)}, at: label, product: x.Product, version: x.Version})
-	}
-	for _, v := range s.Vulns {
-		if v.Basis == "greenbone" { // INV-25: a day Greenbone did not run (off, loading) must not read as its CVEs gone
-			continue
-		}
-		label := fmt.Sprintf("%s:%d", v.IP, v.Port)
-		add(diffEntry{DiffItem: DiffItem{Kind: "vuln", Key: "v:" + label + ":" + v.CVE, Label: v.CVE + " on " + label, Detail: v.Name}, at: label})
-	}
-	return m, order
-}
-
-func diff(a, b Snapshot) Diff {
-	A, orderA := entries(a)
-	B, order := entries(b)
-	d := Diff{From: a.Date, To: b.Date, Added: []DiffItem{}, Removed: []DiffItem{}, Changed: []DiffChange{}}
-	for _, k := range order {
-		v := B[k]
-		o, ok := A[k]
-		switch {
-		case !ok:
-			d.Added = append(d.Added, v.DiffItem)
-		case v.Kind == "port" && !o.missed && v.missed: // seen before, missed by the last scan: still open until a second scan agrees
-			d.Changed = append(d.Changed, DiffChange{DiffItem: v.DiffItem, From: o.Detail, To: PortNotSeen})
-		case v.Kind == "cert" && o.exp != v.exp:
-			d.Changed = append(d.Changed, DiffChange{DiffItem: v.DiffItem, From: o.exp, To: v.exp})
-		case v.Kind == "service" && versionUnread(o, v):
-			d.Changed = append(d.Changed, DiffChange{DiffItem: v.DiffItem, From: o.Detail, To: VersionNotRead})
-		case v.Kind == "service" && o.product == v.product && o.version == "": // a version read now that was not before: no change
-		case v.Kind == "service" && o.Detail != v.Detail:
-			d.Changed = append(d.Changed, DiffChange{DiffItem: v.DiffItem, From: o.Detail, To: v.Detail})
-		}
-	}
-	for _, k := range orderA {
-		o := A[k]
-		if _, ok := B[k]; ok {
-			continue
-		}
-		if s, ok := B["s:"+o.at]; o.Kind == "vuln" && ok && versionUnread(A["s:"+o.at], s) {
-			continue // its service's version was not read this time: the CVE is not known to be gone
-		}
-		if o.Kind == "port" && o.missed { // the older day had it as missed once and the newer one has none: confirmed closed
-			o.Detail = fmt.Sprintf("%s (closed: missed by two scans in a row, last seen %s)", o.Detail, o.lastSeen)
-		}
-		d.Removed = append(d.Removed, o.DiffItem)
-	}
-	return d
-}
-
-// versionUnread: the same product on the same port, with a version before and none now.
-func versionUnread(o, v diffEntry) bool {
-	return o.product != "" && o.product == v.product && o.version != "" && v.version == ""
 }

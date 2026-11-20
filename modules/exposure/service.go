@@ -17,6 +17,7 @@ import (
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/orgtime"
+	corerun "github.com/knt048/vedette/core/run"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -46,11 +47,8 @@ type Config struct {
 	Matcher Matcher     // nil: identified services are not compared with exploited CVEs, and the page says so (INV-20)
 	Outside *InternetDB // nil: "Check what Shodan has seen" answers 501 (INV-21); cmd/vedette wires Shodan InternetDB
 	Safety  ScanSafety  // nil: the module's own rates and no exclusion; cmd/vedette wires the scan module's shared safety block (INV-31, #850)
-	// Window nil: scheduled scans may start at any time; cmd/vedette wires the scan window of the shared safety block (INV-36).
-	Window ScanWindow
-	// Alert sends what a scheduled scan found new to the alert channels (INV-36); nil: nothing is sent. cmd/vedette wires notify's
-	// system notice path.
-	Alert    func(ctx context.Context, a Alert) error
+	// Runs is the box's run manager (core/run): a scan is a run of kind RunKind in the lane RunLane. nil: scanning answers 501.
+	Runs     *corerun.Manager
 	Location *time.Location // the day of a snapshot and the times of messages when Zone gives none (nil: time.Local)
 	// Zone is the organization's time zone, read at every use (a change applies at once); nil, or a nil answer, is Location. The day of
 	// a snapshot is a day of the customer's calendar: two scans of one local day are one snapshot, never two that read as the same day.
@@ -70,16 +68,14 @@ type Service struct {
 	mu     sync.RWMutex
 	runner Runner
 
-	runMu       sync.Mutex           // guards run, its view, lastScan, lastOutside, off, closed, feedSync and feedSyncAt
-	feedSync    bool                 // Greenbone's weekly feed update holds the box's one scan slot: begin refuses
-	feedSyncAt  time.Time            // when that feed update started (the busy answer says it)
-	off         bool                 // the module is switched off (ModuleSwitched): begin refuses
+	runMu       sync.Mutex           // guards execs, lastOutside, off, closed, feedSync, feedSyncAt and syncDone
+	feedSync    bool                 // OpenVAS's weekly feed update holds the box's one scan slot: a scan that starts waits for it
+	feedSyncAt  time.Time            // when that feed update started
+	syncDone    chan struct{}        // closed when the feed update that runs ends
+	off         bool                 // the module is switched off (ModuleSwitched): no scan is queued
 	closed      bool                 // the box is shutting down (Close)
-	run         *scanRun             // the scan that runs now, or the last one (INV-18); one at a time on the box: a second one is 409 busy; a restart forgets it
-	lastScan    map[string]time.Time // when each target's last scan started (ScanEvery; kept in memory, a restart forgets it)
+	execs       map[string]*scanExec // the scans this process executes now (and the ones ScanNow waits for), by run id
 	lastOutside time.Time            // when the box last asked Shodan (OutsideEvery; kept in memory, a restart forgets it)
-	queue       []*queuedScan        // INV-36: the scans that wait for the one that runs, in order (in memory, a restart forgets it)
-	dispatching bool                 // the checks of the first queued scan run now (startQueued)
 
 	checkMu    sync.Mutex           // guards lastCheck
 	lastCheck  map[string]time.Time // when each domain target's ownership was last checked by a person (DomainCheckEvery; in memory, a restart forgets it)
@@ -95,8 +91,6 @@ type Service struct {
 	bg context.Context // the service's own context for work the registry's module switch starts (it has none)
 
 	appliances applianceCache // the inventory's last answer about the appliance families (INV-33)
-
-	spawn func(func()) // starts the checks of a queued scan in the background (tests run them in place)
 }
 
 // NewService returns the service. DB, Audit, Resolver, Prober and Log are required.
@@ -111,8 +105,11 @@ func NewService(cfg Config) (*Service, error) {
 	if cfg.Location == nil {
 		cfg.Location = time.Local
 	}
-	return &Service{cfg: cfg, now: now, runner: cfg.Runner, lastScan: map[string]time.Time{}, lastCheck: map[string]time.Time{}, live: map[string]liveEntry{}, ipListed: map[string]bool{}, bg: context.Background(),
-		spawn: func(f func()) { go f() }}, nil
+	s := &Service{cfg: cfg, now: now, runner: cfg.Runner, execs: map[string]*scanExec{}, lastCheck: map[string]time.Time{}, live: map[string]liveEntry{}, ipListed: map[string]bool{}, bg: context.Background()}
+	if err := s.registerRuns(); err != nil {
+		return nil, fmt.Errorf("exposure: registering the scan runs: %w", err)
+	}
+	return s, nil
 }
 
 // SetRunner registers the scanner (the scan module does it at start-up). Nil removes it.
@@ -256,7 +253,7 @@ func (t Target) blocked(now time.Time) BlockedReason {
 	return ""
 }
 
-func (s *Service) view(t Target, all []Target, latest map[string]latestResult, c checks, now time.Time) TargetView {
+func (s *Service) view(t Target, all []Target, latest map[string]latestResult, live map[string]string, c checks, now time.Time) TargetView {
 	v := TargetView{
 		ID: t.ID, Kind: t.Kind, Value: t.Value, Status: t.status(now), Token: t.Token,
 		LastCheck: t.LastCheck, Commitment: t.Commitment, CreatedAt: store.FormatTS(t.CreatedAt),
@@ -283,7 +280,7 @@ func (s *Service) view(t Target, all []Target, latest map[string]latestResult, c
 	v.Terms, v.TermsNotice, v.FullScan = t.Terms, termsOf(t), t.mode().Full
 	v.Proof = proofHint(t, all)
 	v.Origin = "person"
-	if t.Kind == KindIP && !t.Typed {
+	if t.Origin == OriginBox {
 		v.Origin = "box"
 	}
 	v.IPProof = ipProofHintOf(t, all)
@@ -311,22 +308,19 @@ func (s *Service) view(t Target, all []Target, latest map[string]latestResult, c
 		}
 		v.OpenExposures = r.Counts.Ports
 	}
-	v.ScanState = s.scanState(t, v)
+	v.ScanState = s.scanState(live[t.ID], v)
+	v.Schedule = noSchedule()
 	return v
 }
 
-// scanState says where a target stands for scanning (TargetView.scan_state): scanning while a scan of it runs, then why it cannot be
-// scanned (unproved: no proof now, expired: its 30 days ran out, paused: the box no longer goes out through the IP, needs_terms: the
-// scan confirmation is missing), else ready.
-func (s *Service) scanState(t Target, v TargetView) string {
-	s.runMu.Lock()
-	running := s.run != nil && s.run.view.TargetID == t.ID && s.run.view.Status == RunRunning
-	queued := s.queuedLocked(t.ID)
-	s.runMu.Unlock()
+// scanState says where a target stands for scanning (TargetView.scan_state): scanning while a scan of it runs, queued while one waits,
+// then why it cannot be scanned (unproved: no proof now, expired: its 30 days ran out, paused: the box no longer goes out through the
+// IP, needs_terms: the scan confirmation is missing), else ready.
+func (s *Service) scanState(st string, v TargetView) string {
 	switch {
-	case running:
+	case st == "running" || st == "stopping":
 		return "scanning"
-	case queued:
+	case st == "queued" || st == "waiting":
 		return "queued"
 	case v.BlockedReason == nil:
 		return "ready"
@@ -342,6 +336,27 @@ func (s *Service) scanState(t Target, v TargetView) string {
 	return "unproved"
 }
 
+// liveStates is the state of the active scan of each target that has one (queued, waiting, running or stopping).
+func liveStates(ctx context.Context, q querier) (map[string]string, error) {
+	rows, err := q.QueryContext(ctx, `SELECT x.target_id, r.status FROM exp_scan x JOIN core_run r ON r.id = x.run_id
+		WHERE r.status IN ('queued', 'waiting', 'running', 'stopping') ORDER BY r.queued_at`)
+	if err != nil {
+		return nil, fmt.Errorf("live scans: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	out := map[string]string{}
+	for rows.Next() {
+		var id, st string
+		if err := rows.Scan(&id, &st); err != nil {
+			return nil, fmt.Errorf("live scans: %w", err)
+		}
+		if out[id] != "running" && out[id] != "stopping" {
+			out[id] = st
+		}
+	}
+	return out, rows.Err()
+}
+
 // Targets returns every target, oldest first (GET /exposure/targets). The scan module reads the
 // scannable ones from here.
 func (s *Service) Targets(ctx context.Context) ([]TargetView, error) {
@@ -355,16 +370,17 @@ func (s *Service) Targets(ctx context.Context) ([]TargetView, error) {
 		return nil, fmt.Errorf("exposure: listing targets: %w", err)
 	}
 	s.tieLatest(ctx, latest)
+	live, err := liveStates(ctx, db)
+	if err != nil {
+		return nil, fmt.Errorf("exposure: listing targets: %w", err)
+	}
 	c, err := s.loadChecks(ctx, db)
 	if err != nil {
 		return nil, fmt.Errorf("exposure: listing targets: %w", err)
 	}
 	out := make([]TargetView, 0, len(ts))
 	for _, t := range ts {
-		out = append(out, s.view(t, ts, latest, c, c.now))
-	}
-	if err := s.scheduleViews(ctx, db, ts, out, c); err != nil {
-		return nil, fmt.Errorf("exposure: listing targets: %w", err)
+		out = append(out, s.view(t, ts, latest, live, c, c.now))
 	}
 	return out, nil
 }
@@ -397,6 +413,10 @@ func (s *Service) targetView(ctx context.Context, q querier, id string) (TargetV
 	if r, ok := latest[id]; ok {
 		s.tieAppliances(ctx, r.Ports, nil)
 	}
+	live, err := liveStates(ctx, q)
+	if err != nil {
+		return TargetView{}, fmt.Errorf("exposure: reading target: %w", err)
+	}
 	c, err := s.loadChecks(ctx, q)
 	if err != nil {
 		return TargetView{}, fmt.Errorf("exposure: reading target: %w", err)
@@ -405,11 +425,7 @@ func (s *Service) targetView(ctx context.Context, q querier, id string) (TargetV
 	if err != nil {
 		return TargetView{}, fmt.Errorf("exposure: reading target: %w", err)
 	}
-	out := []TargetView{s.view(t, all, latest, c, c.now)}
-	if err := s.scheduleViews(ctx, q, []Target{t}, out, c); err != nil {
-		return TargetView{}, fmt.Errorf("exposure: reading target: %w", err)
-	}
-	return out[0], nil
+	return s.view(t, all, latest, live, c, c.now), nil
 }
 
 // ---- adding, deleting, committing ----
@@ -594,7 +610,7 @@ func (s *Service) coverAdded(ctx context.Context, user, id, value string) {
 	}
 }
 
-// Delete removes a target with its snapshots and its commitment; the audit log stays (INV-7). For an
+// Delete removes a target with its rows and its consents; the audit log stays (INV-7). For an
 // IP it is how a customer takes it out of the inventory (INV-11); auto-detect adds it again when the box still uses it.
 func (s *Service) Delete(ctx context.Context, user, id string) error {
 	return s.Remove(ctx, user, id, false)
@@ -607,6 +623,11 @@ func (s *Service) Remove(ctx context.Context, user, id string, ignore bool) erro
 	var kind Kind
 	var value string
 	typed := false
+	if runID, ok := s.activeRun(ctx, id); ok && s.cfg.Runs != nil { // its scan, queued or running, ends with it
+		if err := s.cfg.Runs.Stop(ctx, runID, user, "the target was deleted"); err != nil && !errors.Is(err, corerun.ErrEnded) {
+			s.cfg.Log.WarnContext(ctx, "exposure: stopping the scan of a deleted target", "error", err)
+		}
+	}
 	err := s.write(ctx, func(tx *sql.Tx, _ func(string, any)) error {
 		t, err := loadTarget(ctx, tx, id)
 		if err != nil {
@@ -625,10 +646,6 @@ func (s *Service) Remove(ctx context.Context, user, id string, ignore bool) erro
 		}
 		if err := deleteTarget(ctx, tx, id); err != nil {
 			return err
-		}
-		// INV-30: Settings › Scanning no longer names the target as an engine's last run (#863 r1 L4)
-		if _, err := tx.ExecContext(ctx, `DELETE FROM exp_engine_run WHERE target = ?`, t.Value); err != nil {
-			return fmt.Errorf("exposure: removing the target's engine runs: %w", err)
 		}
 		if err := s.audit(ctx, tx, user, "exposure.target_delete", t.Value, ""); err != nil {
 			return err

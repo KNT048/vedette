@@ -360,24 +360,14 @@ func deepCandidates(hosts []HostRow, domain string, last, tried map[string]strin
 	return out, len(priv)
 }
 
-// deepDomain is the deep scan of a domain whose testing terms are accepted, after its by-name checks and before the snapshot is
-// stored: the addresses in turn (deepCandidates), each through deepIP, until MaxDeepIPs got the steps or maxDeepRefusals were refused;
+// deepDomain is the deep scan of a domain whose testing terms are accepted, after its by-name checks and before the rows are
+// written: the addresses in turn (deepCandidates), each through deepIP, until MaxDeepIPs got the steps or maxDeepRefusals were refused;
 // the others are marked and get their lines. It returns the addresses whose service identification finished, for OpenVAS after the
 // snapshot is stored. Only a stop of the run ends it with an error.
 func (s *Service) deepDomain(ctx context.Context, st ScanTarget, c Content) (Content, []deepAddr, error) {
-	prev, ok, err := previousSnapshot(ctx, s.cfg.DB.Reader(), st.ID, s.clock().In(s.loc()).Format(dayFormat))
+	last, tried, err := s.deepHistory(ctx, st.ID) // one fixed time format (store.FormatTS): the strings sort as times
 	if err != nil {
 		return c, nil, err
-	}
-	last, tried := map[string]string{}, map[string]string{}
-	if ok {
-		for _, h := range prev.Hosts {
-			for _, a := range h.IPs {
-				k := ipKey(a.IP)
-				last[k] = max(last[k], a.LastDeep) // one fixed time format (store.FormatTS): the strings sort as times
-				tried[k] = max(tried[k], a.LastTried)
-			}
-		}
 	}
 	addrs, private := deepCandidates(c.Hosts, st.Value, last, tried)
 	var lines []NotCheckedRow

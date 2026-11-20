@@ -685,7 +685,7 @@ func (e scanningEngines) external() (core.RunningJob, string, bool) {
 		return core.RunningJob{}, "", false
 	}
 	r := exposureService(e.d).CurrentScan()
-	if r == nil || r.FinishedAt != nil {
+	if r == nil || r.Status != exposure.RunRunning {
 		return core.RunningJob{}, "", false
 	}
 	engine := "nuclei"

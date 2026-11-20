@@ -12,6 +12,7 @@ import { modulesStore, sessionStore } from '@/mocks/stores'
 import { FINDING_STATUSES, INCIDENT_STATUSES } from '@/lib/statusCodes'
 import { Alert, AlertsResponse, Overview } from './contract'
 import { DETECTION_KINDS, WATCHER_IDS } from './types'
+import { accepted } from '@/features/findings/mocks'
 
 const REAL = import.meta.env.VITE_DETECTION_REAL_URL as string | undefined
 type Role = 'admin' | 'viewer'
@@ -137,6 +138,17 @@ describe('detection API conformance (contract.ts + mock = approved behaviour)', 
       expect((await fetch('http://localhost/api/v1/detection/alerts?window=7d')).status).toBe(404)
     } finally {
       modulesStore.update((l) => l.filter((m) => (m.id as string) !== 'ids').map((m) => (m.id === 'honeypot' || m.id === 'logs' ? { ...m, enabled: true } : m)))
+    }
+  })
+
+  it('an accepted risk is handled: the finding says accepted and the alert is not raised to critical', async () => {
+    accepted.update((m) => ({ ...m, 'f-1': '2999-12-31' }))
+    try {
+      sessionStore.set({ userId: USER.viewer })
+      const a = Alert.parse(await (await fetch('http://localhost/api/v1/detection/alerts/ida-1')).json())
+      expect([a.severity, a.findings.map((f) => [f.id, f.status])]).toEqual(['high', [['f-1', 'accepted']]])
+    } finally {
+      accepted.update((m) => { const n = { ...m }; delete n['f-1']; return n })
     }
   })
 

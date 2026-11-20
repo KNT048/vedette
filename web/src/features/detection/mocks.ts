@@ -1,5 +1,6 @@
 // Mock API of intrusion detection. Table ids_alert holds the alerts as the ids module stores them (with their CVE ids, the
-// ids_alert_cve rows, folded in); the devices, the linked findings and the severity are resolved when read, like the box.
+// ids_alert_cve rows, folded in, and the device ids found when the event arrived); the device names, the linked findings
+// and the severity are resolved when read, like the box.
 // The overview reads the other modules through their own endpoints, as core reads the modules' ports on the box.
 //
 // Until the ids module is in the module list, it counts as on in the sample data and off on a clean install (the box
@@ -11,32 +12,33 @@ import { assetsStore, findingsStore, installStore, isOn, moduleAvailable, module
 import { networkStore, spanStatusOf } from '@/mocks/network'
 import { collection, dataMode, daysAgo, nowIso, peek } from '@/mocks/db'
 import { containerSensorStore } from '@/features/inventory/mocks'
+import { accepted } from '@/features/findings/mocks'
 import type { Finding } from '@/lib/types'
 import type { HpOverview } from '@/features/honeypot/types'
 import type { Incident, IncidentsResponse } from '@/features/notify/types'
 import type { IocHit, SourcesResponse } from '@/features/logs/types'
 import { DETECTION_KINDS, type Alert, type AlertIncident, type AlertWindow, type DeviceRef, type FindingStatus, type KindCount, type MirrorHit, type Overview, type Severity, type Watcher } from './types'
 
-type Stored = Omit<Alert, 'src_device' | 'dst_device' | 'findings' | 'severity'> & { incident: AlertIncident | null }
+type Stored = Omit<Alert, 'src_device' | 'dst_device' | 'findings' | 'severity'> & { src_asset_id: string | null; dst_asset_id: string | null; incident: AlertIncident | null }
 
 const at = (d: number, h = 0) => daysAgo(d, h)
 const alerts = collection<Stored[]>('ids_alert', () => [
   // A FortiGate IPS event naming a CVE the NAS is affected by: its finding is under attack.
-  { id: 'ida-1', source: 'log', sid: 51006, signature: 'QNAP.Photo.Station.Path.Traversal', category: 'Path Traversal', priority: 1, src_ip: '198.51.100.23', dst_ip: '192.168.10.21', dst_port: 443, proto: 'tcp',
-    cves: ['CVE-2022-27593'], first_seen: at(0, 5), last_seen: at(0, 0.5), count: 14, incident: { id: 'in-ids-1', status: 'new' } },
+  { id: 'ida-1', source: 'log', sid: 51006, signature: 'QNAP.Photo.Station.Path.Traversal', category: 'Path Traversal', priority: 1, src_ip: '198.51.100.23', dst_ip: '10.0.10.21', dst_port: 443, proto: 'tcp',
+    src_asset_id: null, dst_asset_id: 'a-nas02', cves: ['CVE-2022-27593'], first_seen: at(0, 5), last_seen: at(0, 0.5), count: 14, incident: { id: 'in-ids-1', status: 'new' } },
   // Suricata on the firewall: two CVEs, the web server is not affected by either.
   { id: 'ida-2', source: 'log', sid: 2034124, signature: 'ET EXPLOIT Apache HTTP Server 2.4.49 Path Traversal (CVE-2021-41773)', category: 'Attempted Administrator Privilege Gain', priority: 1,
-    src_ip: '198.51.100.77', dst_ip: '192.168.10.12', dst_port: 80, proto: 'tcp', cves: ['CVE-2021-41773', 'CVE-2021-42013'], first_seen: at(1, 3), last_seen: at(1, 2), count: 3,
+    src_ip: '198.51.100.77', dst_ip: '10.0.10.12', dst_port: 80, proto: 'tcp', src_asset_id: null, dst_asset_id: 'a-web01', cves: ['CVE-2021-41773', 'CVE-2021-42013'], first_seen: at(1, 3), last_seen: at(1, 2), count: 3,
     incident: { id: 'in-ids-2', status: 'acknowledged' } },
   // From inside the network, against the domain controller; handled.
-  { id: 'ida-3', source: 'log', sid: 43796, signature: 'MS.SMB.Server.SMB1.Trans2.Secondary.Handling.Code.Execution', category: '', priority: 1, src_ip: '192.168.10.113', dst_ip: '192.168.10.10', dst_port: 445, proto: 'tcp',
-    cves: ['CVE-2017-0144'], first_seen: at(3, 2), last_seen: at(3, 1), count: 2, incident: { id: 'in-ids-3', status: 'resolved' } },
+  { id: 'ida-3', source: 'log', sid: 43796, signature: 'MS.SMB.Server.SMB1.Trans2.Secondary.Handling.Code.Execution', category: '', priority: 1, src_ip: '10.0.10.113', dst_ip: '10.0.10.10', dst_port: 445, proto: 'tcp',
+    src_asset_id: null, dst_asset_id: 'a-srvad', cves: ['CVE-2017-0144'], first_seen: at(3, 2), last_seen: at(3, 1), count: 2, incident: { id: 'in-ids-3', status: 'resolved' } },
   // A scan with no CVE.
   { id: 'ida-4', source: 'log', sid: 2009358, signature: 'ET SCAN Nmap Scripting Engine User-Agent Detected (Nmap Scripting Engine)', category: 'Web Application Attack', priority: 3,
-    src_ip: '192.0.2.50', dst_ip: '192.168.10.1', dst_port: 443, proto: 'tcp', cves: [], first_seen: at(0, 0.4), last_seen: at(0, 0.2), count: 40, incident: { id: 'in-ids-4', status: 'new' } },
+    src_ip: '192.0.2.50', dst_ip: '10.0.10.1', dst_port: 443, proto: 'tcp', src_asset_id: null, dst_asset_id: 'a-fw01', cves: [], first_seen: at(0, 0.4), last_seen: at(0, 0.2), count: 40, incident: { id: 'in-ids-4', status: 'new' } },
   // Outside the 7-day window.
   { id: 'ida-5', source: 'log', sid: 2029022, signature: 'ET EXPLOIT FortiOS SSL VPN - Pre-Auth Messages File Path Traversal (CVE-2018-13379)', category: 'Attempted Administrator Privilege Gain', priority: 1,
-    src_ip: '198.51.100.9', dst_ip: '192.168.10.1', dst_port: 10443, proto: 'tcp', cves: ['CVE-2018-13379'], first_seen: at(20, 4), last_seen: at(20, 3), count: 6, incident: { id: 'in-ids-5', status: 'resolved' } },
+    src_ip: '198.51.100.9', dst_ip: '10.0.10.1', dst_port: 10443, proto: 'tcp', src_asset_id: null, dst_asset_id: 'a-fw01', cves: ['CVE-2018-13379'], first_seen: at(20, 4), last_seen: at(20, 3), count: 6, incident: { id: 'in-ids-5', status: 'resolved' } },
 ], () => [])
 
 /** On while it is on in the module list; until it is listed there, on with the sample data and off on a clean install. */
@@ -46,21 +48,23 @@ function idsOn(): boolean {
 }
 const offFail = () => fail(404, 'not_found', 'Not found.')
 
-const deviceAt = (ip: string): DeviceRef | null => {
-  const a = assetsStore.get().find((x) => x.ip === ip)
-  return a ? { id: a.id, name: a.hostname ?? a.ip } : null
-}
-// The new status vocabulary of a finding the alert names: an open one is under attack (the attack is in the alert); a handled one keeps its handling.
+const ref = (a: { id: string; hostname: string | null; ip: string } | undefined): DeviceRef | null => (a ? { id: a.id, name: a.hostname ?? a.ip } : null)
+const deviceAt = (ip: string) => ref(assetsStore.get().find((x) => x.ip === ip))
+const deviceOf = (id: string | null) => (id ? ref(assetsStore.get().find((x) => x.id === id)) : null)
+// The new status vocabulary of a finding the alert names: an open one is under attack (the attack is in the alert); a handled one keeps its
+// handling. The shared store keeps an accepted risk as not_relevant, with its last day in the findings mock's own table.
 const HANDLED: Partial<Record<Finding['status'], FindingStatus>> = { patched: 'patched', mitigated: 'mitigated', not_relevant: 'not_relevant', false_positive: 'false_positive' }
+const statusOf = (f: Finding): FindingStatus => (accepted.get()[f.id] ? 'accepted' : HANDLED[f.status] ?? 'under_attack')
 const PRIORITY_SEVERITY: Record<number, Severity> = { 1: 'high', 2: 'medium', 3: 'low', 4: 'info' }
 
 function view(s: Stored): Alert {
-  const dst = deviceAt(s.dst_ip)
+  const { src_asset_id, dst_asset_id, ...rest } = s
+  const dst = deviceOf(dst_asset_id)
   const findings = !dst ? [] : findingsStore.get().filter((f) => f.asset_id === dst.id && s.cves.includes(f.cve))
-    .map((f) => ({ id: f.id, cve: f.cve, device: dst, status: HANDLED[f.status] ?? 'under_attack' as FindingStatus }))
+    .map((f) => ({ id: f.id, cve: f.cve, device: dst, status: statusOf(f) }))
     .sort((a, b) => a.cve.localeCompare(b.cve) || a.id.localeCompare(b.id))
   const affected = findings.some((f) => f.status === 'under_attack')
-  return { ...s, severity: affected ? 'critical' : PRIORITY_SEVERITY[s.priority] ?? 'info', src_device: deviceAt(s.src_ip), dst_device: dst, findings }
+  return { ...rest, severity: affected ? 'critical' : PRIORITY_SEVERITY[s.priority] ?? 'info', src_device: deviceOf(src_asset_id), dst_device: dst, findings }
 }
 
 const WINDOW_MS: Record<AlertWindow, number> = { '24h': 864e5, '7d': 7 * 864e5, '30d': 30 * 864e5 }

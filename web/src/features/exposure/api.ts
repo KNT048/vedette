@@ -1,55 +1,106 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { BoxIpDetectResult, BoxIpSettings, Diff, Greenbone, OutsideView, ScanRun, ScheduleEvery, Snapshot, SnapshotMeta, Target, TargetKind, TargetList, VerifyResult } from './types'
+import type { Address, BoxIpDetectResult, BoxIpSettings, Greenbone, Host, Issue, OutsideView, Resolution, Scan, ScopeMode, Service, TargetKind, TargetNode, TargetTree } from './types'
 
-export const useTargets = (o: { enabled?: boolean } = {}) => useQuery({ queryKey: ['exposure', 'targets'], queryFn: () => api.get<TargetList>('/exposure/targets'), enabled: o.enabled ?? true })
-// A queued target is read again while it waits, so its page sees the scan start (or why it did not)
-export const useTarget = (id: string) => useQuery({ queryKey: ['exposure', 'target', id], queryFn: () => api.get<Target>(`/exposure/targets/${encodeURIComponent(id)}`), retry: false,
-  refetchInterval: (q) => (q.state.data?.scan_state === 'queued' ? scanPoll.ms : false) })
-export const useSnapshots = (id: string) => useQuery({ queryKey: ['exposure', 'snapshots', id], queryFn: () => api.get<{ items: SnapshotMeta[] }>(`/exposure/targets/${encodeURIComponent(id)}/snapshots`) })
-export const useSnapshot = (id: string, date: string | null) =>
-  useQuery({ queryKey: ['exposure', 'snapshot', id, date], queryFn: () => api.get<Snapshot>(`/exposure/targets/${encodeURIComponent(id)}/snapshots/${date}`), enabled: !!date })
-export const useDiff = (id: string, from: string | null, to: string | null) =>
-  useQuery({ queryKey: ['exposure', 'diff', id, from, to], queryFn: () => api.get<Diff>(`/exposure/targets/${encodeURIComponent(id)}/diff?from=${from}&to=${to}`), enabled: !!from && !!to && from !== to, retry: false })
+const enc = encodeURIComponent
 
-/** How often the page asks how the scan is going while one runs: 5 s, the box reports a step's progress at most every 5 s (#830). Tests shorten it. */
+/** A run that still holds or waits for the exposure lane: the page reads it again until it ends. */
+const LIVE: readonly Scan['status'][] = ['queued', 'waiting', 'running', 'stopping']
+export const isLive = (s: Scan | null | undefined): boolean => !!s && LIVE.includes(s.status)
+
+/** How often a page with a live scan asks again. Tests shorten it. */
 export const scanPoll = { ms: 5000 }
-/** The scan that runs now, or the last one (null before the first since the box started). Polls only while it runs. */
-export const useScanRun = (enabled = true) => useQuery({
-  queryKey: ['exposure', 'scan'], queryFn: () => api.get<ScanRun | null>('/exposure/scan'), enabled,
-  // a failed poll slows down but does not stop while the last answer says running, so the row cannot hang on "Scanning"
-  // INV-36: also while scans wait in the queue, so the next one is seen when it starts
-  refetchInterval: (q) => (q.state.data?.status === 'running' || (q.state.data?.queue?.length ?? 0) > 0 ? (q.state.status === 'error' ? scanPoll.ms * 5 : scanPoll.ms) : false) })
+
+/** Every target as a tree, with the box-IP settings, the Ignored list and the gateway. Read again while a scan of any target is live. */
+export const useTree = () => useQuery({
+  queryKey: ['exposure', 'tree'], queryFn: () => api.get<TargetTree>('/exposure/tree'),
+  refetchInterval: (q) => (q.state.data?.items.some((n) => isLive(n.last_scan)) ? scanPoll.ms : false),
+})
+/** One target node; read again while its scan is live, so the page sees it start and end. */
+export const useNode = (id: string) => useQuery({
+  queryKey: ['exposure', 'node', id], queryFn: () => api.get<TargetNode>(`/exposure/tree/${enc(id)}`), retry: false,
+  refetchInterval: (q) => (isLive(q.state.data?.last_scan) ? scanPoll.ms : false),
+})
+
+type Rows = { hosts: Host; addresses: Address; services: Service; issues: Issue; scans: Scan }
+/** The rows of a node: names, addresses, services, issues or runs. `poll` reads them again while a scan is live (the runs list). */
+export function useRows<K extends keyof Rows>(id: string, kind: K, o: { enabled?: boolean; poll?: boolean } = {}) {
+  return useQuery({
+    queryKey: ['exposure', 'rows', id, kind], queryFn: () => api.get<{ items: Rows[K][] }>(`/exposure/tree/${enc(id)}/${kind}`),
+    enabled: o.enabled ?? true, refetchInterval: o.poll ? scanPoll.ms : false,
+  })
+}
 
 function useInvalidate() {
   const qc = useQueryClient()
   return () => qc.invalidateQueries({ queryKey: ['exposure'] })
 }
 
-export function useAddTarget() {
+export function useAddNode() {
   const inv = useInvalidate()
-  return useMutation({ mutationFn: (b: { value: string; kind: TargetKind }) => api.post<Target>('/exposure/targets', b), onSuccess: inv })
+  return useMutation({ mutationFn: (b: { value: string; kind: TargetKind; scope_mode?: ScopeMode }) => api.post<TargetNode>('/exposure/tree', b), onSuccess: inv })
 }
-export function useDeleteTarget() {
+export type NodeEdit = { scope_mode?: ScopeMode; enabled?: boolean; selected?: string[] }
+export function useEditNode(id: string) {
+  const inv = useInvalidate()
+  return useMutation({ mutationFn: (b: NodeEdit) => api.patch<TargetNode>(`/exposure/tree/${enc(id)}`, b), onSuccess: inv })
+}
+export function useDeleteNode() {
   const qc = useQueryClient()
   return useMutation({
     // ignore: an IP also goes on the Ignored list.
-    mutationFn: ({ id, ignore }: { id: string; ignore?: boolean }) => api.del<void>(`/exposure/targets/${encodeURIComponent(id)}${ignore ? '?ignore=true' : ''}`),
-    // Bỏ cache của mục tiêu vừa xoá (không tải lại: tải lại sẽ ra 404 ngay trước khi chuyển trang), chỉ làm mới danh sách.
+    mutationFn: ({ id, ignore }: { id: string; ignore?: boolean }) => api.del<void>(`/exposure/tree/${enc(id)}${ignore ? '?ignore=true' : ''}`),
+    // Drop the deleted node's own queries without reading them again (that would be a 404 just before the page leaves), then the rest.
     onSuccess: (_d, { id }) => {
-      qc.removeQueries({ predicate: (q) => q.queryKey[0] === 'exposure' && q.queryKey[1] !== 'targets' && q.queryKey.includes(id) })
-      return qc.invalidateQueries({ queryKey: ['exposure', 'targets'] })
+      qc.removeQueries({ predicate: (q) => q.queryKey[0] === 'exposure' && q.queryKey.includes(id) })
+      return qc.invalidateQueries({ queryKey: ['exposure'] })
     },
   })
 }
+export function useVerifyNode() {
+  const inv = useInvalidate()
+  return useMutation({ mutationFn: (id: string) => api.post<{ verified: boolean; message: string; node: TargetNode }>(`/exposure/tree/${enc(id)}/verify`), onSuccess: inv })
+}
+/** Scan now. noticeVersion: the confirmation sentence shown next to the button, which an administrator's first scan records. */
+export function useScanNode() {
+  const inv = useInvalidate()
+  // onError too: a refusal may come from a state the page must then show (proof gone, turned off).
+  return useMutation({
+    mutationFn: ({ id, noticeVersion }: { id: string; noticeVersion?: string }) => api.post<Scan>(`/exposure/tree/${enc(id)}/scan`, noticeVersion ? { notice_version: noticeVersion } : undefined),
+    onSuccess: inv, onError: inv,
+  })
+}
+/** Stop a scan through the shared runs: a queued one stops at once, a running one is stopping until its step ends. */
+export function useStopRun() {
+  const inv = useInvalidate()
+  return useMutation({ mutationFn: (runId: string) => api.post<unknown>(`/runs/${enc(runId)}/stop`), onSuccess: inv, onError: inv })
+}
+
+/** Accept the testing terms of a node (admin with two-step), with or without the disruptive tick, or withdraw them. */
+export function useAcceptTerms(id: string) {
+  const inv = useInvalidate()
+  return useMutation({ mutationFn: (b: { version: string; disruptive: boolean }) => api.put<TargetNode>(`/exposure/tree/${enc(id)}/terms`, b), onSuccess: inv })
+}
+export function useRevokeTerms(id: string) {
+  const inv = useInvalidate()
+  return useMutation({ mutationFn: () => api.del<TargetNode>(`/exposure/tree/${enc(id)}/terms`), onSuccess: inv })
+}
+
+export type HandleBody = { ids: string[]; resolution: Resolution; note: string; accepted_until?: string }
+/** Handle open issues with one resolution and note; issues no longer open are skipped. */
+export function useHandleIssues() {
+  const inv = useInvalidate()
+  return useMutation({ mutationFn: (b: HandleBody) => api.post<{ handled: number; skipped: number }>('/exposure/issues/handle', b), onSuccess: inv })
+}
+export function useReopenIssues() {
+  const inv = useInvalidate()
+  return useMutation({ mutationFn: (ids: string[]) => api.post<{ reopened: number; skipped: number }>('/exposure/issues/reopen', { ids }), onSuccess: inv })
+}
+
 /** Restore an IP from the Ignored list: detection may add it again. Nothing is added by this call. */
 export function useRestoreIgnored() {
   const inv = useInvalidate()
-  return useMutation({ mutationFn: (ip: string) => api.del<void>(`/exposure/box-ip/ignored/${encodeURIComponent(ip)}`), onSuccess: inv })
-}
-export function useVerify() {
-  const inv = useInvalidate()
-  return useMutation({ mutationFn: (id: string) => api.post<VerifyResult>(`/exposure/targets/${encodeURIComponent(id)}/verify`), onSuccess: inv })
+  return useMutation({ mutationFn: (ip: string) => api.del<void>(`/exposure/box-ip/ignored/${enc(ip)}`), onSuccess: inv })
 }
 /** "Detect now": the box probes its own public IPs and adds or renews each one for 30 days. No IP is sent. */
 export function useDetectBoxIp() {
@@ -61,51 +112,17 @@ export function useSaveBoxIpSettings() {
   const inv = useInvalidate()
   return useMutation({ mutationFn: (s: Pick<BoxIpSettings, 'auto' | 'interval_min'>) => api.put<BoxIpSettings>('/exposure/box-ip/settings', s), onSuccess: inv })
 }
-export function useScan() {
-  const qc = useQueryClient()
-  const inv = useInvalidate()
-  // onError too: a refused scan may have found the IP paused, and the page must then show it (the answer is a state of the target).
-  return useMutation({ // noticeVersion: the version of the sentence shown next to the button; the server records it with the first scan of a target.
-    mutationFn: ({ id, noticeVersion }: { id: string; noticeVersion?: string }) => api.post<ScanRun>(`/exposure/targets/${encodeURIComponent(id)}/scan`, noticeVersion ? { notice_version: noticeVersion } : undefined),
-    // the 202 run goes into the cache at once, so a run that ends before the first poll still ends a "running" the page has seen;
-    // a queued one is not the box's run: the run that runs now is read again, with the queue
-    onSuccess: (run) => { if (run.status !== 'queued') qc.setQueryData(['exposure', 'scan'], run); return inv() }, onError: inv })
-}
-/** INV-36: how often the box scans a target by itself (admin). */
-export function useSetSchedule(id: string) {
-  const inv = useInvalidate()
-  return useMutation({ mutationFn: (every: ScheduleEvery) => api.put<Target>(`/exposure/targets/${encodeURIComponent(id)}/schedule`, { every }), onSuccess: inv })
-}
-/** INV-36: take the scan of a target that waits in the queue out of it (operator). */
-export function useUnqueue() {
-  const inv = useInvalidate()
-  return useMutation({ mutationFn: (id: string) => api.del<void>(`/exposure/targets/${encodeURIComponent(id)}/queue`), onSuccess: inv, onError: inv })
-}
-/** OpenVAS again, on its own, for the newest scan of a public IP whose OpenVAS step did not finish (operator). Its outcome replaces that
- *  step in the same scan; the page follows the run like a scan (GET /exposure/scan). */
-export function useOpenVasAgain() {
-  const qc = useQueryClient()
-  const inv = useInvalidate()
-  return useMutation({
-    mutationFn: (id: string) => api.post<ScanRun>(`/exposure/targets/${encodeURIComponent(id)}/openvas`),
-    onSuccess: (run) => { qc.setQueryData(['exposure', 'scan'], run); return inv() }, onError: inv })
-}
-/** Stop the scan that runs now (operator). */
-export function useStopScan() {
-  const inv = useInvalidate()
-  return useMutation({ mutationFn: () => api.post<ScanRun>('/exposure/scan/stop'), onSuccess: inv, onError: inv })
-}
 
 /** Shodan's last answer about this IP of the box (null before the first check). Reading sends nothing. */
-export const useOutside = (id: string) => useQuery({ queryKey: ['exposure', 'outside', id], queryFn: () => api.get<OutsideView | null>(`/exposure/targets/${encodeURIComponent(id)}/outside`) })
+export const useOutside = (id: string) => useQuery({ queryKey: ['exposure', 'outside', id], queryFn: () => api.get<OutsideView | null>(`/exposure/targets/${enc(id)}/outside`) })
 /** Sends this IP of the box to Shodan InternetDB (admin). Only called after the person confirmed what is sent. */
 export function useCheckOutside() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => api.post<OutsideView>(`/exposure/targets/${encodeURIComponent(id)}/outside`),
+    mutationFn: (id: string) => api.post<OutsideView>(`/exposure/targets/${enc(id)}/outside`),
     onSuccess: (v, id) => { qc.setQueryData(['exposure', 'outside', id], v) },
-    // a refusal may have found the IP paused (INV-13), which the page must then show
-    onError: () => qc.invalidateQueries({ queryKey: ['exposure', 'target'] }),
+    // a refusal may have found the IP paused, which the page must then show
+    onError: () => qc.invalidateQueries({ queryKey: ['exposure', 'node'] }),
   })
 }
 
@@ -117,14 +134,4 @@ export const useGreenbone = () => useQuery({
 export function useSetGreenbone() {
   const inv = useInvalidate()
   return useMutation({ mutationFn: (enabled: boolean) => api.put<Greenbone>('/exposure/greenbone', { enabled }), onSuccess: inv, onError: inv })
-}
-
-/** Accept the testing terms of a target (admin with two-step), with or without the disruptive tick, or withdraw them. */
-export function useAcceptTerms(id: string) {
-  const inv = useInvalidate()
-  return useMutation({ mutationFn: (b: { version: string; disruptive: boolean }) => api.put<Target>(`/exposure/targets/${encodeURIComponent(id)}/terms`, b), onSuccess: inv })
-}
-export function useRevokeTerms(id: string) {
-  const inv = useInvalidate()
-  return useMutation({ mutationFn: () => api.del<Target>(`/exposure/targets/${encodeURIComponent(id)}/terms`), onSuccess: inv })
 }

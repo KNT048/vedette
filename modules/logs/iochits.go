@@ -130,7 +130,8 @@ type connKey struct {
 type connObs struct {
 	source  string
 	at      time.Time
-	blocked bool // every line of the batch that showed it says the device stopped it
+	blocked bool   // every line of the batch that showed it says the device stopped it
+	via     string // how it was seen when not in a log line (span_dns, …: MatchMirror); "" is syslog:<the source's name>
 }
 
 // iocRow is a hit before it is stored. listed is the parent name a feed lists when dest is one of its subdomains, else "".
@@ -174,9 +175,11 @@ func (p seenPair) note(blocked bool, conf float64) seenPair {
 // matchIOC looks up the destinations of a batch (each one once: a flood of lines to the same address is one lookup) and returns the hits,
 // oldest line first. It runs before the transaction of the batch (the writer of logs.db is not held while the feeds are read) and never
 // fails the batch: with the feeds off there is nothing to do, and any other failure is logged once and the batch is stored without hits.
-func (s *Service) matchIOC(ctx context.Context, conns map[connKey]connObs, names map[string]string) []iocRow {
+// complete is false when pairs were not looked at: a lookup failed (not because the feeds are off), or the batch reached
+// MaxIocHitsPerBatch new hits. A caller that can have its batch sent again (MatchMirror) says so; a log line cannot be.
+func (s *Service) matchIOC(ctx context.Context, conns map[connKey]connObs, names map[string]string) (rows []iocRow, complete bool) {
 	if s.cfg.Feeds == nil || len(conns) == 0 {
-		return nil
+		return nil, true
 	}
 	keys := make([]connKey, 0, len(conns))
 	for k := range conns {
@@ -193,12 +196,12 @@ func (s *Service) matchIOC(ctx context.Context, conns map[connKey]connObs, names
 	cutoff := store.FormatTS(s.ts().Add(-IocDedupe))
 	for _, k := range keys {
 		if len(out) >= MaxIocHitsPerBatch {
-			break
+			return out, false
 		}
 		l, listed, err := s.listing(ctx, cache, k.kind, k.dest)
 		if err != nil {
 			s.noteLookupFailure(ctx, err)
-			return out // the rest of the batch is stored without a match
+			return out, errors.Is(err, ErrFeedsOff) // the rest of the batch is stored without a match
 		}
 		// A listed pair that already has a hit in the last 24 hours does not count toward the cap of the batch: a chatty device that keeps
 		// meeting its listed addresses must not use the cap that another device's first hit needs (storeIOC dedupes again inside the
@@ -213,10 +216,14 @@ func (s *Service) matchIOC(ctx context.Context, conns map[connKey]connObs, names
 		if s.hasRecentHit(ctx, pair[0], pair[1], o.blocked, conf, cutoff) {
 			continue
 		}
-		out = append(out, iocRow{id: store.NewID("ih"), src: k.src.String(), dest: k.dest, kind: k.kind, via: "syslog:" + names[o.source], source: o.source, at: o.at,
+		via := o.via
+		if via == "" {
+			via = "syslog:" + names[o.source]
+		}
+		out = append(out, iocRow{id: store.NewID("ih"), src: k.src.String(), dest: k.dest, kind: k.kind, via: via, source: o.source, at: o.at,
 			feeds: cleanFeeds(l.Feeds), conf: conf, blocked: o.blocked, listed: listed})
 	}
-	return out
+	return out, true
 }
 
 // listing is what the feeds say about a destination: its own listing; else, for a domain, the listing of its nearest parent by the
@@ -511,7 +518,15 @@ func badAddressEvent(h IocHit) BadAddressEvent {
 	if listed != "" {
 		as = " (listed as " + listed + ", with all of its subdomains)"
 	}
-	what := fmt.Sprintf("%s %s %s (%s), which %s%s. Confidence %d%%. Seen in the log of %s.", clipRunes(who, 300), verb, h.Dest, kind, listedBy(h.Feeds), as, int(h.Confidence*100+0.5), via)
+	seen := "Seen in the log of " + via + "."
+	if m, ok := mirrorSeen[h.SeenVia]; ok { // seen on the mirror port, not in a log: no device logged it, nothing says it was blocked
+		seen = m
+		if h.SeenVia == "span_dns" {
+			verb = "looked up"
+			title = clipRunes(who, 100) + " " + verb + " " + h.Dest
+		}
+	}
+	what := fmt.Sprintf("%s %s %s (%s), which %s%s. Confidence %d%%. %s", clipRunes(who, 300), verb, h.Dest, kind, listedBy(h.Feeds), as, int(h.Confidence*100+0.5), seen)
 	title += ", which a threat feed lists"
 	return BadAddressEvent{
 		Source: "logs", Target: clipRunes("ioc:"+cmp.Or(listed, h.Dest), MaxEventKey),
@@ -521,6 +536,14 @@ func badAddressEvent(h IocHit) BadAddressEvent {
 		Severity: sev, Devices: devices,
 		ID: h.ID, SrcIP: h.SrcIP, Dest: h.Dest, DestKind: h.DestKind, SeenVia: h.SeenVia, AssetID: h.AssetID, Blocked: h.Blocked, ListedAs: h.ListedAs,
 	}
+}
+
+// mirrorSeen is the last sentence of a bad-address event seen on the mirror port, by seen_via.
+var mirrorSeen = map[string]string{
+	"span_dns":  "Seen on the mirror port: a DNS query for the name.",
+	"span_sni":  "Seen on the mirror port: the server name of a TLS connection.",
+	"span_http": "Seen on the mirror port: the host of a web request.",
+	"span_flow": "Seen on the mirror port: a network flow to the address.",
 }
 
 func destWord(kind string) string {

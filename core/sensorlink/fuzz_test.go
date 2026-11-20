@@ -149,3 +149,24 @@ func FuzzDecodeJobProgress(f *testing.F) {
 		}
 	})
 }
+
+func FuzzDecodeMetadata(f *testing.F) {
+	f.Add([]byte(`{"items":[{"kind":"dns","at":"2026-11-10T08:00:01Z","src":"10.0.0.23","dest":"bad.example.com"}]}`))
+	f.Add([]byte(`{"items":[{"kind":"flow","at":"2026-11-10T08:00:01Z","src":"10.0.0.23","dest":"198.51.100.7"}]}`))
+	f.Add([]byte(`{"items":[{"kind":"sni","at":"2026-11-10T08:00:01Z","src":"010.0.0.23","dest":"A..b"}]}`))
+	f.Add([]byte(`{"items":[]}`))
+	f.Fuzz(func(t *testing.T, b []byte) {
+		r, err := decodeMetadata(b)
+		if err != nil {
+			return
+		}
+		if len(r.Items) < 1 || len(r.Items) > MaxMetadataItems {
+			t.Fatalf("accepted %d items", len(r.Items))
+		}
+		for _, it := range r.Items {
+			if !slices.Contains(MetaKinds, it.Kind) || len(it.Src) > 15 || len(it.Dest) < 1 || len(it.Dest) > 253 || it.At.IsZero() {
+				t.Fatalf("accepted %+v", it)
+			}
+		}
+	})
+}

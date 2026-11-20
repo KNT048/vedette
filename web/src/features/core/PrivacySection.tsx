@@ -102,14 +102,19 @@ function Body({ d }: { d: PrivacyState }) {
         )} />
       </Section>
 
-      {/* The three statements without a switch share one folded line instead of three headings that only explain. */}
+      {/* The statements without a switch share one folded line instead of headings that only explain. */}
       <details id="telemetry" className="max-w-3xl rounded-md border border-rule p-3">
         <summary className="cursor-pointer text-sm font-medium">{t('privacy.more.title')}</summary>
         <div className="mt-3 grid gap-2 text-sm">
-          {(['bugNote', 'telemetry', 'cookie'] as const).map((k) => (
-            <p key={k} className="flex items-start gap-1">
-              <span><span className="font-medium">{t(`privacy.${k}.title`)}.</span> {t(k === 'bugNote' ? 'privacy.bugNote.body' : k === 'telemetry' ? 'privacy.telemetry.statement' : 'privacy.cookie.body')}</span>
-              <InfoTip topic={t(`privacy.${k}.title`)}>{t(k === 'bugNote' ? 'privacy.bugNote.bodyInfo' : k === 'telemetry' ? 'privacy.telemetry.statementInfo' : 'privacy.cookie.bodyInfo')}</InfoTip>
+          {([
+            ['bugNote', 'privacy.bugNote.body', 'privacy.bugNote.bodyInfo'],
+            ['mirrorNote', 'privacy.mirrorNote.body', 'privacy.mirrorNote.bodyInfo'],
+            ['telemetry', 'privacy.telemetry.statement', 'privacy.telemetry.statementInfo'],
+            ['cookie', 'privacy.cookie.body', 'privacy.cookie.bodyInfo'],
+          ] as const).map(([k, body, info]) => (
+            <p key={k} id={k === 'mirrorNote' ? 'mirror-port' : undefined} className="flex items-start gap-1">
+              <span><span className="font-medium">{t(`privacy.${k}.title`)}.</span> {t(body)}</span>
+              <InfoTip topic={t(`privacy.${k}.title`)}>{t(info)}</InfoTip>
             </p>
           ))}
         </div>

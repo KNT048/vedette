@@ -1188,6 +1188,11 @@
       "title": "Report a problem",
       "body": "The box sends nothing when you report a problem.",
       "bodyInfo": "You download a filtered diagnostic file and press Open GitHub issue; your own browser opens GitHub with your text filled in."
+    },
+    "mirrorNote": {
+      "title": "Mirror port",
+      "body": "What the sensor reads on a mirror port stays on the box; only matches with a threat feed are kept.",
+      "bodyInfo": "Mirror port traffic stays on the box. When a card of the box listens on a mirror (SPAN) port, the sensor reads only the names your devices look up (DNS), the server names of their TLS connections, the hosts of their web requests and the public addresses they open connections to, never the content of the traffic. The box compares these with the threat feeds it already holds and keeps only the matches (shown in Logs as bad connections, kept as long as the logs); everything that matches nothing is dropped at once. None of it leaves the box, except the matches you choose to forward to your own SIEM (flow 7) or that reach your alert channels as incidents (flow 5)."
     }
   },
   "mcp": {

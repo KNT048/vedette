@@ -21,6 +21,7 @@ const (
 	obsBody  = `{"epoch":"0123456789abcdef0123456789abcdef","seq":41,"items":[{"mac":"aa:bb:cc:dd:ee:01","ip":"192.168.10.23","field":"hostname","value":"printer-3f","confidence":0.6,"seen_at":"2026-11-10T08:00:01Z"}]}`
 	hbSpan   = `{"version":"1.4.0","interfaces":[{"name":"enp1s0","mac":"aa:bb:cc:00:00:01","link":true,"ipv4":["192.168.10.5/24"]}],"span":{"pps":1200,"other_macs":37,"last_packet_at":null},"drops":{"malformed_dhcp":2},"devices_seen":214}`
 	hbActive = `{"version":"1.4.0","nmap":{"present":true,"version":"7.94SVN"}}`
+	metaBody = `{"items":[{"kind":"dns","at":"2026-11-10T08:00:01Z","src":"10.0.0.23","dest":"bad.example.com"},{"kind":"flow","at":"2026-11-10T08:00:02Z","src":"10.0.0.23","dest":"198.51.100.7"}]}`
 	jobID    = "c0ffee00c0ffee00c0ffee00c0ffee00"
 	resBody  = `{"status":"done","reason":"","exit_code":0,"truncated":false,"xml_b64":"PHhtbC8+"}`
 )
@@ -57,6 +58,7 @@ func TestRolesReachTheirRoutes(t *testing.T) {
 		{"config", "GET", "/sensor/v1/config?wait=0", "", pass, 200},
 		{"observations", "POST", "/sensor/v1/observations", obsBody, pass, 200},
 		{"heartbeat passive", "POST", "/sensor/v1/heartbeat", hbSpan, pass, 200},
+		{"metadata", "POST", "/sensor/v1/metadata", metaBody, pass, 204},
 		{"heartbeat passive, capture error", "POST", "/sensor/v1/heartbeat", strings.Replace(hbSpan, `"devices_seen":214`, `"devices_seen":214,"capture_error":"no_permission"`, 1), pass, 200},
 		{"heartbeat passive, a newer sensor's reason", "POST", "/sensor/v1/heartbeat", strings.Replace(hbSpan, `"devices_seen":214`, `"devices_seen":214,"capture_error":"link_flapping"`, 1), pass, 200}, // core shows it as capture_failed
 		{"jobs", "GET", "/sensor/v1/jobs?wait=0&running=", "", act, 200},
@@ -100,6 +102,8 @@ func TestForbiddenRouteBeforeTheBody(t *testing.T) {
 		{"passive posts a result with a huge body", "POST", "/sensor/v1/jobs/" + jobID + "/result", pass, huge},
 		{"active calls config", "GET", "/sensor/v1/config", act, nil},
 		{"active posts observations with a huge body", "POST", "/sensor/v1/observations", act, huge},
+		{"active posts metadata with a huge body", "POST", "/sensor/v1/metadata", act, huge},
+		{"wrong method on metadata", "GET", "/sensor/v1/metadata", pass, nil},
 		{"unknown path", "GET", "/sensor/v1/nothing", pass, nil},
 		{"outside the prefix", "GET", "/healthz", pass, nil},
 		{"trailing slash", "GET", "/sensor/v1/config/", pass, nil},
@@ -606,5 +610,52 @@ func TestHTTP2(t *testing.T) {
 	got = mustCall(t, p, r.url(), "POST", "/sensor/v1/heartbeat", []byte(hbSpan), nil)
 	if got.status != 403 || errCode(t, got) != "cert_retired" {
 		t.Errorf("retired serial on a live h2 connection: %d %s", got.status, got.body)
+	}
+}
+
+// POST /metadata takes only bodies whose every item has the protocol's shape; a body that does not is 400 and never reaches the
+// backend.
+func TestMetadataBodies(t *testing.T) {
+	t.Parallel()
+	r := newRig(t, rigOpt{})
+	pass := r.good(t)
+	var got *sensorlink.MetadataRequest
+	r.be.meta = func(_ context.Context, m *sensorlink.MetadataRequest) error { got = m; return nil }
+	if res := mustCall(t, pass, r.url(), "POST", "/sensor/v1/metadata", []byte(metaBody), nil); res.status != 204 {
+		t.Fatalf("good body: %d %s", res.status, res.body)
+	}
+	if got == nil || len(got.Items) != 2 || got.Items[0].Dest != "bad.example.com" || got.Items[1].Kind != sensorlink.MetaFlow {
+		t.Fatalf("backend got %+v", got)
+	}
+	item := func(kind, src, dest string) string {
+		return `{"items":[{"kind":"` + kind + `","at":"2026-11-10T08:00:01Z","src":"` + src + `","dest":"` + dest + `"}]}`
+	}
+	many := `{"items":[` + strings.TrimSuffix(strings.Repeat(`{"kind":"dns","at":"2026-11-10T08:00:01Z","src":"10.0.0.1","dest":"a.example.com"},`, sensorlink.MaxMetadataItems+1), ",") + `]}`
+	for name, body := range map[string]string{
+		"no items":               `{"items":[]}`,
+		"too many items":         many,
+		"unknown kind":           item("ftp", "10.0.0.1", "a.example.com"),
+		"upper-case name":        item("dns", "10.0.0.1", "A.example.com"),
+		"empty label":            item("sni", "10.0.0.1", "a..example.com"),
+		"trailing dot":           item("http", "10.0.0.1", "a.example.com."),
+		"name over 253 bytes":    item("dns", "10.0.0.1", strings.Repeat("a.", 127)+"aa"),
+		"label over 63 bytes":    item("dns", "10.0.0.1", strings.Repeat("a", 64)+".example.com"),
+		"control character":      item("dns", "10.0.0.1", `a\u0000.example.com`),
+		"IPv6 source":            item("dns", "fd00::1", "a.example.com"),
+		"source not canonical":   item("dns", "010.0.0.1", "a.example.com"),
+		"flow to a name":         item("flow", "10.0.0.1", "a.example.com"),
+		"flow to IPv6":           item("flow", "10.0.0.1", "2001:db8::1"),
+		"no time":                `{"items":[{"kind":"dns","src":"10.0.0.1","dest":"a.example.com"}]}`,
+		"unknown field":          `{"items":[{"kind":"dns","at":"2026-11-10T08:00:01Z","src":"10.0.0.1","dest":"a.example.com","payload":"x"}]}`,
+		"an epoch it never sent": `{"epoch":"0123456789abcdef0123456789abcdef","items":[]}`,
+	} {
+		got = nil
+		res := mustCall(t, pass, r.url(), "POST", "/sensor/v1/metadata", []byte(body), nil)
+		if res.status != 400 || got != nil {
+			t.Errorf("%s: %d %s, backend got %v", name, res.status, res.body, got)
+		}
+	}
+	if res := mustCall(t, pass, r.url(), "POST", "/sensor/v1/metadata", bytes.Repeat([]byte("x"), sensorlink.MaxMetadataBody+1), nil); res.status != 413 {
+		t.Errorf("over the size cap: %d", res.status)
 	}
 }

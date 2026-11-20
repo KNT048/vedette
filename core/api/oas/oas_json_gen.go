@@ -39365,6 +39365,1078 @@ func (s *CoreGetModulesOKModulesItemTier) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
+func (s *CoreGetSchedulesOwnerKeyOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CoreGetSchedulesOwnerKeyOK) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("edit_role")
+		s.EditRole.Encode(e)
+	}
+	{
+		e.FieldStart("enabled")
+		e.Bool(s.Enabled)
+	}
+	{
+		e.FieldStart("last_due_at")
+		s.LastDueAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("last_run_id")
+		s.LastRunID.Encode(e)
+	}
+	{
+		e.FieldStart("last_skip_at")
+		s.LastSkipAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("last_skip_reason")
+		s.LastSkipReason.Encode(e)
+	}
+	{
+		e.FieldStart("limits")
+		s.Limits.Encode(e)
+	}
+	{
+		e.FieldStart("module")
+		e.Str(s.Module)
+	}
+	{
+		e.FieldStart("next_due_at")
+		s.NextDueAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("owner_key")
+		e.Str(s.OwnerKey)
+	}
+	{
+		e.FieldStart("paused_until")
+		s.PausedUntil.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("rule")
+		s.Rule.Encode(e)
+	}
+	{
+		e.FieldStart("saved")
+		e.Bool(s.Saved)
+	}
+	{
+		e.FieldStart("upcoming")
+		e.ArrStart()
+		for _, elem := range s.Upcoming {
+			json.EncodeDateTime(e, elem)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("updated_at")
+		s.UpdatedAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("updated_by")
+		s.UpdatedBy.Encode(e)
+	}
+	{
+		e.FieldStart("waiting_for")
+		s.WaitingFor.Encode(e)
+	}
+	{
+		e.FieldStart("zone")
+		e.Str(s.Zone)
+	}
+}
+
+var jsonFieldsNameOfCoreGetSchedulesOwnerKeyOK = [18]string{
+	0:  "edit_role",
+	1:  "enabled",
+	2:  "last_due_at",
+	3:  "last_run_id",
+	4:  "last_skip_at",
+	5:  "last_skip_reason",
+	6:  "limits",
+	7:  "module",
+	8:  "next_due_at",
+	9:  "owner_key",
+	10: "paused_until",
+	11: "rule",
+	12: "saved",
+	13: "upcoming",
+	14: "updated_at",
+	15: "updated_by",
+	16: "waiting_for",
+	17: "zone",
+}
+
+// Decode decodes CoreGetSchedulesOwnerKeyOK from json.
+func (s *CoreGetSchedulesOwnerKeyOK) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CoreGetSchedulesOwnerKeyOK to nil")
+	}
+	var requiredBitSet [3]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "edit_role":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.EditRole.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"edit_role\"")
+			}
+		case "enabled":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Bool()
+				s.Enabled = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"enabled\"")
+			}
+		case "last_due_at":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.LastDueAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"last_due_at\"")
+			}
+		case "last_run_id":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.LastRunID.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"last_run_id\"")
+			}
+		case "last_skip_at":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.LastSkipAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"last_skip_at\"")
+			}
+		case "last_skip_reason":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				if err := s.LastSkipReason.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"last_skip_reason\"")
+			}
+		case "limits":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				if err := s.Limits.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"limits\"")
+			}
+		case "module":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				v, err := d.Str()
+				s.Module = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"module\"")
+			}
+		case "next_due_at":
+			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				if err := s.NextDueAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"next_due_at\"")
+			}
+		case "owner_key":
+			requiredBitSet[1] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.OwnerKey = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"owner_key\"")
+			}
+		case "paused_until":
+			requiredBitSet[1] |= 1 << 2
+			if err := func() error {
+				if err := s.PausedUntil.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"paused_until\"")
+			}
+		case "rule":
+			requiredBitSet[1] |= 1 << 3
+			if err := func() error {
+				if err := s.Rule.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"rule\"")
+			}
+		case "saved":
+			requiredBitSet[1] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.Saved = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"saved\"")
+			}
+		case "upcoming":
+			requiredBitSet[1] |= 1 << 5
+			if err := func() error {
+				s.Upcoming = make([]time.Time, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem time.Time
+					v, err := json.DecodeDateTime(d)
+					elem = v
+					if err != nil {
+						return err
+					}
+					s.Upcoming = append(s.Upcoming, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"upcoming\"")
+			}
+		case "updated_at":
+			requiredBitSet[1] |= 1 << 6
+			if err := func() error {
+				if err := s.UpdatedAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"updated_at\"")
+			}
+		case "updated_by":
+			requiredBitSet[1] |= 1 << 7
+			if err := func() error {
+				if err := s.UpdatedBy.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"updated_by\"")
+			}
+		case "waiting_for":
+			requiredBitSet[2] |= 1 << 0
+			if err := func() error {
+				if err := s.WaitingFor.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"waiting_for\"")
+			}
+		case "zone":
+			requiredBitSet[2] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Zone = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"zone\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CoreGetSchedulesOwnerKeyOK")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [3]uint8{
+		0b11111111,
+		0b11111111,
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCoreGetSchedulesOwnerKeyOK) {
+					name = jsonFieldsNameOfCoreGetSchedulesOwnerKeyOK[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CoreGetSchedulesOwnerKeyOK) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CoreGetSchedulesOwnerKeyOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CoreGetSchedulesOwnerKeyOKEditRole as json.
+func (s CoreGetSchedulesOwnerKeyOKEditRole) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CoreGetSchedulesOwnerKeyOKEditRole from json.
+func (s *CoreGetSchedulesOwnerKeyOKEditRole) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CoreGetSchedulesOwnerKeyOKEditRole to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CoreGetSchedulesOwnerKeyOKEditRole(v) {
+	case CoreGetSchedulesOwnerKeyOKEditRoleOperator:
+		*s = CoreGetSchedulesOwnerKeyOKEditRoleOperator
+	case CoreGetSchedulesOwnerKeyOKEditRoleAdmin:
+		*s = CoreGetSchedulesOwnerKeyOKEditRoleAdmin
+	default:
+		*s = CoreGetSchedulesOwnerKeyOKEditRole(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CoreGetSchedulesOwnerKeyOKEditRole) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CoreGetSchedulesOwnerKeyOKEditRole) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CoreGetSchedulesOwnerKeyOKLimits) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CoreGetSchedulesOwnerKeyOKLimits) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("freqs")
+		e.ArrStart()
+		for _, elem := range s.Freqs {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("max_every_minutes")
+		e.Int(s.MaxEveryMinutes)
+	}
+	{
+		e.FieldStart("min_every_minutes")
+		e.Int(s.MinEveryMinutes)
+	}
+	{
+		e.FieldStart("reason")
+		e.Str(s.Reason)
+	}
+	{
+		e.FieldStart("windows")
+		e.ArrStart()
+		for _, elem := range s.Windows {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+}
+
+var jsonFieldsNameOfCoreGetSchedulesOwnerKeyOKLimits = [5]string{
+	0: "freqs",
+	1: "max_every_minutes",
+	2: "min_every_minutes",
+	3: "reason",
+	4: "windows",
+}
+
+// Decode decodes CoreGetSchedulesOwnerKeyOKLimits from json.
+func (s *CoreGetSchedulesOwnerKeyOKLimits) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CoreGetSchedulesOwnerKeyOKLimits to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "freqs":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				s.Freqs = make([]CoreGetSchedulesOwnerKeyOKLimitsFreqsItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem CoreGetSchedulesOwnerKeyOKLimitsFreqsItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Freqs = append(s.Freqs, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"freqs\"")
+			}
+		case "max_every_minutes":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int()
+				s.MaxEveryMinutes = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"max_every_minutes\"")
+			}
+		case "min_every_minutes":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Int()
+				s.MinEveryMinutes = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"min_every_minutes\"")
+			}
+		case "reason":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Reason = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reason\"")
+			}
+		case "windows":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				s.Windows = make([]CoreGetSchedulesOwnerKeyOKLimitsWindowsItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem CoreGetSchedulesOwnerKeyOKLimitsWindowsItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Windows = append(s.Windows, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"windows\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CoreGetSchedulesOwnerKeyOKLimits")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00011111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCoreGetSchedulesOwnerKeyOKLimits) {
+					name = jsonFieldsNameOfCoreGetSchedulesOwnerKeyOKLimits[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CoreGetSchedulesOwnerKeyOKLimits) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CoreGetSchedulesOwnerKeyOKLimits) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CoreGetSchedulesOwnerKeyOKLimitsFreqsItem as json.
+func (s CoreGetSchedulesOwnerKeyOKLimitsFreqsItem) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CoreGetSchedulesOwnerKeyOKLimitsFreqsItem from json.
+func (s *CoreGetSchedulesOwnerKeyOKLimitsFreqsItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CoreGetSchedulesOwnerKeyOKLimitsFreqsItem to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CoreGetSchedulesOwnerKeyOKLimitsFreqsItem(v) {
+	case CoreGetSchedulesOwnerKeyOKLimitsFreqsItemInterval:
+		*s = CoreGetSchedulesOwnerKeyOKLimitsFreqsItemInterval
+	case CoreGetSchedulesOwnerKeyOKLimitsFreqsItemDaily:
+		*s = CoreGetSchedulesOwnerKeyOKLimitsFreqsItemDaily
+	case CoreGetSchedulesOwnerKeyOKLimitsFreqsItemWeekly:
+		*s = CoreGetSchedulesOwnerKeyOKLimitsFreqsItemWeekly
+	case CoreGetSchedulesOwnerKeyOKLimitsFreqsItemMonthly:
+		*s = CoreGetSchedulesOwnerKeyOKLimitsFreqsItemMonthly
+	case CoreGetSchedulesOwnerKeyOKLimitsFreqsItemOnce:
+		*s = CoreGetSchedulesOwnerKeyOKLimitsFreqsItemOnce
+	default:
+		*s = CoreGetSchedulesOwnerKeyOKLimitsFreqsItem(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CoreGetSchedulesOwnerKeyOKLimitsFreqsItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CoreGetSchedulesOwnerKeyOKLimitsFreqsItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CoreGetSchedulesOwnerKeyOKLimitsWindowsItem as json.
+func (s CoreGetSchedulesOwnerKeyOKLimitsWindowsItem) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CoreGetSchedulesOwnerKeyOKLimitsWindowsItem from json.
+func (s *CoreGetSchedulesOwnerKeyOKLimitsWindowsItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CoreGetSchedulesOwnerKeyOKLimitsWindowsItem to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CoreGetSchedulesOwnerKeyOKLimitsWindowsItem(v) {
+	case CoreGetSchedulesOwnerKeyOKLimitsWindowsItemGlobal:
+		*s = CoreGetSchedulesOwnerKeyOKLimitsWindowsItemGlobal
+	case CoreGetSchedulesOwnerKeyOKLimitsWindowsItemNone:
+		*s = CoreGetSchedulesOwnerKeyOKLimitsWindowsItemNone
+	case CoreGetSchedulesOwnerKeyOKLimitsWindowsItemCustom:
+		*s = CoreGetSchedulesOwnerKeyOKLimitsWindowsItemCustom
+	default:
+		*s = CoreGetSchedulesOwnerKeyOKLimitsWindowsItem(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CoreGetSchedulesOwnerKeyOKLimitsWindowsItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CoreGetSchedulesOwnerKeyOKLimitsWindowsItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CoreGetSchedulesOwnerKeyOKRule) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CoreGetSchedulesOwnerKeyOKRule) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("at_time")
+		s.AtTime.Encode(e)
+	}
+	{
+		e.FieldStart("every_minutes")
+		s.EveryMinutes.Encode(e)
+	}
+	{
+		e.FieldStart("freq")
+		s.Freq.Encode(e)
+	}
+	{
+		e.FieldStart("month_day")
+		s.MonthDay.Encode(e)
+	}
+	{
+		e.FieldStart("once_at")
+		s.OnceAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("tz")
+		e.Str(s.Tz)
+	}
+	{
+		e.FieldStart("weekdays")
+		if s.Weekdays == nil {
+			e.Null()
+		} else {
+			e.ArrStart()
+			for _, elem := range s.Weekdays {
+				e.Int(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
+		e.FieldStart("window")
+		s.Window.Encode(e)
+	}
+	{
+		e.FieldStart("window_days")
+		if s.WindowDays == nil {
+			e.Null()
+		} else {
+			e.ArrStart()
+			for _, elem := range s.WindowDays {
+				e.Int(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
+		e.FieldStart("window_from")
+		s.WindowFrom.Encode(e)
+	}
+	{
+		e.FieldStart("window_to")
+		s.WindowTo.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfCoreGetSchedulesOwnerKeyOKRule = [11]string{
+	0:  "at_time",
+	1:  "every_minutes",
+	2:  "freq",
+	3:  "month_day",
+	4:  "once_at",
+	5:  "tz",
+	6:  "weekdays",
+	7:  "window",
+	8:  "window_days",
+	9:  "window_from",
+	10: "window_to",
+}
+
+// Decode decodes CoreGetSchedulesOwnerKeyOKRule from json.
+func (s *CoreGetSchedulesOwnerKeyOKRule) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CoreGetSchedulesOwnerKeyOKRule to nil")
+	}
+	var requiredBitSet [2]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "at_time":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.AtTime.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"at_time\"")
+			}
+		case "every_minutes":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.EveryMinutes.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"every_minutes\"")
+			}
+		case "freq":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.Freq.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"freq\"")
+			}
+		case "month_day":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.MonthDay.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"month_day\"")
+			}
+		case "once_at":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.OnceAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"once_at\"")
+			}
+		case "tz":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Str()
+				s.Tz = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"tz\"")
+			}
+		case "weekdays":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				switch tt := d.Next(); tt {
+				case jx.Null:
+					if err := d.Skip(); err != nil {
+						return err
+					}
+				default:
+					s.Weekdays = make([]int, 0)
+					if err := d.Arr(func(d *jx.Decoder) error {
+						var elem int
+						v, err := d.Int()
+						elem = int(v)
+						if err != nil {
+							return err
+						}
+						s.Weekdays = append(s.Weekdays, elem)
+						return nil
+					}); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"weekdays\"")
+			}
+		case "window":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				if err := s.Window.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"window\"")
+			}
+		case "window_days":
+			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				switch tt := d.Next(); tt {
+				case jx.Null:
+					if err := d.Skip(); err != nil {
+						return err
+					}
+				default:
+					s.WindowDays = make([]int, 0)
+					if err := d.Arr(func(d *jx.Decoder) error {
+						var elem int
+						v, err := d.Int()
+						elem = int(v)
+						if err != nil {
+							return err
+						}
+						s.WindowDays = append(s.WindowDays, elem)
+						return nil
+					}); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"window_days\"")
+			}
+		case "window_from":
+			requiredBitSet[1] |= 1 << 1
+			if err := func() error {
+				if err := s.WindowFrom.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"window_from\"")
+			}
+		case "window_to":
+			requiredBitSet[1] |= 1 << 2
+			if err := func() error {
+				if err := s.WindowTo.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"window_to\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CoreGetSchedulesOwnerKeyOKRule")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [2]uint8{
+		0b11111111,
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCoreGetSchedulesOwnerKeyOKRule) {
+					name = jsonFieldsNameOfCoreGetSchedulesOwnerKeyOKRule[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CoreGetSchedulesOwnerKeyOKRule) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CoreGetSchedulesOwnerKeyOKRule) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CoreGetSchedulesOwnerKeyOKRuleFreq as json.
+func (s CoreGetSchedulesOwnerKeyOKRuleFreq) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CoreGetSchedulesOwnerKeyOKRuleFreq from json.
+func (s *CoreGetSchedulesOwnerKeyOKRuleFreq) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CoreGetSchedulesOwnerKeyOKRuleFreq to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CoreGetSchedulesOwnerKeyOKRuleFreq(v) {
+	case CoreGetSchedulesOwnerKeyOKRuleFreqInterval:
+		*s = CoreGetSchedulesOwnerKeyOKRuleFreqInterval
+	case CoreGetSchedulesOwnerKeyOKRuleFreqDaily:
+		*s = CoreGetSchedulesOwnerKeyOKRuleFreqDaily
+	case CoreGetSchedulesOwnerKeyOKRuleFreqWeekly:
+		*s = CoreGetSchedulesOwnerKeyOKRuleFreqWeekly
+	case CoreGetSchedulesOwnerKeyOKRuleFreqMonthly:
+		*s = CoreGetSchedulesOwnerKeyOKRuleFreqMonthly
+	case CoreGetSchedulesOwnerKeyOKRuleFreqOnce:
+		*s = CoreGetSchedulesOwnerKeyOKRuleFreqOnce
+	default:
+		*s = CoreGetSchedulesOwnerKeyOKRuleFreq(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CoreGetSchedulesOwnerKeyOKRuleFreq) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CoreGetSchedulesOwnerKeyOKRuleFreq) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CoreGetSchedulesOwnerKeyOKRuleWindow as json.
+func (s CoreGetSchedulesOwnerKeyOKRuleWindow) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CoreGetSchedulesOwnerKeyOKRuleWindow from json.
+func (s *CoreGetSchedulesOwnerKeyOKRuleWindow) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CoreGetSchedulesOwnerKeyOKRuleWindow to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CoreGetSchedulesOwnerKeyOKRuleWindow(v) {
+	case CoreGetSchedulesOwnerKeyOKRuleWindowGlobal:
+		*s = CoreGetSchedulesOwnerKeyOKRuleWindowGlobal
+	case CoreGetSchedulesOwnerKeyOKRuleWindowNone:
+		*s = CoreGetSchedulesOwnerKeyOKRuleWindowNone
+	case CoreGetSchedulesOwnerKeyOKRuleWindowCustom:
+		*s = CoreGetSchedulesOwnerKeyOKRuleWindowCustom
+	default:
+		*s = CoreGetSchedulesOwnerKeyOKRuleWindow(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CoreGetSchedulesOwnerKeyOKRuleWindow) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CoreGetSchedulesOwnerKeyOKRuleWindow) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *CoreGetSetupOK) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -72987,6 +74059,738 @@ func (s *CorePostCoreUsersReqRole) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
+func (s *CorePostSchedulesOwnerKeyRunOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePostSchedulesOwnerKeyRunOK) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("run_id")
+		s.RunID.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfCorePostSchedulesOwnerKeyRunOK = [1]string{
+	0: "run_id",
+}
+
+// Decode decodes CorePostSchedulesOwnerKeyRunOK from json.
+func (s *CorePostSchedulesOwnerKeyRunOK) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostSchedulesOwnerKeyRunOK to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "run_id":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.RunID.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"run_id\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePostSchedulesOwnerKeyRunOK")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePostSchedulesOwnerKeyRunOK) {
+					name = jsonFieldsNameOfCorePostSchedulesOwnerKeyRunOK[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePostSchedulesOwnerKeyRunOK) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostSchedulesOwnerKeyRunOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePostSchedulesPreviewOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePostSchedulesPreviewOK) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("upcoming")
+		e.ArrStart()
+		for _, elem := range s.Upcoming {
+			json.EncodeDateTime(e, elem)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("zone")
+		e.Str(s.Zone)
+	}
+}
+
+var jsonFieldsNameOfCorePostSchedulesPreviewOK = [2]string{
+	0: "upcoming",
+	1: "zone",
+}
+
+// Decode decodes CorePostSchedulesPreviewOK from json.
+func (s *CorePostSchedulesPreviewOK) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostSchedulesPreviewOK to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "upcoming":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				s.Upcoming = make([]time.Time, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem time.Time
+					v, err := json.DecodeDateTime(d)
+					elem = v
+					if err != nil {
+						return err
+					}
+					s.Upcoming = append(s.Upcoming, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"upcoming\"")
+			}
+		case "zone":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Zone = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"zone\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePostSchedulesPreviewOK")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePostSchedulesPreviewOK) {
+					name = jsonFieldsNameOfCorePostSchedulesPreviewOK[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePostSchedulesPreviewOK) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostSchedulesPreviewOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePostSchedulesPreviewReq) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePostSchedulesPreviewReq) encodeFields(e *jx.Encoder) {
+	{
+		if s.OwnerKey.Set {
+			e.FieldStart("owner_key")
+			s.OwnerKey.Encode(e)
+		}
+	}
+	{
+		if s.PausedUntil.Set {
+			e.FieldStart("paused_until")
+			s.PausedUntil.Encode(e, json.EncodeDateTime)
+		}
+	}
+	{
+		e.FieldStart("rule")
+		s.Rule.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfCorePostSchedulesPreviewReq = [3]string{
+	0: "owner_key",
+	1: "paused_until",
+	2: "rule",
+}
+
+// Decode decodes CorePostSchedulesPreviewReq from json.
+func (s *CorePostSchedulesPreviewReq) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostSchedulesPreviewReq to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "owner_key":
+			if err := func() error {
+				s.OwnerKey.Reset()
+				if err := s.OwnerKey.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"owner_key\"")
+			}
+		case "paused_until":
+			if err := func() error {
+				s.PausedUntil.Reset()
+				if err := s.PausedUntil.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"paused_until\"")
+			}
+		case "rule":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.Rule.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"rule\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePostSchedulesPreviewReq")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000100,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePostSchedulesPreviewReq) {
+					name = jsonFieldsNameOfCorePostSchedulesPreviewReq[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePostSchedulesPreviewReq) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostSchedulesPreviewReq) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePostSchedulesPreviewReqRule) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePostSchedulesPreviewReqRule) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("at_time")
+		s.AtTime.Encode(e)
+	}
+	{
+		e.FieldStart("every_minutes")
+		s.EveryMinutes.Encode(e)
+	}
+	{
+		e.FieldStart("freq")
+		s.Freq.Encode(e)
+	}
+	{
+		e.FieldStart("month_day")
+		s.MonthDay.Encode(e)
+	}
+	{
+		e.FieldStart("once_at")
+		s.OnceAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("tz")
+		e.Str(s.Tz)
+	}
+	{
+		e.FieldStart("weekdays")
+		if s.Weekdays == nil {
+			e.Null()
+		} else {
+			e.ArrStart()
+			for _, elem := range s.Weekdays {
+				e.Int(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
+		e.FieldStart("window")
+		s.Window.Encode(e)
+	}
+	{
+		e.FieldStart("window_days")
+		if s.WindowDays == nil {
+			e.Null()
+		} else {
+			e.ArrStart()
+			for _, elem := range s.WindowDays {
+				e.Int(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
+		e.FieldStart("window_from")
+		s.WindowFrom.Encode(e)
+	}
+	{
+		e.FieldStart("window_to")
+		s.WindowTo.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfCorePostSchedulesPreviewReqRule = [11]string{
+	0:  "at_time",
+	1:  "every_minutes",
+	2:  "freq",
+	3:  "month_day",
+	4:  "once_at",
+	5:  "tz",
+	6:  "weekdays",
+	7:  "window",
+	8:  "window_days",
+	9:  "window_from",
+	10: "window_to",
+}
+
+// Decode decodes CorePostSchedulesPreviewReqRule from json.
+func (s *CorePostSchedulesPreviewReqRule) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostSchedulesPreviewReqRule to nil")
+	}
+	var requiredBitSet [2]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "at_time":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.AtTime.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"at_time\"")
+			}
+		case "every_minutes":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.EveryMinutes.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"every_minutes\"")
+			}
+		case "freq":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.Freq.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"freq\"")
+			}
+		case "month_day":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.MonthDay.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"month_day\"")
+			}
+		case "once_at":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.OnceAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"once_at\"")
+			}
+		case "tz":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Str()
+				s.Tz = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"tz\"")
+			}
+		case "weekdays":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				switch tt := d.Next(); tt {
+				case jx.Null:
+					if err := d.Skip(); err != nil {
+						return err
+					}
+				default:
+					s.Weekdays = make([]int, 0)
+					if err := d.Arr(func(d *jx.Decoder) error {
+						var elem int
+						v, err := d.Int()
+						elem = int(v)
+						if err != nil {
+							return err
+						}
+						s.Weekdays = append(s.Weekdays, elem)
+						return nil
+					}); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"weekdays\"")
+			}
+		case "window":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				if err := s.Window.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"window\"")
+			}
+		case "window_days":
+			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				switch tt := d.Next(); tt {
+				case jx.Null:
+					if err := d.Skip(); err != nil {
+						return err
+					}
+				default:
+					s.WindowDays = make([]int, 0)
+					if err := d.Arr(func(d *jx.Decoder) error {
+						var elem int
+						v, err := d.Int()
+						elem = int(v)
+						if err != nil {
+							return err
+						}
+						s.WindowDays = append(s.WindowDays, elem)
+						return nil
+					}); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"window_days\"")
+			}
+		case "window_from":
+			requiredBitSet[1] |= 1 << 1
+			if err := func() error {
+				if err := s.WindowFrom.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"window_from\"")
+			}
+		case "window_to":
+			requiredBitSet[1] |= 1 << 2
+			if err := func() error {
+				if err := s.WindowTo.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"window_to\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePostSchedulesPreviewReqRule")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [2]uint8{
+		0b11111111,
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePostSchedulesPreviewReqRule) {
+					name = jsonFieldsNameOfCorePostSchedulesPreviewReqRule[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePostSchedulesPreviewReqRule) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostSchedulesPreviewReqRule) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CorePostSchedulesPreviewReqRuleFreq as json.
+func (s CorePostSchedulesPreviewReqRuleFreq) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CorePostSchedulesPreviewReqRuleFreq from json.
+func (s *CorePostSchedulesPreviewReqRuleFreq) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostSchedulesPreviewReqRuleFreq to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CorePostSchedulesPreviewReqRuleFreq(v) {
+	case CorePostSchedulesPreviewReqRuleFreqInterval:
+		*s = CorePostSchedulesPreviewReqRuleFreqInterval
+	case CorePostSchedulesPreviewReqRuleFreqDaily:
+		*s = CorePostSchedulesPreviewReqRuleFreqDaily
+	case CorePostSchedulesPreviewReqRuleFreqWeekly:
+		*s = CorePostSchedulesPreviewReqRuleFreqWeekly
+	case CorePostSchedulesPreviewReqRuleFreqMonthly:
+		*s = CorePostSchedulesPreviewReqRuleFreqMonthly
+	case CorePostSchedulesPreviewReqRuleFreqOnce:
+		*s = CorePostSchedulesPreviewReqRuleFreqOnce
+	default:
+		*s = CorePostSchedulesPreviewReqRuleFreq(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CorePostSchedulesPreviewReqRuleFreq) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostSchedulesPreviewReqRuleFreq) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CorePostSchedulesPreviewReqRuleWindow as json.
+func (s CorePostSchedulesPreviewReqRuleWindow) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CorePostSchedulesPreviewReqRuleWindow from json.
+func (s *CorePostSchedulesPreviewReqRuleWindow) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostSchedulesPreviewReqRuleWindow to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CorePostSchedulesPreviewReqRuleWindow(v) {
+	case CorePostSchedulesPreviewReqRuleWindowGlobal:
+		*s = CorePostSchedulesPreviewReqRuleWindowGlobal
+	case CorePostSchedulesPreviewReqRuleWindowNone:
+		*s = CorePostSchedulesPreviewReqRuleWindowNone
+	case CorePostSchedulesPreviewReqRuleWindowCustom:
+		*s = CorePostSchedulesPreviewReqRuleWindowCustom
+	default:
+		*s = CorePostSchedulesPreviewReqRuleWindow(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CorePostSchedulesPreviewReqRuleWindow) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostSchedulesPreviewReqRuleWindow) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *CorePutCoreConnectionsIDOK) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -86072,6 +87876,1591 @@ func (s CorePutCoreOidcReqRoleMapItemRole) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *CorePutCoreOidcReqRoleMapItemRole) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePutSchedulesOwnerKeyOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePutSchedulesOwnerKeyOK) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("edit_role")
+		s.EditRole.Encode(e)
+	}
+	{
+		e.FieldStart("enabled")
+		e.Bool(s.Enabled)
+	}
+	{
+		e.FieldStart("last_due_at")
+		s.LastDueAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("last_run_id")
+		s.LastRunID.Encode(e)
+	}
+	{
+		e.FieldStart("last_skip_at")
+		s.LastSkipAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("last_skip_reason")
+		s.LastSkipReason.Encode(e)
+	}
+	{
+		e.FieldStart("limits")
+		s.Limits.Encode(e)
+	}
+	{
+		e.FieldStart("module")
+		e.Str(s.Module)
+	}
+	{
+		e.FieldStart("next_due_at")
+		s.NextDueAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("owner_key")
+		e.Str(s.OwnerKey)
+	}
+	{
+		e.FieldStart("paused_until")
+		s.PausedUntil.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("rule")
+		s.Rule.Encode(e)
+	}
+	{
+		e.FieldStart("saved")
+		e.Bool(s.Saved)
+	}
+	{
+		e.FieldStart("upcoming")
+		e.ArrStart()
+		for _, elem := range s.Upcoming {
+			json.EncodeDateTime(e, elem)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("updated_at")
+		s.UpdatedAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("updated_by")
+		s.UpdatedBy.Encode(e)
+	}
+	{
+		e.FieldStart("waiting_for")
+		s.WaitingFor.Encode(e)
+	}
+	{
+		e.FieldStart("zone")
+		e.Str(s.Zone)
+	}
+}
+
+var jsonFieldsNameOfCorePutSchedulesOwnerKeyOK = [18]string{
+	0:  "edit_role",
+	1:  "enabled",
+	2:  "last_due_at",
+	3:  "last_run_id",
+	4:  "last_skip_at",
+	5:  "last_skip_reason",
+	6:  "limits",
+	7:  "module",
+	8:  "next_due_at",
+	9:  "owner_key",
+	10: "paused_until",
+	11: "rule",
+	12: "saved",
+	13: "upcoming",
+	14: "updated_at",
+	15: "updated_by",
+	16: "waiting_for",
+	17: "zone",
+}
+
+// Decode decodes CorePutSchedulesOwnerKeyOK from json.
+func (s *CorePutSchedulesOwnerKeyOK) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePutSchedulesOwnerKeyOK to nil")
+	}
+	var requiredBitSet [3]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "edit_role":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.EditRole.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"edit_role\"")
+			}
+		case "enabled":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Bool()
+				s.Enabled = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"enabled\"")
+			}
+		case "last_due_at":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.LastDueAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"last_due_at\"")
+			}
+		case "last_run_id":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.LastRunID.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"last_run_id\"")
+			}
+		case "last_skip_at":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.LastSkipAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"last_skip_at\"")
+			}
+		case "last_skip_reason":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				if err := s.LastSkipReason.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"last_skip_reason\"")
+			}
+		case "limits":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				if err := s.Limits.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"limits\"")
+			}
+		case "module":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				v, err := d.Str()
+				s.Module = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"module\"")
+			}
+		case "next_due_at":
+			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				if err := s.NextDueAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"next_due_at\"")
+			}
+		case "owner_key":
+			requiredBitSet[1] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.OwnerKey = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"owner_key\"")
+			}
+		case "paused_until":
+			requiredBitSet[1] |= 1 << 2
+			if err := func() error {
+				if err := s.PausedUntil.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"paused_until\"")
+			}
+		case "rule":
+			requiredBitSet[1] |= 1 << 3
+			if err := func() error {
+				if err := s.Rule.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"rule\"")
+			}
+		case "saved":
+			requiredBitSet[1] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.Saved = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"saved\"")
+			}
+		case "upcoming":
+			requiredBitSet[1] |= 1 << 5
+			if err := func() error {
+				s.Upcoming = make([]time.Time, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem time.Time
+					v, err := json.DecodeDateTime(d)
+					elem = v
+					if err != nil {
+						return err
+					}
+					s.Upcoming = append(s.Upcoming, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"upcoming\"")
+			}
+		case "updated_at":
+			requiredBitSet[1] |= 1 << 6
+			if err := func() error {
+				if err := s.UpdatedAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"updated_at\"")
+			}
+		case "updated_by":
+			requiredBitSet[1] |= 1 << 7
+			if err := func() error {
+				if err := s.UpdatedBy.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"updated_by\"")
+			}
+		case "waiting_for":
+			requiredBitSet[2] |= 1 << 0
+			if err := func() error {
+				if err := s.WaitingFor.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"waiting_for\"")
+			}
+		case "zone":
+			requiredBitSet[2] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Zone = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"zone\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePutSchedulesOwnerKeyOK")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [3]uint8{
+		0b11111111,
+		0b11111111,
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePutSchedulesOwnerKeyOK) {
+					name = jsonFieldsNameOfCorePutSchedulesOwnerKeyOK[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePutSchedulesOwnerKeyOK) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePutSchedulesOwnerKeyOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CorePutSchedulesOwnerKeyOKEditRole as json.
+func (s CorePutSchedulesOwnerKeyOKEditRole) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CorePutSchedulesOwnerKeyOKEditRole from json.
+func (s *CorePutSchedulesOwnerKeyOKEditRole) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePutSchedulesOwnerKeyOKEditRole to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CorePutSchedulesOwnerKeyOKEditRole(v) {
+	case CorePutSchedulesOwnerKeyOKEditRoleOperator:
+		*s = CorePutSchedulesOwnerKeyOKEditRoleOperator
+	case CorePutSchedulesOwnerKeyOKEditRoleAdmin:
+		*s = CorePutSchedulesOwnerKeyOKEditRoleAdmin
+	default:
+		*s = CorePutSchedulesOwnerKeyOKEditRole(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CorePutSchedulesOwnerKeyOKEditRole) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePutSchedulesOwnerKeyOKEditRole) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePutSchedulesOwnerKeyOKLimits) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePutSchedulesOwnerKeyOKLimits) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("freqs")
+		e.ArrStart()
+		for _, elem := range s.Freqs {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("max_every_minutes")
+		e.Int(s.MaxEveryMinutes)
+	}
+	{
+		e.FieldStart("min_every_minutes")
+		e.Int(s.MinEveryMinutes)
+	}
+	{
+		e.FieldStart("reason")
+		e.Str(s.Reason)
+	}
+	{
+		e.FieldStart("windows")
+		e.ArrStart()
+		for _, elem := range s.Windows {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+}
+
+var jsonFieldsNameOfCorePutSchedulesOwnerKeyOKLimits = [5]string{
+	0: "freqs",
+	1: "max_every_minutes",
+	2: "min_every_minutes",
+	3: "reason",
+	4: "windows",
+}
+
+// Decode decodes CorePutSchedulesOwnerKeyOKLimits from json.
+func (s *CorePutSchedulesOwnerKeyOKLimits) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePutSchedulesOwnerKeyOKLimits to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "freqs":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				s.Freqs = make([]CorePutSchedulesOwnerKeyOKLimitsFreqsItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem CorePutSchedulesOwnerKeyOKLimitsFreqsItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Freqs = append(s.Freqs, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"freqs\"")
+			}
+		case "max_every_minutes":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int()
+				s.MaxEveryMinutes = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"max_every_minutes\"")
+			}
+		case "min_every_minutes":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Int()
+				s.MinEveryMinutes = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"min_every_minutes\"")
+			}
+		case "reason":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Reason = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reason\"")
+			}
+		case "windows":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				s.Windows = make([]CorePutSchedulesOwnerKeyOKLimitsWindowsItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem CorePutSchedulesOwnerKeyOKLimitsWindowsItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Windows = append(s.Windows, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"windows\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePutSchedulesOwnerKeyOKLimits")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00011111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePutSchedulesOwnerKeyOKLimits) {
+					name = jsonFieldsNameOfCorePutSchedulesOwnerKeyOKLimits[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePutSchedulesOwnerKeyOKLimits) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePutSchedulesOwnerKeyOKLimits) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CorePutSchedulesOwnerKeyOKLimitsFreqsItem as json.
+func (s CorePutSchedulesOwnerKeyOKLimitsFreqsItem) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CorePutSchedulesOwnerKeyOKLimitsFreqsItem from json.
+func (s *CorePutSchedulesOwnerKeyOKLimitsFreqsItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePutSchedulesOwnerKeyOKLimitsFreqsItem to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CorePutSchedulesOwnerKeyOKLimitsFreqsItem(v) {
+	case CorePutSchedulesOwnerKeyOKLimitsFreqsItemInterval:
+		*s = CorePutSchedulesOwnerKeyOKLimitsFreqsItemInterval
+	case CorePutSchedulesOwnerKeyOKLimitsFreqsItemDaily:
+		*s = CorePutSchedulesOwnerKeyOKLimitsFreqsItemDaily
+	case CorePutSchedulesOwnerKeyOKLimitsFreqsItemWeekly:
+		*s = CorePutSchedulesOwnerKeyOKLimitsFreqsItemWeekly
+	case CorePutSchedulesOwnerKeyOKLimitsFreqsItemMonthly:
+		*s = CorePutSchedulesOwnerKeyOKLimitsFreqsItemMonthly
+	case CorePutSchedulesOwnerKeyOKLimitsFreqsItemOnce:
+		*s = CorePutSchedulesOwnerKeyOKLimitsFreqsItemOnce
+	default:
+		*s = CorePutSchedulesOwnerKeyOKLimitsFreqsItem(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CorePutSchedulesOwnerKeyOKLimitsFreqsItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePutSchedulesOwnerKeyOKLimitsFreqsItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CorePutSchedulesOwnerKeyOKLimitsWindowsItem as json.
+func (s CorePutSchedulesOwnerKeyOKLimitsWindowsItem) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CorePutSchedulesOwnerKeyOKLimitsWindowsItem from json.
+func (s *CorePutSchedulesOwnerKeyOKLimitsWindowsItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePutSchedulesOwnerKeyOKLimitsWindowsItem to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CorePutSchedulesOwnerKeyOKLimitsWindowsItem(v) {
+	case CorePutSchedulesOwnerKeyOKLimitsWindowsItemGlobal:
+		*s = CorePutSchedulesOwnerKeyOKLimitsWindowsItemGlobal
+	case CorePutSchedulesOwnerKeyOKLimitsWindowsItemNone:
+		*s = CorePutSchedulesOwnerKeyOKLimitsWindowsItemNone
+	case CorePutSchedulesOwnerKeyOKLimitsWindowsItemCustom:
+		*s = CorePutSchedulesOwnerKeyOKLimitsWindowsItemCustom
+	default:
+		*s = CorePutSchedulesOwnerKeyOKLimitsWindowsItem(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CorePutSchedulesOwnerKeyOKLimitsWindowsItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePutSchedulesOwnerKeyOKLimitsWindowsItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePutSchedulesOwnerKeyOKRule) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePutSchedulesOwnerKeyOKRule) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("at_time")
+		s.AtTime.Encode(e)
+	}
+	{
+		e.FieldStart("every_minutes")
+		s.EveryMinutes.Encode(e)
+	}
+	{
+		e.FieldStart("freq")
+		s.Freq.Encode(e)
+	}
+	{
+		e.FieldStart("month_day")
+		s.MonthDay.Encode(e)
+	}
+	{
+		e.FieldStart("once_at")
+		s.OnceAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("tz")
+		e.Str(s.Tz)
+	}
+	{
+		e.FieldStart("weekdays")
+		if s.Weekdays == nil {
+			e.Null()
+		} else {
+			e.ArrStart()
+			for _, elem := range s.Weekdays {
+				e.Int(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
+		e.FieldStart("window")
+		s.Window.Encode(e)
+	}
+	{
+		e.FieldStart("window_days")
+		if s.WindowDays == nil {
+			e.Null()
+		} else {
+			e.ArrStart()
+			for _, elem := range s.WindowDays {
+				e.Int(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
+		e.FieldStart("window_from")
+		s.WindowFrom.Encode(e)
+	}
+	{
+		e.FieldStart("window_to")
+		s.WindowTo.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfCorePutSchedulesOwnerKeyOKRule = [11]string{
+	0:  "at_time",
+	1:  "every_minutes",
+	2:  "freq",
+	3:  "month_day",
+	4:  "once_at",
+	5:  "tz",
+	6:  "weekdays",
+	7:  "window",
+	8:  "window_days",
+	9:  "window_from",
+	10: "window_to",
+}
+
+// Decode decodes CorePutSchedulesOwnerKeyOKRule from json.
+func (s *CorePutSchedulesOwnerKeyOKRule) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePutSchedulesOwnerKeyOKRule to nil")
+	}
+	var requiredBitSet [2]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "at_time":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.AtTime.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"at_time\"")
+			}
+		case "every_minutes":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.EveryMinutes.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"every_minutes\"")
+			}
+		case "freq":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.Freq.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"freq\"")
+			}
+		case "month_day":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.MonthDay.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"month_day\"")
+			}
+		case "once_at":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.OnceAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"once_at\"")
+			}
+		case "tz":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Str()
+				s.Tz = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"tz\"")
+			}
+		case "weekdays":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				switch tt := d.Next(); tt {
+				case jx.Null:
+					if err := d.Skip(); err != nil {
+						return err
+					}
+				default:
+					s.Weekdays = make([]int, 0)
+					if err := d.Arr(func(d *jx.Decoder) error {
+						var elem int
+						v, err := d.Int()
+						elem = int(v)
+						if err != nil {
+							return err
+						}
+						s.Weekdays = append(s.Weekdays, elem)
+						return nil
+					}); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"weekdays\"")
+			}
+		case "window":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				if err := s.Window.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"window\"")
+			}
+		case "window_days":
+			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				switch tt := d.Next(); tt {
+				case jx.Null:
+					if err := d.Skip(); err != nil {
+						return err
+					}
+				default:
+					s.WindowDays = make([]int, 0)
+					if err := d.Arr(func(d *jx.Decoder) error {
+						var elem int
+						v, err := d.Int()
+						elem = int(v)
+						if err != nil {
+							return err
+						}
+						s.WindowDays = append(s.WindowDays, elem)
+						return nil
+					}); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"window_days\"")
+			}
+		case "window_from":
+			requiredBitSet[1] |= 1 << 1
+			if err := func() error {
+				if err := s.WindowFrom.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"window_from\"")
+			}
+		case "window_to":
+			requiredBitSet[1] |= 1 << 2
+			if err := func() error {
+				if err := s.WindowTo.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"window_to\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePutSchedulesOwnerKeyOKRule")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [2]uint8{
+		0b11111111,
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePutSchedulesOwnerKeyOKRule) {
+					name = jsonFieldsNameOfCorePutSchedulesOwnerKeyOKRule[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePutSchedulesOwnerKeyOKRule) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePutSchedulesOwnerKeyOKRule) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CorePutSchedulesOwnerKeyOKRuleFreq as json.
+func (s CorePutSchedulesOwnerKeyOKRuleFreq) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CorePutSchedulesOwnerKeyOKRuleFreq from json.
+func (s *CorePutSchedulesOwnerKeyOKRuleFreq) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePutSchedulesOwnerKeyOKRuleFreq to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CorePutSchedulesOwnerKeyOKRuleFreq(v) {
+	case CorePutSchedulesOwnerKeyOKRuleFreqInterval:
+		*s = CorePutSchedulesOwnerKeyOKRuleFreqInterval
+	case CorePutSchedulesOwnerKeyOKRuleFreqDaily:
+		*s = CorePutSchedulesOwnerKeyOKRuleFreqDaily
+	case CorePutSchedulesOwnerKeyOKRuleFreqWeekly:
+		*s = CorePutSchedulesOwnerKeyOKRuleFreqWeekly
+	case CorePutSchedulesOwnerKeyOKRuleFreqMonthly:
+		*s = CorePutSchedulesOwnerKeyOKRuleFreqMonthly
+	case CorePutSchedulesOwnerKeyOKRuleFreqOnce:
+		*s = CorePutSchedulesOwnerKeyOKRuleFreqOnce
+	default:
+		*s = CorePutSchedulesOwnerKeyOKRuleFreq(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CorePutSchedulesOwnerKeyOKRuleFreq) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePutSchedulesOwnerKeyOKRuleFreq) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CorePutSchedulesOwnerKeyOKRuleWindow as json.
+func (s CorePutSchedulesOwnerKeyOKRuleWindow) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CorePutSchedulesOwnerKeyOKRuleWindow from json.
+func (s *CorePutSchedulesOwnerKeyOKRuleWindow) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePutSchedulesOwnerKeyOKRuleWindow to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CorePutSchedulesOwnerKeyOKRuleWindow(v) {
+	case CorePutSchedulesOwnerKeyOKRuleWindowGlobal:
+		*s = CorePutSchedulesOwnerKeyOKRuleWindowGlobal
+	case CorePutSchedulesOwnerKeyOKRuleWindowNone:
+		*s = CorePutSchedulesOwnerKeyOKRuleWindowNone
+	case CorePutSchedulesOwnerKeyOKRuleWindowCustom:
+		*s = CorePutSchedulesOwnerKeyOKRuleWindowCustom
+	default:
+		*s = CorePutSchedulesOwnerKeyOKRuleWindow(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CorePutSchedulesOwnerKeyOKRuleWindow) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePutSchedulesOwnerKeyOKRuleWindow) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePutSchedulesOwnerKeyReq) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePutSchedulesOwnerKeyReq) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("enabled")
+		e.Bool(s.Enabled)
+	}
+	{
+		if s.PausedUntil.Set {
+			e.FieldStart("paused_until")
+			s.PausedUntil.Encode(e, json.EncodeDateTime)
+		}
+	}
+	{
+		e.FieldStart("rule")
+		s.Rule.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfCorePutSchedulesOwnerKeyReq = [3]string{
+	0: "enabled",
+	1: "paused_until",
+	2: "rule",
+}
+
+// Decode decodes CorePutSchedulesOwnerKeyReq from json.
+func (s *CorePutSchedulesOwnerKeyReq) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePutSchedulesOwnerKeyReq to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "enabled":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Bool()
+				s.Enabled = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"enabled\"")
+			}
+		case "paused_until":
+			if err := func() error {
+				s.PausedUntil.Reset()
+				if err := s.PausedUntil.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"paused_until\"")
+			}
+		case "rule":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.Rule.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"rule\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePutSchedulesOwnerKeyReq")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000101,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePutSchedulesOwnerKeyReq) {
+					name = jsonFieldsNameOfCorePutSchedulesOwnerKeyReq[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePutSchedulesOwnerKeyReq) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePutSchedulesOwnerKeyReq) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePutSchedulesOwnerKeyReqRule) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePutSchedulesOwnerKeyReqRule) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("at_time")
+		s.AtTime.Encode(e)
+	}
+	{
+		e.FieldStart("every_minutes")
+		s.EveryMinutes.Encode(e)
+	}
+	{
+		e.FieldStart("freq")
+		s.Freq.Encode(e)
+	}
+	{
+		e.FieldStart("month_day")
+		s.MonthDay.Encode(e)
+	}
+	{
+		e.FieldStart("once_at")
+		s.OnceAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("tz")
+		e.Str(s.Tz)
+	}
+	{
+		e.FieldStart("weekdays")
+		if s.Weekdays == nil {
+			e.Null()
+		} else {
+			e.ArrStart()
+			for _, elem := range s.Weekdays {
+				e.Int(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
+		e.FieldStart("window")
+		s.Window.Encode(e)
+	}
+	{
+		e.FieldStart("window_days")
+		if s.WindowDays == nil {
+			e.Null()
+		} else {
+			e.ArrStart()
+			for _, elem := range s.WindowDays {
+				e.Int(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
+		e.FieldStart("window_from")
+		s.WindowFrom.Encode(e)
+	}
+	{
+		e.FieldStart("window_to")
+		s.WindowTo.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfCorePutSchedulesOwnerKeyReqRule = [11]string{
+	0:  "at_time",
+	1:  "every_minutes",
+	2:  "freq",
+	3:  "month_day",
+	4:  "once_at",
+	5:  "tz",
+	6:  "weekdays",
+	7:  "window",
+	8:  "window_days",
+	9:  "window_from",
+	10: "window_to",
+}
+
+// Decode decodes CorePutSchedulesOwnerKeyReqRule from json.
+func (s *CorePutSchedulesOwnerKeyReqRule) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePutSchedulesOwnerKeyReqRule to nil")
+	}
+	var requiredBitSet [2]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "at_time":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.AtTime.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"at_time\"")
+			}
+		case "every_minutes":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.EveryMinutes.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"every_minutes\"")
+			}
+		case "freq":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.Freq.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"freq\"")
+			}
+		case "month_day":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.MonthDay.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"month_day\"")
+			}
+		case "once_at":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.OnceAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"once_at\"")
+			}
+		case "tz":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Str()
+				s.Tz = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"tz\"")
+			}
+		case "weekdays":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				switch tt := d.Next(); tt {
+				case jx.Null:
+					if err := d.Skip(); err != nil {
+						return err
+					}
+				default:
+					s.Weekdays = make([]int, 0)
+					if err := d.Arr(func(d *jx.Decoder) error {
+						var elem int
+						v, err := d.Int()
+						elem = int(v)
+						if err != nil {
+							return err
+						}
+						s.Weekdays = append(s.Weekdays, elem)
+						return nil
+					}); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"weekdays\"")
+			}
+		case "window":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				if err := s.Window.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"window\"")
+			}
+		case "window_days":
+			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				switch tt := d.Next(); tt {
+				case jx.Null:
+					if err := d.Skip(); err != nil {
+						return err
+					}
+				default:
+					s.WindowDays = make([]int, 0)
+					if err := d.Arr(func(d *jx.Decoder) error {
+						var elem int
+						v, err := d.Int()
+						elem = int(v)
+						if err != nil {
+							return err
+						}
+						s.WindowDays = append(s.WindowDays, elem)
+						return nil
+					}); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"window_days\"")
+			}
+		case "window_from":
+			requiredBitSet[1] |= 1 << 1
+			if err := func() error {
+				if err := s.WindowFrom.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"window_from\"")
+			}
+		case "window_to":
+			requiredBitSet[1] |= 1 << 2
+			if err := func() error {
+				if err := s.WindowTo.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"window_to\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePutSchedulesOwnerKeyReqRule")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [2]uint8{
+		0b11111111,
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePutSchedulesOwnerKeyReqRule) {
+					name = jsonFieldsNameOfCorePutSchedulesOwnerKeyReqRule[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePutSchedulesOwnerKeyReqRule) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePutSchedulesOwnerKeyReqRule) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CorePutSchedulesOwnerKeyReqRuleFreq as json.
+func (s CorePutSchedulesOwnerKeyReqRuleFreq) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CorePutSchedulesOwnerKeyReqRuleFreq from json.
+func (s *CorePutSchedulesOwnerKeyReqRuleFreq) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePutSchedulesOwnerKeyReqRuleFreq to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CorePutSchedulesOwnerKeyReqRuleFreq(v) {
+	case CorePutSchedulesOwnerKeyReqRuleFreqInterval:
+		*s = CorePutSchedulesOwnerKeyReqRuleFreqInterval
+	case CorePutSchedulesOwnerKeyReqRuleFreqDaily:
+		*s = CorePutSchedulesOwnerKeyReqRuleFreqDaily
+	case CorePutSchedulesOwnerKeyReqRuleFreqWeekly:
+		*s = CorePutSchedulesOwnerKeyReqRuleFreqWeekly
+	case CorePutSchedulesOwnerKeyReqRuleFreqMonthly:
+		*s = CorePutSchedulesOwnerKeyReqRuleFreqMonthly
+	case CorePutSchedulesOwnerKeyReqRuleFreqOnce:
+		*s = CorePutSchedulesOwnerKeyReqRuleFreqOnce
+	default:
+		*s = CorePutSchedulesOwnerKeyReqRuleFreq(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CorePutSchedulesOwnerKeyReqRuleFreq) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePutSchedulesOwnerKeyReqRuleFreq) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CorePutSchedulesOwnerKeyReqRuleWindow as json.
+func (s CorePutSchedulesOwnerKeyReqRuleWindow) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CorePutSchedulesOwnerKeyReqRuleWindow from json.
+func (s *CorePutSchedulesOwnerKeyReqRuleWindow) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePutSchedulesOwnerKeyReqRuleWindow to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CorePutSchedulesOwnerKeyReqRuleWindow(v) {
+	case CorePutSchedulesOwnerKeyReqRuleWindowGlobal:
+		*s = CorePutSchedulesOwnerKeyReqRuleWindowGlobal
+	case CorePutSchedulesOwnerKeyReqRuleWindowNone:
+		*s = CorePutSchedulesOwnerKeyReqRuleWindowNone
+	case CorePutSchedulesOwnerKeyReqRuleWindowCustom:
+		*s = CorePutSchedulesOwnerKeyReqRuleWindowCustom
+	default:
+		*s = CorePutSchedulesOwnerKeyReqRuleWindow(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CorePutSchedulesOwnerKeyReqRuleWindow) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePutSchedulesOwnerKeyReqRuleWindow) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

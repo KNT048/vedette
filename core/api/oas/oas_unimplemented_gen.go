@@ -732,6 +732,17 @@ func (UnimplementedHandler) CoreGetModules(ctx context.Context) (r *CoreGetModul
 	return r, ht.ErrNotImplemented
 }
 
+// CoreGetSchedulesOwnerKey implements core_get_schedules_owner_key operation.
+//
+// One schedule with its next three start times, what it waits for, why its last due time was skipped
+// and what its owner allows. Before anyone saves it: its owner's default (saved false). 404 not_found
+// for a key no owner has, or a subject that does not exist.
+//
+// GET /schedules/{owner_key}
+func (UnimplementedHandler) CoreGetSchedulesOwnerKey(ctx context.Context, params CoreGetSchedulesOwnerKeyParams) (r *CoreGetSchedulesOwnerKeyOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // CoreGetSetup implements core_get_setup operation.
 //
 // Whether first-run setup is done.
@@ -1163,6 +1174,28 @@ func (UnimplementedHandler) CorePostCoreUsersIDResetPassword(ctx context.Context
 	return r, ht.ErrNotImplemented
 }
 
+// CorePostSchedulesOwnerKeyRun implements core_post_schedules_owner_key_run operation.
+//
+// Run once now: start what the schedule starts, as the caller, without changing when it is next due.
+// Answers the run (null for work that is not a run; open it at /runs/). 409 busy while the run it last
+// started has not ended; 409 not_started when its owner does not start now (the message says why, e.g.
+// its module is off); 403 forbidden as for PUT. Audited (schedule.run_now).
+//
+// POST /schedules/{owner_key}/run
+func (UnimplementedHandler) CorePostSchedulesOwnerKeyRun(ctx context.Context, params CorePostSchedulesOwnerKeyRunParams) (r *CorePostSchedulesOwnerKeyRunOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CorePostSchedulesPreview implements core_post_schedules_preview operation.
+//
+// The next three start times of a rule as if it were saved now, read in its zone, with the scan window
+// applied; with owner_key, its owner's limits apply. 400 invalid (with field).
+//
+// POST /schedules/preview
+func (UnimplementedHandler) CorePostSchedulesPreview(ctx context.Context, req *CorePostSchedulesPreviewReq) (r *CorePostSchedulesPreviewOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // CorePutCoreConnectionsID implements core_put_core_connections_id operation.
 //
 // Edit a connection, its allow-list and per-tool enable (blank secret = keep the old one; clear_pin =
@@ -1238,6 +1271,17 @@ func (UnimplementedHandler) CorePutCoreNetworkSpan(ctx context.Context, req *Cor
 //
 // PUT /core/oidc
 func (UnimplementedHandler) CorePutCoreOidc(ctx context.Context, req *CorePutCoreOidcReq) (r *CorePutCoreOidcOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CorePutSchedulesOwnerKey implements core_put_schedules_owner_key operation.
+//
+// Save a schedule: on/off, pause until, the rule. 400 invalid (with field) for a rule that cannot be
+// saved or that its owner does not allow (the message ends with the owner's reason); 403 forbidden
+// when edit_role is admin and the caller is not. Audited (schedule.save).
+//
+// PUT /schedules/{owner_key}
+func (UnimplementedHandler) CorePutSchedulesOwnerKey(ctx context.Context, req *CorePutSchedulesOwnerKeyReq, params CorePutSchedulesOwnerKeyParams) (r *CorePutSchedulesOwnerKeyOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

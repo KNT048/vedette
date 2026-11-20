@@ -12,6 +12,7 @@ import { inventorySettingsStore } from '@/features/inventory/mocks'
 import { cidrRange, overlapping } from '@/features/inventory/validate'
 import { osHandlers } from './osMock'
 import { networkHandlers } from './networkMock'
+import { schedulesHandlers } from './schedulesMock'
 import { connectionsHandlers } from './connectionsMock'
 import { connectorsStore } from '@/mocks/connectors'
 import { newSecret, verifyTotp } from './totp'
@@ -1168,4 +1169,4 @@ const dataHandlers = [
   }),
 ]
 
-export const handlers = [...logExportHandlers, ...setupHandlers, ...generalHandlers, ...accountHandlers, ...usersHandlers, ...auditHandlers, ...updatesHandlers, ...privacyHandlers, ...networkHandlers, ...connectionsHandlers, ...mcpHandlers, ...dataHandlers]
+export const handlers = [...logExportHandlers, ...setupHandlers, ...generalHandlers, ...accountHandlers, ...usersHandlers, ...auditHandlers, ...updatesHandlers, ...privacyHandlers, ...networkHandlers, ...connectionsHandlers, ...mcpHandlers, ...dataHandlers, ...schedulesHandlers]

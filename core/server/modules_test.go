@@ -142,6 +142,10 @@ var contractRoutes = map[string][]string{
 		"GET /runs/{id}",
 		"POST /runs/{id}/stop",
 		"POST /runs/{id}/resume",
+		"GET /schedules/{owner_key}", // core/schedule: every schedule a person can set
+		"PUT /schedules/{owner_key}",
+		"POST /schedules/{owner_key}/run",
+		"POST /schedules/preview",
 		"POST /auth/login",
 		"POST /auth/login/resend-code",
 		"POST /auth/logout",

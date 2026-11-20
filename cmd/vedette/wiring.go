@@ -561,6 +561,9 @@ func buildServices(ctx context.Context, d *deps) error {
 	if d.Runs, err = newRuns(d); err != nil { // before the modules: each registers its kinds of run on it
 		return fmt.Errorf("runs: %w", err)
 	}
+	if d.Schedules, err = newSchedules(d); err != nil { // before the modules: each registers its schedules on it
+		return fmt.Errorf("schedules: %w", err)
+	}
 	d.Inventory = newInventory(d) // before feeds: feeds takes the inventory (feeds.Inventory)
 	d.BoxName.useRow(boxRowName(d.Inventory))
 	notifySvc := newNotify(d)

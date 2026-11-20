@@ -312,8 +312,3 @@ func servicesRead(rows []ServiceRow) string {
 	}
 	return read
 }
-
-// servicesLineRE is a stored "Service identification" line that has counts: an IP target's, or one address's of a domain's deep
-// scan ("203.0.113.7 (www.example.com): " in front). Group 1 is the address of that prefix, group 2 the line up to the counts, group
-// 4 what follows them (the deep scan's script results).
-var servicesLineRE = regexp.MustCompile(`^(?:(\d{1,3}(?:\.\d{1,3}){3}) \([^)]*\): )?(Service identification \(nmap -sV\)(?: on \d+ TCP ports?)?: )(\d+ services? identified[^.]*)\.((?: nmap's scripts: .*)?)$`)

@@ -101,11 +101,7 @@ func newProofEnv(t *testing.T) (*env, *cnameDNS) {
 	e := newEnv(t)
 	d := &cnameDNS{fakeResolver: e.dns, cname: map[string]string{"git.beyondnetglobal.com": "beyondhcm.ddns.net"}, wildCNAME: map[string]string{},
 		wildTXT: map[string][]string{}, nx: map[string]bool{}, fail: map[string]error{}}
-	svc, err := NewService(Config{DB: e.db, Audit: audit.New(e.clock.Now), Resolver: d, Prober: e.prober, Publisher: e.pub, Log: slog.New(slog.DiscardHandler), Clock: e.clock.Now, Location: time.UTC})
-	if err != nil {
-		t.Fatal(err)
-	}
-	e.svc = svc
+	e.useService(Config{DB: e.db, Audit: audit.New(e.clock.Now), Resolver: d, Prober: e.prober, Publisher: e.pub, Log: slog.New(slog.DiscardHandler), Clock: e.clock.Now, Location: time.UTC})
 	return e, d
 }
 

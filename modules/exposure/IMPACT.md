@@ -1,21 +1,16 @@
 # Exposure — Change Impact Map
 
+## Modifying: the scan writer (`writeScan`, `writeOpenVAS`, `closeVanished`, `writeIssues`), `exp_host`/`exp_address`/`exp_service`/`exp_issue`/`exp_scan` (INV-37)
+- Readers: `Hosts`, `Addresses`, `Services`, `Issues`, `Scans` (GET `/exposure/tree/{id}/*`), `latestResults` (the old target list), `Outside` (our ports beside Shodan's), `RecentScans` (Settings › Scanning › History).
+- `exposure.scan.written` is read by `cmd/vedette/exposureports.go` (response's new_port trigger): `opened` and `first`.
+- Export policy (`modules/core/export_policy.go`), the JSON allow-list (`cmd/vedette/schema_rules_test.go`), `docs/SCHEMA.sql` (`make schema`), the selfcheck invariants (`selfcheck.go`).
+- Tests: `writer_test.go` with `testdata/scans-anon.json` (anonymised).
 
-## Modifying: `exp_target.scan_every`/`sched_*`, `Every`, `RunSchedule`, `ScanWindow`/`Config.Window`, `Alert`/`Config.Alert`, the queue (`queueIfBusy`, `dispatch`, `begin`'s `q`), `ScanRun.queue|scheduled`, `TargetView.schedule`, `scan_state: queued` (INV-36)
-- **cmd/vedette** `exposure.go`: `exposureWindow` reads the inventory's shared window (`Settings().Active.Days/From/To`, the block Settings › Scanning › Safety saves); a change to that block's shape changes when scheduled scans start. `cfg.Alert` sends through `newNotify(&d).Publish` as an incident-kind system notice (notify PRE-1): a change of notify's severities or of `ErrModuleOff` touches it. `scanning.go` `external()` reads `CurrentScan()`: a queued scan is not a running job there, only the run is.
-- **modules/core** `export_policy.go` lists the four new columns of `exp_target` (exported as stored).
-- **SPA** `features/exposure`: `SchedulePanel` (target page, the select and next time), `ScanProgress` (`targetId`: this target's run only, another target's run as one line, the queue place with Remove from queue; on the list it names the scans that wait), `TargetPage` (the button is held only by this target's run or place), `ExposurePage` `ScanCell`/`ScheduleLine`, `api.ts` (`useScanRun` polls while scans wait, `useTarget` while it is queued, `useScan` does not put a queued answer in the run's cache), mocks (`schedules`, no queue). A new `scan_state` or `ScanRun.status` needs `contract.ts` and the two components.
-- **PRIVACY.md flow 9** and Settings › Privacy (`core.json` `privacy.flow.9`): scheduled scans send the same requests as Scan now, by themselves; a change of what they send or when changes both.
-- `begin` refuses (409 busy) a start without a queued entry while scans wait: a new caller of `begin` (another kind of run) must queue or accept that.
-- The testing terms name the schedule (`TermsVersion` 2026-11-18b, `contract.ts` `TERMS_VERSION`/`TERMS_TEMPLATE*`, the pinned hash): every target accepted under an older text shows "terms need confirming again" and gets no scheduled scan until an administrator accepts again. A scheduled run is never disruptive (`begin` clears it, `ModeNow` answers it for that run): a scanner adapter that reads the terms itself instead of `ScanTarget.Mode`/`ModeNow` would break that.
+## Modifying: the scan's run (`runScan`, `queueScan`, `RunKind`/`RunLane`, `stepNames`, `EngineRuns`, `deepHistory`) (INV-38)
+- `core/run` owns the queue, the lane and restart recovery; `cmd/vedette/exposure.go` passes `d.Runs`. The Runs tab and `/runs/{id}` show the run.
+- Settings › Scanning's nuclei, zap and openvas cards (`cmd/vedette/scanning.go`) read `EngineRuns` and `CurrentScan(ctx)`.
+- The deep scan's rotation reads the run items `address`/`deep_*`; renaming them loses the rotation history.
 
-
-## Modifying: `exp_snapshot.started_at`/`finished_at`, `exp_target.last_scan_at`, `Config.Zone`, `GreenboneRun.ended_at|stop|again`, `StartOpenVAS`, `openVASPart`, `stoppedBy` (INV-34)
-- **web/features/exposure**: `TargetPage` (header "Last scanned <start>, finished <end>"), `ResultsPanel` (pickers, compare labels, the result line), `SurfacePanel`, `GreenbonePanel` (stop reason with its time, "Run OpenVAS again"), `ScanProgress` (`openvas_only`), mocks and `data.ts`. A new stop reason = `GreenboneStop` in `contract.ts`, `greenbone.results.stop.*` in `locales/en/exposure.json`, `stopWhy`.
-- **cmd/vedette** `scanninghistory.go` (`exposureHistory`) names a scan by `StartedAt` and ends it at `FinishedAt`; `exposure.go` wires `Config.Zone` to the organization's time zone (`orgLocation`). `modules/core/export_policy.go` exports the two new columns (`TestExport`).
-- **response** bridge (`exposureports.go`) relies on one snapshot per target and day: still true, the day is now the organization's day on which the scan started.
-- A change to an OpenVAS stop line (`notGBStopped`, `notGBCutOff`, `gbPending`) must keep `oldStop`/`cutLine` reading the lines older versions stored (`TestContract_INV34_OlderStopLinesGiveTheReasonTheyProve` has their exact texts); `StopsAtStart` reads the older audit rows (`exposure.greenbone_scan` "stopped", the terms rows with `stoppedNote`, core `module.disable` of `exposure`) through `core/audit.Find`: a change to those actions, details or to `Find` breaks it (`TestContract_INV34_StartUpGivesOlderStopsTheirTimeAndProvedReason`); `cmd/vedette` `exposureAtStart` calls it after `CutOffAtStart`. `GreenbonePanel` `stopText` reads a stopped step with no `stop` as a Stop or a shutdown when it has a time, every cause when it has none.
-- **core/server** `contractRoutes` and `api/route-modules.json` carry `POST /exposure/targets/{id}/openvas`.
 
 ## Modifying: `RecentScans`, `ScanRecord` (read only)
 - **core** `GET /scanning/history` lists them through `cmd/vedette/scanninghistory.go` (`exposureHistory`): one row per stored snapshot, "partial" when `not_checked` has steps or `greenbone_run.state` is partial, failed or stopped. A new state of `greenbone_run` or a change to `Counts` changes those words; a scan that fails before its snapshot is stored leaves no row (the History tab says so).
@@ -28,14 +23,6 @@
 
 ## Modifying: the count of the template step (#830 FAIL 2, INV-29)
 - `cmd/vedette` `exposureTemplateScan` (`scanBaseline`, `scanFull`/`fullPortScan`, `fullMeter`, `portBound`, `reachableTags`, `webCandidate`): each nuclei run goes out with the context of a `progress.Series` job, so the run's Tracker sees one count of the whole step. A new caller of `send` must do the same, or its run's own count reaches the Tracker (held, never backwards, but stalled). No API or UI change: `ScanRun.progress` keeps its shape.
-
-## Modifying: `EngineRuns`, `EngineRun`, `stepLog`, `saveSteps`, `exp_engine_run` (#861, INV-30)
-- **cmd/vedette** `scanning.go` `externalRun`: the nuclei, zap and openvas cards of Settings › Scanning (core INV-40) read `EngineRuns` for `last_run`; an engine name, outcome or the `At` format changed here changes the page. `TestScanningExternalLastRuns` holds it.
-- **modules/core** `export_policy.go`: every column of `exp_engine_run` is listed (exported as stored).
-- A new engine step (or a new call site of `ScanTemplates`/`Baseline`) must `begin`/`end` on `stepsOf(ctx)`, or its card keeps the earlier run.
-
-## Modifying: `ScanRun.progress`, `scanRun.prog`, `reportOpenVAS` (#830, INV-29)
-- **SPA**: the exposure page (web part of #830; contract `web/src/lib/progress.ts`). **sensor-active**/**scan**: the nmap and nuclei jobs of the runner report into the run's context; an adapter that drops the context's values loses them.
 
 ## Modifying: bước dịch vụ của lượt quét sâu (`FullServicesTimeout`, `FullHostLimit`, `ServiceScan.Scripts`, `ScriptRow`, `exp_snapshot.scripts`)
 - **cmd/vedette** `exposureservices.go` đọc `ScanTarget.Mode` để chọn mẫu nmap và hạn, gọi `ModeNow` ngay trước job (`DeepGate` của sensor-active), đổ `External.Scripts` vào `ScriptRow`. `TestExposureServiceShapeFollowsTheMode` giữ `FullHostLimit` = `nmapargv.FullHostTimeout` và `FullServicesTimeout` ≥ nó + chờ khe + hai rào: đổi một số thì đổi cả ba.

@@ -37,10 +37,7 @@ func exposurePortsOpened(d deps) func(ctx context.Context, data any) error {
 		}
 		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), portsOpenedTimeout)
 		defer cancel()
-		day := time.Now().UTC().Format(time.DateOnly)
-		if d.Clock != nil {
-			day = d.Clock().UTC().Format(time.DateOnly)
-		}
+		day := ev.At[:min(len(ev.At), len(time.DateOnly))] // the scan's day, the key of response's event
 		for i, r := range ev.Opened {
 			if i == maxPortsPerScan {
 				d.Log.WarnContext(ctx, "exposure: more new open ports than one scan announces; the rest are on the Exposure page only",

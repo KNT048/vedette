@@ -59,7 +59,7 @@ func tplEnv(t *testing.T) (*env, *fakeTemplates) {
 	return e, f
 }
 
-func vulnOf(s Snapshot, cve string) VulnRow {
+func vulnOf(s ScanResult, cve string) VulnRow {
 	for _, v := range s.Vulns {
 		if v.CVE == cve {
 			return v
@@ -109,8 +109,11 @@ func TestContract_INV23_TemplateOutcomesOnTheRows(t *testing.T) {
 	if !strings.Contains(line, "2 templates sent on 1 port, 1 matched, 1 no match, 0 error") || !strings.Contains(line, "CVE-2021-41773") {
 		t.Fatalf("checks line = %q", line)
 	}
-	if s2, err := e.svc.SnapshotOf(e.ctx(), e.detectedID(ipA), s.Date); err != nil || len(s2.Templates) != 2 || vulnOf(s2, "CVE-2021-41773").Basis != "template" {
-		t.Fatalf("read back = %+v, %v", s2.Templates, err)
+	if vulnOf(s, "CVE-2021-41773").Basis != "template" {
+		t.Fatalf("vulns = %+v", s.Vulns)
+	}
+	if n := e.count(`SELECT count(*) FROM exp_issue WHERE engine = 'nuclei' AND key = 'CVE-2021-41773' AND state = 'open'`); n != 1 {
+		t.Fatalf("%d nuclei issues for the matched template", n)
 	}
 }
 
@@ -200,7 +203,7 @@ func TestContract_INV23_CarriedPortIsNotProbedAgain(t *testing.T) {
 	if len(f.jobs) != 1 {
 		t.Fatalf("the carried port was probed again: %d calls", len(f.jobs))
 	}
-	got, err := e.svc.SnapshotOf(e.ctx(), id, first.Date)
+	got, err := first, error(nil)
 	if err != nil || len(got.Templates) != 1 || got.Templates[0].Outcome != OutcomeMatched {
 		t.Fatalf("carried templates = %+v, %v", got.Templates, err)
 	}

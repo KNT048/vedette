@@ -623,11 +623,3 @@ func sanitizeNotChecked(in []NotCheckedRow) []NotCheckedRow {
 	}
 	return out
 }
-
-// serviceText is how a service reads in a diff: "Apache httpd 2.4.49", or nmap's service name when it named no product.
-func serviceText(r ServiceRow) string {
-	if r.Product == "" {
-		return r.Name
-	}
-	return strings.TrimSpace(r.Product + " " + r.Version)
-}

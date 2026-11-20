@@ -42,6 +42,7 @@ type scanWrite struct {
 
 // written is what a write changed.
 type written struct {
+	final     vulnSet // the content as written, with the exploited CVEs matched on it
 	counts    ScanCounts
 	opened    []PortRow
 	newIssues []string
@@ -112,9 +113,9 @@ func (s *Service) writeScan(ctx context.Context, tx *sql.Tx, w scanWrite) (writt
 
 // writeOpenVAS writes the issues of the OpenVAS step of a scan whose other rows are written: ran says OpenVAS finished (done, partial or
 // ended by its cap), so an OpenVAS issue it no longer reports is gone; a step that failed or was stopped only adds what it found.
-func (s *Service) writeOpenVAS(ctx context.Context, tx *sql.Tx, t Target, runID string, at time.Time, o gbOutcome, ran bool) ([]string, error) {
+func (s *Service) writeOpenVAS(ctx context.Context, tx *sql.Tx, t Target, runID string, at time.Time, o gbOutcome, ran bool) error {
 	if _, err := loadTarget(ctx, tx, t.ID); err != nil {
-		return nil, err
+		return err
 	}
 	issues := make([]issueIn, 0, len(o.rows))
 	for _, r := range o.rows {
@@ -122,13 +123,13 @@ func (s *Service) writeOpenVAS(ctx context.Context, tx *sql.Tx, t Target, runID 
 	}
 	hosts, err := storedHostAddrs(ctx, tx, t)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	fresh, err := writeIssues(ctx, tx, t.ID, runID, store.FormatTS(at), hosts, issues, engineSet{EngineOpenVAS: ran})
 	if err != nil {
-		return nil, err
+		return err
 	}
-	err = updateSummary(ctx, tx, runID, func(sum *scanSummary) {
+	return updateSummary(ctx, tx, runID, func(sum *scanSummary) {
 		not := slices.DeleteFunc(sum.NotChecked, func(n NotCheckedRow) bool { return n.Kind == "greenbone" && n.Text == gbPending })
 		sum.NotChecked, sum.Checks = append(not, o.not...), append(sum.Checks, o.checks...)
 		if sum.Counts != nil {
@@ -136,7 +137,6 @@ func (s *Service) writeOpenVAS(ctx context.Context, tx *sql.Tx, t Target, runID 
 			_ = rowCounts(ctx, tx, t.ID, sum.Counts)
 		}
 	})
-	return fresh, err
 }
 
 // ---- hosts and addresses ----
@@ -320,10 +320,7 @@ func (s *Service) writeServices(ctx context.Context, tx *sql.Tx, w scanWrite, at
 			ident = prevIdent
 		}
 		web := row.IsWeb || (prevWeb == 1 && row.Ident != identProbed)
-		cert := certDoc(row.Cert)
-		if row.Cert == nil && prevCert.Valid {
-			cert = prevCert.String
-		}
+		cert := certDoc(mergeCert(row.Cert, prevCert))
 		_, err = tx.ExecContext(ctx, `UPDATE exp_service SET name = ?, product = ?, version = ?, cpe = ?, title = ?, cert = ?, is_web = ?, ident = ?,
 			state = 'open', last_seen = max(last_seen, ?), last_run_id = ? WHERE id = ?`,
 			firstOf(row.Name, prevName), firstOf(row.Product, prevProduct), firstOf(row.Version, prevVersion), firstOf(row.CPE, prevCPE), firstOf(row.Title, prevTitle),
@@ -400,6 +397,9 @@ type serviceRow struct {
 func serviceOf(p PortRow, r ServiceRow, cert *CertView) serviceRow {
 	out := serviceRow{IP: ipKey(p.IP), Port: p.Port, Name: clipText(firstOf(r.Name, p.Service), 100), Product: firstOf(r.Product, p.Product),
 		Version: r.Version, CPE: r.CPE, Title: p.Title, Cert: cert}
+	if out.Cert == nil && len(p.CertNames) > 0 { // the names a deep scan's script read, with no expiry: kept for what they name
+		out.Cert = &CertView{Names: p.CertNames}
+	}
 	switch p.Ident {
 	case IdentProbed:
 		out.Ident = identProbed
@@ -467,6 +467,32 @@ func certsByService(t Target, c Content) map[string]*CertView {
 		}
 	}
 	return out
+}
+
+// mergeCert is the certificate this scan read, with what an earlier scan read that this one did not (the expiry a names-only reading
+// lacks); the earlier one when this scan read none.
+func mergeCert(now *CertView, prev sql.NullString) *CertView {
+	var old *CertView
+	if prev.Valid {
+		old = new(CertView)
+		if json.Unmarshal([]byte(prev.String), old) != nil {
+			old = nil
+		}
+	}
+	switch {
+	case now == nil:
+		return old
+	case old != nil && now.ExpiresAt == "":
+		return &CertView{Names: firstNames(now.Names, old.Names), Issuer: old.Issuer, ExpiresAt: old.ExpiresAt}
+	}
+	return now
+}
+
+func firstNames(a, b []string) []string {
+	if len(a) > 0 {
+		return a
+	}
+	return b
 }
 
 func certDoc(c *CertView) any {

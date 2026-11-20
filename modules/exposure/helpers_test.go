@@ -12,6 +12,7 @@ import (
 
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/events"
+	corerun "github.com/knt048/vedette/core/run"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -153,18 +154,38 @@ type env struct {
 	dns    *fakeResolver
 	pub    *fakePub
 	terms  *bool // scanIP accepts the testing terms when set, with the disruptive tick when true
+	runs   *corerun.Manager
 }
 
 func newEnv(t *testing.T) *env {
 	t.Helper()
 	db := newDB(t)
 	e := &env{t: t, db: db, clock: &fakeClock{now: t0}, prober: &fakeProber{ips: []string{ipA}}, dns: &fakeResolver{txt: map[string][]string{}}, pub: &fakePub{}}
-	svc, err := NewService(Config{DB: db, Audit: audit.New(e.clock.Now), Resolver: e.dns, Prober: e.prober, Publisher: e.pub, Log: slog.New(slog.DiscardHandler), Clock: e.clock.Now, Location: time.UTC})
-	if err != nil {
-		t.Fatal(err)
-	}
-	e.svc = svc
+	e.useService(Config{DB: db, Audit: audit.New(e.clock.Now), Resolver: e.dns, Prober: e.prober, Publisher: e.pub, Log: slog.New(slog.DiscardHandler), Clock: e.clock.Now, Location: time.UTC})
 	return e
+}
+
+// useService makes the env's service from cfg, with a run manager of its own over the env's database (the one before is closed:
+// one manager executes the scans).
+func (e *env) useService(cfg Config) {
+	e.t.Helper()
+	if e.runs != nil {
+		e.runs.Close()
+	}
+	m, err := corerun.New(corerun.Config{DB: cfg.DB, Clock: cfg.Clock})
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	cfg.Runs = m
+	svc, err := NewService(cfg)
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	if err := m.Start(context.Background()); err != nil {
+		e.t.Fatal(err)
+	}
+	e.t.Cleanup(m.Close)
+	e.svc, e.runs = svc, m
 }
 
 func (e *env) advance(d time.Duration) { e.clock.Advance(d) }
@@ -297,4 +318,21 @@ func (e *env) commit(id string) (TargetView, error) {
 		return TargetView{}, err
 	}
 	return e.svc.Target(e.ctx(), id)
+}
+
+// waitScan waits until run id has ended and its end is recorded.
+func (e *env) waitScan(id string) {
+	e.t.Helper()
+	e.svc.runMu.Lock()
+	x := e.svc.execs[id]
+	e.svc.runMu.Unlock()
+	if err := e.svc.waitRun(e.ctx(), id, x); err != nil {
+		e.t.Fatal(err)
+	}
+}
+
+// writtenScans counts the scans that wrote their rows.
+func (e *env) writtenScans() int {
+	e.t.Helper()
+	return e.count(`SELECT count(*) FROM core_run_step WHERE name = ? AND status = 'done'`, stepSurface)
 }

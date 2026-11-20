@@ -20,6 +20,7 @@ const (
 type ScanWrittenEvent struct {
 	TargetID  string     `json:"target_id"`
 	RunID     string     `json:"run_id"`
+	At        string     `json:"at"` // when the rows were written (RFC 3339 UTC, milliseconds)
 	First     bool       `json:"first"`
 	Counts    ScanCounts `json:"counts"`
 	Opened    []PortRow  `json:"opened"`

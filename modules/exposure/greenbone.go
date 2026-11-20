@@ -171,8 +171,6 @@ const (
 	notGBGate     = "OpenVAS did not scan: this IP can no longer be scanned (it was removed, paused, no longer verified or needs the scan confirmed again), so nothing was sent."
 	notGBNoLog    = "OpenVAS did not scan: the probe log is not available, and nothing is sent without it."
 	notGBSlow     = "OpenVAS did not finish within 90 minutes, and what it had found by then could not be read, so its results are not shown."
-	// notGBSlowOld is the older notGBSlow, read only to give a snapshot older than greenbone_run its state.
-	notGBSlowOld = "OpenVAS did not finish within 90 minutes, so its results are not shown."
 	// notGBPartial and notGBPartialNone: the cap stopped the task and its report was read: the rows found by then are shown.
 	notGBPartial     = "OpenVAS was stopped after 90 minutes; these are the results it had found by then."
 	notGBPartialNone = "OpenVAS was stopped after 90 minutes; by then it had found no result with QoD 70 or more. Finding nothing is not proof the services are not affected."
@@ -199,9 +197,6 @@ const (
 	notGBSlowAnswer   = "OpenVAS did not answer within 2 minutes, so its results are not shown."
 	notGBStopped      = "OpenVAS was stopped before it finished, so its results are not shown. The results of the other checks above are kept."
 	notGBStoppedSome  = "OpenVAS was stopped before it had scanned every address; the results of the addresses it finished are shown. The results of the other checks above are kept."
-	// notGBCutOff is the line older versions stored in place of the waiting line of a step nothing ran any more (Vedette stopped in the
-	// middle of it); read as StopRestart (oldStop) and replaced by that reason's line when read.
-	notGBCutOff = "OpenVAS was stopped before it finished (the box restarted or the scan was stopped), so its results are not shown. The results of the other checks above are kept."
 	// notGBTerms: Greenbone runs only on a target whose testing terms are accepted.
 	notGBTerms      = "OpenVAS did not scan: accept the testing terms for this target to run OpenVAS (Ownership tab)."
 	gbSyncingReason = "OpenVAS is loading its weekly feed update"

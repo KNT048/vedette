@@ -191,26 +191,25 @@ func TestHandlers_FlowAndShapes(t *testing.T) {
 	// an administrator's first Scan now is the confirmation: needs two-step sign-in and the version of the sentence
 	e.svc.cfg.TwoStep = func(context.Context, string) (string, error) { return "app", nil }
 	code, b = e.call("POST", "/exposure/targets/"+id+"/scan", "admin", `{"notice_version":"`+NoticeVersion+`"}`)
-	if code != 202 || b["status"] != "running" || b["target_id"] != id || b["by"] != "admin@acme.example" {
+	if code != 202 || (b["status"] != "queued" && b["status"] != "running") || b["target_id"] != id || b["by"] != "admin@acme.example" {
 		t.Fatalf("first scan by an administrator: %d %v", code, b)
 	}
 	e.waitScan()
 	code, b = e.call("GET", "/exposure/scan", "viewer", "")
-	if code != 200 || b["status"] != "done" || b["phase"] != "done" || b["error"] != nil || b["snapshot_id"] == nil {
+	if code != 200 || b["status"] != "done" || b["phase"] != "done" || b["error"] != nil {
 		t.Fatalf("the run after it ended: %d %v", code, b)
 	}
-	snapID := b["snapshot_id"]
-	if code, b = e.call("GET", "/exposure/targets/"+id+"/snapshots/2026-11-09", "viewer", ""); code != 200 || b["id"] != snapID || len(list(b, "hosts")) != 3 || len(list(b, "certs")) != 2 {
-		t.Fatalf("first snapshot: %d %v", code, b)
+	if code, b = e.call("GET", "/exposure/tree/"+id+"/hosts", "viewer", ""); code != 200 || len(list(b, "items")) != 3 {
+		t.Fatalf("names: %d %v", code, b)
 	}
 	code, tb := e.call("GET", "/exposure/targets/"+id, "viewer", "")
 	c, _ := tb["commitment"].(map[string]any)
 	if code != 200 || c["by"] != "admin@acme.example" || c["version"] != NoticeVersion || c["sentence"] != noticeFor("acme.example").Text || tb["commitment_notice"] != nil {
 		t.Fatalf("committed target: %d %v", code, tb)
 	}
-	counts, _ := b["counts"].(map[string]any)
-	if counts["subdomains"] != float64(3) || counts["certs_expiring"] != float64(1) {
-		t.Fatalf("counts = %v", counts)
+	latest, _ := tb["latest"].(map[string]any)
+	if latest["subdomains"] != float64(3) || latest["certs_expiring"] != float64(1) {
+		t.Fatalf("latest = %v", latest)
 	}
 	// the record disappears: 409 txt_missing from the API, the runner is not called again
 	e.dns.put("acme.example")
@@ -225,21 +224,16 @@ func TestHandlers_FlowAndShapes(t *testing.T) {
 		t.Fatal(code)
 	}
 	e.waitScan()
-	code, b = e.call("GET", "/exposure/targets/"+id+"/snapshots", "viewer", "")
-	if code != 200 || len(list(b, "items")) != 2 {
+	if code, b = e.call("GET", "/exposure/tree/"+id+"/scans", "viewer", ""); code != 200 || len(list(b, "items")) != 2 {
+		t.Fatalf("scans: %d %v", code, b)
+	}
+	for _, p := range []string{"services", "addresses", "issues"} {
+		if code, b = e.call("GET", "/exposure/tree/"+id+"/"+p, "viewer", ""); code != 200 {
+			t.Fatalf("%s: %d %v", p, code, b)
+		}
+	}
+	if code, b = e.call("GET", "/exposure/targets/"+id+"/snapshots", "viewer", ""); code != 501 || errCode(b) != "not_implemented" {
 		t.Fatalf("snapshots: %d %v", code, b)
-	}
-	if code, b = e.call("GET", "/exposure/targets/"+id+"/snapshots/2026-11-09", "viewer", ""); code != 200 || b["date"] != "2026-11-09" {
-		t.Fatalf("snapshot: %d %v", code, b)
-	}
-	if code, b = e.call("GET", "/exposure/targets/"+id+"/snapshots/2026-01-01", "viewer", ""); code != 404 || errCode(b) != "not_found" {
-		t.Fatalf("missing snapshot: %d %v", code, b)
-	}
-	if code, b = e.call("GET", "/exposure/targets/"+id+"/diff?from=2026-11-09&to=2026-11-10", "viewer", ""); code != 200 || b["from"] != "2026-11-09" || len(list(b, "added")) != 0 {
-		t.Fatalf("diff: %d %v", code, b)
-	}
-	if code, b = e.call("GET", "/exposure/targets/"+id+"/diff?from=2026-11-09&to=2026-11-09", "viewer", ""); code != 400 || errCode(b) != "same_date" {
-		t.Fatalf("same date: %d %v", code, b)
 	}
 
 	// delete is also how an IP leaves the list
@@ -349,16 +343,14 @@ func TestHandlers_AttemptLimitIs429(t *testing.T) {
 	}
 }
 
-// waitScan waits until the run that runs now has ended.
+// waitScan waits until the newest scan has ended.
 func (e *httpEnv) waitScan() {
 	e.t.Helper()
-	e.svc.runMu.Lock()
-	run := e.svc.run
-	e.svc.runMu.Unlock()
+	run := e.svc.CurrentScan(e.ctx())
 	if run == nil {
 		e.t.Fatal("no scan run")
 	}
-	<-run.done
+	e.env.waitScan(run.ID)
 }
 
 // Add target takes a public IP over the API: it is in the list at once, unproved, with where its proof goes; the list row says what it is.
@@ -381,8 +373,7 @@ func TestHandlers_AddTargetTakesAPublicIP(t *testing.T) {
 	}
 }
 
-// The target-tree operations are in the contract before the server has them: each one, with a valid request,
-// answers 501 not_implemented (behind the module gate and the role check) until its handler is written.
+// The target-tree operations not built yet answer 501 not_implemented (behind the module gate and the role check).
 func TestHandlers_TreeOperationsAre501UntilBuilt(t *testing.T) {
 	t.Parallel()
 	e := newHTTPEnv(t)
@@ -395,17 +386,17 @@ func TestHandlers_TreeOperationsAre501UntilBuilt(t *testing.T) {
 		{"POST", "/exposure/tree/xt-1/verify", ""},
 		{"PUT", "/exposure/tree/xt-1/terms", `{"version":"v","disruptive":false}`},
 		{"DELETE", "/exposure/tree/xt-1/terms", ""},
-		{"POST", "/exposure/tree/xt-1/scan", ""},
-		{"GET", "/exposure/tree/xt-1/scans", ""},
-		{"GET", "/exposure/tree/xt-1/hosts", ""},
-		{"GET", "/exposure/tree/xt-1/addresses", ""},
-		{"GET", "/exposure/tree/xt-1/services", ""},
-		{"GET", "/exposure/tree/xt-1/issues", ""},
 		{"POST", "/exposure/issues/handle", `{"ids":["xi-1"],"resolution":"patched","note":""}`},
 		{"POST", "/exposure/issues/reopen", `{"ids":["xi-1"]}`},
 	} {
 		if code, b := e.call(c.method, c.path, "admin", c.body); code != 501 || errCode(b) != "not_implemented" {
 			t.Errorf("%s %s: %d %v", c.method, c.path, code, b)
+		}
+	}
+	// the rows of a node are served: an unknown node is 404
+	for _, p := range []string{"scans", "hosts", "addresses", "services", "issues"} {
+		if code, b := e.call("GET", "/exposure/tree/xt-1/"+p, "viewer", ""); code != 404 || errCode(b) != "not_found" {
+			t.Errorf("GET %s of an unknown node: %d %v", p, code, b)
 		}
 	}
 }

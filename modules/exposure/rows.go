@@ -336,6 +336,11 @@ func (s *Service) Services(ctx context.Context, id string) ([]ServiceView, error
 	if err != nil {
 		return nil, fmt.Errorf("exposure: listing %w", err)
 	}
+	for i := range out { // names a script read without the certificate's expiry are not a certificate the page can show
+		if c := out[i].Cert; c != nil && c.ExpiresAt == "" {
+			out[i].Cert = nil
+		}
+	}
 	return out, nil
 }
 
@@ -482,10 +487,12 @@ func latestResults(ctx context.Context, q querier) (map[string]latestResult, err
 			return nil, err
 		}
 		r.Ports = make([]PortRow, 0, min(len(svc), MaxOpenPorts))
+		rows := make([]ServiceRow, 0, len(svc))
 		for _, x := range svc[:min(len(svc), MaxOpenPorts)] {
 			r.Ports = append(r.Ports, portRowOf(x))
+			rows = append(rows, ServiceRow{IP: x.IP, Port: x.Port, Name: x.Name, Product: x.Product, Version: x.Version, CPE: x.CPE})
 		}
-		nameAppliances(r.Ports, nil, nil)
+		nameAppliances(r.Ports, nil, rows)
 		out[id] = r
 	}
 	return out, nil
@@ -523,8 +530,9 @@ type ScanRecord struct {
 func (s *Service) RecentScans(ctx context.Context, limit int) ([]ScanRecord, error) {
 	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT r.id, x.target_id, coalesce(r.subject_label, ''), r.started_at, r.ended_at, x.summary,
 		coalesce((SELECT st.status FROM core_run_step st WHERE st.run_id = r.id AND st.name = ? ORDER BY st.seq DESC LIMIT 1), '')
-		FROM exp_scan x JOIN core_run r ON r.id = x.run_id WHERE r.started_at IS NOT NULL AND json_extract(x.summary, '$.counts') IS NOT NULL
-		ORDER BY r.started_at DESC LIMIT ?`, stepNameOpenVAS, max(1, min(500, limit)))
+		FROM exp_scan x JOIN core_run r ON r.id = x.run_id WHERE r.started_at IS NOT NULL
+		AND EXISTS (SELECT 1 FROM core_run_step st WHERE st.run_id = r.id AND st.name = ? AND st.status = 'done')
+		ORDER BY r.started_at DESC LIMIT ?`, stepNameOpenVAS, stepSurface, max(1, min(500, limit)))
 	if err != nil {
 		return nil, fmt.Errorf("exposure: recent scans: %w", err)
 	}

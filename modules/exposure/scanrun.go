@@ -3,6 +3,7 @@ package exposure
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/netip"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/knt048/vedette/core/progress"
 	corerun "github.com/knt048/vedette/core/run"
+	"github.com/knt048/vedette/core/store"
 )
 
 // A scan of a target is a shared run (core/run) of kind exposure_scan in the exposure lane: the database holds the queue, so a scan
@@ -52,6 +54,10 @@ var stepEngines = []string{StepNuclei, StepZAP, StepOpenVAS}
 var stepNames = map[string]string{StepNuclei: stepNameNuclei, StepZAP: stepNameZAP, StepOpenVAS: stepNameOpenVAS}
 
 var stepStatus = map[string]corerun.Status{StepOK: corerun.Done, StepPartial: corerun.Partial, StepFailed: corerun.Failed, StepStopped: corerun.Stopped}
+
+// regateAfter is how long the gate a scan passed when it was asked stands for its start: a scan that waited in the queue longer is
+// checked again (the proof, the commitment, the box's IP) right before it starts.
+const regateAfter = time.Minute
 
 // saveTimeout bounds the write of a finished scan, which must not depend on the request that started it.
 const saveTimeout = 30 * time.Second
@@ -98,9 +104,17 @@ type scanExec struct {
 	targetID string
 	mode     ScanMode
 	cause    *stoppedBy // why the box stops it, set before the stop is asked; nil for a person's Stop
-	content  Content    // what it found, for ScanNow
-	err      error
-	done     chan struct{}
+	content  Content    // what it found, as written, for ScanNow
+	vulns    []VulnRow  // the exploited CVEs matched on it
+	gaps     []GapRow
+	gbRun    GreenboneRun
+	written  bool // its rows are written
+	// gated is the target as the gate passed it when the scan was asked, at gatedAt: a scan that starts within regateAfter of it
+	// does not ask DNS again; one that waited in the queue longer runs the gate again.
+	gated   *Target
+	gatedAt time.Time
+	err     error
+	done    chan struct{}
 }
 
 // stoppedBy is why the box (or a person, through a terms change) stopped a run.
@@ -195,30 +209,66 @@ func (s *Service) Scan(ctx context.Context, user, id string) (ScanResult, error)
 type ScanResult struct {
 	RunID string
 	Content
-	Counts ScanCounts
+	Counts      Counts     // what the scan itself found
+	Rows        ScanCounts // what the rows say after it
+	Vulns       []VulnRow  // the exploited CVEs matched on its services
+	VersionGaps []GapRow
+	// GreenboneRun is how its OpenVAS step went: its state, when it started and ended, the state of each address of a domain.
+	GreenboneRun GreenboneRun
 }
 
 // ScanNow queues a scan and waits for it to end: StartScan followed by waiting for its run, for callers that are not a page (tests,
 // the command line). The page calls StartScan and reads the run.
 func (s *Service) ScanNow(ctx context.Context, who Actor, id, noticeVersion string) (ScanResult, error) {
-	runID, t, err := s.startScan(ctx, who, id, noticeVersion)
+	runID, x, t, err := s.startScan(ctx, who, id, noticeVersion)
 	if err != nil {
 		return ScanResult{}, err
 	}
-	x := s.waiter(runID)
-	select {
-	case <-x.done:
-	case <-ctx.Done():
-		return ScanResult{}, fmt.Errorf("exposure: waiting for the scan: %w", context.Cause(ctx))
+	if err := s.waitRun(ctx, runID, x); err != nil {
+		return ScanResult{}, err
 	}
-	if x.err != nil {
+	if x.err != nil && !x.written {
 		return ScanResult{}, fmt.Errorf("exposure: scanning %s: %w", t.Value, x.err)
 	}
-	r := ScanResult{RunID: runID, Content: x.content}
-	if v, err := s.scanView(ctx, runID); err == nil && v.Counts != nil {
-		r.Counts = *v.Counts
+	r := ScanResult{RunID: runID, Content: x.content, Vulns: nz(x.vulns), VersionGaps: nz(x.gaps), GreenboneRun: x.gbRun}
+	nameAppliances(r.Ports, r.AdminPanels, r.Services) // the appliances its ports and admin pages name, tied to the inventory's devices
+	s.tieAppliances(ctx, r.Ports, r.AdminPanels)
+	var doc string
+	if err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT summary FROM exp_scan WHERE run_id = ?`, runID).Scan(&doc); err == nil {
+		var sum scanSummary
+		if json.Unmarshal([]byte(doc), &sum) == nil && sum.Counts != nil && sum.Found != nil {
+			r.Rows, r.Counts = *sum.Counts, *sum.Found
+		}
+	}
+	if x.err != nil { // the rows were written, then a later step (OpenVAS) was stopped or failed
+		return r, fmt.Errorf("exposure: scanning %s: %w", t.Value, x.err)
 	}
 	return r, nil
+}
+
+// waitRun waits until run id has ended: its work in this process (x, nil when it is over or ran elsewhere) is done and the run
+// manager has recorded how it ended.
+func (s *Service) waitRun(ctx context.Context, id string, x *scanExec) error {
+	if x != nil {
+		select {
+		case <-x.done:
+		case <-ctx.Done():
+			return fmt.Errorf("exposure: waiting for the scan: %w", context.Cause(ctx))
+		}
+	}
+	tick := time.NewTicker(5 * time.Millisecond) // the manager records the end right after the work returns
+	defer tick.Stop()
+	for {
+		var st string
+		if err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT status FROM core_run WHERE id = ?`, id).Scan(&st); err != nil || corerun.Status(st).Ended() {
+			return nil
+		}
+		select {
+		case <-tick.C:
+		case <-ctx.Done():
+			return fmt.Errorf("exposure: waiting for the scan: %w", context.Cause(ctx))
+		}
+	}
 }
 
 // waiter is the in-process record of run id that ScanNow waits on (made here when the run has not started yet).
@@ -239,7 +289,7 @@ func (s *Service) waiter(id string) *scanExec {
 // confirmation: it needs two-step sign-in and the notice version the page showed (confirmByScan). For anyone else the answer is
 // 400 commitment_required.
 func (s *Service) StartScan(ctx context.Context, who Actor, id, noticeVersion string) (ScanRun, error) {
-	runID, _, err := s.startScan(ctx, who, id, noticeVersion)
+	runID, _, _, err := s.startScan(ctx, who, id, noticeVersion)
 	if err != nil {
 		return ScanRun{}, err
 	}
@@ -257,10 +307,10 @@ func cmpErr(err, other error) error {
 	return other
 }
 
-func (s *Service) startScan(ctx context.Context, who Actor, id, noticeVersion string) (string, Target, error) {
+func (s *Service) startScan(ctx context.Context, who Actor, id, noticeVersion string) (string, *scanExec, Target, error) {
 	t, reason, err := s.gate(ctx, who.Email, id)
 	if err != nil {
-		return "", Target{}, fmt.Errorf("exposure: scanning: %w", err)
+		return "", nil, Target{}, fmt.Errorf("exposure: scanning: %w", err)
 	}
 	if reason == BlockedNoCommitment && who.Admin {
 		if err = s.confirmByScan(ctx, who, t, noticeVersion); err == nil {
@@ -268,7 +318,7 @@ func (s *Service) startScan(ctx context.Context, who Actor, id, noticeVersion st
 		}
 		if err != nil {
 			s.auditFailedScan(ctx, who.Email, t, err)
-			return "", t, fmt.Errorf("exposure: scanning %s: %w", t.Value, err)
+			return "", nil, t, fmt.Errorf("exposure: scanning %s: %w", t.Value, err)
 		}
 	}
 	if reason == "" { // INV-31: the shared block is read before anything is sent, for every kind of target
@@ -276,31 +326,37 @@ func (s *Service) startScan(ctx context.Context, who Actor, id, noticeVersion st
 	} else {
 		err = s.refusal(t, reason, s.clock())
 	}
+	var runID string
+	var x *scanExec
 	if err == nil {
-		err = s.queueScan(ctx, who.Email, t)
+		runID, x, err = s.queueScan(ctx, who.Email, t)
 	}
 	if err != nil {
 		s.auditFailedScan(ctx, who.Email, t, err)
-		return "", t, fmt.Errorf("exposure: scanning %s: %w", t.Value, err)
+		return "", nil, t, fmt.Errorf("exposure: scanning %s: %w", t.Value, err)
 	}
-	runID, _ := s.activeRun(ctx, t.ID)
-	return runID, t, nil
+	return runID, x, t, nil
 }
 
 // queueScan creates the run of a scan of t with its exp_scan row, or refuses: no runner or no run manager (501), the module off, a scan
 // of t queued or running (409 busy), the same target within ScanEvery (429).
-func (s *Service) queueScan(ctx context.Context, user string, t Target) error {
+func (s *Service) queueScan(ctx context.Context, user string, t Target) (string, *scanExec, error) {
 	if s.scanRunner() == nil || s.cfg.Runs == nil {
-		return ErrNotImplemented
+		return "", nil, ErrNotImplemented
 	}
 	s.runMu.Lock()
-	off := s.off || s.closed
+	off, syncing, syncAt := s.off || s.closed, s.feedSync, s.feedSyncAt
 	s.runMu.Unlock()
 	if off {
-		return ErrModuleOff
+		return "", nil, ErrModuleOff
+	}
+	if syncing { // OpenVAS's feed update holds the box's one scan slot
+		return "", nil, s.errScanFeedSync(syncAt)
 	}
 	now := s.clock()
-	return s.write(ctx, func(tx *sql.Tx, _ func(string, any)) error {
+	var runID string
+	var x *scanExec
+	err := s.write(ctx, func(tx *sql.Tx, _ func(string, any)) error {
 		if _, live := s.activeRunTx(ctx, tx, t.ID); live {
 			return errScanBusyFor(t.Value)
 		}
@@ -313,7 +369,7 @@ func (s *Service) queueScan(ctx context.Context, user string, t Target) error {
 		if err != nil {
 			return err
 		}
-		runID, err := s.cfg.Runs.CreateTx(ctx, tx, corerun.Spec{Module: ModuleID, Kind: RunKind, Title: "External scan of " + t.Value,
+		runID, err = s.cfg.Runs.CreateTx(ctx, tx, corerun.Spec{Module: ModuleID, Kind: RunKind, Title: "External scan of " + t.Value,
 			Trigger: corerun.Manual, RequestedBy: user, Subject: &corerun.Subject{Kind: "target", ID: t.ID, Label: t.Value}})
 		if err != nil {
 			return err
@@ -321,8 +377,19 @@ func (s *Service) queueScan(ctx context.Context, user string, t Target) error {
 		if _, err := tx.ExecContext(ctx, `INSERT INTO exp_scan (run_id, target_id, mode) VALUES (?, ?, ?)`, runID, t.ID, modeWord(fresh.mode())); err != nil {
 			return fmt.Errorf("recording the scan: %w", err)
 		}
+		x = s.waiter(runID) // before the commit: the run cannot start before it, so a caller that waits never misses its end
+		gated := t
+		s.runMu.Lock()
+		x.gated, x.gatedAt = &gated, now
+		s.runMu.Unlock()
 		return nil
 	})
+	if err != nil && x != nil {
+		s.runMu.Lock()
+		delete(s.execs, runID)
+		s.runMu.Unlock()
+	}
+	return runID, x, err
 }
 
 func errScanBusyFor(value string) *APIError {
@@ -365,7 +432,9 @@ func (s *Service) runScan(ctx context.Context, x *corerun.Exec) (corerun.Result,
 		return corerun.Result{}, errors.New("the target of this scan was deleted")
 	}
 	ex := s.waiter(x.ID())
+	s.runMu.Lock()
 	ex.targetID = targetID
+	s.runMu.Unlock()
 	defer func() {
 		s.runMu.Lock()
 		delete(s.execs, x.ID())
@@ -373,7 +442,9 @@ func (s *Service) runScan(ctx context.Context, x *corerun.Exec) (corerun.Result,
 		close(ex.done)
 	}()
 	res, err := s.execute(ctx, x, ex, user, targetID)
-	ex.err = err
+	if err != nil {
+		ex.err = err
+	}
 	if err != nil && ctx.Err() != nil { // a stop: the run says stopped, not failed
 		return corerun.Result{Status: corerun.Partial}, nil
 	}
@@ -399,12 +470,21 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 	if err := s.waitFeedSync(ctx); err != nil {
 		return corerun.Result{}, err
 	}
-	t, reason, err := s.gate(ctx, user, id)
-	if err == nil && reason != "" {
-		err = s.refusal(t, reason, s.clock())
-	}
-	if err == nil {
-		err = s.checkSafety(ctx, t)
+	var t Target
+	var reason BlockedReason
+	s.runMu.Lock()
+	g, gatedAt := ex.gated, ex.gatedAt
+	s.runMu.Unlock()
+	if g != nil && g.ID == id && s.clock().Sub(gatedAt) < regateAfter {
+		t = *g // the gate and the safety block passed it moments ago, when the scan was asked
+	} else {
+		t, reason, err = s.gate(ctx, user, id)
+		if err == nil && reason != "" {
+			err = s.refusal(t, reason, s.clock())
+		}
+		if err == nil {
+			err = s.checkSafety(ctx, t)
+		}
 	}
 	r := s.scanRunner()
 	if err == nil && r == nil {
@@ -414,7 +494,13 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 		s.auditFailedScan(ctx, user, t, err)
 		return corerun.Result{}, err
 	}
-	ex.mode = t.mode() // the terms as they are now: the scan may have waited in the queue
+	fresh, err := loadTarget(ctx, s.cfg.DB.Reader(), id) // the terms as they are now: withdrawn while it waited, it runs at the lower depth
+	if err != nil {
+		return corerun.Result{}, fmt.Errorf("exposure: reading the testing terms before the scan: %w", err)
+	}
+	s.runMu.Lock()
+	ex.mode = fresh.mode()
+	s.runMu.Unlock()
 	if err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		_, err := tx.ExecContext(ctx, `UPDATE exp_scan SET mode = ? WHERE run_id = ?`, modeWord(ex.mode), x.ID())
 		return err
@@ -428,7 +514,7 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 	content, deep, err := s.engines(ctx, t, user, ex.mode, steps)
 	if err != nil {
 		_ = x.EndStep(context.WithoutCancel(ctx), surface, corerun.Failed, "")
-		s.recordSteps(ctx, x, steps, s.endOf(ctx, x.ID(), err))
+		s.recordSteps(ctx, x, steps, s.endOf(ctx, err))
 		s.auditFailedScan(ctx, user, t, s.stopErr(ctx, x.ID(), err))
 		return corerun.Result{}, s.stopErr(ctx, x.ID(), err)
 	}
@@ -454,7 +540,7 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 		s.auditFailedScan(ctx, user, t, err)
 		return corerun.Result{}, err
 	}
-	ex.content = content
+	ex.content, ex.vulns, ex.gaps, ex.written = wr.final.Content, wr.final.Vulns, wr.final.VersionGaps, true
 	_ = x.Progress(ctx, surface, 1, 1)
 	_ = x.EndStep(ctx, surface, corerun.Done, fmt.Sprintf("%d open services (%d new, %d closed), %d open issues (%d new)",
 		wr.counts.Services, wr.counts.NewServices, wr.counts.ClosedServices, wr.counts.Issues, wr.counts.NewIssues))
@@ -466,10 +552,11 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 			}
 		}
 	}
+	ex.gbRun = GreenboneRun{State: GBRunNotRun}
 	if !gb {
 		return corerun.Result{}, nil
 	}
-	return s.openVASStep(ctx, x, user, t, ex.mode, content, deep, gbIP)
+	return s.openVASStep(ctx, x, ex, user, t, content, deep, gbIP)
 }
 
 // engines runs the runner and the engine steps of a scan and returns what they found.
@@ -564,32 +651,34 @@ func (s *Service) save(ctx context.Context, runID, user string, t Target, c Cont
 	for _, x := range prevOpen {
 		prevPorts = append(prevPorts, PortRow{IP: x.IP, Port: x.Port})
 	}
-	w := scanWrite{target: t, runID: runID, user: user, at: at, c: c, vulns: m.Vulns, first: len(prevOpen) == 0 && len(prevHosts) == 0,
+	w := scanWrite{target: t, runID: runID, user: user, at: at, c: c, vulns: m.Vulns, first: !s.hasRows(wctx, t.ID),
 		how: s.coveredBy(wctx, user, t, c, prevPorts, prevHosts), ran: engineSet{EngineNuclei: steps.ran(StepNuclei), EngineZAP: steps.ran(StepZAP), EngineMatch: ranMatch}}
-	if w.first {
-		w.first = !s.scannedBefore(wctx, t.ID, runID)
-	}
 	var out written
 	err = s.write(wctx, func(tx *sql.Tx, emit func(string, any)) error {
 		var err error
 		if out, err = s.writeScan(wctx, tx, w); err != nil {
 			return err
 		}
-		emit(EventScanWritten, ScanWrittenEvent{TargetID: t.ID, RunID: runID, First: w.first, Counts: out.counts, Opened: nz(out.opened), NewIssues: nz(out.newIssues)})
+		out.final = m
+		emit(EventScanWritten, ScanWrittenEvent{TargetID: t.ID, RunID: runID, At: store.FormatTS(at), First: w.first, Counts: out.counts, Opened: nz(out.opened), NewIssues: nz(out.newIssues)})
 		return nil
 	})
 	return out, err
 }
 
-// scannedBefore says a scan of target id other than runID wrote rows before.
-func (s *Service) scannedBefore(ctx context.Context, id, runID string) bool {
+// hasRows says an earlier scan of target id wrote rows: a name, a service or an issue.
+func (s *Service) hasRows(ctx context.Context, id string) bool {
 	var n int
-	_ = s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT count(*) FROM exp_scan WHERE target_id = ? AND run_id <> ? AND json_extract(summary, '$.counts') IS NOT NULL`, id, runID).Scan(&n)
-	return n > 0
+	_ = s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM exp_service WHERE target_id = ?1) OR EXISTS (SELECT 1 FROM exp_host WHERE target_id = ?1)
+		OR EXISTS (SELECT 1 FROM exp_issue WHERE target_id = ?1)`, id).Scan(&n)
+	return n == 1
 }
 
 // openVASStep runs the OpenVAS step of a scan whose rows are written, as a step of its run, and writes its issues.
-func (s *Service) openVASStep(ctx context.Context, x *corerun.Exec, user string, t Target, mode ScanMode, c Content, deep []deepAddr, ports []int) (corerun.Result, error) {
+func (s *Service) openVASStep(ctx context.Context, x *corerun.Exec, ex *scanExec, user string, t Target, c Content, deep []deepAddr, ports []int) (corerun.Result, error) {
+	mode := ex.mode
+	started := s.clock().Format("2006-01-02T15:04:05.000Z")
+	ex.gbRun = GreenboneRun{State: GBRunRunning, StartedAt: &started}
 	seq, _ := x.AddStep(ctx, stepNameOpenVAS, 0)
 	_ = x.StartStep(ctx, seq)
 	st := s.scanTarget(ctx, t, user, mode)
@@ -615,12 +704,20 @@ func (s *Service) openVASStep(ctx context.Context, x *corerun.Exec, user string,
 		o.state = GBRunFailed // never reached: every outcome names its state
 	}
 	outcome, text := openVASStep(o.state, len(o.rows), o.stop)
+	ended := s.clock().Format("2006-01-02T15:04:05.000Z")
+	ex.gbRun.State, ex.gbRun.Addresses, ex.gbRun.EndedAt = o.state, o.addrs, &ended
+	if o.state == GBRunStopped {
+		ex.gbRun.Stop = o.stop
+	}
 	wctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), saveTimeout)
 	defer cancel()
 	o.rows = sanitizeGreenbone(o.rows)
+	ex.content.Greenbone = append(ex.content.Greenbone, o.rows...)
+	ex.content.Checks = append(ex.content.Checks, o.checks...)
+	ex.content.NotChecked = append(slices.DeleteFunc(ex.content.NotChecked, func(n NotCheckedRow) bool { return n.Kind == "greenbone" && n.Text == gbPending }), o.not...)
 	finished := o.state == GBRunDone || o.state == GBRunPartial || o.state == GBRunEnded
 	werr := s.write(wctx, func(tx *sql.Tx, _ func(string, any)) error {
-		if _, err := s.writeOpenVAS(wctx, tx, t, x.ID(), s.clock(), o, finished); err != nil {
+		if err := s.writeOpenVAS(wctx, tx, t, x.ID(), s.clock(), o, finished); err != nil {
 			return err
 		}
 		return s.audit(wctx, tx, user, "exposure.greenbone_scan", t.Value, clipText(o.audit, 500))
@@ -632,8 +729,9 @@ func (s *Service) openVASStep(ctx context.Context, x *corerun.Exec, user string,
 	if s, ok := stepStatus[outcome]; ok {
 		st2 = s
 	}
-	_ = x.EndStep(wctx, seq, st2, clipText(text, 500))
+	_ = x.EndStep(wctx, seq, st2, clipText("External scan of "+t.Value+": "+text, 500))
 	if err != nil || ctx.Err() != nil {
+		ex.err = s.stopErr(ctx, x.ID(), err)
 		return corerun.Result{Status: corerun.Partial, Error: "OpenVAS did not finish"}, nil
 	}
 	return corerun.Result{}, nil
@@ -672,7 +770,7 @@ func (s *Service) stopErr(ctx context.Context, id string, err error) error {
 }
 
 // endOf is how a run that ended with err ended, for its steps.
-func (s *Service) endOf(ctx context.Context, id string, err error) int {
+func (s *Service) endOf(ctx context.Context, err error) int {
 	switch {
 	case ctx.Err() != nil:
 		return runStopped
@@ -762,9 +860,7 @@ func (s *Service) scanView(ctx context.Context, runID string) (ScanView, error) 
 }
 
 // CurrentScan is GET /exposure/scan: the scan that runs now, else the first that waits, else the newest one; nil when there is none.
-func (s *Service) CurrentScan() *ScanRun {
-	ctx, cancel := context.WithTimeout(s.bg, saveTimeout)
-	defer cancel()
+func (s *Service) CurrentScan(ctx context.Context) *ScanRun {
 	var id string
 	err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT r.id FROM exp_scan x JOIN core_run r ON r.id = x.run_id
 		ORDER BY CASE WHEN r.status IN ('running', 'stopping') THEN 0 WHEN r.status IN ('queued', 'waiting') THEN 1 ELSE 2 END,
@@ -876,7 +972,7 @@ func (s *Service) EngineRuns(ctx context.Context) (map[string]EngineRun, error) 
 		var status string
 		var note sql.NullString
 		err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT r.id, coalesce(r.subject_label, ''), st.ended_at, st.status, st.note FROM core_run_step st
-			JOIN core_run r ON r.id = st.run_id WHERE r.module = ? AND r.kind = ? AND st.name = ? AND st.ended_at IS NOT NULL
+			JOIN core_run r ON r.id = st.run_id JOIN exp_scan x ON x.run_id = r.id WHERE r.module = ? AND r.kind = ? AND st.name = ? AND st.ended_at IS NOT NULL
 			ORDER BY st.ended_at DESC LIMIT 1`, ModuleID, RunKind, stepNames[engine]).Scan(&r.RunID, &r.Target, &r.At, &status, &note)
 		if errors.Is(err, sql.ErrNoRows) {
 			continue

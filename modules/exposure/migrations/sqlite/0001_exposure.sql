@@ -13,7 +13,7 @@ CREATE TABLE exp_target (
     -- person: typed in; box: a public IP the box found as its own egress address; discovered: a name found under a domain target
     origin       TEXT    NOT NULL CHECK (origin IN ('person', 'box', 'discovered')),
     -- domains: self scans only this name, all this name and every name found under it, selected this name and the chosen names
-    scope_mode   TEXT    CHECK ((kind = 'ip' AND scope_mode IS NULL) OR (kind = 'domain' AND scope_mode IN ('self', 'all', 'selected'))),
+    scope_mode   TEXT    CHECK ((kind = 'ip' AND scope_mode IS NULL) OR (kind = 'domain' AND scope_mode IS NOT NULL AND scope_mode IN ('self', 'all', 'selected'))),
     enabled      INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
     method       TEXT    CHECK (method IS NULL OR (kind = 'domain' AND method = 'dns_txt') OR (kind = 'ip' AND method = 'box_egress')),
     -- domain: the value in the TXT record vedette-verify=<token> (public in DNS); IP: ''

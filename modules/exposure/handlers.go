@@ -224,8 +224,8 @@ func (h *ExposureHandlers) ExposureDeleteExposureTargetsIDTerms(ctx context.Cont
 }
 
 // ExposureGetExposureScan implements exposure_get_exposure_scan (viewer): the run that runs now or the last one, null before the first.
-func (h *ExposureHandlers) ExposureGetExposureScan(_ context.Context) (oas.NilExposureGetExposureScanOK, error) {
-	run := h.svc.CurrentScan()
+func (h *ExposureHandlers) ExposureGetExposureScan(ctx context.Context) (oas.NilExposureGetExposureScanOK, error) {
+	run := h.svc.CurrentScan(ctx)
 	if run == nil {
 		return oas.NilExposureGetExposureScanOK{Null: true}, nil
 	}

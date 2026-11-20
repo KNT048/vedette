@@ -111,7 +111,7 @@ func (s *stack) do(method, path, user, body string) (int, map[string]any) {
 func (s *stack) kev(cve, vendor, product string) {
 	s.t.Helper()
 	err := s.d.DB.Write(s.t.Context(), func(tx *sql.Tx) error {
-		return seedKEVRow(s.t.Context(), tx, cve, vendor, product, vendor+" "+product+" flaw", time.Now().UTC(), false, true, "cisa-kev")
+		return seedKEVRow(s.t.Context(), tx, cve, vendor, product, vendor+" "+product+" flaw", time.Now().UTC(), false, true)
 	})
 	if err != nil {
 		s.t.Fatal(err)

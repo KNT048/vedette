@@ -96,7 +96,7 @@ func TestHeldNotes_EmptyAndFilled(t *testing.T) {
 		t.Errorf("one CVE read: %q, want %q", got, want)
 	}
 	write(t, e.db, func(tx *sql.Tx) error {
-		_, _, err := applyAffected(t.Context(), tx, map[string][]AffectedRow{"CVE-2026-0001": {{CPE: "cpe:2.3:o:acme:gateway:*:*:*:*:*:*:*:*", EndExcl: "2.0"}}}, false, epoch0)
+		_, err := applyAffected(t.Context(), tx, map[string][]AffectedRow{"CVE-2026-0001": {{CPE: "cpe:2.3:o:acme:gateway:*:*:*:*:*:*:*:*", EndExcl: "2.0"}}}, false, epoch0)
 		return err
 	})
 	if got, want := held(cveOrgFeedID), "Read only for exploited CVEs NVD gives no affected versions for, and NVD gives them for every one now."; got != want {
@@ -110,7 +110,7 @@ func fillHeld(t *testing.T, db *store.DB) {
 	t.Helper()
 	applyV(t, db, epoch0, "cisa-kev", []Vuln{vuln("CVE-2026-0001", "Acme", "Gateway", "2026-11-01"), vuln("CVE-2026-0002", "Acme", "Portal", "2026-11-02")}, false)
 	write(t, db, func(tx *sql.Tx) error {
-		if _, _, err := applyAffected(t.Context(), tx, map[string][]AffectedRow{"CVE-2026-0002": {{CPE: "cpe:2.3:a:acme:portal:*:*:*:*:*:*:*:*", EndExcl: "3.0"}}}, false, epoch0); err != nil {
+		if _, err := applyAffected(t.Context(), tx, map[string][]AffectedRow{"CVE-2026-0002": {{CPE: "cpe:2.3:a:acme:portal:*:*:*:*:*:*:*:*", EndExcl: "3.0"}}}, false, epoch0); err != nil {
 			return err
 		}
 		for _, id := range []string{ubuntuOSVFeedID, ubuntuVEXFeedID, debianTrackerFeedID, alpineOSVFeedID} {
@@ -227,7 +227,7 @@ func TestHeldNotes_FollowTheData(t *testing.T) {
 			return err
 		}, map[string]string{cveOrgFeedID: "3 exploited CVEs have no affected versions from NVD; 3 not read from CVE.org yet."}},
 		{"NVD gives versions for another CVE", nvdFeedID, func(tx *sql.Tx) error {
-			_, _, err := applyAffected(t.Context(), tx, map[string][]AffectedRow{"CVE-2026-0001": {{CPE: "cpe:2.3:a:acme:gateway:*:*:*:*:*:*:*:*", EndExcl: "2.0"}}}, false, epoch0)
+			_, err := applyAffected(t.Context(), tx, map[string][]AffectedRow{"CVE-2026-0001": {{CPE: "cpe:2.3:a:acme:gateway:*:*:*:*:*:*:*:*", EndExcl: "2.0"}}}, false, epoch0)
 			return err
 		}, map[string]string{
 			nvdFeedID:    "NVD records of 2 exploited CVEs; 2 of them name affected versions.",

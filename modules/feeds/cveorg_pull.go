@@ -239,7 +239,7 @@ func applyCVEOrg(ctx context.Context, tx *sql.Tx, got map[string]CVEOrgResult, c
 		for _, r := range res.Rows {
 			part, vendor, product := cpeParts(r.CPE)
 			if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_cve_range (cve, origin, part, vendor, product, cpe, start_incl, start_excl, end_incl, end_excl)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, cve, to, part, clipBytes(vendor, maxVendorProduct), clipBytes(product, maxVendorProduct), r.CPE, r.StartIncl, r.StartExcl, r.EndIncl, r.EndExcl); err != nil {
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, cve, to, part, clipBytes(vendor), clipBytes(product), r.CPE, r.StartIncl, r.StartExcl, r.EndIncl, r.EndExcl); err != nil {
 				return nil, false, 0, fmt.Errorf("feeds: CVE.org: %w", err)
 			}
 		}

@@ -15,9 +15,9 @@ import (
 
 // applyAffected writes NVD answers of these CVEs into the catalogue as an NVD pull does (writeNVDRecords), whatever their age: the
 // NVD ranges of each CVE are replaced by its rows (none: NVD answered without a vulnerable entry); the CVE's dates stay as stored. It
-// returns the CVEs whose NVD ranges changed and how many CVEs have NVD's answer afterwards. The full flag of the old store is
+// returns the CVEs whose NVD ranges changed. The full flag of the old store is
 // ignored: the catalogue never drops a CVE because one NVD pull did not return it.
-func applyAffected(ctx context.Context, tx *sql.Tx, got map[string][]AffectedRow, _ bool, now time.Time) (changed []string, total int, err error) {
+func applyAffected(ctx context.Context, tx *sql.Tx, got map[string][]AffectedRow, _ bool, now time.Time) (changed []string, err error) {
 	recs := make([]NVDRecord, 0, len(got))
 	for _, cve := range slices.Sorted(maps.Keys(got)) {
 		rows := got[cve]
@@ -27,22 +27,19 @@ func applyAffected(ctx context.Context, tx *sql.Tx, got map[string][]AffectedRow
 		r := NVDRecord{CVE: cve, Status: "Analyzed", Affected: rows}
 		var known bool
 		if err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM feeds_cve WHERE cve = ? AND nvd_at IS NOT NULL)`, cve).Scan(&known); err != nil {
-			return nil, 0, err
+			return nil, err
 		}
 		same, err := sameNVDRanges(ctx, tx, r)
 		if err != nil {
-			return nil, 0, err
+			return nil, err
 		}
 		if !same || !known {
 			changed = append(changed, cve)
 		}
 		recs = append(recs, r)
 	}
-	if _, err := writeNVDRecords(ctx, tx, recs, retention{all: true}, now); err != nil {
-		return nil, 0, err
-	}
-	err = tx.QueryRowContext(ctx, `SELECT count(*) FROM feeds_cve WHERE nvd_at IS NOT NULL`).Scan(&total)
-	return changed, total, err
+	_, err = writeNVDRecords(ctx, tx, recs, retention{all: true}, now)
+	return changed, err
 }
 
 // applyPublished sets the published day NVD gives these CVEs (a catalogue row is made when there is none).
@@ -90,12 +87,13 @@ func templateList(cves ...string) []Template {
 }
 
 // storeRecords writes NVD records into the catalogue with the retention rule of now.
-func storeRecords(ctx context.Context, tx *sql.Tx, recs []NVDRecord, now time.Time) (nvdWrite, error) {
+func storeRecords(ctx context.Context, tx *sql.Tx, recs []NVDRecord, now time.Time) error {
 	ret, err := retentionOf(ctx, tx, now, nil)
 	if err != nil {
-		return nvdWrite{}, err
+		return err
 	}
-	return writeNVDRecords(ctx, tx, recs, ret, now)
+	_, err = writeNVDRecords(ctx, tx, recs, ret, now)
+	return err
 }
 
 // epssDayForTests is FIRST's day of the scores applyEPSS stores; the "week ago" scores are of seven days before it.

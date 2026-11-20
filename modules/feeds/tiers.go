@@ -238,7 +238,12 @@ func (s *Store) TierRecords(ctx context.Context, now time.Time, keep func(cpe st
 	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
 		return nil, fmt.Errorf("feeds: tier products: %w", err)
 	}
-	want := slices.SortedFunc(maps.Keys(pairs), func(a, b [2]string) int { return strings.Compare(a[0]+"|"+a[1], b[0]+"|"+b[1]) })
+	want := slices.SortedFunc(maps.Keys(pairs), func(a, b [2]string) int {
+		if c := strings.Compare(a[0], b[0]); c != 0 {
+			return c
+		}
+		return strings.Compare(a[1], b[1])
+	})
 	cutoff := store.FormatTS(now.AddDate(0, 0, -recentDays))
 	epssOn := st.EPSS == TierReady
 	at := map[string]int{}

@@ -27,13 +27,13 @@ func TestWiringLLDPJunosSwitchGetsItsFindings(t *testing.T) {
 		{"CVE-2023-36846", "Juniper Junos OS SRX Series Missing Authentication for Critical Function Vulnerability"},
 	} {
 		if err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
-			if err := seedKEVRow(ctx, tx, v.cve, "Juniper", "Junos OS", v.name, time.Date(2023, 11, 13, 0, 0, 0, 0, time.UTC), false, false, "cisa-kev"); err != nil {
+			if err := seedKEVRow(ctx, tx, v.cve, "Juniper", "Junos OS", v.name, time.Date(2023, 11, 13, 0, 0, 0, 0, time.UTC), false, false); err != nil {
 				return err
 			}
-			if err := seedNVD(ctx, tx, v.cve, now.AddDate(-3, 0, 0), "Analyzed", 0); err != nil {
+			if err := seedNVD(ctx, tx, v.cve, now.AddDate(-3, 0, 0), 0); err != nil {
 				return err
 			}
-			return seedRange(ctx, tx, v.cve, "cpe:2.3:o:juniper:junos:*:*:*:*:*:*:*:*", "", "", "", "20.4", "")
+			return seedRange(ctx, tx, v.cve, "cpe:2.3:o:juniper:junos:*:*:*:*:*:*:*:*", "", "", "", "20.4")
 		}); err != nil {
 			t.Fatal(err)
 		}
@@ -123,13 +123,13 @@ func junosSwitch(t *testing.T) (s *stack, cves []string, lldp func()) {
 	cves = []string{"CVE-2023-36844", "CVE-2023-36845", "CVE-2023-36847", "CVE-2023-36851", "CVE-2024-21591"}
 	for _, cve := range cves {
 		if err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
-			if err := seedKEVRow(ctx, tx, cve, "Juniper", "Junos OS", "Juniper Junos OS EX Series Vulnerability", time.Date(2023, 11, 13, 0, 0, 0, 0, time.UTC), false, false, "cisa-kev"); err != nil {
+			if err := seedKEVRow(ctx, tx, cve, "Juniper", "Junos OS", "Juniper Junos OS EX Series Vulnerability", time.Date(2023, 11, 13, 0, 0, 0, 0, time.UTC), false, false); err != nil {
 				return err
 			}
-			if err := seedNVD(ctx, tx, cve, now.AddDate(-3, 0, 0), "Analyzed", 0); err != nil {
+			if err := seedNVD(ctx, tx, cve, now.AddDate(-3, 0, 0), 0); err != nil {
 				return err
 			}
-			return seedRange(ctx, tx, cve, "cpe:2.3:o:juniper:junos:*:*:*:*:*:*:*:*", "", "", "", "20.4", "")
+			return seedRange(ctx, tx, cve, "cpe:2.3:o:juniper:junos:*:*:*:*:*:*:*:*", "", "", "", "20.4")
 		}); err != nil {
 			t.Fatal(err)
 		}
@@ -241,10 +241,10 @@ func TestWiringVulnsCarryTemplateAndPublished(t *testing.T) {
 	s := newStack(t)
 	ctx := t.Context()
 	if err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
-		if err := seedKEVRow(ctx, tx, "CVE-2017-0144", "Microsoft", "SMBv1", "EternalBlue", time.Date(2022, 2, 10, 0, 0, 0, 0, time.UTC), true, true, "cisa-kev"); err != nil {
+		if err := seedKEVRow(ctx, tx, "CVE-2017-0144", "Microsoft", "SMBv1", "EternalBlue", time.Date(2022, 2, 10, 0, 0, 0, 0, time.UTC), true, true); err != nil {
 			return err
 		}
-		if err := seedKEVRow(ctx, tx, "CVE-2018-13379", "Fortinet", "FortiOS", "SSL VPN", time.Date(2021, 11, 3, 0, 0, 0, 0, time.UTC), false, false, "cisa-kev"); err != nil {
+		if err := seedKEVRow(ctx, tx, "CVE-2018-13379", "Fortinet", "FortiOS", "SSL VPN", time.Date(2021, 11, 3, 0, 0, 0, 0, time.UTC), false, false); err != nil {
 			return err
 		}
 		_, err := tx.ExecContext(ctx, `UPDATE feeds_cve SET published = '2017-03-17T00:00:00.000Z' WHERE cve = 'CVE-2017-0144'`)
@@ -282,10 +282,10 @@ func TestWiringSafeCheckIsTheScansPack(t *testing.T) {
 	s := newStack(t)
 	ctx := t.Context()
 	if err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
-		if err := seedKEVRow(ctx, tx, "CVE-2017-0144", "Microsoft", "SMBv1", "EternalBlue", time.Date(2022, 2, 10, 0, 0, 0, 0, time.UTC), true, true, "cisa-kev"); err != nil {
+		if err := seedKEVRow(ctx, tx, "CVE-2017-0144", "Microsoft", "SMBv1", "EternalBlue", time.Date(2022, 2, 10, 0, 0, 0, 0, time.UTC), true, true); err != nil {
 			return err
 		}
-		return seedKEVRow(ctx, tx, "CVE-2018-13379", "Fortinet", "FortiOS", "SSL VPN", time.Date(2021, 11, 3, 0, 0, 0, 0, time.UTC), false, false, "cisa-kev")
+		return seedKEVRow(ctx, tx, "CVE-2018-13379", "Fortinet", "FortiOS", "SSL VPN", time.Date(2021, 11, 3, 0, 0, 0, 0, time.UTC), false, false)
 	}); err != nil {
 		t.Fatal(err)
 	}

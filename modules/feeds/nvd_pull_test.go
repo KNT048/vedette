@@ -363,7 +363,7 @@ func TestNVDPull_ReviewLows(t *testing.T) {
 		for _, got := range []map[string][]AffectedRow{{"CVE-2024-0001": row, "CVE-2024-0002": row}, {"CVE-2024-0001": row}} {
 			if err := e.db.Write(t.Context(), func(tx *sql.Tx) error {
 				var err error
-				changed, _, err = applyAffected(t.Context(), tx, got, true, e.clock())
+				changed, err = applyAffected(t.Context(), tx, got, true, e.clock())
 				return err
 			}); err != nil {
 				t.Fatal(err)

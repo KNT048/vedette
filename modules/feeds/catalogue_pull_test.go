@@ -207,7 +207,9 @@ func TestEPSSAllPull_WritesTheHistoryOfListedAndSignalledCVEs(t *testing.T) {
 	if err != nil || !ok || v.EPSS == nil || *v.EPSS != 0.65 || v.EPSS7dAgo == nil || *v.EPSS7dAgo != 0.30 {
 		t.Fatalf("today's and a week ago's score: %+v %v", v, err)
 	}
-	write(t, e.db, func(tx *sql.Tx) error { return pruneCatalogue(t.Context(), tx, time.Date(2026, 11, 16, 0, 0, 0, 0, time.UTC), nil) })
+	write(t, e.db, func(tx *sql.Tx) error {
+		return pruneCatalogue(t.Context(), tx, time.Date(2026, 11, 16, 0, 0, 0, 0, time.UTC), nil)
+	})
 	if got := count(t, e.db, `SELECT count(*) FROM feeds_epss_hist WHERE day = '2026-11-07'`); got != 0 {
 		t.Fatalf("history older than %d days kept: %d", epssHistKeep, got)
 	}

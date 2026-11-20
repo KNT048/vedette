@@ -33,12 +33,12 @@ func TestSQLServerVersionLeavesNeedsYourInput(t *testing.T) {
 	}
 	err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
 		for _, cve := range []string{"CVE-2019-1068", "CVE-2020-0618"} {
-			if err := seedNVD(ctx, tx, cve, time.Time{}, "Analyzed", 0); err != nil {
+			if err := seedNVD(ctx, tx, cve, time.Time{}, 0); err != nil {
 				return err
 			}
 		}
 		for _, a := range affected {
-			if err := seedRange(ctx, tx, a[0], a[1], a[2], a[3], a[4], a[5], ""); err != nil {
+			if err := seedRange(ctx, tx, a[0], a[1], a[2], a[3], a[4], a[5]); err != nil {
 				return err
 			}
 		}

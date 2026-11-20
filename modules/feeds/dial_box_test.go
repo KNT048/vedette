@@ -193,25 +193,6 @@ func rejectsOf(rs []Reason) []Reject {
 	return out
 }
 
-func jsonQuote(s string) string {
-	var b strings.Builder
-	b.WriteByte('"')
-	for _, r := range s {
-		switch {
-		case r == '\n':
-			b.WriteString(`\n`)
-		case r == '\r':
-			b.WriteString(`\r`)
-		case r < 0x20:
-			b.WriteString(`\u0000`)
-		default:
-			b.WriteRune(r)
-		}
-	}
-	b.WriteByte('"')
-	return b.String()
-}
-
 func deref(p *string) string {
 	if p == nil {
 		return "<nil>"

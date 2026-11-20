@@ -161,7 +161,7 @@ VALUES (?, 'nvd', ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 				return out, err
 			}
 			part, vendor, product := cpeParts(a.CPE)
-			if _, err := insRange.ExecContext(ctx, r.CVE, part, clipBytes(vendor, maxVendorProduct), clipBytes(product, maxVendorProduct), a.CPE,
+			if _, err := insRange.ExecContext(ctx, r.CVE, part, clipBytes(vendor), clipBytes(product), a.CPE,
 				a.StartIncl, a.StartExcl, a.EndIncl, a.EndExcl, string(pj)); err != nil {
 				return out, fmt.Errorf("feeds: catalogue %s: %w", r.CVE, err)
 			}
@@ -178,8 +178,9 @@ func tsOrNull(t time.Time) any {
 	return store.FormatTS(t)
 }
 
-// clipBytes cuts s to at most n bytes at a rune boundary.
-func clipBytes(s string, n int) string {
+// clipBytes cuts s to at most maxVendorProduct bytes at a rune boundary (a CPE vendor or product kept in a range row).
+func clipBytes(s string) string {
+	n := maxVendorProduct
 	if len(s) <= n {
 		return s
 	}

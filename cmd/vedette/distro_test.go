@@ -295,7 +295,7 @@ func TestAlpineNotLoadedKeepsTheQuestionAndWakesThePull(t *testing.T) {
 		if _, err := tx.ExecContext(ctx, `UPDATE feeds_cve SET nvd_at = ?2, nvd_status = 'Analyzed' WHERE cve = ?1`, cve, now); err != nil {
 			return err
 		}
-		return seedRange(ctx, tx, cve, "cpe:2.3:a:openbsd:openssh:*:*:*:*:*:*:*:*", "", "", "", "10.6", "")
+		return seedRange(ctx, tx, cve, "cpe:2.3:a:openbsd:openssh:*:*:*:*:*:*:*:*", "", "", "", "10.6")
 	})
 	if err != nil {
 		t.Fatal(err)

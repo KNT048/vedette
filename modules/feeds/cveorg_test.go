@@ -189,7 +189,7 @@ func cveOrgEnv(t *testing.T) (*env, *origin, *[]RangesUpdatedEvent) {
 		vuln("CVE-2026-0005", "Acme", "Router", "2026-11-03"),
 	}, false)
 	write(t, e.db, func(tx *sql.Tx) error {
-		_, _, err := applyAffected(t.Context(), tx, map[string][]AffectedRow{"CVE-2026-0005": {{CPE: "cpe:2.3:o:acme:router:*:*:*:*:*:*:*:*", EndExcl: "4.0"}}}, false, epoch0)
+		_, err := applyAffected(t.Context(), tx, map[string][]AffectedRow{"CVE-2026-0005": {{CPE: "cpe:2.3:o:acme:router:*:*:*:*:*:*:*:*", EndExcl: "4.0"}}}, false, epoch0)
 		return err
 	})
 	o.serve("/cves/2024/3xxx/CVE-2024-3400.json", func(w http.ResponseWriter, _ *http.Request) {
@@ -257,7 +257,7 @@ func TestContract_CVEOrgRanges(t *testing.T) {
 
 	// NVD answers without a vulnerable entry: CVE.org's ranges stay; with ranges: NVD's replace them
 	write(t, e.db, func(tx *sql.Tx) error {
-		_, _, err := applyAffected(t.Context(), tx, map[string][]AffectedRow{"CVE-2024-3400": {}}, false, epoch0)
+		_, err := applyAffected(t.Context(), tx, map[string][]AffectedRow{"CVE-2024-3400": {}}, false, epoch0)
 		return err
 	})
 	if src, _ := e.svc.st.RangesFromCVEOrg(t.Context()); src["CVE-2024-3400"] != "cve.org" {
@@ -266,7 +266,7 @@ func TestContract_CVEOrgRanges(t *testing.T) {
 	nvd := []AffectedRow{{CPE: "cpe:2.3:o:paloaltonetworks:pan-os:*:*:*:*:*:*:*:*", StartIncl: "10.2.0", EndExcl: "10.2.9"}}
 	var changed []string
 	write(t, e.db, func(tx *sql.Tx) (err error) {
-		changed, _, err = applyAffected(t.Context(), tx, map[string][]AffectedRow{"CVE-2024-3400": nvd, "CVE-2026-0005": {{CPE: "cpe:2.3:o:acme:router:*:*:*:*:*:*:*:*", EndExcl: "4.0"}}}, true, epoch0)
+		changed, err = applyAffected(t.Context(), tx, map[string][]AffectedRow{"CVE-2024-3400": nvd, "CVE-2026-0005": {{CPE: "cpe:2.3:o:acme:router:*:*:*:*:*:*:*:*", EndExcl: "4.0"}}}, true, epoch0)
 		return err
 	})
 	aff, _ = e.svc.st.KevAffected(t.Context())
@@ -368,7 +368,7 @@ func TestCVEOrgPublishedDay(t *testing.T) {
 		t.Fatalf("CVE.org days: %q %q", day("CVE-2024-3400"), day("CVE-2026-0001"))
 	}
 	write(t, e.db, func(tx *sql.Tx) error { // NVD's record gives another day: it replaces CVE.org's
-		_, err := storeRecords(t.Context(), tx, []NVDRecord{{CVE: "CVE-2024-3400", Published: time.Date(2024, 4, 11, 5, 0, 0, 0, time.UTC),
+		err := storeRecords(t.Context(), tx, []NVDRecord{{CVE: "CVE-2024-3400", Published: time.Date(2024, 4, 11, 5, 0, 0, 0, time.UTC),
 			LastModified: epoch0, Status: "Analyzed", Affected: []AffectedRow{}}}, e.clock())
 		return err
 	})

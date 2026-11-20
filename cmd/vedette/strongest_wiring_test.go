@@ -29,19 +29,19 @@ func sshFeeds(t *testing.T, s *stack) {
 	ctx := t.Context()
 	now := time.Now().UTC()
 	err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
-		if err := seedKEVRow(ctx, tx, sshKEVCVE, "OpenBSD", "OpenSSH", "OpenBSD OpenSSH flaw", now.AddDate(0, 0, -11), false, false, "cisa-kev"); err != nil {
+		if err := seedKEVRow(ctx, tx, sshKEVCVE, "OpenBSD", "OpenSSH", "OpenBSD OpenSSH flaw", now.AddDate(0, 0, -11), false, false); err != nil {
 			return err
 		}
-		if err := seedNVD(ctx, tx, sshKEVCVE, now.AddDate(-1, 0, 0), "Analyzed", 0); err != nil {
+		if err := seedNVD(ctx, tx, sshKEVCVE, now.AddDate(-1, 0, 0), 0); err != nil {
 			return err
 		}
-		if err := seedRange(ctx, tx, sshKEVCVE, "cpe:2.3:a:openbsd:openssh:*:*:*:*:*:*:*:*", "", "", "", "10.6", ""); err != nil {
+		if err := seedRange(ctx, tx, sshKEVCVE, "cpe:2.3:a:openbsd:openssh:*:*:*:*:*:*:*:*", "", "", "", "10.6"); err != nil {
 			return err
 		}
-		if err := seedNVD(ctx, tx, sshTierCVE, now.AddDate(0, 0, -30), "Analyzed", 8.1); err != nil {
+		if err := seedNVD(ctx, tx, sshTierCVE, now.AddDate(0, 0, -30), 8.1); err != nil {
 			return err
 		}
-		if err := seedRange(ctx, tx, sshTierCVE, "cpe:2.3:a:openbsd:openssh:*:*:*:*:*:*:*:*", "", "", "", "10.6", ""); err != nil {
+		if err := seedRange(ctx, tx, sshTierCVE, "cpe:2.3:a:openbsd:openssh:*:*:*:*:*:*:*:*", "", "", "", "10.6"); err != nil {
 			return err
 		}
 		if err := seedRecentDone(ctx, tx, now); err != nil {

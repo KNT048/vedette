@@ -268,7 +268,7 @@ func TestTierRecords_PlatformsAndChunks(t *testing.T) {
 	if err != nil || len(d.Records) != 1 || len(d.Records[0].Platforms) != 2 || !slices.Equal(d.Records[0].Platforms[0], []string{"microsoft:windows"}) || d.Records[0].Platforms[1] != nil {
 		t.Fatalf("parse: %+v %v", d, err)
 	}
-	write(t, e.db, func(tx *sql.Tx) error { _, err := storeRecords(t.Context(), tx, d.Records, now); return err })
+	write(t, e.db, func(tx *sql.Tx) error { return storeRecords(t.Context(), tx, d.Records, now) })
 	got, err := e.svc.st.TierRecords(t.Context(), now, func(cpe string) bool { return strings.Contains(cpe, ":f5:") })
 	if err != nil {
 		t.Fatal(err)

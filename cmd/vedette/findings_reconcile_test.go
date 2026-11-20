@@ -47,7 +47,7 @@ func TestFindingsReconcileJobAndDeviceList(t *testing.T) {
 func (s *stack) kevAdded(cve, vendor, product string, added time.Time) {
 	s.t.Helper()
 	err := s.d.DB.Write(s.t.Context(), func(tx *sql.Tx) error {
-		return seedKEVRow(s.t.Context(), tx, cve, vendor, product, vendor+" "+product+" flaw", added, false, true, "cisa-kev")
+		return seedKEVRow(s.t.Context(), tx, cve, vendor, product, vendor+" "+product+" flaw", added, false, true)
 	})
 	if err != nil {
 		s.t.Fatal(err)

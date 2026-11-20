@@ -11,14 +11,11 @@ import (
 
 // The feeds catalogue as the pulls store it, for the wiring tests that need a known exploited list and NVD answer.
 
-// seedKEVRow writes an exploited-list entry: the catalogue row, the list entry (source cisa-kev or vulncheck-kev), its exploited
-// signal, and nuclei's public-exploit signal when template.
-func seedKEVRow(ctx context.Context, tx *sql.Tx, cve, vendor, product, name string, added time.Time, ransomware, template bool, source string) error {
+// seedKEVRow writes a CISA-list entry: the catalogue row, the list entry, its exploited signal, and nuclei's public-exploit signal
+// when template.
+func seedKEVRow(ctx context.Context, tx *sql.Tx, cve, vendor, product, name string, added time.Time, ransomware, template bool) error {
+	const list, source = "cisa", "cisa-kev"
 	now := store.FormatTS(time.Now().UTC())
-	list := "cisa"
-	if source == "vulncheck-kev" {
-		list = "vulncheck"
-	}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_cve (cve, updated_at) VALUES (?, ?) ON CONFLICT(cve) DO NOTHING`, cve, now); err != nil {
 		return err
 	}
@@ -39,9 +36,10 @@ func seedKEVRow(ctx context.Context, tx *sql.Tx, cve, vendor, product, name stri
 	return err
 }
 
-// seedNVD records NVD's answer for cve (a catalogue row is made when there is none): its published time (zero leaves it as stored),
-// its status and, when score > 0, NVD's CVSS 3.1 score.
-func seedNVD(ctx context.Context, tx *sql.Tx, cve string, published time.Time, status string, score float64) error {
+// seedNVD records NVD's answer for cve, status Analyzed (a catalogue row is made when there is none): its published time (zero leaves
+// it as stored) and, when score > 0, NVD's CVSS 3.1 score.
+func seedNVD(ctx context.Context, tx *sql.Tx, cve string, published time.Time, score float64) error {
+	const status = "Analyzed"
 	now := store.FormatTS(time.Now().UTC())
 	var pub any
 	if !published.IsZero() {
@@ -60,14 +58,12 @@ ON CONFLICT(cve, source, version) DO UPDATE SET score = excluded.score`, cve, sc
 	return err
 }
 
-// seedRange writes one NVD range of cve (its catalogue row must exist); platforms is NVD's "running on" list as JSON ("" for none).
-func seedRange(ctx context.Context, tx *sql.Tx, cve, cpe, startIncl, startExcl, endIncl, endExcl, platforms string) error {
+// seedRange writes one NVD range of cve with no "running on" condition (its catalogue row must exist).
+func seedRange(ctx context.Context, tx *sql.Tx, cve, cpe, startIncl, startExcl, endIncl, endExcl string) error {
+	const platforms = "[]"
 	f := strings.SplitN(strings.TrimPrefix(cpe, "cpe:2.3:"), ":", 4)
 	for len(f) < 3 {
 		f = append(f, "")
-	}
-	if platforms == "" {
-		platforms = "[]"
 	}
 	_, err := tx.ExecContext(ctx, `INSERT INTO feeds_cve_range (cve, origin, part, vendor, product, cpe, start_incl, start_excl, end_incl, end_excl, platforms)
 VALUES (?, 'nvd', ?, ?, ?, ?, ?, ?, ?, ?, ?)`, cve, f[0], strings.ToLower(f[1]), strings.ToLower(f[2]), cpe, startIncl, startExcl, endIncl, endExcl, platforms)

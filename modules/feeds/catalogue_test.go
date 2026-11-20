@@ -59,7 +59,7 @@ func TestCount_OneCatalogueFamily(t *testing.T) {
 	}
 	// both pulls, in both orders (the recent records carry configurations; a CVE of both keeps the last pull's ranges once)
 	both := slices.Concat(recentPage.Records, kevPage.Records, recentPage.Records)
-	write(t, db, func(tx *sql.Tx) error { _, err := storeRecords(t.Context(), tx, both, sampleDay); return err })
+	write(t, db, func(tx *sql.Tx) error { return storeRecords(t.Context(), tx, both, sampleDay) })
 	after := count(t, db, `SELECT count(*) FROM (SELECT cve FROM feeds_cve GROUP BY cve HAVING count(*) > 1)`)
 	dupRanges := count(t, db, `SELECT count(*) FROM (SELECT cve, cpe, start_incl, start_excl, end_incl, end_excl FROM feeds_cve_range
 GROUP BY cve, origin, cpe, start_incl, start_excl, end_incl, end_excl HAVING count(*) > 1)`)
@@ -341,7 +341,7 @@ func TestRetention_KeepsWindowListsSignalsAndPins(t *testing.T) {
 	}
 	// NVD rejects the listed CVE: it keeps its row (the list holds it) with the status and no ranges
 	write(t, db, func(tx *sql.Tx) error {
-		_, err := storeRecords(t.Context(), tx, []NVDRecord{rec("CVE-2023-0001", old, "Rejected")}, now)
+		err := storeRecords(t.Context(), tx, []NVDRecord{rec("CVE-2023-0001", old, "Rejected")}, now)
 		return err
 	})
 	if n := count(t, db, `SELECT count(*) FROM feeds_cve_range WHERE cve = 'CVE-2023-0001'`); n != 0 || count(t, db, `SELECT count(*) FROM feeds_cve WHERE cve = 'CVE-2023-0001' AND nvd_status = 'Rejected'`) != 1 {
@@ -360,7 +360,7 @@ func TestCatalogue_RangesSignalsAndEntries(t *testing.T) {
 	now := epoch0
 	applyV(t, db, now, "cisa-kev", []Vuln{vuln("CVE-2026-0101", "Acme", "Box", "2026-11-01"), vuln("CVE-2026-0102", "Acme", "Box", "2026-11-02")}, false)
 	write(t, db, func(tx *sql.Tx) error {
-		_, err := storeRecords(t.Context(), tx, []NVDRecord{
+		err := storeRecords(t.Context(), tx, []NVDRecord{
 			{CVE: "CVE-2026-0101", Published: now.AddDate(0, -2, 0), LastModified: now, Status: "Analyzed", Description: "A flaw in Acme Box.",
 				Metrics:  []Metric{{Source: MetricCNA, Version: "3.1", Score: 8.1, Vector: "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H"}},
 				Affected: []AffectedRow{{CPE: "cpe:2.3:a:acme:box:*:*:*:*:*:*:*:*", EndExcl: "2.0"}, {CPE: "cpe:2.3:a:acme:other:*:*:*:*:*:*:*:*", EndExcl: "5"}}},
@@ -443,7 +443,7 @@ func TestGolden_CatalogueTables(t *testing.T) {
 		if _, err := applyTemplates(t.Context(), tx, epoch0, nuclei.Templates); err != nil {
 			return err
 		}
-		if _, err := storeRecords(t.Context(), tx, nvd.Records, epoch0); err != nil {
+		if err := storeRecords(t.Context(), tx, nvd.Records, epoch0); err != nil {
 			return err
 		}
 		_, _, _, err := applyCVEOrg(t.Context(), tx, map[string]CVEOrgResult{"CVE-2024-3400": pan}, []string{"CVE-2024-3400"}, nil, epoch0)

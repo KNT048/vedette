@@ -49,7 +49,10 @@ func (s *Store) KevProducts(ctx context.Context) (version string, list []Product
 		if c := strings.Compare(strings.ToLower(a.Product), strings.ToLower(b.Product)); c != 0 {
 			return c
 		}
-		return strings.Compare(a.Vendor+"|"+a.Product, b.Vendor+"|"+b.Product)
+		if c := strings.Compare(a.Vendor, b.Vendor); c != 0 {
+			return c
+		}
+		return strings.Compare(a.Product, b.Product)
 	})
 	return fmt.Sprintf("%d@%s", n, newest), list, nil
 }

@@ -80,12 +80,12 @@ var (
 	literal = regexp.MustCompile(`'(?:[^']|'')*'`)
 )
 
-// LongValueLists returns the columns of a CREATE TABLE statement that a CHECK restricts to a list of more than max text
+// LongValueLists returns the columns of a CREATE TABLE statement that a CHECK restricts to a list of more than limit text
 // values (col IN ('a', 'b', ...)), sorted.
-func LongValueLists(createSQL string, max int) []string {
+func LongValueLists(createSQL string, limit int) []string {
 	var out []string
 	for _, m := range inList.FindAllStringSubmatch(createSQL, -1) {
-		if len(literal.FindAllString(m[2], -1)) > max && !slices.Contains(out, m[1]) {
+		if len(literal.FindAllString(m[2], -1)) > limit && !slices.Contains(out, m[1]) {
 			out = append(out, m[1])
 		}
 	}

@@ -29,6 +29,7 @@ var heldNotes = map[string]func(context.Context, *sql.Tx) (string, error){
 	debianTrackerFeedID: heldDistro(debianTrackerFeedID),
 	alpineOSVFeedID:     heldDistro(alpineOSVFeedID),
 	winRelFeedID:        heldWinRel,
+	pocGitHubFeedID:     heldPoC,
 }
 
 // heldFrom names, for each feed of heldNotes, the feeds whose data its sentence counts. That data is written only by a pull of one
@@ -42,6 +43,7 @@ var heldFrom = map[string][]string{
 	debianTrackerFeedID: {debianTrackerFeedID, kevFeedID, vulnCheckFeedID},
 	alpineOSVFeedID:     {alpineOSVFeedID, kevFeedID, vulnCheckFeedID},
 	winRelFeedID:        {winRelFeedID},
+	pocGitHubFeedID:     {pocGitHubFeedID},
 }
 
 // heldCache keeps each feed's sentence with the key it was counted under: a distribution feed's count reads every row of the feed

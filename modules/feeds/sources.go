@@ -7,9 +7,8 @@ type Decoder string
 const (
 	DecoderParser    Decoder = "parser"    // the generic custom-format parser with Source.Parser
 	DecoderKEV       Decoder = "kev"       // ParseKEV
-	DecoderEPSS      Decoder = "epss"      // EPSSBatchURLs and ParseEPSS (api.first.org JSON)
 	DecoderNuclei    Decoder = "nuclei"    // ParseNucleiCVEs
-	DecoderNVD       Decoder = "nvd"       // NVDPageURL and ParseNVD (NVD CVE API 2.0, ?hasKev)
+	DecoderNVD       Decoder = "nvd"       // NVDPageURL and ParseNVD (NVD CVE API 2.0, ?hasKev: the exploited-list selector)
 	DecoderCVEOrg    Decoder = "cveorg"    // CVEOrgRecordURL and ParseCVERecord (cvelistV5 records)
 	DecoderVulnCheck Decoder = "vulncheck" // VulnCheckPageURL and ParseVulnCheckPage (the customer's own key)
 	// The distribution backport data: ParseUbuntuOSV, ParseUbuntuVEX, ParseDebianTracker, read as a stream.
@@ -19,7 +18,7 @@ const (
 	DecoderAlpineOSV     Decoder = "alpine-osv" // ParseAlpineOSV: OSV.dev's Alpine all.zip
 	// The data of CVE tiers 2 and 3.
 	DecoderEPSSAll   Decoder = "epss-all"   // ParseEPSSCSV: FIRST's daily file of every EPSS score
-	DecoderNVDRecent Decoder = "nvd-recent" // RecentPageURL and ParseNVDRecent: NVD records of the last 12 months
+	DecoderNVDRecent Decoder = "nvd-recent" // RecentPageURL, WalkPageURL and ParseNVD: the catalogue's NVD records
 	// Microsoft's Windows release information pages (parseWinRelPage): the releases core/winrel learns.
 	DecoderWinRel Decoder = "windows-releases"
 )
@@ -102,7 +101,6 @@ const winRelNotice = "Facts from Microsoft's public Windows release information 
 // list in PRIVACY.md (INV-13) except where the report says otherwise.
 var builtinSources = []Source{
 	{ID: "cisa-kev", Name: "CISA KEV", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json", License: "CC0", IntervalHours: 1, Decoder: DecoderKEV},
-	{ID: "first-epss", Name: "FIRST EPSS", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://api.first.org/data/v1/epss", License: "Attribution: EPSS by FIRST", IntervalHours: 24, Decoder: DecoderEPSS},
 	{ID: epssAllFeedID, Name: "EPSS, every CVE", Kind: KindVulnerabilities, Format: FormatCSV, URL: "https://epss.empiricalsecurity.com/epss_scores-current.csv.gz", License: "Attribution: EPSS by FIRST", IntervalHours: 24, Decoder: DecoderEPSSAll},
 	{ID: "nvd-kev", Name: "NVD affected versions", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://services.nvd.nist.gov/rest/json/cves/2.0", License: nvdNotice, IntervalHours: 24, Decoder: DecoderNVD},
 	{ID: recentFeedID, Name: "NVD, CVEs of the last 12 months", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://services.nvd.nist.gov/rest/json/cves/2.0", License: nvdNotice, IntervalHours: 24, Decoder: DecoderNVDRecent},

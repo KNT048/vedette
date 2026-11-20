@@ -1,7 +1,6 @@
 package feeds
 
 import (
-	"database/sql"
 	"encoding/json"
 	"os"
 	"regexp"
@@ -112,20 +111,14 @@ func TestKevLinks_EveryLinkOfTheCatalogIsClean(t *testing.T) {
 	t.Logf("%d entries, %d links; parts with an https link that the split alone left unclean, by cause: %v", len(doc.Vulnerabilities), links, before)
 }
 
-// A row stored before the rule reads clean, and a pull of the same unchanged list does not count it as updated.
+// A list's links are stored clean, and a pull of the same unchanged list does not count it as updated.
 func TestStoredLinksReadClean(t *testing.T) {
 	t.Parallel()
 	s, db := newStore(t)
 	dirty := vuln("CVE-2026-0001", "Apple", "Multiple Products", "2026-11-03")
 	dirty.Links = []string{"https://support.apple.com/en-us/121752,", "https://support.apple.com/en-us/121752", "(https://www.cisa.gov/x)",
 		"https://support.apple.com/en-us/HT213843,https://support.apple.com/en-us/HT213844"}
-	enc, _ := json.Marshal(dirty.Links)
-	write(t, db, func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(t.Context(), `INSERT INTO feeds_vuln (cve, vendor, product, product_key, name, description, required_action, links,
-date_added, due_date, ransomware, has_template, source_id, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 'cisa-kev', '2026-11-09T08:00:00.000Z')`,
-			dirty.CVE, dirty.Vendor, dirty.Product, dirty.Key(), dirty.Name, dirty.Description, dirty.RequiredAction, string(enc), dirty.DateAdded, dirty.DueDate)
-		return err
-	})
+	applyV(t, db, epoch0, "cisa-kev", []Vuln{dirty}, false)
 	row, ok, err := s.VulnByCVE(t.Context(), "CVE-2026-0001")
 	if err != nil || !ok {
 		t.Fatalf("VulnByCVE: %v %v", ok, err)

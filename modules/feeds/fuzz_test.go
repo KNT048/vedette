@@ -200,51 +200,6 @@ func FuzzParseNucleiCVEs(f *testing.F) {
 	})
 }
 
-func FuzzParseEPSS(f *testing.F) {
-	f.Add(fixture(f, "epss.json"))
-	f.Add([]byte(`{"total":9,"data":[{"cve":"CVE-2026-1234","epss":"1e-5","percentile":0.5,"date":"2026-01-01"}]}`))
-	f.Add([]byte(`{"data":[{"cve":1,"epss":[],"percentile":{}}]}`))
-	f.Fuzz(func(t *testing.T, data []byte) {
-		d, err := ParseEPSS(data)
-		if err != nil {
-			if !errors.Is(err, ErrBadSample) && !errors.Is(err, ErrTooLarge) {
-				t.Fatalf("unclassified error: %v", err)
-			}
-			return
-		}
-		if d.Accepted != len(d.Scores) || len(d.Rejects) > MaxRejects || len(d.Reasons) > maxReasons+1 {
-			t.Fatalf("accounting: %+v", d.Stats)
-		}
-		for _, s := range d.Scores {
-			if !cveRE.MatchString(s.CVE) || s.Score < 0 || s.Score > 1 || s.Percentile < 0 || s.Percentile > 1 || (s.Date != "" && !strictDateRE.MatchString(s.Date)) {
-				t.Fatalf("bad score accepted: %+v", s)
-			}
-		}
-		for _, x := range d.Rejects {
-			if !printable(x.Reason) {
-				t.Fatalf("unsafe reject text %q", x.Reason)
-			}
-		}
-	})
-}
-
-func FuzzEPSSBatchURLs(f *testing.F) {
-	f.Add("CVE-2026-1234", "2026-01-01")
-	f.Add("CVE-2026-1&x=1", "2026-1-1")
-	f.Fuzz(func(t *testing.T, id, date string) {
-		urls, err := EPSSBatchURLs("https://api.first.org/data/v1/epss", []string{id}, date)
-		if err != nil {
-			return
-		}
-		for _, raw := range urls {
-			u, perr := url.Parse(raw)
-			if perr != nil || u.Host != "api.first.org" || u.Path != "/data/v1/epss" || len(u.Query()) > 2 || !cveRE.MatchString(u.Query().Get("cve")) {
-				t.Fatalf("bad batch URL %q", raw)
-			}
-		}
-	})
-}
-
 // domainOracle is the regular expression validDomain replaced; the loop must answer exactly as it did.
 var domainOracle = regexp.MustCompile(`^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+([a-zA-Z]{2,63}|[xX][nN]--[a-zA-Z0-9-]{0,58}[a-zA-Z0-9])$`)
 
@@ -282,6 +237,47 @@ func FuzzValidDomainIsTheRegexp(f *testing.F) {
 	f.Fuzz(func(t *testing.T, s string) {
 		if got, want := validDomain(s), domainAsBefore(s); got != want {
 			t.Fatalf("validDomain(%q) = %v, the regexp says %v", s, got, want)
+		}
+	})
+}
+
+// ParseNVD is the one decoder of every NVD answer (the walk over the whole set included): whatever the bytes, it returns a classified
+// error or records that fit the catalogue's CHECKs.
+func FuzzParseNVD(f *testing.F) {
+	f.Add(fixture(f, "nvd-kev-page.json"))
+	f.Add([]byte(`{"totalResults":1,"vulnerabilities":[{"cve":{"id":"CVE-2026-0001","published":"2026-01-01T00:00:00.000","lastModified":"2026-01-02T00:00:00","vulnStatus":"Analyzed",` +
+		`"metrics":{"cvssMetricV31":[{"type":"Primary","cvssData":{"baseScore":9.8,"baseSeverity":"CRITICAL","vectorString":"CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"}}]},` +
+		`"configurations":[{"operator":"AND","nodes":[{"cpeMatch":[{"vulnerable":true,"criteria":"cpe:2.3:a:acme:box:*:*:*:*:*:*:*:*","versionEndExcluding":"2.0"}]},` +
+		`{"cpeMatch":[{"vulnerable":false,"criteria":"cpe:2.3:o:acme:os:-:*:*:*:*:*:*:*"}]}]}]}}]}`))
+	f.Add([]byte(`{"totalResults":2,"vulnerabilities":[{"cve":{"id":42}},{"cve":{"id":"CVE-2026-0002","metrics":[]}}]}`))
+	f.Fuzz(func(t *testing.T, data []byte) {
+		d, err := ParseNVD(data)
+		if err != nil {
+			if !errors.Is(err, ErrBadSample) && !errors.Is(err, ErrTooLarge) {
+				t.Fatalf("unclassified error: %v", err)
+			}
+			return
+		}
+		if d.Accepted != len(d.Records) || len(d.Rejects) > MaxRejects {
+			t.Fatalf("accounting: %+v", d.Stats)
+		}
+		for _, r := range d.Records {
+			if !cveRE.MatchString(r.CVE) || len(r.CVE) > 32 || r.Status == "" || len(r.Status) > nvdMaxStatus || len([]rune(r.Description)) > nvdMaxDescription {
+				t.Fatalf("bad record accepted: %+v", r)
+			}
+			if len(r.Platforms) > len(r.Affected) {
+				t.Fatalf("platforms of %s: %d for %d entries", r.CVE, len(r.Platforms), len(r.Affected))
+			}
+			for _, a := range r.Affected {
+				if badAffected(a) != "" {
+					t.Fatalf("bad entry accepted: %+v", a)
+				}
+			}
+			for _, m := range r.Metrics {
+				if m.Score < 0 || m.Score > 10 || m.Vector == "" || len(m.Vector) > 200 {
+					t.Fatalf("bad score accepted: %+v", m)
+				}
+			}
 		}
 	})
 }

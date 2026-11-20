@@ -170,6 +170,7 @@
   "GET /scans/probes.csv": "scan",
   "GET /scans/runs": "scan",
   "GET /scans/targets": "scan",
+  "GET /schedules/{owner_key}": "core",
   "GET /setup": "core",
   "PATCH /core/account": "core",
   "PATCH /core/privacy": "core",
@@ -326,6 +327,8 @@
   "POST /scans/credentialed/{id}/test": "scan-credentialed",
   "POST /scans/runs": "scan",
   "POST /scans/runs/{id}/stop": "scan",
+  "POST /schedules/preview": "core",
+  "POST /schedules/{owner_key}/run": "core",
   "PUT /ai/activity/settings": "ai",
   "PUT /ai/assignments": "ai",
   "PUT /ai/config": "ai",
@@ -371,5 +374,6 @@
   "PUT /response/rules/{id}": "response",
   "PUT /response/settings": "response",
   "PUT /scanning/safety": "core",
-  "PUT /scans/config": "scan"
+  "PUT /scans/config": "scan",
+  "PUT /schedules/{owner_key}": "core"
 }

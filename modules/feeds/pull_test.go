@@ -179,7 +179,7 @@ func TestContract_POST1_KEVPullStoresAndPublishesNewCVEsOnce(t *testing.T) {
 	if c != 200 || at(b, "status") != "ok" || at(b, "records") != 3.0 || at(b, "last_fetch") != "2026-11-05T12:00:00Z" || !strings.Contains(at(b, "error").(string), "rows were rejected") {
 		t.Fatalf("%d %v", c, b)
 	}
-	if n := rowsOf(t, e.db, "feeds_vuln"); n != 3 {
+	if n := rowsOf(t, e.db, "feeds_kev"); n != 3 {
 		t.Fatalf("%d vulnerabilities", n)
 	}
 	// The first pull into an empty table is a baseline: one event, not one per CVE
@@ -245,7 +245,7 @@ func TestContract_INV8_DisabledFeedRefusedAndErrorsAreRecorded(t *testing.T) {
 		t.Fatal(err)
 	}
 	f := e.feed("cisa-kev")
-	if f.Status != "error" || *f.Error != "The source answered HTTP 503." || f.Failures != 1 || *f.Records != 3 || rowsOf(t, e.db, "feeds_vuln") != 3 || !f.LastFetch.Equal(failedAt) {
+	if f.Status != "error" || *f.Error != "The source answered HTTP 503." || f.Failures != 1 || *f.Records != 3 || rowsOf(t, e.db, "feeds_kev") != 3 || !f.LastFetch.Equal(failedAt) {
 		t.Errorf("after the error: %+v", f)
 	}
 	if ev := e.pub.named(EventFetchFailed); len(ev) != 1 || ev[0] != (FetchFailedEvent{FeedID: "cisa-kev", Error: "The source answered HTTP 503."}) {
@@ -328,90 +328,6 @@ func TestContract_INV1_JobContactsOnlyDeclaredEnabledSources(t *testing.T) {
 	}
 	if len(paths) != 2 || !paths["/kev.json"] || !paths["/et.txt"] {
 		t.Errorf("contacted: %v", paths)
-	}
-}
-
-// epssOrigin answers like api.first.org: epss 0.8 for the latest day, 0.5 when a date is asked.
-func epssOrigin(o *origin, maxIDs *int) {
-	o.serve("/epss", func(w http.ResponseWriter, r *http.Request) {
-		ids := strings.Split(r.URL.Query().Get("cve"), ",")
-		if len(ids) > *maxIDs {
-			*maxIDs = len(ids)
-		}
-		score := "0.8"
-		if r.URL.Query().Get("date") != "" {
-			score = "0.5"
-		}
-		var rows []string
-		for _, id := range ids {
-			rows = append(rows, fmt.Sprintf(`{"cve":%q,"epss":%q,"percentile":"0.9","date":"2026-11-05"}`, id, score))
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = fmt.Fprintf(w, `{"status":"OK","total":%d,"data":[%s]}`, len(rows), strings.Join(rows, ",")) //nolint:gosec // a test origin echoing numbers and fixed ids
-	})
-}
-
-func TestContract_INV2_EPSSInBatchesOfAHundredAndForcedForNewCVEs(t *testing.T) {
-	t.Parallel()
-	e, o := pullEnv(t)
-	e.only("cisa-kev", "first-epss")
-	e.mirror("cisa-kev", o.url("/kev.json"))
-	e.mirror("first-epss", o.url("/epss"))
-	e.put("cisa-kev", `{"interval_hours":1}`)
-	kev := testFile(t, "kev.json")
-	o.body("/kev.json", `"v1"`, kev)
-	maxIDs := 0
-	epssOrigin(o, &maxIDs)
-	var extra []Vuln
-	for i := range 250 {
-		extra = append(extra, vuln(fmt.Sprintf("CVE-2025-%04d", 1000+i), "Acme", "Box", "2026-10-01"))
-	}
-	applyV(t, e.db, e.clock(), "cisa-kev", extra, false)
-
-	if err := e.svc.RunPull(t.Context()); err != nil {
-		t.Fatal(err)
-	}
-	if n := o.count("/epss"); n != 6 || maxIDs != 100 { // 253 CVEs: 3 requests for today, 3 for 7 days ago
-		t.Errorf("%d EPSS requests, largest %d ids", n, maxIDs)
-	}
-	dated := 0
-	for _, h := range o.all() {
-		if h.path == "/epss" && strings.Contains(h.query, "date=2026-10-29") {
-			dated++
-		}
-	}
-	if dated != 3 {
-		t.Errorf("%d requests for the score of 7 days ago (2026-10-29)", dated)
-	}
-	v, _, _ := e.svc.st.VulnByCVE(t.Context(), "CVE-2026-10001")
-	if *v.EPSS != 0.8 || *v.EPSS7dAgo != 0.5 || e.feed("first-epss").Records == nil || *e.feed("first-epss").Records != 253 {
-		t.Errorf("epss: %v %v records %v", v.EPSS, v.EPSS7dAgo, e.feed("first-epss").Records)
-	}
-	_, hot := e.get("/feeds/hot?window=7d")
-	if d, _ := at(hot, "rows", 0, "max_epss_delta").(float64); d < 0.29 || d > 0.31 {
-		t.Errorf("delta: %v", at(hot, "rows", 0))
-	}
-
-	// a new CVE an hour later gets its score in the same tick, not a day later
-	o.body("/kev.json", `"v2"`, strings.Replace(kev, `"vulnerabilities": [`, `"vulnerabilities": [{"cveID":"CVE-2026-10099","vendorProject":"Acme","product":"Box","vulnerabilityName":"n","dateAdded":"2026-11-04","shortDescription":"d","requiredAction":"a","dueDate":"2026-11-25","knownRansomwareCampaignUse":"Unknown","notes":""},`, 1))
-	e.setNow(e.clock().Add(time.Hour))
-	before := o.count("/epss")
-	if err := e.svc.RunPull(t.Context()); err != nil {
-		t.Fatal(err)
-	}
-	v, _, _ = e.svc.st.VulnByCVE(t.Context(), "CVE-2026-10099")
-	if o.count("/epss") != before+6 || v.EPSS == nil || *v.EPSS != 0.8 {
-		t.Errorf("forced EPSS pull: %d requests, %v", o.count("/epss")-before, v.EPSS)
-	}
-	// a failing batch fails the whole pull: no half-updated scores
-	o.serve("/epss", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusBadGateway) })
-	e.setNow(e.clock().Add(48 * time.Hour))
-	_ = e.svc.RunPull(t.Context())
-	if f := e.feed("first-epss"); f.Status != "error" || *f.Error != "The source answered HTTP 502." {
-		t.Errorf("epss error: %+v", f)
-	}
-	if v, _, _ = e.svc.st.VulnByCVE(t.Context(), "CVE-2026-10001"); *v.EPSS != 0.8 {
-		t.Error("scores changed by a failed pull")
 	}
 }
 
@@ -513,7 +429,7 @@ func TestContract_INV3_BadDataKeepsWhatTheBoxHas(t *testing.T) {
 		if at(b, "status") != "error" || !strings.Contains(at(b, "error").(string), c.want) || at(b, "records") != 3.0 {
 			t.Errorf("%s: %v", c.name, b)
 		}
-		if n := rowsOf(t, e.db, "feeds_vuln"); n != 3 {
+		if n := rowsOf(t, e.db, "feeds_kev"); n != 3 {
 			t.Errorf("%s: %d vulnerabilities left", c.name, n)
 		}
 	}
@@ -565,11 +481,11 @@ func TestCustomFeedPullsWithItsSecretAndTheEditorsRules(t *testing.T) {
 	})
 	e.setNow(e.clock().Add(time.Hour))
 	e.fetch(vid)
-	if n := rowsOf(t, e.db, "feeds_vuln"); n != 1 {
+	if n := rowsOf(t, e.db, "feeds_kev"); n != 1 {
 		t.Errorf("%d rows after a pull that lists one", n)
 	}
-	if c, _, _ := e.do("DELETE", "/feeds/custom/"+vid, "admin", ""); c != 204 || rowsOf(t, e.db, "feeds_vuln") != 0 {
-		t.Errorf("delete: %d, %d rows", c, rowsOf(t, e.db, "feeds_vuln"))
+	if c, _, _ := e.do("DELETE", "/feeds/custom/"+vid, "admin", ""); c != 204 || rowsOf(t, e.db, "feeds_kev") != 0 {
+		t.Errorf("delete: %d, %d rows", c, rowsOf(t, e.db, "feeds_kev"))
 	}
 }
 
@@ -624,29 +540,42 @@ func TestNote_ShowsOneRejectedValue(t *testing.T) {
 	}
 }
 
-// The CISA list is pulled every hour and each good pull brings EPSS while EPSS has no record; a failing EPSS still
-// waits out its own back-off (5 minutes after the first failure) instead of being asked on every pull of the list.
-func TestEPSSAfterTheListKeepsItsBackoff(t *testing.T) {
+// A nuclei index that lists fewer than half of the CVEs the box holds templates of is refused: the signals stay, and so do the older
+// CVEs the retention rule keeps for them.
+func TestNucleiIndexThatShrinksSharplyIsRefused(t *testing.T) {
 	t.Parallel()
 	e, o := pullEnv(t)
-	e.only("cisa-kev", "first-epss")
-	e.mirror("cisa-kev", o.url("/kev.json"))
-	e.mirror("first-epss", o.url("/epss"))
-	o.body("/kev.json", `"v1"`, testFile(t, "kev.json"))
-	o.serve("/epss", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusBadGateway) })
-	e.fetch("cisa-kev") // the list loads, EPSS is asked and fails
-	asked := o.count("/epss")
-	if asked == 0 || e.feed("first-epss").Failures != 1 {
-		t.Fatalf("EPSS asked %d times, failures %d", asked, e.feed("first-epss").Failures)
+	e.only(nucleiFeedID)
+	e.mirror(nucleiFeedID, o.url("/cves.json"))
+	var full strings.Builder
+	for i := range 200 {
+		fmt.Fprintf(&full, `{"ID":"CVE-2019-%04d","file_path":"http/cves/2019/CVE-2019-%04d.yaml"}`+"\n", i, i)
 	}
-	e.setNow(e.clock().Add(2 * time.Minute)) // inside the back-off: the list is a 304, EPSS is left alone
-	e.fetch("cisa-kev")
-	if n := o.count("/epss"); n != asked {
-		t.Errorf("EPSS asked %d more times inside its back-off", n-asked)
+	o.body("/cves.json", `"n1"`, full.String())
+	if err := e.svc.Fetch(t.Context(), nucleiFeedID); err != nil {
+		t.Fatal(err)
 	}
-	e.setNow(e.clock().Add(4 * time.Minute)) // past it
-	e.fetch("cisa-kev")
-	if n := o.count("/epss"); n == asked {
-		t.Error("EPSS not asked after its back-off")
+	o.body("/cves.json", `"n2"`, `{"ID":"CVE-2019-0001","file_path":"http/cves/2019/CVE-2019-0001.yaml"}`+"\n")
+	e.setNow(e.clock().Add(25 * time.Hour))
+	if err := e.svc.Fetch(t.Context(), nucleiFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if f := e.feed(nucleiFeedID); f.Status != "error" || f.Error == nil || !strings.Contains(*f.Error, "fewer than half of the 200") || !strings.Contains(*f.Error, "turn the feed off and on again") {
+		t.Fatalf("feed %+v %q", f, deref(f.Error))
+	}
+	if n := count(t, e.db, `SELECT count(*) FROM feeds_signal WHERE source = 'nuclei-templates'`); n != 200 {
+		t.Fatalf("%d signals kept", n)
+	}
+	// the way out the message names: off and on again takes the next index as it is
+	for _, body := range []string{`{"enabled":false}`, `{"enabled":true}`} {
+		if c, b := e.put(nucleiFeedID, body); c != 200 {
+			t.Fatalf("%s: %d %v", body, c, b)
+		}
+	}
+	if err := e.svc.Fetch(t.Context(), nucleiFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if f := e.feed(nucleiFeedID); f.Status != "ok" || count(t, e.db, `SELECT count(*) FROM feeds_signal WHERE source = 'nuclei-templates'`) != 1 {
+		t.Fatalf("after off and on: %+v", f)
 	}
 }

@@ -210,7 +210,7 @@ CREATE TABLE core_run (
     trigger       TEXT    NOT NULL CHECK (trigger IN ('manual', 'schedule', 'event')),
     trigger_note  TEXT    CHECK (trigger_note IS NULL OR length(trigger_note) BETWEEN 1 AND 200),
     requested_by  TEXT    NOT NULL CHECK (length(requested_by) BETWEEN 1 AND 320), -- an email, or system
-    schedule_id   TEXT    CHECK (schedule_id IS NULL OR length(schedule_id) BETWEEN 1 AND 96),
+    schedule_id   TEXT    REFERENCES core_schedule (id) ON DELETE SET NULL,
     subject_kind  TEXT    CHECK (subject_kind IS NULL OR (length(subject_kind) BETWEEN 1 AND 40 AND subject_kind NOT GLOB '*[^a-z0-9_]*')),
     subject_id    TEXT    CHECK (subject_id IS NULL OR length(subject_id) BETWEEN 1 AND 96),
     subject_label TEXT    CHECK (subject_label IS NULL OR length(subject_label) BETWEEN 1 AND 200), -- a snapshot: it outlives its subject
@@ -276,6 +276,42 @@ CREATE INDEX core_run_log_run_idx ON core_run_log (run_id, id);
 
 CREATE INDEX core_run_log_ts_idx ON core_run_log (ts);
 
+CREATE INDEX core_run_schedule_idx ON core_run (schedule_id);
+
+CREATE TABLE core_schedule (
+    id               TEXT    NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 96),
+    owner_module     TEXT    NOT NULL CHECK (length(owner_module) BETWEEN 1 AND 32),
+    owner_key        TEXT    NOT NULL UNIQUE CHECK (length(owner_key) BETWEEN 1 AND 160),
+    enabled          INTEGER NOT NULL CHECK (enabled IN (0, 1)),
+    paused_until     TEXT    CHECK (paused_until IS NULL OR paused_until GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    freq             TEXT    NOT NULL CHECK (length(freq) BETWEEN 1 AND 40 AND freq NOT GLOB '*[^a-z0-9_]*'),
+    every_minutes    INTEGER CHECK (every_minutes IS NULL OR every_minutes BETWEEN 1 AND 527040),
+    at_time          TEXT    CHECK (at_time IS NULL OR at_time GLOB '[0-2][0-9]:[0-5][0-9]'),
+    weekdays         TEXT    CHECK (weekdays IS NULL OR (json_valid(weekdays) AND json_type(weekdays) = 'array')), -- [1..7], 1 = Monday
+    month_day        INTEGER CHECK (month_day IS NULL OR month_day BETWEEN 0 AND 31),                                 -- 0 = the last day
+    once_at          TEXT    CHECK (once_at IS NULL OR once_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    tz               TEXT    NOT NULL CHECK (length(tz) BETWEEN 1 AND 64),                                             -- 'org' or an IANA zone
+    window_mode      TEXT    NOT NULL CHECK (window_mode IN ('global', 'none', 'custom')),
+    window_days      TEXT    CHECK (window_days IS NULL OR (json_valid(window_days) AND json_type(window_days) = 'array')),
+    window_from      TEXT    CHECK (window_from IS NULL OR window_from GLOB '[0-2][0-9]:[0-5][0-9]'),
+    window_to        TEXT    CHECK (window_to IS NULL OR window_to GLOB '[0-2][0-9]:[0-5][0-9]'),
+    next_due_at      TEXT    CHECK (next_due_at IS NULL OR next_due_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    last_due_at      TEXT    CHECK (last_due_at IS NULL OR last_due_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    last_run_id      TEXT    REFERENCES core_run (id) ON DELETE SET NULL,
+    last_skip_reason TEXT    CHECK (last_skip_reason IS NULL OR length(last_skip_reason) BETWEEN 1 AND 300),
+    last_skip_at     TEXT    CHECK (last_skip_at IS NULL OR last_skip_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    updated_by       TEXT    NOT NULL CHECK (length(updated_by) BETWEEN 1 AND 320), -- an email, or system
+    updated_at       TEXT    NOT NULL CHECK (updated_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    CHECK (enabled = 1 OR next_due_at IS NULL),
+    CHECK ((last_skip_reason IS NULL) = (last_skip_at IS NULL)),
+    CHECK (window_mode = 'custom' OR (window_days IS NULL AND window_from IS NULL AND window_to IS NULL)),
+    CHECK (window_mode <> 'custom' OR (window_days IS NOT NULL AND window_from IS NOT NULL AND window_to IS NOT NULL))
+);
+
+CREATE INDEX core_schedule_due_idx ON core_schedule (enabled, next_due_at);
+
+CREATE INDEX core_schedule_last_run_idx ON core_schedule (last_run_id);
+
 -- module auth-oidc
 
 CREATE TABLE oidc_config (
@@ -334,32 +370,9 @@ CREATE TABLE feeds_source (
     error           TEXT,
     etag            TEXT,
     last_modified   TEXT,
-    catalog_version TEXT, rev INTEGER NOT NULL DEFAULT 0 CHECK (rev >= 0), answered_by TEXT, mirror_etag TEXT, mirror_last_modified TEXT, distro_packages TEXT CHECK (distro_packages IS NULL OR (json_valid(distro_packages) AND json_type(distro_packages) = 'array')), full_due INTEGER NOT NULL DEFAULT 0 CHECK (full_due IN (0, 1)), kev_copies TEXT, catalog_released TEXT, stale_watch_from TEXT, stale_alerted_at TEXT, stale_failed_since TEXT, stale_failed_checks INTEGER NOT NULL DEFAULT 0, content_version INTEGER NOT NULL DEFAULT 0 CHECK (content_version >= 0),
+    catalog_version TEXT, rev INTEGER NOT NULL DEFAULT 0 CHECK (rev >= 0), answered_by TEXT, mirror_etag TEXT, mirror_last_modified TEXT, distro_packages TEXT CHECK (distro_packages IS NULL OR (json_valid(distro_packages) AND json_type(distro_packages) = 'array')), kev_copies TEXT, catalog_released TEXT, stale_watch_from TEXT, stale_alerted_at TEXT, stale_failed_since TEXT, stale_failed_checks INTEGER NOT NULL DEFAULT 0,
     CHECK (builtin = 1 OR parser IS NOT NULL),
     CHECK (secret_id IS NULL OR auth_type <> 'none')
-);
-
-CREATE TABLE feeds_vuln (
-    cve             TEXT    NOT NULL PRIMARY KEY CHECK (cve GLOB 'CVE-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]*'),
-    vendor          TEXT    NOT NULL,
-    product         TEXT    NOT NULL,
-    product_key     TEXT    NOT NULL, -- lower(vendor)|lower(product): the inventory matching key
-    name            TEXT    NOT NULL,
-    description     TEXT    NOT NULL DEFAULT '',
-    required_action TEXT    NOT NULL DEFAULT '',
-    links           TEXT    NOT NULL DEFAULT '[]' CHECK (json_valid(links) AND json_type(links) = 'array'),
-    date_added      TEXT    NOT NULL CHECK (date_added GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
-    due_date        TEXT    CHECK (due_date IS NULL OR due_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
-    ransomware      INTEGER NOT NULL DEFAULT 0 CHECK (ransomware IN (0, 1)),
-    epss            REAL    CHECK (epss IS NULL OR (epss >= 0 AND epss <= 1)),
-    epss_7d_ago     REAL    CHECK (epss_7d_ago IS NULL OR (epss_7d_ago >= 0 AND epss_7d_ago <= 1)),
-    has_template    INTEGER NOT NULL DEFAULT 0 CHECK (has_template IN (0, 1)),
-    source_id       TEXT    NOT NULL REFERENCES feeds_source (id) ON DELETE CASCADE,
-    updated_at      TEXT    NOT NULL CHECK (updated_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')
-, kev_announced_at TEXT CHECK (kev_announced_at IS NULL OR kev_announced_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'));
-
-CREATE TABLE feeds_template (
-    cve TEXT NOT NULL PRIMARY KEY CHECK (cve GLOB 'CVE-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]*')
 );
 
 CREATE TABLE feeds_ioc (
@@ -402,25 +415,6 @@ CREATE TABLE feeds_weekly_answer (
     answered_at TEXT NOT NULL CHECK (answered_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')
 , device_added INTEGER NOT NULL DEFAULT 0 CHECK (device_added IN (0, 1)), device_id TEXT CHECK (device_id IS NULL OR length(device_id) BETWEEN 1 AND 64), have_since TEXT CHECK (have_since IS NULL OR have_since GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'));
 
-CREATE TABLE feeds_affected_cve (
-    cve        TEXT NOT NULL PRIMARY KEY CHECK (cve GLOB 'CVE-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]*' AND length(cve) <= 32),
-    updated_at TEXT NOT NULL CHECK (updated_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')
-, source TEXT NOT NULL DEFAULT 'nvd' CHECK (source IN ('nvd', 'cve.org', 'cve.org-partial')));
-
-CREATE TABLE feeds_affected (
-    cve        TEXT NOT NULL REFERENCES feeds_affected_cve (cve) ON DELETE CASCADE,
-    cpe        TEXT NOT NULL CHECK (cpe GLOB 'cpe:2.3:*' AND length(cpe) <= 500),
-    start_incl TEXT NOT NULL CHECK (length(start_incl) <= 100),
-    start_excl TEXT NOT NULL CHECK (length(start_excl) <= 100),
-    end_incl   TEXT NOT NULL CHECK (length(end_incl) <= 100),
-    end_excl   TEXT NOT NULL CHECK (length(end_excl) <= 100)
-);
-
-CREATE TABLE feeds_cveorg_checked (
-    cve        TEXT NOT NULL PRIMARY KEY CHECK (cve GLOB 'CVE-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]*' AND length(cve) <= 32),
-    checked_at TEXT NOT NULL CHECK (checked_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')
-);
-
 CREATE TABLE feeds_epss (
     cve        TEXT    NOT NULL PRIMARY KEY CHECK (cve GLOB 'CVE-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]*' AND length(cve) <= 32),
     epss       REAL    NOT NULL CHECK (epss BETWEEN 0 AND 1),
@@ -434,46 +428,98 @@ CREATE TABLE feeds_epss_baseline (
     count INTEGER NOT NULL CHECK (count >= 0)
 , score_date TEXT CHECK (score_date IS NULL OR score_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'));
 
-CREATE TABLE feeds_recent_cve (
-    cve           TEXT NOT NULL PRIMARY KEY CHECK (cve GLOB 'CVE-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]*' AND length(cve) <= 32),
-    published     TEXT NOT NULL CHECK (published GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    last_modified TEXT NOT NULL CHECK (last_modified GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    status        TEXT NOT NULL CHECK (length(status) BETWEEN 1 AND 40),
-    severity      TEXT CHECK (severity IS NULL OR severity IN ('CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'NONE')),
-    score         REAL CHECK (score IS NULL OR score BETWEEN 0 AND 10)
-, cvss_score REAL CHECK (cvss_score IS NULL OR cvss_score BETWEEN 0 AND 10), cvss_version TEXT CHECK (cvss_version IS NULL OR cvss_version IN ('4.0', '3.1', '3.0', '2.0')), cvss_source TEXT CHECK (cvss_source IS NULL OR cvss_source IN ('nvd', 'cna')), cvss_vector TEXT CHECK (cvss_vector IS NULL OR (length(cvss_vector) <= 200 AND (cvss_vector GLOB 'CVSS:[34].[01]/*' OR cvss_vector GLOB 'AV:[LAN]/*'))));
+CREATE TABLE feeds_epss_hist (
+    cve  TEXT NOT NULL CHECK (cve GLOB 'CVE-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]*' AND length(cve) <= 32),
+    day  TEXT NOT NULL CHECK (day GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+    epss REAL NOT NULL CHECK (epss BETWEEN 0 AND 1),
+    PRIMARY KEY (cve, day)
+) WITHOUT ROWID;
 
-CREATE TABLE feeds_recent_affected (
-    cve        TEXT NOT NULL REFERENCES feeds_recent_cve (cve) ON DELETE CASCADE,
-    cpe        TEXT NOT NULL CHECK (cpe GLOB 'cpe:2.3:*' AND length(cpe) <= 500),
-    start_incl TEXT NOT NULL CHECK (length(start_incl) <= 100),
-    start_excl TEXT NOT NULL CHECK (length(start_excl) <= 100),
-    end_incl   TEXT NOT NULL CHECK (length(end_incl) <= 100),
-    end_excl   TEXT NOT NULL CHECK (length(end_excl) <= 100)
-, platforms TEXT CHECK (platforms IS NULL OR (json_valid(platforms) AND json_type(platforms) = 'array')));
+CREATE TABLE feeds_cve (
+    cve               TEXT NOT NULL PRIMARY KEY CHECK (cve GLOB 'CVE-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]*' AND length(cve) <= 32),
+    published         TEXT CHECK (published IS NULL OR published GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    modified          TEXT CHECK (modified IS NULL OR modified GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    nvd_status        TEXT CHECK (nvd_status IS NULL OR length(nvd_status) BETWEEN 1 AND 40),
+    nvd_at            TEXT CHECK (nvd_at IS NULL OR nvd_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    record_at         TEXT CHECK (record_at IS NULL OR record_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    title             TEXT NOT NULL DEFAULT '' CHECK (length(title) <= 500),
+    description       TEXT NOT NULL DEFAULT '' CHECK (length(description) <= 4000),
+    cwe               TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(cwe) AND json_type(cwe) = 'array'),
+    solution          TEXT NOT NULL DEFAULT '' CHECK (length(solution) <= 4000),
+    workaround        TEXT NOT NULL DEFAULT '' CHECK (length(workaround) <= 4000),
+    ssvc_exploitation TEXT CHECK (ssvc_exploitation IS NULL OR (length(ssvc_exploitation) BETWEEN 1 AND 40 AND ssvc_exploitation NOT GLOB '*[^a-z0-9_]*')),
+    ssvc_automatable  TEXT CHECK (ssvc_automatable IS NULL OR (length(ssvc_automatable) BETWEEN 1 AND 40 AND ssvc_automatable NOT GLOB '*[^a-z0-9_]*')),
+    ssvc_impact       TEXT CHECK (ssvc_impact IS NULL OR (length(ssvc_impact) BETWEEN 1 AND 40 AND ssvc_impact NOT GLOB '*[^a-z0-9_]*')),
+    updated_at        TEXT NOT NULL CHECK (updated_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')
+);
 
-CREATE TABLE feeds_recent_cursor (
-    id         INTEGER NOT NULL PRIMARY KEY CHECK (id = 1),
+CREATE TABLE feeds_cve_metric (
+    cve     TEXT NOT NULL REFERENCES feeds_cve (cve) ON DELETE CASCADE,
+    source  TEXT NOT NULL CHECK (length(source) BETWEEN 1 AND 40 AND source NOT GLOB '*[^a-z0-9_]*'),
+    version TEXT NOT NULL CHECK (version IN ('4.0', '3.1', '3.0', '2.0')),
+    score   REAL NOT NULL CHECK (score BETWEEN 0 AND 10),
+    vector  TEXT NOT NULL CHECK (length(vector) <= 200 AND (vector GLOB 'CVSS:[34].[01]/*' OR vector GLOB 'AV:[LAN]/*')),
+    PRIMARY KEY (cve, source, version)
+) WITHOUT ROWID;
+
+CREATE TABLE feeds_cve_range (
+    id           INTEGER NOT NULL PRIMARY KEY,
+    cve          TEXT    NOT NULL REFERENCES feeds_cve (cve) ON DELETE CASCADE,
+    origin       TEXT    NOT NULL CHECK (length(origin) BETWEEN 1 AND 40 AND origin NOT GLOB '*[^a-z0-9_]*'),
+    part         TEXT    NOT NULL CHECK (length(part) <= 1),
+    vendor       TEXT    NOT NULL CHECK (length(vendor) <= 200),
+    product      TEXT    NOT NULL CHECK (length(product) <= 200),
+    cpe          TEXT    NOT NULL CHECK (cpe = '' OR (cpe GLOB 'cpe:2.3:*' AND length(cpe) <= 500)),
+    start_incl   TEXT    NOT NULL CHECK (length(start_incl) <= 100),
+    start_excl   TEXT    NOT NULL CHECK (length(start_excl) <= 100),
+    end_incl     TEXT    NOT NULL CHECK (length(end_incl) <= 100),
+    end_excl     TEXT    NOT NULL CHECK (length(end_excl) <= 100),
+    fixed        TEXT    NOT NULL DEFAULT '' CHECK (length(fixed) <= 100),
+    version_type TEXT    NOT NULL DEFAULT '' CHECK (length(version_type) <= 40),
+    default_status TEXT  NOT NULL DEFAULT '' CHECK (default_status IN ('', 'affected', 'unaffected', 'unknown')),
+    platforms    TEXT    CHECK (platforms IS NULL OR (json_valid(platforms) AND json_type(platforms) = 'array'))
+);
+
+CREATE TABLE feeds_kev (
+    cve             TEXT    NOT NULL REFERENCES feeds_cve (cve) ON DELETE CASCADE,
+    list            TEXT    NOT NULL CHECK (length(list) BETWEEN 1 AND 110),
+    source_id       TEXT    NOT NULL REFERENCES feeds_source (id) ON DELETE CASCADE,
+    vendor          TEXT    NOT NULL,
+    product         TEXT    NOT NULL,
+    name            TEXT    NOT NULL,
+    description     TEXT    NOT NULL DEFAULT '',
+    required_action TEXT    NOT NULL DEFAULT '',
+    links           TEXT    NOT NULL DEFAULT '[]' CHECK (json_valid(links) AND json_type(links) = 'array'),
+    date_added      TEXT    NOT NULL CHECK (date_added GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+    due_date        TEXT    CHECK (due_date IS NULL OR due_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+    ransomware      INTEGER NOT NULL DEFAULT 0 CHECK (ransomware IN (0, 1)),
+    announced_at    TEXT    CHECK (announced_at IS NULL OR announced_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    updated_at      TEXT    NOT NULL CHECK (updated_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    PRIMARY KEY (cve, list)
+);
+
+CREATE TABLE feeds_signal (
+    cve        TEXT    NOT NULL CHECK (cve GLOB 'CVE-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]*' AND length(cve) <= 32),
+    kind       TEXT    NOT NULL CHECK (length(kind) BETWEEN 1 AND 40 AND kind NOT GLOB '*[^a-z0-9_]*'),
+    source     TEXT    NOT NULL CHECK (length(source) BETWEEN 1 AND 96),
+    first_seen TEXT    NOT NULL CHECK (first_seen GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    stored_at  TEXT    NOT NULL CHECK (stored_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    last_seen  TEXT    NOT NULL CHECK (last_seen GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    qualifies  INTEGER NOT NULL CHECK (qualifies IN (0, 1)),
+    url        TEXT    NOT NULL DEFAULT '' CHECK (length(url) <= 500),
+    detail     TEXT    CHECK (detail IS NULL OR (json_valid(detail) AND json_type(detail) = 'object' AND length(detail) <= 500)),
+    PRIMARY KEY (cve, kind, source)
+) WITHOUT ROWID;
+
+CREATE TABLE feeds_nvd_cursor (
+    selector   TEXT    NOT NULL PRIMARY KEY CHECK (length(selector) BETWEEN 1 AND 40 AND selector NOT GLOB '*[^a-z0-9_]*'),
     url        TEXT    NOT NULL CHECK (length(url) <= 2048),
-    mode       TEXT    NOT NULL CHECK (mode IN ('fill', 'update', 'done')),
+    mode       TEXT    NOT NULL CHECK (mode IN ('fill', 'walk', 'update', 'done')),
     win_from   TEXT    NOT NULL,
     win_to     TEXT    NOT NULL,
     until      TEXT    NOT NULL,
     next_index INTEGER NOT NULL CHECK (next_index >= 0),
     total      INTEGER NOT NULL CHECK (total >= 0)
-);
-
-CREATE TABLE feeds_published (
-    cve       TEXT NOT NULL PRIMARY KEY CHECK (cve GLOB 'CVE-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]*' AND length(cve) <= 32),
-    published TEXT NOT NULL CHECK (published GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]')
-, source TEXT NOT NULL DEFAULT 'nvd' CHECK (source IN ('nvd', 'cve.org'))) WITHOUT ROWID;
-
-CREATE TABLE feeds_cvss (
-    cve     TEXT NOT NULL PRIMARY KEY CHECK (cve GLOB 'CVE-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]*' AND length(cve) <= 32),
-    score   REAL NOT NULL CHECK (score BETWEEN 0 AND 10),
-    version TEXT NOT NULL CHECK (version IN ('4.0', '3.1', '3.0', '2.0')),
-    source  TEXT NOT NULL CHECK (source IN ('nvd', 'cna')),
-    vector  TEXT NOT NULL CHECK (length(vector) <= 200 AND (vector GLOB 'CVSS:[34].[01]/*' OR vector GLOB 'AV:[LAN]/*'))
 ) WITHOUT ROWID;
 
 CREATE TABLE feeds_winrel (
@@ -512,31 +558,31 @@ CREATE UNIQUE INDEX feeds_source_name_uq ON feeds_source (lower(name));
 
 CREATE INDEX feeds_source_kind_idx ON feeds_source (kind, enabled);
 
-CREATE INDEX feeds_vuln_key_idx ON feeds_vuln (product_key);
-
-CREATE INDEX feeds_vuln_date_idx ON feeds_vuln (date_added DESC, cve DESC);
-
-CREATE INDEX feeds_vuln_source_idx ON feeds_vuln (source_id);
-
 CREATE INDEX feeds_ioc_last_seen_idx ON feeds_ioc (last_seen);
 
 CREATE INDEX feeds_ioc_source_src_idx ON feeds_ioc_source (source_id);
 
 CREATE INDEX feeds_fetch_log_source_idx ON feeds_fetch_log (source_id, started_at DESC);
 
-CREATE INDEX feeds_vuln_kev_announced ON feeds_vuln (kev_announced_at, cve) WHERE kev_announced_at IS NOT NULL;
-
-CREATE INDEX feeds_affected_cve_idx ON feeds_affected (cve);
-
-CREATE INDEX feeds_recent_cve_published_idx ON feeds_recent_cve (published);
-
-CREATE INDEX feeds_recent_affected_cve_idx ON feeds_recent_affected (cve);
-
-CREATE INDEX feeds_recent_affected_cpe_idx ON feeds_recent_affected (cpe);
-
 CREATE INDEX feeds_distro_fix_cve_idx ON feeds_distro_fix (cve);
 
 CREATE INDEX feeds_distro_fix_package_idx ON feeds_distro_fix (distro, package);
+
+CREATE INDEX feeds_cve_published_idx ON feeds_cve (published);
+
+CREATE INDEX feeds_cve_range_cve_idx ON feeds_cve_range (cve);
+
+CREATE INDEX feeds_cve_range_product_idx ON feeds_cve_range (vendor, product, cpe);
+
+CREATE INDEX feeds_kev_list_idx ON feeds_kev (list, date_added DESC, cve DESC);
+
+CREATE INDEX feeds_kev_source_idx ON feeds_kev (source_id);
+
+CREATE INDEX feeds_kev_announced_idx ON feeds_kev (announced_at, cve) WHERE announced_at IS NOT NULL;
+
+CREATE INDEX feeds_signal_kind_idx ON feeds_signal (kind, qualifies, cve);
+
+CREATE INDEX feeds_signal_source_idx ON feeds_signal (source, kind);
 
 -- module inventory
 

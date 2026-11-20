@@ -392,7 +392,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `unknown` | 404 | This link is not valid. | `POST /response/approve/{token}` |
 | `unknown_cve` | 404 | This CVE is not on the exploited list the box holds. The AI only explains CVEs the box has data for. | `POST /ai/cve/{id}/explain`; `POST /ai/cve/{id}/news` |
 
-#### HTTP 409 (110 mã)
+#### HTTP 409 (111 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -450,7 +450,8 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `not_on` | 409 | Two-step sign-in is already off for this user. | `POST /core/users/{id}/2fa/reset` |
 | `not_pending` | 409 | This request is already ${a.status.replace('_', ' ')}. One approval covers one request. | module response (validator dùng chung) |
 | `nothing_to_rerun` | 409 | The newest scan of this target has no OpenVAS step that was stopped or did not finish, so there is nothing to run again. Run a deep scan instead. | `POST /exposure/targets/{id}/openvas` |
-| `not_running` | 409 | This scan has already ended, so there is nothing to stop. Also: No scan is running now. | `POST /scans/runs/{id}/stop`; `POST /exposure/scan/stop` |
+| `not_running` | 409 | This scan has already ended, so there is nothing to stop. Also: No scan is running now. | `POST /scans/runs/{id}/stop`; `POST /runs/{id}/stop` ("This run has already ended, so there is nothing to stop."); `POST /exposure/scan/stop` |
+| `not_resumable` | 409 | This run cannot be resumed: it has no work left, or its engine cannot go on from where it stopped. | `POST /runs/{id}/resume` |
 | `not_queued` | 409 | ${value} is not waiting in the scan queue. | `DELETE /exposure/targets/{id}/queue` (exposure INV-36) |
 | `not_verified` | 409 | Verify ownership first; only then can this target be scanned. | `POST /exposure/targets/{id}/scan` |
 | `nothing_scheduled` | 409 | No reboot is scheduled. | `DELETE /core/updates/os/reboot` |

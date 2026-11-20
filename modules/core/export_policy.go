@@ -63,6 +63,10 @@ var exportPolicy = map[string]tablePolicy{
 	"core_job_run":                 {export: "id module job started_at finished_at status error"},
 	"core_module":                  {export: "id enabled enabled_at disabled_at version"},
 	"core_org":                     {export: "id name timezone setup_complete data_mode install_id"},
+	"core_run":                     {export: "id module kind lane title trigger trigger_note requested_by schedule_id subject_kind subject_id subject_label parent_id status waiting_for stop_reason error total done queued_at started_at ended_at updated_at"}, // runs (core/run): what the box scanned, when and how it ended
+	"core_run_item":                {export: "run_id seq subject_kind subject_id label outcome note"},
+	"core_run_log":                 {export: "id run_id ts level text"},
+	"core_run_step":                {export: "run_id seq name status total done note started_at ended_at"},
 	"core_secret":                  {skipAll: true, skip: "id purpose nonce ciphertext key_version last4 created_at rotated_at"},
 	"core_sensor_cert":             {skipAll: true, skip: "serial role not_after retired_at"},
 	"core_session":                 {skipAll: true, skip: "id user_id token_hash csrf_hash device ip started_at last_seen expires_at revoked_at"},

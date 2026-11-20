@@ -387,6 +387,12 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	defer exposureService(d).Close() //nolint:contextcheck // INV-18: the run that runs ends with its audit row before the database closes; the shutdown outlives every request, so Close uses the Service's own context
 	exposureAtStart(ctx, d)          // OpenVAS enabled before this start runs again
 	defer scanService(d).Close()     // stop a live scan and wait for it before the database closes (scan review M4)
+	// Runs: the ones a previous process left are recorded (stopped by the restart, the resumable queued again), then the queue
+	// starts. Closed before the module services above, so a run's work ends before the service it uses.
+	if err := d.Runs.Start(ctx); err != nil {
+		return err
+	}
+	defer d.Runs.Close()
 	if o.hostSocket != "" && (filepath.Base(o.db) != "vedette.db" || filepath.Base(o.key) != "vedette.key" || filepath.Dir(o.key) != filepath.Dir(o.db)) {
 		log.WarnContext(ctx, "backup restore through vedette-host needs the database and key at <core_data>/vedette.db and <core_data>/vedette.key", "db", o.db, "key", o.key)
 	}
@@ -408,6 +414,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	}
 	learnWindowsReleases(ctx, d) // Before agent-intake writes a device's OS row or findings matches it
 	reg.OnChange(sched.ModuleChanged)
+	reg.OnChange(d.Runs.ModuleChanged) // a module turned off stops its runs; turned on, its queued runs start
 	if err := addJobs(sched, d, wired); err != nil {
 		return err
 	}

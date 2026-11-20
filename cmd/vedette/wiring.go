@@ -558,6 +558,9 @@ func buildServices(ctx context.Context, d *deps) error {
 	// exists and no setter is needed. Without the notify module on, the mailer says it is not available and email
 	// two-step accounts get 503 twofa_email_unavailable (INV-8, never password-only).
 	var err error
+	if d.Runs, err = newRuns(d); err != nil { // before the modules: each registers its kinds of run on it
+		return fmt.Errorf("runs: %w", err)
+	}
 	d.Inventory = newInventory(d) // before feeds: feeds takes the inventory (feeds.Inventory)
 	d.BoxName.useRow(boxRowName(d.Inventory))
 	notifySvc := newNotify(d)

@@ -163883,6 +163883,141 @@ func (o NilScanPutScansConfigOKScopeCommitment) Or(d ScanPutScansConfigOKScopeCo
 	return d
 }
 
+// NewNilScanningGetRunsIDOKChildrenItemSubject returns new NilScanningGetRunsIDOKChildrenItemSubject with value set to v.
+func NewNilScanningGetRunsIDOKChildrenItemSubject(v ScanningGetRunsIDOKChildrenItemSubject) NilScanningGetRunsIDOKChildrenItemSubject {
+	return NilScanningGetRunsIDOKChildrenItemSubject{
+		Value: v,
+	}
+}
+
+// NilScanningGetRunsIDOKChildrenItemSubject is nullable ScanningGetRunsIDOKChildrenItemSubject.
+type NilScanningGetRunsIDOKChildrenItemSubject struct {
+	Value ScanningGetRunsIDOKChildrenItemSubject
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilScanningGetRunsIDOKChildrenItemSubject) SetTo(v ScanningGetRunsIDOKChildrenItemSubject) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilScanningGetRunsIDOKChildrenItemSubject) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilScanningGetRunsIDOKChildrenItemSubject) SetToNull() {
+	o.Null = true
+	var v ScanningGetRunsIDOKChildrenItemSubject
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilScanningGetRunsIDOKChildrenItemSubject) Get() (v ScanningGetRunsIDOKChildrenItemSubject, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilScanningGetRunsIDOKChildrenItemSubject) Or(d ScanningGetRunsIDOKChildrenItemSubject) ScanningGetRunsIDOKChildrenItemSubject {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilScanningGetRunsIDOKSubject returns new NilScanningGetRunsIDOKSubject with value set to v.
+func NewNilScanningGetRunsIDOKSubject(v ScanningGetRunsIDOKSubject) NilScanningGetRunsIDOKSubject {
+	return NilScanningGetRunsIDOKSubject{
+		Value: v,
+	}
+}
+
+// NilScanningGetRunsIDOKSubject is nullable ScanningGetRunsIDOKSubject.
+type NilScanningGetRunsIDOKSubject struct {
+	Value ScanningGetRunsIDOKSubject
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilScanningGetRunsIDOKSubject) SetTo(v ScanningGetRunsIDOKSubject) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilScanningGetRunsIDOKSubject) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilScanningGetRunsIDOKSubject) SetToNull() {
+	o.Null = true
+	var v ScanningGetRunsIDOKSubject
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilScanningGetRunsIDOKSubject) Get() (v ScanningGetRunsIDOKSubject, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilScanningGetRunsIDOKSubject) Or(d ScanningGetRunsIDOKSubject) ScanningGetRunsIDOKSubject {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilScanningGetRunsOKItemsItemSubject returns new NilScanningGetRunsOKItemsItemSubject with value set to v.
+func NewNilScanningGetRunsOKItemsItemSubject(v ScanningGetRunsOKItemsItemSubject) NilScanningGetRunsOKItemsItemSubject {
+	return NilScanningGetRunsOKItemsItemSubject{
+		Value: v,
+	}
+}
+
+// NilScanningGetRunsOKItemsItemSubject is nullable ScanningGetRunsOKItemsItemSubject.
+type NilScanningGetRunsOKItemsItemSubject struct {
+	Value ScanningGetRunsOKItemsItemSubject
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilScanningGetRunsOKItemsItemSubject) SetTo(v ScanningGetRunsOKItemsItemSubject) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilScanningGetRunsOKItemsItemSubject) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilScanningGetRunsOKItemsItemSubject) SetToNull() {
+	o.Null = true
+	var v ScanningGetRunsOKItemsItemSubject
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilScanningGetRunsOKItemsItemSubject) Get() (v ScanningGetRunsOKItemsItemSubject, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilScanningGetRunsOKItemsItemSubject) Or(d ScanningGetRunsOKItemsItemSubject) ScanningGetRunsOKItemsItemSubject {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilScanningGetScanningOKEnginesItemFollows returns new NilScanningGetScanningOKEnginesItemFollows with value set to v.
 func NewNilScanningGetScanningOKEnginesItemFollows(v ScanningGetScanningOKEnginesItemFollows) NilScanningGetScanningOKEnginesItemFollows {
 	return NilScanningGetScanningOKEnginesItemFollows{
@@ -164237,6 +164372,96 @@ func (o NilScanningPatchScanningEnginesIDOKRunningItemProgressUnit) Get() (v Sca
 
 // Or returns value if set, or given parameter if does not.
 func (o NilScanningPatchScanningEnginesIDOKRunningItemProgressUnit) Or(d ScanningPatchScanningEnginesIDOKRunningItemProgressUnit) ScanningPatchScanningEnginesIDOKRunningItemProgressUnit {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilScanningPostRunsIDResumeOKSubject returns new NilScanningPostRunsIDResumeOKSubject with value set to v.
+func NewNilScanningPostRunsIDResumeOKSubject(v ScanningPostRunsIDResumeOKSubject) NilScanningPostRunsIDResumeOKSubject {
+	return NilScanningPostRunsIDResumeOKSubject{
+		Value: v,
+	}
+}
+
+// NilScanningPostRunsIDResumeOKSubject is nullable ScanningPostRunsIDResumeOKSubject.
+type NilScanningPostRunsIDResumeOKSubject struct {
+	Value ScanningPostRunsIDResumeOKSubject
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilScanningPostRunsIDResumeOKSubject) SetTo(v ScanningPostRunsIDResumeOKSubject) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilScanningPostRunsIDResumeOKSubject) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilScanningPostRunsIDResumeOKSubject) SetToNull() {
+	o.Null = true
+	var v ScanningPostRunsIDResumeOKSubject
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilScanningPostRunsIDResumeOKSubject) Get() (v ScanningPostRunsIDResumeOKSubject, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilScanningPostRunsIDResumeOKSubject) Or(d ScanningPostRunsIDResumeOKSubject) ScanningPostRunsIDResumeOKSubject {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilScanningPostRunsIDStopOKSubject returns new NilScanningPostRunsIDStopOKSubject with value set to v.
+func NewNilScanningPostRunsIDStopOKSubject(v ScanningPostRunsIDStopOKSubject) NilScanningPostRunsIDStopOKSubject {
+	return NilScanningPostRunsIDStopOKSubject{
+		Value: v,
+	}
+}
+
+// NilScanningPostRunsIDStopOKSubject is nullable ScanningPostRunsIDStopOKSubject.
+type NilScanningPostRunsIDStopOKSubject struct {
+	Value ScanningPostRunsIDStopOKSubject
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilScanningPostRunsIDStopOKSubject) SetTo(v ScanningPostRunsIDStopOKSubject) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilScanningPostRunsIDStopOKSubject) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilScanningPostRunsIDStopOKSubject) SetToNull() {
+	o.Null = true
+	var v ScanningPostRunsIDStopOKSubject
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilScanningPostRunsIDStopOKSubject) Get() (v ScanningPostRunsIDStopOKSubject, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilScanningPostRunsIDStopOKSubject) Or(d ScanningPostRunsIDStopOKSubject) ScanningPostRunsIDStopOKSubject {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -178603,6 +178828,52 @@ func (o OptScanPutScansConfigReqWindow) Get() (v ScanPutScansConfigReqWindow, ok
 
 // Or returns value if set, or given parameter if does not.
 func (o OptScanPutScansConfigReqWindow) Or(d ScanPutScansConfigReqWindow) ScanPutScansConfigReqWindow {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptScanningGetRunsStatus returns new OptScanningGetRunsStatus with value set to v.
+func NewOptScanningGetRunsStatus(v ScanningGetRunsStatus) OptScanningGetRunsStatus {
+	return OptScanningGetRunsStatus{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptScanningGetRunsStatus is optional ScanningGetRunsStatus.
+type OptScanningGetRunsStatus struct {
+	Value ScanningGetRunsStatus
+	Set   bool
+}
+
+// IsSet returns true if OptScanningGetRunsStatus was set.
+func (o OptScanningGetRunsStatus) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptScanningGetRunsStatus) Reset() {
+	var v ScanningGetRunsStatus
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptScanningGetRunsStatus) SetTo(v ScanningGetRunsStatus) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptScanningGetRunsStatus) Get() (v ScanningGetRunsStatus, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptScanningGetRunsStatus) Or(d ScanningGetRunsStatus) ScanningGetRunsStatus {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -240810,6 +241081,1883 @@ func (s *ScanPutScansConfigReqWindow) SetTo(val OptString) {
 	s.To = val
 }
 
+type ScanningGetRunsIDOK struct {
+	// Waiting, or stopped with work left when its engine can go on from its steps.
+	CanResume bool `json:"can_resume"`
+	// Queued, waiting or running.
+	CanStop bool `json:"can_stop"`
+	// The runs that are steps of this one.
+	Children []ScanningGetRunsIDOKChildrenItem `json:"children"`
+	Done     int                               `json:"done"`
+	// Set exactly when the state is final.
+	EndedAt NilDateTime `json:"ended_at"`
+	// What went wrong, with failed or partial.
+	Error NilString `json:"error"`
+	ID    string    `json:"id"`
+	// The devices or hosts it touched, in the order they came, the first 500.
+	Items      []ScanningGetRunsIDOKItemsItem `json:"items"`
+	ItemsTotal int                            `json:"items_total"`
+	// Lan_sweep | device_check | snmp_read | all_ports | vuln_check | exposure_scan | … (open).
+	Kind string `json:"kind"`
+	// What it occupies: one run at a time per lane (nmap, nuclei, exposure, openvas, …).
+	Lane string `json:"lane"`
+	// The newest 200 lines, oldest first (a run keeps 2,000 lines for 30 days).
+	Log []ScanningGetRunsIDOKLogItem `json:"log"`
+	// The module whose engine does the work.
+	Module string `json:"module"`
+	// The run this one is a step of (an engine step of an exposure scan).
+	ParentID NilString `json:"parent_id"`
+	QueuedAt time.Time `json:"queued_at"`
+	// Who asked (an email), or system.
+	RequestedBy string `json:"requested_by"`
+	// The schedule that came due, with trigger schedule.
+	ScheduleID NilString `json:"schedule_id"`
+	// The first start; null while it never ran.
+	StartedAt NilDateTime `json:"started_at"`
+	// Queued: waits for its lane (another run of the same engine runs); waiting: paused with work left
+	// until what waiting_for names; running; stopping: a stop was asked and the work is ending; done;
+	// partial: ended with part of the work done; failed; stopped: by a person, by its module turned off,
+	// or by a restart (stop_reason says which).
+	Status ScanningGetRunsIDOKStatus `json:"status"`
+	// In order; a resumed run continues from the first that is not done.
+	Steps []ScanningGetRunsIDOKStepsItem `json:"steps"`
+	// Why it stopped, e.g. "Stopped by ann@example.com", "Vedette restarted".
+	StopReason NilString `json:"stop_reason"`
+	// What the run is about; null for a run over several devices without one subject.
+	Subject NilScanningGetRunsIDOKSubject `json:"subject"`
+	// What it does, e.g. "LAN sweep of 192.0.2.0/24, 10.20.0.0/16".
+	Title string `json:"title"`
+	// Units of work (addresses, devices, templates): the sum over its steps; 0 when it does not count them.
+	Total int `json:"total"`
+	// Manual: a person asked; schedule: a schedule came due; event: something the box saw (a new device, a
+	// finished sweep).
+	Trigger ScanningGetRunsIDOKTrigger `json:"trigger"`
+	// Words on the trigger, e.g. "a new device appeared".
+	TriggerNote NilString `json:"trigger_note"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	// Set only while waiting, e.g. "the scan window (opens 23:00)".
+	WaitingFor NilString `json:"waiting_for"`
+}
+
+// GetCanResume returns the value of CanResume.
+func (s *ScanningGetRunsIDOK) GetCanResume() bool {
+	return s.CanResume
+}
+
+// GetCanStop returns the value of CanStop.
+func (s *ScanningGetRunsIDOK) GetCanStop() bool {
+	return s.CanStop
+}
+
+// GetChildren returns the value of Children.
+func (s *ScanningGetRunsIDOK) GetChildren() []ScanningGetRunsIDOKChildrenItem {
+	return s.Children
+}
+
+// GetDone returns the value of Done.
+func (s *ScanningGetRunsIDOK) GetDone() int {
+	return s.Done
+}
+
+// GetEndedAt returns the value of EndedAt.
+func (s *ScanningGetRunsIDOK) GetEndedAt() NilDateTime {
+	return s.EndedAt
+}
+
+// GetError returns the value of Error.
+func (s *ScanningGetRunsIDOK) GetError() NilString {
+	return s.Error
+}
+
+// GetID returns the value of ID.
+func (s *ScanningGetRunsIDOK) GetID() string {
+	return s.ID
+}
+
+// GetItems returns the value of Items.
+func (s *ScanningGetRunsIDOK) GetItems() []ScanningGetRunsIDOKItemsItem {
+	return s.Items
+}
+
+// GetItemsTotal returns the value of ItemsTotal.
+func (s *ScanningGetRunsIDOK) GetItemsTotal() int {
+	return s.ItemsTotal
+}
+
+// GetKind returns the value of Kind.
+func (s *ScanningGetRunsIDOK) GetKind() string {
+	return s.Kind
+}
+
+// GetLane returns the value of Lane.
+func (s *ScanningGetRunsIDOK) GetLane() string {
+	return s.Lane
+}
+
+// GetLog returns the value of Log.
+func (s *ScanningGetRunsIDOK) GetLog() []ScanningGetRunsIDOKLogItem {
+	return s.Log
+}
+
+// GetModule returns the value of Module.
+func (s *ScanningGetRunsIDOK) GetModule() string {
+	return s.Module
+}
+
+// GetParentID returns the value of ParentID.
+func (s *ScanningGetRunsIDOK) GetParentID() NilString {
+	return s.ParentID
+}
+
+// GetQueuedAt returns the value of QueuedAt.
+func (s *ScanningGetRunsIDOK) GetQueuedAt() time.Time {
+	return s.QueuedAt
+}
+
+// GetRequestedBy returns the value of RequestedBy.
+func (s *ScanningGetRunsIDOK) GetRequestedBy() string {
+	return s.RequestedBy
+}
+
+// GetScheduleID returns the value of ScheduleID.
+func (s *ScanningGetRunsIDOK) GetScheduleID() NilString {
+	return s.ScheduleID
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *ScanningGetRunsIDOK) GetStartedAt() NilDateTime {
+	return s.StartedAt
+}
+
+// GetStatus returns the value of Status.
+func (s *ScanningGetRunsIDOK) GetStatus() ScanningGetRunsIDOKStatus {
+	return s.Status
+}
+
+// GetSteps returns the value of Steps.
+func (s *ScanningGetRunsIDOK) GetSteps() []ScanningGetRunsIDOKStepsItem {
+	return s.Steps
+}
+
+// GetStopReason returns the value of StopReason.
+func (s *ScanningGetRunsIDOK) GetStopReason() NilString {
+	return s.StopReason
+}
+
+// GetSubject returns the value of Subject.
+func (s *ScanningGetRunsIDOK) GetSubject() NilScanningGetRunsIDOKSubject {
+	return s.Subject
+}
+
+// GetTitle returns the value of Title.
+func (s *ScanningGetRunsIDOK) GetTitle() string {
+	return s.Title
+}
+
+// GetTotal returns the value of Total.
+func (s *ScanningGetRunsIDOK) GetTotal() int {
+	return s.Total
+}
+
+// GetTrigger returns the value of Trigger.
+func (s *ScanningGetRunsIDOK) GetTrigger() ScanningGetRunsIDOKTrigger {
+	return s.Trigger
+}
+
+// GetTriggerNote returns the value of TriggerNote.
+func (s *ScanningGetRunsIDOK) GetTriggerNote() NilString {
+	return s.TriggerNote
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *ScanningGetRunsIDOK) GetUpdatedAt() time.Time {
+	return s.UpdatedAt
+}
+
+// GetWaitingFor returns the value of WaitingFor.
+func (s *ScanningGetRunsIDOK) GetWaitingFor() NilString {
+	return s.WaitingFor
+}
+
+// SetCanResume sets the value of CanResume.
+func (s *ScanningGetRunsIDOK) SetCanResume(val bool) {
+	s.CanResume = val
+}
+
+// SetCanStop sets the value of CanStop.
+func (s *ScanningGetRunsIDOK) SetCanStop(val bool) {
+	s.CanStop = val
+}
+
+// SetChildren sets the value of Children.
+func (s *ScanningGetRunsIDOK) SetChildren(val []ScanningGetRunsIDOKChildrenItem) {
+	s.Children = val
+}
+
+// SetDone sets the value of Done.
+func (s *ScanningGetRunsIDOK) SetDone(val int) {
+	s.Done = val
+}
+
+// SetEndedAt sets the value of EndedAt.
+func (s *ScanningGetRunsIDOK) SetEndedAt(val NilDateTime) {
+	s.EndedAt = val
+}
+
+// SetError sets the value of Error.
+func (s *ScanningGetRunsIDOK) SetError(val NilString) {
+	s.Error = val
+}
+
+// SetID sets the value of ID.
+func (s *ScanningGetRunsIDOK) SetID(val string) {
+	s.ID = val
+}
+
+// SetItems sets the value of Items.
+func (s *ScanningGetRunsIDOK) SetItems(val []ScanningGetRunsIDOKItemsItem) {
+	s.Items = val
+}
+
+// SetItemsTotal sets the value of ItemsTotal.
+func (s *ScanningGetRunsIDOK) SetItemsTotal(val int) {
+	s.ItemsTotal = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ScanningGetRunsIDOK) SetKind(val string) {
+	s.Kind = val
+}
+
+// SetLane sets the value of Lane.
+func (s *ScanningGetRunsIDOK) SetLane(val string) {
+	s.Lane = val
+}
+
+// SetLog sets the value of Log.
+func (s *ScanningGetRunsIDOK) SetLog(val []ScanningGetRunsIDOKLogItem) {
+	s.Log = val
+}
+
+// SetModule sets the value of Module.
+func (s *ScanningGetRunsIDOK) SetModule(val string) {
+	s.Module = val
+}
+
+// SetParentID sets the value of ParentID.
+func (s *ScanningGetRunsIDOK) SetParentID(val NilString) {
+	s.ParentID = val
+}
+
+// SetQueuedAt sets the value of QueuedAt.
+func (s *ScanningGetRunsIDOK) SetQueuedAt(val time.Time) {
+	s.QueuedAt = val
+}
+
+// SetRequestedBy sets the value of RequestedBy.
+func (s *ScanningGetRunsIDOK) SetRequestedBy(val string) {
+	s.RequestedBy = val
+}
+
+// SetScheduleID sets the value of ScheduleID.
+func (s *ScanningGetRunsIDOK) SetScheduleID(val NilString) {
+	s.ScheduleID = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *ScanningGetRunsIDOK) SetStartedAt(val NilDateTime) {
+	s.StartedAt = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ScanningGetRunsIDOK) SetStatus(val ScanningGetRunsIDOKStatus) {
+	s.Status = val
+}
+
+// SetSteps sets the value of Steps.
+func (s *ScanningGetRunsIDOK) SetSteps(val []ScanningGetRunsIDOKStepsItem) {
+	s.Steps = val
+}
+
+// SetStopReason sets the value of StopReason.
+func (s *ScanningGetRunsIDOK) SetStopReason(val NilString) {
+	s.StopReason = val
+}
+
+// SetSubject sets the value of Subject.
+func (s *ScanningGetRunsIDOK) SetSubject(val NilScanningGetRunsIDOKSubject) {
+	s.Subject = val
+}
+
+// SetTitle sets the value of Title.
+func (s *ScanningGetRunsIDOK) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetTotal sets the value of Total.
+func (s *ScanningGetRunsIDOK) SetTotal(val int) {
+	s.Total = val
+}
+
+// SetTrigger sets the value of Trigger.
+func (s *ScanningGetRunsIDOK) SetTrigger(val ScanningGetRunsIDOKTrigger) {
+	s.Trigger = val
+}
+
+// SetTriggerNote sets the value of TriggerNote.
+func (s *ScanningGetRunsIDOK) SetTriggerNote(val NilString) {
+	s.TriggerNote = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *ScanningGetRunsIDOK) SetUpdatedAt(val time.Time) {
+	s.UpdatedAt = val
+}
+
+// SetWaitingFor sets the value of WaitingFor.
+func (s *ScanningGetRunsIDOK) SetWaitingFor(val NilString) {
+	s.WaitingFor = val
+}
+
+type ScanningGetRunsIDOKChildrenItem struct {
+	// Waiting, or stopped with work left when its engine can go on from its steps.
+	CanResume bool `json:"can_resume"`
+	// Queued, waiting or running.
+	CanStop bool `json:"can_stop"`
+	Done    int  `json:"done"`
+	// Set exactly when the state is final.
+	EndedAt NilDateTime `json:"ended_at"`
+	// What went wrong, with failed or partial.
+	Error NilString `json:"error"`
+	ID    string    `json:"id"`
+	// Lan_sweep | device_check | snmp_read | all_ports | vuln_check | exposure_scan | … (open).
+	Kind string `json:"kind"`
+	// What it occupies: one run at a time per lane (nmap, nuclei, exposure, openvas, …).
+	Lane string `json:"lane"`
+	// The module whose engine does the work.
+	Module string `json:"module"`
+	// The run this one is a step of (an engine step of an exposure scan).
+	ParentID NilString `json:"parent_id"`
+	QueuedAt time.Time `json:"queued_at"`
+	// Who asked (an email), or system.
+	RequestedBy string `json:"requested_by"`
+	// The schedule that came due, with trigger schedule.
+	ScheduleID NilString `json:"schedule_id"`
+	// The first start; null while it never ran.
+	StartedAt NilDateTime `json:"started_at"`
+	// Queued: waits for its lane (another run of the same engine runs); waiting: paused with work left
+	// until what waiting_for names; running; stopping: a stop was asked and the work is ending; done;
+	// partial: ended with part of the work done; failed; stopped: by a person, by its module turned off,
+	// or by a restart (stop_reason says which).
+	Status ScanningGetRunsIDOKChildrenItemStatus `json:"status"`
+	// Why it stopped, e.g. "Stopped by ann@example.com", "Vedette restarted".
+	StopReason NilString `json:"stop_reason"`
+	// What the run is about; null for a run over several devices without one subject.
+	Subject NilScanningGetRunsIDOKChildrenItemSubject `json:"subject"`
+	// What it does, e.g. "LAN sweep of 192.0.2.0/24, 10.20.0.0/16".
+	Title string `json:"title"`
+	// Units of work (addresses, devices, templates): the sum over its steps; 0 when it does not count them.
+	Total int `json:"total"`
+	// Manual: a person asked; schedule: a schedule came due; event: something the box saw (a new device, a
+	// finished sweep).
+	Trigger ScanningGetRunsIDOKChildrenItemTrigger `json:"trigger"`
+	// Words on the trigger, e.g. "a new device appeared".
+	TriggerNote NilString `json:"trigger_note"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	// Set only while waiting, e.g. "the scan window (opens 23:00)".
+	WaitingFor NilString `json:"waiting_for"`
+}
+
+// GetCanResume returns the value of CanResume.
+func (s *ScanningGetRunsIDOKChildrenItem) GetCanResume() bool {
+	return s.CanResume
+}
+
+// GetCanStop returns the value of CanStop.
+func (s *ScanningGetRunsIDOKChildrenItem) GetCanStop() bool {
+	return s.CanStop
+}
+
+// GetDone returns the value of Done.
+func (s *ScanningGetRunsIDOKChildrenItem) GetDone() int {
+	return s.Done
+}
+
+// GetEndedAt returns the value of EndedAt.
+func (s *ScanningGetRunsIDOKChildrenItem) GetEndedAt() NilDateTime {
+	return s.EndedAt
+}
+
+// GetError returns the value of Error.
+func (s *ScanningGetRunsIDOKChildrenItem) GetError() NilString {
+	return s.Error
+}
+
+// GetID returns the value of ID.
+func (s *ScanningGetRunsIDOKChildrenItem) GetID() string {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *ScanningGetRunsIDOKChildrenItem) GetKind() string {
+	return s.Kind
+}
+
+// GetLane returns the value of Lane.
+func (s *ScanningGetRunsIDOKChildrenItem) GetLane() string {
+	return s.Lane
+}
+
+// GetModule returns the value of Module.
+func (s *ScanningGetRunsIDOKChildrenItem) GetModule() string {
+	return s.Module
+}
+
+// GetParentID returns the value of ParentID.
+func (s *ScanningGetRunsIDOKChildrenItem) GetParentID() NilString {
+	return s.ParentID
+}
+
+// GetQueuedAt returns the value of QueuedAt.
+func (s *ScanningGetRunsIDOKChildrenItem) GetQueuedAt() time.Time {
+	return s.QueuedAt
+}
+
+// GetRequestedBy returns the value of RequestedBy.
+func (s *ScanningGetRunsIDOKChildrenItem) GetRequestedBy() string {
+	return s.RequestedBy
+}
+
+// GetScheduleID returns the value of ScheduleID.
+func (s *ScanningGetRunsIDOKChildrenItem) GetScheduleID() NilString {
+	return s.ScheduleID
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *ScanningGetRunsIDOKChildrenItem) GetStartedAt() NilDateTime {
+	return s.StartedAt
+}
+
+// GetStatus returns the value of Status.
+func (s *ScanningGetRunsIDOKChildrenItem) GetStatus() ScanningGetRunsIDOKChildrenItemStatus {
+	return s.Status
+}
+
+// GetStopReason returns the value of StopReason.
+func (s *ScanningGetRunsIDOKChildrenItem) GetStopReason() NilString {
+	return s.StopReason
+}
+
+// GetSubject returns the value of Subject.
+func (s *ScanningGetRunsIDOKChildrenItem) GetSubject() NilScanningGetRunsIDOKChildrenItemSubject {
+	return s.Subject
+}
+
+// GetTitle returns the value of Title.
+func (s *ScanningGetRunsIDOKChildrenItem) GetTitle() string {
+	return s.Title
+}
+
+// GetTotal returns the value of Total.
+func (s *ScanningGetRunsIDOKChildrenItem) GetTotal() int {
+	return s.Total
+}
+
+// GetTrigger returns the value of Trigger.
+func (s *ScanningGetRunsIDOKChildrenItem) GetTrigger() ScanningGetRunsIDOKChildrenItemTrigger {
+	return s.Trigger
+}
+
+// GetTriggerNote returns the value of TriggerNote.
+func (s *ScanningGetRunsIDOKChildrenItem) GetTriggerNote() NilString {
+	return s.TriggerNote
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *ScanningGetRunsIDOKChildrenItem) GetUpdatedAt() time.Time {
+	return s.UpdatedAt
+}
+
+// GetWaitingFor returns the value of WaitingFor.
+func (s *ScanningGetRunsIDOKChildrenItem) GetWaitingFor() NilString {
+	return s.WaitingFor
+}
+
+// SetCanResume sets the value of CanResume.
+func (s *ScanningGetRunsIDOKChildrenItem) SetCanResume(val bool) {
+	s.CanResume = val
+}
+
+// SetCanStop sets the value of CanStop.
+func (s *ScanningGetRunsIDOKChildrenItem) SetCanStop(val bool) {
+	s.CanStop = val
+}
+
+// SetDone sets the value of Done.
+func (s *ScanningGetRunsIDOKChildrenItem) SetDone(val int) {
+	s.Done = val
+}
+
+// SetEndedAt sets the value of EndedAt.
+func (s *ScanningGetRunsIDOKChildrenItem) SetEndedAt(val NilDateTime) {
+	s.EndedAt = val
+}
+
+// SetError sets the value of Error.
+func (s *ScanningGetRunsIDOKChildrenItem) SetError(val NilString) {
+	s.Error = val
+}
+
+// SetID sets the value of ID.
+func (s *ScanningGetRunsIDOKChildrenItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ScanningGetRunsIDOKChildrenItem) SetKind(val string) {
+	s.Kind = val
+}
+
+// SetLane sets the value of Lane.
+func (s *ScanningGetRunsIDOKChildrenItem) SetLane(val string) {
+	s.Lane = val
+}
+
+// SetModule sets the value of Module.
+func (s *ScanningGetRunsIDOKChildrenItem) SetModule(val string) {
+	s.Module = val
+}
+
+// SetParentID sets the value of ParentID.
+func (s *ScanningGetRunsIDOKChildrenItem) SetParentID(val NilString) {
+	s.ParentID = val
+}
+
+// SetQueuedAt sets the value of QueuedAt.
+func (s *ScanningGetRunsIDOKChildrenItem) SetQueuedAt(val time.Time) {
+	s.QueuedAt = val
+}
+
+// SetRequestedBy sets the value of RequestedBy.
+func (s *ScanningGetRunsIDOKChildrenItem) SetRequestedBy(val string) {
+	s.RequestedBy = val
+}
+
+// SetScheduleID sets the value of ScheduleID.
+func (s *ScanningGetRunsIDOKChildrenItem) SetScheduleID(val NilString) {
+	s.ScheduleID = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *ScanningGetRunsIDOKChildrenItem) SetStartedAt(val NilDateTime) {
+	s.StartedAt = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ScanningGetRunsIDOKChildrenItem) SetStatus(val ScanningGetRunsIDOKChildrenItemStatus) {
+	s.Status = val
+}
+
+// SetStopReason sets the value of StopReason.
+func (s *ScanningGetRunsIDOKChildrenItem) SetStopReason(val NilString) {
+	s.StopReason = val
+}
+
+// SetSubject sets the value of Subject.
+func (s *ScanningGetRunsIDOKChildrenItem) SetSubject(val NilScanningGetRunsIDOKChildrenItemSubject) {
+	s.Subject = val
+}
+
+// SetTitle sets the value of Title.
+func (s *ScanningGetRunsIDOKChildrenItem) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetTotal sets the value of Total.
+func (s *ScanningGetRunsIDOKChildrenItem) SetTotal(val int) {
+	s.Total = val
+}
+
+// SetTrigger sets the value of Trigger.
+func (s *ScanningGetRunsIDOKChildrenItem) SetTrigger(val ScanningGetRunsIDOKChildrenItemTrigger) {
+	s.Trigger = val
+}
+
+// SetTriggerNote sets the value of TriggerNote.
+func (s *ScanningGetRunsIDOKChildrenItem) SetTriggerNote(val NilString) {
+	s.TriggerNote = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *ScanningGetRunsIDOKChildrenItem) SetUpdatedAt(val time.Time) {
+	s.UpdatedAt = val
+}
+
+// SetWaitingFor sets the value of WaitingFor.
+func (s *ScanningGetRunsIDOKChildrenItem) SetWaitingFor(val NilString) {
+	s.WaitingFor = val
+}
+
+// Queued: waits for its lane (another run of the same engine runs); waiting: paused with work left
+// until what waiting_for names; running; stopping: a stop was asked and the work is ending; done;
+// partial: ended with part of the work done; failed; stopped: by a person, by its module turned off,
+// or by a restart (stop_reason says which).
+type ScanningGetRunsIDOKChildrenItemStatus string
+
+const (
+	ScanningGetRunsIDOKChildrenItemStatusQueued   ScanningGetRunsIDOKChildrenItemStatus = "queued"
+	ScanningGetRunsIDOKChildrenItemStatusWaiting  ScanningGetRunsIDOKChildrenItemStatus = "waiting"
+	ScanningGetRunsIDOKChildrenItemStatusRunning  ScanningGetRunsIDOKChildrenItemStatus = "running"
+	ScanningGetRunsIDOKChildrenItemStatusStopping ScanningGetRunsIDOKChildrenItemStatus = "stopping"
+	ScanningGetRunsIDOKChildrenItemStatusDone     ScanningGetRunsIDOKChildrenItemStatus = "done"
+	ScanningGetRunsIDOKChildrenItemStatusPartial  ScanningGetRunsIDOKChildrenItemStatus = "partial"
+	ScanningGetRunsIDOKChildrenItemStatusFailed   ScanningGetRunsIDOKChildrenItemStatus = "failed"
+	ScanningGetRunsIDOKChildrenItemStatusStopped  ScanningGetRunsIDOKChildrenItemStatus = "stopped"
+)
+
+// AllValues returns all ScanningGetRunsIDOKChildrenItemStatus values.
+func (ScanningGetRunsIDOKChildrenItemStatus) AllValues() []ScanningGetRunsIDOKChildrenItemStatus {
+	return []ScanningGetRunsIDOKChildrenItemStatus{
+		ScanningGetRunsIDOKChildrenItemStatusQueued,
+		ScanningGetRunsIDOKChildrenItemStatusWaiting,
+		ScanningGetRunsIDOKChildrenItemStatusRunning,
+		ScanningGetRunsIDOKChildrenItemStatusStopping,
+		ScanningGetRunsIDOKChildrenItemStatusDone,
+		ScanningGetRunsIDOKChildrenItemStatusPartial,
+		ScanningGetRunsIDOKChildrenItemStatusFailed,
+		ScanningGetRunsIDOKChildrenItemStatusStopped,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningGetRunsIDOKChildrenItemStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningGetRunsIDOKChildrenItemStatusQueued:
+		return []byte(s), nil
+	case ScanningGetRunsIDOKChildrenItemStatusWaiting:
+		return []byte(s), nil
+	case ScanningGetRunsIDOKChildrenItemStatusRunning:
+		return []byte(s), nil
+	case ScanningGetRunsIDOKChildrenItemStatusStopping:
+		return []byte(s), nil
+	case ScanningGetRunsIDOKChildrenItemStatusDone:
+		return []byte(s), nil
+	case ScanningGetRunsIDOKChildrenItemStatusPartial:
+		return []byte(s), nil
+	case ScanningGetRunsIDOKChildrenItemStatusFailed:
+		return []byte(s), nil
+	case ScanningGetRunsIDOKChildrenItemStatusStopped:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningGetRunsIDOKChildrenItemStatus) UnmarshalText(data []byte) error {
+	switch ScanningGetRunsIDOKChildrenItemStatus(data) {
+	case ScanningGetRunsIDOKChildrenItemStatusQueued:
+		*s = ScanningGetRunsIDOKChildrenItemStatusQueued
+		return nil
+	case ScanningGetRunsIDOKChildrenItemStatusWaiting:
+		*s = ScanningGetRunsIDOKChildrenItemStatusWaiting
+		return nil
+	case ScanningGetRunsIDOKChildrenItemStatusRunning:
+		*s = ScanningGetRunsIDOKChildrenItemStatusRunning
+		return nil
+	case ScanningGetRunsIDOKChildrenItemStatusStopping:
+		*s = ScanningGetRunsIDOKChildrenItemStatusStopping
+		return nil
+	case ScanningGetRunsIDOKChildrenItemStatusDone:
+		*s = ScanningGetRunsIDOKChildrenItemStatusDone
+		return nil
+	case ScanningGetRunsIDOKChildrenItemStatusPartial:
+		*s = ScanningGetRunsIDOKChildrenItemStatusPartial
+		return nil
+	case ScanningGetRunsIDOKChildrenItemStatusFailed:
+		*s = ScanningGetRunsIDOKChildrenItemStatusFailed
+		return nil
+	case ScanningGetRunsIDOKChildrenItemStatusStopped:
+		*s = ScanningGetRunsIDOKChildrenItemStatusStopped
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanningGetRunsIDOKChildrenItemSubject struct {
+	// Its id in its module: a device id links to the device page, a target id to the exposure target.
+	ID string `json:"id"`
+	// Device | target | scope (open).
+	Kind string `json:"kind"`
+	// Its name when the run was made; kept when the subject is gone.
+	Label string `json:"label"`
+}
+
+// GetID returns the value of ID.
+func (s *ScanningGetRunsIDOKChildrenItemSubject) GetID() string {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *ScanningGetRunsIDOKChildrenItemSubject) GetKind() string {
+	return s.Kind
+}
+
+// GetLabel returns the value of Label.
+func (s *ScanningGetRunsIDOKChildrenItemSubject) GetLabel() string {
+	return s.Label
+}
+
+// SetID sets the value of ID.
+func (s *ScanningGetRunsIDOKChildrenItemSubject) SetID(val string) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ScanningGetRunsIDOKChildrenItemSubject) SetKind(val string) {
+	s.Kind = val
+}
+
+// SetLabel sets the value of Label.
+func (s *ScanningGetRunsIDOKChildrenItemSubject) SetLabel(val string) {
+	s.Label = val
+}
+
+// Manual: a person asked; schedule: a schedule came due; event: something the box saw (a new device, a
+// finished sweep).
+type ScanningGetRunsIDOKChildrenItemTrigger string
+
+const (
+	ScanningGetRunsIDOKChildrenItemTriggerManual   ScanningGetRunsIDOKChildrenItemTrigger = "manual"
+	ScanningGetRunsIDOKChildrenItemTriggerSchedule ScanningGetRunsIDOKChildrenItemTrigger = "schedule"
+	ScanningGetRunsIDOKChildrenItemTriggerEvent    ScanningGetRunsIDOKChildrenItemTrigger = "event"
+)
+
+// AllValues returns all ScanningGetRunsIDOKChildrenItemTrigger values.
+func (ScanningGetRunsIDOKChildrenItemTrigger) AllValues() []ScanningGetRunsIDOKChildrenItemTrigger {
+	return []ScanningGetRunsIDOKChildrenItemTrigger{
+		ScanningGetRunsIDOKChildrenItemTriggerManual,
+		ScanningGetRunsIDOKChildrenItemTriggerSchedule,
+		ScanningGetRunsIDOKChildrenItemTriggerEvent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningGetRunsIDOKChildrenItemTrigger) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningGetRunsIDOKChildrenItemTriggerManual:
+		return []byte(s), nil
+	case ScanningGetRunsIDOKChildrenItemTriggerSchedule:
+		return []byte(s), nil
+	case ScanningGetRunsIDOKChildrenItemTriggerEvent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningGetRunsIDOKChildrenItemTrigger) UnmarshalText(data []byte) error {
+	switch ScanningGetRunsIDOKChildrenItemTrigger(data) {
+	case ScanningGetRunsIDOKChildrenItemTriggerManual:
+		*s = ScanningGetRunsIDOKChildrenItemTriggerManual
+		return nil
+	case ScanningGetRunsIDOKChildrenItemTriggerSchedule:
+		*s = ScanningGetRunsIDOKChildrenItemTriggerSchedule
+		return nil
+	case ScanningGetRunsIDOKChildrenItemTriggerEvent:
+		*s = ScanningGetRunsIDOKChildrenItemTriggerEvent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanningGetRunsIDOKItemsItem struct {
+	Label string    `json:"label"`
+	Note  NilString `json:"note"`
+	// Found | new | checked | unreachable | failed | skipped (open).
+	Outcome string `json:"outcome"`
+	Seq     int    `json:"seq"`
+	// A device id for a link; null for an address no device has yet.
+	SubjectID NilString `json:"subject_id"`
+	// Device | host | target (open).
+	SubjectKind string `json:"subject_kind"`
+}
+
+// GetLabel returns the value of Label.
+func (s *ScanningGetRunsIDOKItemsItem) GetLabel() string {
+	return s.Label
+}
+
+// GetNote returns the value of Note.
+func (s *ScanningGetRunsIDOKItemsItem) GetNote() NilString {
+	return s.Note
+}
+
+// GetOutcome returns the value of Outcome.
+func (s *ScanningGetRunsIDOKItemsItem) GetOutcome() string {
+	return s.Outcome
+}
+
+// GetSeq returns the value of Seq.
+func (s *ScanningGetRunsIDOKItemsItem) GetSeq() int {
+	return s.Seq
+}
+
+// GetSubjectID returns the value of SubjectID.
+func (s *ScanningGetRunsIDOKItemsItem) GetSubjectID() NilString {
+	return s.SubjectID
+}
+
+// GetSubjectKind returns the value of SubjectKind.
+func (s *ScanningGetRunsIDOKItemsItem) GetSubjectKind() string {
+	return s.SubjectKind
+}
+
+// SetLabel sets the value of Label.
+func (s *ScanningGetRunsIDOKItemsItem) SetLabel(val string) {
+	s.Label = val
+}
+
+// SetNote sets the value of Note.
+func (s *ScanningGetRunsIDOKItemsItem) SetNote(val NilString) {
+	s.Note = val
+}
+
+// SetOutcome sets the value of Outcome.
+func (s *ScanningGetRunsIDOKItemsItem) SetOutcome(val string) {
+	s.Outcome = val
+}
+
+// SetSeq sets the value of Seq.
+func (s *ScanningGetRunsIDOKItemsItem) SetSeq(val int) {
+	s.Seq = val
+}
+
+// SetSubjectID sets the value of SubjectID.
+func (s *ScanningGetRunsIDOKItemsItem) SetSubjectID(val NilString) {
+	s.SubjectID = val
+}
+
+// SetSubjectKind sets the value of SubjectKind.
+func (s *ScanningGetRunsIDOKItemsItem) SetSubjectKind(val string) {
+	s.SubjectKind = val
+}
+
+type ScanningGetRunsIDOKLogItem struct {
+	Level ScanningGetRunsIDOKLogItemLevel `json:"level"`
+	Text  string                          `json:"text"`
+	Ts    time.Time                       `json:"ts"`
+}
+
+// GetLevel returns the value of Level.
+func (s *ScanningGetRunsIDOKLogItem) GetLevel() ScanningGetRunsIDOKLogItemLevel {
+	return s.Level
+}
+
+// GetText returns the value of Text.
+func (s *ScanningGetRunsIDOKLogItem) GetText() string {
+	return s.Text
+}
+
+// GetTs returns the value of Ts.
+func (s *ScanningGetRunsIDOKLogItem) GetTs() time.Time {
+	return s.Ts
+}
+
+// SetLevel sets the value of Level.
+func (s *ScanningGetRunsIDOKLogItem) SetLevel(val ScanningGetRunsIDOKLogItemLevel) {
+	s.Level = val
+}
+
+// SetText sets the value of Text.
+func (s *ScanningGetRunsIDOKLogItem) SetText(val string) {
+	s.Text = val
+}
+
+// SetTs sets the value of Ts.
+func (s *ScanningGetRunsIDOKLogItem) SetTs(val time.Time) {
+	s.Ts = val
+}
+
+type ScanningGetRunsIDOKLogItemLevel string
+
+const (
+	ScanningGetRunsIDOKLogItemLevelInfo  ScanningGetRunsIDOKLogItemLevel = "info"
+	ScanningGetRunsIDOKLogItemLevelWarn  ScanningGetRunsIDOKLogItemLevel = "warn"
+	ScanningGetRunsIDOKLogItemLevelError ScanningGetRunsIDOKLogItemLevel = "error"
+)
+
+// AllValues returns all ScanningGetRunsIDOKLogItemLevel values.
+func (ScanningGetRunsIDOKLogItemLevel) AllValues() []ScanningGetRunsIDOKLogItemLevel {
+	return []ScanningGetRunsIDOKLogItemLevel{
+		ScanningGetRunsIDOKLogItemLevelInfo,
+		ScanningGetRunsIDOKLogItemLevelWarn,
+		ScanningGetRunsIDOKLogItemLevelError,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningGetRunsIDOKLogItemLevel) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningGetRunsIDOKLogItemLevelInfo:
+		return []byte(s), nil
+	case ScanningGetRunsIDOKLogItemLevelWarn:
+		return []byte(s), nil
+	case ScanningGetRunsIDOKLogItemLevelError:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningGetRunsIDOKLogItemLevel) UnmarshalText(data []byte) error {
+	switch ScanningGetRunsIDOKLogItemLevel(data) {
+	case ScanningGetRunsIDOKLogItemLevelInfo:
+		*s = ScanningGetRunsIDOKLogItemLevelInfo
+		return nil
+	case ScanningGetRunsIDOKLogItemLevelWarn:
+		*s = ScanningGetRunsIDOKLogItemLevelWarn
+		return nil
+	case ScanningGetRunsIDOKLogItemLevelError:
+		*s = ScanningGetRunsIDOKLogItemLevelError
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Queued: waits for its lane (another run of the same engine runs); waiting: paused with work left
+// until what waiting_for names; running; stopping: a stop was asked and the work is ending; done;
+// partial: ended with part of the work done; failed; stopped: by a person, by its module turned off,
+// or by a restart (stop_reason says which).
+type ScanningGetRunsIDOKStatus string
+
+const (
+	ScanningGetRunsIDOKStatusQueued   ScanningGetRunsIDOKStatus = "queued"
+	ScanningGetRunsIDOKStatusWaiting  ScanningGetRunsIDOKStatus = "waiting"
+	ScanningGetRunsIDOKStatusRunning  ScanningGetRunsIDOKStatus = "running"
+	ScanningGetRunsIDOKStatusStopping ScanningGetRunsIDOKStatus = "stopping"
+	ScanningGetRunsIDOKStatusDone     ScanningGetRunsIDOKStatus = "done"
+	ScanningGetRunsIDOKStatusPartial  ScanningGetRunsIDOKStatus = "partial"
+	ScanningGetRunsIDOKStatusFailed   ScanningGetRunsIDOKStatus = "failed"
+	ScanningGetRunsIDOKStatusStopped  ScanningGetRunsIDOKStatus = "stopped"
+)
+
+// AllValues returns all ScanningGetRunsIDOKStatus values.
+func (ScanningGetRunsIDOKStatus) AllValues() []ScanningGetRunsIDOKStatus {
+	return []ScanningGetRunsIDOKStatus{
+		ScanningGetRunsIDOKStatusQueued,
+		ScanningGetRunsIDOKStatusWaiting,
+		ScanningGetRunsIDOKStatusRunning,
+		ScanningGetRunsIDOKStatusStopping,
+		ScanningGetRunsIDOKStatusDone,
+		ScanningGetRunsIDOKStatusPartial,
+		ScanningGetRunsIDOKStatusFailed,
+		ScanningGetRunsIDOKStatusStopped,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningGetRunsIDOKStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningGetRunsIDOKStatusQueued:
+		return []byte(s), nil
+	case ScanningGetRunsIDOKStatusWaiting:
+		return []byte(s), nil
+	case ScanningGetRunsIDOKStatusRunning:
+		return []byte(s), nil
+	case ScanningGetRunsIDOKStatusStopping:
+		return []byte(s), nil
+	case ScanningGetRunsIDOKStatusDone:
+		return []byte(s), nil
+	case ScanningGetRunsIDOKStatusPartial:
+		return []byte(s), nil
+	case ScanningGetRunsIDOKStatusFailed:
+		return []byte(s), nil
+	case ScanningGetRunsIDOKStatusStopped:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningGetRunsIDOKStatus) UnmarshalText(data []byte) error {
+	switch ScanningGetRunsIDOKStatus(data) {
+	case ScanningGetRunsIDOKStatusQueued:
+		*s = ScanningGetRunsIDOKStatusQueued
+		return nil
+	case ScanningGetRunsIDOKStatusWaiting:
+		*s = ScanningGetRunsIDOKStatusWaiting
+		return nil
+	case ScanningGetRunsIDOKStatusRunning:
+		*s = ScanningGetRunsIDOKStatusRunning
+		return nil
+	case ScanningGetRunsIDOKStatusStopping:
+		*s = ScanningGetRunsIDOKStatusStopping
+		return nil
+	case ScanningGetRunsIDOKStatusDone:
+		*s = ScanningGetRunsIDOKStatusDone
+		return nil
+	case ScanningGetRunsIDOKStatusPartial:
+		*s = ScanningGetRunsIDOKStatusPartial
+		return nil
+	case ScanningGetRunsIDOKStatusFailed:
+		*s = ScanningGetRunsIDOKStatusFailed
+		return nil
+	case ScanningGetRunsIDOKStatusStopped:
+		*s = ScanningGetRunsIDOKStatusStopped
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanningGetRunsIDOKStepsItem struct {
+	Done    int         `json:"done"`
+	EndedAt NilDateTime `json:"ended_at"`
+	// A phase or a range: "192.0.2.0/24", "identify services", "ZAP passive scan".
+	Name      string      `json:"name"`
+	Note      NilString   `json:"note"`
+	Seq       int         `json:"seq"`
+	StartedAt NilDateTime `json:"started_at"`
+	// Queued: waits for its lane (another run of the same engine runs); waiting: paused with work left
+	// until what waiting_for names; running; stopping: a stop was asked and the work is ending; done;
+	// partial: ended with part of the work done; failed; stopped: by a person, by its module turned off,
+	// or by a restart (stop_reason says which).
+	Status ScanningGetRunsIDOKStepsItemStatus `json:"status"`
+	Total  int                                `json:"total"`
+}
+
+// GetDone returns the value of Done.
+func (s *ScanningGetRunsIDOKStepsItem) GetDone() int {
+	return s.Done
+}
+
+// GetEndedAt returns the value of EndedAt.
+func (s *ScanningGetRunsIDOKStepsItem) GetEndedAt() NilDateTime {
+	return s.EndedAt
+}
+
+// GetName returns the value of Name.
+func (s *ScanningGetRunsIDOKStepsItem) GetName() string {
+	return s.Name
+}
+
+// GetNote returns the value of Note.
+func (s *ScanningGetRunsIDOKStepsItem) GetNote() NilString {
+	return s.Note
+}
+
+// GetSeq returns the value of Seq.
+func (s *ScanningGetRunsIDOKStepsItem) GetSeq() int {
+	return s.Seq
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *ScanningGetRunsIDOKStepsItem) GetStartedAt() NilDateTime {
+	return s.StartedAt
+}
+
+// GetStatus returns the value of Status.
+func (s *ScanningGetRunsIDOKStepsItem) GetStatus() ScanningGetRunsIDOKStepsItemStatus {
+	return s.Status
+}
+
+// GetTotal returns the value of Total.
+func (s *ScanningGetRunsIDOKStepsItem) GetTotal() int {
+	return s.Total
+}
+
+// SetDone sets the value of Done.
+func (s *ScanningGetRunsIDOKStepsItem) SetDone(val int) {
+	s.Done = val
+}
+
+// SetEndedAt sets the value of EndedAt.
+func (s *ScanningGetRunsIDOKStepsItem) SetEndedAt(val NilDateTime) {
+	s.EndedAt = val
+}
+
+// SetName sets the value of Name.
+func (s *ScanningGetRunsIDOKStepsItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetNote sets the value of Note.
+func (s *ScanningGetRunsIDOKStepsItem) SetNote(val NilString) {
+	s.Note = val
+}
+
+// SetSeq sets the value of Seq.
+func (s *ScanningGetRunsIDOKStepsItem) SetSeq(val int) {
+	s.Seq = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *ScanningGetRunsIDOKStepsItem) SetStartedAt(val NilDateTime) {
+	s.StartedAt = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ScanningGetRunsIDOKStepsItem) SetStatus(val ScanningGetRunsIDOKStepsItemStatus) {
+	s.Status = val
+}
+
+// SetTotal sets the value of Total.
+func (s *ScanningGetRunsIDOKStepsItem) SetTotal(val int) {
+	s.Total = val
+}
+
+// Queued: waits for its lane (another run of the same engine runs); waiting: paused with work left
+// until what waiting_for names; running; stopping: a stop was asked and the work is ending; done;
+// partial: ended with part of the work done; failed; stopped: by a person, by its module turned off,
+// or by a restart (stop_reason says which).
+type ScanningGetRunsIDOKStepsItemStatus string
+
+const (
+	ScanningGetRunsIDOKStepsItemStatusQueued   ScanningGetRunsIDOKStepsItemStatus = "queued"
+	ScanningGetRunsIDOKStepsItemStatusWaiting  ScanningGetRunsIDOKStepsItemStatus = "waiting"
+	ScanningGetRunsIDOKStepsItemStatusRunning  ScanningGetRunsIDOKStepsItemStatus = "running"
+	ScanningGetRunsIDOKStepsItemStatusStopping ScanningGetRunsIDOKStepsItemStatus = "stopping"
+	ScanningGetRunsIDOKStepsItemStatusDone     ScanningGetRunsIDOKStepsItemStatus = "done"
+	ScanningGetRunsIDOKStepsItemStatusPartial  ScanningGetRunsIDOKStepsItemStatus = "partial"
+	ScanningGetRunsIDOKStepsItemStatusFailed   ScanningGetRunsIDOKStepsItemStatus = "failed"
+	ScanningGetRunsIDOKStepsItemStatusStopped  ScanningGetRunsIDOKStepsItemStatus = "stopped"
+)
+
+// AllValues returns all ScanningGetRunsIDOKStepsItemStatus values.
+func (ScanningGetRunsIDOKStepsItemStatus) AllValues() []ScanningGetRunsIDOKStepsItemStatus {
+	return []ScanningGetRunsIDOKStepsItemStatus{
+		ScanningGetRunsIDOKStepsItemStatusQueued,
+		ScanningGetRunsIDOKStepsItemStatusWaiting,
+		ScanningGetRunsIDOKStepsItemStatusRunning,
+		ScanningGetRunsIDOKStepsItemStatusStopping,
+		ScanningGetRunsIDOKStepsItemStatusDone,
+		ScanningGetRunsIDOKStepsItemStatusPartial,
+		ScanningGetRunsIDOKStepsItemStatusFailed,
+		ScanningGetRunsIDOKStepsItemStatusStopped,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningGetRunsIDOKStepsItemStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningGetRunsIDOKStepsItemStatusQueued:
+		return []byte(s), nil
+	case ScanningGetRunsIDOKStepsItemStatusWaiting:
+		return []byte(s), nil
+	case ScanningGetRunsIDOKStepsItemStatusRunning:
+		return []byte(s), nil
+	case ScanningGetRunsIDOKStepsItemStatusStopping:
+		return []byte(s), nil
+	case ScanningGetRunsIDOKStepsItemStatusDone:
+		return []byte(s), nil
+	case ScanningGetRunsIDOKStepsItemStatusPartial:
+		return []byte(s), nil
+	case ScanningGetRunsIDOKStepsItemStatusFailed:
+		return []byte(s), nil
+	case ScanningGetRunsIDOKStepsItemStatusStopped:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningGetRunsIDOKStepsItemStatus) UnmarshalText(data []byte) error {
+	switch ScanningGetRunsIDOKStepsItemStatus(data) {
+	case ScanningGetRunsIDOKStepsItemStatusQueued:
+		*s = ScanningGetRunsIDOKStepsItemStatusQueued
+		return nil
+	case ScanningGetRunsIDOKStepsItemStatusWaiting:
+		*s = ScanningGetRunsIDOKStepsItemStatusWaiting
+		return nil
+	case ScanningGetRunsIDOKStepsItemStatusRunning:
+		*s = ScanningGetRunsIDOKStepsItemStatusRunning
+		return nil
+	case ScanningGetRunsIDOKStepsItemStatusStopping:
+		*s = ScanningGetRunsIDOKStepsItemStatusStopping
+		return nil
+	case ScanningGetRunsIDOKStepsItemStatusDone:
+		*s = ScanningGetRunsIDOKStepsItemStatusDone
+		return nil
+	case ScanningGetRunsIDOKStepsItemStatusPartial:
+		*s = ScanningGetRunsIDOKStepsItemStatusPartial
+		return nil
+	case ScanningGetRunsIDOKStepsItemStatusFailed:
+		*s = ScanningGetRunsIDOKStepsItemStatusFailed
+		return nil
+	case ScanningGetRunsIDOKStepsItemStatusStopped:
+		*s = ScanningGetRunsIDOKStepsItemStatusStopped
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanningGetRunsIDOKSubject struct {
+	// Its id in its module: a device id links to the device page, a target id to the exposure target.
+	ID string `json:"id"`
+	// Device | target | scope (open).
+	Kind string `json:"kind"`
+	// Its name when the run was made; kept when the subject is gone.
+	Label string `json:"label"`
+}
+
+// GetID returns the value of ID.
+func (s *ScanningGetRunsIDOKSubject) GetID() string {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *ScanningGetRunsIDOKSubject) GetKind() string {
+	return s.Kind
+}
+
+// GetLabel returns the value of Label.
+func (s *ScanningGetRunsIDOKSubject) GetLabel() string {
+	return s.Label
+}
+
+// SetID sets the value of ID.
+func (s *ScanningGetRunsIDOKSubject) SetID(val string) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ScanningGetRunsIDOKSubject) SetKind(val string) {
+	s.Kind = val
+}
+
+// SetLabel sets the value of Label.
+func (s *ScanningGetRunsIDOKSubject) SetLabel(val string) {
+	s.Label = val
+}
+
+// Manual: a person asked; schedule: a schedule came due; event: something the box saw (a new device, a
+// finished sweep).
+type ScanningGetRunsIDOKTrigger string
+
+const (
+	ScanningGetRunsIDOKTriggerManual   ScanningGetRunsIDOKTrigger = "manual"
+	ScanningGetRunsIDOKTriggerSchedule ScanningGetRunsIDOKTrigger = "schedule"
+	ScanningGetRunsIDOKTriggerEvent    ScanningGetRunsIDOKTrigger = "event"
+)
+
+// AllValues returns all ScanningGetRunsIDOKTrigger values.
+func (ScanningGetRunsIDOKTrigger) AllValues() []ScanningGetRunsIDOKTrigger {
+	return []ScanningGetRunsIDOKTrigger{
+		ScanningGetRunsIDOKTriggerManual,
+		ScanningGetRunsIDOKTriggerSchedule,
+		ScanningGetRunsIDOKTriggerEvent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningGetRunsIDOKTrigger) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningGetRunsIDOKTriggerManual:
+		return []byte(s), nil
+	case ScanningGetRunsIDOKTriggerSchedule:
+		return []byte(s), nil
+	case ScanningGetRunsIDOKTriggerEvent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningGetRunsIDOKTrigger) UnmarshalText(data []byte) error {
+	switch ScanningGetRunsIDOKTrigger(data) {
+	case ScanningGetRunsIDOKTriggerManual:
+		*s = ScanningGetRunsIDOKTriggerManual
+		return nil
+	case ScanningGetRunsIDOKTriggerSchedule:
+		*s = ScanningGetRunsIDOKTriggerSchedule
+		return nil
+	case ScanningGetRunsIDOKTriggerEvent:
+		*s = ScanningGetRunsIDOKTriggerEvent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanningGetRunsOK struct {
+	// Newest first.
+	Items []ScanningGetRunsOKItemsItem `json:"items"`
+	// Runs that match the filters, every page.
+	Total int `json:"total"`
+}
+
+// GetItems returns the value of Items.
+func (s *ScanningGetRunsOK) GetItems() []ScanningGetRunsOKItemsItem {
+	return s.Items
+}
+
+// GetTotal returns the value of Total.
+func (s *ScanningGetRunsOK) GetTotal() int {
+	return s.Total
+}
+
+// SetItems sets the value of Items.
+func (s *ScanningGetRunsOK) SetItems(val []ScanningGetRunsOKItemsItem) {
+	s.Items = val
+}
+
+// SetTotal sets the value of Total.
+func (s *ScanningGetRunsOK) SetTotal(val int) {
+	s.Total = val
+}
+
+type ScanningGetRunsOKItemsItem struct {
+	// Waiting, or stopped with work left when its engine can go on from its steps.
+	CanResume bool `json:"can_resume"`
+	// Queued, waiting or running.
+	CanStop bool `json:"can_stop"`
+	Done    int  `json:"done"`
+	// Set exactly when the state is final.
+	EndedAt NilDateTime `json:"ended_at"`
+	// What went wrong, with failed or partial.
+	Error NilString `json:"error"`
+	ID    string    `json:"id"`
+	// Lan_sweep | device_check | snmp_read | all_ports | vuln_check | exposure_scan | … (open).
+	Kind string `json:"kind"`
+	// What it occupies: one run at a time per lane (nmap, nuclei, exposure, openvas, …).
+	Lane string `json:"lane"`
+	// The module whose engine does the work.
+	Module string `json:"module"`
+	// The run this one is a step of (an engine step of an exposure scan).
+	ParentID NilString `json:"parent_id"`
+	QueuedAt time.Time `json:"queued_at"`
+	// Who asked (an email), or system.
+	RequestedBy string `json:"requested_by"`
+	// The schedule that came due, with trigger schedule.
+	ScheduleID NilString `json:"schedule_id"`
+	// The first start; null while it never ran.
+	StartedAt NilDateTime `json:"started_at"`
+	// Queued: waits for its lane (another run of the same engine runs); waiting: paused with work left
+	// until what waiting_for names; running; stopping: a stop was asked and the work is ending; done;
+	// partial: ended with part of the work done; failed; stopped: by a person, by its module turned off,
+	// or by a restart (stop_reason says which).
+	Status ScanningGetRunsOKItemsItemStatus `json:"status"`
+	// Why it stopped, e.g. "Stopped by ann@example.com", "Vedette restarted".
+	StopReason NilString `json:"stop_reason"`
+	// What the run is about; null for a run over several devices without one subject.
+	Subject NilScanningGetRunsOKItemsItemSubject `json:"subject"`
+	// What it does, e.g. "LAN sweep of 192.0.2.0/24, 10.20.0.0/16".
+	Title string `json:"title"`
+	// Units of work (addresses, devices, templates): the sum over its steps; 0 when it does not count them.
+	Total int `json:"total"`
+	// Manual: a person asked; schedule: a schedule came due; event: something the box saw (a new device, a
+	// finished sweep).
+	Trigger ScanningGetRunsOKItemsItemTrigger `json:"trigger"`
+	// Words on the trigger, e.g. "a new device appeared".
+	TriggerNote NilString `json:"trigger_note"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	// Set only while waiting, e.g. "the scan window (opens 23:00)".
+	WaitingFor NilString `json:"waiting_for"`
+}
+
+// GetCanResume returns the value of CanResume.
+func (s *ScanningGetRunsOKItemsItem) GetCanResume() bool {
+	return s.CanResume
+}
+
+// GetCanStop returns the value of CanStop.
+func (s *ScanningGetRunsOKItemsItem) GetCanStop() bool {
+	return s.CanStop
+}
+
+// GetDone returns the value of Done.
+func (s *ScanningGetRunsOKItemsItem) GetDone() int {
+	return s.Done
+}
+
+// GetEndedAt returns the value of EndedAt.
+func (s *ScanningGetRunsOKItemsItem) GetEndedAt() NilDateTime {
+	return s.EndedAt
+}
+
+// GetError returns the value of Error.
+func (s *ScanningGetRunsOKItemsItem) GetError() NilString {
+	return s.Error
+}
+
+// GetID returns the value of ID.
+func (s *ScanningGetRunsOKItemsItem) GetID() string {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *ScanningGetRunsOKItemsItem) GetKind() string {
+	return s.Kind
+}
+
+// GetLane returns the value of Lane.
+func (s *ScanningGetRunsOKItemsItem) GetLane() string {
+	return s.Lane
+}
+
+// GetModule returns the value of Module.
+func (s *ScanningGetRunsOKItemsItem) GetModule() string {
+	return s.Module
+}
+
+// GetParentID returns the value of ParentID.
+func (s *ScanningGetRunsOKItemsItem) GetParentID() NilString {
+	return s.ParentID
+}
+
+// GetQueuedAt returns the value of QueuedAt.
+func (s *ScanningGetRunsOKItemsItem) GetQueuedAt() time.Time {
+	return s.QueuedAt
+}
+
+// GetRequestedBy returns the value of RequestedBy.
+func (s *ScanningGetRunsOKItemsItem) GetRequestedBy() string {
+	return s.RequestedBy
+}
+
+// GetScheduleID returns the value of ScheduleID.
+func (s *ScanningGetRunsOKItemsItem) GetScheduleID() NilString {
+	return s.ScheduleID
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *ScanningGetRunsOKItemsItem) GetStartedAt() NilDateTime {
+	return s.StartedAt
+}
+
+// GetStatus returns the value of Status.
+func (s *ScanningGetRunsOKItemsItem) GetStatus() ScanningGetRunsOKItemsItemStatus {
+	return s.Status
+}
+
+// GetStopReason returns the value of StopReason.
+func (s *ScanningGetRunsOKItemsItem) GetStopReason() NilString {
+	return s.StopReason
+}
+
+// GetSubject returns the value of Subject.
+func (s *ScanningGetRunsOKItemsItem) GetSubject() NilScanningGetRunsOKItemsItemSubject {
+	return s.Subject
+}
+
+// GetTitle returns the value of Title.
+func (s *ScanningGetRunsOKItemsItem) GetTitle() string {
+	return s.Title
+}
+
+// GetTotal returns the value of Total.
+func (s *ScanningGetRunsOKItemsItem) GetTotal() int {
+	return s.Total
+}
+
+// GetTrigger returns the value of Trigger.
+func (s *ScanningGetRunsOKItemsItem) GetTrigger() ScanningGetRunsOKItemsItemTrigger {
+	return s.Trigger
+}
+
+// GetTriggerNote returns the value of TriggerNote.
+func (s *ScanningGetRunsOKItemsItem) GetTriggerNote() NilString {
+	return s.TriggerNote
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *ScanningGetRunsOKItemsItem) GetUpdatedAt() time.Time {
+	return s.UpdatedAt
+}
+
+// GetWaitingFor returns the value of WaitingFor.
+func (s *ScanningGetRunsOKItemsItem) GetWaitingFor() NilString {
+	return s.WaitingFor
+}
+
+// SetCanResume sets the value of CanResume.
+func (s *ScanningGetRunsOKItemsItem) SetCanResume(val bool) {
+	s.CanResume = val
+}
+
+// SetCanStop sets the value of CanStop.
+func (s *ScanningGetRunsOKItemsItem) SetCanStop(val bool) {
+	s.CanStop = val
+}
+
+// SetDone sets the value of Done.
+func (s *ScanningGetRunsOKItemsItem) SetDone(val int) {
+	s.Done = val
+}
+
+// SetEndedAt sets the value of EndedAt.
+func (s *ScanningGetRunsOKItemsItem) SetEndedAt(val NilDateTime) {
+	s.EndedAt = val
+}
+
+// SetError sets the value of Error.
+func (s *ScanningGetRunsOKItemsItem) SetError(val NilString) {
+	s.Error = val
+}
+
+// SetID sets the value of ID.
+func (s *ScanningGetRunsOKItemsItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ScanningGetRunsOKItemsItem) SetKind(val string) {
+	s.Kind = val
+}
+
+// SetLane sets the value of Lane.
+func (s *ScanningGetRunsOKItemsItem) SetLane(val string) {
+	s.Lane = val
+}
+
+// SetModule sets the value of Module.
+func (s *ScanningGetRunsOKItemsItem) SetModule(val string) {
+	s.Module = val
+}
+
+// SetParentID sets the value of ParentID.
+func (s *ScanningGetRunsOKItemsItem) SetParentID(val NilString) {
+	s.ParentID = val
+}
+
+// SetQueuedAt sets the value of QueuedAt.
+func (s *ScanningGetRunsOKItemsItem) SetQueuedAt(val time.Time) {
+	s.QueuedAt = val
+}
+
+// SetRequestedBy sets the value of RequestedBy.
+func (s *ScanningGetRunsOKItemsItem) SetRequestedBy(val string) {
+	s.RequestedBy = val
+}
+
+// SetScheduleID sets the value of ScheduleID.
+func (s *ScanningGetRunsOKItemsItem) SetScheduleID(val NilString) {
+	s.ScheduleID = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *ScanningGetRunsOKItemsItem) SetStartedAt(val NilDateTime) {
+	s.StartedAt = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ScanningGetRunsOKItemsItem) SetStatus(val ScanningGetRunsOKItemsItemStatus) {
+	s.Status = val
+}
+
+// SetStopReason sets the value of StopReason.
+func (s *ScanningGetRunsOKItemsItem) SetStopReason(val NilString) {
+	s.StopReason = val
+}
+
+// SetSubject sets the value of Subject.
+func (s *ScanningGetRunsOKItemsItem) SetSubject(val NilScanningGetRunsOKItemsItemSubject) {
+	s.Subject = val
+}
+
+// SetTitle sets the value of Title.
+func (s *ScanningGetRunsOKItemsItem) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetTotal sets the value of Total.
+func (s *ScanningGetRunsOKItemsItem) SetTotal(val int) {
+	s.Total = val
+}
+
+// SetTrigger sets the value of Trigger.
+func (s *ScanningGetRunsOKItemsItem) SetTrigger(val ScanningGetRunsOKItemsItemTrigger) {
+	s.Trigger = val
+}
+
+// SetTriggerNote sets the value of TriggerNote.
+func (s *ScanningGetRunsOKItemsItem) SetTriggerNote(val NilString) {
+	s.TriggerNote = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *ScanningGetRunsOKItemsItem) SetUpdatedAt(val time.Time) {
+	s.UpdatedAt = val
+}
+
+// SetWaitingFor sets the value of WaitingFor.
+func (s *ScanningGetRunsOKItemsItem) SetWaitingFor(val NilString) {
+	s.WaitingFor = val
+}
+
+// Queued: waits for its lane (another run of the same engine runs); waiting: paused with work left
+// until what waiting_for names; running; stopping: a stop was asked and the work is ending; done;
+// partial: ended with part of the work done; failed; stopped: by a person, by its module turned off,
+// or by a restart (stop_reason says which).
+type ScanningGetRunsOKItemsItemStatus string
+
+const (
+	ScanningGetRunsOKItemsItemStatusQueued   ScanningGetRunsOKItemsItemStatus = "queued"
+	ScanningGetRunsOKItemsItemStatusWaiting  ScanningGetRunsOKItemsItemStatus = "waiting"
+	ScanningGetRunsOKItemsItemStatusRunning  ScanningGetRunsOKItemsItemStatus = "running"
+	ScanningGetRunsOKItemsItemStatusStopping ScanningGetRunsOKItemsItemStatus = "stopping"
+	ScanningGetRunsOKItemsItemStatusDone     ScanningGetRunsOKItemsItemStatus = "done"
+	ScanningGetRunsOKItemsItemStatusPartial  ScanningGetRunsOKItemsItemStatus = "partial"
+	ScanningGetRunsOKItemsItemStatusFailed   ScanningGetRunsOKItemsItemStatus = "failed"
+	ScanningGetRunsOKItemsItemStatusStopped  ScanningGetRunsOKItemsItemStatus = "stopped"
+)
+
+// AllValues returns all ScanningGetRunsOKItemsItemStatus values.
+func (ScanningGetRunsOKItemsItemStatus) AllValues() []ScanningGetRunsOKItemsItemStatus {
+	return []ScanningGetRunsOKItemsItemStatus{
+		ScanningGetRunsOKItemsItemStatusQueued,
+		ScanningGetRunsOKItemsItemStatusWaiting,
+		ScanningGetRunsOKItemsItemStatusRunning,
+		ScanningGetRunsOKItemsItemStatusStopping,
+		ScanningGetRunsOKItemsItemStatusDone,
+		ScanningGetRunsOKItemsItemStatusPartial,
+		ScanningGetRunsOKItemsItemStatusFailed,
+		ScanningGetRunsOKItemsItemStatusStopped,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningGetRunsOKItemsItemStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningGetRunsOKItemsItemStatusQueued:
+		return []byte(s), nil
+	case ScanningGetRunsOKItemsItemStatusWaiting:
+		return []byte(s), nil
+	case ScanningGetRunsOKItemsItemStatusRunning:
+		return []byte(s), nil
+	case ScanningGetRunsOKItemsItemStatusStopping:
+		return []byte(s), nil
+	case ScanningGetRunsOKItemsItemStatusDone:
+		return []byte(s), nil
+	case ScanningGetRunsOKItemsItemStatusPartial:
+		return []byte(s), nil
+	case ScanningGetRunsOKItemsItemStatusFailed:
+		return []byte(s), nil
+	case ScanningGetRunsOKItemsItemStatusStopped:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningGetRunsOKItemsItemStatus) UnmarshalText(data []byte) error {
+	switch ScanningGetRunsOKItemsItemStatus(data) {
+	case ScanningGetRunsOKItemsItemStatusQueued:
+		*s = ScanningGetRunsOKItemsItemStatusQueued
+		return nil
+	case ScanningGetRunsOKItemsItemStatusWaiting:
+		*s = ScanningGetRunsOKItemsItemStatusWaiting
+		return nil
+	case ScanningGetRunsOKItemsItemStatusRunning:
+		*s = ScanningGetRunsOKItemsItemStatusRunning
+		return nil
+	case ScanningGetRunsOKItemsItemStatusStopping:
+		*s = ScanningGetRunsOKItemsItemStatusStopping
+		return nil
+	case ScanningGetRunsOKItemsItemStatusDone:
+		*s = ScanningGetRunsOKItemsItemStatusDone
+		return nil
+	case ScanningGetRunsOKItemsItemStatusPartial:
+		*s = ScanningGetRunsOKItemsItemStatusPartial
+		return nil
+	case ScanningGetRunsOKItemsItemStatusFailed:
+		*s = ScanningGetRunsOKItemsItemStatusFailed
+		return nil
+	case ScanningGetRunsOKItemsItemStatusStopped:
+		*s = ScanningGetRunsOKItemsItemStatusStopped
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanningGetRunsOKItemsItemSubject struct {
+	// Its id in its module: a device id links to the device page, a target id to the exposure target.
+	ID string `json:"id"`
+	// Device | target | scope (open).
+	Kind string `json:"kind"`
+	// Its name when the run was made; kept when the subject is gone.
+	Label string `json:"label"`
+}
+
+// GetID returns the value of ID.
+func (s *ScanningGetRunsOKItemsItemSubject) GetID() string {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *ScanningGetRunsOKItemsItemSubject) GetKind() string {
+	return s.Kind
+}
+
+// GetLabel returns the value of Label.
+func (s *ScanningGetRunsOKItemsItemSubject) GetLabel() string {
+	return s.Label
+}
+
+// SetID sets the value of ID.
+func (s *ScanningGetRunsOKItemsItemSubject) SetID(val string) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ScanningGetRunsOKItemsItemSubject) SetKind(val string) {
+	s.Kind = val
+}
+
+// SetLabel sets the value of Label.
+func (s *ScanningGetRunsOKItemsItemSubject) SetLabel(val string) {
+	s.Label = val
+}
+
+// Manual: a person asked; schedule: a schedule came due; event: something the box saw (a new device, a
+// finished sweep).
+type ScanningGetRunsOKItemsItemTrigger string
+
+const (
+	ScanningGetRunsOKItemsItemTriggerManual   ScanningGetRunsOKItemsItemTrigger = "manual"
+	ScanningGetRunsOKItemsItemTriggerSchedule ScanningGetRunsOKItemsItemTrigger = "schedule"
+	ScanningGetRunsOKItemsItemTriggerEvent    ScanningGetRunsOKItemsItemTrigger = "event"
+)
+
+// AllValues returns all ScanningGetRunsOKItemsItemTrigger values.
+func (ScanningGetRunsOKItemsItemTrigger) AllValues() []ScanningGetRunsOKItemsItemTrigger {
+	return []ScanningGetRunsOKItemsItemTrigger{
+		ScanningGetRunsOKItemsItemTriggerManual,
+		ScanningGetRunsOKItemsItemTriggerSchedule,
+		ScanningGetRunsOKItemsItemTriggerEvent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningGetRunsOKItemsItemTrigger) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningGetRunsOKItemsItemTriggerManual:
+		return []byte(s), nil
+	case ScanningGetRunsOKItemsItemTriggerSchedule:
+		return []byte(s), nil
+	case ScanningGetRunsOKItemsItemTriggerEvent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningGetRunsOKItemsItemTrigger) UnmarshalText(data []byte) error {
+	switch ScanningGetRunsOKItemsItemTrigger(data) {
+	case ScanningGetRunsOKItemsItemTriggerManual:
+		*s = ScanningGetRunsOKItemsItemTriggerManual
+		return nil
+	case ScanningGetRunsOKItemsItemTriggerSchedule:
+		*s = ScanningGetRunsOKItemsItemTriggerSchedule
+		return nil
+	case ScanningGetRunsOKItemsItemTriggerEvent:
+		*s = ScanningGetRunsOKItemsItemTriggerEvent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Queued: waits for its lane (another run of the same engine runs); waiting: paused with work left
+// until what waiting_for names; running; stopping: a stop was asked and the work is ending; done;
+// partial: ended with part of the work done; failed; stopped: by a person, by its module turned off,
+// or by a restart (stop_reason says which).
+type ScanningGetRunsStatus string
+
+const (
+	ScanningGetRunsStatusQueued   ScanningGetRunsStatus = "queued"
+	ScanningGetRunsStatusWaiting  ScanningGetRunsStatus = "waiting"
+	ScanningGetRunsStatusRunning  ScanningGetRunsStatus = "running"
+	ScanningGetRunsStatusStopping ScanningGetRunsStatus = "stopping"
+	ScanningGetRunsStatusDone     ScanningGetRunsStatus = "done"
+	ScanningGetRunsStatusPartial  ScanningGetRunsStatus = "partial"
+	ScanningGetRunsStatusFailed   ScanningGetRunsStatus = "failed"
+	ScanningGetRunsStatusStopped  ScanningGetRunsStatus = "stopped"
+)
+
+// AllValues returns all ScanningGetRunsStatus values.
+func (ScanningGetRunsStatus) AllValues() []ScanningGetRunsStatus {
+	return []ScanningGetRunsStatus{
+		ScanningGetRunsStatusQueued,
+		ScanningGetRunsStatusWaiting,
+		ScanningGetRunsStatusRunning,
+		ScanningGetRunsStatusStopping,
+		ScanningGetRunsStatusDone,
+		ScanningGetRunsStatusPartial,
+		ScanningGetRunsStatusFailed,
+		ScanningGetRunsStatusStopped,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningGetRunsStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningGetRunsStatusQueued:
+		return []byte(s), nil
+	case ScanningGetRunsStatusWaiting:
+		return []byte(s), nil
+	case ScanningGetRunsStatusRunning:
+		return []byte(s), nil
+	case ScanningGetRunsStatusStopping:
+		return []byte(s), nil
+	case ScanningGetRunsStatusDone:
+		return []byte(s), nil
+	case ScanningGetRunsStatusPartial:
+		return []byte(s), nil
+	case ScanningGetRunsStatusFailed:
+		return []byte(s), nil
+	case ScanningGetRunsStatusStopped:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningGetRunsStatus) UnmarshalText(data []byte) error {
+	switch ScanningGetRunsStatus(data) {
+	case ScanningGetRunsStatusQueued:
+		*s = ScanningGetRunsStatusQueued
+		return nil
+	case ScanningGetRunsStatusWaiting:
+		*s = ScanningGetRunsStatusWaiting
+		return nil
+	case ScanningGetRunsStatusRunning:
+		*s = ScanningGetRunsStatusRunning
+		return nil
+	case ScanningGetRunsStatusStopping:
+		*s = ScanningGetRunsStatusStopping
+		return nil
+	case ScanningGetRunsStatusDone:
+		*s = ScanningGetRunsStatusDone
+		return nil
+	case ScanningGetRunsStatusPartial:
+		*s = ScanningGetRunsStatusPartial
+		return nil
+	case ScanningGetRunsStatusFailed:
+		*s = ScanningGetRunsStatusFailed
+		return nil
+	case ScanningGetRunsStatusStopped:
+		*s = ScanningGetRunsStatusStopped
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ScanningGetScanningHistoryOK struct {
 	Items []ScanningGetScanningHistoryOKItemsItem `json:"items"`
 }
@@ -245031,6 +247179,916 @@ func (s *ScanningPatchScanningEnginesIDReq) SetEnabled(val bool) {
 // SetWithDependencies sets the value of WithDependencies.
 func (s *ScanningPatchScanningEnginesIDReq) SetWithDependencies(val OptBool) {
 	s.WithDependencies = val
+}
+
+type ScanningPostRunsIDResumeOK struct {
+	// Waiting, or stopped with work left when its engine can go on from its steps.
+	CanResume bool `json:"can_resume"`
+	// Queued, waiting or running.
+	CanStop bool `json:"can_stop"`
+	Done    int  `json:"done"`
+	// Set exactly when the state is final.
+	EndedAt NilDateTime `json:"ended_at"`
+	// What went wrong, with failed or partial.
+	Error NilString `json:"error"`
+	ID    string    `json:"id"`
+	// Lan_sweep | device_check | snmp_read | all_ports | vuln_check | exposure_scan | … (open).
+	Kind string `json:"kind"`
+	// What it occupies: one run at a time per lane (nmap, nuclei, exposure, openvas, …).
+	Lane string `json:"lane"`
+	// The module whose engine does the work.
+	Module string `json:"module"`
+	// The run this one is a step of (an engine step of an exposure scan).
+	ParentID NilString `json:"parent_id"`
+	QueuedAt time.Time `json:"queued_at"`
+	// Who asked (an email), or system.
+	RequestedBy string `json:"requested_by"`
+	// The schedule that came due, with trigger schedule.
+	ScheduleID NilString `json:"schedule_id"`
+	// The first start; null while it never ran.
+	StartedAt NilDateTime `json:"started_at"`
+	// Queued: waits for its lane (another run of the same engine runs); waiting: paused with work left
+	// until what waiting_for names; running; stopping: a stop was asked and the work is ending; done;
+	// partial: ended with part of the work done; failed; stopped: by a person, by its module turned off,
+	// or by a restart (stop_reason says which).
+	Status ScanningPostRunsIDResumeOKStatus `json:"status"`
+	// Why it stopped, e.g. "Stopped by ann@example.com", "Vedette restarted".
+	StopReason NilString `json:"stop_reason"`
+	// What the run is about; null for a run over several devices without one subject.
+	Subject NilScanningPostRunsIDResumeOKSubject `json:"subject"`
+	// What it does, e.g. "LAN sweep of 192.0.2.0/24, 10.20.0.0/16".
+	Title string `json:"title"`
+	// Units of work (addresses, devices, templates): the sum over its steps; 0 when it does not count them.
+	Total int `json:"total"`
+	// Manual: a person asked; schedule: a schedule came due; event: something the box saw (a new device, a
+	// finished sweep).
+	Trigger ScanningPostRunsIDResumeOKTrigger `json:"trigger"`
+	// Words on the trigger, e.g. "a new device appeared".
+	TriggerNote NilString `json:"trigger_note"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	// Set only while waiting, e.g. "the scan window (opens 23:00)".
+	WaitingFor NilString `json:"waiting_for"`
+}
+
+// GetCanResume returns the value of CanResume.
+func (s *ScanningPostRunsIDResumeOK) GetCanResume() bool {
+	return s.CanResume
+}
+
+// GetCanStop returns the value of CanStop.
+func (s *ScanningPostRunsIDResumeOK) GetCanStop() bool {
+	return s.CanStop
+}
+
+// GetDone returns the value of Done.
+func (s *ScanningPostRunsIDResumeOK) GetDone() int {
+	return s.Done
+}
+
+// GetEndedAt returns the value of EndedAt.
+func (s *ScanningPostRunsIDResumeOK) GetEndedAt() NilDateTime {
+	return s.EndedAt
+}
+
+// GetError returns the value of Error.
+func (s *ScanningPostRunsIDResumeOK) GetError() NilString {
+	return s.Error
+}
+
+// GetID returns the value of ID.
+func (s *ScanningPostRunsIDResumeOK) GetID() string {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *ScanningPostRunsIDResumeOK) GetKind() string {
+	return s.Kind
+}
+
+// GetLane returns the value of Lane.
+func (s *ScanningPostRunsIDResumeOK) GetLane() string {
+	return s.Lane
+}
+
+// GetModule returns the value of Module.
+func (s *ScanningPostRunsIDResumeOK) GetModule() string {
+	return s.Module
+}
+
+// GetParentID returns the value of ParentID.
+func (s *ScanningPostRunsIDResumeOK) GetParentID() NilString {
+	return s.ParentID
+}
+
+// GetQueuedAt returns the value of QueuedAt.
+func (s *ScanningPostRunsIDResumeOK) GetQueuedAt() time.Time {
+	return s.QueuedAt
+}
+
+// GetRequestedBy returns the value of RequestedBy.
+func (s *ScanningPostRunsIDResumeOK) GetRequestedBy() string {
+	return s.RequestedBy
+}
+
+// GetScheduleID returns the value of ScheduleID.
+func (s *ScanningPostRunsIDResumeOK) GetScheduleID() NilString {
+	return s.ScheduleID
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *ScanningPostRunsIDResumeOK) GetStartedAt() NilDateTime {
+	return s.StartedAt
+}
+
+// GetStatus returns the value of Status.
+func (s *ScanningPostRunsIDResumeOK) GetStatus() ScanningPostRunsIDResumeOKStatus {
+	return s.Status
+}
+
+// GetStopReason returns the value of StopReason.
+func (s *ScanningPostRunsIDResumeOK) GetStopReason() NilString {
+	return s.StopReason
+}
+
+// GetSubject returns the value of Subject.
+func (s *ScanningPostRunsIDResumeOK) GetSubject() NilScanningPostRunsIDResumeOKSubject {
+	return s.Subject
+}
+
+// GetTitle returns the value of Title.
+func (s *ScanningPostRunsIDResumeOK) GetTitle() string {
+	return s.Title
+}
+
+// GetTotal returns the value of Total.
+func (s *ScanningPostRunsIDResumeOK) GetTotal() int {
+	return s.Total
+}
+
+// GetTrigger returns the value of Trigger.
+func (s *ScanningPostRunsIDResumeOK) GetTrigger() ScanningPostRunsIDResumeOKTrigger {
+	return s.Trigger
+}
+
+// GetTriggerNote returns the value of TriggerNote.
+func (s *ScanningPostRunsIDResumeOK) GetTriggerNote() NilString {
+	return s.TriggerNote
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *ScanningPostRunsIDResumeOK) GetUpdatedAt() time.Time {
+	return s.UpdatedAt
+}
+
+// GetWaitingFor returns the value of WaitingFor.
+func (s *ScanningPostRunsIDResumeOK) GetWaitingFor() NilString {
+	return s.WaitingFor
+}
+
+// SetCanResume sets the value of CanResume.
+func (s *ScanningPostRunsIDResumeOK) SetCanResume(val bool) {
+	s.CanResume = val
+}
+
+// SetCanStop sets the value of CanStop.
+func (s *ScanningPostRunsIDResumeOK) SetCanStop(val bool) {
+	s.CanStop = val
+}
+
+// SetDone sets the value of Done.
+func (s *ScanningPostRunsIDResumeOK) SetDone(val int) {
+	s.Done = val
+}
+
+// SetEndedAt sets the value of EndedAt.
+func (s *ScanningPostRunsIDResumeOK) SetEndedAt(val NilDateTime) {
+	s.EndedAt = val
+}
+
+// SetError sets the value of Error.
+func (s *ScanningPostRunsIDResumeOK) SetError(val NilString) {
+	s.Error = val
+}
+
+// SetID sets the value of ID.
+func (s *ScanningPostRunsIDResumeOK) SetID(val string) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ScanningPostRunsIDResumeOK) SetKind(val string) {
+	s.Kind = val
+}
+
+// SetLane sets the value of Lane.
+func (s *ScanningPostRunsIDResumeOK) SetLane(val string) {
+	s.Lane = val
+}
+
+// SetModule sets the value of Module.
+func (s *ScanningPostRunsIDResumeOK) SetModule(val string) {
+	s.Module = val
+}
+
+// SetParentID sets the value of ParentID.
+func (s *ScanningPostRunsIDResumeOK) SetParentID(val NilString) {
+	s.ParentID = val
+}
+
+// SetQueuedAt sets the value of QueuedAt.
+func (s *ScanningPostRunsIDResumeOK) SetQueuedAt(val time.Time) {
+	s.QueuedAt = val
+}
+
+// SetRequestedBy sets the value of RequestedBy.
+func (s *ScanningPostRunsIDResumeOK) SetRequestedBy(val string) {
+	s.RequestedBy = val
+}
+
+// SetScheduleID sets the value of ScheduleID.
+func (s *ScanningPostRunsIDResumeOK) SetScheduleID(val NilString) {
+	s.ScheduleID = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *ScanningPostRunsIDResumeOK) SetStartedAt(val NilDateTime) {
+	s.StartedAt = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ScanningPostRunsIDResumeOK) SetStatus(val ScanningPostRunsIDResumeOKStatus) {
+	s.Status = val
+}
+
+// SetStopReason sets the value of StopReason.
+func (s *ScanningPostRunsIDResumeOK) SetStopReason(val NilString) {
+	s.StopReason = val
+}
+
+// SetSubject sets the value of Subject.
+func (s *ScanningPostRunsIDResumeOK) SetSubject(val NilScanningPostRunsIDResumeOKSubject) {
+	s.Subject = val
+}
+
+// SetTitle sets the value of Title.
+func (s *ScanningPostRunsIDResumeOK) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetTotal sets the value of Total.
+func (s *ScanningPostRunsIDResumeOK) SetTotal(val int) {
+	s.Total = val
+}
+
+// SetTrigger sets the value of Trigger.
+func (s *ScanningPostRunsIDResumeOK) SetTrigger(val ScanningPostRunsIDResumeOKTrigger) {
+	s.Trigger = val
+}
+
+// SetTriggerNote sets the value of TriggerNote.
+func (s *ScanningPostRunsIDResumeOK) SetTriggerNote(val NilString) {
+	s.TriggerNote = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *ScanningPostRunsIDResumeOK) SetUpdatedAt(val time.Time) {
+	s.UpdatedAt = val
+}
+
+// SetWaitingFor sets the value of WaitingFor.
+func (s *ScanningPostRunsIDResumeOK) SetWaitingFor(val NilString) {
+	s.WaitingFor = val
+}
+
+// Queued: waits for its lane (another run of the same engine runs); waiting: paused with work left
+// until what waiting_for names; running; stopping: a stop was asked and the work is ending; done;
+// partial: ended with part of the work done; failed; stopped: by a person, by its module turned off,
+// or by a restart (stop_reason says which).
+type ScanningPostRunsIDResumeOKStatus string
+
+const (
+	ScanningPostRunsIDResumeOKStatusQueued   ScanningPostRunsIDResumeOKStatus = "queued"
+	ScanningPostRunsIDResumeOKStatusWaiting  ScanningPostRunsIDResumeOKStatus = "waiting"
+	ScanningPostRunsIDResumeOKStatusRunning  ScanningPostRunsIDResumeOKStatus = "running"
+	ScanningPostRunsIDResumeOKStatusStopping ScanningPostRunsIDResumeOKStatus = "stopping"
+	ScanningPostRunsIDResumeOKStatusDone     ScanningPostRunsIDResumeOKStatus = "done"
+	ScanningPostRunsIDResumeOKStatusPartial  ScanningPostRunsIDResumeOKStatus = "partial"
+	ScanningPostRunsIDResumeOKStatusFailed   ScanningPostRunsIDResumeOKStatus = "failed"
+	ScanningPostRunsIDResumeOKStatusStopped  ScanningPostRunsIDResumeOKStatus = "stopped"
+)
+
+// AllValues returns all ScanningPostRunsIDResumeOKStatus values.
+func (ScanningPostRunsIDResumeOKStatus) AllValues() []ScanningPostRunsIDResumeOKStatus {
+	return []ScanningPostRunsIDResumeOKStatus{
+		ScanningPostRunsIDResumeOKStatusQueued,
+		ScanningPostRunsIDResumeOKStatusWaiting,
+		ScanningPostRunsIDResumeOKStatusRunning,
+		ScanningPostRunsIDResumeOKStatusStopping,
+		ScanningPostRunsIDResumeOKStatusDone,
+		ScanningPostRunsIDResumeOKStatusPartial,
+		ScanningPostRunsIDResumeOKStatusFailed,
+		ScanningPostRunsIDResumeOKStatusStopped,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningPostRunsIDResumeOKStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningPostRunsIDResumeOKStatusQueued:
+		return []byte(s), nil
+	case ScanningPostRunsIDResumeOKStatusWaiting:
+		return []byte(s), nil
+	case ScanningPostRunsIDResumeOKStatusRunning:
+		return []byte(s), nil
+	case ScanningPostRunsIDResumeOKStatusStopping:
+		return []byte(s), nil
+	case ScanningPostRunsIDResumeOKStatusDone:
+		return []byte(s), nil
+	case ScanningPostRunsIDResumeOKStatusPartial:
+		return []byte(s), nil
+	case ScanningPostRunsIDResumeOKStatusFailed:
+		return []byte(s), nil
+	case ScanningPostRunsIDResumeOKStatusStopped:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningPostRunsIDResumeOKStatus) UnmarshalText(data []byte) error {
+	switch ScanningPostRunsIDResumeOKStatus(data) {
+	case ScanningPostRunsIDResumeOKStatusQueued:
+		*s = ScanningPostRunsIDResumeOKStatusQueued
+		return nil
+	case ScanningPostRunsIDResumeOKStatusWaiting:
+		*s = ScanningPostRunsIDResumeOKStatusWaiting
+		return nil
+	case ScanningPostRunsIDResumeOKStatusRunning:
+		*s = ScanningPostRunsIDResumeOKStatusRunning
+		return nil
+	case ScanningPostRunsIDResumeOKStatusStopping:
+		*s = ScanningPostRunsIDResumeOKStatusStopping
+		return nil
+	case ScanningPostRunsIDResumeOKStatusDone:
+		*s = ScanningPostRunsIDResumeOKStatusDone
+		return nil
+	case ScanningPostRunsIDResumeOKStatusPartial:
+		*s = ScanningPostRunsIDResumeOKStatusPartial
+		return nil
+	case ScanningPostRunsIDResumeOKStatusFailed:
+		*s = ScanningPostRunsIDResumeOKStatusFailed
+		return nil
+	case ScanningPostRunsIDResumeOKStatusStopped:
+		*s = ScanningPostRunsIDResumeOKStatusStopped
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanningPostRunsIDResumeOKSubject struct {
+	// Its id in its module: a device id links to the device page, a target id to the exposure target.
+	ID string `json:"id"`
+	// Device | target | scope (open).
+	Kind string `json:"kind"`
+	// Its name when the run was made; kept when the subject is gone.
+	Label string `json:"label"`
+}
+
+// GetID returns the value of ID.
+func (s *ScanningPostRunsIDResumeOKSubject) GetID() string {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *ScanningPostRunsIDResumeOKSubject) GetKind() string {
+	return s.Kind
+}
+
+// GetLabel returns the value of Label.
+func (s *ScanningPostRunsIDResumeOKSubject) GetLabel() string {
+	return s.Label
+}
+
+// SetID sets the value of ID.
+func (s *ScanningPostRunsIDResumeOKSubject) SetID(val string) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ScanningPostRunsIDResumeOKSubject) SetKind(val string) {
+	s.Kind = val
+}
+
+// SetLabel sets the value of Label.
+func (s *ScanningPostRunsIDResumeOKSubject) SetLabel(val string) {
+	s.Label = val
+}
+
+// Manual: a person asked; schedule: a schedule came due; event: something the box saw (a new device, a
+// finished sweep).
+type ScanningPostRunsIDResumeOKTrigger string
+
+const (
+	ScanningPostRunsIDResumeOKTriggerManual   ScanningPostRunsIDResumeOKTrigger = "manual"
+	ScanningPostRunsIDResumeOKTriggerSchedule ScanningPostRunsIDResumeOKTrigger = "schedule"
+	ScanningPostRunsIDResumeOKTriggerEvent    ScanningPostRunsIDResumeOKTrigger = "event"
+)
+
+// AllValues returns all ScanningPostRunsIDResumeOKTrigger values.
+func (ScanningPostRunsIDResumeOKTrigger) AllValues() []ScanningPostRunsIDResumeOKTrigger {
+	return []ScanningPostRunsIDResumeOKTrigger{
+		ScanningPostRunsIDResumeOKTriggerManual,
+		ScanningPostRunsIDResumeOKTriggerSchedule,
+		ScanningPostRunsIDResumeOKTriggerEvent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningPostRunsIDResumeOKTrigger) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningPostRunsIDResumeOKTriggerManual:
+		return []byte(s), nil
+	case ScanningPostRunsIDResumeOKTriggerSchedule:
+		return []byte(s), nil
+	case ScanningPostRunsIDResumeOKTriggerEvent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningPostRunsIDResumeOKTrigger) UnmarshalText(data []byte) error {
+	switch ScanningPostRunsIDResumeOKTrigger(data) {
+	case ScanningPostRunsIDResumeOKTriggerManual:
+		*s = ScanningPostRunsIDResumeOKTriggerManual
+		return nil
+	case ScanningPostRunsIDResumeOKTriggerSchedule:
+		*s = ScanningPostRunsIDResumeOKTriggerSchedule
+		return nil
+	case ScanningPostRunsIDResumeOKTriggerEvent:
+		*s = ScanningPostRunsIDResumeOKTriggerEvent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanningPostRunsIDStopOK struct {
+	// Waiting, or stopped with work left when its engine can go on from its steps.
+	CanResume bool `json:"can_resume"`
+	// Queued, waiting or running.
+	CanStop bool `json:"can_stop"`
+	Done    int  `json:"done"`
+	// Set exactly when the state is final.
+	EndedAt NilDateTime `json:"ended_at"`
+	// What went wrong, with failed or partial.
+	Error NilString `json:"error"`
+	ID    string    `json:"id"`
+	// Lan_sweep | device_check | snmp_read | all_ports | vuln_check | exposure_scan | … (open).
+	Kind string `json:"kind"`
+	// What it occupies: one run at a time per lane (nmap, nuclei, exposure, openvas, …).
+	Lane string `json:"lane"`
+	// The module whose engine does the work.
+	Module string `json:"module"`
+	// The run this one is a step of (an engine step of an exposure scan).
+	ParentID NilString `json:"parent_id"`
+	QueuedAt time.Time `json:"queued_at"`
+	// Who asked (an email), or system.
+	RequestedBy string `json:"requested_by"`
+	// The schedule that came due, with trigger schedule.
+	ScheduleID NilString `json:"schedule_id"`
+	// The first start; null while it never ran.
+	StartedAt NilDateTime `json:"started_at"`
+	// Queued: waits for its lane (another run of the same engine runs); waiting: paused with work left
+	// until what waiting_for names; running; stopping: a stop was asked and the work is ending; done;
+	// partial: ended with part of the work done; failed; stopped: by a person, by its module turned off,
+	// or by a restart (stop_reason says which).
+	Status ScanningPostRunsIDStopOKStatus `json:"status"`
+	// Why it stopped, e.g. "Stopped by ann@example.com", "Vedette restarted".
+	StopReason NilString `json:"stop_reason"`
+	// What the run is about; null for a run over several devices without one subject.
+	Subject NilScanningPostRunsIDStopOKSubject `json:"subject"`
+	// What it does, e.g. "LAN sweep of 192.0.2.0/24, 10.20.0.0/16".
+	Title string `json:"title"`
+	// Units of work (addresses, devices, templates): the sum over its steps; 0 when it does not count them.
+	Total int `json:"total"`
+	// Manual: a person asked; schedule: a schedule came due; event: something the box saw (a new device, a
+	// finished sweep).
+	Trigger ScanningPostRunsIDStopOKTrigger `json:"trigger"`
+	// Words on the trigger, e.g. "a new device appeared".
+	TriggerNote NilString `json:"trigger_note"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	// Set only while waiting, e.g. "the scan window (opens 23:00)".
+	WaitingFor NilString `json:"waiting_for"`
+}
+
+// GetCanResume returns the value of CanResume.
+func (s *ScanningPostRunsIDStopOK) GetCanResume() bool {
+	return s.CanResume
+}
+
+// GetCanStop returns the value of CanStop.
+func (s *ScanningPostRunsIDStopOK) GetCanStop() bool {
+	return s.CanStop
+}
+
+// GetDone returns the value of Done.
+func (s *ScanningPostRunsIDStopOK) GetDone() int {
+	return s.Done
+}
+
+// GetEndedAt returns the value of EndedAt.
+func (s *ScanningPostRunsIDStopOK) GetEndedAt() NilDateTime {
+	return s.EndedAt
+}
+
+// GetError returns the value of Error.
+func (s *ScanningPostRunsIDStopOK) GetError() NilString {
+	return s.Error
+}
+
+// GetID returns the value of ID.
+func (s *ScanningPostRunsIDStopOK) GetID() string {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *ScanningPostRunsIDStopOK) GetKind() string {
+	return s.Kind
+}
+
+// GetLane returns the value of Lane.
+func (s *ScanningPostRunsIDStopOK) GetLane() string {
+	return s.Lane
+}
+
+// GetModule returns the value of Module.
+func (s *ScanningPostRunsIDStopOK) GetModule() string {
+	return s.Module
+}
+
+// GetParentID returns the value of ParentID.
+func (s *ScanningPostRunsIDStopOK) GetParentID() NilString {
+	return s.ParentID
+}
+
+// GetQueuedAt returns the value of QueuedAt.
+func (s *ScanningPostRunsIDStopOK) GetQueuedAt() time.Time {
+	return s.QueuedAt
+}
+
+// GetRequestedBy returns the value of RequestedBy.
+func (s *ScanningPostRunsIDStopOK) GetRequestedBy() string {
+	return s.RequestedBy
+}
+
+// GetScheduleID returns the value of ScheduleID.
+func (s *ScanningPostRunsIDStopOK) GetScheduleID() NilString {
+	return s.ScheduleID
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *ScanningPostRunsIDStopOK) GetStartedAt() NilDateTime {
+	return s.StartedAt
+}
+
+// GetStatus returns the value of Status.
+func (s *ScanningPostRunsIDStopOK) GetStatus() ScanningPostRunsIDStopOKStatus {
+	return s.Status
+}
+
+// GetStopReason returns the value of StopReason.
+func (s *ScanningPostRunsIDStopOK) GetStopReason() NilString {
+	return s.StopReason
+}
+
+// GetSubject returns the value of Subject.
+func (s *ScanningPostRunsIDStopOK) GetSubject() NilScanningPostRunsIDStopOKSubject {
+	return s.Subject
+}
+
+// GetTitle returns the value of Title.
+func (s *ScanningPostRunsIDStopOK) GetTitle() string {
+	return s.Title
+}
+
+// GetTotal returns the value of Total.
+func (s *ScanningPostRunsIDStopOK) GetTotal() int {
+	return s.Total
+}
+
+// GetTrigger returns the value of Trigger.
+func (s *ScanningPostRunsIDStopOK) GetTrigger() ScanningPostRunsIDStopOKTrigger {
+	return s.Trigger
+}
+
+// GetTriggerNote returns the value of TriggerNote.
+func (s *ScanningPostRunsIDStopOK) GetTriggerNote() NilString {
+	return s.TriggerNote
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *ScanningPostRunsIDStopOK) GetUpdatedAt() time.Time {
+	return s.UpdatedAt
+}
+
+// GetWaitingFor returns the value of WaitingFor.
+func (s *ScanningPostRunsIDStopOK) GetWaitingFor() NilString {
+	return s.WaitingFor
+}
+
+// SetCanResume sets the value of CanResume.
+func (s *ScanningPostRunsIDStopOK) SetCanResume(val bool) {
+	s.CanResume = val
+}
+
+// SetCanStop sets the value of CanStop.
+func (s *ScanningPostRunsIDStopOK) SetCanStop(val bool) {
+	s.CanStop = val
+}
+
+// SetDone sets the value of Done.
+func (s *ScanningPostRunsIDStopOK) SetDone(val int) {
+	s.Done = val
+}
+
+// SetEndedAt sets the value of EndedAt.
+func (s *ScanningPostRunsIDStopOK) SetEndedAt(val NilDateTime) {
+	s.EndedAt = val
+}
+
+// SetError sets the value of Error.
+func (s *ScanningPostRunsIDStopOK) SetError(val NilString) {
+	s.Error = val
+}
+
+// SetID sets the value of ID.
+func (s *ScanningPostRunsIDStopOK) SetID(val string) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ScanningPostRunsIDStopOK) SetKind(val string) {
+	s.Kind = val
+}
+
+// SetLane sets the value of Lane.
+func (s *ScanningPostRunsIDStopOK) SetLane(val string) {
+	s.Lane = val
+}
+
+// SetModule sets the value of Module.
+func (s *ScanningPostRunsIDStopOK) SetModule(val string) {
+	s.Module = val
+}
+
+// SetParentID sets the value of ParentID.
+func (s *ScanningPostRunsIDStopOK) SetParentID(val NilString) {
+	s.ParentID = val
+}
+
+// SetQueuedAt sets the value of QueuedAt.
+func (s *ScanningPostRunsIDStopOK) SetQueuedAt(val time.Time) {
+	s.QueuedAt = val
+}
+
+// SetRequestedBy sets the value of RequestedBy.
+func (s *ScanningPostRunsIDStopOK) SetRequestedBy(val string) {
+	s.RequestedBy = val
+}
+
+// SetScheduleID sets the value of ScheduleID.
+func (s *ScanningPostRunsIDStopOK) SetScheduleID(val NilString) {
+	s.ScheduleID = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *ScanningPostRunsIDStopOK) SetStartedAt(val NilDateTime) {
+	s.StartedAt = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ScanningPostRunsIDStopOK) SetStatus(val ScanningPostRunsIDStopOKStatus) {
+	s.Status = val
+}
+
+// SetStopReason sets the value of StopReason.
+func (s *ScanningPostRunsIDStopOK) SetStopReason(val NilString) {
+	s.StopReason = val
+}
+
+// SetSubject sets the value of Subject.
+func (s *ScanningPostRunsIDStopOK) SetSubject(val NilScanningPostRunsIDStopOKSubject) {
+	s.Subject = val
+}
+
+// SetTitle sets the value of Title.
+func (s *ScanningPostRunsIDStopOK) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetTotal sets the value of Total.
+func (s *ScanningPostRunsIDStopOK) SetTotal(val int) {
+	s.Total = val
+}
+
+// SetTrigger sets the value of Trigger.
+func (s *ScanningPostRunsIDStopOK) SetTrigger(val ScanningPostRunsIDStopOKTrigger) {
+	s.Trigger = val
+}
+
+// SetTriggerNote sets the value of TriggerNote.
+func (s *ScanningPostRunsIDStopOK) SetTriggerNote(val NilString) {
+	s.TriggerNote = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *ScanningPostRunsIDStopOK) SetUpdatedAt(val time.Time) {
+	s.UpdatedAt = val
+}
+
+// SetWaitingFor sets the value of WaitingFor.
+func (s *ScanningPostRunsIDStopOK) SetWaitingFor(val NilString) {
+	s.WaitingFor = val
+}
+
+// Queued: waits for its lane (another run of the same engine runs); waiting: paused with work left
+// until what waiting_for names; running; stopping: a stop was asked and the work is ending; done;
+// partial: ended with part of the work done; failed; stopped: by a person, by its module turned off,
+// or by a restart (stop_reason says which).
+type ScanningPostRunsIDStopOKStatus string
+
+const (
+	ScanningPostRunsIDStopOKStatusQueued   ScanningPostRunsIDStopOKStatus = "queued"
+	ScanningPostRunsIDStopOKStatusWaiting  ScanningPostRunsIDStopOKStatus = "waiting"
+	ScanningPostRunsIDStopOKStatusRunning  ScanningPostRunsIDStopOKStatus = "running"
+	ScanningPostRunsIDStopOKStatusStopping ScanningPostRunsIDStopOKStatus = "stopping"
+	ScanningPostRunsIDStopOKStatusDone     ScanningPostRunsIDStopOKStatus = "done"
+	ScanningPostRunsIDStopOKStatusPartial  ScanningPostRunsIDStopOKStatus = "partial"
+	ScanningPostRunsIDStopOKStatusFailed   ScanningPostRunsIDStopOKStatus = "failed"
+	ScanningPostRunsIDStopOKStatusStopped  ScanningPostRunsIDStopOKStatus = "stopped"
+)
+
+// AllValues returns all ScanningPostRunsIDStopOKStatus values.
+func (ScanningPostRunsIDStopOKStatus) AllValues() []ScanningPostRunsIDStopOKStatus {
+	return []ScanningPostRunsIDStopOKStatus{
+		ScanningPostRunsIDStopOKStatusQueued,
+		ScanningPostRunsIDStopOKStatusWaiting,
+		ScanningPostRunsIDStopOKStatusRunning,
+		ScanningPostRunsIDStopOKStatusStopping,
+		ScanningPostRunsIDStopOKStatusDone,
+		ScanningPostRunsIDStopOKStatusPartial,
+		ScanningPostRunsIDStopOKStatusFailed,
+		ScanningPostRunsIDStopOKStatusStopped,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningPostRunsIDStopOKStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningPostRunsIDStopOKStatusQueued:
+		return []byte(s), nil
+	case ScanningPostRunsIDStopOKStatusWaiting:
+		return []byte(s), nil
+	case ScanningPostRunsIDStopOKStatusRunning:
+		return []byte(s), nil
+	case ScanningPostRunsIDStopOKStatusStopping:
+		return []byte(s), nil
+	case ScanningPostRunsIDStopOKStatusDone:
+		return []byte(s), nil
+	case ScanningPostRunsIDStopOKStatusPartial:
+		return []byte(s), nil
+	case ScanningPostRunsIDStopOKStatusFailed:
+		return []byte(s), nil
+	case ScanningPostRunsIDStopOKStatusStopped:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningPostRunsIDStopOKStatus) UnmarshalText(data []byte) error {
+	switch ScanningPostRunsIDStopOKStatus(data) {
+	case ScanningPostRunsIDStopOKStatusQueued:
+		*s = ScanningPostRunsIDStopOKStatusQueued
+		return nil
+	case ScanningPostRunsIDStopOKStatusWaiting:
+		*s = ScanningPostRunsIDStopOKStatusWaiting
+		return nil
+	case ScanningPostRunsIDStopOKStatusRunning:
+		*s = ScanningPostRunsIDStopOKStatusRunning
+		return nil
+	case ScanningPostRunsIDStopOKStatusStopping:
+		*s = ScanningPostRunsIDStopOKStatusStopping
+		return nil
+	case ScanningPostRunsIDStopOKStatusDone:
+		*s = ScanningPostRunsIDStopOKStatusDone
+		return nil
+	case ScanningPostRunsIDStopOKStatusPartial:
+		*s = ScanningPostRunsIDStopOKStatusPartial
+		return nil
+	case ScanningPostRunsIDStopOKStatusFailed:
+		*s = ScanningPostRunsIDStopOKStatusFailed
+		return nil
+	case ScanningPostRunsIDStopOKStatusStopped:
+		*s = ScanningPostRunsIDStopOKStatusStopped
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanningPostRunsIDStopOKSubject struct {
+	// Its id in its module: a device id links to the device page, a target id to the exposure target.
+	ID string `json:"id"`
+	// Device | target | scope (open).
+	Kind string `json:"kind"`
+	// Its name when the run was made; kept when the subject is gone.
+	Label string `json:"label"`
+}
+
+// GetID returns the value of ID.
+func (s *ScanningPostRunsIDStopOKSubject) GetID() string {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *ScanningPostRunsIDStopOKSubject) GetKind() string {
+	return s.Kind
+}
+
+// GetLabel returns the value of Label.
+func (s *ScanningPostRunsIDStopOKSubject) GetLabel() string {
+	return s.Label
+}
+
+// SetID sets the value of ID.
+func (s *ScanningPostRunsIDStopOKSubject) SetID(val string) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ScanningPostRunsIDStopOKSubject) SetKind(val string) {
+	s.Kind = val
+}
+
+// SetLabel sets the value of Label.
+func (s *ScanningPostRunsIDStopOKSubject) SetLabel(val string) {
+	s.Label = val
+}
+
+// Manual: a person asked; schedule: a schedule came due; event: something the box saw (a new device, a
+// finished sweep).
+type ScanningPostRunsIDStopOKTrigger string
+
+const (
+	ScanningPostRunsIDStopOKTriggerManual   ScanningPostRunsIDStopOKTrigger = "manual"
+	ScanningPostRunsIDStopOKTriggerSchedule ScanningPostRunsIDStopOKTrigger = "schedule"
+	ScanningPostRunsIDStopOKTriggerEvent    ScanningPostRunsIDStopOKTrigger = "event"
+)
+
+// AllValues returns all ScanningPostRunsIDStopOKTrigger values.
+func (ScanningPostRunsIDStopOKTrigger) AllValues() []ScanningPostRunsIDStopOKTrigger {
+	return []ScanningPostRunsIDStopOKTrigger{
+		ScanningPostRunsIDStopOKTriggerManual,
+		ScanningPostRunsIDStopOKTriggerSchedule,
+		ScanningPostRunsIDStopOKTriggerEvent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningPostRunsIDStopOKTrigger) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningPostRunsIDStopOKTriggerManual:
+		return []byte(s), nil
+	case ScanningPostRunsIDStopOKTriggerSchedule:
+		return []byte(s), nil
+	case ScanningPostRunsIDStopOKTriggerEvent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningPostRunsIDStopOKTrigger) UnmarshalText(data []byte) error {
+	switch ScanningPostRunsIDStopOKTrigger(data) {
+	case ScanningPostRunsIDStopOKTriggerManual:
+		*s = ScanningPostRunsIDStopOKTriggerManual
+		return nil
+	case ScanningPostRunsIDStopOKTriggerSchedule:
+		*s = ScanningPostRunsIDStopOKTriggerSchedule
+		return nil
+	case ScanningPostRunsIDStopOKTriggerEvent:
+		*s = ScanningPostRunsIDStopOKTriggerEvent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ScanningPostScanningEnginesNmapDiscoveryRunAccepted struct {

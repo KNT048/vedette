@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/knt048/vedette/core/apierr"
+	"github.com/knt048/vedette/core/lifecycle"
 	"github.com/knt048/vedette/core/secrets"
 	sa "github.com/knt048/vedette/modules/sensor-active"
 )
@@ -194,30 +195,23 @@ func TestSNMPADeviceThatMovedIsNotFollowed(t *testing.T) {
 	}
 }
 
-// a device's SNMP goes with the device (inventory.asset.deleted) and moves with a merge (inventory.asset.merged) when the
-// device kept has none; otherwise the kept device's own stays and the other's goes, secrets included.
+// a device's SNMP goes with the device (lifecycle DeviceDeleted) and moves with a merge (lifecycle DeviceMerged) when the
+// device kept has none; otherwise, neither having answered, the kept device's own stays and the other's goes, secrets included.
 func TestSNMPSettingsFollowDeletedAndMergedDevices(t *testing.T) {
 	t.Parallel()
 	w := newSNMPWorld(t, &fakeReader{})
-	ctx := t.Context()
 	w.set("a-sw", v2c("community-1"))
 	w.set("a-printer", v2c("community-2"))
 	w.set("a-never", v2c("community-3"))
-	if err := w.svc.AssetMerged(ctx, "a-sw", "a-new"); err != nil { // a-new has none: a-sw's become a-new's
-		t.Fatal(err)
-	}
+	mergeDevices(t, w.db, w.svc, lifecycle.Merge{From: "a-sw", Into: "a-new"}) // a-new has none: a-sw's become a-new's
 	if w.count(`SELECT count(*) FROM sa_snmp_device WHERE asset_id = 'a-new' AND read_from = '192.168.10.20'`) != 1 || w.count(`SELECT count(*) FROM sa_snmp_device WHERE asset_id = 'a-sw'`) != 0 {
 		t.Fatal("the settings did not move with the merge")
 	}
-	if err := w.svc.AssetMerged(ctx, "a-printer", "a-never"); err != nil { // both have some: a-never keeps its own
-		t.Fatal(err)
-	}
+	mergeDevices(t, w.db, w.svc, lifecycle.Merge{From: "a-printer", Into: "a-never"}) // both have some, none answered: a-never keeps its own
 	if _, plain := w.secretOf("a-never", "secret_id"); plain != "community-3" || w.count(`SELECT count(*) FROM sa_snmp_device WHERE asset_id = 'a-printer'`) != 0 {
 		t.Fatal("the kept device lost its own settings, or the other's stayed")
 	}
-	if err := w.svc.AssetDeleted(ctx, "a-never"); err != nil {
-		t.Fatal(err)
-	}
+	deleteDevice(t, w.db, w.svc, "a-never")
 	if w.count(`SELECT count(*) FROM sa_snmp_device`) != 1 || w.count(`SELECT count(*) FROM core_secret`) != 1 {
 		t.Fatalf("after the delete: %d settings, %d secrets", w.count(`SELECT count(*) FROM sa_snmp_device`), w.count(`SELECT count(*) FROM core_secret`))
 	}

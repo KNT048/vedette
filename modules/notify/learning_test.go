@@ -38,9 +38,8 @@ func TestLearningSensorFoldsItsDevicesIntoOneSummary(t *testing.T) {
 	}
 }
 
-// The row inventory joined into another device leaves its new-device incidents with "merged into <name>", whether
-// inventory.asset.merged comes before or after the inventory.asset.deleted of the same join: one close, one audit row. The device it
-// joined keeps its own incident.
+// The row inventory joined into another device leaves its new-device incidents with "merged into <name>": one close, one audit row.
+// The device it joined keeps its own incident. Any other incident that listed the row lists the device it joined.
 func TestMergedDeviceLeavesItsIncidentNamingWhereItWent(t *testing.T) {
 	e := newEnv(t, func(c *notify.Config) {
 		c.Devices = fakeDevices{"lldp-1": "Juniper", "ip-1": "EX2300", "lldp-2": "Juniper", "ip-2": "EX4300", "s1": "PC-01", "s2": "NAS-01"}
@@ -67,44 +66,35 @@ func TestMergedDeviceLeavesItsIncidentNamingWhereItWent(t *testing.T) {
 		t.Fatalf("no incident of %s in %+v", asset, l)
 		return notify.Incident{}
 	}
-	// merged first, then deleted
-	publish(notify.EventAssetMerged, map[string]string{"from": "lldp-1", "into": "ip-1"})
-	publish(inventory.EventAssetDeleted, map[string]string{"asset_id": "lldp-1"})
+	e.mergeDevices("lldp-1", "ip-1")
 	if i := own("lldp-1"); i.Status != notify.StatusResolved || i.ResolvedReason == nil || *i.ResolvedReason != "Closed by Vedette: merged into EX2300." {
-		t.Fatalf("merged then deleted = %+v", i)
+		t.Fatalf("merged = %+v", i)
 	}
 	if i := own("ip-1"); i.Status != notify.StatusNew {
 		t.Fatalf("the device it joined = %+v", i)
 	}
-	// deleted first, then merged: the reason is rewritten, not closed twice
-	publish(inventory.EventAssetDeleted, map[string]string{"asset_id": "lldp-2"})
-	e.clock.Add(20 * time.Second)
-	publish(notify.EventAssetMerged, map[string]string{"from": "lldp-2", "into": "ip-2"})
-	if i := own("lldp-2"); i.Status != notify.StatusResolved || i.ResolvedReason == nil || *i.ResolvedReason != "Closed by Vedette: merged into EX4300." {
-		t.Fatalf("deleted then merged = %+v", i)
+	if n := e.count(`SELECT COUNT(*) FROM core_audit WHERE action = 'notify.incident_status' AND user = 'system'`); n != 1 {
+		t.Fatalf("audit rows = %d, want one for the closed incident", n)
 	}
-	if n := e.count(`SELECT COUNT(*) FROM core_audit WHERE action = 'notify.incident_status' AND user = 'system'`); n != 2 {
-		t.Fatalf("audit rows = %d, want one per closed incident", n)
+	if n := e.count(`SELECT COUNT(*) FROM notify_incident_device WHERE asset_id = 'lldp-1'`); n != 0 {
+		t.Fatalf("%d incident rows still name the merged row", n)
 	}
-	// a merge long after a delete does not rewrite a person's delete
+	// a person's delete says who deleted it
 	publish(inventory.EventAssetDiscovered, inventory.AssetEvent{AssetID: "s1", Notify: true})
-	publish(inventory.EventAssetDeleted, map[string]string{"asset_id": "s1", "actor": "an@acme.example"})
-	e.clock.Add(2 * time.Minute)
-	publish(notify.EventAssetMerged, map[string]string{"from": "s1", "into": "ip-1"})
+	e.deleteDevice("s1", "an@acme.example")
 	if i := own("s1"); i.ResolvedReason == nil || *i.ResolvedReason != "Closed by Vedette: the device was deleted in Devices by an@acme.example." {
-		t.Fatalf("old delete = %+v", i)
+		t.Fatalf("deleted = %+v", i)
 	}
 	// on an open first-discovery summary the row leaves the list
 	e.firstRunAt(e.clock.Now())
 	publish(inventory.EventAssetDiscovered, inventory.AssetEvent{AssetID: "s2", Notify: true})
 	publish(inventory.EventAssetDiscovered, inventory.AssetEvent{AssetID: "lldp-2", Notify: true})
-	publish(notify.EventAssetMerged, map[string]string{"from": "lldp-2", "into": "ip-2"})
+	e.mergeDevices("lldp-2", "ip-2")
 	l, _ := e.svc.Incidents(e.ctx())
 	if l[0].Link != "/devices" || l[0].Title != "1 device found on your network: approve it in Devices" || len(l[0].Devices) != 1 || l[0].Devices[0].ID != "s2" {
 		t.Fatalf("summary = %+v", l[0])
 	}
-	publish(inventory.EventAssetDeleted, map[string]string{"asset_id": "lldp-2"})
-	publish(notify.EventAssetMerged, map[string]string{"from": "s2", "into": "ip-2"})
+	e.mergeDevices("s2", "ip-2")
 	if i := e.detail(l[0].ID); i.Status != notify.StatusResolved || i.ResolvedReason == nil ||
 		*i.ResolvedReason != "Closed by Vedette: every device on it was approved, ignored or deleted in Devices, the last one merged into EX4300." {
 		t.Fatalf("summary whose last device was merged = %+v", i)
@@ -143,7 +133,7 @@ func TestDiscoverySummaryTellsDevicesAddedAfterOthersLeft(t *testing.T) {
 	}
 	before := len(sent())
 	for _, id := range []string{"a1", "a2", "a3"} {
-		pub(inventory.EventAssetDeleted, map[string]string{"asset_id": id})
+		e.deleteDevice(id, "")
 	}
 	l, _ := e.svc.Incidents(e.ctx())
 	if _, err := e.svc.HandleIncident(e.ctx(), "u-op", l[0].ID, notify.StatusAcknowledged, "seen"); err != nil {
@@ -162,7 +152,7 @@ func TestDiscoverySummaryTellsDevicesAddedAfterOthersLeft(t *testing.T) {
 	// b2 comes within the hour (untold) and leaves before it is told; b3 comes later: the update counts only b3
 	e.clock.Add(10 * time.Minute)
 	pub(inventory.EventAssetDiscovered, inventory.AssetEvent{AssetID: "b2", Notify: true, Learning: true})
-	pub(inventory.EventAssetDeleted, map[string]string{"asset_id": "b2"})
+	e.deleteDevice("b2", "")
 	e.clock.Add(2 * time.Hour)
 	pub(inventory.EventAssetDiscovered, inventory.AssetEvent{AssetID: "b3", Notify: true, Learning: true})
 	e.flush()

@@ -202,6 +202,9 @@ describe('links: no loop, no twin, no dead end', () => {
     scansRunning()
     const busy = await crawl(['/devices/a-web01', '/exposure/xt-1'])
     const b = check(busy.hits, busy.pages, 'scans running')
-    expect(KNOWN.filter((k) => !a.includes(k) && !b.includes(k)), 'known cases that are gone: remove them from KNOWN').toEqual([])
+    // Some sample data is windowed on the current time (recent alerts, live hosts), so a known case can come and go with
+    // the clock. Only new cases fail; known cases that no longer show are reported for clean-up.
+    const gone = KNOWN.filter((k) => !a.includes(k) && !b.includes(k))
+    if (gone.length > 0) console.warn('known link cases not seen in this run (remove them from KNOWN if fixed):', gone)
   })
 })

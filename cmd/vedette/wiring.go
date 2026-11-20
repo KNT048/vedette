@@ -483,7 +483,7 @@ func (a findingsFeeds) readVulns(ctx context.Context) ([]findings.Vuln, error) {
 	for i, v := range rows {
 		out[i] = findings.Vuln{CVE: v.CVE, Vendor: v.Vendor, Product: v.Product, Name: v.Name, Ransomware: v.Ransomware, Source: v.SourceID, HasTemplate: v.HasTemplate,
 			DistroLoading: loading}
-		_, out[i].NVDAnswered = affected[v.CVE] // KevAffected has an entry, even empty, for every CVE feeds_affected_cve records
+		_, out[i].NVDAnswered = affected[v.CVE] // KevAffected has an entry, even empty, for every CVE NVD or the CVE record answered for
 		out[i].RangesFrom = rangesFrom(fromCVEOrg[v.CVE])
 		for _, r := range affected[v.CVE] {
 			out[i].Affected = append(out[i].Affected, findings.Affected{CPE: r.CPE,

@@ -10,7 +10,6 @@ import (
 
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/observe"
-	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/inventory"
 )
@@ -28,17 +27,13 @@ func TestWiringLLDPJunosSwitchGetsItsFindings(t *testing.T) {
 		{"CVE-2023-36846", "Juniper Junos OS SRX Series Missing Authentication for Critical Function Vulnerability"},
 	} {
 		if err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
-			ts := store.FormatTS(now)
-			if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_vuln (cve, vendor, product, product_key, name, date_added, ransomware, source_id, updated_at)
-				VALUES (?, 'Juniper', 'Junos OS', 'juniper|junos os', ?, '2023-11-13', 0, 'cisa-kev', ?)`, v.cve, v.name, ts); err != nil {
+			if err := seedKEVRow(ctx, tx, v.cve, "Juniper", "Junos OS", v.name, time.Date(2023, 11, 13, 0, 0, 0, 0, time.UTC), false, false, "cisa-kev"); err != nil {
 				return err
 			}
-			if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_affected_cve (cve, updated_at) VALUES (?, ?)`, v.cve, ts); err != nil {
+			if err := seedNVD(ctx, tx, v.cve, now.AddDate(-3, 0, 0), "Analyzed", 0); err != nil {
 				return err
 			}
-			_, err := tx.ExecContext(ctx, `INSERT INTO feeds_affected (cve, cpe, start_incl, start_excl, end_incl, end_excl)
-				VALUES (?, 'cpe:2.3:o:juniper:junos:*:*:*:*:*:*:*:*', '', '', '', '20.4')`, v.cve)
-			return err
+			return seedRange(ctx, tx, v.cve, "cpe:2.3:o:juniper:junos:*:*:*:*:*:*:*:*", "", "", "", "20.4", "")
 		}); err != nil {
 			t.Fatal(err)
 		}
@@ -128,17 +123,13 @@ func junosSwitch(t *testing.T) (s *stack, cves []string, lldp func()) {
 	cves = []string{"CVE-2023-36844", "CVE-2023-36845", "CVE-2023-36847", "CVE-2023-36851", "CVE-2024-21591"}
 	for _, cve := range cves {
 		if err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
-			ts := store.FormatTS(now)
-			if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_vuln (cve, vendor, product, product_key, name, date_added, ransomware, source_id, updated_at)
-				VALUES (?, 'Juniper', 'Junos OS', 'juniper|junos os', 'Juniper Junos OS EX Series Vulnerability', '2023-11-13', 0, 'cisa-kev', ?)`, cve, ts); err != nil {
+			if err := seedKEVRow(ctx, tx, cve, "Juniper", "Junos OS", "Juniper Junos OS EX Series Vulnerability", time.Date(2023, 11, 13, 0, 0, 0, 0, time.UTC), false, false, "cisa-kev"); err != nil {
 				return err
 			}
-			if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_affected_cve (cve, updated_at) VALUES (?, ?)`, cve, ts); err != nil {
+			if err := seedNVD(ctx, tx, cve, now.AddDate(-3, 0, 0), "Analyzed", 0); err != nil {
 				return err
 			}
-			_, err := tx.ExecContext(ctx, `INSERT INTO feeds_affected (cve, cpe, start_incl, start_excl, end_incl, end_excl)
-				VALUES (?, 'cpe:2.3:o:juniper:junos:*:*:*:*:*:*:*:*', '', '', '', '20.4')`, cve)
-			return err
+			return seedRange(ctx, tx, cve, "cpe:2.3:o:juniper:junos:*:*:*:*:*:*:*:*", "", "", "", "20.4", "")
 		}); err != nil {
 			t.Fatal(err)
 		}
@@ -250,12 +241,13 @@ func TestWiringVulnsCarryTemplateAndPublished(t *testing.T) {
 	s := newStack(t)
 	ctx := t.Context()
 	if err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
-		ts := store.FormatTS(time.Now().UTC())
-		if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_vuln (cve, vendor, product, product_key, name, date_added, ransomware, has_template, source_id, updated_at)
-			VALUES ('CVE-2017-0144', 'Microsoft', 'SMBv1', 'microsoft|smbv1', 'EternalBlue', '2022-02-10', 1, 1, 'cisa-kev', ?), ('CVE-2018-13379', 'Fortinet', 'FortiOS', 'fortinet|fortios', 'SSL VPN', '2021-11-03', 0, 0, 'cisa-kev', ?)`, ts, ts); err != nil {
+		if err := seedKEVRow(ctx, tx, "CVE-2017-0144", "Microsoft", "SMBv1", "EternalBlue", time.Date(2022, 2, 10, 0, 0, 0, 0, time.UTC), true, true, "cisa-kev"); err != nil {
 			return err
 		}
-		_, err := tx.ExecContext(ctx, `INSERT INTO feeds_published (cve, published) VALUES ('CVE-2017-0144', '2017-03-17')`)
+		if err := seedKEVRow(ctx, tx, "CVE-2018-13379", "Fortinet", "FortiOS", "SSL VPN", time.Date(2021, 11, 3, 0, 0, 0, 0, time.UTC), false, false, "cisa-kev"); err != nil {
+			return err
+		}
+		_, err := tx.ExecContext(ctx, `UPDATE feeds_cve SET published = '2017-03-17T00:00:00.000Z' WHERE cve = 'CVE-2017-0144'`)
 		return err
 	}); err != nil {
 		t.Fatal(err)
@@ -290,10 +282,10 @@ func TestWiringSafeCheckIsTheScansPack(t *testing.T) {
 	s := newStack(t)
 	ctx := t.Context()
 	if err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
-		ts := store.FormatTS(time.Now().UTC())
-		_, err := tx.ExecContext(ctx, `INSERT INTO feeds_vuln (cve, vendor, product, product_key, name, date_added, ransomware, has_template, source_id, updated_at)
-			VALUES ('CVE-2017-0144', 'Microsoft', 'SMBv1', 'microsoft|smbv1', 'EternalBlue', '2022-02-10', 1, 1, 'cisa-kev', ?), ('CVE-2018-13379', 'Fortinet', 'FortiOS', 'fortinet|fortios', 'SSL VPN', '2021-11-03', 0, 0, 'cisa-kev', ?)`, ts, ts)
-		return err
+		if err := seedKEVRow(ctx, tx, "CVE-2017-0144", "Microsoft", "SMBv1", "EternalBlue", time.Date(2022, 2, 10, 0, 0, 0, 0, time.UTC), true, true, "cisa-kev"); err != nil {
+			return err
+		}
+		return seedKEVRow(ctx, tx, "CVE-2018-13379", "Fortinet", "FortiOS", "SSL VPN", time.Date(2021, 11, 3, 0, 0, 0, 0, time.UTC), false, false, "cisa-kev")
 	}); err != nil {
 		t.Fatal(err)
 	}

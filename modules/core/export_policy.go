@@ -189,8 +189,7 @@ var exportPolicy = map[string]tablePolicy{
 	"sa_snmp":                      {export: "id name version username auth priv secret_last4 priv_last4 scope created_at updated_at last_answer_at answered port", skip: "secret_id priv_secret_id"},                                                  // the community and v3 passwords stay in core_secret
 	"scan_event":                   {export: "id ts cve product latency_min run_id result", json: "devices"},
 	"scan_probe":                   {export: "id ts run_id ip label template request result"},
-	"scan_run":                     {export: "id trigger trigger_note started_at started_by ended_at status total done stop_reason stop_requested_at matched", json: "picked target_ids current results identification"},
-	"scan_setting":                 {export: "id win_from win_to rate stop_on_unresponsive unresponsive_after auto_rescan sched_enabled sched_frequency sched_weekday sched_at updated_at updated_by sched_last kev_read_at kev_read_cve", json: "days exclusions"},
+	"scan_setting":                 {export: "id stop_on_unresponsive unresponsive_after auto_rescan sched_enabled sched_frequency sched_weekday sched_at updated_at updated_by sched_last kev_read_at kev_read_cve"},
 	"sp_sensor":                    {export: "id name interface span version last_seen devices_seen"},
 	"sp_seq":                       {export: "sensor_id epoch last_seq"},
 	"sp_span_stat":                 {export: "sensor_id packets_per_s other_macs last_packet_at measured_at"},

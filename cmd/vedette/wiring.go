@@ -676,7 +676,6 @@ func buildServices(ctx context.Context, d *deps) error {
 	registerLogSources(d)
 	registerLifecycle(d, notifySvc, fs)
 	subscribe(*d)
-	mergeScanningSafety(ctx, d) // #850: once, the scan module's own window, rate and exclusions into the inventory
 	return nil
 }
 

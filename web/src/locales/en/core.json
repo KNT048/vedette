@@ -848,22 +848,10 @@
         "6": "Sat",
         "7": "Sun"
       },
-      "day": {
-        "1": "Monday",
-        "2": "Tuesday",
-        "3": "Wednesday",
-        "4": "Thursday",
-        "5": "Friday",
-        "6": "Saturday",
-        "7": "Sunday"
-      },
       "window": {
         "title": "Maintenance window",
         "anytime": "Any time",
         "only": "Only in a window",
-        "days": "Days",
-        "from": "From",
-        "until": "until",
         "to": "to",
         "hintAnytime": "Automatic Vedette updates and scheduled reboots can happen at any time of day.",
         "hintWindow": "Automatic Vedette updates and scheduled reboots happen only in this window.",

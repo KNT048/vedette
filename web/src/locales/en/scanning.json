@@ -47,7 +47,8 @@
     },
     "nmap-discovery": {
       "name": "Network discovery (nmap)",
-      "finds": "Devices that answer on your LAN ranges."
+      "finds": "Devices that answer on your LAN ranges.",
+      "scheduleName": "LAN sweep"
     },
     "nmap-versions": {
       "name": "Service versions (nmap)",

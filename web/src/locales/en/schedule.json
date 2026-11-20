@@ -1,0 +1,104 @@
+{
+  "loading": "Loading the schedule…",
+  "srName": "Schedule of {{name}}:",
+  "changeShort": "Change",
+  "change": "Change the schedule of {{name}}",
+  "editTitle": "Schedule: {{name}}",
+  "saved": "Schedule of {{name}} saved.",
+  "resume": "Resume",
+  "resumed": "{{name}} runs on its schedule again.",
+  "details": "Details",
+  "detailsOf": "Details of the schedule of {{name}}",
+  "lastStart": "Last start: {{time}}.",
+  "changedBy": "Changed by {{who}}, {{time}}.",
+  "skipped": "Skipped {{time}}: {{reason}}",
+  "state": { "off": "Off" },
+  "next": {
+    "at": "Next start: {{time}}",
+    "paused": "Paused until {{date}}",
+    "waiting": "Due now. Waiting for: {{what}}",
+    "none": "It does not start again."
+  },
+  "run": {
+    "short": "Run now",
+    "label": "Run {{name}} now",
+    "started": "{{name}} started.",
+    "open": "Open the run",
+    "openLast": "Open the last run"
+  },
+  "fields": {
+    "on": "Run on a schedule",
+    "repeat": "Repeat",
+    "every": "Every",
+    "unit": "Unit",
+    "at": "At",
+    "atOptional": "At (optional)",
+    "weekdays": "On",
+    "monthDay": "Day of the month",
+    "lastDay": "Last day",
+    "onceAt": "On",
+    "more": "Time zone, window, pause",
+    "tz": "Time zone",
+    "tzOrg": "Organization's ({{zone}})",
+    "window": "When it may start",
+    "scanWindowLink": "Change the scan window",
+    "resumeOn": "Pause until",
+    "resumeOnHint": "It starts again on this day. Empty: not paused."
+  },
+  "freq": {
+    "interval": "At an interval",
+    "daily": "Every day",
+    "weekly": "Every week",
+    "monthly": "Every month",
+    "once": "Once"
+  },
+  "unit": {
+    "minutes_one": "minute",
+    "minutes_other": "minutes",
+    "hours_one": "hour",
+    "hours_other": "hours",
+    "days_one": "day",
+    "days_other": "days"
+  },
+  "windowMode": {
+    "global": "Only in the scan window",
+    "none": "At any time",
+    "custom": "Only on chosen days and hours"
+  },
+  "preview": {
+    "title": "Next starts",
+    "none": "It does not start again with this setting."
+  },
+  "days": {
+    "every": "every day",
+    "short": { "1": "Mon", "2": "Tue", "3": "Wed", "4": "Thu", "5": "Fri", "6": "Sat", "7": "Sun" },
+    "long": { "1": "Monday", "2": "Tuesday", "3": "Wednesday", "4": "Thursday", "5": "Friday", "6": "Saturday", "7": "Sunday" }
+  },
+  "window": {
+    "days": "Days",
+    "from": "From",
+    "until": "Until"
+  },
+  "describe": {
+    "interval": {
+      "minutes_one": "Every minute",
+      "minutes_other": "Every {{count}} minutes",
+      "hours_one": "Every hour",
+      "hours_other": "Every {{count}} hours",
+      "days_one": "Every day",
+      "days_other": "Every {{count}} days"
+    },
+    "intervalAt_one": "Every day at {{at}}",
+    "intervalAt_other": "Every {{count}} days at {{at}}",
+    "daily": "Daily at {{at}}",
+    "weekly": "Weekly on {{days}} at {{at}}",
+    "monthly": "Monthly on day {{day}} at {{at}}",
+    "monthlyLast": "Monthly on the last day at {{at}}",
+    "once": "Once, {{when}}",
+    "window": {
+      "global": "in the scan window",
+      "custom": "only {{days}}, {{hours}}"
+    },
+    "allDay": "all day"
+  }
+}

@@ -1,7 +1,7 @@
 {
   "toast": {
-    "stopped": "Scan stopped: {{done}}/{{total}} devices done, the rest were not touched",
-    "autoStopped": "Vedette stopped automatically because a device stopped responding. See the reason in the history",
+    "endedEarly": "Scan ended early, {{done}}/{{total}} devices done: {{reason}}",
+    "endedEarlyNoReason": "Scan ended early, {{done}}/{{total}} devices done. See the history",
     "done_one": "Scan finished: {{count}} device matches a vulnerability",
     "done_other": "Scan finished: {{count}} devices match a vulnerability"
   },

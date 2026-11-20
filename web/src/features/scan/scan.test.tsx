@@ -229,7 +229,7 @@ describe('scan: quét ngay, tiến độ, dừng ngay (S-SCAN-4)', () => {
     expect(probes.length).toBeGreaterThan(0)
     expect(probes.every((p) => p.result === 'stopped')).toBe(true)
     expect(findingsStore.get().find((x) => x.id === 'f-1')!.history.some((h) => h.action === 'rescanned')).toBe(false)
-    expect(auditStore.get().some((a) => a.action === 'scan.stop')).toBe(true)
+    expect(auditStore.get().some((a) => a.action === 'scanning.run_stop')).toBe(true)
   })
 
   it('dừng lần quét đã kết thúc báo lỗi rõ; dừng hai lần không lỗi', async () => {

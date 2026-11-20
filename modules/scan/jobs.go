@@ -205,7 +205,7 @@ func (s *Service) startRescan(ctx context.Context, batch []readyEvent) error {
 	return nil
 }
 
-// rescanNote is the trigger note of a rescan run: its CVEs, as many as fit the 300 characters of the column.
+// rescanNote is the trigger note of a rescan run: its CVEs, as many as fit the 200 characters core/run keeps of a trigger note.
 func rescanNote(cves []string) string {
 	if len(cves) == 1 {
 		return "New KEV entry with a scan template: " + cves[0]
@@ -213,7 +213,7 @@ func rescanNote(cves []string) string {
 	note := "New KEV entries with a scan template: " + cves[0]
 	for i, c := range cves[1:] {
 		more := fmt.Sprintf(" and %d more", len(cves)-1-i)
-		if len(note)+2+len(c)+len(more) > 300 {
+		if len(note)+2+len(c)+len(more) > 200 {
 			return note + more
 		}
 		note += ", " + c

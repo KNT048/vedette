@@ -60,20 +60,21 @@ func splitLabel(label string) (name, ip string) {
 func (s *Service) record(ctx context.Context, x *run.Exec, rows []RunRow, ident *IdentRow) {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), recordWriteTimeout)
 	defer cancel()
-	add := func(it run.Item) {
-		if err := x.AddItem(ctx, it); err != nil {
-			s.cfg.Log.ErrorContext(ctx, "scan: recording a result of a run failed", "run", x.ID(), "kind", it.SubjectKind, "error", err)
+	add := func(its ...run.Item) {
+		if err := x.AddItems(ctx, its...); err != nil {
+			s.cfg.Log.ErrorContext(ctx, "scan: recording a result of a run failed", "run", x.ID(), "error", err)
 		}
 	}
 	for _, r := range rows {
-		add(run.Item{SubjectKind: kindDevice, SubjectID: r.TargetID, Label: itemLabel(r.Label, r.IP), Outcome: r.Result, Note: r.Note})
-		if r.FindingID != nil {
+		its := []run.Item{{SubjectKind: kindDevice, SubjectID: r.TargetID, Label: itemLabel(r.Label, r.IP), Outcome: r.Result, Note: r.Note}}
+		if r.FindingID != nil { // in the same transaction: the finding item belongs to the device item before it
 			it := run.Item{SubjectKind: kindFinding, SubjectID: *r.FindingID, Label: labelNoTemplate, Outcome: outcomeNoTemplate}
 			if r.Template != nil {
 				it.Label, it.Outcome = *r.Template, outcomeTemplate
 			}
-			add(it)
+			its = append(its, it)
 		}
+		add(its...)
 	}
 	if ident == nil {
 		return
@@ -82,10 +83,11 @@ func (s *Service) record(ctx context.Context, x *run.Exec, rows []RunRow, ident 
 	if ident.Reason != nil {
 		outcome = *ident.Reason
 	}
-	add(run.Item{SubjectKind: kindIdentification, SubjectID: ident.TargetID, Label: itemLabel(ident.Label, ident.IP), Outcome: outcome, Note: ident.Note})
+	its := []run.Item{{SubjectKind: kindIdentification, SubjectID: ident.TargetID, Label: itemLabel(ident.Label, ident.IP), Outcome: outcome, Note: ident.Note}}
 	for _, f := range ident.Found {
-		add(run.Item{SubjectKind: kindIdentified, SubjectID: ident.TargetID, Label: f, Outcome: outcomeFound})
+		its = append(its, run.Item{SubjectKind: kindIdentified, SubjectID: ident.TargetID, Label: f, Outcome: outcomeFound})
 	}
+	add(its...)
 }
 
 // ---- reading ----

@@ -235,8 +235,13 @@ func assertResolved(t *testing.T, r *replayed) {
 		all = append(all, s)
 	}
 	_ = rows.Close()
+	tx, err := r.db.Reader().BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = tx.Rollback() }()
 	for _, s := range all {
-		rs, err := readingsOf(ctx, r.db.Reader(), s.id)
+		rs, err := readingsOf(ctx, tx, s.id)
 		if err != nil {
 			t.Fatal(err)
 		}

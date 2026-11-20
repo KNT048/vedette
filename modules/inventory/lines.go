@@ -104,8 +104,8 @@ func scanReading(sc interface{ Scan(...any) error }, extra ...any) (Reading, err
 }
 
 // readingsOf reads the readings of one line.
-func readingsOf(ctx context.Context, q querier, lineID string) ([]Reading, error) {
-	rows, err := q.QueryContext(ctx, `SELECT `+readingCols+` FROM inv_software_reading r WHERE r.software_id = ? ORDER BY r.source, r.instance`, lineID)
+func readingsOf(ctx context.Context, tx *sql.Tx, lineID string) ([]Reading, error) {
+	rows, err := tx.QueryContext(ctx, `SELECT `+readingCols+` FROM inv_software_reading r WHERE r.software_id = ? ORDER BY r.source, r.instance`, lineID)
 	if err != nil {
 		return nil, fmt.Errorf("inventory: read software readings: %w", err)
 	}

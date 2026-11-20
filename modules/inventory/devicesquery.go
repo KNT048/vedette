@@ -17,10 +17,10 @@ import (
 // runZero and Lansweeper. GET /inventory/devices and GET /inventory/export.csv take the same query, so the page, its URL and the CSV
 // it exports mean the same devices.
 
-// DeviceSources are the words of the search's source: filter and of DeviceRow.sources, in this order (contract.ts DeviceSource).
+// SourceWords are the words of the search's source: filter and of DeviceRow.sources, in this order (contract.ts DeviceSource).
 // scan is nmap or a vulnerability scan. osquery and Wazuh both write source agent: osquery is the device its node key is bound to
 // (inv_asset.agent_key), Wazuh a device at an address or MAC the saved Wazuh connection delivered to (Config.WazuhAgents).
-var DeviceSources = []string{"manual", "passive", "scan", "snmp", "osquery", "wazuh"}
+var SourceWords = []string{"manual", "passive", "scan", "snmp", "osquery", "wazuh"}
 
 // DeviceFilter is the query of the Devices search. Every set field narrows the list (AND); a list matches any of its values (OR).
 // The zero filter keeps every device (Devices, for the other modules: the honeypot names an ignored device too).
@@ -30,7 +30,7 @@ type DeviceFilter struct {
 	// the page and the export, never leaves it nil: an ignored device is out of the Devices list unless asked for.
 	Ignored *bool
 	Types   []string // device type ids; a type also matches the types that act as it
-	Sources []string // DeviceSources
+	Sources []string // SourceWords
 	Risks   []string // RiskLevels
 	Q       string   // free text: name, IP, MAC (any notation), vendor, model
 }
@@ -38,7 +38,7 @@ type DeviceFilter struct {
 func badFilter(msg string) *apierr.Error { return apierr.New(400, "bad_filter", msg) }
 
 // ParseDeviceFilter checks the query of GET /inventory/devices: approved, fragile and has_findings are "true", "false" or empty; type
-// and source are comma-separated lists of known words (a type id of content/devicetypes, DeviceSources). Anything else is 400
+// and source are comma-separated lists of known words (a type id of content/devicetypes, SourceWords). Anything else is 400
 // bad_filter. The schema already bounds the lengths and the boolean words (400 invalid); this is the same check for a caller
 // that does not go through it. ignored is "true" (only the ignored devices) or "false"/empty (leave them out).
 func ParseDeviceFilter(approved, fragile, hasFindings, ignored, types, sources, q string) (DeviceFilter, error) {
@@ -72,8 +72,8 @@ func ParseDeviceSearch(approved, fragile, hasFindings, ignored, types, sources, 
 		f.Types = append(f.Types, t)
 	}
 	for _, src := range listFilter(sources) {
-		if !slices.Contains(DeviceSources, src) {
-			return f, badFilter(fmt.Sprintf("%q is not a source. Use one of: %s.", clipText(src, 40), strings.Join(DeviceSources, ", ")))
+		if !slices.Contains(SourceWords, src) {
+			return f, badFilter(fmt.Sprintf("%q is not a source. Use one of: %s.", clipText(src, 40), strings.Join(SourceWords, ", ")))
 		}
 		f.Sources = append(f.Sources, src)
 	}
@@ -235,7 +235,7 @@ func (f DeviceFilter) where(sources map[string][]string, counts map[string]int, 
 	return "WHERE " + strings.Join(conds, " AND "), args
 }
 
-// deviceSources says, for every device, what feeds it in the words of DeviceSources: a device added manually is manual; passive,
+// deviceSources says, for every device, what feeds it in the words of SourceWords: a device added manually is manual; passive,
 // snmp and nmap or scan (as scan) when that source left an observation, software or an open port on it; osquery when an osquery node
 // is bound to it; Wazuh when it has data of source agent and its address or MAC is one the saved Wazuh connection delivered
 // to. The box's own software (vedette-host's dpkg list) is source agent too and is neither.
@@ -248,8 +248,7 @@ func (s *Service) deviceSources(ctx context.Context, q querier) (map[string][]st
 		have[id][src] = true
 	}
 	rows, err := q.QueryContext(ctx, `SELECT DISTINCT asset_id, source FROM inv_observation
-		UNION SELECT DISTINCT w.asset_id, CASE WHEN r.source IN ('osquery', 'wazuh', 'box') THEN 'agent' ELSE r.source END
-			FROM inv_software_reading r JOIN inv_software w ON w.id = r.software_id WHERE w.state <> 'removed'
+		UNION `+readingSourcesSQL+`
 		UNION SELECT DISTINCT asset_id, source FROM inv_service`)
 	if err != nil {
 		return nil, fmt.Errorf("inventory: read sources: %w", err)
@@ -310,7 +309,7 @@ func (s *Service) deviceSources(ctx context.Context, q querier) (map[string][]st
 			h = have[id]
 		}
 		list := []string{}
-		for _, src := range DeviceSources {
+		for _, src := range SourceWords {
 			if h[src] {
 				list = append(list, src)
 			}

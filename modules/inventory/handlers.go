@@ -254,17 +254,6 @@ func (h *Handlers) InventoryPostInventoryDevicesIDSuspicious(ctx context.Context
 	return &oas.InventoryPostInventoryDevicesIDSuspiciousOK{Ok: true}, nil
 }
 
-// InventoryGetInventoryDevicesIDSoftware implements GET /inventory/devices/{id}/software (viewer, INV-50).
-func (h *Handlers) InventoryGetInventoryDevicesIDSoftware(ctx context.Context, params oas.InventoryGetInventoryDevicesIDSoftwareParams) (*oas.InventoryGetInventoryDevicesIDSoftwareOK, error) {
-	rows, err := h.svc.EffectiveSoftware(ctx, params.ID)
-	if err != nil {
-		return nil, fail(err)
-	}
-	return convert[oas.InventoryGetInventoryDevicesIDSoftwareOK](struct {
-		Items []EffectiveSoftware `json:"items"`
-	}{rows})
-}
-
 // InventoryPostInventoryDevicesIDSoftware implements POST /inventory/devices/{id}/software (operator).
 func (h *Handlers) InventoryPostInventoryDevicesIDSoftware(ctx context.Context, req *oas.InventoryPostInventoryDevicesIDSoftwareReq, params oas.InventoryPostInventoryDevicesIDSoftwareParams) (*oas.InventoryPostInventoryDevicesIDSoftwareCreated, error) {
 	who, err := actor(ctx)

@@ -110,7 +110,7 @@ func (s *Service) loadDevices(ctx context.Context, q querier, where string, limi
 		sub += fmt.Sprintf(" ORDER BY a.is_box DESC, a.first_seen DESC, a.id LIMIT %d", limit)
 	}
 	sub += `)`
-	if err := s.loadSoftware(ctx, q, sub, idx, out, args); err != nil {
+	if err := loadSoftware(ctx, q, sub, idx, out, args); err != nil {
 		return nil, err
 	}
 	if err := loadServices(ctx, q, sub, idx, out, args); err != nil {
@@ -121,35 +121,6 @@ func (s *Service) loadDevices(ctx context.Context, q querier, where string, limi
 		s.applyDeclared(ctx, &out[i])
 	}
 	return out, nil
-}
-
-func (s *Service) loadSoftware(ctx context.Context, q querier, sub string, idx map[string]int, out []Device, args []any) error {
-	rows, err := q.QueryContext(ctx, `SELECT s.asset_id, s.id, s.display, s.vendor, s.product, s.version, s.source, s.confidence, s.product_key, `+notInstalledSW+`,
-		`+fingerprintRow+`, `+guessLine+`, s.state = 'present', s.seen_at
-		FROM inv_software s WHERE s.asset_id IN `+sub+` AND s.state <> 'removed' AND NOT `+hiddenGuess+` ORDER BY s.asset_id, s.display, s.id`, args...)
-	if err != nil {
-		return fmt.Errorf("inventory: read software: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-	for rows.Next() {
-		var asset, key string
-		var sw Software
-		var ver sql.NullString
-		var fingerprint, guess bool
-		if err := rows.Scan(&asset, &sw.ID, &sw.Display, &sw.Vendor, &sw.Product, &ver, &sw.Source, &sw.Confidence, &key, &sw.NotInstalled, &fingerprint, &guess, &sw.live, &sw.seenAt); err != nil {
-			return fmt.Errorf("inventory: read software: %w", err)
-		}
-		d := &out[idx[asset]]
-		sw.Version = ptr(ver)
-		if fingerprint {
-			sw.Basis = basisGuess
-		}
-		sw.Source = sourceClass(sw.Source)
-		sw.live = sw.live && sw.Source == sourceManual // a person's entry in use (declaredIdentity reads it)
-		sw.Kev = matchKeys(key, guess)
-		d.Software = append(d.Software, sw)
-	}
-	return rows.Err()
 }
 
 func loadServices(ctx context.Context, q querier, sub string, idx map[string]int, out []Device, args []any) error {
@@ -416,16 +387,17 @@ func (s *Service) Detail(ctx context.Context, id string) (Detail, error) {
 		return -strings.Compare(a.SeenAt, b.SeenAt)
 	})
 
-	views := make([]SoftwareView, 0, len(d.Software))
-	for _, sw := range d.Software {
-		cves, err := s.cves(ctx, sw.Kev)
-		if err != nil {
+	lines, err := softwareLines(ctx, db, id)
+	if err != nil {
+		return Detail{}, err
+	}
+	for i := range lines {
+		if lines[i].NotInstalled {
+			continue // it matches nothing
+		}
+		if lines[i].KevCVEs, err = s.cves(ctx, lines[i].kev); err != nil {
 			return Detail{}, err
 		}
-		views = append(views, SoftwareView{ID: sw.ID, Display: sw.Display, Vendor: sw.Vendor, Product: sw.Product, Version: sw.Version, KevCVEs: cves, Source: sw.Source, Confidence: sw.Confidence, Basis: sw.Basis, CanCorrect: true})
-	}
-	if err := addCorrections(ctx, db, id, views); err != nil {
-		return Detail{}, err
 	}
 	osc, err := osCorrection(ctx, db, id)
 	if err != nil {
@@ -450,33 +422,12 @@ func (s *Service) Detail(ctx context.Context, id string) (Detail, error) {
 		DetectedDiffers: differs,
 		ManualAt:        manualAt,
 		PossibleSame:    same,
-		Asset:           DetailAsset{AssetCore: d.AssetCore, Software: views, OSCorrection: osc},
+		Asset:           DetailAsset{AssetCore: d.AssetCore, Software: lines, OSCorrection: osc},
 		Suspicious:      d.Suspicious,
 		FindingsCount:   d.FindingsCount,
 		Observations:    list,
 		Kinds:           devicetypes.IDs(),
 	}, nil
-}
-
-// manualAt is when a person last entered or changed something on the device (INV-46): the newest of its manual observations (the
-// type, maker and name typed when it was added, a type or OS set later) and its manual software rows (a row added or edited, a
-// correction, "not installed"; each write sets seen_at to now). A device added by hand with none of these has the time it was
-// added. nil when no person entered anything on it.
-func manualAt(ctx context.Context, db querier, id string) (*string, error) {
-	var at sql.NullString
-	err := db.QueryRowContext(ctx, `SELECT coalesce((SELECT max(t) FROM (
-			SELECT seen_at AS t FROM inv_observation WHERE asset_id = ?1 AND source = 'manual'
-			UNION ALL SELECT r.seen_at FROM inv_software_reading r JOIN inv_software w ON w.id = r.software_id WHERE w.asset_id = ?1 AND r.source = 'manual'
-			UNION ALL SELECT not_installed_at FROM inv_software WHERE asset_id = ?1 AND not_installed_at IS NOT NULL)),
-		CASE WHEN origin = 'manual' THEN first_seen END)
-		FROM inv_asset WHERE id = ?1`, id).Scan(&at)
-	if err != nil {
-		return nil, fmt.Errorf("inventory: read when a person last changed the device: %w", err)
-	}
-	if !at.Valid {
-		return nil, nil
-	}
-	return &at.String, nil
 }
 
 // cves returns the CVE ids feeds knows for the keys; none when feeds gives none.

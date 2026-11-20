@@ -546,3 +546,105 @@ func TestPublicExploit_SizeCapIsTooLarge(t *testing.T) {
 		}
 	}
 }
+
+// An entry naming a flood of CVEs is rejected quickly (no quadratic de-duplication), and an index naming more CVEs than any real one
+// fails.
+func TestPublicExploit_EntryAndIndexCaps(t *testing.T) {
+	t.Parallel()
+	var codes strings.Builder
+	for i := range 100_000 {
+		if i > 0 {
+			codes.WriteByte(';')
+		}
+		fmt.Fprintf(&codes, "CVE-2020-%06d", i)
+	}
+	start := time.Now()
+	idx, err := parseExploitDBIndex(strings.NewReader("id,date_published,codes\n1,2020-01-01," + codes.String() + "\n2,2020-01-02,CVE-2020-1234;CVE-2020-1234\n"))
+	if err != nil || len(idx.Signals) != 1 || idx.Rejected != 1 || idx.Accepted != 1 {
+		t.Fatalf("%+v %v", idx.Stats, err)
+	}
+	if d := time.Since(start); d > 5*time.Second { // linear: milliseconds; the quadratic way took about 12 s
+		t.Errorf("a 100,000-CVE row took %v", d)
+	}
+	refs := make([]string, maxCVEsPerEntry+1)
+	for i := range refs {
+		refs[i] = fmt.Sprintf("CVE-2020-%04d", 1000+i)
+	}
+	mod, _ := json.Marshal(map[string]any{"m": map[string]any{"fullname": "exploit/x/y", "mod_time": "2024-01-02 03:04:05 +0000", "references": refs}})
+	if idx, err := parseMetasploitModules(bytes.NewReader(mod)); err != nil || idx.Rejected != 1 || len(idx.Signals) != 0 {
+		t.Fatalf("a module over the cap: %+v %v", idx.Stats, err)
+	}
+	var many strings.Builder
+	many.WriteString("id,date_published,codes\n")
+	for i := range maxSignalsPerIndex + 1 {
+		fmt.Fprintf(&many, "%d,2020-01-01,CVE-2020-%07d\n", i+1, i)
+	}
+	if _, err := parseExploitDBIndex(strings.NewReader(many.String())); err == nil || !strings.Contains(err.Error(), "more than 200,000 CVEs") {
+		t.Fatalf("an index over the cap: %v", err)
+	}
+}
+
+// The CVE records of signalled CVEs: an old signalled CVE without NVD ranges is not asked again every 12 hours (an exploited-list or a
+// recent one is); the throttle counts only CVEs a public source names; a complete read of the whole list stamps the listed CVEs it did
+// not hold, so they stop counting as unread.
+func TestCVERecords_SignalledCVEsRecheckAndStamp(t *testing.T) {
+	t.Parallel()
+	e, o, _ := recordEnv(t, true)
+	e.setNow(time.Date(2026, 11, 21, 10, 0, 0, 0, time.UTC))
+	sigs := make([]publicSignal, recordRescanUnread)
+	for i := range sigs {
+		sigs[i] = publicSignal{CVE: fmt.Sprintf("CVE-2015-%04d", 1000+i), Date: epoch0}
+	}
+	write(t, e.db, func(tx *sql.Tx) error {
+		if err := applyPublicSignals(t.Context(), tx, epoch0, exploitDBFeedID, sigs); err != nil {
+			return err
+		}
+		// a custom list's unread CVEs never count toward the throttle
+		if _, err := tx.ExecContext(t.Context(), `INSERT INTO feeds_source (id, builtin, name, kind, format, url, interval_hours, parser, created_at)
+VALUES ('cf-own', 0, 'Own list', 'vulnerabilities', 'json', 'https://feeds.example.com/x.json', 24, '{}', '2026-11-05T00:00:00.000Z')`); err != nil {
+			return err
+		}
+		for i := range 5 {
+			c := fmt.Sprintf("CVE-2014-%04d", 1000+i)
+			if err := ensureCVE(t.Context(), tx, c, "2026-11-05T00:00:00.000Z"); err != nil {
+				return err
+			}
+			if _, err := tx.ExecContext(t.Context(), `INSERT INTO feeds_kev (cve, list, source_id, vendor, product, name, date_added, updated_at)
+VALUES (?, 'custom:cf-own', 'cf-own', 'Acme', 'Gateway', 'x', '2026-11-05', '2026-11-05T00:00:00.000Z')`, c); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if n, err := e.svc.st.recordUnread(t.Context()); err != nil || n != recordRescanUnread+4 { // the 4 CVEs of the CISA list and the signals
+		t.Fatalf("unread = %d %v", n, err)
+	}
+	o.serve("/repo/releases/download/cve_2026-11-20_2300Z/2026-11-20_all_CVEs_at_midnight.zip.zip", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeContent(w, r, "a.zip", time.Time{}, bytes.NewReader(dailyArchive(t, map[string][]byte{"cves/2024/3xxx/CVE-2024-3400.json": fixture(t, "cveorg/CVE-2024-3400.json")})))
+	})
+	if err := e.svc.Fetch(t.Context(), cveOrgFeedID); err != nil { // by ID only the CISA list's CVEs (a CVE-2015 ask hits an undeclared path)
+		t.Fatal(err)
+	}
+	if cur, err := e.svc.st.nvdCursor(t.Context(), selectorRecord); err != nil || cur == nil || cur.Mode != modeDone {
+		t.Fatalf("the whole list was not read: %+v %v", cur, err)
+	}
+	if n, err := e.svc.st.recordUnread(t.Context()); err != nil || n != 0 {
+		t.Fatalf("after the whole list: %d unread %v", n, err)
+	}
+	// a day later: the CISA list's CVEs without NVD ranges are due again, the old signalled ones are not; a recent signalled one is
+	write(t, e.db, func(tx *sql.Tx) error {
+		if err := applyPublicSignals(t.Context(), tx, epoch0, pocGitHubFeedID, []publicSignal{{CVE: "CVE-2026-0950", Date: epoch0, Qualifies: true, Rule: epoch0}}); err != nil {
+			return err
+		}
+		if err := ensureCVE(t.Context(), tx, "CVE-2026-0950", "2026-11-05T00:00:00.000Z"); err != nil {
+			return err
+		}
+		_, err := tx.ExecContext(t.Context(), `UPDATE feeds_cve SET published = '2026-11-01T00:00:00.000Z', record_at = '2026-11-21T10:00:00.000Z' WHERE cve = 'CVE-2026-0950'`)
+		return err
+	})
+	due, err := e.svc.st.recordDue(t.Context(), e.clock().Add(24*time.Hour), 1000)
+	if err != nil || slices.ContainsFunc(due, func(c string) bool { return strings.HasPrefix(c, "CVE-2015-") }) || !slices.Contains(due, "CVE-2026-0950") ||
+		!slices.Contains(due, "CVE-2024-3400") {
+		t.Fatalf("due a day later: %v %v", due, err)
+	}
+}

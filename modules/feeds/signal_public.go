@@ -71,6 +71,13 @@ const (
 	publicExploitTimeout     = 5 * time.Minute
 )
 
+// maxCVEsPerEntry bounds the CVEs one Metasploit module or Exploit-DB entry names (10 and 60 at most in November 2026): an entry naming
+// more is rejected. maxSignalsPerIndex bounds the CVEs of one index (about 25,000 for Exploit-DB): an index naming more fails.
+const (
+	maxCVEsPerEntry    = 100
+	maxSignalsPerIndex = 200_000
+)
+
 // pocStars, pocAuthors: the quality rule of a GitHub proof of concept (with a known author).
 const (
 	pocStars   = 50

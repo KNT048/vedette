@@ -5,8 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"iter"
 	"regexp"
+	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -66,7 +69,11 @@ func parseMetasploitModules(r io.Reader) (publicIndex, error) {
 			tl.reject(row, "module: a field has the wrong type")
 			continue
 		}
-		cves := cvesOf(m.References)
+		cves, ok := cvesOf(slices.Values(m.References))
+		if !ok {
+			tl.reject(row, "references: more than %s CVEs", strconv.Itoa(maxCVEsPerEntry))
+			continue
+		}
 		if len(cves) == 0 {
 			continue
 		}
@@ -83,6 +90,9 @@ func parseMetasploitModules(r io.Reader) (publicIndex, error) {
 		for _, c := range cves {
 			a := byCVE[c]
 			if a == nil {
+				if len(byCVE) == maxSignalsPerIndex {
+					return publicIndex{}, fail(ErrBadSample, "The Metasploit module file names more than %s CVEs.", grouped(maxSignalsPerIndex))
+				}
 				a = &agg{date: mod, name: m.FullName}
 				byCVE[c] = a
 			} else if mod.Before(a.date) || (mod.Equal(a.date) && m.FullName < a.name) {
@@ -106,22 +116,21 @@ func parseMetasploitModules(r io.Reader) (publicIndex, error) {
 	return out, nil
 }
 
-// cvesOf is the distinct CVE ids among an entry's references, upper case ("CVE-2021-44228"; other ids such as "OSVDB-1" or
-// "URL-https://…" are not CVEs).
-func cvesOf(refs []string) []string {
-	var out []string
-	for _, r := range refs {
+// cvesOf is the distinct CVE ids among an entry's references, upper case, in their order ("CVE-2021-44228"; other ids such as
+// "OSVDB-1" or "URL-https://…" are not CVEs). ok is false when the entry names more than maxCVEsPerEntry: the entry is rejected, and
+// reading stops there.
+func cvesOf(refs iter.Seq[string]) (out []string, ok bool) {
+	seen := map[string]bool{}
+	for r := range refs {
 		c := strings.ToUpper(strings.TrimSpace(r))
-		if len(c) > 20 || !cveRE.MatchString(c) {
+		if len(c) > 20 || !cveRE.MatchString(c) || seen[c] {
 			continue
 		}
-		dup := false
-		for _, o := range out {
-			dup = dup || o == c
+		if len(out) == maxCVEsPerEntry {
+			return nil, false
 		}
-		if !dup {
-			out = append(out, c)
-		}
+		seen[c] = true
+		out = append(out, c)
 	}
-	return out
+	return out, true
 }

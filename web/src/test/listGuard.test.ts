@@ -21,6 +21,26 @@ const OWN_PAGING: { name: string; re: RegExp }[] = [
   { name: 'a list page number of its own in the URL', re: /(?:params|searchParams|p)\.(?:get|set)\(\s*['"]page['"]/ },
 ]
 
+/** The opening tags of the DataTables in a source text (the text of each tag, props and all). */
+function tables(text: string): string[] {
+  const out: string[] = []
+  for (const m of text.matchAll(/<DataTable\b/g)) {
+    let depth = 0
+    let quote = ''
+    let i = m.index! + m[0].length
+    if (text[i] === '<') i = text.indexOf('>', i) + 1 // the type argument: <DataTable<Row> …
+    for (; i < text.length; i++) {
+      const c = text[i]!
+      if (quote) { if (c === '\\') i++; else if (c === quote) quote = '' } else if (c === '"' || c === "'" || c === '`') quote = c
+      else if (c === '{') depth++
+      else if (c === '}') depth--
+      else if (c === '>' && depth === 0 && text[i - 1] !== '=') break
+    }
+    out.push(text.slice(m.index!, i))
+  }
+  return out
+}
+
 describe('list guard: one shared search box and pager', () => {
   it('reads the app sources', () => {
     expect(files.length).toBeGreaterThan(200)
@@ -43,7 +63,27 @@ describe('list guard: one shared search box and pager', () => {
     expect(bad).toEqual([])
   })
 
+  it('every DataTable has its own explicit, unique urlKey, so a list keeps its page, search, size and sort in the URL', () => {
+    const sites = files.filter((f) => !SHARED.has(f.file)).flatMap((f) => tables(f.text).map((tag) => ({ file: f.file, tag })))
+    expect(sites.length).toBeGreaterThan(50)
+    // a server-paged table takes the key from the page's useListParams('<key>'): it has none of its own
+    const missing = sites.filter((s) => !/\burlKey=/.test(s.tag) && !/\bserver=/.test(s.tag)).map((s) => s.file)
+    expect(missing, 'Give every DataTable urlKey="…": a key derived from the caption changes with the text and can be shared by two lists').toEqual([])
+    const literal = sites.map((s) => /\burlKey="([^"]+)"/.exec(s.tag)?.[1]).filter((k): k is string => !!k)
+    const dup = literal.filter((k, i) => literal.indexOf(k) !== i)
+    expect(dup, 'two lists with one urlKey share one page number').toEqual([])
+  })
+
+  it('a link of the page\'s own query (to="?tab=…") without an anchor goes through a KPI tile, which keeps the lists\' pages', () => {
+    const bad = files.flatMap((f) => [...f.text.matchAll(/<Link\b[^>]*\bto=(?:"|\{["'`])\?[^"'`#]*["'`]/g)].map(() => f.file))
+    expect(bad, 'A bare "?tab=…" link replaces the whole query and drops every list page: use KpiTile/KpiStrip, or useKeepListParams()').toEqual([])
+  })
+
   it('the guard catches what it must', () => {
+    expect(tables('<DataTable caption="x" data={d} />')).toHaveLength(1)
+    expect(tables('<DataTable<Row> urlKey="a" caption={t(\'x\')} data={d.map((r) => <b key={r.id}>{r.n}</b>)} />')[0]).toMatch(/urlKey="a"/)
+    expect(/<Link\b[^>]*\bto=(?:"|\{["'`])\?[^"'`#]*["'`]/.test('<Link to="?tab=software">x</Link>')).toBe(true)
+    expect(/<Link\b[^>]*\bto=(?:"|\{["'`])\?[^"'`#]*["'`]/.test('<Link to="?tab=rules#templates">x</Link>')).toBe(false)
     const hit = (s: string) => OWN_PAGING.some((r) => r.re.test(s))
     expect(hit("<Button onClick={next}>{t('table.next')}</Button>")).toBe(true)
     expect(hit('const rows = items.slice(page * size, (page + 1) * size)')).toBe(true)

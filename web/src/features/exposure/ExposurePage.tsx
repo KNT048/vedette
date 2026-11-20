@@ -152,7 +152,7 @@ function TargetsTable({ items }: { items: Target[] }) {
         : <span className="text-muted">0</span>
     ) },
   ]
-  return <DataTable caption={t('targets.caption')} data={items} columns={columns} pageSize={20}
+  return <DataTable urlKey="exposure-targets" caption={t('targets.caption')} data={items} columns={columns} pageSize={20}
     mobileRow={(r) => (
       <div className="grid gap-1.5">
         <Link className="break-all font-medium text-accent underline-offset-4 hover:underline" to={`/exposure/${r.id}`}>{r.value}</Link>

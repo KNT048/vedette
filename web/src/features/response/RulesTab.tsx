@@ -180,7 +180,7 @@ function Events() {
         onClick={() => run.mutate(undefined, { onSuccess: (r) => toast.success(t('det.ran', r)), onError: (e) => toast.error(errText(e)) })}>{t('det.run')}</Button> : undefined}>
       {q.isPending ? <Loading /> : q.error ? <ErrorState error={q.error} onRetry={() => void q.refetch()} /> : q.data.items.length ? (
         <>
-          <DataTable caption={t('det.title')} data={q.data.items} columns={columns} pageSize={50}
+          <DataTable urlKey="rule-detections" caption={t('det.title')} data={q.data.items} columns={columns} pageSize={50}
             mobileRow={(d) => <div className="grid gap-0.5 text-sm"><span>{d.summary} <span className="text-muted">({t(`rules.triggerShort.${d.trigger}`)})</span></span><span className="text-meta text-muted">{fmtDateTime(d.ts)}, {d.handled_by.length ? d.handled_by.join(', ') : t('det.notYet')}</span></div>} />
           {import.meta.env.VITE_API_MOCK !== 'off' ? <div className="mt-2 flex items-center gap-1 text-meta text-muted"><p>{t('det.previewNote')}</p><InfoTip topic={t('det.title')}>{t('det.previewNoteInfo')}</InfoTip></div> : null}
         </>

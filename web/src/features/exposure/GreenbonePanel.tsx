@@ -192,7 +192,7 @@ export function GreenboneSection({ s, again }: { s: Snapshot; again?: Target }) 
         {line ? <p role="status" className="mb-3 text-sm text-warn">{t(line)}</p> : null}
         {shown && stopped ? <p className="mb-3 text-sm text-warn">{stopped}</p> : null}
         {shown ? (
-          <DataTable caption={t('greenbone.results.caption')} data={findings} columns={cols} pageSize={20} initialSort={[{ id: 'severity', desc: true }]} rowTone={(r) => (r.severity >= 7 ? 'warn' : undefined)} />
+          <DataTable urlKey="greenbone-results" caption={t('greenbone.results.caption')} data={findings} columns={cols} pageSize={20} initialSort={[{ id: 'severity', desc: true }]} rowTone={(r) => (r.severity >= 7 ? 'warn' : undefined)} />
         ) : (
           <EmptyState title={t(EMPTY_TITLE[run.state])} info={emptyInfo}>{emptyBody}{run.state === 'not_run' ? <OpenVasOffLink /> : null}</EmptyState>
         )}
@@ -203,7 +203,7 @@ export function GreenboneSection({ s, again }: { s: Snapshot; again?: Target }) 
       </Section>
       {read && notes.length > 0 ? (
         <Section id="greenbone-notes" title={t('greenbone.results.notesTitle')} description={t('greenbone.results.notesHeader')} info={t('greenbone.results.notesHeaderInfo')}>
-          <DataTable caption={t('greenbone.results.notesCaption')} data={notes} columns={cols} pageSize={20} initialSort={[{ id: 'severity', desc: true }]} />
+          <DataTable urlKey="greenbone-results-notes" caption={t('greenbone.results.notesCaption')} data={notes} columns={cols} pageSize={20} initialSort={[{ id: 'severity', desc: true }]} />
         </Section>
       ) : null}
     </>

@@ -92,7 +92,7 @@ export default function ModulesSection() {
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-meta text-muted">{state(m)}{m.depends.length ? <span>{t('modules.col.needs')}: {m.depends.map(name).join(', ')}</span> : null}</div>
             </div>
           )
-          return <DataTable data={modules} columns={columns} mobileRow={mobileRow} caption={t('modules.caption')} pageSize={30} filterPlaceholder={t('modules.filter')} />
+          return <DataTable urlKey="modules" data={modules} columns={columns} mobileRow={mobileRow} caption={t('modules.caption')} pageSize={30} filterPlaceholder={t('modules.filter')} />
         }}
       </QueryState>
 

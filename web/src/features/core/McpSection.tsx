@@ -106,11 +106,11 @@ function Body({ s, locked = false }: { s: McpState; locked?: boolean }) {
               </fieldset>
               <div><Button type="submit" variant="primary" disabled={gate.disabled} busy={m.create.isPending} busyLabel={t('common:busy.creating')} title={gate.title}><Plus />{t('mcp.token.create')}</Button></div>
             </form>}
-            <DataTable data={s.tokens} columns={tokenCols} caption={t('mcp.token.title')} empty={t('mcp.token.empty')} />
+            <DataTable urlKey="mcp-tokens" data={s.tokens} columns={tokenCols} caption={t('mcp.token.title')} empty={t('mcp.token.empty')} />
           </Section>
 
           <Section title={t('mcp.tools.title')} description={t('mcp.tools.desc')} info={t('mcp.tools.info')}>
-            <DataTable data={s.tools} columns={toolCols} caption={t('mcp.tools.title')} />
+            <DataTable urlKey="mcp-tools" data={s.tools} columns={toolCols} caption={t('mcp.tools.title')} />
           </Section>
         </>
       ) : null}

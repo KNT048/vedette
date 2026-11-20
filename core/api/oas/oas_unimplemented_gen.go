@@ -1891,8 +1891,9 @@ func (UnimplementedHandler) FindingsPostFindingsPlanUndone(ctx context.Context, 
 
 // FindingsPostFindingsQuestionsIDAnswer implements findings_post_findings_questions_id_answer operation.
 //
-// Answer a question about one CVE on one device: affected (a finding confirmed by the person) or not
-// affected (the question closes); history and audit.
+// Answer a question about one CVE on one device: affected records a finding confirmed by the person
+// and needs an admin, as Confirm vulnerability does (an operator gets 403 forbidden); not affected
+// closes the question (operator); history and audit.
 //
 // POST /findings/questions/{id}/answer
 func (UnimplementedHandler) FindingsPostFindingsQuestionsIDAnswer(ctx context.Context, req *FindingsPostFindingsQuestionsIDAnswerReq, params FindingsPostFindingsQuestionsIDAnswerParams) (r *FindingsPostFindingsQuestionsIDAnswerOK, _ error) {

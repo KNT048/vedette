@@ -25517,8 +25517,9 @@ func (s *Server) handleFindingsPostFindingsPlanUndoneRequest(args [0]string, arg
 
 // handleFindingsPostFindingsQuestionsIDAnswerRequest handles findings_post_findings_questions_id_answer operation.
 //
-// Answer a question about one CVE on one device: affected (a finding confirmed by the person) or not
-// affected (the question closes); history and audit.
+// Answer a question about one CVE on one device: affected records a finding confirmed by the person
+// and needs an admin, as Confirm vulnerability does (an operator gets 403 forbidden); not affected
+// closes the question (operator); history and audit.
 //
 // POST /findings/questions/{id}/answer
 func (s *Server) handleFindingsPostFindingsQuestionsIDAnswerRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -25612,7 +25613,7 @@ func (s *Server) handleFindingsPostFindingsQuestionsIDAnswerRequest(args [1]stri
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    FindingsPostFindingsQuestionsIDAnswerOperation,
-			OperationSummary: "Answer a question about one CVE on one device: affected (a finding confirmed by the person) or not affected (the question closes); history and audit",
+			OperationSummary: "Answer a question about one CVE on one device: affected records a finding confirmed by the person and needs an admin, as Confirm vulnerability does (an operator gets 403 forbidden); not affected closes the question (operator); history and audit",
 			OperationID:      "findings_post_findings_questions_id_answer",
 			Body:             request,
 			RawBody:          rawBody,

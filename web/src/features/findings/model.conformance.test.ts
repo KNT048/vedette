@@ -194,7 +194,7 @@ const steps: Step[] = [
   { name: 'the view says who and how', role: 'viewer', method: 'GET', path: (c) => `/findings/${c.fid}/view`, status: 200, schema: View,
     check: (b) => {
       expect(b.status).toBe('patched')
-      expect(b.handled).toMatchObject({ resolution: 'patched', via: 'person', by: who('operator'), note: 'updated by hand', until: null })
+      expect(b.handled).toMatchObject({ resolution: 'patched', via: 'person', by: who('operator'), note: 'updated by hand', accepted_until: null })
       expect(b.events.at(-1)).toMatchObject({ kind: 'handled', actor: who('operator'), resolution: 'patched' })
     } },
   { name: 'handled lists it', role: 'viewer', method: 'GET', path: (c) => `/findings/handled?device=${encodeURIComponent(c.device!)}&limit=100`, status: 200, schema: HandledList,
@@ -216,11 +216,12 @@ const steps: Step[] = [
     check: (b: Input, c) => expect(b.items.map((i) => i.id)).not.toContain(c.unconfirmed) },
   { name: 'a question about several CVEs is answered on the device', role: 'operator', method: 'POST', path: (c) => `/findings/questions/${c.severalCves}/answer`, body: { answer: 'not_affected', note: 'not installed' }, status: 409, code: 'not_one_cve', mockOnly: true },
   { name: 'not affected needs a note', role: 'operator', method: 'POST', path: (c) => `/findings/questions/${c.oneCve}/answer`, body: { answer: 'not_affected', note: '' }, status: 400, code: 'note_required', mockOnly: true },
-  { name: 'affected: a finding confirmed by the person', role: 'operator', method: 'POST', path: (c) => `/findings/questions/${c.oneCve}/answer`, body: { answer: 'affected', note: 'the advisory lists this build' }, status: 200, mockOnly: true,
+  { name: 'an operator cannot answer affected', role: 'operator', method: 'POST', path: (c) => `/findings/questions/${c.oneCve}/answer`, body: { answer: 'affected', note: 'the advisory lists this build' }, status: 403, code: 'forbidden', mockOnly: true },
+  { name: 'affected: a finding confirmed by the person', role: 'admin', method: 'POST', path: (c) => `/findings/questions/${c.oneCve}/answer`, body: { answer: 'affected', note: 'the advisory lists this build' }, status: 200, mockOnly: true,
     check: (b, c) => { expect(b.finding).toEqual(expect.any(String)); c.answered = b.finding } },
   { name: 'the new finding', role: 'viewer', method: 'GET', path: (c) => `/findings/${c.answered}/view`, status: 200, schema: View, mockOnly: true,
-    check: (b) => expect(b.verification).toMatchObject({ verified: 'person', basis: 'person', by: who('operator') }) },
-  { name: 'the question is gone', role: 'operator', method: 'POST', path: (c) => `/findings/questions/${c.oneCve}/answer`, body: { answer: 'affected', note: '' }, status: 404, code: 'not_found', mockOnly: true },
+    check: (b) => expect(b.verification).toMatchObject({ verified: 'person', basis: 'person', by: who('admin') }) },
+  { name: 'the question is gone', role: 'admin', method: 'POST', path: (c) => `/findings/questions/${c.oneCve}/answer`, body: { answer: 'affected', note: '' }, status: 404, code: 'not_found', mockOnly: true },
 ]
 
 /** A real box keeps what a run left: open the handled block again. */

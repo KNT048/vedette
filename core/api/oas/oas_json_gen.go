@@ -143184,6 +143184,10 @@ func (s *FindingsGetFindingsHandledOKItemsItemHandled) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *FindingsGetFindingsHandledOKItemsItemHandled) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("accepted_until")
+		s.AcceptedUntil.Encode(e, json.EncodeDate)
+	}
+	{
 		e.FieldStart("at")
 		json.EncodeDateTime(e, s.At)
 	}
@@ -143208,23 +143212,19 @@ func (s *FindingsGetFindingsHandledOKItemsItemHandled) encodeFields(e *jx.Encode
 		s.ToVersion.Encode(e)
 	}
 	{
-		e.FieldStart("until")
-		s.Until.Encode(e, json.EncodeDate)
-	}
-	{
 		e.FieldStart("via")
 		s.Via.Encode(e)
 	}
 }
 
 var jsonFieldsNameOfFindingsGetFindingsHandledOKItemsItemHandled = [8]string{
-	0: "at",
-	1: "by",
-	2: "from_version",
-	3: "note",
-	4: "resolution",
-	5: "to_version",
-	6: "until",
+	0: "accepted_until",
+	1: "at",
+	2: "by",
+	3: "from_version",
+	4: "note",
+	5: "resolution",
+	6: "to_version",
 	7: "via",
 }
 
@@ -143237,8 +143237,18 @@ func (s *FindingsGetFindingsHandledOKItemsItemHandled) Decode(d *jx.Decoder) err
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "at":
+		case "accepted_until":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.AcceptedUntil.Decode(d, json.DecodeDate); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"accepted_until\"")
+			}
+		case "at":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.At = v
@@ -143250,7 +143260,7 @@ func (s *FindingsGetFindingsHandledOKItemsItemHandled) Decode(d *jx.Decoder) err
 				return errors.Wrap(err, "decode field \"at\"")
 			}
 		case "by":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.By = string(v)
@@ -143262,7 +143272,7 @@ func (s *FindingsGetFindingsHandledOKItemsItemHandled) Decode(d *jx.Decoder) err
 				return errors.Wrap(err, "decode field \"by\"")
 			}
 		case "from_version":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.FromVersion.Decode(d); err != nil {
 					return err
@@ -143272,7 +143282,7 @@ func (s *FindingsGetFindingsHandledOKItemsItemHandled) Decode(d *jx.Decoder) err
 				return errors.Wrap(err, "decode field \"from_version\"")
 			}
 		case "note":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Note.Decode(d); err != nil {
 					return err
@@ -143282,7 +143292,7 @@ func (s *FindingsGetFindingsHandledOKItemsItemHandled) Decode(d *jx.Decoder) err
 				return errors.Wrap(err, "decode field \"note\"")
 			}
 		case "resolution":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Resolution.Decode(d); err != nil {
 					return err
@@ -143292,7 +143302,7 @@ func (s *FindingsGetFindingsHandledOKItemsItemHandled) Decode(d *jx.Decoder) err
 				return errors.Wrap(err, "decode field \"resolution\"")
 			}
 		case "to_version":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.ToVersion.Decode(d); err != nil {
 					return err
@@ -143300,16 +143310,6 @@ func (s *FindingsGetFindingsHandledOKItemsItemHandled) Decode(d *jx.Decoder) err
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"to_version\"")
-			}
-		case "until":
-			requiredBitSet[0] |= 1 << 6
-			if err := func() error {
-				if err := s.Until.Decode(d, json.DecodeDate); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"until\"")
 			}
 		case "via":
 			requiredBitSet[0] |= 1 << 7
@@ -153099,6 +153099,10 @@ func (s *FindingsGetFindingsIDViewOKHandled) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *FindingsGetFindingsIDViewOKHandled) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("accepted_until")
+		s.AcceptedUntil.Encode(e, json.EncodeDate)
+	}
+	{
 		e.FieldStart("at")
 		json.EncodeDateTime(e, s.At)
 	}
@@ -153123,23 +153127,19 @@ func (s *FindingsGetFindingsIDViewOKHandled) encodeFields(e *jx.Encoder) {
 		s.ToVersion.Encode(e)
 	}
 	{
-		e.FieldStart("until")
-		s.Until.Encode(e, json.EncodeDate)
-	}
-	{
 		e.FieldStart("via")
 		s.Via.Encode(e)
 	}
 }
 
 var jsonFieldsNameOfFindingsGetFindingsIDViewOKHandled = [8]string{
-	0: "at",
-	1: "by",
-	2: "from_version",
-	3: "note",
-	4: "resolution",
-	5: "to_version",
-	6: "until",
+	0: "accepted_until",
+	1: "at",
+	2: "by",
+	3: "from_version",
+	4: "note",
+	5: "resolution",
+	6: "to_version",
 	7: "via",
 }
 
@@ -153152,8 +153152,18 @@ func (s *FindingsGetFindingsIDViewOKHandled) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "at":
+		case "accepted_until":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.AcceptedUntil.Decode(d, json.DecodeDate); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"accepted_until\"")
+			}
+		case "at":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.At = v
@@ -153165,7 +153175,7 @@ func (s *FindingsGetFindingsIDViewOKHandled) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"at\"")
 			}
 		case "by":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.By = string(v)
@@ -153177,7 +153187,7 @@ func (s *FindingsGetFindingsIDViewOKHandled) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"by\"")
 			}
 		case "from_version":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.FromVersion.Decode(d); err != nil {
 					return err
@@ -153187,7 +153197,7 @@ func (s *FindingsGetFindingsIDViewOKHandled) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"from_version\"")
 			}
 		case "note":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Note.Decode(d); err != nil {
 					return err
@@ -153197,7 +153207,7 @@ func (s *FindingsGetFindingsIDViewOKHandled) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"note\"")
 			}
 		case "resolution":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Resolution.Decode(d); err != nil {
 					return err
@@ -153207,7 +153217,7 @@ func (s *FindingsGetFindingsIDViewOKHandled) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"resolution\"")
 			}
 		case "to_version":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.ToVersion.Decode(d); err != nil {
 					return err
@@ -153215,16 +153225,6 @@ func (s *FindingsGetFindingsIDViewOKHandled) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"to_version\"")
-			}
-		case "until":
-			requiredBitSet[0] |= 1 << 6
-			if err := func() error {
-				if err := s.Until.Decode(d, json.DecodeDate); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"until\"")
 			}
 		case "via":
 			requiredBitSet[0] |= 1 << 7
@@ -197562,6 +197562,10 @@ func (s *FindingsPostFindingsIDReopenOKHandled) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *FindingsPostFindingsIDReopenOKHandled) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("accepted_until")
+		s.AcceptedUntil.Encode(e, json.EncodeDate)
+	}
+	{
 		e.FieldStart("at")
 		json.EncodeDateTime(e, s.At)
 	}
@@ -197586,23 +197590,19 @@ func (s *FindingsPostFindingsIDReopenOKHandled) encodeFields(e *jx.Encoder) {
 		s.ToVersion.Encode(e)
 	}
 	{
-		e.FieldStart("until")
-		s.Until.Encode(e, json.EncodeDate)
-	}
-	{
 		e.FieldStart("via")
 		s.Via.Encode(e)
 	}
 }
 
 var jsonFieldsNameOfFindingsPostFindingsIDReopenOKHandled = [8]string{
-	0: "at",
-	1: "by",
-	2: "from_version",
-	3: "note",
-	4: "resolution",
-	5: "to_version",
-	6: "until",
+	0: "accepted_until",
+	1: "at",
+	2: "by",
+	3: "from_version",
+	4: "note",
+	5: "resolution",
+	6: "to_version",
 	7: "via",
 }
 
@@ -197615,8 +197615,18 @@ func (s *FindingsPostFindingsIDReopenOKHandled) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "at":
+		case "accepted_until":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.AcceptedUntil.Decode(d, json.DecodeDate); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"accepted_until\"")
+			}
+		case "at":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.At = v
@@ -197628,7 +197638,7 @@ func (s *FindingsPostFindingsIDReopenOKHandled) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"at\"")
 			}
 		case "by":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.By = string(v)
@@ -197640,7 +197650,7 @@ func (s *FindingsPostFindingsIDReopenOKHandled) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"by\"")
 			}
 		case "from_version":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.FromVersion.Decode(d); err != nil {
 					return err
@@ -197650,7 +197660,7 @@ func (s *FindingsPostFindingsIDReopenOKHandled) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"from_version\"")
 			}
 		case "note":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Note.Decode(d); err != nil {
 					return err
@@ -197660,7 +197670,7 @@ func (s *FindingsPostFindingsIDReopenOKHandled) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"note\"")
 			}
 		case "resolution":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Resolution.Decode(d); err != nil {
 					return err
@@ -197670,7 +197680,7 @@ func (s *FindingsPostFindingsIDReopenOKHandled) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"resolution\"")
 			}
 		case "to_version":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.ToVersion.Decode(d); err != nil {
 					return err
@@ -197678,16 +197688,6 @@ func (s *FindingsPostFindingsIDReopenOKHandled) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"to_version\"")
-			}
-		case "until":
-			requiredBitSet[0] |= 1 << 6
-			if err := func() error {
-				if err := s.Until.Decode(d, json.DecodeDate); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"until\"")
 			}
 		case "via":
 			requiredBitSet[0] |= 1 << 7
@@ -216720,6 +216720,10 @@ func (s *FindingsPostFindingsIDVerifyOKHandled) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *FindingsPostFindingsIDVerifyOKHandled) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("accepted_until")
+		s.AcceptedUntil.Encode(e, json.EncodeDate)
+	}
+	{
 		e.FieldStart("at")
 		json.EncodeDateTime(e, s.At)
 	}
@@ -216744,23 +216748,19 @@ func (s *FindingsPostFindingsIDVerifyOKHandled) encodeFields(e *jx.Encoder) {
 		s.ToVersion.Encode(e)
 	}
 	{
-		e.FieldStart("until")
-		s.Until.Encode(e, json.EncodeDate)
-	}
-	{
 		e.FieldStart("via")
 		s.Via.Encode(e)
 	}
 }
 
 var jsonFieldsNameOfFindingsPostFindingsIDVerifyOKHandled = [8]string{
-	0: "at",
-	1: "by",
-	2: "from_version",
-	3: "note",
-	4: "resolution",
-	5: "to_version",
-	6: "until",
+	0: "accepted_until",
+	1: "at",
+	2: "by",
+	3: "from_version",
+	4: "note",
+	5: "resolution",
+	6: "to_version",
 	7: "via",
 }
 
@@ -216773,8 +216773,18 @@ func (s *FindingsPostFindingsIDVerifyOKHandled) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "at":
+		case "accepted_until":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.AcceptedUntil.Decode(d, json.DecodeDate); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"accepted_until\"")
+			}
+		case "at":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.At = v
@@ -216786,7 +216796,7 @@ func (s *FindingsPostFindingsIDVerifyOKHandled) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"at\"")
 			}
 		case "by":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.By = string(v)
@@ -216798,7 +216808,7 @@ func (s *FindingsPostFindingsIDVerifyOKHandled) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"by\"")
 			}
 		case "from_version":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.FromVersion.Decode(d); err != nil {
 					return err
@@ -216808,7 +216818,7 @@ func (s *FindingsPostFindingsIDVerifyOKHandled) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"from_version\"")
 			}
 		case "note":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Note.Decode(d); err != nil {
 					return err
@@ -216818,7 +216828,7 @@ func (s *FindingsPostFindingsIDVerifyOKHandled) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"note\"")
 			}
 		case "resolution":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Resolution.Decode(d); err != nil {
 					return err
@@ -216828,7 +216838,7 @@ func (s *FindingsPostFindingsIDVerifyOKHandled) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"resolution\"")
 			}
 		case "to_version":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.ToVersion.Decode(d); err != nil {
 					return err
@@ -216836,16 +216846,6 @@ func (s *FindingsPostFindingsIDVerifyOKHandled) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"to_version\"")
-			}
-		case "until":
-			requiredBitSet[0] |= 1 << 6
-			if err := func() error {
-				if err := s.Until.Decode(d, json.DecodeDate); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"until\"")
 			}
 		case "via":
 			requiredBitSet[0] |= 1 << 7

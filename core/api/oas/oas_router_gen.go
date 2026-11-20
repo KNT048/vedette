@@ -15456,7 +15456,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									switch method {
 									case "POST":
 										r.name = FindingsPostFindingsQuestionsIDAnswerOperation
-										r.summary = "Answer a question about one CVE on one device: affected (a finding confirmed by the person) or not affected (the question closes); history and audit"
+										r.summary = "Answer a question about one CVE on one device: affected records a finding confirmed by the person and needs an admin, as Confirm vulnerability does (an operator gets 403 forbidden); not affected closes the question (operator); history and audit"
 										r.operationID = "findings_post_findings_questions_id_answer"
 										r.operationGroup = ""
 										r.pathPattern = "/findings/questions/{id}/answer"

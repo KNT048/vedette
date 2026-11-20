@@ -75597,7 +75597,9 @@ func (s *FindingsGetFindingsHandledOKItemsItemDeviceKind) UnmarshalText(data []b
 // Who and how, from stored fields: "Patched by Vedette: version moved 6.24 → 7.23 (18 Nov)",
 // "Mitigated by (17 Nov): ".
 type FindingsGetFindingsHandledOKItemsItemHandled struct {
-	At time.Time `json:"at"`
+	// Accepted: the last day; the finding reopens by itself after it. null otherwise.
+	AcceptedUntil NilDate   `json:"accepted_until"`
+	At            time.Time `json:"at"`
 	// "system" when Vedette handled it; else the person.
 	By string `json:"by"`
 	// Via version_moved: the version that was affected.
@@ -75609,14 +75611,17 @@ type FindingsGetFindingsHandledOKItemsItemHandled struct {
 	Resolution FindingsGetFindingsHandledOKItemsItemHandledResolution `json:"resolution"`
 	// Via version_moved: the version now installed.
 	ToVersion NilString `json:"to_version"`
-	// Accepted: the last day; the finding reopens by itself after it. null otherwise.
-	Until NilDate `json:"until"`
 	// How it was handled: person = a person marked it; version_moved = the software moved past the
 	// affected version (from_version, to_version); software_removed = the software is gone; distro_fixed =
 	// the distribution says the installed package is fixed; scan_clear = a safe check that had matched
 	// came back clear; data_corrected = no longer detected while nothing on the device changed (the match
 	// was corrected: never patch credit); not_installed = a person said the software is not installed.
 	Via FindingsGetFindingsHandledOKItemsItemHandledVia `json:"via"`
+}
+
+// GetAcceptedUntil returns the value of AcceptedUntil.
+func (s *FindingsGetFindingsHandledOKItemsItemHandled) GetAcceptedUntil() NilDate {
+	return s.AcceptedUntil
 }
 
 // GetAt returns the value of At.
@@ -75649,14 +75654,14 @@ func (s *FindingsGetFindingsHandledOKItemsItemHandled) GetToVersion() NilString 
 	return s.ToVersion
 }
 
-// GetUntil returns the value of Until.
-func (s *FindingsGetFindingsHandledOKItemsItemHandled) GetUntil() NilDate {
-	return s.Until
-}
-
 // GetVia returns the value of Via.
 func (s *FindingsGetFindingsHandledOKItemsItemHandled) GetVia() FindingsGetFindingsHandledOKItemsItemHandledVia {
 	return s.Via
+}
+
+// SetAcceptedUntil sets the value of AcceptedUntil.
+func (s *FindingsGetFindingsHandledOKItemsItemHandled) SetAcceptedUntil(val NilDate) {
+	s.AcceptedUntil = val
 }
 
 // SetAt sets the value of At.
@@ -75687,11 +75692,6 @@ func (s *FindingsGetFindingsHandledOKItemsItemHandled) SetResolution(val Finding
 // SetToVersion sets the value of ToVersion.
 func (s *FindingsGetFindingsHandledOKItemsItemHandled) SetToVersion(val NilString) {
 	s.ToVersion = val
-}
-
-// SetUntil sets the value of Until.
-func (s *FindingsGetFindingsHandledOKItemsItemHandled) SetUntil(val NilDate) {
-	s.Until = val
 }
 
 // SetVia sets the value of Via.
@@ -81643,7 +81643,9 @@ func (s *FindingsGetFindingsIDViewOKFixKind) UnmarshalText(data []byte) error {
 // Who and how, from stored fields: "Patched by Vedette: version moved 6.24 → 7.23 (18 Nov)",
 // "Mitigated by (17 Nov): ".
 type FindingsGetFindingsIDViewOKHandled struct {
-	At time.Time `json:"at"`
+	// Accepted: the last day; the finding reopens by itself after it. null otherwise.
+	AcceptedUntil NilDate   `json:"accepted_until"`
+	At            time.Time `json:"at"`
 	// "system" when Vedette handled it; else the person.
 	By string `json:"by"`
 	// Via version_moved: the version that was affected.
@@ -81655,14 +81657,17 @@ type FindingsGetFindingsIDViewOKHandled struct {
 	Resolution FindingsGetFindingsIDViewOKHandledResolution `json:"resolution"`
 	// Via version_moved: the version now installed.
 	ToVersion NilString `json:"to_version"`
-	// Accepted: the last day; the finding reopens by itself after it. null otherwise.
-	Until NilDate `json:"until"`
 	// How it was handled: person = a person marked it; version_moved = the software moved past the
 	// affected version (from_version, to_version); software_removed = the software is gone; distro_fixed =
 	// the distribution says the installed package is fixed; scan_clear = a safe check that had matched
 	// came back clear; data_corrected = no longer detected while nothing on the device changed (the match
 	// was corrected: never patch credit); not_installed = a person said the software is not installed.
 	Via FindingsGetFindingsIDViewOKHandledVia `json:"via"`
+}
+
+// GetAcceptedUntil returns the value of AcceptedUntil.
+func (s *FindingsGetFindingsIDViewOKHandled) GetAcceptedUntil() NilDate {
+	return s.AcceptedUntil
 }
 
 // GetAt returns the value of At.
@@ -81695,14 +81700,14 @@ func (s *FindingsGetFindingsIDViewOKHandled) GetToVersion() NilString {
 	return s.ToVersion
 }
 
-// GetUntil returns the value of Until.
-func (s *FindingsGetFindingsIDViewOKHandled) GetUntil() NilDate {
-	return s.Until
-}
-
 // GetVia returns the value of Via.
 func (s *FindingsGetFindingsIDViewOKHandled) GetVia() FindingsGetFindingsIDViewOKHandledVia {
 	return s.Via
+}
+
+// SetAcceptedUntil sets the value of AcceptedUntil.
+func (s *FindingsGetFindingsIDViewOKHandled) SetAcceptedUntil(val NilDate) {
+	s.AcceptedUntil = val
 }
 
 // SetAt sets the value of At.
@@ -81733,11 +81738,6 @@ func (s *FindingsGetFindingsIDViewOKHandled) SetResolution(val FindingsGetFindin
 // SetToVersion sets the value of ToVersion.
 func (s *FindingsGetFindingsIDViewOKHandled) SetToVersion(val NilString) {
 	s.ToVersion = val
-}
-
-// SetUntil sets the value of Until.
-func (s *FindingsGetFindingsIDViewOKHandled) SetUntil(val NilDate) {
-	s.Until = val
 }
 
 // SetVia sets the value of Via.
@@ -111004,7 +111004,9 @@ func (s *FindingsPostFindingsIDReopenOKFixKind) UnmarshalText(data []byte) error
 // Who and how, from stored fields: "Patched by Vedette: version moved 6.24 → 7.23 (18 Nov)",
 // "Mitigated by (17 Nov): ".
 type FindingsPostFindingsIDReopenOKHandled struct {
-	At time.Time `json:"at"`
+	// Accepted: the last day; the finding reopens by itself after it. null otherwise.
+	AcceptedUntil NilDate   `json:"accepted_until"`
+	At            time.Time `json:"at"`
 	// "system" when Vedette handled it; else the person.
 	By string `json:"by"`
 	// Via version_moved: the version that was affected.
@@ -111016,14 +111018,17 @@ type FindingsPostFindingsIDReopenOKHandled struct {
 	Resolution FindingsPostFindingsIDReopenOKHandledResolution `json:"resolution"`
 	// Via version_moved: the version now installed.
 	ToVersion NilString `json:"to_version"`
-	// Accepted: the last day; the finding reopens by itself after it. null otherwise.
-	Until NilDate `json:"until"`
 	// How it was handled: person = a person marked it; version_moved = the software moved past the
 	// affected version (from_version, to_version); software_removed = the software is gone; distro_fixed =
 	// the distribution says the installed package is fixed; scan_clear = a safe check that had matched
 	// came back clear; data_corrected = no longer detected while nothing on the device changed (the match
 	// was corrected: never patch credit); not_installed = a person said the software is not installed.
 	Via FindingsPostFindingsIDReopenOKHandledVia `json:"via"`
+}
+
+// GetAcceptedUntil returns the value of AcceptedUntil.
+func (s *FindingsPostFindingsIDReopenOKHandled) GetAcceptedUntil() NilDate {
+	return s.AcceptedUntil
 }
 
 // GetAt returns the value of At.
@@ -111056,14 +111061,14 @@ func (s *FindingsPostFindingsIDReopenOKHandled) GetToVersion() NilString {
 	return s.ToVersion
 }
 
-// GetUntil returns the value of Until.
-func (s *FindingsPostFindingsIDReopenOKHandled) GetUntil() NilDate {
-	return s.Until
-}
-
 // GetVia returns the value of Via.
 func (s *FindingsPostFindingsIDReopenOKHandled) GetVia() FindingsPostFindingsIDReopenOKHandledVia {
 	return s.Via
+}
+
+// SetAcceptedUntil sets the value of AcceptedUntil.
+func (s *FindingsPostFindingsIDReopenOKHandled) SetAcceptedUntil(val NilDate) {
+	s.AcceptedUntil = val
 }
 
 // SetAt sets the value of At.
@@ -111094,11 +111099,6 @@ func (s *FindingsPostFindingsIDReopenOKHandled) SetResolution(val FindingsPostFi
 // SetToVersion sets the value of ToVersion.
 func (s *FindingsPostFindingsIDReopenOKHandled) SetToVersion(val NilString) {
 	s.ToVersion = val
-}
-
-// SetUntil sets the value of Until.
-func (s *FindingsPostFindingsIDReopenOKHandled) SetUntil(val NilDate) {
-	s.Until = val
 }
 
 // SetVia sets the value of Via.
@@ -121938,7 +121938,9 @@ func (s *FindingsPostFindingsIDVerifyOKFixKind) UnmarshalText(data []byte) error
 // Who and how, from stored fields: "Patched by Vedette: version moved 6.24 → 7.23 (18 Nov)",
 // "Mitigated by (17 Nov): ".
 type FindingsPostFindingsIDVerifyOKHandled struct {
-	At time.Time `json:"at"`
+	// Accepted: the last day; the finding reopens by itself after it. null otherwise.
+	AcceptedUntil NilDate   `json:"accepted_until"`
+	At            time.Time `json:"at"`
 	// "system" when Vedette handled it; else the person.
 	By string `json:"by"`
 	// Via version_moved: the version that was affected.
@@ -121950,14 +121952,17 @@ type FindingsPostFindingsIDVerifyOKHandled struct {
 	Resolution FindingsPostFindingsIDVerifyOKHandledResolution `json:"resolution"`
 	// Via version_moved: the version now installed.
 	ToVersion NilString `json:"to_version"`
-	// Accepted: the last day; the finding reopens by itself after it. null otherwise.
-	Until NilDate `json:"until"`
 	// How it was handled: person = a person marked it; version_moved = the software moved past the
 	// affected version (from_version, to_version); software_removed = the software is gone; distro_fixed =
 	// the distribution says the installed package is fixed; scan_clear = a safe check that had matched
 	// came back clear; data_corrected = no longer detected while nothing on the device changed (the match
 	// was corrected: never patch credit); not_installed = a person said the software is not installed.
 	Via FindingsPostFindingsIDVerifyOKHandledVia `json:"via"`
+}
+
+// GetAcceptedUntil returns the value of AcceptedUntil.
+func (s *FindingsPostFindingsIDVerifyOKHandled) GetAcceptedUntil() NilDate {
+	return s.AcceptedUntil
 }
 
 // GetAt returns the value of At.
@@ -121990,14 +121995,14 @@ func (s *FindingsPostFindingsIDVerifyOKHandled) GetToVersion() NilString {
 	return s.ToVersion
 }
 
-// GetUntil returns the value of Until.
-func (s *FindingsPostFindingsIDVerifyOKHandled) GetUntil() NilDate {
-	return s.Until
-}
-
 // GetVia returns the value of Via.
 func (s *FindingsPostFindingsIDVerifyOKHandled) GetVia() FindingsPostFindingsIDVerifyOKHandledVia {
 	return s.Via
+}
+
+// SetAcceptedUntil sets the value of AcceptedUntil.
+func (s *FindingsPostFindingsIDVerifyOKHandled) SetAcceptedUntil(val NilDate) {
+	s.AcceptedUntil = val
 }
 
 // SetAt sets the value of At.
@@ -122028,11 +122033,6 @@ func (s *FindingsPostFindingsIDVerifyOKHandled) SetResolution(val FindingsPostFi
 // SetToVersion sets the value of ToVersion.
 func (s *FindingsPostFindingsIDVerifyOKHandled) SetToVersion(val NilString) {
 	s.ToVersion = val
-}
-
-// SetUntil sets the value of Until.
-func (s *FindingsPostFindingsIDVerifyOKHandled) SetUntil(val NilDate) {
-	s.Until = val
 }
 
 // SetVia sets the value of Via.

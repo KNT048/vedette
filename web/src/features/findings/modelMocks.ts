@@ -10,7 +10,7 @@ import type { Asset } from '@/lib/types'
 import { displayName } from '@/features/inventory/nameOf'
 import { metaStore } from '@/features/inventory/mocks'
 import { openIncidents, sentSince } from '@/features/notify/mocks'
-import { untilOk } from './accept'
+import { dayAfter, untilOk } from './accept'
 import { OPEN_FINDING_STATUSES as OPEN_STATUSES, FINDING_RESOLUTIONS } from '@/lib/statusCodes'
 import { FIRST_TOP, MAX_HANDLE, PAGE_DEFAULT, PAGE_MAX, TREND_DAYS } from './contract'
 import type {
@@ -38,7 +38,8 @@ const statusOf = (r: FindingRecord): StatusCode => (r.state === 'open' ? OPEN_ST
 const layerOf = (s: OpenStatus) => OPEN_STATUSES.indexOf(s) + 1
 const SEV_RANK: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3, none: 4 }
 const sevRank = (cve: string) => SEV_RANK[severityOf(cve)?.band ?? ''] ?? 5
-const today = () => new Date().toISOString().slice(0, 10)
+/** Today on the calendar the last day of an accepted risk was chosen on (accept.ts). */
+const today = () => dayAfter(new Date(), 0)
 
 /** The box reopens an accepted risk the day after its last day. */
 function expireAccepted() {
@@ -123,7 +124,7 @@ function view(r: FindingRecord & { asset: Asset }): View {
     urgency: { layer: r.layer, since: r.urgency_at, reasons: r.reasons, internet: r.internet },
     severity: severityOf(r.cve),
     verification: { verified: r.verified, basis: r.basis, by: r.verified_by, at: r.verified_at },
-    handled: r.state === 'handled' ? { resolution: r.resolution!, via: r.via!, by: r.resolved_by!, at: r.resolved_at!, note: r.note, until: r.accepted_until, from_version: r.from_version, to_version: r.to_version } : null,
+    handled: r.state === 'handled' ? { resolution: r.resolution!, via: r.via!, by: r.resolved_by!, at: r.resolved_at!, note: r.note, accepted_until: r.accepted_until, from_version: r.from_version, to_version: r.to_version } : null,
     reopened: r.state === 'open' ? r.reopened : null,
     fix: { ...r.fix },
     same_cve: same.map((x) => ({ id: x.id, software: x.software, status: statusOf(x) })),
@@ -313,6 +314,8 @@ export const modelHandlers = [
     if (!x || !asset) return fail(404, 'not_found', 'This question does not exist or was already answered.')
     const b = await body<{ answer: string; note: string }>(request)
     if ((b.answer !== 'affected' && b.answer !== 'not_affected') || typeof b.note !== 'string' || b.note.length > 500) return fail(400, 'invalid', 'The request is not valid.')
+    // affected records a finding confirmed by a person: the same role as Confirm vulnerability
+    if (b.answer === 'affected') { const admin = guard('admin'); if (admin) return admin }
     if (!x.cve) return fail(409, 'not_one_cve', 'This question decides several CVEs: correct the software on the device (its version) instead.')
     const note = b.note.trim()
     if (b.answer === 'not_affected' && note.length < 3) return fail(400, 'note_required', 'Write why this device is not affected (at least 3 characters) so the next person understands.')

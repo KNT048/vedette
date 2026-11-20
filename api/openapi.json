@@ -42868,7 +42868,7 @@
                                 "null"
                               ]
                             },
-                            "until": {
+                            "accepted_until": {
                               "anyOf": [
                                 {
                                   "type": "string",
@@ -42902,7 +42902,7 @@
                             "by",
                             "at",
                             "note",
-                            "until",
+                            "accepted_until",
                             "from_version",
                             "to_version"
                           ],
@@ -46972,7 +46972,7 @@
                                 "null"
                               ]
                             },
-                            "until": {
+                            "accepted_until": {
                               "anyOf": [
                                 {
                                   "type": "string",
@@ -47006,7 +47006,7 @@
                             "by",
                             "at",
                             "note",
-                            "until",
+                            "accepted_until",
                             "from_version",
                             "to_version"
                           ],
@@ -47812,7 +47812,7 @@
                                 "null"
                               ]
                             },
-                            "until": {
+                            "accepted_until": {
                               "anyOf": [
                                 {
                                   "type": "string",
@@ -47846,7 +47846,7 @@
                             "by",
                             "at",
                             "note",
-                            "until",
+                            "accepted_until",
                             "from_version",
                             "to_version"
                           ],
@@ -49782,7 +49782,7 @@
                                   "null"
                                 ]
                               },
-                              "until": {
+                              "accepted_until": {
                                 "anyOf": [
                                   {
                                     "type": "string",
@@ -49816,7 +49816,7 @@
                               "by",
                               "at",
                               "note",
-                              "until",
+                              "accepted_until",
                               "from_version",
                               "to_version"
                             ],
@@ -52034,7 +52034,7 @@
     "/findings/questions/{id}/answer": {
       "post": {
         "operationId": "findings_post_findings_questions_id_answer",
-        "summary": "Answer a question about one CVE on one device: affected (a finding confirmed by the person) or not affected (the question closes); history and audit",
+        "summary": "Answer a question about one CVE on one device: affected records a finding confirmed by the person and needs an admin, as Confirm vulnerability does (an operator gets 403 forbidden); not affected closes the question (operator); history and audit",
         "tags": [
           "findings"
         ],

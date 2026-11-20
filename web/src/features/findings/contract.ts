@@ -365,7 +365,7 @@ export const Handled = z.object({
   by: z.string().describe('"system" when Vedette handled it; else the person'),
   at: iso,
   note: z.string().nullable(),
-  until: z.iso.date().nullable().describe('accepted: the last day; the finding reopens by itself after it. null otherwise'),
+  accepted_until: z.iso.date().nullable().describe('accepted: the last day; the finding reopens by itself after it. null otherwise'),
   from_version: z.string().nullable().describe('via version_moved: the version that was affected'),
   to_version: z.string().nullable().describe('via version_moved: the version now installed'),
 }).describe('Who and how, from stored fields: "Patched by Vedette: version moved 6.24 → 7.23 (18 Nov)", "Mitigated by <user> (17 Nov): <note>"')
@@ -618,7 +618,7 @@ export const endpoints = defineEndpoints([
     params: idParams, body: z.object({ note: z.string().max(500) }), response: View },
   { method: 'post', path: '/findings/{id}/verify', summary: 'Confirm vulnerability on your own word: verified by a person; the note says what makes you sure; history and audit', stories: ['S-MIT-1'], role: 'admin',
     params: idParams, body: z.object({ note: z.string().max(500).describe('At least 3 characters') }), response: View },
-  { method: 'post', path: '/findings/questions/{id}/answer', summary: 'Answer a question about one CVE on one device: affected (a finding confirmed by the person) or not affected (the question closes); history and audit', stories: ['S-MIT-1'], role: 'operator',
+  { method: 'post', path: '/findings/questions/{id}/answer', summary: 'Answer a question about one CVE on one device: affected records a finding confirmed by the person and needs an admin, as Confirm vulnerability does (an operator gets 403 forbidden); not affected closes the question (operator); history and audit', stories: ['S-MIT-1'], role: 'operator',
     params: z.object({ id: z.string().min(1).max(96) }), body: z.object({ answer: z.enum(['affected', 'not_affected']), note: z.string().max(500) }),
     response: z.object({ finding: z.string().nullable().describe('affected: the finding') }) },
   { method: 'get', path: '/findings', summary: 'List findings (CVE x device), optionally for one device', stories: ['S-MIT-1', 'S-SCAN-3'], role: 'viewer',

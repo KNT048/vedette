@@ -16,6 +16,7 @@ import (
 
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/lifecycle"
 	"github.com/knt048/vedette/core/localnet"
 	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/core/secrets"
@@ -778,54 +779,121 @@ func (s *Service) dropSNMP(ctx context.Context, tx *sql.Tx, r snmpRow) error {
 	return nil
 }
 
-// AssetDeleted handles inventory.asset.deleted: the device's SNMP settings and their secrets go with it.
-func (s *Service) AssetDeleted(ctx context.Context, assetID string) error {
-	defer s.snmpSettingsChanged(assetID)
-	return s.db.Write(ctx, func(tx *sql.Tx) error {
-		if _, err := tx.ExecContext(ctx, `DELETE FROM sa_queue WHERE asset_id = ?`, assetID); err != nil {
-			return fmt.Errorf("sensoractive: forget the queued scan of a deleted device: %w", err)
+// DeviceDeleted is sensor-active's part of deleting a device (core/lifecycle, inside the inventory's write): its queued check, its
+// SNMP settings with their secrets, its weekly port record and its legacy SNMP answers go with it. Its finished device checks
+// (sa_job) stay: they are a log, with the device id they ran on.
+func (s *Service) DeviceDeleted(ctx context.Context, tx *sql.Tx, d lifecycle.Delete) error {
+	for _, q := range []string{`DELETE FROM sa_queue WHERE asset_id = ?`, `DELETE FROM sa_all_ports WHERE asset_id = ?`, `DELETE FROM sa_snmp_answer WHERE asset_id = ?`} {
+		if _, err := tx.ExecContext(ctx, q, d.Device); err != nil {
+			return fmt.Errorf("sensoractive: forget a deleted device: %w", err)
 		}
-		r, err := s.snmpRow(ctx, tx, assetID)
-		if err != nil || r == nil {
-			return err
-		}
-		return s.dropSNMP(ctx, tx, *r)
-	})
+	}
+	r, err := s.snmpRow(ctx, tx, d.Device)
+	if err != nil || r == nil {
+		return err
+	}
+	return s.dropSNMP(ctx, tx, *r)
 }
 
-// AssetMerged handles inventory.asset.merged {from, into} (published before from's asset.deleted): from's SNMP settings become into's
-// when into has none; otherwise into keeps its own and from's go with their secrets. A read address that was from's IP stays the
-// address it was: if into is elsewhere, nothing is sent until a person sets it (moved). from's device checks become into's
-// (sa_job.asset_id, INV-23): into's Last checks lists them and its next check compares with them.
-func (s *Service) AssetMerged(ctx context.Context, from, into string) error {
+// DeleteCommitted stops an SNMP batch that holds the deleted device.
+func (s *Service) DeleteCommitted(_ context.Context, d lifecycle.Delete) {
+	s.snmpSettingsChanged(d.Device)
+}
+
+// DeviceMerged is sensor-active's part of a merge (core/lifecycle, inside the inventory's write): device m.From was the same machine
+// as m.Into. Its device checks become Into's (sa_job.asset_id, INV-23: Into's Last checks lists them and its next check compares
+// with them); its queued check, weekly port record and legacy SNMP answers become Into's unless Into has its own. A device has one SNMP
+// setting: when only From has one it becomes Into's (a read address that was From's IP stays the address it was: if Into is
+// elsewhere, nothing is sent until a person sets it, INV-10 (i)); when both have one, the one that works is kept (snmpBetter) and the
+// other goes with its secrets, and a notice says which was kept and which removed (sa_snmp_notice, until a person dismisses it).
+func (s *Service) DeviceMerged(ctx context.Context, tx *sql.Tx, m lifecycle.Merge) error {
+	from, into := m.From, m.Into
 	if from == "" || into == "" || from == into {
 		return nil
 	}
-	defer s.snmpSettingsChanged(from)
-	return s.db.Write(ctx, func(tx *sql.Tx) error {
-		if _, err := tx.ExecContext(ctx, `UPDATE sa_job SET asset_id = ? WHERE asset_id = ?`, into, from); err != nil {
+	for _, q := range []string{
+		`UPDATE sa_job SET asset_id = ?2 WHERE asset_id = ?1`,
+		`UPDATE OR IGNORE sa_queue SET asset_id = ?2 WHERE asset_id = ?1`, // into's own queued check stays
+		`DELETE FROM sa_queue WHERE asset_id = ?1`,
+		`UPDATE OR IGNORE sa_all_ports SET asset_id = ?2 WHERE asset_id = ?1`, // a scan record: into's own stays
+		`DELETE FROM sa_all_ports WHERE asset_id = ?1`,
+		`UPDATE OR IGNORE sa_snmp_answer SET asset_id = ?2 WHERE asset_id = ?1`,
+		`DELETE FROM sa_snmp_answer WHERE asset_id = ?1`,
+	} {
+		if _, err := tx.ExecContext(ctx, q, from, into); err != nil {
 			return fmt.Errorf("sensoractive: merge device checks: %w", err)
 		}
-		if _, err := tx.ExecContext(ctx, `DELETE FROM sa_queue WHERE asset_id = ?`, from); err != nil {
-			return fmt.Errorf("sensoractive: forget the queued scan of a merged device: %w", err)
+	}
+	f, err := s.snmpRow(ctx, tx, from)
+	if err != nil || f == nil {
+		return err
+	}
+	i, err := s.snmpRow(ctx, tx, into)
+	if err != nil {
+		return err
+	}
+	if i != nil {
+		kept, gone := *i, *f
+		if snmpBetter(*f, *i) {
+			kept, gone = *f, *i
 		}
-		f, err := s.snmpRow(ctx, tx, from)
-		if err != nil || f == nil {
+		if err := s.dropSNMP(ctx, tx, gone); err != nil {
 			return err
 		}
-		i, err := s.snmpRow(ctx, tx, into)
-		if err != nil {
-			return err
+		text := fmt.Sprintf("%s was merged into %s and both had SNMP settings. Kept: %s. Removed: %s.",
+			nameOr(m.FromName, from), nameOr(m.IntoName, into), snmpSummary(kept), snmpSummary(gone))
+		if _, err := tx.ExecContext(ctx, `INSERT INTO sa_snmp_notice (at, text) VALUES (?, ?)`, s.now(), clip(text, 2000)); err != nil {
+			return fmt.Errorf("sensoractive: note the merged snmp settings: %w", err)
 		}
-		if i != nil {
-			return s.dropSNMP(ctx, tx, *f)
+		if kept.AssetID == into {
+			return nil
 		}
-		if _, err := tx.ExecContext(ctx, `UPDATE sa_snmp_device SET asset_id = ?, updated_at = ? WHERE asset_id = ?`, into, s.now(), from); err != nil {
-			return fmt.Errorf("sensoractive: merge snmp settings: %w", err)
-		}
-		return nil
-	})
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE sa_snmp_device SET asset_id = ?, updated_at = ? WHERE asset_id = ?`, into, s.now(), from); err != nil {
+		return fmt.Errorf("sensoractive: merge snmp settings: %w", err)
+	}
+	return nil
 }
+
+// MergeCommitted stops an SNMP batch that holds either device: their settings changed.
+func (s *Service) MergeCommitted(_ context.Context, m lifecycle.Merge) {
+	s.snmpSettingsChanged(m.From)
+	s.snmpSettingsChanged(m.Into)
+}
+
+// snmpBetter says SNMP settings a work better than b, so a merge keeps a: the last read answered (ok) over one that did not or never
+// ran, then the later answer, then the later save. On a full tie b (the device that stays) keeps its own.
+func snmpBetter(a, b snmpRow) bool {
+	if ao, bo := a.LastStatus == "ok", b.LastStatus == "ok"; ao != bo {
+		return ao
+	}
+	if !a.LastAnswerAt.Equal(b.LastAnswerAt) {
+		return a.LastAnswerAt.After(b.LastAnswerAt)
+	}
+	return a.UpdatedAt.After(b.UpdatedAt)
+}
+
+// snmpSummary names SNMP settings for a person, without any secret: "SNMP v3, user mon, read from 192.0.2.10:161, last answered".
+func snmpSummary(r snmpRow) string {
+	out := "SNMP " + r.Version
+	if r.Username != "" {
+		out += ", user " + r.Username
+	}
+	if r.ReadFrom.IsValid() {
+		out += fmt.Sprintf(", read from %s:%d", r.ReadFrom, cmp.Or(r.Port, sensorlink.SNMPPort))
+	}
+	switch r.LastStatus {
+	case "ok":
+		out += ", last read answered"
+	case "":
+		out += ", never read"
+	default:
+		out += ", last read failed"
+	}
+	return out
+}
+
+func nameOr(name, id string) string { return cmp.Or(name, id) }
 
 // snmpPolicy decides whether a device may be read with SNMP at all: "" when it may, else the reason. It is the inventory's
 // SNMPPolicy (the device's own SNMP setting, so a network scan turned off does not stop SNMP, and SNMP turned off stops it) without

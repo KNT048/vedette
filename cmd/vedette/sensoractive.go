@@ -46,6 +46,9 @@ func sensorActiveService(ctx context.Context, d deps) (*sensoractive.Service, er
 		return nil, err
 	}
 	saServices[d.DB] = s
+	if d.Lifecycle != nil { // once per database, like the service: its rows move with a merged device and go with a deleted one
+		d.Lifecycle.Register(sensorActiveParticipant(s))
+	}
 	return s, nil
 }
 
@@ -142,21 +145,8 @@ func newSensorActive(ctx context.Context, d deps, prober sensoractive.Prober) (*
 			return svc.AssetChanged(ctx, ev.AssetID)
 		}))
 	}
-	// Which device answered which SNMP credential goes with the device, and moves with a merged one (#829 C4).
-	d.Bus.Subscribe(inventory.EventAssetDeleted, on(func(ctx context.Context, data any) error {
-		ev, ok := data.(inventory.AssetEvent)
-		if !ok {
-			return fmt.Errorf("unexpected payload %T", data)
-		}
-		return svc.AssetDeleted(ctx, ev.AssetID)
-	}))
-	d.Bus.Subscribe(inventory.EventAssetMerged, on(func(ctx context.Context, data any) error {
-		ev, ok := data.(inventory.MergeEvent)
-		if !ok {
-			return fmt.Errorf("unexpected payload %T", data)
-		}
-		return svc.AssetMerged(ctx, ev.From, ev.Into)
-	}))
+	// The SNMP settings and checks of a device move with a merged one and go with a deleted one inside the inventory's write
+	// (sensorActiveParticipant, #829 C4); the bus only stops a run that holds the device (above).
 	d.Bus.Subscribe(inventory.EventSettingsChanged, on(func(ctx context.Context, _ any) error {
 		return svc.SettingsChanged(ctx)
 	}))

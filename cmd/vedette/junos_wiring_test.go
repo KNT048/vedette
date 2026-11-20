@@ -199,8 +199,9 @@ func TestWiringJoinedSwitchKeepsItsFindings(t *testing.T) {
 	}
 }
 
-// Review L5 (round 2) of #722: when findings cannot move a merged device's findings, its asset.deleted does not drop them either; they
-// stay for findings' reconcile. Here both rows hold the Junos CVEs and mitigation's table is gone, so the move fails.
+// Review L5 (round 2) of #722: when findings cannot move a merged device's findings, nothing of the join happens: the participants
+// run inside the inventory's write, so the failure rolls the whole join back and the LLDP row keeps its findings. Here both rows hold
+// the Junos CVEs and mitigation's table is gone, so the move fails.
 func TestWiringAFailedMoveKeepsTheFindings(t *testing.T) {
 	t.Parallel()
 	s, cves, lldp := junosSwitch(t)
@@ -225,12 +226,18 @@ func TestWiringAFailedMoveKeepsTheFindings(t *testing.T) {
 	if err := s.d.DB.Write(ctx, func(tx *sql.Tx) error { _, err := tx.ExecContext(ctx, `DROP TABLE mit_applied`); return err }); err != nil {
 		t.Fatal(err)
 	}
-	lldp()
-	if _, err := s.d.Inventory.Device(ctx, lldpID); err == nil {
-		t.Fatal("the LLDP row was not merged")
+	var again []observe.Observation
+	for f, v := range map[observe.Field]string{observe.MAC: "3c:8a:b0:9c:85:80", observe.Vendor: "Juniper Networks", observe.Kind: "switch"} {
+		again = append(again, observe.Observation{AssetHint: observe.AssetHint{MAC: "3c:8a:b0:9c:85:80"}, Field: f, Value: v, Source: observe.Passive, Confidence: 0.5, SeenAt: time.Now().UTC()})
+	}
+	if err := s.d.Inventory.Record(ctx, again); err == nil {
+		t.Fatal("the join succeeded although findings could not move its findings")
+	}
+	if _, err := s.d.Inventory.Device(ctx, lldpID); err != nil {
+		t.Fatalf("the LLDP row is gone after a join that failed: %v", err)
 	}
 	if n := s.count(`SELECT count(*) FROM fnd_finding WHERE asset_id = ?`, lldpID); n != len(cves) {
-		t.Errorf("%d findings left on the merged row, want %d for reconcile", n, len(cves))
+		t.Errorf("%d findings left on the LLDP row, want its %d", n, len(cves))
 	}
 }
 

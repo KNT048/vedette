@@ -559,7 +559,7 @@ func (s *Service) Merge(ctx context.Context, actor, into, from string) error {
 			return fmt.Errorf("inventory: read device: %w", err)
 		}
 		gains := rows[from].approved && !rows[into].approved
-		watch, err := s.joinAs(ctx, tx, from, into, "a person merged them", joinMachine, actor)
+		watch, err := s.joinAs(ctx, tx, o, from, into, "a person merged them", joinMachine, actor)
 		if err != nil {
 			return err
 		}

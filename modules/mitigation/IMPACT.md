@@ -30,3 +30,6 @@
 - Mất panel "What to do" ở trang finding và Devices; nút "Ask my AI" cho finding biến mất.
 - `findings`, `notify`, `scan`, `response`, `reports` không bị ảnh hưởng (không phụ thuộc `mitigation`).
 - Gói đã nạp, mục "Đã áp dụng", kết quả AI giữ trong `mit_*`.
+
+## Modifying: `FindingFolded(ctx, tx, lifecycle.FindingFold)` (INV-9)
+- **findings** calls it through `core/lifecycle` (registered in `cmd/vedette/devicelifecycle.go`) inside the inventory's merge transaction, right before it deletes the folded finding: a new table keyed by finding id must be moved here too, or the FK cascade drops its rows on a merge. Write only through `tx`; an error rolls the merge back.

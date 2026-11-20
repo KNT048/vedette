@@ -539,7 +539,7 @@ func TestContract_POST2_RescanClearOnlyWritesHistory(t *testing.T) {
 	}
 }
 
-func TestContract_INV7_OnAssetDeletedRemovesFindingsAndHistory(t *testing.T) {
+func TestContract_INV7_DeviceDeletedRemovesFindingsAndHistory(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.seed()
@@ -547,10 +547,7 @@ func TestContract_INV7_OnAssetDeletedRemovesFindingsAndHistory(t *testing.T) {
 	if _, err := e.svc.UpsertFromMatch(t.Context(), other, e.feeds.vulns); err != nil {
 		t.Fatal(err)
 	}
-	n, err := e.svc.OnAssetDeleted(t.Context(), "a-1")
-	if err != nil || n != 1 {
-		t.Fatalf("n=%d err=%v", n, err)
-	}
+	e.deleteDevice(t, "a-1")
 	if e.count(`SELECT count(*) FROM fnd_finding WHERE asset_id = 'a-1'`) != 0 || e.count(`SELECT count(*) FROM fnd_finding WHERE asset_id = 'a-2'`) != 1 {
 		t.Fatal("wrong findings removed")
 	}
@@ -562,8 +559,8 @@ func TestContract_INV7_OnAssetDeletedRemovesFindingsAndHistory(t *testing.T) {
 	}
 	// deleting again changes nothing and writes no audit row
 	before := e.count(`SELECT count(*) FROM core_audit`)
-	if n, err := e.svc.OnAssetDeleted(t.Context(), "a-1"); err != nil || n != 0 || e.count(`SELECT count(*) FROM core_audit`) != before {
-		t.Fatalf("second delete: n=%d err=%v", n, err)
+	if e.deleteDevice(t, "a-1"); e.count(`SELECT count(*) FROM core_audit`) != before {
+		t.Fatal("a second delete wrote an audit row")
 	}
 }
 
@@ -831,9 +828,7 @@ func TestUpsert_NoVersionIsOneItemAndOldFindingsGetANote(t *testing.T) {
 	if _, err := e.svc.UpsertFromMatch(t.Context(), nas(""), e.feeds.vulns); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := e.svc.OnAssetDeleted(t.Context(), "a-1"); err != nil {
-		t.Fatal(err)
-	}
+	e.deleteDevice(t, "a-1")
 	if n := e.count(`SELECT count(*) FROM fnd_version_needed`); n != 0 {
 		t.Fatalf("items left after the device was deleted: %d", n)
 	}

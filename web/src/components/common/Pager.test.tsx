@@ -163,7 +163,7 @@ describe('DataTable: search and pages', () => {
     const user = userEvent.setup()
     function Server() {
       const [page, setPage] = useState(0)
-      const list = { q: '', page, size: 25, set: (p: { page?: number }) => setPage(p.page ?? 0) }
+      const list = { q: '', page, size: 25, sort: '', set: (p: { page?: number }) => setPage(p.page ?? 0) }
       return <DataTable caption="Packages" data={rows.slice(page * 25, page * 25 + 25)} columns={cols} pageSize={25} server={{ total: 290, list }} />
     }
     inRouter('/list', <Server />)

@@ -64,7 +64,7 @@ export function BlocklistTab() {
             <Button size="sm" onClick={() => setAsk(true)}><RefreshCw className="size-4" aria-hidden />{t('blocklist.regenerate')}</Button>
           </div>
           {b.entries.length ? (
-            <DataTable caption={t('blocklist.entries')} data={b.entries} columns={entryColumns} pageSize={b.entries.length}
+            <DataTable urlKey="blocklist" caption={t('blocklist.entries')} data={b.entries} columns={entryColumns} pageSize={b.entries.length}
               mobileRow={(e) => <div className="grid gap-0.5 text-sm"><span className="font-medium">{e.value}</span><span className="text-meta text-muted">{e.source}, {e.reason}</span><span className="text-meta text-muted">{t('blocklist.expires')}: {e.expires_at ? fmtDateTime(e.expires_at) : t('blocklist.never')}</span></div>} />
           ) : (
             // An empty list says what fills it, what it never holds, and where the rule that fills it is turned on

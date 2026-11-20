@@ -92,7 +92,7 @@ function Body({ d }: { d: PrivacyState }) {
     <>
       <ReadOnlyNote role="admin" />
       <Section id="flows" title={t('privacy.flows')} description={t('privacy.flowsDesc')} info={t('privacy.flowsInfo')}>
-        <DataTable data={d.flows} columns={columns} caption={t('privacy.flows')} pageSize={20} mobileRow={(f) => (
+        <DataTable urlKey="privacy-flows" data={d.flows} columns={columns} caption={t('privacy.flows')} pageSize={20} mobileRow={(f) => (
           <div className="grid gap-1.5">
             <div className="flex flex-wrap items-center justify-between gap-2"><span id={`flow-${f.id}`} className="font-medium">{f.id}. {t(`privacy.flow.${f.id}.name`)}</span>{stateChip(f)}</div>
             <div className="text-meta">{whatCell(f)}</div>

@@ -96,7 +96,149 @@ export const PdplReport = z.object({
 })
 export const PdplState = z.object({ org: PdplOrg.nullable(), defaults: z.object({ name: z.string() }), report: PdplReport.nullable(), ai_available: z.boolean() })
 
+// ---- The periodic security report: one definition (options, recipients), the document it makes, the sent documents ----
+// The status words are the shared vocabulary of findings: one code per finding, rendered by the shared status badge.
+
+export const OpenStatus = z.enum(['under_attack', 'exploited', 'public_exploit', 'critical_edge', 'update_recommended'])
+  .describe('The urgency of an open finding, most urgent first: under attack here, exploited in the wild, public exploit available, critical on an edge device, update recommended')
+export const HandledStatus = z.enum(['patched', 'mitigated', 'accepted', 'not_relevant', 'false_positive'])
+  .describe('How a finding was handled: patched, mitigated, risk accepted until a day, not relevant, false positive')
+export const FindingStatus = z.enum([...OpenStatus.options, ...HandledStatus.options]).describe('The one status of a finding')
+const word = z.string().regex(/^[a-z0-9_]{1,40}$/)
+export const Severity = z.object({
+  band: z.enum(['critical', 'high', 'medium', 'low', 'none']), score: z.number().min(0).max(10),
+}).nullable().describe('The CVSS band and score of the CVE; null = not scored yet. Never changes the status')
+export const DeviceRef = z.object({
+  id: z.string().describe('The device id when the report was made; the device may be gone since'),
+  name: z.string().max(200),
+  added: z.boolean().describe('False while the device is not added yet (still to review)'),
+})
+export const Verification = z.object({
+  verified: z.enum(['no', 'device', 'scan', 'person']).describe('no = not confirmed yet; device = the device reports this version; scan = confirmed by a safe check; person = confirmed by a person'),
+  by: z.string().max(120).nullable().describe('Who confirmed it, when verified = person'),
+  basis: word.describe('What the match rests on (open list): scan, device_version, package, banner_version, statement, person'),
+})
+export const Fix = z.object({
+  kind: word.describe('Open list: update, distro_update, os_update, feature_update, none_yet, unknown'),
+  version: z.string().max(80).nullable().describe('The version that fixes it, when known'),
+  ref: z.string().max(200).nullable().describe('A KB number or advisory id, when the fix is named by one'),
+})
+export const UrgencyReason = z.object({
+  status: OpenStatus.describe('The urgency layer this reason supports'),
+  source: z.string().max(80).describe('Who says so: CISA KEV, a vendor, GitHub, this box'), at: iso.nullable(), url: z.string().max(500).nullable(),
+  detail: z.string().max(120).nullable().describe('A short fact of the source, such as 244 stars or not yet in CISA KEV'),
+}).describe('One line of the reasons under the status badge')
+export const ReportFinding = z.object({
+  finding_id: z.string(), cve: z.string(), device: DeviceRef,
+  product: z.string().max(200).describe('The software line the CVE is on, as Findings names it'),
+  version: z.string().max(80).nullable().describe('The version the finding was matched on'),
+  status: FindingStatus, reasons: z.array(UrgencyReason).describe('Every urgency layer that applies, most urgent first'),
+  severity: Severity, verification: Verification, fix: Fix, first_seen: iso,
+})
+export const HandledItem = z.object({
+  finding_id: z.string(), cve: z.string(), product: z.string().max(200), severity: Severity,
+  status: HandledStatus,
+  via: word.describe('How (open list): person, version_moved, software_removed, distro_fixed, scan_clear, data_corrected, not_installed'),
+  by: z.object({ kind: z.enum(['vedette', 'person']), name: z.string().max(120).describe('"Vedette", or the person who handled it') }),
+  from_version: z.string().max(80).nullable().describe('For via = version_moved: the version before'),
+  to_version: z.string().max(80).nullable().describe('For via = version_moved: the version after'),
+  note: z.string().max(500).nullable(), accepted_until: z.iso.date().nullable().describe('For status = accepted: the last day'),
+  at: iso,
+}).describe('One finding handled in the period, with who and how from stored fields ("Patched by Vedette: 6.24 → 7.23")')
+export const PeriodKind = z.enum(['last_7_days', 'last_30_days', 'calendar_month'])
+  .describe('calendar_month = the last whole calendar month in the organisation time zone')
+export const ReportOptions = z.object({
+  period: PeriodKind,
+  grouping: z.enum(['device', 'cve']).describe('How Still open is grouped'),
+  include_not_added: z.boolean().describe('Count and list devices not added yet (default on)'),
+  include_not_relevant: z.boolean().describe('Count and list findings handled as not relevant (default off)'),
+  sections: z.object({
+    summary: z.boolean(), handled: z.boolean(), open: z.boolean(), new: z.boolean(), exposure: z.boolean(), detections: z.boolean(), coverage: z.boolean(),
+  }).describe('Which sections the report has'),
+  charts: z.boolean(),
+})
+export const ReportDefinition = z.object({
+  id: z.string(), name: z.string().min(1).max(80),
+  options: ReportOptions,
+  recipients: z.array(email).max(20),
+  schedule_key: z.string().describe('The owner key of its schedule in the shared schedules (GET/PUT /schedules/{owner_key}), reports.def:<id>'),
+  updated_at: iso, updated_by: z.string(),
+}).describe('The one report: a single template with section switches, its period, recipients and schedule')
+export const ReportDefinitionInput = ReportDefinition.pick({ name: true, options: true, recipients: true })
+
+export const ReportSummary = z.object({
+  open_by_status: z.array(z.object({ status: OpenStatus, n: z.number().int() })).describe('Open findings now, one row per status that has any'),
+  open_now: z.number().int(), open_before: z.number().int().describe('Open at the start of the period'),
+  new: z.number().int(), handled: z.number().int(),
+  first: z.array(z.object({
+    status: OpenStatus, cve: z.string(), finding_id: z.string().describe('Its most urgent finding'), product: z.string().max(200),
+    severity: Severity, fix: Fix, devices: z.array(DeviceRef).max(3), device_count: z.number().int(), finding_count: z.number().int(),
+  })).max(3).describe('The three things to do first, most urgent first'),
+})
+export const ReportHandled = z.object({
+  totals: z.array(z.object({ status: HandledStatus, via: word, n: z.number().int() })).describe('Handled in the period by resolution'),
+  devices: z.array(z.object({ device: DeviceRef, items: z.array(HandledItem) })),
+  more: z.number().int().describe('Handled findings not listed (a report lists 100 at most)'),
+})
+export const ReportOpen = z.object({
+  grouping: z.enum(['device', 'cve']), total: z.number().int(),
+  groups: z.array(z.object({
+    key: z.string().describe('The device id or the CVE'), label: z.string().max(200), status: OpenStatus.describe('The most urgent status in the group'),
+    items: z.array(ReportFinding),
+  })).describe('Most urgent first'),
+  more: z.number().int().describe('Open findings not listed (a report lists 100 at most)'),
+})
+export const ReportNew = z.object({ total: z.number().int(), items: z.array(ReportFinding).describe('Found in the period, with their status now'), more: z.number().int() })
+export const ExposureService = z.object({
+  ip: z.string(), port: z.number().int().min(1).max(65535), proto: z.enum(['tcp', 'udp']),
+  name: z.string().max(80).nullable(), product: z.string().max(200).nullable(), version: z.string().max(80).nullable(),
+  change: z.enum(['new', 'closed']).nullable().describe('Opened or closed during the period; null = unchanged'),
+  cert_expires_at: iso.nullable().describe('When the TLS certificate it serves expires'),
+})
+export const ExposureTarget = z.object({
+  target_id: z.string(), kind: z.enum(['domain', 'ip']), value: z.string().max(253),
+  parent: z.string().max(253).nullable().describe('The apex domain this target sits under'),
+  proof: z.enum(['verified', 'covered', 'not_verified']).describe('covered = the proof of a parent domain covers it'),
+  last_scan_at: iso.nullable(),
+  services: z.array(ExposureService).describe('Open ports, then those closed in the period'),
+  issues: z.array(z.object({ engine: word.describe('Open list: surface, nuclei, zap, openvas, match'), severity: z.enum(['critical', 'high', 'medium', 'low', 'info']), open: z.number().int(), new: z.number().int() })),
+})
+export const ReportExposure = z.object({
+  module_on: z.boolean().describe('False when external exposure is off: the section says so instead of showing nothing'),
+  targets: z.array(ExposureTarget),
+})
+export const ReportDetections = z.object({
+  module_on: z.boolean().describe('False when incidents are off'),
+  by_kind: z.array(z.object({ kind: word.describe('Open list: intrusion, trap, login_accepted, failed_logins, bad_connection, anomaly'), n: z.number().int(), last_at: iso })),
+  top: z.array(z.object({ kind: word, title: z.string().max(200), severity: z.enum(['critical', 'high', 'medium', 'low', 'info']), device: DeviceRef.nullable(), at: iso })).max(5),
+})
+export const ReportCoverage = z.object({
+  devices: z.number().int(), with_agent: z.number().int(), not_added: z.number().int(),
+  sources: z.array(z.object({ id: word.describe('passive, active, agents, honeypot, logs, exposure, ids …'), on: z.boolean() })),
+  feeds: z.array(z.object({ id: word, name: z.string().max(80), last_ok_at: iso.nullable(), stale: z.boolean() })),
+})
+export const ReportDocument = z.object({
+  definition_id: z.string(), title: z.string().max(120), generated_at: iso,
+  period: z.object({ kind: PeriodKind, from: iso, to: iso, tz: z.string().max(64) }),
+  options: ReportOptions.describe('The options the document was made with'),
+  summary: ReportSummary.optional(), handled: ReportHandled.optional(), open: ReportOpen.optional(), new: ReportNew.optional(),
+  exposure: ReportExposure.optional(), detections: ReportDetections.optional(), coverage: ReportCoverage.optional(),
+  ai_summary: AiSummary.nullable(),
+}).describe('The report as made at generated_at; a section switched off is absent')
+export const SentReportItem = z.object({
+  id: z.string(), definition_id: z.string(), title: z.string().max(120), sent_at: iso,
+  period: z.object({ from: iso, to: iso }),
+  trigger: z.enum(['manual', 'schedule']), recipients: z.array(email), status: z.enum(['sent', 'failed']), error: z.string().nullable(),
+})
+export const SentReport = SentReportItem.extend({ document: ReportDocument.describe('Exactly what was sent') })
+
 export const endpoints = defineEndpoints([
+  { method: 'get', path: '/reports/definition', summary: 'The report definition: name, options, section switches, recipients and the key of its schedule', stories: ['S-REP-1'], role: 'viewer', response: ReportDefinition },
+  { method: 'put', path: '/reports/definition', summary: 'Save the report name, options and recipients (emails validated, max 20)', stories: ['S-REP-1'], role: 'admin', body: ReportDefinitionInput, response: ReportDefinition },
+  { method: 'get', path: '/reports/document', summary: 'The report of the current period, made with the saved options when opened', stories: ['S-REP-1'], role: 'viewer', response: ReportDocument },
+  { method: 'post', path: '/reports/send', summary: 'Make the report now and send it to the saved recipients; the sent document is kept', stories: ['S-REP-1'], role: 'operator', response: SentReportItem },
+  { method: 'get', path: '/reports/history', summary: 'Reports sent, newest first', stories: ['S-REP-1'], role: 'viewer', response: z.object({ items: z.array(SentReportItem) }) },
+  { method: 'get', path: '/reports/history/{id}', summary: 'One sent report, the document exactly as it was sent', stories: ['S-REP-1'], role: 'viewer', params: z.object({ id: z.string() }), response: SentReport, example: { params: { id: 'rh-1' } } },
   { method: 'get', path: '/reports/weekly/preview', summary: 'One-page weekly report, figures computed when opened', stories: ['S-REP-1'], role: 'viewer', response: WeeklyPreview },
   { method: 'post', path: '/reports/weekly/ai-summary', summary: 'Draft a commentary for the weekly report with the customer AI', stories: ['S-REP-1', 'S-AI-6'], role: 'operator', response: AiSummary },
   { method: 'get', path: '/reports/schedule', summary: 'Weekly report schedule and recipients', stories: ['S-REP-1'], role: 'viewer', response: Schedule },

@@ -158889,6 +158889,646 @@ func (o NilNotifyPutNotifyChannelsTypeOKLastTest) Or(d NotifyPutNotifyChannelsTy
 	return d
 }
 
+// NewNilReportsGetReportsDocumentOKAiSummary returns new NilReportsGetReportsDocumentOKAiSummary with value set to v.
+func NewNilReportsGetReportsDocumentOKAiSummary(v ReportsGetReportsDocumentOKAiSummary) NilReportsGetReportsDocumentOKAiSummary {
+	return NilReportsGetReportsDocumentOKAiSummary{
+		Value: v,
+	}
+}
+
+// NilReportsGetReportsDocumentOKAiSummary is nullable ReportsGetReportsDocumentOKAiSummary.
+type NilReportsGetReportsDocumentOKAiSummary struct {
+	Value ReportsGetReportsDocumentOKAiSummary
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilReportsGetReportsDocumentOKAiSummary) SetTo(v ReportsGetReportsDocumentOKAiSummary) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilReportsGetReportsDocumentOKAiSummary) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilReportsGetReportsDocumentOKAiSummary) SetToNull() {
+	o.Null = true
+	var v ReportsGetReportsDocumentOKAiSummary
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilReportsGetReportsDocumentOKAiSummary) Get() (v ReportsGetReportsDocumentOKAiSummary, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilReportsGetReportsDocumentOKAiSummary) Or(d ReportsGetReportsDocumentOKAiSummary) ReportsGetReportsDocumentOKAiSummary {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilReportsGetReportsDocumentOKDetectionsTopItemDevice returns new NilReportsGetReportsDocumentOKDetectionsTopItemDevice with value set to v.
+func NewNilReportsGetReportsDocumentOKDetectionsTopItemDevice(v ReportsGetReportsDocumentOKDetectionsTopItemDevice) NilReportsGetReportsDocumentOKDetectionsTopItemDevice {
+	return NilReportsGetReportsDocumentOKDetectionsTopItemDevice{
+		Value: v,
+	}
+}
+
+// NilReportsGetReportsDocumentOKDetectionsTopItemDevice is nullable ReportsGetReportsDocumentOKDetectionsTopItemDevice.
+type NilReportsGetReportsDocumentOKDetectionsTopItemDevice struct {
+	Value ReportsGetReportsDocumentOKDetectionsTopItemDevice
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilReportsGetReportsDocumentOKDetectionsTopItemDevice) SetTo(v ReportsGetReportsDocumentOKDetectionsTopItemDevice) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilReportsGetReportsDocumentOKDetectionsTopItemDevice) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilReportsGetReportsDocumentOKDetectionsTopItemDevice) SetToNull() {
+	o.Null = true
+	var v ReportsGetReportsDocumentOKDetectionsTopItemDevice
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilReportsGetReportsDocumentOKDetectionsTopItemDevice) Get() (v ReportsGetReportsDocumentOKDetectionsTopItemDevice, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilReportsGetReportsDocumentOKDetectionsTopItemDevice) Or(d ReportsGetReportsDocumentOKDetectionsTopItemDevice) ReportsGetReportsDocumentOKDetectionsTopItemDevice {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilReportsGetReportsDocumentOKExposureTargetsItemServicesItemChange returns new NilReportsGetReportsDocumentOKExposureTargetsItemServicesItemChange with value set to v.
+func NewNilReportsGetReportsDocumentOKExposureTargetsItemServicesItemChange(v ReportsGetReportsDocumentOKExposureTargetsItemServicesItemChange) NilReportsGetReportsDocumentOKExposureTargetsItemServicesItemChange {
+	return NilReportsGetReportsDocumentOKExposureTargetsItemServicesItemChange{
+		Value: v,
+	}
+}
+
+// NilReportsGetReportsDocumentOKExposureTargetsItemServicesItemChange is nullable ReportsGetReportsDocumentOKExposureTargetsItemServicesItemChange.
+type NilReportsGetReportsDocumentOKExposureTargetsItemServicesItemChange struct {
+	Value ReportsGetReportsDocumentOKExposureTargetsItemServicesItemChange
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilReportsGetReportsDocumentOKExposureTargetsItemServicesItemChange) SetTo(v ReportsGetReportsDocumentOKExposureTargetsItemServicesItemChange) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilReportsGetReportsDocumentOKExposureTargetsItemServicesItemChange) IsNull() bool {
+	return o.Null
+}
+
+// SetToNull sets value to null.
+func (o *NilReportsGetReportsDocumentOKExposureTargetsItemServicesItemChange) SetToNull() {
+	o.Null = true
+	var v ReportsGetReportsDocumentOKExposureTargetsItemServicesItemChange
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilReportsGetReportsDocumentOKExposureTargetsItemServicesItemChange) Get() (v ReportsGetReportsDocumentOKExposureTargetsItemServicesItemChange, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilReportsGetReportsDocumentOKExposureTargetsItemServicesItemChange) Or(d ReportsGetReportsDocumentOKExposureTargetsItemServicesItemChange) ReportsGetReportsDocumentOKExposureTargetsItemServicesItemChange {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity returns new NilReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity with value set to v.
+func NewNilReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity(v ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity) NilReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity {
+	return NilReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity{
+		Value: v,
+	}
+}
+
+// NilReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity is nullable ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity.
+type NilReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity struct {
+	Value ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity) SetTo(v ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity) IsNull() bool {
+	return o.Null
+}
+
+// SetToNull sets value to null.
+func (o *NilReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity) SetToNull() {
+	o.Null = true
+	var v ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity) Get() (v ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity) Or(d ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity) ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilReportsGetReportsDocumentOKNewItemsItemSeverity returns new NilReportsGetReportsDocumentOKNewItemsItemSeverity with value set to v.
+func NewNilReportsGetReportsDocumentOKNewItemsItemSeverity(v ReportsGetReportsDocumentOKNewItemsItemSeverity) NilReportsGetReportsDocumentOKNewItemsItemSeverity {
+	return NilReportsGetReportsDocumentOKNewItemsItemSeverity{
+		Value: v,
+	}
+}
+
+// NilReportsGetReportsDocumentOKNewItemsItemSeverity is nullable ReportsGetReportsDocumentOKNewItemsItemSeverity.
+type NilReportsGetReportsDocumentOKNewItemsItemSeverity struct {
+	Value ReportsGetReportsDocumentOKNewItemsItemSeverity
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilReportsGetReportsDocumentOKNewItemsItemSeverity) SetTo(v ReportsGetReportsDocumentOKNewItemsItemSeverity) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilReportsGetReportsDocumentOKNewItemsItemSeverity) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilReportsGetReportsDocumentOKNewItemsItemSeverity) SetToNull() {
+	o.Null = true
+	var v ReportsGetReportsDocumentOKNewItemsItemSeverity
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilReportsGetReportsDocumentOKNewItemsItemSeverity) Get() (v ReportsGetReportsDocumentOKNewItemsItemSeverity, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilReportsGetReportsDocumentOKNewItemsItemSeverity) Or(d ReportsGetReportsDocumentOKNewItemsItemSeverity) ReportsGetReportsDocumentOKNewItemsItemSeverity {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity returns new NilReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity with value set to v.
+func NewNilReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity(v ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity) NilReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity {
+	return NilReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity{
+		Value: v,
+	}
+}
+
+// NilReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity is nullable ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity.
+type NilReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity struct {
+	Value ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity) SetTo(v ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity) SetToNull() {
+	o.Null = true
+	var v ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity) Get() (v ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity) Or(d ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity) ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilReportsGetReportsDocumentOKSummaryFirstItemSeverity returns new NilReportsGetReportsDocumentOKSummaryFirstItemSeverity with value set to v.
+func NewNilReportsGetReportsDocumentOKSummaryFirstItemSeverity(v ReportsGetReportsDocumentOKSummaryFirstItemSeverity) NilReportsGetReportsDocumentOKSummaryFirstItemSeverity {
+	return NilReportsGetReportsDocumentOKSummaryFirstItemSeverity{
+		Value: v,
+	}
+}
+
+// NilReportsGetReportsDocumentOKSummaryFirstItemSeverity is nullable ReportsGetReportsDocumentOKSummaryFirstItemSeverity.
+type NilReportsGetReportsDocumentOKSummaryFirstItemSeverity struct {
+	Value ReportsGetReportsDocumentOKSummaryFirstItemSeverity
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilReportsGetReportsDocumentOKSummaryFirstItemSeverity) SetTo(v ReportsGetReportsDocumentOKSummaryFirstItemSeverity) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilReportsGetReportsDocumentOKSummaryFirstItemSeverity) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilReportsGetReportsDocumentOKSummaryFirstItemSeverity) SetToNull() {
+	o.Null = true
+	var v ReportsGetReportsDocumentOKSummaryFirstItemSeverity
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilReportsGetReportsDocumentOKSummaryFirstItemSeverity) Get() (v ReportsGetReportsDocumentOKSummaryFirstItemSeverity, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilReportsGetReportsDocumentOKSummaryFirstItemSeverity) Or(d ReportsGetReportsDocumentOKSummaryFirstItemSeverity) ReportsGetReportsDocumentOKSummaryFirstItemSeverity {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilReportsGetReportsHistoryIDOKDocumentAiSummary returns new NilReportsGetReportsHistoryIDOKDocumentAiSummary with value set to v.
+func NewNilReportsGetReportsHistoryIDOKDocumentAiSummary(v ReportsGetReportsHistoryIDOKDocumentAiSummary) NilReportsGetReportsHistoryIDOKDocumentAiSummary {
+	return NilReportsGetReportsHistoryIDOKDocumentAiSummary{
+		Value: v,
+	}
+}
+
+// NilReportsGetReportsHistoryIDOKDocumentAiSummary is nullable ReportsGetReportsHistoryIDOKDocumentAiSummary.
+type NilReportsGetReportsHistoryIDOKDocumentAiSummary struct {
+	Value ReportsGetReportsHistoryIDOKDocumentAiSummary
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilReportsGetReportsHistoryIDOKDocumentAiSummary) SetTo(v ReportsGetReportsHistoryIDOKDocumentAiSummary) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilReportsGetReportsHistoryIDOKDocumentAiSummary) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilReportsGetReportsHistoryIDOKDocumentAiSummary) SetToNull() {
+	o.Null = true
+	var v ReportsGetReportsHistoryIDOKDocumentAiSummary
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilReportsGetReportsHistoryIDOKDocumentAiSummary) Get() (v ReportsGetReportsHistoryIDOKDocumentAiSummary, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilReportsGetReportsHistoryIDOKDocumentAiSummary) Or(d ReportsGetReportsHistoryIDOKDocumentAiSummary) ReportsGetReportsHistoryIDOKDocumentAiSummary {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice returns new NilReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice with value set to v.
+func NewNilReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice(v ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice) NilReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice {
+	return NilReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice{
+		Value: v,
+	}
+}
+
+// NilReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice is nullable ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice.
+type NilReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice struct {
+	Value ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice) SetTo(v ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice) SetToNull() {
+	o.Null = true
+	var v ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice) Get() (v ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice) Or(d ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice) ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemChange returns new NilReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemChange with value set to v.
+func NewNilReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemChange(v ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemChange) NilReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemChange {
+	return NilReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemChange{
+		Value: v,
+	}
+}
+
+// NilReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemChange is nullable ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemChange.
+type NilReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemChange struct {
+	Value ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemChange
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemChange) SetTo(v ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemChange) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemChange) IsNull() bool {
+	return o.Null
+}
+
+// SetToNull sets value to null.
+func (o *NilReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemChange) SetToNull() {
+	o.Null = true
+	var v ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemChange
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemChange) Get() (v ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemChange, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemChange) Or(d ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemChange) ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemChange {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity returns new NilReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity with value set to v.
+func NewNilReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity(v ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity) NilReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity {
+	return NilReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity{
+		Value: v,
+	}
+}
+
+// NilReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity is nullable ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity.
+type NilReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity struct {
+	Value ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity) SetTo(v ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity) IsNull() bool {
+	return o.Null
+}
+
+// SetToNull sets value to null.
+func (o *NilReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity) SetToNull() {
+	o.Null = true
+	var v ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity) Get() (v ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity) Or(d ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity) ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity returns new NilReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity with value set to v.
+func NewNilReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity(v ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity) NilReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity {
+	return NilReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity{
+		Value: v,
+	}
+}
+
+// NilReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity is nullable ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity.
+type NilReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity struct {
+	Value ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity) SetTo(v ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity) SetToNull() {
+	o.Null = true
+	var v ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity) Get() (v ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity) Or(d ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity) ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity returns new NilReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity with value set to v.
+func NewNilReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity(v ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity) NilReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity {
+	return NilReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity{
+		Value: v,
+	}
+}
+
+// NilReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity is nullable ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity.
+type NilReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity struct {
+	Value ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity) SetTo(v ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity) IsNull() bool {
+	return o.Null
+}
+
+// SetToNull sets value to null.
+func (o *NilReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity) SetToNull() {
+	o.Null = true
+	var v ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity) Get() (v ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity) Or(d ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity) ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity returns new NilReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity with value set to v.
+func NewNilReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity(v ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity) NilReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity {
+	return NilReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity{
+		Value: v,
+	}
+}
+
+// NilReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity is nullable ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity.
+type NilReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity struct {
+	Value ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity) SetTo(v ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity) SetToNull() {
+	o.Null = true
+	var v ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity) Get() (v ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity) Or(d ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity) ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilReportsGetReportsPdplOKOrg returns new NilReportsGetReportsPdplOKOrg with value set to v.
 func NewNilReportsGetReportsPdplOKOrg(v ReportsGetReportsPdplOKOrg) NilReportsGetReportsPdplOKOrg {
 	return NilReportsGetReportsPdplOKOrg{
@@ -176681,6 +177321,650 @@ func (o OptNotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel) Or(d NotifyPatc
 	return d
 }
 
+// NewOptReportsGetReportsDocumentOKCoverage returns new OptReportsGetReportsDocumentOKCoverage with value set to v.
+func NewOptReportsGetReportsDocumentOKCoverage(v ReportsGetReportsDocumentOKCoverage) OptReportsGetReportsDocumentOKCoverage {
+	return OptReportsGetReportsDocumentOKCoverage{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptReportsGetReportsDocumentOKCoverage is optional ReportsGetReportsDocumentOKCoverage.
+type OptReportsGetReportsDocumentOKCoverage struct {
+	Value ReportsGetReportsDocumentOKCoverage
+	Set   bool
+}
+
+// IsSet returns true if OptReportsGetReportsDocumentOKCoverage was set.
+func (o OptReportsGetReportsDocumentOKCoverage) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptReportsGetReportsDocumentOKCoverage) Reset() {
+	var v ReportsGetReportsDocumentOKCoverage
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptReportsGetReportsDocumentOKCoverage) SetTo(v ReportsGetReportsDocumentOKCoverage) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptReportsGetReportsDocumentOKCoverage) Get() (v ReportsGetReportsDocumentOKCoverage, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptReportsGetReportsDocumentOKCoverage) Or(d ReportsGetReportsDocumentOKCoverage) ReportsGetReportsDocumentOKCoverage {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptReportsGetReportsDocumentOKDetections returns new OptReportsGetReportsDocumentOKDetections with value set to v.
+func NewOptReportsGetReportsDocumentOKDetections(v ReportsGetReportsDocumentOKDetections) OptReportsGetReportsDocumentOKDetections {
+	return OptReportsGetReportsDocumentOKDetections{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptReportsGetReportsDocumentOKDetections is optional ReportsGetReportsDocumentOKDetections.
+type OptReportsGetReportsDocumentOKDetections struct {
+	Value ReportsGetReportsDocumentOKDetections
+	Set   bool
+}
+
+// IsSet returns true if OptReportsGetReportsDocumentOKDetections was set.
+func (o OptReportsGetReportsDocumentOKDetections) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptReportsGetReportsDocumentOKDetections) Reset() {
+	var v ReportsGetReportsDocumentOKDetections
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptReportsGetReportsDocumentOKDetections) SetTo(v ReportsGetReportsDocumentOKDetections) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptReportsGetReportsDocumentOKDetections) Get() (v ReportsGetReportsDocumentOKDetections, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptReportsGetReportsDocumentOKDetections) Or(d ReportsGetReportsDocumentOKDetections) ReportsGetReportsDocumentOKDetections {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptReportsGetReportsDocumentOKExposure returns new OptReportsGetReportsDocumentOKExposure with value set to v.
+func NewOptReportsGetReportsDocumentOKExposure(v ReportsGetReportsDocumentOKExposure) OptReportsGetReportsDocumentOKExposure {
+	return OptReportsGetReportsDocumentOKExposure{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptReportsGetReportsDocumentOKExposure is optional ReportsGetReportsDocumentOKExposure.
+type OptReportsGetReportsDocumentOKExposure struct {
+	Value ReportsGetReportsDocumentOKExposure
+	Set   bool
+}
+
+// IsSet returns true if OptReportsGetReportsDocumentOKExposure was set.
+func (o OptReportsGetReportsDocumentOKExposure) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptReportsGetReportsDocumentOKExposure) Reset() {
+	var v ReportsGetReportsDocumentOKExposure
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptReportsGetReportsDocumentOKExposure) SetTo(v ReportsGetReportsDocumentOKExposure) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptReportsGetReportsDocumentOKExposure) Get() (v ReportsGetReportsDocumentOKExposure, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptReportsGetReportsDocumentOKExposure) Or(d ReportsGetReportsDocumentOKExposure) ReportsGetReportsDocumentOKExposure {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptReportsGetReportsDocumentOKHandled returns new OptReportsGetReportsDocumentOKHandled with value set to v.
+func NewOptReportsGetReportsDocumentOKHandled(v ReportsGetReportsDocumentOKHandled) OptReportsGetReportsDocumentOKHandled {
+	return OptReportsGetReportsDocumentOKHandled{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptReportsGetReportsDocumentOKHandled is optional ReportsGetReportsDocumentOKHandled.
+type OptReportsGetReportsDocumentOKHandled struct {
+	Value ReportsGetReportsDocumentOKHandled
+	Set   bool
+}
+
+// IsSet returns true if OptReportsGetReportsDocumentOKHandled was set.
+func (o OptReportsGetReportsDocumentOKHandled) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptReportsGetReportsDocumentOKHandled) Reset() {
+	var v ReportsGetReportsDocumentOKHandled
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptReportsGetReportsDocumentOKHandled) SetTo(v ReportsGetReportsDocumentOKHandled) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptReportsGetReportsDocumentOKHandled) Get() (v ReportsGetReportsDocumentOKHandled, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptReportsGetReportsDocumentOKHandled) Or(d ReportsGetReportsDocumentOKHandled) ReportsGetReportsDocumentOKHandled {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptReportsGetReportsDocumentOKNew returns new OptReportsGetReportsDocumentOKNew with value set to v.
+func NewOptReportsGetReportsDocumentOKNew(v ReportsGetReportsDocumentOKNew) OptReportsGetReportsDocumentOKNew {
+	return OptReportsGetReportsDocumentOKNew{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptReportsGetReportsDocumentOKNew is optional ReportsGetReportsDocumentOKNew.
+type OptReportsGetReportsDocumentOKNew struct {
+	Value ReportsGetReportsDocumentOKNew
+	Set   bool
+}
+
+// IsSet returns true if OptReportsGetReportsDocumentOKNew was set.
+func (o OptReportsGetReportsDocumentOKNew) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptReportsGetReportsDocumentOKNew) Reset() {
+	var v ReportsGetReportsDocumentOKNew
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptReportsGetReportsDocumentOKNew) SetTo(v ReportsGetReportsDocumentOKNew) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptReportsGetReportsDocumentOKNew) Get() (v ReportsGetReportsDocumentOKNew, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptReportsGetReportsDocumentOKNew) Or(d ReportsGetReportsDocumentOKNew) ReportsGetReportsDocumentOKNew {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptReportsGetReportsDocumentOKOpen returns new OptReportsGetReportsDocumentOKOpen with value set to v.
+func NewOptReportsGetReportsDocumentOKOpen(v ReportsGetReportsDocumentOKOpen) OptReportsGetReportsDocumentOKOpen {
+	return OptReportsGetReportsDocumentOKOpen{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptReportsGetReportsDocumentOKOpen is optional ReportsGetReportsDocumentOKOpen.
+type OptReportsGetReportsDocumentOKOpen struct {
+	Value ReportsGetReportsDocumentOKOpen
+	Set   bool
+}
+
+// IsSet returns true if OptReportsGetReportsDocumentOKOpen was set.
+func (o OptReportsGetReportsDocumentOKOpen) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptReportsGetReportsDocumentOKOpen) Reset() {
+	var v ReportsGetReportsDocumentOKOpen
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptReportsGetReportsDocumentOKOpen) SetTo(v ReportsGetReportsDocumentOKOpen) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptReportsGetReportsDocumentOKOpen) Get() (v ReportsGetReportsDocumentOKOpen, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptReportsGetReportsDocumentOKOpen) Or(d ReportsGetReportsDocumentOKOpen) ReportsGetReportsDocumentOKOpen {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptReportsGetReportsDocumentOKSummary returns new OptReportsGetReportsDocumentOKSummary with value set to v.
+func NewOptReportsGetReportsDocumentOKSummary(v ReportsGetReportsDocumentOKSummary) OptReportsGetReportsDocumentOKSummary {
+	return OptReportsGetReportsDocumentOKSummary{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptReportsGetReportsDocumentOKSummary is optional ReportsGetReportsDocumentOKSummary.
+type OptReportsGetReportsDocumentOKSummary struct {
+	Value ReportsGetReportsDocumentOKSummary
+	Set   bool
+}
+
+// IsSet returns true if OptReportsGetReportsDocumentOKSummary was set.
+func (o OptReportsGetReportsDocumentOKSummary) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptReportsGetReportsDocumentOKSummary) Reset() {
+	var v ReportsGetReportsDocumentOKSummary
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptReportsGetReportsDocumentOKSummary) SetTo(v ReportsGetReportsDocumentOKSummary) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptReportsGetReportsDocumentOKSummary) Get() (v ReportsGetReportsDocumentOKSummary, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptReportsGetReportsDocumentOKSummary) Or(d ReportsGetReportsDocumentOKSummary) ReportsGetReportsDocumentOKSummary {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptReportsGetReportsHistoryIDOKDocumentCoverage returns new OptReportsGetReportsHistoryIDOKDocumentCoverage with value set to v.
+func NewOptReportsGetReportsHistoryIDOKDocumentCoverage(v ReportsGetReportsHistoryIDOKDocumentCoverage) OptReportsGetReportsHistoryIDOKDocumentCoverage {
+	return OptReportsGetReportsHistoryIDOKDocumentCoverage{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptReportsGetReportsHistoryIDOKDocumentCoverage is optional ReportsGetReportsHistoryIDOKDocumentCoverage.
+type OptReportsGetReportsHistoryIDOKDocumentCoverage struct {
+	Value ReportsGetReportsHistoryIDOKDocumentCoverage
+	Set   bool
+}
+
+// IsSet returns true if OptReportsGetReportsHistoryIDOKDocumentCoverage was set.
+func (o OptReportsGetReportsHistoryIDOKDocumentCoverage) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptReportsGetReportsHistoryIDOKDocumentCoverage) Reset() {
+	var v ReportsGetReportsHistoryIDOKDocumentCoverage
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptReportsGetReportsHistoryIDOKDocumentCoverage) SetTo(v ReportsGetReportsHistoryIDOKDocumentCoverage) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptReportsGetReportsHistoryIDOKDocumentCoverage) Get() (v ReportsGetReportsHistoryIDOKDocumentCoverage, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptReportsGetReportsHistoryIDOKDocumentCoverage) Or(d ReportsGetReportsHistoryIDOKDocumentCoverage) ReportsGetReportsHistoryIDOKDocumentCoverage {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptReportsGetReportsHistoryIDOKDocumentDetections returns new OptReportsGetReportsHistoryIDOKDocumentDetections with value set to v.
+func NewOptReportsGetReportsHistoryIDOKDocumentDetections(v ReportsGetReportsHistoryIDOKDocumentDetections) OptReportsGetReportsHistoryIDOKDocumentDetections {
+	return OptReportsGetReportsHistoryIDOKDocumentDetections{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptReportsGetReportsHistoryIDOKDocumentDetections is optional ReportsGetReportsHistoryIDOKDocumentDetections.
+type OptReportsGetReportsHistoryIDOKDocumentDetections struct {
+	Value ReportsGetReportsHistoryIDOKDocumentDetections
+	Set   bool
+}
+
+// IsSet returns true if OptReportsGetReportsHistoryIDOKDocumentDetections was set.
+func (o OptReportsGetReportsHistoryIDOKDocumentDetections) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptReportsGetReportsHistoryIDOKDocumentDetections) Reset() {
+	var v ReportsGetReportsHistoryIDOKDocumentDetections
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptReportsGetReportsHistoryIDOKDocumentDetections) SetTo(v ReportsGetReportsHistoryIDOKDocumentDetections) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptReportsGetReportsHistoryIDOKDocumentDetections) Get() (v ReportsGetReportsHistoryIDOKDocumentDetections, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptReportsGetReportsHistoryIDOKDocumentDetections) Or(d ReportsGetReportsHistoryIDOKDocumentDetections) ReportsGetReportsHistoryIDOKDocumentDetections {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptReportsGetReportsHistoryIDOKDocumentExposure returns new OptReportsGetReportsHistoryIDOKDocumentExposure with value set to v.
+func NewOptReportsGetReportsHistoryIDOKDocumentExposure(v ReportsGetReportsHistoryIDOKDocumentExposure) OptReportsGetReportsHistoryIDOKDocumentExposure {
+	return OptReportsGetReportsHistoryIDOKDocumentExposure{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptReportsGetReportsHistoryIDOKDocumentExposure is optional ReportsGetReportsHistoryIDOKDocumentExposure.
+type OptReportsGetReportsHistoryIDOKDocumentExposure struct {
+	Value ReportsGetReportsHistoryIDOKDocumentExposure
+	Set   bool
+}
+
+// IsSet returns true if OptReportsGetReportsHistoryIDOKDocumentExposure was set.
+func (o OptReportsGetReportsHistoryIDOKDocumentExposure) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptReportsGetReportsHistoryIDOKDocumentExposure) Reset() {
+	var v ReportsGetReportsHistoryIDOKDocumentExposure
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptReportsGetReportsHistoryIDOKDocumentExposure) SetTo(v ReportsGetReportsHistoryIDOKDocumentExposure) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptReportsGetReportsHistoryIDOKDocumentExposure) Get() (v ReportsGetReportsHistoryIDOKDocumentExposure, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptReportsGetReportsHistoryIDOKDocumentExposure) Or(d ReportsGetReportsHistoryIDOKDocumentExposure) ReportsGetReportsHistoryIDOKDocumentExposure {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptReportsGetReportsHistoryIDOKDocumentHandled returns new OptReportsGetReportsHistoryIDOKDocumentHandled with value set to v.
+func NewOptReportsGetReportsHistoryIDOKDocumentHandled(v ReportsGetReportsHistoryIDOKDocumentHandled) OptReportsGetReportsHistoryIDOKDocumentHandled {
+	return OptReportsGetReportsHistoryIDOKDocumentHandled{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptReportsGetReportsHistoryIDOKDocumentHandled is optional ReportsGetReportsHistoryIDOKDocumentHandled.
+type OptReportsGetReportsHistoryIDOKDocumentHandled struct {
+	Value ReportsGetReportsHistoryIDOKDocumentHandled
+	Set   bool
+}
+
+// IsSet returns true if OptReportsGetReportsHistoryIDOKDocumentHandled was set.
+func (o OptReportsGetReportsHistoryIDOKDocumentHandled) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptReportsGetReportsHistoryIDOKDocumentHandled) Reset() {
+	var v ReportsGetReportsHistoryIDOKDocumentHandled
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptReportsGetReportsHistoryIDOKDocumentHandled) SetTo(v ReportsGetReportsHistoryIDOKDocumentHandled) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptReportsGetReportsHistoryIDOKDocumentHandled) Get() (v ReportsGetReportsHistoryIDOKDocumentHandled, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptReportsGetReportsHistoryIDOKDocumentHandled) Or(d ReportsGetReportsHistoryIDOKDocumentHandled) ReportsGetReportsHistoryIDOKDocumentHandled {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptReportsGetReportsHistoryIDOKDocumentNew returns new OptReportsGetReportsHistoryIDOKDocumentNew with value set to v.
+func NewOptReportsGetReportsHistoryIDOKDocumentNew(v ReportsGetReportsHistoryIDOKDocumentNew) OptReportsGetReportsHistoryIDOKDocumentNew {
+	return OptReportsGetReportsHistoryIDOKDocumentNew{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptReportsGetReportsHistoryIDOKDocumentNew is optional ReportsGetReportsHistoryIDOKDocumentNew.
+type OptReportsGetReportsHistoryIDOKDocumentNew struct {
+	Value ReportsGetReportsHistoryIDOKDocumentNew
+	Set   bool
+}
+
+// IsSet returns true if OptReportsGetReportsHistoryIDOKDocumentNew was set.
+func (o OptReportsGetReportsHistoryIDOKDocumentNew) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptReportsGetReportsHistoryIDOKDocumentNew) Reset() {
+	var v ReportsGetReportsHistoryIDOKDocumentNew
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptReportsGetReportsHistoryIDOKDocumentNew) SetTo(v ReportsGetReportsHistoryIDOKDocumentNew) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptReportsGetReportsHistoryIDOKDocumentNew) Get() (v ReportsGetReportsHistoryIDOKDocumentNew, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptReportsGetReportsHistoryIDOKDocumentNew) Or(d ReportsGetReportsHistoryIDOKDocumentNew) ReportsGetReportsHistoryIDOKDocumentNew {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptReportsGetReportsHistoryIDOKDocumentOpen returns new OptReportsGetReportsHistoryIDOKDocumentOpen with value set to v.
+func NewOptReportsGetReportsHistoryIDOKDocumentOpen(v ReportsGetReportsHistoryIDOKDocumentOpen) OptReportsGetReportsHistoryIDOKDocumentOpen {
+	return OptReportsGetReportsHistoryIDOKDocumentOpen{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptReportsGetReportsHistoryIDOKDocumentOpen is optional ReportsGetReportsHistoryIDOKDocumentOpen.
+type OptReportsGetReportsHistoryIDOKDocumentOpen struct {
+	Value ReportsGetReportsHistoryIDOKDocumentOpen
+	Set   bool
+}
+
+// IsSet returns true if OptReportsGetReportsHistoryIDOKDocumentOpen was set.
+func (o OptReportsGetReportsHistoryIDOKDocumentOpen) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptReportsGetReportsHistoryIDOKDocumentOpen) Reset() {
+	var v ReportsGetReportsHistoryIDOKDocumentOpen
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptReportsGetReportsHistoryIDOKDocumentOpen) SetTo(v ReportsGetReportsHistoryIDOKDocumentOpen) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptReportsGetReportsHistoryIDOKDocumentOpen) Get() (v ReportsGetReportsHistoryIDOKDocumentOpen, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptReportsGetReportsHistoryIDOKDocumentOpen) Or(d ReportsGetReportsHistoryIDOKDocumentOpen) ReportsGetReportsHistoryIDOKDocumentOpen {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptReportsGetReportsHistoryIDOKDocumentSummary returns new OptReportsGetReportsHistoryIDOKDocumentSummary with value set to v.
+func NewOptReportsGetReportsHistoryIDOKDocumentSummary(v ReportsGetReportsHistoryIDOKDocumentSummary) OptReportsGetReportsHistoryIDOKDocumentSummary {
+	return OptReportsGetReportsHistoryIDOKDocumentSummary{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptReportsGetReportsHistoryIDOKDocumentSummary is optional ReportsGetReportsHistoryIDOKDocumentSummary.
+type OptReportsGetReportsHistoryIDOKDocumentSummary struct {
+	Value ReportsGetReportsHistoryIDOKDocumentSummary
+	Set   bool
+}
+
+// IsSet returns true if OptReportsGetReportsHistoryIDOKDocumentSummary was set.
+func (o OptReportsGetReportsHistoryIDOKDocumentSummary) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptReportsGetReportsHistoryIDOKDocumentSummary) Reset() {
+	var v ReportsGetReportsHistoryIDOKDocumentSummary
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptReportsGetReportsHistoryIDOKDocumentSummary) SetTo(v ReportsGetReportsHistoryIDOKDocumentSummary) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptReportsGetReportsHistoryIDOKDocumentSummary) Get() (v ReportsGetReportsHistoryIDOKDocumentSummary, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptReportsGetReportsHistoryIDOKDocumentSummary) Or(d ReportsGetReportsHistoryIDOKDocumentSummary) ReportsGetReportsHistoryIDOKDocumentSummary {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptReportsGetReportsPdplOKReportApprovedOnly returns new OptReportsGetReportsPdplOKReportApprovedOnly with value set to v.
 func NewOptReportsGetReportsPdplOKReportApprovedOnly(v ReportsGetReportsPdplOKReportApprovedOnly) OptReportsGetReportsPdplOKReportApprovedOnly {
 	return OptReportsGetReportsPdplOKReportApprovedOnly{
@@ -177369,6 +178653,10732 @@ func (o OptString) Or(d string) string {
 		return v
 	}
 	return d
+}
+
+// The one report: a single template with section switches, its period, recipients and schedule.
+type ReportsGetReportsDefinitionOK struct {
+	ID         string                               `json:"id"`
+	Name       string                               `json:"name"`
+	Options    ReportsGetReportsDefinitionOKOptions `json:"options"`
+	Recipients []string                             `json:"recipients"`
+	// The owner key of its schedule in the shared schedules (GET/PUT /schedules/{owner_key}), reports.def:.
+	ScheduleKey string    `json:"schedule_key"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	UpdatedBy   string    `json:"updated_by"`
+}
+
+// GetID returns the value of ID.
+func (s *ReportsGetReportsDefinitionOK) GetID() string {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *ReportsGetReportsDefinitionOK) GetName() string {
+	return s.Name
+}
+
+// GetOptions returns the value of Options.
+func (s *ReportsGetReportsDefinitionOK) GetOptions() ReportsGetReportsDefinitionOKOptions {
+	return s.Options
+}
+
+// GetRecipients returns the value of Recipients.
+func (s *ReportsGetReportsDefinitionOK) GetRecipients() []string {
+	return s.Recipients
+}
+
+// GetScheduleKey returns the value of ScheduleKey.
+func (s *ReportsGetReportsDefinitionOK) GetScheduleKey() string {
+	return s.ScheduleKey
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *ReportsGetReportsDefinitionOK) GetUpdatedAt() time.Time {
+	return s.UpdatedAt
+}
+
+// GetUpdatedBy returns the value of UpdatedBy.
+func (s *ReportsGetReportsDefinitionOK) GetUpdatedBy() string {
+	return s.UpdatedBy
+}
+
+// SetID sets the value of ID.
+func (s *ReportsGetReportsDefinitionOK) SetID(val string) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *ReportsGetReportsDefinitionOK) SetName(val string) {
+	s.Name = val
+}
+
+// SetOptions sets the value of Options.
+func (s *ReportsGetReportsDefinitionOK) SetOptions(val ReportsGetReportsDefinitionOKOptions) {
+	s.Options = val
+}
+
+// SetRecipients sets the value of Recipients.
+func (s *ReportsGetReportsDefinitionOK) SetRecipients(val []string) {
+	s.Recipients = val
+}
+
+// SetScheduleKey sets the value of ScheduleKey.
+func (s *ReportsGetReportsDefinitionOK) SetScheduleKey(val string) {
+	s.ScheduleKey = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *ReportsGetReportsDefinitionOK) SetUpdatedAt(val time.Time) {
+	s.UpdatedAt = val
+}
+
+// SetUpdatedBy sets the value of UpdatedBy.
+func (s *ReportsGetReportsDefinitionOK) SetUpdatedBy(val string) {
+	s.UpdatedBy = val
+}
+
+type ReportsGetReportsDefinitionOKOptions struct {
+	Charts bool `json:"charts"`
+	// How Still open is grouped.
+	Grouping ReportsGetReportsDefinitionOKOptionsGrouping `json:"grouping"`
+	// Count and list devices not added yet (default on).
+	IncludeNotAdded bool `json:"include_not_added"`
+	// Count and list findings handled as not relevant (default off).
+	IncludeNotRelevant bool `json:"include_not_relevant"`
+	// Calendar_month = the last whole calendar month in the organisation time zone.
+	Period ReportsGetReportsDefinitionOKOptionsPeriod `json:"period"`
+	// Which sections the report has.
+	Sections ReportsGetReportsDefinitionOKOptionsSections `json:"sections"`
+}
+
+// GetCharts returns the value of Charts.
+func (s *ReportsGetReportsDefinitionOKOptions) GetCharts() bool {
+	return s.Charts
+}
+
+// GetGrouping returns the value of Grouping.
+func (s *ReportsGetReportsDefinitionOKOptions) GetGrouping() ReportsGetReportsDefinitionOKOptionsGrouping {
+	return s.Grouping
+}
+
+// GetIncludeNotAdded returns the value of IncludeNotAdded.
+func (s *ReportsGetReportsDefinitionOKOptions) GetIncludeNotAdded() bool {
+	return s.IncludeNotAdded
+}
+
+// GetIncludeNotRelevant returns the value of IncludeNotRelevant.
+func (s *ReportsGetReportsDefinitionOKOptions) GetIncludeNotRelevant() bool {
+	return s.IncludeNotRelevant
+}
+
+// GetPeriod returns the value of Period.
+func (s *ReportsGetReportsDefinitionOKOptions) GetPeriod() ReportsGetReportsDefinitionOKOptionsPeriod {
+	return s.Period
+}
+
+// GetSections returns the value of Sections.
+func (s *ReportsGetReportsDefinitionOKOptions) GetSections() ReportsGetReportsDefinitionOKOptionsSections {
+	return s.Sections
+}
+
+// SetCharts sets the value of Charts.
+func (s *ReportsGetReportsDefinitionOKOptions) SetCharts(val bool) {
+	s.Charts = val
+}
+
+// SetGrouping sets the value of Grouping.
+func (s *ReportsGetReportsDefinitionOKOptions) SetGrouping(val ReportsGetReportsDefinitionOKOptionsGrouping) {
+	s.Grouping = val
+}
+
+// SetIncludeNotAdded sets the value of IncludeNotAdded.
+func (s *ReportsGetReportsDefinitionOKOptions) SetIncludeNotAdded(val bool) {
+	s.IncludeNotAdded = val
+}
+
+// SetIncludeNotRelevant sets the value of IncludeNotRelevant.
+func (s *ReportsGetReportsDefinitionOKOptions) SetIncludeNotRelevant(val bool) {
+	s.IncludeNotRelevant = val
+}
+
+// SetPeriod sets the value of Period.
+func (s *ReportsGetReportsDefinitionOKOptions) SetPeriod(val ReportsGetReportsDefinitionOKOptionsPeriod) {
+	s.Period = val
+}
+
+// SetSections sets the value of Sections.
+func (s *ReportsGetReportsDefinitionOKOptions) SetSections(val ReportsGetReportsDefinitionOKOptionsSections) {
+	s.Sections = val
+}
+
+// How Still open is grouped.
+type ReportsGetReportsDefinitionOKOptionsGrouping string
+
+const (
+	ReportsGetReportsDefinitionOKOptionsGroupingDevice ReportsGetReportsDefinitionOKOptionsGrouping = "device"
+	ReportsGetReportsDefinitionOKOptionsGroupingCve    ReportsGetReportsDefinitionOKOptionsGrouping = "cve"
+)
+
+// AllValues returns all ReportsGetReportsDefinitionOKOptionsGrouping values.
+func (ReportsGetReportsDefinitionOKOptionsGrouping) AllValues() []ReportsGetReportsDefinitionOKOptionsGrouping {
+	return []ReportsGetReportsDefinitionOKOptionsGrouping{
+		ReportsGetReportsDefinitionOKOptionsGroupingDevice,
+		ReportsGetReportsDefinitionOKOptionsGroupingCve,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDefinitionOKOptionsGrouping) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDefinitionOKOptionsGroupingDevice:
+		return []byte(s), nil
+	case ReportsGetReportsDefinitionOKOptionsGroupingCve:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDefinitionOKOptionsGrouping) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDefinitionOKOptionsGrouping(data) {
+	case ReportsGetReportsDefinitionOKOptionsGroupingDevice:
+		*s = ReportsGetReportsDefinitionOKOptionsGroupingDevice
+		return nil
+	case ReportsGetReportsDefinitionOKOptionsGroupingCve:
+		*s = ReportsGetReportsDefinitionOKOptionsGroupingCve
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Calendar_month = the last whole calendar month in the organisation time zone.
+type ReportsGetReportsDefinitionOKOptionsPeriod string
+
+const (
+	ReportsGetReportsDefinitionOKOptionsPeriodLast7Days     ReportsGetReportsDefinitionOKOptionsPeriod = "last_7_days"
+	ReportsGetReportsDefinitionOKOptionsPeriodLast30Days    ReportsGetReportsDefinitionOKOptionsPeriod = "last_30_days"
+	ReportsGetReportsDefinitionOKOptionsPeriodCalendarMonth ReportsGetReportsDefinitionOKOptionsPeriod = "calendar_month"
+)
+
+// AllValues returns all ReportsGetReportsDefinitionOKOptionsPeriod values.
+func (ReportsGetReportsDefinitionOKOptionsPeriod) AllValues() []ReportsGetReportsDefinitionOKOptionsPeriod {
+	return []ReportsGetReportsDefinitionOKOptionsPeriod{
+		ReportsGetReportsDefinitionOKOptionsPeriodLast7Days,
+		ReportsGetReportsDefinitionOKOptionsPeriodLast30Days,
+		ReportsGetReportsDefinitionOKOptionsPeriodCalendarMonth,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDefinitionOKOptionsPeriod) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDefinitionOKOptionsPeriodLast7Days:
+		return []byte(s), nil
+	case ReportsGetReportsDefinitionOKOptionsPeriodLast30Days:
+		return []byte(s), nil
+	case ReportsGetReportsDefinitionOKOptionsPeriodCalendarMonth:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDefinitionOKOptionsPeriod) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDefinitionOKOptionsPeriod(data) {
+	case ReportsGetReportsDefinitionOKOptionsPeriodLast7Days:
+		*s = ReportsGetReportsDefinitionOKOptionsPeriodLast7Days
+		return nil
+	case ReportsGetReportsDefinitionOKOptionsPeriodLast30Days:
+		*s = ReportsGetReportsDefinitionOKOptionsPeriodLast30Days
+		return nil
+	case ReportsGetReportsDefinitionOKOptionsPeriodCalendarMonth:
+		*s = ReportsGetReportsDefinitionOKOptionsPeriodCalendarMonth
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Which sections the report has.
+type ReportsGetReportsDefinitionOKOptionsSections struct {
+	Coverage   bool `json:"coverage"`
+	Detections bool `json:"detections"`
+	Exposure   bool `json:"exposure"`
+	Handled    bool `json:"handled"`
+	New        bool `json:"new"`
+	Open       bool `json:"open"`
+	Summary    bool `json:"summary"`
+}
+
+// GetCoverage returns the value of Coverage.
+func (s *ReportsGetReportsDefinitionOKOptionsSections) GetCoverage() bool {
+	return s.Coverage
+}
+
+// GetDetections returns the value of Detections.
+func (s *ReportsGetReportsDefinitionOKOptionsSections) GetDetections() bool {
+	return s.Detections
+}
+
+// GetExposure returns the value of Exposure.
+func (s *ReportsGetReportsDefinitionOKOptionsSections) GetExposure() bool {
+	return s.Exposure
+}
+
+// GetHandled returns the value of Handled.
+func (s *ReportsGetReportsDefinitionOKOptionsSections) GetHandled() bool {
+	return s.Handled
+}
+
+// GetNew returns the value of New.
+func (s *ReportsGetReportsDefinitionOKOptionsSections) GetNew() bool {
+	return s.New
+}
+
+// GetOpen returns the value of Open.
+func (s *ReportsGetReportsDefinitionOKOptionsSections) GetOpen() bool {
+	return s.Open
+}
+
+// GetSummary returns the value of Summary.
+func (s *ReportsGetReportsDefinitionOKOptionsSections) GetSummary() bool {
+	return s.Summary
+}
+
+// SetCoverage sets the value of Coverage.
+func (s *ReportsGetReportsDefinitionOKOptionsSections) SetCoverage(val bool) {
+	s.Coverage = val
+}
+
+// SetDetections sets the value of Detections.
+func (s *ReportsGetReportsDefinitionOKOptionsSections) SetDetections(val bool) {
+	s.Detections = val
+}
+
+// SetExposure sets the value of Exposure.
+func (s *ReportsGetReportsDefinitionOKOptionsSections) SetExposure(val bool) {
+	s.Exposure = val
+}
+
+// SetHandled sets the value of Handled.
+func (s *ReportsGetReportsDefinitionOKOptionsSections) SetHandled(val bool) {
+	s.Handled = val
+}
+
+// SetNew sets the value of New.
+func (s *ReportsGetReportsDefinitionOKOptionsSections) SetNew(val bool) {
+	s.New = val
+}
+
+// SetOpen sets the value of Open.
+func (s *ReportsGetReportsDefinitionOKOptionsSections) SetOpen(val bool) {
+	s.Open = val
+}
+
+// SetSummary sets the value of Summary.
+func (s *ReportsGetReportsDefinitionOKOptionsSections) SetSummary(val bool) {
+	s.Summary = val
+}
+
+// The report as made at generated_at; a section switched off is absent.
+type ReportsGetReportsDocumentOK struct {
+	AiSummary    NilReportsGetReportsDocumentOKAiSummary  `json:"ai_summary"`
+	Coverage     OptReportsGetReportsDocumentOKCoverage   `json:"coverage"`
+	DefinitionID string                                   `json:"definition_id"`
+	Detections   OptReportsGetReportsDocumentOKDetections `json:"detections"`
+	Exposure     OptReportsGetReportsDocumentOKExposure   `json:"exposure"`
+	GeneratedAt  time.Time                                `json:"generated_at"`
+	Handled      OptReportsGetReportsDocumentOKHandled    `json:"handled"`
+	New          OptReportsGetReportsDocumentOKNew        `json:"new"`
+	Open         OptReportsGetReportsDocumentOKOpen       `json:"open"`
+	// The options the document was made with.
+	Options ReportsGetReportsDocumentOKOptions    `json:"options"`
+	Period  ReportsGetReportsDocumentOKPeriod     `json:"period"`
+	Summary OptReportsGetReportsDocumentOKSummary `json:"summary"`
+	Title   string                                `json:"title"`
+}
+
+// GetAiSummary returns the value of AiSummary.
+func (s *ReportsGetReportsDocumentOK) GetAiSummary() NilReportsGetReportsDocumentOKAiSummary {
+	return s.AiSummary
+}
+
+// GetCoverage returns the value of Coverage.
+func (s *ReportsGetReportsDocumentOK) GetCoverage() OptReportsGetReportsDocumentOKCoverage {
+	return s.Coverage
+}
+
+// GetDefinitionID returns the value of DefinitionID.
+func (s *ReportsGetReportsDocumentOK) GetDefinitionID() string {
+	return s.DefinitionID
+}
+
+// GetDetections returns the value of Detections.
+func (s *ReportsGetReportsDocumentOK) GetDetections() OptReportsGetReportsDocumentOKDetections {
+	return s.Detections
+}
+
+// GetExposure returns the value of Exposure.
+func (s *ReportsGetReportsDocumentOK) GetExposure() OptReportsGetReportsDocumentOKExposure {
+	return s.Exposure
+}
+
+// GetGeneratedAt returns the value of GeneratedAt.
+func (s *ReportsGetReportsDocumentOK) GetGeneratedAt() time.Time {
+	return s.GeneratedAt
+}
+
+// GetHandled returns the value of Handled.
+func (s *ReportsGetReportsDocumentOK) GetHandled() OptReportsGetReportsDocumentOKHandled {
+	return s.Handled
+}
+
+// GetNew returns the value of New.
+func (s *ReportsGetReportsDocumentOK) GetNew() OptReportsGetReportsDocumentOKNew {
+	return s.New
+}
+
+// GetOpen returns the value of Open.
+func (s *ReportsGetReportsDocumentOK) GetOpen() OptReportsGetReportsDocumentOKOpen {
+	return s.Open
+}
+
+// GetOptions returns the value of Options.
+func (s *ReportsGetReportsDocumentOK) GetOptions() ReportsGetReportsDocumentOKOptions {
+	return s.Options
+}
+
+// GetPeriod returns the value of Period.
+func (s *ReportsGetReportsDocumentOK) GetPeriod() ReportsGetReportsDocumentOKPeriod {
+	return s.Period
+}
+
+// GetSummary returns the value of Summary.
+func (s *ReportsGetReportsDocumentOK) GetSummary() OptReportsGetReportsDocumentOKSummary {
+	return s.Summary
+}
+
+// GetTitle returns the value of Title.
+func (s *ReportsGetReportsDocumentOK) GetTitle() string {
+	return s.Title
+}
+
+// SetAiSummary sets the value of AiSummary.
+func (s *ReportsGetReportsDocumentOK) SetAiSummary(val NilReportsGetReportsDocumentOKAiSummary) {
+	s.AiSummary = val
+}
+
+// SetCoverage sets the value of Coverage.
+func (s *ReportsGetReportsDocumentOK) SetCoverage(val OptReportsGetReportsDocumentOKCoverage) {
+	s.Coverage = val
+}
+
+// SetDefinitionID sets the value of DefinitionID.
+func (s *ReportsGetReportsDocumentOK) SetDefinitionID(val string) {
+	s.DefinitionID = val
+}
+
+// SetDetections sets the value of Detections.
+func (s *ReportsGetReportsDocumentOK) SetDetections(val OptReportsGetReportsDocumentOKDetections) {
+	s.Detections = val
+}
+
+// SetExposure sets the value of Exposure.
+func (s *ReportsGetReportsDocumentOK) SetExposure(val OptReportsGetReportsDocumentOKExposure) {
+	s.Exposure = val
+}
+
+// SetGeneratedAt sets the value of GeneratedAt.
+func (s *ReportsGetReportsDocumentOK) SetGeneratedAt(val time.Time) {
+	s.GeneratedAt = val
+}
+
+// SetHandled sets the value of Handled.
+func (s *ReportsGetReportsDocumentOK) SetHandled(val OptReportsGetReportsDocumentOKHandled) {
+	s.Handled = val
+}
+
+// SetNew sets the value of New.
+func (s *ReportsGetReportsDocumentOK) SetNew(val OptReportsGetReportsDocumentOKNew) {
+	s.New = val
+}
+
+// SetOpen sets the value of Open.
+func (s *ReportsGetReportsDocumentOK) SetOpen(val OptReportsGetReportsDocumentOKOpen) {
+	s.Open = val
+}
+
+// SetOptions sets the value of Options.
+func (s *ReportsGetReportsDocumentOK) SetOptions(val ReportsGetReportsDocumentOKOptions) {
+	s.Options = val
+}
+
+// SetPeriod sets the value of Period.
+func (s *ReportsGetReportsDocumentOK) SetPeriod(val ReportsGetReportsDocumentOKPeriod) {
+	s.Period = val
+}
+
+// SetSummary sets the value of Summary.
+func (s *ReportsGetReportsDocumentOK) SetSummary(val OptReportsGetReportsDocumentOKSummary) {
+	s.Summary = val
+}
+
+// SetTitle sets the value of Title.
+func (s *ReportsGetReportsDocumentOK) SetTitle(val string) {
+	s.Title = val
+}
+
+type ReportsGetReportsDocumentOKAiSummary struct {
+	GeneratedAt time.Time `json:"generated_at"`
+	Model       string    `json:"model"`
+	Paragraphs  []string  `json:"paragraphs"`
+	// AI profile that answered.
+	Profile OptString                                  `json:"profile"`
+	Tokens  ReportsGetReportsDocumentOKAiSummaryTokens `json:"tokens"`
+}
+
+// GetGeneratedAt returns the value of GeneratedAt.
+func (s *ReportsGetReportsDocumentOKAiSummary) GetGeneratedAt() time.Time {
+	return s.GeneratedAt
+}
+
+// GetModel returns the value of Model.
+func (s *ReportsGetReportsDocumentOKAiSummary) GetModel() string {
+	return s.Model
+}
+
+// GetParagraphs returns the value of Paragraphs.
+func (s *ReportsGetReportsDocumentOKAiSummary) GetParagraphs() []string {
+	return s.Paragraphs
+}
+
+// GetProfile returns the value of Profile.
+func (s *ReportsGetReportsDocumentOKAiSummary) GetProfile() OptString {
+	return s.Profile
+}
+
+// GetTokens returns the value of Tokens.
+func (s *ReportsGetReportsDocumentOKAiSummary) GetTokens() ReportsGetReportsDocumentOKAiSummaryTokens {
+	return s.Tokens
+}
+
+// SetGeneratedAt sets the value of GeneratedAt.
+func (s *ReportsGetReportsDocumentOKAiSummary) SetGeneratedAt(val time.Time) {
+	s.GeneratedAt = val
+}
+
+// SetModel sets the value of Model.
+func (s *ReportsGetReportsDocumentOKAiSummary) SetModel(val string) {
+	s.Model = val
+}
+
+// SetParagraphs sets the value of Paragraphs.
+func (s *ReportsGetReportsDocumentOKAiSummary) SetParagraphs(val []string) {
+	s.Paragraphs = val
+}
+
+// SetProfile sets the value of Profile.
+func (s *ReportsGetReportsDocumentOKAiSummary) SetProfile(val OptString) {
+	s.Profile = val
+}
+
+// SetTokens sets the value of Tokens.
+func (s *ReportsGetReportsDocumentOKAiSummary) SetTokens(val ReportsGetReportsDocumentOKAiSummaryTokens) {
+	s.Tokens = val
+}
+
+type ReportsGetReportsDocumentOKAiSummaryTokens struct {
+	Input  float64 `json:"input"`
+	Output float64 `json:"output"`
+}
+
+// GetInput returns the value of Input.
+func (s *ReportsGetReportsDocumentOKAiSummaryTokens) GetInput() float64 {
+	return s.Input
+}
+
+// GetOutput returns the value of Output.
+func (s *ReportsGetReportsDocumentOKAiSummaryTokens) GetOutput() float64 {
+	return s.Output
+}
+
+// SetInput sets the value of Input.
+func (s *ReportsGetReportsDocumentOKAiSummaryTokens) SetInput(val float64) {
+	s.Input = val
+}
+
+// SetOutput sets the value of Output.
+func (s *ReportsGetReportsDocumentOKAiSummaryTokens) SetOutput(val float64) {
+	s.Output = val
+}
+
+type ReportsGetReportsDocumentOKCoverage struct {
+	Devices   int                                              `json:"devices"`
+	Feeds     []ReportsGetReportsDocumentOKCoverageFeedsItem   `json:"feeds"`
+	NotAdded  int                                              `json:"not_added"`
+	Sources   []ReportsGetReportsDocumentOKCoverageSourcesItem `json:"sources"`
+	WithAgent int                                              `json:"with_agent"`
+}
+
+// GetDevices returns the value of Devices.
+func (s *ReportsGetReportsDocumentOKCoverage) GetDevices() int {
+	return s.Devices
+}
+
+// GetFeeds returns the value of Feeds.
+func (s *ReportsGetReportsDocumentOKCoverage) GetFeeds() []ReportsGetReportsDocumentOKCoverageFeedsItem {
+	return s.Feeds
+}
+
+// GetNotAdded returns the value of NotAdded.
+func (s *ReportsGetReportsDocumentOKCoverage) GetNotAdded() int {
+	return s.NotAdded
+}
+
+// GetSources returns the value of Sources.
+func (s *ReportsGetReportsDocumentOKCoverage) GetSources() []ReportsGetReportsDocumentOKCoverageSourcesItem {
+	return s.Sources
+}
+
+// GetWithAgent returns the value of WithAgent.
+func (s *ReportsGetReportsDocumentOKCoverage) GetWithAgent() int {
+	return s.WithAgent
+}
+
+// SetDevices sets the value of Devices.
+func (s *ReportsGetReportsDocumentOKCoverage) SetDevices(val int) {
+	s.Devices = val
+}
+
+// SetFeeds sets the value of Feeds.
+func (s *ReportsGetReportsDocumentOKCoverage) SetFeeds(val []ReportsGetReportsDocumentOKCoverageFeedsItem) {
+	s.Feeds = val
+}
+
+// SetNotAdded sets the value of NotAdded.
+func (s *ReportsGetReportsDocumentOKCoverage) SetNotAdded(val int) {
+	s.NotAdded = val
+}
+
+// SetSources sets the value of Sources.
+func (s *ReportsGetReportsDocumentOKCoverage) SetSources(val []ReportsGetReportsDocumentOKCoverageSourcesItem) {
+	s.Sources = val
+}
+
+// SetWithAgent sets the value of WithAgent.
+func (s *ReportsGetReportsDocumentOKCoverage) SetWithAgent(val int) {
+	s.WithAgent = val
+}
+
+type ReportsGetReportsDocumentOKCoverageFeedsItem struct {
+	// The feed id: cisa-kev, vulncheck-kev, nvd, or a custom feed id.
+	ID       string      `json:"id"`
+	LastOkAt NilDateTime `json:"last_ok_at"`
+	Name     string      `json:"name"`
+	Stale    bool        `json:"stale"`
+}
+
+// GetID returns the value of ID.
+func (s *ReportsGetReportsDocumentOKCoverageFeedsItem) GetID() string {
+	return s.ID
+}
+
+// GetLastOkAt returns the value of LastOkAt.
+func (s *ReportsGetReportsDocumentOKCoverageFeedsItem) GetLastOkAt() NilDateTime {
+	return s.LastOkAt
+}
+
+// GetName returns the value of Name.
+func (s *ReportsGetReportsDocumentOKCoverageFeedsItem) GetName() string {
+	return s.Name
+}
+
+// GetStale returns the value of Stale.
+func (s *ReportsGetReportsDocumentOKCoverageFeedsItem) GetStale() bool {
+	return s.Stale
+}
+
+// SetID sets the value of ID.
+func (s *ReportsGetReportsDocumentOKCoverageFeedsItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetLastOkAt sets the value of LastOkAt.
+func (s *ReportsGetReportsDocumentOKCoverageFeedsItem) SetLastOkAt(val NilDateTime) {
+	s.LastOkAt = val
+}
+
+// SetName sets the value of Name.
+func (s *ReportsGetReportsDocumentOKCoverageFeedsItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetStale sets the value of Stale.
+func (s *ReportsGetReportsDocumentOKCoverageFeedsItem) SetStale(val bool) {
+	s.Stale = val
+}
+
+type ReportsGetReportsDocumentOKCoverageSourcesItem struct {
+	// The module that sees it: sensor-passive, sensor-active, agent-intake, honeypot, logs, exposure, ids.
+	ID string `json:"id"`
+	On bool   `json:"on"`
+}
+
+// GetID returns the value of ID.
+func (s *ReportsGetReportsDocumentOKCoverageSourcesItem) GetID() string {
+	return s.ID
+}
+
+// GetOn returns the value of On.
+func (s *ReportsGetReportsDocumentOKCoverageSourcesItem) GetOn() bool {
+	return s.On
+}
+
+// SetID sets the value of ID.
+func (s *ReportsGetReportsDocumentOKCoverageSourcesItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetOn sets the value of On.
+func (s *ReportsGetReportsDocumentOKCoverageSourcesItem) SetOn(val bool) {
+	s.On = val
+}
+
+type ReportsGetReportsDocumentOKDetections struct {
+	ByKind []ReportsGetReportsDocumentOKDetectionsByKindItem `json:"by_kind"`
+	// False when detection is off.
+	ModuleOn bool                                           `json:"module_on"`
+	Top      []ReportsGetReportsDocumentOKDetectionsTopItem `json:"top"`
+}
+
+// GetByKind returns the value of ByKind.
+func (s *ReportsGetReportsDocumentOKDetections) GetByKind() []ReportsGetReportsDocumentOKDetectionsByKindItem {
+	return s.ByKind
+}
+
+// GetModuleOn returns the value of ModuleOn.
+func (s *ReportsGetReportsDocumentOKDetections) GetModuleOn() bool {
+	return s.ModuleOn
+}
+
+// GetTop returns the value of Top.
+func (s *ReportsGetReportsDocumentOKDetections) GetTop() []ReportsGetReportsDocumentOKDetectionsTopItem {
+	return s.Top
+}
+
+// SetByKind sets the value of ByKind.
+func (s *ReportsGetReportsDocumentOKDetections) SetByKind(val []ReportsGetReportsDocumentOKDetectionsByKindItem) {
+	s.ByKind = val
+}
+
+// SetModuleOn sets the value of ModuleOn.
+func (s *ReportsGetReportsDocumentOKDetections) SetModuleOn(val bool) {
+	s.ModuleOn = val
+}
+
+// SetTop sets the value of Top.
+func (s *ReportsGetReportsDocumentOKDetections) SetTop(val []ReportsGetReportsDocumentOKDetectionsTopItem) {
+	s.Top = val
+}
+
+type ReportsGetReportsDocumentOKDetectionsByKindItem struct {
+	Kind   ReportsGetReportsDocumentOKDetectionsByKindItemKind `json:"kind"`
+	LastAt time.Time                                           `json:"last_at"`
+	N      int                                                 `json:"n"`
+}
+
+// GetKind returns the value of Kind.
+func (s *ReportsGetReportsDocumentOKDetectionsByKindItem) GetKind() ReportsGetReportsDocumentOKDetectionsByKindItemKind {
+	return s.Kind
+}
+
+// GetLastAt returns the value of LastAt.
+func (s *ReportsGetReportsDocumentOKDetectionsByKindItem) GetLastAt() time.Time {
+	return s.LastAt
+}
+
+// GetN returns the value of N.
+func (s *ReportsGetReportsDocumentOKDetectionsByKindItem) GetN() int {
+	return s.N
+}
+
+// SetKind sets the value of Kind.
+func (s *ReportsGetReportsDocumentOKDetectionsByKindItem) SetKind(val ReportsGetReportsDocumentOKDetectionsByKindItemKind) {
+	s.Kind = val
+}
+
+// SetLastAt sets the value of LastAt.
+func (s *ReportsGetReportsDocumentOKDetectionsByKindItem) SetLastAt(val time.Time) {
+	s.LastAt = val
+}
+
+// SetN sets the value of N.
+func (s *ReportsGetReportsDocumentOKDetectionsByKindItem) SetN(val int) {
+	s.N = val
+}
+
+type ReportsGetReportsDocumentOKDetectionsByKindItemKind string
+
+const (
+	ReportsGetReportsDocumentOKDetectionsByKindItemKindTrap          ReportsGetReportsDocumentOKDetectionsByKindItemKind = "trap"
+	ReportsGetReportsDocumentOKDetectionsByKindItemKindBadAddress    ReportsGetReportsDocumentOKDetectionsByKindItemKind = "bad_address"
+	ReportsGetReportsDocumentOKDetectionsByKindItemKindLogAnomaly    ReportsGetReportsDocumentOKDetectionsByKindItemKind = "log_anomaly"
+	ReportsGetReportsDocumentOKDetectionsByKindItemKindUnknownDevice ReportsGetReportsDocumentOKDetectionsByKindItemKind = "unknown_device"
+	ReportsGetReportsDocumentOKDetectionsByKindItemKindIntrusion     ReportsGetReportsDocumentOKDetectionsByKindItemKind = "intrusion"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKDetectionsByKindItemKind values.
+func (ReportsGetReportsDocumentOKDetectionsByKindItemKind) AllValues() []ReportsGetReportsDocumentOKDetectionsByKindItemKind {
+	return []ReportsGetReportsDocumentOKDetectionsByKindItemKind{
+		ReportsGetReportsDocumentOKDetectionsByKindItemKindTrap,
+		ReportsGetReportsDocumentOKDetectionsByKindItemKindBadAddress,
+		ReportsGetReportsDocumentOKDetectionsByKindItemKindLogAnomaly,
+		ReportsGetReportsDocumentOKDetectionsByKindItemKindUnknownDevice,
+		ReportsGetReportsDocumentOKDetectionsByKindItemKindIntrusion,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKDetectionsByKindItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKDetectionsByKindItemKindTrap:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKDetectionsByKindItemKindBadAddress:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKDetectionsByKindItemKindLogAnomaly:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKDetectionsByKindItemKindUnknownDevice:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKDetectionsByKindItemKindIntrusion:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKDetectionsByKindItemKind) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKDetectionsByKindItemKind(data) {
+	case ReportsGetReportsDocumentOKDetectionsByKindItemKindTrap:
+		*s = ReportsGetReportsDocumentOKDetectionsByKindItemKindTrap
+		return nil
+	case ReportsGetReportsDocumentOKDetectionsByKindItemKindBadAddress:
+		*s = ReportsGetReportsDocumentOKDetectionsByKindItemKindBadAddress
+		return nil
+	case ReportsGetReportsDocumentOKDetectionsByKindItemKindLogAnomaly:
+		*s = ReportsGetReportsDocumentOKDetectionsByKindItemKindLogAnomaly
+		return nil
+	case ReportsGetReportsDocumentOKDetectionsByKindItemKindUnknownDevice:
+		*s = ReportsGetReportsDocumentOKDetectionsByKindItemKindUnknownDevice
+		return nil
+	case ReportsGetReportsDocumentOKDetectionsByKindItemKindIntrusion:
+		*s = ReportsGetReportsDocumentOKDetectionsByKindItemKindIntrusion
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsDocumentOKDetectionsTopItem struct {
+	At       time.Time                                             `json:"at"`
+	Device   NilReportsGetReportsDocumentOKDetectionsTopItemDevice `json:"device"`
+	Kind     ReportsGetReportsDocumentOKDetectionsTopItemKind      `json:"kind"`
+	Severity ReportsGetReportsDocumentOKDetectionsTopItemSeverity  `json:"severity"`
+	Title    string                                                `json:"title"`
+}
+
+// GetAt returns the value of At.
+func (s *ReportsGetReportsDocumentOKDetectionsTopItem) GetAt() time.Time {
+	return s.At
+}
+
+// GetDevice returns the value of Device.
+func (s *ReportsGetReportsDocumentOKDetectionsTopItem) GetDevice() NilReportsGetReportsDocumentOKDetectionsTopItemDevice {
+	return s.Device
+}
+
+// GetKind returns the value of Kind.
+func (s *ReportsGetReportsDocumentOKDetectionsTopItem) GetKind() ReportsGetReportsDocumentOKDetectionsTopItemKind {
+	return s.Kind
+}
+
+// GetSeverity returns the value of Severity.
+func (s *ReportsGetReportsDocumentOKDetectionsTopItem) GetSeverity() ReportsGetReportsDocumentOKDetectionsTopItemSeverity {
+	return s.Severity
+}
+
+// GetTitle returns the value of Title.
+func (s *ReportsGetReportsDocumentOKDetectionsTopItem) GetTitle() string {
+	return s.Title
+}
+
+// SetAt sets the value of At.
+func (s *ReportsGetReportsDocumentOKDetectionsTopItem) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetDevice sets the value of Device.
+func (s *ReportsGetReportsDocumentOKDetectionsTopItem) SetDevice(val NilReportsGetReportsDocumentOKDetectionsTopItemDevice) {
+	s.Device = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ReportsGetReportsDocumentOKDetectionsTopItem) SetKind(val ReportsGetReportsDocumentOKDetectionsTopItemKind) {
+	s.Kind = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *ReportsGetReportsDocumentOKDetectionsTopItem) SetSeverity(val ReportsGetReportsDocumentOKDetectionsTopItemSeverity) {
+	s.Severity = val
+}
+
+// SetTitle sets the value of Title.
+func (s *ReportsGetReportsDocumentOKDetectionsTopItem) SetTitle(val string) {
+	s.Title = val
+}
+
+type ReportsGetReportsDocumentOKDetectionsTopItemDevice struct {
+	// False = "Not added yet".
+	Added bool `json:"added"`
+	// The device id when the report was made; the device may be gone since.
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// GetAdded returns the value of Added.
+func (s *ReportsGetReportsDocumentOKDetectionsTopItemDevice) GetAdded() bool {
+	return s.Added
+}
+
+// GetID returns the value of ID.
+func (s *ReportsGetReportsDocumentOKDetectionsTopItemDevice) GetID() string {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *ReportsGetReportsDocumentOKDetectionsTopItemDevice) GetName() string {
+	return s.Name
+}
+
+// SetAdded sets the value of Added.
+func (s *ReportsGetReportsDocumentOKDetectionsTopItemDevice) SetAdded(val bool) {
+	s.Added = val
+}
+
+// SetID sets the value of ID.
+func (s *ReportsGetReportsDocumentOKDetectionsTopItemDevice) SetID(val string) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *ReportsGetReportsDocumentOKDetectionsTopItemDevice) SetName(val string) {
+	s.Name = val
+}
+
+type ReportsGetReportsDocumentOKDetectionsTopItemKind string
+
+const (
+	ReportsGetReportsDocumentOKDetectionsTopItemKindTrap          ReportsGetReportsDocumentOKDetectionsTopItemKind = "trap"
+	ReportsGetReportsDocumentOKDetectionsTopItemKindBadAddress    ReportsGetReportsDocumentOKDetectionsTopItemKind = "bad_address"
+	ReportsGetReportsDocumentOKDetectionsTopItemKindLogAnomaly    ReportsGetReportsDocumentOKDetectionsTopItemKind = "log_anomaly"
+	ReportsGetReportsDocumentOKDetectionsTopItemKindUnknownDevice ReportsGetReportsDocumentOKDetectionsTopItemKind = "unknown_device"
+	ReportsGetReportsDocumentOKDetectionsTopItemKindIntrusion     ReportsGetReportsDocumentOKDetectionsTopItemKind = "intrusion"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKDetectionsTopItemKind values.
+func (ReportsGetReportsDocumentOKDetectionsTopItemKind) AllValues() []ReportsGetReportsDocumentOKDetectionsTopItemKind {
+	return []ReportsGetReportsDocumentOKDetectionsTopItemKind{
+		ReportsGetReportsDocumentOKDetectionsTopItemKindTrap,
+		ReportsGetReportsDocumentOKDetectionsTopItemKindBadAddress,
+		ReportsGetReportsDocumentOKDetectionsTopItemKindLogAnomaly,
+		ReportsGetReportsDocumentOKDetectionsTopItemKindUnknownDevice,
+		ReportsGetReportsDocumentOKDetectionsTopItemKindIntrusion,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKDetectionsTopItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKDetectionsTopItemKindTrap:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKDetectionsTopItemKindBadAddress:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKDetectionsTopItemKindLogAnomaly:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKDetectionsTopItemKindUnknownDevice:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKDetectionsTopItemKindIntrusion:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKDetectionsTopItemKind) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKDetectionsTopItemKind(data) {
+	case ReportsGetReportsDocumentOKDetectionsTopItemKindTrap:
+		*s = ReportsGetReportsDocumentOKDetectionsTopItemKindTrap
+		return nil
+	case ReportsGetReportsDocumentOKDetectionsTopItemKindBadAddress:
+		*s = ReportsGetReportsDocumentOKDetectionsTopItemKindBadAddress
+		return nil
+	case ReportsGetReportsDocumentOKDetectionsTopItemKindLogAnomaly:
+		*s = ReportsGetReportsDocumentOKDetectionsTopItemKindLogAnomaly
+		return nil
+	case ReportsGetReportsDocumentOKDetectionsTopItemKindUnknownDevice:
+		*s = ReportsGetReportsDocumentOKDetectionsTopItemKindUnknownDevice
+		return nil
+	case ReportsGetReportsDocumentOKDetectionsTopItemKindIntrusion:
+		*s = ReportsGetReportsDocumentOKDetectionsTopItemKindIntrusion
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsDocumentOKDetectionsTopItemSeverity string
+
+const (
+	ReportsGetReportsDocumentOKDetectionsTopItemSeverityCritical ReportsGetReportsDocumentOKDetectionsTopItemSeverity = "critical"
+	ReportsGetReportsDocumentOKDetectionsTopItemSeverityHigh     ReportsGetReportsDocumentOKDetectionsTopItemSeverity = "high"
+	ReportsGetReportsDocumentOKDetectionsTopItemSeverityMedium   ReportsGetReportsDocumentOKDetectionsTopItemSeverity = "medium"
+	ReportsGetReportsDocumentOKDetectionsTopItemSeverityLow      ReportsGetReportsDocumentOKDetectionsTopItemSeverity = "low"
+	ReportsGetReportsDocumentOKDetectionsTopItemSeverityInfo     ReportsGetReportsDocumentOKDetectionsTopItemSeverity = "info"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKDetectionsTopItemSeverity values.
+func (ReportsGetReportsDocumentOKDetectionsTopItemSeverity) AllValues() []ReportsGetReportsDocumentOKDetectionsTopItemSeverity {
+	return []ReportsGetReportsDocumentOKDetectionsTopItemSeverity{
+		ReportsGetReportsDocumentOKDetectionsTopItemSeverityCritical,
+		ReportsGetReportsDocumentOKDetectionsTopItemSeverityHigh,
+		ReportsGetReportsDocumentOKDetectionsTopItemSeverityMedium,
+		ReportsGetReportsDocumentOKDetectionsTopItemSeverityLow,
+		ReportsGetReportsDocumentOKDetectionsTopItemSeverityInfo,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKDetectionsTopItemSeverity) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKDetectionsTopItemSeverityCritical:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKDetectionsTopItemSeverityHigh:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKDetectionsTopItemSeverityMedium:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKDetectionsTopItemSeverityLow:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKDetectionsTopItemSeverityInfo:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKDetectionsTopItemSeverity) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKDetectionsTopItemSeverity(data) {
+	case ReportsGetReportsDocumentOKDetectionsTopItemSeverityCritical:
+		*s = ReportsGetReportsDocumentOKDetectionsTopItemSeverityCritical
+		return nil
+	case ReportsGetReportsDocumentOKDetectionsTopItemSeverityHigh:
+		*s = ReportsGetReportsDocumentOKDetectionsTopItemSeverityHigh
+		return nil
+	case ReportsGetReportsDocumentOKDetectionsTopItemSeverityMedium:
+		*s = ReportsGetReportsDocumentOKDetectionsTopItemSeverityMedium
+		return nil
+	case ReportsGetReportsDocumentOKDetectionsTopItemSeverityLow:
+		*s = ReportsGetReportsDocumentOKDetectionsTopItemSeverityLow
+		return nil
+	case ReportsGetReportsDocumentOKDetectionsTopItemSeverityInfo:
+		*s = ReportsGetReportsDocumentOKDetectionsTopItemSeverityInfo
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsDocumentOKExposure struct {
+	// False when external exposure is off: the section says so instead of showing nothing.
+	ModuleOn bool                                             `json:"module_on"`
+	Targets  []ReportsGetReportsDocumentOKExposureTargetsItem `json:"targets"`
+}
+
+// GetModuleOn returns the value of ModuleOn.
+func (s *ReportsGetReportsDocumentOKExposure) GetModuleOn() bool {
+	return s.ModuleOn
+}
+
+// GetTargets returns the value of Targets.
+func (s *ReportsGetReportsDocumentOKExposure) GetTargets() []ReportsGetReportsDocumentOKExposureTargetsItem {
+	return s.Targets
+}
+
+// SetModuleOn sets the value of ModuleOn.
+func (s *ReportsGetReportsDocumentOKExposure) SetModuleOn(val bool) {
+	s.ModuleOn = val
+}
+
+// SetTargets sets the value of Targets.
+func (s *ReportsGetReportsDocumentOKExposure) SetTargets(val []ReportsGetReportsDocumentOKExposureTargetsItem) {
+	s.Targets = val
+}
+
+type ReportsGetReportsDocumentOKExposureTargetsItem struct {
+	Issues     []ReportsGetReportsDocumentOKExposureTargetsItemIssuesItem `json:"issues"`
+	Kind       ReportsGetReportsDocumentOKExposureTargetsItemKind         `json:"kind"`
+	LastScanAt NilDateTime                                                `json:"last_scan_at"`
+	// The apex domain this target sits under.
+	Parent NilString `json:"parent"`
+	// Proven: its own proof holds; covered: the proof of a parent domain covers it; missing; expired;
+	// not_current.
+	Proof ReportsGetReportsDocumentOKExposureTargetsItemProof `json:"proof"`
+	// Open ports, then those closed in the period.
+	Services []ReportsGetReportsDocumentOKExposureTargetsItemServicesItem `json:"services"`
+	TargetID string                                                       `json:"target_id"`
+	Value    string                                                       `json:"value"`
+}
+
+// GetIssues returns the value of Issues.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItem) GetIssues() []ReportsGetReportsDocumentOKExposureTargetsItemIssuesItem {
+	return s.Issues
+}
+
+// GetKind returns the value of Kind.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItem) GetKind() ReportsGetReportsDocumentOKExposureTargetsItemKind {
+	return s.Kind
+}
+
+// GetLastScanAt returns the value of LastScanAt.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItem) GetLastScanAt() NilDateTime {
+	return s.LastScanAt
+}
+
+// GetParent returns the value of Parent.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItem) GetParent() NilString {
+	return s.Parent
+}
+
+// GetProof returns the value of Proof.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItem) GetProof() ReportsGetReportsDocumentOKExposureTargetsItemProof {
+	return s.Proof
+}
+
+// GetServices returns the value of Services.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItem) GetServices() []ReportsGetReportsDocumentOKExposureTargetsItemServicesItem {
+	return s.Services
+}
+
+// GetTargetID returns the value of TargetID.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItem) GetTargetID() string {
+	return s.TargetID
+}
+
+// GetValue returns the value of Value.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItem) GetValue() string {
+	return s.Value
+}
+
+// SetIssues sets the value of Issues.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItem) SetIssues(val []ReportsGetReportsDocumentOKExposureTargetsItemIssuesItem) {
+	s.Issues = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItem) SetKind(val ReportsGetReportsDocumentOKExposureTargetsItemKind) {
+	s.Kind = val
+}
+
+// SetLastScanAt sets the value of LastScanAt.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItem) SetLastScanAt(val NilDateTime) {
+	s.LastScanAt = val
+}
+
+// SetParent sets the value of Parent.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItem) SetParent(val NilString) {
+	s.Parent = val
+}
+
+// SetProof sets the value of Proof.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItem) SetProof(val ReportsGetReportsDocumentOKExposureTargetsItemProof) {
+	s.Proof = val
+}
+
+// SetServices sets the value of Services.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItem) SetServices(val []ReportsGetReportsDocumentOKExposureTargetsItemServicesItem) {
+	s.Services = val
+}
+
+// SetTargetID sets the value of TargetID.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItem) SetTargetID(val string) {
+	s.TargetID = val
+}
+
+// SetValue sets the value of Value.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItem) SetValue(val string) {
+	s.Value = val
+}
+
+type ReportsGetReportsDocumentOKExposureTargetsItemIssuesItem struct {
+	Engine   ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngine   `json:"engine"`
+	New      int                                                              `json:"new"`
+	Open     int                                                              `json:"open"`
+	Severity ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverity `json:"severity"`
+}
+
+// GetEngine returns the value of Engine.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItemIssuesItem) GetEngine() ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngine {
+	return s.Engine
+}
+
+// GetNew returns the value of New.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItemIssuesItem) GetNew() int {
+	return s.New
+}
+
+// GetOpen returns the value of Open.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItemIssuesItem) GetOpen() int {
+	return s.Open
+}
+
+// GetSeverity returns the value of Severity.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItemIssuesItem) GetSeverity() ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverity {
+	return s.Severity
+}
+
+// SetEngine sets the value of Engine.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItemIssuesItem) SetEngine(val ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngine) {
+	s.Engine = val
+}
+
+// SetNew sets the value of New.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItemIssuesItem) SetNew(val int) {
+	s.New = val
+}
+
+// SetOpen sets the value of Open.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItemIssuesItem) SetOpen(val int) {
+	s.Open = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItemIssuesItem) SetSeverity(val ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverity) {
+	s.Severity = val
+}
+
+type ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngine string
+
+const (
+	ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineSurface ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngine = "surface"
+	ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineNuclei  ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngine = "nuclei"
+	ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineZap     ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngine = "zap"
+	ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineOpenvas ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngine = "openvas"
+	ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineMatch   ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngine = "match"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngine values.
+func (ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngine) AllValues() []ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngine {
+	return []ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngine{
+		ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineSurface,
+		ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineNuclei,
+		ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineZap,
+		ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineOpenvas,
+		ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineMatch,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngine) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineSurface:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineNuclei:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineZap:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineOpenvas:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineMatch:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngine) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngine(data) {
+	case ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineSurface:
+		*s = ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineSurface
+		return nil
+	case ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineNuclei:
+		*s = ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineNuclei
+		return nil
+	case ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineZap:
+		*s = ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineZap
+		return nil
+	case ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineOpenvas:
+		*s = ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineOpenvas
+		return nil
+	case ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineMatch:
+		*s = ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineMatch
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverity string
+
+const (
+	ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverityCritical ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverity = "critical"
+	ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverityHigh     ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverity = "high"
+	ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverityMedium   ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverity = "medium"
+	ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverityLow      ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverity = "low"
+	ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverityInfo     ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverity = "info"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverity values.
+func (ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverity) AllValues() []ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverity {
+	return []ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverity{
+		ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverityCritical,
+		ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverityHigh,
+		ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverityMedium,
+		ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverityLow,
+		ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverityInfo,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverity) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverityCritical:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverityHigh:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverityMedium:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverityLow:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverityInfo:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverity) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverity(data) {
+	case ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverityCritical:
+		*s = ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverityCritical
+		return nil
+	case ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverityHigh:
+		*s = ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverityHigh
+		return nil
+	case ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverityMedium:
+		*s = ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverityMedium
+		return nil
+	case ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverityLow:
+		*s = ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverityLow
+		return nil
+	case ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverityInfo:
+		*s = ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverityInfo
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsDocumentOKExposureTargetsItemKind string
+
+const (
+	ReportsGetReportsDocumentOKExposureTargetsItemKindDomain ReportsGetReportsDocumentOKExposureTargetsItemKind = "domain"
+	ReportsGetReportsDocumentOKExposureTargetsItemKindIP     ReportsGetReportsDocumentOKExposureTargetsItemKind = "ip"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKExposureTargetsItemKind values.
+func (ReportsGetReportsDocumentOKExposureTargetsItemKind) AllValues() []ReportsGetReportsDocumentOKExposureTargetsItemKind {
+	return []ReportsGetReportsDocumentOKExposureTargetsItemKind{
+		ReportsGetReportsDocumentOKExposureTargetsItemKindDomain,
+		ReportsGetReportsDocumentOKExposureTargetsItemKindIP,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKExposureTargetsItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKExposureTargetsItemKindDomain:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKExposureTargetsItemKindIP:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItemKind) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKExposureTargetsItemKind(data) {
+	case ReportsGetReportsDocumentOKExposureTargetsItemKindDomain:
+		*s = ReportsGetReportsDocumentOKExposureTargetsItemKindDomain
+		return nil
+	case ReportsGetReportsDocumentOKExposureTargetsItemKindIP:
+		*s = ReportsGetReportsDocumentOKExposureTargetsItemKindIP
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Proven: its own proof holds; covered: the proof of a parent domain covers it; missing; expired;
+// not_current.
+type ReportsGetReportsDocumentOKExposureTargetsItemProof string
+
+const (
+	ReportsGetReportsDocumentOKExposureTargetsItemProofProven     ReportsGetReportsDocumentOKExposureTargetsItemProof = "proven"
+	ReportsGetReportsDocumentOKExposureTargetsItemProofCovered    ReportsGetReportsDocumentOKExposureTargetsItemProof = "covered"
+	ReportsGetReportsDocumentOKExposureTargetsItemProofMissing    ReportsGetReportsDocumentOKExposureTargetsItemProof = "missing"
+	ReportsGetReportsDocumentOKExposureTargetsItemProofExpired    ReportsGetReportsDocumentOKExposureTargetsItemProof = "expired"
+	ReportsGetReportsDocumentOKExposureTargetsItemProofNotCurrent ReportsGetReportsDocumentOKExposureTargetsItemProof = "not_current"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKExposureTargetsItemProof values.
+func (ReportsGetReportsDocumentOKExposureTargetsItemProof) AllValues() []ReportsGetReportsDocumentOKExposureTargetsItemProof {
+	return []ReportsGetReportsDocumentOKExposureTargetsItemProof{
+		ReportsGetReportsDocumentOKExposureTargetsItemProofProven,
+		ReportsGetReportsDocumentOKExposureTargetsItemProofCovered,
+		ReportsGetReportsDocumentOKExposureTargetsItemProofMissing,
+		ReportsGetReportsDocumentOKExposureTargetsItemProofExpired,
+		ReportsGetReportsDocumentOKExposureTargetsItemProofNotCurrent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKExposureTargetsItemProof) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKExposureTargetsItemProofProven:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKExposureTargetsItemProofCovered:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKExposureTargetsItemProofMissing:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKExposureTargetsItemProofExpired:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKExposureTargetsItemProofNotCurrent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItemProof) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKExposureTargetsItemProof(data) {
+	case ReportsGetReportsDocumentOKExposureTargetsItemProofProven:
+		*s = ReportsGetReportsDocumentOKExposureTargetsItemProofProven
+		return nil
+	case ReportsGetReportsDocumentOKExposureTargetsItemProofCovered:
+		*s = ReportsGetReportsDocumentOKExposureTargetsItemProofCovered
+		return nil
+	case ReportsGetReportsDocumentOKExposureTargetsItemProofMissing:
+		*s = ReportsGetReportsDocumentOKExposureTargetsItemProofMissing
+		return nil
+	case ReportsGetReportsDocumentOKExposureTargetsItemProofExpired:
+		*s = ReportsGetReportsDocumentOKExposureTargetsItemProofExpired
+		return nil
+	case ReportsGetReportsDocumentOKExposureTargetsItemProofNotCurrent:
+		*s = ReportsGetReportsDocumentOKExposureTargetsItemProofNotCurrent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsDocumentOKExposureTargetsItemServicesItem struct {
+	// When the TLS certificate it serves expires.
+	CertExpiresAt NilDateTime `json:"cert_expires_at"`
+	// Opened or closed during the period; null = unchanged.
+	Change  NilReportsGetReportsDocumentOKExposureTargetsItemServicesItemChange `json:"change"`
+	IP      string                                                              `json:"ip"`
+	Name    NilString                                                           `json:"name"`
+	Port    int                                                                 `json:"port"`
+	Product NilString                                                           `json:"product"`
+	Proto   ReportsGetReportsDocumentOKExposureTargetsItemServicesItemProto     `json:"proto"`
+	Version NilString                                                           `json:"version"`
+}
+
+// GetCertExpiresAt returns the value of CertExpiresAt.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItemServicesItem) GetCertExpiresAt() NilDateTime {
+	return s.CertExpiresAt
+}
+
+// GetChange returns the value of Change.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItemServicesItem) GetChange() NilReportsGetReportsDocumentOKExposureTargetsItemServicesItemChange {
+	return s.Change
+}
+
+// GetIP returns the value of IP.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItemServicesItem) GetIP() string {
+	return s.IP
+}
+
+// GetName returns the value of Name.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItemServicesItem) GetName() NilString {
+	return s.Name
+}
+
+// GetPort returns the value of Port.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItemServicesItem) GetPort() int {
+	return s.Port
+}
+
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItemServicesItem) GetProduct() NilString {
+	return s.Product
+}
+
+// GetProto returns the value of Proto.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItemServicesItem) GetProto() ReportsGetReportsDocumentOKExposureTargetsItemServicesItemProto {
+	return s.Proto
+}
+
+// GetVersion returns the value of Version.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItemServicesItem) GetVersion() NilString {
+	return s.Version
+}
+
+// SetCertExpiresAt sets the value of CertExpiresAt.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItemServicesItem) SetCertExpiresAt(val NilDateTime) {
+	s.CertExpiresAt = val
+}
+
+// SetChange sets the value of Change.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItemServicesItem) SetChange(val NilReportsGetReportsDocumentOKExposureTargetsItemServicesItemChange) {
+	s.Change = val
+}
+
+// SetIP sets the value of IP.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItemServicesItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetName sets the value of Name.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItemServicesItem) SetName(val NilString) {
+	s.Name = val
+}
+
+// SetPort sets the value of Port.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItemServicesItem) SetPort(val int) {
+	s.Port = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItemServicesItem) SetProduct(val NilString) {
+	s.Product = val
+}
+
+// SetProto sets the value of Proto.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItemServicesItem) SetProto(val ReportsGetReportsDocumentOKExposureTargetsItemServicesItemProto) {
+	s.Proto = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItemServicesItem) SetVersion(val NilString) {
+	s.Version = val
+}
+
+type ReportsGetReportsDocumentOKExposureTargetsItemServicesItemChange string
+
+const (
+	ReportsGetReportsDocumentOKExposureTargetsItemServicesItemChangeNew    ReportsGetReportsDocumentOKExposureTargetsItemServicesItemChange = "new"
+	ReportsGetReportsDocumentOKExposureTargetsItemServicesItemChangeClosed ReportsGetReportsDocumentOKExposureTargetsItemServicesItemChange = "closed"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKExposureTargetsItemServicesItemChange values.
+func (ReportsGetReportsDocumentOKExposureTargetsItemServicesItemChange) AllValues() []ReportsGetReportsDocumentOKExposureTargetsItemServicesItemChange {
+	return []ReportsGetReportsDocumentOKExposureTargetsItemServicesItemChange{
+		ReportsGetReportsDocumentOKExposureTargetsItemServicesItemChangeNew,
+		ReportsGetReportsDocumentOKExposureTargetsItemServicesItemChangeClosed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKExposureTargetsItemServicesItemChange) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKExposureTargetsItemServicesItemChangeNew:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKExposureTargetsItemServicesItemChangeClosed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItemServicesItemChange) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKExposureTargetsItemServicesItemChange(data) {
+	case ReportsGetReportsDocumentOKExposureTargetsItemServicesItemChangeNew:
+		*s = ReportsGetReportsDocumentOKExposureTargetsItemServicesItemChangeNew
+		return nil
+	case ReportsGetReportsDocumentOKExposureTargetsItemServicesItemChangeClosed:
+		*s = ReportsGetReportsDocumentOKExposureTargetsItemServicesItemChangeClosed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsDocumentOKExposureTargetsItemServicesItemProto string
+
+const (
+	ReportsGetReportsDocumentOKExposureTargetsItemServicesItemProtoTCP ReportsGetReportsDocumentOKExposureTargetsItemServicesItemProto = "tcp"
+	ReportsGetReportsDocumentOKExposureTargetsItemServicesItemProtoUDP ReportsGetReportsDocumentOKExposureTargetsItemServicesItemProto = "udp"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKExposureTargetsItemServicesItemProto values.
+func (ReportsGetReportsDocumentOKExposureTargetsItemServicesItemProto) AllValues() []ReportsGetReportsDocumentOKExposureTargetsItemServicesItemProto {
+	return []ReportsGetReportsDocumentOKExposureTargetsItemServicesItemProto{
+		ReportsGetReportsDocumentOKExposureTargetsItemServicesItemProtoTCP,
+		ReportsGetReportsDocumentOKExposureTargetsItemServicesItemProtoUDP,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKExposureTargetsItemServicesItemProto) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKExposureTargetsItemServicesItemProtoTCP:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKExposureTargetsItemServicesItemProtoUDP:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItemServicesItemProto) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKExposureTargetsItemServicesItemProto(data) {
+	case ReportsGetReportsDocumentOKExposureTargetsItemServicesItemProtoTCP:
+		*s = ReportsGetReportsDocumentOKExposureTargetsItemServicesItemProtoTCP
+		return nil
+	case ReportsGetReportsDocumentOKExposureTargetsItemServicesItemProtoUDP:
+		*s = ReportsGetReportsDocumentOKExposureTargetsItemServicesItemProtoUDP
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsDocumentOKHandled struct {
+	Devices []ReportsGetReportsDocumentOKHandledDevicesItem `json:"devices"`
+	// Handled findings not listed (a report lists 100 at most).
+	More int `json:"more"`
+	// Handled in the period by resolution.
+	Totals []ReportsGetReportsDocumentOKHandledTotalsItem `json:"totals"`
+}
+
+// GetDevices returns the value of Devices.
+func (s *ReportsGetReportsDocumentOKHandled) GetDevices() []ReportsGetReportsDocumentOKHandledDevicesItem {
+	return s.Devices
+}
+
+// GetMore returns the value of More.
+func (s *ReportsGetReportsDocumentOKHandled) GetMore() int {
+	return s.More
+}
+
+// GetTotals returns the value of Totals.
+func (s *ReportsGetReportsDocumentOKHandled) GetTotals() []ReportsGetReportsDocumentOKHandledTotalsItem {
+	return s.Totals
+}
+
+// SetDevices sets the value of Devices.
+func (s *ReportsGetReportsDocumentOKHandled) SetDevices(val []ReportsGetReportsDocumentOKHandledDevicesItem) {
+	s.Devices = val
+}
+
+// SetMore sets the value of More.
+func (s *ReportsGetReportsDocumentOKHandled) SetMore(val int) {
+	s.More = val
+}
+
+// SetTotals sets the value of Totals.
+func (s *ReportsGetReportsDocumentOKHandled) SetTotals(val []ReportsGetReportsDocumentOKHandledTotalsItem) {
+	s.Totals = val
+}
+
+type ReportsGetReportsDocumentOKHandledDevicesItem struct {
+	Device ReportsGetReportsDocumentOKHandledDevicesItemDevice      `json:"device"`
+	Items  []ReportsGetReportsDocumentOKHandledDevicesItemItemsItem `json:"items"`
+}
+
+// GetDevice returns the value of Device.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItem) GetDevice() ReportsGetReportsDocumentOKHandledDevicesItemDevice {
+	return s.Device
+}
+
+// GetItems returns the value of Items.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItem) GetItems() []ReportsGetReportsDocumentOKHandledDevicesItemItemsItem {
+	return s.Items
+}
+
+// SetDevice sets the value of Device.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItem) SetDevice(val ReportsGetReportsDocumentOKHandledDevicesItemDevice) {
+	s.Device = val
+}
+
+// SetItems sets the value of Items.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItem) SetItems(val []ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) {
+	s.Items = val
+}
+
+type ReportsGetReportsDocumentOKHandledDevicesItemDevice struct {
+	// False = "Not added yet".
+	Added bool `json:"added"`
+	// The device id when the report was made; the device may be gone since.
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// GetAdded returns the value of Added.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemDevice) GetAdded() bool {
+	return s.Added
+}
+
+// GetID returns the value of ID.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemDevice) GetID() string {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemDevice) GetName() string {
+	return s.Name
+}
+
+// SetAdded sets the value of Added.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemDevice) SetAdded(val bool) {
+	s.Added = val
+}
+
+// SetID sets the value of ID.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemDevice) SetID(val string) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemDevice) SetName(val string) {
+	s.Name = val
+}
+
+// One finding handled in the period.
+type ReportsGetReportsDocumentOKHandledDevicesItemItemsItem struct {
+	Cve       string `json:"cve"`
+	FindingID string `json:"finding_id"`
+	// Who and how, from stored fields: "Patched by Vedette: version moved 6.24 → 7.23 (18 Nov)".
+	Handled  ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled     `json:"handled"`
+	Product  string                                                            `json:"product"`
+	Severity NilReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity `json:"severity"`
+}
+
+// GetCve returns the value of Cve.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) GetCve() string {
+	return s.Cve
+}
+
+// GetFindingID returns the value of FindingID.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) GetFindingID() string {
+	return s.FindingID
+}
+
+// GetHandled returns the value of Handled.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) GetHandled() ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled {
+	return s.Handled
+}
+
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) GetProduct() string {
+	return s.Product
+}
+
+// GetSeverity returns the value of Severity.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) GetSeverity() NilReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity {
+	return s.Severity
+}
+
+// SetCve sets the value of Cve.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetFindingID sets the value of FindingID.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) SetFindingID(val string) {
+	s.FindingID = val
+}
+
+// SetHandled sets the value of Handled.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) SetHandled(val ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) {
+	s.Handled = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) SetSeverity(val NilReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity) {
+	s.Severity = val
+}
+
+// Who and how, from stored fields: "Patched by Vedette: version moved 6.24 → 7.23 (18 Nov)".
+type ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled struct {
+	// Accepted: the last day; null otherwise.
+	AcceptedUntil NilDate   `json:"accepted_until"`
+	At            time.Time `json:"at"`
+	// "system" when Vedette handled it; else the person.
+	By string `json:"by"`
+	// Via version_moved: the version that was affected.
+	FromVersion NilString `json:"from_version"`
+	Note        NilString `json:"note"`
+	// How a finding was handled; a handled finding's status is its resolution.
+	Resolution ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution `json:"resolution"`
+	// Via version_moved: the version now installed.
+	ToVersion NilString `json:"to_version"`
+	// How it was handled: person = a person marked it; version_moved = the software moved past the
+	// affected version; software_removed = the software is gone; distro_fixed = the distribution says the
+	// installed package is fixed; scan_clear = a safe check that had matched came back clear;
+	// data_corrected = no longer detected while nothing on the device changed (never patch credit);
+	// not_installed = a person said the software is not installed.
+	Via ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia `json:"via"`
+}
+
+// GetAcceptedUntil returns the value of AcceptedUntil.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) GetAcceptedUntil() NilDate {
+	return s.AcceptedUntil
+}
+
+// GetAt returns the value of At.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) GetBy() string {
+	return s.By
+}
+
+// GetFromVersion returns the value of FromVersion.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) GetFromVersion() NilString {
+	return s.FromVersion
+}
+
+// GetNote returns the value of Note.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) GetNote() NilString {
+	return s.Note
+}
+
+// GetResolution returns the value of Resolution.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) GetResolution() ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution {
+	return s.Resolution
+}
+
+// GetToVersion returns the value of ToVersion.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) GetToVersion() NilString {
+	return s.ToVersion
+}
+
+// GetVia returns the value of Via.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) GetVia() ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia {
+	return s.Via
+}
+
+// SetAcceptedUntil sets the value of AcceptedUntil.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) SetAcceptedUntil(val NilDate) {
+	s.AcceptedUntil = val
+}
+
+// SetAt sets the value of At.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) SetBy(val string) {
+	s.By = val
+}
+
+// SetFromVersion sets the value of FromVersion.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) SetFromVersion(val NilString) {
+	s.FromVersion = val
+}
+
+// SetNote sets the value of Note.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) SetNote(val NilString) {
+	s.Note = val
+}
+
+// SetResolution sets the value of Resolution.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) SetResolution(val ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution) {
+	s.Resolution = val
+}
+
+// SetToVersion sets the value of ToVersion.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) SetToVersion(val NilString) {
+	s.ToVersion = val
+}
+
+// SetVia sets the value of Via.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) SetVia(val ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia) {
+	s.Via = val
+}
+
+// How a finding was handled; a handled finding's status is its resolution.
+type ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution string
+
+const (
+	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionPatched       ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution = "patched"
+	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionMitigated     ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution = "mitigated"
+	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionAccepted      ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution = "accepted"
+	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionNotRelevant   ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution = "not_relevant"
+	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionFalsePositive ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution = "false_positive"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution values.
+func (ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution) AllValues() []ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution {
+	return []ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution{
+		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionPatched,
+		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionMitigated,
+		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionAccepted,
+		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionNotRelevant,
+		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionFalsePositive,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionPatched:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionMitigated:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionAccepted:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionNotRelevant:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionFalsePositive:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution(data) {
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionPatched:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionPatched
+		return nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionMitigated:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionMitigated
+		return nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionAccepted:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionAccepted
+		return nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionNotRelevant:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionNotRelevant
+		return nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionFalsePositive:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionFalsePositive
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// How it was handled: person = a person marked it; version_moved = the software moved past the
+// affected version; software_removed = the software is gone; distro_fixed = the distribution says the
+// installed package is fixed; scan_clear = a safe check that had matched came back clear;
+// data_corrected = no longer detected while nothing on the device changed (never patch credit);
+// not_installed = a person said the software is not installed.
+type ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia string
+
+const (
+	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaPerson          ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia = "person"
+	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaVersionMoved    ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia = "version_moved"
+	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaSoftwareRemoved ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia = "software_removed"
+	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaDistroFixed     ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia = "distro_fixed"
+	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaScanClear       ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia = "scan_clear"
+	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaDataCorrected   ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia = "data_corrected"
+	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaNotInstalled    ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia = "not_installed"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia values.
+func (ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia) AllValues() []ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia {
+	return []ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia{
+		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaPerson,
+		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaVersionMoved,
+		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaSoftwareRemoved,
+		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaDistroFixed,
+		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaScanClear,
+		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaDataCorrected,
+		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaNotInstalled,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaPerson:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaVersionMoved:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaSoftwareRemoved:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaDistroFixed:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaScanClear:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaDataCorrected:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaNotInstalled:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia(data) {
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaPerson:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaPerson
+		return nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaVersionMoved:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaVersionMoved
+		return nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaSoftwareRemoved:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaSoftwareRemoved
+		return nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaDistroFixed:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaDistroFixed
+		return nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaScanClear:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaScanClear
+		return nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaDataCorrected:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaDataCorrected
+		return nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaNotInstalled:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaNotInstalled
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The CVSS base score of the CVE and its band. Never changes the status. null = "Not scored yet",
+// never 0.
+type ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity struct {
+	Band    ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBand    `json:"band"`
+	Score   float64                                                               `json:"score"`
+	Vector  string                                                                `json:"vector"`
+	Version ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion `json:"version"`
+}
+
+// GetBand returns the value of Band.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity) GetBand() ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBand {
+	return s.Band
+}
+
+// GetScore returns the value of Score.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity) GetScore() float64 {
+	return s.Score
+}
+
+// GetVector returns the value of Vector.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity) GetVersion() ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion {
+	return s.Version
+}
+
+// SetBand sets the value of Band.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity) SetBand(val ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBand) {
+	s.Band = val
+}
+
+// SetScore sets the value of Score.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity) SetScore(val float64) {
+	s.Score = val
+}
+
+// SetVector sets the value of Vector.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity) SetVersion(val ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion) {
+	s.Version = val
+}
+
+type ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBand string
+
+const (
+	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBandCritical ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBand = "critical"
+	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBandHigh     ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBand = "high"
+	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBandMedium   ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBand = "medium"
+	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBandLow      ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBand = "low"
+	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBandNone     ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBand = "none"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBand values.
+func (ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBand) AllValues() []ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBand {
+	return []ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBand{
+		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBandCritical,
+		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBandHigh,
+		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBandMedium,
+		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBandLow,
+		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBandNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBand) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBandCritical:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBandHigh:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBandMedium:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBandLow:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBandNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBand) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBand(data) {
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBandCritical:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBandCritical
+		return nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBandHigh:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBandHigh
+		return nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBandMedium:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBandMedium
+		return nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBandLow:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBandLow
+		return nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBandNone:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBandNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion string
+
+const (
+	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion40 ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion = "4.0"
+	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion31 ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion = "3.1"
+	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion30 ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion = "3.0"
+	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion20 ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion = "2.0"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion values.
+func (ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion) AllValues() []ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion {
+	return []ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion{
+		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion40,
+		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion31,
+		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion30,
+		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion20,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion40:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion31:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion30:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion20:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion(data) {
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion40:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion40
+		return nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion31:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion31
+		return nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion30:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion30
+		return nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion20:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion20
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsDocumentOKHandledTotalsItem struct {
+	N int `json:"n"`
+	// How a finding was handled; a handled finding's status is its resolution.
+	Resolution ReportsGetReportsDocumentOKHandledTotalsItemResolution `json:"resolution"`
+	// How it was handled: person = a person marked it; version_moved = the software moved past the
+	// affected version; software_removed = the software is gone; distro_fixed = the distribution says the
+	// installed package is fixed; scan_clear = a safe check that had matched came back clear;
+	// data_corrected = no longer detected while nothing on the device changed (never patch credit);
+	// not_installed = a person said the software is not installed.
+	Via ReportsGetReportsDocumentOKHandledTotalsItemVia `json:"via"`
+}
+
+// GetN returns the value of N.
+func (s *ReportsGetReportsDocumentOKHandledTotalsItem) GetN() int {
+	return s.N
+}
+
+// GetResolution returns the value of Resolution.
+func (s *ReportsGetReportsDocumentOKHandledTotalsItem) GetResolution() ReportsGetReportsDocumentOKHandledTotalsItemResolution {
+	return s.Resolution
+}
+
+// GetVia returns the value of Via.
+func (s *ReportsGetReportsDocumentOKHandledTotalsItem) GetVia() ReportsGetReportsDocumentOKHandledTotalsItemVia {
+	return s.Via
+}
+
+// SetN sets the value of N.
+func (s *ReportsGetReportsDocumentOKHandledTotalsItem) SetN(val int) {
+	s.N = val
+}
+
+// SetResolution sets the value of Resolution.
+func (s *ReportsGetReportsDocumentOKHandledTotalsItem) SetResolution(val ReportsGetReportsDocumentOKHandledTotalsItemResolution) {
+	s.Resolution = val
+}
+
+// SetVia sets the value of Via.
+func (s *ReportsGetReportsDocumentOKHandledTotalsItem) SetVia(val ReportsGetReportsDocumentOKHandledTotalsItemVia) {
+	s.Via = val
+}
+
+// How a finding was handled; a handled finding's status is its resolution.
+type ReportsGetReportsDocumentOKHandledTotalsItemResolution string
+
+const (
+	ReportsGetReportsDocumentOKHandledTotalsItemResolutionPatched       ReportsGetReportsDocumentOKHandledTotalsItemResolution = "patched"
+	ReportsGetReportsDocumentOKHandledTotalsItemResolutionMitigated     ReportsGetReportsDocumentOKHandledTotalsItemResolution = "mitigated"
+	ReportsGetReportsDocumentOKHandledTotalsItemResolutionAccepted      ReportsGetReportsDocumentOKHandledTotalsItemResolution = "accepted"
+	ReportsGetReportsDocumentOKHandledTotalsItemResolutionNotRelevant   ReportsGetReportsDocumentOKHandledTotalsItemResolution = "not_relevant"
+	ReportsGetReportsDocumentOKHandledTotalsItemResolutionFalsePositive ReportsGetReportsDocumentOKHandledTotalsItemResolution = "false_positive"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKHandledTotalsItemResolution values.
+func (ReportsGetReportsDocumentOKHandledTotalsItemResolution) AllValues() []ReportsGetReportsDocumentOKHandledTotalsItemResolution {
+	return []ReportsGetReportsDocumentOKHandledTotalsItemResolution{
+		ReportsGetReportsDocumentOKHandledTotalsItemResolutionPatched,
+		ReportsGetReportsDocumentOKHandledTotalsItemResolutionMitigated,
+		ReportsGetReportsDocumentOKHandledTotalsItemResolutionAccepted,
+		ReportsGetReportsDocumentOKHandledTotalsItemResolutionNotRelevant,
+		ReportsGetReportsDocumentOKHandledTotalsItemResolutionFalsePositive,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKHandledTotalsItemResolution) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKHandledTotalsItemResolutionPatched:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledTotalsItemResolutionMitigated:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledTotalsItemResolutionAccepted:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledTotalsItemResolutionNotRelevant:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledTotalsItemResolutionFalsePositive:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKHandledTotalsItemResolution) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKHandledTotalsItemResolution(data) {
+	case ReportsGetReportsDocumentOKHandledTotalsItemResolutionPatched:
+		*s = ReportsGetReportsDocumentOKHandledTotalsItemResolutionPatched
+		return nil
+	case ReportsGetReportsDocumentOKHandledTotalsItemResolutionMitigated:
+		*s = ReportsGetReportsDocumentOKHandledTotalsItemResolutionMitigated
+		return nil
+	case ReportsGetReportsDocumentOKHandledTotalsItemResolutionAccepted:
+		*s = ReportsGetReportsDocumentOKHandledTotalsItemResolutionAccepted
+		return nil
+	case ReportsGetReportsDocumentOKHandledTotalsItemResolutionNotRelevant:
+		*s = ReportsGetReportsDocumentOKHandledTotalsItemResolutionNotRelevant
+		return nil
+	case ReportsGetReportsDocumentOKHandledTotalsItemResolutionFalsePositive:
+		*s = ReportsGetReportsDocumentOKHandledTotalsItemResolutionFalsePositive
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// How it was handled: person = a person marked it; version_moved = the software moved past the
+// affected version; software_removed = the software is gone; distro_fixed = the distribution says the
+// installed package is fixed; scan_clear = a safe check that had matched came back clear;
+// data_corrected = no longer detected while nothing on the device changed (never patch credit);
+// not_installed = a person said the software is not installed.
+type ReportsGetReportsDocumentOKHandledTotalsItemVia string
+
+const (
+	ReportsGetReportsDocumentOKHandledTotalsItemViaPerson          ReportsGetReportsDocumentOKHandledTotalsItemVia = "person"
+	ReportsGetReportsDocumentOKHandledTotalsItemViaVersionMoved    ReportsGetReportsDocumentOKHandledTotalsItemVia = "version_moved"
+	ReportsGetReportsDocumentOKHandledTotalsItemViaSoftwareRemoved ReportsGetReportsDocumentOKHandledTotalsItemVia = "software_removed"
+	ReportsGetReportsDocumentOKHandledTotalsItemViaDistroFixed     ReportsGetReportsDocumentOKHandledTotalsItemVia = "distro_fixed"
+	ReportsGetReportsDocumentOKHandledTotalsItemViaScanClear       ReportsGetReportsDocumentOKHandledTotalsItemVia = "scan_clear"
+	ReportsGetReportsDocumentOKHandledTotalsItemViaDataCorrected   ReportsGetReportsDocumentOKHandledTotalsItemVia = "data_corrected"
+	ReportsGetReportsDocumentOKHandledTotalsItemViaNotInstalled    ReportsGetReportsDocumentOKHandledTotalsItemVia = "not_installed"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKHandledTotalsItemVia values.
+func (ReportsGetReportsDocumentOKHandledTotalsItemVia) AllValues() []ReportsGetReportsDocumentOKHandledTotalsItemVia {
+	return []ReportsGetReportsDocumentOKHandledTotalsItemVia{
+		ReportsGetReportsDocumentOKHandledTotalsItemViaPerson,
+		ReportsGetReportsDocumentOKHandledTotalsItemViaVersionMoved,
+		ReportsGetReportsDocumentOKHandledTotalsItemViaSoftwareRemoved,
+		ReportsGetReportsDocumentOKHandledTotalsItemViaDistroFixed,
+		ReportsGetReportsDocumentOKHandledTotalsItemViaScanClear,
+		ReportsGetReportsDocumentOKHandledTotalsItemViaDataCorrected,
+		ReportsGetReportsDocumentOKHandledTotalsItemViaNotInstalled,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKHandledTotalsItemVia) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKHandledTotalsItemViaPerson:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledTotalsItemViaVersionMoved:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledTotalsItemViaSoftwareRemoved:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledTotalsItemViaDistroFixed:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledTotalsItemViaScanClear:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledTotalsItemViaDataCorrected:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledTotalsItemViaNotInstalled:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKHandledTotalsItemVia) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKHandledTotalsItemVia(data) {
+	case ReportsGetReportsDocumentOKHandledTotalsItemViaPerson:
+		*s = ReportsGetReportsDocumentOKHandledTotalsItemViaPerson
+		return nil
+	case ReportsGetReportsDocumentOKHandledTotalsItemViaVersionMoved:
+		*s = ReportsGetReportsDocumentOKHandledTotalsItemViaVersionMoved
+		return nil
+	case ReportsGetReportsDocumentOKHandledTotalsItemViaSoftwareRemoved:
+		*s = ReportsGetReportsDocumentOKHandledTotalsItemViaSoftwareRemoved
+		return nil
+	case ReportsGetReportsDocumentOKHandledTotalsItemViaDistroFixed:
+		*s = ReportsGetReportsDocumentOKHandledTotalsItemViaDistroFixed
+		return nil
+	case ReportsGetReportsDocumentOKHandledTotalsItemViaScanClear:
+		*s = ReportsGetReportsDocumentOKHandledTotalsItemViaScanClear
+		return nil
+	case ReportsGetReportsDocumentOKHandledTotalsItemViaDataCorrected:
+		*s = ReportsGetReportsDocumentOKHandledTotalsItemViaDataCorrected
+		return nil
+	case ReportsGetReportsDocumentOKHandledTotalsItemViaNotInstalled:
+		*s = ReportsGetReportsDocumentOKHandledTotalsItemViaNotInstalled
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsDocumentOKNew struct {
+	// Found in the period, with their status now.
+	Items []ReportsGetReportsDocumentOKNewItemsItem `json:"items"`
+	More  int                                       `json:"more"`
+	Total int                                       `json:"total"`
+}
+
+// GetItems returns the value of Items.
+func (s *ReportsGetReportsDocumentOKNew) GetItems() []ReportsGetReportsDocumentOKNewItemsItem {
+	return s.Items
+}
+
+// GetMore returns the value of More.
+func (s *ReportsGetReportsDocumentOKNew) GetMore() int {
+	return s.More
+}
+
+// GetTotal returns the value of Total.
+func (s *ReportsGetReportsDocumentOKNew) GetTotal() int {
+	return s.Total
+}
+
+// SetItems sets the value of Items.
+func (s *ReportsGetReportsDocumentOKNew) SetItems(val []ReportsGetReportsDocumentOKNewItemsItem) {
+	s.Items = val
+}
+
+// SetMore sets the value of More.
+func (s *ReportsGetReportsDocumentOKNew) SetMore(val int) {
+	s.More = val
+}
+
+// SetTotal sets the value of Total.
+func (s *ReportsGetReportsDocumentOKNew) SetTotal(val int) {
+	s.Total = val
+}
+
+type ReportsGetReportsDocumentOKNewItemsItem struct {
+	Cve       string                                        `json:"cve"`
+	Device    ReportsGetReportsDocumentOKNewItemsItemDevice `json:"device"`
+	FindingID string                                        `json:"finding_id"`
+	FirstSeen time.Time                                     `json:"first_seen"`
+	Fix       ReportsGetReportsDocumentOKNewItemsItemFix    `json:"fix"`
+	// The software line the CVE is on, as Findings names it.
+	Product string `json:"product"`
+	// Every layer 1 to 4 that applies, most urgent first; empty for layer 5.
+	Reasons  []ReportsGetReportsDocumentOKNewItemsItemReasonsItem `json:"reasons"`
+	Severity NilReportsGetReportsDocumentOKNewItemsItemSeverity   `json:"severity"`
+	// The one status of a finding, most urgent first.
+	Status       ReportsGetReportsDocumentOKNewItemsItemStatus       `json:"status"`
+	Verification ReportsGetReportsDocumentOKNewItemsItemVerification `json:"verification"`
+	// The version the finding was matched on.
+	Version NilString `json:"version"`
+}
+
+// GetCve returns the value of Cve.
+func (s *ReportsGetReportsDocumentOKNewItemsItem) GetCve() string {
+	return s.Cve
+}
+
+// GetDevice returns the value of Device.
+func (s *ReportsGetReportsDocumentOKNewItemsItem) GetDevice() ReportsGetReportsDocumentOKNewItemsItemDevice {
+	return s.Device
+}
+
+// GetFindingID returns the value of FindingID.
+func (s *ReportsGetReportsDocumentOKNewItemsItem) GetFindingID() string {
+	return s.FindingID
+}
+
+// GetFirstSeen returns the value of FirstSeen.
+func (s *ReportsGetReportsDocumentOKNewItemsItem) GetFirstSeen() time.Time {
+	return s.FirstSeen
+}
+
+// GetFix returns the value of Fix.
+func (s *ReportsGetReportsDocumentOKNewItemsItem) GetFix() ReportsGetReportsDocumentOKNewItemsItemFix {
+	return s.Fix
+}
+
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsDocumentOKNewItemsItem) GetProduct() string {
+	return s.Product
+}
+
+// GetReasons returns the value of Reasons.
+func (s *ReportsGetReportsDocumentOKNewItemsItem) GetReasons() []ReportsGetReportsDocumentOKNewItemsItemReasonsItem {
+	return s.Reasons
+}
+
+// GetSeverity returns the value of Severity.
+func (s *ReportsGetReportsDocumentOKNewItemsItem) GetSeverity() NilReportsGetReportsDocumentOKNewItemsItemSeverity {
+	return s.Severity
+}
+
+// GetStatus returns the value of Status.
+func (s *ReportsGetReportsDocumentOKNewItemsItem) GetStatus() ReportsGetReportsDocumentOKNewItemsItemStatus {
+	return s.Status
+}
+
+// GetVerification returns the value of Verification.
+func (s *ReportsGetReportsDocumentOKNewItemsItem) GetVerification() ReportsGetReportsDocumentOKNewItemsItemVerification {
+	return s.Verification
+}
+
+// GetVersion returns the value of Version.
+func (s *ReportsGetReportsDocumentOKNewItemsItem) GetVersion() NilString {
+	return s.Version
+}
+
+// SetCve sets the value of Cve.
+func (s *ReportsGetReportsDocumentOKNewItemsItem) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetDevice sets the value of Device.
+func (s *ReportsGetReportsDocumentOKNewItemsItem) SetDevice(val ReportsGetReportsDocumentOKNewItemsItemDevice) {
+	s.Device = val
+}
+
+// SetFindingID sets the value of FindingID.
+func (s *ReportsGetReportsDocumentOKNewItemsItem) SetFindingID(val string) {
+	s.FindingID = val
+}
+
+// SetFirstSeen sets the value of FirstSeen.
+func (s *ReportsGetReportsDocumentOKNewItemsItem) SetFirstSeen(val time.Time) {
+	s.FirstSeen = val
+}
+
+// SetFix sets the value of Fix.
+func (s *ReportsGetReportsDocumentOKNewItemsItem) SetFix(val ReportsGetReportsDocumentOKNewItemsItemFix) {
+	s.Fix = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsDocumentOKNewItemsItem) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetReasons sets the value of Reasons.
+func (s *ReportsGetReportsDocumentOKNewItemsItem) SetReasons(val []ReportsGetReportsDocumentOKNewItemsItemReasonsItem) {
+	s.Reasons = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *ReportsGetReportsDocumentOKNewItemsItem) SetSeverity(val NilReportsGetReportsDocumentOKNewItemsItemSeverity) {
+	s.Severity = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ReportsGetReportsDocumentOKNewItemsItem) SetStatus(val ReportsGetReportsDocumentOKNewItemsItemStatus) {
+	s.Status = val
+}
+
+// SetVerification sets the value of Verification.
+func (s *ReportsGetReportsDocumentOKNewItemsItem) SetVerification(val ReportsGetReportsDocumentOKNewItemsItemVerification) {
+	s.Verification = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ReportsGetReportsDocumentOKNewItemsItem) SetVersion(val NilString) {
+	s.Version = val
+}
+
+type ReportsGetReportsDocumentOKNewItemsItemDevice struct {
+	// False = "Not added yet".
+	Added bool `json:"added"`
+	// The device id when the report was made; the device may be gone since.
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// GetAdded returns the value of Added.
+func (s *ReportsGetReportsDocumentOKNewItemsItemDevice) GetAdded() bool {
+	return s.Added
+}
+
+// GetID returns the value of ID.
+func (s *ReportsGetReportsDocumentOKNewItemsItemDevice) GetID() string {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *ReportsGetReportsDocumentOKNewItemsItemDevice) GetName() string {
+	return s.Name
+}
+
+// SetAdded sets the value of Added.
+func (s *ReportsGetReportsDocumentOKNewItemsItemDevice) SetAdded(val bool) {
+	s.Added = val
+}
+
+// SetID sets the value of ID.
+func (s *ReportsGetReportsDocumentOKNewItemsItemDevice) SetID(val string) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *ReportsGetReportsDocumentOKNewItemsItemDevice) SetName(val string) {
+	s.Name = val
+}
+
+type ReportsGetReportsDocumentOKNewItemsItemFix struct {
+	// The "By fix" group; opaque.
+	Key  string                                         `json:"key"`
+	Kind ReportsGetReportsDocumentOKNewItemsItemFixKind `json:"kind"`
+	// The product the fix is for, as people name it.
+	Product string `json:"product"`
+	// Os_update: the KB number; none_yet: the advisory id when known.
+	Ref NilString `json:"ref"`
+	// The vendor advisory or release notes.
+	URL NilURI `json:"url"`
+	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
+	// known.
+	Version NilString `json:"version"`
+}
+
+// GetKey returns the value of Key.
+func (s *ReportsGetReportsDocumentOKNewItemsItemFix) GetKey() string {
+	return s.Key
+}
+
+// GetKind returns the value of Kind.
+func (s *ReportsGetReportsDocumentOKNewItemsItemFix) GetKind() ReportsGetReportsDocumentOKNewItemsItemFixKind {
+	return s.Kind
+}
+
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsDocumentOKNewItemsItemFix) GetProduct() string {
+	return s.Product
+}
+
+// GetRef returns the value of Ref.
+func (s *ReportsGetReportsDocumentOKNewItemsItemFix) GetRef() NilString {
+	return s.Ref
+}
+
+// GetURL returns the value of URL.
+func (s *ReportsGetReportsDocumentOKNewItemsItemFix) GetURL() NilURI {
+	return s.URL
+}
+
+// GetVersion returns the value of Version.
+func (s *ReportsGetReportsDocumentOKNewItemsItemFix) GetVersion() NilString {
+	return s.Version
+}
+
+// SetKey sets the value of Key.
+func (s *ReportsGetReportsDocumentOKNewItemsItemFix) SetKey(val string) {
+	s.Key = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ReportsGetReportsDocumentOKNewItemsItemFix) SetKind(val ReportsGetReportsDocumentOKNewItemsItemFixKind) {
+	s.Kind = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsDocumentOKNewItemsItemFix) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetRef sets the value of Ref.
+func (s *ReportsGetReportsDocumentOKNewItemsItemFix) SetRef(val NilString) {
+	s.Ref = val
+}
+
+// SetURL sets the value of URL.
+func (s *ReportsGetReportsDocumentOKNewItemsItemFix) SetURL(val NilURI) {
+	s.URL = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ReportsGetReportsDocumentOKNewItemsItemFix) SetVersion(val NilString) {
+	s.Version = val
+}
+
+type ReportsGetReportsDocumentOKNewItemsItemFixKind string
+
+const (
+	ReportsGetReportsDocumentOKNewItemsItemFixKindUpdate        ReportsGetReportsDocumentOKNewItemsItemFixKind = "update"
+	ReportsGetReportsDocumentOKNewItemsItemFixKindDistroUpdate  ReportsGetReportsDocumentOKNewItemsItemFixKind = "distro_update"
+	ReportsGetReportsDocumentOKNewItemsItemFixKindOsUpdate      ReportsGetReportsDocumentOKNewItemsItemFixKind = "os_update"
+	ReportsGetReportsDocumentOKNewItemsItemFixKindFeatureUpdate ReportsGetReportsDocumentOKNewItemsItemFixKind = "feature_update"
+	ReportsGetReportsDocumentOKNewItemsItemFixKindNoneYet       ReportsGetReportsDocumentOKNewItemsItemFixKind = "none_yet"
+	ReportsGetReportsDocumentOKNewItemsItemFixKindUnknown       ReportsGetReportsDocumentOKNewItemsItemFixKind = "unknown"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKNewItemsItemFixKind values.
+func (ReportsGetReportsDocumentOKNewItemsItemFixKind) AllValues() []ReportsGetReportsDocumentOKNewItemsItemFixKind {
+	return []ReportsGetReportsDocumentOKNewItemsItemFixKind{
+		ReportsGetReportsDocumentOKNewItemsItemFixKindUpdate,
+		ReportsGetReportsDocumentOKNewItemsItemFixKindDistroUpdate,
+		ReportsGetReportsDocumentOKNewItemsItemFixKindOsUpdate,
+		ReportsGetReportsDocumentOKNewItemsItemFixKindFeatureUpdate,
+		ReportsGetReportsDocumentOKNewItemsItemFixKindNoneYet,
+		ReportsGetReportsDocumentOKNewItemsItemFixKindUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKNewItemsItemFixKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKNewItemsItemFixKindUpdate:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKNewItemsItemFixKindDistroUpdate:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKNewItemsItemFixKindOsUpdate:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKNewItemsItemFixKindFeatureUpdate:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKNewItemsItemFixKindNoneYet:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKNewItemsItemFixKindUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKNewItemsItemFixKind) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKNewItemsItemFixKind(data) {
+	case ReportsGetReportsDocumentOKNewItemsItemFixKindUpdate:
+		*s = ReportsGetReportsDocumentOKNewItemsItemFixKindUpdate
+		return nil
+	case ReportsGetReportsDocumentOKNewItemsItemFixKindDistroUpdate:
+		*s = ReportsGetReportsDocumentOKNewItemsItemFixKindDistroUpdate
+		return nil
+	case ReportsGetReportsDocumentOKNewItemsItemFixKindOsUpdate:
+		*s = ReportsGetReportsDocumentOKNewItemsItemFixKindOsUpdate
+		return nil
+	case ReportsGetReportsDocumentOKNewItemsItemFixKindFeatureUpdate:
+		*s = ReportsGetReportsDocumentOKNewItemsItemFixKindFeatureUpdate
+		return nil
+	case ReportsGetReportsDocumentOKNewItemsItemFixKindNoneYet:
+		*s = ReportsGetReportsDocumentOKNewItemsItemFixKindNoneYet
+		return nil
+	case ReportsGetReportsDocumentOKNewItemsItemFixKindUnknown:
+		*s = ReportsGetReportsDocumentOKNewItemsItemFixKindUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// One urgency layer that applies, with its evidence.
+type ReportsGetReportsDocumentOKNewItemsItemReasonsItem struct {
+	// When the source said so; layer 1: the newest alert; layer 4: since when the rule holds.
+	Date time.Time `json:"date"`
+	// A short fact of the signal: "244 stars", the attacker address for layer 1.
+	Detail NilString `json:"detail"`
+	// Layer 2: the day the list asks for the fix (CISA KEV due date); null otherwise.
+	Due   NilDate `json:"due"`
+	Layer int     `json:"layer"`
+	// The source as people name it: "CISA KEV", "Rapid7", "GitHub".
+	Name string `json:"name"`
+	// The signal source: cisa-kev, msrc, chrome, cisco, fortinet, apple, android, rapid7, gti, nuclei,
+	// metasploit, exploit-db, github-poc; ids for an attack seen here (layer 1); cvss for layer 4.
+	Source string `json:"source"`
+	URL    NilURI `json:"url"`
+}
+
+// GetDate returns the value of Date.
+func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) GetDate() time.Time {
+	return s.Date
+}
+
+// GetDetail returns the value of Detail.
+func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) GetDetail() NilString {
+	return s.Detail
+}
+
+// GetDue returns the value of Due.
+func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) GetDue() NilDate {
+	return s.Due
+}
+
+// GetLayer returns the value of Layer.
+func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) GetLayer() int {
+	return s.Layer
+}
+
+// GetName returns the value of Name.
+func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) GetName() string {
+	return s.Name
+}
+
+// GetSource returns the value of Source.
+func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) GetSource() string {
+	return s.Source
+}
+
+// GetURL returns the value of URL.
+func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) GetURL() NilURI {
+	return s.URL
+}
+
+// SetDate sets the value of Date.
+func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) SetDate(val time.Time) {
+	s.Date = val
+}
+
+// SetDetail sets the value of Detail.
+func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) SetDetail(val NilString) {
+	s.Detail = val
+}
+
+// SetDue sets the value of Due.
+func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) SetDue(val NilDate) {
+	s.Due = val
+}
+
+// SetLayer sets the value of Layer.
+func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) SetLayer(val int) {
+	s.Layer = val
+}
+
+// SetName sets the value of Name.
+func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetSource sets the value of Source.
+func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) SetSource(val string) {
+	s.Source = val
+}
+
+// SetURL sets the value of URL.
+func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) SetURL(val NilURI) {
+	s.URL = val
+}
+
+// The CVSS base score of the CVE and its band. Never changes the status. null = "Not scored yet",
+// never 0.
+type ReportsGetReportsDocumentOKNewItemsItemSeverity struct {
+	Band    ReportsGetReportsDocumentOKNewItemsItemSeverityBand    `json:"band"`
+	Score   float64                                                `json:"score"`
+	Vector  string                                                 `json:"vector"`
+	Version ReportsGetReportsDocumentOKNewItemsItemSeverityVersion `json:"version"`
+}
+
+// GetBand returns the value of Band.
+func (s *ReportsGetReportsDocumentOKNewItemsItemSeverity) GetBand() ReportsGetReportsDocumentOKNewItemsItemSeverityBand {
+	return s.Band
+}
+
+// GetScore returns the value of Score.
+func (s *ReportsGetReportsDocumentOKNewItemsItemSeverity) GetScore() float64 {
+	return s.Score
+}
+
+// GetVector returns the value of Vector.
+func (s *ReportsGetReportsDocumentOKNewItemsItemSeverity) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *ReportsGetReportsDocumentOKNewItemsItemSeverity) GetVersion() ReportsGetReportsDocumentOKNewItemsItemSeverityVersion {
+	return s.Version
+}
+
+// SetBand sets the value of Band.
+func (s *ReportsGetReportsDocumentOKNewItemsItemSeverity) SetBand(val ReportsGetReportsDocumentOKNewItemsItemSeverityBand) {
+	s.Band = val
+}
+
+// SetScore sets the value of Score.
+func (s *ReportsGetReportsDocumentOKNewItemsItemSeverity) SetScore(val float64) {
+	s.Score = val
+}
+
+// SetVector sets the value of Vector.
+func (s *ReportsGetReportsDocumentOKNewItemsItemSeverity) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ReportsGetReportsDocumentOKNewItemsItemSeverity) SetVersion(val ReportsGetReportsDocumentOKNewItemsItemSeverityVersion) {
+	s.Version = val
+}
+
+type ReportsGetReportsDocumentOKNewItemsItemSeverityBand string
+
+const (
+	ReportsGetReportsDocumentOKNewItemsItemSeverityBandCritical ReportsGetReportsDocumentOKNewItemsItemSeverityBand = "critical"
+	ReportsGetReportsDocumentOKNewItemsItemSeverityBandHigh     ReportsGetReportsDocumentOKNewItemsItemSeverityBand = "high"
+	ReportsGetReportsDocumentOKNewItemsItemSeverityBandMedium   ReportsGetReportsDocumentOKNewItemsItemSeverityBand = "medium"
+	ReportsGetReportsDocumentOKNewItemsItemSeverityBandLow      ReportsGetReportsDocumentOKNewItemsItemSeverityBand = "low"
+	ReportsGetReportsDocumentOKNewItemsItemSeverityBandNone     ReportsGetReportsDocumentOKNewItemsItemSeverityBand = "none"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKNewItemsItemSeverityBand values.
+func (ReportsGetReportsDocumentOKNewItemsItemSeverityBand) AllValues() []ReportsGetReportsDocumentOKNewItemsItemSeverityBand {
+	return []ReportsGetReportsDocumentOKNewItemsItemSeverityBand{
+		ReportsGetReportsDocumentOKNewItemsItemSeverityBandCritical,
+		ReportsGetReportsDocumentOKNewItemsItemSeverityBandHigh,
+		ReportsGetReportsDocumentOKNewItemsItemSeverityBandMedium,
+		ReportsGetReportsDocumentOKNewItemsItemSeverityBandLow,
+		ReportsGetReportsDocumentOKNewItemsItemSeverityBandNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKNewItemsItemSeverityBand) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKNewItemsItemSeverityBandCritical:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKNewItemsItemSeverityBandHigh:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKNewItemsItemSeverityBandMedium:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKNewItemsItemSeverityBandLow:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKNewItemsItemSeverityBandNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKNewItemsItemSeverityBand) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKNewItemsItemSeverityBand(data) {
+	case ReportsGetReportsDocumentOKNewItemsItemSeverityBandCritical:
+		*s = ReportsGetReportsDocumentOKNewItemsItemSeverityBandCritical
+		return nil
+	case ReportsGetReportsDocumentOKNewItemsItemSeverityBandHigh:
+		*s = ReportsGetReportsDocumentOKNewItemsItemSeverityBandHigh
+		return nil
+	case ReportsGetReportsDocumentOKNewItemsItemSeverityBandMedium:
+		*s = ReportsGetReportsDocumentOKNewItemsItemSeverityBandMedium
+		return nil
+	case ReportsGetReportsDocumentOKNewItemsItemSeverityBandLow:
+		*s = ReportsGetReportsDocumentOKNewItemsItemSeverityBandLow
+		return nil
+	case ReportsGetReportsDocumentOKNewItemsItemSeverityBandNone:
+		*s = ReportsGetReportsDocumentOKNewItemsItemSeverityBandNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsDocumentOKNewItemsItemSeverityVersion string
+
+const (
+	ReportsGetReportsDocumentOKNewItemsItemSeverityVersion40 ReportsGetReportsDocumentOKNewItemsItemSeverityVersion = "4.0"
+	ReportsGetReportsDocumentOKNewItemsItemSeverityVersion31 ReportsGetReportsDocumentOKNewItemsItemSeverityVersion = "3.1"
+	ReportsGetReportsDocumentOKNewItemsItemSeverityVersion30 ReportsGetReportsDocumentOKNewItemsItemSeverityVersion = "3.0"
+	ReportsGetReportsDocumentOKNewItemsItemSeverityVersion20 ReportsGetReportsDocumentOKNewItemsItemSeverityVersion = "2.0"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKNewItemsItemSeverityVersion values.
+func (ReportsGetReportsDocumentOKNewItemsItemSeverityVersion) AllValues() []ReportsGetReportsDocumentOKNewItemsItemSeverityVersion {
+	return []ReportsGetReportsDocumentOKNewItemsItemSeverityVersion{
+		ReportsGetReportsDocumentOKNewItemsItemSeverityVersion40,
+		ReportsGetReportsDocumentOKNewItemsItemSeverityVersion31,
+		ReportsGetReportsDocumentOKNewItemsItemSeverityVersion30,
+		ReportsGetReportsDocumentOKNewItemsItemSeverityVersion20,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKNewItemsItemSeverityVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKNewItemsItemSeverityVersion40:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKNewItemsItemSeverityVersion31:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKNewItemsItemSeverityVersion30:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKNewItemsItemSeverityVersion20:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKNewItemsItemSeverityVersion) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKNewItemsItemSeverityVersion(data) {
+	case ReportsGetReportsDocumentOKNewItemsItemSeverityVersion40:
+		*s = ReportsGetReportsDocumentOKNewItemsItemSeverityVersion40
+		return nil
+	case ReportsGetReportsDocumentOKNewItemsItemSeverityVersion31:
+		*s = ReportsGetReportsDocumentOKNewItemsItemSeverityVersion31
+		return nil
+	case ReportsGetReportsDocumentOKNewItemsItemSeverityVersion30:
+		*s = ReportsGetReportsDocumentOKNewItemsItemSeverityVersion30
+		return nil
+	case ReportsGetReportsDocumentOKNewItemsItemSeverityVersion20:
+		*s = ReportsGetReportsDocumentOKNewItemsItemSeverityVersion20
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The one status of a finding, most urgent first.
+type ReportsGetReportsDocumentOKNewItemsItemStatus string
+
+const (
+	ReportsGetReportsDocumentOKNewItemsItemStatusUnderAttack       ReportsGetReportsDocumentOKNewItemsItemStatus = "under_attack"
+	ReportsGetReportsDocumentOKNewItemsItemStatusExploited         ReportsGetReportsDocumentOKNewItemsItemStatus = "exploited"
+	ReportsGetReportsDocumentOKNewItemsItemStatusPublicExploit     ReportsGetReportsDocumentOKNewItemsItemStatus = "public_exploit"
+	ReportsGetReportsDocumentOKNewItemsItemStatusCriticalEdge      ReportsGetReportsDocumentOKNewItemsItemStatus = "critical_edge"
+	ReportsGetReportsDocumentOKNewItemsItemStatusUpdateRecommended ReportsGetReportsDocumentOKNewItemsItemStatus = "update_recommended"
+	ReportsGetReportsDocumentOKNewItemsItemStatusPatched           ReportsGetReportsDocumentOKNewItemsItemStatus = "patched"
+	ReportsGetReportsDocumentOKNewItemsItemStatusMitigated         ReportsGetReportsDocumentOKNewItemsItemStatus = "mitigated"
+	ReportsGetReportsDocumentOKNewItemsItemStatusAccepted          ReportsGetReportsDocumentOKNewItemsItemStatus = "accepted"
+	ReportsGetReportsDocumentOKNewItemsItemStatusNotRelevant       ReportsGetReportsDocumentOKNewItemsItemStatus = "not_relevant"
+	ReportsGetReportsDocumentOKNewItemsItemStatusFalsePositive     ReportsGetReportsDocumentOKNewItemsItemStatus = "false_positive"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKNewItemsItemStatus values.
+func (ReportsGetReportsDocumentOKNewItemsItemStatus) AllValues() []ReportsGetReportsDocumentOKNewItemsItemStatus {
+	return []ReportsGetReportsDocumentOKNewItemsItemStatus{
+		ReportsGetReportsDocumentOKNewItemsItemStatusUnderAttack,
+		ReportsGetReportsDocumentOKNewItemsItemStatusExploited,
+		ReportsGetReportsDocumentOKNewItemsItemStatusPublicExploit,
+		ReportsGetReportsDocumentOKNewItemsItemStatusCriticalEdge,
+		ReportsGetReportsDocumentOKNewItemsItemStatusUpdateRecommended,
+		ReportsGetReportsDocumentOKNewItemsItemStatusPatched,
+		ReportsGetReportsDocumentOKNewItemsItemStatusMitigated,
+		ReportsGetReportsDocumentOKNewItemsItemStatusAccepted,
+		ReportsGetReportsDocumentOKNewItemsItemStatusNotRelevant,
+		ReportsGetReportsDocumentOKNewItemsItemStatusFalsePositive,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKNewItemsItemStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKNewItemsItemStatusUnderAttack:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKNewItemsItemStatusExploited:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKNewItemsItemStatusPublicExploit:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKNewItemsItemStatusCriticalEdge:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKNewItemsItemStatusUpdateRecommended:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKNewItemsItemStatusPatched:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKNewItemsItemStatusMitigated:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKNewItemsItemStatusAccepted:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKNewItemsItemStatusNotRelevant:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKNewItemsItemStatusFalsePositive:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKNewItemsItemStatus) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKNewItemsItemStatus(data) {
+	case ReportsGetReportsDocumentOKNewItemsItemStatusUnderAttack:
+		*s = ReportsGetReportsDocumentOKNewItemsItemStatusUnderAttack
+		return nil
+	case ReportsGetReportsDocumentOKNewItemsItemStatusExploited:
+		*s = ReportsGetReportsDocumentOKNewItemsItemStatusExploited
+		return nil
+	case ReportsGetReportsDocumentOKNewItemsItemStatusPublicExploit:
+		*s = ReportsGetReportsDocumentOKNewItemsItemStatusPublicExploit
+		return nil
+	case ReportsGetReportsDocumentOKNewItemsItemStatusCriticalEdge:
+		*s = ReportsGetReportsDocumentOKNewItemsItemStatusCriticalEdge
+		return nil
+	case ReportsGetReportsDocumentOKNewItemsItemStatusUpdateRecommended:
+		*s = ReportsGetReportsDocumentOKNewItemsItemStatusUpdateRecommended
+		return nil
+	case ReportsGetReportsDocumentOKNewItemsItemStatusPatched:
+		*s = ReportsGetReportsDocumentOKNewItemsItemStatusPatched
+		return nil
+	case ReportsGetReportsDocumentOKNewItemsItemStatusMitigated:
+		*s = ReportsGetReportsDocumentOKNewItemsItemStatusMitigated
+		return nil
+	case ReportsGetReportsDocumentOKNewItemsItemStatusAccepted:
+		*s = ReportsGetReportsDocumentOKNewItemsItemStatusAccepted
+		return nil
+	case ReportsGetReportsDocumentOKNewItemsItemStatusNotRelevant:
+		*s = ReportsGetReportsDocumentOKNewItemsItemStatusNotRelevant
+		return nil
+	case ReportsGetReportsDocumentOKNewItemsItemStatusFalsePositive:
+		*s = ReportsGetReportsDocumentOKNewItemsItemStatusFalsePositive
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsDocumentOKNewItemsItemVerification struct {
+	// When it was confirmed; null while not confirmed.
+	At    NilDateTime                                              `json:"at"`
+	Basis ReportsGetReportsDocumentOKNewItemsItemVerificationBasis `json:"basis"`
+	// Verified person: who confirmed it.
+	By       NilString                                                   `json:"by"`
+	Verified ReportsGetReportsDocumentOKNewItemsItemVerificationVerified `json:"verified"`
+}
+
+// GetAt returns the value of At.
+func (s *ReportsGetReportsDocumentOKNewItemsItemVerification) GetAt() NilDateTime {
+	return s.At
+}
+
+// GetBasis returns the value of Basis.
+func (s *ReportsGetReportsDocumentOKNewItemsItemVerification) GetBasis() ReportsGetReportsDocumentOKNewItemsItemVerificationBasis {
+	return s.Basis
+}
+
+// GetBy returns the value of By.
+func (s *ReportsGetReportsDocumentOKNewItemsItemVerification) GetBy() NilString {
+	return s.By
+}
+
+// GetVerified returns the value of Verified.
+func (s *ReportsGetReportsDocumentOKNewItemsItemVerification) GetVerified() ReportsGetReportsDocumentOKNewItemsItemVerificationVerified {
+	return s.Verified
+}
+
+// SetAt sets the value of At.
+func (s *ReportsGetReportsDocumentOKNewItemsItemVerification) SetAt(val NilDateTime) {
+	s.At = val
+}
+
+// SetBasis sets the value of Basis.
+func (s *ReportsGetReportsDocumentOKNewItemsItemVerification) SetBasis(val ReportsGetReportsDocumentOKNewItemsItemVerificationBasis) {
+	s.Basis = val
+}
+
+// SetBy sets the value of By.
+func (s *ReportsGetReportsDocumentOKNewItemsItemVerification) SetBy(val NilString) {
+	s.By = val
+}
+
+// SetVerified sets the value of Verified.
+func (s *ReportsGetReportsDocumentOKNewItemsItemVerification) SetVerified(val ReportsGetReportsDocumentOKNewItemsItemVerificationVerified) {
+	s.Verified = val
+}
+
+type ReportsGetReportsDocumentOKNewItemsItemVerificationBasis string
+
+const (
+	ReportsGetReportsDocumentOKNewItemsItemVerificationBasisScan          ReportsGetReportsDocumentOKNewItemsItemVerificationBasis = "scan"
+	ReportsGetReportsDocumentOKNewItemsItemVerificationBasisDeviceVersion ReportsGetReportsDocumentOKNewItemsItemVerificationBasis = "device_version"
+	ReportsGetReportsDocumentOKNewItemsItemVerificationBasisPackage       ReportsGetReportsDocumentOKNewItemsItemVerificationBasis = "package"
+	ReportsGetReportsDocumentOKNewItemsItemVerificationBasisBannerVersion ReportsGetReportsDocumentOKNewItemsItemVerificationBasis = "banner_version"
+	ReportsGetReportsDocumentOKNewItemsItemVerificationBasisStatement     ReportsGetReportsDocumentOKNewItemsItemVerificationBasis = "statement"
+	ReportsGetReportsDocumentOKNewItemsItemVerificationBasisPerson        ReportsGetReportsDocumentOKNewItemsItemVerificationBasis = "person"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKNewItemsItemVerificationBasis values.
+func (ReportsGetReportsDocumentOKNewItemsItemVerificationBasis) AllValues() []ReportsGetReportsDocumentOKNewItemsItemVerificationBasis {
+	return []ReportsGetReportsDocumentOKNewItemsItemVerificationBasis{
+		ReportsGetReportsDocumentOKNewItemsItemVerificationBasisScan,
+		ReportsGetReportsDocumentOKNewItemsItemVerificationBasisDeviceVersion,
+		ReportsGetReportsDocumentOKNewItemsItemVerificationBasisPackage,
+		ReportsGetReportsDocumentOKNewItemsItemVerificationBasisBannerVersion,
+		ReportsGetReportsDocumentOKNewItemsItemVerificationBasisStatement,
+		ReportsGetReportsDocumentOKNewItemsItemVerificationBasisPerson,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKNewItemsItemVerificationBasis) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKNewItemsItemVerificationBasisScan:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKNewItemsItemVerificationBasisDeviceVersion:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKNewItemsItemVerificationBasisPackage:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKNewItemsItemVerificationBasisBannerVersion:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKNewItemsItemVerificationBasisStatement:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKNewItemsItemVerificationBasisPerson:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKNewItemsItemVerificationBasis) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKNewItemsItemVerificationBasis(data) {
+	case ReportsGetReportsDocumentOKNewItemsItemVerificationBasisScan:
+		*s = ReportsGetReportsDocumentOKNewItemsItemVerificationBasisScan
+		return nil
+	case ReportsGetReportsDocumentOKNewItemsItemVerificationBasisDeviceVersion:
+		*s = ReportsGetReportsDocumentOKNewItemsItemVerificationBasisDeviceVersion
+		return nil
+	case ReportsGetReportsDocumentOKNewItemsItemVerificationBasisPackage:
+		*s = ReportsGetReportsDocumentOKNewItemsItemVerificationBasisPackage
+		return nil
+	case ReportsGetReportsDocumentOKNewItemsItemVerificationBasisBannerVersion:
+		*s = ReportsGetReportsDocumentOKNewItemsItemVerificationBasisBannerVersion
+		return nil
+	case ReportsGetReportsDocumentOKNewItemsItemVerificationBasisStatement:
+		*s = ReportsGetReportsDocumentOKNewItemsItemVerificationBasisStatement
+		return nil
+	case ReportsGetReportsDocumentOKNewItemsItemVerificationBasisPerson:
+		*s = ReportsGetReportsDocumentOKNewItemsItemVerificationBasisPerson
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsDocumentOKNewItemsItemVerificationVerified string
+
+const (
+	ReportsGetReportsDocumentOKNewItemsItemVerificationVerifiedNo     ReportsGetReportsDocumentOKNewItemsItemVerificationVerified = "no"
+	ReportsGetReportsDocumentOKNewItemsItemVerificationVerifiedDevice ReportsGetReportsDocumentOKNewItemsItemVerificationVerified = "device"
+	ReportsGetReportsDocumentOKNewItemsItemVerificationVerifiedScan   ReportsGetReportsDocumentOKNewItemsItemVerificationVerified = "scan"
+	ReportsGetReportsDocumentOKNewItemsItemVerificationVerifiedPerson ReportsGetReportsDocumentOKNewItemsItemVerificationVerified = "person"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKNewItemsItemVerificationVerified values.
+func (ReportsGetReportsDocumentOKNewItemsItemVerificationVerified) AllValues() []ReportsGetReportsDocumentOKNewItemsItemVerificationVerified {
+	return []ReportsGetReportsDocumentOKNewItemsItemVerificationVerified{
+		ReportsGetReportsDocumentOKNewItemsItemVerificationVerifiedNo,
+		ReportsGetReportsDocumentOKNewItemsItemVerificationVerifiedDevice,
+		ReportsGetReportsDocumentOKNewItemsItemVerificationVerifiedScan,
+		ReportsGetReportsDocumentOKNewItemsItemVerificationVerifiedPerson,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKNewItemsItemVerificationVerified) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKNewItemsItemVerificationVerifiedNo:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKNewItemsItemVerificationVerifiedDevice:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKNewItemsItemVerificationVerifiedScan:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKNewItemsItemVerificationVerifiedPerson:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKNewItemsItemVerificationVerified) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKNewItemsItemVerificationVerified(data) {
+	case ReportsGetReportsDocumentOKNewItemsItemVerificationVerifiedNo:
+		*s = ReportsGetReportsDocumentOKNewItemsItemVerificationVerifiedNo
+		return nil
+	case ReportsGetReportsDocumentOKNewItemsItemVerificationVerifiedDevice:
+		*s = ReportsGetReportsDocumentOKNewItemsItemVerificationVerifiedDevice
+		return nil
+	case ReportsGetReportsDocumentOKNewItemsItemVerificationVerifiedScan:
+		*s = ReportsGetReportsDocumentOKNewItemsItemVerificationVerifiedScan
+		return nil
+	case ReportsGetReportsDocumentOKNewItemsItemVerificationVerifiedPerson:
+		*s = ReportsGetReportsDocumentOKNewItemsItemVerificationVerifiedPerson
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsDocumentOKOpen struct {
+	Grouping ReportsGetReportsDocumentOKOpenGrouping `json:"grouping"`
+	// Most urgent first.
+	Groups []ReportsGetReportsDocumentOKOpenGroupsItem `json:"groups"`
+	// Open findings not listed (a report lists 100 at most).
+	More  int `json:"more"`
+	Total int `json:"total"`
+}
+
+// GetGrouping returns the value of Grouping.
+func (s *ReportsGetReportsDocumentOKOpen) GetGrouping() ReportsGetReportsDocumentOKOpenGrouping {
+	return s.Grouping
+}
+
+// GetGroups returns the value of Groups.
+func (s *ReportsGetReportsDocumentOKOpen) GetGroups() []ReportsGetReportsDocumentOKOpenGroupsItem {
+	return s.Groups
+}
+
+// GetMore returns the value of More.
+func (s *ReportsGetReportsDocumentOKOpen) GetMore() int {
+	return s.More
+}
+
+// GetTotal returns the value of Total.
+func (s *ReportsGetReportsDocumentOKOpen) GetTotal() int {
+	return s.Total
+}
+
+// SetGrouping sets the value of Grouping.
+func (s *ReportsGetReportsDocumentOKOpen) SetGrouping(val ReportsGetReportsDocumentOKOpenGrouping) {
+	s.Grouping = val
+}
+
+// SetGroups sets the value of Groups.
+func (s *ReportsGetReportsDocumentOKOpen) SetGroups(val []ReportsGetReportsDocumentOKOpenGroupsItem) {
+	s.Groups = val
+}
+
+// SetMore sets the value of More.
+func (s *ReportsGetReportsDocumentOKOpen) SetMore(val int) {
+	s.More = val
+}
+
+// SetTotal sets the value of Total.
+func (s *ReportsGetReportsDocumentOKOpen) SetTotal(val int) {
+	s.Total = val
+}
+
+type ReportsGetReportsDocumentOKOpenGrouping string
+
+const (
+	ReportsGetReportsDocumentOKOpenGroupingDevice ReportsGetReportsDocumentOKOpenGrouping = "device"
+	ReportsGetReportsDocumentOKOpenGroupingCve    ReportsGetReportsDocumentOKOpenGrouping = "cve"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKOpenGrouping values.
+func (ReportsGetReportsDocumentOKOpenGrouping) AllValues() []ReportsGetReportsDocumentOKOpenGrouping {
+	return []ReportsGetReportsDocumentOKOpenGrouping{
+		ReportsGetReportsDocumentOKOpenGroupingDevice,
+		ReportsGetReportsDocumentOKOpenGroupingCve,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKOpenGrouping) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKOpenGroupingDevice:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupingCve:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKOpenGrouping) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKOpenGrouping(data) {
+	case ReportsGetReportsDocumentOKOpenGroupingDevice:
+		*s = ReportsGetReportsDocumentOKOpenGroupingDevice
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupingCve:
+		*s = ReportsGetReportsDocumentOKOpenGroupingCve
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsDocumentOKOpenGroupsItem struct {
+	Items []ReportsGetReportsDocumentOKOpenGroupsItemItemsItem `json:"items"`
+	// The device id or the CVE.
+	Key   string `json:"key"`
+	Label string `json:"label"`
+	// The most urgent status in the group.
+	Status ReportsGetReportsDocumentOKOpenGroupsItemStatus `json:"status"`
+}
+
+// GetItems returns the value of Items.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItem) GetItems() []ReportsGetReportsDocumentOKOpenGroupsItemItemsItem {
+	return s.Items
+}
+
+// GetKey returns the value of Key.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItem) GetKey() string {
+	return s.Key
+}
+
+// GetLabel returns the value of Label.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItem) GetLabel() string {
+	return s.Label
+}
+
+// GetStatus returns the value of Status.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItem) GetStatus() ReportsGetReportsDocumentOKOpenGroupsItemStatus {
+	return s.Status
+}
+
+// SetItems sets the value of Items.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItem) SetItems(val []ReportsGetReportsDocumentOKOpenGroupsItemItemsItem) {
+	s.Items = val
+}
+
+// SetKey sets the value of Key.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItem) SetKey(val string) {
+	s.Key = val
+}
+
+// SetLabel sets the value of Label.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItem) SetLabel(val string) {
+	s.Label = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItem) SetStatus(val ReportsGetReportsDocumentOKOpenGroupsItemStatus) {
+	s.Status = val
+}
+
+type ReportsGetReportsDocumentOKOpenGroupsItemItemsItem struct {
+	Cve       string                                                   `json:"cve"`
+	Device    ReportsGetReportsDocumentOKOpenGroupsItemItemsItemDevice `json:"device"`
+	FindingID string                                                   `json:"finding_id"`
+	FirstSeen time.Time                                                `json:"first_seen"`
+	Fix       ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix    `json:"fix"`
+	// The software line the CVE is on, as Findings names it.
+	Product string `json:"product"`
+	// Every layer 1 to 4 that applies, most urgent first; empty for layer 5.
+	Reasons  []ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem `json:"reasons"`
+	Severity NilReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity   `json:"severity"`
+	// The one status of a finding, most urgent first.
+	Status       ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatus       `json:"status"`
+	Verification ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerification `json:"verification"`
+	// The version the finding was matched on.
+	Version NilString `json:"version"`
+}
+
+// GetCve returns the value of Cve.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItem) GetCve() string {
+	return s.Cve
+}
+
+// GetDevice returns the value of Device.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItem) GetDevice() ReportsGetReportsDocumentOKOpenGroupsItemItemsItemDevice {
+	return s.Device
+}
+
+// GetFindingID returns the value of FindingID.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItem) GetFindingID() string {
+	return s.FindingID
+}
+
+// GetFirstSeen returns the value of FirstSeen.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItem) GetFirstSeen() time.Time {
+	return s.FirstSeen
+}
+
+// GetFix returns the value of Fix.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItem) GetFix() ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix {
+	return s.Fix
+}
+
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItem) GetProduct() string {
+	return s.Product
+}
+
+// GetReasons returns the value of Reasons.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItem) GetReasons() []ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem {
+	return s.Reasons
+}
+
+// GetSeverity returns the value of Severity.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItem) GetSeverity() NilReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity {
+	return s.Severity
+}
+
+// GetStatus returns the value of Status.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItem) GetStatus() ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatus {
+	return s.Status
+}
+
+// GetVerification returns the value of Verification.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItem) GetVerification() ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerification {
+	return s.Verification
+}
+
+// GetVersion returns the value of Version.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItem) GetVersion() NilString {
+	return s.Version
+}
+
+// SetCve sets the value of Cve.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItem) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetDevice sets the value of Device.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItem) SetDevice(val ReportsGetReportsDocumentOKOpenGroupsItemItemsItemDevice) {
+	s.Device = val
+}
+
+// SetFindingID sets the value of FindingID.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItem) SetFindingID(val string) {
+	s.FindingID = val
+}
+
+// SetFirstSeen sets the value of FirstSeen.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItem) SetFirstSeen(val time.Time) {
+	s.FirstSeen = val
+}
+
+// SetFix sets the value of Fix.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItem) SetFix(val ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) {
+	s.Fix = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItem) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetReasons sets the value of Reasons.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItem) SetReasons(val []ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) {
+	s.Reasons = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItem) SetSeverity(val NilReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity) {
+	s.Severity = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItem) SetStatus(val ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatus) {
+	s.Status = val
+}
+
+// SetVerification sets the value of Verification.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItem) SetVerification(val ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerification) {
+	s.Verification = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItem) SetVersion(val NilString) {
+	s.Version = val
+}
+
+type ReportsGetReportsDocumentOKOpenGroupsItemItemsItemDevice struct {
+	// False = "Not added yet".
+	Added bool `json:"added"`
+	// The device id when the report was made; the device may be gone since.
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// GetAdded returns the value of Added.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemDevice) GetAdded() bool {
+	return s.Added
+}
+
+// GetID returns the value of ID.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemDevice) GetID() string {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemDevice) GetName() string {
+	return s.Name
+}
+
+// SetAdded sets the value of Added.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemDevice) SetAdded(val bool) {
+	s.Added = val
+}
+
+// SetID sets the value of ID.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemDevice) SetID(val string) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemDevice) SetName(val string) {
+	s.Name = val
+}
+
+type ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix struct {
+	// The "By fix" group; opaque.
+	Key  string                                                    `json:"key"`
+	Kind ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind `json:"kind"`
+	// The product the fix is for, as people name it.
+	Product string `json:"product"`
+	// Os_update: the KB number; none_yet: the advisory id when known.
+	Ref NilString `json:"ref"`
+	// The vendor advisory or release notes.
+	URL NilURI `json:"url"`
+	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
+	// known.
+	Version NilString `json:"version"`
+}
+
+// GetKey returns the value of Key.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) GetKey() string {
+	return s.Key
+}
+
+// GetKind returns the value of Kind.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) GetKind() ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind {
+	return s.Kind
+}
+
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) GetProduct() string {
+	return s.Product
+}
+
+// GetRef returns the value of Ref.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) GetRef() NilString {
+	return s.Ref
+}
+
+// GetURL returns the value of URL.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) GetURL() NilURI {
+	return s.URL
+}
+
+// GetVersion returns the value of Version.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) GetVersion() NilString {
+	return s.Version
+}
+
+// SetKey sets the value of Key.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) SetKey(val string) {
+	s.Key = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) SetKind(val ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind) {
+	s.Kind = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetRef sets the value of Ref.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) SetRef(val NilString) {
+	s.Ref = val
+}
+
+// SetURL sets the value of URL.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) SetURL(val NilURI) {
+	s.URL = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) SetVersion(val NilString) {
+	s.Version = val
+}
+
+type ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind string
+
+const (
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindUpdate        ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind = "update"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindDistroUpdate  ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind = "distro_update"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindOsUpdate      ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind = "os_update"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindFeatureUpdate ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind = "feature_update"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindNoneYet       ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind = "none_yet"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindUnknown       ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind = "unknown"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind values.
+func (ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind) AllValues() []ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind {
+	return []ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind{
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindUpdate,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindDistroUpdate,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindOsUpdate,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindFeatureUpdate,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindNoneYet,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindUpdate:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindDistroUpdate:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindOsUpdate:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindFeatureUpdate:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindNoneYet:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind(data) {
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindUpdate:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindUpdate
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindDistroUpdate:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindDistroUpdate
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindOsUpdate:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindOsUpdate
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindFeatureUpdate:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindFeatureUpdate
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindNoneYet:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindNoneYet
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindUnknown:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// One urgency layer that applies, with its evidence.
+type ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem struct {
+	// When the source said so; layer 1: the newest alert; layer 4: since when the rule holds.
+	Date time.Time `json:"date"`
+	// A short fact of the signal: "244 stars", the attacker address for layer 1.
+	Detail NilString `json:"detail"`
+	// Layer 2: the day the list asks for the fix (CISA KEV due date); null otherwise.
+	Due   NilDate `json:"due"`
+	Layer int     `json:"layer"`
+	// The source as people name it: "CISA KEV", "Rapid7", "GitHub".
+	Name string `json:"name"`
+	// The signal source: cisa-kev, msrc, chrome, cisco, fortinet, apple, android, rapid7, gti, nuclei,
+	// metasploit, exploit-db, github-poc; ids for an attack seen here (layer 1); cvss for layer 4.
+	Source string `json:"source"`
+	URL    NilURI `json:"url"`
+}
+
+// GetDate returns the value of Date.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) GetDate() time.Time {
+	return s.Date
+}
+
+// GetDetail returns the value of Detail.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) GetDetail() NilString {
+	return s.Detail
+}
+
+// GetDue returns the value of Due.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) GetDue() NilDate {
+	return s.Due
+}
+
+// GetLayer returns the value of Layer.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) GetLayer() int {
+	return s.Layer
+}
+
+// GetName returns the value of Name.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) GetName() string {
+	return s.Name
+}
+
+// GetSource returns the value of Source.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) GetSource() string {
+	return s.Source
+}
+
+// GetURL returns the value of URL.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) GetURL() NilURI {
+	return s.URL
+}
+
+// SetDate sets the value of Date.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) SetDate(val time.Time) {
+	s.Date = val
+}
+
+// SetDetail sets the value of Detail.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) SetDetail(val NilString) {
+	s.Detail = val
+}
+
+// SetDue sets the value of Due.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) SetDue(val NilDate) {
+	s.Due = val
+}
+
+// SetLayer sets the value of Layer.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) SetLayer(val int) {
+	s.Layer = val
+}
+
+// SetName sets the value of Name.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetSource sets the value of Source.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) SetSource(val string) {
+	s.Source = val
+}
+
+// SetURL sets the value of URL.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) SetURL(val NilURI) {
+	s.URL = val
+}
+
+// The CVSS base score of the CVE and its band. Never changes the status. null = "Not scored yet",
+// never 0.
+type ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity struct {
+	Band    ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBand    `json:"band"`
+	Score   float64                                                           `json:"score"`
+	Vector  string                                                            `json:"vector"`
+	Version ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion `json:"version"`
+}
+
+// GetBand returns the value of Band.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity) GetBand() ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBand {
+	return s.Band
+}
+
+// GetScore returns the value of Score.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity) GetScore() float64 {
+	return s.Score
+}
+
+// GetVector returns the value of Vector.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity) GetVersion() ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion {
+	return s.Version
+}
+
+// SetBand sets the value of Band.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity) SetBand(val ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBand) {
+	s.Band = val
+}
+
+// SetScore sets the value of Score.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity) SetScore(val float64) {
+	s.Score = val
+}
+
+// SetVector sets the value of Vector.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity) SetVersion(val ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion) {
+	s.Version = val
+}
+
+type ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBand string
+
+const (
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBandCritical ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBand = "critical"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBandHigh     ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBand = "high"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBandMedium   ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBand = "medium"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBandLow      ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBand = "low"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBandNone     ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBand = "none"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBand values.
+func (ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBand) AllValues() []ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBand {
+	return []ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBand{
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBandCritical,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBandHigh,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBandMedium,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBandLow,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBandNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBand) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBandCritical:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBandHigh:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBandMedium:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBandLow:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBandNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBand) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBand(data) {
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBandCritical:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBandCritical
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBandHigh:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBandHigh
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBandMedium:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBandMedium
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBandLow:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBandLow
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBandNone:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBandNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion string
+
+const (
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion40 ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion = "4.0"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion31 ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion = "3.1"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion30 ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion = "3.0"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion20 ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion = "2.0"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion values.
+func (ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion) AllValues() []ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion {
+	return []ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion{
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion40,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion31,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion30,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion20,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion40:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion31:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion30:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion20:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion(data) {
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion40:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion40
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion31:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion31
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion30:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion30
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion20:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion20
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The one status of a finding, most urgent first.
+type ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatus string
+
+const (
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusUnderAttack       ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatus = "under_attack"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusExploited         ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatus = "exploited"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusPublicExploit     ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatus = "public_exploit"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusCriticalEdge      ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatus = "critical_edge"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusUpdateRecommended ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatus = "update_recommended"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusPatched           ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatus = "patched"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusMitigated         ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatus = "mitigated"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusAccepted          ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatus = "accepted"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusNotRelevant       ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatus = "not_relevant"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusFalsePositive     ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatus = "false_positive"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatus values.
+func (ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatus) AllValues() []ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatus {
+	return []ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatus{
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusUnderAttack,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusExploited,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusPublicExploit,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusCriticalEdge,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusUpdateRecommended,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusPatched,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusMitigated,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusAccepted,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusNotRelevant,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusFalsePositive,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusUnderAttack:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusExploited:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusPublicExploit:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusCriticalEdge:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusUpdateRecommended:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusPatched:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusMitigated:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusAccepted:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusNotRelevant:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusFalsePositive:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatus) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatus(data) {
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusUnderAttack:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusUnderAttack
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusExploited:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusExploited
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusPublicExploit:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusPublicExploit
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusCriticalEdge:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusCriticalEdge
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusUpdateRecommended:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusUpdateRecommended
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusPatched:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusPatched
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusMitigated:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusMitigated
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusAccepted:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusAccepted
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusNotRelevant:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusNotRelevant
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusFalsePositive:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatusFalsePositive
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerification struct {
+	// When it was confirmed; null while not confirmed.
+	At    NilDateTime                                                         `json:"at"`
+	Basis ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis `json:"basis"`
+	// Verified person: who confirmed it.
+	By       NilString                                                              `json:"by"`
+	Verified ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationVerified `json:"verified"`
+}
+
+// GetAt returns the value of At.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerification) GetAt() NilDateTime {
+	return s.At
+}
+
+// GetBasis returns the value of Basis.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerification) GetBasis() ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis {
+	return s.Basis
+}
+
+// GetBy returns the value of By.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerification) GetBy() NilString {
+	return s.By
+}
+
+// GetVerified returns the value of Verified.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerification) GetVerified() ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationVerified {
+	return s.Verified
+}
+
+// SetAt sets the value of At.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerification) SetAt(val NilDateTime) {
+	s.At = val
+}
+
+// SetBasis sets the value of Basis.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerification) SetBasis(val ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis) {
+	s.Basis = val
+}
+
+// SetBy sets the value of By.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerification) SetBy(val NilString) {
+	s.By = val
+}
+
+// SetVerified sets the value of Verified.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerification) SetVerified(val ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationVerified) {
+	s.Verified = val
+}
+
+type ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis string
+
+const (
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisScan          ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis = "scan"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisDeviceVersion ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis = "device_version"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisPackage       ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis = "package"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisBannerVersion ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis = "banner_version"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisStatement     ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis = "statement"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisPerson        ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis = "person"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis values.
+func (ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis) AllValues() []ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis {
+	return []ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis{
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisScan,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisDeviceVersion,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisPackage,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisBannerVersion,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisStatement,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisPerson,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisScan:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisDeviceVersion:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisPackage:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisBannerVersion:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisStatement:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisPerson:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis(data) {
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisScan:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisScan
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisDeviceVersion:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisDeviceVersion
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisPackage:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisPackage
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisBannerVersion:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisBannerVersion
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisStatement:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisStatement
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisPerson:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisPerson
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationVerified string
+
+const (
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationVerifiedNo     ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationVerified = "no"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationVerifiedDevice ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationVerified = "device"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationVerifiedScan   ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationVerified = "scan"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationVerifiedPerson ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationVerified = "person"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationVerified values.
+func (ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationVerified) AllValues() []ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationVerified {
+	return []ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationVerified{
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationVerifiedNo,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationVerifiedDevice,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationVerifiedScan,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationVerifiedPerson,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationVerified) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationVerifiedNo:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationVerifiedDevice:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationVerifiedScan:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationVerifiedPerson:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationVerified) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationVerified(data) {
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationVerifiedNo:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationVerifiedNo
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationVerifiedDevice:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationVerifiedDevice
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationVerifiedScan:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationVerifiedScan
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationVerifiedPerson:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationVerifiedPerson
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The most urgent status in the group.
+type ReportsGetReportsDocumentOKOpenGroupsItemStatus string
+
+const (
+	ReportsGetReportsDocumentOKOpenGroupsItemStatusUnderAttack       ReportsGetReportsDocumentOKOpenGroupsItemStatus = "under_attack"
+	ReportsGetReportsDocumentOKOpenGroupsItemStatusExploited         ReportsGetReportsDocumentOKOpenGroupsItemStatus = "exploited"
+	ReportsGetReportsDocumentOKOpenGroupsItemStatusPublicExploit     ReportsGetReportsDocumentOKOpenGroupsItemStatus = "public_exploit"
+	ReportsGetReportsDocumentOKOpenGroupsItemStatusCriticalEdge      ReportsGetReportsDocumentOKOpenGroupsItemStatus = "critical_edge"
+	ReportsGetReportsDocumentOKOpenGroupsItemStatusUpdateRecommended ReportsGetReportsDocumentOKOpenGroupsItemStatus = "update_recommended"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKOpenGroupsItemStatus values.
+func (ReportsGetReportsDocumentOKOpenGroupsItemStatus) AllValues() []ReportsGetReportsDocumentOKOpenGroupsItemStatus {
+	return []ReportsGetReportsDocumentOKOpenGroupsItemStatus{
+		ReportsGetReportsDocumentOKOpenGroupsItemStatusUnderAttack,
+		ReportsGetReportsDocumentOKOpenGroupsItemStatusExploited,
+		ReportsGetReportsDocumentOKOpenGroupsItemStatusPublicExploit,
+		ReportsGetReportsDocumentOKOpenGroupsItemStatusCriticalEdge,
+		ReportsGetReportsDocumentOKOpenGroupsItemStatusUpdateRecommended,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKOpenGroupsItemStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKOpenGroupsItemStatusUnderAttack:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemStatusExploited:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemStatusPublicExploit:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemStatusCriticalEdge:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemStatusUpdateRecommended:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemStatus) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKOpenGroupsItemStatus(data) {
+	case ReportsGetReportsDocumentOKOpenGroupsItemStatusUnderAttack:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemStatusUnderAttack
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemStatusExploited:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemStatusExploited
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemStatusPublicExploit:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemStatusPublicExploit
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemStatusCriticalEdge:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemStatusCriticalEdge
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemStatusUpdateRecommended:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemStatusUpdateRecommended
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The options the document was made with.
+type ReportsGetReportsDocumentOKOptions struct {
+	Charts bool `json:"charts"`
+	// How Still open is grouped.
+	Grouping ReportsGetReportsDocumentOKOptionsGrouping `json:"grouping"`
+	// Count and list devices not added yet (default on).
+	IncludeNotAdded bool `json:"include_not_added"`
+	// Count and list findings handled as not relevant (default off).
+	IncludeNotRelevant bool `json:"include_not_relevant"`
+	// Calendar_month = the last whole calendar month in the organisation time zone.
+	Period ReportsGetReportsDocumentOKOptionsPeriod `json:"period"`
+	// Which sections the report has.
+	Sections ReportsGetReportsDocumentOKOptionsSections `json:"sections"`
+}
+
+// GetCharts returns the value of Charts.
+func (s *ReportsGetReportsDocumentOKOptions) GetCharts() bool {
+	return s.Charts
+}
+
+// GetGrouping returns the value of Grouping.
+func (s *ReportsGetReportsDocumentOKOptions) GetGrouping() ReportsGetReportsDocumentOKOptionsGrouping {
+	return s.Grouping
+}
+
+// GetIncludeNotAdded returns the value of IncludeNotAdded.
+func (s *ReportsGetReportsDocumentOKOptions) GetIncludeNotAdded() bool {
+	return s.IncludeNotAdded
+}
+
+// GetIncludeNotRelevant returns the value of IncludeNotRelevant.
+func (s *ReportsGetReportsDocumentOKOptions) GetIncludeNotRelevant() bool {
+	return s.IncludeNotRelevant
+}
+
+// GetPeriod returns the value of Period.
+func (s *ReportsGetReportsDocumentOKOptions) GetPeriod() ReportsGetReportsDocumentOKOptionsPeriod {
+	return s.Period
+}
+
+// GetSections returns the value of Sections.
+func (s *ReportsGetReportsDocumentOKOptions) GetSections() ReportsGetReportsDocumentOKOptionsSections {
+	return s.Sections
+}
+
+// SetCharts sets the value of Charts.
+func (s *ReportsGetReportsDocumentOKOptions) SetCharts(val bool) {
+	s.Charts = val
+}
+
+// SetGrouping sets the value of Grouping.
+func (s *ReportsGetReportsDocumentOKOptions) SetGrouping(val ReportsGetReportsDocumentOKOptionsGrouping) {
+	s.Grouping = val
+}
+
+// SetIncludeNotAdded sets the value of IncludeNotAdded.
+func (s *ReportsGetReportsDocumentOKOptions) SetIncludeNotAdded(val bool) {
+	s.IncludeNotAdded = val
+}
+
+// SetIncludeNotRelevant sets the value of IncludeNotRelevant.
+func (s *ReportsGetReportsDocumentOKOptions) SetIncludeNotRelevant(val bool) {
+	s.IncludeNotRelevant = val
+}
+
+// SetPeriod sets the value of Period.
+func (s *ReportsGetReportsDocumentOKOptions) SetPeriod(val ReportsGetReportsDocumentOKOptionsPeriod) {
+	s.Period = val
+}
+
+// SetSections sets the value of Sections.
+func (s *ReportsGetReportsDocumentOKOptions) SetSections(val ReportsGetReportsDocumentOKOptionsSections) {
+	s.Sections = val
+}
+
+// How Still open is grouped.
+type ReportsGetReportsDocumentOKOptionsGrouping string
+
+const (
+	ReportsGetReportsDocumentOKOptionsGroupingDevice ReportsGetReportsDocumentOKOptionsGrouping = "device"
+	ReportsGetReportsDocumentOKOptionsGroupingCve    ReportsGetReportsDocumentOKOptionsGrouping = "cve"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKOptionsGrouping values.
+func (ReportsGetReportsDocumentOKOptionsGrouping) AllValues() []ReportsGetReportsDocumentOKOptionsGrouping {
+	return []ReportsGetReportsDocumentOKOptionsGrouping{
+		ReportsGetReportsDocumentOKOptionsGroupingDevice,
+		ReportsGetReportsDocumentOKOptionsGroupingCve,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKOptionsGrouping) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKOptionsGroupingDevice:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOptionsGroupingCve:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKOptionsGrouping) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKOptionsGrouping(data) {
+	case ReportsGetReportsDocumentOKOptionsGroupingDevice:
+		*s = ReportsGetReportsDocumentOKOptionsGroupingDevice
+		return nil
+	case ReportsGetReportsDocumentOKOptionsGroupingCve:
+		*s = ReportsGetReportsDocumentOKOptionsGroupingCve
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Calendar_month = the last whole calendar month in the organisation time zone.
+type ReportsGetReportsDocumentOKOptionsPeriod string
+
+const (
+	ReportsGetReportsDocumentOKOptionsPeriodLast7Days     ReportsGetReportsDocumentOKOptionsPeriod = "last_7_days"
+	ReportsGetReportsDocumentOKOptionsPeriodLast30Days    ReportsGetReportsDocumentOKOptionsPeriod = "last_30_days"
+	ReportsGetReportsDocumentOKOptionsPeriodCalendarMonth ReportsGetReportsDocumentOKOptionsPeriod = "calendar_month"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKOptionsPeriod values.
+func (ReportsGetReportsDocumentOKOptionsPeriod) AllValues() []ReportsGetReportsDocumentOKOptionsPeriod {
+	return []ReportsGetReportsDocumentOKOptionsPeriod{
+		ReportsGetReportsDocumentOKOptionsPeriodLast7Days,
+		ReportsGetReportsDocumentOKOptionsPeriodLast30Days,
+		ReportsGetReportsDocumentOKOptionsPeriodCalendarMonth,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKOptionsPeriod) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKOptionsPeriodLast7Days:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOptionsPeriodLast30Days:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOptionsPeriodCalendarMonth:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKOptionsPeriod) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKOptionsPeriod(data) {
+	case ReportsGetReportsDocumentOKOptionsPeriodLast7Days:
+		*s = ReportsGetReportsDocumentOKOptionsPeriodLast7Days
+		return nil
+	case ReportsGetReportsDocumentOKOptionsPeriodLast30Days:
+		*s = ReportsGetReportsDocumentOKOptionsPeriodLast30Days
+		return nil
+	case ReportsGetReportsDocumentOKOptionsPeriodCalendarMonth:
+		*s = ReportsGetReportsDocumentOKOptionsPeriodCalendarMonth
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Which sections the report has.
+type ReportsGetReportsDocumentOKOptionsSections struct {
+	Coverage   bool `json:"coverage"`
+	Detections bool `json:"detections"`
+	Exposure   bool `json:"exposure"`
+	Handled    bool `json:"handled"`
+	New        bool `json:"new"`
+	Open       bool `json:"open"`
+	Summary    bool `json:"summary"`
+}
+
+// GetCoverage returns the value of Coverage.
+func (s *ReportsGetReportsDocumentOKOptionsSections) GetCoverage() bool {
+	return s.Coverage
+}
+
+// GetDetections returns the value of Detections.
+func (s *ReportsGetReportsDocumentOKOptionsSections) GetDetections() bool {
+	return s.Detections
+}
+
+// GetExposure returns the value of Exposure.
+func (s *ReportsGetReportsDocumentOKOptionsSections) GetExposure() bool {
+	return s.Exposure
+}
+
+// GetHandled returns the value of Handled.
+func (s *ReportsGetReportsDocumentOKOptionsSections) GetHandled() bool {
+	return s.Handled
+}
+
+// GetNew returns the value of New.
+func (s *ReportsGetReportsDocumentOKOptionsSections) GetNew() bool {
+	return s.New
+}
+
+// GetOpen returns the value of Open.
+func (s *ReportsGetReportsDocumentOKOptionsSections) GetOpen() bool {
+	return s.Open
+}
+
+// GetSummary returns the value of Summary.
+func (s *ReportsGetReportsDocumentOKOptionsSections) GetSummary() bool {
+	return s.Summary
+}
+
+// SetCoverage sets the value of Coverage.
+func (s *ReportsGetReportsDocumentOKOptionsSections) SetCoverage(val bool) {
+	s.Coverage = val
+}
+
+// SetDetections sets the value of Detections.
+func (s *ReportsGetReportsDocumentOKOptionsSections) SetDetections(val bool) {
+	s.Detections = val
+}
+
+// SetExposure sets the value of Exposure.
+func (s *ReportsGetReportsDocumentOKOptionsSections) SetExposure(val bool) {
+	s.Exposure = val
+}
+
+// SetHandled sets the value of Handled.
+func (s *ReportsGetReportsDocumentOKOptionsSections) SetHandled(val bool) {
+	s.Handled = val
+}
+
+// SetNew sets the value of New.
+func (s *ReportsGetReportsDocumentOKOptionsSections) SetNew(val bool) {
+	s.New = val
+}
+
+// SetOpen sets the value of Open.
+func (s *ReportsGetReportsDocumentOKOptionsSections) SetOpen(val bool) {
+	s.Open = val
+}
+
+// SetSummary sets the value of Summary.
+func (s *ReportsGetReportsDocumentOKOptionsSections) SetSummary(val bool) {
+	s.Summary = val
+}
+
+type ReportsGetReportsDocumentOKPeriod struct {
+	From time.Time `json:"from"`
+	// Calendar_month = the last whole calendar month in the organisation time zone.
+	Kind ReportsGetReportsDocumentOKPeriodKind `json:"kind"`
+	To   time.Time                             `json:"to"`
+	Tz   string                                `json:"tz"`
+}
+
+// GetFrom returns the value of From.
+func (s *ReportsGetReportsDocumentOKPeriod) GetFrom() time.Time {
+	return s.From
+}
+
+// GetKind returns the value of Kind.
+func (s *ReportsGetReportsDocumentOKPeriod) GetKind() ReportsGetReportsDocumentOKPeriodKind {
+	return s.Kind
+}
+
+// GetTo returns the value of To.
+func (s *ReportsGetReportsDocumentOKPeriod) GetTo() time.Time {
+	return s.To
+}
+
+// GetTz returns the value of Tz.
+func (s *ReportsGetReportsDocumentOKPeriod) GetTz() string {
+	return s.Tz
+}
+
+// SetFrom sets the value of From.
+func (s *ReportsGetReportsDocumentOKPeriod) SetFrom(val time.Time) {
+	s.From = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ReportsGetReportsDocumentOKPeriod) SetKind(val ReportsGetReportsDocumentOKPeriodKind) {
+	s.Kind = val
+}
+
+// SetTo sets the value of To.
+func (s *ReportsGetReportsDocumentOKPeriod) SetTo(val time.Time) {
+	s.To = val
+}
+
+// SetTz sets the value of Tz.
+func (s *ReportsGetReportsDocumentOKPeriod) SetTz(val string) {
+	s.Tz = val
+}
+
+// Calendar_month = the last whole calendar month in the organisation time zone.
+type ReportsGetReportsDocumentOKPeriodKind string
+
+const (
+	ReportsGetReportsDocumentOKPeriodKindLast7Days     ReportsGetReportsDocumentOKPeriodKind = "last_7_days"
+	ReportsGetReportsDocumentOKPeriodKindLast30Days    ReportsGetReportsDocumentOKPeriodKind = "last_30_days"
+	ReportsGetReportsDocumentOKPeriodKindCalendarMonth ReportsGetReportsDocumentOKPeriodKind = "calendar_month"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKPeriodKind values.
+func (ReportsGetReportsDocumentOKPeriodKind) AllValues() []ReportsGetReportsDocumentOKPeriodKind {
+	return []ReportsGetReportsDocumentOKPeriodKind{
+		ReportsGetReportsDocumentOKPeriodKindLast7Days,
+		ReportsGetReportsDocumentOKPeriodKindLast30Days,
+		ReportsGetReportsDocumentOKPeriodKindCalendarMonth,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKPeriodKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKPeriodKindLast7Days:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKPeriodKindLast30Days:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKPeriodKindCalendarMonth:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKPeriodKind) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKPeriodKind(data) {
+	case ReportsGetReportsDocumentOKPeriodKindLast7Days:
+		*s = ReportsGetReportsDocumentOKPeriodKindLast7Days
+		return nil
+	case ReportsGetReportsDocumentOKPeriodKindLast30Days:
+		*s = ReportsGetReportsDocumentOKPeriodKindLast30Days
+		return nil
+	case ReportsGetReportsDocumentOKPeriodKindCalendarMonth:
+		*s = ReportsGetReportsDocumentOKPeriodKindCalendarMonth
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsDocumentOKSummary struct {
+	// The three things to do first, most urgent first.
+	First   []ReportsGetReportsDocumentOKSummaryFirstItem `json:"first"`
+	Handled int                                           `json:"handled"`
+	New     int                                           `json:"new"`
+	// Open at the start of the period.
+	OpenBefore int `json:"open_before"`
+	// Open findings now, one row per status that has any.
+	OpenByStatus []ReportsGetReportsDocumentOKSummaryOpenByStatusItem `json:"open_by_status"`
+	OpenNow      int                                                  `json:"open_now"`
+}
+
+// GetFirst returns the value of First.
+func (s *ReportsGetReportsDocumentOKSummary) GetFirst() []ReportsGetReportsDocumentOKSummaryFirstItem {
+	return s.First
+}
+
+// GetHandled returns the value of Handled.
+func (s *ReportsGetReportsDocumentOKSummary) GetHandled() int {
+	return s.Handled
+}
+
+// GetNew returns the value of New.
+func (s *ReportsGetReportsDocumentOKSummary) GetNew() int {
+	return s.New
+}
+
+// GetOpenBefore returns the value of OpenBefore.
+func (s *ReportsGetReportsDocumentOKSummary) GetOpenBefore() int {
+	return s.OpenBefore
+}
+
+// GetOpenByStatus returns the value of OpenByStatus.
+func (s *ReportsGetReportsDocumentOKSummary) GetOpenByStatus() []ReportsGetReportsDocumentOKSummaryOpenByStatusItem {
+	return s.OpenByStatus
+}
+
+// GetOpenNow returns the value of OpenNow.
+func (s *ReportsGetReportsDocumentOKSummary) GetOpenNow() int {
+	return s.OpenNow
+}
+
+// SetFirst sets the value of First.
+func (s *ReportsGetReportsDocumentOKSummary) SetFirst(val []ReportsGetReportsDocumentOKSummaryFirstItem) {
+	s.First = val
+}
+
+// SetHandled sets the value of Handled.
+func (s *ReportsGetReportsDocumentOKSummary) SetHandled(val int) {
+	s.Handled = val
+}
+
+// SetNew sets the value of New.
+func (s *ReportsGetReportsDocumentOKSummary) SetNew(val int) {
+	s.New = val
+}
+
+// SetOpenBefore sets the value of OpenBefore.
+func (s *ReportsGetReportsDocumentOKSummary) SetOpenBefore(val int) {
+	s.OpenBefore = val
+}
+
+// SetOpenByStatus sets the value of OpenByStatus.
+func (s *ReportsGetReportsDocumentOKSummary) SetOpenByStatus(val []ReportsGetReportsDocumentOKSummaryOpenByStatusItem) {
+	s.OpenByStatus = val
+}
+
+// SetOpenNow sets the value of OpenNow.
+func (s *ReportsGetReportsDocumentOKSummary) SetOpenNow(val int) {
+	s.OpenNow = val
+}
+
+type ReportsGetReportsDocumentOKSummaryFirstItem struct {
+	Cve          string                                                   `json:"cve"`
+	DeviceCount  int                                                      `json:"device_count"`
+	Devices      []ReportsGetReportsDocumentOKSummaryFirstItemDevicesItem `json:"devices"`
+	FindingCount int                                                      `json:"finding_count"`
+	// Its most urgent finding.
+	FindingID string                                                 `json:"finding_id"`
+	Fix       ReportsGetReportsDocumentOKSummaryFirstItemFix         `json:"fix"`
+	Product   string                                                 `json:"product"`
+	Severity  NilReportsGetReportsDocumentOKSummaryFirstItemSeverity `json:"severity"`
+	// The open statuses: the urgency layers 1 to 5 in order.
+	Status ReportsGetReportsDocumentOKSummaryFirstItemStatus `json:"status"`
+}
+
+// GetCve returns the value of Cve.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItem) GetCve() string {
+	return s.Cve
+}
+
+// GetDeviceCount returns the value of DeviceCount.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItem) GetDeviceCount() int {
+	return s.DeviceCount
+}
+
+// GetDevices returns the value of Devices.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItem) GetDevices() []ReportsGetReportsDocumentOKSummaryFirstItemDevicesItem {
+	return s.Devices
+}
+
+// GetFindingCount returns the value of FindingCount.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItem) GetFindingCount() int {
+	return s.FindingCount
+}
+
+// GetFindingID returns the value of FindingID.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItem) GetFindingID() string {
+	return s.FindingID
+}
+
+// GetFix returns the value of Fix.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItem) GetFix() ReportsGetReportsDocumentOKSummaryFirstItemFix {
+	return s.Fix
+}
+
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItem) GetProduct() string {
+	return s.Product
+}
+
+// GetSeverity returns the value of Severity.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItem) GetSeverity() NilReportsGetReportsDocumentOKSummaryFirstItemSeverity {
+	return s.Severity
+}
+
+// GetStatus returns the value of Status.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItem) GetStatus() ReportsGetReportsDocumentOKSummaryFirstItemStatus {
+	return s.Status
+}
+
+// SetCve sets the value of Cve.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItem) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetDeviceCount sets the value of DeviceCount.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItem) SetDeviceCount(val int) {
+	s.DeviceCount = val
+}
+
+// SetDevices sets the value of Devices.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItem) SetDevices(val []ReportsGetReportsDocumentOKSummaryFirstItemDevicesItem) {
+	s.Devices = val
+}
+
+// SetFindingCount sets the value of FindingCount.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItem) SetFindingCount(val int) {
+	s.FindingCount = val
+}
+
+// SetFindingID sets the value of FindingID.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItem) SetFindingID(val string) {
+	s.FindingID = val
+}
+
+// SetFix sets the value of Fix.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItem) SetFix(val ReportsGetReportsDocumentOKSummaryFirstItemFix) {
+	s.Fix = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItem) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItem) SetSeverity(val NilReportsGetReportsDocumentOKSummaryFirstItemSeverity) {
+	s.Severity = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItem) SetStatus(val ReportsGetReportsDocumentOKSummaryFirstItemStatus) {
+	s.Status = val
+}
+
+type ReportsGetReportsDocumentOKSummaryFirstItemDevicesItem struct {
+	// False = "Not added yet".
+	Added bool `json:"added"`
+	// The device id when the report was made; the device may be gone since.
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// GetAdded returns the value of Added.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemDevicesItem) GetAdded() bool {
+	return s.Added
+}
+
+// GetID returns the value of ID.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemDevicesItem) GetID() string {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemDevicesItem) GetName() string {
+	return s.Name
+}
+
+// SetAdded sets the value of Added.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemDevicesItem) SetAdded(val bool) {
+	s.Added = val
+}
+
+// SetID sets the value of ID.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemDevicesItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemDevicesItem) SetName(val string) {
+	s.Name = val
+}
+
+type ReportsGetReportsDocumentOKSummaryFirstItemFix struct {
+	// The "By fix" group; opaque.
+	Key  string                                             `json:"key"`
+	Kind ReportsGetReportsDocumentOKSummaryFirstItemFixKind `json:"kind"`
+	// The product the fix is for, as people name it.
+	Product string `json:"product"`
+	// Os_update: the KB number; none_yet: the advisory id when known.
+	Ref NilString `json:"ref"`
+	// The vendor advisory or release notes.
+	URL NilURI `json:"url"`
+	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
+	// known.
+	Version NilString `json:"version"`
+}
+
+// GetKey returns the value of Key.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) GetKey() string {
+	return s.Key
+}
+
+// GetKind returns the value of Kind.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) GetKind() ReportsGetReportsDocumentOKSummaryFirstItemFixKind {
+	return s.Kind
+}
+
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) GetProduct() string {
+	return s.Product
+}
+
+// GetRef returns the value of Ref.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) GetRef() NilString {
+	return s.Ref
+}
+
+// GetURL returns the value of URL.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) GetURL() NilURI {
+	return s.URL
+}
+
+// GetVersion returns the value of Version.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) GetVersion() NilString {
+	return s.Version
+}
+
+// SetKey sets the value of Key.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) SetKey(val string) {
+	s.Key = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) SetKind(val ReportsGetReportsDocumentOKSummaryFirstItemFixKind) {
+	s.Kind = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetRef sets the value of Ref.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) SetRef(val NilString) {
+	s.Ref = val
+}
+
+// SetURL sets the value of URL.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) SetURL(val NilURI) {
+	s.URL = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) SetVersion(val NilString) {
+	s.Version = val
+}
+
+type ReportsGetReportsDocumentOKSummaryFirstItemFixKind string
+
+const (
+	ReportsGetReportsDocumentOKSummaryFirstItemFixKindUpdate        ReportsGetReportsDocumentOKSummaryFirstItemFixKind = "update"
+	ReportsGetReportsDocumentOKSummaryFirstItemFixKindDistroUpdate  ReportsGetReportsDocumentOKSummaryFirstItemFixKind = "distro_update"
+	ReportsGetReportsDocumentOKSummaryFirstItemFixKindOsUpdate      ReportsGetReportsDocumentOKSummaryFirstItemFixKind = "os_update"
+	ReportsGetReportsDocumentOKSummaryFirstItemFixKindFeatureUpdate ReportsGetReportsDocumentOKSummaryFirstItemFixKind = "feature_update"
+	ReportsGetReportsDocumentOKSummaryFirstItemFixKindNoneYet       ReportsGetReportsDocumentOKSummaryFirstItemFixKind = "none_yet"
+	ReportsGetReportsDocumentOKSummaryFirstItemFixKindUnknown       ReportsGetReportsDocumentOKSummaryFirstItemFixKind = "unknown"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKSummaryFirstItemFixKind values.
+func (ReportsGetReportsDocumentOKSummaryFirstItemFixKind) AllValues() []ReportsGetReportsDocumentOKSummaryFirstItemFixKind {
+	return []ReportsGetReportsDocumentOKSummaryFirstItemFixKind{
+		ReportsGetReportsDocumentOKSummaryFirstItemFixKindUpdate,
+		ReportsGetReportsDocumentOKSummaryFirstItemFixKindDistroUpdate,
+		ReportsGetReportsDocumentOKSummaryFirstItemFixKindOsUpdate,
+		ReportsGetReportsDocumentOKSummaryFirstItemFixKindFeatureUpdate,
+		ReportsGetReportsDocumentOKSummaryFirstItemFixKindNoneYet,
+		ReportsGetReportsDocumentOKSummaryFirstItemFixKindUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKSummaryFirstItemFixKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixKindUpdate:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixKindDistroUpdate:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixKindOsUpdate:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixKindFeatureUpdate:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixKindNoneYet:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixKindUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemFixKind) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKSummaryFirstItemFixKind(data) {
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixKindUpdate:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemFixKindUpdate
+		return nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixKindDistroUpdate:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemFixKindDistroUpdate
+		return nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixKindOsUpdate:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemFixKindOsUpdate
+		return nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixKindFeatureUpdate:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemFixKindFeatureUpdate
+		return nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixKindNoneYet:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemFixKindNoneYet
+		return nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixKindUnknown:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemFixKindUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The CVSS base score of the CVE and its band. Never changes the status. null = "Not scored yet",
+// never 0.
+type ReportsGetReportsDocumentOKSummaryFirstItemSeverity struct {
+	Band    ReportsGetReportsDocumentOKSummaryFirstItemSeverityBand    `json:"band"`
+	Score   float64                                                    `json:"score"`
+	Vector  string                                                     `json:"vector"`
+	Version ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion `json:"version"`
+}
+
+// GetBand returns the value of Band.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemSeverity) GetBand() ReportsGetReportsDocumentOKSummaryFirstItemSeverityBand {
+	return s.Band
+}
+
+// GetScore returns the value of Score.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemSeverity) GetScore() float64 {
+	return s.Score
+}
+
+// GetVector returns the value of Vector.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemSeverity) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemSeverity) GetVersion() ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion {
+	return s.Version
+}
+
+// SetBand sets the value of Band.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemSeverity) SetBand(val ReportsGetReportsDocumentOKSummaryFirstItemSeverityBand) {
+	s.Band = val
+}
+
+// SetScore sets the value of Score.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemSeverity) SetScore(val float64) {
+	s.Score = val
+}
+
+// SetVector sets the value of Vector.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemSeverity) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemSeverity) SetVersion(val ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion) {
+	s.Version = val
+}
+
+type ReportsGetReportsDocumentOKSummaryFirstItemSeverityBand string
+
+const (
+	ReportsGetReportsDocumentOKSummaryFirstItemSeverityBandCritical ReportsGetReportsDocumentOKSummaryFirstItemSeverityBand = "critical"
+	ReportsGetReportsDocumentOKSummaryFirstItemSeverityBandHigh     ReportsGetReportsDocumentOKSummaryFirstItemSeverityBand = "high"
+	ReportsGetReportsDocumentOKSummaryFirstItemSeverityBandMedium   ReportsGetReportsDocumentOKSummaryFirstItemSeverityBand = "medium"
+	ReportsGetReportsDocumentOKSummaryFirstItemSeverityBandLow      ReportsGetReportsDocumentOKSummaryFirstItemSeverityBand = "low"
+	ReportsGetReportsDocumentOKSummaryFirstItemSeverityBandNone     ReportsGetReportsDocumentOKSummaryFirstItemSeverityBand = "none"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKSummaryFirstItemSeverityBand values.
+func (ReportsGetReportsDocumentOKSummaryFirstItemSeverityBand) AllValues() []ReportsGetReportsDocumentOKSummaryFirstItemSeverityBand {
+	return []ReportsGetReportsDocumentOKSummaryFirstItemSeverityBand{
+		ReportsGetReportsDocumentOKSummaryFirstItemSeverityBandCritical,
+		ReportsGetReportsDocumentOKSummaryFirstItemSeverityBandHigh,
+		ReportsGetReportsDocumentOKSummaryFirstItemSeverityBandMedium,
+		ReportsGetReportsDocumentOKSummaryFirstItemSeverityBandLow,
+		ReportsGetReportsDocumentOKSummaryFirstItemSeverityBandNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKSummaryFirstItemSeverityBand) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKSummaryFirstItemSeverityBandCritical:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemSeverityBandHigh:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemSeverityBandMedium:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemSeverityBandLow:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemSeverityBandNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemSeverityBand) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKSummaryFirstItemSeverityBand(data) {
+	case ReportsGetReportsDocumentOKSummaryFirstItemSeverityBandCritical:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemSeverityBandCritical
+		return nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemSeverityBandHigh:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemSeverityBandHigh
+		return nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemSeverityBandMedium:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemSeverityBandMedium
+		return nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemSeverityBandLow:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemSeverityBandLow
+		return nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemSeverityBandNone:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemSeverityBandNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion string
+
+const (
+	ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion40 ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion = "4.0"
+	ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion31 ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion = "3.1"
+	ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion30 ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion = "3.0"
+	ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion20 ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion = "2.0"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion values.
+func (ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion) AllValues() []ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion {
+	return []ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion{
+		ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion40,
+		ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion31,
+		ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion30,
+		ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion20,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion40:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion31:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion30:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion20:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion(data) {
+	case ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion40:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion40
+		return nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion31:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion31
+		return nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion30:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion30
+		return nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion20:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion20
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The open statuses: the urgency layers 1 to 5 in order.
+type ReportsGetReportsDocumentOKSummaryFirstItemStatus string
+
+const (
+	ReportsGetReportsDocumentOKSummaryFirstItemStatusUnderAttack       ReportsGetReportsDocumentOKSummaryFirstItemStatus = "under_attack"
+	ReportsGetReportsDocumentOKSummaryFirstItemStatusExploited         ReportsGetReportsDocumentOKSummaryFirstItemStatus = "exploited"
+	ReportsGetReportsDocumentOKSummaryFirstItemStatusPublicExploit     ReportsGetReportsDocumentOKSummaryFirstItemStatus = "public_exploit"
+	ReportsGetReportsDocumentOKSummaryFirstItemStatusCriticalEdge      ReportsGetReportsDocumentOKSummaryFirstItemStatus = "critical_edge"
+	ReportsGetReportsDocumentOKSummaryFirstItemStatusUpdateRecommended ReportsGetReportsDocumentOKSummaryFirstItemStatus = "update_recommended"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKSummaryFirstItemStatus values.
+func (ReportsGetReportsDocumentOKSummaryFirstItemStatus) AllValues() []ReportsGetReportsDocumentOKSummaryFirstItemStatus {
+	return []ReportsGetReportsDocumentOKSummaryFirstItemStatus{
+		ReportsGetReportsDocumentOKSummaryFirstItemStatusUnderAttack,
+		ReportsGetReportsDocumentOKSummaryFirstItemStatusExploited,
+		ReportsGetReportsDocumentOKSummaryFirstItemStatusPublicExploit,
+		ReportsGetReportsDocumentOKSummaryFirstItemStatusCriticalEdge,
+		ReportsGetReportsDocumentOKSummaryFirstItemStatusUpdateRecommended,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKSummaryFirstItemStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKSummaryFirstItemStatusUnderAttack:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemStatusExploited:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemStatusPublicExploit:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemStatusCriticalEdge:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemStatusUpdateRecommended:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemStatus) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKSummaryFirstItemStatus(data) {
+	case ReportsGetReportsDocumentOKSummaryFirstItemStatusUnderAttack:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemStatusUnderAttack
+		return nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemStatusExploited:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemStatusExploited
+		return nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemStatusPublicExploit:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemStatusPublicExploit
+		return nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemStatusCriticalEdge:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemStatusCriticalEdge
+		return nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemStatusUpdateRecommended:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemStatusUpdateRecommended
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsDocumentOKSummaryOpenByStatusItem struct {
+	N int `json:"n"`
+	// The open statuses: the urgency layers 1 to 5 in order.
+	Status ReportsGetReportsDocumentOKSummaryOpenByStatusItemStatus `json:"status"`
+}
+
+// GetN returns the value of N.
+func (s *ReportsGetReportsDocumentOKSummaryOpenByStatusItem) GetN() int {
+	return s.N
+}
+
+// GetStatus returns the value of Status.
+func (s *ReportsGetReportsDocumentOKSummaryOpenByStatusItem) GetStatus() ReportsGetReportsDocumentOKSummaryOpenByStatusItemStatus {
+	return s.Status
+}
+
+// SetN sets the value of N.
+func (s *ReportsGetReportsDocumentOKSummaryOpenByStatusItem) SetN(val int) {
+	s.N = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ReportsGetReportsDocumentOKSummaryOpenByStatusItem) SetStatus(val ReportsGetReportsDocumentOKSummaryOpenByStatusItemStatus) {
+	s.Status = val
+}
+
+// The open statuses: the urgency layers 1 to 5 in order.
+type ReportsGetReportsDocumentOKSummaryOpenByStatusItemStatus string
+
+const (
+	ReportsGetReportsDocumentOKSummaryOpenByStatusItemStatusUnderAttack       ReportsGetReportsDocumentOKSummaryOpenByStatusItemStatus = "under_attack"
+	ReportsGetReportsDocumentOKSummaryOpenByStatusItemStatusExploited         ReportsGetReportsDocumentOKSummaryOpenByStatusItemStatus = "exploited"
+	ReportsGetReportsDocumentOKSummaryOpenByStatusItemStatusPublicExploit     ReportsGetReportsDocumentOKSummaryOpenByStatusItemStatus = "public_exploit"
+	ReportsGetReportsDocumentOKSummaryOpenByStatusItemStatusCriticalEdge      ReportsGetReportsDocumentOKSummaryOpenByStatusItemStatus = "critical_edge"
+	ReportsGetReportsDocumentOKSummaryOpenByStatusItemStatusUpdateRecommended ReportsGetReportsDocumentOKSummaryOpenByStatusItemStatus = "update_recommended"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKSummaryOpenByStatusItemStatus values.
+func (ReportsGetReportsDocumentOKSummaryOpenByStatusItemStatus) AllValues() []ReportsGetReportsDocumentOKSummaryOpenByStatusItemStatus {
+	return []ReportsGetReportsDocumentOKSummaryOpenByStatusItemStatus{
+		ReportsGetReportsDocumentOKSummaryOpenByStatusItemStatusUnderAttack,
+		ReportsGetReportsDocumentOKSummaryOpenByStatusItemStatusExploited,
+		ReportsGetReportsDocumentOKSummaryOpenByStatusItemStatusPublicExploit,
+		ReportsGetReportsDocumentOKSummaryOpenByStatusItemStatusCriticalEdge,
+		ReportsGetReportsDocumentOKSummaryOpenByStatusItemStatusUpdateRecommended,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKSummaryOpenByStatusItemStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKSummaryOpenByStatusItemStatusUnderAttack:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKSummaryOpenByStatusItemStatusExploited:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKSummaryOpenByStatusItemStatusPublicExploit:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKSummaryOpenByStatusItemStatusCriticalEdge:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKSummaryOpenByStatusItemStatusUpdateRecommended:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKSummaryOpenByStatusItemStatus) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKSummaryOpenByStatusItemStatus(data) {
+	case ReportsGetReportsDocumentOKSummaryOpenByStatusItemStatusUnderAttack:
+		*s = ReportsGetReportsDocumentOKSummaryOpenByStatusItemStatusUnderAttack
+		return nil
+	case ReportsGetReportsDocumentOKSummaryOpenByStatusItemStatusExploited:
+		*s = ReportsGetReportsDocumentOKSummaryOpenByStatusItemStatusExploited
+		return nil
+	case ReportsGetReportsDocumentOKSummaryOpenByStatusItemStatusPublicExploit:
+		*s = ReportsGetReportsDocumentOKSummaryOpenByStatusItemStatusPublicExploit
+		return nil
+	case ReportsGetReportsDocumentOKSummaryOpenByStatusItemStatusCriticalEdge:
+		*s = ReportsGetReportsDocumentOKSummaryOpenByStatusItemStatusCriticalEdge
+		return nil
+	case ReportsGetReportsDocumentOKSummaryOpenByStatusItemStatusUpdateRecommended:
+		*s = ReportsGetReportsDocumentOKSummaryOpenByStatusItemStatusUpdateRecommended
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsHistoryIDOK struct {
+	DefinitionID string `json:"definition_id"`
+	// Exactly what was sent.
+	Document   ReportsGetReportsHistoryIDOKDocument `json:"document"`
+	Error      NilString                            `json:"error"`
+	ID         string                               `json:"id"`
+	Period     ReportsGetReportsHistoryIDOKPeriod   `json:"period"`
+	Recipients []string                             `json:"recipients"`
+	SentAt     time.Time                            `json:"sent_at"`
+	Status     ReportsGetReportsHistoryIDOKStatus   `json:"status"`
+	Title      string                               `json:"title"`
+	Trigger    ReportsGetReportsHistoryIDOKTrigger  `json:"trigger"`
+}
+
+// GetDefinitionID returns the value of DefinitionID.
+func (s *ReportsGetReportsHistoryIDOK) GetDefinitionID() string {
+	return s.DefinitionID
+}
+
+// GetDocument returns the value of Document.
+func (s *ReportsGetReportsHistoryIDOK) GetDocument() ReportsGetReportsHistoryIDOKDocument {
+	return s.Document
+}
+
+// GetError returns the value of Error.
+func (s *ReportsGetReportsHistoryIDOK) GetError() NilString {
+	return s.Error
+}
+
+// GetID returns the value of ID.
+func (s *ReportsGetReportsHistoryIDOK) GetID() string {
+	return s.ID
+}
+
+// GetPeriod returns the value of Period.
+func (s *ReportsGetReportsHistoryIDOK) GetPeriod() ReportsGetReportsHistoryIDOKPeriod {
+	return s.Period
+}
+
+// GetRecipients returns the value of Recipients.
+func (s *ReportsGetReportsHistoryIDOK) GetRecipients() []string {
+	return s.Recipients
+}
+
+// GetSentAt returns the value of SentAt.
+func (s *ReportsGetReportsHistoryIDOK) GetSentAt() time.Time {
+	return s.SentAt
+}
+
+// GetStatus returns the value of Status.
+func (s *ReportsGetReportsHistoryIDOK) GetStatus() ReportsGetReportsHistoryIDOKStatus {
+	return s.Status
+}
+
+// GetTitle returns the value of Title.
+func (s *ReportsGetReportsHistoryIDOK) GetTitle() string {
+	return s.Title
+}
+
+// GetTrigger returns the value of Trigger.
+func (s *ReportsGetReportsHistoryIDOK) GetTrigger() ReportsGetReportsHistoryIDOKTrigger {
+	return s.Trigger
+}
+
+// SetDefinitionID sets the value of DefinitionID.
+func (s *ReportsGetReportsHistoryIDOK) SetDefinitionID(val string) {
+	s.DefinitionID = val
+}
+
+// SetDocument sets the value of Document.
+func (s *ReportsGetReportsHistoryIDOK) SetDocument(val ReportsGetReportsHistoryIDOKDocument) {
+	s.Document = val
+}
+
+// SetError sets the value of Error.
+func (s *ReportsGetReportsHistoryIDOK) SetError(val NilString) {
+	s.Error = val
+}
+
+// SetID sets the value of ID.
+func (s *ReportsGetReportsHistoryIDOK) SetID(val string) {
+	s.ID = val
+}
+
+// SetPeriod sets the value of Period.
+func (s *ReportsGetReportsHistoryIDOK) SetPeriod(val ReportsGetReportsHistoryIDOKPeriod) {
+	s.Period = val
+}
+
+// SetRecipients sets the value of Recipients.
+func (s *ReportsGetReportsHistoryIDOK) SetRecipients(val []string) {
+	s.Recipients = val
+}
+
+// SetSentAt sets the value of SentAt.
+func (s *ReportsGetReportsHistoryIDOK) SetSentAt(val time.Time) {
+	s.SentAt = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ReportsGetReportsHistoryIDOK) SetStatus(val ReportsGetReportsHistoryIDOKStatus) {
+	s.Status = val
+}
+
+// SetTitle sets the value of Title.
+func (s *ReportsGetReportsHistoryIDOK) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetTrigger sets the value of Trigger.
+func (s *ReportsGetReportsHistoryIDOK) SetTrigger(val ReportsGetReportsHistoryIDOKTrigger) {
+	s.Trigger = val
+}
+
+// Exactly what was sent.
+type ReportsGetReportsHistoryIDOKDocument struct {
+	AiSummary    NilReportsGetReportsHistoryIDOKDocumentAiSummary  `json:"ai_summary"`
+	Coverage     OptReportsGetReportsHistoryIDOKDocumentCoverage   `json:"coverage"`
+	DefinitionID string                                            `json:"definition_id"`
+	Detections   OptReportsGetReportsHistoryIDOKDocumentDetections `json:"detections"`
+	Exposure     OptReportsGetReportsHistoryIDOKDocumentExposure   `json:"exposure"`
+	GeneratedAt  time.Time                                         `json:"generated_at"`
+	Handled      OptReportsGetReportsHistoryIDOKDocumentHandled    `json:"handled"`
+	New          OptReportsGetReportsHistoryIDOKDocumentNew        `json:"new"`
+	Open         OptReportsGetReportsHistoryIDOKDocumentOpen       `json:"open"`
+	// The options the document was made with.
+	Options ReportsGetReportsHistoryIDOKDocumentOptions    `json:"options"`
+	Period  ReportsGetReportsHistoryIDOKDocumentPeriod     `json:"period"`
+	Summary OptReportsGetReportsHistoryIDOKDocumentSummary `json:"summary"`
+	Title   string                                         `json:"title"`
+}
+
+// GetAiSummary returns the value of AiSummary.
+func (s *ReportsGetReportsHistoryIDOKDocument) GetAiSummary() NilReportsGetReportsHistoryIDOKDocumentAiSummary {
+	return s.AiSummary
+}
+
+// GetCoverage returns the value of Coverage.
+func (s *ReportsGetReportsHistoryIDOKDocument) GetCoverage() OptReportsGetReportsHistoryIDOKDocumentCoverage {
+	return s.Coverage
+}
+
+// GetDefinitionID returns the value of DefinitionID.
+func (s *ReportsGetReportsHistoryIDOKDocument) GetDefinitionID() string {
+	return s.DefinitionID
+}
+
+// GetDetections returns the value of Detections.
+func (s *ReportsGetReportsHistoryIDOKDocument) GetDetections() OptReportsGetReportsHistoryIDOKDocumentDetections {
+	return s.Detections
+}
+
+// GetExposure returns the value of Exposure.
+func (s *ReportsGetReportsHistoryIDOKDocument) GetExposure() OptReportsGetReportsHistoryIDOKDocumentExposure {
+	return s.Exposure
+}
+
+// GetGeneratedAt returns the value of GeneratedAt.
+func (s *ReportsGetReportsHistoryIDOKDocument) GetGeneratedAt() time.Time {
+	return s.GeneratedAt
+}
+
+// GetHandled returns the value of Handled.
+func (s *ReportsGetReportsHistoryIDOKDocument) GetHandled() OptReportsGetReportsHistoryIDOKDocumentHandled {
+	return s.Handled
+}
+
+// GetNew returns the value of New.
+func (s *ReportsGetReportsHistoryIDOKDocument) GetNew() OptReportsGetReportsHistoryIDOKDocumentNew {
+	return s.New
+}
+
+// GetOpen returns the value of Open.
+func (s *ReportsGetReportsHistoryIDOKDocument) GetOpen() OptReportsGetReportsHistoryIDOKDocumentOpen {
+	return s.Open
+}
+
+// GetOptions returns the value of Options.
+func (s *ReportsGetReportsHistoryIDOKDocument) GetOptions() ReportsGetReportsHistoryIDOKDocumentOptions {
+	return s.Options
+}
+
+// GetPeriod returns the value of Period.
+func (s *ReportsGetReportsHistoryIDOKDocument) GetPeriod() ReportsGetReportsHistoryIDOKDocumentPeriod {
+	return s.Period
+}
+
+// GetSummary returns the value of Summary.
+func (s *ReportsGetReportsHistoryIDOKDocument) GetSummary() OptReportsGetReportsHistoryIDOKDocumentSummary {
+	return s.Summary
+}
+
+// GetTitle returns the value of Title.
+func (s *ReportsGetReportsHistoryIDOKDocument) GetTitle() string {
+	return s.Title
+}
+
+// SetAiSummary sets the value of AiSummary.
+func (s *ReportsGetReportsHistoryIDOKDocument) SetAiSummary(val NilReportsGetReportsHistoryIDOKDocumentAiSummary) {
+	s.AiSummary = val
+}
+
+// SetCoverage sets the value of Coverage.
+func (s *ReportsGetReportsHistoryIDOKDocument) SetCoverage(val OptReportsGetReportsHistoryIDOKDocumentCoverage) {
+	s.Coverage = val
+}
+
+// SetDefinitionID sets the value of DefinitionID.
+func (s *ReportsGetReportsHistoryIDOKDocument) SetDefinitionID(val string) {
+	s.DefinitionID = val
+}
+
+// SetDetections sets the value of Detections.
+func (s *ReportsGetReportsHistoryIDOKDocument) SetDetections(val OptReportsGetReportsHistoryIDOKDocumentDetections) {
+	s.Detections = val
+}
+
+// SetExposure sets the value of Exposure.
+func (s *ReportsGetReportsHistoryIDOKDocument) SetExposure(val OptReportsGetReportsHistoryIDOKDocumentExposure) {
+	s.Exposure = val
+}
+
+// SetGeneratedAt sets the value of GeneratedAt.
+func (s *ReportsGetReportsHistoryIDOKDocument) SetGeneratedAt(val time.Time) {
+	s.GeneratedAt = val
+}
+
+// SetHandled sets the value of Handled.
+func (s *ReportsGetReportsHistoryIDOKDocument) SetHandled(val OptReportsGetReportsHistoryIDOKDocumentHandled) {
+	s.Handled = val
+}
+
+// SetNew sets the value of New.
+func (s *ReportsGetReportsHistoryIDOKDocument) SetNew(val OptReportsGetReportsHistoryIDOKDocumentNew) {
+	s.New = val
+}
+
+// SetOpen sets the value of Open.
+func (s *ReportsGetReportsHistoryIDOKDocument) SetOpen(val OptReportsGetReportsHistoryIDOKDocumentOpen) {
+	s.Open = val
+}
+
+// SetOptions sets the value of Options.
+func (s *ReportsGetReportsHistoryIDOKDocument) SetOptions(val ReportsGetReportsHistoryIDOKDocumentOptions) {
+	s.Options = val
+}
+
+// SetPeriod sets the value of Period.
+func (s *ReportsGetReportsHistoryIDOKDocument) SetPeriod(val ReportsGetReportsHistoryIDOKDocumentPeriod) {
+	s.Period = val
+}
+
+// SetSummary sets the value of Summary.
+func (s *ReportsGetReportsHistoryIDOKDocument) SetSummary(val OptReportsGetReportsHistoryIDOKDocumentSummary) {
+	s.Summary = val
+}
+
+// SetTitle sets the value of Title.
+func (s *ReportsGetReportsHistoryIDOKDocument) SetTitle(val string) {
+	s.Title = val
+}
+
+type ReportsGetReportsHistoryIDOKDocumentAiSummary struct {
+	GeneratedAt time.Time `json:"generated_at"`
+	Model       string    `json:"model"`
+	Paragraphs  []string  `json:"paragraphs"`
+	// AI profile that answered.
+	Profile OptString                                           `json:"profile"`
+	Tokens  ReportsGetReportsHistoryIDOKDocumentAiSummaryTokens `json:"tokens"`
+}
+
+// GetGeneratedAt returns the value of GeneratedAt.
+func (s *ReportsGetReportsHistoryIDOKDocumentAiSummary) GetGeneratedAt() time.Time {
+	return s.GeneratedAt
+}
+
+// GetModel returns the value of Model.
+func (s *ReportsGetReportsHistoryIDOKDocumentAiSummary) GetModel() string {
+	return s.Model
+}
+
+// GetParagraphs returns the value of Paragraphs.
+func (s *ReportsGetReportsHistoryIDOKDocumentAiSummary) GetParagraphs() []string {
+	return s.Paragraphs
+}
+
+// GetProfile returns the value of Profile.
+func (s *ReportsGetReportsHistoryIDOKDocumentAiSummary) GetProfile() OptString {
+	return s.Profile
+}
+
+// GetTokens returns the value of Tokens.
+func (s *ReportsGetReportsHistoryIDOKDocumentAiSummary) GetTokens() ReportsGetReportsHistoryIDOKDocumentAiSummaryTokens {
+	return s.Tokens
+}
+
+// SetGeneratedAt sets the value of GeneratedAt.
+func (s *ReportsGetReportsHistoryIDOKDocumentAiSummary) SetGeneratedAt(val time.Time) {
+	s.GeneratedAt = val
+}
+
+// SetModel sets the value of Model.
+func (s *ReportsGetReportsHistoryIDOKDocumentAiSummary) SetModel(val string) {
+	s.Model = val
+}
+
+// SetParagraphs sets the value of Paragraphs.
+func (s *ReportsGetReportsHistoryIDOKDocumentAiSummary) SetParagraphs(val []string) {
+	s.Paragraphs = val
+}
+
+// SetProfile sets the value of Profile.
+func (s *ReportsGetReportsHistoryIDOKDocumentAiSummary) SetProfile(val OptString) {
+	s.Profile = val
+}
+
+// SetTokens sets the value of Tokens.
+func (s *ReportsGetReportsHistoryIDOKDocumentAiSummary) SetTokens(val ReportsGetReportsHistoryIDOKDocumentAiSummaryTokens) {
+	s.Tokens = val
+}
+
+type ReportsGetReportsHistoryIDOKDocumentAiSummaryTokens struct {
+	Input  float64 `json:"input"`
+	Output float64 `json:"output"`
+}
+
+// GetInput returns the value of Input.
+func (s *ReportsGetReportsHistoryIDOKDocumentAiSummaryTokens) GetInput() float64 {
+	return s.Input
+}
+
+// GetOutput returns the value of Output.
+func (s *ReportsGetReportsHistoryIDOKDocumentAiSummaryTokens) GetOutput() float64 {
+	return s.Output
+}
+
+// SetInput sets the value of Input.
+func (s *ReportsGetReportsHistoryIDOKDocumentAiSummaryTokens) SetInput(val float64) {
+	s.Input = val
+}
+
+// SetOutput sets the value of Output.
+func (s *ReportsGetReportsHistoryIDOKDocumentAiSummaryTokens) SetOutput(val float64) {
+	s.Output = val
+}
+
+type ReportsGetReportsHistoryIDOKDocumentCoverage struct {
+	Devices   int                                                       `json:"devices"`
+	Feeds     []ReportsGetReportsHistoryIDOKDocumentCoverageFeedsItem   `json:"feeds"`
+	NotAdded  int                                                       `json:"not_added"`
+	Sources   []ReportsGetReportsHistoryIDOKDocumentCoverageSourcesItem `json:"sources"`
+	WithAgent int                                                       `json:"with_agent"`
+}
+
+// GetDevices returns the value of Devices.
+func (s *ReportsGetReportsHistoryIDOKDocumentCoverage) GetDevices() int {
+	return s.Devices
+}
+
+// GetFeeds returns the value of Feeds.
+func (s *ReportsGetReportsHistoryIDOKDocumentCoverage) GetFeeds() []ReportsGetReportsHistoryIDOKDocumentCoverageFeedsItem {
+	return s.Feeds
+}
+
+// GetNotAdded returns the value of NotAdded.
+func (s *ReportsGetReportsHistoryIDOKDocumentCoverage) GetNotAdded() int {
+	return s.NotAdded
+}
+
+// GetSources returns the value of Sources.
+func (s *ReportsGetReportsHistoryIDOKDocumentCoverage) GetSources() []ReportsGetReportsHistoryIDOKDocumentCoverageSourcesItem {
+	return s.Sources
+}
+
+// GetWithAgent returns the value of WithAgent.
+func (s *ReportsGetReportsHistoryIDOKDocumentCoverage) GetWithAgent() int {
+	return s.WithAgent
+}
+
+// SetDevices sets the value of Devices.
+func (s *ReportsGetReportsHistoryIDOKDocumentCoverage) SetDevices(val int) {
+	s.Devices = val
+}
+
+// SetFeeds sets the value of Feeds.
+func (s *ReportsGetReportsHistoryIDOKDocumentCoverage) SetFeeds(val []ReportsGetReportsHistoryIDOKDocumentCoverageFeedsItem) {
+	s.Feeds = val
+}
+
+// SetNotAdded sets the value of NotAdded.
+func (s *ReportsGetReportsHistoryIDOKDocumentCoverage) SetNotAdded(val int) {
+	s.NotAdded = val
+}
+
+// SetSources sets the value of Sources.
+func (s *ReportsGetReportsHistoryIDOKDocumentCoverage) SetSources(val []ReportsGetReportsHistoryIDOKDocumentCoverageSourcesItem) {
+	s.Sources = val
+}
+
+// SetWithAgent sets the value of WithAgent.
+func (s *ReportsGetReportsHistoryIDOKDocumentCoverage) SetWithAgent(val int) {
+	s.WithAgent = val
+}
+
+type ReportsGetReportsHistoryIDOKDocumentCoverageFeedsItem struct {
+	// The feed id: cisa-kev, vulncheck-kev, nvd, or a custom feed id.
+	ID       string      `json:"id"`
+	LastOkAt NilDateTime `json:"last_ok_at"`
+	Name     string      `json:"name"`
+	Stale    bool        `json:"stale"`
+}
+
+// GetID returns the value of ID.
+func (s *ReportsGetReportsHistoryIDOKDocumentCoverageFeedsItem) GetID() string {
+	return s.ID
+}
+
+// GetLastOkAt returns the value of LastOkAt.
+func (s *ReportsGetReportsHistoryIDOKDocumentCoverageFeedsItem) GetLastOkAt() NilDateTime {
+	return s.LastOkAt
+}
+
+// GetName returns the value of Name.
+func (s *ReportsGetReportsHistoryIDOKDocumentCoverageFeedsItem) GetName() string {
+	return s.Name
+}
+
+// GetStale returns the value of Stale.
+func (s *ReportsGetReportsHistoryIDOKDocumentCoverageFeedsItem) GetStale() bool {
+	return s.Stale
+}
+
+// SetID sets the value of ID.
+func (s *ReportsGetReportsHistoryIDOKDocumentCoverageFeedsItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetLastOkAt sets the value of LastOkAt.
+func (s *ReportsGetReportsHistoryIDOKDocumentCoverageFeedsItem) SetLastOkAt(val NilDateTime) {
+	s.LastOkAt = val
+}
+
+// SetName sets the value of Name.
+func (s *ReportsGetReportsHistoryIDOKDocumentCoverageFeedsItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetStale sets the value of Stale.
+func (s *ReportsGetReportsHistoryIDOKDocumentCoverageFeedsItem) SetStale(val bool) {
+	s.Stale = val
+}
+
+type ReportsGetReportsHistoryIDOKDocumentCoverageSourcesItem struct {
+	// The module that sees it: sensor-passive, sensor-active, agent-intake, honeypot, logs, exposure, ids.
+	ID string `json:"id"`
+	On bool   `json:"on"`
+}
+
+// GetID returns the value of ID.
+func (s *ReportsGetReportsHistoryIDOKDocumentCoverageSourcesItem) GetID() string {
+	return s.ID
+}
+
+// GetOn returns the value of On.
+func (s *ReportsGetReportsHistoryIDOKDocumentCoverageSourcesItem) GetOn() bool {
+	return s.On
+}
+
+// SetID sets the value of ID.
+func (s *ReportsGetReportsHistoryIDOKDocumentCoverageSourcesItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetOn sets the value of On.
+func (s *ReportsGetReportsHistoryIDOKDocumentCoverageSourcesItem) SetOn(val bool) {
+	s.On = val
+}
+
+type ReportsGetReportsHistoryIDOKDocumentDetections struct {
+	ByKind []ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItem `json:"by_kind"`
+	// False when detection is off.
+	ModuleOn bool                                                    `json:"module_on"`
+	Top      []ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem `json:"top"`
+}
+
+// GetByKind returns the value of ByKind.
+func (s *ReportsGetReportsHistoryIDOKDocumentDetections) GetByKind() []ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItem {
+	return s.ByKind
+}
+
+// GetModuleOn returns the value of ModuleOn.
+func (s *ReportsGetReportsHistoryIDOKDocumentDetections) GetModuleOn() bool {
+	return s.ModuleOn
+}
+
+// GetTop returns the value of Top.
+func (s *ReportsGetReportsHistoryIDOKDocumentDetections) GetTop() []ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem {
+	return s.Top
+}
+
+// SetByKind sets the value of ByKind.
+func (s *ReportsGetReportsHistoryIDOKDocumentDetections) SetByKind(val []ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItem) {
+	s.ByKind = val
+}
+
+// SetModuleOn sets the value of ModuleOn.
+func (s *ReportsGetReportsHistoryIDOKDocumentDetections) SetModuleOn(val bool) {
+	s.ModuleOn = val
+}
+
+// SetTop sets the value of Top.
+func (s *ReportsGetReportsHistoryIDOKDocumentDetections) SetTop(val []ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) {
+	s.Top = val
+}
+
+type ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItem struct {
+	Kind   ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind `json:"kind"`
+	LastAt time.Time                                                    `json:"last_at"`
+	N      int                                                          `json:"n"`
+}
+
+// GetKind returns the value of Kind.
+func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItem) GetKind() ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind {
+	return s.Kind
+}
+
+// GetLastAt returns the value of LastAt.
+func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItem) GetLastAt() time.Time {
+	return s.LastAt
+}
+
+// GetN returns the value of N.
+func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItem) GetN() int {
+	return s.N
+}
+
+// SetKind sets the value of Kind.
+func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItem) SetKind(val ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind) {
+	s.Kind = val
+}
+
+// SetLastAt sets the value of LastAt.
+func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItem) SetLastAt(val time.Time) {
+	s.LastAt = val
+}
+
+// SetN sets the value of N.
+func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItem) SetN(val int) {
+	s.N = val
+}
+
+type ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindTrap          ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind = "trap"
+	ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindBadAddress    ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind = "bad_address"
+	ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindLogAnomaly    ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind = "log_anomaly"
+	ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindUnknownDevice ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind = "unknown_device"
+	ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindIntrusion     ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind = "intrusion"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind values.
+func (ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind) AllValues() []ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind {
+	return []ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind{
+		ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindTrap,
+		ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindBadAddress,
+		ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindLogAnomaly,
+		ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindUnknownDevice,
+		ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindIntrusion,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindTrap:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindBadAddress:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindLogAnomaly:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindUnknownDevice:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindIntrusion:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind(data) {
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindTrap:
+		*s = ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindTrap
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindBadAddress:
+		*s = ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindBadAddress
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindLogAnomaly:
+		*s = ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindLogAnomaly
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindUnknownDevice:
+		*s = ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindUnknownDevice
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindIntrusion:
+		*s = ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindIntrusion
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem struct {
+	At       time.Time                                                      `json:"at"`
+	Device   NilReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice `json:"device"`
+	Kind     ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind      `json:"kind"`
+	Severity ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverity  `json:"severity"`
+	Title    string                                                         `json:"title"`
+}
+
+// GetAt returns the value of At.
+func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) GetAt() time.Time {
+	return s.At
+}
+
+// GetDevice returns the value of Device.
+func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) GetDevice() NilReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice {
+	return s.Device
+}
+
+// GetKind returns the value of Kind.
+func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) GetKind() ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind {
+	return s.Kind
+}
+
+// GetSeverity returns the value of Severity.
+func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) GetSeverity() ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverity {
+	return s.Severity
+}
+
+// GetTitle returns the value of Title.
+func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) GetTitle() string {
+	return s.Title
+}
+
+// SetAt sets the value of At.
+func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetDevice sets the value of Device.
+func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) SetDevice(val NilReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice) {
+	s.Device = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) SetKind(val ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind) {
+	s.Kind = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) SetSeverity(val ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverity) {
+	s.Severity = val
+}
+
+// SetTitle sets the value of Title.
+func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) SetTitle(val string) {
+	s.Title = val
+}
+
+type ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice struct {
+	// False = "Not added yet".
+	Added bool `json:"added"`
+	// The device id when the report was made; the device may be gone since.
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// GetAdded returns the value of Added.
+func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice) GetAdded() bool {
+	return s.Added
+}
+
+// GetID returns the value of ID.
+func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice) GetID() string {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice) GetName() string {
+	return s.Name
+}
+
+// SetAdded sets the value of Added.
+func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice) SetAdded(val bool) {
+	s.Added = val
+}
+
+// SetID sets the value of ID.
+func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice) SetID(val string) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice) SetName(val string) {
+	s.Name = val
+}
+
+type ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindTrap          ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind = "trap"
+	ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindBadAddress    ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind = "bad_address"
+	ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindLogAnomaly    ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind = "log_anomaly"
+	ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindUnknownDevice ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind = "unknown_device"
+	ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindIntrusion     ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind = "intrusion"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind values.
+func (ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind) AllValues() []ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind {
+	return []ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind{
+		ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindTrap,
+		ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindBadAddress,
+		ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindLogAnomaly,
+		ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindUnknownDevice,
+		ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindIntrusion,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindTrap:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindBadAddress:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindLogAnomaly:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindUnknownDevice:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindIntrusion:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind(data) {
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindTrap:
+		*s = ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindTrap
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindBadAddress:
+		*s = ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindBadAddress
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindLogAnomaly:
+		*s = ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindLogAnomaly
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindUnknownDevice:
+		*s = ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindUnknownDevice
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindIntrusion:
+		*s = ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindIntrusion
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverity string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverityCritical ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverity = "critical"
+	ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverityHigh     ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverity = "high"
+	ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverityMedium   ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverity = "medium"
+	ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverityLow      ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverity = "low"
+	ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverityInfo     ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverity = "info"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverity values.
+func (ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverity) AllValues() []ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverity {
+	return []ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverity{
+		ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverityCritical,
+		ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverityHigh,
+		ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverityMedium,
+		ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverityLow,
+		ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverityInfo,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverity) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverityCritical:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverityHigh:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverityMedium:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverityLow:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverityInfo:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverity) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverity(data) {
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverityCritical:
+		*s = ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverityCritical
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverityHigh:
+		*s = ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverityHigh
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverityMedium:
+		*s = ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverityMedium
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverityLow:
+		*s = ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverityLow
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverityInfo:
+		*s = ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverityInfo
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsHistoryIDOKDocumentExposure struct {
+	// False when external exposure is off: the section says so instead of showing nothing.
+	ModuleOn bool                                                      `json:"module_on"`
+	Targets  []ReportsGetReportsHistoryIDOKDocumentExposureTargetsItem `json:"targets"`
+}
+
+// GetModuleOn returns the value of ModuleOn.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposure) GetModuleOn() bool {
+	return s.ModuleOn
+}
+
+// GetTargets returns the value of Targets.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposure) GetTargets() []ReportsGetReportsHistoryIDOKDocumentExposureTargetsItem {
+	return s.Targets
+}
+
+// SetModuleOn sets the value of ModuleOn.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposure) SetModuleOn(val bool) {
+	s.ModuleOn = val
+}
+
+// SetTargets sets the value of Targets.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposure) SetTargets(val []ReportsGetReportsHistoryIDOKDocumentExposureTargetsItem) {
+	s.Targets = val
+}
+
+type ReportsGetReportsHistoryIDOKDocumentExposureTargetsItem struct {
+	Issues     []ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItem `json:"issues"`
+	Kind       ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemKind         `json:"kind"`
+	LastScanAt NilDateTime                                                         `json:"last_scan_at"`
+	// The apex domain this target sits under.
+	Parent NilString `json:"parent"`
+	// Proven: its own proof holds; covered: the proof of a parent domain covers it; missing; expired;
+	// not_current.
+	Proof ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProof `json:"proof"`
+	// Open ports, then those closed in the period.
+	Services []ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItem `json:"services"`
+	TargetID string                                                                `json:"target_id"`
+	Value    string                                                                `json:"value"`
+}
+
+// GetIssues returns the value of Issues.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItem) GetIssues() []ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItem {
+	return s.Issues
+}
+
+// GetKind returns the value of Kind.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItem) GetKind() ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemKind {
+	return s.Kind
+}
+
+// GetLastScanAt returns the value of LastScanAt.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItem) GetLastScanAt() NilDateTime {
+	return s.LastScanAt
+}
+
+// GetParent returns the value of Parent.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItem) GetParent() NilString {
+	return s.Parent
+}
+
+// GetProof returns the value of Proof.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItem) GetProof() ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProof {
+	return s.Proof
+}
+
+// GetServices returns the value of Services.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItem) GetServices() []ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItem {
+	return s.Services
+}
+
+// GetTargetID returns the value of TargetID.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItem) GetTargetID() string {
+	return s.TargetID
+}
+
+// GetValue returns the value of Value.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItem) GetValue() string {
+	return s.Value
+}
+
+// SetIssues sets the value of Issues.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItem) SetIssues(val []ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItem) {
+	s.Issues = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItem) SetKind(val ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemKind) {
+	s.Kind = val
+}
+
+// SetLastScanAt sets the value of LastScanAt.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItem) SetLastScanAt(val NilDateTime) {
+	s.LastScanAt = val
+}
+
+// SetParent sets the value of Parent.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItem) SetParent(val NilString) {
+	s.Parent = val
+}
+
+// SetProof sets the value of Proof.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItem) SetProof(val ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProof) {
+	s.Proof = val
+}
+
+// SetServices sets the value of Services.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItem) SetServices(val []ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItem) {
+	s.Services = val
+}
+
+// SetTargetID sets the value of TargetID.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItem) SetTargetID(val string) {
+	s.TargetID = val
+}
+
+// SetValue sets the value of Value.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItem) SetValue(val string) {
+	s.Value = val
+}
+
+type ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItem struct {
+	Engine   ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngine   `json:"engine"`
+	New      int                                                                       `json:"new"`
+	Open     int                                                                       `json:"open"`
+	Severity ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverity `json:"severity"`
+}
+
+// GetEngine returns the value of Engine.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItem) GetEngine() ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngine {
+	return s.Engine
+}
+
+// GetNew returns the value of New.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItem) GetNew() int {
+	return s.New
+}
+
+// GetOpen returns the value of Open.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItem) GetOpen() int {
+	return s.Open
+}
+
+// GetSeverity returns the value of Severity.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItem) GetSeverity() ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverity {
+	return s.Severity
+}
+
+// SetEngine sets the value of Engine.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItem) SetEngine(val ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngine) {
+	s.Engine = val
+}
+
+// SetNew sets the value of New.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItem) SetNew(val int) {
+	s.New = val
+}
+
+// SetOpen sets the value of Open.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItem) SetOpen(val int) {
+	s.Open = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItem) SetSeverity(val ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverity) {
+	s.Severity = val
+}
+
+type ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngine string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineSurface ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngine = "surface"
+	ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineNuclei  ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngine = "nuclei"
+	ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineZap     ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngine = "zap"
+	ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineOpenvas ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngine = "openvas"
+	ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineMatch   ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngine = "match"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngine values.
+func (ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngine) AllValues() []ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngine {
+	return []ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngine{
+		ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineSurface,
+		ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineNuclei,
+		ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineZap,
+		ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineOpenvas,
+		ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineMatch,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngine) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineSurface:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineNuclei:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineZap:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineOpenvas:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineMatch:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngine) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngine(data) {
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineSurface:
+		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineSurface
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineNuclei:
+		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineNuclei
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineZap:
+		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineZap
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineOpenvas:
+		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineOpenvas
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineMatch:
+		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineMatch
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverity string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverityCritical ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverity = "critical"
+	ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverityHigh     ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverity = "high"
+	ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverityMedium   ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverity = "medium"
+	ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverityLow      ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverity = "low"
+	ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverityInfo     ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverity = "info"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverity values.
+func (ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverity) AllValues() []ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverity {
+	return []ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverity{
+		ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverityCritical,
+		ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverityHigh,
+		ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverityMedium,
+		ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverityLow,
+		ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverityInfo,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverity) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverityCritical:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverityHigh:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverityMedium:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverityLow:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverityInfo:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverity) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverity(data) {
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverityCritical:
+		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverityCritical
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverityHigh:
+		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverityHigh
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverityMedium:
+		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverityMedium
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverityLow:
+		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverityLow
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverityInfo:
+		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverityInfo
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemKind string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemKindDomain ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemKind = "domain"
+	ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemKindIP     ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemKind = "ip"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemKind values.
+func (ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemKind) AllValues() []ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemKind {
+	return []ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemKind{
+		ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemKindDomain,
+		ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemKindIP,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemKindDomain:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemKindIP:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemKind) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemKind(data) {
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemKindDomain:
+		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemKindDomain
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemKindIP:
+		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemKindIP
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Proven: its own proof holds; covered: the proof of a parent domain covers it; missing; expired;
+// not_current.
+type ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProof string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofProven     ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProof = "proven"
+	ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofCovered    ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProof = "covered"
+	ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofMissing    ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProof = "missing"
+	ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofExpired    ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProof = "expired"
+	ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofNotCurrent ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProof = "not_current"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProof values.
+func (ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProof) AllValues() []ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProof {
+	return []ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProof{
+		ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofProven,
+		ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofCovered,
+		ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofMissing,
+		ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofExpired,
+		ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofNotCurrent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProof) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofProven:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofCovered:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofMissing:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofExpired:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofNotCurrent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProof) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProof(data) {
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofProven:
+		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofProven
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofCovered:
+		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofCovered
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofMissing:
+		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofMissing
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofExpired:
+		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofExpired
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofNotCurrent:
+		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofNotCurrent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItem struct {
+	// When the TLS certificate it serves expires.
+	CertExpiresAt NilDateTime `json:"cert_expires_at"`
+	// Opened or closed during the period; null = unchanged.
+	Change  NilReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemChange `json:"change"`
+	IP      string                                                                       `json:"ip"`
+	Name    NilString                                                                    `json:"name"`
+	Port    int                                                                          `json:"port"`
+	Product NilString                                                                    `json:"product"`
+	Proto   ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemProto     `json:"proto"`
+	Version NilString                                                                    `json:"version"`
+}
+
+// GetCertExpiresAt returns the value of CertExpiresAt.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItem) GetCertExpiresAt() NilDateTime {
+	return s.CertExpiresAt
+}
+
+// GetChange returns the value of Change.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItem) GetChange() NilReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemChange {
+	return s.Change
+}
+
+// GetIP returns the value of IP.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItem) GetIP() string {
+	return s.IP
+}
+
+// GetName returns the value of Name.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItem) GetName() NilString {
+	return s.Name
+}
+
+// GetPort returns the value of Port.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItem) GetPort() int {
+	return s.Port
+}
+
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItem) GetProduct() NilString {
+	return s.Product
+}
+
+// GetProto returns the value of Proto.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItem) GetProto() ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemProto {
+	return s.Proto
+}
+
+// GetVersion returns the value of Version.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItem) GetVersion() NilString {
+	return s.Version
+}
+
+// SetCertExpiresAt sets the value of CertExpiresAt.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItem) SetCertExpiresAt(val NilDateTime) {
+	s.CertExpiresAt = val
+}
+
+// SetChange sets the value of Change.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItem) SetChange(val NilReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemChange) {
+	s.Change = val
+}
+
+// SetIP sets the value of IP.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetName sets the value of Name.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItem) SetName(val NilString) {
+	s.Name = val
+}
+
+// SetPort sets the value of Port.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItem) SetPort(val int) {
+	s.Port = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItem) SetProduct(val NilString) {
+	s.Product = val
+}
+
+// SetProto sets the value of Proto.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItem) SetProto(val ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemProto) {
+	s.Proto = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItem) SetVersion(val NilString) {
+	s.Version = val
+}
+
+type ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemChange string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemChangeNew    ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemChange = "new"
+	ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemChangeClosed ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemChange = "closed"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemChange values.
+func (ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemChange) AllValues() []ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemChange {
+	return []ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemChange{
+		ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemChangeNew,
+		ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemChangeClosed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemChange) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemChangeNew:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemChangeClosed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemChange) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemChange(data) {
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemChangeNew:
+		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemChangeNew
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemChangeClosed:
+		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemChangeClosed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemProto string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemProtoTCP ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemProto = "tcp"
+	ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemProtoUDP ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemProto = "udp"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemProto values.
+func (ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemProto) AllValues() []ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemProto {
+	return []ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemProto{
+		ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemProtoTCP,
+		ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemProtoUDP,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemProto) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemProtoTCP:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemProtoUDP:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemProto) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemProto(data) {
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemProtoTCP:
+		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemProtoTCP
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemProtoUDP:
+		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemProtoUDP
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsHistoryIDOKDocumentHandled struct {
+	Devices []ReportsGetReportsHistoryIDOKDocumentHandledDevicesItem `json:"devices"`
+	// Handled findings not listed (a report lists 100 at most).
+	More int `json:"more"`
+	// Handled in the period by resolution.
+	Totals []ReportsGetReportsHistoryIDOKDocumentHandledTotalsItem `json:"totals"`
+}
+
+// GetDevices returns the value of Devices.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandled) GetDevices() []ReportsGetReportsHistoryIDOKDocumentHandledDevicesItem {
+	return s.Devices
+}
+
+// GetMore returns the value of More.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandled) GetMore() int {
+	return s.More
+}
+
+// GetTotals returns the value of Totals.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandled) GetTotals() []ReportsGetReportsHistoryIDOKDocumentHandledTotalsItem {
+	return s.Totals
+}
+
+// SetDevices sets the value of Devices.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandled) SetDevices(val []ReportsGetReportsHistoryIDOKDocumentHandledDevicesItem) {
+	s.Devices = val
+}
+
+// SetMore sets the value of More.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandled) SetMore(val int) {
+	s.More = val
+}
+
+// SetTotals sets the value of Totals.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandled) SetTotals(val []ReportsGetReportsHistoryIDOKDocumentHandledTotalsItem) {
+	s.Totals = val
+}
+
+type ReportsGetReportsHistoryIDOKDocumentHandledDevicesItem struct {
+	Device ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemDevice      `json:"device"`
+	Items  []ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem `json:"items"`
+}
+
+// GetDevice returns the value of Device.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItem) GetDevice() ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemDevice {
+	return s.Device
+}
+
+// GetItems returns the value of Items.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItem) GetItems() []ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem {
+	return s.Items
+}
+
+// SetDevice sets the value of Device.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItem) SetDevice(val ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemDevice) {
+	s.Device = val
+}
+
+// SetItems sets the value of Items.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItem) SetItems(val []ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) {
+	s.Items = val
+}
+
+type ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemDevice struct {
+	// False = "Not added yet".
+	Added bool `json:"added"`
+	// The device id when the report was made; the device may be gone since.
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// GetAdded returns the value of Added.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemDevice) GetAdded() bool {
+	return s.Added
+}
+
+// GetID returns the value of ID.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemDevice) GetID() string {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemDevice) GetName() string {
+	return s.Name
+}
+
+// SetAdded sets the value of Added.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemDevice) SetAdded(val bool) {
+	s.Added = val
+}
+
+// SetID sets the value of ID.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemDevice) SetID(val string) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemDevice) SetName(val string) {
+	s.Name = val
+}
+
+// One finding handled in the period.
+type ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem struct {
+	Cve       string `json:"cve"`
+	FindingID string `json:"finding_id"`
+	// Who and how, from stored fields: "Patched by Vedette: version moved 6.24 → 7.23 (18 Nov)".
+	Handled  ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled     `json:"handled"`
+	Product  string                                                                     `json:"product"`
+	Severity NilReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity `json:"severity"`
+}
+
+// GetCve returns the value of Cve.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) GetCve() string {
+	return s.Cve
+}
+
+// GetFindingID returns the value of FindingID.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) GetFindingID() string {
+	return s.FindingID
+}
+
+// GetHandled returns the value of Handled.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) GetHandled() ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled {
+	return s.Handled
+}
+
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) GetProduct() string {
+	return s.Product
+}
+
+// GetSeverity returns the value of Severity.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) GetSeverity() NilReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity {
+	return s.Severity
+}
+
+// SetCve sets the value of Cve.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetFindingID sets the value of FindingID.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) SetFindingID(val string) {
+	s.FindingID = val
+}
+
+// SetHandled sets the value of Handled.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) SetHandled(val ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) {
+	s.Handled = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) SetSeverity(val NilReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity) {
+	s.Severity = val
+}
+
+// Who and how, from stored fields: "Patched by Vedette: version moved 6.24 → 7.23 (18 Nov)".
+type ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled struct {
+	// Accepted: the last day; null otherwise.
+	AcceptedUntil NilDate   `json:"accepted_until"`
+	At            time.Time `json:"at"`
+	// "system" when Vedette handled it; else the person.
+	By string `json:"by"`
+	// Via version_moved: the version that was affected.
+	FromVersion NilString `json:"from_version"`
+	Note        NilString `json:"note"`
+	// How a finding was handled; a handled finding's status is its resolution.
+	Resolution ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolution `json:"resolution"`
+	// Via version_moved: the version now installed.
+	ToVersion NilString `json:"to_version"`
+	// How it was handled: person = a person marked it; version_moved = the software moved past the
+	// affected version; software_removed = the software is gone; distro_fixed = the distribution says the
+	// installed package is fixed; scan_clear = a safe check that had matched came back clear;
+	// data_corrected = no longer detected while nothing on the device changed (never patch credit);
+	// not_installed = a person said the software is not installed.
+	Via ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia `json:"via"`
+}
+
+// GetAcceptedUntil returns the value of AcceptedUntil.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) GetAcceptedUntil() NilDate {
+	return s.AcceptedUntil
+}
+
+// GetAt returns the value of At.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) GetBy() string {
+	return s.By
+}
+
+// GetFromVersion returns the value of FromVersion.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) GetFromVersion() NilString {
+	return s.FromVersion
+}
+
+// GetNote returns the value of Note.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) GetNote() NilString {
+	return s.Note
+}
+
+// GetResolution returns the value of Resolution.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) GetResolution() ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolution {
+	return s.Resolution
+}
+
+// GetToVersion returns the value of ToVersion.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) GetToVersion() NilString {
+	return s.ToVersion
+}
+
+// GetVia returns the value of Via.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) GetVia() ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia {
+	return s.Via
+}
+
+// SetAcceptedUntil sets the value of AcceptedUntil.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) SetAcceptedUntil(val NilDate) {
+	s.AcceptedUntil = val
+}
+
+// SetAt sets the value of At.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) SetBy(val string) {
+	s.By = val
+}
+
+// SetFromVersion sets the value of FromVersion.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) SetFromVersion(val NilString) {
+	s.FromVersion = val
+}
+
+// SetNote sets the value of Note.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) SetNote(val NilString) {
+	s.Note = val
+}
+
+// SetResolution sets the value of Resolution.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) SetResolution(val ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolution) {
+	s.Resolution = val
+}
+
+// SetToVersion sets the value of ToVersion.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) SetToVersion(val NilString) {
+	s.ToVersion = val
+}
+
+// SetVia sets the value of Via.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) SetVia(val ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia) {
+	s.Via = val
+}
+
+// How a finding was handled; a handled finding's status is its resolution.
+type ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolution string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionPatched       ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolution = "patched"
+	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionMitigated     ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolution = "mitigated"
+	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionAccepted      ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolution = "accepted"
+	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionNotRelevant   ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolution = "not_relevant"
+	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionFalsePositive ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolution = "false_positive"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolution values.
+func (ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolution) AllValues() []ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolution {
+	return []ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolution{
+		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionPatched,
+		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionMitigated,
+		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionAccepted,
+		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionNotRelevant,
+		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionFalsePositive,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolution) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionPatched:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionMitigated:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionAccepted:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionNotRelevant:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionFalsePositive:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolution) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolution(data) {
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionPatched:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionPatched
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionMitigated:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionMitigated
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionAccepted:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionAccepted
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionNotRelevant:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionNotRelevant
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionFalsePositive:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionFalsePositive
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// How it was handled: person = a person marked it; version_moved = the software moved past the
+// affected version; software_removed = the software is gone; distro_fixed = the distribution says the
+// installed package is fixed; scan_clear = a safe check that had matched came back clear;
+// data_corrected = no longer detected while nothing on the device changed (never patch credit);
+// not_installed = a person said the software is not installed.
+type ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaPerson          ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia = "person"
+	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaVersionMoved    ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia = "version_moved"
+	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaSoftwareRemoved ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia = "software_removed"
+	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaDistroFixed     ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia = "distro_fixed"
+	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaScanClear       ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia = "scan_clear"
+	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaDataCorrected   ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia = "data_corrected"
+	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaNotInstalled    ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia = "not_installed"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia values.
+func (ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia) AllValues() []ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia {
+	return []ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia{
+		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaPerson,
+		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaVersionMoved,
+		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaSoftwareRemoved,
+		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaDistroFixed,
+		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaScanClear,
+		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaDataCorrected,
+		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaNotInstalled,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaPerson:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaVersionMoved:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaSoftwareRemoved:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaDistroFixed:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaScanClear:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaDataCorrected:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaNotInstalled:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia(data) {
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaPerson:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaPerson
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaVersionMoved:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaVersionMoved
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaSoftwareRemoved:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaSoftwareRemoved
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaDistroFixed:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaDistroFixed
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaScanClear:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaScanClear
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaDataCorrected:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaDataCorrected
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaNotInstalled:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaNotInstalled
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The CVSS base score of the CVE and its band. Never changes the status. null = "Not scored yet",
+// never 0.
+type ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity struct {
+	Band    ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBand    `json:"band"`
+	Score   float64                                                                        `json:"score"`
+	Vector  string                                                                         `json:"vector"`
+	Version ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion `json:"version"`
+}
+
+// GetBand returns the value of Band.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity) GetBand() ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBand {
+	return s.Band
+}
+
+// GetScore returns the value of Score.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity) GetScore() float64 {
+	return s.Score
+}
+
+// GetVector returns the value of Vector.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity) GetVersion() ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion {
+	return s.Version
+}
+
+// SetBand sets the value of Band.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity) SetBand(val ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBand) {
+	s.Band = val
+}
+
+// SetScore sets the value of Score.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity) SetScore(val float64) {
+	s.Score = val
+}
+
+// SetVector sets the value of Vector.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity) SetVersion(val ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion) {
+	s.Version = val
+}
+
+type ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBand string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBandCritical ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBand = "critical"
+	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBandHigh     ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBand = "high"
+	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBandMedium   ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBand = "medium"
+	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBandLow      ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBand = "low"
+	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBandNone     ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBand = "none"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBand values.
+func (ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBand) AllValues() []ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBand {
+	return []ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBand{
+		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBandCritical,
+		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBandHigh,
+		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBandMedium,
+		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBandLow,
+		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBandNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBand) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBandCritical:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBandHigh:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBandMedium:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBandLow:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBandNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBand) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBand(data) {
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBandCritical:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBandCritical
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBandHigh:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBandHigh
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBandMedium:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBandMedium
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBandLow:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBandLow
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBandNone:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBandNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion40 ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion = "4.0"
+	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion31 ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion = "3.1"
+	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion30 ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion = "3.0"
+	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion20 ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion = "2.0"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion values.
+func (ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion) AllValues() []ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion {
+	return []ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion{
+		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion40,
+		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion31,
+		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion30,
+		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion20,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion40:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion31:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion30:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion20:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion(data) {
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion40:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion40
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion31:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion31
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion30:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion30
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion20:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion20
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsHistoryIDOKDocumentHandledTotalsItem struct {
+	N int `json:"n"`
+	// How a finding was handled; a handled finding's status is its resolution.
+	Resolution ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolution `json:"resolution"`
+	// How it was handled: person = a person marked it; version_moved = the software moved past the
+	// affected version; software_removed = the software is gone; distro_fixed = the distribution says the
+	// installed package is fixed; scan_clear = a safe check that had matched came back clear;
+	// data_corrected = no longer detected while nothing on the device changed (never patch credit);
+	// not_installed = a person said the software is not installed.
+	Via ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia `json:"via"`
+}
+
+// GetN returns the value of N.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledTotalsItem) GetN() int {
+	return s.N
+}
+
+// GetResolution returns the value of Resolution.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledTotalsItem) GetResolution() ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolution {
+	return s.Resolution
+}
+
+// GetVia returns the value of Via.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledTotalsItem) GetVia() ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia {
+	return s.Via
+}
+
+// SetN sets the value of N.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledTotalsItem) SetN(val int) {
+	s.N = val
+}
+
+// SetResolution sets the value of Resolution.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledTotalsItem) SetResolution(val ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolution) {
+	s.Resolution = val
+}
+
+// SetVia sets the value of Via.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledTotalsItem) SetVia(val ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia) {
+	s.Via = val
+}
+
+// How a finding was handled; a handled finding's status is its resolution.
+type ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolution string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionPatched       ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolution = "patched"
+	ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionMitigated     ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolution = "mitigated"
+	ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionAccepted      ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolution = "accepted"
+	ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionNotRelevant   ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolution = "not_relevant"
+	ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionFalsePositive ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolution = "false_positive"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolution values.
+func (ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolution) AllValues() []ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolution {
+	return []ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolution{
+		ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionPatched,
+		ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionMitigated,
+		ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionAccepted,
+		ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionNotRelevant,
+		ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionFalsePositive,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolution) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionPatched:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionMitigated:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionAccepted:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionNotRelevant:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionFalsePositive:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolution) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolution(data) {
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionPatched:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionPatched
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionMitigated:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionMitigated
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionAccepted:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionAccepted
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionNotRelevant:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionNotRelevant
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionFalsePositive:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionFalsePositive
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// How it was handled: person = a person marked it; version_moved = the software moved past the
+// affected version; software_removed = the software is gone; distro_fixed = the distribution says the
+// installed package is fixed; scan_clear = a safe check that had matched came back clear;
+// data_corrected = no longer detected while nothing on the device changed (never patch credit);
+// not_installed = a person said the software is not installed.
+type ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaPerson          ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia = "person"
+	ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaVersionMoved    ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia = "version_moved"
+	ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaSoftwareRemoved ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia = "software_removed"
+	ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaDistroFixed     ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia = "distro_fixed"
+	ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaScanClear       ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia = "scan_clear"
+	ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaDataCorrected   ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia = "data_corrected"
+	ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaNotInstalled    ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia = "not_installed"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia values.
+func (ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia) AllValues() []ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia {
+	return []ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia{
+		ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaPerson,
+		ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaVersionMoved,
+		ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaSoftwareRemoved,
+		ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaDistroFixed,
+		ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaScanClear,
+		ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaDataCorrected,
+		ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaNotInstalled,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaPerson:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaVersionMoved:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaSoftwareRemoved:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaDistroFixed:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaScanClear:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaDataCorrected:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaNotInstalled:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia(data) {
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaPerson:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaPerson
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaVersionMoved:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaVersionMoved
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaSoftwareRemoved:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaSoftwareRemoved
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaDistroFixed:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaDistroFixed
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaScanClear:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaScanClear
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaDataCorrected:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaDataCorrected
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaNotInstalled:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaNotInstalled
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsHistoryIDOKDocumentNew struct {
+	// Found in the period, with their status now.
+	Items []ReportsGetReportsHistoryIDOKDocumentNewItemsItem `json:"items"`
+	More  int                                                `json:"more"`
+	Total int                                                `json:"total"`
+}
+
+// GetItems returns the value of Items.
+func (s *ReportsGetReportsHistoryIDOKDocumentNew) GetItems() []ReportsGetReportsHistoryIDOKDocumentNewItemsItem {
+	return s.Items
+}
+
+// GetMore returns the value of More.
+func (s *ReportsGetReportsHistoryIDOKDocumentNew) GetMore() int {
+	return s.More
+}
+
+// GetTotal returns the value of Total.
+func (s *ReportsGetReportsHistoryIDOKDocumentNew) GetTotal() int {
+	return s.Total
+}
+
+// SetItems sets the value of Items.
+func (s *ReportsGetReportsHistoryIDOKDocumentNew) SetItems(val []ReportsGetReportsHistoryIDOKDocumentNewItemsItem) {
+	s.Items = val
+}
+
+// SetMore sets the value of More.
+func (s *ReportsGetReportsHistoryIDOKDocumentNew) SetMore(val int) {
+	s.More = val
+}
+
+// SetTotal sets the value of Total.
+func (s *ReportsGetReportsHistoryIDOKDocumentNew) SetTotal(val int) {
+	s.Total = val
+}
+
+type ReportsGetReportsHistoryIDOKDocumentNewItemsItem struct {
+	Cve       string                                                 `json:"cve"`
+	Device    ReportsGetReportsHistoryIDOKDocumentNewItemsItemDevice `json:"device"`
+	FindingID string                                                 `json:"finding_id"`
+	FirstSeen time.Time                                              `json:"first_seen"`
+	Fix       ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix    `json:"fix"`
+	// The software line the CVE is on, as Findings names it.
+	Product string `json:"product"`
+	// Every layer 1 to 4 that applies, most urgent first; empty for layer 5.
+	Reasons  []ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem `json:"reasons"`
+	Severity NilReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity   `json:"severity"`
+	// The one status of a finding, most urgent first.
+	Status       ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatus       `json:"status"`
+	Verification ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerification `json:"verification"`
+	// The version the finding was matched on.
+	Version NilString `json:"version"`
+}
+
+// GetCve returns the value of Cve.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItem) GetCve() string {
+	return s.Cve
+}
+
+// GetDevice returns the value of Device.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItem) GetDevice() ReportsGetReportsHistoryIDOKDocumentNewItemsItemDevice {
+	return s.Device
+}
+
+// GetFindingID returns the value of FindingID.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItem) GetFindingID() string {
+	return s.FindingID
+}
+
+// GetFirstSeen returns the value of FirstSeen.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItem) GetFirstSeen() time.Time {
+	return s.FirstSeen
+}
+
+// GetFix returns the value of Fix.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItem) GetFix() ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix {
+	return s.Fix
+}
+
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItem) GetProduct() string {
+	return s.Product
+}
+
+// GetReasons returns the value of Reasons.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItem) GetReasons() []ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem {
+	return s.Reasons
+}
+
+// GetSeverity returns the value of Severity.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItem) GetSeverity() NilReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity {
+	return s.Severity
+}
+
+// GetStatus returns the value of Status.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItem) GetStatus() ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatus {
+	return s.Status
+}
+
+// GetVerification returns the value of Verification.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItem) GetVerification() ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerification {
+	return s.Verification
+}
+
+// GetVersion returns the value of Version.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItem) GetVersion() NilString {
+	return s.Version
+}
+
+// SetCve sets the value of Cve.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItem) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetDevice sets the value of Device.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItem) SetDevice(val ReportsGetReportsHistoryIDOKDocumentNewItemsItemDevice) {
+	s.Device = val
+}
+
+// SetFindingID sets the value of FindingID.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItem) SetFindingID(val string) {
+	s.FindingID = val
+}
+
+// SetFirstSeen sets the value of FirstSeen.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItem) SetFirstSeen(val time.Time) {
+	s.FirstSeen = val
+}
+
+// SetFix sets the value of Fix.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItem) SetFix(val ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) {
+	s.Fix = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItem) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetReasons sets the value of Reasons.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItem) SetReasons(val []ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) {
+	s.Reasons = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItem) SetSeverity(val NilReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity) {
+	s.Severity = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItem) SetStatus(val ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatus) {
+	s.Status = val
+}
+
+// SetVerification sets the value of Verification.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItem) SetVerification(val ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerification) {
+	s.Verification = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItem) SetVersion(val NilString) {
+	s.Version = val
+}
+
+type ReportsGetReportsHistoryIDOKDocumentNewItemsItemDevice struct {
+	// False = "Not added yet".
+	Added bool `json:"added"`
+	// The device id when the report was made; the device may be gone since.
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// GetAdded returns the value of Added.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemDevice) GetAdded() bool {
+	return s.Added
+}
+
+// GetID returns the value of ID.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemDevice) GetID() string {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemDevice) GetName() string {
+	return s.Name
+}
+
+// SetAdded sets the value of Added.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemDevice) SetAdded(val bool) {
+	s.Added = val
+}
+
+// SetID sets the value of ID.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemDevice) SetID(val string) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemDevice) SetName(val string) {
+	s.Name = val
+}
+
+type ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix struct {
+	// The "By fix" group; opaque.
+	Key  string                                                  `json:"key"`
+	Kind ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind `json:"kind"`
+	// The product the fix is for, as people name it.
+	Product string `json:"product"`
+	// Os_update: the KB number; none_yet: the advisory id when known.
+	Ref NilString `json:"ref"`
+	// The vendor advisory or release notes.
+	URL NilURI `json:"url"`
+	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
+	// known.
+	Version NilString `json:"version"`
+}
+
+// GetKey returns the value of Key.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) GetKey() string {
+	return s.Key
+}
+
+// GetKind returns the value of Kind.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) GetKind() ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind {
+	return s.Kind
+}
+
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) GetProduct() string {
+	return s.Product
+}
+
+// GetRef returns the value of Ref.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) GetRef() NilString {
+	return s.Ref
+}
+
+// GetURL returns the value of URL.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) GetURL() NilURI {
+	return s.URL
+}
+
+// GetVersion returns the value of Version.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) GetVersion() NilString {
+	return s.Version
+}
+
+// SetKey sets the value of Key.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) SetKey(val string) {
+	s.Key = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) SetKind(val ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind) {
+	s.Kind = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetRef sets the value of Ref.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) SetRef(val NilString) {
+	s.Ref = val
+}
+
+// SetURL sets the value of URL.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) SetURL(val NilURI) {
+	s.URL = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) SetVersion(val NilString) {
+	s.Version = val
+}
+
+type ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindUpdate        ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind = "update"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindDistroUpdate  ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind = "distro_update"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindOsUpdate      ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind = "os_update"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindFeatureUpdate ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind = "feature_update"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindNoneYet       ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind = "none_yet"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindUnknown       ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind = "unknown"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind values.
+func (ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind) AllValues() []ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind {
+	return []ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind{
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindUpdate,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindDistroUpdate,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindOsUpdate,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindFeatureUpdate,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindNoneYet,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindUpdate:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindDistroUpdate:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindOsUpdate:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindFeatureUpdate:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindNoneYet:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind(data) {
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindUpdate:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindUpdate
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindDistroUpdate:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindDistroUpdate
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindOsUpdate:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindOsUpdate
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindFeatureUpdate:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindFeatureUpdate
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindNoneYet:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindNoneYet
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindUnknown:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// One urgency layer that applies, with its evidence.
+type ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem struct {
+	// When the source said so; layer 1: the newest alert; layer 4: since when the rule holds.
+	Date time.Time `json:"date"`
+	// A short fact of the signal: "244 stars", the attacker address for layer 1.
+	Detail NilString `json:"detail"`
+	// Layer 2: the day the list asks for the fix (CISA KEV due date); null otherwise.
+	Due   NilDate `json:"due"`
+	Layer int     `json:"layer"`
+	// The source as people name it: "CISA KEV", "Rapid7", "GitHub".
+	Name string `json:"name"`
+	// The signal source: cisa-kev, msrc, chrome, cisco, fortinet, apple, android, rapid7, gti, nuclei,
+	// metasploit, exploit-db, github-poc; ids for an attack seen here (layer 1); cvss for layer 4.
+	Source string `json:"source"`
+	URL    NilURI `json:"url"`
+}
+
+// GetDate returns the value of Date.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) GetDate() time.Time {
+	return s.Date
+}
+
+// GetDetail returns the value of Detail.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) GetDetail() NilString {
+	return s.Detail
+}
+
+// GetDue returns the value of Due.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) GetDue() NilDate {
+	return s.Due
+}
+
+// GetLayer returns the value of Layer.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) GetLayer() int {
+	return s.Layer
+}
+
+// GetName returns the value of Name.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) GetName() string {
+	return s.Name
+}
+
+// GetSource returns the value of Source.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) GetSource() string {
+	return s.Source
+}
+
+// GetURL returns the value of URL.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) GetURL() NilURI {
+	return s.URL
+}
+
+// SetDate sets the value of Date.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) SetDate(val time.Time) {
+	s.Date = val
+}
+
+// SetDetail sets the value of Detail.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) SetDetail(val NilString) {
+	s.Detail = val
+}
+
+// SetDue sets the value of Due.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) SetDue(val NilDate) {
+	s.Due = val
+}
+
+// SetLayer sets the value of Layer.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) SetLayer(val int) {
+	s.Layer = val
+}
+
+// SetName sets the value of Name.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetSource sets the value of Source.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) SetSource(val string) {
+	s.Source = val
+}
+
+// SetURL sets the value of URL.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) SetURL(val NilURI) {
+	s.URL = val
+}
+
+// The CVSS base score of the CVE and its band. Never changes the status. null = "Not scored yet",
+// never 0.
+type ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity struct {
+	Band    ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBand    `json:"band"`
+	Score   float64                                                         `json:"score"`
+	Vector  string                                                          `json:"vector"`
+	Version ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion `json:"version"`
+}
+
+// GetBand returns the value of Band.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity) GetBand() ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBand {
+	return s.Band
+}
+
+// GetScore returns the value of Score.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity) GetScore() float64 {
+	return s.Score
+}
+
+// GetVector returns the value of Vector.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity) GetVersion() ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion {
+	return s.Version
+}
+
+// SetBand sets the value of Band.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity) SetBand(val ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBand) {
+	s.Band = val
+}
+
+// SetScore sets the value of Score.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity) SetScore(val float64) {
+	s.Score = val
+}
+
+// SetVector sets the value of Vector.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity) SetVersion(val ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion) {
+	s.Version = val
+}
+
+type ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBand string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBandCritical ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBand = "critical"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBandHigh     ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBand = "high"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBandMedium   ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBand = "medium"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBandLow      ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBand = "low"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBandNone     ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBand = "none"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBand values.
+func (ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBand) AllValues() []ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBand {
+	return []ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBand{
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBandCritical,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBandHigh,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBandMedium,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBandLow,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBandNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBand) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBandCritical:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBandHigh:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBandMedium:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBandLow:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBandNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBand) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBand(data) {
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBandCritical:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBandCritical
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBandHigh:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBandHigh
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBandMedium:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBandMedium
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBandLow:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBandLow
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBandNone:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBandNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion40 ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion = "4.0"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion31 ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion = "3.1"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion30 ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion = "3.0"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion20 ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion = "2.0"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion values.
+func (ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion) AllValues() []ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion {
+	return []ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion{
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion40,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion31,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion30,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion20,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion40:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion31:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion30:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion20:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion(data) {
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion40:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion40
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion31:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion31
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion30:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion30
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion20:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion20
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The one status of a finding, most urgent first.
+type ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatus string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusUnderAttack       ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatus = "under_attack"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusExploited         ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatus = "exploited"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusPublicExploit     ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatus = "public_exploit"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusCriticalEdge      ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatus = "critical_edge"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusUpdateRecommended ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatus = "update_recommended"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusPatched           ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatus = "patched"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusMitigated         ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatus = "mitigated"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusAccepted          ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatus = "accepted"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusNotRelevant       ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatus = "not_relevant"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusFalsePositive     ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatus = "false_positive"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatus values.
+func (ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatus) AllValues() []ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatus {
+	return []ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatus{
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusUnderAttack,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusExploited,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusPublicExploit,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusCriticalEdge,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusUpdateRecommended,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusPatched,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusMitigated,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusAccepted,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusNotRelevant,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusFalsePositive,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusUnderAttack:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusExploited:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusPublicExploit:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusCriticalEdge:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusUpdateRecommended:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusPatched:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusMitigated:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusAccepted:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusNotRelevant:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusFalsePositive:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatus) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatus(data) {
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusUnderAttack:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusUnderAttack
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusExploited:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusExploited
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusPublicExploit:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusPublicExploit
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusCriticalEdge:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusCriticalEdge
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusUpdateRecommended:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusUpdateRecommended
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusPatched:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusPatched
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusMitigated:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusMitigated
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusAccepted:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusAccepted
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusNotRelevant:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusNotRelevant
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusFalsePositive:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatusFalsePositive
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerification struct {
+	// When it was confirmed; null while not confirmed.
+	At    NilDateTime                                                       `json:"at"`
+	Basis ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis `json:"basis"`
+	// Verified person: who confirmed it.
+	By       NilString                                                            `json:"by"`
+	Verified ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationVerified `json:"verified"`
+}
+
+// GetAt returns the value of At.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerification) GetAt() NilDateTime {
+	return s.At
+}
+
+// GetBasis returns the value of Basis.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerification) GetBasis() ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis {
+	return s.Basis
+}
+
+// GetBy returns the value of By.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerification) GetBy() NilString {
+	return s.By
+}
+
+// GetVerified returns the value of Verified.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerification) GetVerified() ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationVerified {
+	return s.Verified
+}
+
+// SetAt sets the value of At.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerification) SetAt(val NilDateTime) {
+	s.At = val
+}
+
+// SetBasis sets the value of Basis.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerification) SetBasis(val ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis) {
+	s.Basis = val
+}
+
+// SetBy sets the value of By.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerification) SetBy(val NilString) {
+	s.By = val
+}
+
+// SetVerified sets the value of Verified.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerification) SetVerified(val ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationVerified) {
+	s.Verified = val
+}
+
+type ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisScan          ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis = "scan"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisDeviceVersion ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis = "device_version"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisPackage       ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis = "package"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisBannerVersion ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis = "banner_version"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisStatement     ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis = "statement"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisPerson        ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis = "person"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis values.
+func (ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis) AllValues() []ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis {
+	return []ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis{
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisScan,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisDeviceVersion,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisPackage,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisBannerVersion,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisStatement,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisPerson,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisScan:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisDeviceVersion:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisPackage:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisBannerVersion:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisStatement:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisPerson:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis(data) {
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisScan:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisScan
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisDeviceVersion:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisDeviceVersion
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisPackage:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisPackage
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisBannerVersion:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisBannerVersion
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisStatement:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisStatement
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisPerson:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisPerson
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationVerified string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationVerifiedNo     ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationVerified = "no"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationVerifiedDevice ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationVerified = "device"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationVerifiedScan   ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationVerified = "scan"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationVerifiedPerson ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationVerified = "person"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationVerified values.
+func (ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationVerified) AllValues() []ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationVerified {
+	return []ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationVerified{
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationVerifiedNo,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationVerifiedDevice,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationVerifiedScan,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationVerifiedPerson,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationVerified) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationVerifiedNo:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationVerifiedDevice:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationVerifiedScan:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationVerifiedPerson:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationVerified) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationVerified(data) {
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationVerifiedNo:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationVerifiedNo
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationVerifiedDevice:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationVerifiedDevice
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationVerifiedScan:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationVerifiedScan
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationVerifiedPerson:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationVerifiedPerson
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsHistoryIDOKDocumentOpen struct {
+	Grouping ReportsGetReportsHistoryIDOKDocumentOpenGrouping `json:"grouping"`
+	// Most urgent first.
+	Groups []ReportsGetReportsHistoryIDOKDocumentOpenGroupsItem `json:"groups"`
+	// Open findings not listed (a report lists 100 at most).
+	More  int `json:"more"`
+	Total int `json:"total"`
+}
+
+// GetGrouping returns the value of Grouping.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpen) GetGrouping() ReportsGetReportsHistoryIDOKDocumentOpenGrouping {
+	return s.Grouping
+}
+
+// GetGroups returns the value of Groups.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpen) GetGroups() []ReportsGetReportsHistoryIDOKDocumentOpenGroupsItem {
+	return s.Groups
+}
+
+// GetMore returns the value of More.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpen) GetMore() int {
+	return s.More
+}
+
+// GetTotal returns the value of Total.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpen) GetTotal() int {
+	return s.Total
+}
+
+// SetGrouping sets the value of Grouping.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpen) SetGrouping(val ReportsGetReportsHistoryIDOKDocumentOpenGrouping) {
+	s.Grouping = val
+}
+
+// SetGroups sets the value of Groups.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpen) SetGroups(val []ReportsGetReportsHistoryIDOKDocumentOpenGroupsItem) {
+	s.Groups = val
+}
+
+// SetMore sets the value of More.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpen) SetMore(val int) {
+	s.More = val
+}
+
+// SetTotal sets the value of Total.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpen) SetTotal(val int) {
+	s.Total = val
+}
+
+type ReportsGetReportsHistoryIDOKDocumentOpenGrouping string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupingDevice ReportsGetReportsHistoryIDOKDocumentOpenGrouping = "device"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupingCve    ReportsGetReportsHistoryIDOKDocumentOpenGrouping = "cve"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentOpenGrouping values.
+func (ReportsGetReportsHistoryIDOKDocumentOpenGrouping) AllValues() []ReportsGetReportsHistoryIDOKDocumentOpenGrouping {
+	return []ReportsGetReportsHistoryIDOKDocumentOpenGrouping{
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupingDevice,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupingCve,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentOpenGrouping) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupingDevice:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupingCve:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGrouping) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentOpenGrouping(data) {
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupingDevice:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupingDevice
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupingCve:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupingCve
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsHistoryIDOKDocumentOpenGroupsItem struct {
+	Items []ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItem `json:"items"`
+	// The device id or the CVE.
+	Key   string `json:"key"`
+	Label string `json:"label"`
+	// The most urgent status in the group.
+	Status ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemStatus `json:"status"`
+}
+
+// GetItems returns the value of Items.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItem) GetItems() []ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItem {
+	return s.Items
+}
+
+// GetKey returns the value of Key.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItem) GetKey() string {
+	return s.Key
+}
+
+// GetLabel returns the value of Label.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItem) GetLabel() string {
+	return s.Label
+}
+
+// GetStatus returns the value of Status.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItem) GetStatus() ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemStatus {
+	return s.Status
+}
+
+// SetItems sets the value of Items.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItem) SetItems(val []ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItem) {
+	s.Items = val
+}
+
+// SetKey sets the value of Key.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItem) SetKey(val string) {
+	s.Key = val
+}
+
+// SetLabel sets the value of Label.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItem) SetLabel(val string) {
+	s.Label = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItem) SetStatus(val ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemStatus) {
+	s.Status = val
+}
+
+type ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItem struct {
+	Cve       string                                                            `json:"cve"`
+	Device    ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemDevice `json:"device"`
+	FindingID string                                                            `json:"finding_id"`
+	FirstSeen time.Time                                                         `json:"first_seen"`
+	Fix       ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix    `json:"fix"`
+	// The software line the CVE is on, as Findings names it.
+	Product string `json:"product"`
+	// Every layer 1 to 4 that applies, most urgent first; empty for layer 5.
+	Reasons  []ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem `json:"reasons"`
+	Severity NilReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity   `json:"severity"`
+	// The one status of a finding, most urgent first.
+	Status       ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatus       `json:"status"`
+	Verification ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerification `json:"verification"`
+	// The version the finding was matched on.
+	Version NilString `json:"version"`
+}
+
+// GetCve returns the value of Cve.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItem) GetCve() string {
+	return s.Cve
+}
+
+// GetDevice returns the value of Device.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItem) GetDevice() ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemDevice {
+	return s.Device
+}
+
+// GetFindingID returns the value of FindingID.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItem) GetFindingID() string {
+	return s.FindingID
+}
+
+// GetFirstSeen returns the value of FirstSeen.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItem) GetFirstSeen() time.Time {
+	return s.FirstSeen
+}
+
+// GetFix returns the value of Fix.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItem) GetFix() ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix {
+	return s.Fix
+}
+
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItem) GetProduct() string {
+	return s.Product
+}
+
+// GetReasons returns the value of Reasons.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItem) GetReasons() []ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem {
+	return s.Reasons
+}
+
+// GetSeverity returns the value of Severity.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItem) GetSeverity() NilReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity {
+	return s.Severity
+}
+
+// GetStatus returns the value of Status.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItem) GetStatus() ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatus {
+	return s.Status
+}
+
+// GetVerification returns the value of Verification.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItem) GetVerification() ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerification {
+	return s.Verification
+}
+
+// GetVersion returns the value of Version.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItem) GetVersion() NilString {
+	return s.Version
+}
+
+// SetCve sets the value of Cve.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItem) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetDevice sets the value of Device.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItem) SetDevice(val ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemDevice) {
+	s.Device = val
+}
+
+// SetFindingID sets the value of FindingID.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItem) SetFindingID(val string) {
+	s.FindingID = val
+}
+
+// SetFirstSeen sets the value of FirstSeen.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItem) SetFirstSeen(val time.Time) {
+	s.FirstSeen = val
+}
+
+// SetFix sets the value of Fix.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItem) SetFix(val ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) {
+	s.Fix = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItem) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetReasons sets the value of Reasons.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItem) SetReasons(val []ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem) {
+	s.Reasons = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItem) SetSeverity(val NilReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity) {
+	s.Severity = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItem) SetStatus(val ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatus) {
+	s.Status = val
+}
+
+// SetVerification sets the value of Verification.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItem) SetVerification(val ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerification) {
+	s.Verification = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItem) SetVersion(val NilString) {
+	s.Version = val
+}
+
+type ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemDevice struct {
+	// False = "Not added yet".
+	Added bool `json:"added"`
+	// The device id when the report was made; the device may be gone since.
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// GetAdded returns the value of Added.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemDevice) GetAdded() bool {
+	return s.Added
+}
+
+// GetID returns the value of ID.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemDevice) GetID() string {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemDevice) GetName() string {
+	return s.Name
+}
+
+// SetAdded sets the value of Added.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemDevice) SetAdded(val bool) {
+	s.Added = val
+}
+
+// SetID sets the value of ID.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemDevice) SetID(val string) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemDevice) SetName(val string) {
+	s.Name = val
+}
+
+type ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix struct {
+	// The "By fix" group; opaque.
+	Key  string                                                             `json:"key"`
+	Kind ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind `json:"kind"`
+	// The product the fix is for, as people name it.
+	Product string `json:"product"`
+	// Os_update: the KB number; none_yet: the advisory id when known.
+	Ref NilString `json:"ref"`
+	// The vendor advisory or release notes.
+	URL NilURI `json:"url"`
+	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
+	// known.
+	Version NilString `json:"version"`
+}
+
+// GetKey returns the value of Key.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) GetKey() string {
+	return s.Key
+}
+
+// GetKind returns the value of Kind.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) GetKind() ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind {
+	return s.Kind
+}
+
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) GetProduct() string {
+	return s.Product
+}
+
+// GetRef returns the value of Ref.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) GetRef() NilString {
+	return s.Ref
+}
+
+// GetURL returns the value of URL.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) GetURL() NilURI {
+	return s.URL
+}
+
+// GetVersion returns the value of Version.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) GetVersion() NilString {
+	return s.Version
+}
+
+// SetKey sets the value of Key.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) SetKey(val string) {
+	s.Key = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) SetKind(val ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind) {
+	s.Kind = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetRef sets the value of Ref.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) SetRef(val NilString) {
+	s.Ref = val
+}
+
+// SetURL sets the value of URL.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) SetURL(val NilURI) {
+	s.URL = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) SetVersion(val NilString) {
+	s.Version = val
+}
+
+type ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindUpdate        ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind = "update"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindDistroUpdate  ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind = "distro_update"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindOsUpdate      ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind = "os_update"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindFeatureUpdate ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind = "feature_update"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindNoneYet       ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind = "none_yet"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindUnknown       ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind = "unknown"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind values.
+func (ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind) AllValues() []ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind {
+	return []ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind{
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindUpdate,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindDistroUpdate,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindOsUpdate,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindFeatureUpdate,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindNoneYet,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindUpdate:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindDistroUpdate:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindOsUpdate:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindFeatureUpdate:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindNoneYet:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind(data) {
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindUpdate:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindUpdate
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindDistroUpdate:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindDistroUpdate
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindOsUpdate:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindOsUpdate
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindFeatureUpdate:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindFeatureUpdate
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindNoneYet:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindNoneYet
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindUnknown:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// One urgency layer that applies, with its evidence.
+type ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem struct {
+	// When the source said so; layer 1: the newest alert; layer 4: since when the rule holds.
+	Date time.Time `json:"date"`
+	// A short fact of the signal: "244 stars", the attacker address for layer 1.
+	Detail NilString `json:"detail"`
+	// Layer 2: the day the list asks for the fix (CISA KEV due date); null otherwise.
+	Due   NilDate `json:"due"`
+	Layer int     `json:"layer"`
+	// The source as people name it: "CISA KEV", "Rapid7", "GitHub".
+	Name string `json:"name"`
+	// The signal source: cisa-kev, msrc, chrome, cisco, fortinet, apple, android, rapid7, gti, nuclei,
+	// metasploit, exploit-db, github-poc; ids for an attack seen here (layer 1); cvss for layer 4.
+	Source string `json:"source"`
+	URL    NilURI `json:"url"`
+}
+
+// GetDate returns the value of Date.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem) GetDate() time.Time {
+	return s.Date
+}
+
+// GetDetail returns the value of Detail.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem) GetDetail() NilString {
+	return s.Detail
+}
+
+// GetDue returns the value of Due.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem) GetDue() NilDate {
+	return s.Due
+}
+
+// GetLayer returns the value of Layer.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem) GetLayer() int {
+	return s.Layer
+}
+
+// GetName returns the value of Name.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem) GetName() string {
+	return s.Name
+}
+
+// GetSource returns the value of Source.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem) GetSource() string {
+	return s.Source
+}
+
+// GetURL returns the value of URL.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem) GetURL() NilURI {
+	return s.URL
+}
+
+// SetDate sets the value of Date.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem) SetDate(val time.Time) {
+	s.Date = val
+}
+
+// SetDetail sets the value of Detail.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem) SetDetail(val NilString) {
+	s.Detail = val
+}
+
+// SetDue sets the value of Due.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem) SetDue(val NilDate) {
+	s.Due = val
+}
+
+// SetLayer sets the value of Layer.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem) SetLayer(val int) {
+	s.Layer = val
+}
+
+// SetName sets the value of Name.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetSource sets the value of Source.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem) SetSource(val string) {
+	s.Source = val
+}
+
+// SetURL sets the value of URL.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem) SetURL(val NilURI) {
+	s.URL = val
+}
+
+// The CVSS base score of the CVE and its band. Never changes the status. null = "Not scored yet",
+// never 0.
+type ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity struct {
+	Band    ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBand    `json:"band"`
+	Score   float64                                                                    `json:"score"`
+	Vector  string                                                                     `json:"vector"`
+	Version ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion `json:"version"`
+}
+
+// GetBand returns the value of Band.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity) GetBand() ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBand {
+	return s.Band
+}
+
+// GetScore returns the value of Score.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity) GetScore() float64 {
+	return s.Score
+}
+
+// GetVector returns the value of Vector.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity) GetVersion() ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion {
+	return s.Version
+}
+
+// SetBand sets the value of Band.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity) SetBand(val ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBand) {
+	s.Band = val
+}
+
+// SetScore sets the value of Score.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity) SetScore(val float64) {
+	s.Score = val
+}
+
+// SetVector sets the value of Vector.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity) SetVersion(val ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion) {
+	s.Version = val
+}
+
+type ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBand string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBandCritical ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBand = "critical"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBandHigh     ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBand = "high"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBandMedium   ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBand = "medium"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBandLow      ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBand = "low"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBandNone     ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBand = "none"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBand values.
+func (ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBand) AllValues() []ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBand {
+	return []ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBand{
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBandCritical,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBandHigh,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBandMedium,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBandLow,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBandNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBand) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBandCritical:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBandHigh:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBandMedium:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBandLow:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBandNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBand) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBand(data) {
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBandCritical:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBandCritical
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBandHigh:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBandHigh
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBandMedium:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBandMedium
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBandLow:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBandLow
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBandNone:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBandNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion40 ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion = "4.0"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion31 ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion = "3.1"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion30 ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion = "3.0"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion20 ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion = "2.0"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion values.
+func (ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion) AllValues() []ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion {
+	return []ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion{
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion40,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion31,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion30,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion20,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion40:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion31:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion30:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion20:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion(data) {
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion40:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion40
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion31:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion31
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion30:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion30
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion20:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion20
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The one status of a finding, most urgent first.
+type ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatus string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusUnderAttack       ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatus = "under_attack"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusExploited         ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatus = "exploited"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusPublicExploit     ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatus = "public_exploit"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusCriticalEdge      ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatus = "critical_edge"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusUpdateRecommended ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatus = "update_recommended"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusPatched           ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatus = "patched"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusMitigated         ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatus = "mitigated"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusAccepted          ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatus = "accepted"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusNotRelevant       ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatus = "not_relevant"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusFalsePositive     ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatus = "false_positive"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatus values.
+func (ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatus) AllValues() []ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatus {
+	return []ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatus{
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusUnderAttack,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusExploited,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusPublicExploit,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusCriticalEdge,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusUpdateRecommended,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusPatched,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusMitigated,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusAccepted,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusNotRelevant,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusFalsePositive,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusUnderAttack:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusExploited:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusPublicExploit:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusCriticalEdge:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusUpdateRecommended:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusPatched:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusMitigated:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusAccepted:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusNotRelevant:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusFalsePositive:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatus) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatus(data) {
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusUnderAttack:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusUnderAttack
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusExploited:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusExploited
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusPublicExploit:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusPublicExploit
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusCriticalEdge:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusCriticalEdge
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusUpdateRecommended:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusUpdateRecommended
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusPatched:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusPatched
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusMitigated:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusMitigated
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusAccepted:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusAccepted
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusNotRelevant:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusNotRelevant
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusFalsePositive:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatusFalsePositive
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerification struct {
+	// When it was confirmed; null while not confirmed.
+	At    NilDateTime                                                                  `json:"at"`
+	Basis ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis `json:"basis"`
+	// Verified person: who confirmed it.
+	By       NilString                                                                       `json:"by"`
+	Verified ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationVerified `json:"verified"`
+}
+
+// GetAt returns the value of At.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerification) GetAt() NilDateTime {
+	return s.At
+}
+
+// GetBasis returns the value of Basis.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerification) GetBasis() ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis {
+	return s.Basis
+}
+
+// GetBy returns the value of By.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerification) GetBy() NilString {
+	return s.By
+}
+
+// GetVerified returns the value of Verified.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerification) GetVerified() ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationVerified {
+	return s.Verified
+}
+
+// SetAt sets the value of At.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerification) SetAt(val NilDateTime) {
+	s.At = val
+}
+
+// SetBasis sets the value of Basis.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerification) SetBasis(val ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis) {
+	s.Basis = val
+}
+
+// SetBy sets the value of By.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerification) SetBy(val NilString) {
+	s.By = val
+}
+
+// SetVerified sets the value of Verified.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerification) SetVerified(val ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationVerified) {
+	s.Verified = val
+}
+
+type ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisScan          ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis = "scan"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisDeviceVersion ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis = "device_version"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisPackage       ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis = "package"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisBannerVersion ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis = "banner_version"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisStatement     ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis = "statement"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisPerson        ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis = "person"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis values.
+func (ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis) AllValues() []ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis {
+	return []ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis{
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisScan,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisDeviceVersion,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisPackage,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisBannerVersion,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisStatement,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisPerson,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisScan:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisDeviceVersion:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisPackage:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisBannerVersion:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisStatement:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisPerson:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis(data) {
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisScan:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisScan
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisDeviceVersion:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisDeviceVersion
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisPackage:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisPackage
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisBannerVersion:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisBannerVersion
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisStatement:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisStatement
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisPerson:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisPerson
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationVerified string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationVerifiedNo     ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationVerified = "no"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationVerifiedDevice ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationVerified = "device"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationVerifiedScan   ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationVerified = "scan"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationVerifiedPerson ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationVerified = "person"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationVerified values.
+func (ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationVerified) AllValues() []ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationVerified {
+	return []ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationVerified{
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationVerifiedNo,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationVerifiedDevice,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationVerifiedScan,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationVerifiedPerson,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationVerified) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationVerifiedNo:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationVerifiedDevice:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationVerifiedScan:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationVerifiedPerson:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationVerified) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationVerified(data) {
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationVerifiedNo:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationVerifiedNo
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationVerifiedDevice:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationVerifiedDevice
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationVerifiedScan:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationVerifiedScan
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationVerifiedPerson:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationVerifiedPerson
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The most urgent status in the group.
+type ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemStatus string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemStatusUnderAttack       ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemStatus = "under_attack"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemStatusExploited         ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemStatus = "exploited"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemStatusPublicExploit     ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemStatus = "public_exploit"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemStatusCriticalEdge      ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemStatus = "critical_edge"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemStatusUpdateRecommended ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemStatus = "update_recommended"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemStatus values.
+func (ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemStatus) AllValues() []ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemStatus {
+	return []ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemStatus{
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemStatusUnderAttack,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemStatusExploited,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemStatusPublicExploit,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemStatusCriticalEdge,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemStatusUpdateRecommended,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemStatusUnderAttack:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemStatusExploited:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemStatusPublicExploit:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemStatusCriticalEdge:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemStatusUpdateRecommended:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemStatus) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemStatus(data) {
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemStatusUnderAttack:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemStatusUnderAttack
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemStatusExploited:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemStatusExploited
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemStatusPublicExploit:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemStatusPublicExploit
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemStatusCriticalEdge:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemStatusCriticalEdge
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemStatusUpdateRecommended:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemStatusUpdateRecommended
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The options the document was made with.
+type ReportsGetReportsHistoryIDOKDocumentOptions struct {
+	Charts bool `json:"charts"`
+	// How Still open is grouped.
+	Grouping ReportsGetReportsHistoryIDOKDocumentOptionsGrouping `json:"grouping"`
+	// Count and list devices not added yet (default on).
+	IncludeNotAdded bool `json:"include_not_added"`
+	// Count and list findings handled as not relevant (default off).
+	IncludeNotRelevant bool `json:"include_not_relevant"`
+	// Calendar_month = the last whole calendar month in the organisation time zone.
+	Period ReportsGetReportsHistoryIDOKDocumentOptionsPeriod `json:"period"`
+	// Which sections the report has.
+	Sections ReportsGetReportsHistoryIDOKDocumentOptionsSections `json:"sections"`
+}
+
+// GetCharts returns the value of Charts.
+func (s *ReportsGetReportsHistoryIDOKDocumentOptions) GetCharts() bool {
+	return s.Charts
+}
+
+// GetGrouping returns the value of Grouping.
+func (s *ReportsGetReportsHistoryIDOKDocumentOptions) GetGrouping() ReportsGetReportsHistoryIDOKDocumentOptionsGrouping {
+	return s.Grouping
+}
+
+// GetIncludeNotAdded returns the value of IncludeNotAdded.
+func (s *ReportsGetReportsHistoryIDOKDocumentOptions) GetIncludeNotAdded() bool {
+	return s.IncludeNotAdded
+}
+
+// GetIncludeNotRelevant returns the value of IncludeNotRelevant.
+func (s *ReportsGetReportsHistoryIDOKDocumentOptions) GetIncludeNotRelevant() bool {
+	return s.IncludeNotRelevant
+}
+
+// GetPeriod returns the value of Period.
+func (s *ReportsGetReportsHistoryIDOKDocumentOptions) GetPeriod() ReportsGetReportsHistoryIDOKDocumentOptionsPeriod {
+	return s.Period
+}
+
+// GetSections returns the value of Sections.
+func (s *ReportsGetReportsHistoryIDOKDocumentOptions) GetSections() ReportsGetReportsHistoryIDOKDocumentOptionsSections {
+	return s.Sections
+}
+
+// SetCharts sets the value of Charts.
+func (s *ReportsGetReportsHistoryIDOKDocumentOptions) SetCharts(val bool) {
+	s.Charts = val
+}
+
+// SetGrouping sets the value of Grouping.
+func (s *ReportsGetReportsHistoryIDOKDocumentOptions) SetGrouping(val ReportsGetReportsHistoryIDOKDocumentOptionsGrouping) {
+	s.Grouping = val
+}
+
+// SetIncludeNotAdded sets the value of IncludeNotAdded.
+func (s *ReportsGetReportsHistoryIDOKDocumentOptions) SetIncludeNotAdded(val bool) {
+	s.IncludeNotAdded = val
+}
+
+// SetIncludeNotRelevant sets the value of IncludeNotRelevant.
+func (s *ReportsGetReportsHistoryIDOKDocumentOptions) SetIncludeNotRelevant(val bool) {
+	s.IncludeNotRelevant = val
+}
+
+// SetPeriod sets the value of Period.
+func (s *ReportsGetReportsHistoryIDOKDocumentOptions) SetPeriod(val ReportsGetReportsHistoryIDOKDocumentOptionsPeriod) {
+	s.Period = val
+}
+
+// SetSections sets the value of Sections.
+func (s *ReportsGetReportsHistoryIDOKDocumentOptions) SetSections(val ReportsGetReportsHistoryIDOKDocumentOptionsSections) {
+	s.Sections = val
+}
+
+// How Still open is grouped.
+type ReportsGetReportsHistoryIDOKDocumentOptionsGrouping string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentOptionsGroupingDevice ReportsGetReportsHistoryIDOKDocumentOptionsGrouping = "device"
+	ReportsGetReportsHistoryIDOKDocumentOptionsGroupingCve    ReportsGetReportsHistoryIDOKDocumentOptionsGrouping = "cve"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentOptionsGrouping values.
+func (ReportsGetReportsHistoryIDOKDocumentOptionsGrouping) AllValues() []ReportsGetReportsHistoryIDOKDocumentOptionsGrouping {
+	return []ReportsGetReportsHistoryIDOKDocumentOptionsGrouping{
+		ReportsGetReportsHistoryIDOKDocumentOptionsGroupingDevice,
+		ReportsGetReportsHistoryIDOKDocumentOptionsGroupingCve,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentOptionsGrouping) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentOptionsGroupingDevice:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOptionsGroupingCve:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentOptionsGrouping) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentOptionsGrouping(data) {
+	case ReportsGetReportsHistoryIDOKDocumentOptionsGroupingDevice:
+		*s = ReportsGetReportsHistoryIDOKDocumentOptionsGroupingDevice
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOptionsGroupingCve:
+		*s = ReportsGetReportsHistoryIDOKDocumentOptionsGroupingCve
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Calendar_month = the last whole calendar month in the organisation time zone.
+type ReportsGetReportsHistoryIDOKDocumentOptionsPeriod string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentOptionsPeriodLast7Days     ReportsGetReportsHistoryIDOKDocumentOptionsPeriod = "last_7_days"
+	ReportsGetReportsHistoryIDOKDocumentOptionsPeriodLast30Days    ReportsGetReportsHistoryIDOKDocumentOptionsPeriod = "last_30_days"
+	ReportsGetReportsHistoryIDOKDocumentOptionsPeriodCalendarMonth ReportsGetReportsHistoryIDOKDocumentOptionsPeriod = "calendar_month"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentOptionsPeriod values.
+func (ReportsGetReportsHistoryIDOKDocumentOptionsPeriod) AllValues() []ReportsGetReportsHistoryIDOKDocumentOptionsPeriod {
+	return []ReportsGetReportsHistoryIDOKDocumentOptionsPeriod{
+		ReportsGetReportsHistoryIDOKDocumentOptionsPeriodLast7Days,
+		ReportsGetReportsHistoryIDOKDocumentOptionsPeriodLast30Days,
+		ReportsGetReportsHistoryIDOKDocumentOptionsPeriodCalendarMonth,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentOptionsPeriod) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentOptionsPeriodLast7Days:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOptionsPeriodLast30Days:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOptionsPeriodCalendarMonth:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentOptionsPeriod) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentOptionsPeriod(data) {
+	case ReportsGetReportsHistoryIDOKDocumentOptionsPeriodLast7Days:
+		*s = ReportsGetReportsHistoryIDOKDocumentOptionsPeriodLast7Days
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOptionsPeriodLast30Days:
+		*s = ReportsGetReportsHistoryIDOKDocumentOptionsPeriodLast30Days
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOptionsPeriodCalendarMonth:
+		*s = ReportsGetReportsHistoryIDOKDocumentOptionsPeriodCalendarMonth
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Which sections the report has.
+type ReportsGetReportsHistoryIDOKDocumentOptionsSections struct {
+	Coverage   bool `json:"coverage"`
+	Detections bool `json:"detections"`
+	Exposure   bool `json:"exposure"`
+	Handled    bool `json:"handled"`
+	New        bool `json:"new"`
+	Open       bool `json:"open"`
+	Summary    bool `json:"summary"`
+}
+
+// GetCoverage returns the value of Coverage.
+func (s *ReportsGetReportsHistoryIDOKDocumentOptionsSections) GetCoverage() bool {
+	return s.Coverage
+}
+
+// GetDetections returns the value of Detections.
+func (s *ReportsGetReportsHistoryIDOKDocumentOptionsSections) GetDetections() bool {
+	return s.Detections
+}
+
+// GetExposure returns the value of Exposure.
+func (s *ReportsGetReportsHistoryIDOKDocumentOptionsSections) GetExposure() bool {
+	return s.Exposure
+}
+
+// GetHandled returns the value of Handled.
+func (s *ReportsGetReportsHistoryIDOKDocumentOptionsSections) GetHandled() bool {
+	return s.Handled
+}
+
+// GetNew returns the value of New.
+func (s *ReportsGetReportsHistoryIDOKDocumentOptionsSections) GetNew() bool {
+	return s.New
+}
+
+// GetOpen returns the value of Open.
+func (s *ReportsGetReportsHistoryIDOKDocumentOptionsSections) GetOpen() bool {
+	return s.Open
+}
+
+// GetSummary returns the value of Summary.
+func (s *ReportsGetReportsHistoryIDOKDocumentOptionsSections) GetSummary() bool {
+	return s.Summary
+}
+
+// SetCoverage sets the value of Coverage.
+func (s *ReportsGetReportsHistoryIDOKDocumentOptionsSections) SetCoverage(val bool) {
+	s.Coverage = val
+}
+
+// SetDetections sets the value of Detections.
+func (s *ReportsGetReportsHistoryIDOKDocumentOptionsSections) SetDetections(val bool) {
+	s.Detections = val
+}
+
+// SetExposure sets the value of Exposure.
+func (s *ReportsGetReportsHistoryIDOKDocumentOptionsSections) SetExposure(val bool) {
+	s.Exposure = val
+}
+
+// SetHandled sets the value of Handled.
+func (s *ReportsGetReportsHistoryIDOKDocumentOptionsSections) SetHandled(val bool) {
+	s.Handled = val
+}
+
+// SetNew sets the value of New.
+func (s *ReportsGetReportsHistoryIDOKDocumentOptionsSections) SetNew(val bool) {
+	s.New = val
+}
+
+// SetOpen sets the value of Open.
+func (s *ReportsGetReportsHistoryIDOKDocumentOptionsSections) SetOpen(val bool) {
+	s.Open = val
+}
+
+// SetSummary sets the value of Summary.
+func (s *ReportsGetReportsHistoryIDOKDocumentOptionsSections) SetSummary(val bool) {
+	s.Summary = val
+}
+
+type ReportsGetReportsHistoryIDOKDocumentPeriod struct {
+	From time.Time `json:"from"`
+	// Calendar_month = the last whole calendar month in the organisation time zone.
+	Kind ReportsGetReportsHistoryIDOKDocumentPeriodKind `json:"kind"`
+	To   time.Time                                      `json:"to"`
+	Tz   string                                         `json:"tz"`
+}
+
+// GetFrom returns the value of From.
+func (s *ReportsGetReportsHistoryIDOKDocumentPeriod) GetFrom() time.Time {
+	return s.From
+}
+
+// GetKind returns the value of Kind.
+func (s *ReportsGetReportsHistoryIDOKDocumentPeriod) GetKind() ReportsGetReportsHistoryIDOKDocumentPeriodKind {
+	return s.Kind
+}
+
+// GetTo returns the value of To.
+func (s *ReportsGetReportsHistoryIDOKDocumentPeriod) GetTo() time.Time {
+	return s.To
+}
+
+// GetTz returns the value of Tz.
+func (s *ReportsGetReportsHistoryIDOKDocumentPeriod) GetTz() string {
+	return s.Tz
+}
+
+// SetFrom sets the value of From.
+func (s *ReportsGetReportsHistoryIDOKDocumentPeriod) SetFrom(val time.Time) {
+	s.From = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ReportsGetReportsHistoryIDOKDocumentPeriod) SetKind(val ReportsGetReportsHistoryIDOKDocumentPeriodKind) {
+	s.Kind = val
+}
+
+// SetTo sets the value of To.
+func (s *ReportsGetReportsHistoryIDOKDocumentPeriod) SetTo(val time.Time) {
+	s.To = val
+}
+
+// SetTz sets the value of Tz.
+func (s *ReportsGetReportsHistoryIDOKDocumentPeriod) SetTz(val string) {
+	s.Tz = val
+}
+
+// Calendar_month = the last whole calendar month in the organisation time zone.
+type ReportsGetReportsHistoryIDOKDocumentPeriodKind string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentPeriodKindLast7Days     ReportsGetReportsHistoryIDOKDocumentPeriodKind = "last_7_days"
+	ReportsGetReportsHistoryIDOKDocumentPeriodKindLast30Days    ReportsGetReportsHistoryIDOKDocumentPeriodKind = "last_30_days"
+	ReportsGetReportsHistoryIDOKDocumentPeriodKindCalendarMonth ReportsGetReportsHistoryIDOKDocumentPeriodKind = "calendar_month"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentPeriodKind values.
+func (ReportsGetReportsHistoryIDOKDocumentPeriodKind) AllValues() []ReportsGetReportsHistoryIDOKDocumentPeriodKind {
+	return []ReportsGetReportsHistoryIDOKDocumentPeriodKind{
+		ReportsGetReportsHistoryIDOKDocumentPeriodKindLast7Days,
+		ReportsGetReportsHistoryIDOKDocumentPeriodKindLast30Days,
+		ReportsGetReportsHistoryIDOKDocumentPeriodKindCalendarMonth,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentPeriodKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentPeriodKindLast7Days:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentPeriodKindLast30Days:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentPeriodKindCalendarMonth:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentPeriodKind) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentPeriodKind(data) {
+	case ReportsGetReportsHistoryIDOKDocumentPeriodKindLast7Days:
+		*s = ReportsGetReportsHistoryIDOKDocumentPeriodKindLast7Days
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentPeriodKindLast30Days:
+		*s = ReportsGetReportsHistoryIDOKDocumentPeriodKindLast30Days
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentPeriodKindCalendarMonth:
+		*s = ReportsGetReportsHistoryIDOKDocumentPeriodKindCalendarMonth
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsHistoryIDOKDocumentSummary struct {
+	// The three things to do first, most urgent first.
+	First   []ReportsGetReportsHistoryIDOKDocumentSummaryFirstItem `json:"first"`
+	Handled int                                                    `json:"handled"`
+	New     int                                                    `json:"new"`
+	// Open at the start of the period.
+	OpenBefore int `json:"open_before"`
+	// Open findings now, one row per status that has any.
+	OpenByStatus []ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItem `json:"open_by_status"`
+	OpenNow      int                                                           `json:"open_now"`
+}
+
+// GetFirst returns the value of First.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummary) GetFirst() []ReportsGetReportsHistoryIDOKDocumentSummaryFirstItem {
+	return s.First
+}
+
+// GetHandled returns the value of Handled.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummary) GetHandled() int {
+	return s.Handled
+}
+
+// GetNew returns the value of New.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummary) GetNew() int {
+	return s.New
+}
+
+// GetOpenBefore returns the value of OpenBefore.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummary) GetOpenBefore() int {
+	return s.OpenBefore
+}
+
+// GetOpenByStatus returns the value of OpenByStatus.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummary) GetOpenByStatus() []ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItem {
+	return s.OpenByStatus
+}
+
+// GetOpenNow returns the value of OpenNow.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummary) GetOpenNow() int {
+	return s.OpenNow
+}
+
+// SetFirst sets the value of First.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummary) SetFirst(val []ReportsGetReportsHistoryIDOKDocumentSummaryFirstItem) {
+	s.First = val
+}
+
+// SetHandled sets the value of Handled.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummary) SetHandled(val int) {
+	s.Handled = val
+}
+
+// SetNew sets the value of New.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummary) SetNew(val int) {
+	s.New = val
+}
+
+// SetOpenBefore sets the value of OpenBefore.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummary) SetOpenBefore(val int) {
+	s.OpenBefore = val
+}
+
+// SetOpenByStatus sets the value of OpenByStatus.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummary) SetOpenByStatus(val []ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItem) {
+	s.OpenByStatus = val
+}
+
+// SetOpenNow sets the value of OpenNow.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummary) SetOpenNow(val int) {
+	s.OpenNow = val
+}
+
+type ReportsGetReportsHistoryIDOKDocumentSummaryFirstItem struct {
+	Cve          string                                                            `json:"cve"`
+	DeviceCount  int                                                               `json:"device_count"`
+	Devices      []ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemDevicesItem `json:"devices"`
+	FindingCount int                                                               `json:"finding_count"`
+	// Its most urgent finding.
+	FindingID string                                                          `json:"finding_id"`
+	Fix       ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix         `json:"fix"`
+	Product   string                                                          `json:"product"`
+	Severity  NilReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity `json:"severity"`
+	// The open statuses: the urgency layers 1 to 5 in order.
+	Status ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatus `json:"status"`
+}
+
+// GetCve returns the value of Cve.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItem) GetCve() string {
+	return s.Cve
+}
+
+// GetDeviceCount returns the value of DeviceCount.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItem) GetDeviceCount() int {
+	return s.DeviceCount
+}
+
+// GetDevices returns the value of Devices.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItem) GetDevices() []ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemDevicesItem {
+	return s.Devices
+}
+
+// GetFindingCount returns the value of FindingCount.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItem) GetFindingCount() int {
+	return s.FindingCount
+}
+
+// GetFindingID returns the value of FindingID.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItem) GetFindingID() string {
+	return s.FindingID
+}
+
+// GetFix returns the value of Fix.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItem) GetFix() ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix {
+	return s.Fix
+}
+
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItem) GetProduct() string {
+	return s.Product
+}
+
+// GetSeverity returns the value of Severity.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItem) GetSeverity() NilReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity {
+	return s.Severity
+}
+
+// GetStatus returns the value of Status.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItem) GetStatus() ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatus {
+	return s.Status
+}
+
+// SetCve sets the value of Cve.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItem) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetDeviceCount sets the value of DeviceCount.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItem) SetDeviceCount(val int) {
+	s.DeviceCount = val
+}
+
+// SetDevices sets the value of Devices.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItem) SetDevices(val []ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemDevicesItem) {
+	s.Devices = val
+}
+
+// SetFindingCount sets the value of FindingCount.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItem) SetFindingCount(val int) {
+	s.FindingCount = val
+}
+
+// SetFindingID sets the value of FindingID.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItem) SetFindingID(val string) {
+	s.FindingID = val
+}
+
+// SetFix sets the value of Fix.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItem) SetFix(val ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) {
+	s.Fix = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItem) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItem) SetSeverity(val NilReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity) {
+	s.Severity = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItem) SetStatus(val ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatus) {
+	s.Status = val
+}
+
+type ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemDevicesItem struct {
+	// False = "Not added yet".
+	Added bool `json:"added"`
+	// The device id when the report was made; the device may be gone since.
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// GetAdded returns the value of Added.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemDevicesItem) GetAdded() bool {
+	return s.Added
+}
+
+// GetID returns the value of ID.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemDevicesItem) GetID() string {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemDevicesItem) GetName() string {
+	return s.Name
+}
+
+// SetAdded sets the value of Added.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemDevicesItem) SetAdded(val bool) {
+	s.Added = val
+}
+
+// SetID sets the value of ID.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemDevicesItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemDevicesItem) SetName(val string) {
+	s.Name = val
+}
+
+type ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix struct {
+	// The "By fix" group; opaque.
+	Key  string                                                      `json:"key"`
+	Kind ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind `json:"kind"`
+	// The product the fix is for, as people name it.
+	Product string `json:"product"`
+	// Os_update: the KB number; none_yet: the advisory id when known.
+	Ref NilString `json:"ref"`
+	// The vendor advisory or release notes.
+	URL NilURI `json:"url"`
+	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
+	// known.
+	Version NilString `json:"version"`
+}
+
+// GetKey returns the value of Key.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) GetKey() string {
+	return s.Key
+}
+
+// GetKind returns the value of Kind.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) GetKind() ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind {
+	return s.Kind
+}
+
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) GetProduct() string {
+	return s.Product
+}
+
+// GetRef returns the value of Ref.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) GetRef() NilString {
+	return s.Ref
+}
+
+// GetURL returns the value of URL.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) GetURL() NilURI {
+	return s.URL
+}
+
+// GetVersion returns the value of Version.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) GetVersion() NilString {
+	return s.Version
+}
+
+// SetKey sets the value of Key.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) SetKey(val string) {
+	s.Key = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) SetKind(val ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind) {
+	s.Kind = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetRef sets the value of Ref.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) SetRef(val NilString) {
+	s.Ref = val
+}
+
+// SetURL sets the value of URL.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) SetURL(val NilURI) {
+	s.URL = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) SetVersion(val NilString) {
+	s.Version = val
+}
+
+type ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindUpdate        ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind = "update"
+	ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindDistroUpdate  ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind = "distro_update"
+	ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindOsUpdate      ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind = "os_update"
+	ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindFeatureUpdate ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind = "feature_update"
+	ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindNoneYet       ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind = "none_yet"
+	ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindUnknown       ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind = "unknown"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind values.
+func (ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind) AllValues() []ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind {
+	return []ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind{
+		ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindUpdate,
+		ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindDistroUpdate,
+		ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindOsUpdate,
+		ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindFeatureUpdate,
+		ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindNoneYet,
+		ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindUpdate:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindDistroUpdate:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindOsUpdate:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindFeatureUpdate:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindNoneYet:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind(data) {
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindUpdate:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindUpdate
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindDistroUpdate:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindDistroUpdate
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindOsUpdate:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindOsUpdate
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindFeatureUpdate:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindFeatureUpdate
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindNoneYet:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindNoneYet
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindUnknown:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The CVSS base score of the CVE and its band. Never changes the status. null = "Not scored yet",
+// never 0.
+type ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity struct {
+	Band    ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBand    `json:"band"`
+	Score   float64                                                             `json:"score"`
+	Vector  string                                                              `json:"vector"`
+	Version ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion `json:"version"`
+}
+
+// GetBand returns the value of Band.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity) GetBand() ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBand {
+	return s.Band
+}
+
+// GetScore returns the value of Score.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity) GetScore() float64 {
+	return s.Score
+}
+
+// GetVector returns the value of Vector.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity) GetVersion() ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion {
+	return s.Version
+}
+
+// SetBand sets the value of Band.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity) SetBand(val ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBand) {
+	s.Band = val
+}
+
+// SetScore sets the value of Score.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity) SetScore(val float64) {
+	s.Score = val
+}
+
+// SetVector sets the value of Vector.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity) SetVersion(val ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion) {
+	s.Version = val
+}
+
+type ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBand string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBandCritical ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBand = "critical"
+	ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBandHigh     ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBand = "high"
+	ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBandMedium   ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBand = "medium"
+	ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBandLow      ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBand = "low"
+	ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBandNone     ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBand = "none"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBand values.
+func (ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBand) AllValues() []ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBand {
+	return []ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBand{
+		ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBandCritical,
+		ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBandHigh,
+		ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBandMedium,
+		ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBandLow,
+		ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBandNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBand) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBandCritical:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBandHigh:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBandMedium:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBandLow:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBandNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBand) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBand(data) {
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBandCritical:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBandCritical
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBandHigh:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBandHigh
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBandMedium:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBandMedium
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBandLow:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBandLow
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBandNone:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBandNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion40 ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion = "4.0"
+	ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion31 ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion = "3.1"
+	ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion30 ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion = "3.0"
+	ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion20 ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion = "2.0"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion values.
+func (ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion) AllValues() []ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion {
+	return []ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion{
+		ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion40,
+		ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion31,
+		ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion30,
+		ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion20,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion40:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion31:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion30:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion20:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion(data) {
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion40:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion40
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion31:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion31
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion30:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion30
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion20:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion20
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The open statuses: the urgency layers 1 to 5 in order.
+type ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatus string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatusUnderAttack       ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatus = "under_attack"
+	ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatusExploited         ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatus = "exploited"
+	ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatusPublicExploit     ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatus = "public_exploit"
+	ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatusCriticalEdge      ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatus = "critical_edge"
+	ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatusUpdateRecommended ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatus = "update_recommended"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatus values.
+func (ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatus) AllValues() []ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatus {
+	return []ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatus{
+		ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatusUnderAttack,
+		ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatusExploited,
+		ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatusPublicExploit,
+		ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatusCriticalEdge,
+		ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatusUpdateRecommended,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatusUnderAttack:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatusExploited:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatusPublicExploit:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatusCriticalEdge:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatusUpdateRecommended:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatus) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatus(data) {
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatusUnderAttack:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatusUnderAttack
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatusExploited:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatusExploited
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatusPublicExploit:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatusPublicExploit
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatusCriticalEdge:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatusCriticalEdge
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatusUpdateRecommended:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatusUpdateRecommended
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItem struct {
+	N int `json:"n"`
+	// The open statuses: the urgency layers 1 to 5 in order.
+	Status ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItemStatus `json:"status"`
+}
+
+// GetN returns the value of N.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItem) GetN() int {
+	return s.N
+}
+
+// GetStatus returns the value of Status.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItem) GetStatus() ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItemStatus {
+	return s.Status
+}
+
+// SetN sets the value of N.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItem) SetN(val int) {
+	s.N = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItem) SetStatus(val ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItemStatus) {
+	s.Status = val
+}
+
+// The open statuses: the urgency layers 1 to 5 in order.
+type ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItemStatus string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItemStatusUnderAttack       ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItemStatus = "under_attack"
+	ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItemStatusExploited         ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItemStatus = "exploited"
+	ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItemStatusPublicExploit     ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItemStatus = "public_exploit"
+	ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItemStatusCriticalEdge      ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItemStatus = "critical_edge"
+	ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItemStatusUpdateRecommended ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItemStatus = "update_recommended"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItemStatus values.
+func (ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItemStatus) AllValues() []ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItemStatus {
+	return []ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItemStatus{
+		ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItemStatusUnderAttack,
+		ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItemStatusExploited,
+		ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItemStatusPublicExploit,
+		ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItemStatusCriticalEdge,
+		ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItemStatusUpdateRecommended,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItemStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItemStatusUnderAttack:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItemStatusExploited:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItemStatusPublicExploit:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItemStatusCriticalEdge:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItemStatusUpdateRecommended:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItemStatus) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItemStatus(data) {
+	case ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItemStatusUnderAttack:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItemStatusUnderAttack
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItemStatusExploited:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItemStatusExploited
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItemStatusPublicExploit:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItemStatusPublicExploit
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItemStatusCriticalEdge:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItemStatusCriticalEdge
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItemStatusUpdateRecommended:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItemStatusUpdateRecommended
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsHistoryIDOKPeriod struct {
+	From time.Time `json:"from"`
+	To   time.Time `json:"to"`
+}
+
+// GetFrom returns the value of From.
+func (s *ReportsGetReportsHistoryIDOKPeriod) GetFrom() time.Time {
+	return s.From
+}
+
+// GetTo returns the value of To.
+func (s *ReportsGetReportsHistoryIDOKPeriod) GetTo() time.Time {
+	return s.To
+}
+
+// SetFrom sets the value of From.
+func (s *ReportsGetReportsHistoryIDOKPeriod) SetFrom(val time.Time) {
+	s.From = val
+}
+
+// SetTo sets the value of To.
+func (s *ReportsGetReportsHistoryIDOKPeriod) SetTo(val time.Time) {
+	s.To = val
+}
+
+type ReportsGetReportsHistoryIDOKStatus string
+
+const (
+	ReportsGetReportsHistoryIDOKStatusSent   ReportsGetReportsHistoryIDOKStatus = "sent"
+	ReportsGetReportsHistoryIDOKStatusFailed ReportsGetReportsHistoryIDOKStatus = "failed"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKStatus values.
+func (ReportsGetReportsHistoryIDOKStatus) AllValues() []ReportsGetReportsHistoryIDOKStatus {
+	return []ReportsGetReportsHistoryIDOKStatus{
+		ReportsGetReportsHistoryIDOKStatusSent,
+		ReportsGetReportsHistoryIDOKStatusFailed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKStatusSent:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKStatusFailed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKStatus) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKStatus(data) {
+	case ReportsGetReportsHistoryIDOKStatusSent:
+		*s = ReportsGetReportsHistoryIDOKStatusSent
+		return nil
+	case ReportsGetReportsHistoryIDOKStatusFailed:
+		*s = ReportsGetReportsHistoryIDOKStatusFailed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsHistoryIDOKTrigger string
+
+const (
+	ReportsGetReportsHistoryIDOKTriggerManual   ReportsGetReportsHistoryIDOKTrigger = "manual"
+	ReportsGetReportsHistoryIDOKTriggerSchedule ReportsGetReportsHistoryIDOKTrigger = "schedule"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKTrigger values.
+func (ReportsGetReportsHistoryIDOKTrigger) AllValues() []ReportsGetReportsHistoryIDOKTrigger {
+	return []ReportsGetReportsHistoryIDOKTrigger{
+		ReportsGetReportsHistoryIDOKTriggerManual,
+		ReportsGetReportsHistoryIDOKTriggerSchedule,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKTrigger) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKTriggerManual:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKTriggerSchedule:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKTrigger) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKTrigger(data) {
+	case ReportsGetReportsHistoryIDOKTriggerManual:
+		*s = ReportsGetReportsHistoryIDOKTriggerManual
+		return nil
+	case ReportsGetReportsHistoryIDOKTriggerSchedule:
+		*s = ReportsGetReportsHistoryIDOKTriggerSchedule
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsHistoryOK struct {
+	Items []ReportsGetReportsHistoryOKItemsItem `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *ReportsGetReportsHistoryOK) GetItems() []ReportsGetReportsHistoryOKItemsItem {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *ReportsGetReportsHistoryOK) SetItems(val []ReportsGetReportsHistoryOKItemsItem) {
+	s.Items = val
+}
+
+type ReportsGetReportsHistoryOKItemsItem struct {
+	DefinitionID string                                     `json:"definition_id"`
+	Error        NilString                                  `json:"error"`
+	ID           string                                     `json:"id"`
+	Period       ReportsGetReportsHistoryOKItemsItemPeriod  `json:"period"`
+	Recipients   []string                                   `json:"recipients"`
+	SentAt       time.Time                                  `json:"sent_at"`
+	Status       ReportsGetReportsHistoryOKItemsItemStatus  `json:"status"`
+	Title        string                                     `json:"title"`
+	Trigger      ReportsGetReportsHistoryOKItemsItemTrigger `json:"trigger"`
+}
+
+// GetDefinitionID returns the value of DefinitionID.
+func (s *ReportsGetReportsHistoryOKItemsItem) GetDefinitionID() string {
+	return s.DefinitionID
+}
+
+// GetError returns the value of Error.
+func (s *ReportsGetReportsHistoryOKItemsItem) GetError() NilString {
+	return s.Error
+}
+
+// GetID returns the value of ID.
+func (s *ReportsGetReportsHistoryOKItemsItem) GetID() string {
+	return s.ID
+}
+
+// GetPeriod returns the value of Period.
+func (s *ReportsGetReportsHistoryOKItemsItem) GetPeriod() ReportsGetReportsHistoryOKItemsItemPeriod {
+	return s.Period
+}
+
+// GetRecipients returns the value of Recipients.
+func (s *ReportsGetReportsHistoryOKItemsItem) GetRecipients() []string {
+	return s.Recipients
+}
+
+// GetSentAt returns the value of SentAt.
+func (s *ReportsGetReportsHistoryOKItemsItem) GetSentAt() time.Time {
+	return s.SentAt
+}
+
+// GetStatus returns the value of Status.
+func (s *ReportsGetReportsHistoryOKItemsItem) GetStatus() ReportsGetReportsHistoryOKItemsItemStatus {
+	return s.Status
+}
+
+// GetTitle returns the value of Title.
+func (s *ReportsGetReportsHistoryOKItemsItem) GetTitle() string {
+	return s.Title
+}
+
+// GetTrigger returns the value of Trigger.
+func (s *ReportsGetReportsHistoryOKItemsItem) GetTrigger() ReportsGetReportsHistoryOKItemsItemTrigger {
+	return s.Trigger
+}
+
+// SetDefinitionID sets the value of DefinitionID.
+func (s *ReportsGetReportsHistoryOKItemsItem) SetDefinitionID(val string) {
+	s.DefinitionID = val
+}
+
+// SetError sets the value of Error.
+func (s *ReportsGetReportsHistoryOKItemsItem) SetError(val NilString) {
+	s.Error = val
+}
+
+// SetID sets the value of ID.
+func (s *ReportsGetReportsHistoryOKItemsItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetPeriod sets the value of Period.
+func (s *ReportsGetReportsHistoryOKItemsItem) SetPeriod(val ReportsGetReportsHistoryOKItemsItemPeriod) {
+	s.Period = val
+}
+
+// SetRecipients sets the value of Recipients.
+func (s *ReportsGetReportsHistoryOKItemsItem) SetRecipients(val []string) {
+	s.Recipients = val
+}
+
+// SetSentAt sets the value of SentAt.
+func (s *ReportsGetReportsHistoryOKItemsItem) SetSentAt(val time.Time) {
+	s.SentAt = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ReportsGetReportsHistoryOKItemsItem) SetStatus(val ReportsGetReportsHistoryOKItemsItemStatus) {
+	s.Status = val
+}
+
+// SetTitle sets the value of Title.
+func (s *ReportsGetReportsHistoryOKItemsItem) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetTrigger sets the value of Trigger.
+func (s *ReportsGetReportsHistoryOKItemsItem) SetTrigger(val ReportsGetReportsHistoryOKItemsItemTrigger) {
+	s.Trigger = val
+}
+
+type ReportsGetReportsHistoryOKItemsItemPeriod struct {
+	From time.Time `json:"from"`
+	To   time.Time `json:"to"`
+}
+
+// GetFrom returns the value of From.
+func (s *ReportsGetReportsHistoryOKItemsItemPeriod) GetFrom() time.Time {
+	return s.From
+}
+
+// GetTo returns the value of To.
+func (s *ReportsGetReportsHistoryOKItemsItemPeriod) GetTo() time.Time {
+	return s.To
+}
+
+// SetFrom sets the value of From.
+func (s *ReportsGetReportsHistoryOKItemsItemPeriod) SetFrom(val time.Time) {
+	s.From = val
+}
+
+// SetTo sets the value of To.
+func (s *ReportsGetReportsHistoryOKItemsItemPeriod) SetTo(val time.Time) {
+	s.To = val
+}
+
+type ReportsGetReportsHistoryOKItemsItemStatus string
+
+const (
+	ReportsGetReportsHistoryOKItemsItemStatusSent   ReportsGetReportsHistoryOKItemsItemStatus = "sent"
+	ReportsGetReportsHistoryOKItemsItemStatusFailed ReportsGetReportsHistoryOKItemsItemStatus = "failed"
+)
+
+// AllValues returns all ReportsGetReportsHistoryOKItemsItemStatus values.
+func (ReportsGetReportsHistoryOKItemsItemStatus) AllValues() []ReportsGetReportsHistoryOKItemsItemStatus {
+	return []ReportsGetReportsHistoryOKItemsItemStatus{
+		ReportsGetReportsHistoryOKItemsItemStatusSent,
+		ReportsGetReportsHistoryOKItemsItemStatusFailed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryOKItemsItemStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryOKItemsItemStatusSent:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryOKItemsItemStatusFailed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryOKItemsItemStatus) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryOKItemsItemStatus(data) {
+	case ReportsGetReportsHistoryOKItemsItemStatusSent:
+		*s = ReportsGetReportsHistoryOKItemsItemStatusSent
+		return nil
+	case ReportsGetReportsHistoryOKItemsItemStatusFailed:
+		*s = ReportsGetReportsHistoryOKItemsItemStatusFailed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsHistoryOKItemsItemTrigger string
+
+const (
+	ReportsGetReportsHistoryOKItemsItemTriggerManual   ReportsGetReportsHistoryOKItemsItemTrigger = "manual"
+	ReportsGetReportsHistoryOKItemsItemTriggerSchedule ReportsGetReportsHistoryOKItemsItemTrigger = "schedule"
+)
+
+// AllValues returns all ReportsGetReportsHistoryOKItemsItemTrigger values.
+func (ReportsGetReportsHistoryOKItemsItemTrigger) AllValues() []ReportsGetReportsHistoryOKItemsItemTrigger {
+	return []ReportsGetReportsHistoryOKItemsItemTrigger{
+		ReportsGetReportsHistoryOKItemsItemTriggerManual,
+		ReportsGetReportsHistoryOKItemsItemTriggerSchedule,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryOKItemsItemTrigger) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryOKItemsItemTriggerManual:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryOKItemsItemTriggerSchedule:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryOKItemsItemTrigger) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryOKItemsItemTrigger(data) {
+	case ReportsGetReportsHistoryOKItemsItemTriggerManual:
+		*s = ReportsGetReportsHistoryOKItemsItemTriggerManual
+		return nil
+	case ReportsGetReportsHistoryOKItemsItemTriggerSchedule:
+		*s = ReportsGetReportsHistoryOKItemsItemTriggerSchedule
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ReportsGetReportsPdplOK struct {
@@ -188032,6 +200042,215 @@ func (s *ReportsPostReportsPdplGenerateOKRisksItemStatus) UnmarshalText(data []b
 	}
 }
 
+type ReportsPostReportsSendOK struct {
+	DefinitionID string                          `json:"definition_id"`
+	Error        NilString                       `json:"error"`
+	ID           string                          `json:"id"`
+	Period       ReportsPostReportsSendOKPeriod  `json:"period"`
+	Recipients   []string                        `json:"recipients"`
+	SentAt       time.Time                       `json:"sent_at"`
+	Status       ReportsPostReportsSendOKStatus  `json:"status"`
+	Title        string                          `json:"title"`
+	Trigger      ReportsPostReportsSendOKTrigger `json:"trigger"`
+}
+
+// GetDefinitionID returns the value of DefinitionID.
+func (s *ReportsPostReportsSendOK) GetDefinitionID() string {
+	return s.DefinitionID
+}
+
+// GetError returns the value of Error.
+func (s *ReportsPostReportsSendOK) GetError() NilString {
+	return s.Error
+}
+
+// GetID returns the value of ID.
+func (s *ReportsPostReportsSendOK) GetID() string {
+	return s.ID
+}
+
+// GetPeriod returns the value of Period.
+func (s *ReportsPostReportsSendOK) GetPeriod() ReportsPostReportsSendOKPeriod {
+	return s.Period
+}
+
+// GetRecipients returns the value of Recipients.
+func (s *ReportsPostReportsSendOK) GetRecipients() []string {
+	return s.Recipients
+}
+
+// GetSentAt returns the value of SentAt.
+func (s *ReportsPostReportsSendOK) GetSentAt() time.Time {
+	return s.SentAt
+}
+
+// GetStatus returns the value of Status.
+func (s *ReportsPostReportsSendOK) GetStatus() ReportsPostReportsSendOKStatus {
+	return s.Status
+}
+
+// GetTitle returns the value of Title.
+func (s *ReportsPostReportsSendOK) GetTitle() string {
+	return s.Title
+}
+
+// GetTrigger returns the value of Trigger.
+func (s *ReportsPostReportsSendOK) GetTrigger() ReportsPostReportsSendOKTrigger {
+	return s.Trigger
+}
+
+// SetDefinitionID sets the value of DefinitionID.
+func (s *ReportsPostReportsSendOK) SetDefinitionID(val string) {
+	s.DefinitionID = val
+}
+
+// SetError sets the value of Error.
+func (s *ReportsPostReportsSendOK) SetError(val NilString) {
+	s.Error = val
+}
+
+// SetID sets the value of ID.
+func (s *ReportsPostReportsSendOK) SetID(val string) {
+	s.ID = val
+}
+
+// SetPeriod sets the value of Period.
+func (s *ReportsPostReportsSendOK) SetPeriod(val ReportsPostReportsSendOKPeriod) {
+	s.Period = val
+}
+
+// SetRecipients sets the value of Recipients.
+func (s *ReportsPostReportsSendOK) SetRecipients(val []string) {
+	s.Recipients = val
+}
+
+// SetSentAt sets the value of SentAt.
+func (s *ReportsPostReportsSendOK) SetSentAt(val time.Time) {
+	s.SentAt = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ReportsPostReportsSendOK) SetStatus(val ReportsPostReportsSendOKStatus) {
+	s.Status = val
+}
+
+// SetTitle sets the value of Title.
+func (s *ReportsPostReportsSendOK) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetTrigger sets the value of Trigger.
+func (s *ReportsPostReportsSendOK) SetTrigger(val ReportsPostReportsSendOKTrigger) {
+	s.Trigger = val
+}
+
+type ReportsPostReportsSendOKPeriod struct {
+	From time.Time `json:"from"`
+	To   time.Time `json:"to"`
+}
+
+// GetFrom returns the value of From.
+func (s *ReportsPostReportsSendOKPeriod) GetFrom() time.Time {
+	return s.From
+}
+
+// GetTo returns the value of To.
+func (s *ReportsPostReportsSendOKPeriod) GetTo() time.Time {
+	return s.To
+}
+
+// SetFrom sets the value of From.
+func (s *ReportsPostReportsSendOKPeriod) SetFrom(val time.Time) {
+	s.From = val
+}
+
+// SetTo sets the value of To.
+func (s *ReportsPostReportsSendOKPeriod) SetTo(val time.Time) {
+	s.To = val
+}
+
+type ReportsPostReportsSendOKStatus string
+
+const (
+	ReportsPostReportsSendOKStatusSent   ReportsPostReportsSendOKStatus = "sent"
+	ReportsPostReportsSendOKStatusFailed ReportsPostReportsSendOKStatus = "failed"
+)
+
+// AllValues returns all ReportsPostReportsSendOKStatus values.
+func (ReportsPostReportsSendOKStatus) AllValues() []ReportsPostReportsSendOKStatus {
+	return []ReportsPostReportsSendOKStatus{
+		ReportsPostReportsSendOKStatusSent,
+		ReportsPostReportsSendOKStatusFailed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsPostReportsSendOKStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsPostReportsSendOKStatusSent:
+		return []byte(s), nil
+	case ReportsPostReportsSendOKStatusFailed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsPostReportsSendOKStatus) UnmarshalText(data []byte) error {
+	switch ReportsPostReportsSendOKStatus(data) {
+	case ReportsPostReportsSendOKStatusSent:
+		*s = ReportsPostReportsSendOKStatusSent
+		return nil
+	case ReportsPostReportsSendOKStatusFailed:
+		*s = ReportsPostReportsSendOKStatusFailed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsPostReportsSendOKTrigger string
+
+const (
+	ReportsPostReportsSendOKTriggerManual   ReportsPostReportsSendOKTrigger = "manual"
+	ReportsPostReportsSendOKTriggerSchedule ReportsPostReportsSendOKTrigger = "schedule"
+)
+
+// AllValues returns all ReportsPostReportsSendOKTrigger values.
+func (ReportsPostReportsSendOKTrigger) AllValues() []ReportsPostReportsSendOKTrigger {
+	return []ReportsPostReportsSendOKTrigger{
+		ReportsPostReportsSendOKTriggerManual,
+		ReportsPostReportsSendOKTriggerSchedule,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsPostReportsSendOKTrigger) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsPostReportsSendOKTriggerManual:
+		return []byte(s), nil
+	case ReportsPostReportsSendOKTriggerSchedule:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsPostReportsSendOKTrigger) UnmarshalText(data []byte) error {
+	switch ReportsPostReportsSendOKTrigger(data) {
+	case ReportsPostReportsSendOKTriggerManual:
+		*s = ReportsPostReportsSendOKTriggerManual
+		return nil
+	case ReportsPostReportsSendOKTriggerSchedule:
+		*s = ReportsPostReportsSendOKTriggerSchedule
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ReportsPostReportsWeeklyAiSummaryOK struct {
 	GeneratedAt time.Time `json:"generated_at"`
 	Model       string    `json:"model"`
@@ -188265,6 +200484,616 @@ func (s *ReportsPostReportsWeeklySendOKTrigger) UnmarshalText(data []byte) error
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+// The one report: a single template with section switches, its period, recipients and schedule.
+type ReportsPutReportsDefinitionOK struct {
+	ID         string                               `json:"id"`
+	Name       string                               `json:"name"`
+	Options    ReportsPutReportsDefinitionOKOptions `json:"options"`
+	Recipients []string                             `json:"recipients"`
+	// The owner key of its schedule in the shared schedules (GET/PUT /schedules/{owner_key}), reports.def:.
+	ScheduleKey string    `json:"schedule_key"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	UpdatedBy   string    `json:"updated_by"`
+}
+
+// GetID returns the value of ID.
+func (s *ReportsPutReportsDefinitionOK) GetID() string {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *ReportsPutReportsDefinitionOK) GetName() string {
+	return s.Name
+}
+
+// GetOptions returns the value of Options.
+func (s *ReportsPutReportsDefinitionOK) GetOptions() ReportsPutReportsDefinitionOKOptions {
+	return s.Options
+}
+
+// GetRecipients returns the value of Recipients.
+func (s *ReportsPutReportsDefinitionOK) GetRecipients() []string {
+	return s.Recipients
+}
+
+// GetScheduleKey returns the value of ScheduleKey.
+func (s *ReportsPutReportsDefinitionOK) GetScheduleKey() string {
+	return s.ScheduleKey
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *ReportsPutReportsDefinitionOK) GetUpdatedAt() time.Time {
+	return s.UpdatedAt
+}
+
+// GetUpdatedBy returns the value of UpdatedBy.
+func (s *ReportsPutReportsDefinitionOK) GetUpdatedBy() string {
+	return s.UpdatedBy
+}
+
+// SetID sets the value of ID.
+func (s *ReportsPutReportsDefinitionOK) SetID(val string) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *ReportsPutReportsDefinitionOK) SetName(val string) {
+	s.Name = val
+}
+
+// SetOptions sets the value of Options.
+func (s *ReportsPutReportsDefinitionOK) SetOptions(val ReportsPutReportsDefinitionOKOptions) {
+	s.Options = val
+}
+
+// SetRecipients sets the value of Recipients.
+func (s *ReportsPutReportsDefinitionOK) SetRecipients(val []string) {
+	s.Recipients = val
+}
+
+// SetScheduleKey sets the value of ScheduleKey.
+func (s *ReportsPutReportsDefinitionOK) SetScheduleKey(val string) {
+	s.ScheduleKey = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *ReportsPutReportsDefinitionOK) SetUpdatedAt(val time.Time) {
+	s.UpdatedAt = val
+}
+
+// SetUpdatedBy sets the value of UpdatedBy.
+func (s *ReportsPutReportsDefinitionOK) SetUpdatedBy(val string) {
+	s.UpdatedBy = val
+}
+
+type ReportsPutReportsDefinitionOKOptions struct {
+	Charts bool `json:"charts"`
+	// How Still open is grouped.
+	Grouping ReportsPutReportsDefinitionOKOptionsGrouping `json:"grouping"`
+	// Count and list devices not added yet (default on).
+	IncludeNotAdded bool `json:"include_not_added"`
+	// Count and list findings handled as not relevant (default off).
+	IncludeNotRelevant bool `json:"include_not_relevant"`
+	// Calendar_month = the last whole calendar month in the organisation time zone.
+	Period ReportsPutReportsDefinitionOKOptionsPeriod `json:"period"`
+	// Which sections the report has.
+	Sections ReportsPutReportsDefinitionOKOptionsSections `json:"sections"`
+}
+
+// GetCharts returns the value of Charts.
+func (s *ReportsPutReportsDefinitionOKOptions) GetCharts() bool {
+	return s.Charts
+}
+
+// GetGrouping returns the value of Grouping.
+func (s *ReportsPutReportsDefinitionOKOptions) GetGrouping() ReportsPutReportsDefinitionOKOptionsGrouping {
+	return s.Grouping
+}
+
+// GetIncludeNotAdded returns the value of IncludeNotAdded.
+func (s *ReportsPutReportsDefinitionOKOptions) GetIncludeNotAdded() bool {
+	return s.IncludeNotAdded
+}
+
+// GetIncludeNotRelevant returns the value of IncludeNotRelevant.
+func (s *ReportsPutReportsDefinitionOKOptions) GetIncludeNotRelevant() bool {
+	return s.IncludeNotRelevant
+}
+
+// GetPeriod returns the value of Period.
+func (s *ReportsPutReportsDefinitionOKOptions) GetPeriod() ReportsPutReportsDefinitionOKOptionsPeriod {
+	return s.Period
+}
+
+// GetSections returns the value of Sections.
+func (s *ReportsPutReportsDefinitionOKOptions) GetSections() ReportsPutReportsDefinitionOKOptionsSections {
+	return s.Sections
+}
+
+// SetCharts sets the value of Charts.
+func (s *ReportsPutReportsDefinitionOKOptions) SetCharts(val bool) {
+	s.Charts = val
+}
+
+// SetGrouping sets the value of Grouping.
+func (s *ReportsPutReportsDefinitionOKOptions) SetGrouping(val ReportsPutReportsDefinitionOKOptionsGrouping) {
+	s.Grouping = val
+}
+
+// SetIncludeNotAdded sets the value of IncludeNotAdded.
+func (s *ReportsPutReportsDefinitionOKOptions) SetIncludeNotAdded(val bool) {
+	s.IncludeNotAdded = val
+}
+
+// SetIncludeNotRelevant sets the value of IncludeNotRelevant.
+func (s *ReportsPutReportsDefinitionOKOptions) SetIncludeNotRelevant(val bool) {
+	s.IncludeNotRelevant = val
+}
+
+// SetPeriod sets the value of Period.
+func (s *ReportsPutReportsDefinitionOKOptions) SetPeriod(val ReportsPutReportsDefinitionOKOptionsPeriod) {
+	s.Period = val
+}
+
+// SetSections sets the value of Sections.
+func (s *ReportsPutReportsDefinitionOKOptions) SetSections(val ReportsPutReportsDefinitionOKOptionsSections) {
+	s.Sections = val
+}
+
+// How Still open is grouped.
+type ReportsPutReportsDefinitionOKOptionsGrouping string
+
+const (
+	ReportsPutReportsDefinitionOKOptionsGroupingDevice ReportsPutReportsDefinitionOKOptionsGrouping = "device"
+	ReportsPutReportsDefinitionOKOptionsGroupingCve    ReportsPutReportsDefinitionOKOptionsGrouping = "cve"
+)
+
+// AllValues returns all ReportsPutReportsDefinitionOKOptionsGrouping values.
+func (ReportsPutReportsDefinitionOKOptionsGrouping) AllValues() []ReportsPutReportsDefinitionOKOptionsGrouping {
+	return []ReportsPutReportsDefinitionOKOptionsGrouping{
+		ReportsPutReportsDefinitionOKOptionsGroupingDevice,
+		ReportsPutReportsDefinitionOKOptionsGroupingCve,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsPutReportsDefinitionOKOptionsGrouping) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsPutReportsDefinitionOKOptionsGroupingDevice:
+		return []byte(s), nil
+	case ReportsPutReportsDefinitionOKOptionsGroupingCve:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsPutReportsDefinitionOKOptionsGrouping) UnmarshalText(data []byte) error {
+	switch ReportsPutReportsDefinitionOKOptionsGrouping(data) {
+	case ReportsPutReportsDefinitionOKOptionsGroupingDevice:
+		*s = ReportsPutReportsDefinitionOKOptionsGroupingDevice
+		return nil
+	case ReportsPutReportsDefinitionOKOptionsGroupingCve:
+		*s = ReportsPutReportsDefinitionOKOptionsGroupingCve
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Calendar_month = the last whole calendar month in the organisation time zone.
+type ReportsPutReportsDefinitionOKOptionsPeriod string
+
+const (
+	ReportsPutReportsDefinitionOKOptionsPeriodLast7Days     ReportsPutReportsDefinitionOKOptionsPeriod = "last_7_days"
+	ReportsPutReportsDefinitionOKOptionsPeriodLast30Days    ReportsPutReportsDefinitionOKOptionsPeriod = "last_30_days"
+	ReportsPutReportsDefinitionOKOptionsPeriodCalendarMonth ReportsPutReportsDefinitionOKOptionsPeriod = "calendar_month"
+)
+
+// AllValues returns all ReportsPutReportsDefinitionOKOptionsPeriod values.
+func (ReportsPutReportsDefinitionOKOptionsPeriod) AllValues() []ReportsPutReportsDefinitionOKOptionsPeriod {
+	return []ReportsPutReportsDefinitionOKOptionsPeriod{
+		ReportsPutReportsDefinitionOKOptionsPeriodLast7Days,
+		ReportsPutReportsDefinitionOKOptionsPeriodLast30Days,
+		ReportsPutReportsDefinitionOKOptionsPeriodCalendarMonth,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsPutReportsDefinitionOKOptionsPeriod) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsPutReportsDefinitionOKOptionsPeriodLast7Days:
+		return []byte(s), nil
+	case ReportsPutReportsDefinitionOKOptionsPeriodLast30Days:
+		return []byte(s), nil
+	case ReportsPutReportsDefinitionOKOptionsPeriodCalendarMonth:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsPutReportsDefinitionOKOptionsPeriod) UnmarshalText(data []byte) error {
+	switch ReportsPutReportsDefinitionOKOptionsPeriod(data) {
+	case ReportsPutReportsDefinitionOKOptionsPeriodLast7Days:
+		*s = ReportsPutReportsDefinitionOKOptionsPeriodLast7Days
+		return nil
+	case ReportsPutReportsDefinitionOKOptionsPeriodLast30Days:
+		*s = ReportsPutReportsDefinitionOKOptionsPeriodLast30Days
+		return nil
+	case ReportsPutReportsDefinitionOKOptionsPeriodCalendarMonth:
+		*s = ReportsPutReportsDefinitionOKOptionsPeriodCalendarMonth
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Which sections the report has.
+type ReportsPutReportsDefinitionOKOptionsSections struct {
+	Coverage   bool `json:"coverage"`
+	Detections bool `json:"detections"`
+	Exposure   bool `json:"exposure"`
+	Handled    bool `json:"handled"`
+	New        bool `json:"new"`
+	Open       bool `json:"open"`
+	Summary    bool `json:"summary"`
+}
+
+// GetCoverage returns the value of Coverage.
+func (s *ReportsPutReportsDefinitionOKOptionsSections) GetCoverage() bool {
+	return s.Coverage
+}
+
+// GetDetections returns the value of Detections.
+func (s *ReportsPutReportsDefinitionOKOptionsSections) GetDetections() bool {
+	return s.Detections
+}
+
+// GetExposure returns the value of Exposure.
+func (s *ReportsPutReportsDefinitionOKOptionsSections) GetExposure() bool {
+	return s.Exposure
+}
+
+// GetHandled returns the value of Handled.
+func (s *ReportsPutReportsDefinitionOKOptionsSections) GetHandled() bool {
+	return s.Handled
+}
+
+// GetNew returns the value of New.
+func (s *ReportsPutReportsDefinitionOKOptionsSections) GetNew() bool {
+	return s.New
+}
+
+// GetOpen returns the value of Open.
+func (s *ReportsPutReportsDefinitionOKOptionsSections) GetOpen() bool {
+	return s.Open
+}
+
+// GetSummary returns the value of Summary.
+func (s *ReportsPutReportsDefinitionOKOptionsSections) GetSummary() bool {
+	return s.Summary
+}
+
+// SetCoverage sets the value of Coverage.
+func (s *ReportsPutReportsDefinitionOKOptionsSections) SetCoverage(val bool) {
+	s.Coverage = val
+}
+
+// SetDetections sets the value of Detections.
+func (s *ReportsPutReportsDefinitionOKOptionsSections) SetDetections(val bool) {
+	s.Detections = val
+}
+
+// SetExposure sets the value of Exposure.
+func (s *ReportsPutReportsDefinitionOKOptionsSections) SetExposure(val bool) {
+	s.Exposure = val
+}
+
+// SetHandled sets the value of Handled.
+func (s *ReportsPutReportsDefinitionOKOptionsSections) SetHandled(val bool) {
+	s.Handled = val
+}
+
+// SetNew sets the value of New.
+func (s *ReportsPutReportsDefinitionOKOptionsSections) SetNew(val bool) {
+	s.New = val
+}
+
+// SetOpen sets the value of Open.
+func (s *ReportsPutReportsDefinitionOKOptionsSections) SetOpen(val bool) {
+	s.Open = val
+}
+
+// SetSummary sets the value of Summary.
+func (s *ReportsPutReportsDefinitionOKOptionsSections) SetSummary(val bool) {
+	s.Summary = val
+}
+
+type ReportsPutReportsDefinitionReq struct {
+	Name       string                                `json:"name"`
+	Options    ReportsPutReportsDefinitionReqOptions `json:"options"`
+	Recipients []string                              `json:"recipients"`
+}
+
+// GetName returns the value of Name.
+func (s *ReportsPutReportsDefinitionReq) GetName() string {
+	return s.Name
+}
+
+// GetOptions returns the value of Options.
+func (s *ReportsPutReportsDefinitionReq) GetOptions() ReportsPutReportsDefinitionReqOptions {
+	return s.Options
+}
+
+// GetRecipients returns the value of Recipients.
+func (s *ReportsPutReportsDefinitionReq) GetRecipients() []string {
+	return s.Recipients
+}
+
+// SetName sets the value of Name.
+func (s *ReportsPutReportsDefinitionReq) SetName(val string) {
+	s.Name = val
+}
+
+// SetOptions sets the value of Options.
+func (s *ReportsPutReportsDefinitionReq) SetOptions(val ReportsPutReportsDefinitionReqOptions) {
+	s.Options = val
+}
+
+// SetRecipients sets the value of Recipients.
+func (s *ReportsPutReportsDefinitionReq) SetRecipients(val []string) {
+	s.Recipients = val
+}
+
+type ReportsPutReportsDefinitionReqOptions struct {
+	Charts bool `json:"charts"`
+	// How Still open is grouped.
+	Grouping ReportsPutReportsDefinitionReqOptionsGrouping `json:"grouping"`
+	// Count and list devices not added yet (default on).
+	IncludeNotAdded bool `json:"include_not_added"`
+	// Count and list findings handled as not relevant (default off).
+	IncludeNotRelevant bool `json:"include_not_relevant"`
+	// Calendar_month = the last whole calendar month in the organisation time zone.
+	Period ReportsPutReportsDefinitionReqOptionsPeriod `json:"period"`
+	// Which sections the report has.
+	Sections ReportsPutReportsDefinitionReqOptionsSections `json:"sections"`
+}
+
+// GetCharts returns the value of Charts.
+func (s *ReportsPutReportsDefinitionReqOptions) GetCharts() bool {
+	return s.Charts
+}
+
+// GetGrouping returns the value of Grouping.
+func (s *ReportsPutReportsDefinitionReqOptions) GetGrouping() ReportsPutReportsDefinitionReqOptionsGrouping {
+	return s.Grouping
+}
+
+// GetIncludeNotAdded returns the value of IncludeNotAdded.
+func (s *ReportsPutReportsDefinitionReqOptions) GetIncludeNotAdded() bool {
+	return s.IncludeNotAdded
+}
+
+// GetIncludeNotRelevant returns the value of IncludeNotRelevant.
+func (s *ReportsPutReportsDefinitionReqOptions) GetIncludeNotRelevant() bool {
+	return s.IncludeNotRelevant
+}
+
+// GetPeriod returns the value of Period.
+func (s *ReportsPutReportsDefinitionReqOptions) GetPeriod() ReportsPutReportsDefinitionReqOptionsPeriod {
+	return s.Period
+}
+
+// GetSections returns the value of Sections.
+func (s *ReportsPutReportsDefinitionReqOptions) GetSections() ReportsPutReportsDefinitionReqOptionsSections {
+	return s.Sections
+}
+
+// SetCharts sets the value of Charts.
+func (s *ReportsPutReportsDefinitionReqOptions) SetCharts(val bool) {
+	s.Charts = val
+}
+
+// SetGrouping sets the value of Grouping.
+func (s *ReportsPutReportsDefinitionReqOptions) SetGrouping(val ReportsPutReportsDefinitionReqOptionsGrouping) {
+	s.Grouping = val
+}
+
+// SetIncludeNotAdded sets the value of IncludeNotAdded.
+func (s *ReportsPutReportsDefinitionReqOptions) SetIncludeNotAdded(val bool) {
+	s.IncludeNotAdded = val
+}
+
+// SetIncludeNotRelevant sets the value of IncludeNotRelevant.
+func (s *ReportsPutReportsDefinitionReqOptions) SetIncludeNotRelevant(val bool) {
+	s.IncludeNotRelevant = val
+}
+
+// SetPeriod sets the value of Period.
+func (s *ReportsPutReportsDefinitionReqOptions) SetPeriod(val ReportsPutReportsDefinitionReqOptionsPeriod) {
+	s.Period = val
+}
+
+// SetSections sets the value of Sections.
+func (s *ReportsPutReportsDefinitionReqOptions) SetSections(val ReportsPutReportsDefinitionReqOptionsSections) {
+	s.Sections = val
+}
+
+// How Still open is grouped.
+type ReportsPutReportsDefinitionReqOptionsGrouping string
+
+const (
+	ReportsPutReportsDefinitionReqOptionsGroupingDevice ReportsPutReportsDefinitionReqOptionsGrouping = "device"
+	ReportsPutReportsDefinitionReqOptionsGroupingCve    ReportsPutReportsDefinitionReqOptionsGrouping = "cve"
+)
+
+// AllValues returns all ReportsPutReportsDefinitionReqOptionsGrouping values.
+func (ReportsPutReportsDefinitionReqOptionsGrouping) AllValues() []ReportsPutReportsDefinitionReqOptionsGrouping {
+	return []ReportsPutReportsDefinitionReqOptionsGrouping{
+		ReportsPutReportsDefinitionReqOptionsGroupingDevice,
+		ReportsPutReportsDefinitionReqOptionsGroupingCve,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsPutReportsDefinitionReqOptionsGrouping) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsPutReportsDefinitionReqOptionsGroupingDevice:
+		return []byte(s), nil
+	case ReportsPutReportsDefinitionReqOptionsGroupingCve:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsPutReportsDefinitionReqOptionsGrouping) UnmarshalText(data []byte) error {
+	switch ReportsPutReportsDefinitionReqOptionsGrouping(data) {
+	case ReportsPutReportsDefinitionReqOptionsGroupingDevice:
+		*s = ReportsPutReportsDefinitionReqOptionsGroupingDevice
+		return nil
+	case ReportsPutReportsDefinitionReqOptionsGroupingCve:
+		*s = ReportsPutReportsDefinitionReqOptionsGroupingCve
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Calendar_month = the last whole calendar month in the organisation time zone.
+type ReportsPutReportsDefinitionReqOptionsPeriod string
+
+const (
+	ReportsPutReportsDefinitionReqOptionsPeriodLast7Days     ReportsPutReportsDefinitionReqOptionsPeriod = "last_7_days"
+	ReportsPutReportsDefinitionReqOptionsPeriodLast30Days    ReportsPutReportsDefinitionReqOptionsPeriod = "last_30_days"
+	ReportsPutReportsDefinitionReqOptionsPeriodCalendarMonth ReportsPutReportsDefinitionReqOptionsPeriod = "calendar_month"
+)
+
+// AllValues returns all ReportsPutReportsDefinitionReqOptionsPeriod values.
+func (ReportsPutReportsDefinitionReqOptionsPeriod) AllValues() []ReportsPutReportsDefinitionReqOptionsPeriod {
+	return []ReportsPutReportsDefinitionReqOptionsPeriod{
+		ReportsPutReportsDefinitionReqOptionsPeriodLast7Days,
+		ReportsPutReportsDefinitionReqOptionsPeriodLast30Days,
+		ReportsPutReportsDefinitionReqOptionsPeriodCalendarMonth,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsPutReportsDefinitionReqOptionsPeriod) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsPutReportsDefinitionReqOptionsPeriodLast7Days:
+		return []byte(s), nil
+	case ReportsPutReportsDefinitionReqOptionsPeriodLast30Days:
+		return []byte(s), nil
+	case ReportsPutReportsDefinitionReqOptionsPeriodCalendarMonth:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsPutReportsDefinitionReqOptionsPeriod) UnmarshalText(data []byte) error {
+	switch ReportsPutReportsDefinitionReqOptionsPeriod(data) {
+	case ReportsPutReportsDefinitionReqOptionsPeriodLast7Days:
+		*s = ReportsPutReportsDefinitionReqOptionsPeriodLast7Days
+		return nil
+	case ReportsPutReportsDefinitionReqOptionsPeriodLast30Days:
+		*s = ReportsPutReportsDefinitionReqOptionsPeriodLast30Days
+		return nil
+	case ReportsPutReportsDefinitionReqOptionsPeriodCalendarMonth:
+		*s = ReportsPutReportsDefinitionReqOptionsPeriodCalendarMonth
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Which sections the report has.
+type ReportsPutReportsDefinitionReqOptionsSections struct {
+	Coverage   bool `json:"coverage"`
+	Detections bool `json:"detections"`
+	Exposure   bool `json:"exposure"`
+	Handled    bool `json:"handled"`
+	New        bool `json:"new"`
+	Open       bool `json:"open"`
+	Summary    bool `json:"summary"`
+}
+
+// GetCoverage returns the value of Coverage.
+func (s *ReportsPutReportsDefinitionReqOptionsSections) GetCoverage() bool {
+	return s.Coverage
+}
+
+// GetDetections returns the value of Detections.
+func (s *ReportsPutReportsDefinitionReqOptionsSections) GetDetections() bool {
+	return s.Detections
+}
+
+// GetExposure returns the value of Exposure.
+func (s *ReportsPutReportsDefinitionReqOptionsSections) GetExposure() bool {
+	return s.Exposure
+}
+
+// GetHandled returns the value of Handled.
+func (s *ReportsPutReportsDefinitionReqOptionsSections) GetHandled() bool {
+	return s.Handled
+}
+
+// GetNew returns the value of New.
+func (s *ReportsPutReportsDefinitionReqOptionsSections) GetNew() bool {
+	return s.New
+}
+
+// GetOpen returns the value of Open.
+func (s *ReportsPutReportsDefinitionReqOptionsSections) GetOpen() bool {
+	return s.Open
+}
+
+// GetSummary returns the value of Summary.
+func (s *ReportsPutReportsDefinitionReqOptionsSections) GetSummary() bool {
+	return s.Summary
+}
+
+// SetCoverage sets the value of Coverage.
+func (s *ReportsPutReportsDefinitionReqOptionsSections) SetCoverage(val bool) {
+	s.Coverage = val
+}
+
+// SetDetections sets the value of Detections.
+func (s *ReportsPutReportsDefinitionReqOptionsSections) SetDetections(val bool) {
+	s.Detections = val
+}
+
+// SetExposure sets the value of Exposure.
+func (s *ReportsPutReportsDefinitionReqOptionsSections) SetExposure(val bool) {
+	s.Exposure = val
+}
+
+// SetHandled sets the value of Handled.
+func (s *ReportsPutReportsDefinitionReqOptionsSections) SetHandled(val bool) {
+	s.Handled = val
+}
+
+// SetNew sets the value of New.
+func (s *ReportsPutReportsDefinitionReqOptionsSections) SetNew(val bool) {
+	s.New = val
+}
+
+// SetOpen sets the value of Open.
+func (s *ReportsPutReportsDefinitionReqOptionsSections) SetOpen(val bool) {
+	s.Open = val
+}
+
+// SetSummary sets the value of Summary.
+func (s *ReportsPutReportsDefinitionReqOptionsSections) SetSummary(val bool) {
+	s.Summary = val
 }
 
 type ReportsPutReportsPdplOrgOK struct {

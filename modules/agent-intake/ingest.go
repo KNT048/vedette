@@ -29,7 +29,7 @@ func (s *Service) Log(ctx context.Context, src netip.Addr, in logIn) error {
 		return rateLimited(wait)
 	}
 	if !in.result {
-		return s.touch(ctx, n, touchEvery)
+		return s.touch(ctx, n, touchEvery, 0)
 	}
 	ip, mac, update := binding(n, src, in)
 	if err := s.markResult(ctx, n, ip, mac, update); err != nil {

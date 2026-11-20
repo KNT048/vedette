@@ -11,7 +11,12 @@ CREATE TABLE intake_agent_tokens (
     created_at    TEXT NOT NULL,
     expires_at    TEXT,
     last_received TEXT
-, created_by TEXT CHECK (created_by IS NULL OR length(created_by) BETWEEN 1 AND 256), first_enrolled_at TEXT);
+, created_by TEXT CHECK (created_by IS NULL OR length(created_by) BETWEEN 1 AND 256), first_enrolled_at TEXT,
+    -- the device a person made the token for (the device page's agent row: Create agent token, then Show setup); NULL for a token
+    -- made for any machine. The device's own agent row shows it until a machine enrols with it.
+    device_id     TEXT REFERENCES inv_asset (id) ON DELETE SET NULL);
+
+CREATE INDEX intake_agent_tokens_device_idx ON intake_agent_tokens (device_id) WHERE device_id IS NOT NULL;
 
 CREATE TABLE intake_osquery_nodes (
     id              TEXT NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 96),
@@ -26,6 +31,12 @@ CREATE TABLE intake_osquery_nodes (
     last_result_at  TEXT,
     bound_ip        TEXT,
     bound_mac       TEXT, reported TEXT NOT NULL DEFAULT '' CHECK (length(reported) <= 64), approved_at TEXT, kernel TEXT NOT NULL DEFAULT '' CHECK (length(kernel) <= 100), win_name TEXT NOT NULL DEFAULT '' CHECK (length(win_name) <= 200), win_version TEXT NOT NULL DEFAULT '' CHECK (length(win_version) <= 40), win_target TEXT NOT NULL DEFAULT '' CHECK (win_target IN ('', 'x64', 'x86', 'arm64')), report_asked_at TEXT, software_taken_at TEXT, os_taken_at TEXT, last_call_at TEXT,
+    -- The node's rhythm (nodestate.go NodeHealth): call_every_s is how often it was told to call (osquery: the config refresh the
+    -- install scripts set; the package reporter: its hourly run), call_gap_s its own smoothed gap between config fetches (NULL until it has
+    -- fetched its config twice), report_every_s the longest interval of the schedule the box last gave it without its speed-ups (it delivers results at least that often).
+    call_every_s    INTEGER NOT NULL DEFAULT 300 CHECK (call_every_s BETWEEN 60 AND 86400),
+    call_gap_s      INTEGER CHECK (call_gap_s IS NULL OR call_gap_s BETWEEN 1 AND 172800),
+    report_every_s  INTEGER NOT NULL DEFAULT 3600 CHECK (report_every_s BETWEEN 60 AND 86400),
     UNIQUE (token_id, host_identifier)
 );
 

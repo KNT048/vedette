@@ -2877,6 +2877,42 @@ func (UnimplementedHandler) NotifyPutNotifyRules(ctx context.Context, req *Notif
 	return r, ht.ErrNotImplemented
 }
 
+// ReportsGetReportsDefinition implements reports_get_reports_definition operation.
+//
+// The report definition: name, options, section switches, recipients and the key of its schedule.
+//
+// GET /reports/definition
+func (UnimplementedHandler) ReportsGetReportsDefinition(ctx context.Context) (r *ReportsGetReportsDefinitionOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ReportsGetReportsDocument implements reports_get_reports_document operation.
+//
+// The report of the current period, made with the saved options when opened.
+//
+// GET /reports/document
+func (UnimplementedHandler) ReportsGetReportsDocument(ctx context.Context) (r *ReportsGetReportsDocumentOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ReportsGetReportsHistory implements reports_get_reports_history operation.
+//
+// Reports sent, newest first.
+//
+// GET /reports/history
+func (UnimplementedHandler) ReportsGetReportsHistory(ctx context.Context) (r *ReportsGetReportsHistoryOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ReportsGetReportsHistoryID implements reports_get_reports_history_id operation.
+//
+// One sent report, the document exactly as it was sent.
+//
+// GET /reports/history/{id}
+func (UnimplementedHandler) ReportsGetReportsHistoryID(ctx context.Context, params ReportsGetReportsHistoryIDParams) (r *ReportsGetReportsHistoryIDOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ReportsGetReportsPdpl implements reports_get_reports_pdpl operation.
 //
 // Organization details and the generated assessment report.
@@ -2940,6 +2976,15 @@ func (UnimplementedHandler) ReportsPostReportsPdplGenerate(ctx context.Context) 
 	return r, ht.ErrNotImplemented
 }
 
+// ReportsPostReportsSend implements reports_post_reports_send operation.
+//
+// Make the report now and send it to the saved recipients; the sent document is kept.
+//
+// POST /reports/send
+func (UnimplementedHandler) ReportsPostReportsSend(ctx context.Context) (r *ReportsPostReportsSendOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ReportsPostReportsWeeklyAiSummary implements reports_post_reports_weekly_ai_summary operation.
 //
 // Draft a commentary for the weekly report with the customer AI.
@@ -2955,6 +3000,15 @@ func (UnimplementedHandler) ReportsPostReportsWeeklyAiSummary(ctx context.Contex
 //
 // POST /reports/weekly/send
 func (UnimplementedHandler) ReportsPostReportsWeeklySend(ctx context.Context) (r *ReportsPostReportsWeeklySendOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ReportsPutReportsDefinition implements reports_put_reports_definition operation.
+//
+// Save the report name, options and recipients (emails validated, max 20).
+//
+// PUT /reports/definition
+func (UnimplementedHandler) ReportsPutReportsDefinition(ctx context.Context, req *ReportsPutReportsDefinitionReq) (r *ReportsPutReportsDefinitionOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

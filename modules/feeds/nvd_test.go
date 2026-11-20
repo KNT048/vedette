@@ -25,11 +25,12 @@ func TestParseNVD_RealAnswer(t *testing.T) {
 	if d.Total != 3 || d.Returned != 3 || d.Accepted != 3 || d.Rejected != 0 {
 		t.Fatalf("page = %+v", d)
 	}
-	ios := d.Affected["CVE-2016-4655"]
+	recs := byCVE(d)
+	ios := recs["CVE-2016-4655"].Affected
 	if len(ios) != 2 || ios[0] != (AffectedRow{CPE: "cpe:2.3:o:apple:iphone_os:*:*:*:*:*:*:*:*", EndExcl: "9.3.5"}) {
 		t.Fatalf("CVE-2016-4655 = %+v", ios)
 	}
-	fgt := d.Affected["CVE-2024-21762"]
+	fgt := recs["CVE-2024-21762"].Affected
 	if !slices.Contains(fgt, AffectedRow{CPE: "cpe:2.3:o:fortinet:fortios:*:*:*:*:*:*:*:*", StartIncl: "7.2.0", EndExcl: "7.2.7"}) {
 		t.Fatalf("CVE-2024-21762 = %+v", fgt)
 	}
@@ -39,8 +40,16 @@ func TestParseNVD_RealAnswer(t *testing.T) {
 		"CVE-2021-3493":  {Score: 7.8, Version: "3.1", Source: "nvd", Vector: "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H"},
 		"CVE-2024-21762": {Score: 9.8, Version: "3.1", Source: "nvd", Vector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"},
 	}
-	if !maps.Equal(d.CVSS, want) {
-		t.Fatalf("cvss = %+v", d.CVSS)
+	if got := pageCVSS(d); !maps.Equal(got, want) {
+		t.Fatalf("cvss = %+v", got)
+	}
+	if r := recs["CVE-2016-4655"]; r.Status != "Analyzed" || !strings.HasPrefix(r.Description, "The kernel in Apple iOS before 9.3.5") ||
+		r.Published != time.Date(2016, 8, 25, 21, 59, 0, 133e6, time.UTC) {
+		t.Fatalf("record = %+v", r)
+	}
+	// every scorer's score is kept: NVD's, and CISA's ADP (Vulnrichment) apart from a CNA
+	if !slices.ContainsFunc(recs["CVE-2016-4655"].Metrics, func(m Metric) bool { return m.Source == MetricADP && m.Version == "3.1" }) {
+		t.Fatalf("metrics = %+v", recs["CVE-2016-4655"].Metrics)
 	}
 }
 
@@ -51,7 +60,7 @@ func TestParseNVD_RealAnswer(t *testing.T) {
 func TestParseNVD_CVSS(t *testing.T) {
 	t.Parallel()
 	rec := func(id, metrics string) string {
-		return fmt.Sprintf(`{"cve":{"id":%q,"metrics":{%s},"configurations":[]}}`, id, metrics)
+		return fmt.Sprintf(`{"cve":{"id":%q,"published":"2026-01-01T00:00:00.000","lastModified":"2026-01-02T00:00:00.000","vulnStatus":"Analyzed","metrics":{%s},"configurations":[]}}`, id, metrics)
 	}
 	e := func(typ string, score float64, sev, vec string) string {
 		return fmt.Sprintf(`{"type":%q,"cvssData":{"baseScore":%v,"baseSeverity":%q,"vectorString":%q}}`, typ, score, sev, vec)
@@ -93,17 +102,17 @@ func TestParseNVD_CVSS(t *testing.T) {
 		"CVE-2026-0008": {Score: 7.2, Version: "3.1", Source: "cna", Vector: v31},
 		"CVE-2026-0010": {Score: 7.0, Version: "3.1", Source: "nvd", Vector: v31},
 	}
-	if d.Accepted != len(recs) || !maps.Equal(d.CVSS, want) {
-		t.Fatalf("accepted %d, cvss %+v", d.Accepted, d.CVSS)
+	if got := pageCVSS(d); d.Accepted != len(recs) || !maps.Equal(got, want) {
+		t.Fatalf("accepted %d, cvss %+v", d.Accepted, got)
 	}
 }
 
 // Review r1 H1: one record with malformed `metrics` (a string score, 1e999, a number for a vector, an array, a number for a type)
-// next to a good one: the page parses, both records and their affected versions are accepted, only the bad one has no score. L2: a
-// record rejected for its affected entries keeps its score.
+// next to a good one: the page parses, both records and their affected versions are accepted, only the bad one has no score. A record
+// rejected for its affected entries is not kept at all (never half a record).
 func TestParseNVD_MalformedMetricsOnlyCostTheScore(t *testing.T) {
 	t.Parallel()
-	good := `{"cve":{"id":"CVE-2024-0001","published":"2024-01-15T10:00:00.000","metrics":{"cvssMetricV31":[{"type":"Primary","cvssData":{"baseScore":9.8,"baseSeverity":"CRITICAL","vectorString":"CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"}}]},` +
+	good := `{"cve":{"id":"CVE-2024-0001","published":"2024-01-15T10:00:00.000","lastModified":"2024-01-16T10:00:00.000","vulnStatus":"Analyzed","metrics":{"cvssMetricV31":[{"type":"Primary","cvssData":{"baseScore":9.8,"baseSeverity":"CRITICAL","vectorString":"CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"}}]},` +
 		`"configurations":[{"nodes":[{"cpeMatch":[{"vulnerable":true,"criteria":"cpe:2.3:a:acme:box:*:*:*:*:*:*:*:*","versionEndExcluding":"2.0"}]}]}]}}`
 	for name, metrics := range map[string]string{
 		"string score":  `{"cvssMetricV31":[{"type":"Primary","cvssData":{"baseScore":"9.8","baseSeverity":"CRITICAL","vectorString":"CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"}}]}`,
@@ -112,27 +121,23 @@ func TestParseNVD_MalformedMetricsOnlyCostTheScore(t *testing.T) {
 		"array":         `[]`,
 		"number type":   `{"cvssMetricV2":[{"type":1,"baseSeverity":"HIGH","cvssData":{"baseScore":7.5}}]}`,
 	} {
-		bad := `{"cve":{"id":"CVE-2024-0002","published":"2024-02-01T10:00:00.000","metrics":` + metrics +
+		bad := `{"cve":{"id":"CVE-2024-0002","published":"2024-02-01T10:00:00.000","lastModified":"2024-02-02T10:00:00.000","vulnStatus":"Analyzed","metrics":` + metrics +
 			`,"configurations":[{"nodes":[{"cpeMatch":[{"vulnerable":true,"criteria":"cpe:2.3:a:acme:tool:*:*:*:*:*:*:*:*","versionEndExcluding":"3.0"}]}]}]}}`
 		d, err := ParseNVD([]byte(`{"totalResults":2,"vulnerabilities":[` + good + `,` + bad + `]}`))
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
-		if d.Accepted != 2 || len(d.Affected["CVE-2024-0002"]) != 1 || d.Published["CVE-2024-0002"] != "2024-02-01" {
-			t.Fatalf("%s: accepted %d, affected %+v, published %+v", name, d.Accepted, d.Affected, d.Published)
+		recs, cvss := byCVE(d), pageCVSS(d)
+		if d.Accepted != 2 || len(recs["CVE-2024-0002"].Affected) != 1 || recs["CVE-2024-0002"].Published.Format(time.DateOnly) != "2024-02-01" {
+			t.Fatalf("%s: accepted %d, records %+v", name, d.Accepted, recs)
 		}
-		if _, ok := d.CVSS["CVE-2024-0002"]; ok || d.CVSS["CVE-2024-0001"].Score != 9.8 || !d.Seen["CVE-2024-0002"] {
-			t.Fatalf("%s: cvss %+v seen %+v", name, d.CVSS, d.Seen)
-		}
-		r, err := ParseNVDRecent([]byte(`{"totalResults":2,"vulnerabilities":[` + strings.ReplaceAll(good, `"published"`, `"lastModified":"2024-01-16T10:00:00.000","vulnStatus":"Analyzed","published"`) + `,` +
-			strings.ReplaceAll(bad, `"published"`, `"lastModified":"2024-02-02T10:00:00.000","vulnStatus":"Analyzed","published"`) + `]}`))
-		if err != nil || r.Accepted != 2 || len(r.Records) != 2 || r.Records[0].CVSS == nil || r.Records[1].CVSS != nil || len(r.Records[1].Affected) != 1 {
-			t.Fatalf("%s: nvd-recent %+v %v", name, r, err)
+		if _, ok := cvss["CVE-2024-0002"]; ok || cvss["CVE-2024-0001"].Score != 9.8 {
+			t.Fatalf("%s: cvss %+v", name, cvss)
 		}
 	}
-	// L2: an over-long version string rejects the record (never half a configuration), but its score stays
+	// an over-long version string rejects the record whole (never half a configuration)
 	d, err := ParseNVD([]byte(`{"totalResults":1,"vulnerabilities":[` + strings.Replace(good, `"versionEndExcluding":"2.0"`, `"versionEndExcluding":"`+strings.Repeat("9", 200)+`"`, 1) + `]}`))
-	if err != nil || d.Rejected != 1 || len(d.Affected) != 0 || d.CVSS["CVE-2024-0001"].Score != 9.8 {
+	if err != nil || d.Rejected != 1 || len(d.Records) != 0 {
 		t.Fatalf("rejected record: %+v %v", d, err)
 	}
 }
@@ -165,7 +170,7 @@ func nvdOrigin(o *origin, n int) {
 		}
 		var recs []string
 		for i := start; i < min(start+NVDPageSize, total); i++ {
-			recs = append(recs, fmt.Sprintf(`{"cve":{"id":"CVE-2024-%04d","published":"2024-01-15T10:00:00.000","metrics":{"cvssMetricV31":[{"type":"Primary","cvssData":{"baseScore":7.5,"baseSeverity":"HIGH","vectorString":"CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"}}]},"configurations":[{"nodes":[{"cpeMatch":[{"vulnerable":true,"criteria":"cpe:2.3:a:acme:box:*:*:*:*:*:*:*:*","versionEndExcluding":"2.0"}]}]}]}}`, i))
+			recs = append(recs, fmt.Sprintf(`{"cve":{"id":"CVE-2024-%04d","published":"2024-01-15T10:00:00.000","lastModified":"2024-01-16T10:00:00.000","vulnStatus":"Analyzed","metrics":{"cvssMetricV31":[{"type":"Primary","cvssData":{"baseScore":7.5,"baseSeverity":"HIGH","vectorString":"CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"}}]},"configurations":[{"nodes":[{"cpeMatch":[{"vulnerable":true,"criteria":"cpe:2.3:a:acme:box:*:*:*:*:*:*:*:*","versionEndExcluding":"2.0"}]}]}]}}`, i))
 		}
 		_, _ = fmt.Fprintf(w, `{"totalResults":%d,"vulnerabilities":[%s]}`, total, strings.Join(recs, ","))
 	})
@@ -179,6 +184,7 @@ func TestContract_NVDRangesPull(t *testing.T) {
 	e.only("nvd-kev")
 	e.mirror("nvd-kev", o.url("/nvd"))
 	nvdOrigin(o, 250)
+	seedKEV(t, e.db, 250)
 	var got []RangesUpdatedEvent
 	e.svc.Events = publishFunc(func(ev events.Event) {
 		if r, ok := ev.Data.(RangesUpdatedEvent); ok {
@@ -204,8 +210,8 @@ func TestContract_NVDRangesPull(t *testing.T) {
 			t.Errorf("full pull the next day: %s", r.URL.RawQuery)
 		}
 		_, _ = fmt.Fprint(w, `{"totalResults":2,"vulnerabilities":[
-		 {"cve":{"id":"CVE-2024-0000","configurations":[{"nodes":[{"cpeMatch":[{"vulnerable":true,"criteria":"cpe:2.3:a:acme:box:*:*:*:*:*:*:*:*","versionEndExcluding":"3.0"}]}]}]}},
-		 {"cve":{"id":"CVE-2024-0001","configurations":[{"nodes":[{"cpeMatch":[{"vulnerable":true,"criteria":"cpe:2.3:a:acme:box:*:*:*:*:*:*:*:*","versionEndExcluding":"2.0"}]}]}]}}]}`)
+		 {"cve":{"id":"CVE-2024-0000","published":"2024-01-15T10:00:00.000","lastModified":"2026-11-14T10:00:00.000","vulnStatus":"Modified","configurations":[{"nodes":[{"cpeMatch":[{"vulnerable":true,"criteria":"cpe:2.3:a:acme:box:*:*:*:*:*:*:*:*","versionEndExcluding":"3.0"}]}]}]}},
+		 {"cve":{"id":"CVE-2024-0001","published":"2024-01-15T10:00:00.000","lastModified":"2026-11-14T10:00:00.000","vulnStatus":"Modified","configurations":[{"nodes":[{"cpeMatch":[{"vulnerable":true,"criteria":"cpe:2.3:a:acme:box:*:*:*:*:*:*:*:*","versionEndExcluding":"2.0"}]}]}]}}]}`)
 	})
 	e.setNow(e.clock().Add(25 * time.Hour))
 	if err := e.svc.Fetch(t.Context(), "nvd-kev"); err != nil {
@@ -217,7 +223,7 @@ func TestContract_NVDRangesPull(t *testing.T) {
 	if f := e.feed("nvd-kev"); *f.Records != 250 {
 		t.Fatalf("records after an incremental pull = %d, want the table's 250", *f.Records)
 	}
-	rows, err := readAffected(t.Context(), e.db.Reader(), `WHERE cve = ?`, "CVE-2024-0000")
+	rows, err := readAffected(t.Context(), e.db.Reader(), `WHERE r.cve = ?`, "CVE-2024-0000")
 	if err != nil || len(rows["CVE-2024-0000"]) != 1 || rows["CVE-2024-0000"][0].EndExcl != "3.0" {
 		t.Fatalf("rows = %+v %v", rows, err)
 	}

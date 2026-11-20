@@ -82,9 +82,6 @@ func (h *FeedHandlers) FeedsPutFeedsSourcesID(ctx context.Context, req *oas.Feed
 			if (isBYOK(cur.ID) || cur.ID == winRelFeedID) && v != *cur.DefaultURL {
 				return apierr.New(http.StatusBadRequest, "invalid_url", "This feed has no mirror: its address cannot be changed.")
 			}
-			if cur.ID == "first-epss" && strings.ContainsAny(v, "?#") { // EPSSBatchURLs adds the query itself
-				return apierr.New(http.StatusBadRequest, "invalid_url", "The EPSS address must not carry a query string.")
-			}
 			url = v
 			parts = append(parts, "address changed")
 		}

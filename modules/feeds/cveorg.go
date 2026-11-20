@@ -2,6 +2,7 @@ package feeds
 
 import (
 	"encoding/json"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -56,6 +57,9 @@ const (
 type CVEOrgResult struct {
 	Outcome string
 	Rows    []AffectedRow // only with CVEOrgRanges
+	// Defaults is, per row, the defaultStatus of the CNA's affected entry it came from: DefaultAffected, DefaultUnaffected or
+	// DefaultUnknown (absent or anything else). A row two entries give carries the weaker word (unknown).
+	Defaults []string
 	// Complete: every matched CNA product says what a version it does not list is (defaultStatus "unaffected", or
 	// "affected" with nothing unaffected), so a version outside every row is not affected. Without it the list may skip
 	// branches the CNA did not assess: findings may raise a match on its rows but never close one by them.
@@ -171,7 +175,10 @@ func parseCVEAffected(r cveRecord, kevVendor, kevProduct string) CVEOrgResult {
 		return CVEOrgResult{Outcome: CVEOrgNoMatch}
 	}
 	matched, complete := false, true
-	var rows []AffectedRow
+	var (
+		rows     []AffectedRow
+		defaults []string
+	)
 	for _, a := range aff {
 		if len(a.Vendor) > cveOrgMaxName || len(a.Product) > cveOrgMaxName || productid.NormVendor(a.Vendor) != vk || productid.NormProduct(a.Product, a.Vendor) != pk {
 			continue
@@ -185,10 +192,15 @@ func parseCVEAffected(r cveRecord, kevVendor, kevProduct string) CVEOrgResult {
 			return CVEOrgResult{Outcome: CVEOrgUnusable}
 		}
 		complete = complete && all
+		def := cnaDefault(a.DefaultStatus)
 		for _, g := range got {
-			if !containsRow(rows, g) {
-				rows = append(rows, g)
+			if i := slices.Index(rows, g); i >= 0 {
+				if def == DefaultUnknown {
+					defaults[i] = DefaultUnknown
+				}
+				continue
 			}
+			rows, defaults = append(rows, g), append(defaults, def)
 		}
 	}
 	switch {
@@ -197,7 +209,13 @@ func parseCVEAffected(r cveRecord, kevVendor, kevProduct string) CVEOrgResult {
 	case len(rows) == 0:
 		return CVEOrgResult{Outcome: CVEOrgNoVersions}
 	}
-	return CVEOrgResult{Outcome: CVEOrgRanges, Rows: rows, Complete: complete}
+	if !complete && !slices.Contains(defaults, DefaultUnknown) {
+		// an entry that gave no row and says nothing of unlisted versions makes the whole list partial
+		for i := range defaults {
+			defaults[i] = DefaultUnknown
+		}
+	}
+	return CVEOrgResult{Outcome: CVEOrgRanges, Rows: rows, Defaults: defaults, Complete: complete}
 }
 
 // cnaSpan is one affected range of a CNA product, as read ("" = no bound).
@@ -304,6 +322,35 @@ func cnaRows(a cnaAffected, vendor, product string) (rows []AffectedRow, complet
 	return rows, strings.EqualFold(a.DefaultStatus, "unaffected"), true
 }
 
+// defaultOf is the defaultStatus kept with row i: Defaults[i], or for a result made without them, what Complete says.
+func (r CVEOrgResult) defaultOf(i int) string {
+	switch {
+	case i >= 0 && i < len(r.Defaults):
+		return r.Defaults[i]
+	case r.Complete:
+		return DefaultUnaffected
+	}
+	return DefaultUnknown
+}
+
+// The defaultStatus words of a CNA's affected entry, as feeds_cve_range.default_status keeps them (NVD's rows: "").
+const (
+	DefaultAffected   = "affected"   // versions the entry does not list are affected
+	DefaultUnaffected = "unaffected" // versions the entry does not list are not affected
+	DefaultUnknown    = "unknown"    // the entry does not say (absent, or another word)
+)
+
+// cnaDefault is a defaultStatus as stored.
+func cnaDefault(s string) string {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case DefaultAffected:
+		return DefaultAffected
+	case DefaultUnaffected:
+		return DefaultUnaffected
+	}
+	return DefaultUnknown
+}
+
 // within says whether version v may lie in sp; a comparison it cannot make (the leading numbers are equal but the
 // texts differ, or one has none) counts as inside: when in doubt, skip.
 func within(v string, sp cnaSpan) bool {
@@ -395,13 +442,4 @@ func cpeEscape(s string) string {
 
 func isAlnumByte(b byte) bool {
 	return b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z' || b >= '0' && b <= '9'
-}
-
-func containsRow(rows []AffectedRow, r AffectedRow) bool {
-	for _, x := range rows {
-		if x == r {
-			return true
-		}
-	}
-	return false
 }

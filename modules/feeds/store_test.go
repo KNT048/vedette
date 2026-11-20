@@ -152,7 +152,7 @@ func TestApplyVulnsNewUpdatedAndOwner(t *testing.T) {
 	}
 	// A CVE that left the catalog stays (history).
 	applyV(t, db, epoch0, "cisa-kev", []Vuln{a2}, false)
-	if n := count(t, db, `SELECT count(*) FROM feeds_vuln`); n != 3 {
+	if n := count(t, db, `SELECT count(*) FROM feeds_kev`); n != 3 {
 		t.Errorf("%d rows after a smaller catalog, want 3", n)
 	}
 	// A custom feed cannot take over a KEV row, and a new row of its own keeps the date it was first seen.
@@ -203,7 +203,7 @@ func TestApplyVulnsWritesNothingWhenTheTransactionFails(t *testing.T) {
 	if !errors.Is(err, boom) {
 		t.Fatal(err)
 	}
-	if v, i := count(t, db, `SELECT count(*) FROM feeds_vuln`), count(t, db, `SELECT count(*) FROM feeds_ioc`); v != 0 || i != 0 {
+	if v, i := count(t, db, `SELECT count(*) FROM feeds_kev`), count(t, db, `SELECT count(*) FROM feeds_ioc`); v != 0 || i != 0 {
 		t.Errorf("rolled back pull left %d vulnerabilities and %d indicators", v, i)
 	}
 }
@@ -213,7 +213,7 @@ func TestApplyTemplatesAndEPSS(t *testing.T) {
 	s, db := newStore(t)
 	// Nuclei is pulled first: the CVE reaches KEV later and still gets has_template at once.
 	write(t, db, func(tx *sql.Tx) error {
-		_, err := applyTemplates(t.Context(), tx, []string{"CVE-2026-0001"})
+		_, err := applyTemplates(t.Context(), tx, epoch0, templateList("CVE-2026-0001"))
 		return err
 	})
 	fresh, _ := applyV(t, db, epoch0, "cisa-kev", []Vuln{vuln("CVE-2026-0001", "A", "B", "2026-11-03"), vuln("CVE-2026-0002", "C", "D", "2026-11-03")}, false)
@@ -222,7 +222,7 @@ func TestApplyTemplatesAndEPSS(t *testing.T) {
 	}
 	var changed []string
 	write(t, db, func(tx *sql.Tx) (err error) {
-		changed, err = applyTemplates(t.Context(), tx, []string{"CVE-2026-0002"})
+		changed, err = applyTemplates(t.Context(), tx, epoch0.Add(time.Hour), templateList("CVE-2026-0002"))
 		return err
 	})
 	a, _, _ := s.VulnByCVE(t.Context(), "CVE-2026-0001")
@@ -360,7 +360,7 @@ func TestDeleteCustomRemovesWhatItLoaded(t *testing.T) {
 	if n := count(t, db, `SELECT count(*) FROM feeds_ioc`); n != 1 {
 		t.Errorf("%d indicators left, want only the one ipsum lists", n)
 	}
-	if n := count(t, db, `SELECT count(*) FROM feeds_vuln`); n != 1 {
+	if n := count(t, db, `SELECT count(*) FROM feeds_kev`); n != 1 {
 		t.Errorf("%d vulnerabilities left, want the KEV one", n)
 	}
 	if n := count(t, db, `SELECT count(*) FROM feeds_source WHERE builtin = 0`); n != 0 {

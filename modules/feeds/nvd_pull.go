@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"maps"
 	"net/http"
+	"slices"
+	"strings"
 	"time"
 )
 
@@ -40,15 +41,12 @@ var errNVDPaused = errors.New("feeds: the NVD pull is paused and goes on later")
 // nvdRun is one pull of the NVD affected versions, kept between ticks while it is not finished. Only the pulling
 // goroutine (it holds the feed lock) touches the pages; the progress fields are read by the handlers under nvdMu.
 type nvdRun struct {
-	url       string
-	full      bool
-	from, to  time.Time
-	affected  map[string][]AffectedRow
-	published map[string]string // CVE -> the day NVD published it
-	cvss      map[string]CVSS   // INV-28: CVE -> its CVSS base score
-	seen      map[string]bool   // INV-28: every CVE NVD answered for with a valid id (a score it took away goes)
-	st        Stats
-	bytes     int
+	url      string
+	full     bool
+	from, to time.Time
+	records  map[string]NVDRecord // the records of the pages so far, by CVE (a later page's copy wins)
+	st       Stats
+	bytes    int
 
 	start, total, pages int       // records and pages done; total is NVD's count (0 until the first page)
 	running             bool      // a pull is working on it now
@@ -116,8 +114,8 @@ func (s *Service) live(ctx context.Context, r sourceRow) sourceRow {
 		s.nvdMu.Lock()
 		text := ""
 		p := s.recent
-		if p != nil { // the busy reason and retry time read now, not copied when the page started (review r2 #5 of #802)
-			text = recentText(p.cur, p.stored, p.paused, p.run.busy, p.run.retryAt, s.now())
+		if p != nil { // the busy reason and retry time read now, not copied when the page started
+			text = p.text(s.now())
 		}
 		s.nvdMu.Unlock()
 		if p == nil && r.Enabled { // after a restart too, an old failure shows with how far the data got (review 1 #3 of #805);
@@ -299,11 +297,12 @@ func (s *Service) nvdPage(ctx context.Context, run *nvdRun, u string, start int,
 	}
 }
 
-// buildNVD asks the NVD CVE API 2.0 for the affected versions of the CVEs CISA lists (?hasKev), NVDPageSize
-// per request with nvdPause between requests. After a good pull less than nvdIncrementalDays old, only the CVEs NVD
-// changed since one day before that pull are asked for; otherwise everything, and CVEs NVD no longer lists go.
+// buildNVD asks the NVD CVE API 2.0 for the records of the CVEs NVD marks as exploited (?hasKev, the exploited-list selector),
+// NVDPageSize per request with nvdPause between requests, for the catalogue. After a good pull less than nvdIncrementalDays old, only
+// the CVEs NVD changed since one day before that pull are asked for; otherwise everything. The records go into the catalogue like any
+// other NVD record (writeNVDRecords, the retention rule).
 //
-// Nothing is written until every page is in, so a pull that never finished never deletes or half updates anything.
+// Nothing is written until every page is in, so a pull that never finished never half updates anything.
 // A pull that got some pages and then stopped (NVD busy after every try, its Retry-After, the pull budget) keeps
 // them and returns errNVDPaused; the next pull goes on from the next page. One that got no page fails.
 func (s *Service) buildNVD(ctx context.Context, src sourceRow, p pullPlan) (pullPlan, error) {
@@ -315,26 +314,15 @@ func (s *Service) buildNVD(ctx context.Context, src sourceRow, p pullPlan) (pull
 		run = nil
 	}
 	if run == nil {
-		have, err := s.st.affectedCount(ctx)
-		if err != nil {
-			return p, err
-		}
-		pub, err := s.st.publishedCount(ctx)
-		if err != nil {
-			return p, err
-		}
-		fullDue, err := s.st.fullDue(ctx, nvdFeedID)
+		have, err := s.st.kevNVDCount(ctx)
 		if err != nil {
 			return p, err
 		}
 		var from, to time.Time
-		// pub == 0: no published date yet (a box from before published dates were kept): one full pull gives every KEV CVE its date, which an
-		// update (lastMod window) would give only to the CVEs NVD changed since; fullDue: migration 0015 asks for one full pull so every
-		// KEV CVE gets its CVSS score (INV-28), cleared by the first full pull that is stored
-		if have > 0 && pub > 0 && !fullDue && src.Status == "ok" && src.LastSuccess != nil && now.Sub(*src.LastSuccess) < nvdIncrementalDays*24*time.Hour {
+		if have > 0 && src.Status == "ok" && src.LastSuccess != nil && now.Sub(*src.LastSuccess) < nvdIncrementalDays*24*time.Hour {
 			from, to = src.LastSuccess.Add(-24*time.Hour), now
 		}
-		run = &nvdRun{url: src.URL, full: from.IsZero(), from: from, to: to, affected: map[string][]AffectedRow{}, published: map[string]string{}, cvss: map[string]CVSS{}, seen: map[string]bool{}, updated: now}
+		run = &nvdRun{url: src.URL, full: from.IsZero(), from: from, to: to, records: map[string]NVDRecord{}, updated: now}
 	}
 	s.nvdMu.Lock()
 	run.running, run.busy, s.nvd = true, "", run
@@ -350,6 +338,20 @@ func (s *Service) buildNVD(ctx context.Context, src sourceRow, p pullPlan) (pull
 	}()
 
 	err := s.nvdPages(ctx, run)
+	// the exploited-list CVEs NVD's selector did not bring (an entry older than this update's window): asked for by id
+	if err == nil {
+		more, n, ferr := s.fetchMissing(ctx, run, src.URL, s.now(), func() bool { return true }, missingPerPull, true, func(c string) bool { _, ok := run.records[c]; return ok })
+		if ferr != nil && ctx.Err() != nil {
+			err = ferr
+		}
+		for _, r := range more {
+			if _, ok := run.records[r.CVE]; !ok {
+				run.records[r.CVE] = r
+				run.st.Accepted++
+			}
+		}
+		run.bytes += n
+	}
 	s.nvdMu.Lock()
 	locked = true
 	switch {
@@ -382,15 +384,19 @@ func (s *Service) buildNVD(ctx context.Context, src sourceRow, p pullPlan) (pull
 	}
 
 	p.out = outcome{OK: true, Bytes: run.bytes}
-	p.hasAffected, p.affectedFull, p.affected, p.published, p.cvss, p.cvssSeen = true, run.full, run.affected, run.published, run.cvss, run.seen
+	p.nvd, p.hasNVD = make([]NVDRecord, 0, len(run.records)), true
+	for _, r := range run.records {
+		p.nvd = append(p.nvd, r)
+	}
+	slices.SortFunc(p.nvd, func(a, b NVDRecord) int { return strings.Compare(a.CVE, b.CVE) })
 	st := run.st
 	if len(st.Reasons) > 3 {
 		st.Reasons = st.Reasons[:3]
 	}
-	if run.full && len(run.affected) == 0 {
-		return p, accepted(st) // a full pull with nothing never empties the table
+	if run.full && len(run.records) == 0 {
+		return p, accepted(st) // a full pull with nothing is not an answer
 	}
-	p.out.fill(st, len(run.affected))
+	p.out.fill(st, len(run.records))
 	return p, nil
 }
 
@@ -409,7 +415,7 @@ func (s *Service) nvdPages(ctx context.Context, run *nvdRun) error {
 		if err != nil {
 			return err
 		}
-		resp, err := s.nvdPage(ctx, run, u, run.start, 0)
+		resp, err := s.nvdPage(ctx, run, u, run.start, MaxBodyBytes)
 		if err != nil {
 			return err
 		}
@@ -426,10 +432,9 @@ func (s *Service) nvdPages(ctx context.Context, run *nvdRun) error {
 		if len(run.st.Reasons) < 3 {
 			run.st.Reasons = append(run.st.Reasons, d.Reasons...)
 		}
-		maps.Copy(run.affected, d.Affected)
-		maps.Copy(run.published, d.Published)
-		maps.Copy(run.cvss, d.CVSS)
-		maps.Copy(run.seen, d.Seen)
+		for _, r := range d.Records {
+			run.records[r.CVE] = r
+		}
 		s.nvdMu.Lock()
 		run.start += d.Returned
 		run.total = d.Total

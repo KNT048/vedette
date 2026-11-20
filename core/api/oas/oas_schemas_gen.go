@@ -44668,6 +44668,8 @@ type ExposureDeleteExposureTreeIDTermsOK struct {
 	// The domain target this node sits under; null at the top of the tree.
 	ParentID NilString                                `json:"parent_id"`
 	Proof    ExposureDeleteExposureTreeIDTermsOKProof `json:"proof"`
+	// The key of its schedule in the shared schedules: exposure.target:.
+	ScheduleKey string `json:"schedule_key"`
 	// Domains: self scans only this name; all this name and every name found under it; selected this name
 	// and the names chosen (Host.selected). null for an IP.
 	ScopeMode NilExposureDeleteExposureTreeIDTermsOKScopeMode `json:"scope_mode"`
@@ -44743,6 +44745,11 @@ func (s *ExposureDeleteExposureTreeIDTermsOK) GetParentID() NilString {
 // GetProof returns the value of Proof.
 func (s *ExposureDeleteExposureTreeIDTermsOK) GetProof() ExposureDeleteExposureTreeIDTermsOKProof {
 	return s.Proof
+}
+
+// GetScheduleKey returns the value of ScheduleKey.
+func (s *ExposureDeleteExposureTreeIDTermsOK) GetScheduleKey() string {
+	return s.ScheduleKey
 }
 
 // GetScopeMode returns the value of ScopeMode.
@@ -44833,6 +44840,11 @@ func (s *ExposureDeleteExposureTreeIDTermsOK) SetParentID(val NilString) {
 // SetProof sets the value of Proof.
 func (s *ExposureDeleteExposureTreeIDTermsOK) SetProof(val ExposureDeleteExposureTreeIDTermsOKProof) {
 	s.Proof = val
+}
+
+// SetScheduleKey sets the value of ScheduleKey.
+func (s *ExposureDeleteExposureTreeIDTermsOK) SetScheduleKey(val string) {
+	s.ScheduleKey = val
 }
 
 // SetScopeMode sets the value of ScopeMode.
@@ -54891,12 +54903,13 @@ func (s *ExposureGetExposureTreeIDIssuesOK) SetItems(val []ExposureGetExposureTr
 
 type ExposureGetExposureTreeIDIssuesOKItemsItem struct {
 	// Resolution accepted only: the last day; the issue reopens after it.
-	AcceptedUntil NilDate                                          `json:"accepted_until"`
-	Cves          []string                                         `json:"cves"`
-	Detail        ExposureGetExposureTreeIDIssuesOKItemsItemDetail `json:"detail"`
-	Engine        ExposureGetExposureTreeIDIssuesOKItemsItemEngine `json:"engine"`
-	FirstSeen     time.Time                                        `json:"first_seen"`
-	ID            string                                           `json:"id"`
+	AcceptedUntil NilDate `json:"accepted_until"`
+	// The CVEs the engine names, the most severe first.
+	Cves      []ExposureGetExposureTreeIDIssuesOKItemsItemCvesItem `json:"cves"`
+	Detail    ExposureGetExposureTreeIDIssuesOKItemsItemDetail     `json:"detail"`
+	Engine    ExposureGetExposureTreeIDIssuesOKItemsItemEngine     `json:"engine"`
+	FirstSeen time.Time                                            `json:"first_seen"`
+	ID        string                                               `json:"id"`
 	// The engine's own id: plugin, template, rule or CVE.
 	Key      string    `json:"key"`
 	LastSeen time.Time `json:"last_seen"`
@@ -54920,7 +54933,7 @@ func (s *ExposureGetExposureTreeIDIssuesOKItemsItem) GetAcceptedUntil() NilDate 
 }
 
 // GetCves returns the value of Cves.
-func (s *ExposureGetExposureTreeIDIssuesOKItemsItem) GetCves() []string {
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItem) GetCves() []ExposureGetExposureTreeIDIssuesOKItemsItemCvesItem {
 	return s.Cves
 }
 
@@ -55005,7 +55018,7 @@ func (s *ExposureGetExposureTreeIDIssuesOKItemsItem) SetAcceptedUntil(val NilDat
 }
 
 // SetCves sets the value of Cves.
-func (s *ExposureGetExposureTreeIDIssuesOKItemsItem) SetCves(val []string) {
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItem) SetCves(val []ExposureGetExposureTreeIDIssuesOKItemsItemCvesItem) {
 	s.Cves = val
 }
 
@@ -55082,6 +55095,196 @@ func (s *ExposureGetExposureTreeIDIssuesOKItemsItem) SetTargetID(val string) {
 // SetTitle sets the value of Title.
 func (s *ExposureGetExposureTreeIDIssuesOKItemsItem) SetTitle(val string) {
 	s.Title = val
+}
+
+type ExposureGetExposureTreeIDIssuesOKItemsItemCvesItem struct {
+	Cve      string                                                        `json:"cve"`
+	Severity NilExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity `json:"severity"`
+}
+
+// GetCve returns the value of Cve.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemCvesItem) GetCve() string {
+	return s.Cve
+}
+
+// GetSeverity returns the value of Severity.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemCvesItem) GetSeverity() NilExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity {
+	return s.Severity
+}
+
+// SetCve sets the value of Cve.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemCvesItem) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemCvesItem) SetSeverity(val NilExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity) {
+	s.Severity = val
+}
+
+// The CVSS base score the catalogue picks for the CVE and its band; null = "Not scored yet", never 0.
+type ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity struct {
+	Band    ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBand    `json:"band"`
+	Score   float64                                                           `json:"score"`
+	Vector  string                                                            `json:"vector"`
+	Version ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion `json:"version"`
+}
+
+// GetBand returns the value of Band.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity) GetBand() ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBand {
+	return s.Band
+}
+
+// GetScore returns the value of Score.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity) GetScore() float64 {
+	return s.Score
+}
+
+// GetVector returns the value of Vector.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity) GetVersion() ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion {
+	return s.Version
+}
+
+// SetBand sets the value of Band.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity) SetBand(val ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBand) {
+	s.Band = val
+}
+
+// SetScore sets the value of Score.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity) SetScore(val float64) {
+	s.Score = val
+}
+
+// SetVector sets the value of Vector.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity) SetVersion(val ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion) {
+	s.Version = val
+}
+
+type ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBand string
+
+const (
+	ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandCritical ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBand = "critical"
+	ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandHigh     ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBand = "high"
+	ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandMedium   ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBand = "medium"
+	ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandLow      ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBand = "low"
+	ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandNone     ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBand = "none"
+)
+
+// AllValues returns all ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBand values.
+func (ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBand) AllValues() []ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBand {
+	return []ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBand{
+		ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandCritical,
+		ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandHigh,
+		ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandMedium,
+		ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandLow,
+		ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBand) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandCritical:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandHigh:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandMedium:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandLow:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBand) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBand(data) {
+	case ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandCritical:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandCritical
+		return nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandHigh:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandHigh
+		return nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandMedium:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandMedium
+		return nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandLow:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandLow
+		return nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandNone:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion string
+
+const (
+	ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion40 ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion = "4.0"
+	ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion31 ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion = "3.1"
+	ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion30 ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion = "3.0"
+	ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion20 ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion = "2.0"
+)
+
+// AllValues returns all ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion values.
+func (ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion) AllValues() []ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion {
+	return []ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion{
+		ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion40,
+		ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion31,
+		ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion30,
+		ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion20,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion40:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion31:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion30:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion20:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion(data) {
+	case ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion40:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion40
+		return nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion31:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion31
+		return nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion30:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion30
+		return nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion20:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion20
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ExposureGetExposureTreeIDIssuesOKItemsItemDetail struct {
@@ -55380,6 +55583,8 @@ type ExposureGetExposureTreeIDOK struct {
 	// The domain target this node sits under; null at the top of the tree.
 	ParentID NilString                        `json:"parent_id"`
 	Proof    ExposureGetExposureTreeIDOKProof `json:"proof"`
+	// The key of its schedule in the shared schedules: exposure.target:.
+	ScheduleKey string `json:"schedule_key"`
 	// Domains: self scans only this name; all this name and every name found under it; selected this name
 	// and the names chosen (Host.selected). null for an IP.
 	ScopeMode NilExposureGetExposureTreeIDOKScopeMode `json:"scope_mode"`
@@ -55455,6 +55660,11 @@ func (s *ExposureGetExposureTreeIDOK) GetParentID() NilString {
 // GetProof returns the value of Proof.
 func (s *ExposureGetExposureTreeIDOK) GetProof() ExposureGetExposureTreeIDOKProof {
 	return s.Proof
+}
+
+// GetScheduleKey returns the value of ScheduleKey.
+func (s *ExposureGetExposureTreeIDOK) GetScheduleKey() string {
+	return s.ScheduleKey
 }
 
 // GetScopeMode returns the value of ScopeMode.
@@ -55545,6 +55755,11 @@ func (s *ExposureGetExposureTreeIDOK) SetParentID(val NilString) {
 // SetProof sets the value of Proof.
 func (s *ExposureGetExposureTreeIDOK) SetProof(val ExposureGetExposureTreeIDOKProof) {
 	s.Proof = val
+}
+
+// SetScheduleKey sets the value of ScheduleKey.
+func (s *ExposureGetExposureTreeIDOK) SetScheduleKey(val string) {
+	s.ScheduleKey = val
 }
 
 // SetScopeMode sets the value of ScopeMode.
@@ -57868,6 +58083,8 @@ type ExposureGetExposureTreeOKItemsItem struct {
 	// The domain target this node sits under; null at the top of the tree.
 	ParentID NilString                               `json:"parent_id"`
 	Proof    ExposureGetExposureTreeOKItemsItemProof `json:"proof"`
+	// The key of its schedule in the shared schedules: exposure.target:.
+	ScheduleKey string `json:"schedule_key"`
 	// Domains: self scans only this name; all this name and every name found under it; selected this name
 	// and the names chosen (Host.selected). null for an IP.
 	ScopeMode NilExposureGetExposureTreeOKItemsItemScopeMode `json:"scope_mode"`
@@ -57943,6 +58160,11 @@ func (s *ExposureGetExposureTreeOKItemsItem) GetParentID() NilString {
 // GetProof returns the value of Proof.
 func (s *ExposureGetExposureTreeOKItemsItem) GetProof() ExposureGetExposureTreeOKItemsItemProof {
 	return s.Proof
+}
+
+// GetScheduleKey returns the value of ScheduleKey.
+func (s *ExposureGetExposureTreeOKItemsItem) GetScheduleKey() string {
+	return s.ScheduleKey
 }
 
 // GetScopeMode returns the value of ScopeMode.
@@ -58033,6 +58255,11 @@ func (s *ExposureGetExposureTreeOKItemsItem) SetParentID(val NilString) {
 // SetProof sets the value of Proof.
 func (s *ExposureGetExposureTreeOKItemsItem) SetProof(val ExposureGetExposureTreeOKItemsItemProof) {
 	s.Proof = val
+}
+
+// SetScheduleKey sets the value of ScheduleKey.
+func (s *ExposureGetExposureTreeOKItemsItem) SetScheduleKey(val string) {
+	s.ScheduleKey = val
 }
 
 // SetScopeMode sets the value of ScopeMode.
@@ -59358,6 +59585,8 @@ type ExposurePatchExposureTreeIDOK struct {
 	// The domain target this node sits under; null at the top of the tree.
 	ParentID NilString                          `json:"parent_id"`
 	Proof    ExposurePatchExposureTreeIDOKProof `json:"proof"`
+	// The key of its schedule in the shared schedules: exposure.target:.
+	ScheduleKey string `json:"schedule_key"`
 	// Domains: self scans only this name; all this name and every name found under it; selected this name
 	// and the names chosen (Host.selected). null for an IP.
 	ScopeMode NilExposurePatchExposureTreeIDOKScopeMode `json:"scope_mode"`
@@ -59433,6 +59662,11 @@ func (s *ExposurePatchExposureTreeIDOK) GetParentID() NilString {
 // GetProof returns the value of Proof.
 func (s *ExposurePatchExposureTreeIDOK) GetProof() ExposurePatchExposureTreeIDOKProof {
 	return s.Proof
+}
+
+// GetScheduleKey returns the value of ScheduleKey.
+func (s *ExposurePatchExposureTreeIDOK) GetScheduleKey() string {
+	return s.ScheduleKey
 }
 
 // GetScopeMode returns the value of ScopeMode.
@@ -59523,6 +59757,11 @@ func (s *ExposurePatchExposureTreeIDOK) SetParentID(val NilString) {
 // SetProof sets the value of Proof.
 func (s *ExposurePatchExposureTreeIDOK) SetProof(val ExposurePatchExposureTreeIDOKProof) {
 	s.Proof = val
+}
+
+// SetScheduleKey sets the value of ScheduleKey.
+func (s *ExposurePatchExposureTreeIDOK) SetScheduleKey(val string) {
+	s.ScheduleKey = val
 }
 
 // SetScopeMode sets the value of ScopeMode.
@@ -62616,9 +62855,14 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemValidity) UnmarshalText(data 
 }
 
 type ExposurePostExposureIssuesHandleOK struct {
-	// Issues left as they were: not open (handle) or not handled (reopen).
+	Handled int `json:"handled"`
+	// Issues not open, left as they were.
 	Skipped int `json:"skipped"`
-	Updated int `json:"updated"`
+}
+
+// GetHandled returns the value of Handled.
+func (s *ExposurePostExposureIssuesHandleOK) GetHandled() int {
+	return s.Handled
 }
 
 // GetSkipped returns the value of Skipped.
@@ -62626,9 +62870,9 @@ func (s *ExposurePostExposureIssuesHandleOK) GetSkipped() int {
 	return s.Skipped
 }
 
-// GetUpdated returns the value of Updated.
-func (s *ExposurePostExposureIssuesHandleOK) GetUpdated() int {
-	return s.Updated
+// SetHandled sets the value of Handled.
+func (s *ExposurePostExposureIssuesHandleOK) SetHandled(val int) {
+	s.Handled = val
 }
 
 // SetSkipped sets the value of Skipped.
@@ -62636,16 +62880,13 @@ func (s *ExposurePostExposureIssuesHandleOK) SetSkipped(val int) {
 	s.Skipped = val
 }
 
-// SetUpdated sets the value of Updated.
-func (s *ExposurePostExposureIssuesHandleOK) SetUpdated(val int) {
-	s.Updated = val
-}
-
 type ExposurePostExposureIssuesHandleReq struct {
-	AcceptedUntil OptDate                                       `json:"accepted_until"`
-	Ids           []string                                      `json:"ids"`
-	Note          string                                        `json:"note"`
-	Resolution    ExposurePostExposureIssuesHandleReqResolution `json:"resolution"`
+	// Accepted only: the last day, from tomorrow to 365 days ahead (else 400 bad_until).
+	AcceptedUntil OptDate  `json:"accepted_until"`
+	Ids           []string `json:"ids"`
+	// Required (at least 3 characters) for false_positive, not_relevant and accepted.
+	Note       string                                        `json:"note"`
+	Resolution ExposurePostExposureIssuesHandleReqResolution `json:"resolution"`
 }
 
 // GetAcceptedUntil returns the value of AcceptedUntil.
@@ -62751,9 +62992,14 @@ func (s *ExposurePostExposureIssuesHandleReqResolution) UnmarshalText(data []byt
 }
 
 type ExposurePostExposureIssuesReopenOK struct {
-	// Issues left as they were: not open (handle) or not handled (reopen).
+	Reopened int `json:"reopened"`
+	// Issues not handled, left as they were.
 	Skipped int `json:"skipped"`
-	Updated int `json:"updated"`
+}
+
+// GetReopened returns the value of Reopened.
+func (s *ExposurePostExposureIssuesReopenOK) GetReopened() int {
+	return s.Reopened
 }
 
 // GetSkipped returns the value of Skipped.
@@ -62761,19 +63007,14 @@ func (s *ExposurePostExposureIssuesReopenOK) GetSkipped() int {
 	return s.Skipped
 }
 
-// GetUpdated returns the value of Updated.
-func (s *ExposurePostExposureIssuesReopenOK) GetUpdated() int {
-	return s.Updated
+// SetReopened sets the value of Reopened.
+func (s *ExposurePostExposureIssuesReopenOK) SetReopened(val int) {
+	s.Reopened = val
 }
 
 // SetSkipped sets the value of Skipped.
 func (s *ExposurePostExposureIssuesReopenOK) SetSkipped(val int) {
 	s.Skipped = val
-}
-
-// SetUpdated sets the value of Updated.
-func (s *ExposurePostExposureIssuesReopenOK) SetUpdated(val int) {
-	s.Updated = val
 }
 
 type ExposurePostExposureIssuesReopenReq struct {
@@ -68492,6 +68733,8 @@ type ExposurePostExposureTreeCreated struct {
 	// The domain target this node sits under; null at the top of the tree.
 	ParentID NilString                            `json:"parent_id"`
 	Proof    ExposurePostExposureTreeCreatedProof `json:"proof"`
+	// The key of its schedule in the shared schedules: exposure.target:.
+	ScheduleKey string `json:"schedule_key"`
 	// Domains: self scans only this name; all this name and every name found under it; selected this name
 	// and the names chosen (Host.selected). null for an IP.
 	ScopeMode NilExposurePostExposureTreeCreatedScopeMode `json:"scope_mode"`
@@ -68567,6 +68810,11 @@ func (s *ExposurePostExposureTreeCreated) GetParentID() NilString {
 // GetProof returns the value of Proof.
 func (s *ExposurePostExposureTreeCreated) GetProof() ExposurePostExposureTreeCreatedProof {
 	return s.Proof
+}
+
+// GetScheduleKey returns the value of ScheduleKey.
+func (s *ExposurePostExposureTreeCreated) GetScheduleKey() string {
+	return s.ScheduleKey
 }
 
 // GetScopeMode returns the value of ScopeMode.
@@ -68657,6 +68905,11 @@ func (s *ExposurePostExposureTreeCreated) SetParentID(val NilString) {
 // SetProof sets the value of Proof.
 func (s *ExposurePostExposureTreeCreated) SetProof(val ExposurePostExposureTreeCreatedProof) {
 	s.Proof = val
+}
+
+// SetScheduleKey sets the value of ScheduleKey.
+func (s *ExposurePostExposureTreeCreated) SetScheduleKey(val string) {
+	s.ScheduleKey = val
 }
 
 // SetScopeMode sets the value of ScopeMode.
@@ -70427,6 +70680,8 @@ type ExposurePostExposureTreeIDVerifyOKNode struct {
 	// The domain target this node sits under; null at the top of the tree.
 	ParentID NilString                                   `json:"parent_id"`
 	Proof    ExposurePostExposureTreeIDVerifyOKNodeProof `json:"proof"`
+	// The key of its schedule in the shared schedules: exposure.target:.
+	ScheduleKey string `json:"schedule_key"`
 	// Domains: self scans only this name; all this name and every name found under it; selected this name
 	// and the names chosen (Host.selected). null for an IP.
 	ScopeMode NilExposurePostExposureTreeIDVerifyOKNodeScopeMode `json:"scope_mode"`
@@ -70502,6 +70757,11 @@ func (s *ExposurePostExposureTreeIDVerifyOKNode) GetParentID() NilString {
 // GetProof returns the value of Proof.
 func (s *ExposurePostExposureTreeIDVerifyOKNode) GetProof() ExposurePostExposureTreeIDVerifyOKNodeProof {
 	return s.Proof
+}
+
+// GetScheduleKey returns the value of ScheduleKey.
+func (s *ExposurePostExposureTreeIDVerifyOKNode) GetScheduleKey() string {
+	return s.ScheduleKey
 }
 
 // GetScopeMode returns the value of ScopeMode.
@@ -70592,6 +70852,11 @@ func (s *ExposurePostExposureTreeIDVerifyOKNode) SetParentID(val NilString) {
 // SetProof sets the value of Proof.
 func (s *ExposurePostExposureTreeIDVerifyOKNode) SetProof(val ExposurePostExposureTreeIDVerifyOKNodeProof) {
 	s.Proof = val
+}
+
+// SetScheduleKey sets the value of ScheduleKey.
+func (s *ExposurePostExposureTreeIDVerifyOKNode) SetScheduleKey(val string) {
+	s.ScheduleKey = val
 }
 
 // SetScopeMode sets the value of ScopeMode.
@@ -75948,6 +76213,8 @@ type ExposurePutExposureTreeIDTermsOK struct {
 	// The domain target this node sits under; null at the top of the tree.
 	ParentID NilString                             `json:"parent_id"`
 	Proof    ExposurePutExposureTreeIDTermsOKProof `json:"proof"`
+	// The key of its schedule in the shared schedules: exposure.target:.
+	ScheduleKey string `json:"schedule_key"`
 	// Domains: self scans only this name; all this name and every name found under it; selected this name
 	// and the names chosen (Host.selected). null for an IP.
 	ScopeMode NilExposurePutExposureTreeIDTermsOKScopeMode `json:"scope_mode"`
@@ -76023,6 +76290,11 @@ func (s *ExposurePutExposureTreeIDTermsOK) GetParentID() NilString {
 // GetProof returns the value of Proof.
 func (s *ExposurePutExposureTreeIDTermsOK) GetProof() ExposurePutExposureTreeIDTermsOKProof {
 	return s.Proof
+}
+
+// GetScheduleKey returns the value of ScheduleKey.
+func (s *ExposurePutExposureTreeIDTermsOK) GetScheduleKey() string {
+	return s.ScheduleKey
 }
 
 // GetScopeMode returns the value of ScopeMode.
@@ -76113,6 +76385,11 @@ func (s *ExposurePutExposureTreeIDTermsOK) SetParentID(val NilString) {
 // SetProof sets the value of Proof.
 func (s *ExposurePutExposureTreeIDTermsOK) SetProof(val ExposurePutExposureTreeIDTermsOKProof) {
 	s.Proof = val
+}
+
+// SetScheduleKey sets the value of ScheduleKey.
+func (s *ExposurePutExposureTreeIDTermsOK) SetScheduleKey(val string) {
+	s.ScheduleKey = val
 }
 
 // SetScopeMode sets the value of ScopeMode.
@@ -159650,6 +159927,51 @@ func (o NilExposureGetExposureTreeIDHostsOKItemsItemChild) Get() (v ExposureGetE
 
 // Or returns value if set, or given parameter if does not.
 func (o NilExposureGetExposureTreeIDHostsOKItemsItemChild) Or(d ExposureGetExposureTreeIDHostsOKItemsItemChild) ExposureGetExposureTreeIDHostsOKItemsItemChild {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity returns new NilExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity with value set to v.
+func NewNilExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity(v ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity) NilExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity {
+	return NilExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity is nullable ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity.
+type NilExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity struct {
+	Value ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity) SetTo(v ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity) Get() (v ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity) Or(d ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity) ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity {
 	if v, ok := o.Get(); ok {
 		return v
 	}

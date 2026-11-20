@@ -2,6 +2,7 @@
 // proven yet with a chosen scope), the box's own public IP and an IP typed in but not proven. Shapes follow a real scan,
 // with names and addresses replaced by example.com and 198.51.100.0/24.
 import { daysAgo } from '@/mocks/db'
+import { dayOf } from '@/lib/format'
 import { NOTICE_TEMPLATE, NOTICE_VERSION, TERMS_TEMPLATE, TERMS_TEMPLATE_DOMAIN, TERMS_VERSION } from './contract'
 import type { Address, Consent, Host, Issue, NodeOrigin, ProofCheck, Scan, ScopeMode, Service, TargetKind, VerifyMethod } from './types'
 
@@ -75,7 +76,7 @@ const issue = (id: string, target_id: string, service_id: string | null, i: Pick
   return { id, target_id, service_id, cves: [], detail: { description: '', solution: '', evidence: [] }, state: 'open', resolution: null, resolved_by: null, resolved_at: null, note: null, accepted_until: null, first_seen: daysAgo(first), last_seen: daysAgo(last), ...rest }
 }
 const cert = (names: string[], issuer: string, days: number) => ({ names, issuer, expires_at: new Date(Date.now() + days * 864e5).toISOString() })
-const dayIso = (ahead: number) => new Date(Date.now() + ahead * 864e5).toISOString().slice(0, 10)
+const dayIso = (ahead: number) => dayOf(new Date(Date.now() + ahead * 864e5).toISOString())
 const scan = (run_id: string, target_id: string, s: Partial<Scan> & { queuedDaysAgo: number; minutes: number }): Scan => {
   const { queuedDaysAgo, minutes, ...rest } = s
   const q = daysAgo(queuedDaysAgo)
@@ -134,7 +135,7 @@ export function seedTreeRows(): TreeRows {
         detail: { description: 'The administration page of a FortiGate answered on a public address.', solution: 'Allow administration only from the internal network or a VPN.', evidence: ['https://198.51.100.22/'] } }),
       issue('xi-4', 'xt-11', 'xs-11-1', { engine: 'zap', key: '10035', title: 'Strict-Transport-Security header not set', severity: 'low', state: 'handled', resolution: 'accepted', resolved_by: ADMIN, resolved_at: daysAgo(10), note: 'Port 80 only redirects to HTTPS; header set on 443 after the next release.', accepted_until: dayIso(50), first: 40, last: 1,
         detail: { description: 'The response does not set Strict-Transport-Security.', solution: 'Send Strict-Transport-Security on HTTPS responses.', evidence: ['http://example.com/'] } }),
-      issue('xi-5', 'xt-12', 'xs-12-1', { engine: 'zap', key: '10003', title: 'Vulnerable JS library: DOMPurify 3.2.3', severity: 'high', cves: ['CVE-2025-26791'], first: 30, last: 1,
+      issue('xi-5', 'xt-12', 'xs-12-1', { engine: 'zap', key: '10003', title: 'Vulnerable JS library: DOMPurify 3.2.3', severity: 'high', cves: [{ cve: 'CVE-2025-26791', severity: { band: 'medium', score: 4.5, version: '3.1', vector: 'CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:C/C:L/I:L/A:N' } }], first: 30, last: 1,
         detail: { description: 'The page loads a version of DOMPurify with known flaws.', solution: 'Update GitLab, which ships the library.', evidence: ['https://git.example.com:10443/assets/webpack/main.chunk.js'] } }),
       issue('xi-6', 'xt-12', 'xs-12-1', { engine: 'nuclei', key: 'oidc-detect', title: 'OpenID Connect provider detected', severity: 'info', first: 30, last: 1,
         detail: { description: 'The service publishes an OpenID Connect discovery document.', solution: '', evidence: ['https://git.example.com:10443/.well-known/openid-configuration'] } }),

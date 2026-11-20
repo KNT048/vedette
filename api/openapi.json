@@ -22577,7 +22577,7 @@
     "/exposure/issues/handle": {
       "post": {
         "operationId": "exposure_post_exposure_issues_handle",
-        "summary": "Handle open issues (at most 500) with one resolution and note: patched, mitigated, accepted (with accepted_until, from tomorrow to 365 days ahead, else 400 bad_value), false_positive or not_relevant. One audit row per issue; issues not open are skipped",
+        "summary": "Handle open issues (at most 500) with one resolution and note: patched, mitigated, accepted (with accepted_until, from tomorrow to 365 days ahead, else 400 bad_until), false_positive or not_relevant. The note is required (at least 3 characters, else 400 note_required) for false_positive, not_relevant and accepted. One audit row per issue; issues not open are skipped",
         "tags": [
           "exposure"
         ],
@@ -22612,9 +22612,11 @@
                   },
                   "note": {
                     "type": "string",
-                    "maxLength": 500
+                    "maxLength": 500,
+                    "description": "Required (at least 3 characters) for false_positive, not_relevant and accepted"
                   },
                   "accepted_until": {
+                    "description": "accepted only: the last day, from tomorrow to 365 days ahead (else 400 bad_until)",
                     "type": "string",
                     "format": "date",
                     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
@@ -22638,20 +22640,20 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "updated": {
+                    "handled": {
                       "type": "integer",
-                      "minimum": -9007199254740991,
+                      "minimum": 0,
                       "maximum": 9007199254740991
                     },
                     "skipped": {
                       "type": "integer",
-                      "minimum": -9007199254740991,
+                      "minimum": 0,
                       "maximum": 9007199254740991,
-                      "description": "Issues left as they were: not open (handle) or not handled (reopen)"
+                      "description": "Issues not open, left as they were"
                     }
                   },
                   "required": [
-                    "updated",
+                    "handled",
                     "skipped"
                   ],
                   "additionalProperties": false
@@ -22715,20 +22717,20 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "updated": {
+                    "reopened": {
                       "type": "integer",
-                      "minimum": -9007199254740991,
+                      "minimum": 0,
                       "maximum": 9007199254740991
                     },
                     "skipped": {
                       "type": "integer",
-                      "minimum": -9007199254740991,
+                      "minimum": 0,
                       "maximum": 9007199254740991,
-                      "description": "Issues left as they were: not open (handle) or not handled (reopen)"
+                      "description": "Issues not handled, left as they were"
                     }
                   },
                   "required": [
-                    "updated",
+                    "reopened",
                     "skipped"
                   ],
                   "additionalProperties": false
@@ -31542,6 +31544,10 @@
                               "null"
                             ]
                           },
+                          "schedule_key": {
+                            "type": "string",
+                            "description": "The key of its schedule in the shared schedules: exposure.target:<id>"
+                          },
                           "kind": {
                             "type": "string",
                             "enum": [
@@ -32182,6 +32188,7 @@
                         "required": [
                           "id",
                           "parent_id",
+                          "schedule_key",
                           "kind",
                           "value",
                           "origin",
@@ -32429,6 +32436,10 @@
                         "null"
                       ]
                     },
+                    "schedule_key": {
+                      "type": "string",
+                      "description": "The key of its schedule in the shared schedules: exposure.target:<id>"
+                    },
                     "kind": {
                       "type": "string",
                       "enum": [
@@ -33069,6 +33080,7 @@
                   "required": [
                     "id",
                     "parent_id",
+                    "schedule_key",
                     "kind",
                     "value",
                     "origin",
@@ -33191,6 +33203,10 @@
                         "null"
                       ]
                     },
+                    "schedule_key": {
+                      "type": "string",
+                      "description": "The key of its schedule in the shared schedules: exposure.target:<id>"
+                    },
                     "kind": {
                       "type": "string",
                       "enum": [
@@ -33831,6 +33847,7 @@
                   "required": [
                     "id",
                     "parent_id",
+                    "schedule_key",
                     "kind",
                     "value",
                     "origin",
@@ -33934,6 +33951,10 @@
                         "null"
                       ]
                     },
+                    "schedule_key": {
+                      "type": "string",
+                      "description": "The key of its schedule in the shared schedules: exposure.target:<id>"
+                    },
                     "kind": {
                       "type": "string",
                       "enum": [
@@ -34574,6 +34595,7 @@
                   "required": [
                     "id",
                     "parent_id",
+                    "schedule_key",
                     "kind",
                     "value",
                     "origin",
@@ -34923,8 +34945,69 @@
                           "cves": {
                             "type": "array",
                             "items": {
-                              "type": "string"
-                            }
+                              "type": "object",
+                              "properties": {
+                                "cve": {
+                                  "type": "string",
+                                  "pattern": "^CVE-\\d{4}-\\d{4,}$"
+                                },
+                                "severity": {
+                                  "anyOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "band": {
+                                          "type": "string",
+                                          "enum": [
+                                            "critical",
+                                            "high",
+                                            "medium",
+                                            "low",
+                                            "none"
+                                          ]
+                                        },
+                                        "score": {
+                                          "type": "number",
+                                          "minimum": 0,
+                                          "maximum": 10
+                                        },
+                                        "version": {
+                                          "type": "string",
+                                          "enum": [
+                                            "4.0",
+                                            "3.1",
+                                            "3.0",
+                                            "2.0"
+                                          ]
+                                        },
+                                        "vector": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 200
+                                        }
+                                      },
+                                      "required": [
+                                        "band",
+                                        "score",
+                                        "version",
+                                        "vector"
+                                      ],
+                                      "additionalProperties": false,
+                                      "description": "The CVSS base score the catalogue picks for the CVE and its band; null = \"Not scored yet\", never 0"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "cve",
+                                "severity"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "description": "The CVEs the engine names, the most severe first"
                           },
                           "detail": {
                             "type": "object",
@@ -35724,6 +35807,10 @@
                         "null"
                       ]
                     },
+                    "schedule_key": {
+                      "type": "string",
+                      "description": "The key of its schedule in the shared schedules: exposure.target:<id>"
+                    },
                     "kind": {
                       "type": "string",
                       "enum": [
@@ -36364,6 +36451,7 @@
                   "required": [
                     "id",
                     "parent_id",
+                    "schedule_key",
                     "kind",
                     "value",
                     "origin",
@@ -36459,6 +36547,10 @@
                         "null"
                       ]
                     },
+                    "schedule_key": {
+                      "type": "string",
+                      "description": "The key of its schedule in the shared schedules: exposure.target:<id>"
+                    },
                     "kind": {
                       "type": "string",
                       "enum": [
@@ -37099,6 +37191,7 @@
                   "required": [
                     "id",
                     "parent_id",
+                    "schedule_key",
                     "kind",
                     "value",
                     "origin",
@@ -37181,6 +37274,10 @@
                             "string",
                             "null"
                           ]
+                        },
+                        "schedule_key": {
+                          "type": "string",
+                          "description": "The key of its schedule in the shared schedules: exposure.target:<id>"
                         },
                         "kind": {
                           "type": "string",
@@ -37822,6 +37919,7 @@
                       "required": [
                         "id",
                         "parent_id",
+                        "schedule_key",
                         "kind",
                         "value",
                         "origin",

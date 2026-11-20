@@ -367,6 +367,7 @@ export const Consent = z.object({
   disruptive: z.boolean().describe('Testing terms only: the disruptive checks were ticked too; false for the scan confirmation'),
 })
 
+// Moves to web/src/lib/statusCodes.ts when the findings and exposure models meet (same values).
 export const RunStatus = z.enum(['queued', 'waiting', 'running', 'stopping', 'done', 'partial', 'failed', 'stopped'])
 export const RunTrigger = z.enum(['manual', 'schedule', 'event'])
 export const ScanMode = z.enum(['surface', 'deep'])
@@ -392,6 +393,7 @@ export const NodeBlock = z.enum(['disabled', 'proof', 'no_commitment'])
 export const TargetNode = z.object({
   id: z.string(),
   parent_id: z.string().nullable().describe('The domain target this node sits under; null at the top of the tree'),
+  schedule_key: z.string().describe('The key of its schedule in the shared schedules: exposure.target:<id>'),
   kind: TargetKind, value: z.string(), origin: NodeOrigin,
   scope_mode: ScopeMode.nullable().describe('Domains: self scans only this name; all this name and every name found under it; selected this name and the names chosen (Host.selected). null for an IP'),
   enabled: z.boolean().describe('The node is scanned, by Scan now and by its schedule'),
@@ -447,14 +449,21 @@ export const Service = z.object({
 
 export const IssueEngine = z.enum(['surface', 'nuclei', 'zap', 'openvas', 'match'])
 export const IssueState = z.enum(['open', 'gone', 'handled'])
-// The handled vocabulary of findings, in the same order: an issue is handled the way a finding is.
+// The handled vocabulary of findings (same values and order as FINDING_RESOLUTIONS): an issue is handled the way a finding
+// is. Moves to web/src/lib/statusCodes.ts when the findings and exposure models meet.
 export const Resolution = z.enum(['patched', 'mitigated', 'accepted', 'not_relevant', 'false_positive'])
+// The CVSS score of a CVE as the findings contract gives it, so the shared CVE list shows a severity per CVE.
+export const SeverityBand = z.enum(['critical', 'high', 'medium', 'low', 'none'])
+export const CveSeverity = z.object({
+  band: SeverityBand, score: z.number().min(0).max(10), version: z.enum(['4.0', '3.1', '3.0', '2.0']), vector: z.string().min(1).max(200),
+}).describe('The CVSS base score the catalogue picks for the CVE and its band; null = "Not scored yet", never 0')
+export const IssueCve = z.object({ cve: z.string().regex(/^CVE-\d{4}-\d{4,}$/), severity: CveSeverity.nullable() })
 export const Issue = z.object({
   id: z.string(), target_id: z.string(),
   service_id: z.string().nullable().describe('The service it was found on; null when it is about the target as a whole'),
   engine: IssueEngine, key: z.string().describe('The engine\'s own id: plugin, template, rule or CVE'),
   title: z.string(), severity: Severity,
-  cves: z.array(z.string()),
+  cves: z.array(IssueCve).describe('The CVEs the engine names, the most severe first'),
   detail: z.object({
     description: z.string(), solution: z.string(),
     evidence: z.array(z.string()).describe('Where it was seen: URLs or lines of the engine\'s output'),
@@ -467,7 +476,8 @@ export const Issue = z.object({
 })
 export const MAX_ISSUE_IDS = 500
 const issueIds = z.array(z.string()).min(1).max(MAX_ISSUE_IDS)
-const BulkResult = z.object({ updated: z.number().int(), skipped: z.number().int().describe('Issues left as they were: not open (handle) or not handled (reopen)') })
+const HandleResult = z.object({ handled: z.number().int().min(0), skipped: z.number().int().min(0).describe('Issues not open, left as they were') })
+const ReopenResult = z.object({ reopened: z.number().int().min(0), skipped: z.number().int().min(0).describe('Issues not handled, left as they were') })
 
 const id = z.object({ id: z.string() })
 const idEx = { params: { id: 'xt-1' } }
@@ -511,6 +521,6 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/exposure/tree/{id}/addresses', summary: 'Addresses of this node and of its names, with kind and first and last seen', stories: ['S-EXP-1'], role: 'viewer', params: id, response: z.object({ items: z.array(Address) }), example: nodeEx },
   { method: 'get', path: '/exposure/tree/{id}/services', summary: 'Services found on this node\'s public addresses, open and closed, with first and last seen and whether they answered HTTP', stories: ['S-EXP-1', 'S-EXP-2'], role: 'viewer', params: id, response: z.object({ items: z.array(Service) }), example: nodeEx },
   { method: 'get', path: '/exposure/tree/{id}/issues', summary: 'Issues every engine reported on this node, open, gone and handled, most severe first', stories: ['S-EXP-2'], role: 'viewer', params: id, response: z.object({ items: z.array(Issue) }), example: nodeEx },
-  { method: 'post', path: '/exposure/issues/handle', summary: 'Handle open issues (at most 500) with one resolution and note: patched, mitigated, accepted (with accepted_until, from tomorrow to 365 days ahead, else 400 bad_value), false_positive or not_relevant. One audit row per issue; issues not open are skipped', stories: ['S-EXP-2'], role: 'operator', body: z.object({ ids: issueIds, resolution: Resolution, note: z.string().max(500), accepted_until: z.iso.date().optional() }), response: BulkResult },
-  { method: 'post', path: '/exposure/issues/reopen', summary: 'Reopen handled issues (at most 500); the others are skipped. Audited', stories: ['S-EXP-2'], role: 'operator', body: z.object({ ids: issueIds }), response: BulkResult },
+  { method: 'post', path: '/exposure/issues/handle', summary: 'Handle open issues (at most 500) with one resolution and note: patched, mitigated, accepted (with accepted_until, from tomorrow to 365 days ahead, else 400 bad_until), false_positive or not_relevant. The note is required (at least 3 characters, else 400 note_required) for false_positive, not_relevant and accepted. One audit row per issue; issues not open are skipped', stories: ['S-EXP-2'], role: 'operator', body: z.object({ ids: issueIds, resolution: Resolution, note: z.string().max(500).describe('Required (at least 3 characters) for false_positive, not_relevant and accepted'), accepted_until: z.iso.date().optional().describe('accepted only: the last day, from tomorrow to 365 days ahead (else 400 bad_until)') }), response: HandleResult },
+  { method: 'post', path: '/exposure/issues/reopen', summary: 'Reopen handled issues (at most 500); the others are skipped. Audited', stories: ['S-EXP-2'], role: 'operator', body: z.object({ ids: issueIds }), response: ReopenResult },
 ])

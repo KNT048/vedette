@@ -1481,8 +1481,9 @@ func (UnimplementedHandler) ExposurePostExposureBoxIPVerify(ctx context.Context)
 // ExposurePostExposureIssuesHandle implements exposure_post_exposure_issues_handle operation.
 //
 // Handle open issues (at most 500) with one resolution and note: patched, mitigated, accepted (with
-// accepted_until, from tomorrow to 365 days ahead, else 400 bad_value), false_positive or
-// not_relevant. One audit row per issue; issues not open are skipped.
+// accepted_until, from tomorrow to 365 days ahead, else 400 bad_until), false_positive or
+// not_relevant. The note is required (at least 3 characters, else 400 note_required) for
+// false_positive, not_relevant and accepted. One audit row per issue; issues not open are skipped.
 //
 // POST /exposure/issues/handle
 func (UnimplementedHandler) ExposurePostExposureIssuesHandle(ctx context.Context, req *ExposurePostExposureIssuesHandleReq) (r *ExposurePostExposureIssuesHandleOK, _ error) {

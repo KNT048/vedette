@@ -523,7 +523,7 @@ function nodeView(n: StoredNode, all = tree.get()): TargetNode {
   const scans = rows.scans.filter((s) => s.target_id === n.id).sort((a, b) => b.queued_at.localeCompare(a.queued_at))
   const commitmentCurrent = n.commitment?.version === NOTICE_VERSION
   return {
-    id: n.id, parent_id: n.parent_id, kind: n.kind, value: n.value, origin: n.origin, scope_mode: n.scope_mode, enabled: n.enabled, created_at: n.created_at,
+    id: n.id, parent_id: n.parent_id, schedule_key: `exposure.target:${n.id}`, kind: n.kind, value: n.value, origin: n.origin, scope_mode: n.scope_mode, enabled: n.enabled, created_at: n.created_at,
     proof,
     commitment: n.commitment, terms: n.terms,
     commitment_notice: commitmentCurrent ? null : { version: NOTICE_VERSION, text: NOTICE_TEMPLATE.replace('{value}', n.value) },
@@ -563,7 +563,7 @@ const treeHandlers = [
     advanceRuns()
     const all = tree.get()
     const items = treeOrder(all).map((n) => nodeView(n, all))
-    const gateway = items.some((x) => x.kind === 'ip' && x.origin === 'box' && x.counts.services > 0) ? { ip: '192.168.1.1', device_id: 'dev-gateway', name: 'fortigate-hq', open_exploited: 2 } : null
+    const gateway = items.some((x) => x.kind === 'ip' && x.origin === 'box' && x.counts.services > 0) ? { ip: '10.0.0.1', device_id: 'dev-gateway', name: 'fortigate-hq', open_exploited: 2 } : null
     return HttpResponse.json({ items, box_ip: boxView(), ignored: ignored.get().slice().sort((a, b) => b.ignored_at.localeCompare(a.ignored_at)), gateway })
   }),
 
@@ -761,34 +761,35 @@ const treeHandlers = [
     if (!ids) return fail(400, 'bad_value', `Choose between 1 and ${MAX_ISSUE_IDS} issues.`)
     if (!RESOLUTIONS.includes(b.resolution as Resolution)) return fail(400, 'bad_value', 'Choose how the issues were handled.')
     if (typeof b.note !== 'string' || b.note.length > 500) return fail(400, 'bad_value', 'The note is at most 500 characters.')
+    if ((b.resolution === 'false_positive' || b.resolution === 'not_relevant' || b.resolution === 'accepted') && b.note.trim().length < 3) return fail(400, 'note_required', 'Write why this is a false positive, not relevant or an accepted risk (at least 3 characters) so the next person understands.')
     const until = b.accepted_until
     if (b.resolution === 'accepted') {
       const today = new Date().toISOString().slice(0, 10), last = new Date(Date.now() + 365 * 864e5).toISOString().slice(0, 10)
-      if (!until || !/^\d{4}-\d{2}-\d{2}$/.test(until) || until <= today || until > last) return fail(400, 'bad_value', 'Choose the last day the risk is accepted: from tomorrow to 365 days ahead.')
-    } else if (until !== undefined) return fail(400, 'bad_value', 'A last day is set only when the risk is accepted.')
+      if (!until || !/^\d{4}-\d{2}-\d{2}$/.test(until) || until <= today || until > last) return fail(400, 'bad_until', 'Accept the risk until a date from tomorrow up to one year from today.')
+    } else if (until !== undefined) return fail(400, 'bad_until', 'A last day is set only when the risk is accepted.')
     const me = currentUser()!.email, at = nowIso()
-    let updated = 0
+    let handled = 0
     treeRows.update((r) => ({ ...r, issues: r.issues.map((i) => {
       if (!ids.has(i.id) || i.state !== 'open') return i
-      updated++
+      handled++
       audit('exposure.issue_handle', i.title, `${b.resolution}${until ? ` until ${until}` : ''}${b.note ? `: ${b.note}` : ''}`)
       return { ...i, state: 'handled' as const, resolution: b.resolution as Resolution, resolved_by: me, resolved_at: at, note: b.note || null, accepted_until: b.resolution === 'accepted' ? until! : null }
     }) }))
-    return HttpResponse.json({ updated, skipped: ids.size - updated })
+    return HttpResponse.json({ handled, skipped: ids.size - handled })
   }),
 
   http.post(`${API}/exposure/issues/reopen`, async ({ request }) => {
     const denied = guard('operator'); if (denied) return denied
     const ids = issueIdsOf((await body<{ ids: string[] }>(request)).ids)
     if (!ids) return fail(400, 'bad_value', `Choose between 1 and ${MAX_ISSUE_IDS} issues.`)
-    let updated = 0
+    let reopened = 0
     treeRows.update((r) => ({ ...r, issues: r.issues.map((i) => {
       if (!ids.has(i.id) || i.state !== 'handled') return i
-      updated++
+      reopened++
       audit('exposure.issue_reopen', i.title, `was ${i.resolution}`)
       return { ...i, state: 'open' as const, resolution: null, resolved_by: null, resolved_at: null, note: null, accepted_until: null }
     }) }))
-    return HttpResponse.json({ updated, skipped: ids.size - updated })
+    return HttpResponse.json({ reopened, skipped: ids.size - reopened })
   }),
 ]
 

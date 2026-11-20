@@ -3,11 +3,9 @@ package audit_test
 import (
 	"database/sql"
 	"errors"
-	"os"
 	"regexp"
 	"strings"
 	"testing"
-	"testing/fstest"
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
@@ -369,53 +367,5 @@ func TestVerifyDetectsDeletedTail(t *testing.T) {
 	}
 	if res.OK || res.Count != 3 || res.BrokenAt != 4 {
 		t.Fatalf("Verify after deleting the newest rows = %+v, want broken at 4 with 3 rows", res)
-	}
-}
-
-// A chain written before the head table existed is backfilled by the migration.
-func TestMigrationBackfillsTheHead(t *testing.T) {
-	t.Parallel()
-	db := storetest.New(t)
-	ctx := t.Context()
-	files, err := os.ReadDir(coreMigrations)
-	if err != nil {
-		t.Fatal(err)
-	}
-	old := fstest.MapFS{}
-	for _, f := range files {
-		if f.Name() < "0004" {
-			b, err := os.ReadFile(coreMigrations + "/" + f.Name())
-			if err != nil {
-				t.Fatal(err)
-			}
-			old[f.Name()] = &fstest.MapFile{Data: b}
-		}
-	}
-	if err := store.Migrate(ctx, db, "core", old); err != nil {
-		t.Fatal(err)
-	}
-	// Before the head table: no head to move, so write the rows by hand through a log whose head step fails softly.
-	if err := db.Write(ctx, func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(ctx, "CREATE TABLE core_chain_head (chain TEXT PRIMARY KEY, last_hash TEXT NOT NULL, count INTEGER NOT NULL, updated_at TEXT NOT NULL)")
-		return err
-	}); err != nil {
-		t.Fatal(err)
-	}
-	appendAll(t, db, audit.New(nil), audit.Entry{User: "system", Action: "a.b", Target: "t"}, audit.Entry{User: "system", Action: "a.b", Target: "t"})
-	if err := db.Write(ctx, func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(ctx, "DROP TABLE core_chain_head")
-		return err
-	}); err != nil {
-		t.Fatal(err)
-	}
-	if err := store.Migrate(ctx, db, "core", os.DirFS(coreMigrations)); err != nil {
-		t.Fatal(err)
-	}
-	head, err := chainhead.Load(ctx, db.Reader(), "core_audit")
-	if err != nil || head == nil || head.Count != 2 {
-		t.Fatalf("backfilled head = %+v, %v", head, err)
-	}
-	if res, err := audit.Verify(ctx, db.Reader()); err != nil || !res.OK || res.Count != 2 {
-		t.Fatalf("Verify = %+v, %v", res, err)
 	}
 }

@@ -23,7 +23,8 @@ const (
 	// what own_ip added to 5 before its first release (no new number: the latest release, v0.1.0-beta.1, speaks 4, and a 6 would
 	// leave it no update path): own_ip in the nuclei heartbeat is optional (absent = false), core leaves the scope out of a
 	// LAN job and sends an own_ip job only to a worker whose heartbeat said own_ip (sensoractive
-	// TestOwnIPNucleiNeverGoesToAWorkerWithoutOwnIP).
+	// TestOwnIPNucleiNeverGoesToAWorkerWithoutOwnIP). POST /metadata of the passive role was added to 5 the same way: a new route a sensor of
+	// protocol 4 never calls, and core answers it with no reply body.
 	ProtoPrevious = "4"
 	PathPrefix    = "/sensor/v1"
 
@@ -31,6 +32,12 @@ const (
 	MaxHeartbeatBody    = 64 << 10
 	MaxResultBody       = 11 << 20
 	MaxProgressBody     = 1 << 10 // a JobProgress (#830): a few numbers
+	// MaxMetadataBody and MaxMetadataItems bound one POST /metadata: an item is at most about 350 bytes of JSON (a 253-byte name),
+	// so MaxMetadataItems of them fit. The capture sends at most MetadataPostsPerFlush of them per 5 seconds, paced by time from a
+	// goroutine of its own, so the mirror port never takes more than a small part of the passive role's request rate.
+	MaxMetadataBody       = 512 << 10
+	MaxMetadataItems      = 1000
+	MetadataPostsPerFlush = 2
 	// ProgressEvery is the shortest time between two progress reports of one job (#830): the worker keeps only the latest state
 	// in between, so a tool that prints often costs core one small request every few seconds at most.
 	ProgressEvery  = 5 * time.Second

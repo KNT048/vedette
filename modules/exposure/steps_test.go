@@ -2,16 +2,11 @@ package exposure
 
 import (
 	"context"
-	"database/sql"
-	"io/fs"
 	"strings"
 	"testing"
-	"testing/fstest"
 	"time"
 
 	"github.com/knt048/vedette/core/store"
-	"github.com/knt048/vedette/core/store/storetest"
-	"github.com/knt048/vedette/modules/core"
 )
 
 // stepsProbeLog is a probe log with the template, web and Greenbone faces (a deep scan logs all three).
@@ -234,78 +229,5 @@ func TestContract_INV30_ADeletedTargetLeavesNoEngineRun(t *testing.T) {
 	}
 	if runs := e.engineRuns(); len(runs) != 0 {
 		t.Fatalf("after the target was ignored: %+v", runs)
-	}
-}
-
-// Migration 0012 takes the scans stored before it: the newest snapshot in which each step ran, its outcome from the snapshot's lines
-// and OpenVAS state. A snapshot where a step did not run (OpenVAS not_run, no web check, templates not needed) is not one.
-func TestMigration0012TakesTheEarlierScans(t *testing.T) {
-	t.Parallel()
-	ctx := t.Context()
-	db := storetest.New(t)
-	before := fstest.MapFS{}
-	if err := fs.WalkDir(Migrations, ".", func(p string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() || strings.HasPrefix(d.Name(), "0012") || d.Name() > "0012" {
-			return err
-		}
-		b, err := fs.ReadFile(Migrations, p)
-		before[p] = &fstest.MapFile{Data: b}
-		return err
-	}); err != nil {
-		t.Fatal(err)
-	}
-	if err := store.Migrate(ctx, db, "core", core.Migrations); err != nil {
-		t.Fatal(err)
-	}
-	if err := store.Migrate(ctx, db, "exposure", before); err != nil {
-		t.Fatal(err)
-	}
-	exec := func(q string, args ...any) {
-		t.Helper()
-		if err := db.Write(ctx, func(tx *sql.Tx) error { _, err := tx.ExecContext(ctx, q, args...); return err }); err != nil {
-			t.Fatal(err)
-		}
-	}
-	exec(`INSERT INTO exp_target (id, kind, value, token, created_at) VALUES ('xt-1', 'ip', '203.0.113.10', '', '2026-11-01T00:00:00.000Z')`)
-	snap := func(id, date, checks, notChecked, web, gb, gbRun string) {
-		exec(`INSERT INTO exp_snapshot (id, target_id, date, scanned_at, hosts, ports, admin_panels, certs, counts, checks, not_checked, web_findings, greenbone, greenbone_run)
-			VALUES (?, 'xt-1', ?, ?, '[]', '[]', '[]', '[]', '{}', ?, ?, ?, ?, ?)`, id, date, date+"T06:00:00.000Z", checks, notChecked, web, gb, gbRun)
-	}
-	// 15 Nov: every step ran (OpenVAS done with 3 results, ZAP with 4 alerts and one page that failed). 16 Nov: OpenVAS off, no web
-	// port, no template needed.
-	snap("sn-15", "2026-11-15", `[{"kind":"templates","at":"2026-11-15T06:05:00.000Z","text":"Safe templates for exploited vulnerabilities: 1 job"},
-		{"kind":"web","at":"2026-11-15T06:10:00.000Z","text":"Passive web scan"},{"kind":"greenbone","at":"2026-11-15T07:30:00.000Z","text":"OpenVAS scanned"}]`,
-		`[{"kind":"web","text":"https://203.0.113.10/: Passive web scan (ZAP) failed, so the page was not checked. The box log has the error."}]`,
-		`[{},{},{},{}]`, `[{},{},{}]`, `{"state":"done","started_at":"2026-11-15T06:12:00.000Z","addresses":[]}`)
-	snap("sn-16", "2026-11-16", `[{"kind":"templates","at":"2026-11-16T06:05:00.000Z","text":"Safe templates for exploited vulnerabilities: none needed, no identified service matched an exploited CVE."}]`,
-		`[{"kind":"greenbone","text":"OpenVAS is off."},{"kind":"web","text":"Passive web scan (ZAP): no web port was identified, so no page was scanned."}]`,
-		`[]`, `[]`, `{"state":"not_run","started_at":null,"addresses":[]}`)
-	// A second target: OpenVAS stopped at its cap in a run of 14 Nov that ended on 15 Nov 08:00 (the newest end), and failed on 16 Nov (no end time: not taken); a list element that
-	// is not an object never blocks the migration (#863 r1 L1).
-	exec(`INSERT INTO exp_target (id, kind, value, token, created_at) VALUES ('xt-2', 'ip', '203.0.113.20', '', '2026-11-01T00:00:00.000Z')`)
-	exec(`INSERT INTO exp_snapshot (id, target_id, date, scanned_at, hosts, ports, admin_panels, certs, counts, checks, not_checked, greenbone, greenbone_run)
-		VALUES ('sn-2-14', 'xt-2', '2026-11-14', '2026-11-14T06:00:00.000Z', '[]', '[]', '[]', '[]', '{}', ?, '["oops", 3]', '[{}]', '{"state":"partial","started_at":"2026-11-14T06:10:00.000Z","addresses":[]}')`,
-		`["oops", 7, null, {"kind":"greenbone","at":"2026-11-15T08:00:00.000Z","text":"OpenVAS partly scanned"}]`)
-	exec(`INSERT INTO exp_snapshot (id, target_id, date, scanned_at, hosts, ports, admin_panels, certs, counts, checks, not_checked, greenbone, greenbone_run)
-		VALUES ('sn-2-16', 'xt-2', '2026-11-16', '2026-11-16T06:00:00.000Z', '[]', '[]', '[]', '[]', '{}', '["oops"]', '[]', '[]', '{"state":"failed","started_at":"2026-11-16T06:10:00.000Z","addresses":[]}')`)
-	if err := store.Migrate(ctx, db, "exposure", Migrations); err != nil {
-		t.Fatal(err)
-	}
-	runs, err := (&Service{cfg: Config{DB: db}}).EngineRuns(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := map[string]EngineRun{
-		StepNuclei:  {Engine: StepNuclei, RunID: "sn-15", Target: "203.0.113.10", At: "2026-11-15T06:05:00.000Z", Outcome: StepOK, Text: "External scan of 203.0.113.10: safe templates ran"},
-		StepZAP:     {Engine: StepZAP, RunID: "sn-15", Target: "203.0.113.10", At: "2026-11-15T06:10:00.000Z", Outcome: StepPartial, Text: "External scan of 203.0.113.10: ZAP found 4 alerts"},
-		StepOpenVAS: {Engine: StepOpenVAS, RunID: "sn-2-14", Target: "203.0.113.20", At: "2026-11-15T08:00:00.000Z", Outcome: StepPartial, Text: "External scan of 203.0.113.20: OpenVAS stopped at its 90-minute limit, 1 result"},
-	}
-	if len(runs) != len(want) {
-		t.Fatalf("runs = %+v", runs)
-	}
-	for engine, w := range want {
-		if runs[engine] != w {
-			t.Errorf("%s = %+v, want %+v", engine, runs[engine], w)
-		}
 	}
 }

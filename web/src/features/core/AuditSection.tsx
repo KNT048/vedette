@@ -84,7 +84,7 @@ export default function AuditSection() {
       <QueryState query={q}>
         {(d) => (
           <>
-            <DataTable data={d.items} columns={columns} caption={t('audit.caption')} pageSize={AUDIT_PAGE} server={{ total: d.total, list }}
+            <DataTable urlKey="audit" data={d.items} columns={columns} caption={t('audit.caption')} pageSize={AUDIT_PAGE} server={{ total: d.total, list }}
               mobileRow={(r) => (
                 <div className="grid gap-0.5 text-meta">
                   <span className="font-medium">{t(`audit.action.${r.action}`, { defaultValue: r.action })}</span>

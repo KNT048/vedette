@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/knt048/vedette/core/productid"
 )
 
 // The golden set: REAL CISA KEV entries for Apple iOS, Fortinet FortiOS, Microsoft Office and Citrix
@@ -71,7 +73,7 @@ func keysFor(vulns []Vuln, fragments ...string) []string {
 		fv, fp, _ := strings.Cut(f, "|")
 		for _, v := range vulns {
 			if strings.Contains(strings.ToLower(v.Vendor), fv) && strings.Contains(strings.ToLower(v.Product), fp) {
-				if k := KevKey(v.Vendor, v.Product); !seen[k] {
+				if k := productid.Key(v.Vendor, v.Product); !seen[k] {
 					seen[k] = true
 					keys = append(keys, k)
 				}
@@ -130,10 +132,10 @@ func netScaler(vulns []Vuln, version string) Software {
 		KevKeys: keysFor(vulns, "citrix|netscaler", "citrix|application delivery controller", "citrix|sd-wan and netscaler")}
 }
 
-// agentPkg is a package as osquery reports it through agent-intake (pkgmap.json: vendor and product are the KEV
+// agentPkg is a package as osquery reports it through agent-intake (content/catalog/products: vendor and product are the KEV
 // pair, the version is the Debian upstream version).
 func agentPkg(vendor, product, version string) Software {
-	return Software{ID: "s-" + strings.ToLower(product), Display: product, Vendor: vendor, Product: product, Version: version, KevKeys: []string{KevKey(vendor, product)}, Source: "agent"}
+	return Software{ID: "s-" + strings.ToLower(product), Display: product, Vendor: vendor, Product: product, Version: version, KevKeys: []string{productid.Key(vendor, product)}, Source: "agent"}
 }
 
 // ubuntuServer is the test box "byn": Ubuntu 26.04.1, every version from osquery.
@@ -149,9 +151,6 @@ func cves(s string) []string { return strings.Fields(s) }
 
 func TestAliases_DataIsValid(t *testing.T) {
 	t.Parallel()
-	if cpeAliasErr != nil {
-		t.Fatal(cpeAliasErr)
-	}
 	if ids := cpeAliases[identity{vendor: "apple", product: "ios"}]; len(ids) != 2 || ids[0].product != "iphoneos" {
 		t.Fatalf("Apple|iOS aliases = %+v", ids)
 	}

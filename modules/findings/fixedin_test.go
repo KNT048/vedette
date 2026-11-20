@@ -4,6 +4,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/knt048/vedette/core/productid"
 )
 
 // The fixed version on the real golden set (KEV + NVD ranges, testdata/kev-nvd-golden.json).
@@ -58,7 +60,7 @@ func TestFixedIn_Golden(t *testing.T) {
 
 // A range with no end bound, or no NVD data at all, never gives a fix.
 func TestFixedIn_NoEndNoData(t *testing.T) {
-	sw := Software{ID: "s", Display: "Acme", Vendor: "Acme", Product: "Gate", Version: "2.0", KevKeys: []string{KevKey("Acme", "Gate")}}
+	sw := Software{ID: "s", Display: "Acme", Vendor: "Acme", Product: "Gate", Version: "2.0", KevKeys: []string{productid.Key("Acme", "Gate")}}
 	a := Asset{ID: "a", Name: "dev", Software: []Software{sw}}
 	if f := FixedInFor(a, Vuln{CVE: "CVE-2024-0001", Vendor: "Acme", Product: "Gate"}); f != nil {
 		t.Errorf("no NVD data: %+v", f)
@@ -186,7 +188,7 @@ func TestCVEOrgRangesNameTheirSource(t *testing.T) {
 		{CPE: "cpe:2.3:*:paloaltonetworks:panos:*:*:*:*:*:*:*:*", Range: VersionRange{StartIncl: "11.1.0", EndExcl: "11.1.2-h3"}}}}
 	fw := func(ver string) Asset {
 		return Asset{ID: "a", Name: "fw", Software: []Software{{ID: "s", Display: "PAN-OS", Vendor: "Palo Alto Networks", Product: "PAN-OS", Version: ver,
-			KevKeys: []string{KevKey("Palo Alto Networks", "PAN-OS")}}}}
+			KevKeys: []string{productid.Key("Palo Alto Networks", "PAN-OS")}}}}
 	}
 	res := MatchAsset(fw("10.2.5"), []Vuln{v}, nil, t0)
 	if len(res.New) != 1 || res.New[0].Basis != BasisVersion {

@@ -46,10 +46,12 @@ var (
 
 // Config is what New needs. DB, Audit, Sink and Host are required; Meta defaults to dropping metadata.
 type Config struct {
-	DB      *store.DB
-	Audit   *audit.Log
-	Sink    observe.Sink // the inventory (INV-5); the module never writes inv_* itself
-	Meta    capture.MetadataSink
+	DB    *store.DB
+	Audit *audit.Log
+	Sink  observe.Sink         // the inventory (INV-5); the module never writes inv_* itself
+	Meta  capture.MetadataSink // the in-process capture of the tests (Run) only
+	// Mirror receives the mirror-port metadata a sensor posts (POST /metadata); nil drops it.
+	Mirror  MirrorMatcher
 	Host    Host
 	Clock   func() time.Time
 	Log     *slog.Logger
@@ -89,6 +91,7 @@ type Service struct {
 	audit    *audit.Log
 	sink     observe.Sink
 	meta     capture.MetadataSink
+	mirror   MirrorMatcher
 	host     Host
 	clock    func() time.Time
 	log      *slog.Logger
@@ -140,7 +143,7 @@ func New(cfg Config) (*Service, error) {
 	if cfg.DB == nil || cfg.Audit == nil || cfg.Sink == nil || cfg.Host == nil {
 		return nil, errors.New("sensorpassive: New needs DB, Audit, Sink and Host")
 	}
-	s := &Service{db: cfg.DB, audit: cfg.Audit, sink: cfg.Sink, meta: cfg.Meta, host: cfg.Host, clock: cfg.Clock, log: cfg.Log,
+	s := &Service{db: cfg.DB, audit: cfg.Audit, sink: cfg.Sink, meta: cfg.Meta, mirror: cfg.Mirror, host: cfg.Host, clock: cfg.Clock, log: cfg.Log,
 		version: cfg.Version, name: cfg.Name, open: cfg.Open, recheck: cfg.ConfigRecheck, flushEvery: cfg.FlushEvery,
 		beatEvery: cfg.HeartbeatEvery, retryEvery: cfg.RetryEvery, summaryEvery: cfg.SummaryEvery, retryAfterCap: cfg.RetryAfterCap,
 		enabled: cfg.Enabled, knownMACs: cfg.KnownMACs, starting: cfg.Starting, budget: capture.NewFloodBudget(), repeats: newRepeatFilter(), unknown: map[string]bool{}, seqMem: map[string]uint64{}, wake: make(chan struct{})}

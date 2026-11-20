@@ -1,22 +1,17 @@
 package feeds
 
 import (
-	"context"
 	"database/sql"
 	"encoding/json"
-	"io/fs"
 	"maps"
 	"net/http"
 	"slices"
 	"testing"
-	"testing/fstest"
 	"time"
 
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/store"
-	"github.com/knt048/vedette/core/store/storetest"
 	"github.com/knt048/vedette/core/winrel"
-	"github.com/knt048/vedette/modules/core"
 )
 
 // INV-32: how each built-in feed reads its source, which decides how new code reads its stored data again. A new feed must be put in
@@ -455,57 +450,5 @@ func TestContentVersion_AlpineIsNotFetchedWithoutADevice(t *testing.T) {
 	}
 	if h := lastHit(o, "/Alpine/all.zip"); h.header.Get("If-None-Match") != "" {
 		t.Fatalf("the reload was conditional: %v", h.header)
-	}
-}
-
-// Migration 0021 on a box that ran 0001..0020: every feed is at version 1, so only the Windows releases feed (version 2) is read again.
-func TestMigration0021ContentVersion(t *testing.T) {
-	t.Parallel()
-	before := fstest.MapFS{}
-	entries, err := fs.ReadDir(Migrations, ".")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, e := range entries {
-		if e.Name() >= "0021" {
-			continue
-		}
-		b, err := fs.ReadFile(Migrations, e.Name())
-		if err != nil {
-			t.Fatal(err)
-		}
-		before[e.Name()] = &fstest.MapFile{Data: b}
-	}
-	db := storetest.Migrated(t, storetest.Migration{Module: "core", FS: core.Migrations}, storetest.Migration{Module: "feeds", FS: before})
-	s := &Store{db: db}
-	if err := s.SeedBuiltins(context.Background(), epoch0); err != nil {
-		t.Fatal(err)
-	}
-	addCustom(t, db, "cf-v", "Partner advisories", KindVulnerabilities)
-	if err := store.Migrate(t.Context(), db, "feeds", Migrations); err != nil {
-		t.Fatal(err)
-	}
-	rows, err := s.sources(t.Context())
-	if err != nil {
-		t.Fatal(err)
-	}
-	stored, err := s.contentVersionsStored(t.Context())
-	if err != nil {
-		t.Fatal(err)
-	}
-	var again []string
-	for _, r := range rows {
-		r.ContentVersion = stored[r.ID]
-		if r.ContentVersion != 1 {
-			t.Errorf("%s: version %d", r.ID, r.ContentVersion)
-		}
-		if r.reload() {
-			again = append(again, r.ID)
-		}
-	}
-	// The code's later versions read again what they changed: the Windows releases (0019/0020), the day of the EPSS scores (0022) and
-	// the distributions' open entries and Alpine's tier rows (0024).
-	if !slices.Equal(again, []string{epssAllFeedID, ubuntuOSVFeedID, debianTrackerFeedID, alpineOSVFeedID, winRelFeedID}) {
-		t.Fatalf("read again after the update: %v", again)
 	}
 }

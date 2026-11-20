@@ -1,7 +1,5 @@
 package feeds
 
-import "strings"
-
 // Decoder says which parser a built-in feed needs.
 type Decoder string
 
@@ -137,12 +135,6 @@ func BuiltinByID(id string) (Source, bool) {
 		}
 	}
 	return Source{}, false
-}
-
-// ProductKey is the matching key between inventory products and KEV entries:
-// lower(vendor)|lower(product) (IMPACT.md, DATA_MODEL feeds_vuln).
-func ProductKey(vendor, product string) string {
-	return strings.ToLower(vendor) + "|" + strings.ToLower(product)
 }
 
 // KEVMirrorURL is CISA's own GitHub mirror of the KEV catalog (the cisagov/kev-data repository). Every check of the CISA list at its

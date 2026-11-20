@@ -117,14 +117,14 @@ function SnapshotView({ target, s, newest }: { target: Target; s: Snapshot; newe
         ]} />
       </Panel>
       {target.kind === 'domain' ? (
-        <Section title={t('hosts.title')} description={t('hosts.description')}><DataTable caption={t('hosts.caption')} data={s.hosts} columns={hostCols} pageSize={20} empty={t('hosts.empty')} /></Section>
+        <Section title={t('hosts.title')} description={t('hosts.description')}><DataTable urlKey="scan-hosts" caption={t('hosts.caption')} data={s.hosts} columns={hostCols} pageSize={20} empty={t('hosts.empty')} /></Section>
       ) : null}
-      <Section title={t('ports.title')} description={t('ports.description')} info={t('ports.descriptionInfo')}><DataTable caption={t('ports.caption')} data={s.ports} columns={portCols} rowTone={(r) => (riskOf(r) && identOf(r) !== 'port' ? 'warn' : undefined)} /* a port-number guess is not tinted as a fact */ pageSize={20} empty={t('ports.empty')} filterPlaceholder={t('ports.filter')} /></Section>
+      <Section title={t('ports.title')} description={t('ports.description')} info={t('ports.descriptionInfo')}><DataTable urlKey="scan-ports" caption={t('ports.caption')} data={s.ports} columns={portCols} rowTone={(r) => (riskOf(r) && identOf(r) !== 'port' ? 'warn' : undefined)} /* a port-number guess is not tinted as a fact */ pageSize={20} empty={t('ports.empty')} filterPlaceholder={t('ports.filter')} /></Section>
       <Section title={t('admin.title')} description={t('admin.description')} info={t('admin.descriptionInfo')}>
-        <DataTable caption={t('admin.caption')} data={s.admin_panels} columns={adminCols} pageSize={20} rowTone={(r) => (r.risk === 'danger' ? 'danger' : 'warn')} empty={<EmptyState title={t('admin.emptyTitle')}>{t('admin.emptyBody')}</EmptyState>} />
+        <DataTable urlKey="admin-panels" caption={t('admin.caption')} data={s.admin_panels} columns={adminCols} pageSize={20} rowTone={(r) => (r.risk === 'danger' ? 'danger' : 'warn')} empty={<EmptyState title={t('admin.emptyTitle')}>{t('admin.emptyBody')}</EmptyState>} />
       </Section>
       <Section title={t('cert.title')} description={t('cert.description', { days: CERT_WARN_DAYS })} info={t('cert.descriptionInfo')}>
-        <DataTable caption={t('cert.caption')} data={s.certs} columns={certCols} pageSize={20} initialSort={[{ id: 'expires', desc: false }]} empty={t('cert.empty')} />
+        <DataTable urlKey="certificates" caption={t('cert.caption')} data={s.certs} columns={certCols} pageSize={20} initialSort={[{ id: 'expires', desc: false }]} empty={t('cert.empty')} />
       </Section>
       {target.kind === 'domain' ? <DeepSection s={s} /> : null /* the deep scan per address, with the names that led to it */}
       {target.kind === 'ip' || s.vulns.length > 0 || s.services.length > 0 ? <VulnSection s={s} domain={target.kind === 'domain'} /> : null /* a domain's page can carry versions ZAP read; and its addresses' services */}
@@ -177,7 +177,7 @@ function Compare({ target, dates, label }: { target: Target; dates: string[]; la
             : diff.isPending ? <Loading /> : diff.error ? <ErrorState error={diff.error} onRetry={() => void diff.refetch()} /> : diff.data ? (
               <>
                 <p role="status" className="text-sm font-medium">{t('diff.summary', { added: diff.data.added.length, removed: diff.data.removed.length, changed: diff.data.changed.length, from: label[diff.data.from] ?? diff.data.from, to: label[diff.data.to] ?? diff.data.to })}</p>
-                <DataTable caption={t('diff.caption')} data={rows} columns={columns} pageSize={30} rowTone={(r) => (r.change === 'added' && (r.item.kind === 'admin' || r.item.kind === 'port' || r.item.kind === 'vuln') ? 'warn' : undefined)} empty={t('diff.none')} />
+                <DataTable urlKey="scan-diff" caption={t('diff.caption')} data={rows} columns={columns} pageSize={30} rowTone={(r) => (r.change === 'added' && (r.item.kind === 'admin' || r.item.kind === 'port' || r.item.kind === 'vuln') ? 'warn' : undefined)} empty={t('diff.none')} />
               </>
             ) : null}
         </div>

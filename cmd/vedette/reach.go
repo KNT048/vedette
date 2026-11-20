@@ -42,7 +42,7 @@ func reachJob(d deps) jobs.Job {
 }
 
 // reachRows is the software Vedette's inventory produces by itself, as findings reads it: every row agent-intake's mapper gives a
-// KEV key (pkgmap.json pairs, the Windows release rows) and every curated catalog entry a person can pick, with the keys inventory
+// KEV key (content/catalog/products pairs, the Windows release rows) and every curated catalog entry a person can pick, with the keys inventory
 // gives it (keysFor over the live KEV pairs). findings adds the network OS rows (network-os.json). Not counted: an auto catalog
 // entry (any KEV pair picked by hand reaches its own key) and nmap's own CPEs.
 func reachRows(cat *inventory.Catalog) []findings.Software {

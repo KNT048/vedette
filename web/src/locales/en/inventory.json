@@ -486,7 +486,8 @@
       "scope": "Scope",
       "sensor": "Sensor",
       "snmp": "SNMP",
-      "agents": "Agents"
+      "agents": "Agents",
+      "wazuh": "Wazuh"
     }
   },
   "network": {
@@ -497,6 +498,7 @@
     "rangeHint": "CIDR with prefix length, for example 192.168.10.0/24.",
     "rangeHintInfo": "Internal addresses only: 10.x, 172.16 to 172.31, 192.168.x, 100.64 to 100.127. Other prefix lengths work too, for example 192.168.10.0/25.",
     "addRange": "Add range",
+    "saveRange": "Save range",
     "edit": "Edit",
     "remove": "Remove",
     "editRange": "Edit range {{value}}",
@@ -722,8 +724,6 @@
     },
     "off": "Agent intake is off. Turn this module on to create osquery tokens and connect Wazuh.",
     "osquery": {
-      "title": "osquery on your servers",
-      "intro": "Vedette acts as the osquery server; osquery only reads.",
       "introInfo": "Each machine reports its operating system and installed packages (and Windows hotfixes). osquery changes nothing on the machine."
     },
     "caption": "Enrollment tokens",
@@ -745,13 +745,13 @@
     "empty": "No enrollment tokens yet",
     "emptyBody": "Use \"Create agent token\", then run the one command it shows on each server.",
     "page": {
-      "downloadTitle": "1. Download osquery",
+      "downloadTitle": "Download osquery {{version}}",
       "downloadBody": "The official osquery {{version}} packages, served by this box.",
-      "downloadBodyInfo": "The one command in step 2 downloads the right one by itself. Download a package here to copy it to a server yourself (a USB stick works) or to install it with your own tools.",
-      "checkHint": "Before you install, check the file: sha256sum <file> on Linux or Get-FileHash <file> in PowerShell must print the SHA-256 in the table. The package alone reports nothing to Vedette: the agent also needs the token from step 2.",
+      "downloadBodyInfo": "The install command in a token downloads the right one by itself. Download a package here to copy it to a server yourself (a USB stick works) or to install it with your own tools.",
+      "checkHint": "Before you install, check the file: sha256sum <file> on Linux or Get-FileHash <file> in PowerShell must print the SHA-256 in the table. The package alone reports nothing to Vedette: the agent also needs an enrollment token.",
       "none": "This box has no copy of the osquery packages.",
-      "noneInfo": "There is nothing to download here, and the one command in step 2 stops at the package download. Update Vedette to the release, which ships them.",
-      "tokenTitle": "2. Then create a token so the agent can report to this box",
+      "noneInfo": "There is nothing to download here, and the install command stops at the package download. Update Vedette to the release, which ships them.",
+      "tokenTitle": "Enrollment tokens",
       "tokenBody": "The dialog shows the one command that installs and enrolls osquery.",
       "tokenBodyInfo": "It also shows the manual steps for a package you installed yourself."
     },

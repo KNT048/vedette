@@ -12,6 +12,7 @@ import (
 
 	catalogdata "github.com/knt048/vedette/content/catalog"
 	"github.com/knt048/vedette/content/oui"
+	"github.com/knt048/vedette/core/productid"
 )
 
 // The operating system a network device states about itself is software the matcher compares (#910 phase 1):
@@ -74,7 +75,7 @@ func loadNetworkOS(data []byte) ([]osRow, error) {
 			return out, fmt.Errorf("network-os.json %q: display, vendor, product and kev_keys are required", r.Display)
 		}
 		for i, k := range r.KevKeys {
-			r.KevKeys[i] = NormalizeKevKey(k)
+			r.KevKeys[i] = productid.NormalizeKey(k)
 		}
 		r.re = re
 		out = append(out, r)
@@ -259,7 +260,7 @@ func (d osRow) reads(ver string) bool {
 
 // own says whether a recorded row's KEV key names this OS itself (one of its keys, not the vendor's "Multiple Products").
 func (d osRow) own(k string) bool {
-	k = NormalizeKevKey(k)
+	k = productid.NormalizeKey(k)
 	return !multiKey(k) && slices.Contains(d.KevKeys, k)
 }
 
@@ -329,7 +330,7 @@ func deviceOSSoftware(a Asset) []Software {
 	for _, s := range a.Software {
 		covered, own := len(s.KevKeys) > 0, false
 		for _, k := range s.KevKeys {
-			k = NormalizeKevKey(k)
+			k = productid.NormalizeKey(k)
 			covered, own = covered && slices.Contains(os.KevKeys, k), own || !multiKey(k)
 		}
 		if covered && own { // a FortiGate picked in the catalog (fortinet|fortios, fortinet|multiple products) without a version

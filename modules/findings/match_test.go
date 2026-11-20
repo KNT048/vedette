@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 	"unicode"
+
+	"github.com/knt048/vedette/core/productid"
 )
 
 var t0 = time.Date(2026, 11, 9, 10, 0, 0, 0, time.UTC)
@@ -94,10 +96,10 @@ func TestMatchAsset_KeyNormalisation(t *testing.T) {
 	if r := MatchAsset(a, []Vuln{v}, nil, t0); len(r.NameOnly) != 1 { // a match, by the product name only
 		t.Fatalf("normalised key did not match: %+v", r)
 	}
-	if got := KevKey(" QNAP ", " Photo Station"); got != "qnap|photo station" {
+	if got := productid.Key(" QNAP ", " Photo Station"); got != "qnap|photo station" {
 		t.Fatalf("KevKey = %q", got)
 	}
-	if got := NormalizeKevKey("Microsoft | Windows"); got != "microsoft|windows" {
+	if got := productid.NormalizeKey("Microsoft | Windows"); got != "microsoft|windows" {
 		t.Fatalf("NormalizeKevKey = %q", got)
 	}
 	// no key, no match (the matcher does not guess from display names)
@@ -294,7 +296,7 @@ func FuzzMatchAsset(f *testing.F) {
 	f.Add("QNAP", "Photo Station", "9.9", "x", "garbage", "6.0", "6.1.2", "CVE-2022-27593")
 	f.Add("QNAP", "Photo Station", "", "x", "", "6.0", "6.1.2", "CVE-2022-27593")
 	f.Fuzz(func(t *testing.T, vendor, product, version, key, cpe, lo, hi, cve string) {
-		a := Asset{ID: "a", Name: vendor, Software: []Software{{ID: "s", Display: product, Vendor: vendor, Product: product, Version: version, KevKeys: []string{key, KevKey(vendor, product)}, CPE: cpe}}}
+		a := Asset{ID: "a", Name: vendor, Software: []Software{{ID: "s", Display: product, Vendor: vendor, Product: product, Version: version, KevKeys: []string{key, productid.Key(vendor, product)}, CPE: cpe}}}
 		v := Vuln{CVE: cve, Vendor: vendor, Product: product, Affected: []Affected{
 			{CPE: cpe, Range: VersionRange{StartIncl: lo, EndExcl: hi}},
 			{CPE: qnapCPE},

@@ -3,6 +3,8 @@ package findings
 import (
 	"slices"
 	"testing"
+
+	"github.com/knt048/vedette/core/productid"
 )
 
 // #901: NVD writes NA ("-", not applicable) in the attributes after the version. A software row's ANY means "not stated". NA covers
@@ -176,7 +178,7 @@ func TestNA_ApplicationEditionAsMain(t *testing.T) {
 	releaseKEV := Vuln{CVE: "CVE-2025-14326", Vendor: "Mozilla", Product: "Firefox", Affected: release}
 	dev := func(v Vuln, display, vendor, product, ver string) Asset {
 		return Asset{ID: "a", Name: "pc", OS: "Windows 11", Software: []Software{{ID: "s", Display: display, Vendor: vendor,
-			Product: product, Version: ver, Source: "agent", KevKeys: []string{KevKey(v.Vendor, v.Product)}}}}
+			Product: product, Version: ver, Source: "agent", KevKeys: []string{productid.Key(v.Vendor, v.Product)}}}}
 	}
 	esr := "Mozilla Firefox ESR (x64 en-US)"
 	for _, tt := range []struct {

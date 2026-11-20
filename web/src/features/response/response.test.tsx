@@ -1380,6 +1380,16 @@ describe('response: screens', () => {
     expect((await call<SettingsView>('admin', 'GET', '/response/settings')).json.execution).toBe(true)
   })
 
+  it('never-touch list: Add an entry opens a dialog, adds the row to the list and closes; the list stays', async () => {
+    renderUi(<ResponseSettings />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Add an entry' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Add an entry' })
+    await userEvent.type(within(dlg).getByLabelText('Address or domain'), '192.168.10.77')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Add' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(screen.getAllByText('192.168.10.77').length).toBeGreaterThan(0)
+  })
+
   it('settings show the safety envelope, AI gates, the never-touch list and the catalog by pack', async () => {
     renderUi(<ResponseSettings />)
     expect(await screen.findByLabelText('Circuit breaker: actions per hour')).toHaveValue(20)

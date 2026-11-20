@@ -196,17 +196,24 @@ func schemaSets(wired []moduleWiring) []core.SchemaSet {
 }
 
 // migrateAll applies every wired module's migrations, in order, whether the module is on or off
-// (DATA_MODEL §5.6: the schema always matches the code; a module that is off keeps its data).
+// (DATA_MODEL §5.6: the schema always matches the code; a module that is off keeps its data). A database made by a
+// pre-release build is refused first (store.ErrPreRelease), before anything is written to it.
 func migrateAll(ctx context.Context, db *store.DB, wired []moduleWiring) error {
-	for _, w := range wired {
-		if w.Migrations == nil {
-			continue
-		}
-		if err := store.Migrate(ctx, db, w.ID, w.Migrations); err != nil {
-			return fmt.Errorf("migrate %s: %w", w.ID, err)
-		}
+	if err := store.MigrateAll(ctx, db, migrationSets(wired)); err != nil {
+		return fmt.Errorf("migrate: %w", err)
 	}
 	return nil
+}
+
+// migrationSets is the migrations of the wired modules in the order they run.
+func migrationSets(wired []moduleWiring) []store.MigrationSet {
+	var out []store.MigrationSet
+	for _, w := range wired {
+		if w.Migrations != nil {
+			out = append(out, store.MigrationSet{Module: w.ID, FS: w.Migrations})
+		}
+	}
+	return out
 }
 
 // addJobs registers every wired module's jobs with the scheduler.

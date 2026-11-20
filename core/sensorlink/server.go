@@ -60,6 +60,12 @@ type ResultRejector interface {
 	JobResultRejected(id string, err *Error)
 }
 
+// MetadataReceiver is an optional method set of a Backend: the mirror-port metadata of the passive role (POST /metadata), checked by
+// the server like any body. A Backend without it answers forbidden_route before reading the body.
+type MetadataReceiver interface {
+	Metadata(ctx context.Context, req *MetadataRequest) error
+}
+
 // ProgressReceiver is an optional method set of a Backend (#830): the progress of a running job (POST /jobs/{id}/progress), checked
 // by the server like any body. A Backend without it answers every progress report 404 unknown_job, which the worker ignores.
 type ProgressReceiver interface {
@@ -235,6 +241,7 @@ const (
 	rJobs
 	rResult
 	rProgress
+	rMetadata
 )
 
 type route struct {
@@ -250,6 +257,8 @@ func lookup(role Role, method, p string) (rt route, jobID string, ok bool) {
 		return route{rConfig, true, 0}, "", true
 	case p == PathPrefix+"/observations" && method == http.MethodPost && role == Passive:
 		return route{rObservations, false, MaxObservationsBody}, "", true
+	case p == PathPrefix+"/metadata" && method == http.MethodPost && role == Passive:
+		return route{rMetadata, false, MaxMetadataBody}, "", true
 	case p == PathPrefix+"/heartbeat" && method == http.MethodPost:
 		return route{rHeartbeat, false, MaxHeartbeatBody}, "", true
 	case p == PathPrefix+"/jobs" && method == http.MethodGet && role == Active:
@@ -364,6 +373,11 @@ func (s *Server) dispatch(ctx context.Context, w http.ResponseWriter, r *http.Re
 				return
 			}
 		}
+		if _, ok := s.be.(MetadataReceiver); rt.id == rMetadata && !ok {
+			closeAfter(w, r)
+			s.writeError(w, NewError(CodeForbiddenRoute))
+			return
+		}
 		// A progress report takes a slot like any body (review r1 #3): takeBody never waits, so with none free it is answered
 		// 503 store_busy unread and dropped; the worker does not retry it, and the next one comes ProgressEvery later.
 		release, ok := s.takeBody(role, rt.id)
@@ -413,6 +427,16 @@ func (s *Server) dispatch(ctx context.Context, w http.ResponseWriter, r *http.Re
 			rep.Rejected = []Rejected{}
 		}
 		s.writeJSON(ctx, w, rep, MaxOtherReply)
+	case rMetadata:
+		req, err := decodeMetadata(raw)
+		if err == nil {
+			err = s.be.(MetadataReceiver).Metadata(ctx, req) // the check before the body proved the Backend has it
+		}
+		if err != nil {
+			s.fail(ctx, w, err)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
 	case rHeartbeat:
 		var inst string
 		if role == Passive {

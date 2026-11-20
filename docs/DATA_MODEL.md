@@ -533,6 +533,8 @@ Quy tắc (kiểm thử được):
 8. **Dữ liệu dựng sẵn** (hàng `builtin` của `resp_catalog`, `ai_hook_state`, `core_module`, `inv_setting` mặc định) nạp bằng migration `INSERT … ON CONFLICT DO NOTHING` (khoá tự nhiên), không bằng mã khởi động.
 9. **Bảng log chuỗi hash:** không bao giờ sửa dòng cũ trong migration. Đổi dạng canonical = hợp đồng mới (thêm `canon_version`), không viết lại lịch sử.
 
+**Kỷ nguyên lược đồ (schema epoch) và baseline trước bản phát hành công khai đầu tiên.** Lịch sử migration đã được làm lại một lần: kỷ nguyên 2 (`core/store/SCHEMA_EPOCH`) bắt đầu từ **một** file `0001_<module>.sql` cho mỗi module, tạo toàn bộ lược đồ của module đó. Cho tới bản phát hành công khai đầu tiên, baseline được **sửa tại chỗ** (quy tắc 2 và 3 áp dụng lại từ bản đó). Bảng `core_schema_epoch` (một dòng, do `core/store` ghi trước migration đầu tiên) giữ số kỷ nguyên và SHA-256 của mọi file migration nhúng trong binary; lúc khởi động, cơ sở dữ liệu không có dòng đó mà đã có bảng (bản dựng trước kỷ nguyên 2) hoặc có dòng khác (bản dựng trước phát hành khác) bị từ chối với một thông báo: cài mới (`install.sh --uninstall --yes`, không `--keep-data`, rồi cài lại). Khôi phục sao lưu cũng từ chối bản sao lưu có dòng kỷ nguyên khác. Công cụ phát hành coi bản có kỷ nguyên cao hơn bản trước là lịch sử mới, không bao giờ `rollback.safe=true`. `make schema` ghi `docs/SCHEMA.sql` (lược đồ của mọi module như một bản cài mới); một test báo khi file đó cũ.
+
 ## 7. SQLite (WAL) so với Postgres
 
 | Chủ đề | SQLite (mặc định) | Postgres (tuỳ chọn) |

@@ -119,7 +119,7 @@ export function ParserEditor({ kind, parser, onChange, onFormat }: { kind: FeedK
           </p>
           {result.truncated ? <p className="text-meta text-warn">{t('parser.truncated', { rows: fmtNumber(ROW_LIMIT) })}</p> : null}
           {result.records.length ? (
-            <DataTable<ParseRecord> caption={t('parser.previewCaption')} data={result.records} pageSize={20}
+            <DataTable<ParseRecord> urlKey="parser-preview" caption={t('parser.previewCaption')} data={result.records} pageSize={20}
               columns={result.columns.map((c) => ({ id: c, header: t(`parser.field.${c}`), accessorFn: (r: ParseRecord) => r[c] ?? '', cell: ({ getValue }: { getValue: () => unknown }) => <span className="block max-w-72 truncate" title={String(getValue())}>{String(getValue()) || <span className="text-muted">-</span>}</span> }))} />
           ) : <p className="text-sm text-muted">{t('parser.noRecords')}</p>}
           {result.rejected ? (

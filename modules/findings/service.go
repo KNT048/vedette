@@ -13,6 +13,7 @@ import (
 
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/orgtime"
+	"github.com/knt048/vedette/core/productid"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -493,14 +494,14 @@ func haveScope(a Asset, vulns []Vuln, m MatchResult, since map[string]Have, have
 	if !ok {
 		return m
 	}
-	key := NormalizeKevKey(h.Key)
+	key := productid.NormalizeKey(h.Key)
 	scoped := map[string]Software{} // software rows under the scope
 	for _, sw := range a.Software {
 		if strings.TrimSpace(sw.Version) != "" {
 			continue
 		}
 		for _, k := range sw.KevKeys {
-			if NormalizeKevKey(k) == key {
+			if productid.NormalizeKey(k) == key {
 				scoped[sw.ID] = sw
 			}
 		}

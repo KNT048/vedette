@@ -111,7 +111,7 @@ func (s *Service) Ingest(ctx context.Context, lines []Line) (IngestResult, error
 		return res, nil
 	}
 	sigs := s.tally(known, senders, keep, s.neverCounted(ctx))
-	hits := s.matchIOC(ctx, sigs.conns, names) // before the transaction: the writer is not held while the feeds are read
+	hits, _ := s.matchIOC(ctx, sigs.conns, names) // before the transaction: the writer is not held while the feeds are read
 	var stored int64
 	var fresh []iocRow
 	err = s.cfg.Volume.Write(ctx, func(tx *sql.Tx) error {

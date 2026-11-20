@@ -204,6 +204,8 @@ type fakeBackend struct {
 	progress func(ctx context.Context, id string, p *sensorlink.JobProgress) error
 	// running says which jobs are running; nil means every job is.
 	running func(id string) bool
+	// meta receives the mirror-port metadata; nil accepts it.
+	meta func(ctx context.Context, r *sensorlink.MetadataRequest) error
 }
 
 func (b *fakeBackend) JobRunning(id string) bool {
@@ -262,6 +264,14 @@ func (b *fakeBackend) JobResult(ctx context.Context, id string, r *sensorlink.Jo
 	b.called("result")
 	if b.result != nil {
 		return b.result(ctx, id, r)
+	}
+	return nil
+}
+
+func (b *fakeBackend) Metadata(ctx context.Context, r *sensorlink.MetadataRequest) error {
+	b.called("metadata")
+	if b.meta != nil {
+		return b.meta(ctx, r)
 	}
 	return nil
 }

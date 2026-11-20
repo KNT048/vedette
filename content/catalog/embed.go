@@ -6,7 +6,7 @@
 //     stand-in until feeds (WP-20) supplies the live list through inventory.KEV.
 package catalogdata
 
-import _ "embed"
+import "embed"
 
 // Curated is curated.json.
 //
@@ -18,15 +18,12 @@ var Curated []byte
 //go:embed kev-products.json
 var KEVProducts []byte
 
-// NVDCPE is nvd-cpe.json: the NVD CPE products of an inventory vendor|product, read by findings.
+// Products is products/*.json, the product catalogue: per product the names each source gives it (package and program names,
+// the CPE nmap prints), its NVD CPE products, its exploited-list keys, version scheme, release trains and runtime family. Read
+// only by core/productid.
 //
-//go:embed nvd-cpe.json
-var NVDCPE []byte
-
-// NmapCPE maps a CPE nmap -sV prints to the NVD CPE products of the same software (cmd/vedette exposurematch.go).
-//
-//go:embed nmap-cpe.json
-var NmapCPE []byte
+//go:embed products/*.json
+var Products embed.FS
 
 // PlatformLimits is platform-limits.json: exploited CVEs that affect a product only on some platforms, read by findings.
 //

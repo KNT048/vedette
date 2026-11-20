@@ -1,23 +1,30 @@
 import { useQuery } from '@tanstack/react-query'
 import type { z } from 'zod'
 import { api } from '@/lib/api'
-import type { HomeSummary } from '@/features/findings/types'
+import type { Overview } from '@/features/findings/types'
+import { OPEN_FINDING_STATUSES } from '@/lib/statusCodes'
 import type { Scanning } from '@/features/scanning/contract'
 
-export const KEY = ['findings', 'summary'] as const
+/** The one overview read of the findings model, shared with the nav badges (app/nav.ts). */
+export const KEY = ['findings', 'model', 'overview'] as const
 
 /**
- * Home's one read (#825, INV-23): the cached `GET /findings/summary` under the query key the shell's nav badges share (app/nav.ts). The
- * shell is the one poller (every 60 s, paused in a hidden tab, stopped on error); Home only subscribes: a second timer would ask twice a
- * minute. `staleTime` matches the box's 60 s cache, so going back to Home asks nothing new. Finding changes invalidate the key
- * (findings/api.ts useWrite, useBulkStatus), so the page is fresh after a status change.
+ * Home's one read: `GET /findings/overview`, computed on the box by the same status function as the Findings screen's lists, so
+ * Home's counts are that screen's counts. The shell is the one poller (every 60 s, paused in a hidden tab, stopped on error); Home
+ * only subscribes. A finding change invalidates every `findings` read (findings/api.ts), so the page is fresh after one.
  */
 export function useHome(enabled: boolean) {
-  return useQuery({ queryKey: KEY, queryFn: () => api.get<HomeSummary>('/findings/summary'), enabled, staleTime: 60_000, retry: false })
+  return useQuery({ queryKey: KEY, queryFn: () => api.get<Overview>('/findings/overview'), enabled, staleTime: 60_000, retry: false })
 }
 
 /** A box with no device but itself and nothing open: Home shows the first-run path instead of tiles of zeros. */
-export const isFirstRun = (s: HomeSummary) => s.devices.total <= 1 && s.open.total === 0
+export const isFirstRun = (o: Overview) => o.devices.total <= 1 && o.open.findings === 0
+
+/** Devices with an open finding: each is counted once, under its most urgent status (needs_input is a question, not a finding). */
+export const affectedDevices = (o: Overview) => OPEN_FINDING_STATUSES.reduce((n, s) => n + o.devices.by_status[s], 0)
+
+/** Devices whose most urgent finding is one attackers use: under attack here, or exploited in the wild. */
+export const exploitedDevices = (o: Overview) => o.devices.by_status.under_attack + o.devices.by_status.exploited
 
 export const SCANNING_KEY = ['scanning'] as const
 

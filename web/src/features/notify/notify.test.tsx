@@ -364,7 +364,7 @@ describe('notify: why not sent, bulk acknowledge and resolve (S-ALERT-3)', () =>
   it('select all shown, Resolve with one note: one audit row per incident, the list empties', async () => {
     renderApp('/incidents')
     await screen.findByRole('table', { name: 'Incidents' })
-    // The nav badge counts the open high and critical incidents (GET /findings/summary)
+    // The nav badge counts the open high and critical incidents (GET /findings/overview)
     expect(await mainNavLink(/^Incidents \d+ high or critical open$/)).toBeInTheDocument()
     await userEvent.click(screen.getByRole('checkbox', { name: 'Select all 4 incidents on this page' }))
     const bar = screen.getByRole('region', { name: 'Selected incidents' })

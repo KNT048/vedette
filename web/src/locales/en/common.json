@@ -319,7 +319,7 @@
     "breadcrumb": "Breadcrumb",
     "version": "Version",
     "badge": {
-      "findings": "confirmed to handle",
+      "findings": "urgent to handle",
       "incidents": "high or critical open"
     },
     "groupWaiting": "waiting: {{parts}}",

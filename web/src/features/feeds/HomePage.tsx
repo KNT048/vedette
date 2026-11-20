@@ -17,7 +17,7 @@ import { ApiError } from '@/lib/api'
 import { useAnswerWeekly, useFeedStatus, useHot, useWeekly } from './api'
 import { YouHaveCell } from './YouHaveCell'
 import { HomeDashboard } from './HomeDashboard'
-import { isFirstRun, useHome } from './homeSummary'
+import { affectedDevices, exploitedDevices, isFirstRun, useHome } from './homeSummary'
 import { useModuleEnabled } from '@/lib/modules'
 import { TwoStepPrompt } from '@/features/core/TwoStepPrompt'
 import { AlertChannelPrompt } from '@/features/core/AlertChannelPrompt'
@@ -222,8 +222,8 @@ export default function HomePage() {
   const matched = rows.filter((r) => r.you_have === 'yes').length
   const { never, notice: kevTitle, noClaim } = useKevNotice()
   const s = summary.data
-  // #825: with findings on, the headline answers "is anything I run being exploited?" from the summary; the week's new CVEs are the board below.
-  const answer = s ? (isFirstRun(s) ? t('home.titleFirstRun') : s.open.total ? t('home.titleOpen', { count: s.open.devices }) : t('home.titleClear')) : null
+  // With findings on, the headline answers "is anything I run being exploited?" from the findings overview; the week's new CVEs are the board below.
+  const answer = s ? (isFirstRun(s) ? t('home.titleFirstRun') : exploitedDevices(s) ? t('home.titleOpen', { count: exploitedDevices(s) }) : s.open.findings ? t('home.titleUpdates', { count: affectedDevices(s) }) : t('home.titleClear')) : null
   const loading = !hot.data || (findingsOn === true && summary.isPending)
   const title = loading ? t('home.titleLoading') : kevTitle ? kevTitle : never ? t('home.titleNone') : answer ? answer : status.data?.inventory_on === false ? t('home.titleNoInv', { count: cves }) : t('home.title', { count: cves, matched })
   return (

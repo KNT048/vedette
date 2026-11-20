@@ -29163,16 +29163,13 @@ func (s *Server) handleInventoryGetInventoryDevicesIDRequest(args [1]string, arg
 	}
 }
 
-// handleInventoryGetInventoryDevicesIDSoftwareRequest handles inventory_get_inventory_devices_id_software operation.
+// handleInventoryGetInventoryDevicesIDSourcesRequest handles inventory_get_inventory_devices_id_sources operation.
 //
-// The device's software as one row per software (INV-50): same vendor and product (or CPE application)
-// from several sources is one row, with the values of the strongest source (agent, then a person's
-// entry, then SNMP, then a scan banner). A weaker reading that is only a less precise form of the same
-// release is the same release. Each row lists the other sources (also_seen) and says whether one reads
-// another release (differs). 404 not_found.
+// The device's sources as three rows (network scan, SNMP, agent): each with its state, colour, last
+// time it read the device, switch and one button, decided on the server. 404 not_found.
 //
-// GET /inventory/devices/{id}/software
-func (s *Server) handleInventoryGetInventoryDevicesIDSoftwareRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+// GET /inventory/devices/{id}/sources
+func (s *Server) handleInventoryGetInventoryDevicesIDSourcesRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
 	w = statusWriter
 	ctx := r.Context()
@@ -29180,15 +29177,15 @@ func (s *Server) handleInventoryGetInventoryDevicesIDSoftwareRequest(args [1]str
 	var (
 		err          error
 		opErrContext = ogenerrors.OperationContext{
-			Name: InventoryGetInventoryDevicesIDSoftwareOperation,
-			ID:   "inventory_get_inventory_devices_id_software",
+			Name: InventoryGetInventoryDevicesIDSourcesOperation,
+			ID:   "inventory_get_inventory_devices_id_sources",
 		}
 	)
 	{
 		type bitset = [1]uint8
 		var satisfied bitset
 		{
-			sctx, ok, err := s.securitySession(ctx, InventoryGetInventoryDevicesIDSoftwareOperation, r)
+			sctx, ok, err := s.securitySession(ctx, InventoryGetInventoryDevicesIDSourcesOperation, r)
 			if err != nil {
 				err = &ogenerrors.SecurityError{
 					OperationContext: opErrContext,
@@ -29230,7 +29227,7 @@ func (s *Server) handleInventoryGetInventoryDevicesIDSoftwareRequest(args [1]str
 			return
 		}
 	}
-	params, err := decodeInventoryGetInventoryDevicesIDSoftwareParams(args, argsEscaped, r)
+	params, err := decodeInventoryGetInventoryDevicesIDSourcesParams(args, argsEscaped, r)
 	if err != nil {
 		err = &ogenerrors.DecodeParamsError{
 			OperationContext: opErrContext,
@@ -29243,13 +29240,13 @@ func (s *Server) handleInventoryGetInventoryDevicesIDSoftwareRequest(args [1]str
 
 	var rawBody []byte
 
-	var response *InventoryGetInventoryDevicesIDSoftwareOK
+	var response *InventoryGetInventoryDevicesIDSourcesOK
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
-			OperationName:    InventoryGetInventoryDevicesIDSoftwareOperation,
-			OperationSummary: "The device's software as one row per software (INV-50): same vendor and product (or CPE application) from several sources is one row, with the values of the strongest source (agent, then a person's entry, then SNMP, then a scan banner). A weaker reading that is only a less precise form of the same release is the same release. Each row lists the other sources (also_seen) and says whether one reads another release (differs). 404 not_found",
-			OperationID:      "inventory_get_inventory_devices_id_software",
+			OperationName:    InventoryGetInventoryDevicesIDSourcesOperation,
+			OperationSummary: "The device's sources as three rows (network scan, SNMP, agent): each with its state, colour, last time it read the device, switch and one button, decided on the server. 404 not_found",
+			OperationID:      "inventory_get_inventory_devices_id_sources",
 			Body:             nil,
 			RawBody:          rawBody,
 			Params: middleware.Parameters{
@@ -29263,8 +29260,8 @@ func (s *Server) handleInventoryGetInventoryDevicesIDSoftwareRequest(args [1]str
 
 		type (
 			Request  = struct{}
-			Params   = InventoryGetInventoryDevicesIDSoftwareParams
-			Response = *InventoryGetInventoryDevicesIDSoftwareOK
+			Params   = InventoryGetInventoryDevicesIDSourcesParams
+			Response = *InventoryGetInventoryDevicesIDSourcesOK
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -29273,14 +29270,14 @@ func (s *Server) handleInventoryGetInventoryDevicesIDSoftwareRequest(args [1]str
 		](
 			m,
 			mreq,
-			unpackInventoryGetInventoryDevicesIDSoftwareParams,
+			unpackInventoryGetInventoryDevicesIDSourcesParams,
 			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.InventoryGetInventoryDevicesIDSoftware(ctx, params)
+				response, err = s.h.InventoryGetInventoryDevicesIDSources(ctx, params)
 				return response, err
 			},
 		)
 	} else {
-		response, err = s.h.InventoryGetInventoryDevicesIDSoftware(ctx, params)
+		response, err = s.h.InventoryGetInventoryDevicesIDSources(ctx, params)
 	}
 	if err != nil {
 		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
@@ -29299,7 +29296,7 @@ func (s *Server) handleInventoryGetInventoryDevicesIDSoftwareRequest(args [1]str
 		return
 	}
 
-	if err := encodeInventoryGetInventoryDevicesIDSoftwareResponse(response, w); err != nil {
+	if err := encodeInventoryGetInventoryDevicesIDSourcesResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

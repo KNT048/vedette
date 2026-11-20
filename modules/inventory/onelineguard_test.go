@@ -16,7 +16,8 @@ import (
 // the line is decided or shown as such: the resolver and the write paths that run it (a function that takes the write transaction),
 // the matcher's input (MatchInput: an older second install is matched too), the line read model (softwareline.go: the other readings
 // of a line, a person's entry), the self-check, and the export classification of every column. A reader anywhere else would rebuild
-// "which version does this device run" its own way. The guard counts such declarations in every Go file of the repository.
+// "which version does this device run" its own way, and so would a reader that lists a device's software from the matcher's input
+// (MatchInput) instead of the line. The guard counts such declarations in every Go file of the repository.
 func TestGuard_SoftwareReadingsAreReadOnlyThroughTheLine(t *testing.T) {
 	t.Parallel()
 	root := filepath.Join("..", "..")
@@ -54,7 +55,7 @@ func TestGuard_SoftwareReadingsAreReadOnlyThroughTheLine(t *testing.T) {
 		}
 		for _, decl := range f.Decls {
 			name, tx := declName(decl)
-			if readsReadings(decl, tx) && !allowed[rel+":"+name] {
+			if readsReadings(decl, tx) && !allowed[rel+":"+name] || callsMatchInput(decl) && !matcherAdapter(rel, name) {
 				bad = append(bad, rel+":"+name)
 			}
 		}
@@ -64,10 +65,30 @@ func TestGuard_SoftwareReadingsAreReadOnlyThroughTheLine(t *testing.T) {
 		t.Fatal(err)
 	}
 	slices.Sort(bad)
-	t.Logf("readers of inv_software_reading outside the line: %d %v", len(bad), bad)
+	t.Logf("readers of inv_software_reading or of the matcher's input outside the line: %d %v", len(bad), bad)
 	if len(bad) > 0 {
 		t.Fatalf("read the software line (softwareline.go, MatchInput) instead of the readings: %v", bad)
 	}
+}
+
+// callsMatchInput says whether a declaration calls MatchInput: the matcher's input (each line's effective reading and every other
+// reading matching keeps), never a list of what the device runs.
+func callsMatchInput(decl ast.Decl) bool {
+	found := false
+	ast.Inspect(decl, func(n ast.Node) bool {
+		if sel, ok := n.(*ast.SelectorExpr); ok && sel.Sel.Name == "MatchInput" {
+			found = true
+		}
+		return !found
+	})
+	return found
+}
+
+// matcherAdapter says whether a declaration may call MatchInput: the inventory itself (the declared OS asks the matcher's rule), the
+// findings adapter of the wiring, and the report's fixes (the matcher's own fix rules over its input).
+func matcherAdapter(rel, name string) bool {
+	return strings.HasPrefix(rel, "modules/inventory/") || strings.HasPrefix(rel, "modules/findings/") || rel == "cmd/vedette/wiring.go" ||
+		rel == "cmd/vedette/reports.go" && name == "Fixes"
 }
 
 // readsReadings says whether a declaration holds a string that names the readings table outside a function that takes the write

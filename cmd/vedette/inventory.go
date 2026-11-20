@@ -45,7 +45,7 @@ func newInventory(d *deps) *inventory.Service {
 	}
 	cfg := inventory.Config{Zone: orgTimeZone(d), DB: d.DB, Audit: d.Audit, Modules: d.Reg, Clock: d.Clock, Log: d.Log, Events: pub, KEV: feedsKEV{d}, BoxOwnedIPs: owned,
 		Findings: findingCounts{d}, Risk: findingCounts{d}, WazuhAgents: wazuhAgents{d}.addresses, DeclaredOS: declaredOS, OSVersion: findings.OSVersion,
-		Lifecycle: d.Lifecycle}
+		SNMPOf: sourceFacts{d}.snmp, AgentOf: sourceFacts{d}.agent, Lifecycle: d.Lifecycle}
 	// The box's own MACs (its cards and the decoys' macvlan links): a foreign MAC on a decoy address is a device (WP-31 M7). Without a
 	// host there is no decoy on the wire, and the MACs stay unknown, so nothing changes.
 	if d.HostSocket != "" {
@@ -281,4 +281,32 @@ func (g *gatewayCache) Get(ctx context.Context) netip.Addr {
 		}
 	}
 	return g.ip
+}
+
+// sourceFacts are inventory.Config.SNMPOf and AgentOf: what sensor-active says of a device's SNMP and agent-intake of the agent that
+// reads it, for the device's source rows (GET /inventory/devices/{id}/sources). Both are built after the inventory, so they are asked
+// when needed; the inventory says "module off" itself before it asks.
+type sourceFacts struct{ d *deps }
+
+func (f sourceFacts) snmp(ctx context.Context, id string) (inventory.SNMPFact, error) {
+	sa, err := sensorActiveService(ctx, *f.d)
+	if err != nil {
+		return inventory.SNMPFact{}, err
+	}
+	s, err := sa.SNMPDeviceOf(ctx, id)
+	if err != nil {
+		return inventory.SNMPFact{}, err
+	}
+	return inventory.SNMPFact{State: s.State, LastAnswerAt: s.LastAnswerAt}, nil
+}
+
+func (f sourceFacts) agent(ctx context.Context, id string) (inventory.AgentFact, error) {
+	if f.d.AgentIntake == nil {
+		return inventory.AgentFact{}, errors.New("agent-intake is not built")
+	}
+	r, err := f.d.AgentIntake.ReportState(ctx, id)
+	if err != nil {
+		return inventory.AgentFact{}, err
+	}
+	return inventory.AgentFact{Agent: r.Agent, State: r.State, LastSeen: r.LastSeen}, nil
 }

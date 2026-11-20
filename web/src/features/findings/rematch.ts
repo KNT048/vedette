@@ -2,7 +2,7 @@
 // until the re-match (inventory.match.changed on the event bus) shows, and say what it closed.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { DeviceDetail, SoftwareView } from '@/features/inventory/types'
+import type { DeviceDetail, SoftwareLine } from '@/features/inventory/types'
 import { isOpen } from './basis'
 import type { FindingRow, UncheckedItem, VersionNeeded } from './types'
 
@@ -19,7 +19,7 @@ export const useDeviceSoftware = (assetId: string | undefined) =>
   })
 
 /** The software a CVE was matched to: the rows whose KEV keys give it. Empty when none does (an alias or CPE match). */
-export const softwareFor = (sw: SoftwareView[] | undefined, cve: string) => (sw ?? []).filter((s) => s.kev_cves.includes(cve))
+export const softwareFor = (sw: SoftwareLine[] | undefined, cve: string) => (sw ?? []).filter((s) => s.kev_cves.includes(cve))
 
 export type Outcome = { settled: boolean; closed: number; still: number }
 

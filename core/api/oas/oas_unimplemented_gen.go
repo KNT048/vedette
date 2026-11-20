@@ -2165,16 +2165,13 @@ func (UnimplementedHandler) InventoryGetInventoryDevicesID(ctx context.Context, 
 	return r, ht.ErrNotImplemented
 }
 
-// InventoryGetInventoryDevicesIDSoftware implements inventory_get_inventory_devices_id_software operation.
+// InventoryGetInventoryDevicesIDSources implements inventory_get_inventory_devices_id_sources operation.
 //
-// The device's software as one row per software (INV-50): same vendor and product (or CPE application)
-// from several sources is one row, with the values of the strongest source (agent, then a person's
-// entry, then SNMP, then a scan banner). A weaker reading that is only a less precise form of the same
-// release is the same release. Each row lists the other sources (also_seen) and says whether one reads
-// another release (differs). 404 not_found.
+// The device's sources as three rows (network scan, SNMP, agent): each with its state, colour, last
+// time it read the device, switch and one button, decided on the server. 404 not_found.
 //
-// GET /inventory/devices/{id}/software
-func (UnimplementedHandler) InventoryGetInventoryDevicesIDSoftware(ctx context.Context, params InventoryGetInventoryDevicesIDSoftwareParams) (r *InventoryGetInventoryDevicesIDSoftwareOK, _ error) {
+// GET /inventory/devices/{id}/sources
+func (UnimplementedHandler) InventoryGetInventoryDevicesIDSources(ctx context.Context, params InventoryGetInventoryDevicesIDSourcesParams) (r *InventoryGetInventoryDevicesIDSourcesOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

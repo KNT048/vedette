@@ -173,7 +173,7 @@ func TestSoftwareLine_Fixture_SameVersionOnEverySurface(t *testing.T) {
 			}
 		}
 		for _, sw := range strings.Split(rest, "; ") {
-			if sw != "" && !strings.HasSuffix(sw, " (not installed)") {
+			if sw != "" && !strings.HasSuffix(sw, inventory.NotInstalledMark) {
 				add("export", id, sw)
 			}
 		}

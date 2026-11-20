@@ -220,7 +220,7 @@ const (
 	InventoryGetInventoryCatalogOperation                    OperationName = "InventoryGetInventoryCatalog"
 	InventoryGetInventoryDevicesOperation                    OperationName = "InventoryGetInventoryDevices"
 	InventoryGetInventoryDevicesIDOperation                  OperationName = "InventoryGetInventoryDevicesID"
-	InventoryGetInventoryDevicesIDSoftwareOperation          OperationName = "InventoryGetInventoryDevicesIDSoftware"
+	InventoryGetInventoryDevicesIDSourcesOperation           OperationName = "InventoryGetInventoryDevicesIDSources"
 	InventoryGetInventoryExportCsvOperation                  OperationName = "InventoryGetInventoryExportCsv"
 	InventoryGetInventoryImportTemplateCsvOperation          OperationName = "InventoryGetInventoryImportTemplateCsv"
 	InventoryGetInventoryPossibleSameOperation               OperationName = "InventoryGetInventoryPossibleSame"

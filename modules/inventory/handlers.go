@@ -130,6 +130,15 @@ func (h *Handlers) InventoryPatchInventoryDevicesID(ctx context.Context, req *oa
 	return &oas.InventoryPatchInventoryDevicesIDOK{Ok: true}, nil
 }
 
+// InventoryGetInventoryDevicesIDSources implements GET /inventory/devices/{id}/sources (viewer): the device's three source rows.
+func (h *Handlers) InventoryGetInventoryDevicesIDSources(ctx context.Context, params oas.InventoryGetInventoryDevicesIDSourcesParams) (*oas.InventoryGetInventoryDevicesIDSourcesOK, error) {
+	v, err := h.svc.DeviceSources(ctx, params.ID)
+	if err != nil {
+		return nil, fail(err)
+	}
+	return convert[oas.InventoryGetInventoryDevicesIDSourcesOK](v)
+}
+
 // InventoryPutInventoryDevicesIDSources implements PUT /inventory/devices/{id}/sources (admin).
 func (h *Handlers) InventoryPutInventoryDevicesIDSources(ctx context.Context, req *oas.InventoryPutInventoryDevicesIDSourcesReq, params oas.InventoryPutInventoryDevicesIDSourcesParams) (*oas.InventoryPutInventoryDevicesIDSourcesOK, error) {
 	who, err := actor(ctx)

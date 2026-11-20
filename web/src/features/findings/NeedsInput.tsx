@@ -119,9 +119,8 @@ function SavedEntry({ s, onChange, onDismiss }: { s: Saved; onChange: (s: Saved)
   const act = useDeviceAction(s.assetId)
   const sw = useDeviceSoftware(s.assetId).data?.asset.software
   const row = sw?.find((x) => x.id === s.sid)
-  const carrier = sw?.find((x) => x.id === row?.corrected_by) ?? row // the row that carries the entry: the correction of a reported row
-  const rowIds = [s.sid, row?.corrected_by].filter((x): x is string => !!x)
-  const entered = [s.value, carrier?.pkg_version, carrier?.version].filter((x): x is string => !!x)
+  const rowIds = [s.sid] // the line carries the person's entry itself
+  const entered = [s.value, row?.pkg_version, row?.version].filter((x): x is string => !!x)
   const id = useId()
   const [editing, setEditing] = useState(false)
   const [value, setValue] = useState(s.value)

@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"database/sql"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -93,7 +92,7 @@ func TestSoftwareLine_Fixture_SameVersionOnEverySurface(t *testing.T) {
 			v, p := r.Version, r.PkgVersion
 			e.Version, e.PkgVersion = &v, &p
 		}
-		if err := s.d.Inventory.EditSoftware(ctx, "person@example.com", r.Asset, line, e); err != nil && err != sql.ErrNoRows {
+		if err := s.d.Inventory.EditSoftware(ctx, "person@example.com", r.Asset, line, e); err != nil {
 			t.Fatalf("%+v: %v", r, err)
 		}
 	}
@@ -129,6 +128,10 @@ func TestSoftwareLine_Fixture_SameVersionOnEverySurface(t *testing.T) {
 				add("list", id, text(at(sw, "display").(string), at(sw, "version")))
 			}
 		}
+	}
+	// the device page's source rows come from the server, through the real wiring
+	if code, v := s.do("GET", "/inventory/devices/"+f.Devices[0].ID+"/sources", "viewer", ""); code != 200 || len(at(v, "rows").([]any)) != 3 {
+		t.Fatalf("sources: %d %v", code, v)
 	}
 	for _, d := range f.Devices {
 		code, page := s.do("GET", "/inventory/devices/"+d.ID, "viewer", "")

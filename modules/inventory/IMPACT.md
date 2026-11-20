@@ -29,7 +29,7 @@
 - **findings** reads them only through `MatchInput`: one row per present line (its effective reading, the line's id; `Correction`/`ReportedSource` when a person's entry is the value), then the other readings that feed matching (same id, `Key` = line, source and instance); `NotInstalled` holds the lines a person marked. `Superseded` and `StaleCorrections` are empty. A finding's `software_id` survives a version move.
 - **agent-intake, sensor-active, the box** send lists through `ReplaceSoftware(hint, source, scope, items)`: agents name themselves (`observe.Osquery`, `observe.Wazuh`, `observe.Box`); a sensor may pass a scope of instances to replace only those (`observe.Software.Instance`).
 - **core/productid** decides the product and train of a line and its match keys: a change of a product's key, keys or train rule re-keys lines only for new readings (no re-resolve pass yet); `TestMatchKeys_KeepEveryKeyASourceGives` fails when a key a source gives would be lost.
-- **Web**: the API shapes are unchanged (`Software`, `SoftwareView` with `correction`, `EffectiveSoftware`); a device now lists one row per line, so the browser-side merge has nothing left to merge.
+- **Web**: the device detail's `software` is `SoftwareLine` (one row per line, built on the server with `also_seen`, `differs`, `correction`); the list's `Software` says `not_installed`. Nothing merges software in the browser.
 - **Export** (`modules/core/export_policy.go`) classifies the three tables and `inv_asset.agent_source`.
 - **Self-check**: the three software-line rules in `selfcheck.go`; the fixture tests (`lines_fixture_test.go`, testdata/software_lines.json) count the class.
 
@@ -231,8 +231,12 @@
 ## Modifying: `AssetHint.Device` in `Record`/`resolve` (INV-43), `SNMPKnown`
 - **sensor-active** records every SNMP answer with `observe.AssetHint{Device: id}` (`snmpObservations`): letting such a hint find a device by address, create one or run the join rules would attribute a management address's answer to whatever sits there (a firewall read at 100.65.253.1). `SNMPKnown` feeds the one-time move of the old SNMP credentials (`snmp_move.go`): changing what it lists changes which devices get a copy of a secret. `SetSources` is called by sensor-active's `TurnSNMPOn` when a person saves a device's SNMP (adapter `cmd/vedette/sensoractive.go`).
 
-## Modifying: the effective software row (`softwaregroup.go`, `EffectiveSoftware`, `core/pkgrel`, INV-50)
-- **One reading**: findings (`findings.Inventory.EffectiveSoftware`, adapter `cmd/vedette` `findingsInventory`), reports, the AI context and the device page's Software tab read the device's software here; do not add a second per-source pick. A new source, or a change of the source order, changes `softwareRank`.
+## Modifying: the one software line (`softwareline.go`, `SoftwareLine`, `Device.Running`, `core/pkgrel`, INV-50)
+- **One reading**: findings (`findings.Inventory.EffectiveSoftware`, adapter `cmd/vedette` `findingsInventory` over `Service.SoftwareLines`), the Devices list and export (`loadSoftware`), the device page (`Detail`), reports, the assistant and MCP (`Device.Running`) read the device's software here; do not add a second per-source pick or read `inv_software_reading` elsewhere (`TestGuard_SoftwareReadingsAreReadOnlyThroughTheLine`). A new source, or a change of the source order, changes `readingRank` (resolve.go).
 - **Release comparison** is `core/pkgrel.Same` (uses `core/apkver`); a package form it does not know is compared as written.
-- **Web**: the device Software tab (`DevicePage.tsx` `SoftwareList`, `softwareLines`, `AlsoSeenLine`; `useEffectiveSoftware`) draws one line per effective row with the other sources under it, and the one notice only when `differs`; any row the effective answer does not cover (a "not installed" mark, a resting correction) stays a line of its own.
-- **API**: `GET /inventory/devices/{id}/software` (`contract.ts` `EffectiveSoftware`, `AlsoSeen`; `api/route-modules.json`; mock in `features/inventory/mocks.ts`).
+- **Web**: the device Software tab (`DevicePage.tsx` `SoftwareList`, `AlsoSeenLine`) draws the lines as given, the other readings under each, and the one notice only when `differs`; findings' entry outcome (`EnteredRelease.tsx`) reads the same lines from the device detail.
+- **API**: `GET /inventory/devices/{id}` `asset.software` (`contract.ts` `SoftwareLine`, `AlsoSeen`, `CorrectedFrom`; mock `linesOf` in `features/inventory/mocks.ts`).
+
+## Modifying: the device source rows (`devicesources.go`, `DeviceSources`, `Config.SNMPOf`, `Config.AgentOf`, INV-55)
+- **sensor-active** answers `SNMPOf` with `SNMPDeviceOf` (state, last answer); **agent-intake** answers `AgentOf` with `ReportState` (which agent, its state, its last call); the adapters are `cmd/vedette/inventory.go` `sourceFacts`. A change of either module's states changes the row states here and the contract's `SourceRowState`.
+- **Web**: `GET /inventory/devices/{id}/sources` (`contract.ts` `DeviceSourcesView`, `DeviceSourceRow`; `api.ts` `useDeviceSourceRows`; mock `sourceRowsOf`); the device page draws the rows as given (state, dot, last time, switch, button).

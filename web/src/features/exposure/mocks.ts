@@ -557,6 +557,28 @@ function linkChild(parentId: string | null, child: { id: string; value: string }
   treeRows.update((r) => ({ ...r, hosts: { ...r.hosts, [parentId]: (r.hosts[parentId] ?? []).map((h) => (h.name === name ? { ...h, child } : h)) } }))
 }
 
+/** Shodan's answer about a node's IP beside the open services of the node (the target tree). */
+function outsideNodeView(id: string): OutsideView | null {
+  const o = outside.get()[id]
+  if (!o) return null
+  const rows = treeRows.get()
+  const open = (rows.services[id] ?? []).filter((x) => x.state === 'open' && x.ip === o.ip)
+  const last = rows.scans.filter((x) => x.target_id === id && x.started_at).sort((a, b) => b.queued_at.localeCompare(a.queued_at))[0]
+  return { ...o, scan_ports: last ? [...new Set(open.map((x) => x.port))].sort((a, b) => a - b) : null, scan_at: last?.started_at ?? null }
+}
+
+/** An administrator's click sends a node's proven IP to Shodan InternetDB (at most once a minute on the box). */
+function outsideNodeAsk(n: StoredNode) {
+  if (n.kind !== 'ip') return fail(400, 'bad_value', 'Only a public IP of this box can be checked with Shodan, not a domain.')
+  if (nodeProof(n, tree.get()).state !== 'proven') return fail(409, 'not_verified', `${n.value} has no ownership proof now, so it cannot be checked with Shodan.`)
+  if (Date.now() - outsideAskedMs < 60_000) return fail(429, 'rate_limited', 'The box asked Shodan less than a minute ago. Try again in a minute: it asks at most once a minute.')
+  outsideAskedMs = Date.now()
+  const a = outsideAnswer(n.value)
+  outside.update((m) => ({ ...m, [n.id]: { ip: n.value, checked_at: nowIso(), checked_by: currentUser()?.email ?? '', ...a } }))
+  audit('exposure.outside_view', n.value, a.found ? `sent to internetdb.shodan.io; Shodan lists ${a.ports.length} ports and ${a.vulns.length} CVEs` : 'sent to internetdb.shodan.io; Shodan has no record of it')
+  return HttpResponse.json(outsideNodeView(n.id))
+}
+
 const treeHandlers = [
   http.get(`${API}/exposure/tree`, () => {
     const denied = guard('viewer'); if (denied) return denied
@@ -792,6 +814,23 @@ const treeHandlers = [
     return HttpResponse.json({ reopened, skipped: ids.size - reopened })
   }),
 ]
+
+// Stopping a scan of the tree goes through the shared runs. A run id that is not a scan of the tree falls through to the
+// shared runs mock (no answer here).
+treeHandlers.push(http.post(`${API}/runs/:id/stop`, ({ params }) => {
+  const s = treeRows.get().scans.find((x) => x.run_id === params.id)
+  if (!s) return undefined
+  const denied = guard('operator'); if (denied) return denied
+  if (!LIVE.includes(s.status)) return fail(409, 'not_running', 'This run has already ended, so there is nothing to stop.')
+  const by = currentUser()?.email ?? 'system'
+  const at = nowIso()
+  const stopped: Scan = { ...s, status: 'stopped', stop_reason: `Stopped by ${by}`, waiting_for: null, ended_at: at }
+  treeRows.update((r) => ({ ...r, scans: r.scans.map((x) => (x.run_id === s.run_id ? stopped : x)) }))
+  audit('scanning.run_stop', nodeOf(s.target_id)?.value ?? s.target_id, stopped.stop_reason ?? '')
+  return HttpResponse.json({ id: s.run_id, module: 'exposure', kind: 'exposure_scan', lane: 'exposure', title: `Exposure scan of ${nodeOf(s.target_id)?.value ?? s.target_id}`,
+    trigger: s.trigger, trigger_note: null, requested_by: s.requested_by, schedule_id: null, subject: null, parent_id: null, status: 'stopped', waiting_for: null,
+    stop_reason: stopped.stop_reason, error: null, total: 0, done: 0, queued_at: s.queued_at, started_at: s.started_at, ended_at: at, updated_at: at, can_stop: false, can_resume: false })
+}))
 
 function issueIdsOf(v: unknown): Set<string> | null {
   if (!Array.isArray(v) || v.length < 1 || v.length > MAX_ISSUE_IDS || v.some((x) => typeof x !== 'string')) return null
@@ -1093,7 +1132,7 @@ export const handlers = [
   // What the Internet sees: reading sends nothing.
   http.get(`${API}/exposure/targets/:id/outside`, ({ params }) => {
     const denied = guard('viewer'); if (denied) return denied
-    if (!find(params.id)) return notFound()
+    if (!find(params.id)) return nodeOf(params.id) ? HttpResponse.json(outsideNodeView(String(params.id))) : notFound()
     return HttpResponse.json(outsideView(String(params.id)))
   }),
 
@@ -1101,7 +1140,7 @@ export const handlers = [
   http.post(`${API}/exposure/targets/:id/outside`, ({ params }) => {
     const denied = guard('admin'); if (denied) return denied
     const t = find(params.id)
-    if (!t) return notFound()
+    if (!t) return nodeOf(params.id) ? outsideNodeAsk(nodeOf(params.id)!) : notFound()
     if (t.kind !== 'ip') return fail(400, 'bad_value', 'Only a public IP of this box can be checked with Shodan, not a domain.')
     const v = view(t)
     if (v.status === 'unverified') return fail(409, 'not_verified', `${t.value} has no ownership proof, so it cannot be checked with Shodan. Finish verification first.`)

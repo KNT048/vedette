@@ -45,10 +45,9 @@ const (
 	recordLeftPerPull = 400
 	// recordDeltaEvery: the change log is read at most this often.
 	recordDeltaEvery = 12 * time.Hour
-	// recordLogKeep: the change log holds 30 days; data older than this loads the whole list again.
-	recordLogKeep = 29 * 24 * time.Hour
-	// recordArchiveKeep: the release files of a day stay published for about 4 days (100 hourly releases); an unfinished download
-	// older than this starts over with a newer day.
+	// recordArchiveKeep: the release files of a day stay published for about 4 days (the newest 100 hourly releases): data older than
+	// this loads the whole list again (the days of changes it would need are gone), and an unfinished download older than this starts
+	// over with a newer day.
 	recordArchiveKeep = 3 * 24 * time.Hour
 	// recordRescanUnread: when at least this many CVEs a list or signal names have no record (a new signal source named thousands of
 	// older CVEs), the whole list is read again, at most every recordRescanAgain; fewer are asked for by ID.
@@ -76,8 +75,8 @@ var (
 	recordRetryWaits = []time.Duration{6 * time.Second, 30 * time.Second}
 )
 
-// recordHosts are the hosts GitHub serves a repository's release files from (a release download redirects there).
-var recordHosts = []string{"release-assets.githubusercontent.com", "objects.githubusercontent.com"}
+// recordHosts is the host GitHub serves a repository's release files from (a release download redirects there; measured 2026-11-20).
+var recordHosts = []string{"release-assets.githubusercontent.com"}
 
 // recordSource is where a feed address reads from: the record files, the release files and the hosts a release download may redirect
 // to. The default address is GitHub's repository; any other address (a mirror) serves the same layout under itself.
@@ -152,8 +151,11 @@ func (s *Service) buildCVERecords(ctx context.Context, src sourceRow, p pullPlan
 	var errBulk error
 	if !urgentOnly(ctx) && errID == nil {
 		errBulk = s.recordsBulk(ctx, run, now)
-		if refused(errBulk) || errors.Is(errBulk, ErrFeedDisabled) {
+		if refused(errBulk) || errors.Is(errBulk, ErrFeedDisabled) || errors.Is(errBulk, errWorkFile) {
 			return p, errBulk
+		}
+		if errors.Is(errBulk, errRecordsLater) {
+			errBulk = nil // goes on at the next check: its note says so
 		}
 	}
 	failed := errors.Join(errID, errBulk)
@@ -206,10 +208,24 @@ func (r *recordRun) note(failed error) string {
 	for _, n := range r.notes {
 		t = strings.TrimSpace(t + " " + n)
 	}
-	if failed != nil && !errors.Is(failed, errRecordsLater) {
+	if failed != nil && nvdRetryable(failed) {
 		t = strings.TrimSpace(t + " The CVE Program's files stopped answering; Vedette goes on at the next check.")
 	}
 	return t
+}
+
+// errWorkFile is a failure to keep the daily archive on the box's disk: the pull fails with what to check, never as the source's fault.
+var errWorkFile = errors.New("feeds: the CVE records work file")
+
+// recordDiskMargin is the free space left over after the archive (the database and every other module share the disk); recordArchiveSize
+// is the archive's size when the source has not said it yet (669 MB in 2026, with room to grow).
+const (
+	recordDiskMargin  = 512 << 20
+	recordArchiveSize = 800 << 20
+)
+
+func diskError(err error) error {
+	return &Error{Err: fmt.Errorf("%w: %w", errWorkFile, err), Detail: "Vedette could not write the CVE Program's whole list to this box's disk. Check the free disk space; the records read before are kept."}
 }
 
 // errRecordsLater ends a part of the pull that goes on at the next check (its budget is spent); not a failure.
@@ -369,7 +385,7 @@ func (s *Service) recordsBulk(ctx context.Context, run *recordRun, now time.Time
 		return err
 	}
 	switch {
-	case cur == nil || cur.URL != run.src.URL || now.Sub(cur.Until) > recordLogKeep:
+	case cur == nil || cur.URL != run.src.URL || now.Sub(cur.Until) > recordArchiveKeep:
 		day := now.UTC().Truncate(24*time.Hour).AddDate(0, 0, -1)
 		return s.recordsWhole(ctx, run, recentCursor{URL: run.src.URL, Mode: modeFill, From: day, To: day, Until: day}, now)
 	case cur.Mode == modeFill:
@@ -404,7 +420,7 @@ func (s *Service) recordWorkDir() string {
 func (s *Service) recordsWhole(ctx context.Context, run *recordRun, cur recentCursor, now time.Time) error {
 	dir := s.recordWorkDir()
 	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return fmt.Errorf("feeds: CVE records work folder: %w", err)
+		return diskError(err)
 	}
 	name := cur.From.UTC().Format(time.DateOnly) + "_all.zip"
 	path := filepath.Join(dir, name)
@@ -475,16 +491,16 @@ func (s *Service) saveRecordCursor(ctx context.Context, run *recordRun, c recent
 func (s *Service) downloadArchive(ctx context.Context, run *recordRun, cur *recentCursor, path string) (done bool, err error) {
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0o600) //nolint:gosec // path is the module's own work file (recordWorkDir and a day's name)
 	if err != nil {
-		return false, fmt.Errorf("feeds: CVE records work file: %w", err)
+		return false, diskError(err)
 	}
 	defer func() {
 		if cerr := f.Close(); err == nil && cerr != nil {
-			err = fmt.Errorf("feeds: CVE records work file: %w", cerr)
+			err = diskError(cerr)
 		}
 	}()
 	info, err := f.Stat()
 	if err != nil {
-		return false, fmt.Errorf("feeds: CVE records work file: %w", err)
+		return false, diskError(err)
 	}
 	have := info.Size()
 	total := int64(cur.Total)
@@ -496,10 +512,26 @@ func (s *Service) downloadArchive(ctx context.Context, run *recordRun, cur *rece
 		have = 0 // not this archive's bytes
 	}
 	if err := f.Truncate(have); err != nil {
-		return false, fmt.Errorf("feeds: CVE records work file: %w", err)
+		return false, diskError(err)
 	}
 	if _, err := f.Seek(have, io.SeekStart); err != nil {
-		return false, fmt.Errorf("feeds: CVE records work file: %w", err)
+		return false, diskError(err)
+	}
+	want := int64(recordArchiveSize)
+	if total > 0 {
+		want = total
+	}
+	freeOf := func(dir string) (int64, bool) { n, err := store.DiskFree(dir); return n, err == nil }
+	if s.free != nil {
+		freeOf = s.free
+	}
+	if free, ok := freeOf(filepath.Dir(path)); ok && free < want-have+recordDiskMargin {
+		return false, &Error{Err: errWorkFile, Detail: fmt.Sprintf("Not enough free disk space to download the CVE Program's whole list: %s MB free, about %s MB needed. "+
+			"Vedette tries again later; the records read before are kept.", grouped(int(free>>20)), grouped(int((want-have+recordDiskMargin)>>20)))}
+	}
+	var wantTotal int64
+	if have > 0 {
+		wantTotal = total
 	}
 	dctx := ctx
 	if dl, ok := ctx.Deadline(); ok {
@@ -508,7 +540,7 @@ func (s *Service) downloadArchive(ctx context.Context, run *recordRun, cur *rece
 		defer cancel()
 	}
 	got := int64(0)
-	resp, err := s.Fetcher.Fetch(dctx, Request{URL: run.from.archiveURL(cur.From, true), MaxBytes: recordArchiveMax, From: have,
+	resp, err := s.Fetcher.Fetch(dctx, Request{URL: run.from.archiveURL(cur.From, true), MaxBytes: recordArchiveMax, From: have, WantTotal: wantTotal,
 		RedirectHosts: run.from.redirect, Stream: func(r io.Reader) error {
 			n, err := s.throttledCopy(dctx, f, r)
 			got = n
@@ -521,6 +553,14 @@ func (s *Service) downloadArchive(ctx context.Context, run *recordRun, cur *rece
 		cur.Total = int(resp.Total)
 	case resp != nil && resp.Total > 0: // a whole answer: its size is the archive's
 		cur.Total = int(resp.Total)
+	}
+	if errors.Is(err, ErrFileChanged) { // another file under the same name: start it over
+		if terr := f.Truncate(0); terr != nil {
+			return false, diskError(terr)
+		}
+		cur.NextIndex, cur.Total = 0, 0
+		run.notes = append(run.notes, "The CVE Program's whole list changed during its download; Vedette downloads it again from the start.")
+		return false, errRecordsLater
 	}
 	if err != nil {
 		if dctx.Err() != nil && ctx.Err() == nil && got > 0 {
@@ -543,7 +583,7 @@ func (s *Service) throttledCopy(ctx context.Context, w io.Writer, r io.Reader) (
 		k, err := r.Read(buf)
 		if k > 0 {
 			if _, werr := w.Write(buf[:k]); werr != nil {
-				return n, fmt.Errorf("feeds: CVE records work file: %w", werr)
+				return n, diskError(werr)
 			}
 			n += int64(k)
 			if ahead := time.Duration(float64(n)/recordRate*float64(time.Second)) - s.now().Sub(start); ahead > 50*time.Millisecond {
@@ -566,12 +606,12 @@ func (s *Service) throttledCopy(ctx context.Context, w io.Writer, r io.Reader) (
 func (s *Service) readArchive(ctx context.Context, run *recordRun, path string, now time.Time) error {
 	f, err := os.Open(path) //nolint:gosec // path is the module's own work file (recordWorkDir and a day's name)
 	if err != nil {
-		return fmt.Errorf("feeds: CVE records work file: %w", err)
+		return diskError(err)
 	}
 	defer func() { _ = f.Close() }()
 	info, err := f.Stat()
 	if err != nil {
-		return fmt.Errorf("feeds: CVE records work file: %w", err)
+		return diskError(err)
 	}
 	pinned, err := s.pinned(ctx)
 	if err != nil {
@@ -764,25 +804,52 @@ func (s *Service) recordsChanges(ctx context.Context, run *recordRun, cur recent
 			days = append(days, d)
 		}
 	}
+	gone := false // the archive of a day that is over is not there (any more)
 	for _, d := range days {
 		if err := s.readChangeArchive(ctx, run, d, need, covered, k, now); err != nil {
 			if errors.Is(err, errRecordsLater) {
-				continue // the archive of that day is not there: its records are asked for by ID
+				gone = true
+				continue
 			}
 			return err
 		}
 	}
+	isNew := map[string]bool{}
+	for _, c := range pending {
+		isNew[c.cve] = isNew[c.cve] || c.isNew
+	}
+	// What the archives did not hold is asked for by ID only when every box would ask the same: a new CVE, one published inside the
+	// window, or one a public source names (recordKeep.askable). Any other record (a CVE only this box keeps, for a finding) is never
+	// asked for by ID: today's wait for tomorrow's archive, a past day's for the next read of the whole list.
 	var left []string
-	var todayLeft int
+	var todayLeft, closedLeft, waiting int
 	for _, c := range pending {
 		t, ok := need[c.cve]
 		if !ok || isCovered(covered, c.cve, t) || slices.Contains(left, c.cve) {
 			continue
 		}
-		if !c.fetch.UTC().Before(today) {
+		closed := lastChange(pending, c.cve).UTC().Before(today)
+		if !isNew[c.cve] && !k.askable[c.cve] {
+			if closed {
+				covered[c.cve] = t // passed over: the next whole list brings it
+				waiting++
+			}
+			continue
+		}
+		if closed {
+			closedLeft++
+		} else {
 			todayLeft++
 		}
 		left = append(left, c.cve)
+	}
+	if gone && closedLeft > recordLeftPerPull { // whole days are missing: the whole list, not thousands of single requests
+		run.notes = append(run.notes, "The CVE Program's files of changed records no longer reach back to this box's data: loading the whole list again.")
+		day := now.UTC().Truncate(24*time.Hour).AddDate(0, 0, -1)
+		return s.saveRecordCursor(ctx, run, recentCursor{URL: run.src.URL, Mode: modeFill, From: day, To: day, Until: cur.Until})
+	}
+	if waiting > 0 {
+		run.notes = append(run.notes, fmt.Sprintf("%s changed records of CVEs no public list names come with the next read of the whole list.", grouped(waiting)))
 	}
 	if todayLeft > recordLeftPerPull { // today's changes come with tomorrow's archive
 		left = slices.DeleteFunc(left, func(cve string) bool { return !lastChange(pending, cve).UTC().Before(today) })
@@ -802,11 +869,18 @@ func (s *Service) recordsChanges(ctx context.Context, run *recordRun, cur recent
 		covered[cve] = now // not published or unreadable: not asked again for these changes
 	}
 	until := cur.Until
-	for _, c := range pending { // the cursor moves over every change whose record is stored, up to the first one missing
-		if t, ok := need[c.cve]; ok && !isCovered(covered, c.cve, t) {
+	for i := 0; i < len(pending); { // the cursor moves over each logged hour whose records are all stored, up to the first one missing
+		j := i
+		for j < len(pending) && pending[j].fetch.Equal(pending[i].fetch) {
+			j++
+		}
+		if slices.ContainsFunc(pending[i:j], func(c deltaChange) bool {
+			t, ok := need[c.cve]
+			return ok && !isCovered(covered, c.cve, t)
+		}) {
 			break
 		}
-		until = c.fetch
+		until, i = pending[i].fetch, j
 	}
 	if serr := s.saveRecordCursor(ctx, run, recentCursor{URL: run.src.URL, Mode: modeDone, From: cur.From, To: cur.To, Until: until}); serr != nil {
 		return serr

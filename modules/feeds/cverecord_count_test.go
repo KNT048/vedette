@@ -150,10 +150,10 @@ func loadRecordSample(t *testing.T) (recordSample, map[string]CVERecord) {
 	return s, recs
 }
 
-// T1: the exploited CVEs listed in the last 90 days. NVD's history is in no public bulk file, so "without NVD ranges on the day they
+// The exploited CVEs listed in the last 90 days. NVD's history is in no public bulk file, so "without NVD ranges on the day they
 // were listed" is bounded by the snapshot four days later; the record gives the vendor's versions for most of them on the day the
 // CVE is published.
-func TestCount_RecordT1_ExploitedListed90Days(t *testing.T) {
+func TestCount_RecordRangesOfRecentlyListedCVEs(t *testing.T) {
 	t.Parallel()
 	if *updateRecords {
 		t.Skip("rebuilding the sample")
@@ -179,29 +179,29 @@ func TestCount_RecordT1_ExploitedListed90Days(t *testing.T) {
 			}
 		}
 	}
-	t.Logf("T1: %d listed in 90 days; %d without NVD ranges four days later (%d of them with record ranges); %d with record ranges "+
+	t.Logf("listed CVEs: %d listed in 90 days; %d without NVD ranges four days later (%d of them with record ranges); %d with record ranges "+
 		"for the listed product, %d of them in the exploited-list view findings matches", listed, noNVD, noNVDWithRanges, withRanges, viewed)
-	if listed != 115 || noNVD != 1 || withRanges != t1WithRanges || viewed != t1Viewed || noNVDWithRanges != t1NoNVDWithRanges {
-		t.Errorf("T1 moved: listed %d, no NVD %d (%d with record ranges), with record ranges %d, viewed %d", listed, noNVD, noNVDWithRanges, withRanges, viewed)
+	if listed != 115 || noNVD != 1 || withRanges != listedWithRanges || viewed != listedViewed || noNVDWithRanges != listedNoNVDWithRanges {
+		t.Errorf("listed CVEs moved: listed %d, no NVD %d (%d with record ranges), with record ranges %d, viewed %d", listed, noNVD, noNVDWithRanges, withRanges, viewed)
 	}
 }
 
-// The numbers of T1 and T2 with this reader. With the reader it replaced (the CISA entry's product only, the whole CVE refused on one
-// unreadable entry, modules and processor platforms refused): T1 22 with record ranges; T2 0 (record ranges were read only for exploited
-// CVEs without NVD ranges).
+// The counts with this reader. With the reader it replaced (the CISA entry's product only, the whole CVE refused on one
+// unreadable entry, modules and processor platforms refused): 22 listed CVEs with record ranges; no device
+// matched by record ranges (they were read only for exploited CVEs without NVD ranges).
 const (
-	t1WithRanges      = 23
-	t1Viewed          = 23
-	t1NoNVDWithRanges = 0
-	t2Devices         = 7
-	t2Pairs           = 708
-	t2KEVPairs        = 0
+	listedWithRanges      = 23
+	listedViewed          = 23
+	listedNoNVDWithRanges = 0
+	matchedDevices        = 7
+	matchedPairs          = 708
+	matchedKEVPairs       = 0
 )
 
-// T2: devices of the test inventory that match a CVE through the record's ranges, which NVD alone does not give them (NVD's ranges win
+// Devices of the test inventory that match a CVE through the record's ranges, which NVD alone does not give them (NVD's ranges win
 // when NVD has any: for the exploited CVEs the snapshot says which; for the other CVEs of the window the sample holds no NVD state, so
 // they count as NVD-less, the upper bound the CVE records add).
-func TestCount_RecordT2_DevicesMatchedByRecordRanges(t *testing.T) {
+func TestCount_DevicesMatchedByRecordRangesOnly(t *testing.T) {
 	t.Parallel()
 	if *updateRecords {
 		t.Skip("rebuilding the sample")
@@ -226,7 +226,7 @@ func TestCount_RecordT2_DevicesMatchedByRecordRanges(t *testing.T) {
 				if slices.Contains(keys, ProductKey{x.Vendor, x.Product}) && inRange(version, x) {
 					if p := row.Device + " " + cve; !pairs[p] {
 						pairs[p] = true
-						byProduct[x.Vendor+"|"+x.Product]++
+						byProduct[productid.Key(x.Vendor, x.Product)]++
 						if _, isKEV := nvd[cve]; isKEV {
 							kevPairs++
 						}
@@ -237,14 +237,14 @@ func TestCount_RecordT2_DevicesMatchedByRecordRanges(t *testing.T) {
 			}
 		}
 	}
-	t.Logf("T2: %d of %d devices match %d (device, CVE) pairs through record ranges only (%d on exploited CVEs)",
+	t.Logf("devices: %d of %d devices match %d (device, CVE) pairs through record ranges only (%d on exploited CVEs)",
 		len(devices), len(deviceSet(inv)), len(pairs), kevPairs)
 	top := slices.SortedFunc(maps.Keys(byProduct), func(a, b string) int { return byProduct[b] - byProduct[a] })
 	for _, k := range top[:min(len(top), 12)] {
 		t.Logf("  %s: %d pairs", k, byProduct[k])
 	}
-	if len(devices) != t2Devices || len(pairs) != t2Pairs || kevPairs != t2KEVPairs {
-		t.Errorf("T2 moved: %d devices, %d pairs, %d exploited", len(devices), len(pairs), kevPairs)
+	if len(devices) != matchedDevices || len(pairs) != matchedPairs || kevPairs != matchedKEVPairs {
+		t.Errorf("devices moved: %d devices, %d pairs, %d exploited", len(devices), len(pairs), kevPairs)
 	}
 }
 

@@ -11,6 +11,7 @@ import (
 	"hash/crc32"
 	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 	"reflect"
 	"slices"
@@ -755,6 +756,9 @@ func TestFetch_RangeAndRedirectHosts(t *testing.T) {
 			t.Fatalf("%s: %+v %v", p, resp, err)
 		}
 	}
+	if _, err := e.svc.Fetcher.Fetch(t.Context(), Request{URL: o.url("/part"), From: 10, WantTotal: 17}); !errors.Is(err, ErrFileChanged) {
+		t.Fatalf("a file of another size was joined: %v", err)
+	}
 	for h, ok := range map[string]bool{"bytes 10-15/16": true, "bytes 9-15/16": false, "bytes 10-14/16": false, "items 10-15/16": false, "bytes 10-15/x": false} {
 		if n, got := rangeTotal(h, 10); got != ok || ok && n != 16 {
 			t.Errorf("%q: %d %v", h, n, got)
@@ -788,4 +792,172 @@ func filepathGlob(dir string) ([]string, error) { return filepath.Glob(filepath.
 
 func contextWithUrgent(ctx context.Context) context.Context {
 	return context.WithValue(ctx, urgentOnlyKey{}, true)
+}
+
+// Privacy: a CVE only a custom list names, or a qualifying signal of a source the box builds itself, is never asked for by ID; the same
+// predicate (publicListedSQL) chooses NVD's by-ID asks.
+func TestCVERecordsByID_OnlyPublicSources(t *testing.T) {
+	t.Parallel()
+	e, o, _ := recordEnv(t, false)
+	write(t, e.db, func(tx *sql.Tx) error {
+		if err := ensureCVE(t.Context(), tx, "CVE-2026-0900", "2026-11-05T00:00:00.000Z"); err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(t.Context(), `INSERT INTO feeds_source (id, builtin, name, kind, format, url, interval_hours, parser, created_at)
+VALUES ('cf-own', 0, 'Own list', 'vulnerabilities', 'json', 'https://feeds.example.com/x.json', 24, '{}', '2026-11-05T00:00:00.000Z')`); err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(t.Context(), `INSERT INTO feeds_kev (cve, list, source_id, vendor, product, name, date_added, updated_at)
+VALUES ('CVE-2026-0900', 'custom:cf-own', 'cf-own', 'Acme', 'Gateway', 'x', '2026-11-05', '2026-11-05T00:00:00.000Z')`); err != nil {
+			return err
+		}
+		_, err := tx.ExecContext(t.Context(), `INSERT INTO feeds_signal (cve, kind, source, first_seen, stored_at, last_seen, qualifies)
+VALUES ('CVE-2026-0901', 'exploited', 'ids-local', '2026-11-05T00:00:00.000Z', '2026-11-05T00:00:00.000Z', '2026-11-05T00:00:00.000Z', 1)`)
+		return err
+	})
+	due, err := e.svc.st.recordDue(t.Context(), e.clock(), 100)
+	if err != nil || slices.Contains(due, "CVE-2026-0900") || slices.Contains(due, "CVE-2026-0901") || len(due) != 4 {
+		t.Fatalf("due = %v %v", due, err)
+	}
+	if err := e.svc.Fetch(t.Context(), cveOrgFeedID); err != nil { // an ask for either would also hit an undeclared path
+		t.Fatal(err)
+	}
+	for _, h := range o.all() {
+		if strings.Contains(h.path, "CVE-2026-090") {
+			t.Fatalf("asked by ID: %s", h.path)
+		}
+	}
+	missing, err := e.svc.st.missingRecords(t.Context(), false, 100)
+	if err != nil || slices.Contains(missing, "CVE-2026-0900") || slices.Contains(missing, "CVE-2026-0901") {
+		t.Fatalf("NVD's by-ID set: %v %v", missing, err)
+	}
+}
+
+// changesEnv is a box whose whole list is read up to 2026-11-20 00:00, with a CVE of the window and an old CVE only a finding pins.
+func changesEnv(t *testing.T) (*env, *origin) {
+	t.Helper()
+	e, o, _ := recordEnv(t, true)
+	e.setNow(time.Date(2026, 11, 21, 10, 0, 0, 0, time.UTC))
+	e.svc.Pins = func(context.Context) ([]string, error) { return []string{"CVE-2019-7001", "CVE-2019-7002"}, nil }
+	write(t, e.db, func(tx *sql.Tx) error {
+		if err := storeRecords(t.Context(), tx, []NVDRecord{{CVE: "CVE-2026-7000", Published: time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC), LastModified: epoch0, Status: "Received"},
+			{CVE: "CVE-2019-7001", Published: time.Date(2019, 10, 1, 0, 0, 0, 0, time.UTC), LastModified: epoch0, Status: "Analyzed"},
+			{CVE: "CVE-2019-7002", Published: time.Date(2019, 10, 1, 0, 0, 0, 0, time.UTC), LastModified: epoch0, Status: "Analyzed"}}, e.clock()); err != nil {
+			return err
+		}
+		midnight := time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC)
+		return saveNVDCursor(t.Context(), tx, selectorRecord, recentCursor{URL: o.url("/repo"), Mode: modeDone, From: midnight, Until: midnight})
+	})
+	return e, o
+}
+
+// Privacy: a change the day's archive does not hold is asked for by ID only for a CVE every box keeps (the window, a public list); a CVE
+// only a finding pins is never asked: a past day's change waits for the next whole list, today's for tomorrow's archive.
+func TestCVERecords_ChangesNeverAskForAPinOnlyCVE(t *testing.T) {
+	t.Parallel()
+	e, o := changesEnv(t)
+	logJSON := `[{"fetchTime":"2026-11-19T09:00:00.000Z","new":[],"updated":[]},` +
+		`{"fetchTime":"2026-11-20T23:40:00.000Z","new":[],"updated":[{"cveId":"CVE-2026-7000","dateUpdated":"2026-11-20T23:39:00.000Z"},{"cveId":"CVE-2019-7001","dateUpdated":"2026-11-20T23:39:00.000Z"}]},` +
+		`{"fetchTime":"2026-11-21T08:00:00.000Z","new":[],"updated":[{"cveId":"CVE-2019-7002","dateUpdated":"2026-11-21T07:59:00.000Z"}]}]`
+	o.serve("/repo/cves/deltaLog.json", func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(logJSON)) })
+	o.serve("/repo/releases/download/cve_2026-11-20_2300Z/2026-11-20_delta_CVEs_at_2300Z.zip", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write(zipOf(t, map[string][]byte{}))
+	})
+	o.serve("/repo/cves/2026/7xxx/CVE-2026-7000.json", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write(recordJSON("CVE-2026-7000", "2026-10-01", `{"vendor":"Acme","product":"Box","defaultStatus":"affected"}`))
+	})
+	if err := e.svc.Fetch(t.Context(), cveOrgFeedID); err != nil {
+		t.Fatal(err)
+	}
+	for _, h := range o.all() {
+		if strings.Contains(h.path, "CVE-2019-700") {
+			t.Fatalf("a CVE only a finding pins was asked for by ID: %s", h.path)
+		}
+	}
+	if o.count("/repo/cves/2026/7xxx/CVE-2026-7000.json") != 1 {
+		t.Fatal("the window CVE's leftover was not asked for")
+	}
+	cur, _ := e.svc.st.nvdCursor(t.Context(), selectorRecord)
+	if !cur.Until.Equal(time.Date(2026, 11, 20, 23, 40, 0, 0, time.UTC)) { // past yesterday's, before today's pin-only change
+		t.Fatalf("cursor %+v", cur)
+	}
+	if f := e.feed(cveOrgFeedID); !strings.Contains(deref(f.Error), "1 changed records of CVEs no public list names come with the next read of the whole list") {
+		t.Fatalf("note %q", deref(f.Error))
+	}
+}
+
+// Whole days of changes gone (the release files live about four days): the whole list loads again instead of thousands of single asks;
+// a box further behind than the release files reach loads it at once.
+func TestCVERecords_ChangesGoneLoadTheWholeList(t *testing.T) {
+	t.Parallel()
+	e, o := changesEnv(t)
+	var updated []string
+	write(t, e.db, func(tx *sql.Tx) error {
+		var recs []NVDRecord
+		for i := range recordLeftPerPull + 1 {
+			cve := fmt.Sprintf("CVE-2026-8%04d", i)
+			recs = append(recs, NVDRecord{CVE: cve, Published: time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC), LastModified: epoch0, Status: "Received"})
+			updated = append(updated, fmt.Sprintf(`{"cveId":%q,"dateUpdated":"2026-11-20T10:00:00.000Z"}`, cve))
+		}
+		return storeRecords(t.Context(), tx, recs, e.clock())
+	})
+	logJSON := `[{"fetchTime":"2026-11-19T09:00:00.000Z","new":[],"updated":[]},{"fetchTime":"2026-11-20T10:00:00.000Z","new":[],"updated":[` + strings.Join(updated, ",") + `]}]`
+	o.serve("/repo/cves/deltaLog.json", func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(logJSON)) })
+	o.serve("/repo/releases/download/cve_2026-11-20_2300Z/2026-11-20_delta_CVEs_at_2300Z.zip", func(w http.ResponseWriter, r *http.Request) { http.NotFound(w, r) })
+	if err := e.svc.Fetch(t.Context(), cveOrgFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if cur, _ := e.svc.st.nvdCursor(t.Context(), selectorRecord); cur.Mode != modeFill {
+		t.Fatalf("cursor %+v", cur)
+	}
+	for _, h := range o.all() {
+		if strings.Contains(h.path, "CVE-2026-8") {
+			t.Fatalf("asked by ID: %s", h.path)
+		}
+	}
+	// four days behind: the whole list at once, without reading the change log
+	e2, o2 := changesEnv(t)
+	e2.setNow(time.Date(2026, 11, 24, 10, 0, 0, 0, time.UTC))
+	o2.serve("/repo/releases/download/cve_2026-11-23_2300Z/2026-11-23_all_CVEs_at_midnight.zip.zip", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeContent(w, r, "a.zip", time.Time{}, bytes.NewReader(dailyArchive(t, map[string][]byte{})))
+	})
+	if err := e2.svc.Fetch(t.Context(), cveOrgFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if o2.count("/repo/cves/deltaLog.json") != 0 || o2.count("/repo/releases/download/cve_2026-11-23_2300Z/2026-11-23_all_CVEs_at_midnight.zip.zip") != 1 {
+		t.Fatalf("hits %+v", o2.all())
+	}
+}
+
+// The disk: too little free space fails the pull with what to check (never "the source did not answer") and downloads nothing; a feed
+// turned off leaves no work file.
+func TestCVERecords_DiskSpaceAndTurnedOff(t *testing.T) {
+	t.Parallel()
+	e, o, _ := recordEnv(t, true)
+	e.svc.free = func(string) (int64, bool) { return 100 << 20, true }
+	if err := e.svc.Fetch(t.Context(), cveOrgFeedID); err != nil {
+		t.Fatal(err)
+	}
+	f := e.feed(cveOrgFeedID)
+	if f.Status != "error" || !strings.HasPrefix(deref(f.Error), "Not enough free disk space to download the CVE Program's whole list: 100 MB free, about 1,312 MB needed.") {
+		t.Fatalf("feed %+v %q", f, deref(f.Error))
+	}
+	for _, h := range o.all() {
+		if strings.Contains(h.path, "/releases/") {
+			t.Fatalf("downloaded with no room: %s", h.path)
+		}
+	}
+	dir := e.svc.recordWorkDir()
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "2026-11-04_all.zip"), []byte("part"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if c, b := e.put(cveOrgFeedID, `{"enabled":false}`); c != 200 {
+		t.Fatalf("%d %v", c, b)
+	}
+	if _, err := os.Stat(dir); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("work folder left: %v", err)
+	}
 }

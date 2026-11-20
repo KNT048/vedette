@@ -149,6 +149,7 @@ type Service struct {
 	nvdBookedAt time.Time // the clock reading the last slot was booked at: a later reading before it is a clock stepped back
 
 	wait func(ctx context.Context, d time.Duration) error // tests: replaces the real waits of the NVD pull
+	free func(dir string) (int64, bool)                   // tests: replaces the free disk space the CVE records download checks
 }
 
 // NewService checks the dependencies.

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -143,6 +144,11 @@ func (h *FeedHandlers) FeedsPutFeedsSourcesID(ctx context.Context, req *oas.Feed
 	}
 	if row.ID == nvdFeedID && !row.Enabled {
 		h.s.dropNVDRun()
+	}
+	if row.ID == cveOrgFeedID && !row.Enabled { // a download of the whole list that will not go on leaves no file behind
+		if err := os.RemoveAll(h.s.recordWorkDir()); err != nil {
+			h.s.Log.WarnContext(ctx, "removing the CVE records work folder failed", "error", err)
+		}
 	}
 	if len(rematch) > 0 { // findings follow the switch now: off goes back to NVD's ranges, on uses the rows again
 		h.s.publish(ctx, EventRangesUpdated, RangesUpdatedEvent{CVEs: rematch})

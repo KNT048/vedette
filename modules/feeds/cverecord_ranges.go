@@ -41,7 +41,7 @@ var noVendor = map[string]bool{"": true, "na": true, "unknown": true, "unspecifi
 
 // recordGroup is the rows of one product of one container, as they are read.
 type recordGroup struct {
-	key       string
+	key       [3]string // part, vendor, product
 	rows      []Range
 	complete  bool // every entry of the product says what a version it does not list is
 	unusable  bool
@@ -65,7 +65,7 @@ func recordRanges(cve, assigner string, cna []cnaAffected, adps []rawContainer) 
 			if !ok {
 				continue
 			}
-			key := part + "|" + vendor + "|" + product
+			key := [3]string{part, vendor, product}
 			i := slices.IndexFunc(groups, func(g *recordGroup) bool { return g.key == key })
 			if i < 0 {
 				groups = append(groups, &recordGroup{key: key, complete: true})

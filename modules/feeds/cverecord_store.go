@@ -17,15 +17,18 @@ import (
 // published day only while NVD has given none (NVD's English description wins as soon as NVD answers). CVSS scores stay NVD's: NVD's
 // record carries the CNA's and CISA's scores too.
 
-// importantSQL is the CVEs whose references the catalogue keeps (with the pinned CVEs the caller adds): an exploited-list entry or a
-// qualifying signal. The same set, without the pinned ones, is the only set ever asked for by its ID.
+// importantSQL is the CVEs whose references the catalogue keeps (with the pinned CVEs the caller adds): an exploited-list entry (a
+// custom list's too) or a qualifying signal. Only its public part (publicListedSQL) is ever asked for by ID.
 const importantSQL = keepSetSQL
 
 // recordKeep says which records the box stores.
 type recordKeep struct {
 	have      map[string]bool // in the catalogue, or kept whatever their age (an exploited-list entry, a qualifying signal, a pin)
 	important map[string]bool // the references of these are kept: an exploited-list entry, a qualifying signal, a pin
-	cutoff    time.Time       // a CVE published since is kept (the catalogue's window)
+	// askable are the kept CVEs whose record may be asked for by ID because every box asks the same: one a public source names
+	// (publicListedSQL), or one published inside the window. Never a CVE kept only for a finding or a custom list.
+	askable map[string]bool
+	cutoff  time.Time // a CVE published since is kept (the catalogue's window)
 }
 
 // recordKeepOf reads the keep sets.
@@ -41,7 +44,12 @@ func recordKeepOf(ctx context.Context, q queryer, now time.Time, pinned []string
 	for _, c := range pinned {
 		have[c], imp[c] = true, true
 	}
-	return recordKeep{have: have, important: imp, cutoff: now.AddDate(0, 0, -windowDays)}, nil
+	cutoff := now.AddDate(0, 0, -windowDays)
+	ask, err := stringSet(ctx, q, publicListedSQL+` UNION SELECT cve FROM feeds_cve WHERE published >= ?`, store.FormatTS(cutoff))
+	if err != nil {
+		return recordKeep{}, err
+	}
+	return recordKeep{have: have, important: imp, askable: ask, cutoff: cutoff}, nil
 }
 
 // keeps says whether a record read is stored: its CVE is in the catalogue or kept, or it was published inside the window.
@@ -330,11 +338,11 @@ func kevRecordRow(r Range, vendor, product string) AffectedRow {
 
 // ---- counts ----
 
-// recordDue lists the CVEs whose record is asked for by its ID this pull, at most limit: only CVEs a public list or a qualifying
-// public signal names (never a pin: a finding's CVE is never asked for by its ID), whose record was never read, or, without NVD
+// recordDue lists the CVEs whose record is asked for by its ID this pull, at most limit: only CVEs a public source names
+// (publicListedSQL: never a custom list's, a box-built signal's or a finding's CVE), whose record was never read, or, without NVD
 // ranges, not read since before. Never read first, then the longest ago.
 func (s *Store) recordDue(ctx context.Context, before time.Time, limit int) ([]string, error) {
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT i.cve FROM (`+importantSQL+`) i LEFT JOIN feeds_cve c ON c.cve = i.cve
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT i.cve FROM (`+publicListedSQL+`) i LEFT JOIN feeds_cve c ON c.cve = i.cve
 WHERE c.record_at IS NULL
    OR (c.record_at < ? AND NOT EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = i.cve AND r.origin = 'nvd'))
 ORDER BY c.record_at IS NOT NULL, c.record_at, i.cve DESC

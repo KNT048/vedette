@@ -80,7 +80,13 @@ type Request struct {
 	// the source answered with that part. A source that answers the whole body (200) is read from that byte on too, the bytes before
 	// it skipped, so the caller always gets the body from From on.
 	From int64
+	// WantTotal, when above zero, is the whole body's size a resumed download expects: a source whose file now has another size
+	// fails with ErrFileChanged before anything is read, so a replaced file is never joined to the part read before.
+	WantTotal int64
 }
+
+// ErrFileChanged is a resumed download whose file changed since the part already read (Request.WantTotal).
+var ErrFileChanged = errors.New("feeds: the file changed since the part already read")
 
 // Response is what came back.
 type Response struct {
@@ -356,6 +362,9 @@ func (f Fetcher) Fetch(ctx context.Context, req Request) (*Response, error) {
 	}
 	if resp.ContentLength > limit {
 		return nil, fail(ErrTooLarge, "The source is larger than %d bytes; Vedette would skip it.", limit)
+	}
+	if req.WantTotal > 0 && out.Total >= 0 && out.Total != req.WantTotal {
+		return nil, ErrFileChanged
 	}
 	var body io.Reader = resp.Body
 	if req.From > 0 && !out.Partial { // the whole body came: what was asked for starts at From

@@ -11,7 +11,8 @@ import { displayName } from '@/features/inventory/nameOf'
 import { metaStore } from '@/features/inventory/mocks'
 import { openIncidents, sentSince } from '@/features/notify/mocks'
 import { untilOk } from './accept'
-import { FIRST_TOP, MAX_HANDLE, OPEN_STATUSES, PAGE_DEFAULT, PAGE_MAX, TREND_DAYS } from './contract'
+import { OPEN_FINDING_STATUSES as OPEN_STATUSES, FINDING_RESOLUTIONS } from '@/lib/statusCodes'
+import { FIRST_TOP, MAX_HANDLE, PAGE_DEFAULT, PAGE_MAX, TREND_DAYS } from './contract'
 import type {
   CveRow, CveSeverity, DeviceCard, DeviceCards, DeviceRef, DeviceStatus, FixBlock, FixCard, FixCards, FixDevice, HandledList, HandledRow,
   InputItem, InputList, OpenStatus, Overview, Resolution, SeverityCounts, StatusCode, StatusCounts, View,
@@ -22,7 +23,7 @@ export const questions = collection<QuestionRecord[]>('fnd_question', seedQuesti
 
 /** CVEs the scan's safe checks cover (the sample ones). */
 const SAFE_CHECKS = new Set(['CVE-2024-4577', 'CVE-2022-27593', 'CVE-2026-119977'])
-const RESOLUTIONS: Resolution[] = ['patched', 'mitigated', 'accepted', 'not_relevant', 'false_positive']
+const RESOLUTIONS: readonly Resolution[] = FINDING_RESOLUTIONS
 const NOTE_NEEDED: Resolution[] = ['false_positive', 'not_relevant', 'accepted']
 
 // ---- reading the rows

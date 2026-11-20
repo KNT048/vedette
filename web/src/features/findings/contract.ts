@@ -2,6 +2,7 @@
 import { z } from 'zod'
 import { defineEndpoints } from '@/lib/contract'
 import { TYPE_IDS } from '@/lib/deviceTypes'
+import { DEVICE_STATUSES, FINDING_RESOLUTIONS, FINDING_STATUSES, OPEN_FINDING_STATUSES } from '@/lib/statusCodes'
 
 const iso = z.iso.datetime()
 const findingId = z.string().min(1).max(64)
@@ -291,13 +292,10 @@ export const HomeSummary = z.object({
 // facts; the status code below is derived from them by one function on the server and rendered by one component in the GUI.
 
 const cve = z.string().regex(/^CVE-\d{4}-\d{4,}$/)
-/** The ten finding statuses. The first five are the open ones, urgency layers 1 to 5 in that order (most urgent first); the last five
- *  are the handled ones and equal the handling resolution. */
-export const STATUS_CODES = ['under_attack', 'exploited', 'public_exploit', 'critical_edge', 'update_recommended', 'patched', 'mitigated', 'accepted', 'not_relevant', 'false_positive'] as const
-export const StatusCode = z.enum(STATUS_CODES).describe('under_attack = someone on your network sent this exploit and this device is affected (layer 1); exploited = attackers use it in real attacks (layer 2); public_exploit = working exploit code is public (layer 3); critical_edge = critical, no login needed, on a device class attackers target first (layer 4); update_recommended = a known flaw, no sign of exploitation yet (layer 5); patched, mitigated, accepted, not_relevant, false_positive = handled, as the handling resolution says')
-export const OPEN_STATUSES = ['under_attack', 'exploited', 'public_exploit', 'critical_edge', 'update_recommended'] as const
-export const OpenStatus = z.enum(OPEN_STATUSES).describe('The open statuses: OPEN_STATUSES[layer - 1]')
-export const Resolution = z.enum(['patched', 'mitigated', 'accepted', 'not_relevant', 'false_positive'])
+/** The finding vocabulary lives in lib/statusCodes.ts so other contracts import the same lists. */
+export const StatusCode = z.enum(FINDING_STATUSES).describe('under_attack = someone on your network sent this exploit and this device is affected (layer 1); exploited = attackers use it in real attacks (layer 2); public_exploit = working exploit code is public (layer 3); critical_edge = critical, no login needed, on a device class attackers target first (layer 4); update_recommended = a known flaw, no sign of exploitation yet (layer 5); patched, mitigated, accepted, not_relevant, false_positive = handled, as the handling resolution says')
+export const OpenStatus = z.enum(OPEN_FINDING_STATUSES).describe('The open statuses: OPEN_FINDING_STATUSES[layer - 1]')
+export const Resolution = z.enum(FINDING_RESOLUTIONS)
   .describe('patched = the fixed version is installed or the software is gone; mitigated = a workaround is in place, the flaw is still in the software; accepted = a person decided to live with it until a day; not_relevant = it does not apply to this device; false_positive = the match was wrong')
 export const Via = z.enum(['person', 'version_moved', 'software_removed', 'distro_fixed', 'scan_clear', 'data_corrected', 'not_installed'])
   .describe('How it was handled: person = a person marked it; version_moved = the software moved past the affected version (from_version, to_version); software_removed = the software is gone; distro_fixed = the distribution says the installed package is fixed; scan_clear = a safe check that had matched came back clear; data_corrected = no longer detected while nothing on the device changed (the match was corrected: never patch credit); not_installed = a person said the software is not installed')
@@ -308,8 +306,7 @@ export const Basis = z.enum(['scan', 'device_version', 'package', 'banner_versio
 export const FixKind = z.enum(['update', 'distro_update', 'os_update', 'feature_update', 'none_yet', 'unknown'])
   .describe('update = install `version` of the software or later; distro_update = install the distribution\'s package release `version` or later; os_update = install the operating system update `ref` (a KB number) or build `version`; feature_update = no update of this release fixes it, move to release `version`; none_yet = the vendor has no fix yet (`url` is the advisory); unknown = no fix data')
 export const SeverityBand = z.enum(['critical', 'high', 'medium', 'low', 'none'])
-export const DEVICE_STATUS_CODES = [...OPEN_STATUSES, 'needs_input'] as const
-export const DeviceStatusCode = z.enum(DEVICE_STATUS_CODES)
+export const DeviceStatusCode = z.enum(DEVICE_STATUSES)
 export const QuestionKind = z.enum(['version_needed', 'platform', 'package_release', 'not_comparable', 'no_range_data'])
   .describe('version_needed = the software has no version Vedette can read; platform = the CVE affects only some platforms and nothing says which this is; package_release = the distribution\'s package release decides; not_comparable = the version cannot be compared with the affected ranges; no_range_data = the CVE names the product but gives no affected versions ("Possibly affected: check the version")')
 export const EventKind = z.enum(['created', 'confirmed', 'unconfirmed', 'handled', 'reopened', 'urgency_changed', 'fix_changed', 'redetected', 'no_longer_detected', 'acceptance_expired'])
@@ -351,7 +348,7 @@ export const Reason = z.object({
   due: z.iso.date().nullable().describe('Layer 2: the day the list asks for the fix (CISA KEV due date); null otherwise'),
 }).describe('One urgency layer that applies, with its evidence')
 export const Urgency = z.object({
-  layer: z.number().int().min(1).max(5).describe('The most urgent layer that applies; the open status is OPEN_STATUSES[layer - 1]'),
+  layer: z.number().int().min(1).max(5).describe('The most urgent layer that applies; the open status is OPEN_FINDING_STATUSES[layer - 1]'),
   since: iso.describe('When the finding entered this layer'),
   reasons: z.array(Reason).describe('Every layer 1 to 4 that applies, most urgent first, each source its own entry; empty for layer 5. The GUI says "not yet in CISA KEV" for a layer 2 without a cisa-kev entry'),
   internet: z.iso.date().nullable().describe('"Reachable from the Internet (seen <date>)": the day an exposure scan last saw the affected service from outside; raises the order inside a layer, never the layer'),

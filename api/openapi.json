@@ -42613,7 +42613,7 @@
                           "type": "integer",
                           "minimum": 1,
                           "maximum": 5,
-                          "description": "The most urgent layer that applies; the open status is OPEN_STATUSES[layer - 1]"
+                          "description": "The most urgent layer that applies; the open status is OPEN_FINDING_STATUSES[layer - 1]"
                         },
                         "since": {
                           "type": "string",
@@ -46717,7 +46717,7 @@
                           "type": "integer",
                           "minimum": 1,
                           "maximum": 5,
-                          "description": "The most urgent layer that applies; the open status is OPEN_STATUSES[layer - 1]"
+                          "description": "The most urgent layer that applies; the open status is OPEN_FINDING_STATUSES[layer - 1]"
                         },
                         "since": {
                           "type": "string",
@@ -47557,7 +47557,7 @@
                           "type": "integer",
                           "minimum": 1,
                           "maximum": 5,
-                          "description": "The most urgent layer that applies; the open status is OPEN_STATUSES[layer - 1]"
+                          "description": "The most urgent layer that applies; the open status is OPEN_FINDING_STATUSES[layer - 1]"
                         },
                         "since": {
                           "type": "string",
@@ -49184,7 +49184,7 @@
                                     "critical_edge",
                                     "update_recommended"
                                   ],
-                                  "description": "The open statuses: OPEN_STATUSES[layer - 1]"
+                                  "description": "The open statuses: OPEN_FINDING_STATUSES[layer - 1]"
                                 },
                                 "severity": {
                                   "type": "object",

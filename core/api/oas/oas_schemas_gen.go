@@ -73674,7 +73674,7 @@ type FindingsGetFindingsFixesOKItemsItemItemsItem struct {
 	// Findings by severity band: "2 Critical · 18 High · 5 Medium".
 	Severity FindingsGetFindingsFixesOKItemsItemItemsItemSeverity    `json:"severity"`
 	Software NilFindingsGetFindingsFixesOKItemsItemItemsItemSoftware `json:"software"`
-	// The open statuses: OPEN_STATUSES[layer - 1].
+	// The open statuses: OPEN_FINDING_STATUSES[layer - 1].
 	Status FindingsGetFindingsFixesOKItemsItemItemsItemStatus `json:"status"`
 }
 
@@ -74562,7 +74562,7 @@ func (s *FindingsGetFindingsFixesOKItemsItemItemsItemSoftware) SetVersion(val Ni
 	s.Version = val
 }
 
-// The open statuses: OPEN_STATUSES[layer - 1].
+// The open statuses: OPEN_FINDING_STATUSES[layer - 1].
 type FindingsGetFindingsFixesOKItemsItemItemsItemStatus string
 
 const (
@@ -82466,7 +82466,7 @@ type FindingsGetFindingsIDViewOKUrgency struct {
 	// "Reachable from the Internet (seen )": the day an exposure scan last saw the affected service from
 	// outside; raises the order inside a layer, never the layer.
 	Internet NilDate `json:"internet"`
-	// The most urgent layer that applies; the open status is OPEN_STATUSES[layer - 1].
+	// The most urgent layer that applies; the open status is OPEN_FINDING_STATUSES[layer - 1].
 	Layer int `json:"layer"`
 	// Every layer 1 to 4 that applies, most urgent first, each source its own entry; empty for layer 5.
 	// The GUI says "not yet in CISA KEV" for a layer 2 without a cisa-kev entry.
@@ -111827,7 +111827,7 @@ type FindingsPostFindingsIDReopenOKUrgency struct {
 	// "Reachable from the Internet (seen )": the day an exposure scan last saw the affected service from
 	// outside; raises the order inside a layer, never the layer.
 	Internet NilDate `json:"internet"`
-	// The most urgent layer that applies; the open status is OPEN_STATUSES[layer - 1].
+	// The most urgent layer that applies; the open status is OPEN_FINDING_STATUSES[layer - 1].
 	Layer int `json:"layer"`
 	// Every layer 1 to 4 that applies, most urgent first, each source its own entry; empty for layer 5.
 	// The GUI says "not yet in CISA KEV" for a layer 2 without a cisa-kev entry.
@@ -122761,7 +122761,7 @@ type FindingsPostFindingsIDVerifyOKUrgency struct {
 	// "Reachable from the Internet (seen )": the day an exposure scan last saw the affected service from
 	// outside; raises the order inside a layer, never the layer.
 	Internet NilDate `json:"internet"`
-	// The most urgent layer that applies; the open status is OPEN_STATUSES[layer - 1].
+	// The most urgent layer that applies; the open status is OPEN_FINDING_STATUSES[layer - 1].
 	Layer int `json:"layer"`
 	// Every layer 1 to 4 that applies, most urgent first, each source its own entry; empty for layer 5.
 	// The GUI says "not yet in CISA KEV" for a layer 2 without a cisa-kev entry.

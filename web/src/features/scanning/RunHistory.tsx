@@ -81,7 +81,7 @@ export function RunHistory() {
         {(d) => (
           <>
             {job ? <Opened r={d.items.find((r) => r.id === job)} /> : null}
-            <DataTable caption={t('history.caption')} data={d.items} columns={columns} pageSize={20} empty={t(asset ? 'history.emptyDevice' : 'history.empty')}
+            <DataTable urlKey="run-history" caption={t('history.caption')} data={d.items} columns={columns} pageSize={20} empty={t(asset ? 'history.emptyDevice' : 'history.empty')}
               mobileRow={(r) => <RunCard r={r} />} />
           </>
         )}

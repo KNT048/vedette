@@ -45,7 +45,7 @@ export function RescanLog() {
         {(d) => (
           <div className="grid gap-4">
             {!d.auto_rescan ? <Notice tone="warn" className="mb-0" title={t('auto.offNote')} info={t('auto.offNoteInfo')} /> : null}
-            <DataTable caption={t('auto.caption')} data={d.items} columns={columns} pageSize={10} empty={<EmptyState title={t('auto.empty')}>{t('auto.emptyHelp')}</EmptyState>} />
+            <DataTable urlKey="rescan-log" caption={t('auto.caption')} data={d.items} columns={columns} pageSize={10} empty={<EmptyState title={t('auto.empty')}>{t('auto.emptyHelp')}</EmptyState>} />
           </div>
         )}
       </QueryState>

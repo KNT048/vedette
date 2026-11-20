@@ -1231,7 +1231,7 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
     expect(await screen.findByRole('heading', { level: 1, name: '2 network ranges to watch' }, T)).toBeInTheDocument()
     // One tab per area that saves on its own; Scope first
     const tabs = await screen.findByRole('tablist', { name: 'Parts of the setup' }, T)
-    expect(within(tabs).getAllByRole('tab').map((x) => x.textContent?.trim())).toEqual(['Scope', 'Sensor', 'Agents']) // #850: SNMP credentials moved to Settings › Scanning
+    expect(within(tabs).getAllByRole('tab').map((x) => x.textContent?.trim())).toEqual(['Scope', 'Sensor', 'Agents', 'Wazuh']) // #850: SNMP credentials moved to Settings › Scanning
     for (const h of ['LAN ranges', 'Active scanning', 'Device types scanned only once']) {
       expect(await screen.findByRole('heading', { level: 2, name: h }, T)).toBeInTheDocument()
     }
@@ -1672,21 +1672,24 @@ async function newToken(body: Record<string, unknown> = { name: 'osquery test' }
 const fastForward = (ms: number) => { const real = Date.now(); return vi.spyOn(Date, 'now').mockImplementation(() => real + ms) }
 
 describe('inventory: agents (S-INV-4)', () => {
-  it('the section has an osquery table and a Wazuh card; the seeded token is listed and masked', async () => {
+  it('the section has the osquery token table and no Wazuh card; the seeded token is listed and masked', async () => {
     enableModule('agent-intake', true)
     renderApp('/devices/setup?tab=agents')
     const table = await screen.findByRole('table', { name: 'Enrollment tokens' }, T)
     expect(within(table).getByText(OSQ)).toBeInTheDocument()
     expect(within(table).getByText('••••k3Pq')).toBeInTheDocument()
-    expect(screen.getByText('Use osquery on your Linux and Windows PCs and servers. Already run Wazuh? Connect its API instead.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Connect Wazuh' })).toBeInTheDocument()
+    expect(screen.queryByText(/Vedette acts as the osquery server/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Connect Wazuh' })).not.toBeInTheDocument() // Wazuh has its own tab
     expect(screen.queryByText(/Trivy/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/macOS/i)).not.toBeInTheDocument()
   })
 
-  it('the page itself lists every osquery package as step 1, without opening a dialog; the token is step 2 (item 26b)', async () => {
+  it('the osquery packages sit in one folded line at the bottom of the page, without opening a dialog', async () => {
     enableModule('agent-intake', true)
     renderApp('/devices/setup?tab=agents')
+    const fold = (await screen.findByText(`Download osquery ${OSQUERY_VERSION}`, undefined, T)).closest('details')!
+    expect(fold).not.toHaveAttribute('open')
+    fold.open = true
     const table = await screen.findByRole('table', { name: 'osquery packages this box serves' }, T)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     const pkgs = (await call('GET', '/agents')).json!.install.packages as OsqueryPackage[]
@@ -1701,9 +1704,8 @@ describe('inventory: agents (S-INV-4)', () => {
       expect(row).toHaveTextContent(`${hint[p.format]} ${p.file}`)
     }
     expect(within(table).getByRole('link', { name: `Download osquery-${OSQUERY_VERSION}.msi` }).closest('tr')).toHaveTextContent('Windows · x64')
-    expect(screen.getByRole('heading', { level: 4, name: '1. Download osquery' })).toBeInTheDocument()
     expect(screen.getByText(new RegExp(`official osquery ${OSQUERY_VERSION.replace(/\./g, '\\.')} packages`))).toBeInTheDocument()
-    expect(screen.getByRole('heading', { level: 4, name: '2. Then create a token so the agent can report to this box' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 3, name: 'Enrollment tokens' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Create agent token' })).toBeEnabled()
     expect(document.body.textContent).not.toMatch(/osquery\.io|choco/)
     await expectNoA11yViolations()
@@ -1988,8 +1990,8 @@ describe('inventory: agents (S-INV-4)', () => {
   it('Wazuh is a pull connection: Connect Wazuh opens read-only user steps and the connection form', async () => {
     enableModule('agent-intake', true)
     const user = userEvent.setup()
-    renderApp('/devices/setup?tab=agents')
-    await screen.findByRole('table', { name: 'Enrollment tokens' }, T)
+    renderApp('/devices/setup?tab=wazuh')
+    await screen.findByRole('heading', { level: 2, name: 'Wazuh' }, T)
     await clickUntil(user, () => screen.getByRole('button', { name: 'Connect Wazuh' }), () => screen.getByRole('dialog'))
     const dialog = await screen.findByRole('dialog', { name: 'Connect Wazuh' }, T)
     for (const s of ['agent:read', 'syscollector:read', 'agent:id:*']) expect(within(dialog).getAllByText(new RegExp(s.replace('*', '\\*'))).length).toBeGreaterThan(0)
@@ -2004,8 +2006,8 @@ describe('inventory: agents (S-INV-4)', () => {
   it('Wazuh form: refused password, unreachable host and a non-https address show clear errors; a good test shows the version', async () => {
     enableModule('agent-intake', true)
     const user = userEvent.setup()
-    renderApp('/devices/setup?tab=agents')
-    await screen.findByRole('table', { name: 'Enrollment tokens' }, T)
+    renderApp('/devices/setup?tab=wazuh')
+    await screen.findByRole('heading', { level: 2, name: 'Wazuh' }, T)
     await clickUntil(user, () => screen.getByRole('button', { name: 'Connect Wazuh' }), () => screen.getByRole('dialog'))
     const dialog = await screen.findByRole('dialog', { name: 'Connect Wazuh' }, T)
     const url = within(dialog).getByLabelText('Wazuh server API address')
@@ -2037,8 +2039,8 @@ describe('inventory: agents (S-INV-4)', () => {
     const held = new Promise<void>((r) => { release = r })
     server.use(http.post('*/api/v1/inventory/agents/wazuh/test', async () => { await held; return HttpResponse.json({ version: '4.9.2', agents: 1 }) }))
     const user = userEvent.setup()
-    renderApp('/devices/setup?tab=agents')
-    await screen.findByRole('table', { name: 'Enrollment tokens' }, T)
+    renderApp('/devices/setup?tab=wazuh')
+    await screen.findByRole('heading', { level: 2, name: 'Wazuh' }, T)
     await clickUntil(user, () => screen.getByRole('button', { name: 'Connect Wazuh' }), () => screen.getByRole('dialog'))
     const dialog = await screen.findByRole('dialog', { name: 'Connect Wazuh' }, T)
     await user.type(within(dialog).getByLabelText('Wazuh server API address'), 'https://wazuh-manager:55000')
@@ -2054,7 +2056,7 @@ describe('inventory: agents (S-INV-4)', () => {
     enableModule('agent-intake', true)
     const lost = 'The saved Wazuh password was not restored (the backup was restored without its decryption key, or the box key changed). Open Edit, enter the password again and press Save. Nothing is pulled until then.'
     collection<unknown>('intake_wazuh', () => null).set({ url: 'https://wazuh-manager:55000', username: 'vedette', password: 'x', password_last4: 'pass', interval_minutes: 60, status: 'error', last_sync: null, agents: 0, packages: 0, error: lost })
-    renderApp('/devices/setup?tab=agents')
+    renderApp('/devices/setup?tab=wazuh')
     expect(await screen.findByText(lost, undefined, T)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument()
   })
@@ -2062,8 +2064,8 @@ describe('inventory: agents (S-INV-4)', () => {
   it('Wazuh connect, sync with sample data, and disconnect from the UI; the password is never shown back', async () => {
     enableModule('agent-intake', true)
     const user = userEvent.setup()
-    renderApp('/devices/setup?tab=agents')
-    await screen.findByRole('table', { name: 'Enrollment tokens' }, T)
+    renderApp('/devices/setup?tab=wazuh')
+    await screen.findByRole('heading', { level: 2, name: 'Wazuh' }, T)
     await clickUntil(user, () => screen.getByRole('button', { name: 'Connect Wazuh' }), () => screen.getByRole('dialog'))
     const dialog = await screen.findByRole('dialog', { name: 'Connect Wazuh' }, T)
     await user.type(within(dialog).getByLabelText('Wazuh server API address'), 'https://wazuh-manager:55000')

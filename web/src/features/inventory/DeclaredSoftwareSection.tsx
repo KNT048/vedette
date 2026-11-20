@@ -91,7 +91,7 @@ function Body() {
       actions={<Button variant="primary" disabled={!can} title={needRole} onClick={() => setAdding(true)}><Plus />{t('declaredPage.add')}</Button>}>
       <QueryState query={q}>
         {() => (rows.length ? (
-          <DataTable caption={t('declaredPage.caption')} data={rows} columns={columns} initialSort={[{ id: 'name', desc: false }]}
+          <DataTable urlKey="declared-software" caption={t('declaredPage.caption')} data={rows} columns={columns} initialSort={[{ id: 'name', desc: false }]}
             filterPlaceholder={rows.length > 10 ? t('declaredPage.search') : undefined}
             mobileRow={(r) => (
               <div className="grid gap-1">

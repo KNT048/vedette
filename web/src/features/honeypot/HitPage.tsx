@@ -61,7 +61,7 @@ function HitBody({ h, crumbs, respond }: { h: HitDetail; crumbs: Crumb[]; respon
         <CodeBlock code={h.excerpt} label={t('hit.sessionLabel')} />
       </Section>
       <Section id="events" title={t('hit.events', { minutes: h.window_minutes })} description={t('hit.eventsHint')} info={t('hit.eventsHintInfo')}>
-        <DataTable caption={t('hit.eventsCaption')} data={h.events} columns={columns} pageSize={20} rowTone={(r) => (r.mark ? 'warn' : undefined)} initialSort={[{ id: 'ts', desc: false }]} />
+        <DataTable urlKey="honeypot-hit-events" caption={t('hit.eventsCaption')} data={h.events} columns={columns} pageSize={20} rowTone={(r) => (r.mark ? 'warn' : undefined)} initialSort={[{ id: 'ts', desc: false }]} />
       </Section>
       {h.is_test ? null : (
         // Respond is the next step done in the response module: it sits with the steps, not in the header

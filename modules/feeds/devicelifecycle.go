@@ -19,3 +19,12 @@ func (s *Service) DeviceMerged(ctx context.Context, tx *sql.Tx, m lifecycle.Merg
 	}
 	return nil
 }
+
+// DeviceDeleted is feeds' part of a device delete (core/lifecycle, inside the inventory's write): an "I have this" answer that declared
+// the deleted device stays, naming no device, so its scope (HaveSince) names no device that is gone.
+func (s *Service) DeviceDeleted(ctx context.Context, tx *sql.Tx, d lifecycle.Delete) error {
+	if _, err := tx.ExecContext(ctx, `UPDATE feeds_weekly_answer SET device_id = NULL WHERE device_id = ?`, d.Device); err != nil {
+		return fmt.Errorf("feeds: forget the deleted device an answer declared: %w", err)
+	}
+	return nil
+}

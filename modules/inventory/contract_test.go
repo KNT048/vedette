@@ -183,6 +183,13 @@ func TestContract_INV1_ObservationsAppendOnly(t *testing.T) {
 
 func ptr[T any](v T) *T { return &v }
 
+// seedsInvRows are the tests outside the module that seed and read inv_* rows on purpose: the device merge tests load a fixture
+// device onto two rows and count what a merge loses, below the inventory's API. Product code is never listed.
+var seedsInvRows = map[string]bool{
+	"../../cmd/vedette/merge_count_test.go":     true,
+	"../../cmd/vedette/devicelifecycle_test.go": true,
+}
+
 func TestContract_INV2_OnlyTheServiceWritesInvTables(t *testing.T) {
 	t.Parallel()
 	// FORBID-4: no other Go package touches inv_* tables. The scan is by effect on the source tree: any SQL verb
@@ -204,9 +211,7 @@ func TestContract_INV2_OnlyTheServiceWritesInvTables(t *testing.T) {
 			}
 			return nil
 		}
-		// Tests may seed and read inv_* rows to set up and check what the product code does (the merge count test of
-		// cmd/vedette loads a fixture device that way); the product code never does.
-		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+		if !strings.HasSuffix(path, ".go") || seedsInvRows[filepath.ToSlash(path)] {
 			return nil
 		}
 		b, err := os.ReadFile(path) //nolint:gosec // walking our own source tree

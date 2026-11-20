@@ -97,7 +97,7 @@ func TestContract_DeviceMergedKeepsTheBetterFinding(t *testing.T) {
 			if c.into != nil {
 				c.into(e, intoID)
 			}
-			e.svc.cfg.Applied = func(context.Context, []string) (map[string]bool, error) {
+			e.svc.cfg.Applied = func(context.Context, *sql.Tx, []string) (map[string]bool, error) {
 				return map[string]bool{fromID: c.applied}, nil
 			}
 			var folds []lifecycle.FindingFold
@@ -179,7 +179,8 @@ func TestDeviceMergedMovesDoneMarksAndFollowsFoldedSoftware(t *testing.T) {
 			`INSERT INTO fnd_plan_done (item_key, asset_id, version, cves, done_by, done_at) VALUES
 				('a-1/sw-from', 'a-1', '1.0', '["CVE-2024-0001"]', 'anna', '2026-01-02T00:00:00.000Z'),
 				('a-1/sw-only/distro', 'a-1', '2.0', '[]', 'anna', '2026-01-02T00:00:00.000Z'),
-				('a-2/sw-into', 'a-2', '1.0', '[]', 'bo', '2026-01-01T00:00:00.000Z')`,
+				('a-2/sw-into', 'a-2', '1.0', '[]', 'bo', '2026-01-01T00:00:00.000Z'),
+				('a-2/sw-replaced', 'a-2', '3.0', '[]', 'bo', '2026-01-01T00:00:00.000Z')`,
 		} {
 			if _, err := tx.ExecContext(ctx, q); err != nil {
 				return err
@@ -189,7 +190,8 @@ func TestDeviceMergedMovesDoneMarksAndFollowsFoldedSoftware(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	e.mergeDevices(t, lifecycle.Merge{From: "a-1", Into: "a-2", Software: map[string]string{"sw-from": "sw-into"}})
+	// sw-replaced: a correction on a-2 that a newer one on a-1 replaced, so a-2's own mark follows the row that stays
+	e.mergeDevices(t, lifecycle.Merge{From: "a-1", Into: "a-2", Software: map[string]string{"sw-from": "sw-into", "sw-replaced": "sw-newer"}})
 	rows, err := e.db.Reader().QueryContext(ctx, `SELECT item_key || ' ' || asset_id || ' ' || done_by FROM fnd_plan_done ORDER BY item_key`)
 	if err != nil {
 		t.Fatal(err)
@@ -203,10 +205,31 @@ func TestDeviceMergedMovesDoneMarksAndFollowsFoldedSoftware(t *testing.T) {
 		got = append(got, s)
 	}
 	_ = rows.Close()
-	if want := []string{"a-2/sw-into a-2 anna", "a-2/sw-only/distro a-2 anna"}; strings.Join(got, "|") != strings.Join(want, "|") {
+	if want := []string{"a-2/sw-into a-2 anna", "a-2/sw-newer a-2 bo", "a-2/sw-only/distro a-2 anna"}; strings.Join(got, "|") != strings.Join(want, "|") {
 		t.Errorf("marks %q, want %q", got, want)
 	}
 	if n := e.count(`SELECT count(*) FROM fnd_finding WHERE id = '` + fp + `' AND asset_id = 'a-2' AND software_id = 'sw-into'`); n != 1 {
 		t.Error("the moved finding does not name the software row that stays")
+	}
+}
+
+// The folded copy's "not installed" mark stays on the finding that is kept.
+func TestDeviceMergedKeepsTheFoldedNotInstalledMark(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	fromID := e.seed()
+	res, err := e.svc.UpsertFromMatch(t.Context(), Asset{ID: "a-2", Name: "sw .47", Software: nas("6.1.1").Software}, e.feeds.vulns)
+	if err != nil || len(res.Created) != 1 {
+		t.Fatalf("into: %+v %v", res, err)
+	}
+	if err := e.db.Write(t.Context(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `INSERT INTO fnd_not_installed (finding_id, mark) VALUES (?, 'agent|synology|dsm|6.1.1')`, fromID)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	e.mergeDevices(t, lifecycle.Merge{From: "a-1", Into: "a-2"})
+	if n := e.count(`SELECT count(*) FROM fnd_not_installed WHERE finding_id = '` + res.Created[0] + `'`); n != 1 {
+		t.Fatal("the mark of the folded finding is gone")
 	}
 }

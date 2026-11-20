@@ -37,8 +37,9 @@ type ServiceConfig struct {
 	// that one device is scoped, never the same product on other devices. nil: no such scope.
 	HaveSince func(ctx context.Context) (map[string]Have, error)
 	// Applied reports which of the findings have a mitigation item a person marked applied (mitigation's log): such a
-	// finding counts as decided when a merge must keep one of two findings of a CVE. nil: none has.
-	Applied func(ctx context.Context, findingIDs []string) (map[string]bool, error)
+	// finding counts as decided when a merge must keep one of two findings of a CVE. It reads through tx, the merge's own
+	// transaction, so a merge sees what the same write changed before it. nil: none has.
+	Applied func(ctx context.Context, tx *sql.Tx, findingIDs []string) (map[string]bool, error)
 	// Lifecycle holds the other modules' parts of a device merge (core/lifecycle): when a merge folds two findings of one CVE into one,
 	// their FindingFolded moves the rows they keep by finding id (mitigation, response) before the folded finding is deleted. nil: none.
 	Lifecycle *lifecycle.Hooks

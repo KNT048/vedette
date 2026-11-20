@@ -93,3 +93,19 @@ func TestFailedDeleteRollsBack(t *testing.T) {
 		t.Fatal("a failed delete changed the database")
 	}
 }
+
+// A deleted device leaves a linked connection and an "I have this" answer in place, naming no device.
+func TestDeleteUnlinksConnectionsAndAnswers(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	from, _, _ := s.twoRowsOfOneMachine(t)
+	if err := s.d.Inventory.DeleteDevice(t.Context(), "person@example.com", from); err != nil {
+		t.Fatal(err)
+	}
+	if n := s.count(`SELECT count(*) FROM core_connection WHERE id = 'cn-merge-1' AND asset_id IS NULL`); n != 1 {
+		t.Error("the connection still names the deleted device, or is gone")
+	}
+	if n := s.count(`SELECT count(*) FROM feeds_weekly_answer WHERE key = 'linux|kernel' AND device_id IS NULL`); n != 1 {
+		t.Error("the answer still names the deleted device, or is gone")
+	}
+}

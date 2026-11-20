@@ -48,7 +48,7 @@ func (s *stack) insertRow(table string, row map[string]any, set map[string]any) 
 // twoRowsOfOneMachine loads the fixture server twice, as two device rows of one machine (a network sensor's row and the row its agent
 // made), each with its own copy of the same software, open ports, findings and their history, and gives each what a person or another
 // module keeps about a device: a person's decision on some findings (different ones, and one CVE decided on both), an applied
-// mitigation item, an AI result, SNMP settings, a done mark of a recommended update, a device check, a trap incident, a response event,
+// mitigation item, an AI result, a notice sent, SNMP settings, a done mark of a recommended update, a device check, a trap incident, a response event,
 // a connection and an "I have this" answer. It returns the two device ids and how many rows the two copies share.
 func (s *stack) twoRowsOfOneMachine(t *testing.T) (from, into string, colliding int) {
 	t.Helper()
@@ -109,6 +109,8 @@ func (s *stack) twoRowsOfOneMachine(t *testing.T) (from, into string, colliding 
 	decide(f0+"-f", "person@example.com", "the module is not loaded on this server")
 	decide(f0+"-i", "other@example.com", "checked with the vendor: not affected")
 	decide(f1+"-f", "person@example.com", "kernel is livepatched")
+	s.exec(`INSERT INTO notify_notice (id, created_at, product, cves) VALUES ('nt-merge-1', '2026-11-20T10:04:00.000Z', 'Linux servers (kernel)', '[]')`)
+	s.exec(`INSERT INTO notify_notice_finding (notice_id, finding_id) VALUES ('nt-merge-1', ?)`, fx.Findings[3]["id"].(string)+"-f")
 	s.exec(`INSERT INTO mit_applied (finding_id, item, ts, user) VALUES (?, 'workaround', '2026-11-20T10:05:00.000Z', 'person@example.com')`, f2+"-i")
 	s.exec(`INSERT INTO mit_ai_output (finding_id, skill, payload, model, created_at) VALUES (?, 'explain', '{"text":"why"}', 'model-x', '2026-11-20T10:06:00.000Z')`, f2+"-f")
 	sw := fx.Software[0]["id"].(string)
@@ -162,6 +164,7 @@ var dangling = []string{
 	`SELECT count(*) FROM feeds_weekly_answer WHERE device_id = ?1`,
 	`SELECT count(*) FROM fnd_finding f WHERE f.software_id LIKE 's-%' AND NOT EXISTS (SELECT 1 FROM inv_software s WHERE s.id = f.software_id)`,
 	`SELECT count(*) FROM fnd_version_needed v WHERE NOT EXISTS (SELECT 1 FROM inv_software s WHERE s.id = v.software_id)`,
+	`SELECT count(*) FROM notify_notice_finding n WHERE NOT EXISTS (SELECT 1 FROM fnd_finding f WHERE f.id = n.finding_id)`,
 }
 
 func (s *stack) factsOf(id string) map[string]map[string]bool {

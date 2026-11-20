@@ -42,7 +42,7 @@
 
 ## Modifying: `findings.Service.DeviceMerged(ctx, tx, lifecycle.Merge)` and `MergeCommitted` (INV-7)
 - **Caller**: the inventory, inside its own write transaction, through `core/lifecycle` (registered by `cmd/vedette/devicelifecycle.go` `registerLifecycle`), before the merged row is deleted and whether or not the module is on. It must write only through `tx` (never `db.Write`: the writer is held) and publish nothing; the plan in memory follows in `MergeCommitted`. An error rolls the inventory's merge back. `ServiceConfig.Lifecycle.FindingFolded` (mitigation, response) runs before a folded finding is deleted: a module that keeps rows by finding id and is not a participant loses them to the FK cascade.
-- **`ServiceConfig.Applied`** (binary: `mitigationApplied` đọc `mit_applied`): đổi bảng hay nghĩa "đã áp dụng" của mitigation là đổi finding nào thắng khi hai thiết bị cùng có một CVE. Nil = không finding nào được coi là đã áp dụng.
+- **`ServiceConfig.Applied`** (binary: `mitigationApplied` đọc `mit_applied` through the merge's own `tx`): đổi bảng hay nghĩa "đã áp dụng" của mitigation là đổi finding nào thắng khi hai thiết bị cùng có một CVE. Nil = không finding nào được coi là đã áp dụng.
 - **Audit** `findings.merged_with_asset`: nhãn trong `web/src/locales/en/core.json` (`TestEveryAuditActionHasALabel`).
 
 ## Modifying: `findings.Service.UpsertFromMatch(ctx, Asset, []Vuln)` và `OnMatchChanged(ctx, assetID)`

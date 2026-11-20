@@ -19,7 +19,6 @@ import (
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/logexport"
 	"github.com/knt048/vedette/core/server"
-	"github.com/knt048/vedette/core/store"
 	hostclient "github.com/knt048/vedette/host/client"
 	agentintake "github.com/knt048/vedette/modules/agent-intake"
 	authoidc "github.com/knt048/vedette/modules/auth-oidc"
@@ -624,7 +623,7 @@ func buildServices(ctx context.Context, d *deps) error {
 	// Backlog: findings the reconcile job creates for old KEV entries are backlog, silent for notify (findings does not import notify).
 	cfg := findings.ServiceConfig{DB: d.DB, Audit: d.Audit, Inventory: inv, Feeds: feed, Log: d.Log, Clock: d.Clock, Zone: orgTimeZone(d), Backlog: notify.WithBaseline,
 		HaveSince: findingsHave(fs.Store()), // "I have this" on Home scopes the one device it declared
-		Applied:   mitigationApplied(d.DB),  // a merge keeps the finding a person marked a mitigation item applied on
+		Applied:   mitigationApplied,        // a merge keeps the finding a person marked a mitigation item applied on
 		Lifecycle: d.Lifecycle,              // a merge that folds two findings tells mitigation and response (registerLifecycle)
 		SafeCheck: safeCheckFor}             // "a safe check exists": the scan's own pack, the same answer as KevInfo.HasTemplate
 	if d.Bus != nil {
@@ -1085,28 +1084,26 @@ func inventoryHasAddress(ctx context.Context, inv *inventory.Service, ip netip.A
 }
 
 // mitigationApplied tells findings which findings have a mitigation item a person marked applied (mit_applied): the binary
-// reads mitigation's table so that findings does not.
-func mitigationApplied(db *store.DB) func(ctx context.Context, ids []string) (map[string]bool, error) {
-	return func(ctx context.Context, ids []string) (map[string]bool, error) {
-		out := map[string]bool{}
-		args := make([]any, len(ids))
-		for i, id := range ids {
-			args[i] = id
-		}
-		rows, err := db.Reader().QueryContext(ctx, `SELECT DISTINCT finding_id FROM mit_applied WHERE finding_id IN (`+strings.TrimSuffix(strings.Repeat("?,", len(ids)), ",")+`)`, args...)
-		if err != nil {
+// reads mitigation's table, inside the merge's transaction, so that findings does not.
+func mitigationApplied(ctx context.Context, tx *sql.Tx, ids []string) (map[string]bool, error) {
+	out := map[string]bool{}
+	list, err := json.Marshal(ids)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := tx.QueryContext(ctx, `SELECT DISTINCT finding_id FROM mit_applied WHERE finding_id IN (SELECT value FROM json_each(?))`, string(list))
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
 			return nil, err
 		}
-		defer func() { _ = rows.Close() }()
-		for rows.Next() {
-			var id string
-			if err := rows.Scan(&id); err != nil {
-				return nil, err
-			}
-			out[id] = true
-		}
-		return out, rows.Err()
+		out[id] = true
 	}
+	return out, rows.Err()
 }
 
 // agentReports is findings' AgentReports: whether an agent of this box reads the device's software now, by agent-intake's report

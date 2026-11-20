@@ -66,7 +66,7 @@ func TestMergedDeviceLeavesItsIncidentNamingWhereItWent(t *testing.T) {
 		t.Fatalf("no incident of %s in %+v", asset, l)
 		return notify.Incident{}
 	}
-	e.mergeDevices("lldp-1", "ip-1")
+	e.mergeDevices("lldp-1", "ip-1", "EX2300")
 	if i := own("lldp-1"); i.Status != notify.StatusResolved || i.ResolvedReason == nil || *i.ResolvedReason != "Closed by Vedette: merged into EX2300." {
 		t.Fatalf("merged = %+v", i)
 	}
@@ -89,12 +89,12 @@ func TestMergedDeviceLeavesItsIncidentNamingWhereItWent(t *testing.T) {
 	e.firstRunAt(e.clock.Now())
 	publish(inventory.EventAssetDiscovered, inventory.AssetEvent{AssetID: "s2", Notify: true})
 	publish(inventory.EventAssetDiscovered, inventory.AssetEvent{AssetID: "lldp-2", Notify: true})
-	e.mergeDevices("lldp-2", "ip-2")
+	e.mergeDevices("lldp-2", "ip-2", "EX4300")
 	l, _ := e.svc.Incidents(e.ctx())
 	if l[0].Link != "/devices" || l[0].Title != "1 device found on your network: approve it in Devices" || len(l[0].Devices) != 1 || l[0].Devices[0].ID != "s2" {
 		t.Fatalf("summary = %+v", l[0])
 	}
-	e.mergeDevices("s2", "ip-2")
+	e.mergeDevices("s2", "ip-2", "EX4300")
 	if i := e.detail(l[0].ID); i.Status != notify.StatusResolved || i.ResolvedReason == nil ||
 		*i.ResolvedReason != "Closed by Vedette: every device on it was approved, ignored or deleted in Devices, the last one merged into EX4300." {
 		t.Fatalf("summary whose last device was merged = %+v", i)

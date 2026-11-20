@@ -19,3 +19,12 @@ func (s *Service) DeviceMerged(ctx context.Context, tx *sql.Tx, m lifecycle.Merg
 	}
 	return nil
 }
+
+// DeviceDeleted is the connections' part of a device delete (core/lifecycle, inside the inventory's write): a connection linked to
+// the deleted device stays, linked to no device.
+func (s *Service) DeviceDeleted(ctx context.Context, tx *sql.Tx, d lifecycle.Delete) error {
+	if _, err := tx.ExecContext(ctx, `UPDATE core_connection SET asset_id = NULL WHERE asset_id = ?`, d.Device); err != nil {
+		return fmt.Errorf("conn: unlink the connections of a deleted device: %w", err)
+	}
+	return nil
+}

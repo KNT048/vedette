@@ -108,7 +108,7 @@ func (s *Service) DeviceMerged(ctx context.Context, tx *sql.Tx, m lifecycle.Merg
 	}
 	applied := map[string]bool{}
 	if s.cfg.Applied != nil && len(ids) > 0 {
-		if applied, err = s.cfg.Applied(ctx, ids); err != nil {
+		if applied, err = s.cfg.Applied(ctx, tx, ids); err != nil {
 			return fmt.Errorf("findings: reading the applied mitigation items: %w", err)
 		}
 	}
@@ -214,6 +214,10 @@ func (s *Service) foldFinding(ctx context.Context, tx *sql.Tx, gone, kept string
 	if err := copyHistory(ctx, tx, gone, kept); err != nil {
 		return fmt.Errorf("findings: folding a finding of a merged device: %w", err)
 	}
+	// a person's "not installed" mark of the folded copy stays readable on the kept one when it has none
+	if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO fnd_not_installed (finding_id, mark) SELECT ?2, mark FROM fnd_not_installed WHERE finding_id = ?1`, gone, kept); err != nil {
+		return fmt.Errorf("findings: folding a finding of a merged device: %w", err)
+	}
 	if _, err := tx.ExecContext(ctx, `UPDATE fnd_finding SET first_seen = min(first_seen, (SELECT first_seen FROM fnd_finding WHERE id = ?1)),
 		last_seen = max(last_seen, (SELECT last_seen FROM fnd_finding WHERE id = ?1)) WHERE id = ?2`, gone, kept); err != nil {
 		return fmt.Errorf("findings: folding a finding of a merged device: %w", err)
@@ -227,19 +231,22 @@ func (s *Service) foldFinding(ctx context.Context, tx *sql.Tx, gone, kept string
 	return nil
 }
 
-// movePlanDone moves the done marks of m.From's recommended updates to m.Into: the item key (PlanItem.Group, "<device>/<software
-// row>[/<suffix>]") names Into and the software row that stays. Of two marks of the same item the newer stays. It returns how many
-// marks moved.
+// movePlanDone moves the done marks of m.From's recommended updates to m.Into and re-keys Into's own marks whose software row the
+// merge replaced: the item key (PlanItem.Group, "<device>/<software row>[/<suffix>]") names Into and the software row that stays.
+// Of two marks of the same item the newer stays. It returns how many marks moved or were re-keyed.
 func movePlanDone(ctx context.Context, tx *sql.Tx, m lifecycle.Merge) (int, error) {
-	rows, err := tx.QueryContext(ctx, `SELECT item_key, done_at FROM fnd_plan_done WHERE asset_id = ?`, m.From)
+	rows, err := tx.QueryContext(ctx, `SELECT item_key, done_at, asset_id = ? FROM fnd_plan_done WHERE asset_id IN (?, ?) ORDER BY asset_id = ?`, m.Into, m.From, m.Into, m.Into)
 	if err != nil {
 		return 0, fmt.Errorf("findings: reading the done marks of a merged device: %w", err)
 	}
-	type mark struct{ key, at string }
+	type mark struct {
+		key, at string
+		into    bool // Into's own mark
+	}
 	var marks []mark
 	for rows.Next() {
 		var k mark
-		if err := rows.Scan(&k.key, &k.at); err != nil {
+		if err := rows.Scan(&k.key, &k.at, &k.into); err != nil {
 			_ = rows.Close()
 			return 0, fmt.Errorf("findings: reading the done marks of a merged device: %w", err)
 		}
@@ -251,12 +258,18 @@ func movePlanDone(ctx context.Context, tx *sql.Tx, m lifecycle.Merge) (int, erro
 	moved := 0
 	for _, k := range marks {
 		key := k.key
-		if rest, ok := strings.CutPrefix(key, m.From+"/"); ok {
-			sw, suffix, _ := strings.Cut(rest, "/")
-			key = m.Into + "/" + m.SoftwareID(sw)
-			if suffix != "" {
-				key += "/" + suffix
+		for _, dev := range []string{m.From, m.Into} {
+			if rest, ok := strings.CutPrefix(k.key, dev+"/"); ok {
+				sw, suffix, _ := strings.Cut(rest, "/")
+				key = m.Into + "/" + m.SoftwareID(sw)
+				if suffix != "" {
+					key += "/" + suffix
+				}
+				break
 			}
+		}
+		if k.into && key == k.key {
+			continue // Into's own mark of a row that stays
 		}
 		var other string
 		err := tx.QueryRowContext(ctx, `SELECT done_at FROM fnd_plan_done WHERE item_key = ?`, key).Scan(&other)
@@ -275,10 +288,15 @@ func movePlanDone(ctx context.Context, tx *sql.Tx, m lifecycle.Merge) (int, erro
 				return 0, fmt.Errorf("findings: moving a done mark: %w", err)
 			}
 		}
-		if _, err := tx.ExecContext(ctx, `UPDATE fnd_plan_done SET item_key = ?, asset_id = ? WHERE item_key = ?`, key, m.Into, k.key); err != nil {
+		res, err := tx.ExecContext(ctx, `UPDATE fnd_plan_done SET item_key = ?, asset_id = ? WHERE item_key = ?`, key, m.Into, k.key)
+		if err != nil {
 			return 0, fmt.Errorf("findings: moving a done mark: %w", err)
 		}
-		moved++
+		if n, err := res.RowsAffected(); err != nil {
+			return 0, fmt.Errorf("findings: moving a done mark: %w", err)
+		} else if n > 0 { // 0: a newer mark of the same item replaced it above
+			moved++
+		}
 	}
 	return moved, nil
 }

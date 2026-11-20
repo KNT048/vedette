@@ -582,6 +582,21 @@ func (s *Service) assetIgnored(ctx context.Context, data any) error {
 // deletedInDevices starts the reason of a device's own new-device incident closed by its delete (DeviceDeleted).
 const deletedInDevices = "Closed by Vedette: the device was deleted in Devices"
 
+// FindingFolded is notify's part of a merge that folds finding f.From into f.Into (core/lifecycle, inside the inventory's write): the
+// notices sent for the folded finding are listed on the one that stays, so "who was told" keeps them and an old alert's link to the
+// finding still opens. A notice that already lists the kept finding keeps its row.
+func (s *Service) FindingFolded(ctx context.Context, tx *sql.Tx, f lifecycle.FindingFold) error {
+	for _, q := range []string{
+		`UPDATE OR IGNORE notify_notice_finding SET finding_id = ?2 WHERE finding_id = ?1`,
+		`DELETE FROM notify_notice_finding WHERE finding_id = ?1`,
+	} {
+		if _, err := tx.ExecContext(ctx, q, f.From, f.Into); err != nil {
+			return fmt.Errorf("notify: follow a folded finding: %w", err)
+		}
+	}
+	return nil
+}
+
 // mergedInto starts the reason of a device inventory joined into another (DeviceMerged).
 const mergedInto = "Closed by Vedette: merged into "
 
@@ -594,16 +609,7 @@ func (s *Service) DeviceMerged(ctx context.Context, tx *sql.Tx, m lifecycle.Merg
 	if m.From == "" || m.Into == "" || m.From == m.Into {
 		return nil
 	}
-	into := cmp.Or(m.IntoName, "another device in Devices")
-	if s.cfg.Devices != nil {
-		states, err := s.cfg.Devices.DeviceStates(ctx, []string{m.Into})
-		if err != nil {
-			return err
-		}
-		if st, ok := states[m.Into]; ok && st.Name != "" {
-			into = deviceLabel(st)
-		}
-	}
+	into := clip(cmp.Or(m.IntoName, "another device in Devices"), 200) // the name the inventory passes: no read outside the write
 	if err := s.leaveDevice(ctx, tx, m.From, mergedInto+into+".", nil); err != nil {
 		return err
 	}

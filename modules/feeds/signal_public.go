@@ -39,6 +39,15 @@ const (
 	pocGitHubNotice  = "CC0, nomi-sec PoC-in-GitHub index. Facts only; no repository is fetched."
 )
 
+// readFail is the error of a decoder that could not read its input: the download's own size cap (ErrTooLarge, which Fetch words as
+// "larger than …") as it is, anything else as a bad index.
+func readFail(err error, format string, a ...any) error {
+	if errors.Is(err, ErrTooLarge) {
+		return err
+	}
+	return fail(ErrBadSample, format, a...)
+}
+
 // publicExploitFeed reports a feed of the public-exploit indexes.
 func publicExploitFeed(id string) bool {
 	return id == metasploitFeedID || id == exploitDBFeedID || id == pocGitHubFeedID

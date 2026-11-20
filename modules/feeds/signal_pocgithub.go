@@ -27,11 +27,13 @@ import (
 // pocAuthors different accounts. A CVE that does not qualify keeps its row with qualifies = 0, so the date of the first claim stays.
 
 const (
-	pocMaxFiles    = 100_000   // CVE files of one archive (about 11,900 in November 2026)
-	pocMaxFile     = 8 << 20   // one CVE file (the largest, CVE-2021-44228, is well under 1 MB)
-	pocMaxUnpacked = 512 << 20 // every file of the archive together (71 MB in November 2026)
-	pocMaxRepos    = 20_000    // repositories listed in one CVE file
+	pocMaxFiles = 100_000 // CVE files of one archive (about 11,900 in November 2026)
+	pocMaxFile  = 8 << 20 // one CVE file (the largest, CVE-2021-44228, is well under 1 MB)
+	pocMaxRepos = 20_000  // repositories listed in one CVE file
 )
+
+// pocMaxUnpacked bounds every entry of the archive together, read or skipped (71 MB in November 2026); a variable for the tests.
+var pocMaxUnpacked int64 = 512 << 20
 
 // pocFileRE is a CVE file of the archive: the archive's top folder, a year folder, then the CVE id.
 var pocFileRE = regexp.MustCompile(`^[A-Za-z0-9._-]{1,100}/[0-9]{4}/(CVE-[0-9]{4}-[0-9]{4,7})\.json$`)
@@ -75,7 +77,7 @@ var exploitAuthors = sync.OnceValue(func() map[string]bool {
 func parsePoCInGitHub(r io.Reader) (publicIndex, error) {
 	gz, err := gzip.NewReader(r)
 	if err != nil {
-		return publicIndex{}, fail(ErrBadSample, "The PoC-in-GitHub archive is not a gzip file.")
+		return publicIndex{}, readFail(err, "The PoC-in-GitHub archive is not a gzip file.")
 	}
 	defer func() { _ = gz.Close() }()
 	tr := tar.NewReader(gz)
@@ -91,8 +93,13 @@ func parsePoCInGitHub(r io.Reader) (publicIndex, error) {
 			break
 		}
 		if err != nil {
-			return publicIndex{}, fail(ErrBadSample, "The PoC-in-GitHub archive could not be read.")
+			return publicIndex{}, readFail(err, "The PoC-in-GitHub archive could not be read.")
 		}
+		// every entry counts, read or skipped: tar.Next unpacks a skipped entry's data too
+		if h.Size < 0 || h.Size > pocMaxUnpacked-unpacked {
+			return publicIndex{}, fail(ErrTooLarge, "The PoC-in-GitHub archive unpacks to more than %d MB.", pocMaxUnpacked>>20)
+		}
+		unpacked += h.Size
 		m := pocFileRE.FindStringSubmatch(h.Name)
 		if m == nil || h.Typeflag != tar.TypeReg {
 			continue
@@ -104,12 +111,9 @@ func parsePoCInGitHub(r io.Reader) (publicIndex, error) {
 			tl.reject(files, "%s: the file is too large", m[1])
 			continue
 		}
-		if unpacked += h.Size; unpacked > pocMaxUnpacked {
-			return publicIndex{}, fail(ErrTooLarge, "The PoC-in-GitHub archive unpacks to more than %d MB.", pocMaxUnpacked>>20)
-		}
 		body, err := io.ReadAll(io.LimitReader(tr, pocMaxFile+1))
 		if err != nil {
-			return publicIndex{}, fail(ErrBadSample, "The PoC-in-GitHub archive could not be read.")
+			return publicIndex{}, readFail(err, "The PoC-in-GitHub archive could not be read.")
 		}
 		g, ok, why := pocSignal(m[1], body)
 		if why != "" {

@@ -238,7 +238,17 @@ var errRecordsLater = errors.New("feeds: the CVE records pull goes on later")
 // refuses (any other HTTP error that is not "busy") or that Vedette cannot read is counted, stamped (asked again after recordRecheck)
 // and skipped, its stored data kept; a source that stays busy ends this part with what it read.
 func (s *Service) recordsByID(ctx context.Context, run *recordRun, now time.Time) error {
-	due, err := s.st.recordDue(ctx, now.Add(-recordRecheck), recordPerPull)
+	// Many listed CVEs without a record (a new signal source named thousands of older CVEs): those come from the next read of the
+	// whole list (recordsBulk), not one file each; only the exploited lists' CVEs are still asked for by ID meanwhile.
+	listed := publicListedSQL
+	never, err := s.st.recordUnread(ctx)
+	if err != nil {
+		return err
+	}
+	if never >= recordRescanUnread {
+		listed = missingKEVSQL
+	}
+	due, err := s.st.recordDueOf(ctx, listed, now.Add(-recordRecheck), recordPerPull)
 	if err != nil || len(due) == 0 {
 		return err
 	}

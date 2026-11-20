@@ -347,7 +347,12 @@ func kevRecordRow(r Range, vendor, product string) AffectedRow {
 // (publicListedSQL: never a custom list's, a box-built signal's or a finding's CVE), whose record was never read, or, without NVD
 // ranges, not read since before. Never read first, then the longest ago.
 func (s *Store) recordDue(ctx context.Context, before time.Time, limit int) ([]string, error) {
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT i.cve FROM (`+publicListedSQL+`) i LEFT JOIN feeds_cve c ON c.cve = i.cve
+	return s.recordDueOf(ctx, publicListedSQL, before, limit)
+}
+
+// recordDueOf is recordDue over the CVEs of listed (a SELECT of one cve column, never one a box builds from its own data).
+func (s *Store) recordDueOf(ctx context.Context, listed string, before time.Time, limit int) ([]string, error) {
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT i.cve FROM (`+listed+`) i LEFT JOIN feeds_cve c ON c.cve = i.cve
 WHERE c.record_at IS NULL
    OR (c.record_at < ? AND NOT EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = i.cve AND r.origin = 'nvd'))
 ORDER BY c.record_at IS NOT NULL, c.record_at, i.cve DESC

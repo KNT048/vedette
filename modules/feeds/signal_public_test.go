@@ -4,11 +4,14 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
 	"maps"
+	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
@@ -22,11 +25,18 @@ import (
 // The frozen indexes of testdata/publicexploit were read from the three public sources on 21 November 2026 and cut to the fields the
 // decoders read (Metasploit: modules with a CVE reference, their full name, mod_time and references; Exploit-DB: rows with a CVE,
 // their id, date_published and codes; PoC-in-GitHub: each CVE file's repositories that are not forks, with name, owner, address,
-// creation time and stars). Facts only: no description, no exploit code.
+// creation time and stars). Facts only: no description, no exploit code. The Exploit-DB file keeps only the rows published from
+// 20 November 2025 on (210 of 27,433); the whole index's numbers were measured outside the repository with the same count
+// (publicIndexCounts on the downloaded file) and are in the comment of the count test.
 
 func fixtureBytes(t *testing.T, name string) []byte {
 	t.Helper()
-	b, err := fs.ReadFile(os.DirFS(filepath.Join("testdata", "publicexploit")), name)
+	return fixtureBytesIn(t, filepath.Join("testdata", "publicexploit"), name)
+}
+
+func fixtureBytesIn(t *testing.T, dir, name string) []byte {
+	t.Helper()
+	b, err := fs.ReadFile(os.DirFS(dir), name)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,6 +59,12 @@ func gunzipBytes(t *testing.T, b []byte) []byte {
 // frozenIndexes parses the three frozen indexes.
 func frozenIndexes(t *testing.T) map[string]publicIndex {
 	t.Helper()
+	return indexesIn(t, filepath.Join("testdata", "publicexploit"))
+}
+
+// indexesIn parses the three indexes of a folder laid out as testdata/publicexploit.
+func indexesIn(t *testing.T, dir string) map[string]publicIndex {
+	t.Helper()
 	out := map[string]publicIndex{}
 	for _, c := range []struct {
 		id    string
@@ -60,7 +76,7 @@ func frozenIndexes(t *testing.T) map[string]publicIndex {
 		{exploitDBFeedID, "exploitdb.csv.gz", parseExploitDBIndex, true},
 		{pocGitHubFeedID, "poc-in-github.tar.gz", parsePoCInGitHub, false}, // the archive is a tar.gz as the source serves it
 	} {
-		b := fixtureBytes(t, c.file)
+		b := fixtureBytesIn(t, dir, c.file)
 		if c.unzip {
 			b = gunzipBytes(t, b)
 		}
@@ -73,20 +89,16 @@ func frozenIndexes(t *testing.T) map[string]publicIndex {
 	return out
 }
 
-// Count test: per source, the (CVE, date) pairs read from the frozen index, how many qualify, and the qualifying share of the CVEs
-// first flagged in the window the measurement used (20 Nov 2025 to 19 Nov 2026): there, all public-exploit sources together flagged
-// 5,370 CVEs and the quality rule kept 1,513 (28.2%), nuclei templates included, which this count cannot date (nuclei's index has no
-// dates): without them, 4,775 and 1,174 (24.6%).
-func TestPublicExploit_CountsOfTheFrozenIndexes(t *testing.T) {
-	t.Parallel()
-	want := map[string]struct{ pairs, qualifying, rejected int }{
-		metasploitFeedID: {3_215, 3_215, 0},
-		exploitDBFeedID:  {25_094, 25_094, 0},
-		pocGitHubFeedID:  {11_875, 1_406, 0},
-	}
+// sourceCount is what the count test reads from one index.
+type sourceCount struct{ pairs, qualifying, rejected int }
+
+// publicIndexCounts is, per source, the (CVE, date) pairs, how many qualify and the rows rejected, and the CVEs first flagged in the
+// window the earlier measurement used (20 Nov 2025 to 19 Nov 2026), by any claim and by the quality rule.
+func publicIndexCounts(idxs map[string]publicIndex) (per map[string]sourceCount, all, kept int) {
 	w0, w1 := time.Date(2025, 11, 20, 0, 0, 0, 0, time.UTC), time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC)
 	anyFirst, qualFirst := map[string]time.Time{}, map[string]time.Time{}
-	for id, idx := range frozenIndexes(t) {
+	per = map[string]sourceCount{}
+	for id, idx := range idxs {
 		q := 0
 		for _, g := range idx.Signals {
 			ok, first := signalDate(id, g, heldSignal{}, false)
@@ -96,10 +108,7 @@ func TestPublicExploit_CountsOfTheFrozenIndexes(t *testing.T) {
 			}
 			anyFirst[g.CVE] = earliest(anyFirst[g.CVE], g.Date)
 		}
-		t.Logf("%s: %d (CVE, date) pairs, %d qualify, %d rows rejected", id, len(idx.Signals), q, idx.Rejected)
-		if w := want[id]; len(idx.Signals) != w.pairs || q != w.qualifying || idx.Rejected != w.rejected {
-			t.Errorf("%s: %d pairs, %d qualify, %d rejected; want %+v", id, len(idx.Signals), q, idx.Rejected, w)
-		}
+		per[id] = sourceCount{len(idx.Signals), q, idx.Rejected}
 	}
 	in := func(m map[string]time.Time) int {
 		n := 0
@@ -110,11 +119,28 @@ func TestPublicExploit_CountsOfTheFrozenIndexes(t *testing.T) {
 		}
 		return n
 	}
-	all, kept := in(anyFirst), in(qualFirst)
-	t.Logf("first flagged in the window: %d CVEs by any claim, %d by the quality rule (%.1f%%; the measurement: 5,370 and 1,513, 28.2%%)",
-		all, kept, 100*float64(kept)/float64(all))
-	if all != 4_775 || kept != 1_174 {
-		t.Errorf("window: %d any, %d qualifying", all, kept)
+	return per, in(anyFirst), in(qualFirst)
+}
+
+// Count test: per source, the (CVE, date) pairs read from the frozen index and how many qualify. The whole indexes of 21 Nov 2026 (the
+// same count, publicIndexCounts, run outside the repository on the downloaded files) give Metasploit 3,215 (all qualify), Exploit-DB
+// 25,094 (all qualify) and PoC-in-GitHub 11,875 (1,406 qualify); in the window of the earlier measurement, 4,775 CVEs first flagged by
+// any claim and 1,174 by the quality rule (24.6%), where it found 5,370 and 1,513 (28.2%) with nuclei templates included, which this
+// count cannot date. The window is a union over the whole indexes (an older entry anywhere moves a CVE's first day), so it is not
+// asserted on the committed Exploit-DB sample, which holds only that index's rows from 20 Nov 2025 on.
+func TestPublicExploit_CountsOfTheFrozenIndexes(t *testing.T) {
+	t.Parallel()
+	want := map[string]sourceCount{
+		metasploitFeedID: {3_215, 3_215, 0},
+		exploitDBFeedID:  {217, 217, 0},
+		pocGitHubFeedID:  {11_875, 1_406, 0},
+	}
+	per, _, _ := publicIndexCounts(frozenIndexes(t))
+	for id, c := range per {
+		t.Logf("%s: %d (CVE, date) pairs, %d qualify, %d rows rejected", id, c.pairs, c.qualifying, c.rejected)
+		if c != want[id] {
+			t.Errorf("%s: %+v, want %+v", id, c, want[id])
+		}
 	}
 }
 
@@ -452,5 +478,71 @@ func TestExploitAuthors(t *testing.T) {
 	}
 	if !exploitAuthors()["sfewer-r7"] {
 		t.Error("sfewer-r7 is not a known author")
+	}
+}
+
+// A signal source that names hundreds of older CVEs without a record does not turn into hundreds of single-record asks: while that many
+// are unread, only the exploited lists' CVEs are asked for by ID (the next read of the whole list brings the rest); a few unread signalled
+// CVEs are asked for by ID as before.
+func TestCVERecordsByID_ManySignalledCVEsWaitForTheWholeList(t *testing.T) {
+	t.Parallel()
+	signals := func(n int) []publicSignal {
+		out := make([]publicSignal, n)
+		for i := range out {
+			out[i] = publicSignal{CVE: fmt.Sprintf("CVE-2015-%04d", 1000+i), Date: epoch0}
+		}
+		return out
+	}
+	e, o, _ := recordEnv(t, false)
+	write(t, e.db, func(tx *sql.Tx) error {
+		return applyPublicSignals(t.Context(), tx, epoch0, exploitDBFeedID, signals(recordRescanUnread))
+	})
+	if err := e.svc.Fetch(t.Context(), cveOrgFeedID); err != nil { // any ask for a CVE-2015 record hits an undeclared path
+		t.Fatal(err)
+	}
+	if o.count("/repo/cves/2024/3xxx/CVE-2024-3400.json") != 1 {
+		t.Fatalf("the exploited list's CVE was not asked: %d", o.count("/repo/cves/2024/3xxx/CVE-2024-3400.json"))
+	}
+
+	e2, o2, _ := recordEnv(t, false)
+	write(t, e2.db, func(tx *sql.Tx) error {
+		return applyPublicSignals(t.Context(), tx, epoch0, exploitDBFeedID, signals(5))
+	})
+	for _, g := range signals(5) {
+		o2.serve("/repo/cves/2015/1xxx/"+g.CVE+".json", func(w http.ResponseWriter, _ *http.Request) { http.NotFound(w, nil) })
+	}
+	if err := e2.svc.Fetch(t.Context(), cveOrgFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if n := o2.count("/repo/cves/2015/1xxx/CVE-2015-1004.json"); n != 1 {
+		t.Fatalf("a few signalled CVEs are asked for by ID: %d", n)
+	}
+}
+
+// Every entry of the PoC-in-GitHub archive counts toward its unpacked limit, the files it skips too.
+func TestPoCInGitHub_SkippedEntriesCountTowardTheLimit(t *testing.T) { //nolint:paralleltest // changes pocMaxUnpacked
+	was := pocMaxUnpacked
+	t.Cleanup(func() { pocMaxUnpacked = was })
+	pocMaxUnpacked = 1 << 10
+	arch := pocArchive(t, map[string]string{"README.md": strings.Repeat("x", 2<<10), "2026/CVE-2026-0001.json": pocFile(repoJSON("a", "b", "2026-11-01T00:00:00Z", 1, false))})
+	if _, err := parsePoCInGitHub(bytes.NewReader(arch)); !errors.Is(err, ErrTooLarge) {
+		t.Fatalf("a skipped entry over the limit: %v", err)
+	}
+}
+
+// A download cut at the fetcher's size cap fails each decoder as too large (Fetch words it so), not as a bad index.
+func TestPublicExploit_SizeCapIsTooLarge(t *testing.T) {
+	t.Parallel()
+	for name, c := range map[string]struct {
+		parse func(io.Reader) (publicIndex, error)
+		body  []byte
+	}{
+		"metasploit": {parseMetasploitModules, gunzipBytes(t, fixtureBytes(t, "metasploit.json.gz"))},
+		"exploit-db": {parseExploitDBIndex, gunzipBytes(t, fixtureBytes(t, "exploitdb.csv.gz"))},
+		"poc":        {parsePoCInGitHub, fixtureBytes(t, "poc-in-github.tar.gz")},
+	} {
+		if _, err := c.parse(newCapReader(bytes.NewReader(c.body), int64(len(c.body)/2))); !errors.Is(err, ErrTooLarge) {
+			t.Errorf("%s: %v", name, err)
+		}
 	}
 }

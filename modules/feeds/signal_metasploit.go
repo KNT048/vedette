@@ -40,7 +40,7 @@ type metasploitModule struct {
 func parseMetasploitModules(r io.Reader) (publicIndex, error) {
 	dec := json.NewDecoder(r)
 	if tok, err := dec.Token(); err != nil || tok != json.Delim('{') {
-		return publicIndex{}, fail(ErrBadSample, "The Metasploit module file is not a JSON object.")
+		return publicIndex{}, readFail(err, "The Metasploit module file is not a JSON object.")
 	}
 	tl := newTally()
 	type agg struct {
@@ -52,7 +52,7 @@ func parseMetasploitModules(r io.Reader) (publicIndex, error) {
 	row := 0
 	for dec.More() {
 		if _, err := dec.Token(); err != nil { // the module's key
-			return publicIndex{}, fail(ErrBadSample, "The Metasploit module file could not be read: %v.", err)
+			return publicIndex{}, readFail(err, "The Metasploit module file could not be read: %v.", err)
 		}
 		if row++; row > metasploitMaxModules {
 			return publicIndex{}, fail(ErrBadSample, "The Metasploit module file lists more than %s modules.", grouped(metasploitMaxModules))
@@ -61,7 +61,7 @@ func parseMetasploitModules(r io.Reader) (publicIndex, error) {
 		if err := dec.Decode(&m); err != nil {
 			var te *json.UnmarshalTypeError
 			if !errors.As(err, &te) {
-				return publicIndex{}, fail(ErrBadSample, "The Metasploit module file could not be read: %v.", err)
+				return publicIndex{}, readFail(err, "The Metasploit module file could not be read: %v.", err)
 			}
 			tl.reject(row, "module: a field has the wrong type")
 			continue
@@ -92,10 +92,10 @@ func parseMetasploitModules(r io.Reader) (publicIndex, error) {
 		}
 	}
 	if tok, err := dec.Token(); err != nil || tok != json.Delim('}') {
-		return publicIndex{}, fail(ErrBadSample, "The Metasploit module file is cut short.")
+		return publicIndex{}, readFail(err, "The Metasploit module file is cut short.")
 	}
 	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
-		return publicIndex{}, fail(ErrBadSample, "The Metasploit module file has data after its end.")
+		return publicIndex{}, readFail(err, "The Metasploit module file has data after its end.")
 	}
 	out := publicIndex{Signals: make([]publicSignal, 0, len(byCVE)), Stats: tl.stats()}
 	for c, a := range byCVE {

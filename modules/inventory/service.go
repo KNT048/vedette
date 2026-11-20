@@ -81,6 +81,9 @@ type Config struct {
 
 // Service is the only writer of the inv_* tables (INV-2). Create it with New.
 type Service struct {
+	// scopeCost is active discovery's estimate of a pass (SetScopeCost); nil: no scope is refused for its size.
+	scopeMu     sync.Mutex
+	scopeCost   func(ctx context.Context, st Settings) ScopeCost
 	zone        orgtime.Source
 	db          *store.DB
 	audit       *audit.Log

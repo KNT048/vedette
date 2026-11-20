@@ -116,6 +116,9 @@ func (s *Service) AddRange(ctx context.Context, actor string, in RangeAdd) (Save
 				return aerr
 			}
 			next.LANRanges = ranges
+			if err := s.checkCost(ctx, next); err != nil {
+				return err
+			}
 			detail = "added range " + one[0]
 			if prev.ScopeConfirmedAt == nil && len(prev.LANRanges) > 0 {
 				detail += " and confirmed the scope, which was not confirmed (" + strings.Join(prev.LANRanges, ", ") + " were shown)"

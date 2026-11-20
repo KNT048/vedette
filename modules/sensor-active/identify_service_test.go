@@ -50,7 +50,7 @@ func TestIdentifyDevice_UnknownDeviceOutsideTheWindow(t *testing.T) {
 	if n := e.count(`SELECT count(*) FROM sa_probe`); n != 2 {
 		t.Fatalf("%d probe rows, want 2 (the versions scan and its extra ports)", n)
 	}
-	if r := e.str(`SELECT reason FROM sa_job`); r != "scan_now" {
+	if r := e.str(`SELECT reason FROM jobs_v`); r != "scan_now" {
 		t.Fatalf("job reason %q", r)
 	}
 }
@@ -108,9 +108,8 @@ func TestFirstPassOfANewBoxRunsOutsideTheWindow(t *testing.T) {
 	}
 }
 
-// The first pass runs exactly once. One cut short (here the job's context ends while nmap runs, as at its
-// deadline or on a stop) is not run again: the next Tick outside the window sends nothing; the sweep goes on from its cursor in the
-// next window.
+// The first pass runs exactly once. One cut short (here the tick's context ends while nmap runs) is not run again: the next Tick
+// outside the window sends nothing; its run waits and goes on from its cursor in the next window.
 func TestFirstPassRunsOnceEvenWhenItWasCut(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, fakeOpts{slowFrom: 1}, func(e *env) { e.base = local(9, 12, 0) }) // noon; every nmap call sleeps 30 s
@@ -125,8 +124,8 @@ func TestFirstPassRunsOnceEvenWhenItWasCut(t *testing.T) {
 	case <-time.After(30 * time.Second):
 		t.Fatal("the cut first pass did not return")
 	}
-	if n := e.count(`SELECT count(*) FROM sa_job WHERE kind = 'sweep' AND status = 'stopped'`); n != 1 {
-		t.Fatalf("%d stopped sweeps, want the cut first one", n)
+	if n := e.count(`SELECT count(*) FROM core_run WHERE kind = 'lan_sweep' AND status <> 'done'`); n != 1 {
+		t.Fatalf("%d unfinished passes, want the cut first one", n)
 	}
 	if err := e.svc.Tick(e.ctx()); err != nil {
 		t.Fatal(err)

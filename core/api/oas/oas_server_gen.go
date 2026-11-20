@@ -2641,6 +2641,16 @@ type Handler interface {
 	//
 	// POST /scanning/engines/nmap-discovery/run
 	ScanningPostScanningEnginesNmapDiscoveryRun(ctx context.Context, req *ScanningPostScanningEnginesNmapDiscoveryRunReq) (*ScanningPostScanningEnginesNmapDiscoveryRunAccepted, error)
+	// ScanningPostScanningSafetyEstimate implements scanning_post_scanning_safety_estimate operation.
+	//
+	// What one pass of active discovery over a scope would cost, before it is saved (the range form shows
+	// it as it is typed): the addresses, the time of one pass at the rate, and whether it fits one window
+	// and a week of windows. Saving a scope that does not fit a week is refused (400 scope_too_large on
+	// PUT /scanning/safety and POST /scanning/safety/ranges); one that needs several windows is swept as
+	// one run over several nights. Changes nothing.
+	//
+	// POST /scanning/safety/estimate
+	ScanningPostScanningSafetyEstimate(ctx context.Context, req *ScanningPostScanningSafetyEstimateReq) (*ScanningPostScanningSafetyEstimateOK, error)
 	// ScanningPostScanningSafetyExclusions implements scanning_post_scanning_safety_exclusions operation.
 	//
 	// Add one exclusion where the person is ("+ New exclusion" in a dialog, #842), without sending the
@@ -2659,12 +2669,13 @@ type Handler interface {
 	// edit. The dialog lists the current ranges and whether they are confirmed with the confirmation tick,
 	// and sends both back (shown_ranges, shown_confirmed_at): the tick confirms those ranges and the new
 	// one only. 400 as PUT /scanning/safety for a range: no_prefix, bad_cidr, public_range, overlap_range,
-	// too_many_ranges (16), and scope_not_confirmed when confirm is not true; 409 scope_changed (with
-	// error.safety, the current block) when the stored ranges are not shown_ranges or the stored
-	// confirmation is not shown_confirmed_at. A range the confirmed scope already covers is 200 with the
-	// block unchanged (no audit row). Audited as the PUT (inventory.settings, naming the range, and saying
-	// when the add confirmed a scope that was not confirmed) and publishes inventory.settings.changed.
-	// Returns the whole safety block with its new version, and adjusted when the range was normalized.
+	// too_many_ranges (16), scope_too_large, and scope_not_confirmed when confirm is not true; 409
+	// scope_changed (with error.safety, the current block) when the stored ranges are not shown_ranges or
+	// the stored confirmation is not shown_confirmed_at. A range the confirmed scope already covers is 200
+	// with the block unchanged (no audit row). Audited as the PUT (inventory.settings, naming the range,
+	// and saying when the add confirmed a scope that was not confirmed) and publishes
+	// inventory.settings.changed. Returns the whole safety block with its new version, and adjusted when
+	// the range was normalized.
 	//
 	// POST /scanning/safety/ranges
 	ScanningPostScanningSafetyRanges(ctx context.Context, req *ScanningPostScanningSafetyRangesReq) (*ScanningPostScanningSafetyRangesOK, error)
@@ -2674,10 +2685,11 @@ type Handler interface {
 	// the window, rate and exclusions of /scans/config read and write the same values). 400 as PUT
 	// /inventory/settings: too_many_ranges, no_prefix, bad_cidr, public_range, overlap_range, bad_days,
 	// no_days, bad_time, bad_window, bad_rate (packets_per_s 1 to 1000, requests_per_s 1 to 20),
-	// bad_exclusion, too_many_exclusions, bad_kinds, scope_not_confirmed (while nmap-discovery is on); 409
-	// safety_changed (with error.safety, the current block) when version is not the stored one: re-read,
-	// merge, save again. Publishes inventory.settings.changed: a run that the new values no longer allow
-	// stops.
+	// bad_exclusion, too_many_exclusions, bad_kinds, scope_not_confirmed (while nmap-discovery is on),
+	// scope_too_large (one pass would not end within a week of windows: the message gives the numbers, see
+	// POST /scanning/safety/estimate); 409 safety_changed (with error.safety, the current block) when
+	// version is not the stored one: re-read, merge, save again. Publishes inventory.settings.changed: a
+	// run that the new values no longer allow stops.
 	//
 	// PUT /scanning/safety
 	ScanningPutScanningSafety(ctx context.Context, req *ScanningPutScanningSafetyReq) (*ScanningPutScanningSafetyOK, error)

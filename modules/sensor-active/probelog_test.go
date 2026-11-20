@@ -139,7 +139,7 @@ func TestExportProbesIsTheStoredRowsInRange(t *testing.T) {
 	if err := json.Unmarshal([]byte(lines[0]), &got); err != nil {
 		t.Fatal(err)
 	}
-	if got["time"] != stored[0].Time || got["targets"] != stored[0].Target || got["result"] != stored[0].Result || got["job_id"] != stored[0].JobID || got["rate"] != float64(stored[0].Rate) {
+	if got["time"] != stored[0].Time || got["targets"] != stored[0].Target || got["result"] != stored[0].Result || got["run_id"] != stored[0].JobID || got["rate"] != float64(stored[0].Rate) {
 		t.Fatalf("line = %v, stored = %+v", got, stored[0])
 	}
 	if !strings.Contains(got["flags"].(string), strings.Join(stored[0].Argv[:len(stored[0].Argv)-2], " ")) {

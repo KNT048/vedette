@@ -34,7 +34,7 @@ func sweptToday(e *env) {
 	e.t.Helper()
 	if err := e.db.Write(e.ctx(), func(tx dbTx) error {
 		ts := e.clock().UTC().Format("2006-01-02T15:04:05.000Z")
-		_, err := tx.ExecContext(e.ctx(), `INSERT INTO sa_job (id, kind, started_at, finished_at, status) VALUES (?, 'sweep', ?, ?, 'done')`, "saj_"+ts, ts, ts)
+		_, err := tx.ExecContext(e.ctx(), doneRunSQL, "run_"+ts, sa.RunSweep, ts, "")
 		return err
 	}); err != nil {
 		e.t.Fatal(err)
@@ -53,7 +53,10 @@ func allPortsEnv(t *testing.T, mut ...func(*env)) *env {
 	// both devices had their first check long ago (a device no check ever reached is checked first: INV-27)
 	err := e.db.Write(e.ctx(), func(tx dbTx) error {
 		for _, id := range []string{"a-web", "a-printer"} {
-			if _, err := tx.ExecContext(e.ctx(), `INSERT INTO sa_job (id, kind, started_at, finished_at, status, asset_id) VALUES (?, 'device', '2026-11-02T02:00:00.000Z', '2026-11-02T02:01:00.000Z', 'done', ?)`, "saj-first-"+id, id); err != nil {
+			if _, err := tx.ExecContext(e.ctx(), doneRunSQL, "run-first-"+id, sa.RunCheck, "2026-11-02T02:00:00.000Z", id); err != nil {
+				return err
+			}
+			if _, err := tx.ExecContext(e.ctx(), `INSERT INTO sa_probe (time, run_id, shape, rate, hosts, flags, targets, result) VALUES ('2026-11-02T02:00:01.000Z', ?, 'normal', 100, 1, '-sS', '192.168.10.1', 'ok: 1 hosts up')`, "run-first-"+id); err != nil {
 				return err
 			}
 		}
@@ -246,7 +249,7 @@ func TestAllPortsVersionChangeReachesSoftwareAndServices(t *testing.T) {
 	e.build()
 	if err := e.db.Write(e.ctx(), func(tx dbTx) error { // the sweep of this window is done too
 		ts := e.clock().UTC().Format("2006-01-02T15:04:05.000Z")
-		_, err := tx.ExecContext(e.ctx(), `INSERT INTO sa_job (id, kind, started_at, finished_at, status) VALUES ('saj_week2', 'sweep', ?, ?, 'done')`, ts, ts)
+		_, err := tx.ExecContext(e.ctx(), doneRunSQL, "run_week2", sa.RunSweep, ts, "")
 		return err
 	}); err != nil {
 		t.Fatal(err)
@@ -314,7 +317,7 @@ func fixtureXML(t *testing.T, name string) []byte {
 // withProber rebuilds the env's service around p.
 func (e *env) withProber(p sa.Prober) {
 	e.t.Helper()
-	svc, err := sa.New(sa.Config{DB: e.db, Inventory: e.inv, Observe: e.sink, Software: e.sink, Services: e.sink, Events: e.ev, NmapPath: e.nm.path, Prober: p, Clock: e.clock, Location: e.loc})
+	svc, err := e.newService(sa.Config{DB: e.db, Inventory: e.inv, Observe: e.sink, Software: e.sink, Services: e.sink, Events: e.ev, NmapPath: e.nm.path, Prober: p, Clock: e.clock, Location: e.loc})
 	if err != nil {
 		e.t.Fatal(err)
 	}
@@ -468,7 +471,7 @@ func TestExtraRunFailureKeepsTheTop1000Result(t *testing.T) {
 	if got := e.webPorts(); !slices.Equal(got, []int{22, 80, 8080}) {
 		t.Fatalf("ports %v", got)
 	}
-	if got := e.str(`SELECT group_concat(substr(result, 1, 6), ',') FROM sa_probe`); got != "ok: 1 ,failed" {
+	if got := e.str(`SELECT group_concat(substr(result, 1, 6), ',') FROM sa_probe WHERE run_id NOT LIKE 'run-first-%'`); got != "ok: 1 ,failed" {
 		t.Fatalf("probe results %q", got)
 	}
 }
@@ -549,7 +552,7 @@ func TestAllPortsFailureRetriesOnceThenWaitsAWeek(t *testing.T) {
 		e.base = local(9+day, 2, 0)
 		if err := e.db.Write(e.ctx(), func(tx dbTx) error {
 			ts := e.clock().UTC().Format("2006-01-02T15:04:05.000Z")
-			_, err := tx.ExecContext(e.ctx(), `INSERT INTO sa_job (id, kind, started_at, finished_at, status) VALUES (?, 'sweep', ?, ?, 'done')`, fmt.Sprintf("saj_d%d", day), ts, ts)
+			_, err := tx.ExecContext(e.ctx(), doneRunSQL, fmt.Sprintf("run_d%d", day), sa.RunSweep, ts, "")
 			return err
 		}); err != nil && day > 0 {
 			t.Fatal(err)
@@ -628,7 +631,7 @@ func TestAllPortsFollowUpRotates(t *testing.T) {
 	e.inv.mu.Lock()
 	e.inv.addrs = map[netip.Addr]string{netip.MustParseAddr("192.168.10.20"): "a-web"} // the queued normal scan aside: weekly only
 	e.inv.mu.Unlock()
-	if err := e.db.Write(e.ctx(), func(tx dbTx) error { _, err := tx.ExecContext(e.ctx(), `DELETE FROM sa_queue`); return err }); err != nil {
+	if err := e.db.Write(e.ctx(), func(tx dbTx) error { _, err := tx.ExecContext(e.ctx(), dropQueueSQL); return err }); err != nil {
 		t.Fatal(err)
 	}
 	if err := e.svc.Tick(e.ctx()); err != nil {

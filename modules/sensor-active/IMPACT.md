@@ -1,5 +1,12 @@
 # Sensor-active — Change Impact Map
 
+## Modifying: runs (`runs.go`, `sweep.go`, `driver.go`; INV-29)
+- **core/run** owns the record, the queue and the lanes: the kinds are registered by `New` on `Config.Runs` (the box's manager, before it starts); a kind renamed or a lane changed changes what the Runs tab, the run page, `GET /runs` filters and the restart recovery see. `cmd/vedette/main.go` builds the service before the manager starts so the recovery knows the kinds.
+- **The window's driver** (`Tick`) resumes waiting runs one at a time; a change to the order (first checks, pass, rest, SNMP, weekly) is INV-27's.
+- **Steps of a pass** are CIDR blocks and their done counts are the cursor: changing how blocks are planned or walked (`planSweep`, `stepCursor`) changes where a resumed pass goes on; a pass planned by an older build is read back by `stepOf` (a block no range holds now is ended "no longer in the scope").
+- **Items** of a device check are what `JobsOf` and core's History words read (`loadFound`); changing `foundItems` changes the device page's Last checks.
+- **Range form**: `Settings.Cost` is the estimate of `POST /scanning/safety/estimate` and of the inventory's `scope_too_large` refusal (`cmd/vedette` `sweepCost`).
+
 
 ## Modifying: `Jobs`, `JobRow`, `JobProbe` (read only)
 - **What a device check found** (`DeviceFound`, `sa_job.found` and `sa_job.asset_id`, migration 0012, INV-23): `cmd/vedette/scanninghistory.go` `foundText` turns it into the words of a device check (History and the device page's Last checks). Renaming a reach (`top100`, `top1000`, `extra`, `all`) or a JSON key changes those words; old rows keep their JSON, so a rename needs both spellings read. `JobsOf` matches a device's checks by `asset_id` (older rows by address) and its SNMP reads by its SNMP read address only while SNMP is set up on it: the device page's Last checks and History filtered to a device read it (`?asset=`). `modules/core/export_policy.go` lists both columns.

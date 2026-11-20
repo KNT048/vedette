@@ -54,7 +54,10 @@ func (m *Manager) summary(ctx context.Context, r Run) string {
 	case Failed:
 		return "Failed: " + deref(r.Error, "the run did not finish")
 	case Stopped:
-		s := "Stopped: " + deref(r.StopReason, "a stop was asked")
+		s := deref(r.StopReason, "a stop was asked")
+		if !strings.HasPrefix(s, "Stopped") { // "Stopped by ann@example.com" says it already
+			s = "Stopped: " + s
+		}
 		if r.Total > 0 && r.Done < r.Total {
 			s = join(s, count+" done")
 		}

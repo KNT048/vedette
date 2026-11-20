@@ -18,6 +18,7 @@ import (
 	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/core/store/storetest"
+	"github.com/knt048/vedette/modules/core"
 	sa "github.com/knt048/vedette/modules/sensor-active"
 )
 
@@ -405,9 +406,13 @@ func local(day, hour, minute int) time.Time {
 func newEnv(t *testing.T, o fakeOpts, mut ...func(*env)) *env {
 	t.Helper()
 	db := storetest.New(t)
+	if err := store.Migrate(t.Context(), db, "core", core.Migrations); err != nil { // core_run: every run of the module
+		t.Fatal(err)
+	}
 	if err := store.Migrate(t.Context(), db, "sensor-active", sa.Migrations); err != nil {
 		t.Fatal(err)
 	}
+	runViews(t, db)
 	e := &env{t: t, db: db, sink: &sink{}, ev: &events{}, base: local(9, 2, 0), t0: time.Now()}
 	e.inv = &fakeInv{
 		st: sa.Settings{Enabled: true, ScopeConfirmed: true, LANRanges: []string{"192.168.10.0/26"}, Days: []int{1, 2, 3, 4, 5, 6, 7}, From: "01:00", To: "05:00", Rate: 100},
@@ -450,10 +455,14 @@ func (e *env) prober() sa.Prober {
 func (e *env) build() {
 	e.t.Helper()
 	prober := e.prober()
+	if e.svc != nil { // a new service is a restart: the old one's runs end with its process
+		e.svc.Close()
+	}
 	svc, err := sa.New(sa.Config{DB: e.db, Inventory: e.inv, Observe: e.sink, Software: e.sink, Services: e.sink, Events: e.ev, NmapPath: e.nm.path, Prober: prober, Clock: e.clock, Location: e.loc})
 	if err != nil {
 		e.t.Fatal(err)
 	}
+	e.t.Cleanup(svc.Close)
 	e.svc = svc
 }
 
@@ -479,12 +488,12 @@ func (e *env) str(query string) string {
 
 type dbTx = *sql.Tx
 
-// sweptBefore records a sweep that finished a week ago: the box is not new, so no first pass runs outside the window.
-// The sa_first_pass row alone would do too; a finished sweep is how an older box looks.
+// sweptBefore records a pass that finished a week ago: the box is not new, so no first pass runs outside the window.
 func (e *env) sweptBefore() {
 	e.t.Helper()
 	err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(e.ctx(), `INSERT INTO sa_job (id, kind, started_at, finished_at, status) VALUES ('saj_old', 'sweep', '2026-11-02T02:00:00.000Z', '2026-11-02T02:01:00.000Z', 'done')`)
+		_, err := tx.ExecContext(e.ctx(), `INSERT INTO core_run (id, module, kind, lane, title, trigger, requested_by, status, queued_at, started_at, ended_at, updated_at)
+			VALUES ('run_old', 'sensor-active', 'lan_sweep', 'nmap', 'LAN sweep', 'schedule', 'system', 'done', '2026-11-02T02:00:00.000Z', '2026-11-02T02:00:00.000Z', '2026-11-02T02:01:00.000Z', '2026-11-02T02:01:00.000Z')`)
 		return err
 	})
 	if err != nil {
@@ -500,4 +509,64 @@ func waitFor(t *testing.T, what string, cond func() bool) {
 			t.Fatalf("timed out waiting for %s", what)
 		}
 	}
+}
+
+// runViews adds two read-only views over core_run to a test database, so the tests read the module's runs as rows of a job and of
+// the window's queue: jobs_v (kind sweep|device|snmp|external, the reason it ran for, status done|failed|running|stopped, the device)
+// and queue_v (the device checks waiting for their turn in the window, with the reason they were queued for).
+func runViews(t *testing.T, db *store.DB) {
+	t.Helper()
+	reason := `CASE WHEN r.kind = 'all_ports' THEN 'all_ports' WHEN r.kind = 'service_scan' THEN 'exposure'
+		WHEN r.kind = 'snmp_read' AND r.trigger = 'manual' THEN 'snmp_test' WHEN r.kind = 'snmp_read' THEN 'window'
+		WHEN r.kind = 'device_check' AND r.trigger = 'manual' THEN 'scan_now'
+		WHEN r.trigger_note = 'a new device appeared' THEN 'discovered' WHEN r.trigger_note = 'no check reached the device yet' THEN 'first_check'
+		WHEN r.trigger_note = 'its network scan was turned on' THEN 'scan_on' WHEN r.trigger_note = 'it is owed a full scan after its gentle look' THEN 'normal_owed'
+		WHEN r.trigger_note = 'it waits for its gentle look' THEN 'gentle_titles' WHEN r.trigger_note = 'a person asked to check it' THEN 'check_now'
+		ELSE NULL END`
+	err := db.Write(t.Context(), func(tx *sql.Tx) error {
+		for _, q := range []string{
+			`CREATE VIEW jobs_v AS SELECT r.id, r.rowid AS rowid,
+				CASE r.kind WHEN 'lan_sweep' THEN 'sweep' WHEN 'snmp_read' THEN 'snmp' WHEN 'service_scan' THEN 'external' ELSE 'device' END AS kind,
+				` + reason + ` AS reason,
+				CASE r.status WHEN 'done' THEN 'done' WHEN 'failed' THEN 'failed' WHEN 'running' THEN 'running' WHEN 'queued' THEN 'running' WHEN 'stopping' THEN 'running' ELSE 'stopped' END AS status,
+				r.status AS run_status, COALESCE(r.started_at, r.queued_at) AS started_at, r.ended_at AS finished_at,
+				CASE WHEN r.kind IN ('lan_sweep', 'snmp_read') THEN r.done ELSE r.total END AS targets,
+				(SELECT count(*) FROM core_run_item i WHERE i.run_id = r.id AND i.outcome = 'new') AS new_devices,
+				COALESCE(r.error, r.stop_reason, r.waiting_for) AS error,
+				CASE WHEN r.subject_kind = 'device' THEN r.subject_id END AS asset_id
+				FROM core_run r WHERE r.module = 'sensor-active' AND r.status NOT IN ('waiting') `,
+			`CREATE VIEW queue_v AS SELECT r.subject_id AS asset_id, ` + reason + ` AS reason, r.queued_at, 0 AS attempts
+				FROM core_run r WHERE r.module = 'sensor-active' AND r.kind = 'device_check' AND r.status IN ('waiting', 'queued')`,
+		} {
+			if _, err := tx.ExecContext(t.Context(), q); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+// doneRunSQL is the INSERT of a run of the module that ended done at ts (id, kind lan_sweep|device_check|..., the device or "").
+const doneRunSQL = `INSERT INTO core_run (id, module, kind, lane, title, trigger, requested_by, subject_kind, subject_id, status, queued_at, started_at, ended_at, updated_at)
+	VALUES (?1, 'sensor-active', ?2, 'nmap', 'a run', 'schedule', 'system', CASE WHEN ?4 <> '' THEN 'device' END, NULLIF(?4, ''), 'done', ?3, ?3, ?3, ?3)`
+
+// dropQueueSQL ends every device check waiting in the window's queue.
+const dropQueueSQL = `UPDATE core_run SET status = 'stopped', stop_reason = 'dropped by the test', ended_at = updated_at WHERE kind = 'device_check' AND status IN ('waiting', 'queued')`
+
+// newService builds another service over the env's database in place of e.svc (a test with its own inventory or prober): one run
+// manager per database, as on a box, so the old service is closed first.
+func (e *env) newService(cfg sa.Config) (*sa.Service, error) {
+	if e.svc != nil {
+		e.svc.Close()
+	}
+	svc, err := sa.New(cfg)
+	if err != nil {
+		return nil, err
+	}
+	e.t.Cleanup(svc.Close)
+	e.svc = svc
+	return svc, nil
 }

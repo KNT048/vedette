@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"maps"
 	"os"
 	"path/filepath"
@@ -25,7 +26,7 @@ import (
 
 func fixtureBytes(t *testing.T, name string) []byte {
 	t.Helper()
-	b, err := os.ReadFile(filepath.Join("testdata", "publicexploit", name))
+	b, err := fs.ReadFile(os.DirFS(filepath.Join("testdata", "publicexploit")), name)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,9 +56,9 @@ func frozenIndexes(t *testing.T) map[string]publicIndex {
 		parse func(io.Reader) (publicIndex, error)
 		unzip bool
 	}{
-		{metasploitFeedID, "metasploit.json.gz", ParseMetasploitModules, true},
-		{exploitDBFeedID, "exploitdb.csv.gz", ParseExploitDBIndex, true},
-		{pocGitHubFeedID, "poc-in-github.tar.gz", ParsePoCInGitHub, false}, // the archive is a tar.gz as the source serves it
+		{metasploitFeedID, "metasploit.json.gz", parseMetasploitModules, true},
+		{exploitDBFeedID, "exploitdb.csv.gz", parseExploitDBIndex, true},
+		{pocGitHubFeedID, "poc-in-github.tar.gz", parsePoCInGitHub, false}, // the archive is a tar.gz as the source serves it
 	} {
 		b := fixtureBytes(t, c.file)
 		if c.unzip {
@@ -371,7 +372,7 @@ func TestMetasploitModules_ShapesAndRejects(t *testing.T) {
 "bad_time":{"fullname":"exploit/x","mod_time":"yesterday","references":["CVE-2026-3333"]},
 "bad_name":{"fullname":"exploit/../x","mod_time":"2024-01-02 03:04:05 +0000","references":["CVE-2026-4444"]},
 "bad_type":{"fullname":"exploit/y","mod_time":"2024-01-02 03:04:05 +0000","references":"CVE-2026-5555"}}`
-	idx, err := ParseMetasploitModules(strings.NewReader(good))
+	idx, err := parseMetasploitModules(strings.NewReader(good))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -386,7 +387,7 @@ func TestMetasploitModules_ShapesAndRejects(t *testing.T) {
 		t.Errorf("%+v", b)
 	}
 	for _, bad := range []string{``, `[]`, `{"a":{}`, `{"a":{}} {}`, `{"a":{"fullname":`, `{"a":1}x`} {
-		if _, err := ParseMetasploitModules(strings.NewReader(bad)); err == nil {
+		if _, err := parseMetasploitModules(strings.NewReader(bad)); err == nil {
 			t.Errorf("%q: accepted", bad)
 		}
 	}
@@ -395,11 +396,11 @@ func TestMetasploitModules_ShapesAndRejects(t *testing.T) {
 func TestExploitDBIndex_HeaderIsRequired(t *testing.T) {
 	t.Parallel()
 	for _, bad := range []string{"", "id,date,codes\n1,2020-01-01,CVE-2020-1234\n", "\"unclosed\n"} {
-		if _, err := ParseExploitDBIndex(strings.NewReader(bad)); err == nil {
+		if _, err := parseExploitDBIndex(strings.NewReader(bad)); err == nil {
 			t.Errorf("%q: accepted", bad)
 		}
 	}
-	idx, err := ParseExploitDBIndex(strings.NewReader("\ufeffcodes,id,date_published\nCVE-2020-1234,7,2020-01-01\nshort\n"))
+	idx, err := parseExploitDBIndex(strings.NewReader("\ufeffcodes,id,date_published\nCVE-2020-1234,7,2020-01-01\nshort\n"))
 	if err != nil || len(idx.Signals) != 1 || idx.Signals[0].URL != "https://www.exploit-db.com/exploits/7" || idx.Rejected != 1 {
 		t.Fatalf("%+v %v", idx, err)
 	}
@@ -407,7 +408,7 @@ func TestExploitDBIndex_HeaderIsRequired(t *testing.T) {
 
 func TestPoCInGitHub_ArchiveShapes(t *testing.T) {
 	t.Parallel()
-	if _, err := ParsePoCInGitHub(strings.NewReader("not gzip")); err == nil {
+	if _, err := parsePoCInGitHub(strings.NewReader("not gzip")); err == nil {
 		t.Error("not gzip: accepted")
 	}
 	// a repository whose address is not its own name, or whose owner differs, or whose date is bad, is left out
@@ -420,7 +421,7 @@ func TestPoCInGitHub_ArchiveShapes(t *testing.T) {
 		"2025/CVE-2025-0003.json": `{"not":"a list"}`,
 		"2025/not-a-cve.json":     `[]`,
 	}
-	idx, err := ParsePoCInGitHub(bytes.NewReader(pocArchive(t, files)))
+	idx, err := parsePoCInGitHub(bytes.NewReader(pocArchive(t, files)))
 	if err != nil {
 		t.Fatal(err)
 	}

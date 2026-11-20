@@ -68,11 +68,11 @@ var exploitAuthors = sync.OnceValue(func() map[string]bool {
 	return out
 })
 
-// ParsePoCInGitHub reads the PoC-in-GitHub repository as a tar.gz archive. Files other than the CVE files are skipped unread. A CVE
+// parsePoCInGitHub reads the PoC-in-GitHub repository as a tar.gz archive. Files other than the CVE files are skipped unread. A CVE
 // file must be a JSON array of repositories; a repository that is a fork, or whose name, address or creation time is not well formed,
 // is left out, and a file left with none gives no signal. A file that is not such an array, or too large, is rejected; an archive
 // past the limits fails (fail-closed).
-func ParsePoCInGitHub(r io.Reader) (publicIndex, error) {
+func parsePoCInGitHub(r io.Reader) (publicIndex, error) {
 	gz, err := gzip.NewReader(r)
 	if err != nil {
 		return publicIndex{}, fail(ErrBadSample, "The PoC-in-GitHub archive is not a gzip file.")

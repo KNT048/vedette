@@ -33,11 +33,11 @@ type metasploitModule struct {
 	References []string `json:"references"`
 }
 
-// ParseMetasploitModules reads Metasploit's module metadata file. A module that names a CVE gives that CVE a signal dated by the
+// parseMetasploitModules reads Metasploit's module metadata file. A module that names a CVE gives that CVE a signal dated by the
 // module's last change (the file keeps no date of the module's arrival; for a new module the two are the same day, and for an old
 // one the date is late, never early); a CVE named by several modules keeps the earliest. A module without a CVE reference is not
 // counted; one with a CVE but a bad name or date is rejected. The file must be one JSON object (fail-closed).
-func ParseMetasploitModules(r io.Reader) (publicIndex, error) {
+func parseMetasploitModules(r io.Reader) (publicIndex, error) {
 	dec := json.NewDecoder(r)
 	if tok, err := dec.Token(); err != nil || tok != json.Delim('{') {
 		return publicIndex{}, fail(ErrBadSample, "The Metasploit module file is not a JSON object.")

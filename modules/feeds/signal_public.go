@@ -26,9 +26,9 @@ const (
 
 // The decoders of the public-exploit feeds.
 const (
-	DecoderMetasploit Decoder = "metasploit"    // ParseMetasploitModules: Metasploit's db/modules_metadata_base.json
-	DecoderExploitDB  Decoder = "exploit-db"    // ParseExploitDBIndex: Exploit-DB's files_exploits.csv
-	DecoderPoCGitHub  Decoder = "poc-in-github" // ParsePoCInGitHub: the PoC-in-GitHub repository as one tar.gz archive
+	DecoderMetasploit Decoder = "metasploit"    // parseMetasploitModules: Metasploit's db/modules_metadata_base.json
+	DecoderExploitDB  Decoder = "exploit-db"    // parseExploitDBIndex: Exploit-DB's files_exploits.csv
+	DecoderPoCGitHub  Decoder = "poc-in-github" // parsePoCInGitHub: the PoC-in-GitHub repository as one tar.gz archive
 )
 
 // The licence lines of the public-exploit indexes (THIRD_PARTY_NOTICES.md has the terms read). The box keeps facts only: CVE id,
@@ -93,9 +93,9 @@ type publicIndex struct {
 // file is not downloaded again) and parses it whole before anything is written.
 func (s *Service) buildPublicExploit(ctx context.Context, src sourceRow, p pullPlan, dec Decoder) (pullPlan, error) {
 	parse := map[Decoder]func(io.Reader) (publicIndex, error){
-		DecoderMetasploit: ParseMetasploitModules,
-		DecoderExploitDB:  ParseExploitDBIndex,
-		DecoderPoCGitHub:  ParsePoCInGitHub,
+		DecoderMetasploit: parseMetasploitModules,
+		DecoderExploitDB:  parseExploitDBIndex,
+		DecoderPoCGitHub:  parsePoCInGitHub,
 	}[dec]
 	lim := publicExploitLimits[src.ID]
 	if parse == nil || lim.maxBytes == 0 {

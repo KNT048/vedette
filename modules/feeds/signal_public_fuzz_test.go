@@ -35,7 +35,7 @@ func FuzzParseMetasploitModules(f *testing.F) {
 	f.Add([]byte(`{"a":{"fullname":"exploit/../a","mod_time":"x","references":["CVE-2026-1111","cve-2026-2"]},"b":[]}`))
 	f.Add([]byte(`{"a":{"references":null}} trailing`))
 	f.Fuzz(func(t *testing.T, data []byte) {
-		idx, err := ParseMetasploitModules(bytes.NewReader(data))
+		idx, err := parseMetasploitModules(bytes.NewReader(data))
 		if err == nil {
 			checkPublicIndex(t, idx, metasploitModuleURL)
 		}
@@ -47,7 +47,7 @@ func FuzzParseExploitDBIndex(f *testing.F) {
 	f.Add([]byte("codes,id,date_published\n\"CVE-2020-1234\n;x\",01,2020-13-01\n"))
 	f.Add([]byte("id,file,date_published,codes\n9,\"a,b\",2020-01-01\n"))
 	f.Fuzz(func(t *testing.T, data []byte) {
-		idx, err := ParseExploitDBIndex(bytes.NewReader(data))
+		idx, err := parseExploitDBIndex(bytes.NewReader(data))
 		if err == nil {
 			checkPublicIndex(t, idx, exploitDBEntryURL)
 		}
@@ -74,7 +74,7 @@ func FuzzParsePoCInGitHub(f *testing.F) {
 	f.Add(pocArchive(f, map[string]string{"2026/CVE-2026-0001.json": pocFile(repoJSON("a", "b", "2026-11-01T00:00:00Z", 60, false)), "README.md": "x"}))
 	f.Add([]byte("\x1f\x8b\x08\x00\x00\x00\x00\x00"))
 	f.Fuzz(func(t *testing.T, data []byte) {
-		idx, err := ParsePoCInGitHub(bytes.NewReader(data))
+		idx, err := parsePoCInGitHub(bytes.NewReader(data))
 		if err == nil {
 			checkPublicIndex(t, idx, "https://github.com/")
 		}

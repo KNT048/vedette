@@ -1,4 +1,4 @@
-import { ListChecks, ShieldAlert } from 'lucide-react'
+import { ShieldAlert } from 'lucide-react'
 import type { Feature } from '@/app/feature'
 import { DevicePanel } from './DevicePanel'
 
@@ -9,11 +9,11 @@ export const feature: Feature = {
   routes: [
     { path: 'findings', lazy: () => import('./FindingsPage').then((m) => ({ Component: m.default })) },
     { path: 'findings/:id', lazy: () => import('./FindingPage').then((m) => ({ Component: m.default })) },
-    { path: 'plan', lazy: () => import('./PlanPage').then((m) => ({ Component: m.default })) }, // S-TIER-1, S-TIER-2
+    // The earlier Recommended updates page: its updates are the findings with the status Update recommended, under Findings
+    { path: 'plan', lazy: () => import('./FindingsPage').then((m) => ({ Component: m.PlanRedirect })) },
   ],
   nav: [
     { to: '/findings', label: 'findings:nav.findings', icon: ShieldAlert, module: 'findings', group: 'monitor', order: 20 },
-    { to: '/plan', label: 'findings:nav.plan', icon: ListChecks, module: 'findings', group: 'monitor', order: 25 },
   ],
   slots: { 'device.panels': DevicePanel },
 }

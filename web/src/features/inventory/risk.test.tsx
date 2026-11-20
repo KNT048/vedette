@@ -81,14 +81,6 @@ describe('inventory: risk marker', () => {
     expect(screen.queryByRole('link', { name: /open exploited finding|recommended update/ })).toBeNull()
   })
 
-  it('Findings › To fix: each device card carries its marker', async () => {
-    const list = await rows()
-    const red = list.find((d) => d.risk?.level === 'exploited')!
-    renderApp('/findings?tab=fix')
-    const card = await screen.findByRole('listitem', { name: new RegExp(red.name ?? red.hostname ?? red.ip) }, T)
-    expect(await within(card).findByRole('link', { name: /open exploited finding/ }, T)).toBeInTheDocument()
-  })
-
   it('the CSV export has a risk column in the marker\'s words', async () => {
     const red = (await rows()).find((d) => d.risk?.level === 'exploited')!
     const csv = await (await fetch(`${location.origin}/api/v1/inventory/export.csv`)).text()
@@ -100,14 +92,6 @@ describe('inventory: risk marker', () => {
     const box = (await rows()).find((d) => d.id === BOX_ID)!
     expect(box.risk).toBeNull()
     expect(((await get('/inventory/devices?risk=none')).json.items as DeviceRow[]).some((d) => d.id === BOX_ID)).toBe(true)
-  })
-
-  it('Recommended updates and the To fix cards read the marker from their own answer, never the device list', async () => {
-    const seen: string[] = []
-    server.events.on('request:start', ({ request }) => { seen.push(new URL(request.url).pathname) })
-    renderApp('/plan?tier=all')
-    expect((await screen.findAllByRole('link', { name: /^(\d+ exploited|Update recommended): / }, T)).length).toBeGreaterThan(0)
-    expect(seen).not.toContain('/api/v1/inventory/devices')
   })
 
   it('a list whose risk marks could not be read says so quietly and shows none', async () => {

@@ -188,7 +188,7 @@ func manifestInfos(t *testing.T) map[string]manifestInfo {
 	return out
 }
 
-// S1: every table carries the prefix of the module that made it, and a foreign key leaves a module only for a module it depends on.
+// Every table carries the prefix of the module that made it, and a foreign key leaves a module only for a module it depends on.
 func TestSchemaTablesUseTheirModulePrefix(t *testing.T) {
 	owner, tables := moduleTables(t)
 	infos := manifestInfos(t)
@@ -215,7 +215,7 @@ func TestSchemaTablesUseTheirModulePrefix(t *testing.T) {
 	}
 }
 
-// S2: a CHECK that lists more than five text values is on the allow-list.
+// A CHECK that lists more than five text values is on the allow-list.
 func TestLongValueListsAreTheAllowList(t *testing.T) {
 	_, tables := moduleTables(t)
 	var got []string
@@ -227,7 +227,7 @@ func TestLongValueListsAreTheAllowList(t *testing.T) {
 	compareAllowList(t, "CHECK with a value list longer than five", got, longValueListAllowList)
 }
 
-// S3: the JSON columns are exactly the allow-list.
+// The JSON columns are exactly the allow-list.
 func TestJSONColumnsAreTheAllowList(t *testing.T) {
 	_, tables := moduleTables(t)
 	var got []string
@@ -259,4 +259,4 @@ func compareAllowList(t *testing.T, what string, got, allowed []string) {
 	}
 }
 
-// S4 (docs/SCHEMA.sql equals the migrated schema) is TestSchemaFileIsCurrent in schema_test.go.
+// That docs/SCHEMA.sql equals the migrated schema is TestSchemaFileIsCurrent in schema_test.go.

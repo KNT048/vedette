@@ -77,7 +77,8 @@ type Result struct {
 func (r Result) Failed() bool { return r.Err != nil || r.Count != 0 }
 
 // OpenReadOnly opens an existing database file read-only: the file is never created, and no write, pragma that writes or
-// migration is possible through the handle.
+// migration is possible through the handle. Data is never written, but on a WAL database SQLite may create empty -wal and
+// -shm side files next to it.
 func OpenReadOnly(path string) (*sql.DB, error) {
 	abs, err := filepath.Abs(path)
 	if err != nil {

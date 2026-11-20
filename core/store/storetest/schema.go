@@ -61,9 +61,10 @@ func Schema(t testing.TB, db *store.DB) []SchemaTable {
 	return out
 }
 
-var jsonValid = regexp.MustCompile(`(?i)json_valid\(\s*"?([a-z_][a-z0-9_]*)"?\s*\)`)
+var jsonValid = regexp.MustCompile(`(?i)json_(?:valid|type|extract|array_length)\(\s*"?([a-z_][a-z0-9_]*)"?\s*[,)]`)
 
-// JSONColumns returns the columns of a CREATE TABLE statement that are declared as JSON with a json_valid check, sorted.
+// JSONColumns returns the columns of a CREATE TABLE statement that a CHECK treats as JSON (json_valid, json_type, json_extract
+// or json_array_length of the column), sorted. A JSON column with no such check cannot be seen from the schema.
 func JSONColumns(createSQL string) []string {
 	var out []string
 	for _, m := range jsonValid.FindAllStringSubmatch(createSQL, -1) {
@@ -76,7 +77,7 @@ func JSONColumns(createSQL string) []string {
 }
 
 var (
-	inList  = regexp.MustCompile(`(?i)\b([a-z_][a-z0-9_]*)\s+IN\s*\(\s*('(?:[^']|'')*'(?:\s*,\s*'(?:[^']|'')*')*)\s*\)`)
+	inList  = regexp.MustCompile(`(?i)\b([a-z_][a-z0-9_]*)\)?\s+(?:NOT\s+)?IN\s*\(\s*('(?:[^']|'')*'(?:\s*,\s*'(?:[^']|'')*')*)\s*\)`)
 	literal = regexp.MustCompile(`'(?:[^']|'')*'`)
 )
 

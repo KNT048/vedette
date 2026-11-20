@@ -2116,6 +2116,30 @@ type Handler interface {
 	//
 	// PUT /notify/rules
 	NotifyPutNotifyRules(ctx context.Context, req *NotifyPutNotifyRulesReq) (*NotifyPutNotifyRulesOK, error)
+	// ReportsGetReportsDefinition implements reports_get_reports_definition operation.
+	//
+	// The report definition: name, options, section switches, recipients and the key of its schedule.
+	//
+	// GET /reports/definition
+	ReportsGetReportsDefinition(ctx context.Context) (*ReportsGetReportsDefinitionOK, error)
+	// ReportsGetReportsDocument implements reports_get_reports_document operation.
+	//
+	// The report of the current period, made with the saved options when opened.
+	//
+	// GET /reports/document
+	ReportsGetReportsDocument(ctx context.Context) (*ReportsGetReportsDocumentOK, error)
+	// ReportsGetReportsHistory implements reports_get_reports_history operation.
+	//
+	// Reports sent, newest first.
+	//
+	// GET /reports/history
+	ReportsGetReportsHistory(ctx context.Context) (*ReportsGetReportsHistoryOK, error)
+	// ReportsGetReportsHistoryID implements reports_get_reports_history_id operation.
+	//
+	// One sent report, the document exactly as it was sent.
+	//
+	// GET /reports/history/{id}
+	ReportsGetReportsHistoryID(ctx context.Context, params ReportsGetReportsHistoryIDParams) (*ReportsGetReportsHistoryIDOK, error)
 	// ReportsGetReportsPdpl implements reports_get_reports_pdpl operation.
 	//
 	// Organization details and the generated assessment report.
@@ -2158,6 +2182,12 @@ type Handler interface {
 	//
 	// POST /reports/pdpl/generate
 	ReportsPostReportsPdplGenerate(ctx context.Context) (*ReportsPostReportsPdplGenerateOK, error)
+	// ReportsPostReportsSend implements reports_post_reports_send operation.
+	//
+	// Make the report now and send it to the saved recipients; the sent document is kept.
+	//
+	// POST /reports/send
+	ReportsPostReportsSend(ctx context.Context) (*ReportsPostReportsSendOK, error)
 	// ReportsPostReportsWeeklyAiSummary implements reports_post_reports_weekly_ai_summary operation.
 	//
 	// Draft a commentary for the weekly report with the customer AI.
@@ -2170,6 +2200,12 @@ type Handler interface {
 	//
 	// POST /reports/weekly/send
 	ReportsPostReportsWeeklySend(ctx context.Context) (*ReportsPostReportsWeeklySendOK, error)
+	// ReportsPutReportsDefinition implements reports_put_reports_definition operation.
+	//
+	// Save the report name, options and recipients (emails validated, max 20).
+	//
+	// PUT /reports/definition
+	ReportsPutReportsDefinition(ctx context.Context, req *ReportsPutReportsDefinitionReq) (*ReportsPutReportsDefinitionOK, error)
 	// ReportsPutReportsPdplOrg implements reports_put_reports_pdpl_org operation.
 	//
 	// Save organization details for the assessment report (each field validated).
@@ -2566,6 +2602,23 @@ type Handler interface {
 	//
 	// PUT /scans/config
 	ScanPutScansConfig(ctx context.Context, req *ScanPutScansConfigReq) (*ScanPutScansConfigOK, error)
+	// ScanningGetRuns implements scanning_get_runs operation.
+	//
+	// Every run of every engine, newest first: LAN sweeps, device checks, SNMP reads, vulnerability
+	// checks, exposure scans and their engine steps. Filtered by module, kind, state and subject (a
+	// device's runs: subject_kind=device and subject_id); searched over the title, the subject's name, who
+	// asked and the id; paged by offset and limit (at most 200). A run is kept 400 days after it ended.
+	//
+	// GET /runs
+	ScanningGetRuns(ctx context.Context, params ScanningGetRunsParams) (*ScanningGetRunsOK, error)
+	// ScanningGetRunsID implements scanning_get_runs_id operation.
+	//
+	// One run: who or what started it and what it is about, its state with the reason when it waits or
+	// stopped, its progress per step, the devices it touched, the tail of its log and the runs under it.
+	// 404 not_found.
+	//
+	// GET /runs/{id}
+	ScanningGetRunsID(ctx context.Context, params ScanningGetRunsIDParams) (*ScanningGetRunsIDOK, error)
 	// ScanningGetScanning implements scanning_get_scanning operation.
 	//
 	// Every scanning engine with its switch, state, memory cost, last and next run, the jobs running now,
@@ -2594,6 +2647,23 @@ type Handler interface {
 	//
 	// PATCH /scanning/engines/{id}
 	ScanningPatchScanningEnginesID(ctx context.Context, req *ScanningPatchScanningEnginesIDReq, params ScanningPatchScanningEnginesIDParams) (*ScanningPatchScanningEnginesIDOK, error)
+	// ScanningPostRunsIDResume implements scanning_post_runs_id_resume operation.
+	//
+	// Resume a run that waits, or one that was stopped with work left when its engine can go on from its
+	// steps (can_resume): it is queued again and continues from the first step that is not done. A run
+	// whose start needs an administrator (a LAN sweep) needs one to resume (403 forbidden otherwise).
+	// Audited (scanning.run_resume). Answers the run as it is now. 404 not_found; 409 not_resumable.
+	//
+	// POST /runs/{id}/resume
+	ScanningPostRunsIDResume(ctx context.Context, params ScanningPostRunsIDResumeParams) (*ScanningPostRunsIDResumeOK, error)
+	// ScanningPostRunsIDStop implements scanning_post_runs_id_stop operation.
+	//
+	// Stop a run and the runs under it: a queued or waiting run stops at once, a running one is stopping
+	// until its work ends. Audited (scanning.run_stop). Answers the run as it is now; a run already
+	// stopping answers as it is. 404 not_found; 409 not_running (it has already ended).
+	//
+	// POST /runs/{id}/stop
+	ScanningPostRunsIDStop(ctx context.Context, params ScanningPostRunsIDStopParams) (*ScanningPostRunsIDStopOK, error)
 	// ScanningPostScanningEnginesNmapDiscoveryRun implements scanning_post_scanning_engines_nmap_discovery_run operation.
 	//
 	// Scan the LAN now (no targets: a sweep of the whole scope, then the scans of the devices it queued)

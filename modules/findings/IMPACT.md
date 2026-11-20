@@ -40,9 +40,9 @@
 - Đổi `keyedTo`, `entryFor` (dùng chung với `decide`), `versionEvidence`, `nvdReaches`/`nvdNames`, `newSWInfo`/`cpeAliases`, `network-os.json`, `content/catalog/products` (agent-intake), `curated.json` (inventory) hay `core/winrel` là đổi lớp: `cmd/vedette TestReachability_910_Fixture` đỏ và chỉ nêu CVE dời lớp (so với `testdata/kev-reach-classes.txt`). Dời sang lớp không chạm được = hồi quy; cải thiện = sinh lại tệp (`-args -update-reach`), cập nhật `reachWant` trong cùng PR và nêu các CVE dời trong mô tả.
 - `cmd/vedette reachRows` là nơi duy nhất ghép dòng của agent-intake và inventory (findings không import hai module đó); job `reach-audit` đọc `feeds.Store.MatchStamp` và `Inventory.Catalog`. Thêm cột vào `fnd_reach_run` phải thêm vào `modules/core/export_policy.go`.
 
-## Modifying: `findings.Service.OnAssetMerged(ctx, from, into)` và người nghe `inventory.asset.merged` (INV-7)
-- **Người gọi**: `cmd/vedette/wiring.go` nghe `inventory.asset.merged {from, into, actor}` (inventory INV-29, khi một switch LLDP được nối vào thiết bị có IP của nó) qua `on("findings")`; sự kiện tới **trước** `inventory.asset.deleted` của `from` và `inventory.asset.updated` `match=true` của `into` trên cùng bus đồng bộ. Đổi thứ tự hay bỏ người nghe này là `OnAssetDeleted` xoá finding (kèm history, `mit_applied`, `mit_ai_output`) rồi lần khớp lại tạo lại và **notify báo lại** các CVE đó. Khi `OnAssetMerged` lỗi, binary ghi `from` vào một tập trong bộ nhớ và người nghe `deleted` bỏ qua đúng id đó (reconcile lo finding mồ côi).
-- **`ServiceConfig.Applied`** (binary: `mitigationApplied` đọc `mit_applied`): đổi bảng hay nghĩa "đã áp dụng" của mitigation là đổi finding nào thắng khi hai thiết bị cùng có một CVE. Nil = không finding nào được coi là đã áp dụng.
+## Modifying: `findings.Service.DeviceMerged(ctx, tx, lifecycle.Merge)` and `MergeCommitted` (INV-7)
+- **Caller**: the inventory, inside its own write transaction, through `core/lifecycle` (registered by `cmd/vedette/devicelifecycle.go` `registerLifecycle`), before the merged row is deleted and whether or not the module is on. It must write only through `tx` (never `db.Write`: the writer is held) and publish nothing; the plan in memory follows in `MergeCommitted`. An error rolls the inventory's merge back. `ServiceConfig.Lifecycle.FindingFolded` (mitigation, response) runs before a folded finding is deleted: a module that keeps rows by finding id and is not a participant loses them to the FK cascade.
+- **`ServiceConfig.Applied`** (binary: `mitigationApplied` đọc `mit_applied` through the merge's own `tx`): đổi bảng hay nghĩa "đã áp dụng" của mitigation là đổi finding nào thắng khi hai thiết bị cùng có một CVE. Nil = không finding nào được coi là đã áp dụng.
 - **Audit** `findings.merged_with_asset`: nhãn trong `web/src/locales/en/core.json` (`TestEveryAuditActionHasALabel`).
 
 ## Modifying: `findings.Service.UpsertFromMatch(ctx, Asset, []Vuln)` và `OnMatchChanged(ctx, assetID)`
@@ -103,8 +103,8 @@
 ## Modifying: `findings.Service.ConfirmFromScan(ctx, assetID, cve, Evidence)`
 - **scan** (kết quả `matched`), **scan-credentialed** (tương lai). Đổi `Evidence` hay điều kiện `confirmed` làm lệch bảng kết quả quét (`finding_id`) và trang finding.
 
-## Modifying: `findings.Service.OnAssetDeleted(ctx, assetID)`
-- **inventory** (sự kiện `inventory.asset.deleted`). Xoá `fnd_finding` của thiết bị; `fnd_finding_history`, `mit_applied`, `mit_ai_output` đi theo qua FK cascade (mitigation phụ thuộc điều này). Đổi thành xoá mềm = sửa cả `mitigation`.
+## Modifying: `findings.Service.DeviceDeleted(ctx, tx, lifecycle.Delete)` and `DeleteCommitted`
+- **inventory** (core/lifecycle, inside the delete transaction). Xoá `fnd_finding` của thiết bị; `fnd_finding_history`, `mit_applied`, `mit_ai_output` đi theo qua FK cascade (mitigation phụ thuộc điều này). Đổi thành xoá mềm = sửa cả `mitigation`. Reconcile still deletes the findings of a device the inventory no longer has (`deleteAsset`, a write of its own).
 
 ## Modifying: `findings.FindingHandlers.SetGuidance(Guidance)` và `Guide`/`Row`/`Detail`
 - **mitigation** (đăng ký nhà cung cấp, dựng `Guide`; gọi `Detail` để trả lời `applied|ai`). Đổi hình `Guide` = đổi `FindingDetail` trong `contract.ts`; `findings.Into` giải mã vào kiểu sinh của ogen nên lệch schema báo lỗi ngay trong test.

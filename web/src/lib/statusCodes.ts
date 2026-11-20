@@ -21,3 +21,8 @@ export type DeviceStatusCode = (typeof DEVICE_STATUSES)[number]
 /** An incident's handling state: new until a person acknowledges or resolves it (or the box closes it). */
 export const INCIDENT_STATUSES = ['new', 'acknowledged', 'resolved'] as const
 export type IncidentStatusCode = (typeof INCIDENT_STATUSES)[number]
+
+/** A run's state, the same eight words for every engine (core/run Status): queued waits for its lane; waiting is paused with
+ *  work left until what it names (the scan window, another run); running and stopping hold the lane; the last four are final. */
+export const RUN_STATUSES = ['queued', 'waiting', 'running', 'stopping', 'done', 'partial', 'failed', 'stopped'] as const
+export type RunStatusCode = (typeof RUN_STATUSES)[number]

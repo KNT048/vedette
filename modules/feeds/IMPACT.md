@@ -211,3 +211,6 @@
 - **Bảng và nội dung**: migration 0024 dựng lại `feeds_distro_fix` (CHECK `status`, `fixed_version`); tăng phiên bản nội dung decoder (`contentversion.go`, INV-32) làm hộp đang chạy đọc lại `ubuntu-osv`, `debian-tracker`, `alpine-osv` một lần: kiểm `contentversion_test.go`.
 - **`TierStamp`** thêm `alpine-osv`: lượt kéo của nó chạy lại lượt so đầy đủ của job `plan`.
 - **Bộ nhớ/thời gian của lượt kéo Alpine** tăng vì giữ hàng tầng; đo lại bằng log `feeds: distribution pull parsed` khi đổi tập gói giữ.
+
+## Modifying: `DeviceMerged`, `DeviceDeleted` (`devicelifecycle.go`, INV-33)
+- **inventory** calls them inside its merge or delete transaction (core/lifecycle, registered in `cmd/vedette/devicelifecycle.go`): write only through `tx`; an error rolls the inventory's write back. `HaveSince` (findings) reads `device_id`: a change of what it holds after a merge or delete changes which device an answer scopes.

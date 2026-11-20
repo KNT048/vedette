@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/lifecycle"
 	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/core/store"
@@ -71,6 +72,9 @@ type Config struct {
 	// OSVersion reads a declared version as the matcher does (findings.OSVersion: "v7.2.13" -> "7.2.13"), for a row the matcher is not
 	// asked about. nil: trimmed.
 	OSVersion func(v string) string
+	// Lifecycle are the other modules' parts of a device merge or delete, called inside the inventory's write (core/lifecycle). nil:
+	// none (the inventory alone).
+	Lifecycle *lifecycle.Hooks
 	Clock     func() time.Time
 	Log       *slog.Logger
 }
@@ -94,6 +98,7 @@ type Service struct {
 	wazuh       func(ctx context.Context) (ips, macs []string, err error)
 	declared    func(d MatchDevice, candidates []string) (id, version string, err error)
 	readVersion func(v string) string
+	lifecycle   *lifecycle.Hooks
 	ownedHit    atomic.Int64 // observations ignored because their address is box-owned
 	clock       func() time.Time
 	log         *slog.Logger
@@ -114,7 +119,7 @@ func New(cfg Config) (*Service, error) {
 	if cfg.DB == nil || cfg.Audit == nil {
 		return nil, errors.New("inventory: New needs DB and Audit")
 	}
-	s := &Service{db: cfg.DB, audit: cfg.Audit, events: cfg.Events, kev: cfg.KEV, box: cfg.Box, boxPorts: cfg.BoxPorts, findings: cfg.Findings, risk: cfg.Risk, modules: cfg.Modules, boxOwned: cfg.BoxOwnedIPs, boxMACs: cfg.BoxOwnedMACs, decoyMAC: cfg.BoxDecoyMACs, gateway: cfg.Gateway, wazuh: cfg.WazuhAgents, declared: cfg.DeclaredOS, readVersion: cfg.OSVersion, clock: cfg.Clock, zone: cfg.Zone, log: cfg.Log}
+	s := &Service{db: cfg.DB, audit: cfg.Audit, events: cfg.Events, kev: cfg.KEV, box: cfg.Box, boxPorts: cfg.BoxPorts, findings: cfg.Findings, risk: cfg.Risk, modules: cfg.Modules, boxOwned: cfg.BoxOwnedIPs, boxMACs: cfg.BoxOwnedMACs, decoyMAC: cfg.BoxDecoyMACs, gateway: cfg.Gateway, wazuh: cfg.WazuhAgents, declared: cfg.DeclaredOS, readVersion: cfg.OSVersion, lifecycle: cfg.Lifecycle, clock: cfg.Clock, zone: cfg.Zone, log: cfg.Log}
 	if s.clock == nil {
 		s.clock = time.Now
 	}
@@ -297,13 +302,18 @@ func (s *Service) forgetGhost(ctx context.Context, id, from string) (bool, error
 	}
 	gone := false
 	err = s.write(ctx, func(tx *sql.Tx, o *outbox) error {
+		gone = false
 		name := deviceName(ctx, tx, id)
-		r, err := tx.ExecContext(ctx, `DELETE FROM inv_asset WHERE id = ? AND is_box = 0 AND approved = 0 AND origin != 'manual' AND first_seen >= ?`, id, from)
-		if err != nil {
-			return fmt.Errorf("inventory: delete device: %w", err)
+		var still bool
+		if err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM inv_asset WHERE id = ? AND is_box = 0 AND approved = 0 AND origin != 'manual' AND first_seen >= ?)`,
+			id, from).Scan(&still); err != nil {
+			return fmt.Errorf("inventory: read device: %w", err)
 		}
-		if k, _ := r.RowsAffected(); k == 0 {
+		if !still {
 			return nil
+		}
+		if err := s.deleteDeviceTx(ctx, tx, o, lifecycle.Delete{Device: id, Name: name}); err != nil {
+			return err
 		}
 		gone = true
 		detail := id + "; made of a Trap IP of the box itself"

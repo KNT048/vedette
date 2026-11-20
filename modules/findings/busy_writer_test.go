@@ -60,29 +60,3 @@ func TestMatchIsNotLostWhenTheWriterIsBusyPastTheBusDeadline(t *testing.T) {
 		t.Fatal("the finding was not created")
 	}
 }
-
-func TestDeviceDeleteIsNotLostWhenTheWriterIsBusyPastTheBusDeadline(t *testing.T) {
-	t.Parallel()
-	e := newEnv(t)
-	e.seed()
-	release := e.holdWriter()
-	hctx := busDeadline(t)
-	type result struct {
-		n   int
-		err error
-	}
-	out := make(chan result, 1)
-	go func() {
-		n, err := e.svc.OnAssetDeleted(hctx, "a-1")
-		out <- result{n, err}
-	}()
-	<-hctx.Done()
-	release()
-	r := <-out
-	if r.err != nil || r.n != 1 {
-		t.Fatalf("OnAssetDeleted after the deadline: %d, %v", r.n, r.err)
-	}
-	if e.count(`SELECT count(*) FROM fnd_finding WHERE asset_id = 'a-1'`) != 0 {
-		t.Fatal("the findings of the deleted device are still there")
-	}
-}

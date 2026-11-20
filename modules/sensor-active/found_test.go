@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/knt048/vedette/core/exec/exectest"
+	"github.com/knt048/vedette/core/lifecycle"
 	sa "github.com/knt048/vedette/modules/sensor-active"
 )
 
@@ -125,9 +126,7 @@ func TestMergedDeviceKeepsTheChecksOfTheOther(t *testing.T) {
 	delete(e.inv.assets, "a-web")
 	e.inv.assets["a-kept"] = netip.MustParseAddr("192.168.10.20")
 	e.inv.mu.Unlock()
-	if err := e.svc.AssetMerged(e.ctx(), "a-web", "a-kept"); err != nil {
-		t.Fatal(err)
-	}
+	mergeDevices(t, e.db, e.svc, lifecycle.Merge{From: "a-web", Into: "a-kept"})
 	// listed for the kept device even at another address (the job names it now)
 	jobs, err := e.svc.JobsOf(e.ctx(), "a-kept", netip.MustParseAddr("192.168.10.55"), 10)
 	if err != nil || len(jobs) != 1 || jobs[0].AssetID != "a-kept" {

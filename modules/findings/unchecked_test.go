@@ -255,9 +255,7 @@ func TestUnchecked_910_StoredListAndHome(t *testing.T) {
 	if _, b = e.call("GET", "/findings?asset=other", "viewer", ""); len(b["unchecked"].([]any)) != 0 {
 		t.Fatalf("filtered = %v", b["unchecked"])
 	}
-	if _, err := e.svc.OnAssetDeleted(t.Context(), "a-1"); err != nil {
-		t.Fatal(err)
-	}
+	e.deleteDevice(t, "a-1")
 	if n := e.count(`SELECT count(*) FROM fnd_unchecked`); n != 0 {
 		t.Fatalf("rows left after delete = %d", n)
 	}

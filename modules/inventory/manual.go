@@ -11,6 +11,7 @@ import (
 
 	"github.com/knt048/vedette/content/devicetypes"
 	"github.com/knt048/vedette/core/apierr"
+	"github.com/knt048/vedette/core/lifecycle"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -656,7 +657,8 @@ func (s *Service) flagTx(ctx context.Context, tx *sql.Tx, o *outbox, actor, id, 
 }
 
 // DeleteDevice removes a device with its observations, services and software; the box itself is 409 box_device
-// (INV-3). findings deletes the findings of the device on inventory.asset.deleted (INV-11).
+// (INV-3). The other modules remove what they keep about it in the same transaction (deleteDeviceTx): findings deletes its findings
+// (INV-11).
 func (s *Service) DeleteDevice(ctx context.Context, actor, id string) error {
 	counts, err := s.findingCounts(ctx)
 	if err != nil {
@@ -674,8 +676,12 @@ func (s *Service) DeleteDevice(ctx context.Context, actor, id string) error {
 			return conflict("box_device", "This is the Vedette box itself, so it cannot be deleted. It is always the first device in the list. Its packages come from the box.")
 		}
 		name := deviceName(ctx, tx, id)
-		if _, err := tx.ExecContext(ctx, `DELETE FROM inv_asset WHERE id = ?`, id); err != nil {
-			return fmt.Errorf("inventory: delete device: %w", err)
+		d := lifecycle.Delete{Device: id, Name: name}
+		if actor != systemActor {
+			d.Actor = actor
+		}
+		if err := s.deleteDeviceTx(ctx, tx, o, d); err != nil {
+			return err
 		}
 		detail := id
 		if n := counts[id]; n > 0 {
@@ -684,4 +690,18 @@ func (s *Service) DeleteDevice(ctx context.Context, actor, id string) error {
 		o.add(EventAssetDeleted, AssetEvent{AssetID: id, Actor: actor}) // notify says who deleted it
 		return s.auditTx(ctx, tx, actor, "inventory.delete", name, detail)
 	})
+}
+
+// deleteDeviceTx deletes device d.Device in tx: first every module's part (core/lifecycle: findings, SNMP settings, open incidents...),
+// then the device row with what the inventory keeps about it (foreign keys). An error of any part rolls the delete back. The modules'
+// in-memory state follows after the commit.
+func (s *Service) deleteDeviceTx(ctx context.Context, tx *sql.Tx, o *outbox, d lifecycle.Delete) error {
+	if err := s.lifecycle.DeviceDeleted(ctx, tx, d); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM inv_asset WHERE id = ?`, d.Device); err != nil {
+		return fmt.Errorf("inventory: delete device: %w", err)
+	}
+	o.after = append(o.after, func(ctx context.Context) []Event { s.lifecycle.DeleteCommitted(ctx, d); return nil })
+	return nil
 }

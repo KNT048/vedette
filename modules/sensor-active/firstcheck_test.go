@@ -351,9 +351,7 @@ func TestDeletedDeviceLeavesTheQueue(t *testing.T) {
 		if err := e.svc.Enqueue(e.ctx(), id, r); err != nil {
 			t.Fatal(err)
 		}
-		if err := e.svc.AssetDeleted(e.ctx(), id); err != nil {
-			t.Fatal(err)
-		}
+		deleteDevice(t, e.db, e.svc, id)
 	}
 	if n := e.count(`SELECT count(*) FROM sa_queue`); n != 0 {
 		t.Fatalf("%d rows left", n)

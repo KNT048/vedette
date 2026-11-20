@@ -211,7 +211,7 @@ func (s *Service) buildDistro(ctx context.Context, src sourceRow, p pullPlan, de
 	}}
 	// a 304 keeps the stored rows: only when they were kept for every package needed now (a removed package needs nothing)
 	// (and never when new code reads the feed again, INV-32)
-	if src.Status == "ok" && !src.reload() && (len(keep) == 0 || kept != nil && covers(kept, keep)) {
+	if src.Status == "ok" && (len(keep) == 0 || kept != nil && covers(kept, keep)) {
 		req.ETag, req.LastModified = orEmpty(src.ETag), orEmpty(src.LastModified)
 	}
 	ctx, cancel := context.WithTimeout(ctx, distroFetchTimeout)
@@ -242,7 +242,7 @@ var distroFeeds = map[string]bool{ubuntuOSVFeedID: true, ubuntuVEXFeedID: true, 
 // distroCVEs lists the CVEs of the CISA list a distribution feed has rows for, sorted: the findings it may change (its tier rows
 // change only "Updates to plan", which the feed's switch reaches through TierStamp).
 func distroCVEs(ctx context.Context, tx *sql.Tx, sourceID string) ([]string, error) {
-	rows, err := tx.QueryContext(ctx, `SELECT DISTINCT cve FROM feeds_distro_fix WHERE source_id = ? AND cve IN (SELECT cve FROM feeds_vuln WHERE source_id = 'cisa-kev') ORDER BY cve`, sourceID)
+	rows, err := tx.QueryContext(ctx, `SELECT DISTINCT cve FROM feeds_distro_fix WHERE source_id = ? AND cve IN (SELECT cve FROM feeds_kev WHERE list = 'cisa') ORDER BY cve`, sourceID)
 	if err != nil {
 		return nil, fmt.Errorf("feeds: distro: %w", err)
 	}
@@ -355,7 +355,7 @@ AND NOT EXISTS (SELECT 1 FROM feeds_distro_fix d WHERE d.source_id = s.id) AND s
 // feed is on and has either rows or not yet failed DistroGiveUpFailures times in a row with none completed. A distribution feed
 // that waits on a list that cannot come (turned off, blocked) records nothing, so without this it would be loading for good.
 // It takes one argument: DistroGiveUpFailures.
-const kevCanArrive = `(EXISTS (SELECT 1 FROM feeds_vuln WHERE source_id = 'cisa-kev') OR EXISTS (SELECT 1 FROM feeds_source k WHERE k.id = 'cisa-kev'
+const kevCanArrive = `(EXISTS (SELECT 1 FROM feeds_kev WHERE list = 'cisa') OR EXISTS (SELECT 1 FROM feeds_source k WHERE k.id = 'cisa-kev'
 AND k.enabled = 1 AND k.last_success IS NULL AND k.failures < ?))`
 
 // DistroGiveUpFailures is how many pulls in a row may fail, with none ever completed, before the plan stops waiting for a
@@ -393,7 +393,7 @@ func (s *Store) DistroFixesOf(ctx context.Context, cve string) ([]DistroFix, err
 // distroFixes reads DistroFixes, of one CVE when cve is not "".
 func (s *Store) distroFixes(ctx context.Context, cve string) (map[string][]DistroFix, error) {
 	rows, err := s.db.Reader().QueryContext(ctx, `SELECT d.distro, d.release, d.package, d.cve, d.status, COALESCE(d.fixed_version, ''), d.pro
-FROM feeds_distro_fix d JOIN feeds_source s ON s.id = d.source_id WHERE s.enabled = 1 AND d.status IN ('fixed', 'not_affected') AND d.cve IN (SELECT cve FROM feeds_vuln WHERE source_id = 'cisa-kev')
+FROM feeds_distro_fix d JOIN feeds_source s ON s.id = d.source_id WHERE s.enabled = 1 AND d.status IN ('fixed', 'not_affected') AND d.cve IN (SELECT cve FROM feeds_kev WHERE list = 'cisa')
 AND (? = '' OR d.cve = ?) ORDER BY d.cve, d.distro, d.release, d.package, d.source_id`, cve, cve)
 	if err != nil {
 		return nil, fmt.Errorf("feeds: read distro: %w", err)

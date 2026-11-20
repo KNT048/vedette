@@ -157,6 +157,32 @@ type CoreRunStep struct {
 	EndedAt   *string
 }
 
+type CoreSchedule struct {
+	ID             string
+	OwnerModule    string
+	OwnerKey       string
+	Enabled        int64
+	PausedUntil    *string
+	Freq           string
+	EveryMinutes   *int64
+	AtTime         *string
+	Weekdays       *string
+	MonthDay       *int64
+	OnceAt         *string
+	Tz             string
+	WindowMode     string
+	WindowDays     *string
+	WindowFrom     *string
+	WindowTo       *string
+	NextDueAt      *string
+	LastDueAt      *string
+	LastRunID      *string
+	LastSkipReason *string
+	LastSkipAt     *string
+	UpdatedBy      string
+	UpdatedAt      string
+}
+
 type CoreSecret struct {
 	ID         string
 	Purpose    string

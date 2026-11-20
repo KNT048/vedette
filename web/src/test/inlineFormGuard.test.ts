@@ -41,7 +41,6 @@ const ALLOWED: { file: string; count: number; why: string }[] = [
   { file: 'features/reports/WeeklyTab.tsx', count: 1, why: SETTINGS },
   { file: 'features/response/ApproverIdentities.tsx', count: 1, why: 'is the code step that links an approver identity on its own row, not an add/edit form' },
   { file: 'features/response/ResponseSettings.tsx', count: 1, why: SETTINGS },
-  { file: 'features/scan/NucleiSettings.tsx', count: 1, why: SETTINGS },
   { file: 'features/scanning/SafetyTab.tsx', count: 1, why: SETTINGS },
   { file: 'components/common/Pager.tsx', count: 1, why: SEARCH },
   { file: 'app/LoginPage.tsx', count: 1, why: OWN_PAGE },

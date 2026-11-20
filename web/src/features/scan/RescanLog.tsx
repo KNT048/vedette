@@ -6,7 +6,7 @@ import { EmptyState, QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { fmtDateTime } from '@/lib/format'
 import { useEvents } from './api'
-import { runHref } from './links'
+import { runHref } from '@/features/scanning/places'
 import type { RescanEvent } from './types'
 
 // clear is only "no match reported": neutral, never green; pick_only and stopped are neutral too

@@ -13,9 +13,9 @@ import (
 	"time"
 )
 
-// What tier 3 keeps of a record: dates, NVD's status, the newest CVSS version's severity (NVD's own before the
-// CNA's), the vulnerable entries; a record with an unusable entry is rejected whole.
-func TestParseNVDRecent(t *testing.T) {
+// What the catalogue keeps of a record: dates, NVD's status, the vulnerable entries, and only scores with a valid vector (one CVSS
+// rule for every page: a score without its vector is no score); a record with an unusable entry is rejected whole.
+func TestParseNVD_Record(t *testing.T) {
 	t.Parallel()
 	body := `{"totalResults":3,"vulnerabilities":[
 {"cve":{"id":"CVE-2026-0001","published":"2026-08-01T03:16:25.307","lastModified":"2026-08-12T21:00:37.147","vulnStatus":"Deferred",
@@ -26,7 +26,7 @@ func TestParseNVDRecent(t *testing.T) {
  "configurations":[{"nodes":[{"cpeMatch":[{"vulnerable":true,"criteria":"cpe:2.3:a:acme:box:*:*:*:*:*:*:*:*","versionEndExcluding":"2.0"},{"vulnerable":false,"criteria":"cpe:2.3:o:acme:os:-:*:*:*:*:*:*:*"}]}]}]}},
 {"cve":{"id":"CVE-2026-0003","published":"2026-08-02T00:00:00.000","lastModified":"2026-08-03T00:00:00.000","vulnStatus":"Analyzed",
  "configurations":[{"nodes":[{"cpeMatch":[{"vulnerable":true,"criteria":"not a cpe"}]}]}]}}]}`
-	d, err := ParseNVDRecent([]byte(body))
+	d, err := ParseNVD([]byte(body))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,20 +34,20 @@ func TestParseNVDRecent(t *testing.T) {
 		t.Fatalf("%+v", d)
 	}
 	a, b := d.Records[0], d.Records[1]
-	if a.Severity != "HIGH" || *a.Score != 8.7 || a.CVSS != nil || a.Status != "Deferred" || len(a.Affected) != 0 || a.Published != time.Date(2026, 8, 1, 3, 16, 25, 307e6, time.UTC) {
-		t.Fatalf("v4.0 first, the CNA's when NVD gives none: %+v", a)
+	if len(a.Metrics) != 0 || a.Status != "Deferred" || len(a.Affected) != 0 || a.Published != time.Date(2026, 8, 1, 3, 16, 25, 307e6, time.UTC) {
+		t.Fatalf("scores without a vector are not kept: %+v", a)
 	}
-	if b.Severity != "HIGH" || *b.Score != 7.5 || b.CVSS != nil || len(b.Affected) != 1 || b.Affected[0].EndExcl != "2.0" {
-		t.Fatalf("NVD's own score before the CNA's: %+v", b)
+	if len(b.Metrics) != 0 || len(b.Affected) != 1 || b.Affected[0].EndExcl != "2.0" {
+		t.Fatalf("entries: %+v", b)
 	}
 	// review r2 #9 of #802: one record of the wrong JSON type is rejected alone, the page is kept
-	d, err = ParseNVDRecent([]byte(`{"totalResults":2,"vulnerabilities":[{"cve":{"id":42}},` + body[strings.Index(body, `{"cve":{"id":"CVE-2026-0002"`):strings.Index(body, `,
+	d, err = ParseNVD([]byte(`{"totalResults":2,"vulnerabilities":[{"cve":{"id":42}},` + body[strings.Index(body, `{"cve":{"id":"CVE-2026-0002"`):strings.Index(body, `,
 {"cve":{"id":"CVE-2026-0003"`)] + `]}`))
 	if err != nil || d.Returned != 2 || d.Accepted != 1 || d.Rejected != 1 || len(d.Records) != 1 || d.Records[0].CVE != "CVE-2026-0002" {
 		t.Fatalf("one bad record: %+v %v", d, err)
 	}
 	for name, in := range map[string]string{"html": "<html>", "no total": `{"vulnerabilities":[]}`} {
-		if _, err := ParseNVDRecent([]byte(in)); err == nil {
+		if _, err := ParseNVD([]byte(in)); err == nil {
 			t.Errorf("%s: parsed", name)
 		}
 	}
@@ -164,7 +164,7 @@ func TestRecentPull_FillsTwelveMonthsInWindows(t *testing.T) {
 	if f.Status != "ok" || f.Records == nil || *f.Records != 1203 || f.Error == nil || !strings.Contains(*f.Error, "1,203 CVEs published since 5 Nov 2025; NVD gives affected versions for 1,203 of them.") {
 		t.Fatalf("feed %+v %v", f, f.Error)
 	}
-	if rowsOf(t, e.db, "feeds_recent_affected") != 1203 {
+	if rowsOf(t, e.db, "feeds_cve_range") != 1203 {
 		t.Fatal("entries")
 	}
 	if c, err := e.svc.st.recentCursor(t.Context()); err != nil || c == nil || c.Mode != modeDone || !c.Until.Equal(e.clock()) {
@@ -183,8 +183,8 @@ func TestRecentPull_PausesAndGoesOn(t *testing.T) {
 		t.Fatal(err)
 	}
 	f := e.feed(recentFeedID)
-	if f.Status != "never" || rowsOf(t, e.db, "feeds_recent_cve") != 2 || rowsOf(t, e.db, "feeds_recent_cursor") != 1 {
-		t.Fatalf("paused: %+v, %d CVEs", f, rowsOf(t, e.db, "feeds_recent_cve"))
+	if f.Status != "never" || rowsOf(t, e.db, "feeds_cve") != 2 || count(t, e.db, `SELECT count(*) FROM feeds_nvd_cursor WHERE selector = 'recent'`) != 1 {
+		t.Fatalf("paused: %+v, %d CVEs", f, rowsOf(t, e.db, "feeds_cve"))
 	}
 	if live := e.svc.live(t.Context(), f); live.Error == nil || !strings.Contains(*live.Error, "Loading the CVEs of the last 12 months from NVD: 2 stored so far") {
 		t.Fatalf("progress %v", live.Error)
@@ -219,7 +219,7 @@ func TestRecentPull_UpdateKeepsTwelveMonths(t *testing.T) {
 		t.Fatal(err)
 	}
 	first := e.clock()
-	if rowsOf(t, e.db, "feeds_recent_cve") != 4 {
+	if rowsOf(t, e.db, "feeds_cve") != 4 {
 		t.Fatal("fill")
 	}
 	n.mu.Lock()
@@ -243,7 +243,7 @@ func TestRecentPull_UpdateKeepsTwelveMonths(t *testing.T) {
 
 func recentCVEs(t *testing.T, e *env) []string {
 	t.Helper()
-	rows, err := e.db.Reader().QueryContext(t.Context(), `SELECT cve FROM feeds_recent_cve ORDER BY cve`)
+	rows, err := e.db.Reader().QueryContext(t.Context(), `SELECT cve FROM feeds_cve ORDER BY cve`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -647,7 +647,7 @@ func TestRecentPull_CursorResetIsDueAtTheNextCheck(t *testing.T) {
 		n.mu.Unlock()
 	}
 
-	sqlDo(`DELETE FROM feeds_recent_cursor`) // what migration 0013 did
+	sqlDo(`DELETE FROM feeds_nvd_cursor`) // what migration 0013 did
 	f := e.svc.live(t.Context(), e.feed(recentFeedID))
 	line := "Loading the CVEs of the last 12 months from NVD: 4 stored so far, published up to " + e.clock().AddDate(0, 0, -recentDays).Format("2 Jan 2006") + "."
 	if f.Status != "ok" || f.Error == nil || *f.Error != line+" Vedette goes on at the next check (every 5 minutes)." {
@@ -670,7 +670,7 @@ func TestRecentPull_CursorResetIsDueAtTheNextCheck(t *testing.T) {
 	}
 
 	n.reset()
-	sqlDo(`DELETE FROM feeds_recent_cursor`)
+	sqlDo(`DELETE FROM feeds_nvd_cursor`)
 	setCode(window(0)) // a refill whose first page fails: the back-off holds the next check
 	if err := e.svc.RunPull(t.Context()); err != nil || len(n.requests()) != 1 {
 		t.Fatalf("the reset cursor is due at once: asked %v, %v", n.requests(), err)
@@ -693,7 +693,7 @@ func TestRecentPull_CursorResetIsDueAtTheNextCheck(t *testing.T) {
 	}
 
 	n.reset() // a done cursor for another address is owed
-	sqlDo(`UPDATE feeds_recent_cursor SET url = 'https://old.example/nvd'`)
+	sqlDo(`UPDATE feeds_nvd_cursor SET url = 'https://old.example/nvd'`)
 	e.setNow(e.clock().Add(PullEvery))
 	if err := e.svc.RunPull(t.Context()); err != nil || len(n.requests()) != 4 {
 		t.Fatalf("another address: asked %v, %v", n.requests(), err)
@@ -704,7 +704,7 @@ func TestRecentPull_CursorResetIsDueAtTheNextCheck(t *testing.T) {
 // .NET Framework vulnerable AND windows_server_2025 vulnerable:false) keeps only its .NET entries as Affected, with the Windows releases
 // as their Platforms: no Affected row names windows_server_2025, so it never counts for a Windows Server row. An OS CVE (CVE-2026-69902)
 // keeps its windows_server_2025 range as Affected, with no platform condition.
-func TestParseNVDRecent_M2_10_RunningOnWindowsIsNotAffected(t *testing.T) {
+func TestParseNVD_M2_10_RunningOnWindowsIsNotAffected(t *testing.T) {
 	t.Parallel()
 	body := `{"totalResults":2,"vulnerabilities":[
 {"cve":{"id":"CVE-2026-23666","published":"2026-01-13T18:16:00.000","lastModified":"2026-02-01T00:00:00.000","vulnStatus":"Analyzed",
@@ -719,7 +719,7 @@ func TestParseNVDRecent_M2_10_RunningOnWindowsIsNotAffected(t *testing.T) {
  "configurations":[{"nodes":[{"operator":"OR","negate":false,"cpeMatch":[
   {"vulnerable":true,"criteria":"cpe:2.3:o:microsoft:windows_11_24h2:*:*:*:*:*:*:x64:*","versionEndExcluding":"10.0.26100.9711"},
   {"vulnerable":true,"criteria":"cpe:2.3:o:microsoft:windows_server_2025:*:*:*:*:*:*:x64:*","versionEndExcluding":"10.0.26100.33650"}]}]}]}}]}`
-	d, err := ParseNVDRecent([]byte(body))
+	d, err := ParseNVD([]byte(body))
 	if err != nil || len(d.Records) != 2 {
 		t.Fatalf("%+v %v", d, err)
 	}

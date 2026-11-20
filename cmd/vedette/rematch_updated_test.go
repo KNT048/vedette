@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/events"
-	"github.com/knt048/vedette/core/productid"
 	"github.com/knt048/vedette/modules/feeds"
 	"github.com/knt048/vedette/modules/inventory"
 )
@@ -35,7 +34,7 @@ func TestVulnUpdatedRematchesAChangedProduct(t *testing.T) {
 	}
 	// CISA corrects the entry to FortiOS: the FortiGate now matches
 	err := s.d.DB.Write(t.Context(), func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(t.Context(), `UPDATE feeds_vuln SET vendor = 'Fortinet', product = 'FortiOS', product_key = ? WHERE cve = ?`, productid.Key("Fortinet", "FortiOS"), cve)
+		_, err := tx.ExecContext(t.Context(), `UPDATE feeds_kev SET vendor = 'Fortinet', product = 'FortiOS' WHERE cve = ?`, cve)
 		return err
 	})
 	if err != nil {

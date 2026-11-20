@@ -14,7 +14,7 @@ func TestPublishedOfReadsEveryAskedCVEAcrossChunks(t *testing.T) {
 	n := publishedChunk + 37
 	write(t, db, func(tx *sql.Tx) error {
 		for i := range n {
-			if _, err := tx.ExecContext(t.Context(), `INSERT INTO feeds_published (cve, published) VALUES (?, ?)`, fmt.Sprintf("CVE-2024-%05d", i), fmt.Sprintf("2024-%02d-01", 1+i%12)); err != nil {
+			if _, err := tx.ExecContext(t.Context(), `INSERT INTO feeds_cve (cve, published, updated_at) VALUES (?, ?, '2026-11-01T00:00:00.000Z')`, fmt.Sprintf("CVE-2024-%05d", i), fmt.Sprintf("2024-%02d-01T10:00:00.000Z", 1+i%12)); err != nil {
 				return err
 			}
 		}

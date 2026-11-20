@@ -20,7 +20,7 @@ import (
 func nvdBody(start, total int) string {
 	var recs []string
 	for i := start; i < min(start+NVDPageSize, total); i++ {
-		recs = append(recs, fmt.Sprintf(`{"cve":{"id":"CVE-2024-%04d","published":"2024-01-15T10:00:00.000","metrics":{"cvssMetricV31":[{"type":"Primary","cvssData":{"baseScore":7.5,"baseSeverity":"HIGH","vectorString":"CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"}}]},"configurations":[{"nodes":[{"cpeMatch":[{"vulnerable":true,"criteria":"cpe:2.3:a:acme:box:*:*:*:*:*:*:*:*","versionEndExcluding":"2.0"}]}]}]}}`, i))
+		recs = append(recs, fmt.Sprintf(`{"cve":{"id":"CVE-2024-%04d","published":"2024-01-15T10:00:00.000","lastModified":"2024-01-16T10:00:00.000","vulnStatus":"Analyzed","metrics":{"cvssMetricV31":[{"type":"Primary","cvssData":{"baseScore":7.5,"baseSeverity":"HIGH","vectorString":"CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"}}]},"configurations":[{"nodes":[{"cpeMatch":[{"vulnerable":true,"criteria":"cpe:2.3:a:acme:box:*:*:*:*:*:*:*:*","versionEndExcluding":"2.0"}]}]}]}}`, i))
 	}
 	return fmt.Sprintf(`{"totalResults":%d,"vulnerabilities":[%s]}`, total, strings.Join(recs, ","))
 }
@@ -77,6 +77,7 @@ func nvdEnv(t *testing.T) (*env, *nvdScript) {
 	e.mirror("nvd-kev", o.url("/nvd"))
 	n := &nvdScript{total: 250, plan: map[int][]int{}, asked: map[int]int{}}
 	n.serve(o)
+	seedKEV(t, e.db, 250)
 	return e, n
 }
 
@@ -207,6 +208,7 @@ func TestNVDPull_OnePullAtATime(t *testing.T) {
 	e, o := pullEnv(t)
 	e.only("nvd-kev")
 	e.mirror("nvd-kev", o.url("/nvd"))
+	seedKEV(t, e.db, 150)
 	started, release := make(chan struct{}), make(chan struct{})
 	var once sync.Once
 	o.serve("/nvd", func(w http.ResponseWriter, r *http.Request) {
@@ -353,7 +355,7 @@ func TestNVDPull_ReviewLows(t *testing.T) {
 			t.Fatalf("NVD asked again %d times before its wait ended", n.count(100)-asked)
 		}
 	})
-	t.Run("CVEs a full pull deletes are changed", func(t *testing.T) {
+	t.Run("a full pull that does not return a CVE keeps its record", func(t *testing.T) {
 		t.Parallel()
 		e := newEnv(t)
 		row := []AffectedRow{{CPE: "cpe:2.3:a:acme:box:*:*:*:*:*:*:*:*", EndExcl: "2.0"}}
@@ -361,14 +363,14 @@ func TestNVDPull_ReviewLows(t *testing.T) {
 		for _, got := range []map[string][]AffectedRow{{"CVE-2024-0001": row, "CVE-2024-0002": row}, {"CVE-2024-0001": row}} {
 			if err := e.db.Write(t.Context(), func(tx *sql.Tx) error {
 				var err error
-				changed, _, err = applyAffected(t.Context(), tx, got, true, e.clock())
+				changed, err = applyAffected(t.Context(), tx, got, true, e.clock())
 				return err
 			}); err != nil {
 				t.Fatal(err)
 			}
 		}
-		if !slices.Equal(changed, []string{"CVE-2024-0002"}) {
-			t.Fatalf("changed = %v, want the deleted CVE", changed)
+		if len(changed) != 0 || count(t, e.db, `SELECT count(*) FROM feeds_cve_range WHERE cve = 'CVE-2024-0002'`) != 1 {
+			t.Fatalf("changed = %v; the catalogue keeps a CVE until the retention rule drops it", changed)
 		}
 	})
 }

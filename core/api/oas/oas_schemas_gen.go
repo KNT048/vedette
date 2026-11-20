@@ -19758,6 +19758,701 @@ func (s *CoreGetModulesOKModulesItemTier) UnmarshalText(data []byte) error {
 	}
 }
 
+type CoreGetSchedulesOwnerKeyOK struct {
+	// Who may change it and run it once.
+	EditRole  CoreGetSchedulesOwnerKeyOKEditRole `json:"edit_role"`
+	Enabled   bool                               `json:"enabled"`
+	LastDueAt NilDateTime                        `json:"last_due_at"`
+	// The run it last started (also by Run once now): open it at /runs/.
+	LastRunID  NilString   `json:"last_run_id"`
+	LastSkipAt NilDateTime `json:"last_skip_at"`
+	// Why the last due time did not start anything ("The run it started at 20 Nov 2026, 23:00 had not
+	// ended.", "Its module is off."); null once a due time starts.
+	LastSkipReason NilString                        `json:"last_skip_reason"`
+	Limits         CoreGetSchedulesOwnerKeyOKLimits `json:"limits"`
+	// The module that owns it: a due time is skipped while it is off.
+	Module string `json:"module"`
+	// Null while off or when it never comes due again (a once rule that ran).
+	NextDueAt NilDateTime `json:"next_due_at"`
+	// What the schedule starts: scan.vuln, inventory.sweep, exposure.target:, reports.def:, feeds.source:,
+	// ...
+	OwnerKey string `json:"owner_key"`
+	// Due times before it are skipped: the next one counts from it.
+	PausedUntil NilDateTime `json:"paused_until"`
+	// When a schedule comes due. The fields its frequency does not use are null (the box clears them when
+	// it saves).
+	Rule CoreGetSchedulesOwnerKeyOKRule `json:"rule"`
+	// False: nobody saved it yet; enabled and rule are its default.
+	Saved bool `json:"saved"`
+	// The next three start times: a due time in the past starts now, and one outside the scan window when
+	// it opens.
+	Upcoming  []time.Time `json:"upcoming"`
+	UpdatedAt NilDateTime `json:"updated_at"`
+	// Who last changed it (an email, or system for a default); null while not saved.
+	UpdatedBy NilString `json:"updated_by"`
+	// Due, and held: what it waits for ("The scan window to open").
+	WaitingFor NilString `json:"waiting_for"`
+	// The IANA zone the rule is read in (the organization's for tz "org").
+	Zone string `json:"zone"`
+}
+
+// GetEditRole returns the value of EditRole.
+func (s *CoreGetSchedulesOwnerKeyOK) GetEditRole() CoreGetSchedulesOwnerKeyOKEditRole {
+	return s.EditRole
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *CoreGetSchedulesOwnerKeyOK) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetLastDueAt returns the value of LastDueAt.
+func (s *CoreGetSchedulesOwnerKeyOK) GetLastDueAt() NilDateTime {
+	return s.LastDueAt
+}
+
+// GetLastRunID returns the value of LastRunID.
+func (s *CoreGetSchedulesOwnerKeyOK) GetLastRunID() NilString {
+	return s.LastRunID
+}
+
+// GetLastSkipAt returns the value of LastSkipAt.
+func (s *CoreGetSchedulesOwnerKeyOK) GetLastSkipAt() NilDateTime {
+	return s.LastSkipAt
+}
+
+// GetLastSkipReason returns the value of LastSkipReason.
+func (s *CoreGetSchedulesOwnerKeyOK) GetLastSkipReason() NilString {
+	return s.LastSkipReason
+}
+
+// GetLimits returns the value of Limits.
+func (s *CoreGetSchedulesOwnerKeyOK) GetLimits() CoreGetSchedulesOwnerKeyOKLimits {
+	return s.Limits
+}
+
+// GetModule returns the value of Module.
+func (s *CoreGetSchedulesOwnerKeyOK) GetModule() string {
+	return s.Module
+}
+
+// GetNextDueAt returns the value of NextDueAt.
+func (s *CoreGetSchedulesOwnerKeyOK) GetNextDueAt() NilDateTime {
+	return s.NextDueAt
+}
+
+// GetOwnerKey returns the value of OwnerKey.
+func (s *CoreGetSchedulesOwnerKeyOK) GetOwnerKey() string {
+	return s.OwnerKey
+}
+
+// GetPausedUntil returns the value of PausedUntil.
+func (s *CoreGetSchedulesOwnerKeyOK) GetPausedUntil() NilDateTime {
+	return s.PausedUntil
+}
+
+// GetRule returns the value of Rule.
+func (s *CoreGetSchedulesOwnerKeyOK) GetRule() CoreGetSchedulesOwnerKeyOKRule {
+	return s.Rule
+}
+
+// GetSaved returns the value of Saved.
+func (s *CoreGetSchedulesOwnerKeyOK) GetSaved() bool {
+	return s.Saved
+}
+
+// GetUpcoming returns the value of Upcoming.
+func (s *CoreGetSchedulesOwnerKeyOK) GetUpcoming() []time.Time {
+	return s.Upcoming
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *CoreGetSchedulesOwnerKeyOK) GetUpdatedAt() NilDateTime {
+	return s.UpdatedAt
+}
+
+// GetUpdatedBy returns the value of UpdatedBy.
+func (s *CoreGetSchedulesOwnerKeyOK) GetUpdatedBy() NilString {
+	return s.UpdatedBy
+}
+
+// GetWaitingFor returns the value of WaitingFor.
+func (s *CoreGetSchedulesOwnerKeyOK) GetWaitingFor() NilString {
+	return s.WaitingFor
+}
+
+// GetZone returns the value of Zone.
+func (s *CoreGetSchedulesOwnerKeyOK) GetZone() string {
+	return s.Zone
+}
+
+// SetEditRole sets the value of EditRole.
+func (s *CoreGetSchedulesOwnerKeyOK) SetEditRole(val CoreGetSchedulesOwnerKeyOKEditRole) {
+	s.EditRole = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *CoreGetSchedulesOwnerKeyOK) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetLastDueAt sets the value of LastDueAt.
+func (s *CoreGetSchedulesOwnerKeyOK) SetLastDueAt(val NilDateTime) {
+	s.LastDueAt = val
+}
+
+// SetLastRunID sets the value of LastRunID.
+func (s *CoreGetSchedulesOwnerKeyOK) SetLastRunID(val NilString) {
+	s.LastRunID = val
+}
+
+// SetLastSkipAt sets the value of LastSkipAt.
+func (s *CoreGetSchedulesOwnerKeyOK) SetLastSkipAt(val NilDateTime) {
+	s.LastSkipAt = val
+}
+
+// SetLastSkipReason sets the value of LastSkipReason.
+func (s *CoreGetSchedulesOwnerKeyOK) SetLastSkipReason(val NilString) {
+	s.LastSkipReason = val
+}
+
+// SetLimits sets the value of Limits.
+func (s *CoreGetSchedulesOwnerKeyOK) SetLimits(val CoreGetSchedulesOwnerKeyOKLimits) {
+	s.Limits = val
+}
+
+// SetModule sets the value of Module.
+func (s *CoreGetSchedulesOwnerKeyOK) SetModule(val string) {
+	s.Module = val
+}
+
+// SetNextDueAt sets the value of NextDueAt.
+func (s *CoreGetSchedulesOwnerKeyOK) SetNextDueAt(val NilDateTime) {
+	s.NextDueAt = val
+}
+
+// SetOwnerKey sets the value of OwnerKey.
+func (s *CoreGetSchedulesOwnerKeyOK) SetOwnerKey(val string) {
+	s.OwnerKey = val
+}
+
+// SetPausedUntil sets the value of PausedUntil.
+func (s *CoreGetSchedulesOwnerKeyOK) SetPausedUntil(val NilDateTime) {
+	s.PausedUntil = val
+}
+
+// SetRule sets the value of Rule.
+func (s *CoreGetSchedulesOwnerKeyOK) SetRule(val CoreGetSchedulesOwnerKeyOKRule) {
+	s.Rule = val
+}
+
+// SetSaved sets the value of Saved.
+func (s *CoreGetSchedulesOwnerKeyOK) SetSaved(val bool) {
+	s.Saved = val
+}
+
+// SetUpcoming sets the value of Upcoming.
+func (s *CoreGetSchedulesOwnerKeyOK) SetUpcoming(val []time.Time) {
+	s.Upcoming = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *CoreGetSchedulesOwnerKeyOK) SetUpdatedAt(val NilDateTime) {
+	s.UpdatedAt = val
+}
+
+// SetUpdatedBy sets the value of UpdatedBy.
+func (s *CoreGetSchedulesOwnerKeyOK) SetUpdatedBy(val NilString) {
+	s.UpdatedBy = val
+}
+
+// SetWaitingFor sets the value of WaitingFor.
+func (s *CoreGetSchedulesOwnerKeyOK) SetWaitingFor(val NilString) {
+	s.WaitingFor = val
+}
+
+// SetZone sets the value of Zone.
+func (s *CoreGetSchedulesOwnerKeyOK) SetZone(val string) {
+	s.Zone = val
+}
+
+// Who may change it and run it once.
+type CoreGetSchedulesOwnerKeyOKEditRole string
+
+const (
+	CoreGetSchedulesOwnerKeyOKEditRoleOperator CoreGetSchedulesOwnerKeyOKEditRole = "operator"
+	CoreGetSchedulesOwnerKeyOKEditRoleAdmin    CoreGetSchedulesOwnerKeyOKEditRole = "admin"
+)
+
+// AllValues returns all CoreGetSchedulesOwnerKeyOKEditRole values.
+func (CoreGetSchedulesOwnerKeyOKEditRole) AllValues() []CoreGetSchedulesOwnerKeyOKEditRole {
+	return []CoreGetSchedulesOwnerKeyOKEditRole{
+		CoreGetSchedulesOwnerKeyOKEditRoleOperator,
+		CoreGetSchedulesOwnerKeyOKEditRoleAdmin,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CoreGetSchedulesOwnerKeyOKEditRole) MarshalText() ([]byte, error) {
+	switch s {
+	case CoreGetSchedulesOwnerKeyOKEditRoleOperator:
+		return []byte(s), nil
+	case CoreGetSchedulesOwnerKeyOKEditRoleAdmin:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CoreGetSchedulesOwnerKeyOKEditRole) UnmarshalText(data []byte) error {
+	switch CoreGetSchedulesOwnerKeyOKEditRole(data) {
+	case CoreGetSchedulesOwnerKeyOKEditRoleOperator:
+		*s = CoreGetSchedulesOwnerKeyOKEditRoleOperator
+		return nil
+	case CoreGetSchedulesOwnerKeyOKEditRoleAdmin:
+		*s = CoreGetSchedulesOwnerKeyOKEditRoleAdmin
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CoreGetSchedulesOwnerKeyOKLimits struct {
+	// The frequencies its owner allows.
+	Freqs           []CoreGetSchedulesOwnerKeyOKLimitsFreqsItem `json:"freqs"`
+	MaxEveryMinutes int                                         `json:"max_every_minutes"`
+	MinEveryMinutes int                                         `json:"min_every_minutes"`
+	// Why the choices are limited, shown next to them (e.g. "Sources ask clients not to poll more
+	// often."); empty when they are not.
+	Reason string `json:"reason"`
+	// The window modes its owner allows.
+	Windows []CoreGetSchedulesOwnerKeyOKLimitsWindowsItem `json:"windows"`
+}
+
+// GetFreqs returns the value of Freqs.
+func (s *CoreGetSchedulesOwnerKeyOKLimits) GetFreqs() []CoreGetSchedulesOwnerKeyOKLimitsFreqsItem {
+	return s.Freqs
+}
+
+// GetMaxEveryMinutes returns the value of MaxEveryMinutes.
+func (s *CoreGetSchedulesOwnerKeyOKLimits) GetMaxEveryMinutes() int {
+	return s.MaxEveryMinutes
+}
+
+// GetMinEveryMinutes returns the value of MinEveryMinutes.
+func (s *CoreGetSchedulesOwnerKeyOKLimits) GetMinEveryMinutes() int {
+	return s.MinEveryMinutes
+}
+
+// GetReason returns the value of Reason.
+func (s *CoreGetSchedulesOwnerKeyOKLimits) GetReason() string {
+	return s.Reason
+}
+
+// GetWindows returns the value of Windows.
+func (s *CoreGetSchedulesOwnerKeyOKLimits) GetWindows() []CoreGetSchedulesOwnerKeyOKLimitsWindowsItem {
+	return s.Windows
+}
+
+// SetFreqs sets the value of Freqs.
+func (s *CoreGetSchedulesOwnerKeyOKLimits) SetFreqs(val []CoreGetSchedulesOwnerKeyOKLimitsFreqsItem) {
+	s.Freqs = val
+}
+
+// SetMaxEveryMinutes sets the value of MaxEveryMinutes.
+func (s *CoreGetSchedulesOwnerKeyOKLimits) SetMaxEveryMinutes(val int) {
+	s.MaxEveryMinutes = val
+}
+
+// SetMinEveryMinutes sets the value of MinEveryMinutes.
+func (s *CoreGetSchedulesOwnerKeyOKLimits) SetMinEveryMinutes(val int) {
+	s.MinEveryMinutes = val
+}
+
+// SetReason sets the value of Reason.
+func (s *CoreGetSchedulesOwnerKeyOKLimits) SetReason(val string) {
+	s.Reason = val
+}
+
+// SetWindows sets the value of Windows.
+func (s *CoreGetSchedulesOwnerKeyOKLimits) SetWindows(val []CoreGetSchedulesOwnerKeyOKLimitsWindowsItem) {
+	s.Windows = val
+}
+
+// Interval: every every_minutes (with at_time, a whole number of days: every N days at that time);
+// daily at at_time; weekly on weekdays at at_time; monthly on month_day at at_time; once at once_at.
+type CoreGetSchedulesOwnerKeyOKLimitsFreqsItem string
+
+const (
+	CoreGetSchedulesOwnerKeyOKLimitsFreqsItemInterval CoreGetSchedulesOwnerKeyOKLimitsFreqsItem = "interval"
+	CoreGetSchedulesOwnerKeyOKLimitsFreqsItemDaily    CoreGetSchedulesOwnerKeyOKLimitsFreqsItem = "daily"
+	CoreGetSchedulesOwnerKeyOKLimitsFreqsItemWeekly   CoreGetSchedulesOwnerKeyOKLimitsFreqsItem = "weekly"
+	CoreGetSchedulesOwnerKeyOKLimitsFreqsItemMonthly  CoreGetSchedulesOwnerKeyOKLimitsFreqsItem = "monthly"
+	CoreGetSchedulesOwnerKeyOKLimitsFreqsItemOnce     CoreGetSchedulesOwnerKeyOKLimitsFreqsItem = "once"
+)
+
+// AllValues returns all CoreGetSchedulesOwnerKeyOKLimitsFreqsItem values.
+func (CoreGetSchedulesOwnerKeyOKLimitsFreqsItem) AllValues() []CoreGetSchedulesOwnerKeyOKLimitsFreqsItem {
+	return []CoreGetSchedulesOwnerKeyOKLimitsFreqsItem{
+		CoreGetSchedulesOwnerKeyOKLimitsFreqsItemInterval,
+		CoreGetSchedulesOwnerKeyOKLimitsFreqsItemDaily,
+		CoreGetSchedulesOwnerKeyOKLimitsFreqsItemWeekly,
+		CoreGetSchedulesOwnerKeyOKLimitsFreqsItemMonthly,
+		CoreGetSchedulesOwnerKeyOKLimitsFreqsItemOnce,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CoreGetSchedulesOwnerKeyOKLimitsFreqsItem) MarshalText() ([]byte, error) {
+	switch s {
+	case CoreGetSchedulesOwnerKeyOKLimitsFreqsItemInterval:
+		return []byte(s), nil
+	case CoreGetSchedulesOwnerKeyOKLimitsFreqsItemDaily:
+		return []byte(s), nil
+	case CoreGetSchedulesOwnerKeyOKLimitsFreqsItemWeekly:
+		return []byte(s), nil
+	case CoreGetSchedulesOwnerKeyOKLimitsFreqsItemMonthly:
+		return []byte(s), nil
+	case CoreGetSchedulesOwnerKeyOKLimitsFreqsItemOnce:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CoreGetSchedulesOwnerKeyOKLimitsFreqsItem) UnmarshalText(data []byte) error {
+	switch CoreGetSchedulesOwnerKeyOKLimitsFreqsItem(data) {
+	case CoreGetSchedulesOwnerKeyOKLimitsFreqsItemInterval:
+		*s = CoreGetSchedulesOwnerKeyOKLimitsFreqsItemInterval
+		return nil
+	case CoreGetSchedulesOwnerKeyOKLimitsFreqsItemDaily:
+		*s = CoreGetSchedulesOwnerKeyOKLimitsFreqsItemDaily
+		return nil
+	case CoreGetSchedulesOwnerKeyOKLimitsFreqsItemWeekly:
+		*s = CoreGetSchedulesOwnerKeyOKLimitsFreqsItemWeekly
+		return nil
+	case CoreGetSchedulesOwnerKeyOKLimitsFreqsItemMonthly:
+		*s = CoreGetSchedulesOwnerKeyOKLimitsFreqsItemMonthly
+		return nil
+	case CoreGetSchedulesOwnerKeyOKLimitsFreqsItemOnce:
+		*s = CoreGetSchedulesOwnerKeyOKLimitsFreqsItemOnce
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Global: it starts only inside the box's scan window (Settings › Scanning › Safety), and a due
+// time outside it waits for it to open; none: at any time; custom: only inside its own days and hours
+// (window_days, window_from, window_to), and a due time outside them moves to their next opening.
+type CoreGetSchedulesOwnerKeyOKLimitsWindowsItem string
+
+const (
+	CoreGetSchedulesOwnerKeyOKLimitsWindowsItemGlobal CoreGetSchedulesOwnerKeyOKLimitsWindowsItem = "global"
+	CoreGetSchedulesOwnerKeyOKLimitsWindowsItemNone   CoreGetSchedulesOwnerKeyOKLimitsWindowsItem = "none"
+	CoreGetSchedulesOwnerKeyOKLimitsWindowsItemCustom CoreGetSchedulesOwnerKeyOKLimitsWindowsItem = "custom"
+)
+
+// AllValues returns all CoreGetSchedulesOwnerKeyOKLimitsWindowsItem values.
+func (CoreGetSchedulesOwnerKeyOKLimitsWindowsItem) AllValues() []CoreGetSchedulesOwnerKeyOKLimitsWindowsItem {
+	return []CoreGetSchedulesOwnerKeyOKLimitsWindowsItem{
+		CoreGetSchedulesOwnerKeyOKLimitsWindowsItemGlobal,
+		CoreGetSchedulesOwnerKeyOKLimitsWindowsItemNone,
+		CoreGetSchedulesOwnerKeyOKLimitsWindowsItemCustom,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CoreGetSchedulesOwnerKeyOKLimitsWindowsItem) MarshalText() ([]byte, error) {
+	switch s {
+	case CoreGetSchedulesOwnerKeyOKLimitsWindowsItemGlobal:
+		return []byte(s), nil
+	case CoreGetSchedulesOwnerKeyOKLimitsWindowsItemNone:
+		return []byte(s), nil
+	case CoreGetSchedulesOwnerKeyOKLimitsWindowsItemCustom:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CoreGetSchedulesOwnerKeyOKLimitsWindowsItem) UnmarshalText(data []byte) error {
+	switch CoreGetSchedulesOwnerKeyOKLimitsWindowsItem(data) {
+	case CoreGetSchedulesOwnerKeyOKLimitsWindowsItemGlobal:
+		*s = CoreGetSchedulesOwnerKeyOKLimitsWindowsItemGlobal
+		return nil
+	case CoreGetSchedulesOwnerKeyOKLimitsWindowsItemNone:
+		*s = CoreGetSchedulesOwnerKeyOKLimitsWindowsItemNone
+		return nil
+	case CoreGetSchedulesOwnerKeyOKLimitsWindowsItemCustom:
+		*s = CoreGetSchedulesOwnerKeyOKLimitsWindowsItemCustom
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// When a schedule comes due. The fields its frequency does not use are null (the box clears them when
+// it saves).
+type CoreGetSchedulesOwnerKeyOKRule struct {
+	// Daily, weekly, monthly; interval only when every_minutes is whole days. A time the clocks skip when
+	// summer time starts comes due when they jump; a time they show twice comes due once.
+	AtTime NilString `json:"at_time"`
+	// Interval only: 1 minute to 366 days.
+	EveryMinutes NilInt `json:"every_minutes"`
+	// Interval: every every_minutes (with at_time, a whole number of days: every N days at that time);
+	// daily at at_time; weekly on weekdays at at_time; monthly on month_day at at_time; once at once_at.
+	Freq CoreGetSchedulesOwnerKeyOKRuleFreq `json:"freq"`
+	// Monthly only: 1 to 31, a month without that day runs on its last day; 0 = the last day.
+	MonthDay NilInt `json:"month_day"`
+	// Once only.
+	OnceAt NilDateTime `json:"once_at"`
+	// "org" (the organization's time zone, Settings › General, the default) or an IANA zone such as
+	// Europe/Berlin.
+	Tz string `json:"tz"`
+	// Weekly only.
+	Weekdays []int `json:"weekdays"`
+	// Global: it starts only inside the box's scan window (Settings › Scanning › Safety), and a due
+	// time outside it waits for it to open; none: at any time; custom: only inside its own days and hours
+	// (window_days, window_from, window_to), and a due time outside them moves to their next opening.
+	Window CoreGetSchedulesOwnerKeyOKRuleWindow `json:"window"`
+	// Custom window only.
+	WindowDays []int `json:"window_days"`
+	// Custom window only: when it opens.
+	WindowFrom NilString `json:"window_from"`
+	// Custom window only: when it closes; earlier than window_from = it crosses midnight and belongs to
+	// the day it opens on; equal = the whole day.
+	WindowTo NilString `json:"window_to"`
+}
+
+// GetAtTime returns the value of AtTime.
+func (s *CoreGetSchedulesOwnerKeyOKRule) GetAtTime() NilString {
+	return s.AtTime
+}
+
+// GetEveryMinutes returns the value of EveryMinutes.
+func (s *CoreGetSchedulesOwnerKeyOKRule) GetEveryMinutes() NilInt {
+	return s.EveryMinutes
+}
+
+// GetFreq returns the value of Freq.
+func (s *CoreGetSchedulesOwnerKeyOKRule) GetFreq() CoreGetSchedulesOwnerKeyOKRuleFreq {
+	return s.Freq
+}
+
+// GetMonthDay returns the value of MonthDay.
+func (s *CoreGetSchedulesOwnerKeyOKRule) GetMonthDay() NilInt {
+	return s.MonthDay
+}
+
+// GetOnceAt returns the value of OnceAt.
+func (s *CoreGetSchedulesOwnerKeyOKRule) GetOnceAt() NilDateTime {
+	return s.OnceAt
+}
+
+// GetTz returns the value of Tz.
+func (s *CoreGetSchedulesOwnerKeyOKRule) GetTz() string {
+	return s.Tz
+}
+
+// GetWeekdays returns the value of Weekdays.
+func (s *CoreGetSchedulesOwnerKeyOKRule) GetWeekdays() []int {
+	return s.Weekdays
+}
+
+// GetWindow returns the value of Window.
+func (s *CoreGetSchedulesOwnerKeyOKRule) GetWindow() CoreGetSchedulesOwnerKeyOKRuleWindow {
+	return s.Window
+}
+
+// GetWindowDays returns the value of WindowDays.
+func (s *CoreGetSchedulesOwnerKeyOKRule) GetWindowDays() []int {
+	return s.WindowDays
+}
+
+// GetWindowFrom returns the value of WindowFrom.
+func (s *CoreGetSchedulesOwnerKeyOKRule) GetWindowFrom() NilString {
+	return s.WindowFrom
+}
+
+// GetWindowTo returns the value of WindowTo.
+func (s *CoreGetSchedulesOwnerKeyOKRule) GetWindowTo() NilString {
+	return s.WindowTo
+}
+
+// SetAtTime sets the value of AtTime.
+func (s *CoreGetSchedulesOwnerKeyOKRule) SetAtTime(val NilString) {
+	s.AtTime = val
+}
+
+// SetEveryMinutes sets the value of EveryMinutes.
+func (s *CoreGetSchedulesOwnerKeyOKRule) SetEveryMinutes(val NilInt) {
+	s.EveryMinutes = val
+}
+
+// SetFreq sets the value of Freq.
+func (s *CoreGetSchedulesOwnerKeyOKRule) SetFreq(val CoreGetSchedulesOwnerKeyOKRuleFreq) {
+	s.Freq = val
+}
+
+// SetMonthDay sets the value of MonthDay.
+func (s *CoreGetSchedulesOwnerKeyOKRule) SetMonthDay(val NilInt) {
+	s.MonthDay = val
+}
+
+// SetOnceAt sets the value of OnceAt.
+func (s *CoreGetSchedulesOwnerKeyOKRule) SetOnceAt(val NilDateTime) {
+	s.OnceAt = val
+}
+
+// SetTz sets the value of Tz.
+func (s *CoreGetSchedulesOwnerKeyOKRule) SetTz(val string) {
+	s.Tz = val
+}
+
+// SetWeekdays sets the value of Weekdays.
+func (s *CoreGetSchedulesOwnerKeyOKRule) SetWeekdays(val []int) {
+	s.Weekdays = val
+}
+
+// SetWindow sets the value of Window.
+func (s *CoreGetSchedulesOwnerKeyOKRule) SetWindow(val CoreGetSchedulesOwnerKeyOKRuleWindow) {
+	s.Window = val
+}
+
+// SetWindowDays sets the value of WindowDays.
+func (s *CoreGetSchedulesOwnerKeyOKRule) SetWindowDays(val []int) {
+	s.WindowDays = val
+}
+
+// SetWindowFrom sets the value of WindowFrom.
+func (s *CoreGetSchedulesOwnerKeyOKRule) SetWindowFrom(val NilString) {
+	s.WindowFrom = val
+}
+
+// SetWindowTo sets the value of WindowTo.
+func (s *CoreGetSchedulesOwnerKeyOKRule) SetWindowTo(val NilString) {
+	s.WindowTo = val
+}
+
+// Interval: every every_minutes (with at_time, a whole number of days: every N days at that time);
+// daily at at_time; weekly on weekdays at at_time; monthly on month_day at at_time; once at once_at.
+type CoreGetSchedulesOwnerKeyOKRuleFreq string
+
+const (
+	CoreGetSchedulesOwnerKeyOKRuleFreqInterval CoreGetSchedulesOwnerKeyOKRuleFreq = "interval"
+	CoreGetSchedulesOwnerKeyOKRuleFreqDaily    CoreGetSchedulesOwnerKeyOKRuleFreq = "daily"
+	CoreGetSchedulesOwnerKeyOKRuleFreqWeekly   CoreGetSchedulesOwnerKeyOKRuleFreq = "weekly"
+	CoreGetSchedulesOwnerKeyOKRuleFreqMonthly  CoreGetSchedulesOwnerKeyOKRuleFreq = "monthly"
+	CoreGetSchedulesOwnerKeyOKRuleFreqOnce     CoreGetSchedulesOwnerKeyOKRuleFreq = "once"
+)
+
+// AllValues returns all CoreGetSchedulesOwnerKeyOKRuleFreq values.
+func (CoreGetSchedulesOwnerKeyOKRuleFreq) AllValues() []CoreGetSchedulesOwnerKeyOKRuleFreq {
+	return []CoreGetSchedulesOwnerKeyOKRuleFreq{
+		CoreGetSchedulesOwnerKeyOKRuleFreqInterval,
+		CoreGetSchedulesOwnerKeyOKRuleFreqDaily,
+		CoreGetSchedulesOwnerKeyOKRuleFreqWeekly,
+		CoreGetSchedulesOwnerKeyOKRuleFreqMonthly,
+		CoreGetSchedulesOwnerKeyOKRuleFreqOnce,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CoreGetSchedulesOwnerKeyOKRuleFreq) MarshalText() ([]byte, error) {
+	switch s {
+	case CoreGetSchedulesOwnerKeyOKRuleFreqInterval:
+		return []byte(s), nil
+	case CoreGetSchedulesOwnerKeyOKRuleFreqDaily:
+		return []byte(s), nil
+	case CoreGetSchedulesOwnerKeyOKRuleFreqWeekly:
+		return []byte(s), nil
+	case CoreGetSchedulesOwnerKeyOKRuleFreqMonthly:
+		return []byte(s), nil
+	case CoreGetSchedulesOwnerKeyOKRuleFreqOnce:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CoreGetSchedulesOwnerKeyOKRuleFreq) UnmarshalText(data []byte) error {
+	switch CoreGetSchedulesOwnerKeyOKRuleFreq(data) {
+	case CoreGetSchedulesOwnerKeyOKRuleFreqInterval:
+		*s = CoreGetSchedulesOwnerKeyOKRuleFreqInterval
+		return nil
+	case CoreGetSchedulesOwnerKeyOKRuleFreqDaily:
+		*s = CoreGetSchedulesOwnerKeyOKRuleFreqDaily
+		return nil
+	case CoreGetSchedulesOwnerKeyOKRuleFreqWeekly:
+		*s = CoreGetSchedulesOwnerKeyOKRuleFreqWeekly
+		return nil
+	case CoreGetSchedulesOwnerKeyOKRuleFreqMonthly:
+		*s = CoreGetSchedulesOwnerKeyOKRuleFreqMonthly
+		return nil
+	case CoreGetSchedulesOwnerKeyOKRuleFreqOnce:
+		*s = CoreGetSchedulesOwnerKeyOKRuleFreqOnce
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Global: it starts only inside the box's scan window (Settings › Scanning › Safety), and a due
+// time outside it waits for it to open; none: at any time; custom: only inside its own days and hours
+// (window_days, window_from, window_to), and a due time outside them moves to their next opening.
+type CoreGetSchedulesOwnerKeyOKRuleWindow string
+
+const (
+	CoreGetSchedulesOwnerKeyOKRuleWindowGlobal CoreGetSchedulesOwnerKeyOKRuleWindow = "global"
+	CoreGetSchedulesOwnerKeyOKRuleWindowNone   CoreGetSchedulesOwnerKeyOKRuleWindow = "none"
+	CoreGetSchedulesOwnerKeyOKRuleWindowCustom CoreGetSchedulesOwnerKeyOKRuleWindow = "custom"
+)
+
+// AllValues returns all CoreGetSchedulesOwnerKeyOKRuleWindow values.
+func (CoreGetSchedulesOwnerKeyOKRuleWindow) AllValues() []CoreGetSchedulesOwnerKeyOKRuleWindow {
+	return []CoreGetSchedulesOwnerKeyOKRuleWindow{
+		CoreGetSchedulesOwnerKeyOKRuleWindowGlobal,
+		CoreGetSchedulesOwnerKeyOKRuleWindowNone,
+		CoreGetSchedulesOwnerKeyOKRuleWindowCustom,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CoreGetSchedulesOwnerKeyOKRuleWindow) MarshalText() ([]byte, error) {
+	switch s {
+	case CoreGetSchedulesOwnerKeyOKRuleWindowGlobal:
+		return []byte(s), nil
+	case CoreGetSchedulesOwnerKeyOKRuleWindowNone:
+		return []byte(s), nil
+	case CoreGetSchedulesOwnerKeyOKRuleWindowCustom:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CoreGetSchedulesOwnerKeyOKRuleWindow) UnmarshalText(data []byte) error {
+	switch CoreGetSchedulesOwnerKeyOKRuleWindow(data) {
+	case CoreGetSchedulesOwnerKeyOKRuleWindowGlobal:
+		*s = CoreGetSchedulesOwnerKeyOKRuleWindowGlobal
+		return nil
+	case CoreGetSchedulesOwnerKeyOKRuleWindowNone:
+		*s = CoreGetSchedulesOwnerKeyOKRuleWindowNone
+		return nil
+	case CoreGetSchedulesOwnerKeyOKRuleWindowCustom:
+		*s = CoreGetSchedulesOwnerKeyOKRuleWindowCustom
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type CoreGetSetupOK struct {
 	Complete bool `json:"complete"`
 	// Sample = trial build with sample data; clean = real install, every table starts empty.
@@ -36700,6 +37395,343 @@ func (s *CorePostCoreUsersReqRole) UnmarshalText(data []byte) error {
 	}
 }
 
+type CorePostSchedulesOwnerKeyRunOK struct {
+	RunID NilString `json:"run_id"`
+}
+
+// GetRunID returns the value of RunID.
+func (s *CorePostSchedulesOwnerKeyRunOK) GetRunID() NilString {
+	return s.RunID
+}
+
+// SetRunID sets the value of RunID.
+func (s *CorePostSchedulesOwnerKeyRunOK) SetRunID(val NilString) {
+	s.RunID = val
+}
+
+type CorePostSchedulesPreviewOK struct {
+	// The next three start times if the rule were saved now.
+	Upcoming []time.Time `json:"upcoming"`
+	Zone     string      `json:"zone"`
+}
+
+// GetUpcoming returns the value of Upcoming.
+func (s *CorePostSchedulesPreviewOK) GetUpcoming() []time.Time {
+	return s.Upcoming
+}
+
+// GetZone returns the value of Zone.
+func (s *CorePostSchedulesPreviewOK) GetZone() string {
+	return s.Zone
+}
+
+// SetUpcoming sets the value of Upcoming.
+func (s *CorePostSchedulesPreviewOK) SetUpcoming(val []time.Time) {
+	s.Upcoming = val
+}
+
+// SetZone sets the value of Zone.
+func (s *CorePostSchedulesPreviewOK) SetZone(val string) {
+	s.Zone = val
+}
+
+type CorePostSchedulesPreviewReq struct {
+	// Apply this owner's limits (400 invalid with the reason when the rule breaks them).
+	OwnerKey    OptString      `json:"owner_key"`
+	PausedUntil OptNilDateTime `json:"paused_until"`
+	// When a schedule comes due. The fields its frequency does not use are null (the box clears them when
+	// it saves).
+	Rule CorePostSchedulesPreviewReqRule `json:"rule"`
+}
+
+// GetOwnerKey returns the value of OwnerKey.
+func (s *CorePostSchedulesPreviewReq) GetOwnerKey() OptString {
+	return s.OwnerKey
+}
+
+// GetPausedUntil returns the value of PausedUntil.
+func (s *CorePostSchedulesPreviewReq) GetPausedUntil() OptNilDateTime {
+	return s.PausedUntil
+}
+
+// GetRule returns the value of Rule.
+func (s *CorePostSchedulesPreviewReq) GetRule() CorePostSchedulesPreviewReqRule {
+	return s.Rule
+}
+
+// SetOwnerKey sets the value of OwnerKey.
+func (s *CorePostSchedulesPreviewReq) SetOwnerKey(val OptString) {
+	s.OwnerKey = val
+}
+
+// SetPausedUntil sets the value of PausedUntil.
+func (s *CorePostSchedulesPreviewReq) SetPausedUntil(val OptNilDateTime) {
+	s.PausedUntil = val
+}
+
+// SetRule sets the value of Rule.
+func (s *CorePostSchedulesPreviewReq) SetRule(val CorePostSchedulesPreviewReqRule) {
+	s.Rule = val
+}
+
+// When a schedule comes due. The fields its frequency does not use are null (the box clears them when
+// it saves).
+type CorePostSchedulesPreviewReqRule struct {
+	// Daily, weekly, monthly; interval only when every_minutes is whole days. A time the clocks skip when
+	// summer time starts comes due when they jump; a time they show twice comes due once.
+	AtTime NilString `json:"at_time"`
+	// Interval only: 1 minute to 366 days.
+	EveryMinutes NilInt `json:"every_minutes"`
+	// Interval: every every_minutes (with at_time, a whole number of days: every N days at that time);
+	// daily at at_time; weekly on weekdays at at_time; monthly on month_day at at_time; once at once_at.
+	Freq CorePostSchedulesPreviewReqRuleFreq `json:"freq"`
+	// Monthly only: 1 to 31, a month without that day runs on its last day; 0 = the last day.
+	MonthDay NilInt `json:"month_day"`
+	// Once only.
+	OnceAt NilDateTime `json:"once_at"`
+	// "org" (the organization's time zone, Settings › General, the default) or an IANA zone such as
+	// Europe/Berlin.
+	Tz string `json:"tz"`
+	// Weekly only.
+	Weekdays []int `json:"weekdays"`
+	// Global: it starts only inside the box's scan window (Settings › Scanning › Safety), and a due
+	// time outside it waits for it to open; none: at any time; custom: only inside its own days and hours
+	// (window_days, window_from, window_to), and a due time outside them moves to their next opening.
+	Window CorePostSchedulesPreviewReqRuleWindow `json:"window"`
+	// Custom window only.
+	WindowDays []int `json:"window_days"`
+	// Custom window only: when it opens.
+	WindowFrom NilString `json:"window_from"`
+	// Custom window only: when it closes; earlier than window_from = it crosses midnight and belongs to
+	// the day it opens on; equal = the whole day.
+	WindowTo NilString `json:"window_to"`
+}
+
+// GetAtTime returns the value of AtTime.
+func (s *CorePostSchedulesPreviewReqRule) GetAtTime() NilString {
+	return s.AtTime
+}
+
+// GetEveryMinutes returns the value of EveryMinutes.
+func (s *CorePostSchedulesPreviewReqRule) GetEveryMinutes() NilInt {
+	return s.EveryMinutes
+}
+
+// GetFreq returns the value of Freq.
+func (s *CorePostSchedulesPreviewReqRule) GetFreq() CorePostSchedulesPreviewReqRuleFreq {
+	return s.Freq
+}
+
+// GetMonthDay returns the value of MonthDay.
+func (s *CorePostSchedulesPreviewReqRule) GetMonthDay() NilInt {
+	return s.MonthDay
+}
+
+// GetOnceAt returns the value of OnceAt.
+func (s *CorePostSchedulesPreviewReqRule) GetOnceAt() NilDateTime {
+	return s.OnceAt
+}
+
+// GetTz returns the value of Tz.
+func (s *CorePostSchedulesPreviewReqRule) GetTz() string {
+	return s.Tz
+}
+
+// GetWeekdays returns the value of Weekdays.
+func (s *CorePostSchedulesPreviewReqRule) GetWeekdays() []int {
+	return s.Weekdays
+}
+
+// GetWindow returns the value of Window.
+func (s *CorePostSchedulesPreviewReqRule) GetWindow() CorePostSchedulesPreviewReqRuleWindow {
+	return s.Window
+}
+
+// GetWindowDays returns the value of WindowDays.
+func (s *CorePostSchedulesPreviewReqRule) GetWindowDays() []int {
+	return s.WindowDays
+}
+
+// GetWindowFrom returns the value of WindowFrom.
+func (s *CorePostSchedulesPreviewReqRule) GetWindowFrom() NilString {
+	return s.WindowFrom
+}
+
+// GetWindowTo returns the value of WindowTo.
+func (s *CorePostSchedulesPreviewReqRule) GetWindowTo() NilString {
+	return s.WindowTo
+}
+
+// SetAtTime sets the value of AtTime.
+func (s *CorePostSchedulesPreviewReqRule) SetAtTime(val NilString) {
+	s.AtTime = val
+}
+
+// SetEveryMinutes sets the value of EveryMinutes.
+func (s *CorePostSchedulesPreviewReqRule) SetEveryMinutes(val NilInt) {
+	s.EveryMinutes = val
+}
+
+// SetFreq sets the value of Freq.
+func (s *CorePostSchedulesPreviewReqRule) SetFreq(val CorePostSchedulesPreviewReqRuleFreq) {
+	s.Freq = val
+}
+
+// SetMonthDay sets the value of MonthDay.
+func (s *CorePostSchedulesPreviewReqRule) SetMonthDay(val NilInt) {
+	s.MonthDay = val
+}
+
+// SetOnceAt sets the value of OnceAt.
+func (s *CorePostSchedulesPreviewReqRule) SetOnceAt(val NilDateTime) {
+	s.OnceAt = val
+}
+
+// SetTz sets the value of Tz.
+func (s *CorePostSchedulesPreviewReqRule) SetTz(val string) {
+	s.Tz = val
+}
+
+// SetWeekdays sets the value of Weekdays.
+func (s *CorePostSchedulesPreviewReqRule) SetWeekdays(val []int) {
+	s.Weekdays = val
+}
+
+// SetWindow sets the value of Window.
+func (s *CorePostSchedulesPreviewReqRule) SetWindow(val CorePostSchedulesPreviewReqRuleWindow) {
+	s.Window = val
+}
+
+// SetWindowDays sets the value of WindowDays.
+func (s *CorePostSchedulesPreviewReqRule) SetWindowDays(val []int) {
+	s.WindowDays = val
+}
+
+// SetWindowFrom sets the value of WindowFrom.
+func (s *CorePostSchedulesPreviewReqRule) SetWindowFrom(val NilString) {
+	s.WindowFrom = val
+}
+
+// SetWindowTo sets the value of WindowTo.
+func (s *CorePostSchedulesPreviewReqRule) SetWindowTo(val NilString) {
+	s.WindowTo = val
+}
+
+// Interval: every every_minutes (with at_time, a whole number of days: every N days at that time);
+// daily at at_time; weekly on weekdays at at_time; monthly on month_day at at_time; once at once_at.
+type CorePostSchedulesPreviewReqRuleFreq string
+
+const (
+	CorePostSchedulesPreviewReqRuleFreqInterval CorePostSchedulesPreviewReqRuleFreq = "interval"
+	CorePostSchedulesPreviewReqRuleFreqDaily    CorePostSchedulesPreviewReqRuleFreq = "daily"
+	CorePostSchedulesPreviewReqRuleFreqWeekly   CorePostSchedulesPreviewReqRuleFreq = "weekly"
+	CorePostSchedulesPreviewReqRuleFreqMonthly  CorePostSchedulesPreviewReqRuleFreq = "monthly"
+	CorePostSchedulesPreviewReqRuleFreqOnce     CorePostSchedulesPreviewReqRuleFreq = "once"
+)
+
+// AllValues returns all CorePostSchedulesPreviewReqRuleFreq values.
+func (CorePostSchedulesPreviewReqRuleFreq) AllValues() []CorePostSchedulesPreviewReqRuleFreq {
+	return []CorePostSchedulesPreviewReqRuleFreq{
+		CorePostSchedulesPreviewReqRuleFreqInterval,
+		CorePostSchedulesPreviewReqRuleFreqDaily,
+		CorePostSchedulesPreviewReqRuleFreqWeekly,
+		CorePostSchedulesPreviewReqRuleFreqMonthly,
+		CorePostSchedulesPreviewReqRuleFreqOnce,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostSchedulesPreviewReqRuleFreq) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostSchedulesPreviewReqRuleFreqInterval:
+		return []byte(s), nil
+	case CorePostSchedulesPreviewReqRuleFreqDaily:
+		return []byte(s), nil
+	case CorePostSchedulesPreviewReqRuleFreqWeekly:
+		return []byte(s), nil
+	case CorePostSchedulesPreviewReqRuleFreqMonthly:
+		return []byte(s), nil
+	case CorePostSchedulesPreviewReqRuleFreqOnce:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostSchedulesPreviewReqRuleFreq) UnmarshalText(data []byte) error {
+	switch CorePostSchedulesPreviewReqRuleFreq(data) {
+	case CorePostSchedulesPreviewReqRuleFreqInterval:
+		*s = CorePostSchedulesPreviewReqRuleFreqInterval
+		return nil
+	case CorePostSchedulesPreviewReqRuleFreqDaily:
+		*s = CorePostSchedulesPreviewReqRuleFreqDaily
+		return nil
+	case CorePostSchedulesPreviewReqRuleFreqWeekly:
+		*s = CorePostSchedulesPreviewReqRuleFreqWeekly
+		return nil
+	case CorePostSchedulesPreviewReqRuleFreqMonthly:
+		*s = CorePostSchedulesPreviewReqRuleFreqMonthly
+		return nil
+	case CorePostSchedulesPreviewReqRuleFreqOnce:
+		*s = CorePostSchedulesPreviewReqRuleFreqOnce
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Global: it starts only inside the box's scan window (Settings › Scanning › Safety), and a due
+// time outside it waits for it to open; none: at any time; custom: only inside its own days and hours
+// (window_days, window_from, window_to), and a due time outside them moves to their next opening.
+type CorePostSchedulesPreviewReqRuleWindow string
+
+const (
+	CorePostSchedulesPreviewReqRuleWindowGlobal CorePostSchedulesPreviewReqRuleWindow = "global"
+	CorePostSchedulesPreviewReqRuleWindowNone   CorePostSchedulesPreviewReqRuleWindow = "none"
+	CorePostSchedulesPreviewReqRuleWindowCustom CorePostSchedulesPreviewReqRuleWindow = "custom"
+)
+
+// AllValues returns all CorePostSchedulesPreviewReqRuleWindow values.
+func (CorePostSchedulesPreviewReqRuleWindow) AllValues() []CorePostSchedulesPreviewReqRuleWindow {
+	return []CorePostSchedulesPreviewReqRuleWindow{
+		CorePostSchedulesPreviewReqRuleWindowGlobal,
+		CorePostSchedulesPreviewReqRuleWindowNone,
+		CorePostSchedulesPreviewReqRuleWindowCustom,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostSchedulesPreviewReqRuleWindow) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostSchedulesPreviewReqRuleWindowGlobal:
+		return []byte(s), nil
+	case CorePostSchedulesPreviewReqRuleWindowNone:
+		return []byte(s), nil
+	case CorePostSchedulesPreviewReqRuleWindowCustom:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostSchedulesPreviewReqRuleWindow) UnmarshalText(data []byte) error {
+	switch CorePostSchedulesPreviewReqRuleWindow(data) {
+	case CorePostSchedulesPreviewReqRuleWindowGlobal:
+		*s = CorePostSchedulesPreviewReqRuleWindowGlobal
+		return nil
+	case CorePostSchedulesPreviewReqRuleWindowNone:
+		*s = CorePostSchedulesPreviewReqRuleWindowNone
+		return nil
+	case CorePostSchedulesPreviewReqRuleWindowCustom:
+		*s = CorePostSchedulesPreviewReqRuleWindowCustom
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type CorePutCoreConnectionsIDOK struct {
 	// Hosts, URL prefixes or commands that may be used through this connection.
 	Allow    []string                       `json:"allow"`
@@ -42774,6 +43806,998 @@ func (s *CorePutCoreOidcReqRoleMapItemRole) UnmarshalText(data []byte) error {
 		return nil
 	case CorePutCoreOidcReqRoleMapItemRoleAdmin:
 		*s = CorePutCoreOidcReqRoleMapItemRoleAdmin
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePutSchedulesOwnerKeyOK struct {
+	// Who may change it and run it once.
+	EditRole  CorePutSchedulesOwnerKeyOKEditRole `json:"edit_role"`
+	Enabled   bool                               `json:"enabled"`
+	LastDueAt NilDateTime                        `json:"last_due_at"`
+	// The run it last started (also by Run once now): open it at /runs/.
+	LastRunID  NilString   `json:"last_run_id"`
+	LastSkipAt NilDateTime `json:"last_skip_at"`
+	// Why the last due time did not start anything ("The run it started at 20 Nov 2026, 23:00 had not
+	// ended.", "Its module is off."); null once a due time starts.
+	LastSkipReason NilString                        `json:"last_skip_reason"`
+	Limits         CorePutSchedulesOwnerKeyOKLimits `json:"limits"`
+	// The module that owns it: a due time is skipped while it is off.
+	Module string `json:"module"`
+	// Null while off or when it never comes due again (a once rule that ran).
+	NextDueAt NilDateTime `json:"next_due_at"`
+	// What the schedule starts: scan.vuln, inventory.sweep, exposure.target:, reports.def:, feeds.source:,
+	// ...
+	OwnerKey string `json:"owner_key"`
+	// Due times before it are skipped: the next one counts from it.
+	PausedUntil NilDateTime `json:"paused_until"`
+	// When a schedule comes due. The fields its frequency does not use are null (the box clears them when
+	// it saves).
+	Rule CorePutSchedulesOwnerKeyOKRule `json:"rule"`
+	// False: nobody saved it yet; enabled and rule are its default.
+	Saved bool `json:"saved"`
+	// The next three start times: a due time in the past starts now, and one outside the scan window when
+	// it opens.
+	Upcoming  []time.Time `json:"upcoming"`
+	UpdatedAt NilDateTime `json:"updated_at"`
+	// Who last changed it (an email, or system for a default); null while not saved.
+	UpdatedBy NilString `json:"updated_by"`
+	// Due, and held: what it waits for ("The scan window to open").
+	WaitingFor NilString `json:"waiting_for"`
+	// The IANA zone the rule is read in (the organization's for tz "org").
+	Zone string `json:"zone"`
+}
+
+// GetEditRole returns the value of EditRole.
+func (s *CorePutSchedulesOwnerKeyOK) GetEditRole() CorePutSchedulesOwnerKeyOKEditRole {
+	return s.EditRole
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *CorePutSchedulesOwnerKeyOK) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetLastDueAt returns the value of LastDueAt.
+func (s *CorePutSchedulesOwnerKeyOK) GetLastDueAt() NilDateTime {
+	return s.LastDueAt
+}
+
+// GetLastRunID returns the value of LastRunID.
+func (s *CorePutSchedulesOwnerKeyOK) GetLastRunID() NilString {
+	return s.LastRunID
+}
+
+// GetLastSkipAt returns the value of LastSkipAt.
+func (s *CorePutSchedulesOwnerKeyOK) GetLastSkipAt() NilDateTime {
+	return s.LastSkipAt
+}
+
+// GetLastSkipReason returns the value of LastSkipReason.
+func (s *CorePutSchedulesOwnerKeyOK) GetLastSkipReason() NilString {
+	return s.LastSkipReason
+}
+
+// GetLimits returns the value of Limits.
+func (s *CorePutSchedulesOwnerKeyOK) GetLimits() CorePutSchedulesOwnerKeyOKLimits {
+	return s.Limits
+}
+
+// GetModule returns the value of Module.
+func (s *CorePutSchedulesOwnerKeyOK) GetModule() string {
+	return s.Module
+}
+
+// GetNextDueAt returns the value of NextDueAt.
+func (s *CorePutSchedulesOwnerKeyOK) GetNextDueAt() NilDateTime {
+	return s.NextDueAt
+}
+
+// GetOwnerKey returns the value of OwnerKey.
+func (s *CorePutSchedulesOwnerKeyOK) GetOwnerKey() string {
+	return s.OwnerKey
+}
+
+// GetPausedUntil returns the value of PausedUntil.
+func (s *CorePutSchedulesOwnerKeyOK) GetPausedUntil() NilDateTime {
+	return s.PausedUntil
+}
+
+// GetRule returns the value of Rule.
+func (s *CorePutSchedulesOwnerKeyOK) GetRule() CorePutSchedulesOwnerKeyOKRule {
+	return s.Rule
+}
+
+// GetSaved returns the value of Saved.
+func (s *CorePutSchedulesOwnerKeyOK) GetSaved() bool {
+	return s.Saved
+}
+
+// GetUpcoming returns the value of Upcoming.
+func (s *CorePutSchedulesOwnerKeyOK) GetUpcoming() []time.Time {
+	return s.Upcoming
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *CorePutSchedulesOwnerKeyOK) GetUpdatedAt() NilDateTime {
+	return s.UpdatedAt
+}
+
+// GetUpdatedBy returns the value of UpdatedBy.
+func (s *CorePutSchedulesOwnerKeyOK) GetUpdatedBy() NilString {
+	return s.UpdatedBy
+}
+
+// GetWaitingFor returns the value of WaitingFor.
+func (s *CorePutSchedulesOwnerKeyOK) GetWaitingFor() NilString {
+	return s.WaitingFor
+}
+
+// GetZone returns the value of Zone.
+func (s *CorePutSchedulesOwnerKeyOK) GetZone() string {
+	return s.Zone
+}
+
+// SetEditRole sets the value of EditRole.
+func (s *CorePutSchedulesOwnerKeyOK) SetEditRole(val CorePutSchedulesOwnerKeyOKEditRole) {
+	s.EditRole = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *CorePutSchedulesOwnerKeyOK) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetLastDueAt sets the value of LastDueAt.
+func (s *CorePutSchedulesOwnerKeyOK) SetLastDueAt(val NilDateTime) {
+	s.LastDueAt = val
+}
+
+// SetLastRunID sets the value of LastRunID.
+func (s *CorePutSchedulesOwnerKeyOK) SetLastRunID(val NilString) {
+	s.LastRunID = val
+}
+
+// SetLastSkipAt sets the value of LastSkipAt.
+func (s *CorePutSchedulesOwnerKeyOK) SetLastSkipAt(val NilDateTime) {
+	s.LastSkipAt = val
+}
+
+// SetLastSkipReason sets the value of LastSkipReason.
+func (s *CorePutSchedulesOwnerKeyOK) SetLastSkipReason(val NilString) {
+	s.LastSkipReason = val
+}
+
+// SetLimits sets the value of Limits.
+func (s *CorePutSchedulesOwnerKeyOK) SetLimits(val CorePutSchedulesOwnerKeyOKLimits) {
+	s.Limits = val
+}
+
+// SetModule sets the value of Module.
+func (s *CorePutSchedulesOwnerKeyOK) SetModule(val string) {
+	s.Module = val
+}
+
+// SetNextDueAt sets the value of NextDueAt.
+func (s *CorePutSchedulesOwnerKeyOK) SetNextDueAt(val NilDateTime) {
+	s.NextDueAt = val
+}
+
+// SetOwnerKey sets the value of OwnerKey.
+func (s *CorePutSchedulesOwnerKeyOK) SetOwnerKey(val string) {
+	s.OwnerKey = val
+}
+
+// SetPausedUntil sets the value of PausedUntil.
+func (s *CorePutSchedulesOwnerKeyOK) SetPausedUntil(val NilDateTime) {
+	s.PausedUntil = val
+}
+
+// SetRule sets the value of Rule.
+func (s *CorePutSchedulesOwnerKeyOK) SetRule(val CorePutSchedulesOwnerKeyOKRule) {
+	s.Rule = val
+}
+
+// SetSaved sets the value of Saved.
+func (s *CorePutSchedulesOwnerKeyOK) SetSaved(val bool) {
+	s.Saved = val
+}
+
+// SetUpcoming sets the value of Upcoming.
+func (s *CorePutSchedulesOwnerKeyOK) SetUpcoming(val []time.Time) {
+	s.Upcoming = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *CorePutSchedulesOwnerKeyOK) SetUpdatedAt(val NilDateTime) {
+	s.UpdatedAt = val
+}
+
+// SetUpdatedBy sets the value of UpdatedBy.
+func (s *CorePutSchedulesOwnerKeyOK) SetUpdatedBy(val NilString) {
+	s.UpdatedBy = val
+}
+
+// SetWaitingFor sets the value of WaitingFor.
+func (s *CorePutSchedulesOwnerKeyOK) SetWaitingFor(val NilString) {
+	s.WaitingFor = val
+}
+
+// SetZone sets the value of Zone.
+func (s *CorePutSchedulesOwnerKeyOK) SetZone(val string) {
+	s.Zone = val
+}
+
+// Who may change it and run it once.
+type CorePutSchedulesOwnerKeyOKEditRole string
+
+const (
+	CorePutSchedulesOwnerKeyOKEditRoleOperator CorePutSchedulesOwnerKeyOKEditRole = "operator"
+	CorePutSchedulesOwnerKeyOKEditRoleAdmin    CorePutSchedulesOwnerKeyOKEditRole = "admin"
+)
+
+// AllValues returns all CorePutSchedulesOwnerKeyOKEditRole values.
+func (CorePutSchedulesOwnerKeyOKEditRole) AllValues() []CorePutSchedulesOwnerKeyOKEditRole {
+	return []CorePutSchedulesOwnerKeyOKEditRole{
+		CorePutSchedulesOwnerKeyOKEditRoleOperator,
+		CorePutSchedulesOwnerKeyOKEditRoleAdmin,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePutSchedulesOwnerKeyOKEditRole) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePutSchedulesOwnerKeyOKEditRoleOperator:
+		return []byte(s), nil
+	case CorePutSchedulesOwnerKeyOKEditRoleAdmin:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePutSchedulesOwnerKeyOKEditRole) UnmarshalText(data []byte) error {
+	switch CorePutSchedulesOwnerKeyOKEditRole(data) {
+	case CorePutSchedulesOwnerKeyOKEditRoleOperator:
+		*s = CorePutSchedulesOwnerKeyOKEditRoleOperator
+		return nil
+	case CorePutSchedulesOwnerKeyOKEditRoleAdmin:
+		*s = CorePutSchedulesOwnerKeyOKEditRoleAdmin
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePutSchedulesOwnerKeyOKLimits struct {
+	// The frequencies its owner allows.
+	Freqs           []CorePutSchedulesOwnerKeyOKLimitsFreqsItem `json:"freqs"`
+	MaxEveryMinutes int                                         `json:"max_every_minutes"`
+	MinEveryMinutes int                                         `json:"min_every_minutes"`
+	// Why the choices are limited, shown next to them (e.g. "Sources ask clients not to poll more
+	// often."); empty when they are not.
+	Reason string `json:"reason"`
+	// The window modes its owner allows.
+	Windows []CorePutSchedulesOwnerKeyOKLimitsWindowsItem `json:"windows"`
+}
+
+// GetFreqs returns the value of Freqs.
+func (s *CorePutSchedulesOwnerKeyOKLimits) GetFreqs() []CorePutSchedulesOwnerKeyOKLimitsFreqsItem {
+	return s.Freqs
+}
+
+// GetMaxEveryMinutes returns the value of MaxEveryMinutes.
+func (s *CorePutSchedulesOwnerKeyOKLimits) GetMaxEveryMinutes() int {
+	return s.MaxEveryMinutes
+}
+
+// GetMinEveryMinutes returns the value of MinEveryMinutes.
+func (s *CorePutSchedulesOwnerKeyOKLimits) GetMinEveryMinutes() int {
+	return s.MinEveryMinutes
+}
+
+// GetReason returns the value of Reason.
+func (s *CorePutSchedulesOwnerKeyOKLimits) GetReason() string {
+	return s.Reason
+}
+
+// GetWindows returns the value of Windows.
+func (s *CorePutSchedulesOwnerKeyOKLimits) GetWindows() []CorePutSchedulesOwnerKeyOKLimitsWindowsItem {
+	return s.Windows
+}
+
+// SetFreqs sets the value of Freqs.
+func (s *CorePutSchedulesOwnerKeyOKLimits) SetFreqs(val []CorePutSchedulesOwnerKeyOKLimitsFreqsItem) {
+	s.Freqs = val
+}
+
+// SetMaxEveryMinutes sets the value of MaxEveryMinutes.
+func (s *CorePutSchedulesOwnerKeyOKLimits) SetMaxEveryMinutes(val int) {
+	s.MaxEveryMinutes = val
+}
+
+// SetMinEveryMinutes sets the value of MinEveryMinutes.
+func (s *CorePutSchedulesOwnerKeyOKLimits) SetMinEveryMinutes(val int) {
+	s.MinEveryMinutes = val
+}
+
+// SetReason sets the value of Reason.
+func (s *CorePutSchedulesOwnerKeyOKLimits) SetReason(val string) {
+	s.Reason = val
+}
+
+// SetWindows sets the value of Windows.
+func (s *CorePutSchedulesOwnerKeyOKLimits) SetWindows(val []CorePutSchedulesOwnerKeyOKLimitsWindowsItem) {
+	s.Windows = val
+}
+
+// Interval: every every_minutes (with at_time, a whole number of days: every N days at that time);
+// daily at at_time; weekly on weekdays at at_time; monthly on month_day at at_time; once at once_at.
+type CorePutSchedulesOwnerKeyOKLimitsFreqsItem string
+
+const (
+	CorePutSchedulesOwnerKeyOKLimitsFreqsItemInterval CorePutSchedulesOwnerKeyOKLimitsFreqsItem = "interval"
+	CorePutSchedulesOwnerKeyOKLimitsFreqsItemDaily    CorePutSchedulesOwnerKeyOKLimitsFreqsItem = "daily"
+	CorePutSchedulesOwnerKeyOKLimitsFreqsItemWeekly   CorePutSchedulesOwnerKeyOKLimitsFreqsItem = "weekly"
+	CorePutSchedulesOwnerKeyOKLimitsFreqsItemMonthly  CorePutSchedulesOwnerKeyOKLimitsFreqsItem = "monthly"
+	CorePutSchedulesOwnerKeyOKLimitsFreqsItemOnce     CorePutSchedulesOwnerKeyOKLimitsFreqsItem = "once"
+)
+
+// AllValues returns all CorePutSchedulesOwnerKeyOKLimitsFreqsItem values.
+func (CorePutSchedulesOwnerKeyOKLimitsFreqsItem) AllValues() []CorePutSchedulesOwnerKeyOKLimitsFreqsItem {
+	return []CorePutSchedulesOwnerKeyOKLimitsFreqsItem{
+		CorePutSchedulesOwnerKeyOKLimitsFreqsItemInterval,
+		CorePutSchedulesOwnerKeyOKLimitsFreqsItemDaily,
+		CorePutSchedulesOwnerKeyOKLimitsFreqsItemWeekly,
+		CorePutSchedulesOwnerKeyOKLimitsFreqsItemMonthly,
+		CorePutSchedulesOwnerKeyOKLimitsFreqsItemOnce,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePutSchedulesOwnerKeyOKLimitsFreqsItem) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePutSchedulesOwnerKeyOKLimitsFreqsItemInterval:
+		return []byte(s), nil
+	case CorePutSchedulesOwnerKeyOKLimitsFreqsItemDaily:
+		return []byte(s), nil
+	case CorePutSchedulesOwnerKeyOKLimitsFreqsItemWeekly:
+		return []byte(s), nil
+	case CorePutSchedulesOwnerKeyOKLimitsFreqsItemMonthly:
+		return []byte(s), nil
+	case CorePutSchedulesOwnerKeyOKLimitsFreqsItemOnce:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePutSchedulesOwnerKeyOKLimitsFreqsItem) UnmarshalText(data []byte) error {
+	switch CorePutSchedulesOwnerKeyOKLimitsFreqsItem(data) {
+	case CorePutSchedulesOwnerKeyOKLimitsFreqsItemInterval:
+		*s = CorePutSchedulesOwnerKeyOKLimitsFreqsItemInterval
+		return nil
+	case CorePutSchedulesOwnerKeyOKLimitsFreqsItemDaily:
+		*s = CorePutSchedulesOwnerKeyOKLimitsFreqsItemDaily
+		return nil
+	case CorePutSchedulesOwnerKeyOKLimitsFreqsItemWeekly:
+		*s = CorePutSchedulesOwnerKeyOKLimitsFreqsItemWeekly
+		return nil
+	case CorePutSchedulesOwnerKeyOKLimitsFreqsItemMonthly:
+		*s = CorePutSchedulesOwnerKeyOKLimitsFreqsItemMonthly
+		return nil
+	case CorePutSchedulesOwnerKeyOKLimitsFreqsItemOnce:
+		*s = CorePutSchedulesOwnerKeyOKLimitsFreqsItemOnce
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Global: it starts only inside the box's scan window (Settings › Scanning › Safety), and a due
+// time outside it waits for it to open; none: at any time; custom: only inside its own days and hours
+// (window_days, window_from, window_to), and a due time outside them moves to their next opening.
+type CorePutSchedulesOwnerKeyOKLimitsWindowsItem string
+
+const (
+	CorePutSchedulesOwnerKeyOKLimitsWindowsItemGlobal CorePutSchedulesOwnerKeyOKLimitsWindowsItem = "global"
+	CorePutSchedulesOwnerKeyOKLimitsWindowsItemNone   CorePutSchedulesOwnerKeyOKLimitsWindowsItem = "none"
+	CorePutSchedulesOwnerKeyOKLimitsWindowsItemCustom CorePutSchedulesOwnerKeyOKLimitsWindowsItem = "custom"
+)
+
+// AllValues returns all CorePutSchedulesOwnerKeyOKLimitsWindowsItem values.
+func (CorePutSchedulesOwnerKeyOKLimitsWindowsItem) AllValues() []CorePutSchedulesOwnerKeyOKLimitsWindowsItem {
+	return []CorePutSchedulesOwnerKeyOKLimitsWindowsItem{
+		CorePutSchedulesOwnerKeyOKLimitsWindowsItemGlobal,
+		CorePutSchedulesOwnerKeyOKLimitsWindowsItemNone,
+		CorePutSchedulesOwnerKeyOKLimitsWindowsItemCustom,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePutSchedulesOwnerKeyOKLimitsWindowsItem) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePutSchedulesOwnerKeyOKLimitsWindowsItemGlobal:
+		return []byte(s), nil
+	case CorePutSchedulesOwnerKeyOKLimitsWindowsItemNone:
+		return []byte(s), nil
+	case CorePutSchedulesOwnerKeyOKLimitsWindowsItemCustom:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePutSchedulesOwnerKeyOKLimitsWindowsItem) UnmarshalText(data []byte) error {
+	switch CorePutSchedulesOwnerKeyOKLimitsWindowsItem(data) {
+	case CorePutSchedulesOwnerKeyOKLimitsWindowsItemGlobal:
+		*s = CorePutSchedulesOwnerKeyOKLimitsWindowsItemGlobal
+		return nil
+	case CorePutSchedulesOwnerKeyOKLimitsWindowsItemNone:
+		*s = CorePutSchedulesOwnerKeyOKLimitsWindowsItemNone
+		return nil
+	case CorePutSchedulesOwnerKeyOKLimitsWindowsItemCustom:
+		*s = CorePutSchedulesOwnerKeyOKLimitsWindowsItemCustom
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// When a schedule comes due. The fields its frequency does not use are null (the box clears them when
+// it saves).
+type CorePutSchedulesOwnerKeyOKRule struct {
+	// Daily, weekly, monthly; interval only when every_minutes is whole days. A time the clocks skip when
+	// summer time starts comes due when they jump; a time they show twice comes due once.
+	AtTime NilString `json:"at_time"`
+	// Interval only: 1 minute to 366 days.
+	EveryMinutes NilInt `json:"every_minutes"`
+	// Interval: every every_minutes (with at_time, a whole number of days: every N days at that time);
+	// daily at at_time; weekly on weekdays at at_time; monthly on month_day at at_time; once at once_at.
+	Freq CorePutSchedulesOwnerKeyOKRuleFreq `json:"freq"`
+	// Monthly only: 1 to 31, a month without that day runs on its last day; 0 = the last day.
+	MonthDay NilInt `json:"month_day"`
+	// Once only.
+	OnceAt NilDateTime `json:"once_at"`
+	// "org" (the organization's time zone, Settings › General, the default) or an IANA zone such as
+	// Europe/Berlin.
+	Tz string `json:"tz"`
+	// Weekly only.
+	Weekdays []int `json:"weekdays"`
+	// Global: it starts only inside the box's scan window (Settings › Scanning › Safety), and a due
+	// time outside it waits for it to open; none: at any time; custom: only inside its own days and hours
+	// (window_days, window_from, window_to), and a due time outside them moves to their next opening.
+	Window CorePutSchedulesOwnerKeyOKRuleWindow `json:"window"`
+	// Custom window only.
+	WindowDays []int `json:"window_days"`
+	// Custom window only: when it opens.
+	WindowFrom NilString `json:"window_from"`
+	// Custom window only: when it closes; earlier than window_from = it crosses midnight and belongs to
+	// the day it opens on; equal = the whole day.
+	WindowTo NilString `json:"window_to"`
+}
+
+// GetAtTime returns the value of AtTime.
+func (s *CorePutSchedulesOwnerKeyOKRule) GetAtTime() NilString {
+	return s.AtTime
+}
+
+// GetEveryMinutes returns the value of EveryMinutes.
+func (s *CorePutSchedulesOwnerKeyOKRule) GetEveryMinutes() NilInt {
+	return s.EveryMinutes
+}
+
+// GetFreq returns the value of Freq.
+func (s *CorePutSchedulesOwnerKeyOKRule) GetFreq() CorePutSchedulesOwnerKeyOKRuleFreq {
+	return s.Freq
+}
+
+// GetMonthDay returns the value of MonthDay.
+func (s *CorePutSchedulesOwnerKeyOKRule) GetMonthDay() NilInt {
+	return s.MonthDay
+}
+
+// GetOnceAt returns the value of OnceAt.
+func (s *CorePutSchedulesOwnerKeyOKRule) GetOnceAt() NilDateTime {
+	return s.OnceAt
+}
+
+// GetTz returns the value of Tz.
+func (s *CorePutSchedulesOwnerKeyOKRule) GetTz() string {
+	return s.Tz
+}
+
+// GetWeekdays returns the value of Weekdays.
+func (s *CorePutSchedulesOwnerKeyOKRule) GetWeekdays() []int {
+	return s.Weekdays
+}
+
+// GetWindow returns the value of Window.
+func (s *CorePutSchedulesOwnerKeyOKRule) GetWindow() CorePutSchedulesOwnerKeyOKRuleWindow {
+	return s.Window
+}
+
+// GetWindowDays returns the value of WindowDays.
+func (s *CorePutSchedulesOwnerKeyOKRule) GetWindowDays() []int {
+	return s.WindowDays
+}
+
+// GetWindowFrom returns the value of WindowFrom.
+func (s *CorePutSchedulesOwnerKeyOKRule) GetWindowFrom() NilString {
+	return s.WindowFrom
+}
+
+// GetWindowTo returns the value of WindowTo.
+func (s *CorePutSchedulesOwnerKeyOKRule) GetWindowTo() NilString {
+	return s.WindowTo
+}
+
+// SetAtTime sets the value of AtTime.
+func (s *CorePutSchedulesOwnerKeyOKRule) SetAtTime(val NilString) {
+	s.AtTime = val
+}
+
+// SetEveryMinutes sets the value of EveryMinutes.
+func (s *CorePutSchedulesOwnerKeyOKRule) SetEveryMinutes(val NilInt) {
+	s.EveryMinutes = val
+}
+
+// SetFreq sets the value of Freq.
+func (s *CorePutSchedulesOwnerKeyOKRule) SetFreq(val CorePutSchedulesOwnerKeyOKRuleFreq) {
+	s.Freq = val
+}
+
+// SetMonthDay sets the value of MonthDay.
+func (s *CorePutSchedulesOwnerKeyOKRule) SetMonthDay(val NilInt) {
+	s.MonthDay = val
+}
+
+// SetOnceAt sets the value of OnceAt.
+func (s *CorePutSchedulesOwnerKeyOKRule) SetOnceAt(val NilDateTime) {
+	s.OnceAt = val
+}
+
+// SetTz sets the value of Tz.
+func (s *CorePutSchedulesOwnerKeyOKRule) SetTz(val string) {
+	s.Tz = val
+}
+
+// SetWeekdays sets the value of Weekdays.
+func (s *CorePutSchedulesOwnerKeyOKRule) SetWeekdays(val []int) {
+	s.Weekdays = val
+}
+
+// SetWindow sets the value of Window.
+func (s *CorePutSchedulesOwnerKeyOKRule) SetWindow(val CorePutSchedulesOwnerKeyOKRuleWindow) {
+	s.Window = val
+}
+
+// SetWindowDays sets the value of WindowDays.
+func (s *CorePutSchedulesOwnerKeyOKRule) SetWindowDays(val []int) {
+	s.WindowDays = val
+}
+
+// SetWindowFrom sets the value of WindowFrom.
+func (s *CorePutSchedulesOwnerKeyOKRule) SetWindowFrom(val NilString) {
+	s.WindowFrom = val
+}
+
+// SetWindowTo sets the value of WindowTo.
+func (s *CorePutSchedulesOwnerKeyOKRule) SetWindowTo(val NilString) {
+	s.WindowTo = val
+}
+
+// Interval: every every_minutes (with at_time, a whole number of days: every N days at that time);
+// daily at at_time; weekly on weekdays at at_time; monthly on month_day at at_time; once at once_at.
+type CorePutSchedulesOwnerKeyOKRuleFreq string
+
+const (
+	CorePutSchedulesOwnerKeyOKRuleFreqInterval CorePutSchedulesOwnerKeyOKRuleFreq = "interval"
+	CorePutSchedulesOwnerKeyOKRuleFreqDaily    CorePutSchedulesOwnerKeyOKRuleFreq = "daily"
+	CorePutSchedulesOwnerKeyOKRuleFreqWeekly   CorePutSchedulesOwnerKeyOKRuleFreq = "weekly"
+	CorePutSchedulesOwnerKeyOKRuleFreqMonthly  CorePutSchedulesOwnerKeyOKRuleFreq = "monthly"
+	CorePutSchedulesOwnerKeyOKRuleFreqOnce     CorePutSchedulesOwnerKeyOKRuleFreq = "once"
+)
+
+// AllValues returns all CorePutSchedulesOwnerKeyOKRuleFreq values.
+func (CorePutSchedulesOwnerKeyOKRuleFreq) AllValues() []CorePutSchedulesOwnerKeyOKRuleFreq {
+	return []CorePutSchedulesOwnerKeyOKRuleFreq{
+		CorePutSchedulesOwnerKeyOKRuleFreqInterval,
+		CorePutSchedulesOwnerKeyOKRuleFreqDaily,
+		CorePutSchedulesOwnerKeyOKRuleFreqWeekly,
+		CorePutSchedulesOwnerKeyOKRuleFreqMonthly,
+		CorePutSchedulesOwnerKeyOKRuleFreqOnce,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePutSchedulesOwnerKeyOKRuleFreq) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePutSchedulesOwnerKeyOKRuleFreqInterval:
+		return []byte(s), nil
+	case CorePutSchedulesOwnerKeyOKRuleFreqDaily:
+		return []byte(s), nil
+	case CorePutSchedulesOwnerKeyOKRuleFreqWeekly:
+		return []byte(s), nil
+	case CorePutSchedulesOwnerKeyOKRuleFreqMonthly:
+		return []byte(s), nil
+	case CorePutSchedulesOwnerKeyOKRuleFreqOnce:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePutSchedulesOwnerKeyOKRuleFreq) UnmarshalText(data []byte) error {
+	switch CorePutSchedulesOwnerKeyOKRuleFreq(data) {
+	case CorePutSchedulesOwnerKeyOKRuleFreqInterval:
+		*s = CorePutSchedulesOwnerKeyOKRuleFreqInterval
+		return nil
+	case CorePutSchedulesOwnerKeyOKRuleFreqDaily:
+		*s = CorePutSchedulesOwnerKeyOKRuleFreqDaily
+		return nil
+	case CorePutSchedulesOwnerKeyOKRuleFreqWeekly:
+		*s = CorePutSchedulesOwnerKeyOKRuleFreqWeekly
+		return nil
+	case CorePutSchedulesOwnerKeyOKRuleFreqMonthly:
+		*s = CorePutSchedulesOwnerKeyOKRuleFreqMonthly
+		return nil
+	case CorePutSchedulesOwnerKeyOKRuleFreqOnce:
+		*s = CorePutSchedulesOwnerKeyOKRuleFreqOnce
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Global: it starts only inside the box's scan window (Settings › Scanning › Safety), and a due
+// time outside it waits for it to open; none: at any time; custom: only inside its own days and hours
+// (window_days, window_from, window_to), and a due time outside them moves to their next opening.
+type CorePutSchedulesOwnerKeyOKRuleWindow string
+
+const (
+	CorePutSchedulesOwnerKeyOKRuleWindowGlobal CorePutSchedulesOwnerKeyOKRuleWindow = "global"
+	CorePutSchedulesOwnerKeyOKRuleWindowNone   CorePutSchedulesOwnerKeyOKRuleWindow = "none"
+	CorePutSchedulesOwnerKeyOKRuleWindowCustom CorePutSchedulesOwnerKeyOKRuleWindow = "custom"
+)
+
+// AllValues returns all CorePutSchedulesOwnerKeyOKRuleWindow values.
+func (CorePutSchedulesOwnerKeyOKRuleWindow) AllValues() []CorePutSchedulesOwnerKeyOKRuleWindow {
+	return []CorePutSchedulesOwnerKeyOKRuleWindow{
+		CorePutSchedulesOwnerKeyOKRuleWindowGlobal,
+		CorePutSchedulesOwnerKeyOKRuleWindowNone,
+		CorePutSchedulesOwnerKeyOKRuleWindowCustom,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePutSchedulesOwnerKeyOKRuleWindow) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePutSchedulesOwnerKeyOKRuleWindowGlobal:
+		return []byte(s), nil
+	case CorePutSchedulesOwnerKeyOKRuleWindowNone:
+		return []byte(s), nil
+	case CorePutSchedulesOwnerKeyOKRuleWindowCustom:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePutSchedulesOwnerKeyOKRuleWindow) UnmarshalText(data []byte) error {
+	switch CorePutSchedulesOwnerKeyOKRuleWindow(data) {
+	case CorePutSchedulesOwnerKeyOKRuleWindowGlobal:
+		*s = CorePutSchedulesOwnerKeyOKRuleWindowGlobal
+		return nil
+	case CorePutSchedulesOwnerKeyOKRuleWindowNone:
+		*s = CorePutSchedulesOwnerKeyOKRuleWindowNone
+		return nil
+	case CorePutSchedulesOwnerKeyOKRuleWindowCustom:
+		*s = CorePutSchedulesOwnerKeyOKRuleWindowCustom
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePutSchedulesOwnerKeyReq struct {
+	Enabled bool `json:"enabled"`
+	// Skip the due times before this; null or a past time: not paused.
+	PausedUntil OptNilDateTime `json:"paused_until"`
+	// When a schedule comes due. The fields its frequency does not use are null (the box clears them when
+	// it saves).
+	Rule CorePutSchedulesOwnerKeyReqRule `json:"rule"`
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *CorePutSchedulesOwnerKeyReq) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetPausedUntil returns the value of PausedUntil.
+func (s *CorePutSchedulesOwnerKeyReq) GetPausedUntil() OptNilDateTime {
+	return s.PausedUntil
+}
+
+// GetRule returns the value of Rule.
+func (s *CorePutSchedulesOwnerKeyReq) GetRule() CorePutSchedulesOwnerKeyReqRule {
+	return s.Rule
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *CorePutSchedulesOwnerKeyReq) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetPausedUntil sets the value of PausedUntil.
+func (s *CorePutSchedulesOwnerKeyReq) SetPausedUntil(val OptNilDateTime) {
+	s.PausedUntil = val
+}
+
+// SetRule sets the value of Rule.
+func (s *CorePutSchedulesOwnerKeyReq) SetRule(val CorePutSchedulesOwnerKeyReqRule) {
+	s.Rule = val
+}
+
+// When a schedule comes due. The fields its frequency does not use are null (the box clears them when
+// it saves).
+type CorePutSchedulesOwnerKeyReqRule struct {
+	// Daily, weekly, monthly; interval only when every_minutes is whole days. A time the clocks skip when
+	// summer time starts comes due when they jump; a time they show twice comes due once.
+	AtTime NilString `json:"at_time"`
+	// Interval only: 1 minute to 366 days.
+	EveryMinutes NilInt `json:"every_minutes"`
+	// Interval: every every_minutes (with at_time, a whole number of days: every N days at that time);
+	// daily at at_time; weekly on weekdays at at_time; monthly on month_day at at_time; once at once_at.
+	Freq CorePutSchedulesOwnerKeyReqRuleFreq `json:"freq"`
+	// Monthly only: 1 to 31, a month without that day runs on its last day; 0 = the last day.
+	MonthDay NilInt `json:"month_day"`
+	// Once only.
+	OnceAt NilDateTime `json:"once_at"`
+	// "org" (the organization's time zone, Settings › General, the default) or an IANA zone such as
+	// Europe/Berlin.
+	Tz string `json:"tz"`
+	// Weekly only.
+	Weekdays []int `json:"weekdays"`
+	// Global: it starts only inside the box's scan window (Settings › Scanning › Safety), and a due
+	// time outside it waits for it to open; none: at any time; custom: only inside its own days and hours
+	// (window_days, window_from, window_to), and a due time outside them moves to their next opening.
+	Window CorePutSchedulesOwnerKeyReqRuleWindow `json:"window"`
+	// Custom window only.
+	WindowDays []int `json:"window_days"`
+	// Custom window only: when it opens.
+	WindowFrom NilString `json:"window_from"`
+	// Custom window only: when it closes; earlier than window_from = it crosses midnight and belongs to
+	// the day it opens on; equal = the whole day.
+	WindowTo NilString `json:"window_to"`
+}
+
+// GetAtTime returns the value of AtTime.
+func (s *CorePutSchedulesOwnerKeyReqRule) GetAtTime() NilString {
+	return s.AtTime
+}
+
+// GetEveryMinutes returns the value of EveryMinutes.
+func (s *CorePutSchedulesOwnerKeyReqRule) GetEveryMinutes() NilInt {
+	return s.EveryMinutes
+}
+
+// GetFreq returns the value of Freq.
+func (s *CorePutSchedulesOwnerKeyReqRule) GetFreq() CorePutSchedulesOwnerKeyReqRuleFreq {
+	return s.Freq
+}
+
+// GetMonthDay returns the value of MonthDay.
+func (s *CorePutSchedulesOwnerKeyReqRule) GetMonthDay() NilInt {
+	return s.MonthDay
+}
+
+// GetOnceAt returns the value of OnceAt.
+func (s *CorePutSchedulesOwnerKeyReqRule) GetOnceAt() NilDateTime {
+	return s.OnceAt
+}
+
+// GetTz returns the value of Tz.
+func (s *CorePutSchedulesOwnerKeyReqRule) GetTz() string {
+	return s.Tz
+}
+
+// GetWeekdays returns the value of Weekdays.
+func (s *CorePutSchedulesOwnerKeyReqRule) GetWeekdays() []int {
+	return s.Weekdays
+}
+
+// GetWindow returns the value of Window.
+func (s *CorePutSchedulesOwnerKeyReqRule) GetWindow() CorePutSchedulesOwnerKeyReqRuleWindow {
+	return s.Window
+}
+
+// GetWindowDays returns the value of WindowDays.
+func (s *CorePutSchedulesOwnerKeyReqRule) GetWindowDays() []int {
+	return s.WindowDays
+}
+
+// GetWindowFrom returns the value of WindowFrom.
+func (s *CorePutSchedulesOwnerKeyReqRule) GetWindowFrom() NilString {
+	return s.WindowFrom
+}
+
+// GetWindowTo returns the value of WindowTo.
+func (s *CorePutSchedulesOwnerKeyReqRule) GetWindowTo() NilString {
+	return s.WindowTo
+}
+
+// SetAtTime sets the value of AtTime.
+func (s *CorePutSchedulesOwnerKeyReqRule) SetAtTime(val NilString) {
+	s.AtTime = val
+}
+
+// SetEveryMinutes sets the value of EveryMinutes.
+func (s *CorePutSchedulesOwnerKeyReqRule) SetEveryMinutes(val NilInt) {
+	s.EveryMinutes = val
+}
+
+// SetFreq sets the value of Freq.
+func (s *CorePutSchedulesOwnerKeyReqRule) SetFreq(val CorePutSchedulesOwnerKeyReqRuleFreq) {
+	s.Freq = val
+}
+
+// SetMonthDay sets the value of MonthDay.
+func (s *CorePutSchedulesOwnerKeyReqRule) SetMonthDay(val NilInt) {
+	s.MonthDay = val
+}
+
+// SetOnceAt sets the value of OnceAt.
+func (s *CorePutSchedulesOwnerKeyReqRule) SetOnceAt(val NilDateTime) {
+	s.OnceAt = val
+}
+
+// SetTz sets the value of Tz.
+func (s *CorePutSchedulesOwnerKeyReqRule) SetTz(val string) {
+	s.Tz = val
+}
+
+// SetWeekdays sets the value of Weekdays.
+func (s *CorePutSchedulesOwnerKeyReqRule) SetWeekdays(val []int) {
+	s.Weekdays = val
+}
+
+// SetWindow sets the value of Window.
+func (s *CorePutSchedulesOwnerKeyReqRule) SetWindow(val CorePutSchedulesOwnerKeyReqRuleWindow) {
+	s.Window = val
+}
+
+// SetWindowDays sets the value of WindowDays.
+func (s *CorePutSchedulesOwnerKeyReqRule) SetWindowDays(val []int) {
+	s.WindowDays = val
+}
+
+// SetWindowFrom sets the value of WindowFrom.
+func (s *CorePutSchedulesOwnerKeyReqRule) SetWindowFrom(val NilString) {
+	s.WindowFrom = val
+}
+
+// SetWindowTo sets the value of WindowTo.
+func (s *CorePutSchedulesOwnerKeyReqRule) SetWindowTo(val NilString) {
+	s.WindowTo = val
+}
+
+// Interval: every every_minutes (with at_time, a whole number of days: every N days at that time);
+// daily at at_time; weekly on weekdays at at_time; monthly on month_day at at_time; once at once_at.
+type CorePutSchedulesOwnerKeyReqRuleFreq string
+
+const (
+	CorePutSchedulesOwnerKeyReqRuleFreqInterval CorePutSchedulesOwnerKeyReqRuleFreq = "interval"
+	CorePutSchedulesOwnerKeyReqRuleFreqDaily    CorePutSchedulesOwnerKeyReqRuleFreq = "daily"
+	CorePutSchedulesOwnerKeyReqRuleFreqWeekly   CorePutSchedulesOwnerKeyReqRuleFreq = "weekly"
+	CorePutSchedulesOwnerKeyReqRuleFreqMonthly  CorePutSchedulesOwnerKeyReqRuleFreq = "monthly"
+	CorePutSchedulesOwnerKeyReqRuleFreqOnce     CorePutSchedulesOwnerKeyReqRuleFreq = "once"
+)
+
+// AllValues returns all CorePutSchedulesOwnerKeyReqRuleFreq values.
+func (CorePutSchedulesOwnerKeyReqRuleFreq) AllValues() []CorePutSchedulesOwnerKeyReqRuleFreq {
+	return []CorePutSchedulesOwnerKeyReqRuleFreq{
+		CorePutSchedulesOwnerKeyReqRuleFreqInterval,
+		CorePutSchedulesOwnerKeyReqRuleFreqDaily,
+		CorePutSchedulesOwnerKeyReqRuleFreqWeekly,
+		CorePutSchedulesOwnerKeyReqRuleFreqMonthly,
+		CorePutSchedulesOwnerKeyReqRuleFreqOnce,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePutSchedulesOwnerKeyReqRuleFreq) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePutSchedulesOwnerKeyReqRuleFreqInterval:
+		return []byte(s), nil
+	case CorePutSchedulesOwnerKeyReqRuleFreqDaily:
+		return []byte(s), nil
+	case CorePutSchedulesOwnerKeyReqRuleFreqWeekly:
+		return []byte(s), nil
+	case CorePutSchedulesOwnerKeyReqRuleFreqMonthly:
+		return []byte(s), nil
+	case CorePutSchedulesOwnerKeyReqRuleFreqOnce:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePutSchedulesOwnerKeyReqRuleFreq) UnmarshalText(data []byte) error {
+	switch CorePutSchedulesOwnerKeyReqRuleFreq(data) {
+	case CorePutSchedulesOwnerKeyReqRuleFreqInterval:
+		*s = CorePutSchedulesOwnerKeyReqRuleFreqInterval
+		return nil
+	case CorePutSchedulesOwnerKeyReqRuleFreqDaily:
+		*s = CorePutSchedulesOwnerKeyReqRuleFreqDaily
+		return nil
+	case CorePutSchedulesOwnerKeyReqRuleFreqWeekly:
+		*s = CorePutSchedulesOwnerKeyReqRuleFreqWeekly
+		return nil
+	case CorePutSchedulesOwnerKeyReqRuleFreqMonthly:
+		*s = CorePutSchedulesOwnerKeyReqRuleFreqMonthly
+		return nil
+	case CorePutSchedulesOwnerKeyReqRuleFreqOnce:
+		*s = CorePutSchedulesOwnerKeyReqRuleFreqOnce
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Global: it starts only inside the box's scan window (Settings › Scanning › Safety), and a due
+// time outside it waits for it to open; none: at any time; custom: only inside its own days and hours
+// (window_days, window_from, window_to), and a due time outside them moves to their next opening.
+type CorePutSchedulesOwnerKeyReqRuleWindow string
+
+const (
+	CorePutSchedulesOwnerKeyReqRuleWindowGlobal CorePutSchedulesOwnerKeyReqRuleWindow = "global"
+	CorePutSchedulesOwnerKeyReqRuleWindowNone   CorePutSchedulesOwnerKeyReqRuleWindow = "none"
+	CorePutSchedulesOwnerKeyReqRuleWindowCustom CorePutSchedulesOwnerKeyReqRuleWindow = "custom"
+)
+
+// AllValues returns all CorePutSchedulesOwnerKeyReqRuleWindow values.
+func (CorePutSchedulesOwnerKeyReqRuleWindow) AllValues() []CorePutSchedulesOwnerKeyReqRuleWindow {
+	return []CorePutSchedulesOwnerKeyReqRuleWindow{
+		CorePutSchedulesOwnerKeyReqRuleWindowGlobal,
+		CorePutSchedulesOwnerKeyReqRuleWindowNone,
+		CorePutSchedulesOwnerKeyReqRuleWindowCustom,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePutSchedulesOwnerKeyReqRuleWindow) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePutSchedulesOwnerKeyReqRuleWindowGlobal:
+		return []byte(s), nil
+	case CorePutSchedulesOwnerKeyReqRuleWindowNone:
+		return []byte(s), nil
+	case CorePutSchedulesOwnerKeyReqRuleWindowCustom:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePutSchedulesOwnerKeyReqRuleWindow) UnmarshalText(data []byte) error {
+	switch CorePutSchedulesOwnerKeyReqRuleWindow(data) {
+	case CorePutSchedulesOwnerKeyReqRuleWindowGlobal:
+		*s = CorePutSchedulesOwnerKeyReqRuleWindowGlobal
+		return nil
+	case CorePutSchedulesOwnerKeyReqRuleWindowNone:
+		*s = CorePutSchedulesOwnerKeyReqRuleWindowNone
+		return nil
+	case CorePutSchedulesOwnerKeyReqRuleWindowCustom:
+		*s = CorePutSchedulesOwnerKeyReqRuleWindowCustom
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

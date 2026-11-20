@@ -3,7 +3,6 @@ package scan
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"net/netip"
 	"regexp"
@@ -242,38 +241,18 @@ func (c Settings) slotWindowEnd(slot time.Time) (time.Time, bool) {
 
 // ---- storage ----
 
-// Checks is the part of the settings every LAN engine shares since #850 (INV-16): the window, the check rate and the exclusions.
+// Checks is the part of the settings every LAN engine shares (INV-16): the window, the check rate and the exclusions.
 type Checks struct {
 	Window     Window
 	Rate       int // requests per second
 	Exclusions []string
-	// MergedFrom names the copy of this module (scan_setting) the inventory last took in, by that copy's updated_at ("" for a copy
-	// nobody saved); nil when it never took one in. While the copy's updated_at is not exactly that (a failed merge, or a version
-	// before #850 that wrote it after a rollback), settings reads the union of both lists and the slower rate, so nothing either list
-	// excludes is scanned (review #857 M1; equality only, no clock order: r2 L1). On SaveChecks it is the stamp the save wrote.
-	MergedFrom *string
 	// Version names the shared block as read (Checks); on SaveChecks it is the one the page read ("" = none: no check), and another
 	// one refuses the save with 409 safety_changed (review #860 M1).
 	Version string
 }
 
-// SharedChecks is the inventory as the one store of Checks (#850, INV-16). The Inventory adapter of cmd/vedette implements it; an
-// Inventory without it (the module's own tests) leaves them in scan_setting, as before.
-type SharedChecks interface {
-	Checks(ctx context.Context) (Checks, error)
-	// SaveChecks writes them inside tx, the transaction of PUT /scans/config; Settle is called once tx is over, with whether it
-	// committed (the inventory announces inventory.settings.changed then).
-	SaveChecks(ctx context.Context, tx *sql.Tx, user string, c Checks) error
-	Settle(ctx context.Context, tx *sql.Tx, committed bool)
-}
-
-func (s *Service) shared() (SharedChecks, bool) {
-	sc, ok := s.cfg.Inventory.(SharedChecks)
-	return sc, ok
-}
-
-// settings is scan_setting with the shared window, check rate and exclusions of the inventory over it (INV-16). scan_setting keeps
-// its own copy (written along by SaveConfig) so a rollback to a version before #850 finds the values of PUT /scans/config.
+// settings is scan_setting (the module's own: unresponsive limit, auto rescan, schedule) with the shared window, check rate and
+// exclusions of the inventory, their one home (INV-16).
 func (s *Service) settings(ctx context.Context, q interface {
 	QueryRowContext(context.Context, string, ...any) *sql.Row
 }) (Settings, error) {
@@ -281,89 +260,36 @@ func (s *Service) settings(ctx context.Context, q interface {
 	if err != nil {
 		return Settings{}, err
 	}
-	sh, ok := s.shared()
-	if !ok {
-		return c, nil
-	}
-	ch, err := sh.Checks(ctx)
+	ch, err := s.cfg.Inventory.Checks(ctx)
 	if err != nil {
 		return Settings{}, fmt.Errorf("scan: reading the shared window, rate and exclusions: %w", err)
 	}
-	var updated sql.NullString
-	if err := q.QueryRowContext(ctx, `SELECT updated_at FROM scan_setting WHERE id = 1`).Scan(&updated); err != nil {
-		return Settings{}, fmt.Errorf("scan: reading when the settings were saved: %w", err)
-	}
-	own := c
 	c.Version = ch.Version
 	c.Window = Window{Days: slices.Clone(ch.Window.Days), From: ch.Window.From, To: ch.Window.To}
 	c.Rate = ch.Rate
 	c.Exclusions = slices.Clone(ch.Exclusions)
-	if ch.MergedFrom == nil || *ch.MergedFrom != updated.String { // not this copy taken in: both lists bind, the slower rate wins
-		for _, x := range own.Exclusions {
-			if !slices.Contains(c.Exclusions, x) {
-				c.Exclusions = append(c.Exclusions, x)
-			}
-		}
-		c.Rate = min(c.Rate, own.Rate)
-	}
 	if c.Exclusions == nil {
 		c.Exclusions = []string{}
 	}
 	return c, nil
-}
-
-// LegacyChecks reads scan_setting's own window, rate and exclusions, who saved them last and when ("" when nobody did): what the
-// merge into the inventory reads at every start (#850, cmd/vedette).
-func LegacyChecks(ctx context.Context, q interface {
-	QueryRowContext(context.Context, string, ...any) *sql.Row
-}) (c Checks, savedBy, savedAt string, err error) {
-	st, err := loadSettings(ctx, q)
-	if err != nil {
-		return Checks{}, "", "", err
-	}
-	var by, at sql.NullString
-	if err := q.QueryRowContext(ctx, `SELECT updated_by, updated_at FROM scan_setting WHERE id = 1`).Scan(&by, &at); err != nil {
-		return Checks{}, "", "", fmt.Errorf("scan: reading who saved the settings: %w", err)
-	}
-	return Checks{Window: st.Window, Rate: st.Rate, Exclusions: st.Exclusions}, by.String, at.String, nil
 }
 
 func loadSettings(ctx context.Context, q interface {
 	QueryRowContext(context.Context, string, ...any) *sql.Row
 }) (Settings, error) {
 	var c Settings
-	var days, excl string
-	err := q.QueryRowContext(ctx, `SELECT days, win_from, win_to, rate, exclusions, stop_on_unresponsive, unresponsive_after, auto_rescan,
-sched_enabled, sched_frequency, sched_weekday, sched_at FROM scan_setting WHERE id = 1`).Scan(&days, &c.Window.From, &c.Window.To, &c.Rate, &excl,
-		&c.StopOnUnresponsive, &c.UnresponsiveAfter, &c.AutoRescan, &c.Schedule.Enabled, &c.Schedule.Frequency, &c.Schedule.Weekday, &c.Schedule.At)
+	err := q.QueryRowContext(ctx, `SELECT stop_on_unresponsive, unresponsive_after, auto_rescan, sched_enabled, sched_frequency, sched_weekday, sched_at
+FROM scan_setting WHERE id = 1`).Scan(&c.StopOnUnresponsive, &c.UnresponsiveAfter, &c.AutoRescan, &c.Schedule.Enabled, &c.Schedule.Frequency, &c.Schedule.Weekday, &c.Schedule.At)
 	if err != nil {
 		return Settings{}, fmt.Errorf("scan: reading the settings: %w", err)
-	}
-	if err := json.Unmarshal([]byte(days), &c.Window.Days); err != nil {
-		return Settings{}, fmt.Errorf("scan: reading the window days: %w", err)
-	}
-	if err := json.Unmarshal([]byte(excl), &c.Exclusions); err != nil {
-		return Settings{}, fmt.Errorf("scan: reading the exclusions: %w", err)
-	}
-	if c.Exclusions == nil {
-		c.Exclusions = []string{}
 	}
 	return c, nil
 }
 
 func saveSettings(ctx context.Context, tx *sql.Tx, c Settings, user, at string) error {
-	days, err := json.Marshal(c.Window.Days)
-	if err != nil {
-		return fmt.Errorf("scan: encoding the window days: %w", err)
-	}
-	excl, err := json.Marshal(c.Exclusions)
-	if err != nil {
-		return fmt.Errorf("scan: encoding the exclusions: %w", err)
-	}
-	_, err = tx.ExecContext(ctx, `UPDATE scan_setting SET days = ?, win_from = ?, win_to = ?, rate = ?, exclusions = ?, stop_on_unresponsive = ?,
-unresponsive_after = ?, auto_rescan = ?, sched_enabled = ?, sched_frequency = ?, sched_weekday = ?, sched_at = ?, updated_at = ?, updated_by = ? WHERE id = 1`,
-		string(days), c.Window.From, c.Window.To, c.Rate, string(excl), c.StopOnUnresponsive, c.UnresponsiveAfter, c.AutoRescan,
-		c.Schedule.Enabled, c.Schedule.Frequency, c.Schedule.Weekday, c.Schedule.At, at, user)
+	_, err := tx.ExecContext(ctx, `UPDATE scan_setting SET stop_on_unresponsive = ?, unresponsive_after = ?, auto_rescan = ?, sched_enabled = ?,
+sched_frequency = ?, sched_weekday = ?, sched_at = ?, updated_at = ?, updated_by = ? WHERE id = 1`,
+		c.StopOnUnresponsive, c.UnresponsiveAfter, c.AutoRescan, c.Schedule.Enabled, c.Schedule.Frequency, c.Schedule.Weekday, c.Schedule.At, at, user)
 	if err != nil {
 		return fmt.Errorf("scan: saving the settings: %w", err)
 	}

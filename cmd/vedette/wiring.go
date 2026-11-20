@@ -482,7 +482,7 @@ func (a findingsFeeds) readVulns(ctx context.Context) ([]findings.Vuln, error) {
 	for i, v := range rows {
 		out[i] = findings.Vuln{CVE: v.CVE, Vendor: v.Vendor, Product: v.Product, Name: v.Name, Ransomware: v.Ransomware, Source: v.SourceID, HasTemplate: v.HasTemplate,
 			DistroLoading: loading}
-		_, out[i].NVDAnswered = affected[v.CVE] // KevAffected has an entry, even empty, for every CVE feeds_affected_cve records
+		_, out[i].NVDAnswered = affected[v.CVE] // KevAffected has an entry, even empty, for every CVE NVD or the CVE record answered for
 		out[i].RangesFrom = rangesFrom(fromCVEOrg[v.CVE])
 		for _, r := range affected[v.CVE] {
 			out[i].Affected = append(out[i].Affected, findings.Affected{CPE: r.CPE,
@@ -560,6 +560,9 @@ func buildServices(ctx context.Context, d *deps) error {
 	var err error
 	if d.Runs, err = newRuns(d); err != nil { // before the modules: each registers its kinds of run on it
 		return fmt.Errorf("runs: %w", err)
+	}
+	if d.Schedules, err = newSchedules(d); err != nil { // before the modules: each registers its schedules on it
+		return fmt.Errorf("schedules: %w", err)
 	}
 	d.Inventory = newInventory(d) // before feeds: feeds takes the inventory (feeds.Inventory)
 	d.BoxName.useRow(boxRowName(d.Inventory))
@@ -676,7 +679,6 @@ func buildServices(ctx context.Context, d *deps) error {
 	registerLogSources(d)
 	registerLifecycle(d, notifySvc, fs)
 	subscribe(*d)
-	mergeScanningSafety(ctx, d) // #850: once, the scan module's own window, rate and exclusions into the inventory
 	return nil
 }
 

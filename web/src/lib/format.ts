@@ -112,6 +112,18 @@ export function rawProductLine(display: string, vendor: string, product: string)
   return raw && raw.toLowerCase() !== display.trim().toLowerCase() ? raw : null
 }
 
+/** "Sun 23 Nov 2026, 23:00": a moment on the wall clock of a given IANA zone (a schedule is read in its own zone). */
+export function fmtWeekdayDateTimeIn(iso: string, timeZone: string) {
+  return formatter({ timeZone, weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(iso))
+}
+
+/** The wall clock (year, month, day, hour, minute) of an instant in a given IANA zone. */
+export function wallIn(t: number, timeZone: string) {
+  const p = Object.fromEntries(formatter({ timeZone, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+    .formatToParts(new Date(t)).map((x) => [x.type, x.value]))
+  return { y: Number(p.year), m: Number(p.month), d: Number(p.day), h: Number(p.hour), min: Number(p.minute) }
+}
+
 /** The weekday (1 = Monday … 7 = Sunday) and the minutes since midnight of a moment in a given IANA zone (a window is read in its own
  *  zone); null for a zone this browser does not know. */
 export function clockIn(at: Date, timeZone: string): { weekday: number; minutes: number } | null {

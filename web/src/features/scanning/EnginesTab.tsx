@@ -17,6 +17,7 @@ import { OsqueryEnrol, WazuhForm } from '@/features/inventory/AgentsSection'
 import { useAgents } from '@/features/inventory/api'
 import { SnmpDevices } from '@/features/inventory/SnmpCard'
 import { NucleiSettings } from '@/features/scan/NucleiSettings'
+import { ScheduleEditor } from '@/components/schedule/ScheduleEditor'
 import { VulnChecksButton } from '@/features/scan/VulnChecksButton'
 import { useStopRun } from '@/features/scan/api'
 import { ApiError } from '@/lib/api'
@@ -26,7 +27,7 @@ import { useCan } from '@/lib/session'
 import { useSetEngine } from './api'
 import { ScopeButton, ScopeDialog, TurnOnModule } from './Fixes'
 import { AlertChannels } from './AlertChannels'
-import { runPlace } from './places'
+import { runHref } from './places'
 import { ScanNowButton } from './ScanNow'
 import type { Engine, EngineId, Scanning } from './types'
 
@@ -114,7 +115,7 @@ function Runs({ e, d }: { e: Engine; d: Scanning }) {
         <Card key={j.id} className="grid gap-2">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
             <span className="font-medium">{j.label}</span>
-            <Link to={runPlace(j)} className="text-meta text-accent underline-offset-4 hover:underline">{t('scanNow.openRun')}</Link>
+            <Link to={runHref(j.id)} className="text-meta text-accent underline-offset-4 hover:underline">{t('scanNow.openRun')}</Link>
             {/* only a LAN vulnerability check has a Stop here; the others are stopped where they are seen */}
             {e.id === 'nuclei' && can ? <Button size="sm" variant="danger" className="ml-auto" onClick={() => setStopping(j.id)}>{t('run.stop')}</Button> : null}
           </div>
@@ -183,7 +184,9 @@ function EngineRow({ e, d, open, onOpen }: { e: Engine; d: Scanning; open: boole
   // a module that is off has no settings to show (GreenboneSetting fails without exposure): the card's own reason and switch say
   // what to do instead (#877). SNMP has none here since it is set up on each device's page.
   const own: ReactNode = e.id === 'nuclei' && e.enabled ? <NucleiSettings />
-    : e.id === 'openvas' && exposureOn === true ? <GreenboneSetting embedded /> : null
+    : e.id === 'openvas' && exposureOn === true ? <GreenboneSetting embedded />
+    // the sweep's schedule; the card has its own button to sweep now, so the line has no second one
+    : e.id === 'nmap-discovery' && e.enabled ? <ScheduleEditor ownerKey="inventory.sweep" name={t('engines.nmap-discovery.scheduleName')} runNow={false} /> : null
   const place = PLACE[e.id] && (admin || !ADMIN_PLACE(PLACE[e.id]!)) ? PLACE[e.id] : undefined
   return (
     <li id={`engine-${e.id}`} aria-labelledby={nameId} className="grid scroll-mt-24 gap-3 px-4 py-4">

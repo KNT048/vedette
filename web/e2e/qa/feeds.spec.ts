@@ -165,7 +165,7 @@ test.describe('feeds: Settings -> Feeds (S-FEED-4, S-FEED-5)', () => {
     const errors = collectErrors(page)
     await start(page, 'admin', SETTINGS)
     await expect(h1(page)).toContainText('Feeds')
-    for (const n of ['CISA KEV', 'FIRST EPSS', 'nuclei-templates', 'IPsum', 'ET Open compromised IPs', 'abuse.ch Feodo Tracker', 'Tor exit list', 'hagezi TIF']) await expect(feedRow(page, n)).toBeVisible()
+    for (const n of ['CISA KEV', 'EPSS, every CVE', 'nuclei-templates', 'IPsum', 'ET Open compromised IPs', 'abuse.ch Feodo Tracker', 'Tor exit list', 'hagezi TIF']) await expect(feedRow(page, n)).toBeVisible()
     await expect(page.getByText(/Vedette fetches each feed directly from its source/)).toBeVisible()
     await shot(page, 'feeds', `${info.project.name}-settings`)
     if (EMPTY) await expect(feedRow(page, 'IPsum')).toContainText(/Not fetched yet/)

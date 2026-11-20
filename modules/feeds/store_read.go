@@ -10,13 +10,25 @@ import (
 // The reads of the weekly sentences and of the lookup box answer from SQL (ORDER BY, LIMIT, an index on
 // product_key); none of them loads or parses the whole table.
 
-// weeklyVulns returns the newest CISA-list CVE of each of the limit newest products, newest first. Only
-// the CISA list: the sentence says "added to the CISA list" and a custom feed's row is not that.
+// weeklyVulns returns the newest CISA-list CVE of each of the limit newest products, newest first. Only the CISA list: the sentence
+// says "added to the CISA list" and another list's entry is not that.
 func (s *Store) weeklyVulns(ctx context.Context, limit int) ([]VulnRow, error) {
-	return queryVulns(ctx, s.db.Reader(), `WHERE source_id = 'cisa-kev' AND cve = (
-SELECT w.cve FROM feeds_vuln w WHERE w.source_id = 'cisa-kev' AND w.product_key = feeds_vuln.product_key
-ORDER BY w.date_added DESC, w.cve DESC LIMIT 1)
-ORDER BY date_added DESC, cve DESC LIMIT ?`, limit)
+	all, err := queryVulns(ctx, s.db.Reader(), `AND k.list = 'cisa' ORDER BY k.date_added DESC, k.cve DESC`)
+	if err != nil {
+		return nil, err
+	}
+	seen := map[string]bool{}
+	out := []VulnRow{}
+	for _, v := range all {
+		if len(out) >= limit {
+			break
+		}
+		if k := v.Key(); !seen[k] {
+			seen[k] = true
+			out = append(out, v)
+		}
+	}
+	return out, nil
 }
 
 // searchLimit bounds the answer of a text search (the GUI mock has no bound; 200 rows is more than a screen).
@@ -28,10 +40,10 @@ func likePattern(t string) string {
 	return "%" + r.Replace(t) + "%"
 }
 
-// searchVulns finds vulnerabilities whose vendor, product or name contains t (lower case), or whose product has a
-// recognised name (DisplayOf) that contains it, newest first. Case folding is ASCII only (SQLite lower()).
+// searchVulns finds entries whose vendor, product or name contains t (lower case), or whose product has a recognised name
+// (DisplayOf) that contains it, newest first. Case folding is ASCII only (SQLite lower()).
 func (s *Store) searchVulns(ctx context.Context, t string) ([]VulnRow, error) {
-	where := `WHERE lower(vendor || ' ' || product || ' ' || name) LIKE ? ESCAPE '\'`
+	where := `AND (lower(k.vendor || ' ' || k.product || ' ' || k.name) LIKE ? ESCAPE '\'`
 	args := []any{likePattern(t)}
 	var keys []string
 	for k, d := range displaySlugs {
@@ -40,13 +52,13 @@ func (s *Store) searchVulns(ctx context.Context, t string) ([]VulnRow, error) {
 		}
 	}
 	if len(keys) > 0 {
-		where += ` OR product_key IN (?` + strings.Repeat(`, ?`, len(keys)-1) + `)`
+		where += ` OR lower(trim(k.vendor)) || '|' || lower(trim(k.product)) IN (?` + strings.Repeat(`, ?`, len(keys)-1) + `)`
 		for _, k := range keys {
 			args = append(args, k)
 		}
 	}
 	args = append(args, searchLimit)
-	return queryVulns(ctx, s.db.Reader(), where+` ORDER BY date_added DESC, cve DESC LIMIT ?`, args...)
+	return queryVulns(ctx, s.db.Reader(), where+`) ORDER BY k.date_added DESC, k.cve DESC LIMIT ?`, args...)
 }
 
 // weeklyAnswer is the stored answer to one product's question.

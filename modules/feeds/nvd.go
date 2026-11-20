@@ -4,137 +4,236 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 	"unicode"
+	"unicode/utf8"
 )
 
-// NVD affected versions of the exploited list. The box asks the NVD CVE API 2.0 for the CVEs CISA lists
-// (?hasKev), NVDPageSize per request, and keeps each CVE's vulnerable CPE match entries (criteria + version range)
-// so that findings can compare a device's version with the versions a CVE affects. Nothing of the customer is in a
-// request: only the page index and, after the first full pull, the date of the previous pull.
+// The NVD CVE API 2.0 decoder. One decoder reads every NVD answer the box asks for (the exploited-list selector ?hasKev of nvd-kev,
+// the date windows and the whole-set walk of nvd-recent, one CVE by id) and writes one catalogue (writeNVDRecords). Nothing of the
+// customer is in a request: only a page index, a date window, or the id of a CVE a public list names.
 const (
-	// NVDPageSize keeps one answer under MaxBodyBytes: the largest 100 consecutive KEV records measured 1.9 MB
-	// on 2026-11-13 (one record alone is 1 MB), against 3.1 MB for 200.
+	// NVDPageSize keeps one hasKev answer under MaxBodyBytes: the largest 100 consecutive KEV records measured 1.9 MB on 2026-11-13
+	// (one record alone is 1 MB), against 3.1 MB for 200.
 	NVDPageSize = 100
-	// nvdMaxPages bounds one pull (1,779 KEV CVEs were 18 pages on 2026-11-13).
+	// nvdMaxPages bounds one pull of nvd-kev (1,779 KEV CVEs were 18 pages on 2026-11-13).
 	nvdMaxPages = 60
-	// nvdIncrementalDays: NVD accepts at most 120 days between lastModStartDate and lastModEndDate; a box whose
-	// last good pull is older starts over with a full pull.
+	// nvdIncrementalDays: NVD accepts at most 120 days between lastModStartDate and lastModEndDate; a box whose last good pull of
+	// nvd-kev is older starts over with a full pull.
 	nvdIncrementalDays = 100
 	// nvdMaxRowsPerCVE and the field limits make the parser fail closed on a hostile answer.
 	nvdMaxRowsPerCVE = 20_000
 	nvdMaxCPE        = 500
 	nvdMaxVersion    = 100
+	// nvdMaxStatus caps NVD's vulnStatus ("Awaiting Analysis", "Deferred", ...).
+	nvdMaxStatus = 40
+	// nvdMaxDescription caps the description kept (runes): the catalogue keeps a summary, not a document.
+	nvdMaxDescription = 4000
+	// nvdMaxPlatforms caps the operating systems kept for one configuration's condition.
+	nvdMaxPlatforms = 20
+	// nvdMaxAnswer caps one answer the parser reads (the largest page the box asks for is RecentPageSize records).
+	nvdMaxAnswer = 32_000_000
 )
 
-// nvdPause is the wait between two requests: without an API key NVD allows 5 requests in a rolling 30 s window and
-// asks clients to sleep 6 s between requests (https://nvd.nist.gov/developers/start-here). A var for the tests.
+// nvdPause is the wait between two requests: without an API key NVD allows 5 requests in a rolling 30 s window and asks clients to
+// sleep 6 s between requests (https://nvd.nist.gov/developers/start-here). A var for the tests.
 var nvdPause = 6 * time.Second
 
-// AffectedRow is one vulnerable CPE match entry of a CVE: the CPE 2.3 criteria and its NVD version range
-// (empty bounds are absent).
+// AffectedRow is one vulnerable CPE match entry of a CVE: the CPE 2.3 criteria and its version range (empty bounds are absent).
 type AffectedRow struct {
 	CPE                                    string
 	StartIncl, StartExcl, EndIncl, EndExcl string
 }
 
+// NVDRecord is one CVE as NVD's record gives it, as the catalogue keeps it.
+type NVDRecord struct {
+	CVE                     string
+	Published, LastModified time.Time
+	Status                  string // NVD's vulnStatus ("Analyzed", "Deferred", "Rejected" …)
+	Description             string // NVD's English description, capped
+	Metrics                 []Metric
+	Affected                []AffectedRow // the vulnerable entries of nodes that are not negated
+	// Platforms is, per entry of Affected, the operating systems ("microsoft:windows", vendor and product of the CPE) of NVD's "running
+	// on" condition of its configuration (an AND of the vulnerable entries with non-vulnerable operating-system entries); nil for an
+	// entry without one.
+	Platforms [][]string
+}
+
+// CVSS is the picked score of the record (PickCVSS).
+func (r NVDRecord) CVSS() (CVSS, bool) { return PickCVSS(r.Metrics) }
+
 // NVDPage is one parsed answer of the NVD CVE API 2.0.
 type NVDPage struct {
-	Total    int                      // totalResults
-	Returned int                      // records in this answer
-	Affected map[string][]AffectedRow // CVE -> vulnerable entries; a CVE with none is present with an empty list
-	// Published is the day NVD published each accepted CVE ("2017-03-14"); a record without a readable date is absent.
-	Published map[string]string
-	// CVSS is the base score of each CVE read with a valid id (INV-28, cvssOf), also of one rejected for its affected entries (review
-	// r1 L2: the score does not depend on them); a CVE without one is absent. Seen lists every such CVE, so an update knows whose
-	// score NVD took away.
-	CVSS map[string]CVSS
-	Seen map[string]bool
+	Total, Returned int // totalResults, and the records in this answer
+	Records         []NVDRecord
 	Stats
 }
 
-// CVSS is the CVSS base score of a CVE as NVD's record gives it (INV-28, cvssOf): the newest version present, NVD's own ("Primary")
-// before another scorer's ("Secondary"), always with its vector (FIRST: a score is shown with its vector). The band follows from Score
-// and Version (FIRST's table, NVD's v2 table), so it is not kept.
-type CVSS struct {
-	Score   float64 // 0.0 … 10.0, one decimal
-	Version string  // "4.0", "3.1", "3.0" or "2.0" (only when NVD has nothing newer)
-	Source  string  // "nvd" (Primary) or "cna" (Secondary: the CNA or CISA's ADP)
-	Vector  string  // NVD's vector string of that score ("CVSS:3.1/AV:N/…", v2 "AV:N/AC:L/…")
-}
-
-// NVDPageURL builds the request for one page: base?hasKev&resultsPerPage=N&startIndex=I, plus the lastMod window
+// NVDPageURL builds one request of the exploited-list selector: base?hasKev&resultsPerPage=N&startIndex=I, plus the lastMod window
 // for an incremental pull (from and to non-zero).
 func NVDPageURL(base string, start int, from, to time.Time) (string, error) {
-	if err := CheckURL(base); err != nil {
+	if err := nvdBase(base); err != nil {
 		return "", err
-	}
-	if strings.ContainsAny(base, "?#") {
-		return "", fail(ErrInvalidURL, "The NVD address must not carry a query string.")
 	}
 	u := strings.TrimSpace(base) + "?hasKev&resultsPerPage=" + strconv.Itoa(NVDPageSize) + "&startIndex=" + strconv.Itoa(start)
 	if !from.IsZero() && !to.IsZero() {
-		const layout = "2006-01-02T15:04:05.000Z"
-		u += "&lastModStartDate=" + from.UTC().Format(layout) + "&lastModEndDate=" + to.UTC().Format(layout)
+		u += "&lastModStartDate=" + from.UTC().Format(tsLayout) + "&lastModEndDate=" + to.UTC().Format(tsLayout)
 	}
 	return u, nil
 }
 
-type nvdAnswer struct {
-	TotalResults    *int `json:"totalResults"`
-	Vulnerabilities []struct {
-		CVE struct {
-			ID             string          `json:"id"`
-			Published      string          `json:"published"`
-			Metrics        json.RawMessage `json:"metrics"` // decoded per record: metricsOf
-			Configurations []struct {
-				Nodes []struct {
-					Negate   bool `json:"negate"`
-					CPEMatch []struct {
-						Vulnerable bool   `json:"vulnerable"`
-						Criteria   string `json:"criteria"`
-						StartIncl  string `json:"versionStartIncluding"`
-						StartExcl  string `json:"versionStartExcluding"`
-						EndIncl    string `json:"versionEndIncluding"`
-						EndExcl    string `json:"versionEndExcluding"`
-					} `json:"cpeMatch"`
-				} `json:"nodes"`
-			} `json:"configurations"`
-		} `json:"cve"`
-	} `json:"vulnerabilities"`
+// RecentPageURL builds one request of a date window: base?pubStartDate=…&pubEndDate=… (byPublished, the fill of the window) or
+// lastModStartDate=…&lastModEndDate=… (an update), &resultsPerPage=size&startIndex=start.
+func RecentPageURL(base string, byPublished bool, from, to time.Time, start, size int) (string, error) {
+	if err := nvdBase(base); err != nil {
+		return "", err
+	}
+	a, b := "lastModStartDate", "lastModEndDate"
+	if byPublished {
+		a, b = "pubStartDate", "pubEndDate"
+	}
+	return fmt.Sprintf("%s?%s=%s&%s=%s&resultsPerPage=%d&startIndex=%d", strings.TrimSpace(base), a, from.UTC().Format(tsLayout), b, to.UTC().Format(tsLayout), size, start), nil
 }
 
-// ParseNVD reads one NVD CVE API 2.0 answer. Only vulnerable entries of nodes that are not negated are kept. A
-// record with a bad CVE id, or an entry with a criteria that is not a CPE 2.3 name or a version that is too long
-// or not printable, is rejected and counted (fail closed: a CVE that lost an entry is dropped whole, so findings
-// never decide on half a configuration). A damaged answer fails the parse.
+// WalkPageURL builds one request of the walk over the whole NVD set: base?resultsPerPage=size&startIndex=start.
+func WalkPageURL(base string, start, size int) (string, error) {
+	if err := nvdBase(base); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s?resultsPerPage=%d&startIndex=%d", strings.TrimSpace(base), size, start), nil
+}
+
+// CVEIDURL builds the request of one CVE's record: base?cveId=CVE-…. Only for a CVE a public list names (an exploited-list entry or
+// a signal), never for one only the customer's devices make interesting.
+func CVEIDURL(base, cve string) (string, error) {
+	if err := nvdBase(base); err != nil {
+		return "", err
+	}
+	if !cveRE.MatchString(cve) || len(cve) > 32 {
+		return "", fail(ErrBadSample, "%s is not a CVE ID.", quoteVal(cve))
+	}
+	return strings.TrimSpace(base) + "?cveId=" + cve, nil
+}
+
+func nvdBase(base string) error {
+	if err := CheckURL(base); err != nil {
+		return err
+	}
+	if strings.ContainsAny(base, "?#") {
+		return fail(ErrInvalidURL, "The NVD address must not carry a query string.")
+	}
+	return nil
+}
+
+// nvdAnswer is one NVD answer; each record is decoded on its own (nvdRecordJSON), so one record of the wrong shape is rejected alone
+// instead of failing the whole page.
+type nvdAnswer struct {
+	TotalResults    *int              `json:"totalResults"`
+	Vulnerabilities []json.RawMessage `json:"vulnerabilities"`
+}
+
+type nvdRecordJSON struct {
+	CVE struct {
+		ID           string `json:"id"`
+		Published    string `json:"published"`
+		LastModified string `json:"lastModified"`
+		VulnStatus   string `json:"vulnStatus"`
+		Descriptions []struct {
+			Lang  string `json:"lang"`
+			Value string `json:"value"`
+		} `json:"descriptions"`
+		Metrics        json.RawMessage `json:"metrics"` // decoded on its own: metricsOf
+		Configurations []struct {
+			Operator string `json:"operator"`
+			Nodes    []struct {
+				Negate   bool `json:"negate"`
+				CPEMatch []struct {
+					Vulnerable bool   `json:"vulnerable"`
+					Criteria   string `json:"criteria"`
+					StartIncl  string `json:"versionStartIncluding"`
+					StartExcl  string `json:"versionStartExcluding"`
+					EndIncl    string `json:"versionEndIncluding"`
+					EndExcl    string `json:"versionEndExcluding"`
+				} `json:"cpeMatch"`
+			} `json:"nodes"`
+		} `json:"configurations"`
+	} `json:"cve"`
+}
+
+// nvdTime reads NVD's timestamps ("2026-08-01T03:16:25.307", UTC, sometimes with a Z).
+func nvdTime(s string) (time.Time, bool) {
+	t, err := time.Parse("2006-01-02T15:04:05", strings.TrimSuffix(strings.TrimSpace(s), "Z"))
+	return t.UTC(), err == nil
+}
+
+// metricsOf decodes a record's `metrics` on its own: a malformed value (a string score, a number for a vector, an array) leaves that
+// record without a score; the record, its affected versions and its dates are still accepted.
+func metricsOf(raw json.RawMessage) []Metric {
+	var m cvssMetrics
+	if len(raw) == 0 || json.Unmarshal(raw, &m) != nil {
+		return nil
+	}
+	return metricsFrom(m)
+}
+
+// ParseNVD reads one NVD CVE API 2.0 answer. A record with a bad id, dates or status is rejected and counted, as is one with an
+// unusable vulnerable entry (a criteria that is not a CPE 2.3 name, a version too long or not printable): fail closed, a CVE that
+// lost an entry is dropped whole, so findings never decide on half a configuration. A damaged answer fails the parse.
 func ParseNVD(data []byte) (NVDPage, error) {
-	if len(data) > MaxBodyBytes {
-		return NVDPage{}, fail(ErrTooLarge, "The NVD answer is larger than %d MB; Vedette would skip it.", MaxBodyBytes/1_000_000)
+	if len(data) > nvdMaxAnswer {
+		return NVDPage{}, fail(ErrTooLarge, "The NVD answer is larger than %d MB; Vedette would skip it.", nvdMaxAnswer/1_000_000)
 	}
 	var a nvdAnswer
-	dec := json.NewDecoder(bytes.NewReader(data))
-	if err := dec.Decode(&a); err != nil || a.TotalResults == nil {
+	if err := json.NewDecoder(bytes.NewReader(data)).Decode(&a); err != nil || a.TotalResults == nil || *a.TotalResults < 0 {
 		return NVDPage{}, fail(ErrBadSample, "The NVD answer is not the CVE API 2.0 format.")
 	}
-	out := NVDPage{Total: *a.TotalResults, Returned: len(a.Vulnerabilities), Affected: map[string][]AffectedRow{}, Published: map[string]string{}, CVSS: map[string]CVSS{}, Seen: map[string]bool{}}
+	out := NVDPage{Total: *a.TotalResults, Returned: len(a.Vulnerabilities), Records: make([]NVDRecord, 0, len(a.Vulnerabilities))}
 	tl := newTally()
-	for i, v := range a.Vulnerabilities {
+	for i, raw := range a.Vulnerabilities {
 		row := i + 1
-		id := strings.ToUpper(strings.TrimSpace(v.CVE.ID))
-		if !cveRE.MatchString(id) {
-			tl.reject(row, "id: %s is not a CVE ID", quoteVal(v.CVE.ID))
+		var v nvdRecordJSON
+		if err := json.Unmarshal(raw, &v); err != nil {
+			tl.reject(row, "the record is not an NVD CVE record")
 			continue
 		}
-		out.Seen[id] = true
-		if c, ok := cvssOf(metricsOf(v.CVE.Metrics)); ok {
-			out.CVSS[id] = c
+		id := strings.ToUpper(strings.TrimSpace(v.CVE.ID))
+		pub, okP := nvdTime(v.CVE.Published)
+		mod, okM := nvdTime(v.CVE.LastModified)
+		status := strings.TrimSpace(v.CVE.VulnStatus)
+		switch {
+		case !cveRE.MatchString(id) || len(id) > 32:
+			tl.reject(row, "id: %s is not a CVE ID", quoteVal(v.CVE.ID))
+			continue
+		case !okP || !okM:
+			tl.reject(row, "%s: the dates are not NVD timestamps", id)
+			continue
+		case status == "" || len(status) > nvdMaxStatus || !printableASCII(status):
+			tl.reject(row, "%s: vulnStatus %s is not usable", id, quoteVal(status))
+			continue
 		}
-		rows, bad := []AffectedRow{}, ""
+		rec := NVDRecord{CVE: id, Published: pub, LastModified: mod, Status: status, Metrics: metricsOf(v.CVE.Metrics), Affected: []AffectedRow{}}
+		for _, d := range v.CVE.Descriptions {
+			if strings.EqualFold(strings.TrimSpace(d.Lang), "en") {
+				rec.Description = cleanDescription(d.Value)
+				break
+			}
+		}
+		bad := ""
 	entries:
 		for _, c := range v.CVE.Configurations {
+			var plats []string // the "running on" operating systems of an AND configuration
+			if strings.EqualFold(c.Operator, "AND") {
+				for _, n := range c.Nodes {
+					for _, m := range n.CPEMatch {
+						if p, ok := platformOf(m.Criteria); ok && !m.Vulnerable && !n.Negate && !slices.Contains(plats, p) && len(plats) < nvdMaxPlatforms {
+							plats = append(plats, p)
+						}
+					}
+				}
+			}
 			for _, n := range c.Nodes {
 				if n.Negate {
 					continue
@@ -144,13 +243,14 @@ func ParseNVD(data []byte) (NVDPage, error) {
 						continue
 					}
 					r := AffectedRow{CPE: m.Criteria, StartIncl: m.StartIncl, StartExcl: m.StartExcl, EndIncl: m.EndIncl, EndExcl: m.EndExcl}
-					if bad = badAffected(r); bad != "" || len(rows) >= nvdMaxRowsPerCVE {
+					if bad = badAffected(r); bad != "" || len(rec.Affected) >= nvdMaxRowsPerCVE {
 						if bad == "" {
 							bad = "more than " + strconv.Itoa(nvdMaxRowsPerCVE) + " entries"
 						}
 						break entries
 					}
-					rows = append(rows, r)
+					rec.Affected = append(rec.Affected, r)
+					rec.Platforms = append(rec.Platforms, plats)
 				}
 			}
 		}
@@ -159,25 +259,44 @@ func ParseNVD(data []byte) (NVDPage, error) {
 			continue
 		}
 		tl.Accepted++
-		out.Affected[id] = rows
-		if d, ok := publishedDay(v.CVE.Published); ok {
-			out.Published[id] = d
-		}
+		out.Records = append(out.Records, rec)
 	}
 	out.Stats = tl.stats()
 	return out, nil
 }
 
-// publishedDay is the day of NVD's `published` ("2017-03-17T00:59:00.000" -> "2017-03-17"); ok is false for anything that does
-// not start with a real date, so a hostile value never reaches the table.
-func publishedDay(s string) (string, bool) {
-	if len(s) < 10 {
+// cleanDescription is a description as the catalogue keeps it: valid UTF-8, no control characters but line breaks, trimmed, at most
+// nvdMaxDescription runes.
+func cleanDescription(s string) string {
+	s = strings.ToValidUTF8(s, "�")
+	s = strings.Map(func(r rune) rune {
+		if r == '\n' || r == '\t' {
+			return r
+		}
+		if unicode.IsControl(r) || unicode.Is(unicode.Cf, r) {
+			return -1
+		}
+		return r
+	}, s)
+	s = strings.TrimSpace(s)
+	if utf8.RuneCountInString(s) > nvdMaxDescription {
+		s = string([]rune(s)[:nvdMaxDescription-1]) + "…"
+	}
+	return s
+}
+
+// platformOf is "vendor:product" of an operating-system CPE ("cpe:2.3:o:microsoft:windows:-:…" gives "microsoft:windows"); false for
+// another part or a name that is not plain printable text.
+func platformOf(cpe string) (string, bool) {
+	rest, ok := strings.CutPrefix(cpe, "cpe:2.3:o:")
+	if !ok || len(cpe) > nvdMaxCPE {
 		return "", false
 	}
-	if _, err := time.Parse(time.DateOnly, s[:10]); err != nil {
+	parts := strings.SplitN(rest, ":", 3)
+	if len(parts) < 3 || parts[0] == "" || parts[1] == "" || parts[0] == "*" || !printableASCII(parts[0]+parts[1]) {
 		return "", false
 	}
-	return s[:10], true
+	return parts[0] + ":" + parts[1], true
 }
 
 func badAffected(r AffectedRow) string {
@@ -199,4 +318,18 @@ func printableASCII(s string) bool {
 		}
 	}
 	return true
+}
+
+// cpeParts is the part, vendor and product of a CPE 2.3 name, lower case ("cpe:2.3:a:apache:http_server:…" gives "a", "apache",
+// "http_server"); empty strings for a name that is not one.
+func cpeParts(cpe string) (part, vendor, product string) {
+	rest, ok := strings.CutPrefix(cpe, "cpe:2.3:")
+	if !ok {
+		return "", "", ""
+	}
+	f := strings.SplitN(rest, ":", 4)
+	if len(f) < 3 || len(f[0]) != 1 {
+		return "", "", ""
+	}
+	return strings.ToLower(f[0]), strings.ToLower(f[1]), strings.ToLower(f[2])
 }

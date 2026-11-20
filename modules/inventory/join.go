@@ -827,10 +827,7 @@ func foldSoftware(ctx context.Context, tx *sql.Tx, from, into string) (map[strin
 	if err != nil {
 		return nil, fmt.Errorf("inventory: read the software both devices hold: %w", err)
 	}
-	type fold struct {
-		gone, kept string
-		reading    bool // two readings: into's row takes the other's details; two corrections: the newer stays as it is
-	}
+	type fold struct{ gone, kept string } // two readings: kept takes gone's details; two corrections: the newer stays as it is
 	var folds []fold
 	for rows.Next() {
 		var f, i string

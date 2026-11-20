@@ -345,13 +345,21 @@ func kevRecordRow(r Range, vendor, product string) AffectedRow {
 
 // recordDue lists the CVEs whose record is asked for by its ID this pull, at most limit: only CVEs a public source names
 // (publicListedSQL: never a custom list's, a box-built signal's or a finding's CVE), whose record was never read, or, without NVD
-// ranges, not read since before. Never read first, then the longest ago.
-func (s *Store) recordDue(ctx context.Context, before time.Time, limit int) ([]string, error) {
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT i.cve FROM (`+publicListedSQL+`) i LEFT JOIN feeds_cve c ON c.cve = i.cve
+// ranges, not read since recordRecheck before now when the CVE is on an exploited list or published inside the window (an older
+// signalled CVE without ranges, often Deferred or Rejected by NVD, is not asked again and again: the change log brings its changes).
+// Never read first, then the longest ago.
+func (s *Store) recordDue(ctx context.Context, now time.Time, limit int) ([]string, error) {
+	return s.recordDueOf(ctx, publicListedSQL, now, limit)
+}
+
+// recordDueOf is recordDue over the CVEs of listed (a SELECT of one cve column, never one a box builds from its own data).
+func (s *Store) recordDueOf(ctx context.Context, listed string, now time.Time, limit int) ([]string, error) {
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT i.cve FROM (`+listed+`) i LEFT JOIN feeds_cve c ON c.cve = i.cve
 WHERE c.record_at IS NULL
-   OR (c.record_at < ? AND NOT EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = i.cve AND r.origin = 'nvd'))
+   OR (c.record_at < ? AND NOT EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = i.cve AND r.origin = 'nvd')
+       AND (i.cve IN (`+missingKEVSQL+`) OR c.published >= ?))
 ORDER BY c.record_at IS NOT NULL, c.record_at, i.cve DESC
-LIMIT ?`, store.FormatTS(before), limit)
+LIMIT ?`, store.FormatTS(now.Add(-recordRecheck)), store.FormatTS(now.AddDate(0, 0, -windowDays)), limit)
 	if err != nil {
 		return nil, fmt.Errorf("feeds: CVE records due: %w", err)
 	}
@@ -369,11 +377,11 @@ LIMIT ?`, store.FormatTS(before), limit)
 	return out, rows.Err()
 }
 
-// recordUnread counts the CVEs a public list or signal names whose record was never read: many of them (a new signal source that
-// names thousands of older CVEs) are read from the daily archive, not one by one.
+// recordUnread counts the CVEs a public list or signal names (publicListedSQL, as the NVD twin missingCount) whose record was never
+// read: many of them (a new signal source that names thousands of older CVEs) are read from the daily archive, not one by one.
 func (s *Store) recordUnread(ctx context.Context) (int, error) {
 	var n int
-	err := s.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM (`+importantSQL+`) i LEFT JOIN feeds_cve c ON c.cve = i.cve WHERE c.record_at IS NULL`).Scan(&n)
+	err := s.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM (`+publicListedSQL+`) i LEFT JOIN feeds_cve c ON c.cve = i.cve WHERE c.record_at IS NULL`).Scan(&n)
 	if err != nil {
 		return 0, fmt.Errorf("feeds: CVE records unread: %w", err)
 	}

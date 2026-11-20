@@ -16,6 +16,7 @@ import (
 	"github.com/knt048/vedette/core/conn/read"
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/jobs"
+	"github.com/knt048/vedette/core/lifecycle"
 	"github.com/knt048/vedette/core/logexport"
 	"github.com/knt048/vedette/core/modreg"
 	"github.com/knt048/vedette/core/pki"
@@ -58,6 +59,9 @@ type deps struct {
 	// Argon2 is the password hashing of core/auth (auth.Config.Argon2): zero, the production parameters, in serve. The wiring tests set
 	// authtest.Cheap, a real argon2id that is fast: at 64 MiB and three passes under -race, the build of each stack alone hashed for a while.
 	Argon2 auth.Params
+	// Lifecycle are the modules' parts of a device merge or delete, run inside the inventory's write (core/lifecycle). newInventory
+	// creates it when nil; registerLifecycle and sensorActiveService add the participants.
+	Lifecycle *lifecycle.Hooks
 	// BaseURL is the address people open Vedette at, https://<Box address>[:port] (links in notify messages, the block list URL,
 	// URL honey tokens, the agent install commands), read at every use so a save in Settings → Box network applies at once; it answers ""
 	// on loopback and while the box knows no address (see baseURL). nil: no address (tests). BoxAddr is what it reads; nil in tests.

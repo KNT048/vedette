@@ -625,6 +625,7 @@ func buildServices(ctx context.Context, d *deps) error {
 	cfg := findings.ServiceConfig{DB: d.DB, Audit: d.Audit, Inventory: inv, Feeds: feed, Log: d.Log, Clock: d.Clock, Zone: orgTimeZone(d), Backlog: notify.WithBaseline,
 		HaveSince: findingsHave(fs.Store()), // "I have this" on Home scopes the one device it declared
 		Applied:   mitigationApplied(d.DB),  // a merge keeps the finding a person marked a mitigation item applied on
+		Lifecycle: d.Lifecycle,              // a merge that folds two findings tells mitigation and response (registerLifecycle)
 		SafeCheck: safeCheckFor}             // "a safe check exists": the scan's own pack, the same answer as KevInfo.HasTemplate
 	if d.Bus != nil {
 		cfg.Publisher = findingsPublisher{d.Bus}
@@ -671,6 +672,7 @@ func buildServices(ctx context.Context, d *deps) error {
 		return fmt.Errorf("response: %w", err)
 	}
 	registerLogSources(d)
+	registerLifecycle(d, notifySvc, fs)
 	subscribe(*d)
 	mergeScanningSafety(ctx, d) // #850: once, the scan module's own window, rate and exclusions into the inventory
 	return nil
@@ -752,31 +754,6 @@ func subscribe(d deps) {
 			return nil
 		}))
 	}
-	// A merged device's findings that could not move are not deleted by its asset.deleted, which follows
-	// on the same bus; findings' reconcile deals with them later. The set holds an id only between those two events.
-	var unmoved sync.Map
-	d.Bus.Subscribe(inventory.EventAssetMerged, on("findings", func(ctx context.Context, data any) error {
-		ev, ok := data.(inventory.MergeEvent)
-		if !ok {
-			return fmt.Errorf("unexpected payload %T", data)
-		}
-		_, err := d.Findings.OnAssetMerged(ctx, ev.From, ev.Into)
-		if err != nil {
-			unmoved.Store(ev.From, true)
-		}
-		return err
-	}))
-	d.Bus.Subscribe(inventory.EventAssetDeleted, on("findings", func(ctx context.Context, data any) error {
-		ev, ok := data.(inventory.AssetEvent)
-		if !ok {
-			return fmt.Errorf("unexpected payload %T", data)
-		}
-		if _, skip := unmoved.LoadAndDelete(ev.AssetID); skip {
-			return nil
-		}
-		_, err := d.Findings.OnAssetDeleted(ctx, ev.AssetID)
-		return err
-	}))
 	// An ignored device's open findings close ("Closed by Vedette: the device was ignored by <person>."; what a person settled
 	// keeps its status, nothing is deleted), and while it is ignored nothing new is made (MatchInput says it is not there, AssetIDs
 	// leaves it out). Stopping reopens only what Ignore closed; the inventory.asset.updated with match that follows matches it again.

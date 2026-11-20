@@ -325,8 +325,153 @@ export const Greenbone = z.object({
 
 export const BoxIpDetectResult = z.object({ items: z.array(Target).describe('The public IPs the box saw this time, each added or renewed'), message: z.string() })
 
+// ---------------------------------------------------------------------------------------------------------------------
+// Target tree. A target is a node: a name under a domain target sits under it and keeps its own options and schedule, an
+// ancestor's ownership proof covers its descendants, scan results are rows with first and last seen, and every scan is a
+// run. The endpoints under /exposure/tree and /exposure/issues replace /exposure/targets*, /exposure/scan* and the
+// snapshots; /exposure/box-ip/*, /exposure/greenbone and /exposure/targets/{id}/outside keep their shape.
+// The schedule of a node is the shared schedule under the key exposure.target:<id>; a run's steps and log are the shared run.
+
+export const ScopeMode = z.enum(['self', 'all', 'selected'])
+export const NodeOrigin = z.enum(['person', 'box', 'discovered'])
+export const TargetRef = z.object({ id: z.string(), value: z.string() })
+
+export const ProofState = z.enum(['proven', 'covered', 'missing', 'expired', 'not_current'])
+export const ProofCheck = z.object({ at: z.iso.datetime(), ok: z.boolean(), message: z.string() })
+export const DnsProof = z.object({
+  zone: z.string().describe('The registered domain: the DNS zone the record is added in'),
+  host: z.string().describe('The name to type in that zone: "@" for the zone apex'),
+  alt_host: z.string().nullable().describe('The alternative name that proves this target only, "_vedette-verify" or "_vedette-verify.<label>"; null when it would pass 253 characters'),
+  value: z.string().describe('The whole TXT value: vedette-verify=<token>'),
+})
+export const FileProof = z.object({
+  urls: z.array(z.string()).describe('The two addresses the box asks, http and https, on the IP'),
+  content: z.string().describe('The token: the whole content of /.well-known/vedette-verify.txt'),
+  ptr_domains: z.array(z.string()).describe('Proven domains of this box: a reverse DNS name of the IP under one of them, resolving back to the IP, proves it too'),
+})
+export const Proof = z.object({
+  state: ProofState.describe('proven: this node\'s own proof holds; covered: the proof of an ancestor covers it (covered_by); missing: no proof, or the record or file was not found at the last check; expired: an IP\'s 30 days ran out; not_current: an IP the box found that the box no longer goes out through (scans paused)'),
+  method: VerifyMethod.nullable().describe('How this node proves itself; null when covered by an ancestor or not proven yet'),
+  covered_by: TargetRef.nullable().describe('The ancestor whose proof covers this node; null unless state is covered'),
+  verified_at: z.iso.datetime().nullable().describe('When this node\'s own proof was last found'),
+  expires_at: z.iso.datetime().nullable().describe('IPs: verified_at + 30 days; null for a domain (its record is checked again right before every scan)'),
+  next_check_at: z.iso.datetime().nullable().describe('When the box checks the proof again by itself; null when it does not'),
+  last_check: ProofCheck.nullable(),
+  dns: DnsProof.nullable().describe('Domain not covered by an ancestor: where its TXT record goes; null otherwise'),
+  file: FileProof.nullable().describe('IP typed in by a person: where its proof file goes; null otherwise'),
+})
+
+export const Consent = z.object({
+  version: z.string(), text: z.string().describe('The exact text accepted, with the target in it'),
+  by: z.string(), at: z.iso.datetime(),
+  disruptive: z.boolean().describe('Testing terms only: the disruptive checks were ticked too; false for the scan confirmation'),
+})
+
+export const RunStatus = z.enum(['queued', 'waiting', 'running', 'stopping', 'done', 'partial', 'failed', 'stopped'])
+export const RunTrigger = z.enum(['manual', 'schedule', 'event'])
+export const ScanMode = z.enum(['surface', 'deep'])
+export const ScanCounts = z.object({
+  hosts: z.number().int(), services: z.number().int().describe('Open services after the scan'),
+  new_services: z.number().int(), closed_services: z.number().int(),
+  issues: z.number().int().describe('Open issues after the scan'), new_issues: z.number().int(),
+})
+export const Scan = z.object({
+  run_id: z.string().describe('The shared run: its steps, items and log are read there, and it is stopped there'),
+  target_id: z.string(),
+  status: RunStatus, trigger: RunTrigger,
+  requested_by: z.string().describe('Who asked (an e-mail), or system for a scheduled scan'),
+  mode: ScanMode.describe('deep when the current testing terms of the target are accepted; surface otherwise'),
+  queued_at: z.iso.datetime(), started_at: z.iso.datetime().nullable(), ended_at: z.iso.datetime().nullable(),
+  waiting_for: z.string().nullable().describe('Set only while status is waiting, e.g. "the scan window (opens 23:00)"'),
+  stop_reason: z.string().nullable(), error: z.string().nullable(),
+  counts: ScanCounts.nullable().describe('What the scan left; null until it ends done or partial'),
+})
+
+export const Severity = z.enum(['critical', 'high', 'medium', 'low', 'info'])
+export const NodeBlock = z.enum(['disabled', 'proof', 'no_commitment'])
+export const TargetNode = z.object({
+  id: z.string(),
+  parent_id: z.string().nullable().describe('The domain target this node sits under; null at the top of the tree'),
+  kind: TargetKind, value: z.string(), origin: NodeOrigin,
+  scope_mode: ScopeMode.nullable().describe('Domains: self scans only this name; all this name and every name found under it; selected this name and the names chosen (Host.selected). null for an IP'),
+  enabled: z.boolean().describe('The node is scanned, by Scan now and by its schedule'),
+  created_at: z.iso.datetime(),
+  proof: Proof,
+  commitment: Consent.nullable().describe('The scan confirmation recorded by the first Scan now of an administrator; null when none'),
+  terms: Consent.nullable().describe('The accepted testing terms; null when none'),
+  commitment_notice: Notice.nullable().describe('The sentence the next Scan now of an administrator confirms; null once the node has a commitment of the current sentence'),
+  terms_notice: TermsNotice.describe('The current testing terms for this node, to accept or read again'),
+  terms_warning: z.string().nullable().describe('IP behind carrier-grade NAT: the address is probably shared, so the disruptive checks are refused'),
+  deep: z.boolean().describe('Scans of this node are deep scans: the current testing terms are accepted'),
+  blocked: NodeBlock.nullable().describe('Why Scan now is refused: disabled (the node is off), proof (proof.state is neither proven nor covered), no_commitment (no scan confirmation of the current sentence: an administrator\'s Scan now records it, an operator\'s is refused); null when it can be scanned'),
+  last_scan: Scan.nullable().describe('The newest run of this node, live or ended; null when never scanned'),
+  counts: z.object({
+    hosts: z.number().int().describe('Names found under the node'), services: z.number().int().describe('Open services'),
+    web: z.number().int().describe('Open services that answered HTTP'), issues: z.number().int().describe('Open issues'),
+    worst: Severity.nullable().describe('The highest severity among open issues; null when none'),
+  }),
+})
+export const TargetTree = z.object({
+  items: z.array(TargetNode).describe('Every target in tree order: each node right after its parent, siblings by value'),
+  box_ip: BoxIpSettings, ignored: z.array(IgnoredIp).describe('The Ignored list, newest first'),
+  gateway: Gateway.nullable().describe('null unless one of the box\'s own IPs has an open service; then who probably answers it'),
+})
+
+export const HostSource = z.enum(['ct', 'dns', 'mx', 'ns', 'wordlist', 'person'])
+export const Host = z.object({
+  id: z.string(), name: z.string(),
+  source: HostSource.describe('Where the name was found: a certificate-transparency log, the domain\'s own records, its MX or NS records, the list of common names, or typed by a person'),
+  selected: z.boolean().describe('Chosen for scanning; read only when the node\'s scope_mode is selected'),
+  child: TargetRef.nullable().describe('The name is its own target: that target scans it and this node skips it'),
+  cname: z.string().nullable().describe('The final CNAME target; null when none'),
+  first_seen: z.iso.datetime(), last_seen: z.iso.datetime(),
+})
+export const Address = z.object({
+  host_id: z.string().nullable().describe('The name it belongs to; null for the address of an IP target'),
+  ip: z.string(), family: z.enum(['ipv4', 'ipv6']),
+  class: HostClass.describe('box: this box\'s own current IP; public: any other public address; private: never dialed'),
+  first_seen: z.iso.datetime(), last_seen: z.iso.datetime(),
+})
+export const ServiceIdent = z.enum(['probed', 'table', 'none'])
+export const Service = z.object({
+  id: z.string(), ip: z.string(), port: z.number().int(), proto: z.enum(['tcp', 'udp']),
+  name: z.string().describe('The service name: http, ssh, sip; "" when not identified'),
+  product: z.string(), version: z.string(), cpe: z.string().describe('"" when none'),
+  title: z.string().describe('The page title of a web service; "" when none'),
+  cert: z.object({ names: z.array(z.string()), issuer: z.string(), expires_at: z.iso.datetime() }).nullable().describe('The TLS certificate the service showed; null when none'),
+  is_web: z.boolean().describe('The service answered HTTP (directly or inside TLS), on any port'),
+  ident: ServiceIdent.describe('probed: a probe\'s answer named it; table: only the usual service of the port number; none: not identified'),
+  state: z.enum(['open', 'closed']).describe('closed: a later scan of the address no longer found it open'),
+  first_seen: z.iso.datetime(), last_seen: z.iso.datetime(),
+})
+
+export const IssueEngine = z.enum(['surface', 'nuclei', 'zap', 'openvas', 'match'])
+export const IssueState = z.enum(['open', 'gone', 'handled'])
+// The handled vocabulary of findings, in the same order: an issue is handled the way a finding is.
+export const Resolution = z.enum(['patched', 'mitigated', 'accepted', 'not_relevant', 'false_positive'])
+export const Issue = z.object({
+  id: z.string(), target_id: z.string(),
+  service_id: z.string().nullable().describe('The service it was found on; null when it is about the target as a whole'),
+  engine: IssueEngine, key: z.string().describe('The engine\'s own id: plugin, template, rule or CVE'),
+  title: z.string(), severity: Severity,
+  cves: z.array(z.string()),
+  detail: z.object({
+    description: z.string(), solution: z.string(),
+    evidence: z.array(z.string()).describe('Where it was seen: URLs or lines of the engine\'s output'),
+  }),
+  state: IssueState.describe('open; gone: the last scan no longer reported it; handled: a person decided (resolution)'),
+  resolution: Resolution.nullable().describe('Set only when state is handled'),
+  resolved_by: z.string().nullable(), resolved_at: z.iso.datetime().nullable(), note: z.string().nullable(),
+  accepted_until: z.iso.date().nullable().describe('resolution accepted only: the last day; the issue reopens after it'),
+  first_seen: z.iso.datetime(), last_seen: z.iso.datetime(),
+})
+export const MAX_ISSUE_IDS = 500
+const issueIds = z.array(z.string()).min(1).max(MAX_ISSUE_IDS)
+const BulkResult = z.object({ updated: z.number().int(), skipped: z.number().int().describe('Issues left as they were: not open (handle) or not handled (reopen)') })
+
 const id = z.object({ id: z.string() })
 const idEx = { params: { id: 'xt-1' } }
+const nodeEx = { params: { id: 'xt-11' } }
 
 export const endpoints = defineEndpoints([
   { method: 'get', path: '/exposure/targets', summary: 'Domains and verified public IPs with ownership status, expiry, commitment and latest result, plus the box-IP auto-detect settings', stories: ['S-EXP-1'], role: 'viewer', response: TargetList },
@@ -352,4 +497,20 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/exposure/targets/{id}/snapshots', summary: 'Scan days of a target, newest first', stories: ['S-EXP-1'], role: 'viewer', params: id, response: z.object({ items: z.array(SnapshotMeta) }), example: idEx },
   { method: 'get', path: '/exposure/targets/{id}/snapshots/{date}', summary: 'Scan result of one day', stories: ['S-EXP-1', 'S-EXP-2'], role: 'viewer', params: z.object({ id: z.string(), date: isoDate }), response: Snapshot, example: { params: { id: 'xt-1', date: day(1) } } },
   { method: 'get', path: '/exposure/targets/{id}/diff', summary: 'Compare two scan days: newly exposed, gone, changed', stories: ['S-EXP-1', 'S-EXP-2'], role: 'viewer', params: id, query: z.object({ from: isoDate, to: isoDate }), response: Diff, example: { params: { id: 'xt-1' }, query: { from: day(7), to: day(1) } } },
+  { method: 'get', path: '/exposure/tree', summary: 'Every target as a tree, with its proof (own or covered by an ancestor), consent, newest scan and counts, plus the box-IP settings, the Ignored list and the gateway', stories: ['S-EXP-1'], role: 'viewer', response: TargetTree },
+  { method: 'post', path: '/exposure/tree', status: 201, summary: 'Add a target: a domain, or a public IPv4 address typed in (kind left out: an IPv4 address is an IP, anything else a domain). A domain goes under the nearest domain target it is a name of, and targets that are names of it move under it in the same write; a name the parent already found becomes its own target there (Host.child). scope_mode is for domains only (default all; 400 bad_value for an IP). A typed IP is never scanned until proven. 409 duplicate, 400 bad_value, 400 ip_not_allowed for a private, reserved or IPv6 address', stories: ['S-EXP-1'], role: 'admin', body: z.object({ value: z.string(), kind: TargetKind.optional(), scope_mode: ScopeMode.optional() }), response: TargetNode },
+  { method: 'get', path: '/exposure/tree/{id}', summary: 'One target node', stories: ['S-EXP-1'], role: 'viewer', params: id, response: TargetNode, example: nodeEx },
+  { method: 'patch', path: '/exposure/tree/{id}', summary: 'Edit a target: scope_mode (domains only), enabled, and selected, the ids of the names to scan when the scope is selected (replaces the choice; 400 bad_value for an id of another node or with another scope). Audited', stories: ['S-EXP-1'], role: 'admin', params: id, body: z.object({ scope_mode: ScopeMode.optional(), enabled: z.boolean().optional(), selected: z.array(z.string()).max(1000).optional() }), response: TargetNode },
+  { method: 'delete', path: '/exposure/tree/{id}', summary: 'Delete a target with its rows, consent and runs. Its children move up to its parent (or the top) and keep their own options; a child that was covered by its proof needs its own. ignore=true (IPs only, else 400 bad_value) also puts the IP on the Ignored list. Audited', stories: ['S-EXP-1'], role: 'admin', params: id, query: z.object({ ignore: z.enum(['true', 'false']).optional() }), response: null },
+  { method: 'post', path: '/exposure/tree/{id}/verify', summary: 'Check ownership now: a domain\'s TXT record, a typed IP\'s file or reverse DNS name, or that the box still goes out through its own IP. A node covered by a proven ancestor is verified by that proof. Not found is a normal answer (verified false). 429 rate_limited as before', stories: ['S-EXP-1'], role: 'operator', params: id, response: z.object({ verified: z.boolean(), message: z.string(), node: TargetNode }) },
+  { method: 'put', path: '/exposure/tree/{id}/terms', summary: 'Accept the testing terms of a proven or covered node: its scans are then deep scans; disruptive adds the disruptive checks. Admin with two-step sign-in (403 twofa_required); 409 notice_changed when version is not terms_notice.version; 409 not_verified; 409 shared_address for disruptive behind carrier-grade NAT. Records the scan confirmation too when the node has none of the current sentence. Audited', stories: ['S-EXP-2'], role: 'admin', params: id, body: z.object({ version: z.string(), disruptive: z.boolean() }), response: TargetNode },
+  { method: 'delete', path: '/exposure/tree/{id}/terms', summary: 'Withdraw the testing terms: the next scan is a surface scan, and a deep scan of this node that runs now is stopped. Audited', stories: ['S-EXP-2'], role: 'admin', params: id, response: TargetNode },
+  { method: 'post', path: '/exposure/tree/{id}/scan', status: 202, summary: 'Scan now: queues a run for this node (202 with the scan, status queued or running). Refused when blocked: 409 disabled, 409 not_verified (the proof is re-checked right before), 400 commitment_required for an operator; an administrator\'s first Scan now records the confirmation and needs two-step sign-in (403 twofa_required) and notice_version (409 notice_changed when not current). 409 busy when a run of this node is queued or running. Stop it through the shared run', stories: ['S-EXP-1'], role: 'operator', params: id, body: z.object({ notice_version: z.string().optional() }), bodyOptional: true, response: Scan },
+  { method: 'get', path: '/exposure/tree/{id}/scans', summary: 'The runs of this node, newest first (at most 100)', stories: ['S-EXP-1'], role: 'viewer', params: id, response: z.object({ items: z.array(Scan) }), example: nodeEx },
+  { method: 'get', path: '/exposure/tree/{id}/hosts', summary: 'Names found under this domain node, with source, first and last seen, the choice for scope selected and the child target that owns a name; empty for an IP', stories: ['S-EXP-1'], role: 'viewer', params: id, response: z.object({ items: z.array(Host) }), example: nodeEx },
+  { method: 'get', path: '/exposure/tree/{id}/addresses', summary: 'Addresses of this node and of its names, with kind and first and last seen', stories: ['S-EXP-1'], role: 'viewer', params: id, response: z.object({ items: z.array(Address) }), example: nodeEx },
+  { method: 'get', path: '/exposure/tree/{id}/services', summary: 'Services found on this node\'s public addresses, open and closed, with first and last seen and whether they answered HTTP', stories: ['S-EXP-1', 'S-EXP-2'], role: 'viewer', params: id, response: z.object({ items: z.array(Service) }), example: nodeEx },
+  { method: 'get', path: '/exposure/tree/{id}/issues', summary: 'Issues every engine reported on this node, open, gone and handled, most severe first', stories: ['S-EXP-2'], role: 'viewer', params: id, response: z.object({ items: z.array(Issue) }), example: nodeEx },
+  { method: 'post', path: '/exposure/issues/handle', summary: 'Handle open issues (at most 500) with one resolution and note: patched, mitigated, accepted (with accepted_until, from tomorrow to 365 days ahead, else 400 bad_value), false_positive or not_relevant. One audit row per issue; issues not open are skipped', stories: ['S-EXP-2'], role: 'operator', body: z.object({ ids: issueIds, resolution: Resolution, note: z.string().max(500), accepted_until: z.iso.date().optional() }), response: BulkResult },
+  { method: 'post', path: '/exposure/issues/reopen', summary: 'Reopen handled issues (at most 500); the others are skipped. Audited', stories: ['S-EXP-2'], role: 'operator', body: z.object({ ids: issueIds }), response: BulkResult },
 ])

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	catalogdata "github.com/knt048/vedette/content/catalog"
+	"github.com/knt048/vedette/core/productid"
 )
 
 // Every row of network-os.json compiles, and names every CISA KEV product of its OS (kev-products.json): a new spelling CISA uses
@@ -39,7 +40,7 @@ func TestNetworkOS_DataIsValid(t *testing.T) {
 			t.Fatalf("%s: add the row to this test", d.Display)
 		}
 		for _, k := range kev {
-			key := KevKey(k.Vendor, k.Product)
+			key := productid.Key(k.Vendor, k.Product)
 			if !strings.EqualFold(k.Vendor, d.Vendor) || !m.re.MatchString(k.Product) || slices.Contains(m.not, key) {
 				continue
 			}

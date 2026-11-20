@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/knt048/vedette/core/observe"
+	"github.com/knt048/vedette/core/productid"
 	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/inventory"
 )
@@ -147,7 +148,7 @@ func matchedOS(a findings.Asset) string {
 		}
 	}
 	for _, r := range rows {
-		if r.Source != "manual" || !slices.Contains(osProducts, strings.ToLower(r.Vendor+"|"+r.Product)) {
+		if r.Source != "manual" || !slices.Contains(osProducts, productid.Key(r.Vendor, r.Product)) {
 			continue
 		}
 		if v := findings.OSVersion(r.Version); v != "" || a.AgentOS == "" && a.SNMPOS == "" {

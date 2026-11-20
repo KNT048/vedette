@@ -1,8 +1,6 @@
 -- +goose Up
--- Response tables (modules/response/CONTRACT.md "Tables owned", docs/DATA_MODEL.md 4.11). Forward-only: no Down section.
--- Only response.Service writes them. Differences from the DATA_MODEL text are listed in docs/DECISIONS.md D-88:
--- items and approvals of a request are JSON columns of resp_actions (as the mock stores them), resp_block_entries and
--- resp_events are added, resp_log is append-only at the database level too (triggers).
+-- The whole schema of the response module. It is edited in place until the first public release; docs/SCHEMA.sql
+-- shows the schema of every module together. Forward-only: there is no Down section.
 
 -- One row, key 1: the execution switch and the safety envelope (JSON of response.Settings). A missing row = the defaults,
 -- which keep the execution switch OFF (INV-7).
@@ -26,44 +24,7 @@ CREATE TABLE resp_plans (
     reads        TEXT NOT NULL CHECK (json_valid(reads)),
     steps        TEXT NOT NULL CHECK (json_valid(steps))
 );
-CREATE INDEX resp_plans_finding_ix ON resp_plans (finding_id);
 
--- One bundled request per rule run or AI proposal. items holds the actions with the checked values they were planned
--- with; approvals the people who approved. Statuses follow web/src/features/response/contract.ts.
-CREATE TABLE resp_actions (
-    seq                INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    id                 TEXT    NOT NULL UNIQUE CHECK (length(id) BETWEEN 1 AND 96),
-    source             TEXT    NOT NULL CHECK (source IN ('ai', 'rule')),
-    proposal_id        TEXT    NOT NULL,
-    rule_id            TEXT,
-    rule_name          TEXT,
-    trigger            TEXT,
-    trigger_summary    TEXT,
-    finding_id         TEXT,
-    cve                TEXT,
-    asset_id           TEXT,
-    asset_name         TEXT    NOT NULL,
-    title              TEXT    NOT NULL,
-    risk               TEXT    NOT NULL CHECK (risk IN ('low', 'medium', 'high')),
-    status             TEXT    NOT NULL CHECK (status IN ('pending', 'approved', 'rejected', 'expired', 'executed', 'failed', 'rolled_back')),
-    requested_at       TEXT    NOT NULL,
-    expires_at         TEXT    NOT NULL,
-    decided_at         TEXT,
-    requires_approvals INTEGER NOT NULL CHECK (requires_approvals IN (1, 2)),
-    two_because        TEXT,
-    approvals          TEXT    NOT NULL DEFAULT '[]' CHECK (json_valid(approvals)),
-    sent_to            TEXT    NOT NULL DEFAULT '[]' CHECK (json_valid(sent_to)),
-    note               TEXT,
-    pre_approved       BOOLEAN NOT NULL DEFAULT 0 CHECK (pre_approved IN (0, 1)),
-    ai                 TEXT    CHECK (ai IS NULL OR json_valid(ai)),
-    items              TEXT    NOT NULL CHECK (json_valid(items))
-);
-CREATE INDEX resp_actions_status_ix ON resp_actions (status, requested_at);
-CREATE INDEX resp_actions_proposal_ix ON resp_actions (proposal_id);
-CREATE INDEX resp_actions_rule_ix ON resp_actions (rule_id, requested_at);
-
--- The action catalog. Built-in rows come from modules/response/data/action-templates.json (the templates are data,
--- D-58) and are refreshed from it when the service starts; enabled, ai_may_propose and connection_id belong to the user.
 CREATE TABLE resp_catalog (
     id             TEXT    NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 96),
     builtin        BOOLEAN NOT NULL CHECK (builtin IN (0, 1)),
@@ -81,7 +42,7 @@ CREATE TABLE resp_catalog (
     enabled        BOOLEAN NOT NULL CHECK (enabled IN (0, 1)),
     ai_may_propose BOOLEAN NOT NULL CHECK (ai_may_propose IN (0, 1)),
     position       INTEGER NOT NULL
-);
+, precheck TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(precheck)), precheck_refuse TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(precheck_refuse) AND json_type(precheck_refuse) = 'array'), precheck_expect TEXT NOT NULL DEFAULT '' CHECK (length(precheck_expect) <= 80));
 
 CREATE TABLE resp_rules (
     seq          INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
@@ -129,18 +90,6 @@ CREATE TABLE resp_block_entries (
     expires_at TEXT,
     PRIMARY KEY (request_id, item_id)
 );
-CREATE INDEX resp_block_entries_value_ix ON resp_block_entries (value);
-
--- Approval links of part 13b (one-time tokens for email and Zalo OA). Created now so part 13b adds no table; part 1 never writes it.
-CREATE TABLE resp_tokens (
-    token_hash TEXT NOT NULL PRIMARY KEY CHECK (length(token_hash) = 64),
-    action_id  TEXT NOT NULL,
-    user_id    TEXT NOT NULL,
-    address    TEXT NOT NULL,
-    channel    TEXT NOT NULL,
-    expires_at TEXT NOT NULL,
-    used_at    TEXT
-);
 
 -- Which rule already handled which event (INV-11 dedupe of one run).
 CREATE TABLE resp_done (
@@ -162,6 +111,7 @@ CREATE TABLE resp_ai_notes (
     target     TEXT NOT NULL,
     evidence   TEXT NOT NULL CHECK (json_valid(evidence))
 );
+
 CREATE TABLE resp_hints (
     id           TEXT NOT NULL PRIMARY KEY,
     ts           TEXT NOT NULL,
@@ -185,10 +135,8 @@ CREATE TABLE resp_events (
     cve         TEXT,
     processed   BOOLEAN NOT NULL DEFAULT 0 CHECK (processed IN (0, 1))
 );
-CREATE INDEX resp_events_trigger_ix ON resp_events (trigger, ts DESC);
-CREATE INDEX resp_events_processed_ix ON resp_events (processed, seq);
 
--- The tamper-evident log (INV-19, D-48): append-only hash chain, one formula for every chain (core/chain).
+-- The tamper-evident log (INV-19): append-only hash chain, one formula for every chain (core/chain).
 CREATE TABLE resp_log (
     seq       INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     id        TEXT    NOT NULL UNIQUE CHECK (length(id) BETWEEN 1 AND 96),
@@ -199,6 +147,94 @@ CREATE TABLE resp_log (
     prev_hash TEXT    NOT NULL CHECK (length(prev_hash) = 64),
     hash      TEXT    NOT NULL CHECK (length(hash) = 64)
 );
+
+CREATE TABLE resp_tokens (
+    -- link: SHA-256 (hex) of the 16 byte token id inside the token v1.<id>.<mac>; code: the code hash of spec 7.1
+    token_hash TEXT NOT NULL PRIMARY KEY CHECK (length(token_hash) = 64),
+    kind       TEXT NOT NULL CHECK (kind IN ('link', 'code')),
+    -- code only: the decision the code stands for (an "A-" or an "R-" code); a link is decided on the page
+    decision   TEXT CHECK (decision IN ('approve', 'reject')),
+    action_id  TEXT NOT NULL,
+    user_id    TEXT NOT NULL,
+    address    TEXT NOT NULL,
+    channel    TEXT NOT NULL,
+    -- link only: the id of the key that signed it (notify names it)
+    key_id     TEXT,
+    expires_at TEXT NOT NULL,
+    used_at    TEXT,
+    CHECK ((kind = 'link' AND channel IN ('email', 'zalo') AND decision IS NULL AND key_id IS NOT NULL) OR (kind = 'code' AND channel = 'zalo-personal' AND decision IS NOT NULL AND key_id IS NULL))
+);
+
+-- An approver proves the address or ID an administrator typed for them on a notify channel. A proof counts
+-- only while the channel's list (and, for email, the sign-in email) still holds exactly this address. One proof per person and channel.
+CREATE TABLE resp_identity (
+    user_id   TEXT NOT NULL,
+    channel   TEXT NOT NULL CHECK (channel IN ('email', 'slack', 'telegram', 'zalo', 'zalo-personal')),
+    address   TEXT NOT NULL CHECK (length(address) BETWEEN 1 AND 320),
+    linked_at TEXT NOT NULL,
+    PRIMARY KEY (user_id, channel)
+);
+
+-- The link code waiting for a person and channel: only its hash (SHA-256 of a fixed label, the person, the channel, the address and the code).
+-- A new code replaces the old one; 5 wrong tries delete it.
+CREATE TABLE resp_link_codes (
+    user_id    TEXT NOT NULL,
+    channel    TEXT NOT NULL CHECK (channel IN ('email', 'slack', 'telegram', 'zalo', 'zalo-personal')),
+    address    TEXT NOT NULL CHECK (length(address) BETWEEN 1 AND 320),
+    code_hash  TEXT NOT NULL CHECK (length(code_hash) = 64),
+    expires_at TEXT NOT NULL,
+    sent_at    TEXT NOT NULL,
+    tries      INTEGER NOT NULL DEFAULT 0 CHECK (tries BETWEEN 0 AND 5),
+    PRIMARY KEY (user_id, channel)
+);
+
+CREATE TABLE "resp_actions" (
+    seq                INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    id                 TEXT    NOT NULL UNIQUE CHECK (length(id) BETWEEN 1 AND 96),
+    source             TEXT    NOT NULL CHECK (source IN ('ai', 'rule', 'person')),
+    proposal_id        TEXT    NOT NULL,
+    rule_id            TEXT,
+    rule_name          TEXT,
+    trigger            TEXT,
+    trigger_summary    TEXT,
+    finding_id         TEXT,
+    cve                TEXT,
+    asset_id           TEXT,
+    asset_name         TEXT    NOT NULL,
+    title              TEXT    NOT NULL,
+    risk               TEXT    NOT NULL CHECK (risk IN ('low', 'medium', 'high')),
+    status             TEXT    NOT NULL CHECK (status IN ('pending', 'approved', 'rejected', 'expired', 'executed', 'failed', 'rolled_back')),
+    requested_at       TEXT    NOT NULL,
+    expires_at         TEXT    NOT NULL,
+    decided_at         TEXT,
+    requires_approvals INTEGER NOT NULL CHECK (requires_approvals IN (1, 2)),
+    two_because        TEXT,
+    approvals          TEXT    NOT NULL DEFAULT '[]' CHECK (json_valid(approvals)),
+    sent_to            TEXT    NOT NULL DEFAULT '[]' CHECK (json_valid(sent_to)),
+    note               TEXT,
+    pre_approved       BOOLEAN NOT NULL DEFAULT 0 CHECK (pre_approved IN (0, 1)),
+    ai                 TEXT    CHECK (ai IS NULL OR json_valid(ai)),
+    items              TEXT    NOT NULL CHECK (json_valid(items))
+);
+
+CREATE INDEX resp_plans_finding_ix ON resp_plans (finding_id);
+
+CREATE INDEX resp_block_entries_value_ix ON resp_block_entries (value);
+
+CREATE INDEX resp_events_trigger_ix ON resp_events (trigger, ts DESC);
+
+CREATE INDEX resp_events_processed_ix ON resp_events (processed, seq);
+
+CREATE INDEX resp_tokens_action ON resp_tokens (action_id);
+
+-- the reply code of a sender is looked up by channel and address (13b-8)
+CREATE INDEX resp_tokens_code ON resp_tokens (channel, address) WHERE kind = 'code' AND used_at IS NULL;
+
+CREATE INDEX resp_actions_status_ix ON resp_actions (status, requested_at);
+
+CREATE INDEX resp_actions_proposal_ix ON resp_actions (proposal_id);
+
+CREATE INDEX resp_actions_rule_ix ON resp_actions (rule_id, requested_at);
 
 -- +goose StatementBegin
 CREATE TRIGGER resp_log_no_update BEFORE UPDATE ON resp_log
@@ -214,8 +250,6 @@ BEGIN
 END;
 -- +goose StatementEnd
 
--- INSERT OR REPLACE deletes the row it conflicts with without firing the delete trigger (recursive_triggers is off), so a
--- row that would replace another one is refused here as well: the log is append-only in every SQL form.
 -- +goose StatementBegin
 CREATE TRIGGER resp_log_no_replace BEFORE INSERT ON resp_log
 WHEN EXISTS (SELECT 1 FROM resp_log WHERE id = NEW.id OR seq = NEW.seq)

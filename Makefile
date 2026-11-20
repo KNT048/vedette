@@ -1,7 +1,7 @@
 # Vedette — lệnh chung. Máy: `make check` trước khi push; CI gọi đúng các đích ở đây.
 # Node ghim trong web/package.json (devEngines), pnpm tự tải đúng bản.
 # Go ghim trong go.mod (go tự tải toolchain); công cụ Go ghim trong tools/go.mod.
-.PHONY: images check-min-sequence host-deb host-deb-check sensor-image core-image honeypot-image honeypot-check syslog-ports-check scan-pack scan-base-image scan-image images-check brand dev-sensors dev-sensors-down dev-sensors-smoke help oui dev dev-api check check-fast verify node-version-check verify-web verify-web-pr verify-go verify-go-static test test-go test-go-shard test-go-release test-go-shards-check ci-changes ci-flaky contract lint lint-go vuln audit generate generate-sql generate-api generate-check openapi-check build web-release webui-dist webui-csp-check e2e e2e-real fixtures clean sbom vuln-scan notices-check
+.PHONY: schema images check-min-sequence host-deb host-deb-check sensor-image core-image honeypot-image honeypot-check syslog-ports-check scan-pack scan-base-image scan-image images-check brand dev-sensors dev-sensors-down dev-sensors-smoke help oui dev dev-api check check-fast verify node-version-check verify-web verify-web-pr verify-go verify-go-static test test-go test-go-shard test-go-release test-go-shards-check ci-changes ci-flaky contract lint lint-go vuln audit generate generate-sql generate-api generate-check openapi-check build web-release webui-dist webui-csp-check e2e e2e-real fixtures clean sbom vuln-scan notices-check
 
 GO_TOOL := go tool -modfile=tools/go.mod
 
@@ -45,6 +45,7 @@ help:
 	@echo "make verify-go     chỉ phần Go: build, vet, generate-check, test -race (gồm contract), golangci-lint, govulncheck"
 	@echo "make verify-go-static / test-go-shard SHARD=n / test-go-release   các phần của verify-go mà CI chạy song song"
 	@echo "make generate      sinh lại mã Go: sqlc (core/store/coredb) + ogen (core/api), commit kết quả"
+	@echo "make schema        ghi lại docs/SCHEMA.sql: schema của mọi module như một bản cài mới"
 	@echo "make contract      go test ./modules/... -run Contract"
 	@echo "make e2e           kiểm thử đầu-cuối bằng Playwright (Chromium)"
 	@echo "make e2e-real      the real backend (release GUI inside core) + Playwright, web/e2e-real/; SPECS=..., E2E_WORKERS=n, HOLD=1; heavy, not in CI or check"
@@ -131,6 +132,10 @@ verify-go-static:
 
 # Mọi mã sinh được commit: truy vấn sqlc (DATA_MODEL §6) + server ogen. Không sửa tay.
 generate: generate-sql generate-api
+
+# docs/SCHEMA.sql: the schema of every module as a fresh install makes it (a test fails when it is stale).
+schema:
+	VEDETTE_WRITE_SCHEMA=1 go test ./cmd/vedette -run '^TestSchemaFileIsCurrent$$' -count=1
 
 generate-sql:
 	$(GO_TOOL) sqlc generate

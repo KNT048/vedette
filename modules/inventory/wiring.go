@@ -12,6 +12,7 @@ import (
 
 	"github.com/knt048/vedette/content/devicetypes"
 	"github.com/knt048/vedette/core/orgtime"
+	"github.com/knt048/vedette/core/productid"
 )
 
 // This file is what other modules read and ask through their own ports (feeds.Inventory, findings.Inventory,
@@ -595,7 +596,7 @@ func (s *Service) AllDevices(ctx context.Context) ([]Device, error) {
 type ProductQuery struct{ Vendor, Product string }
 
 // Key is the matching key (lower(vendor)|lower(product)) of the pair.
-func (p ProductQuery) Key() string { return kevKey(p.Vendor, p.Product) }
+func (p ProductQuery) Key() string { return productid.Key(p.Vendor, p.Product) }
 
 // DeviceMatch is a device that runs a product (Exact) or may run it (a "Multiple products" entry that only
 // the vendor matches).
@@ -635,7 +636,7 @@ func (s *Service) DevicesRunning(ctx context.Context, products []ProductQuery) (
 		}
 		var byVendor []string
 		if multi {
-			prefix := vendor + "|"
+			prefix := productid.Key(p.Vendor, "")
 			byVendor, err = s.assetIDs(ctx, `SELECT DISTINCT s.asset_id FROM inv_software_kev k JOIN inv_software s ON s.id = k.software_id WHERE substr(k.kev_key, 1, ?) = ? AND `+liveSW+`
 				UNION SELECT id FROM inv_asset WHERE lower(vendor) = ?`, len(prefix), prefix, vendor)
 			if err != nil {
@@ -771,7 +772,7 @@ type ManualDevice struct {
 // data from the CISA list, not something a person typed. The events are kept until the caller calls Settle. It returns
 // the new device's id: feeds scopes "I have this" to that one device.
 func (s *Service) AddManualDevice(ctx context.Context, tx *sql.Tx, actor string, in ManualDevice) (string, error) {
-	if in.Key != kevKey(in.Vendor, in.Product) {
+	if in.Key != productid.Key(in.Vendor, in.Product) {
 		return "", badRequest("bad_product", "The product key does not match the vendor and product.")
 	}
 	c, err := s.Catalog(ctx)
@@ -923,11 +924,11 @@ func (s *Service) RematchMany(ctx context.Context, refs []KevRef) (int, error) {
 
 // devicesOf lists the devices with software keyed to vendor|product, or to any product of vendor for "Multiple products".
 func (s *Service) devicesOf(ctx context.Context, vendor, product string) ([]string, error) {
-	vendor, product = strings.ToLower(vendor), strings.ToLower(product)
-	prefix := vendor + "|"
-	multi := strings.TrimSpace(product) == multiProducts
+	prefix := productid.Key(vendor, "")
+	multi := strings.EqualFold(strings.TrimSpace(product), multiProducts)
 	return s.assetIDs(ctx, `SELECT DISTINCT s.asset_id FROM inv_software_kev k JOIN inv_software s ON s.id = k.software_id
-		WHERE k.kev_key = ? OR k.kev_key = ? OR (? = 1 AND substr(k.kev_key, 1, ?) = ?)`, prefix+product, prefix+multiProducts, boolInt(multi), len(prefix), prefix)
+		WHERE k.kev_key = ? OR k.kev_key = ? OR (? = 1 AND substr(k.kev_key, 1, ?) = ?)`, productid.Key(vendor, product), productid.Key(vendor, multiProducts),
+		boolInt(multi), len(prefix), prefix)
 }
 
 // RematchCVE announces inventory.match.changed for the devices that run the product of a CVE feeds has just

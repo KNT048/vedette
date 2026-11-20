@@ -1,9 +1,18 @@
 package feeds
 
 import (
+	"database/sql"
 	"maps"
 	"testing"
+
+	"github.com/knt048/vedette/core/store"
 )
+
+// execSQL runs one statement in a write transaction.
+func execSQL(t *testing.T, db *store.DB, q string) {
+	t.Helper()
+	write(t, db, func(tx *sql.Tx) error { _, err := tx.ExecContext(t.Context(), q); return err })
+}
 
 // The plan waits for a distribution only while a feed it reads has never completed a pull: a pull that completed is loaded even if it
 // stored no row, a feed the plan does not read (ubuntu-vex) never holds the distribution back, and a feed that keeps failing without

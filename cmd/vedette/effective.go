@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/knt048/vedette/core/productid"
 	"github.com/knt048/vedette/modules/inventory"
 )
 
@@ -25,16 +26,12 @@ func effectiveDevice(ctx context.Context, inv *inventory.Service, d inventory.De
 	}
 	kept, matched := map[string]bool{}, map[string]bool{}
 	for _, s := range m.Software {
-		kept[s.ID], matched[productOf(s.Vendor, s.Product)] = true, true
+		kept[s.ID], matched[productid.Key(s.Vendor, s.Product)] = true, true
 	}
 	d.Software = slices.DeleteFunc(slices.Clone(d.Software), func(s inventory.Software) bool {
-		return !kept[s.ID] && matched[productOf(s.Vendor, s.Product)]
+		return !kept[s.ID] && matched[productid.Key(s.Vendor, s.Product)]
 	})
 	return d
-}
-
-func productOf(vendor, product string) string {
-	return strings.ToLower(strings.TrimSpace(vendor)) + "|" + strings.ToLower(strings.TrimSpace(product))
 }
 
 // mayShareSoftware says two rows of the list may be one software: the same vendor in any case (inventory also joins rows by their

@@ -1,9 +1,7 @@
 -- +goose Up
--- External exposure (docs/DATA_MODEL.md 4.5, modules/exposure/CONTRACT.md). Forward-only (DATA_MODEL 6, rule 1).
+-- The whole schema of the exposure module. It is edited in place until the first public release; docs/SCHEMA.sql
+-- shows the schema of every module together. Forward-only: there is no Down section.
 
--- A domain (proved by a DNS TXT record) or a public IP (found by the box itself, never typed in: INV-2).
--- For an IP, verified_at is the last time the box saw it and the 30-day validity is derived from it (INV-4),
--- so there is no expires_at column to drift. The commitment (D-26) is two columns of the same row.
 CREATE TABLE exp_target (
     id            TEXT NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 96),
     kind          TEXT NOT NULL CHECK (kind IN ('domain', 'ip')),
@@ -17,11 +15,10 @@ CREATE TABLE exp_target (
     commitment_by TEXT CHECK (commitment_by IS NULL OR length(commitment_by) BETWEEN 1 AND 320),
     commitment_at TEXT CHECK (commitment_at IS NULL OR commitment_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
     created_at    TEXT NOT NULL CHECK (created_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    last_scan_at  TEXT CHECK (last_scan_at IS NULL OR last_scan_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    last_scan_at  TEXT CHECK (last_scan_at IS NULL OR last_scan_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'), commitment_version TEXT CHECK (commitment_version IS NULL OR (length(commitment_version) BETWEEN 1 AND 40 AND commitment_by IS NOT NULL)), commitment_sentence TEXT CHECK ((commitment_version IS NULL) = (commitment_sentence IS NULL) AND (commitment_sentence IS NULL OR length(commitment_sentence) BETWEEN 1 AND 1000)), commitment_user_id TEXT CHECK (commitment_user_id IS NULL OR (length(commitment_user_id) BETWEEN 1 AND 96 AND commitment_version IS NOT NULL)), commitment_method TEXT CHECK ((commitment_user_id IS NULL) = (commitment_method IS NULL) AND (commitment_method IS NULL OR commitment_method IN ('app', 'email', 'sso'))), terms_version TEXT, terms_by TEXT, terms_at TEXT, terms_text TEXT, terms_user_id TEXT, terms_method TEXT, terms_disruptive INTEGER NOT NULL DEFAULT 0 CHECK (terms_disruptive IN (0, 1)), typed INTEGER NOT NULL DEFAULT 0 CHECK (typed IN (0, 1) AND (typed = 0 OR kind = 'ip')), ip_token TEXT CHECK (ip_token IS NULL OR (typed = 1 AND length(ip_token) = 16)), proof_method TEXT CHECK (proof_method IS NULL OR (typed = 1 AND proof_method IN ('ip_file', 'ip_ptr'))), scan_every TEXT NOT NULL DEFAULT 'weekly' CHECK (scan_every IN ('off', 'daily', 'weekly', 'monthly')), sched_skip TEXT CHECK (sched_skip IS NULL OR length(sched_skip) BETWEEN 1 AND 1000), sched_skip_at TEXT CHECK ((sched_skip_at IS NULL) = (sched_skip IS NULL) AND (sched_skip_at IS NULL OR sched_skip_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')), sched_retry_at TEXT CHECK (sched_retry_at IS NULL OR (sched_skip IS NOT NULL AND sched_retry_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')),
     CHECK ((commitment_by IS NULL) = (commitment_at IS NULL))
 );
 
--- One result per target and day (INV-8). Gone with its target (INV-7); the audit log is not.
 CREATE TABLE exp_snapshot (
     id           TEXT NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 96),
     target_id    TEXT NOT NULL REFERENCES exp_target (id) ON DELETE CASCADE,
@@ -31,7 +28,7 @@ CREATE TABLE exp_snapshot (
     ports        TEXT NOT NULL CHECK (json_valid(ports) AND json_type(ports) = 'array'),
     admin_panels TEXT NOT NULL CHECK (json_valid(admin_panels) AND json_type(admin_panels) = 'array'),
     certs        TEXT NOT NULL CHECK (json_valid(certs) AND json_type(certs) = 'array'),
-    counts       TEXT NOT NULL CHECK (json_valid(counts) AND json_type(counts) = 'object'),
+    counts       TEXT NOT NULL CHECK (json_valid(counts) AND json_type(counts) = 'object'), services TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(services) AND json_type(services) = 'array'), checks TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(checks) AND json_type(checks) = 'array'), not_checked TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(not_checked) AND json_type(not_checked) = 'array'), web_findings TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(web_findings) AND json_type(web_findings) = 'array'), greenbone TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(greenbone) AND json_type(greenbone) = 'array'), scripts TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(scripts) AND json_type(scripts) = 'array'), greenbone_run TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(greenbone_run) AND json_type(greenbone_run) = 'object'), started_at TEXT CHECK (started_at IS NULL OR started_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'), finished_at TEXT CHECK (finished_at IS NULL OR finished_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
     UNIQUE (target_id, date)
 );
 
@@ -41,13 +38,6 @@ CREATE TABLE exp_attempt (
     ts TEXT    NOT NULL CHECK (ts GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')
 );
 
-CREATE INDEX exp_attempt_ts_idx ON exp_attempt (ts);
-
--- The auto-detect settings of the box (INV-11): one row, with the defaults of kien's decision of 2026-11-09
--- (on, every 60 minutes, 1 to 1440) and the follow-up of kien. last_run_* is the last detection, automatic or by a click;
--- last_deep_at is the last full check (several rounds), so that a short interval only does a full check once an hour.
--- last_full_ok_at is the last full check that got an answer (the services agreed): an IP not seen by it, and not seen since,
--- is shown as paused (INV-13). A failed check moves last_deep_at but never this column.
 CREATE TABLE exp_setting (
     id               INTEGER NOT NULL PRIMARY KEY CHECK (id = 1),
     auto             INTEGER NOT NULL DEFAULT 1 CHECK (auto IN (0, 1)),
@@ -56,8 +46,46 @@ CREATE TABLE exp_setting (
     last_run_ok      INTEGER CHECK (last_run_ok IS NULL OR last_run_ok IN (0, 1)),
     last_run_message TEXT CHECK (last_run_message IS NULL OR length(last_run_message) <= 1000),
     last_deep_at     TEXT CHECK (last_deep_at IS NULL OR last_deep_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    last_full_ok_at  TEXT CHECK (last_full_ok_at IS NULL OR last_full_ok_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    last_full_ok_at  TEXT CHECK (last_full_ok_at IS NULL OR last_full_ok_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'), greenbone INTEGER NOT NULL DEFAULT 0 CHECK (greenbone IN (0, 1)), greenbone_by TEXT, greenbone_at TEXT, greenbone_sync_at TEXT, greenbone_sync_ok INTEGER CHECK (greenbone_sync_ok IN (0, 1)), greenbone_sync_note TEXT,
     CHECK ((last_run_at IS NULL) = (last_run_ok IS NULL) AND (last_run_at IS NULL) = (last_run_message IS NULL))
 );
+
+-- The Ignored list (INV-14): public IPs a person removed and chose not to add again, for example the address of a
+-- security gateway, a VPN exit or a mobile backup line that the box sometimes uses but that is not the company's.
+-- The list only blocks: detection never adds these addresses and nothing scans them. Restoring one deletes its row, which
+-- lets detection add the address again; it never creates or approves a target. Forward-only (DATA_MODEL 6, rule 1).
+CREATE TABLE exp_ignored (
+    value      TEXT NOT NULL PRIMARY KEY CHECK (length(value) BETWEEN 7 AND 15 AND value GLOB '[0-9]*.[0-9]*.[0-9]*.[0-9]*' AND value NOT GLOB '*[^0-9.]*'),
+    ignored_by TEXT NOT NULL CHECK (length(ignored_by) BETWEEN 1 AND 320),
+    ignored_at TEXT NOT NULL CHECK (ignored_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')
+);
+
+-- What the Internet sees (INV-21): the last answer of Shodan InternetDB about one of the box's own public IPs, asked only
+-- when an administrator clicks. One row per target, replaced by the next check, gone with its target; the audit log keeps every
+-- request that was sent. answer is {ports, hostnames, cpes, tags, vulns}, already limited and checked when it was read (INV-10):
+-- it is Shodan's claim, never a finding of Vedette. Forward-only (DATA_MODEL 6, rule 1).
+CREATE TABLE exp_outside (
+    target_id  TEXT NOT NULL PRIMARY KEY REFERENCES exp_target (id) ON DELETE CASCADE,
+    ip         TEXT NOT NULL CHECK (length(ip) BETWEEN 7 AND 15 AND ip NOT GLOB '*[^0-9.]*'),
+    checked_at TEXT NOT NULL CHECK (checked_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    checked_by TEXT NOT NULL CHECK (length(checked_by) BETWEEN 1 AND 320),
+    found      INTEGER NOT NULL CHECK (found IN (0, 1)),
+    answer     TEXT NOT NULL CHECK (json_valid(answer) AND json_type(answer) = 'object')
+);
+
+-- #861 (INV-30): the newest external scan in which each engine step actually ran (nuclei's templates, ZAP's passive web scan,
+-- OpenVAS), with how it ended and a short text: Settings › Scanning's nuclei, zap and openvas cards read their last run here. A run
+-- that skipped the step leaves the row as it was; a scan of the same target later the same day replaces the snapshot, never this row.
+-- Deleting (or ignoring) the target deletes its rows. Forward-only (DATA_MODEL 6, rule 1).
+CREATE TABLE exp_engine_run (
+    engine  TEXT NOT NULL PRIMARY KEY CHECK (engine IN ('nuclei', 'zap', 'openvas')),
+    run_id  TEXT NOT NULL CHECK (length(run_id) BETWEEN 1 AND 96),
+    target  TEXT NOT NULL CHECK (length(target) BETWEEN 1 AND 253),
+    at      TEXT NOT NULL CHECK (at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    outcome TEXT NOT NULL CHECK (outcome IN ('ok', 'partial', 'failed', 'stopped')),
+    text    TEXT NOT NULL CHECK (length(text) BETWEEN 1 AND 300)
+);
+
+CREATE INDEX exp_attempt_ts_idx ON exp_attempt (ts);
 
 INSERT INTO exp_setting (id) VALUES (1);

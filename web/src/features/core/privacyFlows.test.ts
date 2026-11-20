@@ -71,6 +71,13 @@ describe('Settings → Privacy flows match PRIVACY.md', () => {
     const r = containerRows.get(id)!
     expect(flows[String(id)]!.container).toEqual({ what: plain(r[2]!), to: plain(r[3]!), control: plain(r[4]!) })
   })
+  it('the mirror-port paragraph is word for word on the page', () => {
+    const md = readFileSync(resolve(__dirname, '../../../../PRIVACY.md'), 'utf8').split('\n').find((l) => l.startsWith('**Mirror port traffic stays on the box.**'))
+    const note = (core as { privacy: { mirrorNote: { bodyInfo: string } } }).privacy.mirrorNote
+    expect(note.bodyInfo).toBe(plain(md!))
+    expect(note.bodyInfo).toContain('never the content of the traffic')
+    expect(note.bodyInfo).toContain('keeps only the matches')
+  })
   it('PRIVACY.md has container-only rows only for the flows the page swaps', () => expect([...containerRows.keys()]).toEqual([6, 10]))
   it.each([...rows.keys()])('flow %i names every host of its "Where to" cell', (id) => {
     const ui = `${flows[String(id)]!.what} ${(flows[String(id)]!.items ?? []).join(' ')} ${flows[String(id)]!.to}`

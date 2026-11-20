@@ -12,6 +12,7 @@ import (
 	"unicode/utf8"
 
 	catalogdata "github.com/knt048/vedette/content/catalog"
+	"github.com/knt048/vedette/core/productid"
 )
 
 // Catalog is the list of products a person can pick when declaring a device (INV-12): curated
@@ -75,10 +76,6 @@ type curatedRow struct {
 
 const otherCategory = "Other"
 
-func kevKey(vendor, product string) string {
-	return strings.ToLower(vendor) + "|" + strings.ToLower(product)
-}
-
 func slug(s string) string { return strings.ReplaceAll(fold(s), " ", "-") }
 
 // kindHints guess the type of a KEV product from its name; a wrong guess is fixed on the device page.
@@ -107,13 +104,13 @@ func NewCatalog(curatedJSON []byte, kev []KEVProduct) (*Catalog, error) {
 	}
 	c := &Catalog{byID: map[string]*catEntry{}, kevCount: map[string]int{}, kev: kev, byCPE: map[string][]string{}}
 	for _, r := range kev {
-		c.kevCount[kevKey(r.Vendor, r.Product)] = r.Count
+		c.kevCount[productid.Key(r.Vendor, r.Product)] = r.Count
 	}
 	for i, r := range rows {
 		if !validKind(r.Kind) {
 			return nil, fmt.Errorf("inventory: curated catalog: %q has kind %q", r.Display, r.Kind)
 		}
-		keys := c.keysFor(r.KevMatch, kevKey(r.Vendor, r.Product))
+		keys := c.keysFor(r.KevMatch, productid.Key(r.Vendor, r.Product))
 		for _, p := range r.CPE {
 			if _, dup := c.byCPE[p]; dup || strings.Count(p, ":") != 2 {
 				return nil, fmt.Errorf("inventory: curated catalog: %q has a duplicate or malformed cpe %q", r.Display, p)
@@ -131,7 +128,7 @@ func NewCatalog(curatedJSON []byte, kev []KEVProduct) (*Catalog, error) {
 	}
 	auto := map[string]*catEntry{}
 	for i, r := range kev {
-		key := kevKey(r.Vendor, r.Product)
+		key := productid.Key(r.Vendor, r.Product)
 		id := "kev:" + slug(r.Vendor) + ":" + slug(r.Product)
 		if dup, ok := auto[id]; ok { // two KEV rows that differ only in odd spacing are one product
 			dup.kev = append(dup.kev, key)
@@ -185,7 +182,7 @@ func (c *Catalog) keysFor(matches []string, fallback string) []string {
 		v, p, _ := strings.Cut(strings.ToLower(m), "|")
 		for _, r := range c.kev {
 			if strings.Contains(strings.ToLower(r.Vendor), v) && (p == "" || strings.Contains(strings.ToLower(r.Product), p)) {
-				if k := kevKey(r.Vendor, r.Product); !seen[k] {
+				if k := productid.Key(r.Vendor, r.Product); !seen[k] {
 					seen[k] = true
 					keys = append(keys, k)
 				}
@@ -462,9 +459,9 @@ func (c *Catalog) custom(vendor, product string) *catEntry {
 	var exact, byVendor []string
 	for _, r := range c.kev {
 		if fold(r.Vendor) == v {
-			byVendor = append(byVendor, kevKey(r.Vendor, r.Product))
+			byVendor = append(byVendor, productid.Key(r.Vendor, r.Product))
 			if fold(r.Product) == p {
-				exact = append(exact, kevKey(r.Vendor, r.Product))
+				exact = append(exact, productid.Key(r.Vendor, r.Product))
 			}
 		}
 	}
@@ -473,7 +470,7 @@ func (c *Catalog) custom(vendor, product string) *catEntry {
 		keys = byVendor
 	}
 	if len(keys) == 0 {
-		keys = []string{kevKey(vendor, product)}
+		keys = []string{productid.Key(vendor, product)}
 	}
 	return &catEntry{display: strings.TrimSpace(vendor + " " + product), category: otherCategory, hint: vendor + ", " + product, vendor: vendor, product: product,
 		kind: "unknown", kev: keys, kevCount: c.sum(keys), order: 9999}

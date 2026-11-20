@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/knt048/vedette/core/productid"
 )
 
 // Contract tests for modules/findings/CONTRACT.md. The pure-library ones are here; the ones that need
@@ -113,7 +115,7 @@ func TestContract_INV4_KeyAndRanges(t *testing.T) {
 	t.Parallel()
 	af := Affected{CPE: qnapCPE, Range: VersionRange{StartIncl: "6.0", EndExcl: "6.1.2"}}
 	// key is vendorproject|product, lower case, trimmed
-	if KevKey(" QNAP", "Photo Station ") != "qnap|photo station" {
+	if productid.Key(" QNAP", "Photo Station ") != "qnap|photo station" {
 		t.Error("KevKey")
 	}
 	// multiple products are keyed by vendor, but only an NVD entry naming the software gives a finding

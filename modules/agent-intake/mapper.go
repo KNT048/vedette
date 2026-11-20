@@ -2,9 +2,6 @@ package agentintake
 
 import (
 	"cmp"
-	_ "embed"
-	"encoding/json"
-	"maps"
 	"regexp"
 	"slices"
 	"strconv"
@@ -14,65 +11,27 @@ import (
 	"github.com/knt048/vedette/core/apkver"
 	"github.com/knt048/vedette/core/debver"
 	"github.com/knt048/vedette/core/observe"
+	"github.com/knt048/vedette/core/productid"
 	"github.com/knt048/vedette/core/winrel"
 )
 
-// Package names → KEV keys. osquery gives package names, not vendors, and the inventory matches KEV by
-// lower(vendor)|lower(product): pkgmap.json is the explicit table from deb/rpm package or source names and Windows display names to the
-// vendor and product the catalog knows. It is never guessed; a test checks every pair against the catalog. A package not in the table
-// keeps its own name for vendor and product (the Windows publisher when there is one) and so matches nothing.
-// ponytail: about 100 entries, grown by test; upgrade path: a bigger table.
+// Package and program names → products. osquery gives package names, not vendors, and the inventory matches the exploited lists by
+// lower(vendor)|lower(product): core/productid's catalogue (content/catalog/products) is the explicit table from deb/rpm/apk package or
+// source names and Windows display names (and name patterns) to the product, its exploited-list keys and the release a name states.
+// It is never guessed. A package the catalogue does not name keeps its own name for vendor and product (the Windows publisher when
+// there is one) and so matches nothing.
 
-//go:embed pkgmap.json
-var pkgmapJSON []byte
-
-type pkgPair struct {
-	Vendor  string `json:"vendor"`
-	Product string `json:"product"`
-	// Upstream: the vendor's own package from its repository (google-chrome-stable, microsoft-edge-stable), whose version is the
-	// product's own release, not a distribution's build with backported fixes. Its row is not Packaged, so findings compares it with
-	// NVD's ranges instead of waiting for the distribution's word (#910, review r1 (4) of #913).
-	Upstream bool `json:"upstream,omitempty"`
-}
-
-type pkgPrefix struct {
-	Prefix  string `json:"prefix"`
-	Vendor  string `json:"vendor"`
-	Product string `json:"product"`
-}
-
-type pkgTable struct {
-	Exact  map[string]pkgPair `json:"exact"`
-	Prefix []pkgPrefix        `json:"prefix"`
-}
-
-type pkgMap struct {
-	Linux   pkgTable `json:"linux"`
-	Windows pkgTable `json:"windows"`
-}
-
-var pkgmap = mustPkgmap(pkgmapJSON)
-
-func mustPkgmap(b []byte) pkgMap {
-	var m pkgMap
-	if err := json.Unmarshal(b, &m); err != nil {
-		panic("agentintake: pkgmap.json: " + err.Error()) // embedded; a test loads it too
-	}
-	return m
-}
-
-// lookup finds the pair of a lower-case name: exact first, then the longest listed prefix.
-func (t pkgTable) lookup(name string) (pkgPair, bool) {
-	if p, ok := t.Exact[name]; ok {
-		return p, true
-	}
-	best, bestLen := pkgPair{}, 0
-	for _, p := range t.Prefix {
-		if len(p.Prefix) > bestLen && strings.HasPrefix(name, p.Prefix) {
-			best, bestLen = pkgPair{Vendor: p.Vendor, Product: p.Product}, len(p.Prefix)
+// linuxProduct is the product of a package: its own name first, then its source package's.
+func linuxProduct(names ...string) (productid.Product, bool) {
+	for _, n := range names {
+		if n == "" {
+			continue
+		}
+		if p, ok := productid.Resolve(productid.Linux, n, "", ""); ok {
+			return p, true
 		}
 	}
-	return best, bestLen > 0
+	return productid.Product{}, false
 }
 
 const maxKeyBytes = 400 // inventory: a match key is at most 400 bytes
@@ -94,7 +53,7 @@ func debUpstream(v string) string {
 // mapPackages turns the package snapshots of one request into the software list of the device. Rows whose name or version does not fit
 // the inventory's limits are dropped, and the count is returned. One list per device: the deb, rpm and programs rows are joined (a
 // host has one of them), the same product and version once. deb and rpm rows are Packaged (the distribution's package database),
-// programs rows are not, nor a vendor's own package pkgmap marks upstream (google-chrome-stable: its version is Chrome's). At most limit rows are kept; the rows past it are dropped and counted.
+// programs rows are not, nor a vendor's own package the catalogue marks upstream (google-chrome-stable: its version is Chrome's). At most limit rows are kept; the rows past it are dropped and counted.
 //
 // A deb row also carries its full Debian version and source package. Binaries of one source that map to the same
 // product and upstream version are one row; when they differ in the full version (openssh-client upgraded,
@@ -111,7 +70,7 @@ func debUpstream(v string) string {
 // (windowsRow), first in the list so a list cut at limit keeps it.
 func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, dropped int) {
 	seen := map[string]int{} // key -> index in items
-	add := func(display, vendor, product, version string, mapped, packaged bool, pkgVersion, pkgSource string, conf float64) {
+	add := func(display, vendor, product, version string, kev []string, packaged bool, pkgVersion, pkgSource string, conf float64) {
 		if !debver.Valid(pkgVersion) && !apkver.Valid(pkgVersion) || pkgSource == "" {
 			pkgVersion, pkgSource = "", ""
 		}
@@ -141,8 +100,8 @@ func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, d
 		seen[k] = len(items)
 		s := observe.Software{Display: display, Vendor: vendor, Product: product, Version: version, Confidence: conf, Packaged: packaged,
 			PkgVersion: pkgVersion, PkgSource: pkgSource}
-		if mapped {
-			s.KevKeys = []string{strings.ToLower(vendor) + "|" + strings.ToLower(product)}
+		if len(kev) > 0 {
+			s.KevKeys = slices.Clone(kev)
 		}
 		items = append(items, s)
 	}
@@ -154,10 +113,7 @@ func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, d
 	running := runningImages(snaps["deb_packages"])
 	for _, r := range snaps["deb_packages"] {
 		name := r["name"]
-		p, ok := pkgmap.Linux.lookup(strings.ToLower(name))
-		if !ok {
-			p, ok = pkgmap.Linux.lookup(strings.ToLower(sourceName(r["source"])))
-		}
+		p, ok := linuxProduct(name, sourceName(r["source"]))
 		version := debUpstream(r["version"])
 		src := strings.ToLower(cmp.Or(sourceName(r["source"]), name)) // dpkg leaves Source out when it equals the package name
 		full := r["version"]
@@ -171,20 +127,20 @@ func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, d
 		}
 		switch {
 		case ok && p.Upstream:
-			add(p.Product, p.Vendor, p.Product, version, true, false, "", "", softwareConfidence)
+			add(p.Product, p.Vendor, p.Product, version, p.KEV, false, "", "", softwareConfidence)
 		case ok:
-			add(p.Product, p.Vendor, p.Product, version, true, true, full, src, softwareConfidence)
+			add(p.Product, p.Vendor, p.Product, version, p.KEV, true, full, src, softwareConfidence)
 		default:
-			add(name, name, name, version, false, true, full, src, softwareConfidence)
+			add(name, name, name, version, nil, true, full, src, softwareConfidence)
 		}
 	}
 	for _, r := range snaps["rpm_packages"] {
 		name := r["name"]
-		p, ok := pkgmap.Linux.lookup(strings.ToLower(name))
+		p, ok := linuxProduct(name)
 		if ok {
-			add(p.Product, p.Vendor, p.Product, r["version"], true, !p.Upstream, "", "", softwareConfidence)
+			add(p.Product, p.Vendor, p.Product, r["version"], p.KEV, !p.Upstream, "", "", softwareConfidence)
 		} else {
-			add(name, name, name, r["version"], false, true, "", "", softwareConfidence)
+			add(name, name, name, r["version"], nil, true, "", "", softwareConfidence)
 		}
 	}
 	for _, r := range snaps["apk_packages"] {
@@ -196,17 +152,14 @@ func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, d
 		if !apkNameRE.MatchString(origin) {
 			origin = name
 		}
-		p, ok := pkgmap.Linux.lookup(strings.ToLower(name))
-		if !ok {
-			p, ok = pkgmap.Linux.lookup(strings.ToLower(origin))
-		}
+		p, ok := linuxProduct(name, origin)
 		switch {
 		case ok && p.Upstream:
-			add(p.Product, p.Vendor, p.Product, upstream, true, false, "", "", softwareConfidence)
+			add(p.Product, p.Vendor, p.Product, upstream, p.KEV, false, "", "", softwareConfidence)
 		case ok:
-			add(p.Product, p.Vendor, p.Product, upstream, true, true, r["version"], origin, softwareConfidence)
+			add(p.Product, p.Vendor, p.Product, upstream, p.KEV, true, r["version"], origin, softwareConfidence)
 		default:
-			add(name, name, name, upstream, false, true, r["version"], origin, softwareConfidence)
+			add(name, name, name, upstream, nil, true, r["version"], origin, softwareConfidence)
 		}
 	}
 	for _, r := range snaps["pacman_packages"] {
@@ -217,10 +170,10 @@ func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, d
 			dropped++
 			continue
 		}
-		if p, ok := pkgmap.Linux.lookup(strings.ToLower(name)); ok {
-			add(p.Product, p.Vendor, p.Product, version, true, false, "", "", softwareConfidence)
+		if p, ok := linuxProduct(name); ok {
+			add(p.Product, p.Vendor, p.Product, version, p.KEV, false, "", "", softwareConfidence)
 		} else {
-			add(name, name, name, version, false, false, "", "", softwareConfidence)
+			add(name, name, name, version, nil, false, "", "", softwareConfidence)
 		}
 	}
 	sql := sqlServerVersions(snaps["programs"])
@@ -233,17 +186,20 @@ func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, d
 		if v, ok := sql[rel]; ok && umbrella && version == "" {
 			version, conf = v.version, v.confidence
 		}
-		p, ok := pkgmap.Windows.lookup(strings.ToLower(name))
+		p, ok := productid.Resolve(productid.Windows, name, r["publisher"], "")
 		if ok && !umbrella && sql.authoritative(name, p) {
 			ok = false // a component of a release whose own version the setup registry gave: its version is not the release's
 		}
 		switch {
 		case ok:
-			add(name, p.Vendor, p.Product, version, true, false, "", "", conf)
+			if p.Version != "" || p.VersionNotOwn {
+				version = p.Version // the release the name states ("Eclipse Temurin JDK with Hotspot 21.0.7+6": 21.0.7, not 21.0.7.6)
+			}
+			add(name, p.Vendor, p.Product, version, p.KEV, false, "", "", conf)
 		case r["publisher"] != "":
-			add(name, r["publisher"], name, version, false, false, "", "", conf)
+			add(name, r["publisher"], name, version, nil, false, "", "", conf)
 		default:
-			add(name, name, name, version, false, false, "", "", conf)
+			add(name, name, name, version, nil, false, "", "", conf)
 		}
 	}
 	return items, dropped
@@ -465,26 +421,13 @@ func windowsRow(w winOS) (observe.Software, bool) {
 		KevKeys: []string{"microsoft|windows"}, Confidence: softwareConfidence}, true
 }
 
-// KnownSoftware is every software row the mapper gives a KEV key (#910, findings' KEV reachability audit): one per pkgmap pair, Linux
-// and Windows, exact and prefix, as mapPackages makes a mapped row (no version, not Packaged: the audit reads the product, not a
+// KnownSoftware is every software row the mapper gives a KEV key (#910, findings' KEV reachability audit): one per product of the catalogue an agent's
+// package or program name maps to, as mapPackages makes a mapped row (no version, not Packaged: the audit reads the product, not a
 // distribution's build), and the operating-system row windowsRow makes for every release core/winrel lists (at update revision 1).
 func KnownSoftware() []observe.Software {
 	var out []observe.Software
-	seen := map[string]bool{}
-	pair := func(vendor, product string) {
-		k := strings.ToLower(vendor) + "|" + strings.ToLower(product)
-		if !seen[k] {
-			seen[k] = true
-			out = append(out, observe.Software{Display: product, Vendor: vendor, Product: product, KevKeys: []string{k}, Confidence: softwareConfidence})
-		}
-	}
-	for _, t := range []pkgTable{pkgmap.Linux, pkgmap.Windows} {
-		for _, name := range slices.Sorted(maps.Keys(t.Exact)) {
-			pair(t.Exact[name].Vendor, t.Exact[name].Product)
-		}
-		for _, p := range t.Prefix {
-			pair(p.Vendor, p.Product)
-		}
+	for _, p := range productid.AgentProducts() {
+		out = append(out, observe.Software{Display: p.Product, Vendor: p.Vendor, Product: p.Product, KevKeys: slices.Clone(p.KEV), Confidence: softwareConfidence})
 	}
 	for _, r := range winrel.Releases() {
 		name := "Microsoft " + r.Display

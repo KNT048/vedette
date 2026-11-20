@@ -12,6 +12,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/jobs"
+	"github.com/knt048/vedette/core/productid"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/ai"
 	"github.com/knt048/vedette/modules/ai/provider"
@@ -183,7 +184,7 @@ func (a reportsKEV) Entries(ctx context.Context) ([]reports.KEVEntry, time.Time,
 		if err != nil {
 			continue // a row with an odd date is not counted in any week
 		}
-		out = append(out, reports.KEVEntry{CVE: v.CVE, Vendor: v.Vendor, Product: v.Product, Display: feeds.DisplayOf(v.Vendor, v.Product), Key: feeds.ProductKey(v.Vendor, v.Product), DateAdded: day})
+		out = append(out, reports.KEVEntry{CVE: v.CVE, Vendor: v.Vendor, Product: v.Product, Display: feeds.DisplayOf(v.Vendor, v.Product), Key: productid.Key(v.Vendor, v.Product), DateAdded: day})
 	}
 	at, err := st.KevPulledAt(ctx)
 	return out, at, err

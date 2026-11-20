@@ -14,6 +14,8 @@ import DevicePanel from './DevicePanel'
 import TrapIpsTab from './TrapIps'
 import { feature } from './index'
 
+const addToken = async () => userEvent.click(await screen.findByRole('button', { name: 'Add a token' }))
+
 // Respond opens the response module, which this build does not offer; this file runs it as offered, and
 // features/core/v1Scope.test.tsx runs the build's own view.
 const postV1 = vi.hoisted(() => ({ POST_V1_IN_UI: true }))
@@ -332,6 +334,7 @@ describe('honeypot: S-HP-2 suggestions, tokens, respond, coverage', () => {
 
   it('admin creates a URL token and a test trigger updates last triggered', async () => {
     renderApp('/honeypot?tab=tokens')
+    await addToken()
     await userEvent.selectOptions(await screen.findByLabelText('Token type'), 'url')
     await userEvent.type(screen.getByLabelText('Label'), 'Wiki admin link')
     await userEvent.type(screen.getByLabelText('Where will you plant it?'), 'Intranet wiki')
@@ -349,6 +352,7 @@ describe('honeypot: Trap IP and honey token form matrix', () => {
   it('honey token: each type has its own name label, hints and file type; switching drops the name and place typed for the previous type', async () => {
     renderApp('/honeypot?tab=tokens')
     await screen.findByRole('list', { name: 'Honey tokens' })
+    await addToken()
     const FILE = 'File type'
     const form = formOf('Token type')
     await eachOption([
@@ -373,6 +377,7 @@ describe('honeypot: Trap IP and honey token form matrix', () => {
     const list = await screen.findByRole('list', { name: 'Honey tokens' })
     // an older DNS token still lists, saying it cannot alert
     expect(within(within(list).getByText('Backup script host').closest('li')!).getByText('Cannot alert')).toBeInTheDocument()
+    await addToken()
     const form = formOf('Start from')
     const field = (label: string) => within(form).getByLabelText(label)
     const year = new Date().getFullYear()
@@ -405,12 +410,13 @@ describe('honeypot: Trap IP and honey token form matrix', () => {
     await pick('Start from')('Payroll spreadsheet (.xlsx)')
     await userEvent.click(within(form).getByRole('button', { name: 'Create token' }))
     expect(await screen.findByRole('button', { name: `Test token Payroll-${year}` })).toBeInTheDocument()
-    expect(field('Start from')).toHaveValue('custom')
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull()) // saved: the dialog closes and the list stays
   })
 
   it('a credential preset shows the bait account the box made (svc_ and six letters), not its label', async () => {
     renderApp('/honeypot?tab=tokens')
     await screen.findByRole('list', { name: 'Honey tokens' })
+    await addToken()
     await pick('Start from')('Old admin account (decoy)')
     expect(screen.getByLabelText('Label')).toHaveValue('Old admin account')
     await userEvent.click(screen.getByRole('button', { name: 'Create token' }))
@@ -423,12 +429,14 @@ describe('honeypot: Trap IP and honey token form matrix', () => {
     const year = new Date().getFullYear()
     const { unmount } = renderApp('/honeypot?tab=tokens')
     await screen.findByRole('list', { name: 'Honey tokens' })
+    await addToken()
     expect(screen.getByLabelText('Start from')).toHaveValue('payroll')
     await userEvent.click(screen.getByRole('button', { name: 'Create token' }))
     await screen.findByRole('button', { name: `Test token Payroll-${year}` })
     unmount()
     renderApp('/honeypot?tab=tokens')
     await screen.findByRole('button', { name: `Test token Payroll-${year}` })
+    await addToken()
     expect(screen.getByLabelText('Start from')).toHaveValue('passwords')
     expect(within(formOf('Start from')).getByLabelText('File name')).toHaveValue('Passwords')
   })

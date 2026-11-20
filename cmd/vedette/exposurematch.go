@@ -2,14 +2,13 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"slices"
 	"strings"
 	"time"
 
-	catalogdata "github.com/knt048/vedette/content/catalog"
 	"github.com/knt048/vedette/core/orgtime"
+	"github.com/knt048/vedette/core/productid"
 	"github.com/knt048/vedette/modules/exposure"
 	"github.com/knt048/vedette/modules/findings"
 )
@@ -56,7 +55,7 @@ func (m exposureMatcher) Match(ctx context.Context, svcs []exposure.ServiceRow) 
 	if m.catalog != nil {
 		lookup, listed = m.catalog(ctx), map[string]bool{}
 		for _, v := range vulns {
-			listed[findings.KevKey(v.Vendor, v.Product)] = true
+			listed[productid.Key(v.Vendor, v.Product)] = true
 		}
 	}
 	out := exposure.Matches{Vulns: []exposure.VulnRow{}, Gaps: []exposure.GapRow{}, Listed: len(vulns)}
@@ -70,7 +69,7 @@ func (m exposureMatcher) Match(ctx context.Context, svcs []exposure.ServiceRow) 
 		}
 		base := cpeBase(cpe)
 		keys := byCPE[base]
-		for _, alt := range nmapAliases[base] { // nmap's old vendor name (igor_sysoev:nginx) for the product NVD lists (f5:nginx)
+		for _, alt := range productid.NmapAliases(base) { // nmap's old vendor name (igor_sysoev:nginx) for the product NVD lists (f5:nginx)
 			if len(keys) > 0 {
 				break
 			}
@@ -176,30 +175,11 @@ func kevRow(row *exposure.VulnRow, v findings.Vuln) {
 	}
 }
 
-// nmapAliases is content/catalog/nmap-cpe.json: "part:vendor:product" of a CPE nmap prints to the NVD names of the same software.
-var nmapAliases = mustNmapAliases(catalogdata.NmapCPE)
-
-func mustNmapAliases(data []byte) map[string][]string {
-	var rows map[string]json.RawMessage
-	out := map[string][]string{}
-	if err := json.Unmarshal(data, &rows); err != nil {
-		return out // TestNmapAliases_DataIsValid fails on it; the matcher only loses aliases
-	}
-	for k, raw := range rows {
-		var l []string
-		if k == "_about" || json.Unmarshal(raw, &l) != nil {
-			continue
-		}
-		out[k] = l
-	}
-	return out
-}
-
 // kevKeysByCPE maps "part:vendor:product" of every CPE an NVD configuration of a KEV entry names to the KEV keys of those entries.
 func kevKeysByCPE(vulns []findings.Vuln) map[string][]string {
 	out := map[string][]string{}
 	for _, v := range vulns {
-		key := findings.KevKey(v.Vendor, v.Product)
+		key := productid.Key(v.Vendor, v.Product)
 		for _, a := range v.Affected {
 			base := cpeBase(a.CPE)
 			if base == "" {

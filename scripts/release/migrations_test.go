@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/knt048/vedette/core/store"
 )
 
 func up(body string) []byte {
@@ -219,37 +221,67 @@ func TestDirTreeReadsOnlyMigrationFiles(t *testing.T) {
 	}
 }
 
-// The repository's own migrations: the guard parses every one and flags the one real history has that is not add-only
-// (response 0003 drops a table), so it has teeth on real input, not only on fixtures.
+// The repository's own migrations: the guard reads every one and the epoch file, and it parses them all (no reason is about
+// the text itself); on real input it still has teeth: the FTS5 table of the ai baseline is flagged, a plain table is not.
 func TestGuardOnTheRealMigrations(t *testing.T) {
 	t.Parallel()
 	cur, err := DirTree(os.DirFS("../.."))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cur.Count() < 30 {
+	if cur.Count() < 15 {
 		t.Fatalf("found only %d migrations; is the path right?", cur.Count())
+	}
+	if got := cur.Epoch(); got != int(store.SchemaEpoch) {
+		t.Fatalf("epoch %d read from %s, the store says %d", got, EpochPath, store.SchemaEpoch)
 	}
 	bad := map[string]bool{}
 	for p, b := range cur {
-		if r := classifyUp(b); len(r) > 0 {
+		if p == EpochPath {
+			continue
+		}
+		for _, r := range classifyUp(b) {
 			bad[p] = true
+			for _, parse := range []string{"never ends", "directive", "StatementBegin", "StatementEnd", "Up section", "before the -- +goose Up"} {
+				if strings.Contains(r, parse) {
+					t.Errorf("%s: the guard could not read it: %s", p, r)
+				}
+			}
 		}
 	}
-	if !bad["modules/response/migrations/sqlite/0003_response_tokens.sql"] {
-		t.Error("DROP TABLE resp_tokens was not flagged")
+	if !bad["modules/ai/migrations/sqlite/0001_ai.sql"] {
+		t.Error("CREATE VIRTUAL TABLE of the ai baseline was not flagged")
 	}
-	// ADD COLUMN with a CHECK is not add-only (M3): these two are flagged even though they only add a column.
-	for _, p := range []string{"modules/honeypot/migrations/sqlite/0002_hit_count.sql", "modules/core/migrations/sqlite/0009_core_user_temp_password.sql"} {
-		if !bad[p] {
-			t.Errorf("%s adds a column with a CHECK and must be flagged", p)
+	if bad["modules/mcp-server/migrations/sqlite/0001_mcp_server.sql"] {
+		t.Error("the mcp-server baseline creates one plain table and was flagged")
+	}
+}
+
+// A release that starts a new schema epoch is never add-only, whatever its files; an epoch that goes down is refused too.
+func TestCheckMigrationsAcrossEpochs(t *testing.T) {
+	t.Parallel()
+	p1, b1 := mig("0001_a.sql", "a", "CREATE TABLE a (id INT);")
+	p2, b2 := mig("0002_a.sql", "a", "ALTER TABLE a ADD COLUMN x INT;")
+	epoch := func(n string, kv ...any) Tree { t := tree(kv...); t[EpochPath] = []byte(n + "\n"); return t }
+	cases := []struct {
+		name      string
+		prev, cur Tree
+		want      string
+	}{
+		{"same epoch, add-only", epoch("2", p1, b1), epoch("2", p1, b1, p2, b2), ""},
+		{"no file is epoch 1", tree(p1, b1), epoch("1", p1, b1, p2, b2), ""},
+		{"a new epoch", tree(p1, b1, p2, b2), epoch("2", "modules/a/migrations/sqlite/0001_all.sql", up("CREATE TABLE a (id INT, x INT);")), "epoch went up from 1 to 2"},
+		{"the epoch went down", epoch("3", p1, b1), epoch("2", p1, b1), "went down from 3 to 2"},
+		{"not a number", tree(p1, b1), epoch("two", p1, b1), "does not hold"},
+	}
+	for _, c := range cases {
+		got := CheckMigrations(c.prev, c.cur)
+		joined := ""
+		for _, f := range got {
+			joined += f.String() + "\n"
 		}
-	}
-	// A seed into a new table, a trigger and expression indexes on new tables, a plain table: add-only.
-	for _, p := range []string{"modules/logs/migrations/volume/0002_logs_volume_bytes.sql", "modules/inventory/migrations/sqlite/0001_inventory.sql",
-		"modules/core/migrations/sqlite/0004_core_chain_head.sql", "modules/exposure/migrations/sqlite/0001_exposure.sql"} {
-		if bad[p] {
-			t.Errorf("%s is add-only and was flagged", p)
+		if c.want == "" && len(got) != 0 || c.want != "" && (len(got) != 1 || !strings.Contains(joined, c.want)) {
+			t.Errorf("%s: want %q, got %q", c.name, c.want, joined)
 		}
 	}
 }

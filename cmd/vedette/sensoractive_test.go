@@ -16,6 +16,7 @@ import (
 
 	"github.com/knt048/vedette/core/exec/exectest"
 	"github.com/knt048/vedette/core/observe"
+	"github.com/knt048/vedette/core/productid"
 	"github.com/knt048/vedette/modules/inventory"
 	sensoractive "github.com/knt048/vedette/modules/sensor-active"
 	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
@@ -189,7 +190,7 @@ func TestSensorActiveScansADiscoveredDevice(t *testing.T) {
 		if sw.Version != nil {
 			v = *sw.Version
 		}
-		found[sw.Vendor+"|"+sw.Product] = v
+		found[productid.Key(sw.Vendor, sw.Product)] = v
 	}
 	if found["openbsd|openssh"] != "8.9p1" || found["apache|http server"] != "2.4.52" {
 		t.Fatalf("software = %v", found)

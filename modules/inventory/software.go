@@ -12,6 +12,7 @@ import (
 	"github.com/knt048/vedette/core/apkver"
 	"github.com/knt048/vedette/core/debver"
 	"github.com/knt048/vedette/core/observe"
+	"github.com/knt048/vedette/core/productid"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -97,7 +98,7 @@ func checkItem(i int, it SoftwareItem) (SoftwareItem, error) {
 			}
 		}
 		if len(keys) == 0 {
-			keys = []string{kevKey(it.Vendor, it.Product)}
+			keys = []string{productid.Key(it.Vendor, it.Product)}
 		}
 		if it.Guess { // a guess is never matched: it waits for a person to add the software with its version
 			keys = nil

@@ -373,7 +373,7 @@ func TestContract_Migrations(t *testing.T) {
 				t.Errorf("schema lacks %s", want)
 			}
 		}
-		for _, v := range []int{1, 2, 3, 4} {
+		for _, v := range []int{1} {
 			if n := count(t, db, fmt.Sprintf("SELECT count(*) FROM core_migration_core WHERE version_id = %d AND is_applied = 1", v)); n != 1 {
 				t.Errorf("version rows for %04d = %d, want 1", v, n)
 			}

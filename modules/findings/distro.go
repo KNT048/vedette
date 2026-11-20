@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/debver"
+	"github.com/knt048/vedette/core/productid"
 )
 
 // linuxDistro is the Linux distribution an OS name names, as a platform id ("alpine", "ubuntu", "debian", "rhel", "suse"), "" for
@@ -202,7 +203,7 @@ func distroRows(a Asset) (d *distroData, release string, rows []distroPkgRow) {
 		in := newSWInfo(s, osName)
 		in.pkgVer, in.pkgSrc = ver, src
 		r := distroPkgRow{s: s, in: in, ver: ver, pkg: d.source(src)}
-		if d.kernelRule && norm(s.Vendor) == "linux" && norm(s.Product) == "kernel" {
+		if d.kernelRule && productid.Norm(s.Vendor) == "linux" && productid.Norm(s.Product) == "kernel" {
 			ksrc, kver = r.pkg, ver
 		}
 		all = append(all, r)

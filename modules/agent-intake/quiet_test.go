@@ -1,8 +1,6 @@
 package agentintake_test
 
 import (
-	"os"
-	"strings"
 	"testing"
 	"time"
 )
@@ -383,34 +381,5 @@ func TestAgentQuietSinceIgnoresThePruneClock(t *testing.T) {
 	since, _ := r.body["quiet_since"].(string)
 	if r.body["state"] != "quiet" || since == "" || !sameInstant(t, since, lastCall) {
 		t.Fatalf("quiet_since %v, want the last call %s: %s", since, lastCall, r.raw)
-	}
-}
-
-// Migration 0010: a node that existed before it has no last_call_at; the migration copies last_seen, and until then the read falls back to it.
-func TestAgentLastCallBackfill(t *testing.T) {
-	w := newWorld(t)
-	_, secret := w.token("servers", 7)
-	w.enroll(secret, "srv-1", peerA)
-	w.exec(`UPDATE intake_osquery_nodes SET last_call_at = NULL`)
-	w.clock.Advance(time.Hour)
-	if st := stateOfHost(t, w.nodeList(), "srv-1"); st != "quiet" {
-		t.Fatalf("a node without last_call_at reads quiet from last_seen: %s", st)
-	}
-	raw, err := os.ReadFile("migrations/sqlite/0010_last_call.sql")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var backfill string
-	for _, line := range strings.Split(string(raw), "\n") {
-		if strings.HasPrefix(line, "UPDATE ") {
-			backfill = line
-		}
-	}
-	if backfill == "" {
-		t.Fatal("the migration has no backfill")
-	}
-	w.exec(backfill)
-	if n := w.count(`SELECT count(*) FROM intake_osquery_nodes WHERE last_call_at IS NOT NULL AND last_call_at = last_seen`); n != 1 {
-		t.Fatalf("backfilled nodes: %d", n)
 	}
 }

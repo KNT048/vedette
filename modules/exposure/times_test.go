@@ -4,16 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"io/fs"
 	"slices"
 	"strings"
 	"testing"
-	"testing/fstest"
 	"time"
 
 	"github.com/knt048/vedette/core/store"
-	"github.com/knt048/vedette/core/store/storetest"
-	"github.com/knt048/vedette/modules/core"
 )
 
 // stoppedScan runs a deep scan of ipA whose OpenVAS step stop interrupts (cancelRun for a person's Stop, Close for a shutdown, …) at
@@ -227,87 +223,6 @@ func isCode(err error, code string) bool {
 	return errors.As(err, &ae) && ae.Code == code
 }
 
-// Migration 0013 gives the scans stored before it a start and an end: the start is when the results were stored; the end is the OpenVAS
-// check line's time, the store time when OpenVAS did not run, and for the newest scan of a target the target's last_scan_at (which was
-// set at the end). last_scan_at then becomes the newest scan's start.
-func TestMigration0013GivesEarlierScansTheirTimes(t *testing.T) {
-	t.Parallel()
-	ctx := t.Context()
-	db := storetest.New(t)
-	before := fstest.MapFS{}
-	if err := fs.WalkDir(Migrations, ".", func(p string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() || d.Name() >= "0013" {
-			return err
-		}
-		b, err := fs.ReadFile(Migrations, p)
-		before[p] = &fstest.MapFile{Data: b}
-		return err
-	}); err != nil {
-		t.Fatal(err)
-	}
-	if err := store.Migrate(ctx, db, "core", core.Migrations); err != nil {
-		t.Fatal(err)
-	}
-	if err := store.Migrate(ctx, db, "exposure", before); err != nil {
-		t.Fatal(err)
-	}
-	exec := func(q string, args ...any) {
-		t.Helper()
-		if err := db.Write(ctx, func(tx *sql.Tx) error { _, err := tx.ExecContext(ctx, q, args...); return err }); err != nil {
-			t.Fatal(err)
-		}
-	}
-	exec(`INSERT INTO exp_target (id, kind, value, token, created_at, last_scan_at) VALUES ('xt-1', 'ip', '203.0.113.10', '', '2026-11-01T00:00:00.000Z', '2026-11-17T15:43:00.000Z')`)
-	snap := func(id, date, scanned, checks, notChecked, gbRun string) {
-		exec(`INSERT INTO exp_snapshot (id, target_id, date, scanned_at, hosts, ports, admin_panels, certs, counts, checks, not_checked, greenbone_run)
-			VALUES (?, 'xt-1', ?, ?, '[]', '[]', '[]', '[]', '{}', ?, ?, ?)`, id, date, scanned, checks, notChecked, gbRun)
-	}
-	// 15 Nov: OpenVAS done, its check line at 07:30. 16 Nov: OpenVAS off. 17 Nov (newest): OpenVAS stopped by a shutdown at 15:43.
-	snap("sn-15", "2026-11-15", "2026-11-15T06:00:00.000Z", `[{"kind":"greenbone","at":"2026-11-15T07:30:00.000Z","text":"OpenVAS scanned"}]`, `[]`, `{"state":"done"}`)
-	snap("sn-16", "2026-11-16", "2026-11-16T06:00:00.000Z", `[]`, `[{"kind":"greenbone","text":"OpenVAS is off."}]`, `{"state":"not_run"}`)
-	snap("sn-17", "2026-11-17", "2026-11-17T14:29:00.000Z", `[]`, `[{"kind":"greenbone","text":"`+notGBStopped+`"}]`, `{"state":"stopped"}`)
-	// A second target whose OpenVAS step a power loss cut: the old start-up stored it as stopped and never wrote an end, so its
-	// last_scan_at is still the store time. Its end is not known: NULL, never "finished when it started".
-	exec(`INSERT INTO exp_target (id, kind, value, token, created_at, last_scan_at) VALUES ('xt-2', 'ip', '203.0.113.20', '', '2026-11-01T00:00:00.000Z', '2026-11-17T14:29:00.000Z')`)
-	exec(`INSERT INTO exp_snapshot (id, target_id, date, scanned_at, hosts, ports, admin_panels, certs, counts, checks, not_checked, greenbone_run)
-		VALUES ('sn-cut', 'xt-2', '2026-11-17', '2026-11-17T14:29:00.000Z', '[]', '[]', '[]', '[]', '{}', '[]', ?, '{"state":"stopped"}')`,
-		`[{"kind":"greenbone","text":"`+notGBCutOff+`"}]`)
-	if err := store.Migrate(ctx, db, "exposure", Migrations); err != nil {
-		t.Fatal(err)
-	}
-	metas, err := listSnapshotMetas(ctx, db.Reader(), "xt-1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := map[string][2]string{
-		"sn-15": {"2026-11-15T06:00:00.000Z", "2026-11-15T07:30:00.000Z"},
-		"sn-16": {"2026-11-16T06:00:00.000Z", "2026-11-16T06:00:00.000Z"},
-		"sn-17": {"2026-11-17T14:29:00.000Z", "2026-11-17T15:43:00.000Z"},
-	}
-	for _, m := range metas {
-		if m.FinishedAt == nil || m.StartedAt != want[m.ID][0] || *m.FinishedAt != want[m.ID][1] {
-			t.Errorf("%s: started %s, finished %v, want %v", m.ID, m.StartedAt, m.FinishedAt, want[m.ID])
-		}
-	}
-	var last string
-	if err := db.Reader().QueryRowContext(ctx, `SELECT last_scan_at FROM exp_target WHERE id = 'xt-1'`).Scan(&last); err != nil || last != "2026-11-17T14:29:00.000Z" {
-		t.Fatalf("last_scan_at %q, %v", last, err)
-	}
-	// the newest stopped step gets that end as its own stop time
-	newest, ok, err := loadSnapshot(ctx, db.Reader(), "xt-1", "2026-11-17")
-	if err != nil || !ok || newest.GreenboneRun.EndedAt == nil || *newest.GreenboneRun.EndedAt != "2026-11-17T15:43:00.000Z" {
-		t.Fatalf("stopped step %+v, %v", newest.GreenboneRun, err)
-	}
-	cut, err := listSnapshotMetas(ctx, db.Reader(), "xt-2")
-	if err != nil || len(cut) != 1 || cut[0].FinishedAt != nil || cut[0].StartedAt != "2026-11-17T14:29:00.000Z" {
-		t.Fatalf("cut by a power loss: %+v, %v", cut, err)
-	}
-	cutSnap, _, err := loadSnapshot(ctx, db.Reader(), "xt-2", "2026-11-17")
-	if err != nil || cutSnap.GreenboneRun.EndedAt != nil {
-		t.Fatalf("cut step %+v, %v", cutSnap.GreenboneRun, err)
-	}
-}
-
 // clockRunner is a port scan that takes d on the test clock, like a real one takes minutes.
 type clockRunner struct {
 	fakeRunner
@@ -361,90 +276,6 @@ func TestContract_INV34_AScanStartsBeforeItsSteps(t *testing.T) {
 	}
 	if tg.LastScanAt == nil || *tg.LastScanAt != start {
 		t.Fatalf("last scanned %v, want %s", tg.LastScanAt, start)
-	}
-}
-
-// Migration 0014 gives a scan stored before 0013 its real start: 0013 named it by its store time, when the steps before OpenVAS had
-// all ended (21:29 for a scan whose port scan ended at 21:01). Its start becomes the earliest time one of its steps recorded; a scan
-// stored since 0013 keeps its own start, and "Last scanned" follows the newest scan's start.
-func TestMigration0014NamesEarlierScansByTheirFirstStep(t *testing.T) {
-	t.Parallel()
-	ctx := t.Context()
-	db := storetest.New(t)
-	before := fstest.MapFS{}
-	if err := fs.WalkDir(Migrations, ".", func(p string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() || d.Name() >= "0014" {
-			return err
-		}
-		b, err := fs.ReadFile(Migrations, p)
-		before[p] = &fstest.MapFile{Data: b}
-		return err
-	}); err != nil {
-		t.Fatal(err)
-	}
-	if err := store.Migrate(ctx, db, "core", core.Migrations); err != nil {
-		t.Fatal(err)
-	}
-	if err := store.Migrate(ctx, db, "exposure", before); err != nil {
-		t.Fatal(err)
-	}
-	exec := func(q string, args ...any) {
-		t.Helper()
-		if err := db.Write(ctx, func(tx *sql.Tx) error { _, err := tx.ExecContext(ctx, q, args...); return err }); err != nil {
-			t.Fatal(err)
-		}
-	}
-	exec(`INSERT INTO exp_target (id, kind, value, token, created_at, last_scan_at) VALUES ('xt-1', 'ip', '203.0.113.10', '', '2026-11-01T00:00:00.000Z', '2026-11-17T14:29:30.000Z')`)
-	snap := func(id, date, scanned, started, checks string) {
-		exec(`INSERT INTO exp_snapshot (id, target_id, date, scanned_at, started_at, hosts, ports, admin_panels, certs, counts, checks, not_checked, greenbone_run)
-			VALUES (?, 'xt-1', ?, ?, ?, '[]', '[]', '[]', '[]', '{}', ?, '[]', '{"state":"stopped"}')`, id, date, scanned, started, checks)
-	}
-	line := func(kind, at string) string {
-		return `{"kind":"` + kind + `","at":"` + at + `","text":"` + kind + ` step"}`
-	}
-	// The steps of a scan in the order they run, each line stamped when its step ended; 0013 took the store time (after "web") as the start.
-	steps := []string{line("ports", "2026-11-17T14:01:10.000Z"), line("services", "2026-11-17T14:27:40.000Z"), line("templates", "2026-11-17T14:28:50.000Z"),
-		line("web", "2026-11-17T14:29:20.000Z"), line("cve", "2026-11-17T14:29:25.000Z")}
-	snap("sn-17", "2026-11-17", "2026-11-17T14:29:30.000Z", "2026-11-17T14:29:30.000Z", "["+strings.Join(steps, ",")+"]")
-	// An earlier scan whose lines are out of order, with one element that is not a line and one time that is not a timestamp.
-	snap("sn-16", "2026-11-16", "2026-11-15T23:24:00.000Z", "2026-11-15T23:24:00.000Z",
-		`[`+line("web", "2026-11-15T23:23:00.000Z")+`,"text",{"kind":"ports","at":"yesterday","text":"x"},`+line("ports", "2026-11-15T23:02:00.000Z")+`]`)
-	// No line at all: the store time is the only time it has.
-	snap("sn-15", "2026-11-15", "2026-11-14T22:00:00.000Z", "2026-11-14T22:00:00.000Z", `[]`)
-	// Stored since 0013: its start is real and earlier than its lines; it is left as it is.
-	snap("sn-14", "2026-11-14", "2026-11-13T22:30:00.000Z", "2026-11-13T22:00:00.000Z", "["+line("ports", "2026-11-13T22:10:00.000Z")+"]")
-	if err := store.Migrate(ctx, db, "exposure", Migrations); err != nil {
-		t.Fatal(err)
-	}
-	metas, err := listSnapshotMetas(ctx, db.Reader(), "xt-1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := map[string]string{"sn-17": "2026-11-17T14:01:10.000Z", "sn-16": "2026-11-15T23:02:00.000Z", "sn-15": "2026-11-14T22:00:00.000Z", "sn-14": "2026-11-13T22:00:00.000Z"}
-	for _, m := range metas {
-		if m.StartedAt != want[m.ID] {
-			t.Errorf("%s: started %s, want %s", m.ID, m.StartedAt, want[m.ID])
-		}
-	}
-	// What each step recorded and which one the start came from (the evidence of the class: the store time was after every step)
-	s, _, err := loadSnapshot(ctx, db.Reader(), "xt-1", "2026-11-17")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, c := range s.Checks {
-		from := ""
-		if c.At == s.StartedAt {
-			from = " <- start"
-		}
-		t.Logf("%-9s %s%s", c.Kind, c.At, from)
-		if c.At < s.StartedAt {
-			t.Errorf("step %s at %s is before the start %s", c.Kind, c.At, s.StartedAt)
-		}
-	}
-	t.Logf("stored    %s (the start 0013 gave it)", s.ScannedAt)
-	var last string
-	if err := db.Reader().QueryRowContext(ctx, `SELECT last_scan_at FROM exp_target WHERE id = 'xt-1'`).Scan(&last); err != nil || last != "2026-11-17T14:01:10.000Z" {
-		t.Fatalf("last_scan_at %q, %v", last, err)
 	}
 }
 

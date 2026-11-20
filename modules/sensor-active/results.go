@@ -9,6 +9,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/observe"
+	"github.com/knt048/vedette/core/productid"
 	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
 )
 
@@ -314,7 +315,7 @@ func softwareOf(h host) []observe.Software {
 	stated := map[string]bool{} // vendor|product the device itself stated a version of: a service's OS CPE of the same product adds no second row
 	for _, f := range h.statedFirmware() {
 		add(f.sw)
-		stated[strings.ToLower(f.sw.Vendor+"|"+f.sw.Product)] = true
+		stated[productid.Key(f.sw.Vendor, f.sw.Product)] = true
 	}
 	for _, p := range h.ports {
 		conf := serviceConf(p.conf)
@@ -355,7 +356,7 @@ func softwareOf(h host) []observe.Software {
 	if !ok { // no sure OS fingerprint: the OS a service names is the OS row, only with the version -sV read from that service
 		for _, p := range h.ports {
 			for _, c := range p.cpes {
-				if part, vendor, product, _, ok := cpeParts(c); ok && part == "o" && p.version != "" && !stated[strings.ToLower(vendor+"|"+product)] {
+				if part, vendor, product, _, ok := cpeParts(c); ok && part == "o" && p.version != "" && !stated[productid.Key(vendor, product)] {
 					add(observe.Software{Display: strings.TrimSpace(vendor + " " + product + " " + p.version), Vendor: vendor, Product: product, Version: p.version, CPE: cpeBase(c), Confidence: serviceConf(p.conf) * 0.8})
 				}
 			}

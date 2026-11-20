@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/knt048/vedette/core/productid"
 )
 
 // Vuln is one exploited vulnerability, shaped like a feeds_vuln row (DATA_MODEL §4.1).
@@ -22,8 +24,8 @@ type Vuln struct {
 	Ransomware     bool     `json:"ransomware"`
 }
 
-// Key is the inventory matching key (ProductKey of vendor and product).
-func (v Vuln) Key() string { return ProductKey(v.Vendor, v.Product) }
+// Key is the inventory matching key (productid.Key of vendor and product).
+func (v Vuln) Key() string { return productid.Key(v.Vendor, v.Product) }
 
 // KEVCatalog is a parsed CISA KEV JSON catalog.
 type KEVCatalog struct {

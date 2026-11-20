@@ -30,6 +30,8 @@ Vedette runs on your own machine. Your devices, logs, findings and AI keys **nev
 
 **Bug report is not a flow.** The box sends nothing when you report a problem. The form builds a filtered diagnostic file (version, module states, recent errors; no devices, logs, findings, keys, emails or IPs) that you download, and "Open GitHub issue" opens GitHub in **your own browser** with your text filled in. You decide what to post. Nothing leaves the box unless you do it.
 
+**Mirror port traffic stays on the box.** When a card of the box listens on a mirror (SPAN) port, the sensor reads only the names your devices look up (DNS), the server names of their TLS connections, the hosts of their web requests and the public addresses they open connections to, never the content of the traffic. The box compares these with the threat feeds it already holds and keeps only the matches (shown in Logs as bad connections, kept as long as the logs); everything that matches nothing is dropped at once. None of it leaves the box, except the matches you choose to forward to your own SIEM (flow 7) or that reach your alert channels as incidents (flow 5).
+
 Cookies: only the three that signing in needs, all first-party and never sent anywhere but your box: the session cookie (`__Host-vedette_session`), its anti-forgery companion (`__Host-vedette_csrf`) and a trusted-device cookie (`__Secure-vedette_device`) that keeps someone else's failed guesses from locking you out. No tracking, no analytics, no third-party fonts or scripts.
 
 Export or delete all your data: Settings → Data.

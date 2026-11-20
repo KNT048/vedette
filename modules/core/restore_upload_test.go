@@ -21,6 +21,7 @@ import (
 	"github.com/knt048/vedette"
 	"github.com/knt048/vedette/core/auth/authtest"
 	"github.com/knt048/vedette/core/secrets"
+	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/host/api"
 )
 
@@ -124,6 +125,37 @@ func (e *osEnv) upload(code string, body []byte, mutate ...func(*http.Request)) 
 			q.Header.Set("X-Setup-Code", code)
 		}
 	}}, mutate...)...)
+}
+
+// A backup is restored only when its schema epoch row is the live database's: a backup made by a pre-release build (no row,
+// or other migration files) is refused, because this build would not start on it.
+func TestSetupRestoreUploadRefusesAPreReleaseBackup(t *testing.T) {
+	t.Parallel()
+	e, _ := newRestoreEnv(t)
+	code := e.openSetup()
+	key := newKey(t)
+	rev := strings.Repeat("ab", 32)
+	if err := e.env.DB.Write(t.Context(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `CREATE TABLE `+store.EpochTable+` (id INTEGER PRIMARY KEY, epoch INTEGER NOT NULL, rev TEXT NOT NULL);
+			INSERT INTO `+store.EpochTable+` (id, epoch, rev) VALUES (1, ?, ?)`, store.SchemaEpoch, rev)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for name, change := range map[string]string{
+		"no epoch row":     `DROP TABLE ` + store.EpochTable,
+		"other files":      `UPDATE ` + store.EpochTable + ` SET rev = '` + strings.Repeat("cd", 32) + `'`,
+		"an earlier epoch": `UPDATE ` + store.EpochTable + ` SET epoch = epoch - 1`,
+	} {
+		body := tarGz(t, member{name: "manifest.json", data: []byte(manifestOK)}, member{name: "vedette.db", data: e.backupDB(key, change)})
+		r := e.upload(code, body)
+		wantStatus(t, r, 400, "not_a_backup")
+		if !strings.Contains(r.Raw, "pre-release build") {
+			t.Errorf("%s: %s", name, r.Raw)
+		}
+	}
+	good := tarGz(t, member{name: "manifest.json", data: []byte(manifestOK)}, member{name: "vedette.db", data: e.backupDB(key)})
+	wantOK(t, e.upload(code, good), 200)
 }
 
 // Step 1 takes a backup Download backup made and refuses anything else before it is kept: a bad setup code, a member that is

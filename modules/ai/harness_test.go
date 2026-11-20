@@ -1,26 +1,16 @@
 package ai_test
 
 import (
-	"bytes"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/fs"
-	"log/slog"
 	"strings"
 	"testing"
-	"testing/fstest"
 	"time"
 
 	"github.com/knt048/vedette/core/apierr"
-	"github.com/knt048/vedette/core/audit"
-	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/server/servertest"
-	"github.com/knt048/vedette/core/store"
-	"github.com/knt048/vedette/core/store/storetest"
 	"github.com/knt048/vedette/modules/ai"
-	"github.com/knt048/vedette/modules/core"
 )
 
 // Slice 4a of WP-25: rules and hooks (S-AI-7, INV-7, INV-12, INV-13, INV-14). The GUI mock is the contract.
@@ -680,74 +670,6 @@ func TestHookTestRunsOutOfTimeAndRunsOneAtATime(t *testing.T) {
 	e.svc = e.newService()
 	b := &api{env: e, h: e.handler(servertest.NewGate())}
 	b.want("POST", "/ai/hooks/test", "admin", `{"text":"hello","when":"before_ai"}`, 200, "")
-}
-
-// The upgrade path: a box that saved redact_pii=false before the switch existed was never unprotected (nothing enforced it), so
-// migration 0003 turns the switch on, and the service says so once at start-up.
-func TestUpgradeKeepsPersonalDataProtectionOnAndSaysSo(t *testing.T) {
-	db := storetest.New(t)
-	ctx := t.Context()
-	if err := store.Migrate(ctx, db, "core", core.Migrations); err != nil {
-		t.Fatal(err)
-	}
-	old := fstest.MapFS{}
-	for _, f := range []string{"0001_ai_settings.sql", "0002_ai_activity_results.sql"} {
-		raw, err := fs.ReadFile(ai.Migrations, f)
-		if err != nil {
-			t.Fatal(err)
-		}
-		old[f] = &fstest.MapFile{Data: raw}
-	}
-	if err := store.Migrate(ctx, db, "ai", old); err != nil {
-		t.Fatal(err)
-	}
-	if err := db.Write(ctx, func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(ctx, `INSERT INTO ai_setting (key, value, updated_at, updated_by) VALUES ('config', '{"tier":"med","monthly_budget":60000,"redact_pii":false}', '2026-11-01T00:00:00.000Z', 'admin@acme.example')`)
-		return err
-	}); err != nil {
-		t.Fatal(err)
-	}
-	if err := store.Migrate(ctx, db, "ai", ai.Migrations); err != nil { // the upgrade
-		t.Fatal(err)
-	}
-	sec, _ := secrets.New([]byte("0123456789abcdef0123456789abcdef"))
-	var logs bytes.Buffer
-	cfg := ai.Config{DB: db, Secrets: sec, Audit: audit.New(time.Now), Log: slog.New(slog.NewTextHandler(&logs, nil))}
-	svc, err := ai.New(ctx, cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !svc.Config().RedactPII {
-		t.Fatal("the upgrade left personal-data protection off")
-	}
-	if n := strings.Count(logs.String(), "redact_pii"); n != 1 || !strings.Contains(logs.String(), "level=INFO") {
-		t.Fatalf("log = %q", logs.String())
-	}
-	// once the admin saves the setting the stored value agrees, and the next start says nothing
-	if _, err := svc.SetConfig(ctx, "admin@acme.example", ai.Settings{Tier: ai.TierMed, MonthlyBudget: 60000, RedactPII: true}); err != nil {
-		t.Fatal(err)
-	}
-	logs.Reset()
-	if _, err := ai.New(ctx, cfg); err != nil {
-		t.Fatal(err)
-	}
-	if strings.Contains(logs.String(), "redact_pii") {
-		t.Fatalf("a second start still says it: %q", logs.String())
-	}
-	// turning the switch off on the Hooks tab also changes the stored setting, so a later start does not mislead
-	if _, err := svc.SetBuiltinHook(ctx, "admin@acme.example", "block-pii", false); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := svc.SetBuiltinHook(ctx, "admin@acme.example", "block-pii", true); err != nil {
-		t.Fatal(err)
-	}
-	logs.Reset()
-	if _, err := ai.New(ctx, cfg); err != nil {
-		t.Fatal(err)
-	}
-	if strings.Contains(logs.String(), "redact_pii") {
-		t.Fatalf("the stored setting went stale: %q", logs.String())
-	}
 }
 
 // ---- second review

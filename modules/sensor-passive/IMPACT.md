@@ -23,8 +23,9 @@
 ## Modifying: gọi `inventory.RecordObservation`
 - **inventory**: `source=passive` và thang `confidence` quyết định giá trị "đang dùng". Đổi thang tin cậy làm đổi `summary` và thứ tự hiển thị ở mọi thiết bị.
 
-## Modifying: sự kiện `sensor.span.metadata_batch`
-- **logs** (khớp IOC, nhóm B): đổi trường = mất cảnh báo "máy nào liên lạc IP/domain độc hại". Test hợp đồng ở bên phát.
+## Modifying: metadata SPAN trên dây (`capture.LinkMetadata`, `Service.Metadata`, `Config.Mirror`, `sensorlink.MetadataItem`)
+- **logs** (`MatchMirror`, nối ở `cmd/vedette/logsioc.go` `logsMirror`): đổi `kind` hay dạng `dest` = mất cảnh báo "máy nào hỏi tên / mở luồng tới đích độc hại" trên cổng mirror; giá trị `kind` phải giữ khớp `mirrorVia` của logs (`TestWiringMirrorMetadataRaisesABadAddressIncidentWithoutASyslogSource`). Thêm trường vào `MetadataItem` = gửi thêm dữ liệu gói về `core`: sửa `PRIVACY.md` (đoạn mirror port) và màn hình Privacy cùng commit.
+- **core/sensorlink**: nhịp (`MetadataPostsPerFlush`, `MaxMetadataItems`) chia chung hạn mức 10 request/giây của vai `passive` với quan sát và heartbeat; tăng chúng có thể làm quan sát bị `429`.
 
 ## Modifying: quyền `net_raw`, `pcap` trong MANIFEST và container `sensor`
 - **vedette-host/Quadlet** (cấp CAP_NET_RAW): thêm quyền = thay đổi bảo mật cần sửa CONTRACT; bỏ quyền = module không khởi động. Unit `sensor` (`host-api.md` §18): `User=<sensor_uid>:<sensor_gid>`, không `UserNS`, chỉ `NET_RAW`; thêm `UserNS` làm raw socket hỏng trên mạng host; thêm `NET_BIND_SERVICE`/`NET_ADMIN` phải sửa host CONTRACT INV-17.

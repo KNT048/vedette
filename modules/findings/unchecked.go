@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/knt048/vedette/core/productid"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -166,7 +167,7 @@ func versionEvidence(af Affected) bool {
 // before the Chromium-based Edge, microsoft:edge with no version given at all (CVE-2017-0037 "Edge and Internet Explorer").
 func rowEntries(s Software, in swInfo, v Vuln) []Affected {
 	chromium := false
-	if n, ok := edgeMajor(in.ver); ok && n >= chromiumEdgeFirst && norm(s.Vendor) == "microsoft" && strings.HasPrefix(norm(s.Product), "edge") {
+	if n, ok := edgeMajor(in.ver); ok && n >= chromiumEdgeFirst && productid.Norm(s.Vendor) == "microsoft" && strings.HasPrefix(productid.Norm(s.Product), "edge") {
 		chromium = true
 	}
 	var out []Affected
@@ -486,7 +487,7 @@ func edgeLegacyOf(c CPE, af Affected, v Vuln) bool {
 	}
 	p, _ := c.Product.Literal()
 	pre := !v.Published.IsZero() && v.Published.Before(chromiumEdgeGA) || v.Published.IsZero() && cveYear(v.CVE) > 0 && cveYear(v.CVE) < 2020
-	return norm(p) == "edge" && !versionEvidence(af) && pre
+	return productid.Norm(p) == "edge" && !versionEvidence(af) && pre
 }
 
 func boolRank(b bool) int {

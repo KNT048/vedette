@@ -66,7 +66,7 @@ func TestContract_ADeviceHintIsRefusedOutsideRecord(t *testing.T) {
 	sw := []observe.Software{{Display: "FortiOS 7.2.8", Vendor: "fortinet", Product: "fortios", Version: "7.2.8", Confidence: 0.9}}
 	svc := []observe.Service{{Port: 161, Proto: "udp", Name: "snmp", Confidence: 0.9}}
 	for name, err := range map[string]error{
-		"ReplaceSoftware": e.svc.ReplaceSoftware(e.ctx(), h, observe.SNMP, sw),
+		"ReplaceSoftware": e.svc.ReplaceSoftware(e.ctx(), h, observe.SNMP, nil, sw),
 		"AddServices":     e.svc.AddServices(e.ctx(), h, observe.SNMP, svc),
 		"ReplaceServices": e.svc.ReplaceServices(e.ctx(), h, observe.Nmap, svc),
 		"ApproveEnrolled": func() error { _, err := e.svc.ApproveEnrolled(e.ctx(), h, "", "test", false); return err }(),

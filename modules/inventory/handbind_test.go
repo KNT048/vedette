@@ -200,12 +200,12 @@ func TestContract_829_AnAgentAtASharedHandAddedAddressIsItsOwnDevice(t *testing.
 		e.tick(time.Minute)
 		if tc.wazuh {
 			e.record(wazuh(burnt1)...)
-			if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: at}, observe.Agent, sw); err != nil {
+			if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: at}, observe.Osquery, nil, sw); err != nil {
 				t.Fatal(err)
 			}
 		} else {
 			e.record(osq("192.168.18.201")...)
-			if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: at, Agent: "osquery:node-a"}, observe.Agent, sw); err != nil {
+			if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: at, Agent: "osquery:node-a"}, observe.Osquery, nil, sw); err != nil {
 				t.Fatal(err)
 			}
 		}

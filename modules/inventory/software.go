@@ -3,7 +3,9 @@ package inventory
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"maps"
 	"regexp"
 	"slices"
 	"strings"
@@ -12,8 +14,6 @@ import (
 	"github.com/knt048/vedette/core/apkver"
 	"github.com/knt048/vedette/core/debver"
 	"github.com/knt048/vedette/core/observe"
-	"github.com/knt048/vedette/core/productid"
-	"github.com/knt048/vedette/core/store"
 )
 
 // hintConfidence is the confidence of the MAC an agent gave to find its device.
@@ -75,6 +75,9 @@ func checkItem(i int, it SoftwareItem) (SoftwareItem, error) {
 		if it.Version != "" && (!cleanText(it.Version) || utf8.RuneCountInString(it.Version) > maxSwVer) {
 			return it, invalid("software %d: version must be at most %d printable characters", i, maxSwVer)
 		}
+		if !instanceOK(it.Instance) {
+			return it, invalid("software %d: instance must be at most 120 printable characters", i)
+		}
 		if utf8.RuneCountInString(it.CPE) > maxCPE || strings.ContainsFunc(it.CPE, func(r rune) bool { return r < 0x20 }) {
 			return it, invalid("software %d: cpe is not valid", i)
 		}
@@ -97,9 +100,6 @@ func checkItem(i int, it SoftwareItem) (SoftwareItem, error) {
 				keys = append(keys, k)
 			}
 		}
-		if len(keys) == 0 {
-			keys = []string{productid.Key(it.Vendor, it.Product)}
-		}
 		if it.Guess { // a guess is never matched: it waits for a person to add the software with its version
 			keys = nil
 		}
@@ -111,13 +111,10 @@ func checkItem(i int, it SoftwareItem) (SoftwareItem, error) {
 // pkgSourceRE is a Debian source package name (Policy §5.6.1).
 var pkgSourceRE = regexp.MustCompile(`^[a-z0-9][a-z0-9+._-]{0,99}$`)
 
-func swKey(vendor, product, version string) string {
-	return strings.ToLower(vendor) + "\x00" + strings.ToLower(product) + "\x00" + version
-}
-
-// softwareKeys lists the distinct KEV keys of the software of a device that counts for matching (a corrected row does not, INV-41).
-func softwareKeys(ctx context.Context, q querier, assetID string) ([]string, error) {
-	rows, err := q.QueryContext(ctx, `SELECT DISTINCT k.kev_key FROM inv_software s JOIN inv_software_kev k ON k.software_id = s.id WHERE s.asset_id = ? AND `+liveSW+` ORDER BY 1`, assetID)
+// deviceKeys lists the distinct match keys of the software of a device that counts for matching (matchedLine): present, not a guess
+// the device does not show.
+func deviceKeys(ctx context.Context, q querier, assetID string) ([]string, error) {
+	rows, err := q.QueryContext(ctx, `SELECT DISTINCT s.product_key, `+guessLine+` FROM inv_software s WHERE s.asset_id = ? AND `+liveSW, assetID)
 	if err != nil {
 		return nil, fmt.Errorf("inventory: read match keys: %w", err)
 	}
@@ -125,43 +122,25 @@ func softwareKeys(ctx context.Context, q querier, assetID string) ([]string, err
 	var keys []string
 	for rows.Next() {
 		var k string
-		if err := rows.Scan(&k); err != nil {
+		var guess bool
+		if err := rows.Scan(&k, &guess); err != nil {
 			return nil, fmt.Errorf("inventory: read match keys: %w", err)
 		}
-		keys = append(keys, k)
+		keys = append(keys, matchKeys(k, guess)...)
 	}
-	return keys, rows.Err()
+	slices.Sort(keys)
+	return slices.Compact(keys), rows.Err()
 }
 
-func insertKeys(ctx context.Context, tx *sql.Tx, softwareID string, keys []string) error {
-	for _, k := range keys {
-		if _, err := tx.ExecContext(ctx, `INSERT INTO inv_software_kev (software_id, kev_key) VALUES (?, ?) ON CONFLICT DO NOTHING`, softwareID, k); err != nil {
-			return fmt.Errorf("inventory: store match key: %w", err)
-		}
-	}
-	return nil
-}
-
-func insertSoftware(ctx context.Context, tx *sql.Tx, assetID string, it SoftwareItem, source, seenAt string) error {
-	id := store.NewID("s")
-	pv, ps := pkgOf(it, source)
-	_, err := tx.ExecContext(ctx, `INSERT INTO inv_software (id, asset_id, display, vendor, product, version, cpe, source, confidence, seen_at, first_seen, packaged, pkg_version, pkg_source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		id, assetID, it.Display, it.Vendor, it.Product, nullStr(it.Version), nullStr(it.CPE), source, it.Confidence, seenAt, seenAt, packaged(it, source), pv, ps)
-	if err != nil {
-		return fmt.Errorf("inventory: store software: %w", err)
-	}
-	return insertKeys(ctx, tx, id, it.KevKeys)
-}
-
-// packaged is the stored flag of a row (MK-2): only an agent reads a package database; a sensor's claim is not stored.
+// packaged is the stored flag of a reading (MK-2): only an agent reads a package database; a sensor's claim is not stored.
 func packaged(it SoftwareItem, source string) bool {
-	return it.Packaged && source == string(observe.Agent)
+	return it.Packaged && agentSource(source)
 }
 
-// pkgOf is the stored full version and source package of a row: only with packaged, both or neither.
-func pkgOf(it SoftwareItem, source string) (version, src any) {
+// pkgOf is the stored full version and source package of a reading: only with packaged, both or neither.
+func pkgOf(it SoftwareItem, source string) (version, src string) {
 	if !packaged(it, source) || it.PkgVersion == "" || it.PkgSource == "" {
-		return nil, nil
+		return "", ""
 	}
 	return it.PkgVersion, it.PkgSource
 }
@@ -189,74 +168,148 @@ func (s *Service) matchEvents(assetID string, before, after []string) func(conte
 	}
 }
 
-// replaceSoftwareTx makes the software a source reported equal to items: rows of that source that are not in
-// the list go, new ones come, the rest are refreshed. Rows of other sources are not touched.
-func (s *Service) replaceSoftwareTx(ctx context.Context, tx *sql.Tx, o *outbox, assetID string, items []SoftwareItem, source, seenAt string) error {
-	before, err := softwareKeys(ctx, tx, assetID)
+// rematchEvent is one match event for a device whose keys did not change but whose versions did (a package update, a person's
+// version): findings matches the whole device again on it.
+func (s *Service) rematchEvent(assetID string, keys []string) func(context.Context) []Event {
+	return func(ctx context.Context) []Event {
+		cves, err := s.cves(ctx, keys)
+		if err != nil || len(cves) == 0 {
+			return nil
+		}
+		return []Event{{Name: EventMatchChanged, Data: MatchEvent{AssetID: assetID, CVE: slices.Min(cves), Basis: "product"}}}
+	}
+}
+
+// listed is one item of a list as it lands: its line and its reading.
+type listed struct {
+	id      lineIdentity
+	reading Reading
+}
+
+// readingsOfList turns a validated list into readings, one per line and instance. An item without an instance that shares its line
+// with another item of the list at another version (two installs the source does not tell apart) gets its version as instance; the
+// same product at the same version twice is one reading.
+func readingsOfList(items []SoftwareItem, source, seenAt string) []listed {
+	out := make([]listed, 0, len(items))
+	for _, it := range items {
+		id, version := identify(it, source)
+		pv, ps := pkgOf(it, source)
+		inst := it.Instance
+		if it.Guess && inst == "" {
+			inst = instanceOSGuess
+		}
+		out = append(out, listed{id: id, reading: Reading{Source: source, Instance: inst, Display: it.Display, Version: version, PkgVersion: pv, PkgSource: ps,
+			CPE: it.CPE, Packaged: packaged(it, source), Confidence: it.Confidence, FirstSeen: seenAt, SeenAt: seenAt}})
+	}
+	type slot struct{ key, line, inst string }
+	versions := map[slot]map[string]bool{}
+	for _, l := range out {
+		k := slot{l.id.productKey, l.id.line, l.reading.Instance}
+		if versions[k] == nil {
+			versions[k] = map[string]bool{}
+		}
+		versions[k][l.reading.Version+"\x00"+l.reading.PkgVersion] = true
+	}
+	seen := map[slot]bool{}
+	kept := out[:0]
+	for _, l := range out {
+		k := slot{l.id.productKey, l.id.line, l.reading.Instance}
+		if len(versions[k]) > 1 {
+			l.reading.Instance = clip(strings.TrimPrefix(l.reading.Instance+"@"+cmpOr(l.reading.PkgVersion, l.reading.Version), "@"), 120)
+			if l.reading.Instance == "" {
+				l.reading.Instance = "@"
+			}
+		}
+		k.inst = l.reading.Instance
+		if seen[k] {
+			continue
+		}
+		seen[k] = true
+		kept = append(kept, l)
+	}
+	return kept
+}
+
+// replaceSoftwareTx makes what a source reads of a device equal to items: the readings of that source (of the instances scope
+// names, all of them when scope is nil) that are not in the list go, new ones come, the rest are refreshed; then every line the
+// change touched is settled. Readings of other sources are not touched.
+func (s *Service) replaceSoftwareTx(ctx context.Context, tx *sql.Tx, o *outbox, assetID string, items []SoftwareItem, source string, scope []string, seenAt string) error {
+	before, err := deviceKeys(ctx, tx, assetID)
 	if err != nil {
 		return err
 	}
-	rows, err := tx.QueryContext(ctx, `SELECT id, vendor, product, ifnull(version, ''), ifnull(pkg_version, '') FROM inv_software WHERE asset_id = ? AND source = ?`, assetID, source)
+	type have struct {
+		line, version, pkg string
+	}
+	rows, err := tx.QueryContext(ctx, `SELECT r.software_id, r.instance, ifnull(r.version, ''), ifnull(r.pkg_version, '') FROM inv_software_reading r
+		JOIN inv_software s ON s.id = r.software_id WHERE s.asset_id = ? AND r.source = ?`, assetID, source)
 	if err != nil {
 		return fmt.Errorf("inventory: read software: %w", err)
 	}
-	have := map[string]string{}
-	havePkg := map[string]string{} // The full version a row had, to see a package update that keeps the upstream number
+	old := map[[2]string]have{} // line, instance -> what it read
 	for rows.Next() {
-		var id, v, p, ver, pv string
-		if err := rows.Scan(&id, &v, &p, &ver, &pv); err != nil {
+		var h have
+		var inst string
+		if err := rows.Scan(&h.line, &inst, &h.version, &h.pkg); err != nil {
 			_ = rows.Close()
 			return fmt.Errorf("inventory: read software: %w", err)
 		}
-		have[swKey(v, p, ver)] = id
-		havePkg[id] = pv
+		old[[2]string{h.line, inst}] = h
 	}
-	if err := rows.Err(); err != nil {
-		return err
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+		return fmt.Errorf("inventory: read software: %w", err)
 	}
-	if err := rows.Close(); err != nil {
-		return err
-	}
-	changed, pkgChanged := false, false
-	keep := map[string]bool{}
-	for _, it := range items {
-		k := swKey(it.Vendor, it.Product, it.Version)
-		if keep[k] {
-			continue // the same product twice in one list
+	inScope := func(inst string) bool { return scope == nil || slices.Contains(scope, inst) }
+	touched := map[string]bool{}
+	names := map[string]map[[2]string][2]string{} // line -> the names its readings of this list carry
+	kept := map[[2]string]bool{}
+	changed, released := false, false
+	for _, l := range readingsOfList(items, source, seenAt) {
+		if !inScope(l.reading.Instance) {
+			continue // a list covers only the instances of its scope
 		}
-		keep[k] = true
-		if id, ok := have[k]; ok {
-			pv, ps := pkgOf(it, source)
-			if now, _ := pv.(string); now != havePkg[id] { // 1:9.6p1-3ubuntu13.5 -> 13.14: the same row, a different package
-				pkgChanged = true
-				if _, err := tx.ExecContext(ctx, `UPDATE inv_software SET first_seen = ? WHERE id = ?`, seenAt, id); err != nil { // a new reading (INV-52)
-					return fmt.Errorf("inventory: refresh software: %w", err)
-				}
-			}
-			if _, err := tx.ExecContext(ctx, `UPDATE inv_software SET display = ?, cpe = ?, confidence = ?, seen_at = ?, packaged = ?, pkg_version = ?, pkg_source = ? WHERE id = ?`,
-				it.Display, nullStr(it.CPE), it.Confidence, seenAt, packaged(it, source), pv, ps, id); err != nil {
-				return fmt.Errorf("inventory: refresh software: %w", err)
-			}
-			if _, err := tx.ExecContext(ctx, `DELETE FROM inv_software_kev WHERE software_id = ?`, id); err != nil {
-				return fmt.Errorf("inventory: refresh match keys: %w", err)
-			}
-			if err := insertKeys(ctx, tx, id, it.KevKeys); err != nil {
-				return err
-			}
-			continue
-		}
-		if err := insertSoftware(ctx, tx, assetID, it, source, seenAt); err != nil {
+		lineID, err := s.lineOf(ctx, tx, assetID, l.id, l.reading)
+		if err != nil {
 			return err
 		}
-		changed = true
-	}
-	for k, id := range have {
-		if keep[k] {
+		k := [2]string{lineID, l.reading.Instance}
+		if kept[k] {
 			continue
 		}
-		if _, err := tx.ExecContext(ctx, `DELETE FROM inv_software WHERE id = ?`, id); err != nil {
-			return fmt.Errorf("inventory: remove software: %w", err)
+		kept[k] = true
+		h, had := old[k]
+		if !had { // the line's own release read again (after a removal, or by another instance) is no new reading
+			var v, pv, first string
+			if err := tx.QueryRowContext(ctx, `SELECT ifnull(version, ''), ifnull(pkg_version, ''), first_seen FROM inv_software WHERE id = ?`, lineID).Scan(&v, &pv, &first); err != nil {
+				return fmt.Errorf("inventory: read software line: %w", err)
+			}
+			if v == l.reading.Version && pv == l.reading.PkgVersion && first < l.reading.FirstSeen {
+				l.reading.FirstSeen = first
+			}
 		}
+		switch {
+		case !had:
+			changed = true
+		case h.version != l.reading.Version || h.pkg != l.reading.PkgVersion:
+			released = true
+		}
+		if err := putReading(ctx, tx, lineID, l.reading); err != nil {
+			return err
+		}
+		touched[lineID] = true
+		if names[lineID] == nil {
+			names[lineID] = map[[2]string][2]string{}
+		}
+		names[lineID][[2]string{source, l.reading.Instance}] = [2]string{l.id.vendor, l.id.product}
+	}
+	for k, h := range old {
+		if kept[k] || !inScope(k[1]) {
+			continue
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM inv_software_reading WHERE software_id = ? AND source = ? AND instance = ?`, h.line, source, k[1]); err != nil {
+			return fmt.Errorf("inventory: remove software reading: %w", err)
+		}
+		touched[h.line] = true
 		changed = true
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET last_seen = max(last_seen, ?) WHERE id = ?`, seenAt, assetID); err != nil {
@@ -265,39 +318,45 @@ func (s *Service) replaceSoftwareTx(ctx context.Context, tx *sql.Tx, o *outbox, 
 	if err := s.earnReview(ctx, tx, o, assetID, false); err != nil { // the sync moved last_seen (INV-49)
 		return err
 	}
-	lapsed, err := s.lapseCorrections(ctx, tx, assetID)
-	if err != nil {
-		return err
+	var lapsed []string
+	for _, id := range slices.Sorted(maps.Keys(touched)) {
+		st, err := s.settleLine(ctx, tx, id, seenAt, names[id])
+		if err != nil {
+			return err
+		}
+		if st.lapsed != "" {
+			lapsed = append(lapsed, st.lapsed)
+		}
+		changed = changed || st.changed
 	}
-	if !changed && !pkgChanged && !lapsed {
+	for _, d := range lapsed {
+		if err := s.auditTx(ctx, tx, systemActor, "inventory.software_correction_lapsed", deviceName(ctx, tx, assetID), d); err != nil {
+			return err
+		}
+	}
+	if !changed && !released {
 		return nil
 	}
 	if err := s.auditTx(ctx, tx, systemActor, "inventory.software_sync", deviceName(ctx, tx, assetID), fmt.Sprintf("%s: %d items", source, len(items))); err != nil {
 		return err
 	}
-	after, err := softwareKeys(ctx, tx, assetID)
+	after, err := deviceKeys(ctx, tx, assetID)
 	if err != nil {
 		return err
 	}
 	o.add(EventSoftwareChanged, AssetEvent{AssetID: assetID})
 	o.after = append(o.after, s.matchEvents(assetID, before, after))
-	if pkgChanged { // The keys did not change, so matchEvents says nothing; one event makes findings read the device again
-		o.after = append(o.after, func(ctx context.Context) []Event {
-			cves, err := s.cves(ctx, after)
-			if err != nil || len(cves) == 0 {
-				return nil
-			}
-			return []Event{{Name: EventMatchChanged, Data: MatchEvent{AssetID: assetID, CVE: slices.Min(cves), Basis: "product"}}}
-		})
+	if released && slices.Equal(before, after) { // the keys did not change, so matchEvents says nothing
+		o.after = append(o.after, s.rematchEvent(assetID, after))
 	}
 	return nil
 }
 
-// UpsertSoftware replaces the software a source reported for a device (PRE-2, POST-2): rows of that source
-// not in items are removed, rows of other sources stay. "manual" is refused: manual rows are declared one by
-// one (AddSoftware) and a sync must never delete what a person declared.
+// UpsertSoftware replaces the software a source read on a device (PRE-2, POST-2): the readings of that source not in items go,
+// readings of other sources stay. "manual" and "agent" are refused: a person's entries are set one by one, and an agent list
+// names the agent that read it ("box" for the box's own packages).
 func (s *Service) UpsertSoftware(ctx context.Context, assetID string, items []SoftwareItem, source string) error {
-	if !observe.ValidSource(observe.Source(source)) || source == "manual" {
+	if !observe.ValidSoftwareSource(observe.Source(source)) {
 		return invalid("software source %q is not allowed", source)
 	}
 	clean, err := s.checkItems(ctx, items)
@@ -312,20 +371,21 @@ func (s *Service) UpsertSoftware(ctx context.Context, assetID string, items []So
 		if !ok {
 			return ErrNotFound
 		}
-		return s.replaceSoftwareTx(ctx, tx, o, assetID, clean, source, s.now())
+		return s.replaceSoftwareTx(ctx, tx, o, assetID, clean, source, nil, s.now())
 	})
 }
 
 // ReplaceSoftware implements observe.SoftwareSink: the device is found by MAC or IP, or created unapproved.
-func (s *Service) ReplaceSoftware(ctx context.Context, hint observe.AssetHint, source observe.Source, items []observe.Software) error {
+func (s *Service) ReplaceSoftware(ctx context.Context, hint observe.AssetHint, source observe.Source, scope []string, items []observe.Software) error {
 	ip, mac, err := checkHint(hint)
 	if err != nil {
 		return err
 	}
-	if !observe.ValidSource(source) || source == observe.Manual {
+	if !observe.ValidSoftwareSource(source) {
 		return invalid("software source %q is not allowed", source)
 	}
-	agent, err := checkAgent(hint, source)
+	class := observe.ClassOf(source)
+	agent, err := checkAgent(hint, class)
 	if err != nil {
 		return err
 	}
@@ -333,11 +393,19 @@ func (s *Service) ReplaceSoftware(ctx context.Context, hint observe.AssetHint, s
 	if err != nil {
 		return err
 	}
+	if len(scope) > maxItems {
+		return invalid("a software list has a scope of at most %d instances", maxItems)
+	}
+	for _, inst := range scope {
+		if !instanceOK(inst) {
+			return invalid("a scope instance is not valid")
+		}
+	}
 	conv := make([]SoftwareItem, len(items))
 	cat := s.cpeCatalog(ctx, items)
 	for i, it := range items {
 		conv[i] = SoftwareItem{Display: it.Display, Vendor: it.Vendor, Product: it.Product, Version: it.Version, CPE: it.CPE, KevKeys: it.KevKeys, Confidence: it.Confidence, Guess: it.Guess, Packaged: it.Packaged,
-			PkgVersion: it.PkgVersion, PkgSource: it.PkgSource}
+			PkgVersion: it.PkgVersion, PkgSource: it.PkgSource, Instance: it.Instance}
 		if len(it.KevKeys) == 0 && it.CPE != "" && cat != nil && !it.Guess {
 			conv[i].KevKeys = cat.keysForCPE(it.CPE) // nmap's "apple:iphone_os" is CISA's "Apple|iOS"; nil keeps the vendor|product key
 		}
@@ -352,12 +420,17 @@ func (s *Service) ReplaceSoftware(ctx context.Context, hint observe.AssetHint, s
 	}
 	return s.write(ctx, func(tx *sql.Tx, o *outbox) error {
 		now := s.seen(s.clock())
-		id, err := s.deviceFor(ctx, tx, o, cleanObs{ip: ip, mac: mac, agent: agent, from: from, source: string(source), seenAt: now})
+		id, err := s.deviceFor(ctx, tx, o, cleanObs{ip: ip, mac: mac, agent: agent, from: from, source: string(class), seenAt: now})
 		if err != nil || id == "" { // "": no device may take the list (resolve)
 			return err
 		}
-		return s.replaceSoftwareTx(ctx, tx, o, id, clean, string(source), now)
+		return s.replaceSoftwareTx(ctx, tx, o, id, clean, string(source), scope, now)
 	})
+}
+
+// instanceOK checks an instance a source gives: at most 120 printable characters ("" is the source's only reading).
+func instanceOK(inst string) bool {
+	return inst == "" || cleanText(inst) && utf8.RuneCountInString(inst) <= 120
 }
 
 // cpeCatalog is the catalog when an item of the list has a CPE, for its KEV keys (keysForCPE); nil otherwise, or when it cannot

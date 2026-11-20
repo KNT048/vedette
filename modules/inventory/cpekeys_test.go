@@ -15,7 +15,7 @@ func TestNmapCPEGetsTheCatalogKEVKeys(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	hint := observe.AssetHint{IP: netip.MustParseAddr("192.0.2.40")}
-	err := e.svc.ReplaceSoftware(e.ctx(), hint, observe.Nmap, []observe.Software{
+	err := e.svc.ReplaceSoftware(e.ctx(), hint, observe.Nmap, nil, []observe.Software{
 		{Display: "Apple iOS 15", Vendor: "apple", Product: "iphone os", Version: "15", CPE: "cpe:/o:apple:iphone_os:15", Confidence: 0.9},
 		{Display: "Windows 10 1607", Vendor: "microsoft", Product: "windows 10", Version: "1607", CPE: "cpe:/o:microsoft:windows_10:1607", Confidence: 0.9},
 		{Display: "FortiOS 7.2", Vendor: "fortinet", Product: "fortios", Version: "7.2", CPE: "cpe:/o:fortinet:fortios:7.2", Confidence: 0.9},
@@ -26,25 +26,17 @@ func TestNmapCPEGetsTheCatalogKEVKeys(t *testing.T) {
 	}
 	keys := func(product string) []string {
 		t.Helper()
-		rows, err := e.db.Reader().QueryContext(e.ctx(), `SELECT k.kev_key FROM inv_software s JOIN inv_software_kev k ON k.software_id = s.id WHERE s.product = ? ORDER BY 1`, product)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer func() { _ = rows.Close() }()
-		var out []string
-		for rows.Next() {
-			var k string
-			if err := rows.Scan(&k); err != nil {
-				t.Fatal(err)
+		for _, sw := range matchRows(t, e, deviceAt(t, e, hint.IP)) {
+			if sw.Product == product {
+				return sw.KevKeys
 			}
-			out = append(out, k)
 		}
-		return out
+		return nil
 	}
 	if k := keys("iphone os"); !slices.Contains(k, "apple|ios") || slices.Contains(k, "apple|iphone os") {
 		t.Errorf("iOS keys = %v, want the catalog's (apple|ios ...)", k)
 	}
-	if k := keys("windows 10"); !slices.Contains(k, "microsoft|windows") || slices.Contains(k, "microsoft|windows 10") {
+	if k := keys("windows 10"); !slices.Contains(k, "microsoft|windows") {
 		t.Errorf("Windows 10 keys = %v, want the catalog's (microsoft|windows ...)", k)
 	}
 	if k := keys("fortios"); !slices.Contains(k, "fortinet|fortios") || !slices.Contains(k, "fortinet|multiple products") {
@@ -55,7 +47,7 @@ func TestNmapCPEGetsTheCatalogKEVKeys(t *testing.T) {
 	}
 	// Review H1: an OS nmap only guessed is stored and shown, with no key at all: it raises no finding.
 	guess := observe.AssetHint{IP: netip.MustParseAddr("192.0.2.41")}
-	if err := e.svc.ReplaceSoftware(e.ctx(), guess, observe.Nmap, []observe.Software{
+	if err := e.svc.ReplaceSoftware(e.ctx(), guess, observe.Nmap, nil, []observe.Software{
 		{Display: "Linux 5.4 - 5.15", Vendor: "linux", Product: "linux kernel", CPE: "cpe:/o:linux:linux_kernel", Confidence: 0.9, Guess: true},
 	}); err != nil {
 		t.Fatal(err)

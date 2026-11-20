@@ -43,7 +43,7 @@ func TestContract_AnIgnoredDeviceIsKnownButNotWatched(t *testing.T) {
 	ip := netip.MustParseAddr("192.168.18.129")
 	e.record(obs(ip, phoneMAC, observe.Hostname, "iPhone", observe.Passive, 0.7))
 	id := e.idByMAC(phoneMAC)
-	if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: ip, MAC: phoneMAC}, observe.Nmap, []observe.Software{
+	if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: ip, MAC: phoneMAC}, observe.Nmap, nil, []observe.Software{
 		{Display: "OpenSSH", Vendor: "OpenBSD", Product: "OpenSSH", Version: "9.6p1", KevKeys: []string{"openbsd|openssh"}, Confidence: 0.9},
 	}); err != nil {
 		t.Fatal(err)

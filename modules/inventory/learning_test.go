@@ -60,7 +60,7 @@ func TestContract_DiscoveredWhileTheSourceIsLearning(t *testing.T) {
 	}
 	agent := func(ip string) {
 		t.Helper()
-		if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: netip.MustParseAddr(ip)}, observe.Agent, []observe.Software{{Display: "htop", Vendor: "htop", Product: "htop", Version: "3.3.0", Confidence: 0.9}}); err != nil {
+		if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: netip.MustParseAddr(ip)}, observe.Osquery, nil, []observe.Software{{Display: "htop", Vendor: "htop", Product: "htop", Version: "3.3.0", Confidence: 0.9}}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -162,7 +162,7 @@ func TestContract_MatchSoftwareSaysWhereItCameFrom(t *testing.T) {
 	hint := observe.AssetHint{IP: netip.MustParseAddr("192.168.20.30")}
 	sync := func(packaged bool) {
 		t.Helper()
-		err := e.svc.ReplaceSoftware(e.ctx(), hint, observe.Agent, []observe.Software{
+		err := e.svc.ReplaceSoftware(e.ctx(), hint, observe.Osquery, nil, []observe.Software{
 			{Display: "OpenSSL", Vendor: "OpenSSL", Product: "OpenSSL", Version: "3.0.13", KevKeys: []string{"openssl|openssl"}, Confidence: 0.9, Packaged: packaged},
 			{Display: "Google Chrome", Vendor: "Google", Product: "Chrome", Version: "130.0", Confidence: 0.9},
 		})
@@ -172,7 +172,7 @@ func TestContract_MatchSoftwareSaysWhereItCameFrom(t *testing.T) {
 	}
 	sync(false)
 	sync(true) // the same rows again, now from dpkg: the origin follows the latest report
-	if err := e.svc.ReplaceSoftware(e.ctx(), hint, observe.Scan, []observe.Software{{Display: "nginx", Vendor: "F5", Product: "nginx", Version: "1.20.1", Confidence: 0.7}}); err != nil {
+	if err := e.svc.ReplaceSoftware(e.ctx(), hint, observe.Scan, nil, []observe.Software{{Display: "nginx", Vendor: "F5", Product: "nginx", Version: "1.20.1", Confidence: 0.7}}); err != nil {
 		t.Fatal(err)
 	}
 	id := e.idOf("192.168.20.30")

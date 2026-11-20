@@ -146,7 +146,7 @@ func TestDevicesRunningNamesTheMatchingSoftware(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	hint := observe.AssetHint{IP: netip.MustParseAddr("192.0.2.60")}
-	if err := e.svc.ReplaceSoftware(e.ctx(), hint, observe.Agent, []observe.Software{
+	if err := e.svc.ReplaceSoftware(e.ctx(), hint, observe.Osquery, nil, []observe.Software{
 		{Display: "3cpio", Vendor: "3cpio", Product: "3cpio", Version: "0.5.1", Confidence: 0.95, Packaged: true},
 		{Display: "OpenSSH", Vendor: "OpenBSD", Product: "OpenSSH", Version: "9.6p1", KevKeys: []string{"openbsd|openssh"}, Confidence: 0.95, Packaged: true},
 	}); err != nil {
@@ -612,7 +612,7 @@ func TestUpsertSoftwareDropsOnlyTheItemWithAnInvisibleCharacter(t *testing.T) {
 		{Vendor: "Mozilla", Product: "Firefox", Version: "121", Confidence: 0.9},
 		{Vendor: "Evil\u200cCorp", Product: "Agent", Confidence: 0.9},
 		{Vendor: "OpenBSD", Product: "OpenSSH", Version: "9.6", Confidence: 0.9},
-	}, "agent")
+	}, "osquery")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -628,7 +628,7 @@ func TestUpsertSoftwareDropsOnlyTheItemWithAnInvisibleCharacter(t *testing.T) {
 	if agent != 2 || evil != 0 {
 		t.Fatalf("%d agent rows, %d from the bad item; want the 2 clean items only", agent, evil)
 	}
-	if err := e.svc.UpsertSoftware(e.ctx(), id, []inventory.SoftwareItem{{Vendor: "a", Product: "b", Confidence: 2}}, "agent"); err == nil {
+	if err := e.svc.UpsertSoftware(e.ctx(), id, []inventory.SoftwareItem{{Vendor: "a", Product: "b", Confidence: 2}}, "osquery"); err == nil {
 		t.Fatal("confidence 2 accepted")
 	}
 }

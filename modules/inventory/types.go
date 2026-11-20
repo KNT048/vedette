@@ -207,6 +207,8 @@ type SoftwareItem struct {
 	// PkgVersion and PkgSource: a deb row's full Debian version and source package. Stored only with Packaged; a value
 	// that is not a Debian version or package name is dropped (the row stays, without a distribution decision).
 	PkgVersion, PkgSource string
+	// Instance tells two readings of one product by one source apart (observe.Software.Instance).
+	Instance string
 }
 
 // Observed is a value with where it came from (contract.ts Observed).
@@ -236,10 +238,10 @@ type Software struct {
 	Confidence float64  `json:"confidence"`
 	// Basis is "guess" on the row of nmap's OS fingerprint (no version, no match key), "" otherwise (INV-44).
 	Basis string `json:"basis,omitempty"`
-	// NotInstalled: a person said this software is not installed on the device (INV-41 (6)): the mark itself, or the reported row it
-	// covers. Readers that tell what the device runs (the Ask context, the MCP asset data) leave it out. Not in the API.
+	// NotInstalled: a person said this software is not installed on the device (INV-41 (6)). Readers that tell what the device runs
+	// (the Ask context, the MCP asset data) leave it out. Not in the API.
 	NotInstalled bool `json:"-"`
-	// live: the row counts for matching (liveSW); seenAt: when its source last reported it. Read by declaredIdentity.
+	// live: a person's entry that is the line's value on a present line; seenAt: when its source last read it. Read by declaredIdentity.
 	live   bool
 	seenAt string
 }
@@ -257,9 +259,9 @@ type SoftwareView struct {
 	Basis      string   `json:"basis,omitempty"` // Software.Basis
 	// PkgVersion is the full package release (an agent's packaged row, or a person's correction, INV-41); absent when none.
 	PkgVersion *string `json:"pkg_version,omitempty"`
-	// CorrectedBy, on a row a sensor or agent reported, is the id of the person's correction that replaces it for matching (INV-41).
+	// CorrectedBy is never set: a person's version is a reading of the line itself (INV-54). Kept for the API shape.
 	CorrectedBy *string `json:"corrected_by,omitempty"`
-	// Correction, on a person's correction, says when it was set and what the sources read now (INV-41).
+	// Correction, on a line a person gave a version or marked not installed, says when and what the sources read now (INV-41).
 	Correction *SoftwareCorrection `json:"correction,omitempty"`
 	// CanCorrect: a person may correct this row's version (PATCH, INV-52), whatever source reported it. true on every row.
 	CanCorrect bool `json:"can_correct"`

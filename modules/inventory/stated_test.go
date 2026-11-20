@@ -28,7 +28,7 @@ func scanSwitch(e *env, mac, osGuess string) {
 	e.record(observe.Observation{AssetHint: h, Field: observe.OS, Value: osGuess, Source: observe.Nmap, Confidence: 0.95})
 	guess := junosGuess
 	guess.Display = osGuess
-	if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: h.IP}, observe.Nmap, []observe.Software{guess,
+	if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: h.IP}, observe.Nmap, nil, []observe.Software{guess,
 		{Display: "OpenSSH 6.9", Vendor: "openbsd", Product: "openssh", Version: "6.9", CPE: "cpe:/a:openbsd:openssh:6.9", Confidence: 0.95}}); err != nil {
 		e.t.Fatal(err)
 	}
@@ -53,7 +53,8 @@ func osObservation(t *testing.T, d inventory.Detail, source string) inventory.Ob
 
 // INV-44: what a device announces about itself ranks above a scan's guess. A switch states "JUNOS 15.1R7.9" over LLDP on a
 // Juniper card while nmap's fingerprint guesses "JUNOS 12": the statement is the OS everywhere (the device, its list row, the
-// matcher's OS), the guess row leaves the software list and matching, and the guess stays in Observations as a guess.
+// matcher's OS, a software line of its own), the guess row leaves the software list and matching, and the guess stays in Observations
+// as a guess.
 // Whichever arrives first, the result is the same.
 func TestStatedOSOutranksTheScanGuess(t *testing.T) {
 	for _, order := range []string{"scan first", "frame first"} {
@@ -79,9 +80,9 @@ func TestStatedOSOutranksTheScanGuess(t *testing.T) {
 				t.Errorf("model %+v, want EX4200-48T stated over LLDP like the OS of its frame", d.Model)
 			}
 			list, match := shown(e, id)
-			for _, l := range [][]string{list, match} {
-				if len(l) != 1 || l[0] != "openssh" {
-					t.Errorf("software %v, want only openssh: the scan's guess row is outranked", l)
+			for _, l := range [][]string{list, match} { // the stated OS is a software line of its own
+				if len(l) != 2 || l[0] != "Junos OS" || l[1] != "openssh" {
+					t.Errorf("software %v, want Junos OS (the statement) and openssh: the scan's guess row is outranked", l)
 				}
 			}
 			m, _, err := e.svc.MatchInput(e.ctx(), id)
@@ -225,7 +226,7 @@ func TestScanGuessTheNewerScanWinsOverAMoreConfidentOlderOne(t *testing.T) {
 		e.record(observe.Observation{AssetHint: h, Field: observe.OS, Value: name, Source: observe.Nmap, Confidence: conf})
 		row := junosGuess
 		row.Display, row.Confidence = name, conf
-		if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: h.IP}, observe.Nmap, []observe.Software{row}); err != nil {
+		if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: h.IP}, observe.Nmap, nil, []observe.Software{row}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -287,7 +288,7 @@ func TestSelfStatedFirmwareOutranksTheScanGuessButNotSNMP(t *testing.T) {
 		{Display: guess, Vendor: "linux", Product: "linux_kernel", CPE: "cpe:/o:linux:linux_kernel", Confidence: 0.9, Guess: true},
 		{Display: fw, Vendor: "hp", Product: "integrated lights-out 4 firmware", Version: "2.77", CPE: "cpe:2.3:o:hp:integrated_lights-out_4_firmware:2.77:*:*:*:*:*:*:*", Confidence: 0.95},
 	}
-	if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: h.IP}, observe.Nmap, rows); err != nil {
+	if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: h.IP}, observe.Nmap, nil, rows); err != nil {
 		t.Fatal(err)
 	}
 	id := e.idOf(switchIP)
@@ -320,13 +321,13 @@ func TestSelfStatedFirmwareRowGetsKevKeysFromItsCPE(t *testing.T) {
 	e := newEnv(t)
 	h := observe.AssetHint{IP: netip.MustParseAddr(switchIP), MAC: "aa:bb:cc:00:00:32"}
 	e.record(observe.Observation{AssetHint: h, Field: observe.Vendor, Value: "VMware, Inc.", Source: observe.Nmap, Confidence: 0.6})
-	if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: h.IP}, observe.Nmap, []observe.Software{
+	if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: h.IP}, observe.Nmap, nil, []observe.Software{
 		{Display: "VMware ESXi 8.0 Update 3 (build 24022510)", Vendor: "vmware", Product: "esxi", Version: "8.0", CPE: "cpe:2.3:o:vmware:esxi:8.0:update_3:*:*:*:*:*:*", Confidence: 0.95}}); err != nil {
 		t.Fatal(err)
 	}
 	var keys string
-	if err := e.db.Reader().QueryRowContext(e.ctx(), `SELECT coalesce(group_concat(k.kev_key, ' '), '') FROM inv_software_kev k JOIN inv_software s ON s.id = k.software_id JOIN inv_asset a ON a.id = s.asset_id WHERE a.ip = ?`, switchIP).Scan(&keys); err != nil {
-		t.Fatal(err)
+	for _, sw := range matchRows(t, e, deviceAt(t, e, h.IP)) {
+		keys += strings.Join(sw.KevKeys, " ") + " "
 	}
 	if !strings.Contains(keys, "vmware|esxi") {
 		t.Fatalf("KEV keys %q, want vmware|esxi", keys)

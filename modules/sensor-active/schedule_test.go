@@ -194,11 +194,11 @@ type failingSoftware struct {
 	fail error
 }
 
-func (f *failingSoftware) ReplaceSoftware(ctx context.Context, h observe.AssetHint, src observe.Source, items []observe.Software) error {
+func (f *failingSoftware) ReplaceSoftware(ctx context.Context, h observe.AssetHint, src observe.Source, scope []string, items []observe.Software) error {
 	if f.fail != nil {
 		return f.fail
 	}
-	return f.sink.ReplaceSoftware(ctx, h, src, items)
+	return f.sink.ReplaceSoftware(ctx, h, src, scope, items)
 }
 
 // AddServices fails too while fail is set: a gentle scan's only list write.

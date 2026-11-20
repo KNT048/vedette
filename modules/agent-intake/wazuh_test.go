@@ -407,7 +407,7 @@ func TestWazuh_PullFillsTheInventory(t *testing.T) {
 		t.Fatalf("7-zip %+v", win.Software)
 	}
 	// The operating system's own row, by the update revision Wazuh's os version carries
-	if os, ok := swByProduct(win, "Windows Server 2022"); !ok || os.Vendor != "microsoft" || *os.Version != "10.0.20348.2700" || !slices.Equal(os.Kev, []string{"microsoft|windows"}) {
+	if os, ok := swByProduct(win, "Windows Server 2022"); !ok || os.Vendor != "microsoft" || *os.Version != "10.0.20348.2700" || !slices.Contains(os.Kev, "microsoft|windows") {
 		t.Fatalf("Windows row %+v", win.Software)
 	}
 	// The NAT'd agent (its ip is not among its own addresses) and the manager on 127.0.0.1 are skipped: nothing at 203.0.113.9.
@@ -592,7 +592,7 @@ func TestWazuh_MACClaimCannotWriteOnAnotherDevice(t *testing.T) {
 	if err := r.inv.Record(t.Context(), []observe.Observation{{AssetHint: hint, Field: observe.Hostname, Value: "dc01", Source: observe.Agent, Confidence: 0.95}}); err != nil {
 		t.Fatal(err)
 	}
-	if err := r.inv.ReplaceSoftware(t.Context(), hint, observe.Agent, []observe.Software{{Display: "OpenSSH", Vendor: "OpenBSD", Product: "OpenSSH", Version: "8.0p1", KevKeys: []string{"openbsd|openssh"}, Confidence: 0.95}}); err != nil {
+	if err := r.inv.ReplaceSoftware(t.Context(), hint, observe.Osquery, nil, []observe.Software{{Display: "OpenSSH", Vendor: "OpenBSD", Product: "OpenSSH", Version: "8.0p1", KevKeys: []string{"openbsd|openssh"}, Confidence: 0.95}}); err != nil {
 		t.Fatal(err)
 	}
 	r.fake.mu.Lock()

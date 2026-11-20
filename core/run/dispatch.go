@@ -111,7 +111,7 @@ func (m *Manager) dispatch(ctx context.Context) error {
 		return err
 	}
 	for _, s := range start {
-		m.launch(s)
+		m.launch(s) //nolint:contextcheck // a run outlives this dispatch call: it runs under the manager's own base context
 	}
 	return nil
 }
@@ -157,7 +157,7 @@ func (m *Manager) launch(s starting) {
 func (m *Manager) execute(ctx context.Context, k Kind, x *Exec) (res Result, err error) {
 	defer func() {
 		if p := recover(); p != nil {
-			m.cfg.Log.Error("runs: a run panicked", "run", x.id, "kind", k.key(), "panic", p, "stack", string(debug.Stack()))
+			m.cfg.Log.ErrorContext(ctx, "runs: a run panicked", "run", x.id, "kind", k.key(), "panic", p, "stack", string(debug.Stack()))
 			res, err = Result{}, errors.New("the run stopped on an internal error")
 		}
 	}()

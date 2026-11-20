@@ -171,7 +171,7 @@ func (m *Manager) List(ctx context.Context, f Filter) ([]Run, int, error) {
 	}
 	db := m.cfg.DB.Reader()
 	var total int
-	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM core_run r`+cond, args...).Scan(&total); err != nil { //nolint:gosec // conditions are constants; values are bound
+	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM core_run r`+cond, args...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("run: count: %w", err)
 	}
 	limit := f.Limit

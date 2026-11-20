@@ -613,7 +613,7 @@ func TestLogCapRetentionAndList(t *testing.T) {
 	var x *run.Exec
 	hold := make(chan struct{})
 	got := make(chan struct{})
-	p := b.process(nil, run.Kind{Module: "scan", Name: "talk", Lane: "talk", Run: func(ctx context.Context, e *run.Exec) (run.Result, error) {
+	p := b.process(nil, run.Kind{Module: "scan", Name: "talk", Lane: "talk", Run: func(_ context.Context, e *run.Exec) (run.Result, error) {
 		x = e
 		close(got)
 		<-hold

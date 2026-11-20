@@ -47,7 +47,7 @@ type scanWrite struct {
 type written struct {
 	closed    []string          // the services this scan closed
 	checked   map[string]string // which ports this scan probed on each address it reached: the run items of the next scans' INV-22
-	final     vulnSet  // the content as written, with the exploited CVEs matched on it
+	final     vulnSet           // the content as written, with the exploited CVEs matched on it
 	counts    ScanCounts
 	opened    []PortRow
 	newIssues []string

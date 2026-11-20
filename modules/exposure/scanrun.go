@@ -106,8 +106,8 @@ type scanExec struct {
 	gbRun    GreenboneRun
 	written  bool // its rows are written
 	started  bool // its work began in this process (a queued scan has not)
-	err     error
-	done    chan struct{}
+	err      error
+	done     chan struct{}
 }
 
 // stoppedBy is why the box (or a person, through a terms change) stopped a run.

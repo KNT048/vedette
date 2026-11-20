@@ -51,7 +51,7 @@ const deviceAt = (ip: string): DeviceRef | null => {
   return a ? { id: a.id, name: a.hostname ?? a.ip } : null
 }
 // The new status vocabulary of a finding the alert names: an open one is under attack (the attack is in the alert); a handled one keeps its handling.
-const HANDLED: Partial<Record<Finding['status'], FindingStatus>> = { patched: 'patched', mitigated: 'mitigated', risk_accepted: 'accepted', not_relevant: 'not_relevant', false_positive: 'false_positive' }
+const HANDLED: Partial<Record<Finding['status'], FindingStatus>> = { patched: 'patched', mitigated: 'mitigated', not_relevant: 'not_relevant', false_positive: 'false_positive' }
 const PRIORITY_SEVERITY: Record<number, Severity> = { 1: 'high', 2: 'medium', 3: 'low', 4: 'info' }
 
 function view(s: Stored): Alert {

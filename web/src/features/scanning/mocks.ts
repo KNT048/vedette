@@ -12,7 +12,7 @@ import { BOX_ID, inventorySettingsStore, SAFETY_CHANGED, safetyVersion, snmpStor
 import { cidrRange, isPrivateCidr, LOCAL_RANGE_NAMES, normalizeRange, overlapping } from '@/features/inventory/validate'
 import { exposureMockRun, greenboneMock } from '@/features/exposure/mocks'
 import { lastScanRun, liveScanRuns } from '@/features/scan/mocks'
-import type { DiscoveryRunInput, Engine, EngineId, EnginePatch, ExclusionAdd, HistoryRun, RangeAdd, RunningJob, Scanning, SafetyInput } from './contract'
+import type { DiscoveryRunInput, Engine, EngineId, EnginePatch, ExclusionAdd, HistoryRun, RangeAdd, Run as RunSchema, RunDetail, RunningJob, RunStatus, Scanning, SafetyInput } from './contract'
 
 type EngineT = z.infer<typeof Engine>
 type Id = z.infer<typeof EngineId>
@@ -154,7 +154,130 @@ const coveredBy = (c: string, list: string[]) => {
 }
 const SCOPE_NOT_CONFIRMED = 'Tick the confirmation that these network ranges belong to your company and you are allowed to scan them. Vedette only scans within the confirmed scope.'
 
+// Runs (GET /runs, /runs/{id}, POST /runs/{id}/stop|resume): one model for every engine, as core/run keeps it. The seed holds a
+// sweep waiting for its window halfway through a /16, a device check running, one queued behind it in the same lane, finished
+// vulnerability checks, an exposure scan with an engine step under it, and an SNMP read a restart stopped.
+type RunRow = z.infer<typeof RunDetail>
+type RunState = z.infer<typeof RunStatus>
+const minAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString()
+const runBase = (r: Partial<RunRow> & Pick<RunRow, 'id' | 'module' | 'kind' | 'lane' | 'title' | 'status' | 'queued_at'>): RunRow => ({
+  trigger: 'manual', trigger_note: null, requested_by: 'admin@acme.example', schedule_id: null, subject: null, parent_id: null,
+  waiting_for: null, stop_reason: null, error: null, total: 0, done: 0, started_at: null, ended_at: null, updated_at: r.queued_at,
+  can_stop: false, can_resume: false, steps: [], items: [], items_total: 0, log: [], children: [], ...r,
+})
+export const runsStore = collection<RunRow[]>('core_runs', () => [
+  runBase({ id: 'run-m1', module: 'sensor-active', kind: 'lan_sweep', lane: 'nmap', title: 'LAN sweep of 192.168.10.0/24, 100.65.0.0/16', trigger: 'schedule', requested_by: 'system',
+    status: 'waiting', waiting_for: 'the scan window (opens 23:00)', queued_at: minAgo(1500), started_at: minAgo(1499), updated_at: minAgo(1020),
+    total: 256 + 65536, done: 256 + 6272,
+    steps: [
+      { seq: 1, name: '192.168.10.0/24', status: 'done', total: 256, done: 256, note: '12 hosts answered', started_at: minAgo(1499), ended_at: minAgo(1490) },
+      { seq: 2, name: '100.65.0.0/16', status: 'waiting', total: 65536, done: 6272, note: 'About 9 more nights at 50 packets/s', started_at: minAgo(1490), ended_at: null },
+    ],
+    items: [
+      { seq: 1, subject_kind: 'device', subject_id: 'a-fw01', label: '192.168.10.1 (FW-HQ)', outcome: 'found', note: null },
+      { seq: 2, subject_kind: 'device', subject_id: 'a-nas02', label: '192.168.10.21 (NAS-PHOTOS)', outcome: 'found', note: null },
+      { seq: 3, subject_kind: 'host', subject_id: null, label: '100.65.3.17', outcome: 'new', note: 'Answered on 22 and 443' },
+    ],
+    items_total: 3,
+    log: [
+      { ts: minAgo(1499), level: 'info', text: 'Started' },
+      { ts: minAgo(1490), level: 'info', text: '192.168.10.0/24 swept: 12 hosts answered' },
+      { ts: minAgo(1020), level: 'info', text: 'Waiting for the scan window (opens 23:00)' },
+    ] }),
+  runBase({ id: 'run-m2', module: 'sensor-active', kind: 'device_check', lane: 'checks', title: 'Check 192.168.10.21',
+    subject: { kind: 'device', id: 'a-nas02', label: 'NAS-PHOTOS' }, status: 'running', queued_at: minAgo(3), started_at: minAgo(3), updated_at: minAgo(1),
+    total: 5, done: 3, steps: [{ seq: 1, name: 'identify services', status: 'running', total: 5, done: 3, note: null, started_at: minAgo(3), ended_at: null }],
+    log: [{ ts: minAgo(3), level: 'info', text: 'Started' }] }),
+  runBase({ id: 'run-m3', module: 'sensor-active', kind: 'device_check', lane: 'checks', title: 'Check 192.168.10.12',
+    subject: { kind: 'device', id: 'a-web01', label: 'WEB01' }, status: 'queued', queued_at: minAgo(2) }),
+  runBase({ id: 'run-m4', module: 'scan', kind: 'vuln_check', lane: 'nuclei', title: 'Vulnerability checks of 12 devices', trigger: 'schedule', requested_by: 'system',
+    status: 'done', queued_at: minAgo(600), started_at: minAgo(600), ended_at: minAgo(540), updated_at: minAgo(540), total: 12, done: 12,
+    steps: [{ seq: 1, name: 'safe checks', status: 'done', total: 12, done: 12, note: '2 findings confirmed', started_at: minAgo(600), ended_at: minAgo(540) }],
+    log: [{ ts: minAgo(600), level: 'info', text: 'Started' }, { ts: minAgo(540), level: 'info', text: 'Done' }] }),
+  runBase({ id: 'run-m5', module: 'exposure', kind: 'exposure_scan', lane: 'exposure', title: 'Scan of www.example.com',
+    subject: { kind: 'target', id: 'et-1', label: 'www.example.com' }, status: 'done', queued_at: minAgo(300), started_at: minAgo(300), ended_at: minAgo(260), updated_at: minAgo(260) }),
+  runBase({ id: 'run-m6', module: 'exposure', kind: 'zap_passive', lane: 'zap', title: 'ZAP passive scan of www.example.com', parent_id: 'run-m5',
+    subject: { kind: 'target', id: 'et-1', label: 'www.example.com' }, status: 'done', queued_at: minAgo(290), started_at: minAgo(290), ended_at: minAgo(265), updated_at: minAgo(265) }),
+  runBase({ id: 'run-m7', module: 'sensor-active', kind: 'snmp_read', lane: 'snmp', title: 'SNMP read of 3 devices', trigger: 'schedule', requested_by: 'system',
+    status: 'stopped', stop_reason: 'Vedette restarted', queued_at: minAgo(2000), started_at: minAgo(2000), ended_at: minAgo(1990), updated_at: minAgo(1990),
+    log: [{ ts: minAgo(2000), level: 'info', text: 'Started' }, { ts: minAgo(1990), level: 'warn', text: 'Stopped: Vedette restarted' }] }),
+].map(withButtons), () => [])
+/** The buttons, by the one rule of core/run: stop while queued, waiting or running; resume while waiting, or stopped with a step left. */
+function withButtons(r: RunRow): RunRow {
+  const workLeft = r.steps.length === 0 || r.steps.some((s) => s.status !== 'done')
+  return { ...r, can_stop: ['queued', 'waiting', 'running'].includes(r.status), can_resume: r.status === 'waiting' || (r.status === 'stopped' && workLeft && r.kind === 'lan_sweep') }
+}
+const runSummary = (r: RunRow): z.infer<typeof RunSchema> => {
+  const { steps: _s, items: _i, items_total: _t, log: _l, children: _c, ...run } = r
+  return run
+}
+const runDetail = (id: string): RunRow | undefined => {
+  const all = runsStore.get()
+  const r = all.find((x) => x.id === id)
+  return r && { ...r, children: all.filter((x) => x.parent_id === id).map(runSummary) }
+}
+function setRun(id: string, fn: (r: RunRow) => RunRow) {
+  runsStore.update((l) => l.map((r) => (r.id === id ? withButtons({ ...fn(r), updated_at: nowIso() }) : r)))
+}
+const ENDED: RunState[] = ['done', 'partial', 'failed', 'stopped']
+const logLine = (r: RunRow, level: 'info' | 'warn', text: string): RunRow => ({ ...r, log: [...r.log, { ts: nowIso(), level, text }].slice(-200) })
+
+const runHandlers = [
+  http.get(`${API}/runs`, ({ request }) => {
+    const denied = guard('viewer')
+    if (denied) return denied
+    const u = new URL(request.url)
+    const p = (k: string) => u.searchParams.get(k) ?? ''
+    const q = p('q').trim().toLowerCase()
+    const rows = runsStore.get()
+      .filter((r) => (!p('module') || r.module === p('module')) && (!p('kind') || r.kind === p('kind')) && (!p('status') || r.status === p('status')))
+      .filter((r) => (!p('subject_kind') || r.subject?.kind === p('subject_kind')) && (!p('subject_id') || r.subject?.id === p('subject_id')))
+      .filter((r) => !q || r.title.toLowerCase().includes(q) || (r.subject?.label ?? '').toLowerCase().includes(q) || r.requested_by.toLowerCase().includes(q) || r.id === p('q').trim())
+      .sort((a, b) => b.queued_at.localeCompare(a.queued_at))
+    const offset = Number(p('offset') || 0)
+    const limit = Math.min(200, Math.max(1, Number(p('limit') || 200)))
+    return HttpResponse.json({ items: rows.slice(offset, offset + limit).map(runSummary), total: rows.length })
+  }),
+  http.get(`${API}/runs/:id`, ({ params }) => {
+    const denied = guard('viewer')
+    if (denied) return denied
+    const r = runDetail(String(params.id))
+    return r ? HttpResponse.json(r) : fail(404, 'not_found', 'This run does not exist, or it ended more than 400 days ago.')
+  }),
+  http.post(`${API}/runs/:id/stop`, ({ params }) => {
+    const denied = guard('operator')
+    if (denied) return denied
+    const id = String(params.id)
+    const r = runsStore.get().find((x) => x.id === id)
+    if (!r) return fail(404, 'not_found', 'This run does not exist, or it ended more than 400 days ago.')
+    if (ENDED.includes(r.status)) return fail(409, 'not_running', 'This run has already ended, so there is nothing to stop.')
+    const by = currentUser()?.email ?? 'system'
+    const reason = `Stopped by ${by}`
+    const stop = (x: RunRow): RunRow => (ENDED.includes(x.status) || x.status === 'stopping' ? x
+      : logLine({ ...x, status: 'stopped', stop_reason: reason, waiting_for: null, ended_at: nowIso(),
+        steps: x.steps.map((s) => (s.status === 'running' || s.status === 'waiting' ? { ...s, status: 'stopped' as const } : s)) }, 'warn', `Stopped: ${reason}`))
+    // The mock ends the work at once: a running run would be stopping for a moment on the box.
+    for (const x of [r, ...runsStore.get().filter((c) => c.parent_id === id)]) setRun(x.id, stop)
+    audit('scanning.run_stop', id, r.title)
+    return HttpResponse.json(runSummary(runsStore.get().find((x) => x.id === id)!))
+  }),
+  http.post(`${API}/runs/:id/resume`, ({ params }) => {
+    const denied = guard('operator')
+    if (denied) return denied
+    const id = String(params.id)
+    const r = runsStore.get().find((x) => x.id === id)
+    if (!r) return fail(404, 'not_found', 'This run does not exist, or it ended more than 400 days ago.')
+    if (!r.can_resume) return fail(409, 'not_resumable', 'This run cannot be resumed: it has no work left, or its engine cannot go on from where it stopped.')
+    const by = currentUser()?.email ?? 'system'
+    setRun(id, (x) => logLine({ ...x, status: 'queued', waiting_for: null, stop_reason: null, error: null, ended_at: null,
+      steps: x.steps.map((s) => (s.status === 'done' ? s : { ...s, status: 'queued' as const, ended_at: null })) }, 'info', `Resumed by ${by}`))
+    audit('scanning.run_resume', id, r.title)
+    return HttpResponse.json(runSummary(runsStore.get().find((x) => x.id === id)!))
+  }),
+]
+
 export const handlers = [
+  ...runHandlers,
   http.get(`${API}/scanning`, () => guard('viewer') ?? HttpResponse.json(scanningView())),
   http.get(`${API}/scanning/history`, ({ request }) => {
     const denied = guard('viewer')

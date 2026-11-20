@@ -138,6 +138,10 @@ var contractRoutes = map[string][]string{
 		"POST /scanning/safety/exclusions",
 		"PATCH /scanning/engines/{id}",
 		"POST /scanning/engines/nmap-discovery/run",
+		"GET /runs", // core/run: every engine's runs
+		"GET /runs/{id}",
+		"POST /runs/{id}/stop",
+		"POST /runs/{id}/resume",
 		"POST /auth/login",
 		"POST /auth/login/resend-code",
 		"POST /auth/logout",

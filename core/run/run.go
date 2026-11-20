@@ -131,8 +131,8 @@ type Manager struct {
 	base    context.Context
 	stop    context.CancelCauseFunc
 	kick    chan struct{}
-	loop    sync.WaitGroup // the dispatcher
-	runs    sync.WaitGroup // the executing runs
+	loop    sync.WaitGroup  // the dispatcher
+	runs    sync.WaitGroup  // the executing runs
 	ended   func(id string) // test hook: called after a run's end is recorded
 }
 

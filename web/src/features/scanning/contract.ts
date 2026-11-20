@@ -7,6 +7,7 @@ import { z } from 'zod'
 import { defineEndpoints } from '@/lib/contract'
 import { BEHAVIOUR_KINDS } from '@/lib/deviceTypes'
 import { JobProgress } from '@/lib/progress'
+import { RUN_STATUSES } from '@/lib/statusCodes'
 
 const iso = z.iso.datetime()
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).describe('HH:MM')
@@ -130,7 +131,76 @@ export const HistoryRun = z.object({
   text: z.string().describe('The outcome in words, only from what the run stored: "Swept 254 addresses: 12 hosts answered, 2 new devices", "2 of 3 devices answered over SNMP", "Failed: the device did not answer over SNMP." (an SNMP read nothing answered is failed, never partial), "Scanned 192.168.18.20: 3 open ports (22 ssh, 80 http, 443 https); OS guess <nmap\'s guess>; nothing changed since the previous check" (a device check: its open ports; the OS it recorded only when it is the OS the device page shows now, "OS guess <x>" for nmap\'s fingerprint, "OS <x>" for the device\'s own answer, "OS guess now <x> (changed since the previous check)"; otherwise "OS: scan guess not used now", never a second OS value; "since the previous check: port 8080 newly open, port 23 no longer open"), "Scanned 192.168.18.20: it did not answer", "Stopped: <reason>. Swept 64 addresses … before it ended", "Failed: <reason>."'),
 })
 
+// Runs: every run of every engine (a LAN sweep, a device check, an SNMP read, the vulnerability checks, an exposure scan and its
+// engine steps) as one model, core/run. The Runs tab lists them; /runs/<id> shows one; every "Open the run" link goes there.
+const word = z.string().regex(/^[a-z0-9_]{1,40}$/)
+export const RunStatus = z.enum(RUN_STATUSES).describe('queued: waits for its lane (another run of the same engine runs); waiting: paused with work left until what waiting_for names; running; stopping: a stop was asked and the work is ending; done; partial: ended with part of the work done; failed; stopped: by a person, by its module turned off, or by a restart (stop_reason says which)')
+export const RunTrigger = z.enum(['manual', 'schedule', 'event']).describe('manual: a person asked; schedule: a schedule came due; event: something the box saw (a new device, a finished sweep)')
+export const RunSubject = z.object({
+  kind: word.describe('device | target | scope (open)'),
+  id: z.string().describe('Its id in its module: a device id links to the device page, a target id to the exposure target'),
+  label: z.string().describe('Its name when the run was made; kept when the subject is gone'),
+})
+export const Run = z.object({
+  id: z.string(),
+  module: z.string().describe('The module whose engine does the work'),
+  kind: word.describe('lan_sweep | device_check | snmp_read | all_ports | vuln_check | exposure_scan | … (open)'),
+  lane: word.describe('What it occupies: one run at a time per lane (nmap, nuclei, exposure, openvas, …)'),
+  title: z.string().describe('What it does, e.g. "LAN sweep of 192.168.18.0/24, 100.65.0.0/16"'),
+  trigger: RunTrigger,
+  trigger_note: z.string().nullable().describe('Words on the trigger, e.g. "a new device appeared"'),
+  requested_by: z.string().describe('Who asked (an email), or system'),
+  schedule_id: z.string().nullable().describe('The schedule that came due, with trigger schedule'),
+  subject: RunSubject.nullable().describe('What the run is about; null for a run over several devices without one subject'),
+  parent_id: z.string().nullable().describe('The run this one is a step of (an engine step of an exposure scan)'),
+  status: RunStatus,
+  waiting_for: z.string().nullable().describe('Set only while waiting, e.g. "the scan window (opens 23:00)"'),
+  stop_reason: z.string().nullable().describe('Why it stopped, e.g. "Stopped by ann@example.com", "Vedette restarted"'),
+  error: z.string().nullable().describe('What went wrong, with failed or partial'),
+  total: z.number().int().min(0).describe('Units of work (addresses, devices, templates): the sum over its steps; 0 when it does not count them'),
+  done: z.number().int().min(0),
+  queued_at: iso, started_at: iso.nullable().describe('The first start; null while it never ran'), ended_at: iso.nullable().describe('Set exactly when the state is final'), updated_at: iso,
+  can_stop: z.boolean().describe('Queued, waiting or running'),
+  can_resume: z.boolean().describe('Waiting, or stopped with work left when its engine can go on from its steps'),
+})
+export const RunStep = z.object({
+  seq: z.number().int().min(1), name: z.string().describe('A phase or a range: "192.168.18.0/24", "identify services", "ZAP passive scan"'),
+  status: RunStatus, total: z.number().int().min(0), done: z.number().int().min(0),
+  note: z.string().nullable(), started_at: iso.nullable(), ended_at: iso.nullable(),
+})
+export const RunItem = z.object({
+  seq: z.number().int().min(1),
+  subject_kind: word.describe('device | host | target (open)'),
+  subject_id: z.string().nullable().describe('A device id for a link; null for an address no device has yet'),
+  label: z.string(), outcome: word.describe('found | new | checked | unreachable | failed | skipped (open)'), note: z.string().nullable(),
+})
+export const RunLogLine = z.object({ ts: iso, level: z.enum(['info', 'warn', 'error']), text: z.string() })
+export const RunDetail = Run.extend({
+  steps: z.array(RunStep).describe('In order; a resumed run continues from the first that is not done'),
+  items: z.array(RunItem).max(500).describe('The devices or hosts it touched, in the order they came, the first 500'),
+  items_total: z.number().int().min(0),
+  log: z.array(RunLogLine).max(200).describe('The newest 200 lines, oldest first (a run keeps 2,000 lines for 30 days)'),
+  children: z.array(Run).describe('The runs that are steps of this one'),
+})
+export const RunList = z.object({
+  items: z.array(Run).max(200).describe('Newest first'),
+  total: z.number().int().min(0).describe('Runs that match the filters, every page'),
+})
+const runParam = z.object({ id: z.string().max(96) })
+
 export const endpoints = defineEndpoints([
+  { method: 'get', path: '/runs', summary: 'Every run of every engine, newest first: LAN sweeps, device checks, SNMP reads, vulnerability checks, exposure scans and their engine steps. Filtered by module, kind, state and subject (a device\'s runs: subject_kind=device and subject_id); searched over the title, the subject\'s name, who asked and the id; paged by offset and limit (at most 200). A run is kept 400 days after it ended', stories: ['S-SCAN-4'], role: 'viewer',
+    query: z.object({
+      module: z.string().max(32).optional(), kind: z.string().max(40).optional(), status: RunStatus.optional(),
+      subject_kind: z.string().max(40).optional(), subject_id: z.string().max(96).optional(),
+      q: z.string().max(200).optional(),
+      offset: z.string().regex(/^[0-9]{1,6}$/).optional().describe('Rows to skip, default 0'),
+      limit: z.string().regex(/^[0-9]{1,3}$/).optional().describe('Rows of the page, 1 to 200 (default and above: 200)'),
+    }),
+    response: RunList, example: { query: { q: '', offset: '0', limit: '25' } } },
+  { method: 'get', path: '/runs/{id}', summary: 'One run: who or what started it and what it is about, its state with the reason when it waits or stopped, its progress per step, the devices it touched, the tail of its log and the runs under it. 404 not_found', stories: ['S-SCAN-4'], role: 'viewer', params: runParam, response: RunDetail, example: { params: { id: 'run-m1' } } },
+  { method: 'post', path: '/runs/{id}/stop', summary: 'Stop a run and the runs under it: a queued or waiting run stops at once, a running one is stopping until its work ends. Audited (scanning.run_stop). Answers the run as it is now; a run already stopping answers as it is. 404 not_found; 409 not_running (it has already ended)', stories: ['S-SCAN-4'], role: 'operator', params: runParam, response: Run },
+  { method: 'post', path: '/runs/{id}/resume', summary: 'Resume a run that waits, or one that was stopped with work left when its engine can go on from its steps (can_resume): it is queued again and continues from the first step that is not done. Audited (scanning.run_resume). Answers the run as it is now. 404 not_found; 409 not_resumable', stories: ['S-SCAN-4'], role: 'operator', params: runParam, response: Run },
   { method: 'get', path: '/scanning/history', summary: 'Every run of the LAN engines (discovery sweeps, device identifications, SNMP reads) and every stored scan of a public target, newest first, at most 200, with its outcome in words. The vulnerability checks keep their own list (GET /scans/runs). Answers whether or not the Vulnerability scans module is on', stories: ['S-SCAN-4', 'S-INV-1'], role: 'viewer', query: z.object({ asset: z.string().max(96).optional().describe('A device id (the device page\'s Last checks): only that device\'s runs, at most 200 of each kind: its identifications (kind device: the checks that name it, and checks stored before checks named their device that reached its address now), from the year of runs the box keeps; and, only while SNMP is set up on it, the SNMP reads of its SNMP read address, among the newest 1000 reads (a read of its address with a shared credential, before SNMP moved to each device, is not its own when it has no SNMP set up). No sweep, no public scan. An unknown device gives an empty list') }), response: z.object({ items: z.array(HistoryRun) }) },
   { method: 'get', path: '/scanning', summary: 'Every scanning engine with its switch, state, memory cost, last and next run, the jobs running now, and the shared safety settings (scope, window, speed, exclusions, fragile types)', stories: ['S-SCAN-4', 'S-CORE-1', 'S-INV-1'], role: 'viewer', response: Scanning },
   { method: 'put', path: '/scanning/safety', summary: 'Save the shared safety settings every LAN engine obeys (one writer; GET/PUT /inventory/settings and the window, rate and exclusions of /scans/config read and write the same values). 400 as PUT /inventory/settings: too_many_ranges, no_prefix, bad_cidr, public_range, overlap_range, bad_days, no_days, bad_time, bad_window, bad_rate (packets_per_s 1 to 1000, requests_per_s 1 to 20), bad_exclusion, too_many_exclusions, bad_kinds, scope_not_confirmed (while nmap-discovery is on); 409 safety_changed (with error.safety, the current block) when version is not the stored one: re-read, merge, save again. Publishes inventory.settings.changed: a run that the new values no longer allow stops', stories: ['S-SCAN-4', 'S-INV-1'], role: 'admin', body: SafetyInput, response: SafetySaved },

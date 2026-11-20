@@ -101,6 +101,62 @@ type CoreOrg struct {
 	InstallID     string
 }
 
+type CoreRun struct {
+	ID           string
+	Module       string
+	Kind         string
+	Lane         string
+	Title        string
+	Trigger      string
+	TriggerNote  *string
+	RequestedBy  string
+	ScheduleID   *string
+	SubjectKind  *string
+	SubjectID    *string
+	SubjectLabel *string
+	ParentID     *string
+	Status       string
+	WaitingFor   *string
+	StopReason   *string
+	Error        *string
+	Total        int64
+	Done         int64
+	QueuedAt     string
+	StartedAt    *string
+	EndedAt      *string
+	UpdatedAt    string
+}
+
+type CoreRunItem struct {
+	RunID       string
+	Seq         int64
+	SubjectKind string
+	SubjectID   *string
+	Label       string
+	Outcome     string
+	Note        *string
+}
+
+type CoreRunLog struct {
+	ID    int64
+	RunID string
+	Ts    string
+	Level string
+	Text  string
+}
+
+type CoreRunStep struct {
+	RunID     string
+	Seq       int64
+	Name      string
+	Status    string
+	Total     int64
+	Done      int64
+	Note      *string
+	StartedAt *string
+	EndedAt   *string
+}
+
 type CoreSecret struct {
 	ID         string
 	Purpose    string

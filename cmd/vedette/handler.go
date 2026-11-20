@@ -33,6 +33,7 @@ type handler struct {
 	server.Fallback
 	*core.ModuleHandlers
 	*core.ScanningHandlers
+	*core.RunHandlers
 	*core.APIHandlers
 	*authoidc.OIDCHandlers
 	*core.OSHandlers
@@ -66,6 +67,7 @@ func newHandler(ctx context.Context, d deps) handler {
 		Fallback:         server.Fallback{Log: d.Log},
 		ModuleHandlers:   core.NewModuleHandlers(d.DB, d.Reg),
 		ScanningHandlers: scanningHandlers(d), // #850: Settings › Scanning; its ports find the module services when asked
+		RunHandlers:      core.NewRunHandlers(d.Runs),
 		APIHandlers:      d.Core,
 		OIDCHandlers:     authoidc.NewHandlers(d.OIDC),
 		OSHandlers:       d.OS,

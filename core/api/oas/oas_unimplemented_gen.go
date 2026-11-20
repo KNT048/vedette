@@ -3569,6 +3569,29 @@ func (UnimplementedHandler) ScanPutScansConfig(ctx context.Context, req *ScanPut
 	return r, ht.ErrNotImplemented
 }
 
+// ScanningGetRuns implements scanning_get_runs operation.
+//
+// Every run of every engine, newest first: LAN sweeps, device checks, SNMP reads, vulnerability
+// checks, exposure scans and their engine steps. Filtered by module, kind, state and subject (a
+// device's runs: subject_kind=device and subject_id); searched over the title, the subject's name, who
+// asked and the id; paged by offset and limit (at most 200). A run is kept 400 days after it ended.
+//
+// GET /runs
+func (UnimplementedHandler) ScanningGetRuns(ctx context.Context, params ScanningGetRunsParams) (r *ScanningGetRunsOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ScanningGetRunsID implements scanning_get_runs_id operation.
+//
+// One run: who or what started it and what it is about, its state with the reason when it waits or
+// stopped, its progress per step, the devices it touched, the tail of its log and the runs under it.
+// 404 not_found.
+//
+// GET /runs/{id}
+func (UnimplementedHandler) ScanningGetRunsID(ctx context.Context, params ScanningGetRunsIDParams) (r *ScanningGetRunsIDOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ScanningGetScanning implements scanning_get_scanning operation.
 //
 // Every scanning engine with its switch, state, memory cost, last and next run, the jobs running now,
@@ -3603,6 +3626,28 @@ func (UnimplementedHandler) ScanningGetScanningHistory(ctx context.Context, para
 //
 // PATCH /scanning/engines/{id}
 func (UnimplementedHandler) ScanningPatchScanningEnginesID(ctx context.Context, req *ScanningPatchScanningEnginesIDReq, params ScanningPatchScanningEnginesIDParams) (r *ScanningPatchScanningEnginesIDOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ScanningPostRunsIDResume implements scanning_post_runs_id_resume operation.
+//
+// Resume a run that waits, or one that was stopped with work left when its engine can go on from its
+// steps (can_resume): it is queued again and continues from the first step that is not done. Audited
+// (scanning.run_resume). Answers the run as it is now. 404 not_found; 409 not_resumable.
+//
+// POST /runs/{id}/resume
+func (UnimplementedHandler) ScanningPostRunsIDResume(ctx context.Context, params ScanningPostRunsIDResumeParams) (r *ScanningPostRunsIDResumeOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ScanningPostRunsIDStop implements scanning_post_runs_id_stop operation.
+//
+// Stop a run and the runs under it: a queued or waiting run stops at once, a running one is stopping
+// until its work ends. Audited (scanning.run_stop). Answers the run as it is now; a run already
+// stopping answers as it is. 404 not_found; 409 not_running (it has already ended).
+//
+// POST /runs/{id}/stop
+func (UnimplementedHandler) ScanningPostRunsIDStop(ctx context.Context, params ScanningPostRunsIDStopParams) (r *ScanningPostRunsIDStopOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

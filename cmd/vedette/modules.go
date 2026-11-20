@@ -19,6 +19,7 @@ import (
 	"github.com/knt048/vedette/core/logexport"
 	"github.com/knt048/vedette/core/modreg"
 	"github.com/knt048/vedette/core/pki"
+	corerun "github.com/knt048/vedette/core/run"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/internal/release"
@@ -71,6 +72,7 @@ type deps struct {
 	ConnReader *read.Reader
 	Logs       *logexport.Registry   // the sources of /core/logs/export (INV-13): core adds "audit", registerLogSources the rest
 	Core       *core.APIHandlers     // core's own operations (sign-in, account, users, setup, audit, general settings)
+	Runs       *corerun.Manager      // every engine's runs (core/run): the queue per lane, restart recovery, the Runs tab
 	OS         *core.OSHandlers      // operating system updates and the backup download, on top of vedette-host
 	Network    *core.NetworkHandlers // Box network (S-CORE-8, routes of the host module) on top of vedette-host
 	// HostSocket is the unix socket of vedette-host ("" = this install has none: every OS endpoint answers 409 not_appliance).

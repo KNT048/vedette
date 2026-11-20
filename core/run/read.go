@@ -214,6 +214,11 @@ func (m *Manager) getTx(ctx context.Context, q querier, id string) (Run, error) 
 	return r, nil
 }
 
+// Read returns a run without its steps, items, log and children.
+func (m *Manager) Read(ctx context.Context, id string) (Run, error) {
+	return m.getTx(ctx, m.cfg.DB.Reader(), id)
+}
+
 // Get returns a run with its steps, its first DetailItems items, its last DetailLog log lines and the runs under it.
 func (m *Manager) Get(ctx context.Context, id string) (Detail, error) {
 	db := m.cfg.DB.Reader()
